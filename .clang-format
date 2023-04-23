@@ -1,0 +1,4 @@
+# .clang-format inferred with clang-unformat (https://www.github.com/alandefreitas/clang-unformat)
+Language: Cpp                                      # single option
+BasedOnStyle: LLVM                               # edit distance 11865
+ColumnLimit: 120

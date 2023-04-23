@@ -1,0 +1,3 @@
+
+include("${CMAKE_CURRENT_LIST_DIR}/hpp_proto-targets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/add_hpp_proto_lib.cmake")
