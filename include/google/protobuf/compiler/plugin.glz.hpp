@@ -1,6 +1,7 @@
 #pragma once
 
-#include <glaze/glaze.hpp>
+#include <hpp_proto/hpp_proto_json.h>
+#include <google/protobuf/descriptor.glz.hpp>
 #include <google/protobuf/compiler/plugin.msg.hpp>
 
 template <>
@@ -17,10 +18,10 @@ template <>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest> {
   using T = google::protobuf::compiler::CodeGeneratorRequest;
   static constexpr auto value = object(
-    "file_to_generate", &T::file_to_generate,
+    "fileToGenerate", &T::file_to_generate,
     "parameter", &T::parameter,
-    "proto_file", &T::proto_file,
-    "compiler_version", &T::compiler_version);
+    "protoFile", &T::proto_file,
+    "compilerVersion", &T::compiler_version);
 };
 
 template <>
@@ -28,7 +29,7 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse> {
   using T = google::protobuf::compiler::CodeGeneratorResponse;
   static constexpr auto value = object(
     "error", &T::error,
-    "supported_features", &T::supported_features,
+    "supportedFeatures", [](auto &&self) -> auto& { return hpp::proto::wrap_int64(self.supported_features); },
     "file", &T::file);
 };
 
@@ -37,9 +38,9 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse::File> {
   using T = google::protobuf::compiler::CodeGeneratorResponse::File;
   static constexpr auto value = object(
     "name", &T::name,
-    "insertion_point", &T::insertion_point,
+    "insertionPoint", &T::insertion_point,
     "content", &T::content,
-    "generated_code_info", &T::generated_code_info);
+    "generatedCodeInfo", &T::generated_code_info);
 };
 
 template <>

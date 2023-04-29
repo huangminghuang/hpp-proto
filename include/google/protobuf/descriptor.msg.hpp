@@ -11,6 +11,10 @@ struct UninterpretedOption {
     bool is_extension = {};
 
     bool operator == (const NamePart&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+    auto operator <=> (const NamePart&) const = default;
+#endif
   };
 
   std::vector<NamePart> name;
@@ -18,10 +22,14 @@ struct UninterpretedOption {
   hpp::proto::optional<uint64_t> positive_int_value;
   hpp::proto::optional<int64_t> negative_int_value;
   hpp::proto::optional<double> double_value;
-  hpp::proto::optional<std::vector<std::byte>> string_value;
+  hpp::proto::optional<hpp::proto::bytes> string_value;
   hpp::proto::optional<std::string> aggregate_value;
 
   bool operator == (const UninterpretedOption&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const UninterpretedOption&) const = default;
+#endif
 };
 
 struct SourceCodeInfo {
@@ -33,11 +41,19 @@ struct SourceCodeInfo {
     std::vector<std::string> leading_detached_comments;
 
     bool operator == (const Location&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+    auto operator <=> (const Location&) const = default;
+#endif
   };
 
   std::vector<Location> location;
 
   bool operator == (const SourceCodeInfo&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const SourceCodeInfo&) const = default;
+#endif
 };
 
 struct GeneratedCodeInfo {
@@ -52,14 +68,22 @@ struct GeneratedCodeInfo {
     hpp::proto::optional<std::string> source_file;
     hpp::proto::optional<int32_t> begin;
     hpp::proto::optional<int32_t> end;
-    hpp::proto::optional<Semantic> semantic;
+    std::optional<Semantic> semantic;
 
     bool operator == (const Annotation&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+    auto operator <=> (const Annotation&) const = default;
+#endif
   };
 
   std::vector<Annotation> annotation;
 
   bool operator == (const GeneratedCodeInfo&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const GeneratedCodeInfo&) const = default;
+#endif
 };
 
 struct MethodOptions {
@@ -75,21 +99,28 @@ struct MethodOptions {
 
   struct extension_t {
     using pb_extension = MethodOptions;
-    std::map<uint32_t, std::vector<std::byte>> fields;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
     bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
   } extensions;
 
-  auto get_extension(auto meta) {
+  auto get_extension(auto meta) const {
     return meta.read(extensions);
   }
-  auto set_extension(auto meta, auto &&value) {
-    return meta.write(extensions, value);
+  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
 
   bool operator == (const MethodOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const MethodOptions&) const = default;
+#endif
 };
 
 struct ServiceOptions {
@@ -98,21 +129,28 @@ struct ServiceOptions {
 
   struct extension_t {
     using pb_extension = ServiceOptions;
-    std::map<uint32_t, std::vector<std::byte>> fields;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
     bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
   } extensions;
 
-  auto get_extension(auto meta) {
+  auto get_extension(auto meta) const {
     return meta.read(extensions);
   }
-  auto set_extension(auto meta, auto &&value) {
-    return meta.write(extensions, value);
+  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
 
   bool operator == (const ServiceOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const ServiceOptions&) const = default;
+#endif
 };
 
 struct EnumValueOptions {
@@ -121,21 +159,28 @@ struct EnumValueOptions {
 
   struct extension_t {
     using pb_extension = EnumValueOptions;
-    std::map<uint32_t, std::vector<std::byte>> fields;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
     bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
   } extensions;
 
-  auto get_extension(auto meta) {
+  auto get_extension(auto meta) const {
     return meta.read(extensions);
   }
-  auto set_extension(auto meta, auto &&value) {
-    return meta.write(extensions, value);
+  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
 
   bool operator == (const EnumValueOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const EnumValueOptions&) const = default;
+#endif
 };
 
 struct EnumOptions {
@@ -146,21 +191,28 @@ struct EnumOptions {
 
   struct extension_t {
     using pb_extension = EnumOptions;
-    std::map<uint32_t, std::vector<std::byte>> fields;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
     bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
   } extensions;
 
-  auto get_extension(auto meta) {
+  auto get_extension(auto meta) const {
     return meta.read(extensions);
   }
-  auto set_extension(auto meta, auto &&value) {
-    return meta.write(extensions, value);
+  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
 
   bool operator == (const EnumOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const EnumOptions&) const = default;
+#endif
 };
 
 struct OneofOptions {
@@ -168,21 +220,28 @@ struct OneofOptions {
 
   struct extension_t {
     using pb_extension = OneofOptions;
-    std::map<uint32_t, std::vector<std::byte>> fields;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
     bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
   } extensions;
 
-  auto get_extension(auto meta) {
+  auto get_extension(auto meta) const {
     return meta.read(extensions);
   }
-  auto set_extension(auto meta, auto &&value) {
-    return meta.write(extensions, value);
+  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
 
   bool operator == (const OneofOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const OneofOptions&) const = default;
+#endif
 };
 
 struct FieldOptions {
@@ -225,27 +284,34 @@ struct FieldOptions {
   hpp::proto::optional<bool,false> deprecated;
   hpp::proto::optional<bool,false> weak;
   hpp::proto::optional<bool,false> debug_redact;
-  hpp::proto::optional<OptionRetention> retention;
-  hpp::proto::optional<OptionTargetType> target;
+  std::optional<OptionRetention> retention;
+  std::optional<OptionTargetType> target;
   std::vector<UninterpretedOption> uninterpreted_option;
 
   struct extension_t {
     using pb_extension = FieldOptions;
-    std::map<uint32_t, std::vector<std::byte>> fields;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
     bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
   } extensions;
 
-  auto get_extension(auto meta) {
+  auto get_extension(auto meta) const {
     return meta.read(extensions);
   }
-  auto set_extension(auto meta, auto &&value) {
-    return meta.write(extensions, value);
+  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
 
   bool operator == (const FieldOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const FieldOptions&) const = default;
+#endif
 };
 
 struct MessageOptions {
@@ -258,21 +324,28 @@ struct MessageOptions {
 
   struct extension_t {
     using pb_extension = MessageOptions;
-    std::map<uint32_t, std::vector<std::byte>> fields;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
     bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
   } extensions;
 
-  auto get_extension(auto meta) {
+  auto get_extension(auto meta) const {
     return meta.read(extensions);
   }
-  auto set_extension(auto meta, auto &&value) {
-    return meta.write(extensions, value);
+  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
 
   bool operator == (const MessageOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const MessageOptions&) const = default;
+#endif
 };
 
 struct FileOptions {
@@ -306,21 +379,28 @@ struct FileOptions {
 
   struct extension_t {
     using pb_extension = FileOptions;
-    std::map<uint32_t, std::vector<std::byte>> fields;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
     bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
   } extensions;
 
-  auto get_extension(auto meta) {
+  auto get_extension(auto meta) const {
     return meta.read(extensions);
   }
-  auto set_extension(auto meta, auto &&value) {
-    return meta.write(extensions, value);
+  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
 
   bool operator == (const FileOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const FileOptions&) const = default;
+#endif
 };
 
 struct MethodDescriptorProto {
@@ -332,6 +412,10 @@ struct MethodDescriptorProto {
   hpp::proto::optional<bool,false> server_streaming;
 
   bool operator == (const MethodDescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const MethodDescriptorProto&) const = default;
+#endif
 };
 
 struct ServiceDescriptorProto {
@@ -340,6 +424,10 @@ struct ServiceDescriptorProto {
   std::optional<ServiceOptions> options;
 
   bool operator == (const ServiceDescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const ServiceDescriptorProto&) const = default;
+#endif
 };
 
 struct EnumValueDescriptorProto {
@@ -348,6 +436,10 @@ struct EnumValueDescriptorProto {
   std::optional<EnumValueOptions> options;
 
   bool operator == (const EnumValueDescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const EnumValueDescriptorProto&) const = default;
+#endif
 };
 
 struct EnumDescriptorProto {
@@ -356,6 +448,10 @@ struct EnumDescriptorProto {
     hpp::proto::optional<int32_t> end;
 
     bool operator == (const EnumReservedRange&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+    auto operator <=> (const EnumReservedRange&) const = default;
+#endif
   };
 
   hpp::proto::optional<std::string> name;
@@ -365,6 +461,10 @@ struct EnumDescriptorProto {
   std::vector<std::string> reserved_name;
 
   bool operator == (const EnumDescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const EnumDescriptorProto&) const = default;
+#endif
 };
 
 struct OneofDescriptorProto {
@@ -372,6 +472,10 @@ struct OneofDescriptorProto {
   std::optional<OneofOptions> options;
 
   bool operator == (const OneofDescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const OneofDescriptorProto&) const = default;
+#endif
 };
 
 struct FieldDescriptorProto {
@@ -404,8 +508,8 @@ struct FieldDescriptorProto {
 
   hpp::proto::optional<std::string> name;
   hpp::proto::optional<int32_t> number;
-  hpp::proto::optional<Label> label;
-  hpp::proto::optional<Type> type;
+  std::optional<Label> label;
+  std::optional<Type> type;
   hpp::proto::optional<std::string> type_name;
   hpp::proto::optional<std::string> extendee;
   hpp::proto::optional<std::string> default_value;
@@ -415,6 +519,10 @@ struct FieldDescriptorProto {
   hpp::proto::optional<bool> proto3_optional;
 
   bool operator == (const FieldDescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const FieldDescriptorProto&) const = default;
+#endif
 };
 
 struct ExtensionRangeOptions {
@@ -422,21 +530,28 @@ struct ExtensionRangeOptions {
 
   struct extension_t {
     using pb_extension = ExtensionRangeOptions;
-    std::map<uint32_t, std::vector<std::byte>> fields;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
     bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
   } extensions;
 
-  auto get_extension(auto meta) {
+  auto get_extension(auto meta) const {
     return meta.read(extensions);
   }
-  auto set_extension(auto meta, auto &&value) {
-    return meta.write(extensions, value);
+  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
 
   bool operator == (const ExtensionRangeOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const ExtensionRangeOptions&) const = default;
+#endif
 };
 
 struct DescriptorProto {
@@ -446,6 +561,10 @@ struct DescriptorProto {
     std::optional<ExtensionRangeOptions> options;
 
     bool operator == (const ExtensionRange&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+    auto operator <=> (const ExtensionRange&) const = default;
+#endif
   };
 
   struct ReservedRange {
@@ -453,6 +572,10 @@ struct DescriptorProto {
     hpp::proto::optional<int32_t> end;
 
     bool operator == (const ReservedRange&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+    auto operator <=> (const ReservedRange&) const = default;
+#endif
   };
 
   hpp::proto::optional<std::string> name;
@@ -467,6 +590,10 @@ struct DescriptorProto {
   std::vector<std::string> reserved_name;
 
   bool operator == (const DescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const DescriptorProto&) const = default;
+#endif
 };
 
 struct FileDescriptorProto {
@@ -485,12 +612,20 @@ struct FileDescriptorProto {
   hpp::proto::optional<std::string> edition;
 
   bool operator == (const FileDescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const FileDescriptorProto&) const = default;
+#endif
 };
 
 struct FileDescriptorSet {
   std::vector<FileDescriptorProto> file;
 
   bool operator == (const FileDescriptorSet&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const FileDescriptorSet&) const = default;
+#endif
 };
 
 } // namespace google::protobuf

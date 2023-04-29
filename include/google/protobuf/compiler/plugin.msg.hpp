@@ -13,6 +13,10 @@ struct Version {
   hpp::proto::optional<std::string> suffix;
 
   bool operator == (const Version&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const Version&) const = default;
+#endif
 };
 
 struct CodeGeneratorResponse {
@@ -28,6 +32,10 @@ struct CodeGeneratorResponse {
     std::optional<GeneratedCodeInfo> generated_code_info;
 
     bool operator == (const File&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+    auto operator <=> (const File&) const = default;
+#endif
   };
 
   hpp::proto::optional<std::string> error;
@@ -35,6 +43,10 @@ struct CodeGeneratorResponse {
   std::vector<File> file;
 
   bool operator == (const CodeGeneratorResponse&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const CodeGeneratorResponse&) const = default;
+#endif
 };
 
 struct CodeGeneratorRequest {
@@ -44,6 +56,10 @@ struct CodeGeneratorRequest {
   std::optional<Version> compiler_version;
 
   bool operator == (const CodeGeneratorRequest&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+  auto operator <=> (const CodeGeneratorRequest&) const = default;
+#endif
 };
 
 } // namespace google::protobuf::compiler

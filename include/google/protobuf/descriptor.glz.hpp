@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glaze/glaze.hpp>
+#include <hpp_proto/hpp_proto_json.h>
 #include <google/protobuf/descriptor.msg.hpp>
 
 template <>
@@ -17,14 +17,14 @@ struct glz::meta<google::protobuf::FileDescriptorProto> {
     "name", &T::name,
     "package", &T::package,
     "dependency", &T::dependency,
-    "public_dependency", &T::public_dependency,
-    "weak_dependency", &T::weak_dependency,
-    "message_type", &T::message_type,
-    "enum_type", &T::enum_type,
+    "publicDependency", &T::public_dependency,
+    "weakDependency", &T::weak_dependency,
+    "messageType", &T::message_type,
+    "enumType", &T::enum_type,
     "service", &T::service,
     "extension", &T::extension,
     "options", &T::options,
-    "source_code_info", &T::source_code_info,
+    "sourceCodeInfo", &T::source_code_info,
     "syntax", &T::syntax,
     "edition", &T::edition);
 };
@@ -36,13 +36,13 @@ struct glz::meta<google::protobuf::DescriptorProto> {
     "name", &T::name,
     "field", &T::field,
     "extension", &T::extension,
-    "nested_type", &T::nested_type,
-    "enum_type", &T::enum_type,
-    "extension_range", &T::extension_range,
-    "oneof_decl", &T::oneof_decl,
+    "nestedType", &T::nested_type,
+    "enumType", &T::enum_type,
+    "extensionRange", &T::extension_range,
+    "oneofDecl", &T::oneof_decl,
     "options", &T::options,
-    "reserved_range", &T::reserved_range,
-    "reserved_name", &T::reserved_name);
+    "reservedRange", &T::reserved_range,
+    "reservedName", &T::reserved_name);
 };
 
 template <>
@@ -66,7 +66,7 @@ template <>
 struct glz::meta<google::protobuf::ExtensionRangeOptions> {
   using T = google::protobuf::ExtensionRangeOptions;
   static constexpr auto value = object(
-    "uninterpreted_option", &T::uninterpreted_option);
+    "uninterpretedOption", &T::uninterpreted_option);
 };
 
 template <>
@@ -77,13 +77,13 @@ struct glz::meta<google::protobuf::FieldDescriptorProto> {
     "number", &T::number,
     "label", &T::label,
     "type", &T::type,
-    "type_name", &T::type_name,
+    "typeName", &T::type_name,
     "extendee", &T::extendee,
-    "default_value", &T::default_value,
-    "oneof_index", &T::oneof_index,
-    "json_name", &T::json_name,
+    "defaultValue", &T::default_value,
+    "oneofIndex", &T::oneof_index,
+    "jsonName", &T::json_name,
     "options", &T::options,
-    "proto3_optional", &T::proto3_optional);
+    "proto3Optional", &T::proto3_optional);
 };
 
 template <>
@@ -134,8 +134,8 @@ struct glz::meta<google::protobuf::EnumDescriptorProto> {
     "name", &T::name,
     "value", &T::value,
     "options", &T::options,
-    "reserved_range", &T::reserved_range,
-    "reserved_name", &T::reserved_name);
+    "reservedRange", &T::reserved_range,
+    "reservedName", &T::reserved_name);
 };
 
 template <>
@@ -169,38 +169,38 @@ struct glz::meta<google::protobuf::MethodDescriptorProto> {
   using T = google::protobuf::MethodDescriptorProto;
   static constexpr auto value = object(
     "name", &T::name,
-    "input_type", &T::input_type,
-    "output_type", &T::output_type,
+    "inputType", &T::input_type,
+    "outputType", &T::output_type,
     "options", &T::options,
-    "client_streaming", &T::client_streaming,
-    "server_streaming", &T::server_streaming);
+    "clientStreaming", &T::client_streaming,
+    "serverStreaming", &T::server_streaming);
 };
 
 template <>
 struct glz::meta<google::protobuf::FileOptions> {
   using T = google::protobuf::FileOptions;
   static constexpr auto value = object(
-    "java_package", &T::java_package,
-    "java_outer_classname", &T::java_outer_classname,
-    "java_multiple_files", &T::java_multiple_files,
-    "java_generate_equals_and_hash", &T::java_generate_equals_and_hash,
-    "java_string_check_utf8", &T::java_string_check_utf8,
-    "optimize_for", &T::optimize_for,
-    "go_package", &T::go_package,
-    "cc_generic_services", &T::cc_generic_services,
-    "java_generic_services", &T::java_generic_services,
-    "py_generic_services", &T::py_generic_services,
-    "php_generic_services", &T::php_generic_services,
+    "javaPackage", &T::java_package,
+    "javaOuterClassname", &T::java_outer_classname,
+    "javaMultipleFiles", &T::java_multiple_files,
+    "javaGenerateEqualsAndHash", &T::java_generate_equals_and_hash,
+    "javaStringCheckUtf8", &T::java_string_check_utf8,
+    "optimizeFor", &T::optimize_for,
+    "goPackage", &T::go_package,
+    "ccGenericServices", &T::cc_generic_services,
+    "javaGenericServices", &T::java_generic_services,
+    "pyGenericServices", &T::py_generic_services,
+    "phpGenericServices", &T::php_generic_services,
     "deprecated", &T::deprecated,
-    "cc_enable_arenas", &T::cc_enable_arenas,
-    "objc_class_prefix", &T::objc_class_prefix,
-    "csharp_namespace", &T::csharp_namespace,
-    "swift_prefix", &T::swift_prefix,
-    "php_class_prefix", &T::php_class_prefix,
-    "php_namespace", &T::php_namespace,
-    "php_metadata_namespace", &T::php_metadata_namespace,
-    "ruby_package", &T::ruby_package,
-    "uninterpreted_option", &T::uninterpreted_option);
+    "ccEnableArenas", &T::cc_enable_arenas,
+    "objcClassPrefix", &T::objc_class_prefix,
+    "csharpNamespace", &T::csharp_namespace,
+    "swiftPrefix", &T::swift_prefix,
+    "phpClassPrefix", &T::php_class_prefix,
+    "phpNamespace", &T::php_namespace,
+    "phpMetadataNamespace", &T::php_metadata_namespace,
+    "rubyPackage", &T::ruby_package,
+    "uninterpretedOption", &T::uninterpreted_option);
 };
 
 template <>
@@ -216,12 +216,12 @@ template <>
 struct glz::meta<google::protobuf::MessageOptions> {
   using T = google::protobuf::MessageOptions;
   static constexpr auto value = object(
-    "message_set_wire_format", &T::message_set_wire_format,
-    "no_standard_descriptor_accessor", &T::no_standard_descriptor_accessor,
+    "messageSetWireFormat", &T::message_set_wire_format,
+    "noStandardDescriptorAccessor", &T::no_standard_descriptor_accessor,
     "deprecated", &T::deprecated,
-    "map_entry", &T::map_entry,
-    "deprecated_legacy_json_field_conflicts", &T::deprecated_legacy_json_field_conflicts,
-    "uninterpreted_option", &T::uninterpreted_option);
+    "mapEntry", &T::map_entry,
+    "deprecatedLegacyJsonFieldConflicts", &T::deprecated_legacy_json_field_conflicts,
+    "uninterpretedOption", &T::uninterpreted_option);
 };
 
 template <>
@@ -232,13 +232,13 @@ struct glz::meta<google::protobuf::FieldOptions> {
     "packed", &T::packed,
     "jstype", &T::jstype,
     "lazy", &T::lazy,
-    "unverified_lazy", &T::unverified_lazy,
+    "unverifiedLazy", &T::unverified_lazy,
     "deprecated", &T::deprecated,
     "weak", &T::weak,
-    "debug_redact", &T::debug_redact,
+    "debugRedact", &T::debug_redact,
     "retention", &T::retention,
     "target", &T::target,
-    "uninterpreted_option", &T::uninterpreted_option);
+    "uninterpretedOption", &T::uninterpreted_option);
 };
 
 template <>
@@ -288,17 +288,17 @@ template <>
 struct glz::meta<google::protobuf::OneofOptions> {
   using T = google::protobuf::OneofOptions;
   static constexpr auto value = object(
-    "uninterpreted_option", &T::uninterpreted_option);
+    "uninterpretedOption", &T::uninterpreted_option);
 };
 
 template <>
 struct glz::meta<google::protobuf::EnumOptions> {
   using T = google::protobuf::EnumOptions;
   static constexpr auto value = object(
-    "allow_alias", &T::allow_alias,
+    "allowAlias", &T::allow_alias,
     "deprecated", &T::deprecated,
-    "deprecated_legacy_json_field_conflicts", &T::deprecated_legacy_json_field_conflicts,
-    "uninterpreted_option", &T::uninterpreted_option);
+    "deprecatedLegacyJsonFieldConflicts", &T::deprecated_legacy_json_field_conflicts,
+    "uninterpretedOption", &T::uninterpreted_option);
 };
 
 template <>
@@ -306,7 +306,7 @@ struct glz::meta<google::protobuf::EnumValueOptions> {
   using T = google::protobuf::EnumValueOptions;
   static constexpr auto value = object(
     "deprecated", &T::deprecated,
-    "uninterpreted_option", &T::uninterpreted_option);
+    "uninterpretedOption", &T::uninterpreted_option);
 };
 
 template <>
@@ -314,7 +314,7 @@ struct glz::meta<google::protobuf::ServiceOptions> {
   using T = google::protobuf::ServiceOptions;
   static constexpr auto value = object(
     "deprecated", &T::deprecated,
-    "uninterpreted_option", &T::uninterpreted_option);
+    "uninterpretedOption", &T::uninterpreted_option);
 };
 
 template <>
@@ -322,8 +322,8 @@ struct glz::meta<google::protobuf::MethodOptions> {
   using T = google::protobuf::MethodOptions;
   static constexpr auto value = object(
     "deprecated", &T::deprecated,
-    "idempotency_level", &T::idempotency_level,
-    "uninterpreted_option", &T::uninterpreted_option);
+    "idempotencyLevel", &T::idempotency_level,
+    "uninterpretedOption", &T::uninterpreted_option);
 };
 
 template <>
@@ -340,20 +340,20 @@ struct glz::meta<google::protobuf::UninterpretedOption> {
   using T = google::protobuf::UninterpretedOption;
   static constexpr auto value = object(
     "name", &T::name,
-    "identifier_value", &T::identifier_value,
-    "positive_int_value", &T::positive_int_value,
-    "negative_int_value", &T::negative_int_value,
-    "double_value", &T::double_value,
-    "string_value", &T::string_value,
-    "aggregate_value", &T::aggregate_value);
+    "identifierValue", &T::identifier_value,
+    "positiveIntValue", [](auto &&self) -> auto& { return hpp::proto::wrap_int64(self.positive_int_value); },
+    "negativeIntValue", [](auto &&self) -> auto& { return hpp::proto::wrap_int64(self.negative_int_value); },
+    "doubleValue", &T::double_value,
+    "stringValue", &T::string_value,
+    "aggregateValue", &T::aggregate_value);
 };
 
 template <>
 struct glz::meta<google::protobuf::UninterpretedOption::NamePart> {
   using T = google::protobuf::UninterpretedOption::NamePart;
   static constexpr auto value = object(
-    "name_part", &T::name_part,
-    "is_extension", &T::is_extension);
+    "namePart", &T::name_part,
+    "isExtension", &T::is_extension);
 };
 
 template <>
@@ -369,9 +369,9 @@ struct glz::meta<google::protobuf::SourceCodeInfo::Location> {
   static constexpr auto value = object(
     "path", &T::path,
     "span", &T::span,
-    "leading_comments", &T::leading_comments,
-    "trailing_comments", &T::trailing_comments,
-    "leading_detached_comments", &T::leading_detached_comments);
+    "leadingComments", &T::leading_comments,
+    "trailingComments", &T::trailing_comments,
+    "leadingDetachedComments", &T::leading_detached_comments);
 };
 
 template <>
@@ -386,7 +386,7 @@ struct glz::meta<google::protobuf::GeneratedCodeInfo::Annotation> {
   using T = google::protobuf::GeneratedCodeInfo::Annotation;
   static constexpr auto value = object(
     "path", &T::path,
-    "source_file", &T::source_file,
+    "sourceFile", &T::source_file,
     "begin", &T::begin,
     "end", &T::end,
     "semantic", &T::semantic);
