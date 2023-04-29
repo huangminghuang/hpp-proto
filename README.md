@@ -1,10 +1,6 @@
 # hpp-proto
 
-This is hpp-proto, a modern C++ 20 implementation of the Google Protocol Buffers data serialization format. It includes 
-
-* a Google protoc plugin which converts Protocol Buffer .proto files to C++ code. 
-* a header only library libhpp_proto build on top of [zpp-bits](https://github.com/eyalz800/zpp_bits) which implements protobuf encoding and decoding.
-
+hpp_proto is a C++20-based tool that simplifies the use of Protocol Buffers in C++. The tool achieves this by generating C++ aggregate types from .proto files and providing a header only library to encode/decode Protobuf data using these types. It's worth noting that the generated aggregate types heavily use the C++ Standard Library containers such as std::vector and std::string, in contrast to the Google implementation, which makes them easier to use and integrate with existing C++ codebases. 
 
 ## Features
 * All Protocol Buffers message definitions are mapped to simple C++ aggregates based on standard C++ library.

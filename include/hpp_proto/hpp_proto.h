@@ -40,6 +40,7 @@ struct field_meta {
   using type = Type;
 };
 
+using ::zpp::bits::errc;
 using ::zpp::bits::failure;
 
 ZPP_BITS_INLINE constexpr decltype(auto) do_visit_members(auto &&object, auto &&visitor) {
@@ -424,9 +425,9 @@ struct get_serialize_type<Meta, Type> {
 struct extensions {
   std::map<uint32_t, std::vector<std::byte>> fields;
 
-  template <typename ExtensionMeta>::zpp::bits::errc set(ExtensionMeta meta, auto &&value);
+  template <typename ExtensionMeta> errc set(ExtensionMeta meta, auto &&value);
 
-  template <typename ExtensionMeta>::zpp::bits::errc get(ExtensionMeta meta, auto &);
+  template <typename ExtensionMeta> errc get(ExtensionMeta meta, auto &);
 
   template <typename ExtensionMeta> bool has(ExtensionMeta meta) const { return fields.contains(meta.number); }
 
@@ -495,7 +496,7 @@ template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, ty
     }
   }
 
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc serialize_unsized(auto &&item) {
+  ZPP_BITS_INLINE constexpr errc serialize_unsized(auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
     static_assert(check_type<type>());
 
@@ -515,7 +516,7 @@ template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, ty
   }
 
   template <typename AggregateType, std::size_t FirstIndex, std::size_t... Indices>
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc serialize_many(std::index_sequence<FirstIndex, Indices...>,
+  ZPP_BITS_INLINE constexpr errc serialize_many(std::index_sequence<FirstIndex, Indices...>,
                                                              auto &&first_item, auto &&...items) {
     if (auto result = serialize_field(typename traits::field_meta_of<AggregateType, FirstIndex>::type{},
                                       std::forward<decltype(first_item)>(first_item));
@@ -526,11 +527,11 @@ template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, ty
     return serialize_many<AggregateType>(std::index_sequence<Indices...>{}, std::forward<decltype(items)>(items)...);
   }
 
-  template <typename AggregateType> ZPP_BITS_INLINE constexpr ::zpp::bits::errc serialize_many(std::index_sequence<>) {
+  template <typename AggregateType> ZPP_BITS_INLINE constexpr errc serialize_many(std::index_sequence<>) {
     return {};
   }
 
-  template <typename Meta> ZPP_BITS_INLINE constexpr ::zpp::bits::errc serialize_field(Meta meta, auto &&item) {
+  template <typename Meta> ZPP_BITS_INLINE constexpr errc serialize_field(Meta meta, auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
@@ -700,7 +701,7 @@ template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, ty
   }
 
   template <std::size_t I, ::zpp::bits::concepts::tuple Meta>
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc serialize_oneof(auto &&item) {
+  ZPP_BITS_INLINE constexpr errc serialize_oneof(auto &&item) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return serialize_field(typename std::tuple_element<I, Meta>::type{},
@@ -708,11 +709,11 @@ template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, ty
       }
       return serialize_oneof<I + 1, Meta>(std::forward<decltype(item)>(item));
     }
-    return ::zpp::bits::errc{};
+    return errc{};
   }
 
   template <typename SizeType = ::zpp::bits::vsize_t>
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc serialize_sized(auto &&item) {
+  ZPP_BITS_INLINE constexpr errc serialize_sized(auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
 
     auto size_position = m_archive.position();
@@ -761,7 +762,7 @@ template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, ty
   }
 
   template <typename SizeType = default_size_type>
-  constexpr ::zpp::bits::errc ZPP_BITS_INLINE serialize_one(auto &&item) {
+  constexpr errc ZPP_BITS_INLINE serialize_one(auto &&item) {
     if constexpr (!std::is_void_v<SizeType>) {
       return serialize_sized<SizeType>(std::forward<decltype(item)>(item));
     } else {
@@ -793,7 +794,7 @@ public:
   constexpr explicit in(ByteView &view, Options &&...options)
       : m_archive(make_in_archive(view, std::forward<Options>(options)...)) {}
 
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc operator()(auto &item) { return serialize_one(item); }
+  ZPP_BITS_INLINE constexpr errc operator()(auto &item) { return serialize_one(item); }
 
   constexpr std::size_t position() const { return m_archive.position(); }
 
@@ -821,9 +822,9 @@ public:
 
   template <typename AggregateType> ZPP_BITS_INLINE constexpr static void reset_members(std::index_sequence<>) {}
 
-  ::zpp::bits::errc deserialize_tag(::zpp::bits::vuint32_t &tag) { return m_archive(tag); }
+  errc deserialize_tag(::zpp::bits::vuint32_t &tag) { return m_archive(tag); }
 
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc deserialize_fields(auto &item, std::size_t end_position) {
+  ZPP_BITS_INLINE constexpr errc deserialize_fields(auto &item, std::size_t end_position) {
     using type = std::remove_cvref_t<decltype(item)>;
     static_assert(check_type<type>());
 
@@ -853,7 +854,7 @@ public:
   }
 
   template <typename Type, std::size_t... I> constexpr auto deserialize_funs(std::index_sequence<I...>) {
-    using deserialize_fun_ptr = ::zpp::bits::errc (in::*)(Type &, uint32_t, wire_type);
+    using deserialize_fun_ptr = errc (in::*)(Type &, uint32_t, wire_type);
     return std::array<deserialize_fun_ptr, sizeof...(I)>{&in::deserialize_field_by_index<I>...};
   }
 
@@ -862,7 +863,7 @@ public:
     return deserialize_funs<Type>(std::make_index_sequence<num_members>());
   }
 
-  ZPP_BITS_INLINE ::zpp::bits::errc skip_field(concepts::has_extension auto &item, uint32_t field_num,
+  ZPP_BITS_INLINE errc skip_field(concepts::has_extension auto &item, uint32_t field_num,
                                                wire_type field_wire_type) {
     ::zpp::bits::vint64_t length = 0;
     m_has_unknown_fields = true;
@@ -905,7 +906,7 @@ public:
     return {};
   }
 
-  ZPP_BITS_INLINE ::zpp::bits::errc skip_field(auto &item, uint32_t, wire_type field_wire_type) {
+  ZPP_BITS_INLINE errc skip_field(auto &item, uint32_t, wire_type field_wire_type) {
     ::zpp::bits::vint64_t length = 0;
     m_has_unknown_fields = true;
     switch (field_wire_type) {
@@ -931,7 +932,7 @@ public:
     return {};
   }
 
-  inline ::zpp::bits::errc deserialize_field_by_num(auto &item, uint32_t field_num, wire_type field_wire_type,
+  inline errc deserialize_field_by_num(auto &item, uint32_t field_num, wire_type field_wire_type,
                                                     std::size_t hint) {
     using type = std::remove_cvref_t<decltype(item)>;
     static auto fun_ptrs = deserialize_funs<type>();
@@ -948,7 +949,7 @@ public:
   }
 
   template <std::size_t Index = 0>
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc deserialize_field_by_num(auto &item, uint32_t field_num,
+  ZPP_BITS_INLINE constexpr errc deserialize_field_by_num(auto &item, uint32_t field_num,
                                                                        wire_type field_wire_type) {
     using type = std::remove_reference_t<decltype(item)>;
     if constexpr (Index >= ::zpp::bits::number_of_members<type>()) {
@@ -961,7 +962,7 @@ public:
   }
 
   template <std::size_t Index>
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc deserialize_field_by_index(auto &item, uint32_t field_num,
+  ZPP_BITS_INLINE constexpr errc deserialize_field_by_index(auto &item, uint32_t field_num,
                                                                          wire_type field_wire_type) {
     using type = std::remove_reference_t<decltype(item)>;
 
@@ -987,7 +988,7 @@ public:
   }
 
   template <typename Meta>
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc deserialize_field(Meta meta, wire_type field_type, uint32_t field_num,
+  ZPP_BITS_INLINE constexpr errc deserialize_field(Meta meta, wire_type field_type, uint32_t field_num,
                                                                 auto &&item) {
     using type = std::remove_reference_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
@@ -999,12 +1000,12 @@ public:
         return result;
       }
       item = static_cast<type>(value.value);
-      return ::zpp::bits::errc{};
+      return errc{};
     } else if constexpr (std::is_same_v<type, boolean>) {
       if (auto result = m_archive(item.value); failure(result)) [[unlikely]] {
         return result;
       }
-      return ::zpp::bits::errc{};
+      return errc{};
     } else if constexpr (::zpp::bits::concepts::optional<type>) {
       return deserialize_field(meta, field_type, field_num, item.emplace());
     } else if constexpr (::zpp::bits::concepts::owning_pointer<type>) {
@@ -1016,7 +1017,7 @@ public:
       }
 
       item.reset(loaded.release());
-      return ::zpp::bits::errc{};
+      return errc{};
     } else if constexpr (concepts::oneof_type<type>) {
       static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
       return deserialize_oneof<0, Meta>(field_type, field_num, std::forward<decltype(item)>(item));
@@ -1027,12 +1028,12 @@ public:
         return result;
       }
       item = std::move(value);
-      return ::zpp::bits::errc{};
+      return errc{};
     } else if constexpr (concepts::numeric_or_byte<type>) {
       if (auto result = m_archive(item); failure(result)) [[unlikely]] {
         return result;
       }
-      return ::zpp::bits::errc{};
+      return errc{};
     } else if constexpr (!::zpp::bits::concepts::container<type>) {
       return serialize_one<::zpp::bits::varint<uint32_t>>(item);
     } else if constexpr (::zpp::bits::concepts::associative_container<type> &&
@@ -1046,7 +1047,7 @@ public:
         return result;
       }
       object->insert_to(item);
-      return ::zpp::bits::errc{};
+      return errc{};
     } else {
       using orig_value_type = typename type::value_type;
       using value_type =
@@ -1066,7 +1067,7 @@ public:
             } else {
               item.insert(element);
             }
-            return ::zpp::bits::errc{};
+            return errc{};
           }
         }
         // packed repeated encoding
@@ -1085,7 +1086,7 @@ public:
                        std::same_as<value_type, boolean>)) {
           if constexpr (archive_type::allocation_limit != std::numeric_limits<std::size_t>::max()) {
             if (length > archive_type::allocation_limit) [[unlikely]] {
-              return ::zpp::bits::errc{std::errc::message_size};
+              return errc{std::errc::message_size};
             }
           }
           item.resize(length / sizeof(value_type));
@@ -1126,7 +1127,7 @@ public:
               item.insert(orig_value_type(value));
             }
 
-            return ::zpp::bits::errc{};
+            return errc{};
           };
 
           auto end_position = length + m_archive.position();
@@ -1136,7 +1137,7 @@ public:
             }
           }
 
-          return ::zpp::bits::errc{};
+          return errc{};
         }
       } else {
         std::aligned_storage_t<sizeof(value_type), alignof(value_type)> storage;
@@ -1153,7 +1154,7 @@ public:
           item.insert(std::move(*object));
         }
 
-        return ::zpp::bits::errc{};
+        return errc{};
       }
     }
   }
@@ -1168,19 +1169,18 @@ public:
         return deserialize_oneof<Index + 1, Meta>(field_type, field_num, std::forward<decltype(item)>(item));
       }
     }
-    return ::zpp::bits::errc{};
+    return errc{};
   }
 
   template <typename SizeType = default_size_type>
-  ZPP_BITS_INLINE constexpr ::zpp::bits::errc serialize_one(auto &item) {
-    // using type = std::remove_cvref_t<decltype(item)>;
+  ZPP_BITS_INLINE constexpr errc serialize_one(auto &item) {
     if constexpr (!std::is_void_v<SizeType>) {
       SizeType size{};
       if (auto result = m_archive(size); failure(result)) [[unlikely]] {
         return result;
       }
       if (size > m_archive.remaining_data().size()) [[unlikely]]
-        return ::zpp::bits::errc{std::errc::message_size};
+        return errc{std::errc::message_size};
 
       return deserialize_fields(item, m_archive.position() + size);
     } else
