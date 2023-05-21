@@ -12,58 +12,47 @@ template <typename FlatMap> void reserve(FlatMap &m, std::size_t s) {
 }
 
 template <typename AddOns> struct descriptor_pool {
-  struct enum_descriptor_t;
-  struct message_descriptor_t;
-  using field_type_ptr_t = std::variant<std::monostate, message_descriptor_t *, enum_descriptor_t *>;
-
   struct field_descriptor_t : AddOns::template field_descriptor<field_descriptor_t> {
     using pool_type = descriptor_pool;
-    const google::protobuf::FieldDescriptorProto *proto;
-    message_descriptor_t *parent;
-    field_type_ptr_t type;
-    field_descriptor_t(const google::protobuf::FieldDescriptorProto &proto, const std::string &parent_name,
-                       field_type_ptr_t type)
-        : AddOns::template field_descriptor<field_descriptor_t>(proto, parent_name), proto(&proto), type(type) {}
+    const google::protobuf::FieldDescriptorProto &proto;
+    field_descriptor_t(const google::protobuf::FieldDescriptorProto &proto, const std::string &parent_name)
+        : AddOns::template field_descriptor<field_descriptor_t>(proto, parent_name), proto(proto) {}
   };
 
-  struct oneof_descriptor_t : AddOns::template oneof_descriptor<oneof_descriptor_t> {
+  struct oneof_descriptor_t : AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
-    const google::protobuf::OneofDescriptorProto *proto;
-    std::vector<field_descriptor_t *> fields;
+    const google::protobuf::OneofDescriptorProto &proto;
     oneof_descriptor_t(const google::protobuf::OneofDescriptorProto &proto)
-        : AddOns::template oneof_descriptor<oneof_descriptor_t>(proto), proto(&proto) {}
+        : AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t>(proto), proto(proto) {}
   };
 
   struct enum_descriptor_t : AddOns::template enum_descriptor<enum_descriptor_t> {
     using pool_type = descriptor_pool;
-    const google::protobuf::EnumDescriptorProto *proto;
+    const google::protobuf::EnumDescriptorProto proto;
     enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto)
-        : AddOns::template enum_descriptor<enum_descriptor_t>(proto), proto(&proto) {}
+        : AddOns::template enum_descriptor<enum_descriptor_t>(proto), proto(proto) {}
   };
 
-  struct message_descriptor_t : AddOns::template message_descriptor<message_descriptor_t> {
+  struct message_descriptor_t : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t,
+                                                                    oneof_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
-    const google::protobuf::DescriptorProto *proto;
-    std::vector<enum_descriptor_t *> enums;
-    std::vector<field_descriptor_t *> fields;
-    std::vector<message_descriptor_t *> messages;
-    std::vector<oneof_descriptor_t *> oneofs;
-    std::vector<field_descriptor_t *> extensions;
-    flat_map<uint32_t, field_descriptor_t *> extended_fields;
+    const google::protobuf::DescriptorProto &proto;
 
     message_descriptor_t(const google::protobuf::DescriptorProto &proto)
-        : AddOns::template message_descriptor<message_descriptor_t>(proto), proto(&proto) {}
+        : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t, oneof_descriptor_t,
+                                              field_descriptor_t>(proto),
+          proto(proto) {}
   };
 
-  struct file_descriptor_t : AddOns::template file_descriptor<file_descriptor_t> {
+  struct file_descriptor_t : AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t,
+                                                              enum_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
-    const google::protobuf::FileDescriptorProto *proto;
-    std::vector<message_descriptor_t *> messages;
-    std::vector<enum_descriptor_t *> enums;
-    std::vector<field_descriptor_t *> extensions;
+    const google::protobuf::FileDescriptorProto &proto;
 
     file_descriptor_t(const google::protobuf::FileDescriptorProto &proto)
-        : AddOns::template file_descriptor<file_descriptor_t>(proto), proto(&proto) {}
+        : AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t, enum_descriptor_t,
+                                           field_descriptor_t>(proto),
+          proto(proto) {}
   };
 
   struct descriptor_counter {
@@ -101,8 +90,8 @@ template <typename AddOns> struct descriptor_pool {
   std::vector<field_descriptor_t> fields;
 
   flat_map<std::string, file_descriptor_t *> file_map;
-  flat_map<std::string, message_descriptor_t*> message_map;
-  flat_map<std::string, enum_descriptor_t*> enum_map;
+  flat_map<std::string, message_descriptor_t *> message_map;
+  flat_map<std::string, enum_descriptor_t *> enum_map;
 
   descriptor_pool(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
 
@@ -128,58 +117,57 @@ template <typename AddOns> struct descriptor_pool {
     }
 
     for (auto [name, f] : file_map) {
-      build_extensions(*f, f->proto->package.value_or(""));
+      build_extensions(*f, f->proto.package.value_or(""));
     }
 
     assert(messages.size() == counter.messages);
   }
 
   void build(file_descriptor_t &descriptor) {
-    file_map.try_emplace(*descriptor.proto->name, &descriptor);
-    descriptor.messages.reserve(descriptor.proto->message_type.size());
-    std::string package = descriptor.proto->package.value_or("");
-    for (auto &proto : descriptor.proto->message_type) {
+    file_map.try_emplace(*descriptor.proto.name, &descriptor);
+    descriptor.messages.reserve(descriptor.proto.message_type.size());
+    std::string package = descriptor.proto.package.value_or("");
+    for (auto &proto : descriptor.proto.message_type) {
       assert(proto.name.has_value());
-      std::string name = package.size() ? "." + package + "." + *proto.name : "." +  *proto.name;
+      std::string name = package.size() ? "." + package + "." + *proto.name : "." + *proto.name;
       auto &message = messages.emplace_back(proto);
       build(message, name);
-      descriptor.messages.push_back(&message);
+      descriptor.add_message(message);
     }
 
-    descriptor.enums.reserve(descriptor.proto->enum_type.size());
-    for (auto &proto : descriptor.proto->enum_type) {
+    descriptor.enums.reserve(descriptor.proto.enum_type.size());
+    for (auto &proto : descriptor.proto.enum_type) {
       assert(proto.name.has_value());
       std::string name = package.size() ? "." + package + "." + *proto.name : *proto.name;
       auto &e = enums.emplace_back(proto);
       enum_map.try_emplace(name, &e);
-      descriptor.enums.push_back(&e);
+      descriptor.add_enum(e);
     }
   }
 
   void build(message_descriptor_t &descriptor, const std::string &scope) {
     message_map.try_emplace(scope, &descriptor);
-    descriptor.messages.reserve(descriptor.proto->nested_type.size());
-    for (auto &proto : descriptor.proto->nested_type) {
+    descriptor.messages.reserve(descriptor.proto.nested_type.size());
+    for (auto &proto : descriptor.proto.nested_type) {
       assert(proto.name.has_value());
       std::string name = scope + "." + *proto.name;
       auto &message = messages.emplace_back(proto);
       build(message, name);
-      descriptor.messages.push_back(&message);
+      descriptor.add_message(message);
     }
 
-    descriptor.enums.reserve(descriptor.proto->enum_type.size());
-    for (auto &proto : descriptor.proto->enum_type) {
+    descriptor.enums.reserve(descriptor.proto.enum_type.size());
+    for (auto &proto : descriptor.proto.enum_type) {
       assert(proto.name.has_value());
       std::string name = scope + "." + *proto.name;
       auto &e = enums.emplace_back(proto);
       enum_map.try_emplace(name, &e);
-      descriptor.enums.push_back(&e);
+      descriptor.add_enum(e);
     }
 
-    descriptor.oneofs.reserve(descriptor.proto->oneof_decl.size());
-    for (auto &proto : descriptor.proto->oneof_decl) {
-      auto &oneof = oneofs.emplace_back(proto);
-      descriptor.oneofs.push_back(&oneof);
+    descriptor.oneofs.reserve(descriptor.proto.oneof_decl.size());
+    for (auto &proto : descriptor.proto.oneof_decl) {
+      descriptor.add_oneof(oneofs.emplace_back(proto));
     }
   }
 
@@ -190,42 +178,19 @@ template <typename AddOns> struct descriptor_pool {
     return itr->second;
   }
 
-  field_type_ptr_t find_type_ptr(google::protobuf::FieldDescriptorProto::Type type, const std::string &qualified_name) {
-    using enum google::protobuf::FieldDescriptorProto::Type;
-    if (type == TYPE_MESSAGE)
-      return find_type(message_map, qualified_name);
-    else if (type == TYPE_ENUM)
-      return find_type(enum_map, qualified_name);
-    [[unlikely]] return {};
-  }
-
   void build_fields(message_descriptor_t &descriptor, const std::string &qualified_name) {
-    descriptor.fields.reserve(descriptor.proto->field.size());
-    for (auto &proto : descriptor.proto->field) {
+    descriptor.fields.reserve(descriptor.proto.field.size());
+    for (auto &proto : descriptor.proto.field) {
       if (proto.type.has_value()) {
-        auto field_type =
-            proto.type_name.has_value() ? find_type_ptr(*proto.type, *proto.type_name) : field_type_ptr_t{};
-        auto &field = fields.emplace_back(proto, qualified_name, field_type);
-        descriptor.fields.push_back(&field);
-        if (proto.oneof_index.has_value()) {
-          descriptor.oneofs[*proto.oneof_index]->fields.push_back(&field);
-        }
+        descriptor.add_field(fields.emplace_back(proto, qualified_name));
       }
     }
   };
 
   void build_extensions(auto &parent, const std::string &scope) {
-    for (auto &proto : parent.proto->extension) {
+    for (auto &proto : parent.proto.extension) {
       if (proto.type.has_value()) {
-        auto field_type =
-            proto.type_name.has_value() ? find_type_ptr(*proto.type, *proto.type_name) : field_type_ptr_t{};
-        auto &field = fields.emplace_back(proto, scope, field_type);
-        parent.extensions.push_back(&field);
-        if (proto.extendee.has_value()) {
-          auto extendee = find_type(message_map, *proto.extendee);
-          assert(field.proto->number);
-          extendee->extended_fields.try_emplace(*field.proto->number, &field);
-        }
+        parent.add_extension(fields.emplace_back(proto, scope));
       }
     }
   }
