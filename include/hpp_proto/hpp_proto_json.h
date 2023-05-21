@@ -19,6 +19,10 @@ template <concepts::integer_64bits T> const int_wrapper<T> &wrap_int64(const T &
   return *std::bit_cast<const int_wrapper<T> *>(&v);
 }
 
+template <concepts::integer_64bits T> std::optional<int_wrapper<T>> &wrap_int64(std::optional<T> &v) {
+  return *std::bit_cast<std::optional<int_wrapper<T>> *>(&v);
+}
+
 template <concepts::integer_64bits T, auto Default> std::optional<int_wrapper<T>> &wrap_int64(optional<T, Default> &v) {
   return *std::bit_cast<std::optional<int_wrapper<T>> *>(&v);
 }

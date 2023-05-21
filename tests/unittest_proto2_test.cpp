@@ -454,23 +454,6 @@ inline void TestUtil::ExpectClear(const protobuf_unittest::TestAllTypes &message
   ut::expect(!message.optional_string_piece.has_value());
   ut::expect(!message.optional_cord.has_value());
 
-  // Optional fields without defaults are set to zero or something like it.
-  ut::expect(ut::eq(0, message.optional_int32.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_int64.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_uint32.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_uint64.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_sint32.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_sint64.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_fixed32.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_fixed64.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_sfixed32.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_sfixed64.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_float.value_or_default()));
-  ut::expect(ut::eq(0, message.optional_double.value_or_default()));
-  ut::expect(!message.optional_bool.value_or_default());
-  ut::expect(ut::eq(""s, message.optional_string.value_or_default()));
-  ut::expect(ut::eq(""_bytes, message.optional_bytes.value_or_default()));
-
   // Repeated fields are empty.
   ut::expect(ut::eq(0, message.repeated_int32.size()));
   ut::expect(ut::eq(0, message.repeated_int64.size()));

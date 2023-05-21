@@ -554,14 +554,16 @@ struct msg_code_generator : code_generator {
         return "std::vector";
       if (descriptor.is_recursive)
         return "hpp::proto::heap_based_optional";
-      if (label == LABEL_OPTIONAL && *proto.type == TYPE_MESSAGE)
+      if (syntax == 2) {
+        if (label == LABEL_OPTIONAL) {
+          if (proto.default_value.has_value())
+            return "hpp::proto::optional";
+          else
+            return "std::optional";
+        }
+      } else if (*proto.type == TYPE_MESSAGE || (proto.proto3_optional.has_value() && *proto.proto3_optional)) {
         return "std::optional";
-      if (label == LABEL_OPTIONAL && *proto.type == TYPE_ENUM && !proto.default_value.has_value())
-        return "std::optional";
-      if ((syntax == 2 && label == LABEL_OPTIONAL) ||
-          (syntax == 3 &&
-           (*proto.type == TYPE_MESSAGE || (proto.proto3_optional.has_value() && *proto.proto3_optional))))
-        return "hpp::proto::optional";
+      }
     }
     return "";
   }
