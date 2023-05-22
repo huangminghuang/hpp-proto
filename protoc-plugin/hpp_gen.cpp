@@ -20,17 +20,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <google/protobuf/compiler/plugin.pb.hpp>
+#include <hpp_proto/descriptor_pool.h>
 #include <algorithm>
 #include <fmt/format.h>
 #include <fstream>
-#include <google/protobuf/compiler/plugin.pb.hpp>
-#include <hpp_proto/descriptor_pool.h>
 #include <iostream>
 #include <numeric>
 #include <set>
-#include <unordered_map>
 #include <unordered_set>
-#include <assert.h>
 
 namespace gpb = google::protobuf;
 

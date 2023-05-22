@@ -1,6 +1,7 @@
 #pragma once
 #include <google/protobuf/descriptor.pb.hpp>
 #include <iostream>
+#include <cassert>
 namespace hpp::proto {
 
 template <typename FlatMap> void reserve(FlatMap &m, std::size_t s) {
