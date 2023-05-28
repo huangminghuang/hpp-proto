@@ -988,8 +988,8 @@ struct glaze_meta_generator : code_generator {
     auto type = *descriptor.proto.type;
     if (type == TYPE_INT64 || type == TYPE_UINT64 || type == TYPE_FIXED64 || type == TYPE_SFIXED64 ||
         type == TYPE_SINT64) {
-      fmt::format_to(target, "    \"{}\", [](auto &&self) -> auto& {{ return hpp::proto::wrap_int64(self.{}); }},\n",
-                     descriptor.proto.json_name.value(), descriptor.cpp_name);
+      fmt::format_to(target, "    \"{}\", glz::quoted<&T::{}>(),\n", descriptor.proto.json_name.value(),
+                     descriptor.cpp_name);
     } else {
       fmt::format_to(target, "    \"{}\", &T::{},\n", descriptor.proto.json_name.value(), descriptor.cpp_name);
     }

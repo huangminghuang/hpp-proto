@@ -1,10 +1,11 @@
 #pragma once
+#include <cassert>
 #include <google/protobuf/descriptor.pb.hpp>
 #include <iostream>
-#include <cassert>
 namespace hpp::proto {
 
-template <typename FlatMap> void reserve(FlatMap &m, std::size_t s) {
+template <typename FlatMap>
+void reserve(FlatMap &m, std::size_t s) {
   typename FlatMap::key_container_type keys;
   typename FlatMap::mapped_container_type values;
   keys.reserve(s);
@@ -12,7 +13,8 @@ template <typename FlatMap> void reserve(FlatMap &m, std::size_t s) {
   m.replace(std::move(keys), std::move(values));
 }
 
-template <typename AddOns> struct descriptor_pool {
+template <typename AddOns>
+struct descriptor_pool {
   struct field_descriptor_t : AddOns::template field_descriptor<field_descriptor_t> {
     using pool_type = descriptor_pool;
     const google::protobuf::FieldDescriptorProto &proto;

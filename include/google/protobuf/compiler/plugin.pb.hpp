@@ -19,6 +19,16 @@ auto serialize(const Version&) -> zpp::bits::members<4>;
 
 inline const char* pb_url(const Version&) { return "type.googleapis.com/google.protobuf.compiler.Version"; }
 
+auto pb_meta(const CodeGeneratorRequest &) -> std::tuple<
+  hpp::proto::field_meta<1, hpp::proto::encoding_rule::unpacked_repeated>,
+  hpp::proto::field_meta<2, hpp::proto::encoding_rule::explicit_presence>,
+  hpp::proto::field_meta<15, hpp::proto::encoding_rule::unpacked_repeated>,
+  hpp::proto::field_meta<3, hpp::proto::encoding_rule::explicit_presence>>;
+
+auto serialize(const CodeGeneratorRequest&) -> zpp::bits::members<4>;
+
+inline const char* pb_url(const CodeGeneratorRequest&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest"; }
+
 auto pb_meta(const CodeGeneratorResponse &) -> std::tuple<
   hpp::proto::field_meta<1, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<2, hpp::proto::encoding_rule::explicit_presence, zpp::bits::vuint64_t>,
@@ -37,15 +47,5 @@ auto pb_meta(const CodeGeneratorResponse::File &) -> std::tuple<
 auto serialize(const CodeGeneratorResponse::File&) -> zpp::bits::members<4>;
 
 inline const char* pb_url(const CodeGeneratorResponse::File&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse.File"; }
-
-auto pb_meta(const CodeGeneratorRequest &) -> std::tuple<
-  hpp::proto::field_meta<1, hpp::proto::encoding_rule::unpacked_repeated>,
-  hpp::proto::field_meta<2, hpp::proto::encoding_rule::explicit_presence>,
-  hpp::proto::field_meta<15, hpp::proto::encoding_rule::unpacked_repeated>,
-  hpp::proto::field_meta<3, hpp::proto::encoding_rule::explicit_presence>>;
-
-auto serialize(const CodeGeneratorRequest&) -> zpp::bits::members<4>;
-
-inline const char* pb_url(const CodeGeneratorRequest&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest"; }
 
 } // namespace google::protobuf::compiler

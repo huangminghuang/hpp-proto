@@ -11,7 +11,7 @@ if (APPLE)
 endif()
 
 CPMAddPackage(gh:eyalz800/zpp_bits@4.4.13)
-CPMAddPackage(gh:stephenberry/glaze@1.0.1)
+CPMAddPackage(gh:stephenberry/glaze@1.2.3)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 CPMAddPackage(

@@ -341,8 +341,8 @@ struct glz::meta<google::protobuf::UninterpretedOption> {
   static constexpr auto value = object(
     "name", &T::name,
     "identifierValue", &T::identifier_value,
-    "positiveIntValue", [](auto &&self) -> auto& { return hpp::proto::wrap_int64(self.positive_int_value); },
-    "negativeIntValue", [](auto &&self) -> auto& { return hpp::proto::wrap_int64(self.negative_int_value); },
+    "positiveIntValue", glz::quoted<&T::positive_int_value>(),
+    "negativeIntValue", glz::quoted<&T::negative_int_value>(),
     "doubleValue", &T::double_value,
     "stringValue", &T::string_value,
     "aggregateValue", &T::aggregate_value);

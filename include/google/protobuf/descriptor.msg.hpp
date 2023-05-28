@@ -18,12 +18,12 @@ struct UninterpretedOption {
   };
 
   std::vector<NamePart> name;
-  hpp::proto::optional<std::string> identifier_value;
-  hpp::proto::optional<uint64_t> positive_int_value;
-  hpp::proto::optional<int64_t> negative_int_value;
-  hpp::proto::optional<double> double_value;
-  hpp::proto::optional<hpp::proto::bytes> string_value;
-  hpp::proto::optional<std::string> aggregate_value;
+  std::optional<std::string> identifier_value;
+  std::optional<uint64_t> positive_int_value;
+  std::optional<int64_t> negative_int_value;
+  std::optional<double> double_value;
+  std::optional<hpp::proto::bytes> string_value;
+  std::optional<std::string> aggregate_value;
 
   bool operator == (const UninterpretedOption&) const = default;
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
@@ -36,8 +36,8 @@ struct SourceCodeInfo {
   struct Location {
     std::vector<int32_t> path;
     std::vector<int32_t> span;
-    hpp::proto::optional<std::string> leading_comments;
-    hpp::proto::optional<std::string> trailing_comments;
+    std::optional<std::string> leading_comments;
+    std::optional<std::string> trailing_comments;
     std::vector<std::string> leading_detached_comments;
 
     bool operator == (const Location&) const = default;
@@ -65,9 +65,9 @@ struct GeneratedCodeInfo {
     };
 
     std::vector<int32_t> path;
-    hpp::proto::optional<std::string> source_file;
-    hpp::proto::optional<int32_t> begin;
-    hpp::proto::optional<int32_t> end;
+    std::optional<std::string> source_file;
+    std::optional<int32_t> begin;
+    std::optional<int32_t> end;
     std::optional<Semantic> semantic;
 
     bool operator == (const Annotation&) const = default;
@@ -94,7 +94,7 @@ struct MethodOptions {
   };
 
   hpp::proto::optional<bool,false> deprecated;
-  hpp::proto::optional<IdempotencyLevel,::google::protobuf::MethodOptions::IdempotencyLevel::IDEMPOTENCY_UNKNOWN> idempotency_level;
+  hpp::proto::optional<IdempotencyLevel,IdempotencyLevel::IDEMPOTENCY_UNKNOWN> idempotency_level;
   std::vector<UninterpretedOption> uninterpreted_option;
 
   struct extension_t {
@@ -184,9 +184,9 @@ struct EnumValueOptions {
 };
 
 struct EnumOptions {
-  hpp::proto::optional<bool> allow_alias;
+  std::optional<bool> allow_alias;
   hpp::proto::optional<bool,false> deprecated;
-  hpp::proto::optional<bool> deprecated_legacy_json_field_conflicts;
+  std::optional<bool> deprecated_legacy_json_field_conflicts;
   std::vector<UninterpretedOption> uninterpreted_option;
 
   struct extension_t {
@@ -276,9 +276,9 @@ struct FieldOptions {
     TARGET_TYPE_METHOD = 9 
   };
 
-  hpp::proto::optional<CType,::google::protobuf::FieldOptions::CType::STRING> ctype;
-  hpp::proto::optional<bool> packed;
-  hpp::proto::optional<JSType,::google::protobuf::FieldOptions::JSType::JS_NORMAL> jstype;
+  hpp::proto::optional<CType,CType::STRING> ctype;
+  std::optional<bool> packed;
+  hpp::proto::optional<JSType,JSType::JS_NORMAL> jstype;
   hpp::proto::optional<bool,false> lazy;
   hpp::proto::optional<bool,false> unverified_lazy;
   hpp::proto::optional<bool,false> deprecated;
@@ -318,8 +318,8 @@ struct MessageOptions {
   hpp::proto::optional<bool,false> message_set_wire_format;
   hpp::proto::optional<bool,false> no_standard_descriptor_accessor;
   hpp::proto::optional<bool,false> deprecated;
-  hpp::proto::optional<bool> map_entry;
-  hpp::proto::optional<bool> deprecated_legacy_json_field_conflicts;
+  std::optional<bool> map_entry;
+  std::optional<bool> deprecated_legacy_json_field_conflicts;
   std::vector<UninterpretedOption> uninterpreted_option;
 
   struct extension_t {
@@ -355,26 +355,26 @@ struct FileOptions {
     LITE_RUNTIME = 3 
   };
 
-  hpp::proto::optional<std::string> java_package;
-  hpp::proto::optional<std::string> java_outer_classname;
+  std::optional<std::string> java_package;
+  std::optional<std::string> java_outer_classname;
   hpp::proto::optional<bool,false> java_multiple_files;
-  hpp::proto::optional<bool> java_generate_equals_and_hash;
+  std::optional<bool> java_generate_equals_and_hash;
   hpp::proto::optional<bool,false> java_string_check_utf8;
-  hpp::proto::optional<OptimizeMode,::google::protobuf::FileOptions::OptimizeMode::SPEED> optimize_for;
-  hpp::proto::optional<std::string> go_package;
+  hpp::proto::optional<OptimizeMode,OptimizeMode::SPEED> optimize_for;
+  std::optional<std::string> go_package;
   hpp::proto::optional<bool,false> cc_generic_services;
   hpp::proto::optional<bool,false> java_generic_services;
   hpp::proto::optional<bool,false> py_generic_services;
   hpp::proto::optional<bool,false> php_generic_services;
   hpp::proto::optional<bool,false> deprecated;
   hpp::proto::optional<bool,true> cc_enable_arenas;
-  hpp::proto::optional<std::string> objc_class_prefix;
-  hpp::proto::optional<std::string> csharp_namespace;
-  hpp::proto::optional<std::string> swift_prefix;
-  hpp::proto::optional<std::string> php_class_prefix;
-  hpp::proto::optional<std::string> php_namespace;
-  hpp::proto::optional<std::string> php_metadata_namespace;
-  hpp::proto::optional<std::string> ruby_package;
+  std::optional<std::string> objc_class_prefix;
+  std::optional<std::string> csharp_namespace;
+  std::optional<std::string> swift_prefix;
+  std::optional<std::string> php_class_prefix;
+  std::optional<std::string> php_namespace;
+  std::optional<std::string> php_metadata_namespace;
+  std::optional<std::string> ruby_package;
   std::vector<UninterpretedOption> uninterpreted_option;
 
   struct extension_t {
@@ -404,9 +404,9 @@ struct FileOptions {
 };
 
 struct MethodDescriptorProto {
-  hpp::proto::optional<std::string> name;
-  hpp::proto::optional<std::string> input_type;
-  hpp::proto::optional<std::string> output_type;
+  std::optional<std::string> name;
+  std::optional<std::string> input_type;
+  std::optional<std::string> output_type;
   std::optional<MethodOptions> options;
   hpp::proto::optional<bool,false> client_streaming;
   hpp::proto::optional<bool,false> server_streaming;
@@ -419,7 +419,7 @@ struct MethodDescriptorProto {
 };
 
 struct ServiceDescriptorProto {
-  hpp::proto::optional<std::string> name;
+  std::optional<std::string> name;
   std::vector<MethodDescriptorProto> method;
   std::optional<ServiceOptions> options;
 
@@ -431,8 +431,8 @@ struct ServiceDescriptorProto {
 };
 
 struct EnumValueDescriptorProto {
-  hpp::proto::optional<std::string> name;
-  hpp::proto::optional<int32_t> number;
+  std::optional<std::string> name;
+  std::optional<int32_t> number;
   std::optional<EnumValueOptions> options;
 
   bool operator == (const EnumValueDescriptorProto&) const = default;
@@ -444,8 +444,8 @@ struct EnumValueDescriptorProto {
 
 struct EnumDescriptorProto {
   struct EnumReservedRange {
-    hpp::proto::optional<int32_t> start;
-    hpp::proto::optional<int32_t> end;
+    std::optional<int32_t> start;
+    std::optional<int32_t> end;
 
     bool operator == (const EnumReservedRange&) const = default;
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
@@ -454,7 +454,7 @@ struct EnumDescriptorProto {
 #endif
   };
 
-  hpp::proto::optional<std::string> name;
+  std::optional<std::string> name;
   std::vector<EnumValueDescriptorProto> value;
   std::optional<EnumOptions> options;
   std::vector<EnumReservedRange> reserved_range;
@@ -468,7 +468,7 @@ struct EnumDescriptorProto {
 };
 
 struct OneofDescriptorProto {
-  hpp::proto::optional<std::string> name;
+  std::optional<std::string> name;
   std::optional<OneofOptions> options;
 
   bool operator == (const OneofDescriptorProto&) const = default;
@@ -506,17 +506,17 @@ struct FieldDescriptorProto {
     LABEL_REPEATED = 3 
   };
 
-  hpp::proto::optional<std::string> name;
-  hpp::proto::optional<int32_t> number;
+  std::optional<std::string> name;
+  std::optional<int32_t> number;
   std::optional<Label> label;
   std::optional<Type> type;
-  hpp::proto::optional<std::string> type_name;
-  hpp::proto::optional<std::string> extendee;
-  hpp::proto::optional<std::string> default_value;
-  hpp::proto::optional<int32_t> oneof_index;
-  hpp::proto::optional<std::string> json_name;
+  std::optional<std::string> type_name;
+  std::optional<std::string> extendee;
+  std::optional<std::string> default_value;
+  std::optional<int32_t> oneof_index;
+  std::optional<std::string> json_name;
   std::optional<FieldOptions> options;
-  hpp::proto::optional<bool> proto3_optional;
+  std::optional<bool> proto3_optional;
 
   bool operator == (const FieldDescriptorProto&) const = default;
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
@@ -556,8 +556,8 @@ struct ExtensionRangeOptions {
 
 struct DescriptorProto {
   struct ExtensionRange {
-    hpp::proto::optional<int32_t> start;
-    hpp::proto::optional<int32_t> end;
+    std::optional<int32_t> start;
+    std::optional<int32_t> end;
     std::optional<ExtensionRangeOptions> options;
 
     bool operator == (const ExtensionRange&) const = default;
@@ -568,8 +568,8 @@ struct DescriptorProto {
   };
 
   struct ReservedRange {
-    hpp::proto::optional<int32_t> start;
-    hpp::proto::optional<int32_t> end;
+    std::optional<int32_t> start;
+    std::optional<int32_t> end;
 
     bool operator == (const ReservedRange&) const = default;
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
@@ -578,7 +578,7 @@ struct DescriptorProto {
 #endif
   };
 
-  hpp::proto::optional<std::string> name;
+  std::optional<std::string> name;
   std::vector<FieldDescriptorProto> field;
   std::vector<FieldDescriptorProto> extension;
   std::vector<DescriptorProto> nested_type;
@@ -597,8 +597,8 @@ struct DescriptorProto {
 };
 
 struct FileDescriptorProto {
-  hpp::proto::optional<std::string> name;
-  hpp::proto::optional<std::string> package;
+  std::optional<std::string> name;
+  std::optional<std::string> package;
   std::vector<std::string> dependency;
   std::vector<int32_t> public_dependency;
   std::vector<int32_t> weak_dependency;
@@ -608,8 +608,8 @@ struct FileDescriptorProto {
   std::vector<FieldDescriptorProto> extension;
   std::optional<FileOptions> options;
   std::optional<SourceCodeInfo> source_code_info;
-  hpp::proto::optional<std::string> syntax;
-  hpp::proto::optional<std::string> edition;
+  std::optional<std::string> syntax;
+  std::optional<std::string> edition;
 
   bool operator == (const FileDescriptorProto&) const = default;
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR

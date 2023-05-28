@@ -75,9 +75,9 @@ constexpr ToType bit_cast(FromType const &from) noexcept {
   hpp::proto::double_wrapper<std::bit_cast<int64_t>(v)> {}
 #else
 #define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
-  hpp::proto::float_wrapper<zpp::bits::std::bit_cast<int32_t>(v)> {}
+  hpp::proto::float_wrapper<hpp::proto::std::bit_cast<int32_t>(v)> {}
 #define HPP_PROTO_WRAP_DOUBLE(v)                                                                                       \
-  hpp::proto::double_wrapper<zpp::bits::std::bit_cast<int64_t>(v)> {}
+  hpp::proto::double_wrapper<hpp::proto::std::bit_cast<int64_t>(v)> {}
 #endif
 #else
 #define HPP_PROTO_WRAP_FLOAT(v) v

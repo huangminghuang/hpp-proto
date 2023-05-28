@@ -19,8 +19,7 @@ struct uint64_example {
 template <>
 struct glz::meta<uint64_example> {
   using T = uint64_example;
-  static constexpr auto value =
-      object("field", [](auto &&self) -> auto & { return hpp::proto::wrap_int64(self.field); });
+  static constexpr auto value = object("field", glz::quoted<&uint64_example::field>());
 };
 
 struct optional_example {
@@ -33,9 +32,8 @@ struct optional_example {
 template <>
 struct glz::meta<optional_example> {
   using T = optional_example;
-  static constexpr auto value = object(
-      "field1", &T::field1, "field2", [](auto &&self) -> auto & { return hpp::proto::wrap_int64(self.field2); },
-      "field3", &T::field3);
+  static constexpr auto value =
+      object("field1", &T::field1, "field2", glz::quoted<&optional_example::field2>(), "field3", &T::field3);
 };
 
 // using namespace std::literals::string_view_literals;

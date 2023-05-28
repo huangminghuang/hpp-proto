@@ -29,7 +29,7 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse> {
   using T = google::protobuf::compiler::CodeGeneratorResponse;
   static constexpr auto value = object(
     "error", &T::error,
-    "supportedFeatures", [](auto &&self) -> auto& { return hpp::proto::wrap_int64(self.supported_features); },
+    "supportedFeatures", glz::quoted<&T::supported_features>(),
     "file", &T::file);
 };
 

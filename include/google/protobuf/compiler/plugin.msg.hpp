@@ -7,10 +7,10 @@ namespace google::protobuf::compiler {
 
 using hpp::proto::literals::operator ""_hppproto_s;
 struct Version {
-  hpp::proto::optional<int32_t> major;
-  hpp::proto::optional<int32_t> minor;
-  hpp::proto::optional<int32_t> patch;
-  hpp::proto::optional<std::string> suffix;
+  std::optional<int32_t> major;
+  std::optional<int32_t> minor;
+  std::optional<int32_t> patch;
+  std::optional<std::string> suffix;
 
   bool operator == (const Version&) const = default;
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
@@ -26,9 +26,9 @@ struct CodeGeneratorResponse {
   };
 
   struct File {
-    hpp::proto::optional<std::string> name;
-    hpp::proto::optional<std::string> insertion_point;
-    hpp::proto::optional<std::string> content;
+    std::optional<std::string> name;
+    std::optional<std::string> insertion_point;
+    std::optional<std::string> content;
     std::optional<GeneratedCodeInfo> generated_code_info;
 
     bool operator == (const File&) const = default;
@@ -38,8 +38,8 @@ struct CodeGeneratorResponse {
 #endif
   };
 
-  hpp::proto::optional<std::string> error;
-  hpp::proto::optional<uint64_t> supported_features;
+  std::optional<std::string> error;
+  std::optional<uint64_t> supported_features;
   std::vector<File> file;
 
   bool operator == (const CodeGeneratorResponse&) const = default;
@@ -51,7 +51,7 @@ struct CodeGeneratorResponse {
 
 struct CodeGeneratorRequest {
   std::vector<std::string> file_to_generate;
-  hpp::proto::optional<std::string> parameter;
+  std::optional<std::string> parameter;
   std::vector<FileDescriptorProto> proto_file;
   std::optional<Version> compiler_version;
 

@@ -6,58 +6,6 @@
 namespace hpp::proto {
 
 namespace concepts {
-template <typename Type>
-concept integer_64bits = (sizeof(Type) == 8) && std::integral<Type>;
-}
-
-template <concepts::integer_64bits T>
-struct int_wrapper {
-  T value;
-};
-
-template <concepts::integer_64bits T>
-int_wrapper<T> &wrap_int64(T &v) {
-  return *std::bit_cast<int_wrapper<T> *>(&v);
-}
-template <concepts::integer_64bits T>
-const int_wrapper<T> &wrap_int64(const T &v) {
-  return *std::bit_cast<const int_wrapper<T> *>(&v);
-}
-
-template <concepts::integer_64bits T>
-std::optional<int_wrapper<T>> &wrap_int64(std::optional<T> &v) {
-  return *std::bit_cast<std::optional<int_wrapper<T>> *>(&v);
-}
-
-template <concepts::integer_64bits T, auto Default>
-std::optional<int_wrapper<T>> &wrap_int64(optional<T, Default> &v) {
-  return *std::bit_cast<std::optional<int_wrapper<T>> *>(&v);
-}
-
-template <concepts::integer_64bits T, auto Default>
-const std::optional<int_wrapper<T>> &wrap_int64(const optional<T, Default> &v) {
-  return *std::bit_cast<const std::optional<int_wrapper<T>> *>(&v);
-}
-
-template <concepts::integer_64bits T>
-std::vector<int_wrapper<T>> &wrap_int64(std::vector<T> &v) {
-  return *std::bit_cast<std::vector<int_wrapper<T>> *>(&v);
-}
-
-template <concepts::integer_64bits T>
-const std::vector<int_wrapper<T>> &wrap_int64(const std::vector<T> &v) {
-  return *std::bit_cast<const std::vector<int_wrapper<T>> *>(&v);
-}
-
-template <concepts::integer_64bits T, std::size_t N>
-std::span<int_wrapper<T>, N> &wrap_int64(std::span<T, N> &v) {
-  return *std::bit_cast<std::span<int_wrapper<T>> *>(&v);
-}
-
-template <concepts::integer_64bits T, std::size_t N>
-const std::span<int_wrapper<T>, N> &wrap_int64(const std::span<T, N> &v) {
-  return *std::bit_cast<const std::span<int_wrapper<T>, N> *>(&v);
-}
 
 template <typename T, std::size_t Index>
 struct oneof_wrapper {
@@ -152,7 +100,7 @@ struct from_json<hpp::proto::bytes> {
         skip_ws<Opts>(ctx, it, end);
       }
 
-      match<'"'>(ctx, it);
+      match<'"'>(ctx, it, end);
     }
 
     static constexpr unsigned char decode_table[] = {
@@ -173,7 +121,7 @@ struct from_json<hpp::proto::bytes> {
     auto n = it - start;
     if (n == 0) {
       value.clear();
-      match<'"'>(ctx, it);
+      match<'"'>(ctx, it, end);
       return;
     }
 
@@ -203,53 +151,7 @@ struct from_json<hpp::proto::bytes> {
       if (j < out_len)
         value[j++] = std::byte((triple >> 0 * 8) & 0xFF);
     }
-    match<'"'>(ctx, it);
-  }
-};
-
-template <typename Type>
-struct to_json<hpp::proto::int_wrapper<Type>> {
-  template <auto Opts, class B>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
-    if constexpr (detail::resizeable<B>) {
-      std::size_t encoded_size = 20;
-      if ((ix + 2 + encoded_size) >= b.size()) [[unlikely]] {
-        b.resize(std::max(b.size() * 2, ix + 2 + encoded_size));
-      }
-    }
-    dump_unchecked<'"'>(b, ix);
-    write_chars::op<Opts>(value.value, ctx, b, ix);
-    dump_unchecked<'"'>(b, ix);
-  }
-};
-
-template <typename Type>
-struct from_json<hpp::proto::int_wrapper<Type>> {
-  template <auto Options, class It>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, auto &&end) noexcept {
-    if (static_cast<bool>(ctx.error)) [[unlikely]] {
-      return;
-    }
-
-    if constexpr (!Options.ws_handled) {
-      skip_ws<Options>(ctx, it, end);
-    }
-    match<'"'>(ctx, it);
-    using X = std::conditional_t<std::is_const_v<std::remove_pointer_t<std::remove_reference_t<decltype(it)>>>,
-                                 const uint8_t *, uint8_t *>;
-#if defined(__cpp_lib_bit_cast)
-    using namespace std;
-#else
-    using namespace hpp::proto::std;
-#endif
-    auto cur = bit_cast<X>(it);
-    auto s = parse_number<std::decay_t<Type>, Options.force_conformance>(value.value, cur);
-    if (!s) [[unlikely]] {
-      ctx.error = error_code::parse_number_failure;
-      return;
-    }
-    it = bit_cast<std::remove_reference_t<decltype(it)>>(cur);
-    match<'"'>(ctx, it);
+    match<'"'>(ctx, it, end);
   }
 };
 
