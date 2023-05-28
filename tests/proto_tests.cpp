@@ -5,7 +5,8 @@ namespace ut = boost::ut;
 using namespace zpp::bits::literals;
 using hpp::proto::encoding_rule;
 
-template <typename T> std::string to_hex(const T &data) {
+template <typename T>
+std::string to_hex(const T &data) {
   static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
   std::string result;
   result.resize(data.size() * 2);
@@ -18,7 +19,10 @@ template <typename T> std::string to_hex(const T &data) {
   return result;
 }
 
-template <zpp::bits::string_literal String> constexpr auto operator""_bytes_view() { return zpp::bits::to_bytes<String>(); }
+template <zpp::bits::string_literal String>
+constexpr auto operator""_bytes_view() {
+  return zpp::bits::to_bytes<String>();
+}
 
 struct example {
   int32_t i; // field number == 1
@@ -105,7 +109,8 @@ static_assert(hpp::proto::from_bytes<"1a03089601"_decode_hex, nested_explicit_id
 
 enum test_mode { decode_encode, decode_only };
 
-template <typename T> void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encode) {
+template <typename T>
+void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encode) {
   std::remove_cvref_t<T> value;
 
   ut::expect(success(hpp::proto::in{encoded_data}(value)));
@@ -147,7 +152,8 @@ using namespace boost::ut::literals;
 
 ut::suite test_repeated_integers = [] {
   "repeated_integers"_test = [] {
-    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_view, repeated_integers{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
+    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_view,
+           repeated_integers{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
   };
 
   "repeated_integers_unpacked"_test = [] {
@@ -197,13 +203,15 @@ using namespace boost::ut::literals;
 
 ut::suite test_repeated_fixed = [] {
   "repeated_fixed"_test = [] {
-    verify("\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
-           repeated_fixed{{1, 2, 3}});
+    verify(
+        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        repeated_fixed{{1, 2, 3}});
   };
 
   "repeated_fixed_explicit_type"_test = [] {
-    verify("\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
-           repeated_fixed_explicit_type{{1, 2, 3}});
+    verify(
+        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        repeated_fixed_explicit_type{{1, 2, 3}});
   };
 
   "repeated_fixed_unpacked"_test = [] {
@@ -319,7 +327,9 @@ ut::suite test_string_example = [] {
 
   "string_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, string_with_default{}); };
 
-  "string_with_default"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_with_default{.value = "test"}); };
+  "string_with_default"_test = [] {
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_with_default{.value = "test"});
+  };
 
   "default_value_access"_test = [] {
     string_with_default v;
@@ -350,7 +360,9 @@ auto pb_meta(const string_view_with_default &)
 auto serialize(const string_view_with_default &) -> zpp::bits::members<1>;
 
 ut::suite test_string_view_example = [] {
-  "string_view_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_example{.value = "test"}); };
+  "string_view_example"_test = [] {
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_example{.value = "test"});
+  };
 
   "string_view_explicit_presence"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_explicit_presence{.value = "test"});
@@ -402,7 +414,9 @@ ut::suite test_bytes = [] {
 
   "bytes_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, bytes_with_default{}); };
 
-  "bytes_with_default"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, bytes_with_default{.value = verified_value}); };
+  "bytes_with_default"_test = [] {
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, bytes_with_default{.value = verified_value});
+  };
 
   "default_value_access"_test = [] {
     bytes_with_default v;
@@ -489,7 +503,9 @@ auto serialize(const byte_span_with_default &) -> zpp::bits::members<1>;
 ut::suite test_byte_span = [] {
   static const std::byte verified_value[] = {std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
 
-  "byte_span_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, byte_span_example{.value = verified_value}); };
+  "byte_span_example"_test = [] {
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, byte_span_example{.value = verified_value});
+  };
 
   "byte_span_explicit_presence"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, byte_span_explicit_presence{.value = verified_value});
@@ -526,7 +542,8 @@ ut::suite test_repeated_strings = [] {
     verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view, repeated_strings{.values = {"abc"s, "def"s}});
   };
   "repeated_strings_explicit_type"_test = [] {
-    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view, repeated_strings_explicit_type{.values = {"abc"s, "def"s}});
+    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view,
+           repeated_strings_explicit_type{.values = {"abc"s, "def"s}});
   };
   "repeated_strings_explicit_presence"_test = [] {
     verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view,
@@ -563,7 +580,8 @@ struct extension_example {
 
   auto get_extension(auto meta) { return meta.read(extensions); }
 
-  template <typename Meta> void set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template <typename Meta>
+  void set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
   bool has_extension(auto meta) const { return meta.element_of(extensions); }
@@ -614,7 +632,8 @@ constexpr auto repeated_packed_i32_ext() {
                                              int32_t>{};
 }
 
-template <zpp::bits::string_literal String> constexpr auto operator""_bytes() {
+template <zpp::bits::string_literal String>
+constexpr auto operator""_bytes() {
   auto v = zpp::bits::to_bytes<String>();
   return std::vector<std::byte>{v.begin(), v.end()};
 }
@@ -715,7 +734,9 @@ struct recursive_type2 {
 };
 
 ut::suite recursive_types = [] {
-  "recursive_type1"_test = [] { verify("\x0a\x02\x10\x02\x10\x01"_bytes_view, recursive_type1{recursive_type1{{}, 2}, 1}); };
+  "recursive_type1"_test = [] {
+    verify("\x0a\x02\x10\x02\x10\x01"_bytes_view, recursive_type1{recursive_type1{{}, 2}, 1});
+  };
   "recursive_type2"_test = [] {
     recursive_type2 child;
     child.payload = 2;

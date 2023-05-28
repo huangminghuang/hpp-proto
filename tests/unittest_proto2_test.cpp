@@ -1,12 +1,13 @@
 
 #include "proto2json/proto2json.h"
 #include <boost/ut.hpp>
-#include <google/protobuf/unittest.pb.hpp>
 #include <google/protobuf/unittest.glz.hpp>
+#include <google/protobuf/unittest.pb.hpp>
 #include <regex>
 namespace ut = boost::ut;
 
-template <zpp::bits::string_literal String> constexpr auto operator""_bytes() {
+template <zpp::bits::string_literal String>
+constexpr auto operator""_bytes() {
   auto v = zpp::bits::to_bytes<String>();
   return std::vector<std::byte>{v.begin(), v.end()};
 }
@@ -1302,7 +1303,6 @@ inline void TestUtil::SetPackedExtensions(protobuf_unittest::TestPackedExtension
   message->set_extension(protobuf_unittest::packed_bool_extension(), {true, false});
   message->set_extension(protobuf_unittest::packed_enum_extension(),
                          {protobuf_unittest::ForeignEnum::FOREIGN_BAR, protobuf_unittest::ForeignEnum::FOREIGN_BAZ});
-
 }
 
 // -------------------------------------------------------------------
@@ -1474,14 +1474,8 @@ ut::suite proto_test = [] {
 
     std::regex empty_array_re(R"(,"\w+":\[\])");
 
-
-    // std::cout << glz::write_json(original) << "\n\n";
-    // std::cout << original_json << "\n";
     auto glaze_generated_json = glz::write_json(original);
     auto glaze_generated_json_no_empty_array = std::regex_replace(glaze_generated_json, empty_array_re, "");
-
-    // std::cout << glz::write_json(original) << "\n\n";
-    // std::cout << original_json << "\n";
 
     ut::expect(ut::eq(glaze_generated_json_no_empty_array, original_json));
 

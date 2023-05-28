@@ -5,34 +5,31 @@
 #include <google/protobuf/util/json_util.h>
 namespace gpb = google::protobuf;
 
-std::string proto_to_json(const gpb::DescriptorPool *pool, const char *message_name, std::string_view data,
+std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data,
                           PrintOption option = NONE) {
 
-  auto message_descriptor = pool->FindMessageTypeByName(message_name);
-  gpb::DynamicMessageFactory factory(pool);
+  auto message_descriptor = pool.FindMessageTypeByName(message_name);
+  gpb::DynamicMessageFactory factory(&pool);
 
-  auto message = factory.GetPrototype(message_descriptor)->New();
+  std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
   message->ParseFromString(data);
 
   std::string result;
   gpb::json::PrintOptions options;
   options.always_print_primitive_fields = (option == ALWAYS_PRINT_PRIMITIVE_FIELDS);
 
-  (void)!gpb::util::MessageToJsonString(*message, &result, options).ok();
+  (void)gpb::util::MessageToJsonString(*message, &result, options);
 
   return result;
 }
 
-std::string proto_to_json(const char *dir, const char *proto_file_name, const char *message_name, std::string_view data,
-                          PrintOption option) {
-  namespace gpb = google::protobuf;
+std::string json_to_proto(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data) {
+  auto message_descriptor = pool.FindMessageTypeByName(message_name);
+  gpb::DynamicMessageFactory factory(&pool);
 
-  gpb::compiler::MultiFileErrorCollector error_collector;
-  gpb::compiler::DiskSourceTree source_tree;
-  source_tree.MapPath("", dir);
-  gpb::compiler::Importer importer(&source_tree, &error_collector);
-  importer.Import(proto_file_name);
-  return proto_to_json(importer.pool(), message_name, data, option);
+  std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
+  (void)gpb::util::JsonStringToMessage(data, message.get());
+  return message->SerializeAsString();
 }
 
 std::string proto_to_json(std::string_view filedescriptorset_stream, const char *message_name, std::string_view data,
@@ -46,5 +43,18 @@ std::string proto_to_json(std::string_view filedescriptorset_stream, const char 
   }
 
   gpb::DescriptorPool pool(&database);
-  return proto_to_json(&pool, message_name, data, option);
+  return proto_to_json(pool, message_name, data, option);
+}
+
+std::string json_to_proto(std::string_view filedescriptorset_stream, const char *message_name, std::string_view data){
+  gpb::FileDescriptorSet fileset;
+  fileset.ParseFromString(filedescriptorset_stream);
+
+  gpb::SimpleDescriptorDatabase database;
+  for (int i = 0; i < fileset.file_size(); ++i) {
+    database.AddUnowned(&fileset.file(i));
+  }
+
+  gpb::DescriptorPool pool(&database);
+  return json_to_proto(pool, message_name, data);
 }

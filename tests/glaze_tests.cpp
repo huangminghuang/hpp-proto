@@ -5,7 +5,8 @@ struct bytes_example {
   hpp::proto::bytes field;
 };
 
-template <> struct glz::meta<bytes_example> {
+template <>
+struct glz::meta<bytes_example> {
   using T = bytes_example;
   static constexpr auto value = object("field", &T::field);
 };
@@ -15,7 +16,8 @@ struct uint64_example {
   bool operator==(const uint64_example &) const = default;
 };
 
-template <> struct glz::meta<uint64_example> {
+template <>
+struct glz::meta<uint64_example> {
   using T = uint64_example;
   static constexpr auto value =
       object("field", [](auto &&self) -> auto & { return hpp::proto::wrap_int64(self.field); });
@@ -28,7 +30,8 @@ struct optional_example {
   bool operator==(const optional_example &) const = default;
 };
 
-template <> struct glz::meta<optional_example> {
+template <>
+struct glz::meta<optional_example> {
   using T = optional_example;
   static constexpr auto value = object(
       "field1", &T::field1, "field2", [](auto &&self) -> auto & { return hpp::proto::wrap_int64(self.field2); },
@@ -63,7 +66,8 @@ ut::suite test_bytes_json = [] {
   "no_padding_test"_test = [] { verify_bytes("light wor", R"({"field":"bGlnaHQgd29y"})"); };
 };
 
-template <typename T> void verify(T &&msg, std::string_view json) {
+template <typename T>
+void verify(T &&msg, std::string_view json) {
   using namespace boost::ut;
   expect(json == glz::write_json(msg));
 

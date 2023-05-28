@@ -827,11 +827,13 @@ struct hpp_meta_generateor : code_generator {
       if ((syntax == 2 && label == LABEL_OPTIONAL) ||
           (syntax == 3 && proto.proto3_optional.has_value() && proto.proto3_optional.value()))
         rule = "explicit_presence";
-      else if (syntax == 2 && label == LABEL_REPEATED && numeric) {
+      else if (label == LABEL_REPEATED && numeric) {
         auto &options = proto.options;
-        if (!options.has_value() || !options->packed.has_value() || !options->packed.value()) {
+        std::optional<bool> packed;
+        if (options.has_value() && options->packed.has_value())
+          packed = *options->packed;
+        if ((packed.has_value() && !*packed) || syntax == 2)
           rule = "unpacked_repeated";
-        }
       }
     }
 

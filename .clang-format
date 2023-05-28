@@ -2,3 +2,4 @@
 Language: Cpp                                      # single option
 BasedOnStyle: LLVM                               # edit distance 11865
 ColumnLimit: 120
+AlwaysBreakTemplateDeclarations: Yes

@@ -37,6 +37,24 @@ void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->oneof_field = "test"; // only this one remains set
 }
 
+void SetUnpackedFields(proto3_unittest::TestUnpackedTypes *message) {
+  message->repeated_int32.assign({601, 701});
+  message->repeated_int64.assign({602LL, 702LL});
+  message->repeated_uint32.assign({603U, 703U});
+  message->repeated_uint64.assign({604ULL, 704ULL});
+  message->repeated_sint32.assign({605, 705});
+  message->repeated_sint64.assign({606LL, 706LL});
+  message->repeated_fixed32.assign({607U, 707U});
+  message->repeated_fixed64.assign({608ULL, 708ULL});
+  message->repeated_sfixed32.assign({609, 709});
+  message->repeated_sfixed64.assign({610LL, 710LL});
+  message->repeated_float.assign({611.f, 711.f});
+  message->repeated_double.assign({612., 712.});
+  message->repeated_bool.assign({true, false});
+  message->repeated_nested_enum.assign(
+      {proto3_unittest::TestAllTypes::NestedEnum::BAR, proto3_unittest::TestAllTypes::NestedEnum::BAZ});
+}
+
 void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   ut::expect(100 == m.optional_int32);
   ut::expect("asdf" == m.optional_string);
@@ -72,7 +90,28 @@ void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   ut::expect("test" == std::get<std::string>(m.oneof_field));
 }
 
-std::string unittest_proto3_descriptorset() { 
+void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message) {
+  using namespace boost::ut;
+  
+  ut::expect(ut::eq(std::vector{601, 701}, message.repeated_int32));
+  ut::expect(ut::eq(std::vector{602LL, 702LL}, message.repeated_int64));
+  ut::expect(ut::eq(std::vector{603U, 703U}, message.repeated_uint32));
+  ut::expect(ut::eq(std::vector{604ULL, 704ULL}, message.repeated_uint64));
+  ut::expect(ut::eq(std::vector{605, 705}, message.repeated_sint32));
+  ut::expect(ut::eq(std::vector{606LL, 706LL}, message.repeated_sint64));
+  ut::expect(ut::eq(std::vector{607U, 707U}, message.repeated_fixed32));
+  ut::expect(ut::eq(std::vector{608ULL, 708ULL}, message.repeated_fixed64));
+  ut::expect(ut::eq(std::vector{609, 709}, message.repeated_sfixed32));
+  ut::expect(ut::eq(std::vector{610LL, 710LL}, message.repeated_sfixed64));
+  ut::expect(ut::eq(std::vector{611.f, 711.f}, message.repeated_float));
+  ut::expect(ut::eq(std::vector{612., 712.}, message.repeated_double));
+  ut::expect(ut::eq(std::vector<hpp::proto::boolean>{true, false}, message.repeated_bool));
+  ut::expect(
+      std::vector{proto3_unittest::TestAllTypes::NestedEnum::BAR, proto3_unittest::TestAllTypes::NestedEnum::BAZ} ==
+      message.repeated_nested_enum);
+}
+
+std::string unittest_proto3_descriptorset() {
   std::ifstream in("unittest_proto3.bin", std::ios::in | std::ios::binary);
   std::string contents;
   in.seekg(0, std::ios::end);
@@ -103,10 +142,31 @@ ut::suite proto3_lite_test = [] {
     ExpectAllFieldsSet(msg);
   };
 
+  "unpacked_repeated"_test = [] {
+    proto3_unittest::TestUnpackedTypes original;
+    SetUnpackedFields(&original);
+
+    proto3_unittest::TestUnpackedTypes msg;
+
+    auto [data, in, out] = hpp::proto::data_in_out();
+    using zpp::bits::success;
+
+    ut::expect(success(out(original)));
+    ut::expect(success(in(msg)));
+
+    ExpectUnpackedFieldsSet(msg);
+
+    auto json_string = glz::write_json(original);
+    auto m = json_to_proto(unittest_proto3_descriptorset(), "proto3_unittest.TestUnpackedTypes", json_string);
+
+    ut::expect(ut::eq(m.size(), data.size()));
+    ut::expect(memcmp(data.data(), m.data(), m.size()) == 0);
+
+  };
+
   "glaze"_test = [] {
     proto3_unittest::TestAllTypes original;
     SetAllFields(&original);
-
 
     auto [data, in, out] = hpp::proto::data_in_out();
     using zpp::bits::success;

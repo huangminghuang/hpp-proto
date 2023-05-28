@@ -1,7 +1,7 @@
 #pragma once
+#include <bit>
 #include <glaze/glaze.hpp>
 #include <hpp_proto/msg_base.h>
-#include <bit>
 
 namespace hpp::proto {
 
@@ -10,20 +10,27 @@ template <typename Type>
 concept integer_64bits = (sizeof(Type) == 8) && std::integral<Type>;
 }
 
-template <concepts::integer_64bits T> struct int_wrapper {
+template <concepts::integer_64bits T>
+struct int_wrapper {
   T value;
 };
 
-template <concepts::integer_64bits T> int_wrapper<T> &wrap_int64(T &v) { return *std::bit_cast<int_wrapper<T> *>(&v); }
-template <concepts::integer_64bits T> const int_wrapper<T> &wrap_int64(const T &v) {
+template <concepts::integer_64bits T>
+int_wrapper<T> &wrap_int64(T &v) {
+  return *std::bit_cast<int_wrapper<T> *>(&v);
+}
+template <concepts::integer_64bits T>
+const int_wrapper<T> &wrap_int64(const T &v) {
   return *std::bit_cast<const int_wrapper<T> *>(&v);
 }
 
-template <concepts::integer_64bits T> std::optional<int_wrapper<T>> &wrap_int64(std::optional<T> &v) {
+template <concepts::integer_64bits T>
+std::optional<int_wrapper<T>> &wrap_int64(std::optional<T> &v) {
   return *std::bit_cast<std::optional<int_wrapper<T>> *>(&v);
 }
 
-template <concepts::integer_64bits T, auto Default> std::optional<int_wrapper<T>> &wrap_int64(optional<T, Default> &v) {
+template <concepts::integer_64bits T, auto Default>
+std::optional<int_wrapper<T>> &wrap_int64(optional<T, Default> &v) {
   return *std::bit_cast<std::optional<int_wrapper<T>> *>(&v);
 }
 
@@ -32,15 +39,18 @@ const std::optional<int_wrapper<T>> &wrap_int64(const optional<T, Default> &v) {
   return *std::bit_cast<const std::optional<int_wrapper<T>> *>(&v);
 }
 
-template <concepts::integer_64bits T> std::vector<int_wrapper<T>> &wrap_int64(std::vector<T> &v) {
+template <concepts::integer_64bits T>
+std::vector<int_wrapper<T>> &wrap_int64(std::vector<T> &v) {
   return *std::bit_cast<std::vector<int_wrapper<T>> *>(&v);
 }
 
-template <concepts::integer_64bits T> const std::vector<int_wrapper<T>> &wrap_int64(const std::vector<T> &v) {
+template <concepts::integer_64bits T>
+const std::vector<int_wrapper<T>> &wrap_int64(const std::vector<T> &v) {
   return *std::bit_cast<const std::vector<int_wrapper<T>> *>(&v);
 }
 
-template <concepts::integer_64bits T, std::size_t N> std::span<int_wrapper<T>, N> &wrap_int64(std::span<T, N> &v) {
+template <concepts::integer_64bits T, std::size_t N>
+std::span<int_wrapper<T>, N> &wrap_int64(std::span<T, N> &v) {
   return *std::bit_cast<std::span<int_wrapper<T>> *>(&v);
 }
 
@@ -49,13 +59,15 @@ const std::span<int_wrapper<T>, N> &wrap_int64(const std::span<T, N> &v) {
   return *std::bit_cast<const std::span<int_wrapper<T>, N> *>(&v);
 }
 
-template <typename T, std::size_t Index> struct oneof_wrapper {
+template <typename T, std::size_t Index>
+struct oneof_wrapper {
   T *value;
   operator bool() const { return value->index() == Index; }
   auto &operator*() const { return std::get<Index>(*value); }
 };
 
-template <std::size_t Index, typename T> oneof_wrapper<T, Index> wrap_oneof(T &v) {
+template <std::size_t Index, typename T>
+oneof_wrapper<T, Index> wrap_oneof(T &v) {
   return oneof_wrapper<T, Index>{&v};
 }
 
@@ -63,7 +75,8 @@ template <std::size_t Index, typename T> oneof_wrapper<T, Index> wrap_oneof(T &v
 
 namespace glz {
 namespace detail {
-template <> struct to_json<hpp::proto::bytes> {
+template <>
+struct to_json<hpp::proto::bytes> {
   template <auto Opts, class B>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
 
@@ -126,7 +139,8 @@ template <> struct to_json<hpp::proto::bytes> {
   }
 };
 
-template <> struct from_json<hpp::proto::bytes> {
+template <>
+struct from_json<hpp::proto::bytes> {
   template <auto Opts, class It, class End>
   GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &&ctx, It &&it, End &&end) noexcept {
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
@@ -193,7 +207,8 @@ template <> struct from_json<hpp::proto::bytes> {
   }
 };
 
-template <typename Type> struct to_json<hpp::proto::int_wrapper<Type>> {
+template <typename Type>
+struct to_json<hpp::proto::int_wrapper<Type>> {
   template <auto Opts, class B>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
     if constexpr (detail::resizeable<B>) {
@@ -208,7 +223,8 @@ template <typename Type> struct to_json<hpp::proto::int_wrapper<Type>> {
   }
 };
 
-template <typename Type> struct from_json<hpp::proto::int_wrapper<Type>> {
+template <typename Type>
+struct from_json<hpp::proto::int_wrapper<Type>> {
   template <auto Options, class It>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, auto &&end) noexcept {
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
@@ -237,54 +253,70 @@ template <typename Type> struct from_json<hpp::proto::int_wrapper<Type>> {
   }
 };
 
-template <typename Type, auto Default> struct to_json<hpp::proto::optional<Type, Default>> {
-  template <auto Opts, class... Args> GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+template <typename Type, auto Default>
+struct to_json<hpp::proto::optional<Type, Default>> {
+  template <auto Opts, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     to_json<Type>::template op<Opts>(value.value_or_default(), std::forward<Args>(args)...);
   }
 };
 
-template <typename Type, auto Default> struct from_json<hpp::proto::optional<Type, Default>> {
-  template <auto Options, class... Args> GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+template <typename Type, auto Default>
+struct from_json<hpp::proto::optional<Type, Default>> {
+  template <auto Options, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     value.emplace();
     from_json<Type>::template op<Options>(*value, std::forward<Args>(args)...);
   }
 };
 
-template <typename Type> struct to_json<hpp::proto::heap_based_optional<Type>> {
-  template <auto Opts, class... Args> GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+template <typename Type>
+struct to_json<hpp::proto::heap_based_optional<Type>> {
+  template <auto Opts, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     to_json<Type>::template op<Opts>(*value, std::forward<Args>(args)...);
   }
 };
 
-template <typename Type> struct from_json<hpp::proto::heap_based_optional<Type>> {
-  template <auto Options, class... Args> GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+template <typename Type>
+struct from_json<hpp::proto::heap_based_optional<Type>> {
+  template <auto Options, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     value.emplace();
     from_json<Type>::template op<Options>(*value, std::forward<Args>(args)...);
   }
 };
 
-template <typename Type, std::size_t Index> struct to_json<hpp::proto::oneof_wrapper<Type, Index>> {
-  template <auto Opts, class... Args> GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+template <typename Type, std::size_t Index>
+struct to_json<hpp::proto::oneof_wrapper<Type, Index>> {
+  template <auto Opts, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     auto v = std::get_if<Index>(value.value);
     to_json<std::remove_pointer_t<decltype(v)>>::template op<Opts>(*v, std::forward<Args>(args)...);
   }
 };
 
-template <typename Type, std::size_t Index> struct from_json<hpp::proto::oneof_wrapper<Type, Index>> {
-  template <auto Options, class... Args> GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+template <typename Type, std::size_t Index>
+struct from_json<hpp::proto::oneof_wrapper<Type, Index>> {
+  template <auto Options, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     auto &v = value.value->template emplace<Index>();
     from_json<std::remove_cvref_t<decltype(v)>>::template op<Options>(v, std::forward<Args>(args)...);
   }
 };
 
-template <> struct to_json<hpp::proto::boolean> {
-  template <auto Opts, class... Args> GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+template <>
+struct to_json<hpp::proto::boolean> {
+  template <auto Opts, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     to_json<bool>::template op<Opts>(value.value, std::forward<Args>(args)...);
   }
 };
 
-template <> struct from_json<hpp::proto::boolean> {
-  template <auto Options, class... Args> GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+template <>
+struct from_json<hpp::proto::boolean> {
+  template <auto Options, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     from_json<bool>::template op<Options>(value.value, std::forward<Args>(args)...);
   }
 };

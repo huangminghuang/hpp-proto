@@ -50,8 +50,10 @@ namespace hpp::proto {
 
 // workaround for clang not supporting floating-point types in non-type template
 // parameters as of clang-15
-template <int64_t x> struct double_wrapper {};
-template <int32_t x> struct float_wrapper {};
+template <int64_t x>
+struct double_wrapper {};
+template <int32_t x>
+struct float_wrapper {};
 
 #ifndef __cpp_lib_bit_cast
 namespace std {
@@ -65,9 +67,10 @@ constexpr ToType bit_cast(FromType const &from) noexcept {
 } // namespace std
 #endif
 
-#if defined( __clang__)
+#if defined(__clang__)
 #if defined(__cpp_lib_bit_cast)
-#define HPP_PROTO_WRAP_FLOAT(v) hpp::proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
+#define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
+  hpp::proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
 #define HPP_PROTO_WRAP_DOUBLE(v)                                                                                       \
   hpp::proto::double_wrapper<std::bit_cast<int64_t>(v)> {}
 #else
@@ -81,13 +84,23 @@ constexpr ToType bit_cast(FromType const &from) noexcept {
 #define HPP_PROTO_WRAP_DOUBLE(v) v
 #endif
 
-template <int64_t x> static constexpr auto unwrap(double_wrapper<x>) { return std::bit_cast<double>(x); }
+template <int64_t x>
+static constexpr auto unwrap(double_wrapper<x>) {
+  return std::bit_cast<double>(x);
+}
 
-template <int32_t x> static constexpr auto unwrap(float_wrapper<x>) { return std::bit_cast<float>(x); }
+template <int32_t x>
+static constexpr auto unwrap(float_wrapper<x>) {
+  return std::bit_cast<float>(x);
+}
 
-template <typename T> static constexpr auto unwrap(T v) { return v; }
+template <typename T>
+static constexpr auto unwrap(T v) {
+  return v;
+}
 
-template <typename T, auto Default = std::monostate{}> class optional {
+template <typename T, auto Default = std::monostate{}>
+class optional {
   std::optional<T> impl;
 
 public:
@@ -99,13 +112,17 @@ public:
   constexpr optional(optional &&) = default;
   constexpr optional(const optional &) = default;
 
-  template <class U> constexpr optional(const optional<U> &other) : impl(other.impl) {}
-  template <class U> constexpr optional(optional<U> &&other) : impl(std::move(other.impl)) {}
+  template <class U>
+  constexpr optional(const optional<U> &other) : impl(other.impl) {}
+  template <class U>
+  constexpr optional(optional<U> &&other) : impl(std::move(other.impl)) {}
 
   constexpr optional(const std::optional<T> &other) : impl(other) {}
   constexpr optional(std::optional<T> &&other) : impl(std::move(other)) {}
-  template <class U> constexpr optional(const std::optional<U> &other) : impl(other) {}
-  template <class U> constexpr optional(std::optional<U> &&other) : impl(std::move(other)) {}
+  template <class U>
+  constexpr optional(const std::optional<U> &other) : impl(other) {}
+  template <class U>
+  constexpr optional(std::optional<U> &&other) : impl(std::move(other)) {}
 
   template <class... Args>
   constexpr explicit optional(std::in_place_t, Args &&...args) : impl(std::in_place, forward<Args>(args)...) {}
@@ -133,11 +150,13 @@ public:
   constexpr optional &operator=(const optional &) = default;
   constexpr optional &operator=(optional &&) = default;
 
-  template <class U> constexpr optional &operator=(const optional<U> &other) {
+  template <class U>
+  constexpr optional &operator=(const optional<U> &other) {
     impl = other.imp;
     return *this;
   }
-  template <class U> constexpr optional &operator=(optional<U> &&other) {
+  template <class U>
+  constexpr optional &operator=(optional<U> &&other) {
     impl = std::move(other.imp);
     return *this;
   }
@@ -160,8 +179,14 @@ public:
   constexpr T &&value() && { return std::move(impl.value()); }
   constexpr const T &&value() const && { return std::move(impl.value()); }
 
-  template <class U> constexpr T value_or(U &&default_value) const & { return impl.value_or(default_value); }
-  template <class U> constexpr T value_or(U &&default_value) && { return impl.value_or(default_value); }
+  template <class U>
+  constexpr T value_or(U &&default_value) const & {
+    return impl.value_or(default_value);
+  }
+  template <class U>
+  constexpr T value_or(U &&default_value) && {
+    return impl.value_or(default_value);
+  }
 
   constexpr T *operator->() noexcept { return impl.operator->(); }
   constexpr const T *operator->() const noexcept { return impl.operator->(); }
@@ -171,7 +196,10 @@ public:
   constexpr T &&operator*() && noexcept { return *impl; }
   constexpr const T &&operator*() const && noexcept { return *impl; }
 
-  template <typename... Args> constexpr T &emplace(Args &&...args) { return impl.emplace(std::forward<Args>(args)...); }
+  template <typename... Args>
+  constexpr T &emplace(Args &&...args) {
+    return impl.emplace(std::forward<Args>(args)...);
+  }
   constexpr void swap(optional &other) noexcept { impl.swap(other.impl); }
   constexpr void reset() noexcept { impl.reset(); }
 
@@ -197,7 +225,8 @@ public:
 #endif
 };
 
-template <typename T> class heap_based_optional {
+template <typename T>
+class heap_based_optional {
   T *obj = nullptr;
 
 public:
@@ -299,7 +328,8 @@ public:
 #endif
 };
 
-template <std::size_t Len> struct compile_time_string {
+template <std::size_t Len>
+struct compile_time_string {
   using value_type = char;
   char data_[Len];
   constexpr size_t size() const { return Len - 1; }
@@ -308,7 +338,10 @@ template <std::size_t Len> struct compile_time_string {
 };
 
 namespace literals {
-template <compile_time_string str> constexpr auto operator""_hppproto_s() { return str; }
+template <compile_time_string str>
+constexpr auto operator""_hppproto_s() {
+  return str;
+}
 } // namespace literals
 
 using bytes = std::vector<std::byte>;
