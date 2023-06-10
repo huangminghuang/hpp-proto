@@ -1,4 +1,4 @@
-#include "proto2json/proto2json.h"
+#include "gpb_proto_json/gpb_proto_json.h"
 #include <boost/ut.hpp>
 #include <google/protobuf/unittest_proto3.glz.hpp>
 #include <google/protobuf/unittest_proto3.pb.hpp>
@@ -157,7 +157,7 @@ ut::suite proto3_lite_test = [] {
     ExpectUnpackedFieldsSet(msg);
 
     auto json_string = glz::write_json(original);
-    auto m = json_to_proto(unittest_proto3_descriptorset(), "proto3_unittest.TestUnpackedTypes", json_string);
+    auto m = gpb_based::json_to_proto(unittest_proto3_descriptorset(), "proto3_unittest.TestUnpackedTypes", json_string);
 
     ut::expect(ut::eq(m.size(), data.size()));
     ut::expect(memcmp(data.data(), m.data(), m.size()) == 0);
@@ -173,8 +173,9 @@ ut::suite proto3_lite_test = [] {
 
     ut::expect(success(out(original)));
 
-    auto original_json = proto_to_json(unittest_proto3_descriptorset(), "proto3_unittest.TestAllTypes",
-                                       {(const char *)data.data(), data.size()}, ALWAYS_PRINT_PRIMITIVE_FIELDS);
+    auto original_json =
+        gpb_based::proto_to_json(unittest_proto3_descriptorset(), "proto3_unittest.TestAllTypes",
+                                 {(const char *)data.data(), data.size()}, gpb_based::ALWAYS_PRINT_PRIMITIVE_FIELDS);
 
     ut::expect(glz::write_json(original) == original_json);
 

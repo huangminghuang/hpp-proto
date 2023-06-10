@@ -5,8 +5,6 @@
 
 namespace hpp::proto {
 
-namespace concepts {
-
 template <typename T, std::size_t Index>
 struct oneof_wrapper {
   T *value;

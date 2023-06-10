@@ -20,7 +20,7 @@ endif()
 add_library(Boost::ut INTERFACE IMPORTED)
 target_include_directories(Boost::ut INTERFACE ${ut_SOURCE_DIR}/include)
 
-add_subdirectory(proto2json)
+add_subdirectory(gpb_proto_json)
 
 add_executable(proto_test proto_tests.cpp)
 target_link_libraries(proto_test PRIVATE hpp_proto::libhpp_proto Boost::ut)
@@ -55,7 +55,7 @@ add_hpp_proto_lib(proto3_lite_lib
                 google/protobuf/unittest_import_public.proto)
 
 add_executable(proto3_lite_test unittest_proto3_test.cpp)
-target_link_libraries(proto3_lite_test PRIVATE proto3_lite_lib Boost::ut glaze::glaze proto2json)
+target_link_libraries(proto3_lite_test PRIVATE proto3_lite_lib Boost::ut glaze::glaze gpb_proto_json)
 
 add_dependencies(proto3_lite_test proto3.bin)
 
@@ -79,7 +79,7 @@ add_hpp_proto_lib(proto2_lite_lib
     PROTO_FILES  google/protobuf/unittest.proto)
 
 add_executable(proto2_lite_test unittest_proto2_test.cpp)
-target_link_libraries(proto2_lite_test PRIVATE proto2_lite_lib Boost::ut glaze::glaze proto2json)
+target_link_libraries(proto2_lite_test PRIVATE proto2_lite_lib Boost::ut glaze::glaze gpb_proto_json)
 target_compile_options(proto2_lite_test PRIVATE -Wno-deprecated-declarations)
 
 add_dependencies(proto2_lite_test proto2.bin)

@@ -984,7 +984,7 @@ public:
         return result;
       }
       return {};
-    } else {
+    } else [[unlikely]] {
       return skip_field(item, field_num, field_wire_type);
     }
   }

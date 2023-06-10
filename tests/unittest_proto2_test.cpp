@@ -1,5 +1,5 @@
 
-#include "proto2json/proto2json.h"
+#include "gpb_proto_json/gpb_proto_json.h"
 #include <boost/ut.hpp>
 #include <google/protobuf/unittest.glz.hpp>
 #include <google/protobuf/unittest.pb.hpp>
@@ -1469,7 +1469,7 @@ ut::suite proto_test = [] {
 
     ut::expect(success(out(original)));
 
-    auto original_json = proto_to_json(unittest_proto2_descriptorset(), "protobuf_unittest.TestAllTypes",
+    auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(), "protobuf_unittest.TestAllTypes",
                                        {(const char *)data.data(), data.size()});
 
     std::regex empty_array_re(R"(,"\w+":\[\])");
