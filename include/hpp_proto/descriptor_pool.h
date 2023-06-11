@@ -128,7 +128,6 @@ struct descriptor_pool {
 
   void build(file_descriptor_t &descriptor) {
     file_map.try_emplace(*descriptor.proto.name, &descriptor);
-    descriptor.messages.reserve(descriptor.proto.message_type.size());
     std::string package = descriptor.proto.package.value_or("");
     for (auto &proto : descriptor.proto.message_type) {
       assert(proto.name.has_value());
@@ -138,7 +137,6 @@ struct descriptor_pool {
       descriptor.add_message(message);
     }
 
-    descriptor.enums.reserve(descriptor.proto.enum_type.size());
     for (auto &proto : descriptor.proto.enum_type) {
       assert(proto.name.has_value());
       std::string name = package.size() ? "." + package + "." + *proto.name : *proto.name;
@@ -150,7 +148,6 @@ struct descriptor_pool {
 
   void build(message_descriptor_t &descriptor, const std::string &scope) {
     message_map.try_emplace(scope, &descriptor);
-    descriptor.messages.reserve(descriptor.proto.nested_type.size());
     for (auto &proto : descriptor.proto.nested_type) {
       assert(proto.name.has_value());
       std::string name = scope + "." + *proto.name;
@@ -159,7 +156,6 @@ struct descriptor_pool {
       descriptor.add_message(message);
     }
 
-    descriptor.enums.reserve(descriptor.proto.enum_type.size());
     for (auto &proto : descriptor.proto.enum_type) {
       assert(proto.name.has_value());
       std::string name = scope + "." + *proto.name;
@@ -168,7 +164,6 @@ struct descriptor_pool {
       descriptor.add_enum(e);
     }
 
-    descriptor.oneofs.reserve(descriptor.proto.oneof_decl.size());
     for (auto &proto : descriptor.proto.oneof_decl) {
       descriptor.add_oneof(oneofs.emplace_back(proto));
     }
@@ -182,7 +177,6 @@ struct descriptor_pool {
   }
 
   void build_fields(message_descriptor_t &descriptor, const std::string &qualified_name) {
-    descriptor.fields.reserve(descriptor.proto.field.size());
     for (auto &proto : descriptor.proto.field) {
       if (proto.type.has_value()) {
         descriptor.add_field(fields.emplace_back(proto, qualified_name));

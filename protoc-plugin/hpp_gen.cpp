@@ -349,7 +349,7 @@ struct hpp_addons {
     std::vector<FieldD *> fields;
     std::string cpp_name;
 
-    oneof_descriptor(const gpb::OneofDescriptorProto &proto) : cpp_name(resolve_keyword(*proto.name)) {}
+    oneof_descriptor(const gpb::OneofDescriptorProto &proto) : cpp_name(resolve_keyword(*proto.name)) { }
 
     void normalize_cpp_name() {
       if (fields.size() == 1) {
@@ -374,6 +374,12 @@ struct hpp_addons {
 
     message_descriptor(const gpb::DescriptorProto &proto) : cpp_name(resolve_keyword(*proto.name)) {
       is_map_entry = proto.options.has_value() && proto.options->map_entry.has_value() && *proto.options->map_entry;
+
+      fields.reserve(proto.field.size());
+      messages.reserve(proto.nested_type.size());
+      enums.reserve(proto.enum_type.size());
+      oneofs.reserve(proto.oneof_decl.size());
+      extensions.reserve(proto.extension.size());
     }
 
     void add_field(FieldD& f) { 
@@ -399,6 +405,10 @@ struct hpp_addons {
         syntax = 3;
       else
         syntax = 2;
+
+      messages.reserve(proto.message_type.size());
+      enums.reserve(proto.enum_type.size());
+      extensions.reserve(proto.extension.size());
     }
     void add_enum(EnumD &e) { enums.push_back(&e); }
     void add_message(MessageD &m) { messages.push_back(&m); }
