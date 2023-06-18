@@ -30,7 +30,7 @@
 
 namespace hpp {
 namespace proto {
-enum class encoding_rule { defaulted = 0, explicit_presence = 1, unpacked_repeated = 2 };
+enum class encoding_rule { defaulted = 0, explicit_presence = 1, unpacked_repeated = 2, group = 3 };
 
 template <uint32_t Number, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
           auto DefaultValue = std::monostate{}>
@@ -52,6 +52,8 @@ template <typename Type>
 constexpr bool disallow_inline_visit_members_lambda() {
   if constexpr (::zpp::bits::number_of_members<Type>() > ::zpp::bits::access::max_visit_members)
     return true;
+  else if constexpr (requires { Type::allow_inline_visit_members_lambda; })
+    return !Type::allow_inline_visit_members_lambda;
   else
     return ::zpp::bits::access::self_referencing<Type>();
 }
@@ -68,7 +70,7 @@ template <typename Type>
 concept has_meta = has_local_meta<Type> || has_explicit_meta<Type>;
 
 template <typename T>
-concept numeric = std::is_fundamental_v<T> || ::zpp::bits::concepts::varint<T>;
+concept numeric = std::is_fundamental_v<T> || ::zpp::bits::concepts::varint<T> || std::is_enum_v<T>;
 
 template <typename T>
 concept numeric_or_byte = numeric<T> || std::same_as<std::byte, T>;
@@ -177,6 +179,8 @@ enum class wire_type : unsigned int {
   varint = 0,
   fixed_64 = 1,
   length_delimited = 2,
+  sgroup = 3,
+  egroup = 4,
   fixed_32 = 5,
 };
 
@@ -239,7 +243,7 @@ constexpr void set_as_default(Type &value) {
 }
 
 template <typename T>
-struct serailize_type {
+struct serialize_type {
   using type = T;
   using read_type = const T &;
   using convertible_type = const T &;
@@ -247,17 +251,24 @@ struct serailize_type {
 
 template <typename T>
   requires std::is_enum_v<T>
-struct serailize_type<T> {
+struct serialize_type<T> {
   using type = ::zpp::bits::vint64_t;
   using read_type = ::zpp::bits::vint64_t;
   using convertible_type = std::underlying_type_t<T>;
 };
 
 template <::zpp::bits::concepts::varint T>
-struct serailize_type<T> {
+struct serialize_type<T> {
   using type = T;
   using read_type = T;
   using convertible_type = T;
+};
+
+template <>
+struct serialize_type<bool> {
+  using type = boolean;
+  using read_type = boolean;
+  using convertible_type = boolean;
 };
 
 template <typename KeyType, typename MappedType>
@@ -265,8 +276,9 @@ struct map_entry {
 
   struct mutable_type {
     using serialize = ::zpp::bits::members<2>;
-    typename serailize_type<KeyType>::type key;
-    typename serailize_type<MappedType>::type value;
+    typename serialize_type<KeyType>::type key;
+    typename serialize_type<MappedType>::type value;
+    constexpr static bool allow_inline_visit_members_lambda = true;
     using pb_meta =
         std::tuple<field_meta<1, encoding_rule::explicit_presence>, field_meta<2, encoding_rule::explicit_presence>>;
 
@@ -288,13 +300,14 @@ struct map_entry {
   };
 
   struct read_only_type {
-    typename serailize_type<KeyType>::read_type key;
-    typename serailize_type<MappedType>::read_type value;
+    typename serialize_type<KeyType>::read_type key;
+    typename serialize_type<MappedType>::read_type value;
     using serialize = ::zpp::bits::members<2>;
+    constexpr static bool allow_inline_visit_members_lambda = true;
 
     read_only_type(auto &&k, auto &&v)
-        : key((typename serailize_type<KeyType>::convertible_type)k),
-          value((typename serailize_type<MappedType>::convertible_type)v) {}
+        : key((typename serialize_type<KeyType>::convertible_type)k),
+          value((typename serialize_type<MappedType>::convertible_type)v) {}
 
     using pb_meta =
         std::tuple<field_meta<1, encoding_rule::explicit_presence>, field_meta<2, encoding_rule::explicit_presence>>;
@@ -620,11 +633,26 @@ struct out {
       constexpr auto tag = make_tag<type>(meta);
       return m_archive(tag, item);
     } else if constexpr (!::zpp::bits::concepts::container<type>) {
-      constexpr auto tag = make_tag<type>(meta);
-      if (auto result = m_archive(tag); failure(result)) [[unlikely]] {
-        return result;
+      if constexpr (meta.encoding != encoding_rule::group) {
+        constexpr auto tag = make_tag<type>(meta);
+        if (auto result = m_archive(tag); failure(result)) [[unlikely]] {
+          return result;
+        }
+        return serialize_sized(std::forward<decltype(item)>(item));
+      } else {
+        if (auto result = m_archive(
+                ::zpp::bits::varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::sgroup)});
+            failure(result)) [[unlikely]] {
+          return result;
+        }
+
+        if (auto result = serialize_unsized(std::forward<decltype(item)>(item)); failure(result)) [[unlikely]] {
+          return result;
+        }
+
+        return m_archive(
+            ::zpp::bits::varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::egroup)});
       }
-      return serialize_sized(std::forward<decltype(item)>(item));
     } else if constexpr (::zpp::bits::concepts::associative_container<type> &&
                          requires { typename type::mapped_type; }) {
       constexpr auto tag = make_tag<type>(meta);
@@ -707,7 +735,7 @@ struct out {
           using underlying_type = std::underlying_type_t<typename type::value_type>;
           std::size_t size = {};
           for (auto &element : item) {
-            size += ::zpp::bits::varint_size(underlying_type(element));
+            size += ::zpp::bits::varint_size(int64_t(element));
           }
           if (!size) [[unlikely]] {
             return {};
@@ -878,6 +906,38 @@ public:
       if (auto result = m_archive(tag); failure(result)) [[unlikely]] {
         return result;
       }
+
+      if (std::is_constant_evaluated()) {
+        if (auto result = deserialize_field_by_num<0>(item, tag_number(tag), proto::tag_type(tag)); failure(result))
+            [[unlikely]] {
+          return result;
+        }
+      } else {
+        if (auto result = deserialize_field_by_num(item, tag_number(tag), proto::tag_type(tag), hint); failure(result))
+            [[unlikely]]
+          return result;
+      }
+    }
+
+    return {};
+  }
+
+  ZPP_BITS_INLINE constexpr errc deserialize_group(auto &item, uint32_t field_num) {
+    using type = std::remove_cvref_t<decltype(item)>;
+    static_assert(check_type<type>());
+
+    clear(item);
+
+    std::size_t hint = 0;
+
+    while (m_archive.position()) {
+      ::zpp::bits::vuint32_t tag;
+      if (auto result = m_archive(tag); failure(result)) [[unlikely]] {
+        return result;
+      }
+
+      if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag))
+        break;
 
       if (std::is_constant_evaluated()) {
         if (auto result = deserialize_field_by_num<0>(item, tag_number(tag), proto::tag_type(tag)); failure(result))
@@ -1073,7 +1133,11 @@ public:
       }
       return errc{};
     } else if constexpr (!::zpp::bits::concepts::container<type>) {
-      return serialize_one<::zpp::bits::varint<uint32_t>>(item);
+      if constexpr (meta.encoding != encoding_rule::group) {
+        return serialize_one<::zpp::bits::varint<uint32_t>>(item);
+      } else {
+        return deserialize_group(item, field_num);
+      }
     } else if constexpr (::zpp::bits::concepts::associative_container<type> &&
                          requires { typename type::mapped_type; }) {
       using value_type = typename traits::get_map_entry<Meta, type>::mutable_type;
@@ -1087,16 +1151,13 @@ public:
       object->insert_to(item);
       return errc{};
     } else {
-      using orig_value_type = typename type::value_type;
-      using value_type =
-          std::conditional_t<std::is_enum_v<orig_value_type> && !std::same_as<orig_value_type, std::byte>,
-                             ::zpp::bits::varint<orig_value_type>, orig_value_type>;
+      using value_type = typename type::value_type;
 
       if constexpr (concepts::scalar<value_type>) {
         if constexpr (!std::is_same_v<value_type, char> && !std::is_same_v<value_type, std::byte>) {
           if (field_type != wire_type::length_delimited || concepts::string_or_bytes<value_type>) {
             // unpacked repeated encoding
-            orig_value_type element;
+            value_type element;
             if (auto result = deserialize_field(meta, field_type, field_num, element); failure(result)) [[unlikely]] {
               return result;
             }
@@ -1138,14 +1199,14 @@ public:
           item = std::string_view((const char *)data.data(), length);
           m_archive.position() += length;
           return {};
-        } else if constexpr ((std::is_same_v<orig_value_type, char> ||
-                              std::is_same_v<orig_value_type,
-                                             std::byte>)&&std::is_same_v<type, std::span<const orig_value_type>>) {
+        } else if constexpr ((std::is_same_v<value_type, char> ||
+                              std::is_same_v<value_type, std::byte>)&&std::is_same_v<type,
+                                                                                     std::span<const value_type>>) {
           // handling span of bytes
           auto data = m_archive.remaining_data();
           if (data.size() < length)
             return std::errc::result_out_of_range;
-          item = std::span<const orig_value_type>((const orig_value_type *)data.data(), length);
+          item = std::span<const value_type>((const value_type *)data.data(), length);
           m_archive.position() += length;
           return {};
         } else {
@@ -1155,14 +1216,23 @@ public:
 
           auto fetch = [&]() ZPP_BITS_CONSTEXPR_INLINE_LAMBDA {
             element_type value;
-            if (auto result = m_archive(value); failure(result)) [[unlikely]] {
-              return result;
+
+            if constexpr (std::is_enum_v<element_type>) {
+              zpp::bits::vint64_t underlying;
+              if (auto result = m_archive(underlying); failure(result)) [[unlikely]] {
+                return result;
+              }
+              value = static_cast<element_type>(underlying.value);
+            } else {
+              if (auto result = m_archive(value); failure(result)) [[unlikely]] {
+                return result;
+              }
             }
 
-            if constexpr (requires { item.push_back(orig_value_type(value)); }) {
-              item.push_back(orig_value_type(value));
+            if constexpr (requires { item.push_back(value_type(value)); }) {
+              item.push_back(value_type(value));
             } else {
-              item.insert(orig_value_type(value));
+              item.insert(value_type(value));
             }
 
             return errc{};
@@ -1350,7 +1420,7 @@ inline std::error_code write_proto(T &&msg, Buffer &buffer) {
 
 template <typename T, typename Buffer>
 inline std::error_code read_proto(T &msg, Buffer &&buffer) {
-  return std::make_error_code(in(std::forward<Buffer>(buffer))(msg));
+  return std::make_error_code(in(buffer)(msg));
 }
 
 } // namespace proto

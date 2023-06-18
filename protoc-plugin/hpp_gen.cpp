@@ -20,11 +20,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <google/protobuf/compiler/plugin.pb.hpp>
-#include <hpp_proto/descriptor_pool.h>
 #include <algorithm>
 #include <fmt/format.h>
 #include <fstream>
+#include <google/protobuf/compiler/plugin.pb.hpp>
+#include <hpp_proto/descriptor_pool.h>
 #include <iostream>
 #include <numeric>
 #include <set>
@@ -197,7 +197,8 @@ std::size_t replace_all(std::string &inout, std::string_view what, std::string_v
 
 struct hpp_addons {
 
-  template <typename Derived> struct field_descriptor {
+  template <typename Derived>
+  struct field_descriptor {
     std::string cpp_name;
     std::string cpp_field_type;
     bool is_recursive = false;
@@ -247,6 +248,7 @@ struct hpp_addons {
         case TYPE_STRING:
           cpp_field_type = "std::string";
           break;
+        case TYPE_GROUP:
         case TYPE_MESSAGE:
         case TYPE_ENUM:
           if (proto.type_name.has_value()) {
@@ -284,8 +286,6 @@ struct hpp_addons {
         case TYPE_SINT64:
           cpp_field_type = "int64_t";
           cpp_meta_type = "zpp::bits::vsint64_t";
-          break;
-        case TYPE_GROUP:
           break;
         }
       }
@@ -339,17 +339,19 @@ struct hpp_addons {
     }
   };
 
-  template <typename EnumD> struct enum_descriptor {
+  template <typename EnumD>
+  struct enum_descriptor {
     std::string cpp_name;
 
     enum_descriptor(const gpb::EnumDescriptorProto &proto) : cpp_name(resolve_keyword(*proto.name)) {}
   };
 
-  template <typename OneofD, typename FieldD> struct oneof_descriptor {
+  template <typename OneofD, typename FieldD>
+  struct oneof_descriptor {
     std::vector<FieldD *> fields;
     std::string cpp_name;
 
-    oneof_descriptor(const gpb::OneofDescriptorProto &proto) : cpp_name(resolve_keyword(*proto.name)) { }
+    oneof_descriptor(const gpb::OneofDescriptorProto &proto) : cpp_name(resolve_keyword(*proto.name)) {}
 
     void normalize_cpp_name() {
       if (fields.size() == 1) {
@@ -360,7 +362,8 @@ struct hpp_addons {
     }
   };
 
-  template <typename MessageD, typename EnumD, typename OneofD, typename FieldD> struct message_descriptor {
+  template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
+  struct message_descriptor {
     std::vector<FieldD *> fields;
     std::vector<EnumD *> enums;
     std::vector<MessageD *> messages;
@@ -382,7 +385,7 @@ struct hpp_addons {
       extensions.reserve(proto.extension.size());
     }
 
-    void add_field(FieldD& f) { 
+    void add_field(FieldD &f) {
       fields.push_back(&f);
       if (f.proto.oneof_index.has_value()) {
         oneofs[*f.proto.oneof_index]->fields.push_back(&f);
@@ -507,7 +510,7 @@ struct msg_code_generator : code_generator {
         auto message_name = field.qualified_parent_name;
         auto pos = shared_scope_position(message_name, type_name);
         std::string depender, dependee;
-        if (pos > 0 && pos < message_name.size()) {
+        if (pos > 0 && pos < message_name.size() && pos != type_name.size()) {
           auto depender_pos = message_name.find_first_of('.', pos + 1);
           depender = message_name.substr(0, depender_pos);
           dependee = type_name.substr(pos + 1);
@@ -570,7 +573,8 @@ struct msg_code_generator : code_generator {
           else
             return "std::optional";
         }
-      } else if (*proto.type == TYPE_MESSAGE || (proto.proto3_optional.has_value() && *proto.proto3_optional)) {
+      } else if (*proto.type == TYPE_GROUP || *proto.type == TYPE_MESSAGE ||
+                 (proto.proto3_optional.has_value() && *proto.proto3_optional)) {
         return "std::optional";
       }
     }
@@ -579,8 +583,12 @@ struct msg_code_generator : code_generator {
 
   std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.map_fields[0]) {
-      return fmt::format("hpp::proto::flat_map<{},{}>", descriptor.map_fields[0]->cpp_field_type,
-                         descriptor.map_fields[1]->cpp_field_type);
+      const char *type = descriptor.map_fields[1]->is_recursive ? "std::map" : "hpp::proto::flat_map";
+      auto transform_if_bool = [recursive = descriptor.map_fields[1]->is_recursive](const std::string &name) {
+        return recursive || name != "bool" ? name : std::string{"hpp::proto::boolean"};
+      };
+      return fmt::format("{}<{},{}>", type, transform_if_bool(descriptor.map_fields[0]->cpp_field_type),
+                         transform_if_bool(descriptor.map_fields[1]->cpp_field_type));
     }
 
     auto wrapper = field_type_wrapper(descriptor);
@@ -714,7 +722,7 @@ struct msg_code_generator : code_generator {
 
 bool is_numeric(enum gpb::FieldDescriptorProto::Type type) {
   using enum gpb::FieldDescriptorProto::Type;
-  return type != TYPE_MESSAGE || type != TYPE_ENUM || type != TYPE_STRING || type != TYPE_STRING || type != TYPE_GROUP;
+  return type != TYPE_MESSAGE || type != TYPE_STRING || type != TYPE_BYTES || type != TYPE_GROUP;
 }
 
 struct hpp_meta_generateor : code_generator {
@@ -847,9 +855,18 @@ struct hpp_meta_generateor : code_generator {
       }
     }
 
+    if (*proto.type == gpb::FieldDescriptorProto::Type::TYPE_GROUP) {
+      rule = "group";
+    }
+
     if (descriptor.map_fields[0]) {
-      descriptor.cpp_meta_type = fmt::format("hpp::proto::map_entry<{}, {}>", descriptor.map_fields[0]->cpp_meta_type,
-                                             descriptor.map_fields[1]->cpp_meta_type);
+
+      auto get_meta_type = [](const auto *field) {
+        return field->cpp_meta_type == "void" ? field->cpp_field_type : field->cpp_meta_type;
+      };
+
+      descriptor.cpp_meta_type = fmt::format("hpp::proto::map_entry<{}, {}>", get_meta_type(descriptor.map_fields[0]),
+                                             get_meta_type(descriptor.map_fields[1]));
     }
 
     std::string default_value;
@@ -888,9 +905,8 @@ struct hpp_meta_generateor : code_generator {
                      "{0}  return hpp::proto::{2}extension_meta<{3}, {4}, "
                      "hpp::proto::encoding_rule::{5}{6}>{{}};\n"
                      "{0}}}\n\n",
-                     indent(), cpp_name, extension_prefix,
-                     qualified_cpp_name(descriptor.proto.extendee.value()), proto.number.value(), rule,
-                     type_and_default_value);
+                     indent(), cpp_name, extension_prefix, qualified_cpp_name(descriptor.proto.extendee.value()),
+                     proto.number.value(), rule, type_and_default_value);
     }
   }
 
@@ -1066,7 +1082,7 @@ int main(int argc, const char **argv) {
 
   hpp_gen_decriptor_pool pool(request.proto_file);
 
-  for (auto& f : pool.fields) {
+  for (auto &f : pool.fields) {
     using enum google::protobuf::FieldDescriptorProto::Type;
     if (f.proto.type_name && (*f.proto.type) == TYPE_MESSAGE) {
       auto m = pool.message_map[*f.proto.type_name];

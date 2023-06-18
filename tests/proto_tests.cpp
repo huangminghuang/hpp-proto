@@ -262,6 +262,39 @@ ut::suite test_repeated_bool = [] {
   };
 };
 
+struct repeated_enum {
+  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  std::vector<NestedEnum> values;
+  bool operator==(const repeated_enum &) const = default;
+};
+
+auto pb_meta(const repeated_enum &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+
+struct repeated_enum_unpacked {
+  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  std::vector<NestedEnum> values;
+  bool operator==(const repeated_enum_unpacked &) const = default;
+};
+
+auto pb_meta(const repeated_enum_unpacked &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated>>;
+
+ut::suite test_repeated_enums = [] {
+  {
+    using enum repeated_enum::NestedEnum;
+    "repeated_enum"_test = [] {
+      verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view,
+             repeated_enum{{FOO, BAR, BAZ, NEG}});
+    };
+  }
+  {
+    using enum repeated_enum_unpacked::NestedEnum;
+    "repeated_enum_unpacked"_test = [] {
+      verify("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view,
+             repeated_enum_unpacked{{FOO, BAR, BAZ, NEG}});
+    };
+  }
+};
+
 struct repeated_examples {
   std::vector<example> examples;
   bool operator==(const repeated_examples &) const = default;

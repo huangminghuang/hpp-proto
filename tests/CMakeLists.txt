@@ -45,19 +45,14 @@ gen_proto_descriptor_set(unittest_proto3.bin
     INPUT_DIR ${protobuf_SOURCE_DIR}/src
     PROTO_FILES google/protobuf/unittest_proto3.proto)
 
-add_custom_target(proto3.bin
-                  DEPENDS unittest_proto3.bin)
-
-add_hpp_proto_lib(proto3_lite_lib
+add_hpp_proto_lib(unittest_proto3_proto_lib
     INPUT_DIR   ${protobuf_SOURCE_DIR}/src
     PROTO_FILES google/protobuf/unittest_proto3.proto 
                 google/protobuf/unittest_import.proto 
                 google/protobuf/unittest_import_public.proto)
 
 add_executable(proto3_lite_test unittest_proto3_test.cpp)
-target_link_libraries(proto3_lite_test PRIVATE proto3_lite_lib Boost::ut glaze::glaze gpb_proto_json)
-
-add_dependencies(proto3_lite_test proto3.bin)
+target_link_libraries(proto3_lite_test PRIVATE unittest_proto3_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
 add_test(NAME proto3_lite_test 
          COMMAND proto3_lite_test 
@@ -65,27 +60,37 @@ add_test(NAME proto3_lite_test
 
 set_property(TEST proto3_lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-
 gen_proto_descriptor_set(unittest_proto2.bin
     INPUT_DIR ${protobuf_SOURCE_DIR}/src
     PROTO_FILES google/protobuf/unittest.proto)
 
-add_custom_target(proto2.bin
-                  DEPENDS unittest_proto2.bin)
-
-add_hpp_proto_lib(proto2_lite_lib 
-    INPUT_DIR    ${CMAKE_CURRENT_SOURCE_DIR} 
-    INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src
+add_hpp_proto_lib(unittest_proto_lib 
+    INPUT_DIR    ${protobuf_SOURCE_DIR}/src
     PROTO_FILES  google/protobuf/unittest.proto)
 
 add_executable(proto2_lite_test unittest_proto2_test.cpp)
-target_link_libraries(proto2_lite_test PRIVATE proto2_lite_lib Boost::ut glaze::glaze gpb_proto_json)
-target_compile_options(proto2_lite_test PRIVATE -Wno-deprecated-declarations)
-
-add_dependencies(proto2_lite_test proto2.bin)
+target_link_libraries(proto2_lite_test PRIVATE unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
 add_test(NAME proto2_lite_test 
          COMMAND proto2_lite_test 
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 set_property(TEST proto2_lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+
+
+gen_proto_descriptor_set(map_unittest.bin
+    INPUT_DIR ${protobuf_SOURCE_DIR}/src
+    PROTO_FILES google/protobuf/map_unittest.proto)
+
+add_hpp_proto_lib(map_unittest_proto_lib 
+    INPUT_DIR    ${protobuf_SOURCE_DIR}/src
+    PROTO_FILES  google/protobuf/map_unittest.proto)
+
+add_executable(dyn_proto_json_test dyn_proto_json_test.cpp)
+target_link_libraries(dyn_proto_json_test PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze)
+
+add_test(NAME dyn_proto_json_test 
+         COMMAND dyn_proto_json_test 
+         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+set_property(TEST dyn_proto_json_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")

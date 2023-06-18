@@ -19,4 +19,7 @@ function(gen_proto_descriptor_set out_file)
         COMMAND protoc ${INCLUDE_DIRS} --include_imports --descriptor_set_out=${out_file} ${HPP_PROTO_FILES}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
+
+    add_custom_target(${out_file}.target ALL
+                      DEPENDS ${out_file})
 endfunction()
