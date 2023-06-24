@@ -17,6 +17,34 @@ oneof_wrapper<T, Index> wrap_oneof(T &v) {
   return oneof_wrapper<T, Index>{&v};
 }
 
+
+
+template <typename T, auto Default = std::monostate{}>
+struct optional_ref {
+  T &val;
+  operator bool() const { return !is_default_value<T, Default>(val); }
+  T &operator*() { return val; }
+};
+
+template <auto Default>
+struct optional_ref<uint64_t, Default> {
+  uint64_t &val;
+  operator bool() const { return !is_default_value<uint64_t, Default>(val); }
+  glz::quoted_t<uint64_t> operator*() const { return {val}; }
+};
+
+template <auto Default>
+struct optional_ref<int64_t, Default> {
+  int64_t &val;
+  operator bool() const { return !is_default_value<int64_t, Default>(val); }
+  glz::quoted_t<int64_t> operator*() const { return {val}; }
+};
+
+template <auto MemPtr, auto Default = std::monostate{}>
+constexpr decltype(auto) as_optional_ref() {
+  return [](auto &&val) { return optional_ref<std::decay_t<decltype(val.*MemPtr)>, Default>{val.*MemPtr}; };
+}
+
 } // namespace hpp::proto
 
 namespace glz {
@@ -170,6 +198,26 @@ struct from_json<hpp::proto::optional<Type, Default>> {
   }
 };
 
+template <typename Type, auto Default>
+struct to_json<hpp::proto::optional_ref<Type, Default>> {
+  template <auto Opts, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+    if constexpr (std::is_same_v<Type, uint64_t>) {
+      static_assert(std::is_same_v<std::decay_t<decltype(*value)>, glz::quoted_t<uint64_t>>);
+    }
+    if (value)
+      to_json<std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
+  }
+};
+
+template <typename Type, auto Default>
+struct from_json<hpp::proto::optional_ref<Type, Default>> {
+  template <auto Options, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+    from_json<std::decay_t<decltype(*value)>>::template op<Options>(*value, std::forward<Args>(args)...);
+  }
+};
+
 template <typename Type>
 struct to_json<hpp::proto::heap_based_optional<Type>> {
   template <auto Opts, class... Args>
@@ -220,6 +268,8 @@ struct from_json<hpp::proto::boolean> {
     from_json<bool>::template op<Options>(value.value, std::forward<Args>(args)...);
   }
 };
+
+
 
 } // namespace detail
 } // namespace glz

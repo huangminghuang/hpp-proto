@@ -103,6 +103,7 @@ inline void TestUtil::SetOptionalFields(protobuf_unittest::TestAllTypes *message
   message->optional_string = "115";
   message->optional_bytes = "116"_bytes;
 
+  message->optionalgroup.emplace().a = 117;
   message->optional_nested_message.emplace().bb = 118;
   message->optional_foreign_message.emplace().c = 119;
   message->optional_import_message.emplace().d = 120;
@@ -134,6 +135,7 @@ inline void TestUtil::AddRepeatedFields1(protobuf_unittest::TestAllTypes *messag
   message->repeated_string.push_back("215");
   message->repeated_bytes.push_back("216"_bytes);
 
+  message->repeatedgroup.emplace_back().a = 217;
   message->repeated_nested_message.emplace_back().bb = 218;
   message->repeated_foreign_message.emplace_back().c = 219;
   message->repeated_import_message.emplace_back().d = 220;
@@ -162,6 +164,7 @@ inline void TestUtil::AddRepeatedFields2(protobuf_unittest::TestAllTypes *messag
   message->repeated_string.push_back("315");
   message->repeated_bytes.push_back("316"_bytes);
 
+  message->repeatedgroup.emplace_back().a = 317;
   message->repeated_nested_message.emplace_back().bb = 318;
   message->repeated_foreign_message.emplace_back().c = 319;
   message->repeated_import_message.emplace_back().d = 320;
@@ -215,6 +218,7 @@ inline void TestUtil::ModifyRepeatedFields(protobuf_unittest::TestAllTypes *mess
   message->repeated_string[1] = "515";
   message->repeated_bytes[1] = "516"_bytes;
 
+  message->repeatedgroup[1].a = 517;
   message->repeated_nested_message[1].bb = 518;
   message->repeated_foreign_message[1].c = 519;
   message->repeated_import_message[1].d = 520;
@@ -252,6 +256,7 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
   ut::expect(message.optional_string.has_value());
   ut::expect(message.optional_bytes.has_value());
 
+  ut::expect(message.optionalgroup.has_value());
   ut::expect(message.optional_nested_message.has_value());
   ut::expect(message.optional_foreign_message.has_value());
   ut::expect(message.optional_import_message.has_value());
@@ -259,6 +264,7 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
   ut::expect(message.optional_lazy_message.has_value());
   ut::expect(message.optional_unverified_lazy_message.has_value());
 
+  ut::expect(message.optionalgroup->a.has_value());
   ut::expect(message.optional_nested_message->bb.has_value());
   ut::expect(message.optional_foreign_message->c.has_value());
   ut::expect(message.optional_import_message->d.has_value());
@@ -287,6 +293,7 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
   ut::expect(ut::eq("115"s, message.optional_string.value()));
   ut::expect(ut::eq("116"_bytes, message.optional_bytes.value()));
 
+  ut::expect(ut::eq(117, message.optionalgroup->a.value()));
   ut::expect(ut::eq(118, message.optional_nested_message->bb.value()));
   ut::expect(ut::eq(119, message.optional_foreign_message->c.value()));
   ut::expect(ut::eq(120, message.optional_import_message->d.value()));
@@ -316,6 +323,7 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
   ut::expect(ut::eq(2, message.repeated_string.size()) >> ut::fatal);
   ut::expect(ut::eq(2, message.repeated_bytes.size()) >> ut::fatal);
 
+  ut::expect(ut::eq(2, message.repeatedgroup.size()) >> ut::fatal);
   ut::expect(ut::eq(2, message.repeated_nested_message.size()) >> ut::fatal);
   ut::expect(ut::eq(2, message.repeated_foreign_message.size()) >> ut::fatal);
   ut::expect(ut::eq(2, message.repeated_import_message.size()) >> ut::fatal);
@@ -340,6 +348,7 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
   ut::expect(ut::eq("215"s, message.repeated_string[0]));
   ut::expect(ut::eq("216"_bytes, message.repeated_bytes[0]));
 
+  ut::expect(ut::eq(217, message.repeatedgroup[0].a.value()));
   ut::expect(ut::eq(218, message.repeated_nested_message[0].bb.value()));
   ut::expect(ut::eq(219, message.repeated_foreign_message[0].c.value()));
   ut::expect(ut::eq(220, message.repeated_import_message[0].d.value()));
@@ -365,6 +374,7 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
   ut::expect(ut::eq("315"s, message.repeated_string[1]));
   ut::expect(ut::eq("316"_bytes, message.repeated_bytes[1]));
 
+  ut::expect(ut::eq(317, message.repeatedgroup[1].a.value()));
   ut::expect(ut::eq(318, message.repeated_nested_message[1].bb.value()));
   ut::expect(ut::eq(319, message.repeated_foreign_message[1].c.value()));
   ut::expect(ut::eq(320, message.repeated_import_message[1].d.value()));
@@ -441,6 +451,7 @@ inline void TestUtil::ExpectClear(const protobuf_unittest::TestAllTypes &message
   ut::expect(!message.optional_string.has_value());
   ut::expect(!message.optional_bytes.has_value());
 
+  ut::expect(!message.optionalgroup.has_value());
   ut::expect(!message.optional_nested_message.has_value());
   ut::expect(!message.optional_foreign_message.has_value());
   ut::expect(!message.optional_import_message.has_value());
@@ -472,6 +483,7 @@ inline void TestUtil::ExpectClear(const protobuf_unittest::TestAllTypes &message
   ut::expect(ut::eq(0, message.repeated_string.size()));
   ut::expect(ut::eq(0, message.repeated_bytes.size()));
 
+  ut::expect(ut::eq(0, message.repeatedgroup.size()));
   ut::expect(ut::eq(0, message.repeated_nested_message.size()));
   ut::expect(ut::eq(0, message.repeated_foreign_message.size()));
   ut::expect(ut::eq(0, message.repeated_import_message.size()));
@@ -575,6 +587,7 @@ inline void TestUtil::ExpectRepeatedFieldsModified(const protobuf_unittest::Test
   ut::expect(ut::eq("215"s, message.repeated_string[0]));
   ut::expect(ut::eq("216"_bytes, message.repeated_bytes[0]));
 
+  ut::expect(ut::eq(218, message.repeatedgroup[0].a.value()));
   ut::expect(ut::eq(218, message.repeated_nested_message[0].bb.value()));
   ut::expect(ut::eq(219, message.repeated_foreign_message[0].c.value()));
   ut::expect(ut::eq(220, message.repeated_import_message[0].d.value()));
@@ -601,6 +614,7 @@ inline void TestUtil::ExpectRepeatedFieldsModified(const protobuf_unittest::Test
   ut::expect(ut::eq("515"s, message.repeated_string[1]));
   ut::expect(ut::eq("516"_bytes, message.repeated_bytes[1]));
 
+  ut::expect(ut::eq(517, message.repeatedgroup[1].a.value()));
   ut::expect(ut::eq(518, message.repeated_nested_message[1].bb.value()));
   ut::expect(ut::eq(519, message.repeated_foreign_message[1].c.value()));
   ut::expect(ut::eq(520, message.repeated_import_message[1].d.value()));
@@ -800,6 +814,7 @@ inline void TestUtil::SetAllExtensions(protobuf_unittest::TestAllExtensions *mes
   message->set_extension(protobuf_unittest::optional_string_extension(), "115");
   message->set_extension(protobuf_unittest::optional_bytes_extension(), "116"_bytes);
 
+  message->set_extension(protobuf_unittest::optionalgroup_extension(), {.a = 117});
   message->set_extension(protobuf_unittest::optional_nested_message_extension(), {.bb = 118});
   message->set_extension(protobuf_unittest::optional_foreign_message_extension(), {.c = 119});
   message->set_extension(protobuf_unittest::optional_import_message_extension(), {.d = 120});
@@ -836,6 +851,7 @@ inline void TestUtil::SetAllExtensions(protobuf_unittest::TestAllExtensions *mes
   message->set_extension(protobuf_unittest::repeated_string_extension(), {"215", "315"});
   message->set_extension(protobuf_unittest::repeated_bytes_extension(), {"216"_bytes, "316"_bytes});
 
+  message->set_extension(protobuf_unittest::repeatedgroup_extension(), {{.a = 217}, {.a = 317}});
   message->set_extension(protobuf_unittest::repeated_nested_message_extension(), {{.bb = 218}, {.bb = 318}});
   message->set_extension(protobuf_unittest::repeated_foreign_message_extension(), {{.c = 219}, {.c = 319}});
   message->set_extension(protobuf_unittest::repeated_import_message_extension(), {{.d = 220}, {.d = 320}});
@@ -920,6 +936,7 @@ inline void TestUtil::ExpectAllExtensionsSet(const protobuf_unittest::TestAllExt
   ut::expect(message.has_extension(protobuf_unittest::optional_string_extension()));
   ut::expect(message.has_extension(protobuf_unittest::optional_bytes_extension()));
 
+  ut::expect(message.has_extension(protobuf_unittest::optionalgroup_extension()));
   ut::expect(message.has_extension(protobuf_unittest::optional_nested_message_extension()));
   ut::expect(message.has_extension(protobuf_unittest::optional_foreign_message_extension()));
   ut::expect(message.has_extension(protobuf_unittest::optional_import_message_extension()));
@@ -927,6 +944,7 @@ inline void TestUtil::ExpectAllExtensionsSet(const protobuf_unittest::TestAllExt
   ut::expect(message.has_extension(protobuf_unittest::optional_lazy_message_extension()));
   ut::expect(message.has_extension(protobuf_unittest::optional_unverified_lazy_message_extension()));
 
+  ut::expect(message.get_extension(protobuf_unittest::optionalgroup_extension())->a.has_value());
   ut::expect(message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb.has_value());
   ut::expect(message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c.has_value());
   ut::expect(message.get_extension(protobuf_unittest::optional_import_message_extension())->d.has_value());
@@ -957,6 +975,7 @@ inline void TestUtil::ExpectAllExtensionsSet(const protobuf_unittest::TestAllExt
   ut::expect(ut::eq("115"s, message.get_extension(protobuf_unittest::optional_string_extension()).value()));
   ut::expect(ut::eq("116"_bytes, message.get_extension(protobuf_unittest::optional_bytes_extension()).value()));
 
+  ut::expect(ut::eq(117, message.get_extension(protobuf_unittest::optionalgroup_extension())->a.value()));
   ut::expect(ut::eq(118, message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb.value()));
   ut::expect(ut::eq(119, message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c.value()));
   ut::expect(ut::eq(120, message.get_extension(protobuf_unittest::optional_import_message_extension())->d.value()));
@@ -1008,6 +1027,12 @@ inline void TestUtil::ExpectAllExtensionsSet(const protobuf_unittest::TestAllExt
                     std::vector<std::string>{"215", "315"}));
   ut::expect(ut::eq(message.get_extension(protobuf_unittest::repeated_bytes_extension()),
                     std::vector{"216"_bytes, "316"_bytes}));
+
+  auto repeatedgroup_extension =
+      message.get_extension(protobuf_unittest::repeatedgroup_extension());
+  ut::expect(ut::eq(2, repeatedgroup_extension.size()) >> ut::fatal);
+  ut::expect(protobuf_unittest::RepeatedGroup_extension{.a = 217} == repeatedgroup_extension[0]);
+  ut::expect(protobuf_unittest::RepeatedGroup_extension{.a = 317} == repeatedgroup_extension[1]);
 
   auto repeated_nested_message_extension =
       message.get_extension(protobuf_unittest::repeated_nested_message_extension());
@@ -1140,6 +1165,7 @@ inline void TestUtil::ExpectExtensionsClear(const protobuf_unittest::TestAllExte
   ut::expect(!message.has_extension(protobuf_unittest::optional_string_extension()));
   ut::expect(!message.has_extension(protobuf_unittest::optional_bytes_extension()));
 
+  ut::expect(!message.has_extension(protobuf_unittest::optionalgroup_extension()));
   ut::expect(!message.has_extension(protobuf_unittest::optional_nested_message_extension()));
   ut::expect(!message.has_extension(protobuf_unittest::optional_foreign_message_extension()));
   ut::expect(!message.has_extension(protobuf_unittest::optional_import_message_extension()));
@@ -1172,6 +1198,7 @@ inline void TestUtil::ExpectExtensionsClear(const protobuf_unittest::TestAllExte
   ut::expect(!message.get_extension(protobuf_unittest::optional_bytes_extension()).has_value());
 
   // Embedded messages should also be clear.
+  ut::expect(!message.get_extension(protobuf_unittest::optionalgroup_extension())->a.has_value());
   ut::expect(!message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb.has_value());
   ut::expect(!message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c.has_value());
   ut::expect(!message.get_extension(protobuf_unittest::optional_import_message_extension())->d.has_value());
@@ -1179,6 +1206,7 @@ inline void TestUtil::ExpectExtensionsClear(const protobuf_unittest::TestAllExte
   ut::expect(!message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb.has_value());
   ut::expect(!message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb.has_value());
 
+  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optionalgroup_extension())->a.value()));
   ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb.value()));
   ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c.value()));
   ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_import_message_extension())->d.value()));
@@ -1216,6 +1244,7 @@ inline void TestUtil::ExpectExtensionsClear(const protobuf_unittest::TestAllExte
   ut::expect(!message.has_extension(protobuf_unittest::repeated_string_extension()));
   ut::expect(!message.has_extension(protobuf_unittest::repeated_bytes_extension()));
 
+  ut::expect(!message.has_extension(protobuf_unittest::repeatedgroup_extension()));
   ut::expect(!message.has_extension(protobuf_unittest::repeated_nested_message_extension()));
   ut::expect(!message.has_extension(protobuf_unittest::repeated_foreign_message_extension()));
   ut::expect(!message.has_extension(protobuf_unittest::repeated_import_message_extension()));
@@ -1485,6 +1514,8 @@ ut::suite proto_test = [] {
     TestUtil::ExpectAllFieldsSet(msg);
   };
 };
+
+// TODO: need a test case of TestOneof2
 
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

@@ -8,7 +8,7 @@ struct bytes_example {
 template <>
 struct glz::meta<bytes_example> {
   using T = bytes_example;
-  static constexpr auto value = object("field", &T::field);
+  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
 };
 
 struct uint64_example {
@@ -23,17 +23,23 @@ struct glz::meta<uint64_example> {
 };
 
 struct optional_example {
-  hpp::proto::optional<int32_t> field1;
-  hpp::proto::optional<uint64_t> field2;
-  hpp::proto::optional<int32_t> field3;
+  int32_t  field1 = {};
+  uint64_t field2 = {};
+  int32_t  field3 = {};
+  double   field4 = {};
   bool operator==(const optional_example &) const = default;
 };
 
 template <>
 struct glz::meta<optional_example> {
   using T = optional_example;
-  static constexpr auto value =
-      object("field1", &T::field1, "field2", glz::quoted<&optional_example::field2>(), "field3", &T::field3);
+  static constexpr auto value = object(
+      // clang-format off
+      "field1", hpp::proto::as_optional_ref<&T::field1>(), 
+      "field2", hpp::proto::as_optional_ref<&T::field2>(), 
+      "field3", hpp::proto::as_optional_ref<&T::field3>(), 
+      "field4", hpp::proto::as_optional_ref<&T::field4>());
+  // clang-format on
 };
 
 // using namespace std::literals::string_view_literals;
@@ -58,7 +64,7 @@ namespace ut = boost::ut;
 
 ut::suite test_bytes_json = [] {
   using namespace boost::ut::literals;
-  "empty"_test = [] { verify_bytes("", R"({"field":""})"); };
+  "empty"_test = [] { verify_bytes("", R"({})"); };
   "one_padding_test"_test = [] { verify_bytes("light work.", R"({"field":"bGlnaHQgd29yay4="})"); };
   "two_padding_test"_test = [] { verify_bytes("light work", R"({"field":"bGlnaHQgd29yaw=="})"); };
   "no_padding_test"_test = [] { verify_bytes("light wor", R"({"field":"bGlnaHQgd29y"})"); };

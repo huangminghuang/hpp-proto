@@ -254,8 +254,6 @@ class proto_json_meta {
         unpacked_repeated_positions[field_index] = ix;
       }
 
-      
-
       if constexpr (Options.prettify) {
         context.indentation_level -= Options.indentation_width;
       }
@@ -295,7 +293,7 @@ class proto_json_meta {
       case TYPE_STRING:
         return decode_field_type<std::string>();
       case TYPE_GROUP:
-        return {};
+        return decode_group(meta.type_index, meta.number);
       case TYPE_MESSAGE: {
         zpp::bits::vsize_t length = 0;
         if (auto result = archive(length); result != hpp::proto::errc{}) [[unlikely]] {
@@ -342,8 +340,109 @@ class proto_json_meta {
       return {};
     }
 
-    std::errc decode_message(uint32_t msg_index, std::size_t end_position, bool is_map_entry = false) {
+    std::errc decode_field(const proto_json_meta::message_meta &msg_meta, uint32_t number, wire_type field_wire_type,
+                           std::vector<uint64_t>& unpacked_repeated_positions, uint32_t &field_index, char &separator,
+                           bool is_map_entry = false) {
+      if (circular_find(field_index, number, msg_meta)) {
+        auto &field_m = msg_meta[field_index];
+
+        if (separator && (!field_m.is_map_entry || unpacked_repeated_positions[field_index] == 0)) {
+          glz::detail::dump(separator, b, ix);
+          if (Options.prettify && separator == ',') {
+            glz::detail::dump<'\n'>(b, ix);
+            glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+          }
+        }
+
+        using enum google::protobuf::FieldDescriptorProto::Type;
+        if (is_map_entry) {
+          separator = ':';
+        } else if (field_m.rule == proto_json_meta::encoding::none || unpacked_repeated_positions[field_index] == 0) {
+          auto &key = field_m.json_name;
+          glz::detail::write<glz::json>::op<Options>(key, context, b, ix);
+          glz::detail::dump<':'>(b, ix);
+          if constexpr (Options.prettify) {
+            glz::detail::dump<' '>(b, ix);
+          }
+          separator = ',';
+        } else if (!field_m.is_map_entry) {
+          separator = '\0';
+        }
+
+        if (field_m.rule == proto_json_meta::encoding::none) {
+          bool is_numeric_map_key =
+              is_map_entry && field_index == 0 && (field_m.type != TYPE_STRING && field_m.type != TYPE_BYTES);
+          if (is_numeric_map_key)
+            glz::detail::dump<'"'>(b, ix);
+
+          if (auto ec = decode_field(field_m); hpp::proto::failure(ec)) [[unlikely]] {
+            return ec;
+          }
+          if (is_numeric_map_key)
+            glz::detail::dump<'"'>(b, ix);
+        } else if (field_m.rule == proto_json_meta::encoding::packed_repeated &&
+                   field_wire_type == wire_type::length_delimited) {
+          if (auto ec = decode_packed_repeated(field_m); hpp::proto::failure(ec)) [[unlikely]] {
+            return ec;
+          }
+        } else {
+          if (auto ec = decode_unpacked_repeated(field_index, field_m, unpacked_repeated_positions);
+              hpp::proto::failure(ec)) [[unlikely]] {
+            return ec;
+          }
+        }
+
+      } else [[unlikely]] {
+        if (auto ec = skip_field(field_wire_type); hpp::proto::failure(ec)) [[unlikely]] {
+          return ec;
+        }
+      }
+      return {};
+    }
+
+    std::errc decode_group(uint32_t msg_index, uint32_t field_number) {
+      const proto_json_meta::message_meta &msg_meta = pb_meta.messages[msg_index];
+      glz::detail::dump<'{'>(b, ix);
+      if constexpr (Options.prettify) {
+        context.indentation_level += Options.indentation_width;
+        glz::detail::dump<'\n'>(b, ix);
+        glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+      }
+      std::vector<uint64_t> unpacked_repeated_positions(msg_meta.size());
+
       uint32_t field_index = 0;
+      char separator = '\0';
+
+      while (archive.remaining_data().size()) {
+        ::zpp::bits::vuint32_t tag;
+        if (auto result = archive(tag); failure(result)) [[unlikely]] {
+          return result;
+        }
+
+        auto number = hpp::proto::tag_number(tag);
+        auto field_wire_type = hpp::proto::tag_type(tag);
+
+        if (field_wire_type == wire_type::egroup && field_number == number)
+          return {};
+
+        if (auto result =
+                decode_field(msg_meta, number, field_wire_type, unpacked_repeated_positions, field_index, separator);
+            hpp::proto::failure(result)) [[unlikely]] {
+          return result;
+        }
+      }
+
+      if constexpr (Options.prettify) {
+        context.indentation_level -= Options.indentation_width;
+        glz::detail::dump<'\n'>(b, ix);
+        glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+      }
+      glz::detail::dump<'}'>(b, ix);
+
+      return std::errc::result_out_of_range;
+    }
+
+    std::errc decode_message(uint32_t msg_index, std::size_t end_position, bool is_map_entry = false) {
 
       const proto_json_meta::message_meta &msg_meta = pb_meta.messages[msg_index];
 
@@ -357,7 +456,7 @@ class proto_json_meta {
       }
 
       std::vector<uint64_t> unpacked_repeated_positions(msg_meta.size());
-
+      uint32_t field_index = 0;
       char separator = '\0';
 
       while (archive.position() < end_position) {
@@ -368,66 +467,10 @@ class proto_json_meta {
         auto number = hpp::proto::tag_number(tag);
         auto field_wire_type = hpp::proto::tag_type(tag);
 
-        bool do_skip = false;
-
-        if (circular_find(field_index, number, msg_meta)) {
-          auto &field_m = msg_meta[field_index];
-
-          if (separator && (!field_m.is_map_entry || unpacked_repeated_positions[field_index] == 0)) {
-            glz::detail::dump(separator, b, ix);
-            if (Options.prettify && separator == ',') {
-              glz::detail::dump<'\n'>(b, ix);
-              glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
-            }
-          }
-
-          using enum google::protobuf::FieldDescriptorProto::Type;
-          if (is_map_entry) {
-            separator = ':';
-          } else if (field_m.rule == proto_json_meta::encoding::none ||
-                      unpacked_repeated_positions[field_index] == 0) {
-            auto &key = field_m.json_name;
-            glz::detail::write<glz::json>::op<Options>(key, context, b, ix);
-            glz::detail::dump<':'>(b, ix);
-            if constexpr (Options.prettify) {
-              glz::detail::dump<' '>(b, ix);
-            }
-            separator = ',';
-          } else if (!field_m.is_map_entry) {
-            separator = '\0';
-          }
-
-          if (field_m.rule == proto_json_meta::encoding::none) {
-            bool is_numeric_map_key =
-                is_map_entry && field_index == 0 && (field_m.type != TYPE_STRING && field_m.type != TYPE_BYTES);
-            if (is_numeric_map_key)
-              glz::detail::dump<'"'>(b, ix);
-
-            if (auto ec = decode_field(field_m); hpp::proto::failure(ec)) [[unlikely]] {
-              return ec;
-            }
-            if (is_numeric_map_key)
-              glz::detail::dump<'"'>(b, ix);
-          } else if (field_m.rule == proto_json_meta::encoding::packed_repeated &&
-                      field_wire_type == wire_type::length_delimited) {
-            if (auto ec = decode_packed_repeated(field_m); hpp::proto::failure(ec)) [[unlikely]] {
-              return ec;
-            }
-          } else {
-            if (auto ec = decode_unpacked_repeated(field_index, field_m, unpacked_repeated_positions);
-                hpp::proto::failure(ec)) [[unlikely]] {
-              return ec;
-            }
-          }
-         
-        } else [[unlikely]] {
-          do_skip = true;
-        }
-
-        if (do_skip) {
-          if (auto ec = skip_field(field_wire_type); hpp::proto::failure(ec)) [[unlikely]] {
-            return ec;
-          }
+        if (auto result = decode_field(msg_meta, number, field_wire_type, unpacked_repeated_positions, field_index,
+                                       separator, is_map_entry);
+            hpp::proto::failure(result)) [[unlikely]] {
+          return result;
         }
       }
 

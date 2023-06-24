@@ -20,7 +20,7 @@ std::string to_hex(const T &data) {
 }
 
 template <zpp::bits::string_literal String>
-constexpr auto operator""_bytes_view() {
+constexpr auto operator""_bytes_array() {
   return zpp::bits::to_bytes<String>();
 }
 
@@ -62,7 +62,7 @@ static_assert(hpp::proto::to_bytes<example_explicit_presence{}>() == "0800"_deco
 static_assert(hpp::proto::from_bytes<"0800"_decode_hex, example_explicit_presence>().i == 0);
 
 struct example_default_type {
-  hpp::proto::optional<int32_t, 1> i; // field number == 1
+  int32_t i = 1; // field number == 1
 
   constexpr bool operator==(const example_default_type &) const = default;
 };
@@ -70,9 +70,9 @@ struct example_default_type {
 auto serialize(const example_default_type &) -> zpp::bits::members<1>;
 
 auto pb_meta(const example_default_type &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, zpp::bits::vint64_t, 1>>;
 
-// static_assert(hpp::proto::to_bytes<example_default_type{}>().size() == 0);
+static_assert(hpp::proto::to_bytes<example_default_type{}>().size() == 0);
 
 ut::suite test_example_default_type = [] {
   auto [data, in, out] = hpp::proto::data_in_out(zpp::bits::no_size{});
@@ -81,21 +81,20 @@ ut::suite test_example_default_type = [] {
   ut::expect(data.size() == 0);
 };
 
-static_assert(hpp::proto::from_bytes<std::array<std::byte, 0>{}, example_default_type>().i.value_or_default() == 1);
+static_assert(hpp::proto::from_bytes<std::array<std::byte, 0>{}, example_default_type>().i == 1);
 
-struct nested_reserved_example {
-  [[no_unique_address]] zpp::bits::pb_reserved _1{}; // field number == 1
-  [[no_unique_address]] zpp::bits::pb_reserved _2{}; // field number == 2
-  example nested{};                                  // field number == 3
+struct example_optioanl_type {
+  hpp::proto::optional<int32_t, 1> i; // field number == 1
+
+  constexpr bool operator==(const example_optioanl_type &) const = default;
 };
 
-static_assert(sizeof(nested_reserved_example) == sizeof(example));
+auto serialize(const example_optioanl_type &) -> zpp::bits::members<1>;
 
-static_assert(hpp::proto::to_bytes<zpp::bits::unsized_t<nested_reserved_example>{{.nested = example{150}}}>() ==
-              "1a03089601"_decode_hex);
+auto pb_meta(const example_optioanl_type &)
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence, zpp::bits::vint64_t>>;
 
-static_assert(
-    hpp::proto::from_bytes<"1a03089601"_decode_hex, zpp::bits::unsized_t<nested_reserved_example>>().nested.i == 150);
+// static_assert(hpp::proto::to_bytes<example_optioanl_type{}>().size() == 0);
 
 struct nested_explicit_id_example {
   example nested{}; // field number == 3
@@ -152,22 +151,22 @@ using namespace boost::ut::literals;
 
 ut::suite test_repeated_integers = [] {
   "repeated_integers"_test = [] {
-    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_view,
+    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_array,
            repeated_integers{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
   };
 
   "repeated_integers_unpacked"_test = [] {
-    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_view,
+    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
            repeated_integers_unpacked{{1, 2, 3, 4, -1, -2, -3, -4}});
   };
 
   "repeated_integers_unpacked_decode"_test = [] {
-    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_view,
+    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
            repeated_integers{{1, 2, 3, 4, -1, -2, -3, -4}}, decode_only);
   };
 
   "repeated_integers_unpacked_explicit_type"_test = [] {
-    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_view,
+    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
            repeated_integers_unpacked_explicit_type{{1, 2, 3, 4, -1, -2, -3, -4}});
   };
 };
@@ -204,37 +203,37 @@ using namespace boost::ut::literals;
 ut::suite test_repeated_fixed = [] {
   "repeated_fixed"_test = [] {
     verify(
-        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_array,
         repeated_fixed{{1, 2, 3}});
   };
 
   "repeated_fixed_explicit_type"_test = [] {
     verify(
-        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_array,
         repeated_fixed_explicit_type{{1, 2, 3}});
   };
 
   "repeated_fixed_unpacked"_test = [] {
     verify(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_array,
         repeated_fixed_unpacked{{1, 2, 3}});
   };
 
   "repeated_fixed_unpacked_decode"_test = [] {
     verify(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_array,
         repeated_fixed{{1, 2, 3}}, decode_only);
   };
 
   "repeated_fixed_unpacked_explicit_type_decode"_test = [] {
     verify(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_array,
         repeated_fixed_explicit_type{{1, 2, 3}}, decode_only);
   };
 
   "repeated_fixed_unpacked_explicit_type"_test = [] {
     verify(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_array,
         repeated_fixed_unpacked_explicit_type{{1, 2, 3}});
   };
 };
@@ -255,10 +254,10 @@ auto pb_meta(const repeated_bool_unpacked &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, bool>>;
 
 ut::suite test_repeated_bool = [] {
-  "repeated_bool"_test = [] { verify("\x0a\x03\x01\x00\x01"_bytes_view, repeated_bool{{true, false, true}}); };
+  "repeated_bool"_test = [] { verify("\x0a\x03\x01\x00\x01"_bytes_array, repeated_bool{{true, false, true}}); };
 
   "repeated_bool_unpacked"_test = [] {
-    verify("\x08\x01\x08\x00\x08\x01"_bytes_view, repeated_bool_unpacked{{true, false, true}});
+    verify("\x08\x01\x08\x00\x08\x01"_bytes_array, repeated_bool_unpacked{{true, false, true}});
   };
 };
 
@@ -282,14 +281,14 @@ ut::suite test_repeated_enums = [] {
   {
     using enum repeated_enum::NestedEnum;
     "repeated_enum"_test = [] {
-      verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view,
+      verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_array,
              repeated_enum{{FOO, BAR, BAZ, NEG}});
     };
   }
   {
     using enum repeated_enum_unpacked::NestedEnum;
     "repeated_enum_unpacked"_test = [] {
-      verify("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view,
+      verify("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_array,
              repeated_enum_unpacked{{FOO, BAR, BAZ, NEG}});
     };
   }
@@ -310,6 +309,30 @@ ut::suite test_repeated_example = [] {
   ut::expect(r.examples == (std::vector<example>{{1}, {2}, {3}, {4}, {-1}, {-2}, {-3}, {-4}}));
 };
 
+struct group {
+  uint32_t a;
+  bool operator==(const group &) const = default;
+};
+
+auto pb_meta(const group &) -> std::tuple<hpp::proto::field_meta<2, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+
+struct repeated_group {
+  std::vector<group> repeatedgroup;
+  bool operator==(const repeated_group &) const = default;
+};
+
+auto pb_meta(const repeated_group &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::group>>;
+
+ut::suite test_repeated_group = [] {
+  auto [data, in, out] = hpp::proto::data_in_out();
+  out(repeated_group{.repeatedgroup = {{1}, {2}}}).or_throw();
+
+  repeated_group r;
+  in(r).or_throw();
+
+  ut::expect(r.repeatedgroup == (std::vector<group>{{1}, {2}}));
+};
+
 enum class color_t { red, blue, green };
 
 struct map_example {
@@ -322,7 +345,7 @@ auto pb_meta(const map_example &) -> std::tuple<
 
 ut::suite test_map_example = [] {
   "map_example"_test = [] {
-    verify("\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"_bytes_view,
+    verify("\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"_bytes_array,
            map_example{{{1, color_t::red}, {2, color_t::blue}, {3, color_t::green}}});
   };
 };
@@ -343,29 +366,42 @@ auto pb_meta(const string_explicit_presence &)
 using namespace hpp::proto::literals;
 
 struct string_with_default {
-  hpp::proto::optional<std::string, "test"_hppproto_s> value;
+  std::string value = "test";
   bool operator==(const string_with_default &) const = default;
 };
 auto pb_meta(const string_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence, void>>;
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, void, "test"_hppproto_s>>;
 
 auto serialize(const string_with_default &) -> zpp::bits::members<1>;
 
+struct string_with_optional {
+  hpp::proto::optional<std::string, "test"_hppproto_s> value;
+  bool operator==(const string_with_optional &) const = default;
+};
+auto pb_meta(const string_with_optional &)
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence, void>>;
+
+auto serialize(const string_with_optional &) -> zpp::bits::members<1>;
+
 ut::suite test_string_example = [] {
-  "string_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_example{.value = "test"}); };
+  "string_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_example{.value = "test"}); };
 
   "string_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_explicit_presence{.value = "test"});
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_explicit_presence{.value = "test"});
   };
 
   "string_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, string_with_default{}); };
 
   "string_with_default"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_with_default{.value = "test"});
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_with_default{.value = "test"}, decode_only);
   };
 
-  "default_value_access"_test = [] {
-    string_with_default v;
+  "string_with_optional"_test = [] {
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_with_optional{.value = "test"});
+  };
+
+  "optional_value_access"_test = [] {
+    string_with_optional v;
     ut::expect(v.value.value_or_default() == "test");
   };
 };
@@ -384,31 +420,44 @@ auto pb_meta(const string_view_explicit_presence &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
 
 struct string_view_with_default {
-  hpp::proto::optional<std::string_view, "test"_hppproto_s> value;
+  std::string_view value = "test";
   bool operator==(const string_view_with_default &) const = default;
 };
 auto pb_meta(const string_view_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, void, "test"_hppproto_s>>;
 
 auto serialize(const string_view_with_default &) -> zpp::bits::members<1>;
 
+struct string_view_with_optional {
+  hpp::proto::optional<std::string_view, "test"_hppproto_s> value;
+  bool operator==(const string_view_with_optional &) const = default;
+};
+auto pb_meta(const string_view_with_optional &)
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
+
+auto serialize(const string_view_with_optional &) -> zpp::bits::members<1>;
+
 ut::suite test_string_view_example = [] {
   "string_view_example"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_example{.value = "test"});
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_example{.value = "test"});
   };
 
   "string_view_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_explicit_presence{.value = "test"});
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_explicit_presence{.value = "test"});
   };
 
   "string_view_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, string_view_with_default{}); };
 
   "string_view_with_default"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_with_default{.value = "test"});
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_with_default{.value = "test"}, decode_only);
   };
 
-  "default_value_access"_test = [] {
-    string_view_with_default v;
+  "string_view_with_optional"_test = [] {
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_with_optional{.value = "test"});
+  };
+
+  "optional_value_access"_test = [] {
+    string_view_with_optional v;
     ut::expect(v.value.value_or_default() == "test");
   };
 };
@@ -426,33 +475,49 @@ struct bytes_explicit_presence {
 auto pb_meta(const bytes_explicit_presence &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
 
+
 struct bytes_with_default {
-  hpp::proto::optional<std::vector<std::byte>, "test"_hppproto_s> value;
+  std::vector<std::byte> value = "test"_bytes;
   bool operator==(const bytes_with_default &) const = default;
 };
 
-auto pb_meta(const bytes_with_default &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
+auto pb_meta(const bytes_with_default &)
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, void, "test"_hppproto_s>>;
+
 
 auto serialize(const bytes_with_default &) -> zpp::bits::members<1>;
+
+struct bytes_with_optional {
+  hpp::proto::optional<std::vector<std::byte>, "test"_hppproto_s> value;
+  bool operator==(const bytes_with_optional &) const = default;
+};
+
+auto pb_meta(const bytes_with_optional &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
+
+auto serialize(const bytes_with_optional &) -> zpp::bits::members<1>;
 
 ut::suite test_bytes = [] {
   const static auto verified_value =
       std::vector<std::byte>{std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
 
-  "bytes_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, bytes_example{.value = verified_value}); };
+  "bytes_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, bytes_example{.value = verified_value}); };
 
   "bytes_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, bytes_explicit_presence{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, bytes_explicit_presence{.value = verified_value});
   };
 
   "bytes_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, bytes_with_default{}); };
 
   "bytes_with_default"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, bytes_with_default{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, bytes_with_default{.value = verified_value}, decode_only);
   };
 
-  "default_value_access"_test = [] {
-    bytes_with_default v;
+  "bytes_with_optional"_test = [] {
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, bytes_with_optional{.value = verified_value});
+  };
+
+  "optional_value_access"_test = [] {
+    bytes_with_optional v;
     ut::expect(v.value.value_or_default() == verified_value);
   };
 };
@@ -471,34 +536,48 @@ auto pb_meta(const bytes_explicit_presence &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
 
 struct char_vector_with_default {
-  hpp::proto::optional<std::vector<char>, "test"_hppproto_s> value;
+  std::vector<char> value = {'t', 'e', 's', 't'};
   bool operator==(const char_vector_with_default &) const = default;
 };
 
 auto pb_meta(const char_vector_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, void, "test"_hppproto_s>>;
 
 auto serialize(const char_vector_with_default &) -> zpp::bits::members<1>;
+
+struct char_vector_with_optional {
+  hpp::proto::optional<std::vector<char>, "test"_hppproto_s> value;
+  bool operator==(const char_vector_with_optional &) const = default;
+};
+
+auto pb_meta(const char_vector_with_optional &)
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
+
+auto serialize(const char_vector_with_optional &) -> zpp::bits::members<1>;
 
 ut::suite test_char_vector = [] {
   const static auto verified_value = std::vector<char>{'t', 'e', '\0', 't'};
 
   "char_vector_example"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"_bytes_view, char_vector_example{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x00\x74"_bytes_array, char_vector_example{.value = verified_value});
   };
 
   "char_vector_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"_bytes_view, char_vector_explicit_presence{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x00\x74"_bytes_array, char_vector_explicit_presence{.value = verified_value});
   };
 
   "char_vector_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, char_vector_with_default{}); };
 
   "char_vector_with_default"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"_bytes_view, char_vector_with_default{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x00\x74"_bytes_array, char_vector_with_default{.value = verified_value});
   };
 
-  "default_value_access"_test = [] {
-    char_vector_with_default v;
+  "char_vector_with_optional"_test = [] {
+    verify("\x0a\x04\x74\x65\x00\x74"_bytes_array, char_vector_with_optional{.value = verified_value});
+  };
+
+  "optional_value_access"_test = [] {
+    char_vector_with_optional v;
     ut::expect(v.value.value_or_default() == std::vector<char>{'t', 'e', 's', 't'});
   };
 };
@@ -521,30 +600,46 @@ auto pb_meta(const byte_span_explicit_presence &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
 
 struct byte_span_with_default {
-  hpp::proto::optional<std::span<const std::byte>, "test"_hppproto_s> value;
+  std::span<const std::byte> value = "test"_bytes_span;
   bool operator==(const byte_span_with_default &other) const {
+    return std::equal(value.begin(), value.end(), other.value.begin(), other.value.end());
+  }
+};
+
+auto pb_meta(const byte_span_with_default &)
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, void, "test"_hppproto_s>>;
+
+auto serialize(const byte_span_with_default &) -> zpp::bits::members<1>;
+
+struct byte_span_with_optional {
+  hpp::proto::optional<std::span<const std::byte>, "test"_hppproto_s> value;
+  bool operator==(const byte_span_with_optional &other) const {
     return (!value.has_value() && !other.value.has_value()) ||
            (value.has_value() && other.value.has_value() &&
             std::equal(value->begin(), value->end(), other.value->begin(), other.value->end()));
   }
 };
 
-auto pb_meta(const byte_span_with_default &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
+auto pb_meta(const byte_span_with_optional &)
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
 
-auto serialize(const byte_span_with_default &) -> zpp::bits::members<1>;
+auto serialize(const byte_span_with_optional &) -> zpp::bits::members<1>;
 
 ut::suite test_byte_span = [] {
   static const std::byte verified_value[] = {std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
 
   "byte_span_example"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, byte_span_example{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, byte_span_example{.value = verified_value});
   };
 
   "byte_span_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, byte_span_explicit_presence{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, byte_span_explicit_presence{.value = verified_value});
   };
 
-  "byte_span_with_default_emtpy"_test = [] { verify(std::array<std::byte, 0>{}, byte_span_with_default{}); };
+  "byte_span_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, byte_span_with_default{}); };
+
+  "byte_span_with_optional_empty"_test = [] { verify(std::array<std::byte, 0>{}, byte_span_with_optional{}); };
+
 };
 
 struct repeated_strings {
@@ -572,14 +667,14 @@ using namespace std::literals;
 
 ut::suite test_repeated_strings = [] {
   "repeated_strings"_test = [] {
-    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view, repeated_strings{.values = {"abc"s, "def"s}});
+    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_array, repeated_strings{.values = {"abc"s, "def"s}});
   };
   "repeated_strings_explicit_type"_test = [] {
-    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view,
+    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_array,
            repeated_strings_explicit_type{.values = {"abc"s, "def"s}});
   };
   "repeated_strings_explicit_presence"_test = [] {
-    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view,
+    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_array,
            repeated_strings_explicit_presence{.values = {"abc"s, "def"s}});
   };
 };
@@ -596,11 +691,11 @@ auto pb_meta(const oneof_example &) -> std::tuple<
 ut::suite test_oneof = [] {
   "empty_oneof_example"_test = [] { verify(std::array<std::byte, 0>{}, oneof_example{}); };
 
-  "string_oneof_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, oneof_example{.value = "test"}); };
+  "string_oneof_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, oneof_example{.value = "test"}); };
 
-  "integer_oneof_example"_test = [] { verify("\x10\x05"_bytes_view, oneof_example{.value = 5}); };
+  "integer_oneof_example"_test = [] { verify("\x10\x05"_bytes_array, oneof_example{.value = 5}); };
 
-  "enum_oneof_example"_test = [] { verify("\x18\x02"_bytes_view, oneof_example{.value = color_t::green}); };
+  "enum_oneof_example"_test = [] { verify("\x18\x02"_bytes_array, oneof_example{.value = color_t::green}); };
 };
 
 struct extension_example {
@@ -665,16 +760,10 @@ constexpr auto repeated_packed_i32_ext() {
                                              int32_t>{};
 }
 
-template <zpp::bits::string_literal String>
-constexpr auto operator""_bytes() {
-  auto v = zpp::bits::to_bytes<String>();
-  return std::vector<std::byte>{v.begin(), v.end()};
-}
-
 ut::suite test_extensions = [] {
   "get_extension"_test = [] {
     auto encoded_data =
-        "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"_bytes_view;
+        "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"_bytes_array;
     extension_example expected_value{
         .int_value = 150,
         .extensions = {.fields = {{10U, "\x50\x01"_bytes},
@@ -768,7 +857,7 @@ struct recursive_type2 {
 
 ut::suite recursive_types = [] {
   "recursive_type1"_test = [] {
-    verify("\x0a\x02\x10\x02\x10\x01"_bytes_view, recursive_type1{recursive_type1{{}, 2}, 1});
+    verify("\x0a\x02\x10\x02\x10\x01"_bytes_array, recursive_type1{recursive_type1{{}, 2}, 1});
   };
   "recursive_type2"_test = [] {
     recursive_type2 child;
@@ -777,7 +866,7 @@ ut::suite recursive_types = [] {
     value.children.push_back(child);
     value.payload = 1;
 
-    verify("\x0a\x02\x10\x02\x10\x01"_bytes_view, value);
+    verify("\x0a\x02\x10\x02\x10\x01"_bytes_array, value);
   };
 };
 
@@ -993,7 +1082,7 @@ struct address_book {
 
 ut::suite test_person = [] {
   constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
-                        "555-4321\x10\x01"_bytes_view;
+                        "555-4321\x10\x01"_bytes_array;
   static_assert(data.size() == 45);
 
   person p;
@@ -1020,7 +1109,7 @@ ut::suite test_address_book = [] {
                         "555-4321\x10\x01\n>\n\nJohn Doe "
                         "2\x10\xd3\t\x1a\x11jdoe2@example.com\"\x0c\n\x08"
                         "555-4322\x10\x01\"\x0c\n\x08"
-                        "555-4323\x10\x02"_bytes_view;
+                        "555-4323\x10\x02"_bytes_array;
 
   static_assert(data.size() == 111);
 
@@ -1081,7 +1170,7 @@ struct person_explicit {
 
 ut::suite test_person_explicit = [] {
   constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
-                        "555-4321\x10\x01"_bytes_view;
+                        "555-4321\x10\x01"_bytes_array;
   static_assert(data.size() == 45);
 
   using namespace std::literals::string_view_literals;
@@ -1129,7 +1218,7 @@ struct person_map {
 
 ut::suite test_person_map = [] {
   constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
-                        "555-4321\x10\x01"_bytes_view;
+                        "555-4321\x10\x01"_bytes_array;
   static_assert(data.size() == 45);
 
   using namespace std::literals::string_view_literals;
@@ -1152,7 +1241,7 @@ ut::suite test_person_map = [] {
 };
 
 ut::suite test_default_person_in_address_book = [] {
-  constexpr auto data = "\n\x00"_bytes_view;
+  constexpr auto data = "\n\x00"_bytes_array;
 
   using namespace std::literals::string_view_literals;
   using namespace boost::ut;
@@ -1173,7 +1262,7 @@ ut::suite test_default_person_in_address_book = [] {
 };
 
 ut::suite test_empty_address_book = [] {
-  constexpr auto data = ""_bytes_view;
+  constexpr auto data = ""_bytes_array;
 
   using namespace boost::ut;
 
@@ -1190,7 +1279,7 @@ ut::suite test_empty_address_book = [] {
 };
 
 ut::suite test_empty_person = [] {
-  constexpr auto data = ""_bytes_view;
+  constexpr auto data = ""_bytes_array;
   using namespace std::literals::string_view_literals;
   using namespace boost::ut;
 
@@ -1219,25 +1308,25 @@ void verify_unknown_fields(auto encoded_data, auto expected_value) {
 
 ut::suite test_decode_unknown_field = [] {
   "string_example_varint_unknown"_test = [] {
-    verify_unknown_fields("\x18\x02\x0a\x04\x74\x65\x73\x74"_bytes_view, string_example{.value = "test"});
+    verify_unknown_fields("\x18\x02\x0a\x04\x74\x65\x73\x74"_bytes_array, string_example{.value = "test"});
   };
 
   "string_example_i64_unknown"_test = [] {
-    verify_unknown_fields("\x19\x01\x02\x03\x04\x05\x06\x07\x08\x0a\x04\x74\x65\x73\x74"_bytes_view,
+    verify_unknown_fields("\x19\x01\x02\x03\x04\x05\x06\x07\x08\x0a\x04\x74\x65\x73\x74"_bytes_array,
                           string_example{.value = "test"});
   };
 
   "string_example_length_delimited_unknown"_test = [] {
-    verify_unknown_fields("\x1a\x02\x02\x03\x0a\x04\x74\x65\x73\x74"_bytes_view, string_example{.value = "test"});
+    verify_unknown_fields("\x1a\x02\x02\x03\x0a\x04\x74\x65\x73\x74"_bytes_array, string_example{.value = "test"});
   };
 
   "string_example_i32_unknown"_test = [] {
-    verify_unknown_fields("\x1d\x01\x02\x03\x04\x0a\x04\x74\x65\x73\x74"_bytes_view, string_example{.value = "test"});
+    verify_unknown_fields("\x1d\x01\x02\x03\x04\x0a\x04\x74\x65\x73\x74"_bytes_array, string_example{.value = "test"});
   };
 
   "string_example_invalid_wire_type"_test = [] {
     string_example value;
-    ut::expect(failure(hpp::proto::in{"\x1c\x02\x0a\x04\x74\x65\x73\x74"_bytes_view}(value)));
+    ut::expect(failure(hpp::proto::in{"\x1c\x02\x0a\x04\x74\x65\x73\x74"_bytes_array}(value)));
   };
 };
 

@@ -30,6 +30,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
+#include <span>
 
 #if __has_include(<flat_map>)
 #include <flat_map>
@@ -48,12 +49,7 @@ using stdext::flat_map;
 #endif
 namespace hpp::proto {
 
-// workaround for clang not supporting floating-point types in non-type template
-// parameters as of clang-15
-template <int64_t x>
-struct double_wrapper {};
-template <int32_t x>
-struct float_wrapper {};
+
 
 #ifndef __cpp_lib_bit_cast
 namespace std {
@@ -66,6 +62,17 @@ constexpr ToType bit_cast(FromType const &from) noexcept {
 }
 } // namespace std
 #endif
+
+// workaround for clang not supporting floating-point types in non-type template
+// parameters as of clang-15
+template <int64_t x>
+struct double_wrapper {
+  constexpr bool operator==(double v) const { return v == std::bit_cast<double>(x); }
+};
+template <int32_t x>
+struct float_wrapper {
+  constexpr bool operator==(float v) const { return v == std::bit_cast<float>(x); }
+};
 
 #if defined(__clang__)
 #if defined(__cpp_lib_bit_cast)
@@ -335,6 +342,21 @@ struct compile_time_string {
   constexpr size_t size() const { return Len - 1; }
   constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(init, Len, data_); }
   constexpr const char *data() const { return data_; }
+
+  constexpr bool operator==(std::string_view v) const { return v == data(); }
+  constexpr bool operator==(std::span<const std::byte> v) const {
+    const std::byte *b = reinterpret_cast<const std::byte *>(data_);
+    return std::equal(v.begin(), v.end(), b, b + size());
+  }
+
+  constexpr bool operator==(const std::vector<std::byte>& v) const {
+    const std::byte *b = reinterpret_cast<const std::byte *>(data_);
+    return std::equal(v.begin(), v.end(), b, b + size());
+  }
+
+  constexpr bool operator==(const std::vector<char> &v) const {
+    return operator==(std::string_view{v.data(), v.size()});
+  }
 };
 
 namespace literals {
@@ -342,15 +364,46 @@ template <compile_time_string str>
 constexpr auto operator""_hppproto_s() {
   return str;
 }
+
+
+template <compile_time_string str>
+constexpr auto operator""_bytes() {
+  const std::byte *b = reinterpret_cast<const std::byte *>(str.data_);
+  return std::vector<std::byte>{b, b + str.size()};
+}
+
+template <compile_time_string str>
+auto operator""_bytes_span() {
+  static auto value = str;
+  const std::byte *b = reinterpret_cast<const std::byte *>(value.data_);
+  return std::span<const std::byte>{b, b + value.size()};
+}
+
 } // namespace literals
 
 using bytes = std::vector<std::byte>;
 
 struct boolean {
-  bool value;
+  bool value = false;
   boolean() = default;
   boolean(bool v) : value(v) {}
   operator bool() const { return value; }
 };
+
+template <typename T, auto Default = std::monostate{}>
+constexpr bool is_default_value(const T &val) {
+  if constexpr (std::is_same_v<decltype(Default), std::monostate>) {
+    if constexpr (requires { val.empty(); })
+      return val.empty();
+    if constexpr (requires { val.has_value(); })
+      return !val.has_value();
+    if constexpr (std::is_class_v<T>)
+      return false;
+    else
+      return val == T{};
+  } else {
+    return Default == val;
+  }
+}
 
 } // namespace hpp::proto
