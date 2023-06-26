@@ -8,19 +8,19 @@ template <>
 struct glz::meta<google::protobuf::compiler::Version> {
   using T = google::protobuf::compiler::Version;
   static constexpr auto value = object(
-    "major", &T::major,
-    "minor", &T::minor,
-    "patch", &T::patch,
-    "suffix", &T::suffix);
+    "major", hpp::proto::as_optional_ref<&T::major>(),
+    "minor", hpp::proto::as_optional_ref<&T::minor>(),
+    "patch", hpp::proto::as_optional_ref<&T::patch>(),
+    "suffix", hpp::proto::as_optional_ref<&T::suffix>());
 };
 
 template <>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest> {
   using T = google::protobuf::compiler::CodeGeneratorRequest;
   static constexpr auto value = object(
-    "fileToGenerate", &T::file_to_generate,
-    "parameter", &T::parameter,
-    "protoFile", &T::proto_file,
+    "fileToGenerate", hpp::proto::as_optional_ref<&T::file_to_generate>(),
+    "parameter", hpp::proto::as_optional_ref<&T::parameter>(),
+    "protoFile", hpp::proto::as_optional_ref<&T::proto_file>(),
     "compilerVersion", &T::compiler_version);
 };
 
@@ -28,18 +28,18 @@ template <>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse> {
   using T = google::protobuf::compiler::CodeGeneratorResponse;
   static constexpr auto value = object(
-    "error", &T::error,
-    "supportedFeatures", glz::quoted<&T::supported_features>(),
-    "file", &T::file);
+    "error", hpp::proto::as_optional_ref<&T::error>(),
+    "supportedFeatures", hpp::proto::as_optional_ref<&T::supported_features>(),
+    "file", hpp::proto::as_optional_ref<&T::file>());
 };
 
 template <>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse::File> {
   using T = google::protobuf::compiler::CodeGeneratorResponse::File;
   static constexpr auto value = object(
-    "name", &T::name,
-    "insertionPoint", &T::insertion_point,
-    "content", &T::content,
+    "name", hpp::proto::as_optional_ref<&T::name>(),
+    "insertionPoint", hpp::proto::as_optional_ref<&T::insertion_point>(),
+    "content", hpp::proto::as_optional_ref<&T::content>(),
     "generatedCodeInfo", &T::generated_code_info);
 };
 

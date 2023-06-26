@@ -29,7 +29,7 @@ struct proto_json_addons {
     std::vector<FieldD *> fields;
     message_descriptor(const google::protobuf::DescriptorProto &proto) {
       fields.reserve(proto.field.size() + proto.extension.size());
-      is_map_entry = proto.options.has_value() && proto.options->map_entry.has_value() && *proto.options->map_entry;
+      is_map_entry = proto.options.has_value() && proto.options->map_entry;
     }
     void add_field(FieldD &f) { fields.push_back(&f); }
     void add_enum(EnumD &e) {}
@@ -42,7 +42,7 @@ struct proto_json_addons {
   struct file_descriptor {
     int syntax;
     file_descriptor(const google::protobuf::FileDescriptorProto &proto) {
-      if (proto.syntax.has_value() && proto.syntax.value() == "proto3")
+      if (proto.syntax == "proto3")
         syntax = 3;
       else
         syntax = 2;
@@ -81,26 +81,24 @@ class proto_json_meta {
 
     template <typename MesssageDescriptor, typename Pool>
     field_meta(MesssageDescriptor *descriptor, const google::protobuf::FieldDescriptorProto &proto, const Pool &pool)
-        : number(*proto.number), name(*proto.name), json_name(*proto.json_name), type(*proto.type) {
+        : number(proto.number), name(proto.name), json_name(proto.json_name), type(proto.type) {
 
-      if (proto.type_name && (*proto.type) == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE) {
-        is_map_entry = pool.message_map.find(*proto.type_name)->second->is_map_entry;
+      if (proto.type_name.size() && proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE) {
+        is_map_entry = pool.message_map.find(proto.type_name)->second->is_map_entry;
       }
 
       using enum google::protobuf::FieldDescriptorProto::Type;
-      if (*proto.type == TYPE_MESSAGE) {
-        type_index = find_index(pool.message_map.keys(), *proto.type_name);
-      } else if (*proto.type == TYPE_ENUM) {
-        type_index = find_index(pool.enum_map.keys(), *proto.type_name);
+      if (proto.type == TYPE_MESSAGE) {
+        type_index = find_index(pool.message_map.keys(), proto.type_name);
+      } else if (proto.type == TYPE_ENUM) {
+        type_index = find_index(pool.enum_map.keys(), proto.type_name);
       }
 
-      if (proto.label && *proto.label == google::protobuf::FieldDescriptorProto::Label::LABEL_REPEATED) {
+      if (proto.label == google::protobuf::FieldDescriptorProto::Label::LABEL_REPEATED) {
         auto &options = proto.options;
-        std::optional<bool> packed;
-        if (options.has_value() && options->packed.has_value())
-          packed = *options->packed;
-        if ((packed.has_value() && !*packed) || descriptor->syntax == 2 || (*proto.type == TYPE_MESSAGE) ||
-            (*proto.type == TYPE_STRING) || (*proto.type == TYPE_BYTES))
+        bool packed = options.has_value() && options->packed;
+        if ((!packed) || descriptor->syntax == 2 || (proto.type == TYPE_MESSAGE) ||
+            (proto.type == TYPE_STRING) || (proto.type == TYPE_BYTES))
           rule = proto_json_meta::unpacked_repeated;
         else
           rule = proto_json_meta::packed_repeated;
@@ -501,7 +499,7 @@ public:
                      const auto values = descriptor->proto.value;
                      m.reserve(values.size());
                      std::transform(values.begin(), values.end(), std::back_inserter(m), [](auto &v) {
-                       return proto_json_meta::enum_value_meta{*v.number, *v.name};
+                       return proto_json_meta::enum_value_meta{v.number, v.name};
                      });
                      return m;
                    });

@@ -17,8 +17,6 @@ oneof_wrapper<T, Index> wrap_oneof(T &v) {
   return oneof_wrapper<T, Index>{&v};
 }
 
-
-
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
   T &val;
@@ -38,6 +36,20 @@ struct optional_ref<int64_t, Default> {
   int64_t &val;
   operator bool() const { return !is_default_value<int64_t, Default>(val); }
   glz::quoted_t<int64_t> operator*() const { return {val}; }
+};
+
+template <auto Default>
+struct optional_ref<std::vector<uint64_t>, Default> {
+  std::vector<uint64_t> &val;
+  operator bool() const { return !is_default_value<std::vector<uint64_t>, Default>(val); }
+  glz::quoted_t<std::vector<uint64_t>> operator*() const { return {val}; }
+};
+
+template <auto Default>
+struct optional_ref<std::vector<int64_t>, Default> {
+  std::vector<int64_t> &val;
+  operator bool() const { return !is_default_value<std::vector<int64_t>, Default>(val); }
+  glz::quoted_t<std::vector<int64_t>> operator*() const { return {val}; }
 };
 
 template <auto MemPtr, auto Default = std::monostate{}>
@@ -268,8 +280,6 @@ struct from_json<hpp::proto::boolean> {
     from_json<bool>::template op<Options>(value.value, std::forward<Args>(args)...);
   }
 };
-
-
 
 } // namespace detail
 } // namespace glz

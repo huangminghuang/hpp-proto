@@ -175,7 +175,7 @@ ut::suite proto3_lite_test = [] {
 
     auto original_json =
         gpb_based::proto_to_json(unittest_proto3_descriptorset(), "proto3_unittest.TestAllTypes",
-                                 {(const char *)data.data(), data.size()}, gpb_based::ALWAYS_PRINT_PRIMITIVE_FIELDS);
+                                 {(const char *)data.data(), data.size()});
 
     ut::expect(glz::write_json(original) == original_json);
 

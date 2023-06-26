@@ -109,7 +109,7 @@ struct descriptor_pool {
     reserve(enum_map, counter.enums);
 
     for (auto &proto : proto_files) {
-      if (proto.name) {
+      if (proto.name.size()) {
         build(files.emplace_back(proto));
       }
     }
@@ -120,26 +120,24 @@ struct descriptor_pool {
     }
 
     for (auto [name, f] : file_map) {
-      build_extensions(*f, f->proto.package.value_or(""));
+      build_extensions(*f, f->proto.package);
     }
 
     assert(messages.size() == counter.messages);
   }
 
   void build(file_descriptor_t &descriptor) {
-    file_map.try_emplace(*descriptor.proto.name, &descriptor);
-    std::string package = descriptor.proto.package.value_or("");
+    file_map.try_emplace(descriptor.proto.name, &descriptor);
+    std::string package = descriptor.proto.package;
     for (auto &proto : descriptor.proto.message_type) {
-      assert(proto.name.has_value());
-      std::string name = package.size() ? "." + package + "." + *proto.name : "." + *proto.name;
+      std::string name = package.size() ? "." + package + "." + proto.name : "." + proto.name;
       auto &message = messages.emplace_back(proto);
       build(message, name);
       descriptor.add_message(message);
     }
 
     for (auto &proto : descriptor.proto.enum_type) {
-      assert(proto.name.has_value());
-      std::string name = package.size() ? "." + package + "." + *proto.name : *proto.name;
+      std::string name = package.size() ? "." + package + "." + proto.name : proto.name;
       auto &e = enums.emplace_back(proto);
       enum_map.try_emplace(name, &e);
       descriptor.add_enum(e);
@@ -149,16 +147,14 @@ struct descriptor_pool {
   void build(message_descriptor_t &descriptor, const std::string &scope) {
     message_map.try_emplace(scope, &descriptor);
     for (auto &proto : descriptor.proto.nested_type) {
-      assert(proto.name.has_value());
-      std::string name = scope + "." + *proto.name;
+      std::string name = scope + "." + proto.name;
       auto &message = messages.emplace_back(proto);
       build(message, name);
       descriptor.add_message(message);
     }
 
     for (auto &proto : descriptor.proto.enum_type) {
-      assert(proto.name.has_value());
-      std::string name = scope + "." + *proto.name;
+      std::string name = scope + "." + proto.name;
       auto &e = enums.emplace_back(proto);
       enum_map.try_emplace(name, &e);
       descriptor.add_enum(e);
@@ -178,17 +174,13 @@ struct descriptor_pool {
 
   void build_fields(message_descriptor_t &descriptor, const std::string &qualified_name) {
     for (auto &proto : descriptor.proto.field) {
-      if (proto.type.has_value()) {
-        descriptor.add_field(fields.emplace_back(proto, qualified_name));
-      }
+      descriptor.add_field(fields.emplace_back(proto, qualified_name));
     }
   };
 
   void build_extensions(auto &parent, const std::string &scope) {
     for (auto &proto : parent.proto.extension) {
-      if (proto.type.has_value()) {
-        parent.add_extension(fields.emplace_back(proto, scope));
-      }
+      parent.add_extension(fields.emplace_back(proto, scope));
     }
   }
 };

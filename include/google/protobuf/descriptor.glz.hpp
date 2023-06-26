@@ -7,50 +7,50 @@ template <>
 struct glz::meta<google::protobuf::FileDescriptorSet> {
   using T = google::protobuf::FileDescriptorSet;
   static constexpr auto value = object(
-    "file", &T::file);
+    "file", hpp::proto::as_optional_ref<&T::file>());
 };
 
 template <>
 struct glz::meta<google::protobuf::FileDescriptorProto> {
   using T = google::protobuf::FileDescriptorProto;
   static constexpr auto value = object(
-    "name", &T::name,
-    "package", &T::package,
-    "dependency", &T::dependency,
-    "publicDependency", &T::public_dependency,
-    "weakDependency", &T::weak_dependency,
-    "messageType", &T::message_type,
-    "enumType", &T::enum_type,
-    "service", &T::service,
-    "extension", &T::extension,
+    "name", hpp::proto::as_optional_ref<&T::name>(),
+    "package", hpp::proto::as_optional_ref<&T::package>(),
+    "dependency", hpp::proto::as_optional_ref<&T::dependency>(),
+    "publicDependency", hpp::proto::as_optional_ref<&T::public_dependency>(),
+    "weakDependency", hpp::proto::as_optional_ref<&T::weak_dependency>(),
+    "messageType", hpp::proto::as_optional_ref<&T::message_type>(),
+    "enumType", hpp::proto::as_optional_ref<&T::enum_type>(),
+    "service", hpp::proto::as_optional_ref<&T::service>(),
+    "extension", hpp::proto::as_optional_ref<&T::extension>(),
     "options", &T::options,
     "sourceCodeInfo", &T::source_code_info,
-    "syntax", &T::syntax,
-    "edition", &T::edition);
+    "syntax", hpp::proto::as_optional_ref<&T::syntax>(),
+    "edition", hpp::proto::as_optional_ref<&T::edition>());
 };
 
 template <>
 struct glz::meta<google::protobuf::DescriptorProto> {
   using T = google::protobuf::DescriptorProto;
   static constexpr auto value = object(
-    "name", &T::name,
-    "field", &T::field,
-    "extension", &T::extension,
-    "nestedType", &T::nested_type,
-    "enumType", &T::enum_type,
-    "extensionRange", &T::extension_range,
-    "oneofDecl", &T::oneof_decl,
+    "name", hpp::proto::as_optional_ref<&T::name>(),
+    "field", hpp::proto::as_optional_ref<&T::field>(),
+    "extension", hpp::proto::as_optional_ref<&T::extension>(),
+    "nestedType", hpp::proto::as_optional_ref<&T::nested_type>(),
+    "enumType", hpp::proto::as_optional_ref<&T::enum_type>(),
+    "extensionRange", hpp::proto::as_optional_ref<&T::extension_range>(),
+    "oneofDecl", hpp::proto::as_optional_ref<&T::oneof_decl>(),
     "options", &T::options,
-    "reservedRange", &T::reserved_range,
-    "reservedName", &T::reserved_name);
+    "reservedRange", hpp::proto::as_optional_ref<&T::reserved_range>(),
+    "reservedName", hpp::proto::as_optional_ref<&T::reserved_name>());
 };
 
 template <>
 struct glz::meta<google::protobuf::DescriptorProto::ExtensionRange> {
   using T = google::protobuf::DescriptorProto::ExtensionRange;
   static constexpr auto value = object(
-    "start", &T::start,
-    "end", &T::end,
+    "start", hpp::proto::as_optional_ref<&T::start>(),
+    "end", hpp::proto::as_optional_ref<&T::end>(),
     "options", &T::options);
 };
 
@@ -58,32 +58,32 @@ template <>
 struct glz::meta<google::protobuf::DescriptorProto::ReservedRange> {
   using T = google::protobuf::DescriptorProto::ReservedRange;
   static constexpr auto value = object(
-    "start", &T::start,
-    "end", &T::end);
+    "start", hpp::proto::as_optional_ref<&T::start>(),
+    "end", hpp::proto::as_optional_ref<&T::end>());
 };
 
 template <>
 struct glz::meta<google::protobuf::ExtensionRangeOptions> {
   using T = google::protobuf::ExtensionRangeOptions;
   static constexpr auto value = object(
-    "uninterpretedOption", &T::uninterpreted_option);
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
 template <>
 struct glz::meta<google::protobuf::FieldDescriptorProto> {
   using T = google::protobuf::FieldDescriptorProto;
   static constexpr auto value = object(
-    "name", &T::name,
-    "number", &T::number,
-    "label", &T::label,
-    "type", &T::type,
-    "typeName", &T::type_name,
-    "extendee", &T::extendee,
-    "defaultValue", &T::default_value,
+    "name", hpp::proto::as_optional_ref<&T::name>(),
+    "number", hpp::proto::as_optional_ref<&T::number>(),
+    "label", hpp::proto::as_optional_ref<&T::label, ::google::protobuf::FieldDescriptorProto::Label::LABEL_OPTIONAL>(),
+    "type", hpp::proto::as_optional_ref<&T::type, ::google::protobuf::FieldDescriptorProto::Type::TYPE_DOUBLE>(),
+    "typeName", hpp::proto::as_optional_ref<&T::type_name>(),
+    "extendee", hpp::proto::as_optional_ref<&T::extendee>(),
+    "defaultValue", hpp::proto::as_optional_ref<&T::default_value>(),
     "oneofIndex", &T::oneof_index,
-    "jsonName", &T::json_name,
+    "jsonName", hpp::proto::as_optional_ref<&T::json_name>(),
     "options", &T::options,
-    "proto3Optional", &T::proto3_optional);
+    "proto3Optional", hpp::proto::as_optional_ref<&T::proto3_optional>());
 };
 
 template <>
@@ -123,7 +123,7 @@ template <>
 struct glz::meta<google::protobuf::OneofDescriptorProto> {
   using T = google::protobuf::OneofDescriptorProto;
   static constexpr auto value = object(
-    "name", &T::name,
+    "name", hpp::proto::as_optional_ref<&T::name>(),
     "options", &T::options);
 };
 
@@ -131,27 +131,27 @@ template <>
 struct glz::meta<google::protobuf::EnumDescriptorProto> {
   using T = google::protobuf::EnumDescriptorProto;
   static constexpr auto value = object(
-    "name", &T::name,
-    "value", &T::value,
+    "name", hpp::proto::as_optional_ref<&T::name>(),
+    "value", hpp::proto::as_optional_ref<&T::value>(),
     "options", &T::options,
-    "reservedRange", &T::reserved_range,
-    "reservedName", &T::reserved_name);
+    "reservedRange", hpp::proto::as_optional_ref<&T::reserved_range>(),
+    "reservedName", hpp::proto::as_optional_ref<&T::reserved_name>());
 };
 
 template <>
 struct glz::meta<google::protobuf::EnumDescriptorProto::EnumReservedRange> {
   using T = google::protobuf::EnumDescriptorProto::EnumReservedRange;
   static constexpr auto value = object(
-    "start", &T::start,
-    "end", &T::end);
+    "start", hpp::proto::as_optional_ref<&T::start>(),
+    "end", hpp::proto::as_optional_ref<&T::end>());
 };
 
 template <>
 struct glz::meta<google::protobuf::EnumValueDescriptorProto> {
   using T = google::protobuf::EnumValueDescriptorProto;
   static constexpr auto value = object(
-    "name", &T::name,
-    "number", &T::number,
+    "name", hpp::proto::as_optional_ref<&T::name>(),
+    "number", hpp::proto::as_optional_ref<&T::number>(),
     "options", &T::options);
 };
 
@@ -159,8 +159,8 @@ template <>
 struct glz::meta<google::protobuf::ServiceDescriptorProto> {
   using T = google::protobuf::ServiceDescriptorProto;
   static constexpr auto value = object(
-    "name", &T::name,
-    "method", &T::method,
+    "name", hpp::proto::as_optional_ref<&T::name>(),
+    "method", hpp::proto::as_optional_ref<&T::method>(),
     "options", &T::options);
 };
 
@@ -168,39 +168,39 @@ template <>
 struct glz::meta<google::protobuf::MethodDescriptorProto> {
   using T = google::protobuf::MethodDescriptorProto;
   static constexpr auto value = object(
-    "name", &T::name,
-    "inputType", &T::input_type,
-    "outputType", &T::output_type,
+    "name", hpp::proto::as_optional_ref<&T::name>(),
+    "inputType", hpp::proto::as_optional_ref<&T::input_type>(),
+    "outputType", hpp::proto::as_optional_ref<&T::output_type>(),
     "options", &T::options,
-    "clientStreaming", &T::client_streaming,
-    "serverStreaming", &T::server_streaming);
+    "clientStreaming", hpp::proto::as_optional_ref<&T::client_streaming, false>(),
+    "serverStreaming", hpp::proto::as_optional_ref<&T::server_streaming, false>());
 };
 
 template <>
 struct glz::meta<google::protobuf::FileOptions> {
   using T = google::protobuf::FileOptions;
   static constexpr auto value = object(
-    "javaPackage", &T::java_package,
-    "javaOuterClassname", &T::java_outer_classname,
-    "javaMultipleFiles", &T::java_multiple_files,
-    "javaGenerateEqualsAndHash", &T::java_generate_equals_and_hash,
-    "javaStringCheckUtf8", &T::java_string_check_utf8,
-    "optimizeFor", &T::optimize_for,
-    "goPackage", &T::go_package,
-    "ccGenericServices", &T::cc_generic_services,
-    "javaGenericServices", &T::java_generic_services,
-    "pyGenericServices", &T::py_generic_services,
-    "phpGenericServices", &T::php_generic_services,
-    "deprecated", &T::deprecated,
-    "ccEnableArenas", &T::cc_enable_arenas,
-    "objcClassPrefix", &T::objc_class_prefix,
-    "csharpNamespace", &T::csharp_namespace,
-    "swiftPrefix", &T::swift_prefix,
-    "phpClassPrefix", &T::php_class_prefix,
-    "phpNamespace", &T::php_namespace,
-    "phpMetadataNamespace", &T::php_metadata_namespace,
-    "rubyPackage", &T::ruby_package,
-    "uninterpretedOption", &T::uninterpreted_option);
+    "javaPackage", hpp::proto::as_optional_ref<&T::java_package>(),
+    "javaOuterClassname", hpp::proto::as_optional_ref<&T::java_outer_classname>(),
+    "javaMultipleFiles", hpp::proto::as_optional_ref<&T::java_multiple_files, false>(),
+    "javaGenerateEqualsAndHash", hpp::proto::as_optional_ref<&T::java_generate_equals_and_hash>(),
+    "javaStringCheckUtf8", hpp::proto::as_optional_ref<&T::java_string_check_utf8, false>(),
+    "optimizeFor", hpp::proto::as_optional_ref<&T::optimize_for, ::google::protobuf::FileOptions::OptimizeMode::SPEED>(),
+    "goPackage", hpp::proto::as_optional_ref<&T::go_package>(),
+    "ccGenericServices", hpp::proto::as_optional_ref<&T::cc_generic_services, false>(),
+    "javaGenericServices", hpp::proto::as_optional_ref<&T::java_generic_services, false>(),
+    "pyGenericServices", hpp::proto::as_optional_ref<&T::py_generic_services, false>(),
+    "phpGenericServices", hpp::proto::as_optional_ref<&T::php_generic_services, false>(),
+    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
+    "ccEnableArenas", hpp::proto::as_optional_ref<&T::cc_enable_arenas, true>(),
+    "objcClassPrefix", hpp::proto::as_optional_ref<&T::objc_class_prefix>(),
+    "csharpNamespace", hpp::proto::as_optional_ref<&T::csharp_namespace>(),
+    "swiftPrefix", hpp::proto::as_optional_ref<&T::swift_prefix>(),
+    "phpClassPrefix", hpp::proto::as_optional_ref<&T::php_class_prefix>(),
+    "phpNamespace", hpp::proto::as_optional_ref<&T::php_namespace>(),
+    "phpMetadataNamespace", hpp::proto::as_optional_ref<&T::php_metadata_namespace>(),
+    "rubyPackage", hpp::proto::as_optional_ref<&T::ruby_package>(),
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
 template <>
@@ -216,29 +216,29 @@ template <>
 struct glz::meta<google::protobuf::MessageOptions> {
   using T = google::protobuf::MessageOptions;
   static constexpr auto value = object(
-    "messageSetWireFormat", &T::message_set_wire_format,
-    "noStandardDescriptorAccessor", &T::no_standard_descriptor_accessor,
-    "deprecated", &T::deprecated,
-    "mapEntry", &T::map_entry,
-    "deprecatedLegacyJsonFieldConflicts", &T::deprecated_legacy_json_field_conflicts,
-    "uninterpretedOption", &T::uninterpreted_option);
+    "messageSetWireFormat", hpp::proto::as_optional_ref<&T::message_set_wire_format, false>(),
+    "noStandardDescriptorAccessor", hpp::proto::as_optional_ref<&T::no_standard_descriptor_accessor, false>(),
+    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
+    "mapEntry", hpp::proto::as_optional_ref<&T::map_entry>(),
+    "deprecatedLegacyJsonFieldConflicts", hpp::proto::as_optional_ref<&T::deprecated_legacy_json_field_conflicts>(),
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
 template <>
 struct glz::meta<google::protobuf::FieldOptions> {
   using T = google::protobuf::FieldOptions;
   static constexpr auto value = object(
-    "ctype", &T::ctype,
-    "packed", &T::packed,
-    "jstype", &T::jstype,
-    "lazy", &T::lazy,
-    "unverifiedLazy", &T::unverified_lazy,
-    "deprecated", &T::deprecated,
-    "weak", &T::weak,
-    "debugRedact", &T::debug_redact,
-    "retention", &T::retention,
-    "target", &T::target,
-    "uninterpretedOption", &T::uninterpreted_option);
+    "ctype", hpp::proto::as_optional_ref<&T::ctype, ::google::protobuf::FieldOptions::CType::STRING>(),
+    "packed", hpp::proto::as_optional_ref<&T::packed>(),
+    "jstype", hpp::proto::as_optional_ref<&T::jstype, ::google::protobuf::FieldOptions::JSType::JS_NORMAL>(),
+    "lazy", hpp::proto::as_optional_ref<&T::lazy, false>(),
+    "unverifiedLazy", hpp::proto::as_optional_ref<&T::unverified_lazy, false>(),
+    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
+    "weak", hpp::proto::as_optional_ref<&T::weak, false>(),
+    "debugRedact", hpp::proto::as_optional_ref<&T::debug_redact, false>(),
+    "retention", hpp::proto::as_optional_ref<&T::retention, ::google::protobuf::FieldOptions::OptionRetention::RETENTION_UNKNOWN>(),
+    "target", hpp::proto::as_optional_ref<&T::target, ::google::protobuf::FieldOptions::OptionTargetType::TARGET_TYPE_UNKNOWN>(),
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
 template <>
@@ -288,42 +288,42 @@ template <>
 struct glz::meta<google::protobuf::OneofOptions> {
   using T = google::protobuf::OneofOptions;
   static constexpr auto value = object(
-    "uninterpretedOption", &T::uninterpreted_option);
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
 template <>
 struct glz::meta<google::protobuf::EnumOptions> {
   using T = google::protobuf::EnumOptions;
   static constexpr auto value = object(
-    "allowAlias", &T::allow_alias,
-    "deprecated", &T::deprecated,
-    "deprecatedLegacyJsonFieldConflicts", &T::deprecated_legacy_json_field_conflicts,
-    "uninterpretedOption", &T::uninterpreted_option);
+    "allowAlias", hpp::proto::as_optional_ref<&T::allow_alias>(),
+    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
+    "deprecatedLegacyJsonFieldConflicts", hpp::proto::as_optional_ref<&T::deprecated_legacy_json_field_conflicts>(),
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
 template <>
 struct glz::meta<google::protobuf::EnumValueOptions> {
   using T = google::protobuf::EnumValueOptions;
   static constexpr auto value = object(
-    "deprecated", &T::deprecated,
-    "uninterpretedOption", &T::uninterpreted_option);
+    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
 template <>
 struct glz::meta<google::protobuf::ServiceOptions> {
   using T = google::protobuf::ServiceOptions;
   static constexpr auto value = object(
-    "deprecated", &T::deprecated,
-    "uninterpretedOption", &T::uninterpreted_option);
+    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
 template <>
 struct glz::meta<google::protobuf::MethodOptions> {
   using T = google::protobuf::MethodOptions;
   static constexpr auto value = object(
-    "deprecated", &T::deprecated,
-    "idempotencyLevel", &T::idempotency_level,
-    "uninterpretedOption", &T::uninterpreted_option);
+    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
+    "idempotencyLevel", hpp::proto::as_optional_ref<&T::idempotency_level, ::google::protobuf::MethodOptions::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>(),
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
 template <>
@@ -339,13 +339,13 @@ template <>
 struct glz::meta<google::protobuf::UninterpretedOption> {
   using T = google::protobuf::UninterpretedOption;
   static constexpr auto value = object(
-    "name", &T::name,
-    "identifierValue", &T::identifier_value,
-    "positiveIntValue", glz::quoted<&T::positive_int_value>(),
-    "negativeIntValue", glz::quoted<&T::negative_int_value>(),
-    "doubleValue", &T::double_value,
-    "stringValue", &T::string_value,
-    "aggregateValue", &T::aggregate_value);
+    "name", hpp::proto::as_optional_ref<&T::name>(),
+    "identifierValue", hpp::proto::as_optional_ref<&T::identifier_value>(),
+    "positiveIntValue", hpp::proto::as_optional_ref<&T::positive_int_value>(),
+    "negativeIntValue", hpp::proto::as_optional_ref<&T::negative_int_value>(),
+    "doubleValue", hpp::proto::as_optional_ref<&T::double_value>(),
+    "stringValue", hpp::proto::as_optional_ref<&T::string_value>(),
+    "aggregateValue", hpp::proto::as_optional_ref<&T::aggregate_value>());
 };
 
 template <>
@@ -360,36 +360,36 @@ template <>
 struct glz::meta<google::protobuf::SourceCodeInfo> {
   using T = google::protobuf::SourceCodeInfo;
   static constexpr auto value = object(
-    "location", &T::location);
+    "location", hpp::proto::as_optional_ref<&T::location>());
 };
 
 template <>
 struct glz::meta<google::protobuf::SourceCodeInfo::Location> {
   using T = google::protobuf::SourceCodeInfo::Location;
   static constexpr auto value = object(
-    "path", &T::path,
-    "span", &T::span,
-    "leadingComments", &T::leading_comments,
-    "trailingComments", &T::trailing_comments,
-    "leadingDetachedComments", &T::leading_detached_comments);
+    "path", hpp::proto::as_optional_ref<&T::path>(),
+    "span", hpp::proto::as_optional_ref<&T::span>(),
+    "leadingComments", hpp::proto::as_optional_ref<&T::leading_comments>(),
+    "trailingComments", hpp::proto::as_optional_ref<&T::trailing_comments>(),
+    "leadingDetachedComments", hpp::proto::as_optional_ref<&T::leading_detached_comments>());
 };
 
 template <>
 struct glz::meta<google::protobuf::GeneratedCodeInfo> {
   using T = google::protobuf::GeneratedCodeInfo;
   static constexpr auto value = object(
-    "annotation", &T::annotation);
+    "annotation", hpp::proto::as_optional_ref<&T::annotation>());
 };
 
 template <>
 struct glz::meta<google::protobuf::GeneratedCodeInfo::Annotation> {
   using T = google::protobuf::GeneratedCodeInfo::Annotation;
   static constexpr auto value = object(
-    "path", &T::path,
-    "sourceFile", &T::source_file,
-    "begin", &T::begin,
-    "end", &T::end,
-    "semantic", &T::semantic);
+    "path", hpp::proto::as_optional_ref<&T::path>(),
+    "sourceFile", hpp::proto::as_optional_ref<&T::source_file>(),
+    "begin", hpp::proto::as_optional_ref<&T::begin>(),
+    "end", hpp::proto::as_optional_ref<&T::end>(),
+    "semantic", hpp::proto::as_optional_ref<&T::semantic, ::google::protobuf::GeneratedCodeInfo::Annotation::Semantic::NONE>());
 };
 
 template <>

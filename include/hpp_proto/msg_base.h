@@ -359,6 +359,11 @@ struct compile_time_string {
   }
 };
 
+template <compile_time_string str>
+const auto make_compile_time_string() {
+  return str;
+}
+
 namespace literals {
 template <compile_time_string str>
 constexpr auto operator""_hppproto_s() {

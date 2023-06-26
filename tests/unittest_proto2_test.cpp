@@ -240,70 +240,35 @@ inline void TestUtil::SetOneofFields(protobuf_unittest::TestAllTypes *message) {
 // -------------------------------------------------------------------
 
 inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &message) {
-  ut::expect(message.optional_int32.has_value());
-  ut::expect(message.optional_int64.has_value());
-  ut::expect(message.optional_uint32.has_value());
-  ut::expect(message.optional_uint64.has_value());
-  ut::expect(message.optional_sint32.has_value());
-  ut::expect(message.optional_sint64.has_value());
-  ut::expect(message.optional_fixed32.has_value());
-  ut::expect(message.optional_fixed64.has_value());
-  ut::expect(message.optional_sfixed32.has_value());
-  ut::expect(message.optional_sfixed64.has_value());
-  ut::expect(message.optional_float.has_value());
-  ut::expect(message.optional_double.has_value());
-  ut::expect(message.optional_bool.has_value());
-  ut::expect(message.optional_string.has_value());
-  ut::expect(message.optional_bytes.has_value());
 
-  ut::expect(message.optionalgroup.has_value());
-  ut::expect(message.optional_nested_message.has_value());
-  ut::expect(message.optional_foreign_message.has_value());
-  ut::expect(message.optional_import_message.has_value());
-  ut::expect(message.optional_public_import_message.has_value());
-  ut::expect(message.optional_lazy_message.has_value());
-  ut::expect(message.optional_unverified_lazy_message.has_value());
+  ut::expect(ut::eq(101, message.optional_int32));
+  ut::expect(ut::eq(102, message.optional_int64));
+  ut::expect(ut::eq(103, message.optional_uint32));
+  ut::expect(ut::eq(104, message.optional_uint64));
+  ut::expect(ut::eq(105, message.optional_sint32));
+  ut::expect(ut::eq(106, message.optional_sint64));
+  ut::expect(ut::eq(107, message.optional_fixed32));
+  ut::expect(ut::eq(108, message.optional_fixed64));
+  ut::expect(ut::eq(109, message.optional_sfixed32));
+  ut::expect(ut::eq(110, message.optional_sfixed64));
+  ut::expect(ut::eq(111, message.optional_float));
+  ut::expect(ut::eq(112, message.optional_double));
+  ut::expect(message.optional_bool);
 
-  ut::expect(message.optionalgroup->a.has_value());
-  ut::expect(message.optional_nested_message->bb.has_value());
-  ut::expect(message.optional_foreign_message->c.has_value());
-  ut::expect(message.optional_import_message->d.has_value());
-  ut::expect(message.optional_public_import_message->e.has_value());
-  ut::expect(message.optional_lazy_message->bb.has_value());
-  ut::expect(message.optional_unverified_lazy_message->bb.has_value());
+  ut::expect(ut::eq("115"s, message.optional_string));
+  ut::expect(ut::eq("116"_bytes, message.optional_bytes));
 
-  ut::expect(message.optional_nested_enum.has_value());
-  ut::expect(message.optional_foreign_enum.has_value());
-  ut::expect(message.optional_import_enum.has_value());
+  ut::expect(ut::eq(117, message.optionalgroup->a));
+  ut::expect(ut::eq(118, message.optional_nested_message->bb));
+  ut::expect(ut::eq(119, message.optional_foreign_message->c));
+  ut::expect(ut::eq(120, message.optional_import_message->d));
+  ut::expect(ut::eq(126, message.optional_public_import_message->e));
+  ut::expect(ut::eq(127, message.optional_lazy_message->bb));
+  ut::expect(ut::eq(128, message.optional_unverified_lazy_message->bb));
 
-  ut::expect(ut::eq(101, message.optional_int32.value()));
-  ut::expect(ut::eq(102, message.optional_int64.value()));
-  ut::expect(ut::eq(103, message.optional_uint32.value()));
-  ut::expect(ut::eq(104, message.optional_uint64.value()));
-  ut::expect(ut::eq(105, message.optional_sint32.value()));
-  ut::expect(ut::eq(106, message.optional_sint64.value()));
-  ut::expect(ut::eq(107, message.optional_fixed32.value()));
-  ut::expect(ut::eq(108, message.optional_fixed64.value()));
-  ut::expect(ut::eq(109, message.optional_sfixed32.value()));
-  ut::expect(ut::eq(110, message.optional_sfixed64.value()));
-  ut::expect(ut::eq(111, message.optional_float.value()));
-  ut::expect(ut::eq(112, message.optional_double.value()));
-  ut::expect(message.optional_bool.value());
-
-  ut::expect(ut::eq("115"s, message.optional_string.value()));
-  ut::expect(ut::eq("116"_bytes, message.optional_bytes.value()));
-
-  ut::expect(ut::eq(117, message.optionalgroup->a.value()));
-  ut::expect(ut::eq(118, message.optional_nested_message->bb.value()));
-  ut::expect(ut::eq(119, message.optional_foreign_message->c.value()));
-  ut::expect(ut::eq(120, message.optional_import_message->d.value()));
-  ut::expect(ut::eq(126, message.optional_public_import_message->e.value()));
-  ut::expect(ut::eq(127, message.optional_lazy_message->bb.value()));
-  ut::expect(ut::eq(128, message.optional_unverified_lazy_message->bb.value()));
-
-  ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ == message.optional_nested_enum.value());
-  ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.optional_foreign_enum.value());
-  ut::expect(protobuf_unittest_import::ImportEnum::IMPORT_BAZ == message.optional_import_enum.value());
+  ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ == message.optional_nested_enum);
+  ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.optional_foreign_enum);
+  ut::expect(protobuf_unittest_import::ImportEnum::IMPORT_BAZ == message.optional_import_enum);
 
   // -----------------------------------------------------------------
   using namespace boost::ut;
@@ -348,11 +313,11 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
   ut::expect(ut::eq("215"s, message.repeated_string[0]));
   ut::expect(ut::eq("216"_bytes, message.repeated_bytes[0]));
 
-  ut::expect(ut::eq(217, message.repeatedgroup[0].a.value()));
-  ut::expect(ut::eq(218, message.repeated_nested_message[0].bb.value()));
-  ut::expect(ut::eq(219, message.repeated_foreign_message[0].c.value()));
-  ut::expect(ut::eq(220, message.repeated_import_message[0].d.value()));
-  ut::expect(ut::eq(227, message.repeated_lazy_message[0].bb.value()));
+  ut::expect(ut::eq(217, message.repeatedgroup[0].a));
+  ut::expect(ut::eq(218, message.repeated_nested_message[0].bb));
+  ut::expect(ut::eq(219, message.repeated_foreign_message[0].c));
+  ut::expect(ut::eq(220, message.repeated_import_message[0].d));
+  ut::expect(ut::eq(227, message.repeated_lazy_message[0].bb));
 
   ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::BAR == message.repeated_nested_enum[0]);
   ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_BAR == message.repeated_foreign_enum[0]);
@@ -374,11 +339,11 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
   ut::expect(ut::eq("315"s, message.repeated_string[1]));
   ut::expect(ut::eq("316"_bytes, message.repeated_bytes[1]));
 
-  ut::expect(ut::eq(317, message.repeatedgroup[1].a.value()));
-  ut::expect(ut::eq(318, message.repeated_nested_message[1].bb.value()));
-  ut::expect(ut::eq(319, message.repeated_foreign_message[1].c.value()));
-  ut::expect(ut::eq(320, message.repeated_import_message[1].d.value()));
-  ut::expect(ut::eq(327, message.repeated_lazy_message[1].bb.value()));
+  ut::expect(ut::eq(317, message.repeatedgroup[1].a));
+  ut::expect(ut::eq(318, message.repeated_nested_message[1].bb));
+  ut::expect(ut::eq(319, message.repeated_foreign_message[1].c));
+  ut::expect(ut::eq(320, message.repeated_import_message[1].d));
+  ut::expect(ut::eq(327, message.repeated_lazy_message[1].bb));
 
   ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ == message.repeated_nested_enum[1]);
   ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.repeated_foreign_enum[1]);
@@ -386,45 +351,25 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
 
   // -----------------------------------------------------------------
 
-  ut::expect(message.default_int32.has_value());
-  ut::expect(message.default_int64.has_value());
-  ut::expect(message.default_uint32.has_value());
-  ut::expect(message.default_uint64.has_value());
-  ut::expect(message.default_sint32.has_value());
-  ut::expect(message.default_sint64.has_value());
-  ut::expect(message.default_fixed32.has_value());
-  ut::expect(message.default_fixed64.has_value());
-  ut::expect(message.default_sfixed32.has_value());
-  ut::expect(message.default_sfixed64.has_value());
-  ut::expect(message.default_float.has_value());
-  ut::expect(message.default_double.has_value());
-  ut::expect(message.default_bool.has_value());
-  ut::expect(message.default_string.has_value());
-  ut::expect(message.default_bytes.has_value());
+  ut::expect(ut::eq(401, message.default_int32));
+  ut::expect(ut::eq(402, message.default_int64));
+  ut::expect(ut::eq(403, message.default_uint32));
+  ut::expect(ut::eq(404, message.default_uint64));
+  ut::expect(ut::eq(405, message.default_sint32));
+  ut::expect(ut::eq(406, message.default_sint64));
+  ut::expect(ut::eq(407, message.default_fixed32));
+  ut::expect(ut::eq(408, message.default_fixed64));
+  ut::expect(ut::eq(409, message.default_sfixed32));
+  ut::expect(ut::eq(410, message.default_sfixed64));
+  ut::expect(ut::eq(411, message.default_float));
+  ut::expect(ut::eq(412, message.default_double));
+  ut::expect(!message.default_bool);
+  ut::expect(ut::eq("415"s, message.default_string));
+  ut::expect(ut::eq("416"_bytes, message.default_bytes));
 
-  ut::expect(message.default_nested_enum.has_value());
-  ut::expect(message.default_foreign_enum.has_value());
-  ut::expect(message.default_import_enum.has_value());
-
-  ut::expect(ut::eq(401, message.default_int32.value_or_default()));
-  ut::expect(ut::eq(402, message.default_int64.value_or_default()));
-  ut::expect(ut::eq(403, message.default_uint32.value_or_default()));
-  ut::expect(ut::eq(404, message.default_uint64.value_or_default()));
-  ut::expect(ut::eq(405, message.default_sint32.value_or_default()));
-  ut::expect(ut::eq(406, message.default_sint64.value_or_default()));
-  ut::expect(ut::eq(407, message.default_fixed32.value_or_default()));
-  ut::expect(ut::eq(408, message.default_fixed64.value_or_default()));
-  ut::expect(ut::eq(409, message.default_sfixed32.value_or_default()));
-  ut::expect(ut::eq(410, message.default_sfixed64.value_or_default()));
-  ut::expect(ut::eq(411, message.default_float.value_or_default()));
-  ut::expect(ut::eq(412, message.default_double.value_or_default()));
-  ut::expect(!message.default_bool.value_or_default());
-  ut::expect(ut::eq("415"s, message.default_string.value_or_default()));
-  ut::expect(ut::eq("416"_bytes, message.default_bytes.value_or_default()));
-
-  ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO == message.default_nested_enum.value_or_default());
-  ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_FOO == message.default_foreign_enum.value_or_default());
-  ut::expect(protobuf_unittest_import::ImportEnum::IMPORT_FOO == message.default_import_enum.value_or_default());
+  ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO == message.default_nested_enum);
+  ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_FOO == message.default_foreign_enum);
+  ut::expect(protobuf_unittest_import::ImportEnum::IMPORT_FOO == message.default_import_enum);
 
   ut::expect(message.oneof_field.index() == protobuf_unittest::TestAllTypes::oneof_bytes);
 
@@ -435,21 +380,21 @@ inline void TestUtil::ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &
 
 inline void TestUtil::ExpectClear(const protobuf_unittest::TestAllTypes &message) {
   //.blah.has_value() should initially be false for all optional fields.
-  ut::expect(!message.optional_int32.has_value());
-  ut::expect(!message.optional_int64.has_value());
-  ut::expect(!message.optional_uint32.has_value());
-  ut::expect(!message.optional_uint64.has_value());
-  ut::expect(!message.optional_sint32.has_value());
-  ut::expect(!message.optional_sint64.has_value());
-  ut::expect(!message.optional_fixed32.has_value());
-  ut::expect(!message.optional_fixed64.has_value());
-  ut::expect(!message.optional_sfixed32.has_value());
-  ut::expect(!message.optional_sfixed64.has_value());
-  ut::expect(!message.optional_float.has_value());
-  ut::expect(!message.optional_double.has_value());
-  ut::expect(!message.optional_bool.has_value());
-  ut::expect(!message.optional_string.has_value());
-  ut::expect(!message.optional_bytes.has_value());
+  ut::expect(ut::eq(0, message.optional_int32));
+  ut::expect(ut::eq(0LL, message.optional_int64));
+  ut::expect(ut::eq(0U, message.optional_uint32));
+  ut::expect(ut::eq(0ULL, message.optional_uint64));
+  ut::expect(ut::eq(0, message.optional_sint32));
+  ut::expect(ut::eq(0LL, message.optional_sint64));
+  ut::expect(ut::eq(0U, message.optional_fixed32));
+  ut::expect(ut::eq(0ULL, message.optional_fixed64));
+  ut::expect(ut::eq(0, message.optional_sfixed32));
+  ut::expect(ut::eq(0LL, message.optional_sfixed64));
+  ut::expect(ut::eq(0.0f, message.optional_float));
+  ut::expect(ut::eq(0.0, message.optional_double));
+  ut::expect(ut::eq(false, message.optional_bool));
+  ut::expect(ut::eq(0, message.optional_string.size()));
+  ut::expect(ut::eq(0, message.optional_bytes.size()));
 
   ut::expect(!message.optionalgroup.has_value());
   ut::expect(!message.optional_nested_message.has_value());
@@ -459,12 +404,12 @@ inline void TestUtil::ExpectClear(const protobuf_unittest::TestAllTypes &message
   ut::expect(!message.optional_lazy_message.has_value());
   ut::expect(!message.optional_unverified_lazy_message.has_value());
 
-  ut::expect(!message.optional_nested_enum.has_value());
-  ut::expect(!message.optional_foreign_enum.has_value());
-  ut::expect(!message.optional_import_enum.has_value());
+  ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO == message.optional_nested_enum);
+  ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_FOO == message.optional_foreign_enum);
+  ut::expect(protobuf_unittest_import::ImportEnum::IMPORT_FOO == message.optional_import_enum);
 
-  ut::expect(!message.optional_string_piece.has_value());
-  ut::expect(!message.optional_cord.has_value());
+  ut::expect(message.optional_string_piece.empty());
+  ut::expect(message.optional_cord.empty());
 
   // Repeated fields are empty.
   ut::expect(ut::eq(0, message.repeated_int32.size()));
@@ -495,47 +440,26 @@ inline void TestUtil::ExpectClear(const protobuf_unittest::TestAllTypes &message
   ut::expect(ut::eq(0, message.repeated_string_piece.size()));
   ut::expect(ut::eq(0, message.repeated_cord.size()));
 
-  //.blah.has_value() should also be false for all default fields.
-  ut::expect(!message.default_int32.has_value());
-  ut::expect(!message.default_int64.has_value());
-  ut::expect(!message.default_uint32.has_value());
-  ut::expect(!message.default_uint64.has_value());
-  ut::expect(!message.default_sint32.has_value());
-  ut::expect(!message.default_sint64.has_value());
-  ut::expect(!message.default_fixed32.has_value());
-  ut::expect(!message.default_fixed64.has_value());
-  ut::expect(!message.default_sfixed32.has_value());
-  ut::expect(!message.default_sfixed64.has_value());
-  ut::expect(!message.default_float.has_value());
-  ut::expect(!message.default_double.has_value());
-  ut::expect(!message.default_bool.has_value());
-  ut::expect(!message.default_string.has_value());
-  ut::expect(!message.default_bytes.has_value());
-
-  ut::expect(!message.default_nested_enum.has_value());
-  ut::expect(!message.default_foreign_enum.has_value());
-  ut::expect(!message.default_import_enum.has_value());
-
   // Fields with defaults have their default values (duh).
-  ut::expect(ut::eq(41, message.default_int32.value_or_default()));
-  ut::expect(ut::eq(42, message.default_int64.value_or_default()));
-  ut::expect(ut::eq(43, message.default_uint32.value_or_default()));
-  ut::expect(ut::eq(44, message.default_uint64.value_or_default()));
-  ut::expect(ut::eq(-45, message.default_sint32.value_or_default()));
-  ut::expect(ut::eq(46, message.default_sint64.value_or_default()));
-  ut::expect(ut::eq(47, message.default_fixed32.value_or_default()));
-  ut::expect(ut::eq(48, message.default_fixed64.value_or_default()));
-  ut::expect(ut::eq(49, message.default_sfixed32.value_or_default()));
-  ut::expect(ut::eq(-50, message.default_sfixed64.value_or_default()));
-  ut::expect(ut::eq(51.5, message.default_float.value_or_default()));
-  ut::expect(ut::eq(52e3, message.default_double.value_or_default()));
-  ut::expect(message.default_bool.value_or_default());
-  ut::expect(ut::eq("hello"s, message.default_string.value_or_default()));
-  ut::expect(ut::eq("world"_bytes, message.default_bytes.value_or_default()));
+  ut::expect(ut::eq(41, message.default_int32));
+  ut::expect(ut::eq(42, message.default_int64));
+  ut::expect(ut::eq(43, message.default_uint32));
+  ut::expect(ut::eq(44, message.default_uint64));
+  ut::expect(ut::eq(-45, message.default_sint32));
+  ut::expect(ut::eq(46, message.default_sint64));
+  ut::expect(ut::eq(47, message.default_fixed32));
+  ut::expect(ut::eq(48, message.default_fixed64));
+  ut::expect(ut::eq(49, message.default_sfixed32));
+  ut::expect(ut::eq(-50, message.default_sfixed64));
+  ut::expect(ut::eq(51.5, message.default_float));
+  ut::expect(ut::eq(52e3, message.default_double));
+  ut::expect(message.default_bool);
+  ut::expect(ut::eq("hello"s, message.default_string));
+  ut::expect(ut::eq("world"_bytes, message.default_bytes));
 
-  ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::BAR == message.default_nested_enum.value_or_default());
-  ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_BAR == message.default_foreign_enum.value_or_default());
-  ut::expect(protobuf_unittest_import::ImportEnum::IMPORT_BAR == message.default_import_enum.value_or_default());
+  ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::BAR == message.default_nested_enum);
+  ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_BAR == message.default_foreign_enum);
+  ut::expect(protobuf_unittest_import::ImportEnum::IMPORT_BAR == message.default_import_enum);
 
   ut::expect(std::holds_alternative<std::monostate>(message.oneof_field));
 }
@@ -587,11 +511,11 @@ inline void TestUtil::ExpectRepeatedFieldsModified(const protobuf_unittest::Test
   ut::expect(ut::eq("215"s, message.repeated_string[0]));
   ut::expect(ut::eq("216"_bytes, message.repeated_bytes[0]));
 
-  ut::expect(ut::eq(218, message.repeatedgroup[0].a.value()));
-  ut::expect(ut::eq(218, message.repeated_nested_message[0].bb.value()));
-  ut::expect(ut::eq(219, message.repeated_foreign_message[0].c.value()));
-  ut::expect(ut::eq(220, message.repeated_import_message[0].d.value()));
-  ut::expect(ut::eq(227, message.repeated_lazy_message[0].bb.value()));
+  ut::expect(ut::eq(218, message.repeatedgroup[0].a));
+  ut::expect(ut::eq(218, message.repeated_nested_message[0].bb));
+  ut::expect(ut::eq(219, message.repeated_foreign_message[0].c));
+  ut::expect(ut::eq(220, message.repeated_import_message[0].d));
+  ut::expect(ut::eq(227, message.repeated_lazy_message[0].bb));
 
   ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::BAR == message.repeated_nested_enum[0]);
   ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_BAR == message.repeated_foreign_enum[0]);
@@ -614,11 +538,11 @@ inline void TestUtil::ExpectRepeatedFieldsModified(const protobuf_unittest::Test
   ut::expect(ut::eq("515"s, message.repeated_string[1]));
   ut::expect(ut::eq("516"_bytes, message.repeated_bytes[1]));
 
-  ut::expect(ut::eq(517, message.repeatedgroup[1].a.value()));
-  ut::expect(ut::eq(518, message.repeated_nested_message[1].bb.value()));
-  ut::expect(ut::eq(519, message.repeated_foreign_message[1].c.value()));
-  ut::expect(ut::eq(520, message.repeated_import_message[1].d.value()));
-  ut::expect(ut::eq(527, message.repeated_lazy_message[1].bb.value()));
+  ut::expect(ut::eq(517, message.repeatedgroup[1].a));
+  ut::expect(ut::eq(518, message.repeated_nested_message[1].bb));
+  ut::expect(ut::eq(519, message.repeated_foreign_message[1].c));
+  ut::expect(ut::eq(520, message.repeated_import_message[1].d));
+  ut::expect(ut::eq(527, message.repeated_lazy_message[1].bb));
 
   ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO == message.repeated_nested_enum[1]);
   ut::expect(protobuf_unittest::ForeignEnum::FOREIGN_FOO == message.repeated_foreign_enum[1]);
@@ -944,13 +868,13 @@ inline void TestUtil::ExpectAllExtensionsSet(const protobuf_unittest::TestAllExt
   ut::expect(message.has_extension(protobuf_unittest::optional_lazy_message_extension()));
   ut::expect(message.has_extension(protobuf_unittest::optional_unverified_lazy_message_extension()));
 
-  ut::expect(message.get_extension(protobuf_unittest::optionalgroup_extension())->a.has_value());
-  ut::expect(message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb.has_value());
-  ut::expect(message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c.has_value());
-  ut::expect(message.get_extension(protobuf_unittest::optional_import_message_extension())->d.has_value());
-  ut::expect(message.get_extension(protobuf_unittest::optional_public_import_message_extension())->e.has_value());
-  ut::expect(message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb.has_value());
-  ut::expect(message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb.has_value());
+  ut::expect(message.get_extension(protobuf_unittest::optionalgroup_extension())->a);
+  ut::expect(message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb);
+  ut::expect(message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c);
+  ut::expect(message.get_extension(protobuf_unittest::optional_import_message_extension())->d);
+  ut::expect(message.get_extension(protobuf_unittest::optional_public_import_message_extension())->e);
+  ut::expect(message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb);
+  ut::expect(message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb);
 
   ut::expect(message.has_extension(protobuf_unittest::optional_nested_enum_extension()));
   ut::expect(message.has_extension(protobuf_unittest::optional_foreign_enum_extension()));
@@ -975,10 +899,10 @@ inline void TestUtil::ExpectAllExtensionsSet(const protobuf_unittest::TestAllExt
   ut::expect(ut::eq("115"s, message.get_extension(protobuf_unittest::optional_string_extension()).value()));
   ut::expect(ut::eq("116"_bytes, message.get_extension(protobuf_unittest::optional_bytes_extension()).value()));
 
-  ut::expect(ut::eq(117, message.get_extension(protobuf_unittest::optionalgroup_extension())->a.value()));
-  ut::expect(ut::eq(118, message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb.value()));
-  ut::expect(ut::eq(119, message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c.value()));
-  ut::expect(ut::eq(120, message.get_extension(protobuf_unittest::optional_import_message_extension())->d.value()));
+  ut::expect(ut::eq(117, message.get_extension(protobuf_unittest::optionalgroup_extension())->a));
+  ut::expect(ut::eq(118, message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb));
+  ut::expect(ut::eq(119, message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c));
+  ut::expect(ut::eq(120, message.get_extension(protobuf_unittest::optional_import_message_extension())->d));
 
   ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ ==
              message.get_extension(protobuf_unittest::optional_nested_enum_extension()).value());
@@ -990,10 +914,10 @@ inline void TestUtil::ExpectAllExtensionsSet(const protobuf_unittest::TestAllExt
   ut::expect(ut::eq("124"s, message.get_extension(protobuf_unittest::optional_string_piece_extension()).value()));
   ut::expect(ut::eq("125"s, message.get_extension(protobuf_unittest::optional_cord_extension()).value()));
   ut::expect(
-      ut::eq(126, message.get_extension(protobuf_unittest::optional_public_import_message_extension())->e.value()));
-  ut::expect(ut::eq(127, message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb.value()));
+      ut::eq(126, message.get_extension(protobuf_unittest::optional_public_import_message_extension())->e));
+  ut::expect(ut::eq(127, message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb));
   ut::expect(
-      ut::eq(128, message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb.value()));
+      ut::eq(128, message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb));
 
   // -----------------------------------------------------------------
 
@@ -1131,12 +1055,12 @@ inline void TestUtil::ExpectAllExtensionsSet(const protobuf_unittest::TestAllExt
   ut::expect(ut::eq("425"s, message.get_extension(protobuf_unittest::default_cord_extension()).value_or_default()));
 
   ut::expect(message.has_extension(protobuf_unittest::oneof_uint32_extension()));
-  ut::expect(message.get_extension(protobuf_unittest::oneof_nested_message_extension())->bb.has_value());
+  ut::expect(message.get_extension(protobuf_unittest::oneof_nested_message_extension())->bb);
   ut::expect(message.has_extension(protobuf_unittest::oneof_string_extension()));
   ut::expect(message.has_extension(protobuf_unittest::oneof_bytes_extension()));
 
   ut::expect(ut::eq(601, message.get_extension(protobuf_unittest::oneof_uint32_extension()).value()));
-  ut::expect(ut::eq(602, message.get_extension(protobuf_unittest::oneof_nested_message_extension())->bb.value()));
+  ut::expect(ut::eq(602, message.get_extension(protobuf_unittest::oneof_nested_message_extension())->bb));
   ut::expect(ut::eq("603"s, message.get_extension(protobuf_unittest::oneof_string_extension()).value()));
   ut::expect(ut::eq("604"_bytes, message.get_extension(protobuf_unittest::oneof_bytes_extension()).value()));
 }
@@ -1198,23 +1122,15 @@ inline void TestUtil::ExpectExtensionsClear(const protobuf_unittest::TestAllExte
   ut::expect(!message.get_extension(protobuf_unittest::optional_bytes_extension()).has_value());
 
   // Embedded messages should also be clear.
-  ut::expect(!message.get_extension(protobuf_unittest::optionalgroup_extension())->a.has_value());
-  ut::expect(!message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb.has_value());
-  ut::expect(!message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c.has_value());
-  ut::expect(!message.get_extension(protobuf_unittest::optional_import_message_extension())->d.has_value());
-  ut::expect(!message.get_extension(protobuf_unittest::optional_public_import_message_extension())->e.has_value());
-  ut::expect(!message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb.has_value());
-  ut::expect(!message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb.has_value());
-
-  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optionalgroup_extension())->a.value()));
-  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb.value()));
-  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c.value()));
-  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_import_message_extension())->d.value()));
+  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optionalgroup_extension())->a));
+  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb));
+  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_foreign_message_extension())->c));
+  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_import_message_extension())->d));
   ut::expect(
-      ut::eq(0, message.get_extension(protobuf_unittest::optional_public_import_message_extension())->e.value()));
-  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb.value()));
+      ut::eq(0, message.get_extension(protobuf_unittest::optional_public_import_message_extension())->e));
+  ut::expect(ut::eq(0, message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb));
   ut::expect(
-      ut::eq(0, message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb.value()));
+      ut::eq(0, message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb));
 
   // Enums without defaults are set to the first value in the enum.
   ut::expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO ==
@@ -1310,7 +1226,7 @@ inline void TestUtil::ExpectExtensionsClear(const protobuf_unittest::TestAllExte
   ut::expect(ut::eq("123"s, message.get_extension(protobuf_unittest::default_cord_extension()).value_or_default()));
 
   ut::expect(!message.has_extension(protobuf_unittest::oneof_uint32_extension()));
-  ut::expect(!message.get_extension(protobuf_unittest::oneof_nested_message_extension())->bb.has_value());
+  ut::expect(!message.get_extension(protobuf_unittest::oneof_nested_message_extension())->bb);
   ut::expect(!message.has_extension(protobuf_unittest::oneof_string_extension()));
   ut::expect(!message.has_extension(protobuf_unittest::oneof_bytes_extension()));
 }
@@ -1424,37 +1340,32 @@ inline void TestUtil::ExpectOneofSet1(const protobuf_unittest::TestOneof2 &messa
 
   ut::expect(ut::eq(protobuf_unittest::TestOneof2::foo_lazy_message, message.foo.index()) >> ut::fatal);
   auto &foo_lazy_message = std::get<protobuf_unittest::TestOneof2::foo_lazy_message>(message.foo);
-  ut::expect(foo_lazy_message.moo_int.has_value());
 
   ut::expect(ut::eq(protobuf_unittest::TestOneof2::bar_string, message.bar.index()) >> ut::fatal);
-  ut::expect(message.baz_int.has_value());
-  ut::expect(message.baz_string.has_value());
 
   ut::expect(ut::eq(0, foo_lazy_message.corge_int.size()) >> ut::fatal);
 
-  ut::expect(ut::eq(100, foo_lazy_message.moo_int.value()));
+  ut::expect(ut::eq(100, foo_lazy_message.moo_int));
   ut::expect(ut::eq("101"s, std::get<protobuf_unittest::TestOneof2::bar_string>(message.bar)));
-  ut::expect(ut::eq(102, message.baz_int.value()));
-  ut::expect(ut::eq("103"s, message.baz_string.value()));
+  ut::expect(ut::eq(102, message.baz_int));
+  ut::expect(ut::eq("103"s, message.baz_string));
 }
 
 inline void TestUtil::ExpectOneofSet2(const protobuf_unittest::TestOneof2 &message) {
 
   ut::expect(ut::eq(protobuf_unittest::TestOneof2::foo_int, message.foo.index()));
   ut::expect(ut::eq(protobuf_unittest::TestOneof2::bar_enum, message.bar.index()));
-  ut::expect(message.baz_int.has_value());
-  ut::expect(message.baz_string.has_value());
 
   ut::expect(ut::eq(200, std::get<protobuf_unittest::TestOneof2::foo_int>(message.foo)));
   ut::expect(protobuf_unittest::TestOneof2::NestedEnum::BAZ ==
              std::get<protobuf_unittest::TestOneof2::bar_enum>(message.bar));
-  ut::expect(ut::eq(202, message.baz_int.value()));
-  ut::expect(ut::eq("203"s, message.baz_string.value()));
+  ut::expect(ut::eq(202, message.baz_int));
+  ut::expect(ut::eq("203"s, message.baz_string));
 }
 
 inline void TestUtil::ExpectOneofClear(const protobuf_unittest::TestOneof2 &message) {
-  ut::expect(!message.baz_int.has_value());
-  ut::expect(!message.baz_string.has_value());
+  ut::expect(ut::eq(0, message.baz_int));
+  ut::expect(ut::eq(0, message.baz_string.size()));
 
   ut::expect(ut::eq(0, message.foo.index()));
   ut::expect(ut::eq(0, message.bar.index()));
@@ -1501,12 +1412,10 @@ ut::suite proto_test = [] {
     auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(), "protobuf_unittest.TestAllTypes",
                                        {(const char *)data.data(), data.size()});
 
-    std::regex empty_array_re(R"(,"\w+":\[\])");
 
     auto glaze_generated_json = glz::write_json(original);
-    auto glaze_generated_json_no_empty_array = std::regex_replace(glaze_generated_json, empty_array_re, "");
 
-    ut::expect(ut::eq(glaze_generated_json_no_empty_array, original_json));
+    ut::expect(ut::eq(glaze_generated_json, original_json));
 
     protobuf_unittest::TestAllTypes msg;
     ut::expect(!glz::read_json(msg, original_json));
