@@ -1,5 +1,5 @@
 #include <boost/ut.hpp>
-#include <hpp_proto/hpp_proto_json.h>
+#include <hpp_proto/json_serializer.h>
 
 struct bytes_example {
   hpp::proto::bytes field;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <hpp_proto/msg_base.h>
+#include <hpp_proto/field_types.h>
 
 namespace google::protobuf {
 

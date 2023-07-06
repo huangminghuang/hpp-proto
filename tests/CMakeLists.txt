@@ -22,20 +22,20 @@ target_include_directories(Boost::ut INTERFACE ${ut_SOURCE_DIR}/include)
 
 add_subdirectory(gpb_proto_json)
 
-add_executable(proto_test proto_tests.cpp)
-target_link_libraries(proto_test PRIVATE hpp_proto::libhpp_proto Boost::ut)
-target_compile_options(proto_test PRIVATE -ftemplate-backtrace-limit=0)
+add_executable(pb_serializer_tests pb_serializer_tests.cpp)
+target_link_libraries(pb_serializer_tests PRIVATE hpp_proto::libhpp_proto Boost::ut)
+target_compile_options(pb_serializer_tests PRIVATE -ftemplate-backtrace-limit=0)
 
-add_test(NAME proto_test 
-         COMMAND proto_test 
+add_test(NAME pb_serializer_tests 
+         COMMAND pb_serializer_tests 
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 
-add_executable(glaze_tests glaze_tests.cpp)
-target_link_libraries(glaze_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze)
+add_executable(json_serializer_tests json_serializer_tests.cpp)
+target_link_libraries(json_serializer_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze)
 
-add_test(NAME glaze_tests 
-         COMMAND glaze_tests 
+add_test(NAME json_serializer_tests 
+         COMMAND json_serializer_tests 
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 include(../cmake/add_hpp_proto_lib.cmake)
@@ -86,11 +86,11 @@ add_hpp_proto_lib(map_unittest_proto_lib
     INPUT_DIR    ${protobuf_SOURCE_DIR}/src
     PROTO_FILES  google/protobuf/map_unittest.proto)
 
-add_executable(dyn_proto_json_test dyn_proto_json_test.cpp)
-target_link_libraries(dyn_proto_json_test PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze)
+add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
+target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
-add_test(NAME dyn_proto_json_test 
-         COMMAND dyn_proto_json_test 
+add_test(NAME dynamic_serializer_tests 
+         COMMAND dynamic_serializer_tests 
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-set_property(TEST dyn_proto_json_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+set_property(TEST dynamic_serializer_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")

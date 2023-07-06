@@ -1,23 +1,9 @@
 #include <boost/ut.hpp>
-#include <hpp_proto/hpp_proto.h>
+#include <hpp_proto/pb_serializer.h>
 
 namespace ut = boost::ut;
 using namespace zpp::bits::literals;
 using hpp::proto::encoding_rule;
-
-template <typename T>
-std::string to_hex(const T &data) {
-  static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-  std::string result;
-  result.resize(data.size() * 2);
-  int index = 0;
-  for (auto b : data) {
-    unsigned char c = static_cast<unsigned char>(b);
-    result[index++] = qmap[c >> 4];
-    result[index++] = qmap[c & '\x0F'];
-  }
-  return result;
-}
 
 template <zpp::bits::string_literal String>
 constexpr auto operator""_bytes_array() {

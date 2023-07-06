@@ -560,7 +560,7 @@ struct msg_code_generator : code_generator {
     auto file_name = descriptor.proto.name;
     file.name = file_name.substr(0, file_name.size() - 5) + "msg.hpp";
     fmt::format_to(target, "#pragma once\n\n"
-                           "#include <hpp_proto/msg_base.h>\n");
+                           "#include <hpp_proto/field_types.h>\n");
 
     for (auto &d : descriptor.proto.dependency)
       fmt::format_to(target, "#include <{}.msg.hpp>\n", basename(d));
@@ -755,7 +755,7 @@ struct hpp_meta_generateor : code_generator {
     syntax = descriptor.syntax;
     fmt::format_to(target,
                    "#pragma once\n\n"
-                   "#include <hpp_proto/hpp_proto.h>\n"
+                   "#include <hpp_proto/pb_serializer.h>\n"
                    "#include <{}.msg.hpp>\n",
                    basename(descriptor.proto.name));
     for (auto &d : descriptor.proto.dependency)
@@ -968,7 +968,7 @@ struct glaze_meta_generator : code_generator {
     auto file_name = descriptor.proto.name;
     file.name = file_name.substr(0, file_name.size() - 5) + "glz.hpp";
     fmt::format_to(target, "#pragma once\n\n"
-                           "#include <hpp_proto/hpp_proto_json.h>\n");
+                           "#include <hpp_proto/json_serializer.h>\n");
 
     for (auto &d : descriptor.proto.dependency)
       fmt::format_to(target, "#include <{}.glz.hpp>\n", basename(d));

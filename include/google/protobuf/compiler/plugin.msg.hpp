@@ -1,6 +1,6 @@
 #pragma once
 
-#include <hpp_proto/msg_base.h>
+#include <hpp_proto/field_types.h>
 #include <google/protobuf/descriptor.msg.hpp>
 
 namespace google::protobuf::compiler {

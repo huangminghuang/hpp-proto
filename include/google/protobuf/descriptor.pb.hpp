@@ -1,6 +1,6 @@
 #pragma once
 
-#include <hpp_proto/hpp_proto.h>
+#include <hpp_proto/pb_serializer.h>
 #include <google/protobuf/descriptor.msg.hpp>
 
 

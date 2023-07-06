@@ -1,7 +1,7 @@
 #pragma once
 #include <bit>
 #include <glaze/glaze.hpp>
-#include <hpp_proto/msg_base.h>
+#include <hpp_proto/field_types.h>
 
 namespace hpp::proto {
 
@@ -17,39 +17,34 @@ oneof_wrapper<T, Index> wrap_oneof(T &v) {
   return oneof_wrapper<T, Index>{&v};
 }
 
+namespace concepts {
+template <typename T>
+concept integral_64_bits = std::same_as<std::decay_t<T>, uint64_t> || std::same_as<std::decay_t<T>, int64_t>;
+
+template <typename T>
+concept jsonfy_need_quote = integral_64_bits<T> || requires(T val) {
+  val.size();
+  requires integral_64_bits<typename T::value_type>;
+};
+} // namespace concepts
+
+
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
   T &val;
   operator bool() const { return !is_default_value<T, Default>(val); }
-  T &operator*() { return val; }
-};
 
-template <auto Default>
-struct optional_ref<uint64_t, Default> {
-  uint64_t &val;
-  operator bool() const { return !is_default_value<uint64_t, Default>(val); }
-  glz::quoted_t<uint64_t> operator*() const { return {val}; }
-};
+  template <typename U>
+  static U &deref(U &v) {
+    return v;
+  };
 
-template <auto Default>
-struct optional_ref<int64_t, Default> {
-  int64_t &val;
-  operator bool() const { return !is_default_value<int64_t, Default>(val); }
-  glz::quoted_t<int64_t> operator*() const { return {val}; }
-};
+  template <concepts::jsonfy_need_quote U>
+  static glz::quoted_t<U> deref(U &v) {
+    return glz::quoted_t<U>{v};
+  }
 
-template <auto Default>
-struct optional_ref<std::vector<uint64_t>, Default> {
-  std::vector<uint64_t> &val;
-  operator bool() const { return !is_default_value<std::vector<uint64_t>, Default>(val); }
-  glz::quoted_t<std::vector<uint64_t>> operator*() const { return {val}; }
-};
-
-template <auto Default>
-struct optional_ref<std::vector<int64_t>, Default> {
-  std::vector<int64_t> &val;
-  operator bool() const { return !is_default_value<std::vector<int64_t>, Default>(val); }
-  glz::quoted_t<std::vector<int64_t>> operator*() const { return {val}; }
+  auto operator*() const -> decltype(deref(val)) { return deref(val); }
 };
 
 template <auto MemPtr, auto Default = std::monostate{}>
@@ -128,7 +123,7 @@ struct to_json<hpp::proto::bytes> {
 template <>
 struct from_json<hpp::proto::bytes> {
   template <auto Opts, class It, class End>
-  GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &&ctx, It &&it, End &&end) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) noexcept {
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
       return;
     }

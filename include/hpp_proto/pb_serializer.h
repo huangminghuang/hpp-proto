@@ -24,7 +24,7 @@
 #define HPP_PROTO_H
 #include <bit>
 #include <concepts>
-#include <hpp_proto/msg_base.h>
+#include <hpp_proto/field_types.h>
 #include <map>
 #include <zpp_bits.h>
 
@@ -171,9 +171,13 @@ constexpr auto tag_type() {
   }
 }
 
+constexpr auto make_tag(uint32_t number, wire_type type) {
+  return ::zpp::bits::varint{(number << 3) | std::underlying_type_t<wire_type>(type)};
+}
+
 template <typename Type, typename Meta>
 constexpr auto make_tag(Meta meta) {
-  return ::zpp::bits::varint{(meta.number << 3) | std::underlying_type_t<wire_type>(tag_type<Type>())};
+  return make_tag(meta.number, tag_type<Type>());
 }
 
 constexpr auto tag_type(auto tag) { return wire_type(tag.value & 0x7); }
@@ -462,6 +466,55 @@ constexpr auto make_out_archive(ByteView &&view, Options &&...options) {
       ::zpp::bits::alloc_limit<::zpp::bits::traits::alloc_limit<Options...>()>{}};
 }
 
+template <typename SizeType = ::zpp::bits::vsize_t>
+ZPP_BITS_INLINE constexpr errc serialize_sized(auto & archive, auto&& serialize_unsized ) {
+  auto size_position = archive.position();
+  if (auto result = archive(SizeType{}); failure(result)) [[unlikely]] {
+    return result;
+  }
+
+  if (auto result = serialize_unsized(); failure(result)) [[unlikely]] {
+    return result;
+  }
+
+  auto current_position = archive.position();
+  std::size_t message_size = current_position - size_position - sizeof(SizeType);
+
+  using archive_type = std::decay_t<decltype(archive)>;
+
+  if constexpr (::zpp::bits::concepts::varint<SizeType>) {
+    constexpr auto preserialized_varint_size = 1;
+    message_size = current_position - size_position - preserialized_varint_size;
+    auto move_ahead_count = ::zpp::bits::varint_size(message_size) - preserialized_varint_size;
+    if (move_ahead_count) {
+      if constexpr (archive_type::resizable) {
+        if (auto result = archive.enlarge_for(move_ahead_count); failure(result)) [[unlikely]] {
+          return result;
+        }
+      } else if (move_ahead_count > archive.data().size() - current_position) [[unlikely]] {
+        return std::errc::result_out_of_range;
+      }
+      auto data = archive.data().data();
+      auto message_start = data + size_position + preserialized_varint_size;
+      auto message_end = data + current_position;
+      if (std::is_constant_evaluated()) {
+        for (auto p = message_end - 1; p >= message_start; --p) {
+          *(p + move_ahead_count) = *p;
+        }
+      } else {
+        std::memmove(message_start + move_ahead_count, message_start, message_size);
+      }
+      archive.position() += move_ahead_count;
+    }
+  }
+
+  auto message_length_span = std::span<typename archive_type::byte_type, sizeof(SizeType)>{
+      archive.data().data() + size_position, sizeof(SizeType)};
+  auto message_length_out =
+      ::zpp::bits::out<std::span<typename archive_type::byte_type, sizeof(SizeType)>>{message_length_span};
+  return message_length_out(SizeType(message_size));
+}
+
 template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, typename... Options>
 struct out {
   using archive_type = decltype(make_out_archive(std::declval<ByteView &>(), std::declval<Options &&>()...));
@@ -511,7 +564,6 @@ struct out {
       });
     } else {
       return do_visit_members(item, [&](auto &&...items) ZPP_BITS_CONSTEXPR_INLINE_LAMBDA {
-        // static_assert((... && check_type<decltype(items)>()));
         return serialize_many<type>(std::make_index_sequence<sizeof...(items)>{},
                                     std::forward<decltype(items)>(items)...);
       });
@@ -744,49 +796,10 @@ struct out {
   ZPP_BITS_INLINE constexpr errc serialize_sized(auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
 
-    auto size_position = m_archive.position();
-    if (auto result = m_archive(SizeType{}); failure(result)) [[unlikely]] {
-      return result;
-    }
-
-    if (auto result = serialize_unsized(std::forward<decltype(item)>(item)); failure(result)) [[unlikely]] {
-      return result;
-    }
-
-    auto current_position = m_archive.position();
-    std::size_t message_size = current_position - size_position - sizeof(SizeType);
-
-    if constexpr (::zpp::bits::concepts::varint<SizeType>) {
-      constexpr auto preserialized_varint_size = 1;
-      message_size = current_position - size_position - preserialized_varint_size;
-      auto move_ahead_count = ::zpp::bits::varint_size(message_size) - preserialized_varint_size;
-      if (move_ahead_count) {
-        if constexpr (archive_type::resizable) {
-          if (auto result = m_archive.enlarge_for(move_ahead_count); failure(result)) [[unlikely]] {
-            return result;
-          }
-        } else if (move_ahead_count > m_archive.data().size() - current_position) [[unlikely]] {
-          return std::errc::result_out_of_range;
-        }
-        auto data = m_archive.data().data();
-        auto message_start = data + size_position + preserialized_varint_size;
-        auto message_end = data + current_position;
-        if (std::is_constant_evaluated()) {
-          for (auto p = message_end - 1; p >= message_start; --p) {
-            *(p + move_ahead_count) = *p;
-          }
-        } else {
-          std::memmove(message_start + move_ahead_count, message_start, message_size);
-        }
-        m_archive.position() += move_ahead_count;
-      }
-    }
-
-    auto message_length_span = std::span<typename archive_type::byte_type, sizeof(SizeType)>{
-        m_archive.data().data() + size_position, sizeof(SizeType)};
-    auto message_length_out =
-        ::zpp::bits::out<std::span<typename archive_type::byte_type, sizeof(SizeType)>>{message_length_span};
-    return message_length_out(SizeType(message_size));
+    return ::hpp::proto::serialize_sized<SizeType>(m_archive,
+                                                   [&item, this]() ZPP_BITS_CONSTEXPR_INLINE_LAMBDA {
+                                                     return serialize_unsized(item);
+                                                   });
   }
 
   template <typename SizeType = default_size_type>
@@ -801,19 +814,24 @@ struct out {
 
 template <::zpp::bits::concepts::byte_view ByteView, typename... Options>
 constexpr auto make_in_archive(ByteView &&view, Options &&...options) {
-  return ::zpp::bits::in{std::forward<ByteView>(view), ::zpp::bits::size_varint{}, ::zpp::bits::endian::little{},
-                         ::zpp::bits::alloc_limit<::zpp::bits::traits::alloc_limit<Options...>()>{}};
+  if constexpr (std::same_as<std::decay_t<ByteView>, std::string_view>)
+    return ::zpp::bits::in{std::span{view.data(), view.size()}, ::zpp::bits::size_varint{},
+                           ::zpp::bits::endian::little{},
+                           ::zpp::bits::alloc_limit<::zpp::bits::traits::alloc_limit<Options...>()>{}};
+  else
+    return ::zpp::bits::in{std::forward<ByteView>(view), ::zpp::bits::size_varint{}, ::zpp::bits::endian::little{},
+                           ::zpp::bits::alloc_limit<::zpp::bits::traits::alloc_limit<Options...>()>{}};
 }
 
 template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, typename... Options>
 class in {
+
   using archive_type = decltype(make_in_archive(std::declval<ByteView &>(), std::declval<Options &&>()...));
 
   archive_type m_archive;
   bool m_has_unknown_fields = false;
 
 public:
-
   using default_size_type = traits::default_size_type_t<Options...>;
 
   constexpr explicit in(ByteView &&view, Options &&...options)
@@ -1379,9 +1397,9 @@ inline std::error_code write_proto(T &&msg, Buffer &buffer) {
   return std::make_error_code(out(buffer)(std::forward<T>(msg)));
 }
 
-template <typename T, typename Buffer>
+template <typename T, ::zpp::bits::concepts::byte_view Buffer>
 inline std::error_code read_proto(T &msg, Buffer &&buffer) {
-  return std::make_error_code(in(buffer)(msg));
+  return std::make_error_code(in(std::forward<Buffer>(buffer))(msg));
 }
 
 } // namespace proto

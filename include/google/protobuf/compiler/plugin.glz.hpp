@@ -1,6 +1,6 @@
 #pragma once
 
-#include <hpp_proto/hpp_proto_json.h>
+#include <hpp_proto/json_serializer.h>
 #include <google/protobuf/descriptor.glz.hpp>
 #include <google/protobuf/compiler/plugin.msg.hpp>
 
