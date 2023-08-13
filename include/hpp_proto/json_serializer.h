@@ -26,9 +26,20 @@ concept jsonfy_need_quote = integral_64_bits<T> || requires(T val) {
   val.size();
   requires integral_64_bits<typename T::value_type>;
 };
+
+template <typename T>
+concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
+  { v.mr } -> concepts::memory_resource;
+};
+
 } // namespace concepts
 
+template <concepts::memory_resource MemoryResource>
+struct non_owning_context : glz::context {
+  MemoryResource &mr;
 
+  non_owning_context(MemoryResource &mr) : mr(mr) {}
+};
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
   T &val;
@@ -49,7 +60,7 @@ struct optional_ref {
 
 template <auto MemPtr, auto Default = std::monostate{}>
 constexpr decltype(auto) as_optional_ref() {
-  return [](auto &&val) { return optional_ref<std::decay_t<decltype(val.*MemPtr)>, Default>{val.*MemPtr}; };
+  return [](auto &&val) { return optional_ref<std::remove_reference_t<decltype(val.*MemPtr)>, Default>{val.*MemPtr}; };
 }
 
 } // namespace hpp::proto
@@ -57,7 +68,7 @@ constexpr decltype(auto) as_optional_ref() {
 namespace glz {
 namespace detail {
 template <>
-struct to_json<hpp::proto::bytes> {
+struct to_json<hpp::proto::bytes_view> {
   template <auto Opts, class B>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
 
@@ -121,70 +132,83 @@ struct to_json<hpp::proto::bytes> {
 };
 
 template <>
+struct to_json<hpp::proto::bytes> {
+  template <auto Opts, class B>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
+    return to_json<hpp::proto::bytes_view>::op<Opts, B>(std::span{value.begin(), value.end()}, ctx, b, ix);
+  }
+};
+
+template <auto Opts, class It, class End>
+GLZ_ALWAYS_INLINE void read_json_bytes(auto &&value, is_context auto &&ctx, It &&it, End &&end) noexcept {
+  if (static_cast<bool>(ctx.error)) [[unlikely]] {
+    return;
+  }
+
+  if constexpr (!Opts.opening_handled) {
+    if constexpr (!Opts.ws_handled) {
+      skip_ws<Opts>(ctx, it, end);
+    }
+
+    match<'"'>(ctx, it, end);
+  }
+
+  static constexpr unsigned char decode_table[] = {
+      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55,
+      56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64, 64, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+      13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64, 64, 26, 27, 28, 29, 30, 31, 32,
+      33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64, 64, 64,
+      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64};
+
+  // growth portion
+  auto start = it;
+  skip_till_quote(ctx, it, end);
+  auto n = it - start;
+  if (n == 0) {
+    value.clear();
+    match<'"'>(ctx, it, end);
+    return;
+  }
+
+  if (n % 4 != 0) {
+    ctx.error = error_code::syntax_error;
+    return;
+  }
+
+  size_t out_len = n / 4 * 3;
+  if (*(start + n - 1) == '=')
+    out_len--;
+  if (*(start + n - 2) == '=')
+    out_len--;
+
+  value.resize(out_len);
+  size_t j = 0;
+  while (start != it) {
+    uint32_t a = decode_table[static_cast<int>(*start++)];
+    uint32_t b = decode_table[static_cast<int>(*start++)];
+    uint32_t c = decode_table[static_cast<int>(*start++)];
+    uint32_t d = decode_table[static_cast<int>(*start++)];
+    uint32_t triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
+
+    value[j++] = std::byte((triple >> 2 * 8) & 0xFF);
+    if (j < out_len)
+      value[j++] = std::byte((triple >> 1 * 8) & 0xFF);
+    if (j < out_len)
+      value[j++] = std::byte((triple >> 0 * 8) & 0xFF);
+  }
+  match<'"'>(ctx, it, end);
+}
+
+template <>
 struct from_json<hpp::proto::bytes> {
   template <auto Opts, class It, class End>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) noexcept {
-    if (static_cast<bool>(ctx.error)) [[unlikely]] {
-      return;
-    }
-
-    if constexpr (!Opts.opening_handled) {
-      if constexpr (!Opts.ws_handled) {
-        skip_ws<Opts>(ctx, it, end);
-      }
-
-      match<'"'>(ctx, it, end);
-    }
-
-    static constexpr unsigned char decode_table[] = {
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55,
-        56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64, 64, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64, 64, 26, 27, 28, 29, 30, 31, 32,
-        33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64};
-
-    // growth portion
-    auto start = it;
-    skip_till_quote(ctx, it, end);
-    auto n = it - start;
-    if (n == 0) {
-      value.clear();
-      match<'"'>(ctx, it, end);
-      return;
-    }
-
-    if (n % 4 != 0) {
-      ctx.error = error_code::syntax_error;
-      return;
-    }
-
-    size_t out_len = n / 4 * 3;
-    if (*(start + n - 1) == '=')
-      out_len--;
-    if (*(start + n - 2) == '=')
-      out_len--;
-
-    value.resize(out_len);
-    size_t j = 0;
-    while (start != it) {
-      uint32_t a = decode_table[static_cast<int>(*start++)];
-      uint32_t b = decode_table[static_cast<int>(*start++)];
-      uint32_t c = decode_table[static_cast<int>(*start++)];
-      uint32_t d = decode_table[static_cast<int>(*start++)];
-      uint32_t triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
-
-      value[j++] = std::byte((triple >> 2 * 8) & 0xFF);
-      if (j < out_len)
-        value[j++] = std::byte((triple >> 1 * 8) & 0xFF);
-      if (j < out_len)
-        value[j++] = std::byte((triple >> 0 * 8) & 0xFF);
-    }
-    match<'"'>(ctx, it, end);
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {
+    read_json_bytes<Opts, It, End>(value, ctx, it, end);
   }
 };
 
@@ -276,5 +300,226 @@ struct from_json<hpp::proto::boolean> {
   }
 };
 
+template <typename Type>
+struct from_json<std::span<Type>> {
+  template <auto Options>
+  GLZ_ALWAYS_INLINE static void op(std::span<Type> &value, hpp::proto::concepts::is_non_owning_context auto &&ctx,
+                                   auto &&it, auto &&end) {
+    hpp::proto::detail::growable_span growable{value, ctx.mr};
+    using type = std::remove_const_t<Type>;
+    if constexpr (std::same_as<type, std::byte> || std::same_as<type, char>)
+      read_json_bytes<Options>(growable, ctx, it, end);
+    else
+      from_json<decltype(growable)>::template op<Options>(growable, ctx, it, end);
+  }
+};
+
+template <auto Opts>
+[[nodiscard]] GLZ_ALWAYS_INLINE size_t number_of_map_elements(is_context auto &&ctx, auto it, auto &&end) noexcept {
+  skip_ws<Opts>(ctx, it, end);
+  if (bool(ctx.error)) [[unlikely]]
+    return {};
+
+  if (*it == '}') [[unlikely]] {
+    return 0;
+  }
+  size_t count = 1;
+  while (true) {
+    switch (*it) {
+    case ',': {
+      ++count;
+      ++it;
+      break;
+    }
+    case '/': {
+      skip_comment(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return {};
+      break;
+    }
+    case '{':
+      skip_until_closed<'{', '}'>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return {};
+      break;
+    case '[':
+      skip_until_closed<'[', ']'>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return {};
+      break;
+    case '"': {
+      skip_string<Opts>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return {};
+      break;
+    }
+    case '}': {
+      return count;
+    }
+    case '\0': {
+      ctx.error = error_code::unexpected_end;
+      return {};
+    }
+    default:
+      ++it;
+    }
+  }
+  unreachable();
+}
+
+template <typename T>
+  requires writable_map_t<T> && resizeable<T>
+struct from_json<T> {
+  template <auto Options>
+  GLZ_FLATTEN static void op(auto &value, is_context auto &&ctx, auto &&it, auto &&end) {
+    if constexpr (!Options.ws_handled) {
+      skip_ws<Options>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return;
+    }
+    static constexpr auto Opts = ws_handled_off<Options>();
+
+    match<'{'>(ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]]
+      return;
+    const auto n = number_of_map_elements<Opts>(ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]]
+      return;
+    value.resize(n);
+    size_t i = 0;
+    using k_t = typename T::value_type::first_type;
+    for (auto &x : value) {
+      if constexpr (std::is_arithmetic_v<k_t>) {
+        read<json>::op<opt_true<Opts, &opts::quoted>>(x.first, ctx, it, end);
+      } else {
+        read<json>::op<Opts>(x.first, ctx, it, end);
+      }
+      if (bool(ctx.error)) [[unlikely]]
+        return;
+
+      skip_ws<Opts>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return;
+      match<':'>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return;
+      skip_ws<Opts>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return;
+
+      read<json>::op<ws_handled<Opts>()>(x.second, ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return;
+
+      skip_ws<Opts>(ctx, it, end);
+      if (i < n - 1) {
+        match<','>(ctx, it, end);
+      }
+      ++i;
+    }
+    match<'}'>(ctx, it, end);
+  }
+};
+
+template <typename T>
+struct from_json<T*> {
+  template <auto Options>
+  GLZ_FLATTEN static void op(auto &value, hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it,
+                             auto &&end) {
+    if constexpr (!Options.ws_handled) {
+      skip_ws<Options>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return;
+    }
+    static constexpr auto Opts = ws_handled_off<Options>();
+    using type = std::remove_const_t<T>;
+
+    if constexpr (!std::is_trivially_destructible_v<type>) {
+      if (value) {
+        value->~type();
+      }
+    }
+
+    if (*it == 'n') {
+      ++it;
+      match<"ull">(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]]
+        return;   
+      value = nullptr;
+    } else {
+      void *addr = ctx.mr.allocate(sizeof(type), alignof(type));
+      type *obj = new (addr) type;
+      read<json>::op<Opts>(*obj, ctx, it, end);
+      value = obj;
+    }
+  }
+};
 } // namespace detail
 } // namespace glz
+
+namespace hpp::proto {
+
+struct json_parse_error {
+  uint64_t ec : 8;
+  uint64_t location : 56;
+
+  operator bool() const { return ec != 0; }
+
+  std::string format(const auto &buffer) {
+    static constexpr auto arr = glz::detail::make_enum_to_string_array<glz::error_code>();
+    const auto error_type_str = arr[ec];
+    const auto info = glz::detail::get_source_info(buffer, location);
+    if (info) {
+      return glz::detail::generate_error_string(error_type_str, *info);
+    }
+    return std::string(error_type_str);
+  }
+};
+
+template <typename T, typename Buffer, glz::is_context Context>
+[[nodiscard]] inline json_parse_error read_json(T &value, Buffer &&buffer, Context &&ctx) {
+  using buffer_type = std::remove_cvref_t<Buffer>;
+  static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<Buffer> ||
+                    std::same_as<Context, glz::context>,
+                "temporary buffer cannot be used for non-owning object parsing");
+  constexpr glz::opts options{};
+  const char *b = buffer.data();
+  const char *e = b + buffer.size();
+  glz::detail::read<glz::json>::template op<options>(value, ctx, b, e);
+
+  if constexpr (options.force_conformance) {
+    if (b < e) {
+      glz::detail::skip_ws<options>(ctx, b, e);
+      if (b != e) {
+        ctx.error = glz::error_code::syntax_error;
+      }
+    }
+  }
+
+  return json_parse_error{.ec = static_cast<uint8_t>(ctx.error),
+                          .location = static_cast<size_t>(std::distance(buffer.data(), b))};
+}
+
+template <class T, typename Buffer, concepts::memory_resource MemoryResource>
+[[nodiscard]] inline json_parse_error read_json(T &value, Buffer &&buffer, MemoryResource &mr) {
+  return read_json(value, std::forward<Buffer>(buffer), non_owning_context<MemoryResource>{mr});
+}
+
+template <class T>
+[[nodiscard]] inline json_parse_error read_json(T &value, std::string_view buffer) {
+  return read_json(value, buffer, glz::context{});
+}
+
+template <class T>
+[[nodiscard]] inline auto write_json(T &&value) noexcept {
+  std::string buffer{};
+  glz::write<glz::opts{}>(std::forward<T>(value), buffer);
+  return buffer;
+}
+
+template <class T, class Buffer>
+inline void write_jsonc(T &&value, Buffer &&buffer) noexcept {
+  glz::write<glz::opts{}>(std::forward<T>(value), std::forward<Buffer>(buffer));
+}
+
+} // namespace hpp::proto

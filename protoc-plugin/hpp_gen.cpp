@@ -55,6 +55,10 @@ std::unordered_set<std::string_view> keywords = {
     "co_return",     "co_yield",     "requires",
 };
 
+std::vector<std::string> force_optionals;
+std::string root_namespace;
+std::string top_directory;
+
 std::string resolve_keyword(std::string_view name) {
   if (keywords.count(name) > 0) {
     return std::string(name) + "_";
@@ -168,7 +172,12 @@ std::string cpp_escape(std::string_view src) {
   return result;
 }
 
-std::string basename(const std::string &name) { return name.substr(0, name.find_last_of('.')); }
+std::string basename(const std::string &name) { 
+  std::string result = name.substr(0, name.find_last_of('.')); 
+  if (top_directory.size())
+    result = top_directory + "/" + result;
+  return result;
+}
 
 std::size_t shared_scope_position(std::string_view s1, std::string_view s2) {
   auto pos = std::mismatch(s1.begin(), s1.end(), s2.begin(), s2.end()).first - s1.begin();
@@ -195,7 +204,6 @@ std::size_t replace_all(std::string &inout, std::string_view what, std::string_v
   return count;
 }
 
-std::vector<std::string> force_optionals;
 
 struct hpp_addons {
 
@@ -565,9 +573,9 @@ struct msg_code_generator : code_generator {
     for (auto &d : descriptor.proto.dependency)
       fmt::format_to(target, "#include <{}.msg.hpp>\n", basename(d));
 
-    auto ns = qualified_cpp_name(descriptor.proto.package);
+    auto ns = root_namespace + qualified_cpp_name(descriptor.proto.package);
     if (ns.size())
-      fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
+      fmt::format_to(target, "\nnamespace {} {{\n\n",  ns);
 
     fmt::format_to(target, "{}using namespace hpp::proto::literals;\n", indent());
 
@@ -625,10 +633,20 @@ struct msg_code_generator : code_generator {
     std::string_view initializer = " = {}";
     if (field_type_wrapper(descriptor).size())
       initializer = "";
-    else if (descriptor.default_value.size())
+    else if (descriptor.default_value.size()) {
       initializer = " = " + descriptor.default_value;
+      if (descriptor.cpp_name == "bytes_with_zero") {
+        std::string r = fmt::format("{}{}{} {}{};\n", indent(), attribute, field_type(descriptor),
+                                       descriptor.cpp_name, initializer);
+      }
+    }
     fmt::format_to(target, "{}{}{} {}{};\n", indent(), attribute, field_type(descriptor), descriptor.cpp_name,
                    initializer);
+
+    if (descriptor.cpp_name == "bytes_with_zero") {
+      const char* rr = file.content.data() + 17060;
+      int i = 0;
+    }
   }
 
   void process(oneof_descriptor_t &descriptor, int32_t number) {
@@ -722,6 +740,11 @@ struct msg_code_generator : code_generator {
                      "{0}auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
                      "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));\n"
                      "{0}}}\n"
+                     "{0}template<typename Meta>"
+                     "{0}requires Meta::is_repeated"
+                     "{0}auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {{\n"
+                     "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}});\n"
+                     "{0}}}\n"
                      "{0}bool has_extension(auto meta) const {{\n"
                      "{0}  return meta.element_of(extensions);\n"
                      "{0}}}\n",
@@ -770,7 +793,7 @@ struct hpp_meta_generateor : code_generator {
       fmt::format_to(target,
                      "\nnamespace {} {{\n\n"
                      "using namespace zpp::bits::literals;\n\n",
-                     ns);
+                     root_namespace + ns);
 
     for (auto m : descriptor.messages)
       process(*m, "", package);
@@ -779,7 +802,7 @@ struct hpp_meta_generateor : code_generator {
       process(*f, "", package);
 
     if (ns.size())
-      fmt::format_to(target, "}} // namespace {}\n", ns);
+      fmt::format_to(target, "}} // namespace {}\n", root_namespace + ns);
   }
 
   void process(message_descriptor_t &descriptor, const std::string &cpp_scope, const std::string &pb_scope) {
@@ -862,8 +885,10 @@ struct hpp_meta_generateor : code_generator {
     if (descriptor.is_cpp_optional)
       rule = "explicit_presence";
     else if (proto.label == LABEL_REPEATED && numeric) {
-      bool packed = proto.options.has_value() && proto.options->packed;
-      if (!packed || syntax == 2)
+      std::optional<bool> packed;
+      if (proto.options.has_value())
+        packed = proto.options->packed;
+      if ((packed.has_value() && !*packed) || (syntax == 2 && !packed.has_value()))
         rule = "unpacked_repeated";
     }
 
@@ -976,7 +1001,7 @@ struct glaze_meta_generator : code_generator {
     fmt::format_to(target, "#include <{}.msg.hpp>\n\n", basename(descriptor.proto.name));
 
     auto package = descriptor.proto.package;
-    auto ns = qualified_cpp_name(package);
+    auto ns = root_namespace + qualified_cpp_name(package);
     for (auto m : descriptor.messages)
       process(*m, ns);
 
@@ -1108,6 +1133,16 @@ int main(int argc, const char **argv) {
       }
       force_optionals.emplace_back(s.substr(start_pos));
     }
+  }
+
+  if (const char* env_p = std::getenv("HPP_ROOT_NAMESPACE")) {
+    root_namespace = env_p;
+    if (!root_namespace.ends_with("::"))
+      root_namespace += "::";
+  }
+
+  if (const char *env_p = std::getenv("HPP_TOP_DIRECTORY")) {
+    top_directory = env_p;
   }
 
   gpb::compiler::CodeGeneratorRequest request;

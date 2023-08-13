@@ -229,7 +229,7 @@ struct glz::meta<google::protobuf::FieldOptions> {
   using T = google::protobuf::FieldOptions;
   static constexpr auto value = object(
     "ctype", hpp::proto::as_optional_ref<&T::ctype, ::google::protobuf::FieldOptions::CType::STRING>(),
-    "packed", hpp::proto::as_optional_ref<&T::packed>(),
+    "packed", &T::packed,
     "jstype", hpp::proto::as_optional_ref<&T::jstype, ::google::protobuf::FieldOptions::JSType::JS_NORMAL>(),
     "lazy", hpp::proto::as_optional_ref<&T::lazy, false>(),
     "unverifiedLazy", hpp::proto::as_optional_ref<&T::unverified_lazy, false>(),

@@ -112,6 +112,9 @@ struct MethodOptions {
   template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
+  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
+  }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
@@ -142,6 +145,9 @@ struct ServiceOptions {
   template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
+  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
+  }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
@@ -171,6 +177,9 @@ struct EnumValueOptions {
   }
   template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
+  }
+  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -204,6 +213,9 @@ struct EnumOptions {
   template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
+  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
+  }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
   }
@@ -232,6 +244,9 @@ struct OneofOptions {
   }
   template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
+  }
+  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -277,7 +292,7 @@ struct FieldOptions {
   };
 
   CType ctype = CType::STRING;
-  bool packed = {};
+  hpp::proto::optional<bool> packed;
   JSType jstype = JSType::JS_NORMAL;
   bool lazy = false;
   bool unverified_lazy = false;
@@ -302,6 +317,9 @@ struct FieldOptions {
   }
   template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
+  }
+  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -336,6 +354,9 @@ struct MessageOptions {
   }
   template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
+  }
+  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -391,6 +412,9 @@ struct FileOptions {
   }
   template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
+  }
+  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -542,6 +566,9 @@ struct ExtensionRangeOptions {
   }
   template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
+  }
+  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
     return meta.element_of(extensions);

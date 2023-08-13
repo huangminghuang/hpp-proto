@@ -60,10 +60,10 @@ boost::ut::suite proto3_lite_test = [] {
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
                                                   {(const char *)data.data(), data.size()});
 
-    expect(glz::write_json(original) == original_json);
+    expect(hpp::proto::write_json(original) == original_json);
 
     proto3_unittest::TestAllTypes msg;
-    expect(!glz::read_json(msg, original_json));
+    expect(!hpp::proto::read_json(msg, original_json));
 
     ExpectAllFieldsSet(msg);
   };

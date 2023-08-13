@@ -12,7 +12,7 @@ int main() {
                   .email = "bob@email.com",
                   .phones = {{.number = "22222222", .type = tutorial::Person::PhoneType::HOME}}}}};
 
-  auto json = glz::write_json(address_book);
+  auto json = hpp::proto::write_json(address_book);
 
   if (json.empty()) {
     std::cerr << "write json error\n";
@@ -20,7 +20,7 @@ int main() {
   }
 
   tutorial::AddressBook new_book;
-  auto ec = glz::read_json(new_book, json);
+  auto ec = hpp::proto::read_json(new_book, json);
   if (ec) {
     std::cerr << "read json error: " << glz::format_error(ec, json) << "\n";
     return 1;

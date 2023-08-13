@@ -192,7 +192,7 @@ inline const char* pb_url(const MessageOptions&) { return "type.googleapis.com/g
 
 auto pb_meta(const FieldOptions &) -> std::tuple<
   hpp::proto::field_meta<1, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FieldOptions::CType::STRING>,
-  hpp::proto::field_meta<2, hpp::proto::encoding_rule::defaulted, bool>,
+  hpp::proto::field_meta<2, hpp::proto::encoding_rule::explicit_presence, bool>,
   hpp::proto::field_meta<6, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FieldOptions::JSType::JS_NORMAL>,
   hpp::proto::field_meta<5, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<15, hpp::proto::encoding_rule::defaulted, bool, false>,
@@ -284,8 +284,8 @@ auto serialize(const SourceCodeInfo&) -> zpp::bits::members<1>;
 inline const char* pb_url(const SourceCodeInfo&) { return "type.googleapis.com/google.protobuf.SourceCodeInfo"; }
 
 auto pb_meta(const SourceCodeInfo::Location &) -> std::tuple<
-  hpp::proto::field_meta<1, hpp::proto::encoding_rule::unpacked_repeated, zpp::bits::vint64_t>,
-  hpp::proto::field_meta<2, hpp::proto::encoding_rule::unpacked_repeated, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<1, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<2, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
   hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<4, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<6, hpp::proto::encoding_rule::unpacked_repeated>>;
@@ -302,7 +302,7 @@ auto serialize(const GeneratedCodeInfo&) -> zpp::bits::members<1>;
 inline const char* pb_url(const GeneratedCodeInfo&) { return "type.googleapis.com/google.protobuf.GeneratedCodeInfo"; }
 
 auto pb_meta(const GeneratedCodeInfo::Annotation &) -> std::tuple<
-  hpp::proto::field_meta<1, hpp::proto::encoding_rule::unpacked_repeated, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<1, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
   hpp::proto::field_meta<2, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
   hpp::proto::field_meta<4, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,

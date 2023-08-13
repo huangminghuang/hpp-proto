@@ -913,7 +913,7 @@ inline void ExpectAllExtensionsSet(const protobuf_unittest::TestAllExtensions &m
   expect(
       eq(message.get_extension(protobuf_unittest::repeated_double_extension()), std::vector<double>{212, 312}));
   expect(eq(message.get_extension(protobuf_unittest::repeated_bool_extension()),
-                    std::vector<unsigned char>{true, false}));
+                    std::vector<hpp::proto::boolean>{true, false}));
   expect(eq(message.get_extension(protobuf_unittest::repeated_string_extension()),
                     std::vector<std::string>{"215", "315"}));
   expect(eq(message.get_extension(protobuf_unittest::repeated_bytes_extension()),
@@ -1241,7 +1241,7 @@ inline void ExpectPackedExtensionsSet(const protobuf_unittest::TestPackedExtensi
   expect(
       eq(message.get_extension(protobuf_unittest::packed_double_extension()), std::vector<double>{612, 712}));
   expect(eq(message.get_extension(protobuf_unittest::packed_bool_extension()),
-                    std::vector<unsigned char>{true, false}));
+                    std::vector<hpp::proto::boolean>{true, false}));
 
   auto packed_enum_extension = message.get_extension(protobuf_unittest::packed_enum_extension());
   expect(eq(2, packed_enum_extension.size()) >> fatal);
@@ -1277,7 +1277,7 @@ inline void ExpectUnpackedExtensionsSet(const protobuf_unittest::TestUnpackedExt
   expect(
       eq(message.get_extension(protobuf_unittest::unpacked_double_extension()), std::vector<double>{612, 712}));
   expect(eq(message.get_extension(protobuf_unittest::unpacked_bool_extension()),
-                    std::vector<unsigned char>{true, false}));
+            std::vector<hpp::proto::boolean>{true, false}));
 
   auto unpacked_enum_extension = message.get_extension(protobuf_unittest::unpacked_enum_extension());
   expect(eq(2, unpacked_enum_extension.size()) >> fatal);

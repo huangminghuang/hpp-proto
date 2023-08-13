@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <span>
 
 inline std::string descriptorset_from_file(const char* filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
@@ -45,4 +46,28 @@ inline std::ostream &operator<<(std::ostream &os, const std::vector<std::byte> &
   }
   return os;
 }
+
+inline std::ostream &operator<<(std::ostream &os, std::span<const std::byte> bytes) {
+  for (auto b : bytes) {
+    os << b;
+  }
+  return os;
+}
 } // namespace std
+
+struct monotonic_memory_resource {
+  std::size_t size;
+  void *mem = 0;
+  void *cur = 0;
+  monotonic_memory_resource(std::size_t sz) : size(sz), mem(malloc(sz)), cur(mem) {}
+  ~monotonic_memory_resource() { free(mem); }
+  void *allocate(std::size_t n, std::size_t alignment) {
+    if (std::align(alignment, n, cur, size)) {
+      size -= n;
+      auto result = cur;
+      cur = (char *)cur + n;
+      return result;
+    }
+    throw std::bad_alloc{};
+  }
+};

@@ -5,14 +5,9 @@
 #include <hpp_proto/pb_serializer.h>
 #include <zpp_bits.h>
 
-#if __has_include(<expected>)
-#include <expected>
-#else
-#include <tl/expected.hpp>
-#endif
 namespace hpp::proto {
 
-#if __has_include(<expected>)
+#if defined(__cpp_lib_expected)
 using std::expected;
 using std::unexpected;
 #else

@@ -25,12 +25,12 @@
 #include <algorithm>
 #include <functional>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <variant>
 #include <vector>
-#include <span>
 
 #if __has_include(<flat_map>)
 #include <flat_map>
@@ -48,8 +48,6 @@ using stdext::flat_map;
 #define HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
 #endif
 namespace hpp::proto {
-
-
 
 #ifndef __cpp_lib_bit_cast
 namespace std {
@@ -349,7 +347,7 @@ struct compile_time_string {
     return std::equal(v.begin(), v.end(), b, b + size());
   }
 
-  constexpr bool operator==(const std::vector<std::byte>& v) const {
+  constexpr bool operator==(const std::vector<std::byte> &v) const {
     const std::byte *b = reinterpret_cast<const std::byte *>(data_);
     return std::equal(v.begin(), v.end(), b, b + size());
   }
@@ -370,7 +368,6 @@ constexpr auto operator""_hppproto_s() {
   return str;
 }
 
-
 template <compile_time_string str>
 constexpr auto operator""_bytes() {
   const std::byte *b = reinterpret_cast<const std::byte *>(str.data_);
@@ -387,6 +384,7 @@ auto operator""_bytes_span() {
 } // namespace literals
 
 using bytes = std::vector<std::byte>;
+using bytes_view = std::span<const std::byte>;
 
 struct boolean {
   bool value = false;
@@ -397,7 +395,7 @@ struct boolean {
 
 template <typename T, auto Default = std::monostate{}>
 constexpr bool is_default_value(const T &val) {
-  if constexpr (std::is_same_v<decltype(Default), std::monostate>) {
+  if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
     if constexpr (requires { val.empty(); })
       return val.empty();
     if constexpr (requires { val.has_value(); })
@@ -410,5 +408,59 @@ constexpr bool is_default_value(const T &val) {
     return Default == val;
   }
 }
+
+namespace concepts {
+template <typename T>
+concept memory_resource = requires(T &object) {
+  { object.allocate(8, 8) } -> std::same_as<void *>;
+};
+} // namespace concepts
+
+namespace detail {
+
+template <typename T, concepts::memory_resource MemoryResource>
+class growable_span {
+public:
+  using value_type = std::remove_const_t<T>;
+
+  growable_span(std::span<T> &base, MemoryResource &mr) : base_(base), mr(mr) {}
+
+  void resize(std::size_t n) {
+    if (n > base_.size()) {
+      data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
+      assert(data_ != nullptr);
+      std::uninitialized_copy(base_.begin(), base_.end(), data_);
+
+      if constexpr (!std::is_trivial_v<T>)
+        std::uninitialized_default_construct(data_ + base_.size(), data_ + n);
+      else
+#ifdef __cpp_lib_start_lifetime_as
+        std::start_lifetime_as_array(data_ + base.size(), n);
+#else
+        ;
+#endif
+      base_ = std::span<T>{data_, n};
+    } else {
+      base_ = std::span<T>(base_.data(), n);
+    }
+  }
+
+  value_type *data() const { return data_; }
+  value_type &operator[](std::size_t n) { return data_[n]; }
+  std::size_t size() const { return base_.size(); }
+  value_type *begin() const { return data_; }
+  value_type *end() const { return data_ + size(); }
+
+  void clear() {
+    base_ = std::span<T>{};
+    data_ = nullptr;
+  }
+
+private:
+  std::span<T> &base_;
+  value_type *data_ = nullptr;
+  MemoryResource &mr;
+};
+} // namespace detail
 
 } // namespace hpp::proto
