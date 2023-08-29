@@ -723,32 +723,33 @@ struct msg_code_generator : code_generator {
     }
 
     if (descriptor.proto.extension_range.size()) {
-      fmt::format_to(target,
-                     "\n"
-                     "{0}struct extension_t {{\n"
-                     "{0}  using pb_extension = {1};\n"
-                     "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
-                     "{0}  bool operator==(const extension_t &other) const = default;\n"
-                     "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR\n"
-                     "{0}auto operator <=> (const extension_t&) const = default;\n"
-                     "#endif\n"
-                     "{0}}} extensions;\n\n"
-                     "{0}auto get_extension(auto meta) const {{\n"
-                     "{0}  return meta.read(extensions);\n"
-                     "{0}}}\n"
-                     "{0}template<typename Meta>"
-                     "{0}auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
-                     "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));\n"
-                     "{0}}}\n"
-                     "{0}template<typename Meta>"
-                     "{0}requires Meta::is_repeated"
-                     "{0}auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {{\n"
-                     "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}});\n"
-                     "{0}}}\n"
-                     "{0}bool has_extension(auto meta) const {{\n"
-                     "{0}  return meta.element_of(extensions);\n"
-                     "{0}}}\n",
-                     indent(), descriptor.cpp_name);
+      fmt::format_to(
+          target,
+          "\n"
+          "{0}struct extension_t {{\n"
+          "{0}  using pb_extension = {1};\n"
+          "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
+          "{0}  bool operator==(const extension_t &other) const = default;\n"
+          "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR\n"
+          "{0}auto operator <=> (const extension_t&) const = default;\n"
+          "#endif\n"
+          "{0}}} extensions;\n\n"
+          "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
+          "{0}  return meta.read(extensions, std::monostate{{}});\n"
+          "{0}}}\n"
+          "{0}template<typename Meta>"
+          "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
+          "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));\n"
+          "{0}}}\n"
+          "{0}template<typename Meta>"
+          "{0}requires Meta::is_repeated"
+          "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {{\n"
+          "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}});\n"
+          "{0}}}\n"
+          "{0}bool has_extension(auto meta) const {{\n"
+          "{0}  return meta.element_of(extensions);\n"
+          "{0}}}\n",
+          indent(), descriptor.cpp_name);
     }
     fmt::format_to(target,
                    "\n{0}bool operator == (const {1}&) const = default;\n"
@@ -886,9 +887,9 @@ struct hpp_meta_generateor : code_generator {
       rule = "explicit_presence";
     else if (proto.label == LABEL_REPEATED && numeric) {
       std::optional<bool> packed;
-      if (proto.options.has_value())
-        packed = proto.options->packed;
-      if ((packed.has_value() && !*packed) || (syntax == 2 && !packed.has_value()))
+      if (proto.options.has_value() && proto.options->packed.has_value())
+        packed = proto.options->packed.value();
+      if ((packed.has_value() && !packed.value()) || (syntax == 2 && !packed.has_value()))
         rule = "unpacked_repeated";
     }
 

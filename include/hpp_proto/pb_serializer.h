@@ -134,10 +134,10 @@ struct extension_meta_base {
     static_assert(std::same_as<typename std::remove_cvref_t<decltype(extensions)>::pb_extension, typename T::extendee>);
   }
 
-  static auto read(const concepts::pb_extension auto &extensions);
-  static auto read(const concepts::pb_extension auto &extensions, concepts::memory_resource auto &mr);
-  static void write(concepts::pb_extension auto &extensions, auto &&value);
-  static void write(concepts::pb_extension auto &extensions, auto &&value, concepts::memory_resource auto &mr);
+  static auto read(const concepts::pb_extension auto &extensions, auto &&mr);
+  static std::error_code write(concepts::pb_extension auto &extensions, auto &&value);
+  static std::error_code write(concepts::pb_extension auto &extensions, auto &&value,
+                               concepts::memory_resource auto &mr);
   static bool element_of(const concepts::pb_extension auto &extensions) {
     check(extensions);
     if constexpr (requires { extensions.fields.count(T::number); })
@@ -150,16 +150,15 @@ struct extension_meta_base {
 
 template <typename Extendee, uint32_t Number, encoding_rule Encoding, typename Type, typename ValueType,
           auto DefaultValue = std::monostate{}>
-struct extension_meta : field_meta<Number, Encoding, Type>,
+struct extension_meta : field_meta<Number, Encoding, Type, DefaultValue>,
                         extension_meta_base<extension_meta<Extendee, Number, Encoding, Type, ValueType, DefaultValue>> {
 
   constexpr static auto default_value = unwrap(DefaultValue);
-
+  constexpr static bool has_default_value = !std::same_as<decltype(DefaultValue), std::monostate>;
   static constexpr bool is_repeated = false;
   using extendee = Extendee;
 
-  using get_result_type = std::conditional_t<std::is_same_v<decltype(DefaultValue), std::monostate>,
-                                             std::optional<ValueType>, optional<ValueType, DefaultValue>>;
+  using get_result_type = ValueType;
   using set_value_type = ValueType;
 };
 
@@ -167,12 +166,12 @@ template <typename Extendee, uint32_t Number, encoding_rule Encoding, typename T
 struct repeated_extension_meta
     : field_meta<Number, Encoding, Type>,
       extension_meta_base<repeated_extension_meta<Extendee, Number, Encoding, Type, ValueType>> {
-
+  constexpr static bool has_default_value = false;
   static constexpr bool is_repeated = true;
   using extendee = Extendee;
   static constexpr bool non_owning = concepts::span<decltype(std::declval<typename extendee::extension_t>().fields)>;
   using element_type = std::conditional_t<std::is_same_v<ValueType, bool>, boolean, ValueType>;
-  using get_result_type = std::conditional_t<non_owning, std::span<const element_type> ,std::vector<element_type>>;
+  using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
   using set_value_type = std::span<const element_type>;
 };
 
@@ -836,8 +835,6 @@ template <typename T>
 concept resizable_or_reservable =
     resizable<T> || requires { std::declval<T>().resize(1); } || requires { resize(std::declval<T>(), 1); };
 
-
-
 } // namespace concepts
 template <::zpp::bits::concepts::byte_view ByteView, typename MemoryResource, concepts::is_option... Options>
 class in_base {
@@ -887,6 +884,12 @@ public:
   constexpr explicit in_base(ByteView &view, Options &&...options)
       : m_archive(make_in_archive(view, std::forward<Options>(options)...)) {}
 
+  // constexpr explicit in_base(ByteView &&view, std::monostate&&, Options &&...options)
+  //     : m_archive(make_in_archive(std::move(view), std::forward<Options>(options)...)) {}
+
+  // constexpr explicit in_base(ByteView &view, std::monostate &&, Options &&...options)
+  //     : m_archive(make_in_archive(view, std::forward<Options>(options)...)) {}
+
   template <typename T>
   T &make_growable(T &base) {
     return base;
@@ -913,6 +916,12 @@ public:
   constexpr explicit in(ByteView &view, Options &&...options)
     requires(std::same_as<MemoryResource, std::monostate>)
       : base_type(view, std::forward<Options>(options)...) {}
+
+  // constexpr explicit in(ByteView &&view, std::monostate&&, Options &&...options)
+  //     : base_type(std::move(view), std::forward<Options>(options)...) {}
+
+  // constexpr explicit in(ByteView &view, std::monostate &&, Options &&...options)
+  //     : base_type(view, std::forward<Options>(options)...) {}
 
   constexpr explicit in(ByteView &&view, MemoryResource &mr, Options &&...options)
     requires(!std::same_as<MemoryResource, std::monostate>)
@@ -1017,7 +1026,7 @@ public:
     auto tag = make_tag(field_num, field_wire_type);
     auto start_pos = position() - ::zpp::bits::varint_size<zpp::bits::varint_encoding::normal>(tag.value);
 
-    if (auto result = do_skip_field(item, field_wire_type); failure(result)) [[unlikely]] {
+    if (auto result = do_skip_field(field_num, field_wire_type); failure(result)) [[unlikely]] {
       return result;
     }
 
@@ -1055,11 +1064,11 @@ public:
     return {};
   }
 
-  ZPP_BITS_INLINE errc skip_field(auto &item, uint32_t, wire_type field_wire_type) {
-    return do_skip_field(item, field_wire_type);
+  ZPP_BITS_INLINE errc skip_field(auto &item, uint32_t field_num, wire_type field_wire_type) {
+    return do_skip_field(field_num, field_wire_type);
   }
 
-  ZPP_BITS_INLINE errc do_skip_field(auto &item, wire_type field_wire_type) {
+  ZPP_BITS_INLINE errc do_skip_field(uint32_t field_num, wire_type field_wire_type) {
     ::zpp::bits::vsize_t length = 0;
     m_has_unknown_fields = true;
     switch (field_wire_type) {
@@ -1073,6 +1082,11 @@ public:
     case wire_type::fixed_64:
       length = 8;
       break;
+    case wire_type::sgroup:
+      if (auto result = do_skip_group(field_num); failure(result)) [[unlikely]] {
+        return result;
+      }
+      break;
     case wire_type::fixed_32:
       length = 4;
       break;
@@ -1083,6 +1097,25 @@ public:
       return std::errc::result_out_of_range;
     position() += length;
     return {};
+  }
+
+  ZPP_BITS_INLINE constexpr errc do_skip_group(uint32_t field_num) {
+    while (this->m_archive.remaining_data().size()) {
+      ::zpp::bits::vuint32_t tag;
+      if (auto result = this->m_archive(tag); failure(result)) [[unlikely]] {
+        return result;
+      }
+      uint32_t next_field_num = tag_number(tag);
+      wire_type next_type = proto::tag_type(tag);
+
+      if (next_type == wire_type::egroup && field_num == next_field_num)
+        return {};
+      else if (auto result = do_skip_field(next_field_num, next_type); failure(result)) [[unlikely]] {
+        return result;
+      }
+    }
+
+    return std::errc::result_out_of_range;
   }
 
   inline errc deserialize_field_by_num(auto &item, uint32_t field_num, wire_type field_wire_type, std::size_t hint) {
@@ -1676,7 +1709,7 @@ struct deserialize_wrapper_type {
 };
 
 template <typename ExtensionMeta>
-inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extension auto &extensions) {
+inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extension auto &extensions, auto &&mr) {
   check(extensions);
   decltype(extensions.fields.begin()) itr;
 
@@ -1686,55 +1719,62 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
     itr = std::find_if(extensions.fields.begin(), extensions.fields.end(),
                        [](const auto &item) { return item.first == ExtensionMeta::number; });
 
-  deserialize_wrapper_type<typename ExtensionMeta::get_result_type, ExtensionMeta> wrapper;
+  using value_type = typename ExtensionMeta::get_result_type;
+  using return_type = expected<value_type, std::error_code>;
+
+  deserialize_wrapper_type<value_type, ExtensionMeta> wrapper;
   if (itr != extensions.fields.end()) {
-    proto::in(itr->second)(wrapper).or_throw();
+    errc ec;
+    if constexpr (std::same_as<std::remove_cvref_t<decltype(mr)>, std::monostate>)
+      ec = proto::in(itr->second)(wrapper);
+    else
+      ec = proto::in(itr->second, std::forward<decltype(mr)>(mr))(wrapper);
+
+    if (failure(ec)) [[unlikely]] {
+      return return_type{unexpected(std::make_error_code(ec))};
+    }
+    return return_type{wrapper.value};
   }
 
-  return wrapper.value;
+  if constexpr (ExtensionMeta::has_default_value) {
+    return return_type(value_type(ExtensionMeta::default_value));
+  } else if constexpr (concepts::scalar<value_type>) {
+    return return_type{value_type{}};
+  } else {
+    return return_type{unexpected(std::make_error_code(std::errc::no_message))};
+  }
 }
 
 template <typename ExtensionMeta>
-inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extension auto &extensions,
-                                                     concepts::memory_resource auto &mr) {
-  check(extensions);
-  decltype(extensions.fields.begin()) itr;
-
-  if constexpr (requires { extensions.fields.find(ExtensionMeta::number); })
-    itr = extensions.fields.find(ExtensionMeta::number);
-  else
-    itr = std::find_if(extensions.fields.begin(), extensions.fields.end(),
-                       [](const auto &item) { return item.first == ExtensionMeta::number; });
-
-  deserialize_wrapper_type<typename ExtensionMeta::get_result_type, ExtensionMeta> wrapper;
-  if (itr != extensions.fields.end()) {
-    proto::in(itr->second, mr)(wrapper).or_throw();
-  }
-
-  return wrapper.value;
-}
-
-template <typename ExtensionMeta>
-inline void extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions, auto &&value) {
+inline std::error_code extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions,
+                                                                 auto &&value) {
   check(extensions);
 
   auto [data, out] = data_out();
-  out.serialize_field(ExtensionMeta{}, std::forward<typename ExtensionMeta::set_value_type>(value)).or_throw();
-  if (out.position())
+  if (auto ec = out.serialize_field(ExtensionMeta{}, std::forward<typename ExtensionMeta::set_value_type>(value));
+      failure(ec)) [[unlikely]] {
+    return std::make_error_code(ec);
+  }
+  if (out.position()) {
     data.resize(out.position());
-  extensions.fields[ExtensionMeta::number] = std::move(data);
+    extensions.fields[ExtensionMeta::number] = std::move(data);
+  }
+  return {};
 }
 
 template <typename ExtensionMeta>
-inline void extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions, auto &&value,
-                                                      concepts::memory_resource auto &mr) {
+inline std::error_code extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions, auto &&value,
+                                                                 concepts::memory_resource auto &mr) {
   check(extensions);
 
   std::span<std::byte> buf;
   using memory_resource_type = std::remove_cvref_t<decltype(mr)>;
   detail::growable_span<std::byte, memory_resource_type> data{buf, mr};
   out out(data);
-  out.serialize_field(ExtensionMeta{}, std::forward<typename ExtensionMeta::set_value_type>(value)).or_throw();
+  if (auto ec = out.serialize_field(ExtensionMeta{}, std::forward<typename ExtensionMeta::set_value_type>(value));
+      failure(ec)) [[unlikely]] {
+    return std::make_error_code(ec);
+  }
   if (out.position()) {
     auto old_size = extensions.fields.size();
     detail::growable_span<typename decltype(extensions.fields)::value_type, memory_resource_type> growable_fields{
@@ -1742,6 +1782,7 @@ inline void extension_meta_base<ExtensionMeta>::write(concepts::pb_extension aut
     growable_fields.resize(old_size + 1);
     extensions.fields[old_size] = {ExtensionMeta::number, {data.data(), out.position()}};
   }
+  return {};
 }
 
 template <typename T, typename Buffer>

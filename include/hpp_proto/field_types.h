@@ -341,6 +341,13 @@ struct compile_time_string {
   constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(init, Len, data_); }
   constexpr const char *data() const { return data_; }
 
+  operator std::string() const { return std::string{data()}; }
+
+  operator std::vector<std::byte>() const {
+    return std::vector<std::byte>{reinterpret_cast<const std::byte *>(data_),
+                                  reinterpret_cast<const std::byte *>(data_) + size()};
+  }
+
   constexpr bool operator==(std::string_view v) const { return v == data(); }
   constexpr bool operator==(std::span<const std::byte> v) const {
     const std::byte *b = reinterpret_cast<const std::byte *>(data_);

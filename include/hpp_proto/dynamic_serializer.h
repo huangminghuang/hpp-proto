@@ -102,10 +102,13 @@ class dynamic_serializer {
       }
 
       if (proto.label == google::protobuf::FieldDescriptorProto::Label::LABEL_REPEATED) {
-        auto &options = proto.options;
-        bool packed = options.has_value() && options->packed;
-        if ((!packed) || descriptor->syntax == 2 || (proto.type == TYPE_MESSAGE) || (proto.type == TYPE_STRING) ||
-            (proto.type == TYPE_BYTES))
+        std::optional<bool> packed;
+        if (proto.options.has_value() && proto.options->packed.has_value())
+          packed = proto.options->packed.value();
+        bool is_numeric = !(proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP || proto.type == TYPE_STRING ||
+                            proto.type == TYPE_BYTES);
+        if (!is_numeric ||
+            ((packed.has_value() && !packed.value()) || (descriptor->syntax == 2 && !packed.has_value())))
           rule = dynamic_serializer::unpacked_repeated;
         else
           rule = dynamic_serializer::packed_repeated;
@@ -148,7 +151,7 @@ class dynamic_serializer {
       return false;
     }
 
-    std::errc skip_field(wire_type field_wire_type) {
+    std::errc skip_field(uint32_t number, wire_type field_wire_type) {
       ::zpp::bits::vsize_t length = 0;
       using enum hpp::proto::wire_type;
       switch (field_wire_type) {
@@ -162,6 +165,9 @@ class dynamic_serializer {
       case wire_type::fixed_64:
         length = 8;
         break;
+      case wire_type::sgroup:
+        skip_group(number);
+        return {};
       case wire_type::fixed_32:
         length = 4;
         break;
@@ -172,6 +178,25 @@ class dynamic_serializer {
         return std::errc::result_out_of_range;
       archive.position() += length;
       return {};
+    }
+
+    std::errc skip_group(uint32_t field_num) {
+      while (archive.remaining_data().size()) {
+        ::zpp::bits::vuint32_t tag;
+        if (auto result = archive(tag); failure(result)) [[unlikely]] {
+          return result;
+        }
+        uint32_t next_field_num = tag_number(tag);
+        wire_type next_type = proto::tag_type(tag);
+
+        if (next_type == wire_type::egroup && field_num == next_field_num)
+          return {};
+        else if (auto result = skip_field(next_field_num, next_type); failure(result)) [[unlikely]] {
+          return result;
+        }
+      }
+
+      return std::errc::result_out_of_range;
     }
 
     template <typename T>
@@ -406,7 +431,7 @@ class dynamic_serializer {
 
       } else [[unlikely]] {
         //  cannot find the field definition from the schema, skip it
-        if (auto ec = skip_field(field_wire_type); ec != std::errc{}) [[unlikely]] {
+        if (auto ec = skip_field(number, field_wire_type); ec != std::errc{}) [[unlikely]] {
           return ec;
         }
       }

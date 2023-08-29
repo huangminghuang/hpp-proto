@@ -957,16 +957,16 @@ struct extension_example {
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  auto get_extension(auto meta) { return meta.read(extensions); }
+  [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions, std::monostate{}); }
 
   template <typename Meta>
-  void set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  [[nodiscard]] std::error_code set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
 
   template <typename Meta>
     requires Meta::is_repeated
-  void set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  [[nodiscard]] std::error_code set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
 
@@ -1055,9 +1055,21 @@ ut::suite test_extensions = [] {
       ut::expect(v.has_value());
       ut::expect(v.value() == example{.i = 150});
     }
-    { ut::expect(value.get_extension(repeated_i32_ext()) == std::vector<int32_t>{1, 2}); }
-    { ut::expect(value.get_extension(repeated_string_ext()) == std::vector<std::string>{"abc", "def"}); }
-    { ut::expect(value.get_extension(repeated_packed_i32_ext()) == std::vector<int32_t>{1, 2, 3}); }
+    {
+      auto v = value.get_extension(repeated_i32_ext());
+      ut::expect(v.has_value());
+      ut::expect(v.value() == std::vector<int32_t>{1, 2});
+    }
+    {
+      auto v = value.get_extension(repeated_string_ext());
+      ut::expect(v.has_value());
+      ut::expect(v == std::vector<std::string>{"abc", "def"});
+    }
+    {
+      auto v = value.get_extension(repeated_packed_i32_ext());
+      ut::expect(v.has_value());
+      ut::expect(v == std::vector<int32_t>{1, 2, 3});
+    }
 
     std::array<std::byte, encoded_data.size()> new_data;
     ut::expect(success(hpp::proto::out{new_data}(value)));
@@ -1066,25 +1078,25 @@ ut::suite test_extensions = [] {
   };
   "set_extension"_test = [] {
     extension_example value;
-    ut::expect(ut::nothrow([&] { value.set_extension(i32_ext(), 1); }));
+    ut::expect(!value.set_extension(i32_ext(), 1));
     ut::expect(value.extensions.fields[10] == "\x50\x01"_bytes);
 
-    ut::expect(ut::nothrow([&] { value.set_extension(string_ext(), "test"); }));
+    ut::expect(!value.set_extension(string_ext(), "test"));
     ut::expect(value.extensions.fields[11] == "\x5a\x04\x74\x65\x73\x74"_bytes);
 
-    ut::expect(ut::nothrow([&] { value.set_extension(i32_defaulted_ext(), 10); }));
-    ut::expect(value.extensions.fields.count(13) == 1);
+    ut::expect(!value.set_extension(i32_defaulted_ext(), 10));
+    ut::expect(value.extensions.fields.count(13) == 0);
 
-    ut::expect(ut::nothrow([&] { value.set_extension(example_ext(), {.i = 150}); }));
+    ut::expect(!value.set_extension(example_ext(), {.i = 150}));
     ut::expect(value.extensions.fields[15] == "\x7a\x03\x08\x96\x01"_bytes);
 
-    ut::expect(ut::nothrow([&] { value.set_extension(repeated_i32_ext(), {1, 2}); }));
+    ut::expect(!value.set_extension(repeated_i32_ext(), {1, 2}));
     ut::expect(value.extensions.fields[20] == "\xa0\x01\x01\xa0\x01\x02"_bytes);
 
-    ut::expect(ut::nothrow([&] { value.set_extension(repeated_string_ext(), {"abc", "def"}); }));
+    ut::expect(!value.set_extension(repeated_string_ext(), {"abc", "def"}));
     ut::expect(value.extensions.fields[21] == "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes);
 
-    ut::expect(ut::nothrow([&] { value.set_extension(repeated_packed_i32_ext(), {1, 2, 3}); }));
+    ut::expect(!value.set_extension(repeated_packed_i32_ext(), {1, 2, 3}));
     ut::expect(value.extensions.fields[22] == "\xb2\x01\x03\01\02\03"_bytes);
   };
 };
@@ -1102,19 +1114,22 @@ struct non_owning_extension_example {
     }
   } extensions;
 
-  auto get_extension(auto meta) { return meta.read(extensions); }
+  [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions, std::monostate{}); }
 
-  auto get_extension(auto meta, hpp::proto::concepts::memory_resource auto &mr) { return meta.read(extensions, mr); }
+  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::memory_resource auto &mr) {
+    return meta.read(extensions, mr);
+  }
 
   template <typename Meta>
-  void set_extension(Meta meta, typename Meta::set_value_type &&value, hpp::proto::concepts::memory_resource auto &mr) {
+  [[nodiscard]] std::error_code set_extension(Meta meta, typename Meta::set_value_type &&value,
+                                              hpp::proto::concepts::memory_resource auto &mr) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), mr);
   }
 
   template <typename Meta>
     requires Meta::is_repeated
-  void set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value,
-                     hpp::proto::concepts::memory_resource auto &mr) {
+  [[nodiscard]] std::error_code set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value,
+                                              hpp::proto::concepts::memory_resource auto &mr) {
     return meta.write(extensions, std::span<const typename Meta::element_type>(value.begin(), value.end()), mr);
   }
 
@@ -1157,8 +1172,8 @@ constexpr auto non_owning_repeated_i32_ext() {
 }
 
 constexpr auto non_owning_repeated_string_ext() {
-  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 21, encoding_rule::unpacked_repeated,
-                                             void, std::string_view>{};
+  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 21, encoding_rule::unpacked_repeated, void,
+                                             std::string_view>{};
 }
 
 constexpr auto non_owning_repeated_packed_i32_ext() {
@@ -1207,15 +1222,22 @@ ut::suite test_non_owning_extensions = [] {
       ut::expect(v.has_value());
       ut::expect(v.value() == example{.i = 150});
     }
-    { ut::expect(equal_range(value.get_extension(non_owning_repeated_i32_ext(), mr), std::initializer_list<uint32_t>{1, 2})); }
     {
-      using namespace std::literals;
-      ut::expect(equal_range(value.get_extension(non_owning_repeated_string_ext(), mr),
-                             std::initializer_list<std::string_view>{"abc"sv, "def"sv}));
+      auto v = value.get_extension(non_owning_repeated_i32_ext(), mr);
+      ut::expect(v.has_value());
+      ut::expect(
+          equal_range(v.value(), std::initializer_list<uint32_t>{1, 2}));
     }
     {
-      ut::expect(equal_range(value.get_extension(non_owning_repeated_packed_i32_ext(), mr),
-                             std::initializer_list<uint32_t>{1, 2, 3}));
+      auto v = value.get_extension(non_owning_repeated_string_ext(), mr);
+      ut::expect(v.has_value());
+      using namespace std::literals;
+      ut::expect(equal_range(v.value(), std::initializer_list<std::string_view>{"abc"sv, "def"sv}));
+    }
+    {
+      auto v = value.get_extension(non_owning_repeated_packed_i32_ext(), mr);
+      ut::expect(v.has_value());
+      ut::expect(equal_range(v.value(), std::initializer_list<uint32_t>{1, 2, 3}));
     }
 
     std::array<std::byte, encoded_data.size()> new_data;
@@ -1226,32 +1248,32 @@ ut::suite test_non_owning_extensions = [] {
   "set_non_owning_extension"_test = [] {
     monotonic_memory_resource mr{1024};
     non_owning_extension_example value;
-    ut::expect(ut::nothrow([&] { value.set_extension(non_owning_i32_ext(), 1, mr); }));
+    ut::expect(!value.set_extension(non_owning_i32_ext(), 1, mr));
     ut::expect(value.extensions.fields.back().first == 10);
     ut::expect(equal_range(value.extensions.fields.back().second, "\x50\x01"_bytes));
 
-    ut::expect(ut::nothrow([&] { value.set_extension(non_owning_string_ext(), "test", mr); }));
+    ut::expect(!value.set_extension(non_owning_string_ext(), "test", mr));
     ut::expect(value.extensions.fields.back().first == 11);
     ut::expect(equal_range(value.extensions.fields.back().second, "\x5a\x04\x74\x65\x73\x74"_bytes));
 
-    ut::expect(ut::nothrow([&] { value.set_extension(non_owning_i32_defaulted_ext(), 10, mr); }));
-    ut::expect(value.extensions.fields.back().first == 13);
+    ut::expect(!value.set_extension(non_owning_i32_defaulted_ext(), 10, mr));
+    ut::expect(value.extensions.fields.back().first != 13);
 
-    ut::expect(ut::nothrow([&] { value.set_extension(non_owning_example_ext(), {.i = 150}, mr); }));
+    ut::expect(!value.set_extension(non_owning_example_ext(), {.i = 150}, mr));
     ut::expect(value.extensions.fields.back().first == 15);
     ut::expect(equal_range(value.extensions.fields.back().second, "\x7a\x03\x08\x96\x01"_bytes));
 
-    ut::expect(ut::nothrow([&] { value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, mr); }));
+    ut::expect(!value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, mr));
     ut::expect(value.extensions.fields.back().first == 20);
     ut::expect(equal_range(value.extensions.fields.back().second, "\xa0\x01\x01\xa0\x01\x02"_bytes));
 
     using namespace std::literals;
-    ut::expect(ut::nothrow([&] { value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, mr); }));
+    ut::expect(!value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, mr));
     ut::expect(value.extensions.fields.back().first == 21);
     ut::expect(
         equal_range(value.extensions.fields.back().second, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
-    ut::expect(ut::nothrow([&] { value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, mr); }));
+    ut::expect(!value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, mr));
     ut::expect(value.extensions.fields.back().first == 22);
     ut::expect(equal_range(value.extensions.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };

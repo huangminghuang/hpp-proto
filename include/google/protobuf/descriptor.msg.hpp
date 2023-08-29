@@ -106,13 +106,13 @@ struct MethodOptions {
 #endif
   } extensions;
 
-  auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions, std::monostate{});
   }
-  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
-  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
@@ -139,13 +139,13 @@ struct ServiceOptions {
 #endif
   } extensions;
 
-  auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions, std::monostate{});
   }
-  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
-  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
@@ -172,13 +172,13 @@ struct EnumValueOptions {
 #endif
   } extensions;
 
-  auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions, std::monostate{});
   }
-  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
-  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
@@ -207,13 +207,13 @@ struct EnumOptions {
 #endif
   } extensions;
 
-  auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions, std::monostate{});
   }
-  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
-  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
@@ -239,13 +239,13 @@ struct OneofOptions {
 #endif
   } extensions;
 
-  auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions, std::monostate{});
   }
-  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
-  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
@@ -312,13 +312,13 @@ struct FieldOptions {
 #endif
   } extensions;
 
-  auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions, std::monostate{});
   }
-  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
-  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
@@ -349,13 +349,13 @@ struct MessageOptions {
 #endif
   } extensions;
 
-  auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions, std::monostate{});
   }
-  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
-  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
@@ -407,13 +407,13 @@ struct FileOptions {
 #endif
   } extensions;
 
-  auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions, std::monostate{});
   }
-  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
-  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {
@@ -561,13 +561,13 @@ struct ExtensionRangeOptions {
 #endif
   } extensions;
 
-  auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions, std::monostate{});
   }
-  template<typename Meta>  auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
-  template<typename Meta>  requires Meta::is_repeated  auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
   bool has_extension(auto meta) const {

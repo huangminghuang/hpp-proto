@@ -4,16 +4,6 @@
 #include <regex>
 namespace ut = boost::ut;
 
-template <zpp::bits::string_literal String>
-constexpr auto operator""_bytes() {
-  auto v = zpp::bits::to_bytes<String>();
-  return std::vector<std::byte>{v.begin(), v.end()};
-}
-
-
-
-
-
 ut::suite proto_test = [] {
   using namespace boost::ut::literals;
 
@@ -31,6 +21,49 @@ ut::suite proto_test = [] {
     TestUtil::ExpectAllFieldsSet(message);
     TestUtil::ExpectAllFieldsSet(message2);
     TestUtil::ExpectAllFieldsSet(message3);
+  };
+
+  "extension_set"_test = [] {
+    protobuf_unittest::TestAllExtensions message, message2, message3;
+    TestUtil::ExpectExtensionsClear(message);
+    TestUtil::SetAllExtensions(&message);
+    message2 = message;
+
+    auto [data, in, out] = hpp::proto::data_in_out();
+    ut::expect(success(out(message2)));
+    ut::expect(success(in(message3)));
+
+    TestUtil::ExpectAllExtensionsSet(message);
+    TestUtil::ExpectAllExtensionsSet(message2);
+    TestUtil::ExpectAllExtensionsSet(message3);
+  };
+
+  "unpaced_repeated"_test = [] {
+    protobuf_unittest::TestUnpackedTypes message, message2, message3;
+    TestUtil::SetUnpackedFields(&message);
+    message2 = message;
+
+    auto [data, in, out] = hpp::proto::data_in_out();
+    ut::expect(success(out(message2)));
+    ut::expect(success(in(message3)));
+
+    TestUtil::ExpectUnpackedFieldsSet(message);
+    TestUtil::ExpectUnpackedFieldsSet(message2);
+    TestUtil::ExpectUnpackedFieldsSet(message3);
+  };
+
+  "paced_repeated"_test = [] {
+    protobuf_unittest::TestPackedTypes message, message2, message3;
+    TestUtil::SetPackedFields(&message);
+    message2 = message;
+
+    auto [data, in, out] = hpp::proto::data_in_out();
+    ut::expect(success(out(message2)));
+    ut::expect(success(in(message3)));
+
+    TestUtil::ExpectPackedFieldsSet(message);
+    TestUtil::ExpectPackedFieldsSet(message2);
+    TestUtil::ExpectPackedFieldsSet(message3);
   };
 
   "glaze"_test = [] {
