@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <span>
+#include <hpp_proto/pb_serializer.h>
 
 inline std::string descriptorset_from_file(const char* filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
@@ -71,3 +72,9 @@ struct monotonic_memory_resource {
     throw std::bad_alloc{};
   }
 };
+
+template <typename T, hpp::proto::encoding_rule Rule>
+constexpr bool ensure_all_fields_encoding_rule() {
+  using meta = typename hpp::proto::traits::meta_of<T>::type;
+  return std::apply([](auto... field_meta) { return ((field_meta.encoding == Rule) && ...); }, meta());
+}
