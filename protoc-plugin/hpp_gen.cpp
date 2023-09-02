@@ -58,6 +58,7 @@ std::unordered_set<std::string_view> keywords = {
 std::vector<std::string> force_optionals;
 std::string root_namespace;
 std::string top_directory;
+bool non_owning_mode = false;
 
 std::string resolve_keyword(std::string_view name) {
   if (keywords.count(name) > 0) {
@@ -172,8 +173,8 @@ std::string cpp_escape(std::string_view src) {
   return result;
 }
 
-std::string basename(const std::string &name) { 
-  std::string result = name.substr(0, name.find_last_of('.')); 
+std::string basename(const std::string &name) {
+  std::string result = name.substr(0, name.find_last_of('.'));
   if (top_directory.size())
     result = top_directory + "/" + result;
   return result;
@@ -203,7 +204,6 @@ std::size_t replace_all(std::string &inout, std::string_view what, std::string_v
   }
   return count;
 }
-
 
 struct hpp_addons {
 
@@ -263,7 +263,7 @@ struct hpp_addons {
         cpp_meta_type = "bool";
         break;
       case TYPE_STRING:
-        cpp_field_type = "std::string";
+        cpp_field_type = non_owning_mode ? "std::string_view" : "std::string";
         break;
       case TYPE_GROUP:
       case TYPE_MESSAGE:
@@ -283,7 +283,7 @@ struct hpp_addons {
         }
         break;
       case TYPE_BYTES:
-        cpp_field_type = "hpp::proto::bytes";
+        cpp_field_type = non_owning_mode ? "std::span<std::byte>" : "hpp::proto::bytes";
         break;
       case TYPE_UINT32:
         cpp_field_type = "uint32_t";
@@ -575,7 +575,7 @@ struct msg_code_generator : code_generator {
 
     auto ns = root_namespace + qualified_cpp_name(descriptor.proto.package);
     if (ns.size())
-      fmt::format_to(target, "\nnamespace {} {{\n\n",  ns);
+      fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
 
     fmt::format_to(target, "{}using namespace hpp::proto::literals;\n", indent());
 
@@ -594,9 +594,9 @@ struct msg_code_generator : code_generator {
     using enum gpb::FieldDescriptorProto::Label;
     using enum gpb::FieldDescriptorProto::Type;
     if (proto.label == LABEL_REPEATED)
-      return "std::vector";
+      return non_owning_mode ? "std::span" : "std::vector";
     if (descriptor.is_recursive)
-      return "hpp::proto::heap_based_optional";
+      return non_owning_mode ? "*" : "hpp::proto::heap_based_optional";
     if (descriptor.is_cpp_optional) {
       if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE)
         return "std::optional";
@@ -607,12 +607,19 @@ struct msg_code_generator : code_generator {
 
   std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.map_fields[0]) {
-      const char *type = descriptor.map_fields[1]->is_recursive ? "std::map" : "hpp::proto::flat_map";
-      auto transform_if_bool = [recursive = descriptor.map_fields[1]->is_recursive](const std::string &name) {
-        return recursive || name != "bool" ? name : std::string{"hpp::proto::boolean"};
-      };
-      return fmt::format("{}<{},{}>", type, transform_if_bool(descriptor.map_fields[0]->cpp_field_type),
-                         transform_if_bool(descriptor.map_fields[1]->cpp_field_type));
+      if (!non_owning_mode) {
+        const char *type = descriptor.map_fields[1]->is_recursive ? "std::map" : "hpp::proto::flat_map";
+        // when using flat_map with bool, it would lead std::vector<bool> as one of its members; which is not what we
+        // need.
+        auto transform_if_bool = [recursive = descriptor.map_fields[1]->is_recursive](const std::string &name) {
+          return recursive || name != "bool" ? name : std::string{"hpp::proto::boolean"};
+        };
+        return fmt::format("{}<{},{}>", type, transform_if_bool(descriptor.map_fields[0]->cpp_field_type),
+                           transform_if_bool(descriptor.map_fields[1]->cpp_field_type));
+      } else {
+        return fmt::format("std::span<std::pair<{},{}>>", descriptor.map_fields[0]->cpp_field_type,
+                           descriptor.map_fields[1]->cpp_field_type);
+      }
     }
 
     auto wrapper = field_type_wrapper(descriptor);
@@ -622,6 +629,8 @@ struct msg_code_generator : code_generator {
     } else if (wrapper == "hpp::proto::optional" && descriptor.default_value_template_arg.size()) {
       return fmt::format("hpp::proto::optional<{},{}>", descriptor.cpp_field_type,
                          descriptor.default_value_template_arg);
+    } else if (wrapper == "x") {
+      return fmt::format("const {}*", descriptor.cpp_field_type);
     } else if (wrapper.size()) {
       return fmt::format("{}<{}>", wrapper, descriptor.cpp_field_type);
     }
@@ -631,20 +640,20 @@ struct msg_code_generator : code_generator {
   void process(field_descriptor_t &descriptor) {
     std::string attribute;
     std::string_view initializer = " = {}";
-    if (field_type_wrapper(descriptor).size())
+    if (field_type_wrapper(descriptor).size() > 1)
       initializer = "";
     else if (descriptor.default_value.size()) {
       initializer = " = " + descriptor.default_value;
       if (descriptor.cpp_name == "bytes_with_zero") {
-        std::string r = fmt::format("{}{}{} {}{};\n", indent(), attribute, field_type(descriptor),
-                                       descriptor.cpp_name, initializer);
+        std::string r = fmt::format("{}{}{} {}{};\n", indent(), attribute, field_type(descriptor), descriptor.cpp_name,
+                                    initializer);
       }
     }
     fmt::format_to(target, "{}{}{} {}{};\n", indent(), attribute, field_type(descriptor), descriptor.cpp_name,
                    initializer);
 
     if (descriptor.cpp_name == "bytes_with_zero") {
-      const char* rr = file.content.data() + 17060;
+      const char *rr = file.content.data() + 17060;
       int i = 0;
     }
   }
@@ -723,40 +732,76 @@ struct msg_code_generator : code_generator {
     }
 
     if (descriptor.proto.extension_range.size()) {
-      fmt::format_to(
-          target,
-          "\n"
-          "{0}struct extension_t {{\n"
-          "{0}  using pb_extension = {1};\n"
-          "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
-          "{0}  bool operator==(const extension_t &other) const = default;\n"
-          "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR\n"
-          "{0}auto operator <=> (const extension_t&) const = default;\n"
-          "#endif\n"
-          "{0}}} extensions;\n\n"
-          "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
-          "{0}  return meta.read(extensions, std::monostate{{}});\n"
-          "{0}}}\n"
-          "{0}template<typename Meta>"
-          "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
-          "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));\n"
-          "{0}}}\n"
-          "{0}template<typename Meta>"
-          "{0}requires Meta::is_repeated"
-          "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {{\n"
-          "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}});\n"
-          "{0}}}\n"
-          "{0}bool has_extension(auto meta) const {{\n"
-          "{0}  return meta.element_of(extensions);\n"
-          "{0}}}\n",
-          indent(), descriptor.cpp_name);
+      if (!non_owning_mode) {
+        fmt::format_to(target,
+                       "\n"
+                       "{0}struct extension_t {{\n"
+                       "{0}  using pb_extension = {1};\n"
+                       "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
+                       "{0}  bool operator==(const extension_t &other) const = default;\n"
+                       "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR\n"
+                       "{0}auto operator <=> (const extension_t&) const = default;\n"
+                       "#endif\n"
+                       "{0}}} extensions;\n\n"
+                       "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
+                       "{0}  return meta.read(extensions, std::monostate{{}});\n"
+                       "{0}}}\n"
+                       "{0}template<typename Meta>"
+                       "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
+                       "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));\n"
+                       "{0}}}\n"
+                       "{0}template<typename Meta>"
+                       "{0}requires Meta::is_repeated"
+                       "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename "
+                       "Meta::element_type> value) {{\n"
+                       "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}});\n"
+                       "{0}}}\n"
+                       "{0}bool has_extension(auto meta) const {{\n"
+                       "{0}  return meta.element_of(extensions);\n"
+                       "{0}}}\n",
+                       indent(), descriptor.cpp_name);
+
+      } else {
+        fmt::format_to(
+            target,
+            "\n"
+            "{0}struct extension_t {{\n"
+            "{0}  using pb_extension = {1};\n"
+            "{0}  std::span<std::pair<uint32_t, std::span<const std::byte>>> fields;\n"
+            "{0}}} extensions;\n\n"
+            "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
+            "{0}  return meta.read(extensions, std::monostate{{}});\n"
+            "{0}}}\n"
+            "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::memory_resource auto &mr) const {{\n"
+            "{0}  return meta.read(extensions, mr);\n"
+            "{0}}}\n"
+            "{0}template<typename Meta>\n"
+            "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value,\n"
+            "{0}                                 hpp::proto::concepts::memory_resource auto &mr) {{\n"
+            "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), mr);\n"
+            "{0}}}\n"
+            "{0}template<typename Meta>\n"
+            "{0}requires Meta::is_repeated\n"
+            "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
+            "{0}                                 std::initializer_list<typename Meta::element_type> value,\n"
+            "{0}                                 hpp::proto::concepts::memory_resource auto &mr) {{\n"
+            "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}}, mr);\n"
+            "{0}}}\n"
+            "{0}bool has_extension(auto meta) const {{\n"
+            "{0}  return meta.element_of(extensions);\n"
+            "{0}}}\n",
+            indent(), descriptor.cpp_name);
+      }
     }
-    fmt::format_to(target,
-                   "\n{0}bool operator == (const {1}&) const = default;\n"
-                   "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR\n"
-                   "\n{0}auto operator <=> (const {1}&) const = default;\n"
-                   "#endif\n",
-                   indent(), descriptor.cpp_name);
+
+    if (!non_owning_mode) {
+      fmt::format_to(target,
+                     "\n{0}bool operator == (const {1}&) const = default;\n"
+                     "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR\n"
+                     "\n{0}auto operator <=> (const {1}&) const = default;\n"
+                     "#endif\n",
+                     indent(), descriptor.cpp_name);
+    }
 
     indent_num -= 2;
     fmt::format_to(target, "{}}};\n\n", indent());
@@ -1136,10 +1181,14 @@ int main(int argc, const char **argv) {
     }
   }
 
-  if (const char* env_p = std::getenv("HPP_ROOT_NAMESPACE")) {
+  if (const char *env_p = std::getenv("HPP_ROOT_NAMESPACE")) {
     root_namespace = env_p;
     if (!root_namespace.ends_with("::"))
       root_namespace += "::";
+  }
+
+  if (const char *env_p = std::getenv("HPP_NON_OWNING")) {
+    non_owning_mode = strcmp("ON", env_p) == 0 || strcmp("TRUE", env_p) == 0 || strcmp("YES", env_p) == 0;
   }
 
   if (const char *env_p = std::getenv("HPP_TOP_DIRECTORY")) {
@@ -1165,7 +1214,6 @@ int main(int argc, const char **argv) {
       }
     }
   }
-  // code_generator::resolve_map_fields(pool);
 
   gpb::compiler::CodeGeneratorResponse response;
   response.supported_features = (uint64_t)gpb::compiler::CodeGeneratorResponse::Feature::FEATURE_PROTO3_OPTIONAL;

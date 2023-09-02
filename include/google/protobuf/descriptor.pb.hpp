@@ -69,11 +69,25 @@ inline const char* pb_url(const DescriptorProto::ReservedRange&) { return "type.
 
 auto pb_meta(const ExtensionRangeOptions &) -> std::tuple<
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
+  hpp::proto::field_meta<2, hpp::proto::encoding_rule::unpacked_repeated>,
+  hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::ExtensionRangeOptions::VerificationState::UNVERIFIED>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const ExtensionRangeOptions&) -> zpp::bits::members<2>;
+auto serialize(const ExtensionRangeOptions&) -> zpp::bits::members<4>;
 
 inline const char* pb_url(const ExtensionRangeOptions&) { return "type.googleapis.com/google.protobuf.ExtensionRangeOptions"; }
+
+auto pb_meta(const ExtensionRangeOptions::Declaration &) -> std::tuple<
+  hpp::proto::field_meta<1, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<2, hpp::proto::encoding_rule::defaulted>,
+  hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted>,
+  hpp::proto::field_meta<4, hpp::proto::encoding_rule::defaulted, bool>,
+  hpp::proto::field_meta<5, hpp::proto::encoding_rule::defaulted, bool>,
+  hpp::proto::field_meta<6, hpp::proto::encoding_rule::defaulted, bool>>;
+
+auto serialize(const ExtensionRangeOptions::Declaration&) -> zpp::bits::members<6>;
+
+inline const char* pb_url(const ExtensionRangeOptions::Declaration&) { return "type.googleapis.com/google.protobuf.ExtensionRangeOptions.Declaration"; }
 
 auto pb_meta(const FieldDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, hpp::proto::encoding_rule::defaulted>,
@@ -201,10 +215,11 @@ auto pb_meta(const FieldOptions &) -> std::tuple<
   hpp::proto::field_meta<16, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<17, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FieldOptions::OptionRetention::RETENTION_UNKNOWN>,
   hpp::proto::field_meta<18, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FieldOptions::OptionTargetType::TARGET_TYPE_UNKNOWN>,
+  hpp::proto::field_meta<19, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const FieldOptions&) -> zpp::bits::members<12>;
+auto serialize(const FieldOptions&) -> zpp::bits::members<13>;
 
 inline const char* pb_url(const FieldOptions&) { return "type.googleapis.com/google.protobuf.FieldOptions"; }
 

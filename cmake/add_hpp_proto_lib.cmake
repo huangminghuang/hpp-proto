@@ -1,6 +1,6 @@
 function(add_hpp_proto_lib target)
     set(oneValueArgs OUTPUT_DIR INPUT_DIR)
-    set(multiValueArgs PROTO_FILES INCLUDE_DIRS)
+    set(multiValueArgs PROTO_FILES INCLUDE_DIRS ENVIRONMENTS)
     cmake_parse_arguments(HPP "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
 
@@ -25,10 +25,14 @@ function(add_hpp_proto_lib target)
 
     list(TRANSFORM INCLUDE_DIRS PREPEND -I)
 
+    if (HPP_ENVIRONMENTS)
+        set(COMMAND_PREFIX ${CMAKE_COMMAND} -E env ${HPP_ENVIRONMENTS})
+    endif()
+
     add_custom_command(
         COMMENT "processing ${HPP_PROTO_FILES}"
         OUTPUT ${GENERATED_FILES}
-        COMMAND protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${HPP_OUTPUT_DIR} ${INCLUDE_DIRS} ${HPP_PROTO_FILES}
+        COMMAND ${COMMAND_PREFIX} $<TARGET_FILE:protoc> --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${HPP_OUTPUT_DIR} ${INCLUDE_DIRS} ${HPP_PROTO_FILES}
         DEPENDS protoc protoc-gen-hpp ${SOURCE_FILES}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         VERBATIM

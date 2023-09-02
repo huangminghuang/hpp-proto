@@ -60,6 +60,35 @@ add_test(NAME proto3_lite_test
 
 set_property(TEST proto3_lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
+
+add_hpp_proto_lib(non_owning_unittest_proto3_proto_lib
+    INPUT_DIR    ${protobuf_SOURCE_DIR}/src
+    OUTPUT_DIR   ${CMAKE_CURRENT_BINARY_DIR}/non_owning
+    PROTO_FILES  google/protobuf/unittest_proto3.proto 
+                 google/protobuf/unittest_import.proto 
+                 google/protobuf/unittest_import_public.proto
+    ENVIRONMENTS "HPP_NON_OWNING=ON" 
+                 "HPP_ROOT_NAMESPACE=non_owning"
+                 "HPP_TOP_DIRECTORY=non_owning")
+
+
+
+
+add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
+target_link_libraries(non_owning_proto3_test non_owning_unittest_proto3_proto_lib )
+
+
+add_hpp_proto_lib(non_owning_unittest_proto2_proto_lib
+    INPUT_DIR    ${protobuf_SOURCE_DIR}/src
+    OUTPUT_DIR   ${CMAKE_CURRENT_BINARY_DIR}/non_owning
+    PROTO_FILES  google/protobuf/unittest.proto 
+    ENVIRONMENTS "HPP_NON_OWNING=ON" 
+                 "HPP_ROOT_NAMESPACE=non_owning"
+                 "HPP_TOP_DIRECTORY=non_owning"
+)
+add_executable(non_owning_proto2_test non_owning_proto2_test.cpp)
+target_link_libraries(non_owning_proto2_test non_owning_unittest_proto2_proto_lib )
+
 gen_proto_descriptor_set(unittest_proto2.bin
     INPUT_DIR ${protobuf_SOURCE_DIR}/src
     PROTO_FILES google/protobuf/unittest.proto)

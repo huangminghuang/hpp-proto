@@ -66,7 +66,29 @@ template <>
 struct glz::meta<google::protobuf::ExtensionRangeOptions> {
   using T = google::protobuf::ExtensionRangeOptions;
   static constexpr auto value = object(
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
+    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>(),
+    "declaration", hpp::proto::as_optional_ref<&T::declaration>(),
+    "verification", hpp::proto::as_optional_ref<&T::verification, ::google::protobuf::ExtensionRangeOptions::VerificationState::UNVERIFIED>());
+};
+
+template <>
+struct glz::meta<google::protobuf::ExtensionRangeOptions::Declaration> {
+  using T = google::protobuf::ExtensionRangeOptions::Declaration;
+  static constexpr auto value = object(
+    "number", hpp::proto::as_optional_ref<&T::number>(),
+    "fullName", hpp::proto::as_optional_ref<&T::full_name>(),
+    "type", hpp::proto::as_optional_ref<&T::type>(),
+    "isRepeated", hpp::proto::as_optional_ref<&T::is_repeated>(),
+    "reserved", hpp::proto::as_optional_ref<&T::reserved>(),
+    "repeated", hpp::proto::as_optional_ref<&T::repeated>());
+};
+
+template <>
+struct glz::meta<google::protobuf::ExtensionRangeOptions::VerificationState> {
+  using enum google::protobuf::ExtensionRangeOptions::VerificationState;
+  static constexpr auto value = enumerate(
+    "DECLARATION", DECLARATION,
+    "UNVERIFIED", UNVERIFIED);
 };
 
 template <>
@@ -238,6 +260,7 @@ struct glz::meta<google::protobuf::FieldOptions> {
     "debugRedact", hpp::proto::as_optional_ref<&T::debug_redact, false>(),
     "retention", hpp::proto::as_optional_ref<&T::retention, ::google::protobuf::FieldOptions::OptionRetention::RETENTION_UNKNOWN>(),
     "target", hpp::proto::as_optional_ref<&T::target, ::google::protobuf::FieldOptions::OptionTargetType::TARGET_TYPE_UNKNOWN>(),
+    "targets", hpp::proto::as_optional_ref<&T::targets>(),
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 

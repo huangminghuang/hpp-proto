@@ -301,6 +301,7 @@ struct FieldOptions {
   bool debug_redact = false;
   OptionRetention retention = OptionRetention::RETENTION_UNKNOWN;
   OptionTargetType target = OptionTargetType::TARGET_TYPE_UNKNOWN;
+  std::vector<OptionTargetType> targets;
   std::vector<UninterpretedOption> uninterpreted_option;
 
   struct extension_t {
@@ -550,7 +551,29 @@ struct FieldDescriptorProto {
 };
 
 struct ExtensionRangeOptions {
+  enum class VerificationState {
+    DECLARATION = 0,
+    UNVERIFIED = 1 
+  };
+
+  struct Declaration {
+    int32_t number = {};
+    std::string full_name = {};
+    std::string type = {};
+    bool is_repeated = {};
+    bool reserved = {};
+    bool repeated = {};
+
+    bool operator == (const Declaration&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+
+    auto operator <=> (const Declaration&) const = default;
+#endif
+  };
+
   std::vector<UninterpretedOption> uninterpreted_option;
+  std::vector<Declaration> declaration;
+  VerificationState verification = VerificationState::UNVERIFIED;
 
   struct extension_t {
     using pb_extension = ExtensionRangeOptions;
