@@ -74,9 +74,11 @@ std::string qualified_cpp_name(std::string_view name) {
   std::size_t i = 0;
   std::size_t j;
   while ((j = name.find('.', i)) != std::string_view::npos) {
-    if (i == j)
+    if (j == 0 && root_namespace.size()) {
+      result += root_namespace;
+    } else if (i == j) {
       result += "::";
-    else {
+    } else {
       result += resolve_keyword(name.substr(i, j - i));
       result += "::";
     }
@@ -468,15 +470,22 @@ struct code_generator {
     return std::string_view{spaces.data(), indent_num};
   }
 
+  static void mark_field_recursive(message_descriptor_t &descriptor, std::string dep) {
+    for (auto f : descriptor.fields) {
+      if (f->cpp_field_type == dep)
+        f->is_recursive = true;
+    }
+    for (auto m : descriptor.messages) {
+      mark_field_recursive(*m, dep);
+    }
+  }
+
   static void resolve_dependency_cycle(message_descriptor_t &descriptor) {
     auto nh = descriptor.dependencies.extract(descriptor.dependencies.begin());
     auto &dep = nh.value();
     descriptor.forward_declarations.insert(std::move(nh));
 
-    for (auto f : descriptor.fields) {
-      if (f->cpp_field_type == dep)
-        f->is_recursive = true;
-    }
+    mark_field_recursive(descriptor, dep);
   }
 
   static std::vector<message_descriptor_t *> order_messages(std::vector<message_descriptor_t *> &messages) {
@@ -513,6 +522,8 @@ struct code_generator {
       if (unresolved_size > unresolved_messages.size())
         unresolved_size = unresolved_messages.size();
       else {
+        std::sort(unresolved_messages.begin(), unresolved_messages.end(),
+                  [](auto lhs, auto rhs) { return lhs->cpp_name < rhs->cpp_name; });
         auto x = *(unresolved_messages.rbegin());
         resolve_dependency_cycle(*x);
       }
@@ -530,7 +541,7 @@ struct msg_code_generator : code_generator {
     for (auto &field : pool.fields) {
       using enum google::protobuf::FieldDescriptorProto::Type;
       auto type = field.proto.type;
-      if ((type == TYPE_MESSAGE || type == TYPE_ENUM) && field.proto.type_name.size()) {
+      if ((type == TYPE_MESSAGE || type == TYPE_GROUP || type == TYPE_ENUM) && field.proto.type_name.size()) {
         auto type_name = field.proto.type_name;
         auto message_name = field.qualified_parent_name;
         auto pos = shared_scope_position(message_name, type_name);
@@ -629,7 +640,7 @@ struct msg_code_generator : code_generator {
     } else if (wrapper == "hpp::proto::optional" && descriptor.default_value_template_arg.size()) {
       return fmt::format("hpp::proto::optional<{},{}>", descriptor.cpp_field_type,
                          descriptor.default_value_template_arg);
-    } else if (wrapper == "x") {
+    } else if (wrapper == "*") {
       return fmt::format("const {}*", descriptor.cpp_field_type);
     } else if (wrapper.size()) {
       return fmt::format("{}<{}>", wrapper, descriptor.cpp_field_type);

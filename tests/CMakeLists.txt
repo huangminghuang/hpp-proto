@@ -71,11 +71,9 @@ add_hpp_proto_lib(non_owning_unittest_proto3_proto_lib
                  "HPP_ROOT_NAMESPACE=non_owning"
                  "HPP_TOP_DIRECTORY=non_owning")
 
-
-
-
 add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
-target_link_libraries(non_owning_proto3_test non_owning_unittest_proto3_proto_lib )
+target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib )
+target_include_directories(non_owning_proto3_test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 
 add_hpp_proto_lib(non_owning_unittest_proto2_proto_lib
@@ -87,7 +85,7 @@ add_hpp_proto_lib(non_owning_unittest_proto2_proto_lib
                  "HPP_TOP_DIRECTORY=non_owning"
 )
 add_executable(non_owning_proto2_test non_owning_proto2_test.cpp)
-target_link_libraries(non_owning_proto2_test non_owning_unittest_proto2_proto_lib )
+target_link_libraries(non_owning_proto2_test Boost::ut non_owning_unittest_proto2_proto_lib )
 
 gen_proto_descriptor_set(unittest_proto2.bin
     INPUT_DIR ${protobuf_SOURCE_DIR}/src
