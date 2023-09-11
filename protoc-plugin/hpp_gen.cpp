@@ -285,7 +285,7 @@ struct hpp_addons {
         }
         break;
       case TYPE_BYTES:
-        cpp_field_type = non_owning_mode ? "std::span<std::byte>" : "hpp::proto::bytes";
+        cpp_field_type = non_owning_mode ? "hpp::proto::bytes_view" : "hpp::proto::bytes";
         break;
       case TYPE_UINT32:
         cpp_field_type = "uint32_t";
@@ -317,13 +317,15 @@ struct hpp_addons {
           if (proto.default_value.size()) {
             std::string escaped = cpp_escape(proto.default_value);
             default_value = fmt::format("\"{}\"", escaped);
-            default_value_template_arg = fmt::format("hpp::proto::compile_time_string{{\"{}\"}}", escaped);
+            // the reason to generate "hpp::proto::compile_time_string" here is instead of using ""_cts is
+            // to avoid "using namespace hpp::proto::literals;" statement in global namespace space
+            default_value_template_arg = fmt::format("hpp::proto::cts_wrapper<\"{}\">{{}}", escaped);
           }
         } else if (proto.type == TYPE_BYTES) {
           if (proto.default_value.size()) {
             std::string escaped = cpp_escape(proto.default_value);
-            default_value = fmt::format("\"{}\"_bytes", escaped);
-            default_value_template_arg = fmt::format("hpp::proto::compile_time_string{{\"{}\"}}", escaped);
+            default_value = fmt::format("\"{}\"_cts", escaped);
+            default_value_template_arg = fmt::format("hpp::proto::cts_wrapper<\"{}\">{{}}", escaped);
           }
         } else if (proto.type == TYPE_ENUM) {
           default_value = fmt::format("{}::{}", cpp_field_type, proto.default_value);
@@ -472,8 +474,9 @@ struct code_generator {
 
   static void mark_field_recursive(message_descriptor_t &descriptor, std::string dep) {
     for (auto f : descriptor.fields) {
-      if (f->cpp_field_type == dep)
+      if (f->cpp_field_type == dep) {
         f->is_recursive = true;
+      }
     }
     for (auto m : descriptor.messages) {
       mark_field_recursive(*m, dep);
@@ -642,6 +645,8 @@ struct msg_code_generator : code_generator {
                          descriptor.default_value_template_arg);
     } else if (wrapper == "*") {
       return fmt::format("const {}*", descriptor.cpp_field_type);
+    } else if (wrapper == "std::span") {
+      return fmt::format("{}<const {}>", wrapper, descriptor.cpp_field_type);
     } else if (wrapper.size()) {
       return fmt::format("{}<{}>", wrapper, descriptor.cpp_field_type);
     }
@@ -650,23 +655,15 @@ struct msg_code_generator : code_generator {
 
   void process(field_descriptor_t &descriptor) {
     std::string attribute;
-    std::string_view initializer = " = {}";
+    std::string initializer = " = {}";
+
     if (field_type_wrapper(descriptor).size() > 1)
       initializer = "";
     else if (descriptor.default_value.size()) {
       initializer = " = " + descriptor.default_value;
-      if (descriptor.cpp_name == "bytes_with_zero") {
-        std::string r = fmt::format("{}{}{} {}{};\n", indent(), attribute, field_type(descriptor), descriptor.cpp_name,
-                                    initializer);
-      }
     }
     fmt::format_to(target, "{}{}{} {}{};\n", indent(), attribute, field_type(descriptor), descriptor.cpp_name,
                    initializer);
-
-    if (descriptor.cpp_name == "bytes_with_zero") {
-      const char *rr = file.content.data() + 17060;
-      int i = 0;
-    }
   }
 
   void process(oneof_descriptor_t &descriptor, int32_t number) {
@@ -750,7 +747,7 @@ struct msg_code_generator : code_generator {
                        "{0}  using pb_extension = {1};\n"
                        "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
                        "{0}  bool operator==(const extension_t &other) const = default;\n"
-                       "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR\n"
+                       "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR\n"
                        "{0}auto operator <=> (const extension_t&) const = default;\n"
                        "#endif\n"
                        "{0}}} extensions;\n\n"
@@ -778,7 +775,7 @@ struct msg_code_generator : code_generator {
             "\n"
             "{0}struct extension_t {{\n"
             "{0}  using pb_extension = {1};\n"
-            "{0}  std::span<std::pair<uint32_t, std::span<const std::byte>>> fields;\n"
+            "{0}  std::span<std::pair<uint32_t, hpp::proto::bytes_view>> fields;\n"
             "{0}}} extensions;\n\n"
             "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
             "{0}  return meta.read(extensions, std::monostate{{}});\n"
@@ -808,10 +805,43 @@ struct msg_code_generator : code_generator {
     if (!non_owning_mode) {
       fmt::format_to(target,
                      "\n{0}bool operator == (const {1}&) const = default;\n"
-                     "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR\n"
+                     "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR\n"
                      "\n{0}auto operator <=> (const {1}&) const = default;\n"
                      "#endif\n",
                      indent(), descriptor.cpp_name);
+    } else {
+      bool need_explicit_constructors = false;
+      for (auto f : descriptor.fields) {
+        if (f->cpp_name == "repeated_child") {
+          int i = 1;
+        }
+        if (f->is_recursive && f->proto.label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
+          need_explicit_constructors = true;
+        }
+      }
+
+      if (need_explicit_constructors) {
+        std::string copy_constructor_init_list;
+        int i = 0;
+        for (auto f : descriptor.fields) {
+          if (i > 0)
+            copy_constructor_init_list += ",";
+          if (f->is_recursive && f->proto.label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
+            copy_constructor_init_list += fmt::format("{0}(other.{0}.data(), other.{0}.size())", f->cpp_name);
+          } else {
+            copy_constructor_init_list += fmt::format("{0}(other.{0})", f->cpp_name);
+          }
+          ++i;
+        }
+
+        fmt::format_to(target,
+                       "#ifdef _LIBCPP_VERSION\n"
+                       "{0}constexpr {1}() = default;\n"
+                       "{0}constexpr {1}(const {1}& other)\n"
+                       "{0}  : {2}{{}}\n"
+                       "#endif // _LIBCPP_VERSION\n",
+                       indent(), descriptor.cpp_name, copy_constructor_init_list);
+      }
     }
 
     indent_num -= 2;

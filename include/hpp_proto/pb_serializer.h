@@ -91,7 +91,7 @@ template <typename Type>
 concept has_meta = has_local_meta<Type> || has_explicit_meta<Type>;
 
 template <typename T>
-concept numeric = std::is_fundamental_v<T> || ::zpp::bits::concepts::varint<T> || std::is_enum_v<T>;
+concept numeric = std::is_fundamental_v<T> || ::zpp::bits::concepts::varint<T> || std::is_enum_v<T> || std::same_as<hpp::proto::boolean, T>;
 
 template <typename T>
 concept numeric_or_byte = numeric<T> || std::same_as<std::byte, T>;
@@ -170,7 +170,7 @@ struct repeated_extension_meta
   static constexpr bool is_repeated = true;
   using extendee = Extendee;
   static constexpr bool non_owning = concepts::span<decltype(std::declval<typename extendee::extension_t>().fields)>;
-  using element_type = std::conditional_t<std::is_same_v<ValueType, bool>, boolean, ValueType>;
+  using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
   using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
   using set_value_type = std::span<const element_type>;
 };
@@ -884,12 +884,6 @@ public:
   constexpr explicit in_base(ByteView &view, Options &&...options)
       : m_archive(make_in_archive(view, std::forward<Options>(options)...)) {}
 
-  // constexpr explicit in_base(ByteView &&view, std::monostate&&, Options &&...options)
-  //     : m_archive(make_in_archive(std::move(view), std::forward<Options>(options)...)) {}
-
-  // constexpr explicit in_base(ByteView &view, std::monostate &&, Options &&...options)
-  //     : m_archive(make_in_archive(view, std::forward<Options>(options)...)) {}
-
   template <typename T>
   T &make_growable(T &base) {
     return base;
@@ -916,12 +910,6 @@ public:
   constexpr explicit in(ByteView &view, Options &&...options)
     requires(std::same_as<MemoryResource, std::monostate>)
       : base_type(view, std::forward<Options>(options)...) {}
-
-  // constexpr explicit in(ByteView &&view, std::monostate&&, Options &&...options)
-  //     : base_type(std::move(view), std::forward<Options>(options)...) {}
-
-  // constexpr explicit in(ByteView &view, std::monostate &&, Options &&...options)
-  //     : base_type(view, std::forward<Options>(options)...) {}
 
   constexpr explicit in(ByteView &&view, MemoryResource &mr, Options &&...options)
     requires(!std::same_as<MemoryResource, std::monostate>)
@@ -1277,18 +1265,22 @@ public:
       }
     } else if constexpr (meta.encoding == encoding_rule::group) {
       // repeated group
-      static_assert(!std::same_as<std::span<typename type::value_type>, type>,
-                    "repeated non-owning groups are not supported");
-      return deserialize_group(item.emplace_back(), field_num);
+      if constexpr (requires { item.emplace_back(); }) {
+        return deserialize_group(item.emplace_back(), field_num);
+      } else {
+        decltype(auto) growable = this->make_growable(item);
+        auto old_size = item.size();
+        growable.resize(old_size + 1);
+        return deserialize_group(growable[old_size], field_num);
+      }
     } else if constexpr (concepts::string_or_bytes<type>) {
       return deserialize_packed_repeated(meta, field_type, field_num, std::forward<type>(item));
     } else { // repeated non-group
       using value_type = typename type::value_type;
-      if constexpr (concepts::scalar<value_type> && meta.encoding != encoding_rule::unpacked_repeated) {
-        if (field_type != wire_type::length_delimited || concepts::string_or_bytes<value_type>) {
+      if constexpr (concepts::numeric<value_type> && meta.encoding != encoding_rule::unpacked_repeated) {
+        if (field_type != wire_type::length_delimited) {
           return deserialize_unpacked_repeated(meta, field_type, field_num, std::forward<type>(item));
         }
-
         return deserialize_packed_repeated(meta, field_type, field_num, std::forward<type>(item));
       } else {
         return deserialize_unpacked_repeated(meta, field_type, field_num, std::forward<type>(item));

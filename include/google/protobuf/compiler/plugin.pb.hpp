@@ -23,9 +23,10 @@ auto pb_meta(const CodeGeneratorRequest &) -> std::tuple<
   hpp::proto::field_meta<1, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<2, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<15, hpp::proto::encoding_rule::unpacked_repeated>,
+  hpp::proto::field_meta<17, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<3, hpp::proto::encoding_rule::explicit_presence>>;
 
-auto serialize(const CodeGeneratorRequest&) -> zpp::bits::members<4>;
+auto serialize(const CodeGeneratorRequest&) -> zpp::bits::members<5>;
 
 inline const char* pb_url(const CodeGeneratorRequest&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest"; }
 

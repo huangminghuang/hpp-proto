@@ -21,6 +21,7 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest> {
     "fileToGenerate", hpp::proto::as_optional_ref<&T::file_to_generate>(),
     "parameter", hpp::proto::as_optional_ref<&T::parameter>(),
     "protoFile", hpp::proto::as_optional_ref<&T::proto_file>(),
+    "sourceFileDescriptors", hpp::proto::as_optional_ref<&T::source_file_descriptors>(),
     "compilerVersion", &T::compiler_version);
 };
 
@@ -48,6 +49,7 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse::Feature> {
   using enum google::protobuf::compiler::CodeGeneratorResponse::Feature;
   static constexpr auto value = enumerate(
     "FEATURE_NONE", FEATURE_NONE,
-    "FEATURE_PROTO3_OPTIONAL", FEATURE_PROTO3_OPTIONAL);
+    "FEATURE_PROTO3_OPTIONAL", FEATURE_PROTO3_OPTIONAL,
+    "FEATURE_SUPPORTS_EDITIONS", FEATURE_SUPPORTS_EDITIONS);
 };
 

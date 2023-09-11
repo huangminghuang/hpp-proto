@@ -497,7 +497,7 @@ template <typename T, typename Buffer, glz::is_context Context>
   }
 
   return json_parse_error{.ec = static_cast<uint8_t>(ctx.error),
-                          .location = static_cast<size_t>(std::distance(buffer.data(), b))};
+                          .location = static_cast<size_t>(std::distance(std::as_const(buffer).data(), b))};
 }
 
 template <class T, typename Buffer, concepts::memory_resource MemoryResource>

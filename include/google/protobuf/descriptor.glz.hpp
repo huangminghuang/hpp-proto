@@ -68,6 +68,7 @@ struct glz::meta<google::protobuf::ExtensionRangeOptions> {
   static constexpr auto value = object(
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>(),
     "declaration", hpp::proto::as_optional_ref<&T::declaration>(),
+    "features", &T::features,
     "verification", hpp::proto::as_optional_ref<&T::verification, ::google::protobuf::ExtensionRangeOptions::VerificationState::UNVERIFIED>());
 };
 
@@ -78,7 +79,6 @@ struct glz::meta<google::protobuf::ExtensionRangeOptions::Declaration> {
     "number", hpp::proto::as_optional_ref<&T::number>(),
     "fullName", hpp::proto::as_optional_ref<&T::full_name>(),
     "type", hpp::proto::as_optional_ref<&T::type>(),
-    "isRepeated", hpp::proto::as_optional_ref<&T::is_repeated>(),
     "reserved", hpp::proto::as_optional_ref<&T::reserved>(),
     "repeated", hpp::proto::as_optional_ref<&T::repeated>());
 };
@@ -222,6 +222,7 @@ struct glz::meta<google::protobuf::FileOptions> {
     "phpNamespace", hpp::proto::as_optional_ref<&T::php_namespace>(),
     "phpMetadataNamespace", hpp::proto::as_optional_ref<&T::php_metadata_namespace>(),
     "rubyPackage", hpp::proto::as_optional_ref<&T::ruby_package>(),
+    "features", &T::features,
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
@@ -243,6 +244,7 @@ struct glz::meta<google::protobuf::MessageOptions> {
     "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
     "mapEntry", hpp::proto::as_optional_ref<&T::map_entry>(),
     "deprecatedLegacyJsonFieldConflicts", hpp::proto::as_optional_ref<&T::deprecated_legacy_json_field_conflicts>(),
+    "features", &T::features,
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
@@ -259,9 +261,18 @@ struct glz::meta<google::protobuf::FieldOptions> {
     "weak", hpp::proto::as_optional_ref<&T::weak, false>(),
     "debugRedact", hpp::proto::as_optional_ref<&T::debug_redact, false>(),
     "retention", hpp::proto::as_optional_ref<&T::retention, ::google::protobuf::FieldOptions::OptionRetention::RETENTION_UNKNOWN>(),
-    "target", hpp::proto::as_optional_ref<&T::target, ::google::protobuf::FieldOptions::OptionTargetType::TARGET_TYPE_UNKNOWN>(),
     "targets", hpp::proto::as_optional_ref<&T::targets>(),
+    "editionDefaults", hpp::proto::as_optional_ref<&T::edition_defaults>(),
+    "features", &T::features,
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
+};
+
+template <>
+struct glz::meta<google::protobuf::FieldOptions::EditionDefault> {
+  using T = google::protobuf::FieldOptions::EditionDefault;
+  static constexpr auto value = object(
+    "edition", hpp::proto::as_optional_ref<&T::edition>(),
+    "value", hpp::proto::as_optional_ref<&T::value>());
 };
 
 template <>
@@ -311,6 +322,7 @@ template <>
 struct glz::meta<google::protobuf::OneofOptions> {
   using T = google::protobuf::OneofOptions;
   static constexpr auto value = object(
+    "features", &T::features,
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
@@ -321,6 +333,7 @@ struct glz::meta<google::protobuf::EnumOptions> {
     "allowAlias", hpp::proto::as_optional_ref<&T::allow_alias>(),
     "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
     "deprecatedLegacyJsonFieldConflicts", hpp::proto::as_optional_ref<&T::deprecated_legacy_json_field_conflicts>(),
+    "features", &T::features,
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
@@ -329,6 +342,8 @@ struct glz::meta<google::protobuf::EnumValueOptions> {
   using T = google::protobuf::EnumValueOptions;
   static constexpr auto value = object(
     "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
+    "features", &T::features,
+    "debugRedact", hpp::proto::as_optional_ref<&T::debug_redact, false>(),
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
@@ -336,6 +351,7 @@ template <>
 struct glz::meta<google::protobuf::ServiceOptions> {
   using T = google::protobuf::ServiceOptions;
   static constexpr auto value = object(
+    "features", &T::features,
     "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
@@ -346,6 +362,7 @@ struct glz::meta<google::protobuf::MethodOptions> {
   static constexpr auto value = object(
     "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>(),
     "idempotencyLevel", hpp::proto::as_optional_ref<&T::idempotency_level, ::google::protobuf::MethodOptions::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>(),
+    "features", &T::features,
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>());
 };
 
@@ -377,6 +394,75 @@ struct glz::meta<google::protobuf::UninterpretedOption::NamePart> {
   static constexpr auto value = object(
     "namePart", &T::name_part,
     "isExtension", &T::is_extension);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSet> {
+  using T = google::protobuf::FeatureSet;
+  static constexpr auto value = object(
+    "fieldPresence", hpp::proto::as_optional_ref<&T::field_presence, ::google::protobuf::FeatureSet::FieldPresence::FIELD_PRESENCE_UNKNOWN>(),
+    "enumType", hpp::proto::as_optional_ref<&T::enum_type, ::google::protobuf::FeatureSet::EnumType::ENUM_TYPE_UNKNOWN>(),
+    "repeatedFieldEncoding", hpp::proto::as_optional_ref<&T::repeated_field_encoding, ::google::protobuf::FeatureSet::RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN>(),
+    "stringFieldValidation", hpp::proto::as_optional_ref<&T::string_field_validation, ::google::protobuf::FeatureSet::StringFieldValidation::STRING_FIELD_VALIDATION_UNKNOWN>(),
+    "messageEncoding", hpp::proto::as_optional_ref<&T::message_encoding, ::google::protobuf::FeatureSet::MessageEncoding::MESSAGE_ENCODING_UNKNOWN>(),
+    "jsonFormat", hpp::proto::as_optional_ref<&T::json_format, ::google::protobuf::FeatureSet::JsonFormat::JSON_FORMAT_UNKNOWN>(),
+    "rawFeatures", &T::raw_features);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSet::FieldPresence> {
+  using enum google::protobuf::FeatureSet::FieldPresence;
+  static constexpr auto value = enumerate(
+    "FIELD_PRESENCE_UNKNOWN", FIELD_PRESENCE_UNKNOWN,
+    "EXPLICIT", EXPLICIT,
+    "IMPLICIT", IMPLICIT,
+    "LEGACY_REQUIRED", LEGACY_REQUIRED);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSet::EnumType> {
+  using enum google::protobuf::FeatureSet::EnumType;
+  static constexpr auto value = enumerate(
+    "ENUM_TYPE_UNKNOWN", ENUM_TYPE_UNKNOWN,
+    "OPEN", OPEN,
+    "CLOSED", CLOSED);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSet::RepeatedFieldEncoding> {
+  using enum google::protobuf::FeatureSet::RepeatedFieldEncoding;
+  static constexpr auto value = enumerate(
+    "REPEATED_FIELD_ENCODING_UNKNOWN", REPEATED_FIELD_ENCODING_UNKNOWN,
+    "PACKED", PACKED,
+    "EXPANDED", EXPANDED);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSet::StringFieldValidation> {
+  using enum google::protobuf::FeatureSet::StringFieldValidation;
+  static constexpr auto value = enumerate(
+    "STRING_FIELD_VALIDATION_UNKNOWN", STRING_FIELD_VALIDATION_UNKNOWN,
+    "MANDATORY", MANDATORY,
+    "HINT", HINT,
+    "NONE", NONE);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSet::MessageEncoding> {
+  using enum google::protobuf::FeatureSet::MessageEncoding;
+  static constexpr auto value = enumerate(
+    "MESSAGE_ENCODING_UNKNOWN", MESSAGE_ENCODING_UNKNOWN,
+    "LENGTH_PREFIXED", LENGTH_PREFIXED,
+    "DELIMITED", DELIMITED);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSet::JsonFormat> {
+  using enum google::protobuf::FeatureSet::JsonFormat;
+  static constexpr auto value = enumerate(
+    "JSON_FORMAT_UNKNOWN", JSON_FORMAT_UNKNOWN,
+    "ALLOW", ALLOW,
+    "LEGACY_BEST_EFFORT", LEGACY_BEST_EFFORT);
 };
 
 template <>

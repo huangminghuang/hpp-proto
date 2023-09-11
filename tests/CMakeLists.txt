@@ -24,7 +24,6 @@ add_subdirectory(gpb_proto_json)
 
 add_executable(pb_serializer_tests pb_serializer_tests.cpp)
 target_link_libraries(pb_serializer_tests PRIVATE hpp_proto::libhpp_proto Boost::ut)
-target_compile_options(pb_serializer_tests PRIVATE -ftemplate-backtrace-limit=0)
 
 add_test(NAME pb_serializer_tests 
          COMMAND pb_serializer_tests 
@@ -72,9 +71,14 @@ add_hpp_proto_lib(non_owning_unittest_proto3_proto_lib
                  "HPP_TOP_DIRECTORY=non_owning")
 
 add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
-target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib )
+target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib gpb_proto_json)
 target_include_directories(non_owning_proto3_test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
+add_test(NAME non_owning_proto3_test 
+         COMMAND non_owning_proto3_test 
+         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+set_property(TEST non_owning_proto3_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
 add_hpp_proto_lib(non_owning_unittest_proto2_proto_lib
     INPUT_DIR    ${protobuf_SOURCE_DIR}/src
@@ -85,7 +89,13 @@ add_hpp_proto_lib(non_owning_unittest_proto2_proto_lib
                  "HPP_TOP_DIRECTORY=non_owning"
 )
 add_executable(non_owning_proto2_test non_owning_proto2_test.cpp)
-target_link_libraries(non_owning_proto2_test Boost::ut non_owning_unittest_proto2_proto_lib )
+target_link_libraries(non_owning_proto2_test Boost::ut glaze::glaze non_owning_unittest_proto2_proto_lib gpb_proto_json)
+target_include_directories(non_owning_proto2_test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+add_test(NAME non_owning_proto2_test 
+         COMMAND non_owning_proto2_test 
+         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+set_property(TEST non_owning_proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
 gen_proto_descriptor_set(unittest_proto2.bin
     INPUT_DIR ${protobuf_SOURCE_DIR}/src

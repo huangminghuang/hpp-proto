@@ -45,7 +45,7 @@ using stdext::flat_map;
 #endif
 
 #ifdef _LIBCPP_VERSION
-#define HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+#define HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
 #endif
 namespace hpp::proto {
 
@@ -225,7 +225,7 @@ public:
   }
 
   constexpr bool operator==(const optional &other) const = default;
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
   constexpr auto operator<=>(const optional &other) const = default;
 #endif
 };
@@ -309,7 +309,7 @@ public:
 
   constexpr bool operator==(std::nullopt_t) const { return !has_value(); }
 
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARITOR
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
 
   constexpr std::strong_ordering operator<=>(const heap_based_optional &rhs) const {
     if (has_value() && rhs.has_value()) {
@@ -340,58 +340,79 @@ struct compile_time_string {
   constexpr size_t size() const { return Len - 1; }
   constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(init, Len, data_); }
   constexpr const char *data() const { return data_; }
+};
+
+template <compile_time_string cts>
+struct cts_wrapper {
+  static constexpr compile_time_string str{cts};
+  constexpr size_t size() const { return str.size(); }
+  constexpr const char *data() const { return str.data(); }
 
   operator std::string() const { return std::string{data()}; }
-
   operator std::vector<std::byte>() const {
-    return std::vector<std::byte>{reinterpret_cast<const std::byte *>(data_),
-                                  reinterpret_cast<const std::byte *>(data_) + size()};
+    return std::vector<std::byte>{reinterpret_cast<const std::byte *>(data()),
+                                  reinterpret_cast<const std::byte *>(data()) + size()};
   }
 
-  constexpr bool operator==(std::string_view v) const { return v == data(); }
-  constexpr bool operator==(std::span<const std::byte> v) const {
-    const std::byte *b = reinterpret_cast<const std::byte *>(data_);
-    return std::equal(v.begin(), v.end(), b, b + size());
+  operator std::vector<char>() const {
+    return std::vector<char>{data(), data() + size()};
   }
 
-  constexpr bool operator==(const std::vector<std::byte> &v) const {
-    const std::byte *b = reinterpret_cast<const std::byte *>(data_);
-    return std::equal(v.begin(), v.end(), b, b + size());
+  operator std::string_view() const { return std::string_view(data(), size()); }
+  operator std::span<const std::byte>() const {
+    return std::span<const std::byte>{reinterpret_cast<const std::byte *>(data()), size()};
+  }
+  operator std::span<char>() const { return std::span<char>{data(), size()}; }
+
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::string &rhs) {
+    return static_cast<std::string>(lhs) == rhs;
   }
 
-  constexpr bool operator==(const std::vector<char> &v) const {
-    return operator==(std::string_view{v.data(), v.size()});
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::string_view &rhs) {
+    return static_cast<std::string_view>(lhs) == rhs;
+  }
+
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::vector<std::byte> &rhs) {
+    return static_cast<std::vector<std::byte>>(lhs) == rhs;
+  }
+
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const std::byte> &rhs) {
+    const std::byte *b = reinterpret_cast<const std::byte *>(lhs.data());
+    return std::equal(rhs.begin(), rhs.end(), b, b + lhs.size());
+  }
+
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::vector<char> &rhs) {
+    return static_cast<std::vector<char>>(lhs) == rhs;
+  }
+
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const char> &rhs) {
+    return std::equal(rhs.begin(), rhs.end(), lhs.data(), lhs.data() + lhs.size());
   }
 };
 
-template <compile_time_string str>
-const auto make_compile_time_string() {
-  return str;
-}
+using bytes = std::vector<std::byte>;
+using bytes_view = std::span<const std::byte>;
 
 namespace literals {
+
 template <compile_time_string str>
-constexpr auto operator""_hppproto_s() {
-  return str;
+constexpr auto operator""_cts() {
+  return cts_wrapper<str>{};
 }
 
 template <compile_time_string str>
 constexpr auto operator""_bytes() {
-  const std::byte *b = reinterpret_cast<const std::byte *>(str.data_);
-  return std::vector<std::byte>{b, b + str.size()};
+  return static_cast<bytes>(cts_wrapper<str>{});
 }
 
 template <compile_time_string str>
-auto operator""_bytes_span() {
-  static auto value = str;
-  const std::byte *b = reinterpret_cast<const std::byte *>(value.data_);
-  return std::span<const std::byte>{b, b + value.size()};
+auto operator""_bytes_view() {
+  return static_cast<bytes_view>(cts_wrapper<str>{});
 }
 
 } // namespace literals
 
-using bytes = std::vector<std::byte>;
-using bytes_view = std::span<const std::byte>;
+
 
 struct boolean {
   bool value = false;
@@ -433,7 +454,7 @@ public:
   growable_span(std::span<T> &base, MemoryResource &mr) : base_(base), mr(mr) {}
 
   void resize(std::size_t n) {
-    if (n > base_.size()) {
+    if (data_ == nullptr || n > base_.size()) {
       data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       assert(data_ != nullptr);
       std::uninitialized_copy(base_.begin(), base_.end(), data_);

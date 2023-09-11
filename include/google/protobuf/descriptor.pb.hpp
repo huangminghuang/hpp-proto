@@ -70,10 +70,11 @@ inline const char* pb_url(const DescriptorProto::ReservedRange&) { return "type.
 auto pb_meta(const ExtensionRangeOptions &) -> std::tuple<
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<2, hpp::proto::encoding_rule::unpacked_repeated>,
+  hpp::proto::field_meta<50, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::ExtensionRangeOptions::VerificationState::UNVERIFIED>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const ExtensionRangeOptions&) -> zpp::bits::members<4>;
+auto serialize(const ExtensionRangeOptions&) -> zpp::bits::members<5>;
 
 inline const char* pb_url(const ExtensionRangeOptions&) { return "type.googleapis.com/google.protobuf.ExtensionRangeOptions"; }
 
@@ -81,11 +82,10 @@ auto pb_meta(const ExtensionRangeOptions::Declaration &) -> std::tuple<
   hpp::proto::field_meta<1, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
   hpp::proto::field_meta<2, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted>,
-  hpp::proto::field_meta<4, hpp::proto::encoding_rule::defaulted, bool>,
   hpp::proto::field_meta<5, hpp::proto::encoding_rule::defaulted, bool>,
   hpp::proto::field_meta<6, hpp::proto::encoding_rule::defaulted, bool>>;
 
-auto serialize(const ExtensionRangeOptions::Declaration&) -> zpp::bits::members<6>;
+auto serialize(const ExtensionRangeOptions::Declaration&) -> zpp::bits::members<5>;
 
 inline const char* pb_url(const ExtensionRangeOptions::Declaration&) { return "type.googleapis.com/google.protobuf.ExtensionRangeOptions.Declaration"; }
 
@@ -184,10 +184,11 @@ auto pb_meta(const FileOptions &) -> std::tuple<
   hpp::proto::field_meta<41, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<44, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<45, hpp::proto::encoding_rule::defaulted>,
+  hpp::proto::field_meta<50, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const FileOptions&) -> zpp::bits::members<22>;
+auto serialize(const FileOptions&) -> zpp::bits::members<23>;
 
 inline const char* pb_url(const FileOptions&) { return "type.googleapis.com/google.protobuf.FileOptions"; }
 
@@ -197,10 +198,11 @@ auto pb_meta(const MessageOptions &) -> std::tuple<
   hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<7, hpp::proto::encoding_rule::defaulted, bool>,
   hpp::proto::field_meta<11, hpp::proto::encoding_rule::defaulted, bool>,
+  hpp::proto::field_meta<12, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const MessageOptions&) -> zpp::bits::members<7>;
+auto serialize(const MessageOptions&) -> zpp::bits::members<8>;
 
 inline const char* pb_url(const MessageOptions&) { return "type.googleapis.com/google.protobuf.MessageOptions"; }
 
@@ -214,20 +216,30 @@ auto pb_meta(const FieldOptions &) -> std::tuple<
   hpp::proto::field_meta<10, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<16, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<17, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FieldOptions::OptionRetention::RETENTION_UNKNOWN>,
-  hpp::proto::field_meta<18, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FieldOptions::OptionTargetType::TARGET_TYPE_UNKNOWN>,
   hpp::proto::field_meta<19, hpp::proto::encoding_rule::unpacked_repeated>,
+  hpp::proto::field_meta<20, hpp::proto::encoding_rule::unpacked_repeated>,
+  hpp::proto::field_meta<21, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const FieldOptions&) -> zpp::bits::members<13>;
+auto serialize(const FieldOptions&) -> zpp::bits::members<14>;
 
 inline const char* pb_url(const FieldOptions&) { return "type.googleapis.com/google.protobuf.FieldOptions"; }
 
+auto pb_meta(const FieldOptions::EditionDefault &) -> std::tuple<
+  hpp::proto::field_meta<1, hpp::proto::encoding_rule::defaulted>,
+  hpp::proto::field_meta<2, hpp::proto::encoding_rule::defaulted>>;
+
+auto serialize(const FieldOptions::EditionDefault&) -> zpp::bits::members<2>;
+
+inline const char* pb_url(const FieldOptions::EditionDefault&) { return "type.googleapis.com/google.protobuf.FieldOptions.EditionDefault"; }
+
 auto pb_meta(const OneofOptions &) -> std::tuple<
+  hpp::proto::field_meta<1, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const OneofOptions&) -> zpp::bits::members<2>;
+auto serialize(const OneofOptions&) -> zpp::bits::members<3>;
 
 inline const char* pb_url(const OneofOptions&) { return "type.googleapis.com/google.protobuf.OneofOptions"; }
 
@@ -235,38 +247,43 @@ auto pb_meta(const EnumOptions &) -> std::tuple<
   hpp::proto::field_meta<2, hpp::proto::encoding_rule::defaulted, bool>,
   hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<6, hpp::proto::encoding_rule::defaulted, bool>,
+  hpp::proto::field_meta<7, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const EnumOptions&) -> zpp::bits::members<5>;
+auto serialize(const EnumOptions&) -> zpp::bits::members<6>;
 
 inline const char* pb_url(const EnumOptions&) { return "type.googleapis.com/google.protobuf.EnumOptions"; }
 
 auto pb_meta(const EnumValueOptions &) -> std::tuple<
   hpp::proto::field_meta<1, hpp::proto::encoding_rule::defaulted, bool, false>,
+  hpp::proto::field_meta<2, hpp::proto::encoding_rule::explicit_presence>,
+  hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const EnumValueOptions&) -> zpp::bits::members<3>;
+auto serialize(const EnumValueOptions&) -> zpp::bits::members<5>;
 
 inline const char* pb_url(const EnumValueOptions&) { return "type.googleapis.com/google.protobuf.EnumValueOptions"; }
 
 auto pb_meta(const ServiceOptions &) -> std::tuple<
+  hpp::proto::field_meta<34, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<33, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const ServiceOptions&) -> zpp::bits::members<3>;
+auto serialize(const ServiceOptions&) -> zpp::bits::members<4>;
 
 inline const char* pb_url(const ServiceOptions&) { return "type.googleapis.com/google.protobuf.ServiceOptions"; }
 
 auto pb_meta(const MethodOptions &) -> std::tuple<
   hpp::proto::field_meta<33, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<34, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::MethodOptions::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>,
+  hpp::proto::field_meta<35, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<999, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX>>;
 
-auto serialize(const MethodOptions&) -> zpp::bits::members<4>;
+auto serialize(const MethodOptions&) -> zpp::bits::members<5>;
 
 inline const char* pb_url(const MethodOptions&) { return "type.googleapis.com/google.protobuf.MethodOptions"; }
 
@@ -290,6 +307,20 @@ auto pb_meta(const UninterpretedOption::NamePart &) -> std::tuple<
 auto serialize(const UninterpretedOption::NamePart&) -> zpp::bits::members<2>;
 
 inline const char* pb_url(const UninterpretedOption::NamePart&) { return "type.googleapis.com/google.protobuf.UninterpretedOption.NamePart"; }
+
+auto pb_meta(const FeatureSet &) -> std::tuple<
+  hpp::proto::field_meta<1, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FeatureSet::FieldPresence::FIELD_PRESENCE_UNKNOWN>,
+  hpp::proto::field_meta<2, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FeatureSet::EnumType::ENUM_TYPE_UNKNOWN>,
+  hpp::proto::field_meta<3, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FeatureSet::RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN>,
+  hpp::proto::field_meta<4, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FeatureSet::StringFieldValidation::STRING_FIELD_VALIDATION_UNKNOWN>,
+  hpp::proto::field_meta<5, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FeatureSet::MessageEncoding::MESSAGE_ENCODING_UNKNOWN>,
+  hpp::proto::field_meta<6, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FeatureSet::JsonFormat::JSON_FORMAT_UNKNOWN>,
+  hpp::proto::field_meta<999, hpp::proto::encoding_rule::explicit_presence>,
+  hpp::proto::field_meta<UINT32_MAX>>;
+
+auto serialize(const FeatureSet&) -> zpp::bits::members<8>;
+
+inline const char* pb_url(const FeatureSet&) { return "type.googleapis.com/google.protobuf.FeatureSet"; }
 
 auto pb_meta(const SourceCodeInfo &) -> std::tuple<
   hpp::proto::field_meta<1, hpp::proto::encoding_rule::unpacked_repeated>>;

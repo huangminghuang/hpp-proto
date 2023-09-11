@@ -1,7 +1,6 @@
 
 #include "gpb_proto_json/gpb_proto_json.h"
 #include "unittest_proto2_util.h"
-#include <regex>
 namespace ut = boost::ut;
 
 static_assert(
@@ -72,7 +71,7 @@ ut::suite proto_test = [] {
     TestUtil::ExpectPackedFieldsSet(message3);
   };
 
-  "glaze"_test = [] {
+  "json"_test = [] {
     protobuf_unittest::TestAllTypes original;
     TestUtil::SetAllFields(&original);
 
