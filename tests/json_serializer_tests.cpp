@@ -57,6 +57,17 @@ struct glz::meta<optional_example> {
   // clang-format on
 };
 
+struct expliclit_optional_bool_example {
+  hpp::proto::optional<bool> field = {};
+  bool operator==(const expliclit_optional_bool_example &) const = default;
+};
+
+template <>
+struct glz::meta<expliclit_optional_bool_example> {
+  using T = expliclit_optional_bool_example;
+  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
+};
+
 struct uint32_span_example {
   std::span<const uint32_t> field;
   bool operator==(const uint32_span_example &other) const {
@@ -200,9 +211,14 @@ ut::suite test_object_span_json = [] {
 
 ut::suite test_non_owning_nested = [] {
   optional_example nested = {.field1 = 1, .field2 = 1ULL};
-  verify<non_owning_nested_example, 128>(
-      non_owning_nested_example{.nested = &nested},
-      R"({"nested":{"field1":1,"field2":"1"}})");
+  verify<non_owning_nested_example, 128>(non_owning_nested_example{.nested = &nested},
+                                         R"({"nested":{"field1":1,"field2":"1"}})");
+};
+
+ut::suite test_expliclit_optional_bool = [] {
+  verify<expliclit_optional_bool_example>(expliclit_optional_bool_example{}, R"({})");
+  verify<expliclit_optional_bool_example>(expliclit_optional_bool_example{.field = true}, R"({"field":true})");
+  verify<expliclit_optional_bool_example>(expliclit_optional_bool_example{.field = false}, R"({"field":false})");
 };
 
 int main() {

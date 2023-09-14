@@ -19,37 +19,37 @@ using namespace boost::ut;
 using namespace non_owning;
 
 // Set every field in the message to a unique value.
-inline void SetAllFields(protobuf_unittest::TestAllTypes *message);
+inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_memory_resource &mr);
 inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message);
 inline void SetRepeatedFields(protobuf_unittest::TestAllTypes *message);
 inline void SetDefaultFields(protobuf_unittest::TestAllTypes *message);
 inline void SetOneofFields(protobuf_unittest::TestAllTypes *message);
-inline void SetAllExtensions(protobuf_unittest::TestAllExtensions *message, monotonic_memory_resource &mr);
+inline void SetAll(protobuf_unittest::TestAllExtensions *message, monotonic_memory_resource &mr);
 inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message, monotonic_memory_resource &mr);
 inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *message, monotonic_memory_resource &mr);
-inline void SetPackedFields(protobuf_unittest::TestPackedTypes *message);
-inline void SetPackedExtensions(protobuf_unittest::TestPackedExtensions *message, monotonic_memory_resource &mr);
-inline void SetUnpackedFields(protobuf_unittest::TestUnpackedTypes *message);
+inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory_resource &mr);
+inline void SetAll(protobuf_unittest::TestPackedExtensions *message, monotonic_memory_resource &mr);
+inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_memory_resource &mr);
 inline void SetOneof1(protobuf_unittest::TestOneof2 *message);
 inline void SetOneof2(protobuf_unittest::TestOneof2 *message);
 
 // Check that all fields have the values that they should have after
 // Set*Fields() is called.
-inline void ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &message);
-inline void ExpectAllExtensionsSet(const protobuf_unittest::TestAllExtensions &message);
-inline void ExpectPackedFieldsSet(const protobuf_unittest::TestPackedTypes &message);
-inline void ExpectPackedExtensionsSet(const protobuf_unittest::TestPackedExtensions &message);
-inline void ExpectUnpackedFieldsSet(const protobuf_unittest::TestUnpackedTypes &message);
-inline void ExpectUnpackedExtensionsSet(const protobuf_unittest::TestUnpackedExtensions &message);
+inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message);
+inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message);
+inline void ExpectAllSet(const protobuf_unittest::TestPackedTypes &message);
+inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message);
+inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message);
+inline void ExpectAllSet(const protobuf_unittest::TestUnpackedExtensions &message);
 inline void ExpectOneofSet1(const protobuf_unittest::TestOneof2 &message);
 inline void ExpectOneofSet2(const protobuf_unittest::TestOneof2 &message);
 
 // Check that all fields have their default values.
 inline void ExpectClear(const protobuf_unittest::TestAllTypes &message);
-inline void ExpectExtensionsClear(const protobuf_unittest::TestAllExtensions &message);
+inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message);
 inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message);
 
-inline void SetAllFields(protobuf_unittest::TestAllTypes *message) {
+inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_memory_resource &mr) {
   SetOptionalFields(message);
   SetRepeatedFields(message);
   SetDefaultFields(message);
@@ -179,7 +179,7 @@ inline void SetOneofFields(protobuf_unittest::TestAllTypes *message) {
 
 // -------------------------------------------------------------------
 
-inline void ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message) {
   expect(eq(101, message.optional_int32));
   expect(eq(102, message.optional_int64));
   expect(eq(103, message.optional_uint32));
@@ -404,7 +404,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message) {
 
 // -------------------------------------------------------------------
 
-inline void SetPackedFields(protobuf_unittest::TestPackedTypes *message) {
+inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory_resource &mr) {
   static int32_t packed_int32[] = {601, 701};
   message->packed_int32 = packed_int32;
 
@@ -448,7 +448,7 @@ inline void SetPackedFields(protobuf_unittest::TestPackedTypes *message) {
   message->packed_enum = packed_enum;
 }
 
-inline void SetUnpackedFields(protobuf_unittest::TestUnpackedTypes *message) {
+inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_memory_resource &mr) {
   // The values applied here must match those of SetPackedFields.
 
   static int32_t unpacked_int32[] = {601, 701};
@@ -496,7 +496,7 @@ inline void SetUnpackedFields(protobuf_unittest::TestUnpackedTypes *message) {
 
 // -------------------------------------------------------------------
 
-inline void ExpectPackedFieldsSet(const protobuf_unittest::TestPackedTypes &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestPackedTypes &message) {
   expect(eq(2, message.packed_int32.size()) >> fatal);
   expect(eq(2, message.packed_int64.size()) >> fatal);
   expect(eq(2, message.packed_uint32.size()) >> fatal);
@@ -543,7 +543,7 @@ inline void ExpectPackedFieldsSet(const protobuf_unittest::TestPackedTypes &mess
   expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.packed_enum[1]);
 }
 
-inline void ExpectUnpackedFieldsSet(const protobuf_unittest::TestUnpackedTypes &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message) {
   // The values expected here must match those of ExpectPackedFieldsSet.
   expect(eq(2, message.unpacked_int32.size()) >> fatal);
   expect(eq(2, message.unpacked_int64.size()) >> fatal);
@@ -597,7 +597,7 @@ inline void ExpectUnpackedFieldsSet(const protobuf_unittest::TestUnpackedTypes &
 // All this code is exactly equivalent to the above code except that it's
 // manipulating extension fields instead of normal ones.
 
-inline void SetAllExtensions(protobuf_unittest::TestAllExtensions *message, monotonic_memory_resource &mr) {
+inline void SetAll(protobuf_unittest::TestAllExtensions *message, monotonic_memory_resource &mr) {
   expect(!message->set_extension(protobuf_unittest::optional_int32_extension(), 101, mr));
   expect(!message->set_extension(protobuf_unittest::optional_int64_extension(), 102, mr));
   expect(!message->set_extension(protobuf_unittest::optional_uint32_extension(), 103, mr));
@@ -749,7 +749,7 @@ inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *mes
 }
 // -------------------------------------------------------------------
 
-inline void ExpectAllExtensionsSet(const protobuf_unittest::TestAllExtensions &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(message.has_extension(protobuf_unittest::optional_int32_extension()));
   expect(message.has_extension(protobuf_unittest::optional_int64_extension()));
   expect(message.has_extension(protobuf_unittest::optional_uint32_extension()));
@@ -965,7 +965,7 @@ inline void ExpectAllExtensionsSet(const protobuf_unittest::TestAllExtensions &m
 
 // -------------------------------------------------------------------
 
-inline void ExpectExtensionsClear(const protobuf_unittest::TestAllExtensions &message) {
+inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   auto [data, out] = hpp::proto::data_out();
   expect(success(out(message)));
   expect(eq(0, data.size()));
@@ -1128,7 +1128,7 @@ inline void ExpectExtensionsClear(const protobuf_unittest::TestAllExtensions &me
 }
 // -------------------------------------------------------------------
 
-inline void SetPackedExtensions(protobuf_unittest::TestPackedExtensions *message, monotonic_memory_resource &mr) {
+inline void SetAll(protobuf_unittest::TestPackedExtensions *message, monotonic_memory_resource &mr) {
   int32_t packed_int32[] = {601, 701};
   expect(!message->set_extension(protobuf_unittest::packed_int32_extension(), packed_int32, mr));
   int64_t packed_int64[] = {602, 702};
@@ -1162,7 +1162,7 @@ inline void SetPackedExtensions(protobuf_unittest::TestPackedExtensions *message
 
 // -------------------------------------------------------------------
 
-inline void ExpectPackedExtensionsSet(const protobuf_unittest::TestPackedExtensions &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message) {
   monotonic_memory_resource mr(8192);
   expect(equal_range(message.get_extension(protobuf_unittest::packed_int32_extension(), mr).value(),
                      std::vector<int32_t>{601, 701}));
@@ -1198,7 +1198,7 @@ inline void ExpectPackedExtensionsSet(const protobuf_unittest::TestPackedExtensi
 
 // -------------------------------------------------------------------
 
-inline void ExpectUnpackedExtensionsSet(const protobuf_unittest::TestUnpackedExtensions &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestUnpackedExtensions &message) {
   monotonic_memory_resource mr(8192);
   expect(equal_range(message.get_extension(protobuf_unittest::unpacked_int32_extension(), mr).value(),
                      std::vector<int32_t>{601, 701}));
@@ -1296,98 +1296,54 @@ boost::ut::suite proto_test = [] {
   using namespace boost::ut::literals;
   using namespace non_owning;
 
-  "test_lite1"_test = [] {
-    protobuf_unittest::TestAllTypes message, message2, message3;
-    monotonic_memory_resource mr{1 << 16};
+  "protobuf"_test =
+      []<class T> {
+        T message, message2, message3;
+        monotonic_memory_resource mr{1 << 20};
 
-    TestUtil::ExpectClear(message);
-    TestUtil::SetAllFields(&message);
-    message2 = message;
+        if constexpr (requires { TestUtil::ExpectClear(message); }) {
+          TestUtil::ExpectClear(message);
+        }
+        TestUtil::SetAll(&message, mr);
+        message2 = message;
 
-    std::vector<std::byte> data;
-    using zpp::bits::success;
-    expect(success(hpp::proto::out{data}(message2)));
-    expect(success(hpp::proto::in{data, mr}(message3)));
+        std::vector<std::byte> data;
+        expect(!hpp::proto::write_proto(message2, data));
+        expect(!hpp::proto::read_proto(message3, data, mr));
 
-    TestUtil::ExpectAllFieldsSet(message);
-    TestUtil::ExpectAllFieldsSet(message2);
-    TestUtil::ExpectAllFieldsSet(message3);
-  };
+        TestUtil::ExpectAllSet(message);
+        TestUtil::ExpectAllSet(message2);
+        TestUtil::ExpectAllSet(message3);
+      } |
+      std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestAllExtensions,
+                 protobuf_unittest::TestUnpackedTypes, protobuf_unittest::TestPackedTypes,
+                 protobuf_unittest::TestPackedExtensions>{};
 
-  "extension_set"_test = [] {
-    protobuf_unittest::TestAllExtensions message, message2, message3;
-    monotonic_memory_resource mr{1 << 20};
+  "interoperate_with_google_protobuf_parser"_test =
+      []<class T> {
+        T original;
+        monotonic_memory_resource mr{1 << 20};
 
-    TestUtil::ExpectExtensionsClear(message);
-    TestUtil::SetAllExtensions(&message, mr);
-    message2 = message;
+        TestUtil::SetAll(&original, mr);
 
-    std::vector<std::byte> data;
-    using zpp::bits::success;
-    expect(success(hpp::proto::out{data}(message2)));
-    expect(success(hpp::proto::in{data, mr}(message3)));
+        std::vector<std::byte> data;
+        expect(!hpp::proto::write_proto(original, data));
 
-    TestUtil::ExpectAllExtensionsSet(message);
-    TestUtil::ExpectAllExtensionsSet(message2);
-    TestUtil::ExpectAllExtensionsSet(message3);
-  };
+        auto original_json =
+            gpb_based::proto_to_json(unittest_proto2_descriptorset(), pb_message_name(original).c_str(),
+                                     {(const char *)data.data(), data.size()});
 
-  "unpaced_repeated"_test = [] {
-    protobuf_unittest::TestUnpackedTypes message, message2, message3;
-    monotonic_memory_resource mr{1 << 20};
+        auto generated_json = hpp::proto::write_json(original);
 
-    TestUtil::SetUnpackedFields(&message);
-    message2 = message;
+        expect(eq(generated_json, original_json));
 
-    std::vector<std::byte> data;
-    using zpp::bits::success;
-    expect(success(hpp::proto::out{data}(message2)));
-    expect(success(hpp::proto::in{data, mr}(message3)));
+        T msg;
+        expect(!hpp::proto::read_json(msg, original_json, mr));
 
-    TestUtil::ExpectUnpackedFieldsSet(message);
-    TestUtil::ExpectUnpackedFieldsSet(message2);
-    TestUtil::ExpectUnpackedFieldsSet(message3);
-  };
-
-  "paced_repeated"_test = [] {
-    protobuf_unittest::TestPackedTypes message, message2, message3;
-    monotonic_memory_resource mr{1 << 20};
-    TestUtil::SetPackedFields(&message);
-    message2 = message;
-
-    std::vector<std::byte> data;
-    using zpp::bits::success;
-    expect(success(hpp::proto::out{data}(message2)));
-    expect(success(hpp::proto::in{data, mr}(message3)));
-
-    TestUtil::ExpectPackedFieldsSet(message);
-    TestUtil::ExpectPackedFieldsSet(message2);
-    TestUtil::ExpectPackedFieldsSet(message3);
-  };
-
-  "glaze"_test = [] {
-    protobuf_unittest::TestAllTypes original;
-    monotonic_memory_resource mr{1 << 20};
-
-    TestUtil::SetAllFields(&original);
-
-    auto [data, in, out] = hpp::proto::data_in_out();
-    using zpp::bits::success;
-
-    expect(success(out(original)));
-
-    auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(), "protobuf_unittest.TestAllTypes",
-                                                  {(const char *)data.data(), data.size()});
-
-    auto glaze_generated_json = glz::write_json(original);
-
-    expect(eq(glaze_generated_json, original_json));
-
-    protobuf_unittest::TestAllTypes msg;
-    expect(!hpp::proto::read_json(msg, original_json, mr));
-
-    TestUtil::ExpectAllFieldsSet(msg);
-  };
+        TestUtil::ExpectAllSet(msg);
+      } |
+      std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestUnpackedTypes,
+                 protobuf_unittest::TestPackedTypes>{};
 };
 
 // TODO: need a test case of TestOneof2

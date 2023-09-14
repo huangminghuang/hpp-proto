@@ -40,7 +40,7 @@ boost::ut::suite dynamic_serializer_test = [] {
 
   "unittest_proto2"_test = [] {
     protobuf_unittest::TestAllTypes message;
-    TestUtil::SetAllFields(&message);
+    TestUtil::SetAll(&message);
     test_fixture(message, "unittest_proto2.bin", "protobuf_unittest.TestAllTypes");
   };
 

@@ -105,10 +105,10 @@ void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encod
   if (mode == decode_only)
     return;
 
-  std::array<std::byte, encoded_data.size()> new_data;
+  std::vector<std::byte> new_data;
   ut::expect(success(hpp::proto::out{new_data}(value)));
 
-  ut::expect(encoded_data == new_data);
+  ut::expect(equal_range(encoded_data, new_data));
 }
 
 struct repeated_integers {
@@ -932,6 +932,32 @@ ut::suite test_repeated_strings = [] {
 
     verify_non_owning("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_array,
                       non_owning_repeated_string{.values = storage}, 32);
+  };
+};
+
+struct optional_bools {
+  hpp::proto::optional<bool> false_defaulted;
+  hpp::proto::optional<bool, true> true_defaulted;
+  bool operator==(const optional_bools &) const = default;
+};
+auto serialize(const optional_bools &) -> zpp::bits::members<2>;
+
+auto pb_meta(const optional_bools &)
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>,
+                  hpp::proto::field_meta<2, encoding_rule::explicit_presence, bool, true>>;
+
+ut::suite test_optional_bools = [] {
+  "empty_optional_bools"_test = [] {
+    std::vector<std::byte> data;
+    verify(data, optional_bools{});
+  };
+
+  "optional_bools_all_true"_test = [] {
+    verify("\x08\x01\x10\x01"_bytes_array, optional_bools{.false_defaulted = true, .true_defaulted = true});
+  };
+
+  "optional_bools_all_false"_test = [] {
+    verify("\x08\x00\x10\x00"_bytes_array, optional_bools{.false_defaulted = false, .true_defaulted = false});
   };
 };
 

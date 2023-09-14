@@ -58,6 +58,21 @@ struct optional_ref {
   auto operator*() const -> decltype(deref(val)) { return deref(val); }
 };
 
+template <auto Default>
+struct optional_ref<hpp::proto::optional<bool, Default>, std::monostate{}> {
+  hpp::proto::optional<bool, Default> &val;
+  operator bool() const { return val.has_value(); }
+  bool &emplace() const { return val.emplace(); }
+  bool operator*() const { return *val; }
+};
+
+template <auto Default>
+struct optional_ref<const hpp::proto::optional<bool, Default>, std::monostate{}> {
+  const hpp::proto::optional<bool, Default> &val;
+  operator bool() const { return val.has_value(); }
+  bool operator*() const { return *val; }
+};
+
 template <auto MemPtr, auto Default = std::monostate{}>
 constexpr decltype(auto) as_optional_ref() {
   return [](auto &&val) { return optional_ref<std::remove_reference_t<decltype(val.*MemPtr)>, Default>{val.*MemPtr}; };
@@ -216,7 +231,8 @@ template <typename Type, auto Default>
 struct to_json<hpp::proto::optional<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    to_json<Type>::template op<Opts>(value.value_or_default(), std::forward<Args>(args)...);
+    if (value.has_value())
+      to_json<Type>::template op<Opts>(*value, std::forward<Args>(args)...);
   }
 };
 
@@ -224,10 +240,15 @@ template <typename Type, auto Default>
 struct from_json<hpp::proto::optional<Type, Default>> {
   template <auto Options, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    value.emplace();
-    from_json<Type>::template op<Options>(*value, std::forward<Args>(args)...);
-  }
-};
+    if constexpr (requires { value.emplace(); }) {
+      from_json<Type>::template op<Options>(value.emplace(), std::forward<Args>(args)...);
+    } else {
+      Type v;
+      from_json<Type>::template op<Options>(v, std::forward<Args>(args)...);
+      value = v;
+    }
+  } // namespace detail
+};  // namespace glz
 
 template <typename Type, auto Default>
 struct to_json<hpp::proto::optional_ref<Type, Default>> {
@@ -236,7 +257,7 @@ struct to_json<hpp::proto::optional_ref<Type, Default>> {
     if constexpr (std::is_same_v<Type, uint64_t>) {
       static_assert(std::is_same_v<std::decay_t<decltype(*value)>, glz::quoted_t<uint64_t>>);
     }
-    if (value)
+    if (bool(value))
       to_json<std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
   }
 };
@@ -245,7 +266,10 @@ template <typename Type, auto Default>
 struct from_json<hpp::proto::optional_ref<Type, Default>> {
   template <auto Options, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    from_json<std::decay_t<decltype(*value)>>::template op<Options>(*value, std::forward<Args>(args)...);
+    if constexpr (requires { value.emplace(); })
+      from_json<std::decay_t<decltype(*value)>>::template op<Options>(value.emplace(), std::forward<Args>(args)...);
+    else
+      from_json<std::decay_t<decltype(*value)>>::template op<Options>(*value, std::forward<Args>(args)...);
   }
 };
 
@@ -422,7 +446,7 @@ struct from_json<T> {
 };
 
 template <typename T>
-struct from_json<T*> {
+struct from_json<T *> {
   template <auto Options>
   GLZ_FLATTEN static void op(auto &value, hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it,
                              auto &&end) {
@@ -444,7 +468,7 @@ struct from_json<T*> {
       ++it;
       match<"ull">(ctx, it, end);
       if (bool(ctx.error)) [[unlikely]]
-        return;   
+        return;
       value = nullptr;
     } else {
       void *addr = ctx.mr.allocate(sizeof(type), alignof(type));

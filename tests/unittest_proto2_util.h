@@ -18,18 +18,18 @@ using namespace hpp::proto::literals;
 using namespace boost::ut;
 
 // Set every field in the message to a unique value.
-inline void SetAllFields(protobuf_unittest::TestAllTypes *message);
+inline void SetAll(protobuf_unittest::TestAllTypes *message);
 inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message);
 inline void AddRepeatedFields1(protobuf_unittest::TestAllTypes *message);
 inline void AddRepeatedFields2(protobuf_unittest::TestAllTypes *message);
 inline void SetDefaultFields(protobuf_unittest::TestAllTypes *message);
 inline void SetOneofFields(protobuf_unittest::TestAllTypes *message);
-inline void SetAllExtensions(protobuf_unittest::TestAllExtensions *message);
+inline void SetAll(protobuf_unittest::TestAllExtensions *message);
 inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message);
 inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *message);
-inline void SetPackedFields(protobuf_unittest::TestPackedTypes *message);
-inline void SetPackedExtensions(protobuf_unittest::TestPackedExtensions *message);
-inline void SetUnpackedFields(protobuf_unittest::TestUnpackedTypes *message);
+inline void SetAll(protobuf_unittest::TestPackedTypes *message);
+inline void SetAll(protobuf_unittest::TestPackedExtensions *message);
+inline void SetAll(protobuf_unittest::TestUnpackedTypes *message);
 inline void SetOneof1(protobuf_unittest::TestOneof2 *message);
 inline void SetOneof2(protobuf_unittest::TestOneof2 *message);
 
@@ -41,12 +41,12 @@ inline void ModifyRepeatedFields(protobuf_unittest::TestAllTypes *message);
 
 // Check that all fields have the values that they should have after
 // Set*Fields() is called.
-inline void ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &message);
-inline void ExpectAllExtensionsSet(const protobuf_unittest::TestAllExtensions &message);
-inline void ExpectPackedFieldsSet(const protobuf_unittest::TestPackedTypes &message);
-inline void ExpectPackedExtensionsSet(const protobuf_unittest::TestPackedExtensions &message);
-inline void ExpectUnpackedFieldsSet(const protobuf_unittest::TestUnpackedTypes &message);
-inline void ExpectUnpackedExtensionsSet(const protobuf_unittest::TestUnpackedExtensions &message);
+inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message);
+inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message);
+inline void ExpectAllSet(const protobuf_unittest::TestPackedTypes &message);
+inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message);
+inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message);
+inline void ExpectAllSet(const protobuf_unittest::TestUnpackedExtensions &message);
 inline void ExpectOneofSet1(const protobuf_unittest::TestOneof2 &message);
 inline void ExpectOneofSet2(const protobuf_unittest::TestOneof2 &message);
 
@@ -56,10 +56,10 @@ inline void ExpectRepeatedFieldsModified(const protobuf_unittest::TestAllTypes &
 
 // Check that all fields have their default values.
 inline void ExpectClear(const protobuf_unittest::TestAllTypes &message);
-inline void ExpectExtensionsClear(const protobuf_unittest::TestAllExtensions &message);
+inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message);
 inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message);
 
-inline void SetAllFields(protobuf_unittest::TestAllTypes *message) {
+inline void SetAll(protobuf_unittest::TestAllTypes *message) {
   SetOptionalFields(message);
   AddRepeatedFields1(message);
   AddRepeatedFields2(message);
@@ -220,7 +220,7 @@ inline void SetOneofFields(protobuf_unittest::TestAllTypes *message) {
 
 // -------------------------------------------------------------------
 
-inline void ExpectAllFieldsSet(const protobuf_unittest::TestAllTypes &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message) {
   expect(eq(101, message.optional_int32));
   expect(eq(102, message.optional_int64));
   expect(eq(103, message.optional_uint32));
@@ -529,7 +529,7 @@ inline void ExpectRepeatedFieldsModified(const protobuf_unittest::TestAllTypes &
 
 // -------------------------------------------------------------------
 
-inline void SetPackedFields(protobuf_unittest::TestPackedTypes *message) {
+inline void SetAll(protobuf_unittest::TestPackedTypes *message) {
   message->packed_int32.push_back(601);
   message->packed_int64.push_back(602);
   message->packed_uint32.push_back(603);
@@ -561,7 +561,7 @@ inline void SetPackedFields(protobuf_unittest::TestPackedTypes *message) {
   message->packed_enum.push_back(protobuf_unittest::ForeignEnum::FOREIGN_BAZ);
 }
 
-inline void SetUnpackedFields(protobuf_unittest::TestUnpackedTypes *message) {
+inline void SetAll(protobuf_unittest::TestUnpackedTypes *message) {
   // The values applied here must match those of SetPackedFields.
 
   message->unpacked_int32.push_back(601);
@@ -597,7 +597,7 @@ inline void SetUnpackedFields(protobuf_unittest::TestUnpackedTypes *message) {
 
 // -------------------------------------------------------------------
 
-inline void ExpectPackedFieldsSet(const protobuf_unittest::TestPackedTypes &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestPackedTypes &message) {
   expect(eq(2, message.packed_int32.size()) >> fatal);
   expect(eq(2, message.packed_int64.size()) >> fatal);
   expect(eq(2, message.packed_uint32.size()) >> fatal);
@@ -644,8 +644,8 @@ inline void ExpectPackedFieldsSet(const protobuf_unittest::TestPackedTypes &mess
   expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.packed_enum[1]);
 }
 
-inline void ExpectUnpackedFieldsSet(const protobuf_unittest::TestUnpackedTypes &message) {
-  // The values expected here must match those of ExpectPackedFieldsSet.
+inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message) {
+  // The values expected here must match those of ExpectAllSet.
   expect(eq(2, message.unpacked_int32.size()) >> fatal);
   expect(eq(2, message.unpacked_int64.size()) >> fatal);
   expect(eq(2, message.unpacked_uint32.size()) >> fatal);
@@ -698,7 +698,7 @@ inline void ExpectUnpackedFieldsSet(const protobuf_unittest::TestUnpackedTypes &
 // All this code is exactly equivalent to the above code except that it's
 // manipulating extension fields instead of normal ones.
 
-inline void SetAllExtensions(protobuf_unittest::TestAllExtensions *message) {
+inline void SetAll(protobuf_unittest::TestAllExtensions *message) {
   expect(!message->set_extension(protobuf_unittest::optional_int32_extension(), 101));
   expect(!message->set_extension(protobuf_unittest::optional_int64_extension(), 102));
   expect(!message->set_extension(protobuf_unittest::optional_uint32_extension(), 103));
@@ -822,7 +822,7 @@ inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *mes
 }
 // -------------------------------------------------------------------
 
-inline void ExpectAllExtensionsSet(const protobuf_unittest::TestAllExtensions &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(message.has_extension(protobuf_unittest::optional_int32_extension()));
   expect(message.has_extension(protobuf_unittest::optional_int64_extension()));
   expect(message.has_extension(protobuf_unittest::optional_uint32_extension()));
@@ -1026,7 +1026,7 @@ inline void ExpectAllExtensionsSet(const protobuf_unittest::TestAllExtensions &m
 
 // -------------------------------------------------------------------
 
-inline void ExpectExtensionsClear(const protobuf_unittest::TestAllExtensions &message) {
+inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   auto [data, out] = hpp::proto::data_out();
   expect(success(out(message)));
   expect(eq(0, data.size()));
@@ -1187,7 +1187,7 @@ inline void ExpectExtensionsClear(const protobuf_unittest::TestAllExtensions &me
 }
 // -------------------------------------------------------------------
 
-inline void SetPackedExtensions(protobuf_unittest::TestPackedExtensions *message) {
+inline void SetAll(protobuf_unittest::TestPackedExtensions *message) {
   expect(!message->set_extension(protobuf_unittest::packed_int32_extension(), {601, 701}));
   expect(!message->set_extension(protobuf_unittest::packed_int64_extension(), {602, 702}));
   expect(!message->set_extension(protobuf_unittest::packed_uint32_extension(), {603, 703}));
@@ -1208,7 +1208,7 @@ inline void SetPackedExtensions(protobuf_unittest::TestPackedExtensions *message
 
 // -------------------------------------------------------------------
 
-inline void ExpectPackedExtensionsSet(const protobuf_unittest::TestPackedExtensions &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message) {
   expect(
       eq(message.get_extension(protobuf_unittest::packed_int32_extension()).value(), std::vector<int32_t>{601, 701}));
   expect(
@@ -1242,7 +1242,7 @@ inline void ExpectPackedExtensionsSet(const protobuf_unittest::TestPackedExtensi
 
 // -------------------------------------------------------------------
 
-inline void ExpectUnpackedExtensionsSet(const protobuf_unittest::TestUnpackedExtensions &message) {
+inline void ExpectAllSet(const protobuf_unittest::TestUnpackedExtensions &message) {
   expect(
       eq(message.get_extension(protobuf_unittest::unpacked_int32_extension()).value(), std::vector<int32_t>{601, 701}));
   expect(

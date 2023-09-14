@@ -31,6 +31,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
+#include <cassert>
 
 #if __has_include(<flat_map>)
 #include <flat_map>
@@ -230,6 +231,55 @@ public:
 #endif
 };
 
+// remove the implicit conversions for optional<bool> because those are very error-prone to use.
+template <auto Default>
+class optional<bool, Default> {
+  uint8_t impl = 0x80; // use 0x80 to denote empty state
+  static constexpr bool as_bool(bool v) { return v; }
+  static constexpr bool as_bool(std::monostate) { return false; }
+  static constexpr bool default_value = as_bool(Default);
+  bool &deref() { return reinterpret_cast<bool &>(impl); }
+
+public:
+  using value_type = bool;
+  constexpr optional() noexcept = default;
+  constexpr optional(bool v) noexcept { impl = uint8_t(v); };
+  constexpr optional(const optional &) noexcept = default;
+  constexpr optional &operator=(const optional &) noexcept = default;
+
+  constexpr bool has_value() const noexcept { return impl != 0x80; }
+  constexpr bool operator*() const noexcept {
+    assert(has_value());
+    return impl;
+  }
+  bool &operator*() noexcept {
+    assert(has_value());
+    return deref();
+  }
+
+  bool &emplace() noexcept {
+    impl = uint8_t(default_value);
+    return deref();
+  }
+  constexpr bool value() const {
+    if (!has_value())
+      throw std::bad_optional_access{};
+    return impl;
+  }
+
+  constexpr bool value_or_default() const noexcept {
+    if (has_value())
+      return impl;
+    return default_value;
+  }
+
+  constexpr optional &operator=(bool v) noexcept {
+    impl = uint8_t(v);
+    return *this;
+  }
+  constexpr bool operator==(const optional &other) const = default;
+};
+
 template <typename T>
 class heap_based_optional {
   T *obj = nullptr;
@@ -347,6 +397,7 @@ struct cts_wrapper {
   static constexpr compile_time_string str{cts};
   constexpr size_t size() const { return str.size(); }
   constexpr const char *data() const { return str.data(); }
+  constexpr const char *c_str() const { return str.data(); }
 
   operator std::string() const { return std::string{data()}; }
   operator std::vector<std::byte>() const {
@@ -354,9 +405,7 @@ struct cts_wrapper {
                                   reinterpret_cast<const std::byte *>(data()) + size()};
   }
 
-  operator std::vector<char>() const {
-    return std::vector<char>{data(), data() + size()};
-  }
+  operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
 
   operator std::string_view() const { return std::string_view(data(), size()); }
   operator std::span<const std::byte>() const {
@@ -412,8 +461,6 @@ auto operator""_bytes_view() {
 
 } // namespace literals
 
-
-
 struct boolean {
   bool value = false;
   boolean() = default;
@@ -432,6 +479,8 @@ constexpr bool is_default_value(const T &val) {
       return false;
     else
       return val == T{};
+  } else if constexpr (requires { val.has_value(); }) {
+    return val.has_value() && Default == *val;
   } else {
     return Default == val;
   }

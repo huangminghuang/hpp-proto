@@ -10,89 +10,55 @@ static_assert(ensure_all_fields_encoding_rule<protobuf_unittest::TestUnpackedTyp
                                               hpp::proto::encoding_rule::unpacked_repeated>());
 
 ut::suite proto_test = [] {
+  using namespace boost::ut;
   using namespace boost::ut::literals;
 
-  "test_lite1"_test = [] {
-    protobuf_unittest::TestAllTypes message, message2, message3;
+  "protobuf"_test =
+      []<class T> {
+        T message, message2, message3;
 
-    TestUtil::ExpectClear(message);
-    TestUtil::SetAllFields(&message);
-    message2 = message;
+        if constexpr (requires { TestUtil::ExpectClear(message); }) {
+          TestUtil::ExpectClear(message);
+        }
+        TestUtil::SetAll(&message);
+        message2 = message;
 
-    auto [data, in, out] = hpp::proto::data_in_out();
-    ut::expect(success(out(message2)));
-    ut::expect(success(in(message3)));
+        std::vector<std::byte> data;
+        expect(!hpp::proto::write_proto(message2, data));
+        expect(!hpp::proto::read_proto(message3, data));
 
-    TestUtil::ExpectAllFieldsSet(message);
-    TestUtil::ExpectAllFieldsSet(message2);
-    TestUtil::ExpectAllFieldsSet(message3);
-  };
+        TestUtil::ExpectAllSet(message);
+        TestUtil::ExpectAllSet(message2);
+        TestUtil::ExpectAllSet(message3);
+      } |
+      std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestAllExtensions,
+                 protobuf_unittest::TestUnpackedTypes, protobuf_unittest::TestPackedTypes,
+                 protobuf_unittest::TestPackedExtensions>{};
 
-  "extension_set"_test = [] {
-    protobuf_unittest::TestAllExtensions message, message2, message3;
-    TestUtil::ExpectExtensionsClear(message);
-    TestUtil::SetAllExtensions(&message);
-    message2 = message;
+  "interoperate_with_google_protobuf_parser"_test =
+      []<class T> {
+        T original;
 
-    auto [data, in, out] = hpp::proto::data_in_out();
-    ut::expect(success(out(message2)));
-    ut::expect(success(in(message3)));
+        TestUtil::SetAll(&original);
 
-    TestUtil::ExpectAllExtensionsSet(message);
-    TestUtil::ExpectAllExtensionsSet(message2);
-    TestUtil::ExpectAllExtensionsSet(message3);
-  };
+        std::vector<std::byte> data;
+        expect(!hpp::proto::write_proto(original, data));
 
-  "unpaced_repeated"_test = [] {
-    protobuf_unittest::TestUnpackedTypes message, message2, message3;
-    TestUtil::SetUnpackedFields(&message);
-    message2 = message;
+        auto original_json =
+            gpb_based::proto_to_json(unittest_proto2_descriptorset(), pb_message_name(original).c_str(),
+                                     {(const char *)data.data(), data.size()});
 
-    auto [data, in, out] = hpp::proto::data_in_out();
-    ut::expect(success(out(message2)));
-    ut::expect(success(in(message3)));
+        auto generated_json = hpp::proto::write_json(original);
 
-    TestUtil::ExpectUnpackedFieldsSet(message);
-    TestUtil::ExpectUnpackedFieldsSet(message2);
-    TestUtil::ExpectUnpackedFieldsSet(message3);
-  };
+        expect(eq(generated_json, original_json));
 
-  "paced_repeated"_test = [] {
-    protobuf_unittest::TestPackedTypes message, message2, message3;
-    TestUtil::SetPackedFields(&message);
-    message2 = message;
+        T msg;
+        expect(!hpp::proto::read_json(msg, original_json));
 
-    auto [data, in, out] = hpp::proto::data_in_out();
-    ut::expect(success(out(message2)));
-    ut::expect(success(in(message3)));
-
-    TestUtil::ExpectPackedFieldsSet(message);
-    TestUtil::ExpectPackedFieldsSet(message2);
-    TestUtil::ExpectPackedFieldsSet(message3);
-  };
-
-  "json"_test = [] {
-    protobuf_unittest::TestAllTypes original;
-    TestUtil::SetAllFields(&original);
-
-    auto [data, in, out] = hpp::proto::data_in_out();
-    using zpp::bits::success;
-
-    ut::expect(success(out(original)));
-
-    auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(), "protobuf_unittest.TestAllTypes",
-                                       {(const char *)data.data(), data.size()});
-
-
-    auto glaze_generated_json = glz::write_json(original);
-
-    ut::expect(ut::eq(glaze_generated_json, original_json));
-
-    protobuf_unittest::TestAllTypes msg;
-    ut::expect(!glz::read_json(msg, original_json));
-
-    TestUtil::ExpectAllFieldsSet(msg);
-  };
+        TestUtil::ExpectAllSet(msg);
+      } |
+      std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestUnpackedTypes,
+                 protobuf_unittest::TestPackedTypes>{};
 };
 
 // TODO: need a test case of TestOneof2

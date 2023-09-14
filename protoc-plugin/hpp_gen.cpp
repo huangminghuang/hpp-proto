@@ -949,8 +949,9 @@ struct hpp_meta_generateor : code_generator {
     }
 
     fmt::format_to(target,
-                   "inline const char* pb_url(const {}&) {{ return "
-                   "\"type.googleapis.com/{}\"; }}\n\n",
+                   "inline const char* pb_url(const {0}&) {{ return "
+                   "\"type.googleapis.com/{1}\"; }}\n\n"
+                   "constexpr auto pb_message_name(const {0}&) {{ return \"{1}\"_cts; }}\n\n",
                    qualified_cpp_name, pb_name);
 
     for (auto f : descriptor.extensions)
@@ -1137,7 +1138,7 @@ struct glaze_meta_generator : code_generator {
     using enum google::protobuf::FieldDescriptorProto::Type;
     using enum google::protobuf::FieldDescriptorProto::Label;
 
-    if (descriptor.is_cpp_optional) {
+    if (descriptor.is_cpp_optional && descriptor.proto.type != TYPE_BOOL) {
       fmt::format_to(target, "    \"{}\", &T::{},\n", descriptor.proto.json_name, descriptor.cpp_name);
     } else if (descriptor.proto.label == LABEL_REQUIRED) {
       auto type = descriptor.proto.type;

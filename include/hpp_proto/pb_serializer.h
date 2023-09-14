@@ -97,6 +97,14 @@ template <typename T>
 concept numeric_or_byte = numeric<T> || std::same_as<std::byte, T>;
 
 template <typename Type>
+concept optional = requires(Type optional) {
+  optional.value();
+  optional.has_value();
+  // optional.operator bool(); // this operator is deliberately removed to fit our specialization for optional<bool> which removed this operation
+  optional.operator*();
+};
+
+template <typename Type>
 concept oneof_type = ::zpp::bits::concepts::variant<Type>;
 
 template <typename Type>
@@ -651,7 +659,7 @@ struct out {
       } else if constexpr (concepts::pb_extension<type>) {
         return iterative_apply([this](auto &&f) constexpr { return m_archive(::zpp::bits::bytes(f.second)); },
                                item.fields);
-      } else if constexpr (::zpp::bits::concepts::optional<type>) {
+      } else if constexpr (concepts::optional<type>) {
         if (item.has_value()) {
           return serialize_field(meta, *item);
         }
@@ -1224,8 +1232,8 @@ public:
       item = static_cast<type>(value.value);
     } else if constexpr (std::is_same_v<type, boolean>) {
       return this->m_archive(item.value);
-    } else if constexpr (::zpp::bits::concepts::optional<type>) {
-      return deserialize_field(meta, field_type, field_num, item.emplace());
+    } else if constexpr (concepts::optional<type>) {
+      return deserialize_field(meta, field_type, field_num, item.emplace());     
     } else if constexpr (::zpp::bits::concepts::owning_pointer<type>) {
       using element_type = std::remove_reference_t<decltype(*item)>;
       auto loaded = ::zpp::bits::access::make_unique<element_type>();
