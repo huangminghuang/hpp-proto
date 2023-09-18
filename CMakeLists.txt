@@ -10,8 +10,15 @@ if (APPLE)
     set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 endif()
 
-CPMAddPackage(gh:eyalz800/zpp_bits@4.4.13)
-CPMAddPackage("gh:huangminghuang/glaze#develop")
+CPMAddPackage(gh:eyalz800/zpp_bits@4.4.19)
+CPMAddPackage(
+  NAME glaze
+  VERSION 1.4.1
+  GITHUB_REPOSITORY stephenberry/glaze
+  UPDATE_COMMAND git checkout .
+  PATCH_COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/glaze.patch
+)
+
 set(EXPECTED_BUILD_TESTS OFF)
 CPMAddPackage(gh:TartanLlama/expected@1.1.0)
 set(CMAKE_CXX_STANDARD 20)
@@ -29,6 +36,7 @@ CPMAddPackage(
 )
 
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
+option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" ON)
 
 add_library(hpp_proto_libhpp_proto INTERFACE)
 target_include_directories(hpp_proto_libhpp_proto INTERFACE 
@@ -44,6 +52,10 @@ add_subdirectory(protoc-plugin)
 if (HPP_PROTO_TESTS)
   enable_testing()
   add_subdirectory(tests)
+endif()
+
+if (HPP_PROTO_BENCHMARKS)
+  add_subdirectory(benchmarks)
 endif()
 
 write_basic_package_version_file(
