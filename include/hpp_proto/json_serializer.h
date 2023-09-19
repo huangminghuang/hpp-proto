@@ -85,7 +85,7 @@ namespace detail {
 template <>
 struct to_json<hpp::proto::bytes_view> {
   template <auto Opts, class B>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&, B &&b, auto &&ix) noexcept {
 
     const auto n = value.size();
 

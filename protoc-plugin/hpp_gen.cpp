@@ -69,8 +69,6 @@ std::string resolve_keyword(std::string_view name) {
 
 std::string qualified_cpp_name(std::string_view name) {
   std::string result;
-  auto append_component = [&result](std::string_view comp) { result += resolve_keyword(comp); };
-
   std::size_t i = 0;
   std::size_t j;
   while ((j = name.find('.', i)) != std::string_view::npos) {
@@ -183,7 +181,7 @@ std::string basename(const std::string &name) {
 }
 
 std::size_t shared_scope_position(std::string_view s1, std::string_view s2) {
-  auto pos = std::mismatch(s1.begin(), s1.end(), s2.begin(), s2.end()).first - s1.begin();
+  std::size_t pos = std::mismatch(s1.begin(), s1.end(), s2.begin(), s2.end()).first - s1.begin();
   if (pos == s1.size() && pos == s2.size())
     return pos;
   if (pos > 0) {
@@ -675,7 +673,7 @@ struct msg_code_generator : code_generator {
 
       fmt::format_to(target, "{}enum {}_oneof_case : int {{\n", indent(), descriptor.cpp_name);
       indent_num += 2;
-      int index = 1;
+      std::size_t index = 1;
       for (auto f : descriptor.fields) {
         const char *sep = (index != descriptor.fields.size()) ? "," : "";
         fmt::format_to(target, "{}{} = {}{}\n", indent(), f->cpp_name, index++, sep);
@@ -698,7 +696,7 @@ struct msg_code_generator : code_generator {
   void process(enum_descriptor_t &descriptor) {
     fmt::format_to(target, "{}enum class {} {{\n", indent(), descriptor.cpp_name);
     indent_num += 2;
-    int index = 0;
+    std::size_t index = 0;
     for (auto &e : descriptor.proto.value) {
       char sep = (index++ == descriptor.proto.value.size() - 1) ? ' ' : ',';
       fmt::format_to(target, "{}{} = {}{}\n", indent(), resolve_keyword(e.name), e.number, sep);
@@ -812,9 +810,6 @@ struct msg_code_generator : code_generator {
     } else {
       bool need_explicit_constructors = false;
       for (auto f : descriptor.fields) {
-        if (f->cpp_name == "repeated_child") {
-          int i = 1;
-        }
         if (f->is_recursive && f->proto.label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
           need_explicit_constructors = true;
         }
@@ -851,7 +846,7 @@ struct msg_code_generator : code_generator {
 
 bool is_numeric(enum gpb::FieldDescriptorProto::Type type) {
   using enum gpb::FieldDescriptorProto::Type;
-  return type != TYPE_MESSAGE || type != TYPE_STRING || type != TYPE_BYTES || type != TYPE_GROUP;
+  return type != TYPE_MESSAGE && type != TYPE_STRING && type != TYPE_BYTES && type != TYPE_GROUP;
 }
 
 struct hpp_meta_generateor : code_generator {
@@ -963,7 +958,7 @@ struct hpp_meta_generateor : code_generator {
     }
   }
 
-  void process(field_descriptor_t &descriptor, const std::string &cpp_scope, const std::string &pb_scope) {
+  void process(field_descriptor_t &descriptor, const std::string &cpp_scope, const std::string &) {
     std::string_view rule = "defaulted";
     auto proto = descriptor.proto;
     using enum gpb::FieldDescriptorProto::Label;
@@ -1063,7 +1058,7 @@ struct hpp_meta_generateor : code_generator {
   void process(enum_descriptor_t &descriptor) {
     fmt::format_to(target, "{}enum class {} {{\n", indent(), descriptor.cpp_name);
     indent_num += 2;
-    int index = 0;
+    std::size_t index = 0;
     for (auto &e : descriptor.proto.value) {
       char sep = (index++ == descriptor.proto.value.size() - 1) ? ' ' : ',';
       fmt::format_to(target, "{}{} = {}{}\n", indent(), resolve_keyword(e.name), e.number, sep);
@@ -1180,7 +1175,7 @@ struct glaze_meta_generator : code_generator {
                    qualified_name);
 
     indent_num += 4;
-    int index = 0;
+    std::size_t index = 0;
     for (auto &e : descriptor.proto.value) {
       const char *sep = (index++ == descriptor.proto.value.size() - 1) ? ");" : ",";
       fmt::format_to(target, "{0}\"{1}\", {1}{2}\n", indent(), resolve_keyword(e.name), sep);

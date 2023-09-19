@@ -13,7 +13,7 @@ using namespace benchmarks::proto3;
 #define xstr(a) str(a)
 #define str(s) #s
 
-bool benchmark(auto &&fun, uint32_t repetitions, const char *description) {
+bool benchmark(auto &&fun, int repetitions, const char *description) {
   auto start = std::chrono::steady_clock::now();
   for (int i = 0; i < repetitions; ++i)
     if (!fun()) {

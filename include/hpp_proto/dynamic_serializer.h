@@ -18,17 +18,17 @@ using tl::unexpected;
 struct proto_json_addons {
   template <typename Derived>
   struct field_descriptor {
-    field_descriptor(const google::protobuf::FieldDescriptorProto &proto, const std::string &parent_name) {}
+    field_descriptor(const google::protobuf::FieldDescriptorProto &, const std::string &) {}
   };
 
   template <typename EnumD>
   struct enum_descriptor {
-    enum_descriptor(const google::protobuf::EnumDescriptorProto &proto) {}
+    enum_descriptor(const google::protobuf::EnumDescriptorProto &) {}
   };
 
   template <typename OneofD, typename FieldD>
   struct oneof_descriptor {
-    oneof_descriptor(const google::protobuf::OneofDescriptorProto &proto) {}
+    oneof_descriptor(const google::protobuf::OneofDescriptorProto &) {}
   };
 
   template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
@@ -41,9 +41,9 @@ struct proto_json_addons {
       is_map_entry = proto.options.has_value() && proto.options->map_entry;
     }
     void add_field(FieldD &f) { fields.push_back(&f); }
-    void add_enum(EnumD &e) {}
-    void add_message(MessageD &m) {}
-    void add_oneof(OneofD &o) {}
+    void add_enum(EnumD &) {}
+    void add_message(MessageD &) {}
+    void add_oneof(OneofD &) {}
     void add_extension(FieldD &f) { fields.push_back(&f); }
   };
 
@@ -56,9 +56,9 @@ struct proto_json_addons {
       else
         syntax = 2;
     }
-    void add_enum(EnumD &e) {}
+    void add_enum(EnumD &) {}
     void add_message(MessageD &m) { m.syntax = syntax; }
-    void add_extension(FieldD &f) {}
+    void add_extension(FieldD &) {}
   };
 };
 
@@ -275,7 +275,6 @@ class dynamic_serializer {
       if constexpr (Options.prettify) {
         context.indentation_level += Options.indentation_width;
         glz::detail::dump<'\n'>(b, ix);
-        uint32_t indentation_level = context.indentation_level;
         glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
 
@@ -367,7 +366,7 @@ class dynamic_serializer {
       if (auto ec = archive(value); ec != std::errc{}) [[unlikely]] {
         return ec;
       }
-      for (int i = 0; i < meta.size(); ++i) {
+      for (std::size_t i = 0; i < meta.size(); ++i) {
         if (meta[i].number == value) {
           glz::detail::dump<'"'>(b, ix);
           glz::detail::dump(meta[i].name, b, ix);
@@ -574,7 +573,6 @@ class dynamic_serializer {
     template <typename T>
     std::errc encode_map_key(std::string_view key) {
       T value;
-      const uint8_t *cur = reinterpret_cast<const uint8_t *>(key.data());
       glz::detail::read<glz::json>::op<glz::opts{.ws_handled = true}>(get_underlying_value(value), context, key.begin(),
                                                                       key.end());
       if (bool(context.error)) [[unlikely]]
@@ -694,7 +692,7 @@ class dynamic_serializer {
       if (bool(context.error)) [[unlikely]]
         return std::errc::illegal_byte_sequence;
 
-      for (int i = 0; i < enum_meta.size(); ++i) {
+      for (std::size_t i = 0; i < enum_meta.size(); ++i) {
         if (enum_meta[i].name == key) {
           if (meta.rule == dynamic_serializer::encoding::packed_repeated)
             return archive(::zpp::bits::varint{enum_meta[i].number});

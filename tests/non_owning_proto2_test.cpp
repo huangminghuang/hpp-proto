@@ -49,7 +49,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message);
 inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message);
 inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message);
 
-inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_memory_resource &mr) {
+inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_memory_resource &) {
   SetOptionalFields(message);
   SetRepeatedFields(message);
   SetDefaultFields(message);
@@ -404,7 +404,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message) {
 
 // -------------------------------------------------------------------
 
-inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory_resource &mr) {
+inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory_resource &) {
   static int32_t packed_int32[] = {601, 701};
   message->packed_int32 = packed_int32;
 
@@ -448,7 +448,7 @@ inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory
   message->packed_enum = packed_enum;
 }
 
-inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_memory_resource &mr) {
+inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_memory_resource &) {
   // The values applied here must match those of SetPackedFields.
 
   static int32_t unpacked_int32[] = {601, 701};

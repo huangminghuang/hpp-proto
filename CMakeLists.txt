@@ -15,8 +15,7 @@ CPMAddPackage(
   NAME glaze
   VERSION 1.4.1
   GITHUB_REPOSITORY stephenberry/glaze
-  UPDATE_COMMAND git checkout .
-  PATCH_COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/glaze.patch
+  PATCH_COMMAND git diff --exit-code --quite && git checkout . && git apply ${CMAKE_CURRENT_SOURCE_DIR}/glaze.patch
 )
 
 set(EXPECTED_BUILD_TESTS OFF)
@@ -38,6 +37,8 @@ CPMAddPackage(
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" ON)
 
+
+
 add_library(hpp_proto_libhpp_proto INTERFACE)
 target_include_directories(hpp_proto_libhpp_proto INTERFACE 
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -45,6 +46,13 @@ target_include_directories(hpp_proto_libhpp_proto INTERFACE
   $<BUILD_INTERFACE:${expected_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(hpp_proto_libhpp_proto INTERFACE cxx_std_20)
+if (MSVC)
+    # warning level 4
+    target_compile_options(hpp_proto_libhpp_proto INTERFACE /W4)
+else()
+    # additional warnings
+    target_compile_options(hpp_proto_libhpp_proto INTERFACE -Wall -Wextra -Wpedantic)
+endif()
 
 add_library(hpp_proto::libhpp_proto ALIAS hpp_proto_libhpp_proto)
 

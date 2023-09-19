@@ -13,8 +13,8 @@ endif()
 if (CMAKE_BUILD_TYPE STREQUAL Debug AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 # g++ have problem to compile absil (used by google protobuf) when sanitizer is enabled
 # https://github.com/abseil/abseil-cpp/issues/1379
-    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-    add_link_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined)
+    add_link_options(-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined)
 endif()
 
 add_library(Boost::ut INTERFACE IMPORTED)
