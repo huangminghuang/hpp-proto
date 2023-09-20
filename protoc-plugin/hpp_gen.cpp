@@ -446,7 +446,7 @@ struct hpp_addons {
   };
 };
 
-using hpp_gen_decriptor_pool = hpp::proto::descriptor_pool<hpp_addons>;
+using hpp_gen_descriptor_pool = hpp::proto::descriptor_pool<hpp_addons>;
 
 struct code_generator {
   std::size_t indent_num = 0;
@@ -454,11 +454,11 @@ struct code_generator {
   gpb::compiler::CodeGeneratorResponse::File &file;
   std::back_insert_iterator<std::string> target;
 
-  using message_descriptor_t = hpp_gen_decriptor_pool::message_descriptor_t;
-  using enum_descriptor_t = hpp_gen_decriptor_pool::enum_descriptor_t;
-  using oneof_descriptor_t = hpp_gen_decriptor_pool::oneof_descriptor_t;
-  using field_descriptor_t = hpp_gen_decriptor_pool::field_descriptor_t;
-  using file_descriptor_t = hpp_gen_decriptor_pool::file_descriptor_t;
+  using message_descriptor_t = hpp_gen_descriptor_pool::message_descriptor_t;
+  using enum_descriptor_t = hpp_gen_descriptor_pool::enum_descriptor_t;
+  using oneof_descriptor_t = hpp_gen_descriptor_pool::oneof_descriptor_t;
+  using field_descriptor_t = hpp_gen_descriptor_pool::field_descriptor_t;
+  using file_descriptor_t = hpp_gen_descriptor_pool::file_descriptor_t;
 
   code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
       : file(files.emplace_back()), target(file.content) {}
@@ -538,7 +538,7 @@ struct msg_code_generator : code_generator {
 
   msg_code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files) : code_generator(files) {}
 
-  void resolve_message_dependencies(hpp_gen_decriptor_pool &pool) {
+  void resolve_message_dependencies(hpp_gen_descriptor_pool &pool) {
     for (auto &field : pool.fields) {
       using enum google::protobuf::FieldDescriptorProto::Type;
       auto type = field.proto.type;
@@ -949,8 +949,9 @@ struct hpp_meta_generateor : code_generator {
                    "constexpr auto pb_message_name(const {0}&) {{ return \"{1}\"_cts; }}\n\n",
                    qualified_cpp_name, pb_name);
 
-    for (auto f : descriptor.extensions)
+    for (auto f : descriptor.extensions) {
       process(*f, qualified_cpp_name, pb_name);
+    }
 
     for (auto m : descriptor.messages) {
       if (!m->is_map_entry)
@@ -1194,10 +1195,10 @@ int main(int argc, const char **argv) {
     std::copy(std::istreambuf_iterator<char>(strm), std::istreambuf_iterator<char>(), std::back_inserter(request_data));
   };
 
-  if (argc > 2 && std::string_view("--input") == argv[1]) {
-    read_file(std::ifstream(argv[2]));
-  } else {
+  if (argc <= 2) {
     read_file(std::cin);
+  } else if (std::string_view("--input") == argv[1]) {
+    read_file(std::ifstream(argv[2]));
   }
 
   if (const char *env_p = std::getenv("HPP_GEN_EXPORT_REQUEST")) {
@@ -1239,7 +1240,7 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  hpp_gen_decriptor_pool pool(request.proto_file);
+  hpp_gen_descriptor_pool pool(request.proto_file);
 
   for (auto &f : pool.fields) {
     using enum google::protobuf::FieldDescriptorProto::Type;

@@ -29,7 +29,7 @@
 #include <map>
 #include <zpp_bits.h>
 
-#if defined(__cpp_lib_expected)
+#if __cplusplus >= 202302L
 #include <expected>
 #else
 #include <tl/expected.hpp>
@@ -91,7 +91,8 @@ template <typename Type>
 concept has_meta = has_local_meta<Type> || has_explicit_meta<Type>;
 
 template <typename T>
-concept numeric = std::is_fundamental_v<T> || ::zpp::bits::concepts::varint<T> || std::is_enum_v<T> || std::same_as<hpp::proto::boolean, T>;
+concept numeric = std::is_fundamental_v<T> || ::zpp::bits::concepts::varint<T> || std::is_enum_v<T> ||
+                  std::same_as<hpp::proto::boolean, T>;
 
 template <typename T>
 concept numeric_or_byte = numeric<T> || std::same_as<std::byte, T>;
@@ -100,7 +101,8 @@ template <typename Type>
 concept optional = requires(Type optional) {
   optional.value();
   optional.has_value();
-  // optional.operator bool(); // this operator is deliberately removed to fit our specialization for optional<bool> which removed this operation
+  // optional.operator bool(); // this operator is deliberately removed to fit our specialization for optional<bool>
+  // which removed this operation
   optional.operator*();
 };
 
@@ -383,7 +385,7 @@ constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N>
 }
 
 template <typename Type>
-struct reverse_indeces {
+struct reverse_indices {
   static std::optional<std::size_t> number_to_index(uint32_t number, std::size_t) {
     if (number <= ::zpp::bits::access::number_of_members<Type>())
       return number - 1;
@@ -393,7 +395,7 @@ struct reverse_indeces {
 };
 
 template <concepts::has_meta Type>
-struct reverse_indeces<Type> {
+struct reverse_indices<Type> {
 
   template <typename T>
     requires requires { T::number; }
@@ -506,33 +508,29 @@ constexpr errc execute_successively(F0 &&f0, F &&...f) {
 }
 
 template <std::size_t FirstIndex, std::size_t... Indices>
-ZPP_BITS_INLINE constexpr errc visit_many(auto&& visitor, std::index_sequence<FirstIndex, Indices...>, auto &&first_item,
-                                              auto &&...items) {
+ZPP_BITS_INLINE constexpr errc visit_many(auto &&visitor, std::index_sequence<FirstIndex, Indices...>,
+                                          auto &&first_item, auto &&...items) {
   return execute_successively(
       [&]() constexpr { return visitor.template visit<FirstIndex>(std::forward<decltype(first_item)>(first_item)); },
       [&]() constexpr {
-        return visit_many(visitor, std::index_sequence<Indices...>{},
-                                         std::forward<decltype(items)>(items)...);
+        return visit_many(visitor, std::index_sequence<Indices...>{}, std::forward<decltype(items)>(items)...);
       });
 }
 
-ZPP_BITS_INLINE constexpr errc visit_many(auto&&, std::index_sequence<>) {
-  return {};
-}
+ZPP_BITS_INLINE constexpr errc visit_many(auto &&, std::index_sequence<>) { return {}; }
 
 ZPP_BITS_INLINE constexpr errc foreach_member(auto &&item, auto &&visitor) {
   using type = std::remove_cvref_t<decltype(item)>;
 
-
   if constexpr (disallow_inline_visit_members_lambda<type>()) {
     return do_visit_members(std::forward<decltype(item)>(item), [&](auto &&...items) constexpr {
       return visit_many(std::forward<decltype(visitor)>(visitor), std::make_index_sequence<sizeof...(items)>{},
-                              std::forward<decltype(items)>(items)...);
+                        std::forward<decltype(items)>(items)...);
     });
   } else {
     return do_visit_members(item, [&](auto &&...items) ZPP_BITS_CONSTEXPR_INLINE_LAMBDA {
       return visit_many(std::forward<decltype(visitor)>(visitor), std::make_index_sequence<sizeof...(items)>{},
-                              std::forward<decltype(items)>(items)...);
+                        std::forward<decltype(items)>(items)...);
     });
   }
 }
@@ -921,7 +919,7 @@ template <::zpp::bits::concepts::byte_view ByteView, typename MemoryResource = s
           concepts::is_option... Options>
 class in : public in_base<ByteView, MemoryResource, Options...> {
 
-  std::size_t m_end_position;
+  std::size_t m_end_position = 0;
   bool m_has_unknown_fields = false;
 
   using base_type = in_base<ByteView, MemoryResource, Options...>;
@@ -1001,8 +999,9 @@ public:
         return result;
       }
 
-      if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag))
+      if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag)) {
         return {};
+      }
 
       if (std::is_constant_evaluated()) {
         if (auto result = deserialize_field_by_num<0>(item, tag_number(tag), proto::tag_type(tag)); failure(result))
@@ -1011,8 +1010,9 @@ public:
         }
       } else {
         if (auto result = deserialize_field_by_num(item, tag_number(tag), proto::tag_type(tag), hint); failure(result))
-            [[unlikely]]
+            [[unlikely]] {
           return result;
+        }
       }
     }
 
@@ -1102,8 +1102,9 @@ public:
     default:
       return std::errc::result_out_of_range;
     }
-    if (remaining_data().size() < length) [[unlikely]]
+    if (remaining_data().size() < length) [[unlikely]] {
       return std::errc::result_out_of_range;
+    }
     position() += length;
     return {};
   }
@@ -1117,9 +1118,9 @@ public:
       uint32_t next_field_num = tag_number(tag);
       wire_type next_type = proto::tag_type(tag);
 
-      if (next_type == wire_type::egroup && field_num == next_field_num)
+      if (next_type == wire_type::egroup && field_num == next_field_num) {
         return {};
-      else if (auto result = do_skip_field(next_field_num, next_type); failure(result)) [[unlikely]] {
+      } else if (auto result = do_skip_field(next_field_num, next_type); failure(result)) [[unlikely]] {
         return result;
       }
     }
@@ -1130,7 +1131,7 @@ public:
   inline errc deserialize_field_by_num(auto &item, uint32_t field_num, wire_type field_wire_type, std::size_t hint) {
     using type = std::remove_cvref_t<decltype(item)>;
     static auto fun_ptrs = deserialize_funs<type>();
-    auto index = traits::reverse_indeces<type>::number_to_index(field_num, hint);
+    auto index = traits::reverse_indices<type>::number_to_index(field_num, hint);
     if (index) {
       auto p = fun_ptrs[*index];
       if (auto result = (this->*p)(item, field_num, field_wire_type); failure(result)) [[unlikely]] {
@@ -1244,7 +1245,7 @@ public:
     } else if constexpr (std::is_same_v<type, boolean>) {
       return this->m_archive(item.value);
     } else if constexpr (concepts::optional<type>) {
-      return deserialize_field(meta, field_type, field_num, item.emplace());     
+      return deserialize_field(meta, field_type, field_num, item.emplace());
     } else if constexpr (::zpp::bits::concepts::owning_pointer<type>) {
       using element_type = std::remove_reference_t<decltype(*item)>;
       auto loaded = ::zpp::bits::access::make_unique<element_type>();
@@ -1309,8 +1310,7 @@ public:
   }
 
   template <typename Meta>
-  ZPP_BITS_INLINE constexpr errc deserialize_packed_repeated(Meta, wire_type, uint32_t,
-                                                             auto &&item) {
+  ZPP_BITS_INLINE constexpr errc deserialize_packed_repeated(Meta, wire_type, uint32_t, auto &&item) {
     using type = std::remove_reference_t<decltype(item)>;
     using value_type = typename type::value_type;
 
@@ -1358,16 +1358,18 @@ public:
     } else if constexpr (std::is_same_v<type, std::string_view>) {
       // handling string_view
       auto data = this->m_archive.remaining_data();
-      if (data.size() < length)
+      if (data.size() < length) {
         return std::errc::result_out_of_range;
+      }
       item = std::string_view((const char *)data.data(), length);
       this->m_archive.position() += length;
     } else if constexpr ((std::is_same_v<value_type, char> ||
                           std::is_same_v<value_type, std::byte>)&&std::is_same_v<type, std::span<const value_type>>) {
       // handling bytes
       auto data = this->m_archive.remaining_data();
-      if (data.size() < length)
+      if (data.size() < length) {
         return std::errc::result_out_of_range;
+      }
       item = std::span<const value_type>((const value_type *)data.data(), length);
       this->m_archive.position() += length;
     } else if constexpr (requires { item.insert(value_type{}); }) {
@@ -1450,10 +1452,11 @@ public:
 
       ZPP_BITS_INLINE constexpr impl_type(C &item, std::size_t i) : target(item[i]) {}
       ZPP_BITS_INLINE constexpr ~impl_type() {
-        if constexpr (requires { std::move(value).to(target); })
+        if constexpr (requires { std::move(value).to(target); }) {
           std::move(value).to(target);
-        else
+        } else {
           target = std::move(value);
+        }
       }
     };
 
@@ -1462,10 +1465,11 @@ public:
     ZPP_BITS_INLINE constexpr unpacked_element_inserter(Container &item, std::size_t i = 0) : impl(item, i) {}
 
     ZPP_BITS_INLINE constexpr errc deserialize(in &serializer, wire_type field_type, uint32_t field_num) {
-      if constexpr (concepts::scalar<base_value_type>)
+      if constexpr (concepts::scalar<base_value_type>) {
         return serializer.deserialize_field(Meta{}, field_type, field_num, impl.value);
-      else
+      } else {
         return serializer.serialize_one<::zpp::bits::varint<uint32_t>>(impl.value);
+      }
     }
   };
 
@@ -1566,8 +1570,9 @@ public:
         return std::errc::result_out_of_range;
       };
 
-      if (element_counting_archive.remaining_data().size() < length) [[unlikely]]
+      if (element_counting_archive.remaining_data().size() < length) [[unlikely]] {
         return std::errc::result_out_of_range;
+      }
       element_counting_archive.position() += length;
 
       ++count;
@@ -1602,8 +1607,9 @@ public:
       if (auto result = this->m_archive(size); failure(result)) [[unlikely]] {
         return result;
       }
-      if (size > this->m_archive.remaining_data().size()) [[unlikely]]
+      if (size > this->m_archive.remaining_data().size()) [[unlikely]] {
         return errc{std::errc::message_size};
+      }
 
       return deserialize_fields(item, this->m_archive.position() + size);
     } else
@@ -1723,11 +1729,12 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
   check(extensions);
   decltype(extensions.fields.begin()) itr;
 
-  if constexpr (requires { extensions.fields.find(ExtensionMeta::number); })
+  if constexpr (requires { extensions.fields.find(ExtensionMeta::number); }) {
     itr = extensions.fields.find(ExtensionMeta::number);
-  else
+  } else {
     itr = std::find_if(extensions.fields.begin(), extensions.fields.end(),
                        [](const auto &item) { return item.first == ExtensionMeta::number; });
+  }
 
   using value_type = typename ExtensionMeta::get_result_type;
   using return_type = expected<value_type, std::error_code>;
@@ -1735,10 +1742,11 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
   deserialize_wrapper_type<value_type, ExtensionMeta> wrapper;
   if (itr != extensions.fields.end()) {
     errc ec;
-    if constexpr (std::same_as<std::remove_cvref_t<decltype(mr)>, std::monostate>)
+    if constexpr (std::same_as<std::remove_cvref_t<decltype(mr)>, std::monostate>) {
       ec = proto::in(itr->second)(wrapper);
-    else
+    } else {
       ec = proto::in(itr->second, std::forward<decltype(mr)>(mr))(wrapper);
+    }
 
     if (failure(ec)) [[unlikely]] {
       return return_type{unexpected(std::make_error_code(ec))};

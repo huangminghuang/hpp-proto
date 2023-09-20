@@ -36,7 +36,27 @@ CPMAddPackage(
 
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" ON)
+option(HPP_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH CLANG_PATH)
+endif()
+
+if (HPP_ENABLE_CLANG_TIDY)
+  find_program(CLANG_TIDY_EXE NAMES "clang-tidy" PATHS ${CLANG_PATH})
+
+  if (CLANG_TIDY_EXE)
+    set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY_EXE} -extra-arg=-Wno-unknown-warning-option
+          -extra-arg=-Wno-ignored-optimization-argument
+          -extra-arg=-Wno-unused-command-line-argument
+          -p
+          -extra-arg=-std=c++${CMAKE_CXX_STANDARD})
+
+    configure_file(clang-tidy-disable-all-checks ${CMAKE_CURRENT_BINARY_DIR}/.deps/.clang-tidy)
+  endif()
+else()
+  set(CMAKE_CXX_CLANG_TIDY)
+endif()
 
 
 add_library(hpp_proto_libhpp_proto INTERFACE)

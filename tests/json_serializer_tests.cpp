@@ -57,14 +57,14 @@ struct glz::meta<optional_example> {
   // clang-format on
 };
 
-struct expliclit_optional_bool_example {
+struct explicit_optional_bool_example {
   hpp::proto::optional<bool> field = {};
-  bool operator==(const expliclit_optional_bool_example &) const = default;
+  bool operator==(const explicit_optional_bool_example &) const = default;
 };
 
 template <>
-struct glz::meta<expliclit_optional_bool_example> {
-  using T = expliclit_optional_bool_example;
+struct glz::meta<explicit_optional_bool_example> {
+  using T = explicit_optional_bool_example;
   static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
 };
 
@@ -215,10 +215,10 @@ ut::suite test_non_owning_nested = [] {
                                          R"({"nested":{"field1":1,"field2":"1"}})");
 };
 
-ut::suite test_expliclit_optional_bool = [] {
-  verify<expliclit_optional_bool_example>(expliclit_optional_bool_example{}, R"({})");
-  verify<expliclit_optional_bool_example>(expliclit_optional_bool_example{.field = true}, R"({"field":true})");
-  verify<expliclit_optional_bool_example>(expliclit_optional_bool_example{.field = false}, R"({"field":false})");
+ut::suite test_explicit_optional_bool = [] {
+  verify<explicit_optional_bool_example>(explicit_optional_bool_example{}, R"({})");
+  verify<explicit_optional_bool_example>(explicit_optional_bool_example{.field = true}, R"({"field":true})");
+  verify<explicit_optional_bool_example>(explicit_optional_bool_example{.field = false}, R"({"field":false})");
 };
 
 int main() {

@@ -86,8 +86,8 @@ class dynamic_serializer {
 
     field_meta() = default;
 
-    template <typename MesssageDescriptor, typename Pool>
-    field_meta(MesssageDescriptor *descriptor, const google::protobuf::FieldDescriptorProto &proto, const Pool &pool)
+    template <typename MessageDescriptor, typename Pool>
+    field_meta(MessageDescriptor *descriptor, const google::protobuf::FieldDescriptorProto &proto, const Pool &pool)
         : number(proto.number), name(proto.name), json_name(proto.json_name), type(proto.type) {
 
       if (proto.type_name.size() && proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE) {

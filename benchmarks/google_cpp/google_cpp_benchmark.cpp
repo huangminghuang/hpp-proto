@@ -1,5 +1,5 @@
-#include <filesystem>
-#include <stdio.h>
+#include "benchmark_util.h"
+
 #ifdef PROTO2
 #include "benchmark_messages_proto2.pb.h"
 using namespace benchmarks::proto2;
@@ -7,52 +7,27 @@ using namespace benchmarks::proto2;
 #include "benchmark_messages_proto3.pb.h"
 using namespace benchmarks::proto3;
 #endif
-#define xstr(a) str(a)
-#define str(s) #s
 
-bool benchmark(auto &&fun, int repetitions, const char *description) {
-  auto start = std::chrono::steady_clock::now();
-  for (int i = 0; i < repetitions; ++i)
-    if (!fun()) {
-      printf("Error for %s.", description);
-      return false;
-    }
-  std::chrono::nanoseconds duration = std::chrono::steady_clock::now() - start;
-  printf("The time for %s is %lld ns\n", description, duration.count());
-  return true;
-}
-
-int repetitions = 1;
+const int repetitions = 1;
 
 int main() {
+  try {
+    auto data = read_data_file(data_dir + "/google_message1.dat");
 
-  std::filesystem::path data_file(xstr(DATA_DIR) "/google_message1.dat");
-  auto size = std::filesystem::file_size(data_file);
-  std::vector<char> data(size);
+    GoogleMessage1 message;
 
-  auto file = fopen(data_file.c_str(), "rb");
-  if (!file) {
-    puts("unable to open data file");
+    benchmark([&message, &data]() -> bool { return message.ParseFromArray(data.data(), static_cast<int>(data.size())); }, repetitions,
+              "decoding message");
+    benchmark(
+        [&message]() -> bool {
+          std::string data;
+          return message.SerializeToString(&data);
+        },
+        repetitions, "encoding message");
+    return 1;
+  } catch (...) {
     return 1;
   }
-  if (fread(data.data(), 1, size, file) != size) {
-    puts("unable to read data file");
-    return 1;
-  }
-
-  GoogleMessage1 message;
-
-  if (!benchmark([&message, &data]() -> bool { return message.ParseFromArray(data.data(), data.size()); }, repetitions,
-                 "decoding message"))
-    return 1;
-
-  if (!benchmark(
-          [&message]() -> bool {
-            std::string data;
-            return message.SerializeToString(&data);
-          },
-          repetitions, "encoding message"))
-    return 1;
 
   return 0;
 }
