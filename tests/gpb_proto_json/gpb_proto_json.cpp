@@ -44,7 +44,7 @@ std::string proto_to_json(std::string_view filedescriptorset_stream, const char 
     database.AddUnowned(&fileset.file(i));
   }
 
-  gpb::DescriptorPool pool(&database);
+  const gpb::DescriptorPool pool(&database);
   return proto_to_json(pool, message_name, data, option);
 }
 
@@ -57,7 +57,7 @@ std::string json_to_proto(std::string_view filedescriptorset_stream, const char 
     database.AddUnowned(&fileset.file(i));
   }
 
-  gpb::DescriptorPool pool(&database);
+  const gpb::DescriptorPool pool(&database);
   return json_to_proto(pool, message_name, data);
 }
 } // namespace gpb_based

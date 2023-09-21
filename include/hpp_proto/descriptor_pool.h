@@ -98,7 +98,7 @@ struct descriptor_pool {
 
   descriptor_pool(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
 
-    descriptor_counter counter(proto_files);
+    const descriptor_counter counter(proto_files);
     files.reserve(counter.files);
     messages.reserve(counter.messages);
     enums.reserve(counter.enums);
@@ -109,7 +109,7 @@ struct descriptor_pool {
     reserve(enum_map, counter.enums);
 
     for (auto &proto : proto_files) {
-      if (proto.name.size()) {
+      if (!proto.name.empty()) {
         build(files.emplace_back(proto));
       }
     }
@@ -128,16 +128,16 @@ struct descriptor_pool {
 
   void build(file_descriptor_t &descriptor) {
     file_map.try_emplace(descriptor.proto.name, &descriptor);
-    std::string package = descriptor.proto.package;
+    const std::string package = descriptor.proto.package;
     for (auto &proto : descriptor.proto.message_type) {
-      std::string name = package.size() ? "." + package + "." + proto.name : "." + proto.name;
+      std::string const name = !package.empty() ? "." + package + "." + proto.name : "." + proto.name;
       auto &message = messages.emplace_back(proto);
       build(message, name);
       descriptor.add_message(message);
     }
 
     for (auto &proto : descriptor.proto.enum_type) {
-      std::string name = package.size() ? "." + package + "." + proto.name : proto.name;
+      const std::string name = !package.empty() ? "." + package + "." + proto.name : proto.name;
       auto &e = enums.emplace_back(proto);
       enum_map.try_emplace(name, &e);
       descriptor.add_enum(e);
@@ -147,14 +147,14 @@ struct descriptor_pool {
   void build(message_descriptor_t &descriptor, const std::string &scope) {
     message_map.try_emplace(scope, &descriptor);
     for (auto &proto : descriptor.proto.nested_type) {
-      std::string name = scope + "." + proto.name;
+      const std::string name = scope + "." + proto.name;
       auto &message = messages.emplace_back(proto);
       build(message, name);
       descriptor.add_message(message);
     }
 
     for (auto &proto : descriptor.proto.enum_type) {
-      std::string name = scope + "." + proto.name;
+      const std::string name = scope + "." + proto.name;
       auto &e = enums.emplace_back(proto);
       enum_map.try_emplace(name, &e);
       descriptor.add_enum(e);

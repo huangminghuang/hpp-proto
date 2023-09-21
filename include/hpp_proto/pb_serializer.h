@@ -71,12 +71,13 @@ ZPP_BITS_INLINE constexpr decltype(auto) do_visit_members(auto &&object, auto &&
 
 template <typename Type>
 constexpr bool disallow_inline_visit_members_lambda() {
-  if constexpr (::zpp::bits::number_of_members<Type>() > ::zpp::bits::access::max_visit_members)
+  if constexpr (::zpp::bits::number_of_members<Type>() > ::zpp::bits::access::max_visit_members) {
     return true;
-  else if constexpr (requires { Type::allow_inline_visit_members_lambda; })
+  } else if constexpr (requires { Type::allow_inline_visit_members_lambda; }) {
     return !Type::allow_inline_visit_members_lambda;
-  else
+  } else {
     return ::zpp::bits::access::self_referencing<Type>();
+  }
 }
 
 namespace concepts {
@@ -150,11 +151,12 @@ struct extension_meta_base {
                                concepts::memory_resource auto &mr);
   static bool element_of(const concepts::pb_extension auto &extensions) {
     check(extensions);
-    if constexpr (requires { extensions.fields.count(T::number); })
+    if constexpr (requires { extensions.fields.count(T::number); }) {
       return extensions.fields.count(T::number) > 0;
-    else
+    } else {
       return std::find_if(extensions.fields.begin(), extensions.fields.end(),
                           [](const auto &item) { return item.first == T::number; }) != extensions.fields.end();
+    }
   }
 };
 
@@ -247,8 +249,9 @@ constexpr bool has_field_num(Meta meta, uint32_t num) {
 template <typename Type>
 constexpr void set_as_default(Type &value) {
   using type = std::remove_cvref_t<Type>;
-  if constexpr (concepts::scalar<type>)
+  if constexpr (concepts::scalar<type>) {
     value = type{};
+  }
 }
 
 template <typename T>
@@ -294,12 +297,14 @@ struct map_entry {
 
     template <typename Target, typename Source>
     ZPP_BITS_INLINE constexpr static auto move_or_copy(Source &&src) {
-      if constexpr (requires(Target target) { target = std::move(src); })
+      if constexpr (requires(Target target) { target = std::move(src); }) {
         return std::move(src);
-      else if constexpr (std::is_enum_v<Target> && std::is_same_v<std::remove_cvref_t<Source>, ::zpp::bits::vint64_t>)
+      } else if constexpr (std::is_enum_v<Target> &&
+                           std::is_same_v<std::remove_cvref_t<Source>, ::zpp::bits::vint64_t>) {
         return static_cast<Target>(src.value);
-      else
+      } else {
         return static_cast<Target>(src);
+      }
     }
 
     template <zpp::bits::concepts::associative_container Container>
@@ -387,10 +392,11 @@ constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N>
 template <typename Type>
 struct reverse_indices {
   static std::optional<std::size_t> number_to_index(uint32_t number, std::size_t) {
-    if (number <= ::zpp::bits::access::number_of_members<Type>())
+    if (number <= ::zpp::bits::access::number_of_members<Type>()) {
       return number - 1;
-    else
+    } else {
       return {};
+    }
   }
 };
 
@@ -446,7 +452,7 @@ struct reverse_indices<Type> {
   }
 
   static std::optional<std::size_t> number_to_index(uint32_t number, std::size_t &hint) {
-    typename traits::meta_of<Type>::type metas;
+    const typename traits::meta_of<Type>::type metas;
     static auto numbers = get_numbers(metas);
     static auto indices = get_indices(metas);
     static auto unpacked = is_unpacked_repeated(metas);
@@ -659,16 +665,18 @@ struct out {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
-    if constexpr (::zpp::bits::concepts::empty<type>)
+    if constexpr (::zpp::bits::concepts::empty<type>) {
       return {};
-    else if constexpr (concepts::oneof_type<type>) {
-      if (std::holds_alternative<std::monostate>(item))
+    } else if constexpr (concepts::oneof_type<type>) {
+      if (std::holds_alternative<std::monostate>(item)) {
         return {};
+      }
       return serialize_oneof<0, Meta>(std::forward<decltype(item)>(item));
     } else {
 
-      if (meta.omit_value(item))
+      if (meta.omit_value(item)) {
         return {};
+      }
 
       if constexpr (std::is_same_v<type, boolean>) {
         constexpr auto tag = make_tag<bool>(meta);
@@ -732,8 +740,9 @@ struct out {
             },
             item);
       } else {
-        if (item.empty())
+        if (item.empty()) {
           return {};
+        }
         using value_type = typename type::value_type;
         using element_type =
             std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::string_or_bytes<type>, value_type,
@@ -784,10 +793,11 @@ struct out {
           return execute_successively(
               [&, this]() constexpr {
                 constexpr auto tag = make_tag<type>(meta);
-                std::size_t size = std::transform_reduce(item.begin(), item.end(), 0u, std::plus{}, [](auto &element) {
-                  return ::zpp::bits::varint_size<varint_type::encoding>(
-                      static_cast<typename varint_type::value_type>(element));
-                });
+                const std::size_t size =
+                    std::transform_reduce(item.begin(), item.end(), 0u, std::plus{}, [](auto &element) {
+                      return ::zpp::bits::varint_size<varint_type::encoding>(
+                          static_cast<typename varint_type::value_type>(element));
+                    });
                 return m_archive(tag, ::zpp::bits::varint{size});
               },
               [&, this]() constexpr {
@@ -832,13 +842,14 @@ struct out {
 
 template <::zpp::bits::concepts::byte_view ByteView, typename... Options>
 constexpr auto make_in_archive(ByteView &&view, Options &&...) {
-  if constexpr (std::same_as<std::decay_t<ByteView>, std::string_view>)
+  if constexpr (std::same_as<std::decay_t<ByteView>, std::string_view>) {
     return ::zpp::bits::in{std::span{view.data(), view.size()}, ::zpp::bits::size_varint{},
                            ::zpp::bits::endian::little{},
                            ::zpp::bits::alloc_limit<::zpp::bits::traits::alloc_limit<Options...>()>{}};
-  else
+  } else {
     return ::zpp::bits::in{std::forward<ByteView>(view), ::zpp::bits::size_varint{}, ::zpp::bits::endian::little{},
                            ::zpp::bits::alloc_limit<::zpp::bits::traits::alloc_limit<Options...>()>{}};
+  }
 }
 
 template <class Key, class Mapped, class Compare, class KeyContainer, class MappedContainer>
@@ -962,7 +973,7 @@ public:
 
   ZPP_BITS_INLINE constexpr errc deserialize_fields(auto &item, std::size_t end_position) {
 
-    std::size_t hint = 0;
+    const std::size_t hint = 0;
 
     while (this->m_archive.position() < end_position) {
       ::zpp::bits::vuint32_t tag;
@@ -978,9 +989,10 @@ public:
           return result;
         }
       } else {
-        if (auto result = deserialize_field_by_num(item, tag_number(tag), proto::tag_type(tag), hint); failure(result))
-            [[unlikely]]
-          return result;
+        if (auto result = deserialize_field_by_num(item, tag_number(tag), proto::tag_type(tag), hint);
+            failure(result)) {
+          [[unlikely]] return result;
+        }
       }
     }
 
@@ -991,7 +1003,7 @@ public:
 
   ZPP_BITS_INLINE constexpr errc deserialize_group(auto &item, uint32_t field_num) {
 
-    std::size_t hint = 0;
+    const std::size_t hint = 0;
 
     while (this->m_archive.remaining_data().size()) {
       ::zpp::bits::vuint32_t tag;
@@ -1109,15 +1121,15 @@ public:
     return {};
   }
 
-  // ZPP_BITS_INLINE 
+  // ZPP_BITS_INLINE
   inline constexpr errc do_skip_group(uint32_t field_num) {
     while (this->m_archive.remaining_data().size()) {
       ::zpp::bits::vuint32_t tag;
       if (auto result = this->m_archive(tag); failure(result)) [[unlikely]] {
         return result;
       }
-      uint32_t next_field_num = tag_number(tag);
-      wire_type next_type = proto::tag_type(tag);
+      const uint32_t next_field_num = tag_number(tag);
+      const wire_type next_type = proto::tag_type(tag);
 
       if (next_type == wire_type::egroup && field_num == next_field_num) {
         return {};
@@ -1227,8 +1239,9 @@ public:
     if (auto result = this->m_archive(t); failure(result)) [[unlikely]] {
       return result;
     }
-    if (t != tag) [[unlikely]]
+    if (t != tag) [[unlikely]] {
       return std::errc::result_out_of_range;
+    }
     return {};
   }
 
@@ -1492,7 +1505,7 @@ public:
         return result;
       }
       auto old_size = item.size();
-      std::size_t new_size = item.size() + count;
+      const std::size_t new_size = item.size() + count;
 
       if (auto result = resize_or_reserve(growable, new_size); failure(result)) [[unlikely]] {
         return result;
@@ -1535,8 +1548,9 @@ public:
         if (auto result = element_counting_archive(len); failure(result)) [[unlikely]] {
           return result;
         }
-        if (element_counting_archive.remaining_data().size() < len) [[unlikely]]
+        if (element_counting_archive.remaining_data().size() < len) [[unlikely]] {
           return std::errc::result_out_of_range;
+        }
         element_counting_archive.position() += len;
         ++count;
       }
@@ -1583,8 +1597,9 @@ public:
 
       ++count;
 
-      if (element_counting_archive.remaining_data().size() == 0)
+      if (element_counting_archive.remaining_data().size() == 0) {
         return {};
+      }
 
       if (auto result = element_counting_archive(tag); failure(result)) [[unlikely]] {
         return result;
@@ -1598,7 +1613,7 @@ public:
     if constexpr (Index < std::tuple_size_v<Meta>) {
       using meta = typename std::tuple_element<Index, Meta>::type;
       if (meta::number == field_num) {
-        if constexpr (requires { item.template emplace<Index + 1>();}) {
+        if constexpr (requires { item.template emplace<Index + 1>(); }) {
           return deserialize_field(meta{}, field_type, field_num, item.template emplace<Index + 1>());
         } else {
           item = std::variant_alternative_t<Index + 1, std::decay_t<decltype(item)>>{};
@@ -1623,8 +1638,9 @@ public:
       }
 
       return deserialize_fields(item, this->m_archive.position() + size);
-    } else
+    } else {
       return deserialize_fields(item, this->m_archive.data().size());
+    }
   }
 };
 

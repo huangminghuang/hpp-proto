@@ -22,7 +22,7 @@ static_assert(hpp::proto::to_bytes<example{150}>() == "089601"_decode_hex);
 
 static_assert(hpp::proto::from_bytes<"089601"_decode_hex, example>().i == 150);
 
-static_assert(hpp::proto::to_bytes<example{}>().size() == 0);
+static_assert(hpp::proto::to_bytes<example{}>().empty());
 
 static_assert(hpp::proto::from_bytes<std::array<std::byte, 0>{}, example>().i == 0);
 struct nested_example {
@@ -59,13 +59,13 @@ auto serialize(const example_default_type &) -> zpp::bits::members<1>;
 auto pb_meta(const example_default_type &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, zpp::bits::vint64_t, 1>>;
 
-static_assert(hpp::proto::to_bytes<example_default_type{}>().size() == 0);
+static_assert(hpp::proto::to_bytes<example_default_type{}>().empty());
 
 ut::suite test_example_default_type = [] {
   auto [data, in, out] = hpp::proto::data_in_out(zpp::bits::no_size{});
-  example_default_type v;
+  example_default_type const v;
   ut::expect(success(out(v)));
-  ut::expect(data.size() == 0);
+  ut::expect(data.empty());
 };
 
 static_assert(hpp::proto::from_bytes<std::array<std::byte, 0>{}, example_default_type>().i == 1);
@@ -102,8 +102,9 @@ void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encod
   ut::expect(success(hpp::proto::in{encoded_data}(value)));
   ut::expect(value == expected_value);
 
-  if (mode == decode_only)
+  if (mode == decode_only) {
     return;
+  }
 
   std::vector<std::byte> new_data;
   ut::expect(success(hpp::proto::out{new_data}(value)));
@@ -195,8 +196,9 @@ void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory
   ut::expect(success(hpp::proto::in{encoded_data, mr}(value)));
   ut::expect(value == expected_value);
 
-  if (mode == decode_only)
+  if (mode == decode_only) {
     return;
+  }
 
   std::array<std::byte, encoded_data.size()> new_data;
   ut::expect(success(hpp::proto::out{new_data}(value)));
@@ -238,7 +240,7 @@ struct non_owing_nested_example {
 };
 
 ut::suite test_non_owning_nested_example = [] {
-  example ex{.i = 150};
+  example const ex{.i = 150};
   verify_non_owning("\x0a\x03\x08\x96\x01"_bytes_array, non_owing_nested_example{.nested = &ex}, 16);
 };
 
@@ -520,14 +522,14 @@ ut::suite test_repeated_example = [] {
                  "\xff\xff\xff\xff\x01\x0a\x0b\x08\xfc\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_array;
 
   "repeated_example"_test = [&] {
-    repeated_examples expected{.examples = {{1}, {2}, {3}, {4}, {-1}, {-2}, {-3}, {-4}}};
+    repeated_examples const expected{.examples = {{1}, {2}, {3}, {4}, {-1}, {-2}, {-3}, {-4}}};
     verify(encoded, expected);
   };
 
   "non_owning_repeated_example"_test = [&] {
     std::array<example, 8> x = {example{1},  example{2},  example{3},  example{4},
                                 example{-1}, example{-2}, example{-3}, example{-4}};
-    non_owning_repeated_examples expected{.examples = x};
+    non_owning_repeated_examples const expected{.examples = x};
     verify_non_owning(encoded, expected, 64);
   };
 };
@@ -550,7 +552,7 @@ ut::suite test_repeated_group = [] {
   auto encoded = "\x0b\x10\x01\x0c\x0b\x10\x02\x0c"_bytes_array;
 
   "repeated_group"_test = [&] {
-    repeated_group expected{.repeatedgroup = {{1}, {2}}};
+    repeated_group const expected{.repeatedgroup = {{1}, {2}}};
     verify(encoded, expected);
   };
 };
@@ -653,7 +655,7 @@ ut::suite test_string_example = [] {
   };
 
   "optional_value_access"_test = [] {
-    string_with_optional v;
+    string_with_optional const v;
     ut::expect(v.value.value_or_default() == "test");
   };
 };
@@ -709,7 +711,7 @@ ut::suite test_string_view_example = [] {
   };
 
   "optional_value_access"_test = [] {
-    string_view_with_optional v;
+    string_view_with_optional const v;
     ut::expect(v.value.value_or_default() == "test");
   };
 };
@@ -767,7 +769,7 @@ ut::suite test_bytes = [] {
   };
 
   "optional_value_access"_test = [] {
-    bytes_with_optional v;
+    bytes_with_optional const v;
     ut::expect(v.value.value_or_default() == verified_value);
   };
 };
@@ -827,7 +829,7 @@ ut::suite test_char_vector = [] {
   };
 
   "optional_value_access"_test = [] {
-    char_vector_with_optional v;
+    char_vector_with_optional const v;
     ut::expect(v.value.value_or_default() == std::vector<char>{'t', 'e', 's', 't'});
   };
 };
@@ -948,7 +950,7 @@ auto pb_meta(const optional_bools &)
 
 ut::suite test_optional_bools = [] {
   "empty_optional_bools"_test = [] {
-    std::vector<std::byte> data;
+    std::vector<std::byte> const data;
     verify(data, optional_bools{});
   };
 
@@ -1053,7 +1055,7 @@ ut::suite test_extensions = [] {
   "get_extension"_test = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"_bytes_array;
-    extension_example expected_value{
+    extension_example const expected_value{
         .int_value = 150,
         .extensions = {.fields = {{10U, "\x50\x01"_bytes},
                                   {11U, "\x5a\x04\x74\x65\x73\x74"_bytes},
@@ -1225,7 +1227,7 @@ ut::suite test_non_owning_extensions = [] {
          {21U, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes_view},
          {22U, "\xb2\x01\x03\01\02\03"_bytes_view}}};
 
-    non_owning_extension_example expected_value{.int_value = 150, .extensions = {.fields = fields_storage}};
+    non_owning_extension_example const expected_value{.int_value = 150, .extensions = {.fields = fields_storage}};
     non_owning_extension_example value;
 
     monotonic_memory_resource mr{1024};
@@ -1353,7 +1355,7 @@ struct non_owning_recursive_type2 {
   constexpr non_owning_recursive_type2() = default;
   constexpr non_owning_recursive_type2(const non_owning_recursive_type2 &other)
       : children(other.children.data(), other.children.size()), payload(other.payload) {}
-  constexpr non_owning_recursive_type2& operator=(const non_owning_recursive_type2 &other) = default;
+  constexpr non_owning_recursive_type2 &operator=(const non_owning_recursive_type2 &other) = default;
 #endif
   bool operator==(const non_owning_recursive_type2 &other) const {
     return payload == other.payload &&
@@ -1362,7 +1364,6 @@ struct non_owning_recursive_type2 {
 };
 
 auto serialize(const non_owning_recursive_type2 &) -> zpp::bits::members<2>;
-
 
 auto pb_meta(const non_owning_recursive_type2 &)
     -> std::tuple<hpp::proto::field_meta<1>, hpp::proto::field_meta<2, encoding_rule::defaulted, zpp::bits::vint64_t>>;
@@ -1383,7 +1384,7 @@ ut::suite recursive_types = [] {
 
   "non_owning_recursive_type1"_test = [] {
     non_owning_recursive_type1 child{nullptr, 2};
-    non_owning_recursive_type1 value{&child, 1};
+    non_owning_recursive_type1 const value{&child, 1};
 
     verify_non_owning("\x0a\x02\x10\x02\x10\x01"_bytes_array, value, 64);
   };
@@ -1474,23 +1475,23 @@ ut::suite test_monster = [] {
 
 ut::suite test_monster_unsized = [] {
   auto [data, in, out] = hpp::proto::data_in_out(zpp::bits::no_size{});
-  monster m = {.pos = {1.0, 2.0, 3.0},
-               .mana = 200,
-               .hp = 1000,
-               .name = "mushroom",
-               .inventory = {1, 2, 3},
-               .color = monster::blue,
-               .weapons =
-                   {
-                       monster::weapon{.name = "sword", .damage = 55},
-                       monster::weapon{.name = "spear", .damage = 150},
-                   },
-               .equipped =
-                   {
-                       monster::weapon{.name = "none", .damage = 15},
-                   },
-               .path = {monster::vec3{2.0, 3.0, 4.0}, monster::vec3{5.0, 6.0, 7.0}},
-               .boss = true};
+  monster const m = {.pos = {1.0, 2.0, 3.0},
+                     .mana = 200,
+                     .hp = 1000,
+                     .name = "mushroom",
+                     .inventory = {1, 2, 3},
+                     .color = monster::blue,
+                     .weapons =
+                         {
+                             monster::weapon{.name = "sword", .damage = 55},
+                             monster::weapon{.name = "spear", .damage = 150},
+                         },
+                     .equipped =
+                         {
+                             monster::weapon{.name = "none", .damage = 15},
+                         },
+                     .path = {monster::vec3{2.0, 3.0, 4.0}, monster::vec3{5.0, 6.0, 7.0}},
+                     .boss = true};
 
   ut::expect(success(out(m)));
   monster m2;

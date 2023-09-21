@@ -23,6 +23,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <functional>
 #include <optional>
 #include <span>
@@ -31,7 +32,6 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
-#include <cassert>
 
 #if __has_include(<flat_map>)
 #include <flat_map>
@@ -210,9 +210,9 @@ public:
   constexpr void reset() noexcept { impl.reset(); }
 
   constexpr T value_or_default() const {
-    if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>)
+    if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
       return this->value_or(T{});
-    else if constexpr (requires { T{Default.data(), Default.size()}; }) {
+    } else if constexpr (requires { T{Default.data(), Default.size()}; }) {
       return this->value_or(T{Default.data(), Default.size()});
     } else if constexpr (requires {
                            requires sizeof(typename T::value_type) == sizeof(typename decltype(Default)::value_type);
@@ -221,8 +221,9 @@ public:
                          }) {
       return this->value_or(T{(const typename T::value_type *)Default.data(),
                               (const typename T::value_type *)Default.data() + Default.size()});
-    } else
+    } else {
       return this->value_or(unwrap(Default));
+    }
   }
 
   constexpr bool operator==(const optional &other) const = default;
@@ -262,14 +263,16 @@ public:
     return deref();
   }
   constexpr bool value() const {
-    if (!has_value())
+    if (!has_value()) {
       throw std::bad_optional_access{};
+    }
     return impl;
   }
 
   constexpr bool value_or_default() const noexcept {
-    if (has_value())
+    if (has_value()) {
       return impl;
+    }
     return default_value;
   }
 
@@ -313,13 +316,15 @@ public:
   constexpr operator bool() const noexcept { return has_value(); }
 
   constexpr T &value() {
-    if (!has_value())
+    if (!has_value()) {
       throw std::bad_optional_access();
+    }
     return *obj;
   }
   constexpr const T &value() const {
-    if (!has_value())
+    if (!has_value()) {
       throw std::bad_optional_access();
+    }
     return *obj;
   }
 
@@ -351,10 +356,11 @@ public:
   }
 
   constexpr bool operator==(const heap_based_optional &rhs) const {
-    if (has_value() && rhs.has_value())
+    if (has_value() && rhs.has_value()) {
       return **this == *rhs;
-    else
+    } else {
       return has_value() == rhs.has_value();
+    }
   }
 
   constexpr bool operator==(std::nullopt_t) const { return !has_value(); }
@@ -471,14 +477,17 @@ struct boolean {
 template <typename T, auto Default = std::monostate{}>
 constexpr bool is_default_value(const T &val) {
   if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
-    if constexpr (requires { val.empty(); })
+    if constexpr (requires { val.empty(); }) {
       return val.empty();
-    if constexpr (requires { val.has_value(); })
+    }
+    if constexpr (requires { val.has_value(); }) {
       return !val.has_value();
-    if constexpr (std::is_class_v<T>)
+    }
+    if constexpr (std::is_class_v<T>) {
       return false;
-    else
+    } else {
       return val == T{};
+    }
   } else if constexpr (requires { val.has_value(); }) {
     return val.has_value() && Default == *val;
   } else {

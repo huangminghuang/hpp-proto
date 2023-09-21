@@ -35,7 +35,7 @@ namespace std {
 inline std::ostream &operator<<(std::ostream &os, std::byte b) {
   static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
   char result[] = "\\x00";
-  unsigned char c = static_cast<unsigned char>(b);
+  const unsigned char c = static_cast<unsigned char>(b);
   result[2] = qmap[c >> 4];
   result[3] = qmap[c & '\x0F'];
   return os << result;

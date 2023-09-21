@@ -90,7 +90,7 @@ struct to_json<hpp::proto::bytes_view> {
     const auto n = value.size();
 
     if constexpr (detail::resizeable<B>) {
-      std::size_t encoded_size = (n / 3 + (n % 3 ? 1 : 0)) * 4;
+      std::size_t const encoded_size = (n / 3 + (n % 3 ? 1 : 0)) * 4;
       if ((ix + 2 + encoded_size) >= b.size()) [[unlikely]] {
         b.resize(std::max(b.size() * 2, ix + 2 + encoded_size));
       }
@@ -99,9 +99,9 @@ struct to_json<hpp::proto::bytes_view> {
     dump_unchecked<'"'>(b, ix);
 
     using V = std::decay_t<decltype(b[0])>;
-    static char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                 "abcdefghijklmnopqrstuvwxyz"
-                                 "0123456789+/";
+    static char const base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                       "abcdefghijklmnopqrstuvwxyz"
+                                       "0123456789+/";
 
     std::size_t i = 0;
     if (n >= 3) {
@@ -132,7 +132,7 @@ struct to_json<hpp::proto::bytes_view> {
     if (i != n) {
 
       b[ix++] = static_cast<V>(base64_chars[std::to_integer<int>((value[i] >> 2) & std::byte{0x3F})]);
-      std::byte next = (i + 1 < n) ? value[i + 1] : std::byte{0};
+      std::byte const next = (i + 1 < n) ? value[i + 1] : std::byte{0};
       b[ix++] = static_cast<V>(
           base64_chars[std::to_integer<int>((value[i] << 4 & std::byte{0x3F}) | ((next >> 4) & std::byte{0x0F}))]);
       if (i + 1 < n) {
@@ -196,25 +196,29 @@ GLZ_ALWAYS_INLINE void read_json_bytes(auto &&value, is_context auto &&ctx, It &
   }
 
   size_t out_len = n / 4 * 3;
-  if (*(start + n - 1) == '=')
+  if (*(start + n - 1) == '=') {
     out_len--;
-  if (*(start + n - 2) == '=')
+  }
+  if (*(start + n - 2) == '=') {
     out_len--;
+  }
 
   value.resize(out_len);
   size_t j = 0;
   while (start != it) {
-    uint32_t a = decode_table[static_cast<int>(*start++)];
-    uint32_t b = decode_table[static_cast<int>(*start++)];
-    uint32_t c = decode_table[static_cast<int>(*start++)];
-    uint32_t d = decode_table[static_cast<int>(*start++)];
-    uint32_t triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
+    uint32_t const a = decode_table[static_cast<int>(*start++)];
+    uint32_t const b = decode_table[static_cast<int>(*start++)];
+    uint32_t const c = decode_table[static_cast<int>(*start++)];
+    uint32_t const d = decode_table[static_cast<int>(*start++)];
+    uint32_t const triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
 
     value[j++] = std::byte((triple >> 2 * 8) & 0xFF);
-    if (j < out_len)
+    if (j < out_len) {
       value[j++] = std::byte((triple >> 1 * 8) & 0xFF);
-    if (j < out_len)
+    }
+    if (j < out_len) {
       value[j++] = std::byte((triple >> 0 * 8) & 0xFF);
+    }
   }
   match<'"'>(ctx, it, end);
 }
@@ -231,8 +235,9 @@ template <typename Type, auto Default>
 struct to_json<hpp::proto::optional<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    if (value.has_value())
+    if (value.has_value()) {
       to_json<Type>::template op<Opts>(*value, std::forward<Args>(args)...);
+    }
   }
 };
 
@@ -257,8 +262,9 @@ struct to_json<hpp::proto::optional_ref<Type, Default>> {
     if constexpr (std::is_same_v<Type, uint64_t>) {
       static_assert(std::is_same_v<std::decay_t<decltype(*value)>, glz::quoted_t<uint64_t>>);
     }
-    if (bool(value))
+    if (bool(value)) {
       to_json<std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
+    }
   }
 };
 
@@ -266,10 +272,11 @@ template <typename Type, auto Default>
 struct from_json<hpp::proto::optional_ref<Type, Default>> {
   template <auto Options, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    if constexpr (requires { value.emplace(); })
+    if constexpr (requires { value.emplace(); }) {
       from_json<std::decay_t<decltype(*value)>>::template op<Options>(value.emplace(), std::forward<Args>(args)...);
-    else
+    } else {
       from_json<std::decay_t<decltype(*value)>>::template op<Options>(*value, std::forward<Args>(args)...);
+    }
   }
 };
 
@@ -304,12 +311,12 @@ struct from_json<hpp::proto::oneof_wrapper<Type, Index>> {
   template <auto Options, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     using alt_type = std::variant_alternative_t<Index, Type>;
-    if constexpr (requires {value.value->template emplace<Index>();} ) {
+    if constexpr (requires { value.value->template emplace<Index>(); }) {
       auto &v = value.value->template emplace<Index>();
       from_json<alt_type>::template op<Options>(v, std::forward<Args>(args)...);
     } else {
       *value.value = alt_type{};
-      from_json<alt_type>::template op<Options>( std::get<Index>(*value.value), std::forward<Args>(args)...);
+      from_json<alt_type>::template op<Options>(std::get<Index>(*value.value), std::forward<Args>(args)...);
     }
   }
 };
@@ -337,18 +344,20 @@ struct from_json<std::span<Type>> {
                                    auto &&it, auto &&end) {
     hpp::proto::detail::growable_span growable{value, ctx.mr};
     using type = std::remove_const_t<Type>;
-    if constexpr (std::same_as<type, std::byte> || std::same_as<type, char>)
+    if constexpr (std::same_as<type, std::byte> || std::same_as<type, char>) {
       read_json_bytes<Options>(growable, ctx, it, end);
-    else
+    } else {
       from_json<decltype(growable)>::template op<Options>(growable, ctx, it, end);
+    }
   }
 };
 
 template <auto Opts>
 [[nodiscard]] GLZ_ALWAYS_INLINE size_t number_of_map_elements(is_context auto &&ctx, auto it, auto &&end) noexcept {
   skip_ws<Opts>(ctx, it, end);
-  if (bool(ctx.error)) [[unlikely]]
-    return {};
+  if (bool(ctx.error)) {
+    [[unlikely]] return {};
+  }
 
   if (*it == '}') [[unlikely]] {
     return 0;
@@ -363,24 +372,28 @@ template <auto Opts>
     }
     case '/': {
       skip_comment(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return {};
+      if (bool(ctx.error)) {
+        [[unlikely]] return {};
+      }
       break;
     }
     case '{':
       skip_until_closed<'{', '}'>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return {};
+      if (bool(ctx.error)) {
+        [[unlikely]] return {};
+      }
       break;
     case '[':
       skip_until_closed<'[', ']'>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return {};
+      if (bool(ctx.error)) {
+        [[unlikely]] return {};
+      }
       break;
     case '"': {
       skip_string<Opts>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return {};
+      if (bool(ctx.error)) {
+        [[unlikely]] return {};
+      }
       break;
     }
     case '}': {
@@ -404,17 +417,20 @@ struct from_json<T> {
   GLZ_FLATTEN static void op(auto &value, is_context auto &&ctx, auto &&it, auto &&end) {
     if constexpr (!Options.ws_handled) {
       skip_ws<Options>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return;
+      if (bool(ctx.error)) {
+        [[unlikely]] return;
+      }
     }
     static constexpr auto Opts = ws_handled_off<Options>();
 
     match<'{'>(ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]]
-      return;
+    if (bool(ctx.error)) {
+      [[unlikely]] return;
+    }
     const auto n = number_of_map_elements<Opts>(ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]]
-      return;
+    if (bool(ctx.error)) {
+      [[unlikely]] return;
+    }
     value.resize(n);
     size_t i = 0;
     using k_t = typename T::value_type::first_type;
@@ -424,22 +440,27 @@ struct from_json<T> {
       } else {
         read<json>::op<Opts>(x.first, ctx, it, end);
       }
-      if (bool(ctx.error)) [[unlikely]]
-        return;
+      if (bool(ctx.error)) {
+        [[unlikely]] return;
+      }
 
       skip_ws<Opts>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return;
+      if (bool(ctx.error)) {
+        [[unlikely]] return;
+      }
       match<':'>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return;
+      if (bool(ctx.error)) {
+        [[unlikely]] return;
+      }
       skip_ws<Opts>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return;
+      if (bool(ctx.error)) {
+        [[unlikely]] return;
+      }
 
       read<json>::op<ws_handled<Opts>()>(x.second, ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return;
+      if (bool(ctx.error)) {
+        [[unlikely]] return;
+      }
 
       skip_ws<Opts>(ctx, it, end);
       if (i < n - 1) {
@@ -458,8 +479,9 @@ struct from_json<T *> {
                              auto &&end) {
     if constexpr (!Options.ws_handled) {
       skip_ws<Options>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return;
+      if (bool(ctx.error)) {
+        [[unlikely]] return;
+      }
     }
     static constexpr auto Opts = ws_handled_off<Options>();
     using type = std::remove_const_t<T>;
@@ -473,8 +495,9 @@ struct from_json<T *> {
     if (*it == 'n') {
       ++it;
       match<"ull">(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return;
+      if (bool(ctx.error)) {
+        [[unlikely]] return;
+      }
       value = nullptr;
     } else {
       void *addr = ctx.mr.allocate(sizeof(type), alignof(type));
