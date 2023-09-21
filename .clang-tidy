@@ -17,6 +17,12 @@ Checks: "*,
         -bugprone-exception-escape,
         -misc-non-private-member-variables-in-classes,
         -misc-confusable-identifiers,
+        -cert-err58-cpp,
+        -cppcoreguidelines-avoid-magic-numbers,
+        -readability-magic-numbers,
+        -cppcoreguidelines-avoid-c-arrays,
+        -hicpp-avoid-c-arrays,
+        -modernize-avoid-c-arrays
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
@@ -27,3 +33,9 @@ CheckOptions:
     value: 'x|y|z'
   - key: readability-identifier-length.IgnoredParameterNames
     value: 'x|y|z'
+
+ExtraArgs:
+  - -Wno-unknown-warning-option
+  - -Wno-ignored-optimization-argument
+  - -Wno-unused-command-line-argument
+  - -extra-arg=-std=c++20

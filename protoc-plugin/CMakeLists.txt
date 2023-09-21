@@ -9,7 +9,7 @@ set(PROTO_FILES google/protobuf/descriptor.proto
 
 add_custom_target(gpb_descriptor
     COMMENT "processing ${PROTO_FILES}"
-    COMMAND ${CMAKE_COMMAND} -E env "HPP_EXPLICIT_PRESENCE=.google.protobuf.FieldDescriptorProto.oneof_index,.google.protobuf.FieldOptions.packed" protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include  -I ${protobuf_SOURCE_DIR}/src ${PROTO_FILES}
+    COMMAND ${CMAKE_COMMAND} -E env "HPP_EXPLICIT_PRESENCE=.google.protobuf.FieldDescriptorProto.oneof_index,.google.protobuf.FieldOptions.packed" $<TARGET_FILE:protoc> --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include  -I ${protobuf_SOURCE_DIR}/src ${PROTO_FILES}
     DEPENDS protoc protoc-gen-hpp
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     VERBATIM

@@ -4,13 +4,13 @@
 #include <non_owning/google/protobuf/unittest.glz.hpp>
 #include <non_owning/google/protobuf/unittest.pb.hpp>
 
-namespace std {
+//namespace std {
 template <typename T>
   requires requires { glz::meta<T>::value; }
 std::ostream &operator<<(std::ostream &os, const T &v) {
   return os << hpp::proto::write_json(v);
 }
-} // namespace std
+//} // namespace std
 
 namespace TestUtil {
 using namespace std::literals::string_view_literals;
@@ -49,7 +49,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message);
 inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message);
 inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message);
 
-inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_memory_resource &) {
+inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_memory_resource & /*unused*/) {
   SetOptionalFields(message);
   SetRepeatedFields(message);
   SetDefaultFields(message);
@@ -73,13 +73,13 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
   message->optional_string = "115";
   message->optional_bytes = "116"_bytes_view;
 
-  message->optionalgroup = protobuf_unittest::TestAllTypes::OptionalGroup { .a = 117 };
-  message->optional_nested_message = protobuf_unittest::TestAllTypes::NestedMessage { .bb = 118 };
+  message->optionalgroup = protobuf_unittest::TestAllTypes::OptionalGroup{.a = 117};
+  message->optional_nested_message = protobuf_unittest::TestAllTypes::NestedMessage{.bb = 118};
   message->optional_foreign_message.emplace().c = 119;
   message->optional_import_message.emplace().d = 120;
   message->optional_public_import_message.emplace().e = 126;
-  message->optional_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage { .bb = 127 };
-  message->optional_unverified_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage { .bb = 128 };
+  message->optional_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage{.bb = 127};
+  message->optional_unverified_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage{.bb = 128};
 
   message->optional_nested_enum = protobuf_unittest::TestAllTypes::NestedEnum::BAZ;
   message->optional_foreign_enum = protobuf_unittest::ForeignEnum::FOREIGN_BAZ;
@@ -89,58 +89,58 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
 // -------------------------------------------------------------------
 
 inline void SetRepeatedFields(protobuf_unittest::TestAllTypes *message) {
-  static int32_t repeated_int32[] = {201, 301};
+  const static int32_t repeated_int32[] = {201, 301};
   message->repeated_int32 = repeated_int32;
-  static int64_t repeated_int64[] = {202LL, 302LL};
+  const static int64_t repeated_int64[] = {202LL, 302LL};
   message->repeated_int64 = repeated_int64;
-  static uint32_t repeated_uint32[] = {203U, 303U};
+  const static uint32_t repeated_uint32[] = {203U, 303U};
   message->repeated_uint32 = repeated_uint32;
-  static uint64_t repeated_uint64[] = {204ULL, 304ULL};
+  const static uint64_t repeated_uint64[] = {204ULL, 304ULL};
   message->repeated_uint64 = repeated_uint64;
-  static int32_t repeated_sint32[] = {205, 305};
+  const static int32_t repeated_sint32[] = {205, 305};
   message->repeated_sint32 = repeated_sint32;
-  static int64_t repeated_sint64[] = {206LL, 306LL};
+  const static int64_t repeated_sint64[] = {206LL, 306LL};
   message->repeated_sint64 = repeated_sint64;
 
-  static uint32_t repeated_fixed32[] = {207U, 307U};
+  const static uint32_t repeated_fixed32[] = {207U, 307U};
   message->repeated_fixed32 = repeated_fixed32;
-  static uint64_t repeated_fixed64[] = {208ULL, 308ULL};
+  const static uint64_t repeated_fixed64[] = {208ULL, 308ULL};
   message->repeated_fixed64 = repeated_fixed64;
-  static int32_t repeated_sfixed32[] = {209, 309};
+  const static int32_t repeated_sfixed32[] = {209, 309};
   message->repeated_sfixed32 = repeated_sfixed32;
-  static int64_t repeated_sfixed64[] = {210LL, 310LL};
+  const static int64_t repeated_sfixed64[] = {210LL, 310LL};
   message->repeated_sfixed64 = repeated_sfixed64;
-  static float repeated_float[] = {211.f, 311.f};
+  const static float repeated_float[] = {211.F, 311.F};
   message->repeated_float = repeated_float;
-  static double repeated_double[] = {212., 312.};
+  const static double repeated_double[] = {212., 312.};
   message->repeated_double = repeated_double;
-  static bool repeated_bool[] = {true, false};
+  const static bool repeated_bool[] = {true, false};
   message->repeated_bool = repeated_bool;
 
-  static std::string_view repeated_string[] = {"215"sv, "315"sv};
+  const static std::string_view repeated_string[] = {"215"sv, "315"sv};
   message->repeated_string = repeated_string;
-  static hpp::proto::bytes_view repeated_bytes[] = {"216"_bytes_view, "316"_bytes_view};
+  const static hpp::proto::bytes_view repeated_bytes[] = {"216"_bytes_view, "316"_bytes_view};
   message->repeated_bytes = repeated_bytes;
 
-  static protobuf_unittest::TestAllTypes::RepeatedGroup repeatedgroup[] = {{.a = 217}, {.a = 317}};
+  const static protobuf_unittest::TestAllTypes::RepeatedGroup repeatedgroup[] = {{.a = 217}, {.a = 317}};
   message->repeatedgroup = repeatedgroup;
-  static protobuf_unittest::TestAllTypes::NestedMessage repeated_nested_message[] = {{.bb = 218}, {.bb = 318}};
+  const static protobuf_unittest::TestAllTypes::NestedMessage repeated_nested_message[] = {{.bb = 218}, {.bb = 318}};
   message->repeated_nested_message = repeated_nested_message;
 
-  static protobuf_unittest::ForeignMessage repeated_foreign_message[] = {{.c = 219}, {.c = 319}};
+  const static protobuf_unittest::ForeignMessage repeated_foreign_message[] = {{.c = 219}, {.c = 319}};
   message->repeated_foreign_message = repeated_foreign_message;
-  static non_owning::protobuf_unittest_import::ImportMessage repeated_import_message[] = {{.d = 220}, {.d = 320}};
+  const static non_owning::protobuf_unittest_import::ImportMessage repeated_import_message[] = {{.d = 220}, {.d = 320}};
   message->repeated_import_message = repeated_import_message;
-  static protobuf_unittest::TestAllTypes::NestedMessage repeated_lazy_message[] = {{.bb = 227}, {.bb = 327}};
+  const static protobuf_unittest::TestAllTypes::NestedMessage repeated_lazy_message[] = {{.bb = 227}, {.bb = 327}};
   message->repeated_lazy_message = repeated_lazy_message;
 
-  static protobuf_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
+  const static protobuf_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
       protobuf_unittest::TestAllTypes::NestedEnum::BAR, protobuf_unittest::TestAllTypes::NestedEnum::BAZ};
   message->repeated_nested_enum = repeated_nested_enum;
-  static protobuf_unittest::ForeignEnum repeated_foreign_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
-                                                                   protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
+  const static protobuf_unittest::ForeignEnum repeated_foreign_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
+                                                                         protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
   message->repeated_foreign_enum = repeated_foreign_enum;
-  static protobuf_unittest_import::ImportEnum repeated_import_enum[] = {
+  const static protobuf_unittest_import::ImportEnum repeated_import_enum[] = {
       protobuf_unittest_import::ImportEnum::IMPORT_BAR, protobuf_unittest_import::ImportEnum::IMPORT_BAZ};
   message->repeated_import_enum = repeated_import_enum;
 }
@@ -197,13 +197,13 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message) {
   expect(eq("115"sv, message.optional_string));
   expect(equal_range("116"_bytes, message.optional_bytes));
 
-  expect(eq(117, message.optionalgroup->a));
-  expect(eq(118, message.optional_nested_message->bb));
-  expect(eq(119, message.optional_foreign_message->c));
-  expect(eq(120, message.optional_import_message->d));
-  expect(eq(126, message.optional_public_import_message->e));
-  expect(eq(127, message.optional_lazy_message->bb));
-  expect(eq(128, message.optional_unverified_lazy_message->bb));
+  expect(message.optionalgroup.has_value() && 117 == message.optionalgroup->a);
+  expect(message.optional_nested_message.has_value() && 118 == message.optional_nested_message->bb);
+  expect(message.optional_foreign_message.has_value() && 119 == message.optional_foreign_message->c);
+  expect(message.optional_import_message.has_value() && 120 == message.optional_import_message->d);
+  expect(message.optional_public_import_message.has_value() && 126 == message.optional_public_import_message->e);
+  expect(message.optional_lazy_message.has_value() && 127 == message.optional_lazy_message->bb);
+  expect(message.optional_unverified_lazy_message.has_value() && 128 == message.optional_unverified_lazy_message->bb);
 
   expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ == message.optional_nested_enum);
   expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.optional_foreign_enum);
@@ -328,7 +328,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message) {
   expect(eq(0ULL, message.optional_fixed64));
   expect(eq(0, message.optional_sfixed32));
   expect(eq(0LL, message.optional_sfixed64));
-  expect(eq(0.0f, message.optional_float));
+  expect(eq(0.0F, message.optional_float));
   expect(eq(0.0, message.optional_double));
   expect(eq(false, message.optional_bool));
   expect(eq(0, message.optional_string.size()));
@@ -404,93 +404,93 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message) {
 
 // -------------------------------------------------------------------
 
-inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory_resource &) {
-  static int32_t packed_int32[] = {601, 701};
+inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory_resource & /*unused*/) {
+  const static int32_t packed_int32[] = {601, 701};
   message->packed_int32 = packed_int32;
 
-  static int64_t packed_int64[] = {602, 702};
+  const static int64_t packed_int64[] = {602, 702};
   message->packed_int64 = packed_int64;
 
-  static uint32_t packed_uint32[] = {603, 703};
+  const static uint32_t packed_uint32[] = {603, 703};
   message->packed_uint32 = packed_uint32;
 
-  static uint64_t packed_uint64[] = {604, 704};
+  const static uint64_t packed_uint64[] = {604, 704};
   message->packed_uint64 = packed_uint64;
 
-  static int32_t packed_sint32[] = {605, 705};
+  const static int32_t packed_sint32[] = {605, 705};
   message->packed_sint32 = packed_sint32;
 
-  static int64_t packed_sint64[] = {606, 706};
+  const static int64_t packed_sint64[] = {606, 706};
   message->packed_sint64 = packed_sint64;
 
-  static uint32_t packed_fixed32[] = {607, 707};
+  const static uint32_t packed_fixed32[] = {607, 707};
   message->packed_fixed32 = packed_fixed32;
 
-  static uint64_t packed_fixed64[] = {608, 708};
+  const static uint64_t packed_fixed64[] = {608, 708};
   message->packed_fixed64 = packed_fixed64;
 
-  static int32_t packed_sfixed32[] = {609, 709};
+  const static int32_t packed_sfixed32[] = {609, 709};
   message->packed_sfixed32 = packed_sfixed32;
 
-  static int64_t packed_sfixed64[] = {610, 710};
+  const static int64_t packed_sfixed64[] = {610, 710};
   message->packed_sfixed64 = packed_sfixed64;
 
-  static float packed_float[] = {611, 711};
+  const static float packed_float[] = {611, 711};
   message->packed_float = packed_float;
 
-  static double packed_double[] = {612, 712};
+  const static double packed_double[] = {612, 712};
   message->packed_double = packed_double;
 
-  static bool packed_bool[] = {true, false};
+  const static bool packed_bool[] = {true, false};
   message->packed_bool = packed_bool;
-  static protobuf_unittest::ForeignEnum packed_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
-                                                         protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
+  const static protobuf_unittest::ForeignEnum packed_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
+                                                               protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
   message->packed_enum = packed_enum;
 }
 
-inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_memory_resource &) {
+inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_memory_resource & /*unused*/) {
   // The values applied here must match those of SetPackedFields.
 
-  static int32_t unpacked_int32[] = {601, 701};
+  const static int32_t unpacked_int32[] = {601, 701};
   message->unpacked_int32 = unpacked_int32;
 
-  static int64_t unpacked_int64[] = {602, 702};
+  const static int64_t unpacked_int64[] = {602, 702};
   message->unpacked_int64 = unpacked_int64;
 
-  static uint32_t unpacked_uint32[] = {603, 703};
+  const static uint32_t unpacked_uint32[] = {603, 703};
   message->unpacked_uint32 = unpacked_uint32;
 
-  static uint64_t unpacked_uint64[] = {604, 704};
+  const static uint64_t unpacked_uint64[] = {604, 704};
   message->unpacked_uint64 = unpacked_uint64;
 
-  static int32_t unpacked_sint32[] = {605, 705};
+  const static int32_t unpacked_sint32[] = {605, 705};
   message->unpacked_sint32 = unpacked_sint32;
 
-  static int64_t unpacked_sint64[] = {606, 706};
+  const static int64_t unpacked_sint64[] = {606, 706};
   message->unpacked_sint64 = unpacked_sint64;
 
-  static uint32_t unpacked_fixed32[] = {607, 707};
+  const static uint32_t unpacked_fixed32[] = {607, 707};
   message->unpacked_fixed32 = unpacked_fixed32;
 
-  static uint64_t unpacked_fixed64[] = {608, 708};
+  const static uint64_t unpacked_fixed64[] = {608, 708};
   message->unpacked_fixed64 = unpacked_fixed64;
 
-  static int32_t unpacked_sfixed32[] = {609, 709};
+  const static int32_t unpacked_sfixed32[] = {609, 709};
   message->unpacked_sfixed32 = unpacked_sfixed32;
 
-  static int64_t unpacked_sfixed64[] = {610, 710};
+  const static int64_t unpacked_sfixed64[] = {610, 710};
   message->unpacked_sfixed64 = unpacked_sfixed64;
 
-  static float unpacked_float[] = {611, 711};
+  const static float unpacked_float[] = {611, 711};
   message->unpacked_float = unpacked_float;
 
-  static double unpacked_double[] = {612, 712};
+  const static double unpacked_double[] = {612, 712};
   message->unpacked_double = unpacked_double;
 
-  static bool unpacked_bool[] = {true, false};
+  const static bool unpacked_bool[] = {true, false};
   message->unpacked_bool = unpacked_bool;
-  static protobuf_unittest::ForeignEnum unpacked_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
-                                                           protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
+  const static protobuf_unittest::ForeignEnum unpacked_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
+                                                                 protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
   message->unpacked_enum = unpacked_enum;
 }
 
@@ -635,67 +635,68 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message, monotonic_memo
 
   // -----------------------------------------------------------------
 
-  static int32_t repeated_int32_extension[] = {201, 301};
+  const static int32_t repeated_int32_extension[] = {201, 301};
   expect(!message->set_extension(protobuf_unittest::repeated_int32_extension(), repeated_int32_extension, mr));
-  static int64_t repeated_int64_extension[] = {202, 302};
+  const static int64_t repeated_int64_extension[] = {202, 302};
   expect(!message->set_extension(protobuf_unittest::repeated_int64_extension(), repeated_int64_extension, mr));
-  static uint32_t repeated_uint32_extension[] = {203, 303};
+  const static uint32_t repeated_uint32_extension[] = {203, 303};
   expect(!message->set_extension(protobuf_unittest::repeated_uint32_extension(), repeated_uint32_extension, mr));
-  static uint64_t repeated_uint64_extension[] = {204, 304};
+  const static uint64_t repeated_uint64_extension[] = {204, 304};
   expect(!message->set_extension(protobuf_unittest::repeated_uint64_extension(), repeated_uint64_extension, mr));
-  static int32_t repeated_sint32_extension[] = {205, 305};
+  const static int32_t repeated_sint32_extension[] = {205, 305};
   expect(!message->set_extension(protobuf_unittest::repeated_sint32_extension(), repeated_sint32_extension, mr));
-  static int64_t repeated_sint64_extension[] = {206, 306};
+  const static int64_t repeated_sint64_extension[] = {206, 306};
   expect(!message->set_extension(protobuf_unittest::repeated_sint64_extension(), repeated_sint64_extension, mr));
-  static uint32_t repeated_fixed32_extension[] = {207, 307};
+  const static uint32_t repeated_fixed32_extension[] = {207, 307};
   expect(!message->set_extension(protobuf_unittest::repeated_fixed32_extension(), repeated_fixed32_extension, mr));
-  static uint64_t repeated_fixed64_extension[] = {208, 308};
+  const static uint64_t repeated_fixed64_extension[] = {208, 308};
   expect(!message->set_extension(protobuf_unittest::repeated_fixed64_extension(), repeated_fixed64_extension, mr));
-  static int32_t repeated_sfixed32_extension[] = {209, 309};
+  const static int32_t repeated_sfixed32_extension[] = {209, 309};
   expect(!message->set_extension(protobuf_unittest::repeated_sfixed32_extension(), repeated_sfixed32_extension, mr));
-  static int64_t repeated_sfixed64_extension[] = {210, 310};
+  const static int64_t repeated_sfixed64_extension[] = {210, 310};
   expect(!message->set_extension(protobuf_unittest::repeated_sfixed64_extension(), repeated_sfixed64_extension, mr));
-  static float repeated_float_extension[] = {211, 311};
+  const static float repeated_float_extension[] = {211, 311};
   expect(!message->set_extension(protobuf_unittest::repeated_float_extension(), repeated_float_extension, mr));
-  static double repeated_double_extension[] = {212, 312};
+  const static double repeated_double_extension[] = {212, 312};
   expect(!message->set_extension(protobuf_unittest::repeated_double_extension(), repeated_double_extension, mr));
-  static bool repeated_bool_extension[] = {true, false};
+  const static bool repeated_bool_extension[] = {true, false};
   expect(!message->set_extension(protobuf_unittest::repeated_bool_extension(), repeated_bool_extension, mr));
-  static std::string_view repeated_string_extension[] = {"215", "315"};
+  const static std::string_view repeated_string_extension[] = {"215", "315"};
   expect(!message->set_extension(protobuf_unittest::repeated_string_extension(), repeated_string_extension, mr));
-  static std::span<const std::byte> repeated_bytes_extension[] = {"216"_bytes_view, "316"_bytes_view};
+  const static std::span<const std::byte> repeated_bytes_extension[] = {"216"_bytes_view, "316"_bytes_view};
   expect(!message->set_extension(protobuf_unittest::repeated_bytes_extension(), repeated_bytes_extension, mr));
 
-  static protobuf_unittest::RepeatedGroup_extension repeatedgroup[] = {{.a = 217}, {.a = 317}};
+  const static protobuf_unittest::RepeatedGroup_extension repeatedgroup[] = {{.a = 217}, {.a = 317}};
   expect(!message->set_extension(protobuf_unittest::repeatedgroup_extension(), repeatedgroup, mr));
-  static protobuf_unittest::TestAllTypes::NestedMessage repeated_nested_message_extension[] = {{.bb = 218},
-                                                                                               {.bb = 318}};
+  const static protobuf_unittest::TestAllTypes::NestedMessage repeated_nested_message_extension[] = {{.bb = 218},
+                                                                                                     {.bb = 318}};
   expect(!message->set_extension(protobuf_unittest::repeated_nested_message_extension(),
                                  repeated_nested_message_extension, mr));
-  static protobuf_unittest::ForeignMessage repeated_foreign_message_extension[] = {{.c = 219}, {.c = 319}};
+  const static protobuf_unittest::ForeignMessage repeated_foreign_message_extension[] = {{.c = 219}, {.c = 319}};
   expect(!message->set_extension(protobuf_unittest::repeated_foreign_message_extension(),
                                  repeated_foreign_message_extension, mr));
-  static protobuf_unittest_import::ImportMessage repeated_import_message_extension[] = {{.d = 220}, {.d = 320}};
+  const static protobuf_unittest_import::ImportMessage repeated_import_message_extension[] = {{.d = 220}, {.d = 320}};
   expect(!message->set_extension(protobuf_unittest::repeated_import_message_extension(),
                                  repeated_import_message_extension, mr));
-  static protobuf_unittest::TestAllTypes::NestedMessage repeated_lazy_message_extension[] = {{.bb = 227}, {.bb = 327}};
+  const static protobuf_unittest::TestAllTypes::NestedMessage repeated_lazy_message_extension[] = {{.bb = 227},
+                                                                                                   {.bb = 327}};
   expect(!message->set_extension(protobuf_unittest::repeated_lazy_message_extension(), repeated_lazy_message_extension,
                                  mr));
 
-  static protobuf_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
+  const static protobuf_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
       protobuf_unittest::TestAllTypes::NestedEnum::BAR, protobuf_unittest::TestAllTypes::NestedEnum::BAZ};
   expect(!message->set_extension(protobuf_unittest::repeated_nested_enum_extension(), repeated_nested_enum, mr));
-  static protobuf_unittest::ForeignEnum repeated_foreign_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
-                                                                   protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
+  const static protobuf_unittest::ForeignEnum repeated_foreign_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
+                                                                         protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
   expect(!message->set_extension(protobuf_unittest::repeated_foreign_enum_extension(), repeated_foreign_enum, mr));
-  static protobuf_unittest_import::ImportEnum repeated_import_enum[] = {
+  const static protobuf_unittest_import::ImportEnum repeated_import_enum[] = {
       protobuf_unittest_import::ImportEnum::IMPORT_BAR, protobuf_unittest_import::ImportEnum::IMPORT_BAZ};
   expect(!message->set_extension(protobuf_unittest::repeated_import_enum_extension(), repeated_import_enum, mr));
 
-  static std::string_view repeated_string_piece_extension[] = {"224"sv, "324"sv};
+  const static std::string_view repeated_string_piece_extension[] = {"224"sv, "324"sv};
   expect(!message->set_extension(protobuf_unittest::repeated_string_piece_extension(), repeated_string_piece_extension,
                                  mr));
-  static std::string_view repeated_cord_extension[] = {"225"sv, "325"sv};
+  const static std::string_view repeated_cord_extension[] = {"225"sv, "325"sv};
   expect(!message->set_extension(protobuf_unittest::repeated_cord_extension(), repeated_cord_extension, mr));
 
   // -----------------------------------------------------------------
@@ -1017,7 +1018,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(eq(0, message.get_extension(protobuf_unittest::optional_sfixed64_extension()).value()));
   expect(eq(0, message.get_extension(protobuf_unittest::optional_float_extension()).value()));
   expect(eq(0.0, message.get_extension(protobuf_unittest::optional_double_extension()).value()));
-  expect(eq(0.0f, message.get_extension(protobuf_unittest::optional_bool_extension()).value()));
+  expect(eq(0.0F, message.get_extension(protobuf_unittest::optional_bool_extension()).value()));
   expect(eq(""sv, message.get_extension(protobuf_unittest::optional_string_extension()).value()));
   expect(equal_range(""_bytes, message.get_extension(protobuf_unittest::optional_bytes_extension(), mr).value()));
 
@@ -1129,34 +1130,34 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
 // -------------------------------------------------------------------
 
 inline void SetAll(protobuf_unittest::TestPackedExtensions *message, monotonic_memory_resource &mr) {
-  int32_t packed_int32[] = {601, 701};
+  const int32_t packed_int32[] = {601, 701};
   expect(!message->set_extension(protobuf_unittest::packed_int32_extension(), packed_int32, mr));
-  int64_t packed_int64[] = {602, 702};
+  const int64_t packed_int64[] = {602, 702};
   expect(!message->set_extension(protobuf_unittest::packed_int64_extension(), packed_int64, mr));
-  uint32_t packed_uint32[] = {603, 703};
+  const uint32_t packed_uint32[] = {603, 703};
   expect(!message->set_extension(protobuf_unittest::packed_uint32_extension(), packed_uint32, mr));
-  uint64_t packed_uint64[] = {604, 704};
+  const uint64_t packed_uint64[] = {604, 704};
   expect(!message->set_extension(protobuf_unittest::packed_uint64_extension(), packed_uint64, mr));
-  int32_t packed_sint32[] = {605, 705};
+  const int32_t packed_sint32[] = {605, 705};
   expect(!message->set_extension(protobuf_unittest::packed_sint32_extension(), packed_sint32, mr));
-  int64_t packed_sint64[] = {606, 706};
+  const int64_t packed_sint64[] = {606, 706};
   expect(!message->set_extension(protobuf_unittest::packed_sint64_extension(), packed_sint64, mr));
-  uint32_t packed_fixed32[] = {607, 707};
+  const uint32_t packed_fixed32[] = {607, 707};
   expect(!message->set_extension(protobuf_unittest::packed_fixed32_extension(), packed_fixed32, mr));
-  uint64_t packed_fixed64[] = {608, 708};
+  const uint64_t packed_fixed64[] = {608, 708};
   expect(!message->set_extension(protobuf_unittest::packed_fixed64_extension(), packed_fixed64, mr));
-  int32_t packed_sfixed32[] = {609, 709};
+  const int32_t packed_sfixed32[] = {609, 709};
   expect(!message->set_extension(protobuf_unittest::packed_sfixed32_extension(), packed_sfixed32, mr));
-  int64_t packed_sfixed64[] = {610, 710};
+  const int64_t packed_sfixed64[] = {610, 710};
   expect(!message->set_extension(protobuf_unittest::packed_sfixed64_extension(), packed_sfixed64, mr));
-  float packed_float[] = {611, 711};
+  const float packed_float[] = {611, 711};
   expect(!message->set_extension(protobuf_unittest::packed_float_extension(), packed_float, mr));
-  double packed_double[] = {612, 712};
+  const double packed_double[] = {612, 712};
   expect(!message->set_extension(protobuf_unittest::packed_double_extension(), packed_double, mr));
-  bool packed_bool[] = {true, false};
+  const bool packed_bool[] = {true, false};
   expect(!message->set_extension(protobuf_unittest::packed_bool_extension(), packed_bool, mr));
-  protobuf_unittest::ForeignEnum packed_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
-                                                  protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
+  const protobuf_unittest::ForeignEnum packed_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
+                                                        protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
   expect(!message->set_extension(protobuf_unittest::packed_enum_extension(), packed_enum, mr));
 }
 
@@ -1248,7 +1249,7 @@ inline void SetOneof2(protobuf_unittest::TestOneof2 *message) {
 
 inline void ExpectOneofSet1(const protobuf_unittest::TestOneof2 &message) {
   expect(eq(protobuf_unittest::TestOneof2::foo_lazy_message, message.foo.index()) >> fatal);
-  auto &foo_lazy_message = std::get<protobuf_unittest::TestOneof2::foo_lazy_message>(message.foo);
+  const auto &foo_lazy_message = std::get<protobuf_unittest::TestOneof2::foo_lazy_message>(message.foo);
 
   expect(eq(protobuf_unittest::TestOneof2::bar_string, message.bar.index()) >> fatal);
 
@@ -1287,19 +1288,21 @@ inline std::string unittest_proto2_descriptorset() {
   in.seekg(0, std::ios::end);
   contents.resize(in.tellg());
   in.seekg(0, std::ios::beg);
-  in.read(&contents[0], contents.size());
+  in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
   return contents;
 }
-
-boost::ut::suite proto_test = [] {
+const std::size_t max_memory_resource_size = 1U << 20U;
+const boost::ut::suite proto_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   using namespace non_owning;
 
   "protobuf"_test =
       []<class T> {
-        T message, message2, message3;
-        monotonic_memory_resource mr{1 << 20};
+        T message;
+        T message2;
+        T message3;
+        monotonic_memory_resource mr{max_memory_resource_size};
 
         if constexpr (requires { TestUtil::ExpectClear(message); }) {
           TestUtil::ExpectClear(message);
@@ -1322,7 +1325,7 @@ boost::ut::suite proto_test = [] {
   "interoperate_with_google_protobuf_parser"_test =
       []<class T> {
         T original;
-        monotonic_memory_resource mr{1 << 20};
+        monotonic_memory_resource mr{max_memory_resource_size};
 
         TestUtil::SetAll(&original, mr);
 
@@ -1331,7 +1334,7 @@ boost::ut::suite proto_test = [] {
 
         auto original_json =
             gpb_based::proto_to_json(unittest_proto2_descriptorset(), pb_message_name(original).c_str(),
-                                     {(const char *)data.data(), data.size()});
+                                     {std::bit_cast<const char *>(data.data()), data.size()});
 
         auto generated_json = hpp::proto::write_json(original);
 
@@ -1351,5 +1354,5 @@ boost::ut::suite proto_test = [] {
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
-  return result;
+  return static_cast<int>(result);
 }

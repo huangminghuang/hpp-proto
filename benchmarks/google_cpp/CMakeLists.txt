@@ -55,13 +55,15 @@ add_google_proto_lib(benchmark_messages_google_proto3_lib
 
 get_filename_component(DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 
-add_executable(google_cpp_proto2_msg1_bench google_cpp_benchmark.cpp)
-target_compile_definitions(google_cpp_proto2_msg1_bench PRIVATE PROTO2)
-target_link_libraries(google_cpp_proto2_msg1_bench benchmark_messages_google_proto2_lib)
-target_include_directories(google_cpp_proto2_msg1_bench PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
+if (NOT HPP_ENABLE_CLANG_TIDY)
+    add_executable(google_cpp_proto2_msg1_bench google_cpp_benchmark.cpp)
+    target_compile_definitions(google_cpp_proto2_msg1_bench PRIVATE PROTO2)
+    target_link_libraries(google_cpp_proto2_msg1_bench benchmark_messages_google_proto2_lib)
+    target_include_directories(google_cpp_proto2_msg1_bench PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
 
-add_executable(google_cpp_proto3_msg1_bench google_cpp_benchmark.cpp)
-target_compile_definitions(google_cpp_proto3_msg1_bench PRIVATE PROTO3)
-target_link_libraries(google_cpp_proto3_msg1_bench benchmark_messages_google_proto3_lib)
-target_include_directories(google_cpp_proto3_msg1_bench PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
+    add_executable(google_cpp_proto3_msg1_bench google_cpp_benchmark.cpp)
+    target_compile_definitions(google_cpp_proto3_msg1_bench PRIVATE PROTO3)
+    target_link_libraries(google_cpp_proto3_msg1_bench benchmark_messages_google_proto3_lib)
+    target_include_directories(google_cpp_proto3_msg1_bench PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..)
+endif()
 

@@ -121,7 +121,7 @@ struct glz::meta<object_span_example> {
 struct non_owning_nested_example {
   const optional_example *nested = {};
   bool operator==(const non_owning_nested_example &other) const {
-    return nested == other.nested || (nested && other.nested && *nested == *other.nested);
+    return nested == other.nested || (nested != nullptr && other.nested != nullptr && *nested == *other.nested);
   }
 };
 
@@ -151,7 +151,7 @@ void verify(T &&msg, std::string_view json) {
 template <typename Msg, int MemoryResourceSize = 0>
 void verify_bytes(std::string_view text, std::string_view json) {
   using namespace boost::ut;
-  std::span<const std::byte> bs{reinterpret_cast<const std::byte *>(&text[0]), text.size()};
+  const std::span<const std::byte> bs{std::bit_cast<const std::byte *>(text.data()), text.size()};
   Msg msg;
   msg.field = decltype(msg.field){bs.begin(), bs.end()};
   verify<Msg, MemoryResourceSize>(std::move(msg), json);
@@ -159,7 +159,7 @@ void verify_bytes(std::string_view text, std::string_view json) {
 
 namespace ut = boost::ut;
 
-ut::suite test_bytes_json = [] {
+const ut::suite test_bytes_json = [] {
   using namespace boost::ut::literals;
   "empty"_test = [] { verify_bytes<bytes_example>("", R"({})"); };
   "one_padding"_test = [] { verify_bytes<bytes_example>("light work.", R"({"field":"bGlnaHQgd29yay4="})"); };
@@ -178,30 +178,30 @@ ut::suite test_bytes_json = [] {
   };
 };
 
-ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
+const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
 
-ut::suite test_optional_json = [] {
+const ut::suite test_optional_json = [] {
   verify(optional_example{.field2 = 123U, .field3 = 456}, R"({"field2":"123","field3":456})");
 };
 
-ut::suite test_uint32_span_json = [] {
+const ut::suite test_uint32_span_json = [] {
   std::array<uint32_t, 3> content{1, 2, 3};
   verify<uint32_span_example, 32>(uint32_span_example{.field = content}, R"({"field":[1,2,3]})");
 };
 
-ut::suite test_pair_vector_json = [] {
+const ut::suite test_pair_vector_json = [] {
   using namespace std::literals::string_literals;
   verify<pair_vector_example, 128>(pair_vector_example{.field = {{"one"s, 1}, {"two"s, 2}, {"three"s, 3}}},
                                    R"({"field":{"one":1,"two":2,"three":3}})");
 };
 
-ut::suite test_pair_span_json = [] {
+const ut::suite test_pair_span_json = [] {
   using namespace std::literals::string_view_literals;
   std::array<std::pair<std::string_view, int32_t>, 3> content{{{"one"sv, 1}, {"two"sv, 2}, {"three"sv, 3}}};
   verify<pair_span_example, 128>(pair_span_example{.field = content}, R"({"field":{"one":1,"two":2,"three":3}})");
 };
 
-ut::suite test_object_span_json = [] {
+const ut::suite test_object_span_json = [] {
   std::array<optional_example, 3> content = {
       {{.field1 = 1, .field2 = 1ULL}, {.field1 = 2, .field2 = 2ULL}, {.field1 = 3, .field2 = 3ULL}}};
   verify<object_span_example, 128>(
@@ -209,13 +209,13 @@ ut::suite test_object_span_json = [] {
       R"({"field":[{"field1":1,"field2":"1"},{"field1":2,"field2":"2"},{"field1":3,"field2":"3"}]})");
 };
 
-ut::suite test_non_owning_nested = [] {
-  optional_example nested = {.field1 = 1, .field2 = 1ULL};
+const ut::suite test_non_owning_nested = [] {
+  const optional_example nested = {.field1 = 1, .field2 = 1ULL};
   verify<non_owning_nested_example, 128>(non_owning_nested_example{.nested = &nested},
                                          R"({"nested":{"field1":1,"field2":"1"}})");
 };
 
-ut::suite test_explicit_optional_bool = [] {
+const ut::suite test_explicit_optional_bool = [] {
   verify<explicit_optional_bool_example>(explicit_optional_bool_example{}, R"({})");
   verify<explicit_optional_bool_example>(explicit_optional_bool_example{.field = true}, R"({"field":true})");
   verify<explicit_optional_bool_example>(explicit_optional_bool_example{.field = false}, R"({"field":false})");
@@ -223,5 +223,5 @@ ut::suite test_explicit_optional_bool = [] {
 
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
-  return result;
+  return static_cast<int>(result);
 }

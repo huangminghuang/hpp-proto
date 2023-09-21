@@ -13,7 +13,7 @@ static_assert(ensure_all_fields_encoding_rule<proto3_unittest::TestUnpackedTypes
 // the rest is fully tested in proto2 unittests because proto3 shares most code
 // with proto2.
 
-boost::ut::suite proto3_lite_test = [] {
+const boost::ut::suite proto3_lite_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
 
@@ -65,7 +65,7 @@ boost::ut::suite proto3_lite_test = [] {
     expect(success(out(original)));
 
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
-                                                  {(const char *)data.data(), data.size()});
+                                                  {std::bit_cast<const char *>(data.data()), data.size()});
 
     expect(hpp::proto::write_json(original) == original_json);
 
@@ -79,5 +79,5 @@ boost::ut::suite proto3_lite_test = [] {
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
-  return result;
+  return static_cast<int>(result);
 }

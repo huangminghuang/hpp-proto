@@ -4,14 +4,16 @@
 #include "unittest_proto2_util.h"
 #include "unittest_proto3_util.h"
 #include <hpp_proto/dynamic_serializer.h>
-
+// NOLINTBEGIN(bugprone-easily-swappable-parameters)
 void test_fixture(auto &message, const char *descriptorset_file, const char *message_name) {
   using namespace boost::ut::literals;
   using namespace boost::ut;
 
   std::string data;
 
+  // NOLINTBEGIN(misc-const-correctness)
   hpp::proto::out out{data};
+  // NOLINTEND(misc-const-correctness)
   using zpp::bits::success;
   expect(success(out(message)));
 
@@ -21,8 +23,13 @@ void test_fixture(auto &message, const char *descriptorset_file, const char *mes
 
   auto gpb_result = gpb_based::proto_to_json(descriptors, message_name, data);
 
+  std::cout << "gpb_result\n" <<  gpb_result << "\n";
+
   auto hpp_result = ser->proto_to_json(message_name, data);
   expect(hpp_result.has_value() >> fatal);
+
+  std::cout << "hpp_result\n" << *hpp_result << "\n";
+
   expect(eq(gpb_result, *hpp_result));
 
   std::string serialized;
@@ -34,8 +41,9 @@ void test_fixture(auto &message, const char *descriptorset_file, const char *mes
   expect(!ser->json_to_proto(message_name, *hpp_result, serialized));
   expect(eq(data, serialized));
 }
+// NOLINTEND(bugprone-easily-swappable-parameters)
 
-boost::ut::suite dynamic_serializer_test = [] {
+const boost::ut::suite dynamic_serializer_test = [] {
   using namespace boost::ut;
 
   "unittest_proto2"_test = [] {
@@ -60,5 +68,5 @@ boost::ut::suite dynamic_serializer_test = [] {
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
-  return result;
+  return static_cast<int>(result);
 }

@@ -24,23 +24,23 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->optional_lazy_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 45 };
   m->optional_unverified_lazy_message= proto3_unittest::TestAllTypes::NestedMessage { .bb = 46 };
 
-  static int32_t repeated_int32[] = {100};
+  const static int32_t repeated_int32[] = {100};
   m->repeated_int32 = repeated_int32;
-  static std::string_view repeated_string[] = {"asdf"sv};
+  const static std::string_view repeated_string[] = {"asdf"sv};
   m->repeated_string = repeated_string;
-  static hpp::proto::bytes_view repeated_bytes[] = {"jkl;"_bytes_view};
+  const static hpp::proto::bytes_view repeated_bytes[] = {"jkl;"_bytes_view};
   m->repeated_bytes = repeated_bytes;
-  static proto3_unittest::TestAllTypes::NestedMessage repeated_nested_message[] = {
+  const static proto3_unittest::TestAllTypes::NestedMessage repeated_nested_message[] = {
       proto3_unittest::TestAllTypes::NestedMessage{.bb = 46}};
   m->repeated_nested_message = repeated_nested_message;
-  static proto3_unittest::ForeignMessage repeated_foreign_message[] = {proto3_unittest::ForeignMessage{.c = 47}};
+  const static proto3_unittest::ForeignMessage repeated_foreign_message[] = {proto3_unittest::ForeignMessage{.c = 47}};
   m->repeated_foreign_message = repeated_foreign_message;
-  static proto3_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
+  const static proto3_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
       proto3_unittest::TestAllTypes::NestedEnum::BAZ};
   m->repeated_nested_enum = repeated_nested_enum;
-  static proto3_unittest::ForeignEnum repeated_foreign_enum[] = {proto3_unittest::ForeignEnum::FOREIGN_BAZ};
+  const static proto3_unittest::ForeignEnum repeated_foreign_enum[] = {proto3_unittest::ForeignEnum::FOREIGN_BAZ};
   m->repeated_foreign_enum = repeated_foreign_enum;
-  static proto3_unittest::TestAllTypes::NestedMessage repeated_lazy_message[] = {
+  const static proto3_unittest::TestAllTypes::NestedMessage repeated_lazy_message[] = {
       proto3_unittest::TestAllTypes::NestedMessage{.bb = 49}};
   m->repeated_lazy_message = repeated_lazy_message;
 
@@ -50,34 +50,34 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
 }
 
 inline void SetUnpackedFields(proto3_unittest::TestUnpackedTypes *message) {
-  static int32_t repeated_int32[] = {601, 701};
+  const static int32_t repeated_int32[] = {601, 701};
   message->repeated_int32 = repeated_int32;
-  static int64_t repeated_int64[] = {602LL, 702LL};
+  const static int64_t repeated_int64[] = {602LL, 702LL};
   message->repeated_int64 = repeated_int64;
-  static uint32_t repeated_uint32[] = {603U, 703U};
+  const static uint32_t repeated_uint32[] = {603U, 703U};
   message->repeated_uint32 = repeated_uint32;
-  static uint64_t repeated_uint64[] = {604ULL, 704ULL};
+  const static uint64_t repeated_uint64[] = {604ULL, 704ULL};
   message->repeated_uint64 = repeated_uint64;
-  static int32_t repeated_sint32[] = {605, 705};
+  const static int32_t repeated_sint32[] = {605, 705};
   message->repeated_sint32 = repeated_sint32;
-  static int64_t repeated_sint64[] = {606LL, 706LL};
+  const static int64_t repeated_sint64[] = {606LL, 706LL};
   message->repeated_sint64 = repeated_sint64;
 
-  static uint32_t repeated_fixed32[] = {607U, 707U};
+  const static uint32_t repeated_fixed32[] = {607U, 707U};
   message->repeated_fixed32 = repeated_fixed32;
-  static uint64_t repeated_fixed64[] = {608ULL, 708ULL};
+  const static uint64_t repeated_fixed64[] = {608ULL, 708ULL};
   message->repeated_fixed64 = repeated_fixed64;
-  static int32_t repeated_sfixed32[] = {609, 709};
+  const static int32_t repeated_sfixed32[] = {609, 709};
   message->repeated_sfixed32 = repeated_sfixed32;
-  static int64_t repeated_sfixed64[] = {610LL, 710LL};
+  const static int64_t repeated_sfixed64[] = {610LL, 710LL};
   message->repeated_sfixed64 = repeated_sfixed64;
-  static float repeated_float[] = {611.f, 711.f};
+  const static float repeated_float[] = {611.F, 711.F};
   message->repeated_float = repeated_float;
-  static double repeated_double[] = {612., 712.};
+  const static double repeated_double[] = {612., 712.};
   message->repeated_double = repeated_double;
-  static bool repeated_bool[] = {true, false};
+  const static bool repeated_bool[] = {true, false};
   message->repeated_bool = repeated_bool;
-  static proto3_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
+  const static proto3_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
       proto3_unittest::TestAllTypes::NestedEnum::BAR, proto3_unittest::TestAllTypes::NestedEnum::BAZ};
   message->repeated_nested_enum = repeated_nested_enum;
 }
@@ -90,16 +90,12 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   ut::expect("asdf"sv == m.optional_string);
   ut::expect(equal_range("jkl;"_bytes, m.optional_bytes));
 
-  ut::expect(true == m.optional_nested_message.has_value());
-  ut::expect(42 == m.optional_nested_message->bb);
-  ut::expect(true == m.optional_foreign_message.has_value());
-  ut::expect(43 == m.optional_foreign_message->c);
+  ut::expect(m.optional_nested_message.has_value() && 42 == m.optional_nested_message->bb);
+  ut::expect(m.optional_foreign_message.has_value() && 43 == m.optional_foreign_message->c);
   ut::expect(proto3_unittest::TestAllTypes::NestedEnum::BAZ == m.optional_nested_enum);
   ut::expect(proto3_unittest::ForeignEnum::FOREIGN_BAZ == m.optional_foreign_enum);
-  ut::expect(true == m.optional_lazy_message.has_value());
-  ut::expect(45 == m.optional_lazy_message->bb);
-  ut::expect(true == m.optional_unverified_lazy_message.has_value());
-  ut::expect(46 == m.optional_unverified_lazy_message->bb);
+  ut::expect(m.optional_lazy_message.has_value() && 45 == m.optional_lazy_message->bb);
+  ut::expect(m.optional_unverified_lazy_message.has_value() && 46 == m.optional_unverified_lazy_message->bb);
 
   ut::expect(1 == m.repeated_int32.size());
   ut::expect(100 == m.repeated_int32[0]);
@@ -134,7 +130,7 @@ void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message) {
   ut::expect(equal_range(std::vector{608ULL, 708ULL}, message.repeated_fixed64));
   ut::expect(equal_range(std::vector{609, 709}, message.repeated_sfixed32));
   ut::expect(equal_range(std::vector{610LL, 710LL}, message.repeated_sfixed64));
-  ut::expect(equal_range(std::vector{611.f, 711.f}, message.repeated_float));
+  ut::expect(equal_range(std::vector{611.F, 711.F}, message.repeated_float));
   ut::expect(equal_range(std::vector{612., 712.}, message.repeated_double));
   ut::expect(equal_range(std::vector<hpp::proto::boolean>{true, false}, message.repeated_bool));
   ut::expect(equal_range(
@@ -142,7 +138,7 @@ void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message) {
       message.repeated_nested_enum));
 }
 
-boost::ut::suite non_owning_proto3_lite_test = [] {
+const boost::ut::suite non_owning_proto3_lite_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   auto unittest_proto3_descriptorset = descriptorset_from_file("unittest_proto3.bin");
@@ -193,7 +189,7 @@ boost::ut::suite non_owning_proto3_lite_test = [] {
     expect(success(hpp::proto::out{data}(original)));
 
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
-                                                  {(const char *)data.data(), data.size()});
+                                                  {std::bit_cast<const char *>(data.data()), data.size()});
 
     expect(hpp::proto::write_json(original) == original_json);
 
@@ -207,5 +203,5 @@ boost::ut::suite non_owning_proto3_lite_test = [] {
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
-  return result;
+  return static_cast<int>(result);
 }

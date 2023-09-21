@@ -9,13 +9,15 @@ static_assert(
 static_assert(ensure_all_fields_encoding_rule<protobuf_unittest::TestUnpackedTypes,
                                               hpp::proto::encoding_rule::unpacked_repeated>());
 
-ut::suite proto_test = [] {
+const ut::suite proto_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
 
   "protobuf"_test =
       []<class T> {
-        T message, message2, message3;
+        T message;
+        T message2;
+        T message3;
 
         if constexpr (requires { TestUtil::ExpectClear(message); }) {
           TestUtil::ExpectClear(message);
@@ -46,7 +48,7 @@ ut::suite proto_test = [] {
 
         auto original_json =
             gpb_based::proto_to_json(unittest_proto2_descriptorset(), pb_message_name(original).c_str(),
-                                     {(const char *)data.data(), data.size()});
+                                     {std::bit_cast<const char *>(data.data()), data.size()});
 
         auto generated_json = hpp::proto::write_json(original);
 
@@ -65,5 +67,5 @@ ut::suite proto_test = [] {
 
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
-  return result;
+  return static_cast<int>(result);
 }
