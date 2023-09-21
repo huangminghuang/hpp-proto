@@ -48,7 +48,7 @@ struct optional_ref {
   template <typename U>
   static U &deref(U &v) {
     return v;
-  };
+  }
 
   template <concepts::jsonfy_need_quote U>
   static glz::quoted_t<U> deref(U &v) {
@@ -303,8 +303,14 @@ template <typename Type, std::size_t Index>
 struct from_json<hpp::proto::oneof_wrapper<Type, Index>> {
   template <auto Options, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    auto &v = value.value->template emplace<Index>();
-    from_json<std::remove_cvref_t<decltype(v)>>::template op<Options>(v, std::forward<Args>(args)...);
+    using alt_type = std::variant_alternative_t<Index, Type>;
+    if constexpr (requires {value.value->template emplace<Index>();} ) {
+      auto &v = value.value->template emplace<Index>();
+      from_json<alt_type>::template op<Options>(v, std::forward<Args>(args)...);
+    } else {
+      *value.value = alt_type{};
+      from_json<alt_type>::template op<Options>( std::get<Index>(*value.value), std::forward<Args>(args)...);
+    }
   }
 };
 

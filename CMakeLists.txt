@@ -9,6 +9,8 @@ if (APPLE)
     set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
     set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 endif()
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 
 CPMAddPackage(gh:eyalz800/zpp_bits@4.4.19)
 CPMAddPackage(
@@ -33,6 +35,7 @@ CPMAddPackage(
           "protobuf_BUILD_PROTOC_BINARIES ON"
           "EXCLUDE_FROM_ALL"
 )
+
 
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" ON)

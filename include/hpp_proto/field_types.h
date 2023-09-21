@@ -45,7 +45,7 @@ using stdext::flat_map;
 }
 #endif
 
-#ifdef _LIBCPP_VERSION
+#if !defined(__cpp_lib_flat_map)
 #define HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
 #endif
 namespace hpp::proto {
@@ -508,14 +508,13 @@ public:
       assert(data_ != nullptr);
       std::uninitialized_copy(base_.begin(), base_.end(), data_);
 
-      if constexpr (!std::is_trivial_v<T>)
+      if constexpr (!std::is_trivial_v<T>) {
         std::uninitialized_default_construct(data_ + base_.size(), data_ + n);
-      else
+      } else {
 #ifdef __cpp_lib_start_lifetime_as
         std::start_lifetime_as_array(data_ + base.size(), n);
-#else
-        ;
 #endif
+      }
       base_ = std::span<T>{data_, n};
     } else {
       base_ = std::span<T>(base_.data(), n);

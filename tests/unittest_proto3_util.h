@@ -11,12 +11,12 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->optional_int32 = 100;
   m->optional_string = "asdf";
   m->optional_bytes = "jkl;"_bytes;
-  m->optional_nested_message.emplace().bb = 42;
+  m->optional_nested_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 42 };
   m->optional_foreign_message.emplace().c = 43;
   m->optional_nested_enum = proto3_unittest::TestAllTypes::NestedEnum::BAZ;
   m->optional_foreign_enum = proto3_unittest::ForeignEnum::FOREIGN_BAZ;
-  m->optional_lazy_message.emplace().bb = 45;
-  m->optional_unverified_lazy_message.emplace().bb = 46;
+  m->optional_lazy_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 45 };
+  m->optional_unverified_lazy_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 46 };
 
   m->repeated_int32.push_back(100);
   m->repeated_string.push_back("asdf");
@@ -28,7 +28,7 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->repeated_lazy_message.emplace_back().bb = 49;
 
   m->oneof_field = 1U;
-  m->oneof_field.emplace<proto3_unittest::TestAllTypes::NestedMessage>().bb = 50;
+  m->oneof_field = proto3_unittest::TestAllTypes::NestedMessage { .bb = 50 };
   m->oneof_field = "test"; // only this one remains set
 }
 
@@ -92,15 +92,15 @@ void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message) {
   namespace ut = boost::ut;
 
   ut::expect(ut::eq(std::vector{601, 701}, message.repeated_int32));
-  ut::expect(ut::eq(std::vector{602LL, 702LL}, message.repeated_int64));
+  ut::expect(ut::eq(std::vector<int64_t>{602LL, 702LL}, message.repeated_int64));
   ut::expect(ut::eq(std::vector{603U, 703U}, message.repeated_uint32));
-  ut::expect(ut::eq(std::vector{604ULL, 704ULL}, message.repeated_uint64));
+  ut::expect(ut::eq(std::vector<uint64_t>{604ULL, 704ULL}, message.repeated_uint64));
   ut::expect(ut::eq(std::vector{605, 705}, message.repeated_sint32));
-  ut::expect(ut::eq(std::vector{606LL, 706LL}, message.repeated_sint64));
+  ut::expect(ut::eq(std::vector<int64_t>{606LL, 706LL}, message.repeated_sint64));
   ut::expect(ut::eq(std::vector{607U, 707U}, message.repeated_fixed32));
-  ut::expect(ut::eq(std::vector{608ULL, 708ULL}, message.repeated_fixed64));
+  ut::expect(ut::eq(std::vector<uint64_t>{608ULL, 708ULL}, message.repeated_fixed64));
   ut::expect(ut::eq(std::vector{609, 709}, message.repeated_sfixed32));
-  ut::expect(ut::eq(std::vector{610LL, 710LL}, message.repeated_sfixed64));
+  ut::expect(ut::eq(std::vector<int64_t>{610LL, 710LL}, message.repeated_sfixed64));
   ut::expect(ut::eq(std::vector{611.f, 711.f}, message.repeated_float));
   ut::expect(ut::eq(std::vector{612., 712.}, message.repeated_double));
   ut::expect(ut::eq(std::vector<hpp::proto::boolean>{true, false}, message.repeated_bool));

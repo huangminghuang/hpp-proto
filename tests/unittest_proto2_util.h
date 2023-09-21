@@ -84,13 +84,13 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
   message->optional_string = "115";
   message->optional_bytes = "116"_bytes;
 
-  message->optionalgroup.emplace().a = 117;
-  message->optional_nested_message.emplace().bb = 118;
+  message->optionalgroup = protobuf_unittest::TestAllTypes::OptionalGroup { .a = 117 };
+  message->optional_nested_message = protobuf_unittest::TestAllTypes::NestedMessage { .bb = 118 };
   message->optional_foreign_message.emplace().c = 119;
   message->optional_import_message.emplace().d = 120;
   message->optional_public_import_message.emplace().e = 126;
-  message->optional_lazy_message.emplace().bb = 127;
-  message->optional_unverified_lazy_message.emplace().bb = 128;
+  message->optional_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage { .bb = 127 };
+  message->optional_unverified_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage { .bb = 128 };
 
   message->optional_nested_enum = protobuf_unittest::TestAllTypes::NestedEnum::BAZ;
   message->optional_foreign_enum = protobuf_unittest::ForeignEnum::FOREIGN_BAZ;

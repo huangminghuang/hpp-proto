@@ -18,3 +18,24 @@ index 6290978..511b2b4 100644
 -   concept is_context = std::same_as<std::decay_t<T>, context>;
 +   concept is_context = std::derived_from<std::decay_t<T>, context>;
  }
+diff --git a/include/glaze/json/read.hpp b/include/glaze/json/read.hpp
+index c1bca7c..4ec4bcd 100644
+--- a/include/glaze/json/read.hpp
++++ b/include/glaze/json/read.hpp
+@@ -2000,9 +2000,13 @@ namespace glz
+             }
+             else {
+                if (!value) {
+-                  if constexpr (is_specialization_v<T, std::optional>)
+-                     value = std::make_optional<typename T::value_type>();
+-                  else if constexpr (is_specialization_v<T, std::unique_ptr>)
++                  if constexpr (is_specialization_v<T, std::optional>) {
++                     if constexpr ( requires { value.emplace(); }) {
++                        value.emplace();
++                     } else {
++                        value = typename T::value_type{};
++                     }
++                  } else if constexpr (is_specialization_v<T, std::unique_ptr>)
+                      value = std::make_unique<typename T::element_type>();
+                   else if constexpr (is_specialization_v<T, std::shared_ptr>)
+                      value = std::make_shared<typename T::element_type>();

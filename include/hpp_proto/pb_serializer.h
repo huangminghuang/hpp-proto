@@ -166,7 +166,7 @@ struct extension_meta : extension_meta_base<extension_meta<Extendee, Number, Enc
   constexpr static encoding_rule encoding = Encoding;
   using type = Type;
   constexpr static auto default_value = unwrap(DefaultValue);
-  constexpr static bool has_default_value = !std::same_as<decltype(DefaultValue), std::monostate>;
+  constexpr static bool has_default_value = !std::same_as<std::remove_const_t<decltype(DefaultValue)>, std::monostate>;
   static constexpr bool is_repeated = false;
   using extendee = Extendee;
 
@@ -651,7 +651,7 @@ struct out {
 
   ZPP_BITS_INLINE constexpr errc serialize_unsized(auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
-    return foreach_member(item, member_visitor<type>(this));
+    return foreach_member(item, member_visitor<type>{this});
   }
 
   template <typename Meta>
@@ -1109,7 +1109,8 @@ public:
     return {};
   }
 
-  ZPP_BITS_INLINE constexpr errc do_skip_group(uint32_t field_num) {
+  // ZPP_BITS_INLINE 
+  inline constexpr errc do_skip_group(uint32_t field_num) {
     while (this->m_archive.remaining_data().size()) {
       ::zpp::bits::vuint32_t tag;
       if (auto result = this->m_archive(tag); failure(result)) [[unlikely]] {
@@ -1156,7 +1157,7 @@ public:
   }
 
   template <std::size_t Index>
-  ZPP_BITS_INLINE constexpr errc deserialize_field_by_index(auto &item, uint32_t field_num, wire_type field_wire_type) {
+  inline constexpr errc deserialize_field_by_index(auto &item, uint32_t field_num, wire_type field_wire_type) {
     using type = std::remove_reference_t<decltype(item)>;
 
     if constexpr (disallow_inline_visit_members_lambda<type>()) {
@@ -1245,7 +1246,12 @@ public:
     } else if constexpr (std::is_same_v<type, boolean>) {
       return this->m_archive(item.value);
     } else if constexpr (concepts::optional<type>) {
-      return deserialize_field(meta, field_type, field_num, item.emplace());
+      if constexpr (requires { item.emplace(); }) {
+        return deserialize_field(meta, field_type, field_num, item.emplace());
+      } else {
+        item = typename type::value_type{};
+        return deserialize_field(meta, field_type, field_num, *item);
+      }
     } else if constexpr (::zpp::bits::concepts::owning_pointer<type>) {
       using element_type = std::remove_reference_t<decltype(*item)>;
       auto loaded = ::zpp::bits::access::make_unique<element_type>();
@@ -1592,7 +1598,12 @@ public:
     if constexpr (Index < std::tuple_size_v<Meta>) {
       using meta = typename std::tuple_element<Index, Meta>::type;
       if (meta::number == field_num) {
-        return deserialize_field(meta{}, field_type, field_num, item.template emplace<Index + 1>());
+        if constexpr (requires { item.template emplace<Index + 1>();}) {
+          return deserialize_field(meta{}, field_type, field_num, item.template emplace<Index + 1>());
+        } else {
+          item = std::variant_alternative_t<Index + 1, std::decay_t<decltype(item)>>{};
+          return deserialize_field(meta{}, field_type, field_num, std::get<Index + 1>(item));
+        }
       } else {
         return deserialize_oneof<Index + 1, Meta>(field_type, field_num, std::forward<decltype(item)>(item));
       }

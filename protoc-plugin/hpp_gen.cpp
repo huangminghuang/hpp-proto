@@ -834,6 +834,7 @@ struct msg_code_generator : code_generator {
                        "{0}constexpr {1}() = default;\n"
                        "{0}constexpr {1}(const {1}& other)\n"
                        "{0}  : {2}{{}}\n"
+                       "{0}constexpr {1}& operator=(const {1}& other) = default;\n"
                        "#endif // _LIBCPP_VERSION\n",
                        indent(), descriptor.cpp_name, copy_constructor_init_list);
       }

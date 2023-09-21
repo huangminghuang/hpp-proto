@@ -1353,12 +1353,16 @@ struct non_owning_recursive_type2 {
   constexpr non_owning_recursive_type2() = default;
   constexpr non_owning_recursive_type2(const non_owning_recursive_type2 &other)
       : children(other.children.data(), other.children.size()), payload(other.payload) {}
+  constexpr non_owning_recursive_type2& operator=(const non_owning_recursive_type2 &other) = default;
 #endif
   bool operator==(const non_owning_recursive_type2 &other) const {
     return payload == other.payload &&
            std::equal(children.begin(), children.end(), other.children.begin(), other.children.end());
   }
 };
+
+auto serialize(const non_owning_recursive_type2 &) -> zpp::bits::members<2>;
+
 
 auto pb_meta(const non_owning_recursive_type2 &)
     -> std::tuple<hpp::proto::field_meta<1>, hpp::proto::field_meta<2, encoding_rule::defaulted, zpp::bits::vint64_t>>;
@@ -1379,7 +1383,7 @@ ut::suite recursive_types = [] {
 
   "non_owning_recursive_type1"_test = [] {
     non_owning_recursive_type1 child{nullptr, 2};
-    non_owning_recursive_type1 value(&child, 1);
+    non_owning_recursive_type1 value{&child, 1};
 
     verify_non_owning("\x0a\x02\x10\x02\x10\x01"_bytes_array, value, 64);
   };
@@ -1387,11 +1391,11 @@ ut::suite recursive_types = [] {
   "non_owning_recursive_type2"_test = [] {
     non_owning_recursive_type2 child[1];
     child[0].payload = 2;
-    // non_owning_recursive_type2 value;
-    // value.children = child;
-    // value.payload = 1;
+    non_owning_recursive_type2 value;
+    value.children = child;
+    value.payload = 1;
 
-    // verify("\x0a\x02\x10\x02\x10\x01"_bytes_array, value);
+    verify_non_owning("\x0a\x02\x10\x02\x10\x01"_bytes_array, value, 64);
   };
 };
 
