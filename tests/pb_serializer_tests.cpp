@@ -231,6 +231,8 @@ const ut::suite test_non_owning_repeated_integers = [] {
   };
 };
 
+
+
 struct non_owing_nested_example {
   const example *nested; // field number == 1
 
@@ -632,14 +634,6 @@ auto pb_meta(const string_with_default &)
 
 auto serialize(const string_with_default &) -> zpp::bits::members<1>;
 
-struct string_with_optional {
-  hpp::proto::optional<std::string, "test"_cts> value;
-  bool operator==(const string_with_optional &) const = default;
-};
-auto pb_meta(const string_with_optional &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence, void>>;
-
-auto serialize(const string_with_optional &) -> zpp::bits::members<1>;
 
 const ut::suite test_string_example = [] {
   "string_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_example{.value = "test"}); };
@@ -648,15 +642,6 @@ const ut::suite test_string_example = [] {
 
   "string_with_default"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_with_default{.value = "test"}, decode_only);
-  };
-
-  "string_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_with_optional{.value = "test"});
-  };
-
-  "optional_value_access"_test = [] {
-    string_with_optional const v;
-    ut::expect(v.value.value_or_default() == "test");
   };
 };
 
@@ -682,14 +667,6 @@ auto pb_meta(const string_view_with_default &)
 
 auto serialize(const string_view_with_default &) -> zpp::bits::members<1>;
 
-struct string_view_with_optional {
-  hpp::proto::optional<std::string_view, "test"_cts> value;
-  bool operator==(const string_view_with_optional &) const = default;
-};
-auto pb_meta(const string_view_with_optional &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
-
-auto serialize(const string_view_with_optional &) -> zpp::bits::members<1>;
 
 const ut::suite test_string_view_example = [] {
   "string_view_example"_test = [] {
@@ -704,15 +681,6 @@ const ut::suite test_string_view_example = [] {
 
   "string_view_with_default"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_with_default{.value = "test"}, decode_only);
-  };
-
-  "string_view_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_with_optional{.value = "test"});
-  };
-
-  "optional_value_access"_test = [] {
-    string_view_with_optional const v;
-    ut::expect(v.value.value_or_default() == "test");
   };
 };
 
@@ -739,15 +707,6 @@ auto pb_meta(const bytes_with_default &)
 
 auto serialize(const bytes_with_default &) -> zpp::bits::members<1>;
 
-struct bytes_with_optional {
-  hpp::proto::optional<std::vector<std::byte>, "test"_cts> value;
-  bool operator==(const bytes_with_optional &) const = default;
-};
-
-auto pb_meta(const bytes_with_optional &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
-
-auto serialize(const bytes_with_optional &) -> zpp::bits::members<1>;
-
 const ut::suite test_bytes = [] {
   const static auto verified_value =
       std::vector<std::byte>{std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
@@ -762,15 +721,6 @@ const ut::suite test_bytes = [] {
 
   "bytes_with_default"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, bytes_with_default{.value = verified_value}, decode_only);
-  };
-
-  "bytes_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, bytes_with_optional{.value = verified_value});
-  };
-
-  "optional_value_access"_test = [] {
-    bytes_with_optional const v;
-    ut::expect(v.value.value_or_default() == verified_value);
   };
 };
 
@@ -794,16 +744,6 @@ auto pb_meta(const char_vector_with_default &)
 
 auto serialize(const char_vector_with_default &) -> zpp::bits::members<1>;
 
-struct char_vector_with_optional {
-  hpp::proto::optional<std::vector<char>, "test"_cts> value;
-  bool operator==(const char_vector_with_optional &) const = default;
-};
-
-auto pb_meta(const char_vector_with_optional &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
-
-auto serialize(const char_vector_with_optional &) -> zpp::bits::members<1>;
-
 const ut::suite test_char_vector = [] {
   const static auto verified_value = std::vector<char>{'t', 'e', '\0', 't'};
 
@@ -819,15 +759,6 @@ const ut::suite test_char_vector = [] {
 
   "char_vector_with_default"_test = [] {
     verify("\x0a\x04\x74\x65\x00\x74"_bytes_array, char_vector_with_default{.value = verified_value});
-  };
-
-  "char_vector_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"_bytes_array, char_vector_with_optional{.value = verified_value});
-  };
-
-  "optional_value_access"_test = [] {
-    char_vector_with_optional const v;
-    ut::expect(v.value.value_or_default() == std::vector<char>{'t', 'e', 's', 't'});
   };
 };
 
@@ -854,19 +785,6 @@ auto pb_meta(const byte_span_with_default &)
 
 auto serialize(const byte_span_with_default &) -> zpp::bits::members<1>;
 
-struct byte_span_with_optional {
-  hpp::proto::optional<std::span<const std::byte>, "test"_cts> value;
-  bool operator==(const byte_span_with_optional &other) const {
-    return (!value.has_value() && !other.value.has_value()) ||
-           (value.has_value() && other.value.has_value() && equal_range(*value, *other.value));
-  }
-};
-
-auto pb_meta(const byte_span_with_optional &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
-
-auto serialize(const byte_span_with_optional &) -> zpp::bits::members<1>;
-
 const ut::suite test_byte_span = [] {
   static const std::byte verified_value[] = {std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
 
@@ -879,8 +797,6 @@ const ut::suite test_byte_span = [] {
   };
 
   "byte_span_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, byte_span_with_default{}); };
-
-  "byte_span_with_optional_empty"_test = [] { verify(std::array<std::byte, 0>{}, byte_span_with_optional{}); };
 };
 
 struct repeated_strings {

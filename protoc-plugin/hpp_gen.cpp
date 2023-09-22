@@ -238,10 +238,12 @@ struct hpp_addons {
         : cpp_name(resolve_keyword(proto.name)), qualified_parent_name(parent_name) {
       using enum gpb::FieldDescriptorProto::Type;
       using enum gpb::FieldDescriptorProto::Label;
-      is_cpp_optional = (proto.label == LABEL_OPTIONAL) &&
-                        (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE || proto.proto3_optional ||
-                         std::any_of(force_optionals.begin(), force_optionals.end(),
-                                     [f = parent_name + "." + proto.name](const auto &s) { return f.starts_with(s); }));
+      is_cpp_optional =
+          (proto.label == LABEL_OPTIONAL) &&
+          (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE || proto.proto3_optional ||
+           (proto.type != TYPE_STRING && proto.type != TYPE_BYTES &&
+             std::any_of(force_optionals.begin(), force_optionals.end(),
+                        [f = parent_name + "." + proto.name](const auto &s) { return f.starts_with(s); })));
       set_cpp_type(proto);
       set_default_value(proto);
     }

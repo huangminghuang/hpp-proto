@@ -184,12 +184,12 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     SetAllFields(&original);
 
     monotonic_memory_resource mr{4096};
-    std::vector<std::byte> data;
+    std::vector<char> data;
     using zpp::bits::success;
     expect(success(hpp::proto::out{data}(original)));
 
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
-                                                  {std::bit_cast<const char *>(data.data()), data.size()});
+                                                  {data.data(), data.size()});
 
     expect(hpp::proto::write_json(original) == original_json);
 

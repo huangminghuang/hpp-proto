@@ -1329,12 +1329,12 @@ const boost::ut::suite proto_test = [] {
 
         TestUtil::SetAll(&original, mr);
 
-        std::vector<std::byte> data;
+        std::vector<char> data;
         expect(!hpp::proto::write_proto(original, data));
 
         auto original_json =
             gpb_based::proto_to_json(unittest_proto2_descriptorset(), pb_message_name(original).c_str(),
-                                     {std::bit_cast<const char *>(data.data()), data.size()});
+                                     {data.data(), data.size()});
 
         auto generated_json = hpp::proto::write_json(original);
 

@@ -59,13 +59,11 @@ const boost::ut::suite proto3_lite_test = [] {
     proto3_unittest::TestAllTypes original;
     SetAllFields(&original);
 
-    auto [data, in, out] = hpp::proto::data_in_out();
-    using zpp::bits::success;
-
-    expect(success(out(original)));
+    std::vector<char> data;
+    expect(!hpp::proto::write_proto(original, data));
 
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
-                                                  {std::bit_cast<const char *>(data.data()), data.size()});
+                                                  {data.data(), data.size()});
 
     expect(hpp::proto::write_json(original) == original_json);
 

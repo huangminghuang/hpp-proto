@@ -150,7 +150,8 @@ template <>
 struct to_json<hpp::proto::bytes> {
   template <auto Opts, class B>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
-    return to_json<hpp::proto::bytes_view>::op<Opts, B>(std::span{value.begin(), value.end()}, ctx, b, ix);
+    return to_json<hpp::proto::bytes_view>::op<Opts, B>(std::span<const typename hpp::proto::bytes::value_type>{value.data(), value.size()}, ctx,
+                                                        b, ix);
   }
 };
 

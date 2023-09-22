@@ -152,9 +152,13 @@ void verify(T &&msg, std::string_view json) {
 template <typename Msg, int MemoryResourceSize = 0>
 void verify_bytes(std::string_view text, std::string_view json) {
   using namespace boost::ut;
-  const std::span<const std::byte> bs{std::bit_cast<const std::byte *>(text.data()), text.size()};
+  const std::span<const std::byte> bs{reinterpret_cast<const std::byte *>(text.data()), text.size()};
   Msg msg;
-  msg.field = decltype(msg.field){bs.begin(), bs.end()};
+  if constexpr (requires { msg.field = bs; }) {
+    msg.field = bs;
+  } else {
+    msg.field.assign(bs.begin(), bs.end());
+  }
   verify<Msg, MemoryResourceSize>(std::move(msg), json);
 }
 // NOLINTEND(bugprone-easily-swappable-parameters)
