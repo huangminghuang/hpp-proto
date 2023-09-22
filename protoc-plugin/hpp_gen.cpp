@@ -1019,12 +1019,16 @@ struct hpp_meta_generateor : code_generator {
 
     if (descriptor.is_cpp_optional) {
       rule = "explicit_presence";
-    } else if (proto.label == LABEL_REPEATED && numeric) {
-      std::optional<bool> packed;
-      if (proto.options.has_value() && proto.options->packed.has_value()) {
-        packed = proto.options->packed.value();
-      }
-      if ((packed.has_value() && !packed.value()) || (syntax == 2 && !packed.has_value())) {
+    } else if (proto.label == LABEL_REPEATED) {
+      if (numeric) {
+        std::optional<bool> packed;
+        if (proto.options.has_value() && proto.options->packed.has_value()) {
+          packed = proto.options->packed.value();
+        }
+        if ((packed.has_value() && !packed.value()) || (syntax == 2 && !packed.has_value())) {
+          rule = "unpacked_repeated";
+        }
+      } else {
         rule = "unpacked_repeated";
       }
     }

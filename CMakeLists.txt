@@ -62,7 +62,7 @@ if (HPP_ENABLE_CLANG_TIDY)
   if (CLANG_TIDY_EXE)
     set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-p;${CMAKE_CURRENT_BINARY_DIR}")
 
-    configure_file(clang-tidy-disable-all-checks ${CMAKE_CURRENT_BINARY_DIR}/.deps/.clang-tidy)
+    configure_file(clang-tidy-disable-all-checks ${CMAKE_CURRENT_BINARY_DIR}/_deps/.clang-tidy)
   endif()
 else()
   set(CMAKE_CXX_CLANG_TIDY)
