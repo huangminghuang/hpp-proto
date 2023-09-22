@@ -1,4 +1,3 @@
-CPMAddPackage("gh:fmtlib/fmt#10.0.0")
 
 add_executable(protoc-gen-hpp hpp_gen.cpp)
 target_link_libraries(protoc-gen-hpp PRIVATE hpp_proto::libhpp_proto fmt::fmt)

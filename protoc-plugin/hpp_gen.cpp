@@ -31,7 +31,7 @@
 #include <unordered_set>
 
 namespace gpb = google::protobuf;
-
+// NOLINTBEGIN(cert-err58-cpp)
 const std::unordered_set<std::string_view> keywords = {
     //
     "NULL",          "alignas",      "alignof",   "and",        "and_eq",
@@ -54,6 +54,7 @@ const std::unordered_set<std::string_view> keywords = {
     "char32_t",      "concept",      "consteval", "constinit",  "co_await",
     "co_return",     "co_yield",     "requires",
 };
+// NOLINTEND(cert-err58-cpp)
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 std::vector<std::string> force_optionals;
@@ -172,9 +173,11 @@ std::string cpp_escape(std::string_view src) {
       }
     } else {
       *itr++ = '\\';
+      // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
       *itr++ = static_cast<char>('0' + static_cast<unsigned char>(c) / 64);
       *itr++ = static_cast<char>('0' + (static_cast<unsigned char>(c) % 64) / 8);
       *itr++ = static_cast<char>('0' + static_cast<unsigned char>(c) % 8);
+      // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     }
   }
   return result;
@@ -485,7 +488,8 @@ struct code_generator {
       : file(files.emplace_back()), target(file.content) {}
 
   [[nodiscard]] std::string_view indent() const {
-    static std::string spaces(128, ' ');
+    const int init_max_indent_spaces = 128;
+    static std::string spaces(init_max_indent_spaces, ' ');
     if (indent_num > spaces.size()) {
       spaces.resize(indent_num);
     }

@@ -61,7 +61,7 @@ auto pb_meta(const example_default_type &)
 
 static_assert(hpp::proto::to_bytes<example_default_type{}>().empty());
 
-ut::suite test_example_default_type = [] {
+const ut::suite test_example_default_type = [] {
   auto [data, in, out] = hpp::proto::data_in_out(zpp::bits::no_size{});
   example_default_type const v;
   ut::expect(success(out(v)));
@@ -138,7 +138,7 @@ auto pb_meta(const repeated_integers_unpacked_explicit_type &)
 
 using namespace boost::ut::literals;
 
-ut::suite test_repeated_integers = [] {
+const ut::suite test_repeated_integers = [] {
   "repeated_integers"_test = [] {
     verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_array,
            repeated_integers{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
@@ -200,13 +200,13 @@ void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory
     return;
   }
 
-  std::array<std::byte, encoded_data.size()> new_data;
+  std::array<std::byte, encoded_data.size()> new_data{};
   ut::expect(success(hpp::proto::out{new_data}(value)));
 
   ut::expect(encoded_data == new_data);
 }
 
-ut::suite test_non_owning_repeated_integers = [] {
+const ut::suite test_non_owning_repeated_integers = [] {
   "non_owning_repeated_integers"_test = [] {
     std::array x{0, 1, 2, 3, 4, -1, -2, -3, -4};
     verify_non_owning("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_array, non_owning_repeated_integers{x}, 64);
@@ -235,11 +235,11 @@ struct non_owing_nested_example {
   const example *nested; // field number == 1
 
   constexpr bool operator==(const non_owing_nested_example &other) const {
-    return nested == other.nested || (nested && other.nested && *nested == *other.nested);
+    return nested == other.nested || (nested != nullptr && other.nested != nullptr && *nested == *other.nested);
   }
 };
 
-ut::suite test_non_owning_nested_example = [] {
+const ut::suite test_non_owning_nested_example = [] {
   example const ex{.i = 150};
   verify_non_owning("\x0a\x03\x08\x96\x01"_bytes_array, non_owing_nested_example{.nested = &ex}, 16);
 };
@@ -271,7 +271,7 @@ struct repeated_fixed_unpacked_explicit_type {
 auto pb_meta(const repeated_fixed_unpacked_explicit_type &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, uint64_t>>;
 
-ut::suite test_repeated_fixed = [] {
+const ut::suite test_repeated_fixed = [] {
   "repeated_fixed"_test = [] {
     verify(
         "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_array,
@@ -342,7 +342,7 @@ struct non_owning_repeated_fixed_unpacked_explicit_type {
 auto pb_meta(const non_owning_repeated_fixed_unpacked_explicit_type &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, uint64_t>>;
 
-ut::suite test_non_owning_repeated_fixed = [] {
+const ut::suite test_non_owning_repeated_fixed = [] {
   "non_owning_repeated_fixed"_test = [] {
     std::array<uint64_t, 3> x{1, 2, 3};
     verify_non_owning(
@@ -401,7 +401,7 @@ struct repeated_bool_unpacked {
 auto pb_meta(const repeated_bool_unpacked &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, bool>>;
 
-ut::suite test_repeated_bool = [] {
+const ut::suite test_repeated_bool = [] {
   "repeated_bool"_test = [] { verify("\x0a\x03\x01\x00\x01"_bytes_array, repeated_bool{{true, false, true}}); };
 
   "repeated_bool_unpacked"_test = [] {
@@ -426,7 +426,7 @@ struct non_owning_repeated_bool_unpacked {
 auto pb_meta(const non_owning_repeated_bool_unpacked &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, bool>>;
 
-ut::suite test_non_owning_repeated_bool = [] {
+const ut::suite test_non_owning_repeated_bool = [] {
   "non_owning_repeated_bool"_test = [] {
     std::array x{true, false, true};
     verify_non_owning("\x0a\x03\x01\x00\x01"_bytes_array, non_owning_repeated_bool{x}, 8);
@@ -454,7 +454,7 @@ struct repeated_enum_unpacked {
 
 auto pb_meta(const repeated_enum_unpacked &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated>>;
 
-ut::suite test_repeated_enums = [] {
+const ut::suite test_repeated_enums = [] {
   "repeated_enum"_test = [] {
     using enum repeated_enum::NestedEnum;
     verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_array,
@@ -485,7 +485,7 @@ struct non_owning_repeated_enum_unpacked {
 auto pb_meta(const non_owning_repeated_enum_unpacked &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated>>;
 
-ut::suite test_non_owning_repeated_enums = [] {
+const ut::suite test_non_owning_repeated_enums = [] {
   "non_owning_repeated_enum"_test = [] {
     using enum non_owning_repeated_enum::NestedEnum;
     std::array<non_owning_repeated_enum::NestedEnum, 4> x{FOO, BAR, BAZ, NEG};
@@ -516,7 +516,7 @@ struct non_owning_repeated_examples {
 auto pb_meta(const non_owning_repeated_examples &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated>>;
 
-ut::suite test_repeated_example = [] {
+const ut::suite test_repeated_example = [] {
   auto encoded = "\x0a\x02\x08\x01\x0a\x02\x08\x02\x0a\x02\x08\x03\x0a\x02\x08\x04\x0a\x0b\x08\xff\xff\xff\xff\xff\xff"
                  "\xff\xff\xff\x01\x0a\x0b\x08\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x01\x0a\x0b\x08\xfd\xff\xff\xff\xff"
                  "\xff\xff\xff\xff\x01\x0a\x0b\x08\xfc\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_array;
@@ -548,7 +548,7 @@ struct repeated_group {
 
 auto pb_meta(const repeated_group &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::group>>;
 
-ut::suite test_repeated_group = [] {
+const ut::suite test_repeated_group = [] {
   auto encoded = "\x0b\x10\x01\x0c\x0b\x10\x02\x0c"_bytes_array;
 
   "repeated_group"_test = [&] {
@@ -591,7 +591,7 @@ struct non_owning_map_example {
 auto pb_meta(const non_owning_map_example &) -> std::tuple<
     hpp::proto::field_meta<1, encoding_rule::defaulted, hpp::proto::map_entry<zpp::bits::vint64_t, color_t>>>;
 
-ut::suite test_map_example = [] {
+const ut::suite test_map_example = [] {
   auto encoded = "\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"_bytes_array;
 
   "map_example"_test = [&] {
@@ -641,7 +641,7 @@ auto pb_meta(const string_with_optional &)
 
 auto serialize(const string_with_optional &) -> zpp::bits::members<1>;
 
-ut::suite test_string_example = [] {
+const ut::suite test_string_example = [] {
   "string_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_example{.value = "test"}); };
 
   "string_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, string_with_default{}); };
@@ -691,7 +691,7 @@ auto pb_meta(const string_view_with_optional &)
 
 auto serialize(const string_view_with_optional &) -> zpp::bits::members<1>;
 
-ut::suite test_string_view_example = [] {
+const ut::suite test_string_view_example = [] {
   "string_view_example"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_example{.value = "test"});
   };
@@ -748,7 +748,7 @@ auto pb_meta(const bytes_with_optional &) -> std::tuple<hpp::proto::field_meta<1
 
 auto serialize(const bytes_with_optional &) -> zpp::bits::members<1>;
 
-ut::suite test_bytes = [] {
+const ut::suite test_bytes = [] {
   const static auto verified_value =
       std::vector<std::byte>{std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
 
@@ -784,9 +784,6 @@ struct char_vector_explicit_presence {
   bool operator==(const char_vector_explicit_presence &) const = default;
 };
 
-auto pb_meta(const bytes_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
-
 struct char_vector_with_default {
   std::vector<char> value = {'t', 'e', 's', 't'};
   bool operator==(const char_vector_with_default &) const = default;
@@ -807,7 +804,7 @@ auto pb_meta(const char_vector_with_optional &)
 
 auto serialize(const char_vector_with_optional &) -> zpp::bits::members<1>;
 
-ut::suite test_char_vector = [] {
+const ut::suite test_char_vector = [] {
   const static auto verified_value = std::vector<char>{'t', 'e', '\0', 't'};
 
   "char_vector_example"_test = [] {
@@ -870,7 +867,7 @@ auto pb_meta(const byte_span_with_optional &)
 
 auto serialize(const byte_span_with_optional &) -> zpp::bits::members<1>;
 
-ut::suite test_byte_span = [] {
+const ut::suite test_byte_span = [] {
   static const std::byte verified_value[] = {std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
 
   "byte_span_example"_test = [] {
@@ -916,7 +913,7 @@ auto pb_meta(const non_owning_repeated_string &) -> std::tuple<hpp::proto::field
 
 using namespace std::literals;
 
-ut::suite test_repeated_strings = [] {
+const ut::suite test_repeated_strings = [] {
   "repeated_strings"_test = [] {
     verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_array, repeated_strings{.values = {"abc"s, "def"s}});
   };
@@ -948,7 +945,7 @@ auto pb_meta(const optional_bools &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>,
                   hpp::proto::field_meta<2, encoding_rule::explicit_presence, bool, true>>;
 
-ut::suite test_optional_bools = [] {
+const ut::suite test_optional_bools = [] {
   "empty_optional_bools"_test = [] {
     std::vector<std::byte> const data;
     verify(data, optional_bools{});
@@ -972,7 +969,7 @@ auto pb_meta(const oneof_example &) -> std::tuple<
     std::tuple<hpp::proto::field_meta<1>, hpp::proto::field_meta<2, encoding_rule::defaulted, zpp::bits::vint64_t>,
                hpp::proto::field_meta<3>>>;
 
-ut::suite test_oneof = [] {
+const ut::suite test_oneof = [] {
   "empty_oneof_example"_test = [] { verify(std::array<std::byte, 0>{}, oneof_example{}); };
 
   "string_oneof_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, oneof_example{.value = "test"}); };
@@ -983,7 +980,7 @@ ut::suite test_oneof = [] {
 };
 
 struct extension_example {
-  int32_t int_value;
+  int32_t int_value = {};
   struct extension_t {
     using pb_extension = extension_example;
     hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
@@ -1003,7 +1000,7 @@ struct extension_example {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
 
-  bool has_extension(auto meta) const { return meta.element_of(extensions); }
+  [[nodiscard]] bool has_extension(auto meta) const { return meta.element_of(extensions); }
 
   bool operator==(const extension_example &other) const = default;
 };
@@ -1051,11 +1048,11 @@ constexpr auto repeated_packed_i32_ext() {
                                              int32_t>{};
 }
 
-ut::suite test_extensions = [] {
+const ut::suite test_extensions = [] {
   "get_extension"_test = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"_bytes_array;
-    extension_example const expected_value{
+    const extension_example expected_value{
         .int_value = 150,
         .extensions = {.fields = {{10U, "\x50\x01"_bytes},
                                   {11U, "\x5a\x04\x74\x65\x73\x74"_bytes},
@@ -1104,7 +1101,7 @@ ut::suite test_extensions = [] {
       ut::expect(v == std::vector<int32_t>{1, 2, 3});
     }
 
-    std::array<std::byte, encoded_data.size()> new_data;
+    std::array<std::byte, encoded_data.size()> new_data{};
     ut::expect(success(hpp::proto::out{new_data}(value)));
 
     ut::expect(encoded_data == new_data);
@@ -1135,7 +1132,7 @@ ut::suite test_extensions = [] {
 };
 
 struct non_owning_extension_example {
-  int32_t int_value;
+  int32_t int_value = {};
   struct extension_t {
     using pb_extension = non_owning_extension_example;
     std::span<std::pair<uint32_t, std::span<const std::byte>>> fields;
@@ -1166,7 +1163,7 @@ struct non_owning_extension_example {
     return meta.write(extensions, std::span<const typename Meta::element_type>(value.begin(), value.end()), mr);
   }
 
-  bool has_extension(auto meta) const { return meta.element_of(extensions); }
+  [[nodiscard]] bool has_extension(auto meta) const { return meta.element_of(extensions); }
   bool operator==(const non_owning_extension_example &other) const = default;
 };
 
@@ -1214,7 +1211,7 @@ constexpr auto non_owning_repeated_packed_i32_ext() {
                                              zpp::bits::vint64_t, int32_t>{};
 }
 
-ut::suite test_non_owning_extensions = [] {
+const ut::suite test_non_owning_extensions = [] {
   "get_non_owning_extension"_test = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"_bytes_array;
@@ -1272,7 +1269,7 @@ ut::suite test_non_owning_extensions = [] {
       ut::expect(equal_range(v.value(), std::initializer_list<uint32_t>{1, 2, 3}));
     }
 
-    std::array<std::byte, encoded_data.size()> new_data;
+    std::array<std::byte, encoded_data.size()> new_data{};
     ut::expect(success(hpp::proto::out{new_data}(value)));
 
     ut::expect(encoded_data == new_data);
@@ -1311,9 +1308,10 @@ ut::suite test_non_owning_extensions = [] {
   };
 };
 
+// NOLINTBEGIN(misc-no-recursion)
 struct recursive_type1 {
   hpp::proto::heap_based_optional<recursive_type1> child;
-  uint32_t payload;
+  uint32_t payload = {};
 
   bool operator==(const recursive_type1 &other) const = default;
 
@@ -1327,7 +1325,7 @@ auto pb_meta(const recursive_type1 &)
 
 struct recursive_type2 {
   std::vector<recursive_type2> children;
-  int32_t payload;
+  int32_t payload = {};
 
   bool operator==(const recursive_type2 &other) const = default;
 };
@@ -1337,7 +1335,7 @@ auto pb_meta(const recursive_type2 &)
 
 struct non_owning_recursive_type1 {
   non_owning_recursive_type1 *child = nullptr;
-  uint32_t payload;
+  uint32_t payload = {};
 
   bool operator==(const non_owning_recursive_type1 &other) const {
     return payload == other.payload &&
@@ -1350,7 +1348,7 @@ auto pb_meta(const non_owning_recursive_type1 &)
 
 struct non_owning_recursive_type2 {
   std::span<non_owning_recursive_type2> children = {};
-  int32_t payload;
+  int32_t payload = {};
 #ifdef _LIBCPP_VERSION
   constexpr non_owning_recursive_type2() = default;
   constexpr non_owning_recursive_type2(const non_owning_recursive_type2 &other)
@@ -1363,12 +1361,13 @@ struct non_owning_recursive_type2 {
   }
 };
 
+
 auto serialize(const non_owning_recursive_type2 &) -> zpp::bits::members<2>;
 
 auto pb_meta(const non_owning_recursive_type2 &)
     -> std::tuple<hpp::proto::field_meta<1>, hpp::proto::field_meta<2, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
-ut::suite recursive_types = [] {
+const ut::suite recursive_types = [] {
   "recursive_type1"_test = [] {
     verify("\x0a\x02\x10\x02\x10\x01"_bytes_array, recursive_type1{recursive_type1{{}, 2}, 1});
   };
@@ -1399,6 +1398,7 @@ ut::suite recursive_types = [] {
     verify_non_owning("\x0a\x02\x10\x02\x10\x01"_bytes_array, value, 64);
   };
 };
+// NOLINTEND(misc-no-recursion)
 
 struct monster {
   using enum color_t;
@@ -1412,21 +1412,21 @@ struct monster {
 
   struct weapon {
     std::string name;
-    int damage;
+    int damage = {};
 
     bool operator==(const weapon &) const = default;
   };
 
-  vec3 pos;
-  int32_t mana;
-  int hp;
+  vec3 pos = {};
+  int32_t mana = {};
+  int hp = {};
   std::string name;
   std::vector<std::uint8_t> inventory;
-  color_t color;
+  color_t color = {};
   std::vector<weapon> weapons;
-  weapon equipped;
+  weapon equipped = {};
   std::vector<vec3> path;
-  bool boss;
+  bool boss = {};
 
   bool operator==(const monster &) const = default;
   using pb_meta =
@@ -1436,7 +1436,7 @@ struct monster {
                  hpp::proto::field_meta<9>, hpp::proto::field_meta<10>>;
 };
 
-ut::suite test_monster = [] {
+const ut::suite test_monster = [] {
   auto [data, in, out] = hpp::proto::data_in_out(zpp::bits::size4b{});
   monster m = {.pos = {1.0, 2.0, 3.0},
                .mana = 200,
@@ -1473,7 +1473,7 @@ ut::suite test_monster = [] {
   ut::expect(m == m2);
 };
 
-ut::suite test_monster_unsized = [] {
+const ut::suite test_monster_unsized = [] {
   auto [data, in, out] = hpp::proto::data_in_out(zpp::bits::no_size{});
   monster const m = {.pos = {1.0, 2.0, 3.0},
                      .mana = 200,
@@ -1515,16 +1515,16 @@ struct monster_with_optional {
   using vec3 = monster::vec3;
   using weapon = monster::weapon;
 
-  vec3 pos;
-  int32_t mana;
-  int hp;
+  vec3 pos = {};
+  int32_t mana = {};
+  int hp = {};
   std::string name;
   std::vector<std::uint8_t> inventory;
-  color_t color;
+  color_t color = {};
   std::vector<weapon> weapons;
   std::optional<weapon> equipped;
   std::vector<vec3> path;
-  bool boss;
+  bool boss = {};
 
   bool operator==(const monster_with_optional &) const = default;
   using pb_meta =
@@ -1535,7 +1535,7 @@ struct monster_with_optional {
   using serialize = zpp::bits::members<10>;
 };
 
-ut::suite test_monster_with_optional = [] {
+const ut::suite test_monster_with_optional = [] {
   monster_with_optional m = {.pos = {1.0, 2.0, 3.0},
                              .mana = 200,
                              .hp = 1000,
@@ -1585,7 +1585,7 @@ ut::suite test_monster_with_optional = [] {
 
 struct person {
   std::string name;  // = 1
-  int32_t id;        // = 2
+  int32_t id = {};        // = 2
   std::string email; // = 3
 
   enum phone_type {
@@ -1596,7 +1596,7 @@ struct person {
 
   struct phone_number {
     std::string number; // = 1
-    phone_type type;    // = 2
+    phone_type type = {};    // = 2
   };
 
   std::vector<phone_number> phones; // = 4
@@ -1610,7 +1610,7 @@ struct address_book {
   std::vector<person> people; // = 1
 };
 
-ut::suite test_person = [] {
+const ut::suite test_person = [] {
   constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
                         "555-4321\x10\x01"_bytes_array;
   static_assert(data.size() == 45);
@@ -1628,13 +1628,13 @@ ut::suite test_person = [] {
   ut::expect(p.phones[0].number == "555-4321"sv);
   ut::expect(that % p.phones[0].type == person::home);
 
-  std::array<std::byte, data.size()> new_data;
+  std::array<std::byte, data.size()> new_data{};
   ut::expect(success(hpp::proto::out{new_data}(p)));
 
   ut::expect(data == new_data);
 };
 
-ut::suite test_address_book = [] {
+const ut::suite test_address_book = [] {
   constexpr auto data = "\n-\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
                         "555-4321\x10\x01\n>\n\nJohn Doe "
                         "2\x10\xd3\t\x1a\x11jdoe2@example.com\"\x0c\n\x08"
@@ -1653,7 +1653,7 @@ ut::suite test_address_book = [] {
   expect(b.people[0].name == "John Doe"sv);
   expect(that % b.people[0].id == 1234);
   expect(b.people[0].email == "jdoe@example.com"sv);
-  expect((b.people[0].phones.size() == 1u) >> fatal);
+  expect((b.people[0].phones.size() == 1U) >> fatal);
   expect(b.people[0].phones[0].number == "555-4321"sv);
   expect(b.people[0].phones[0].type == person::home);
   expect(b.people[1].name == "John Doe 2"sv);
@@ -1665,7 +1665,7 @@ ut::suite test_address_book = [] {
   expect(b.people[1].phones[1].number == "555-4323"sv);
   expect(b.people[1].phones[1].type == person::work);
 
-  std::array<std::byte, data.size()> new_data;
+  std::array<std::byte, data.size()> new_data{};
   hpp::proto::out out{new_data};
   expect(success(out(b)));
   expect(out.position() == data.size());
@@ -1675,7 +1675,7 @@ ut::suite test_address_book = [] {
 struct person_explicit {
   std::string extra;
   std::string name;
-  int32_t id;
+  int32_t id = {};
   std::string email;
 
   enum phone_type {
@@ -1686,7 +1686,7 @@ struct person_explicit {
 
   struct phone_number {
     std::string number;
-    phone_type type;
+    phone_type type = {};
 
     using pb_meta = std::tuple<hpp::proto::field_meta<1>, hpp::proto::field_meta<2>>;
   };
@@ -1698,7 +1698,7 @@ struct person_explicit {
                              hpp::proto::field_meta<3>, hpp::proto::field_meta<4>>;
 };
 
-ut::suite test_person_explicit = [] {
+const ut::suite test_person_explicit = [] {
   constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
                         "555-4321\x10\x01"_bytes_array;
   static_assert(data.size() == 45);
@@ -1722,7 +1722,7 @@ ut::suite test_person_explicit = [] {
   p1.email = p.email;
   p1.phones.push_back({p.phones[0].number, person::phone_type(p.phones[0].type)});
 
-  std::array<std::byte, data.size()> new_data;
+  std::array<std::byte, data.size()> new_data{};
   expect(success(hpp::proto::out{new_data, zpp::bits::no_size{}}(p1)));
 
   expect(data == new_data);
@@ -1730,7 +1730,7 @@ ut::suite test_person_explicit = [] {
 
 struct person_map {
   std::string name;  // = 1
-  int32_t id;        // = 2
+  int32_t id = {};   // = 2
   std::string email; // = 3
 
   enum phone_type {
@@ -1747,7 +1747,7 @@ struct person_map {
                  hpp::proto::field_meta<4, encoding_rule::defaulted, hpp::proto::map_entry<std::string, phone_type>>>;
 };
 
-ut::suite test_person_map = [] {
+const ut::suite test_person_map = [] {
   constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
                         "555-4321\x10\x01"_bytes_array;
   static_assert(data.size() == 45);
@@ -1765,13 +1765,13 @@ ut::suite test_person_map = [] {
   expect((p.phones.contains("555-4321")) >> fatal);
   expect(that % p.phones["555-4321"] == person_map::home);
 
-  std::array<std::byte, data.size()> new_data;
+  std::array<std::byte, data.size()> new_data{};
   expect(success(hpp::proto::out{new_data}(p)));
 
   expect(data == new_data);
 };
 
-ut::suite test_default_person_in_address_book = [] {
+const ut::suite test_default_person_in_address_book = [] {
   constexpr auto data = "\n\x00"_bytes_array;
 
   using namespace std::literals::string_view_literals;
@@ -1786,13 +1786,13 @@ ut::suite test_default_person_in_address_book = [] {
   expect(b.people[0].email == ""sv);
   expect(b.people[0].phones.size() == 0_u);
 
-  std::array<std::byte, "0a00"_decode_hex.size()> new_data;
+  std::array<std::byte, "0a00"_decode_hex.size()> new_data{};
   expect(success(hpp::proto::out{new_data}(b)));
 
   expect(new_data == "0a00"_decode_hex);
 };
 
-ut::suite test_empty_address_book = [] {
+const ut::suite test_empty_address_book = [] {
   constexpr auto data = ""_bytes_array;
 
   using namespace boost::ut;
@@ -1802,14 +1802,14 @@ ut::suite test_empty_address_book = [] {
 
   expect(b.people.size() == 0_u);
 
-  std::array<std::byte, 1> new_data;
+  std::array<std::byte, 1> new_data{};
   hpp::proto::out out{new_data};
   expect(success(out(b)));
 
   expect(out.position() == 0_u);
 };
 
-ut::suite test_empty_person = [] {
+const ut::suite test_empty_person = [] {
   constexpr auto data = ""_bytes_array;
   using namespace std::literals::string_view_literals;
   using namespace boost::ut;
@@ -1823,7 +1823,7 @@ ut::suite test_empty_person = [] {
   expect(p.email == ""sv);
   expect(p.phones.size() == 0_u);
 
-  std::array<std::byte, 2> new_data;
+  std::array<std::byte, 2> new_data{};
   hpp::proto::out out{new_data};
   expect(success(out(p)));
   expect(out.position() == 0_u);
@@ -1837,7 +1837,7 @@ void verify_unknown_fields(auto encoded_data, auto expected_value) {
   ut::expect(in.has_unknown_fields());
 }
 
-ut::suite test_decode_unknown_field = [] {
+const ut::suite test_decode_unknown_field = [] {
   "string_example_varint_unknown"_test = [] {
     verify_unknown_fields("\x18\x02\x0a\x04\x74\x65\x73\x74"_bytes_array, string_example{.value = "test"});
   };
@@ -1863,5 +1863,5 @@ ut::suite test_decode_unknown_field = [] {
 
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
-  return result;
+  return static_cast<int>(result);
 }

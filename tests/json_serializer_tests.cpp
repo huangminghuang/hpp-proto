@@ -148,6 +148,7 @@ void verify(T &&msg, std::string_view json) {
   }
 }
 
+// NOLINTBEGIN(bugprone-easily-swappable-parameters)
 template <typename Msg, int MemoryResourceSize = 0>
 void verify_bytes(std::string_view text, std::string_view json) {
   using namespace boost::ut;
@@ -156,6 +157,7 @@ void verify_bytes(std::string_view text, std::string_view json) {
   msg.field = decltype(msg.field){bs.begin(), bs.end()};
   verify<Msg, MemoryResourceSize>(std::move(msg), json);
 }
+// NOLINTEND(bugprone-easily-swappable-parameters)
 
 namespace ut = boost::ut;
 

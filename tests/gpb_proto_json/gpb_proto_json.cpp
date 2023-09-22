@@ -10,7 +10,7 @@ namespace gpb = google::protobuf;
 std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data,
                           PrintOption option = NONE) {
 
-  auto message_descriptor = pool.FindMessageTypeByName(message_name);
+  const auto* message_descriptor = pool.FindMessageTypeByName(message_name);
   gpb::DynamicMessageFactory factory(&pool);
 
   std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
@@ -26,7 +26,7 @@ std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_n
 }
 
 std::string json_to_proto(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data) {
-  auto message_descriptor = pool.FindMessageTypeByName(message_name);
+  const auto* message_descriptor = pool.FindMessageTypeByName(message_name);
   gpb::DynamicMessageFactory factory(&pool);
 
   std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};

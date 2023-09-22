@@ -357,7 +357,7 @@ public:
 
   constexpr bool operator==(const heap_based_optional &rhs) const {
     if (has_value() && rhs.has_value()) {
-      return **this == *rhs;
+      return *obj == *rhs.obj;
     } else {
       return has_value() == rhs.has_value();
     }

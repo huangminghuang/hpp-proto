@@ -35,20 +35,17 @@ CPMAddPackage(
           "protobuf_BUILD_PROTOC_BINARIES ON"
           "EXCLUDE_FROM_ALL"
 )
+CPMAddPackage("gh:fmtlib/fmt#10.0.0")
 
 
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" ON)
 option(HPP_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
 
-message("CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}")
-
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   file(REAL_PATH ${CMAKE_CXX_COMPILER} CLANG_REAL_PATH)
   cmake_path(GET CLANG_REAL_PATH PARENT_PATH CLANG_DIR)
 endif()
-message("CLANG_REAL_PATH=${CLANG_REAL_PATH}")
-message("CLANG_DIR=${CLANG_DIR}")
 
 
 if (HPP_ENABLE_CLANG_TIDY)
@@ -57,11 +54,8 @@ if (HPP_ENABLE_CLANG_TIDY)
   else()
     find_program(CLANG_TIDY_EXE NAME clang-tidy)
   endif()
-  message("CLANG_TIDY_EXE=${CLANG_TIDY_EXE}")
-
   if (CLANG_TIDY_EXE)
     set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-p;${CMAKE_CURRENT_BINARY_DIR}")
-
     configure_file(clang-tidy-disable-all-checks ${CMAKE_CURRENT_BINARY_DIR}/_deps/.clang-tidy)
   endif()
 else()
