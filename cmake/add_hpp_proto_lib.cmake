@@ -36,7 +36,7 @@ function(add_hpp_proto_lib target)
     add_custom_command(
         COMMENT "processing ${HPP_PROTO_FILES}"
         OUTPUT ${GENERATED_FILES}
-        COMMAND ${COMMAND_PREFIX} $<TARGET_FILE:protoc> --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${HPP_OUTPUT_DIR} ${INCLUDE_DIRS} ${HPP_PROTO_FILES}
+        COMMAND ${COMMAND_PREFIX} $<TARGET_FILE:hpp_proto::protoc> --plugin=protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp> --hpp_out=${HPP_OUTPUT_DIR} ${INCLUDE_DIRS} ${HPP_PROTO_FILES}
         DEPENDS protoc protoc-gen-hpp ${SOURCE_FILES}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         VERBATIM

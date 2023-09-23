@@ -64,22 +64,23 @@ else()
 endif()
 
 
-add_library(hpp_proto_libhpp_proto INTERFACE)
-target_include_directories(hpp_proto_libhpp_proto INTERFACE 
+add_library(libhpp_proto INTERFACE)
+target_include_directories(libhpp_proto INTERFACE 
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${zpp_bits_SOURCE_DIR}>
   $<BUILD_INTERFACE:${expected_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(hpp_proto_libhpp_proto INTERFACE cxx_std_20)
+target_compile_features(libhpp_proto INTERFACE cxx_std_20)
 if (MSVC)
     # warning level 4
-    target_compile_options(hpp_proto_libhpp_proto INTERFACE /W4)
+    target_compile_options(libhpp_proto INTERFACE /W4)
 else()
     # additional warnings
-    target_compile_options(hpp_proto_libhpp_proto INTERFACE -Wall -Wextra -Wpedantic)
+    target_compile_options(libhpp_proto INTERFACE -Wall -Wextra -Wpedantic)
 endif()
 
-add_library(hpp_proto::libhpp_proto ALIAS hpp_proto_libhpp_proto)
+add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
+add_executable(hpp_proto::protoc ALIAS protoc)
 
 add_subdirectory(protoc-plugin)
 if (HPP_PROTO_TESTS)
@@ -109,7 +110,7 @@ install(DIRECTORY include/ TYPE INCLUDE)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
 install(DIRECTORY ${expected_SOURCE_DIR}/include/ TYPE INCLUDE)
 install(FILES ${zpp_bits_SOURCE_DIR}/zpp_bits.h TYPE INCLUDE)
-install(TARGETS protoc hpp_proto_libhpp_proto EXPORT hpp_proto-targets)
+install(TARGETS protoc libhpp_proto EXPORT hpp_proto-targets)
 install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
 
 configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake COPYONLY)
@@ -119,5 +120,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.
         DESTINATION "lib/cmake/hpp_proto")
 
 install(EXPORT hpp_proto-targets 
-        DESTINATION lib/cmake/hpp_proto)
-export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake)
+        DESTINATION lib/cmake/hpp_proto
+        NAMESPACE hpp_proto::)
+export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake 
+       NAMESPACE hpp_proto::)
