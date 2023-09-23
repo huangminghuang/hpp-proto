@@ -13,12 +13,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
 CPMAddPackage(gh:eyalz800/zpp_bits@4.4.19)
-find_package(Git REQUIRED)
 CPMAddPackage(
   NAME glaze
-  VERSION 1.4.2
-  GITHUB_REPOSITORY stephenberry/glaze
-  PATCH_COMMAND  ${GIT_EXECUTABLE} checkout . && ${GIT_EXECUTABLE} apply ${CMAKE_CURRENT_SOURCE_DIR}/glaze.patch
+  VERSION 1.4.3.mod
+  GITHUB_REPOSITORY huangminghuang/glaze
 )
 
 set(EXPECTED_BUILD_TESTS OFF)
