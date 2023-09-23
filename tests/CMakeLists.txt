@@ -19,6 +19,7 @@ endif()
 
 add_library(Boost::ut INTERFACE IMPORTED)
 target_include_directories(Boost::ut INTERFACE ${ut_SOURCE_DIR}/include)
+target_compile_definitions(Boost::ut INTERFACE BOOST_UT_DISABLE_MODULE)
 
 add_subdirectory(gpb_proto_json)
 
