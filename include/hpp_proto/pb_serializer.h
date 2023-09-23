@@ -831,7 +831,7 @@ struct out {
   }
 
   template <typename SizeType = default_size_type>
-  constexpr errc ZPP_BITS_INLINE serialize_one(auto &&item) {
+  ZPP_BITS_INLINE constexpr errc serialize_one(auto &&item) {
     if constexpr (!std::is_void_v<SizeType>) {
       return serialize_sized<SizeType>(std::forward<decltype(item)>(item));
     } else {
