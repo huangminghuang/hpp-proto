@@ -13,11 +13,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
 CPMAddPackage(gh:eyalz800/zpp_bits@4.4.19)
+find_package(Git REQUIRED)
 CPMAddPackage(
   NAME glaze
   VERSION 1.4.2
   GITHUB_REPOSITORY stephenberry/glaze
-  PATCH_COMMAND  git checkout . && git apply ${CMAKE_CURRENT_SOURCE_DIR}/glaze.patch
+  PATCH_COMMAND  ${GIT_EXECUTABLE} checkout . && ${GIT_EXECUTABLE} apply ${CMAKE_CURRENT_SOURCE_DIR}/glaze.patch
 )
 
 set(EXPECTED_BUILD_TESTS OFF)
@@ -35,7 +36,7 @@ CPMAddPackage(
           "protobuf_BUILD_PROTOC_BINARIES ON"
           "EXCLUDE_FROM_ALL"
 )
-CPMAddPackage("gh:fmtlib/fmt#10.0.0")
+CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
 
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
