@@ -12,6 +12,10 @@ function(add_hpp_proto_lib target)
         set(HPP_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
     endif()
 
+    if (NOT EXISTS ${HPP_OUTPUT_DIR})
+        file(MAKE_DIRECTORY ${HPP_OUTPUT_DIR})
+    endif()
+
     foreach(PROTO ${HPP_PROTO_FILES})
         cmake_path(ABSOLUTE_PATH PROTO BASE_DIRECTORY ${HPP_OUTPUT_DIR} OUTPUT_VARIABLE FILE_BASE)
         cmake_path(REPLACE_EXTENSION FILE_BASE LAST_ONLY ".msg.hpp" OUTPUT_VARIABLE MSG)

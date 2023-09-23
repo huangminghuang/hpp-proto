@@ -88,7 +88,7 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
 
   ut::expect(100 == m.optional_int32);
   ut::expect("asdf"sv == m.optional_string);
-  ut::expect(equal_range("jkl;"_bytes, m.optional_bytes));
+  ut::expect(ranges_equal("jkl;"_bytes, m.optional_bytes));
 
   ut::expect(m.optional_nested_message.has_value() && 42 == m.optional_nested_message->bb);
   ut::expect(m.optional_foreign_message.has_value() && 43 == m.optional_foreign_message->c);
@@ -102,7 +102,7 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   ut::expect(1 == m.repeated_string.size());
   ut::expect("asdf" == m.repeated_string[0]);
   ut::expect(1 == m.repeated_bytes.size());
-  ut::expect(equal_range("jkl;"_bytes, m.repeated_bytes[0]));
+  ut::expect(ranges_equal("jkl;"_bytes, m.repeated_bytes[0]));
   ut::expect(1 == m.repeated_nested_message.size());
   ut::expect(46 == m.repeated_nested_message[0].bb);
   ut::expect(1 == m.repeated_foreign_message.size());
@@ -120,20 +120,20 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
 void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message) {
   namespace ut = boost::ut;
 
-  ut::expect(equal_range(std::vector{601, 701}, message.repeated_int32));
-  ut::expect(equal_range(std::vector{602LL, 702LL}, message.repeated_int64));
-  ut::expect(equal_range(std::vector{603U, 703U}, message.repeated_uint32));
-  ut::expect(equal_range(std::vector{604ULL, 704ULL}, message.repeated_uint64));
-  ut::expect(equal_range(std::vector{605, 705}, message.repeated_sint32));
-  ut::expect(equal_range(std::vector{606LL, 706LL}, message.repeated_sint64));
-  ut::expect(equal_range(std::vector{607U, 707U}, message.repeated_fixed32));
-  ut::expect(equal_range(std::vector{608ULL, 708ULL}, message.repeated_fixed64));
-  ut::expect(equal_range(std::vector{609, 709}, message.repeated_sfixed32));
-  ut::expect(equal_range(std::vector{610LL, 710LL}, message.repeated_sfixed64));
-  ut::expect(equal_range(std::vector{611.F, 711.F}, message.repeated_float));
-  ut::expect(equal_range(std::vector{612., 712.}, message.repeated_double));
-  ut::expect(equal_range(std::vector<hpp::proto::boolean>{true, false}, message.repeated_bool));
-  ut::expect(equal_range(
+  ut::expect(ranges_equal(std::vector{601, 701}, message.repeated_int32));
+  ut::expect(ranges_equal(std::vector{602LL, 702LL}, message.repeated_int64));
+  ut::expect(ranges_equal(std::vector{603U, 703U}, message.repeated_uint32));
+  ut::expect(ranges_equal(std::vector{604ULL, 704ULL}, message.repeated_uint64));
+  ut::expect(ranges_equal(std::vector{605, 705}, message.repeated_sint32));
+  ut::expect(ranges_equal(std::vector{606LL, 706LL}, message.repeated_sint64));
+  ut::expect(ranges_equal(std::vector{607U, 707U}, message.repeated_fixed32));
+  ut::expect(ranges_equal(std::vector{608ULL, 708ULL}, message.repeated_fixed64));
+  ut::expect(ranges_equal(std::vector{609, 709}, message.repeated_sfixed32));
+  ut::expect(ranges_equal(std::vector{610LL, 710LL}, message.repeated_sfixed64));
+  ut::expect(ranges_equal(std::vector{611.F, 711.F}, message.repeated_float));
+  ut::expect(ranges_equal(std::vector{612., 712.}, message.repeated_double));
+  ut::expect(ranges_equal(std::vector<hpp::proto::boolean>{true, false}, message.repeated_bool));
+  ut::expect(ranges_equal(
       std::vector{proto3_unittest::TestAllTypes::NestedEnum::BAR, proto3_unittest::TestAllTypes::NestedEnum::BAZ},
       message.repeated_nested_enum));
 }
@@ -184,12 +184,12 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     SetAllFields(&original);
 
     monotonic_memory_resource mr{4096};
-    std::vector<std::byte> data;
+    std::vector<char> data;
     using zpp::bits::success;
     expect(success(hpp::proto::out{data}(original)));
 
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
-                                                  {std::bit_cast<const char *>(data.data()), data.size()});
+                                                  {data.data(), data.size()});
 
     expect(hpp::proto::write_json(original) == original_json);
 
