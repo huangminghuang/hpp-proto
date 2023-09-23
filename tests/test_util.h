@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <span>
+#include <algorithm>
 #include <hpp_proto/pb_serializer.h>
 
 inline std::string descriptorset_from_file(const char* filename) {
@@ -79,16 +80,12 @@ constexpr bool ensure_all_fields_encoding_rule() {
   return std::apply([](auto... field_meta) { return ((field_meta.encoding == Rule) && ...); }, meta());
 }
 
-std::span<const std::byte> to_byte_span(const char *str) {
-  return std::span<const std::byte>{reinterpret_cast<const std::byte *>(str), strlen(str)};
-}
-
 template <typename RG1, typename RG2>
-bool equal_range(RG1 &&r1, RG2 &&r2) {
+bool ranges_equal(RG1 &&r1, RG2 &&r2) {
   return std::equal(r1.begin(), r1.end(), r2.begin(), r2.end());
 }
 
 template <typename RG1, typename RG2, typename BinaryPredicate>
-bool equal_range(RG1 &&r1, RG2 &&r2, BinaryPredicate p) {
+bool ranges_equal(RG1 &&r1, RG2 &&r2, BinaryPredicate p) {
   return std::equal(r1.begin(), r1.end(), r2.begin(), r2.end(), p);
 }

@@ -1361,7 +1361,7 @@ public:
 
       if constexpr (!zpp::bits::concepts::varint<serialize_type>) {
         return this->m_archive(::zpp::bits::unsized(
-            std::span<element_type>{reinterpret_cast<element_type *>(growable.data()), growable.size()}));
+            std::span<element_type>{std::bit_cast<element_type *>(growable.data()), growable.size()}));
       } else {
         return iterative_apply(
             [this](auto &value) {

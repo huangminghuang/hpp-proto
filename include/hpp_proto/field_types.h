@@ -239,7 +239,7 @@ class optional<bool, Default> {
   static constexpr bool as_bool(bool v) { return v; }
   static constexpr bool as_bool(std::monostate) { return false; }
   static constexpr bool default_value = as_bool(Default);
-  bool &deref() { return reinterpret_cast<bool &>(impl); }
+  bool &deref() { return *std::bit_cast<bool *>(&impl); }
 
 public:
   using value_type = bool;
@@ -407,15 +407,15 @@ struct cts_wrapper {
 
   operator std::string() const { return std::string{data()}; }
   operator std::vector<std::byte>() const {
-    return std::vector<std::byte>{reinterpret_cast<const std::byte *>(data()),
-                                  reinterpret_cast<const std::byte *>(data()) + size()};
+    return std::vector<std::byte>{std::bit_cast<const std::byte *>(data()),
+                                  std::bit_cast<const std::byte *>(data()) + size()};
   }
 
   operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
 
   operator std::string_view() const { return std::string_view(data(), size()); }
   operator std::span<const std::byte>() const {
-    return std::span<const std::byte>{reinterpret_cast<const std::byte *>(data()), size()};
+    return std::span<const std::byte>{std::bit_cast<const std::byte *>(data()), size()};
   }
   operator std::span<char>() const { return std::span<char>{data(), size()}; }
 
@@ -432,7 +432,7 @@ struct cts_wrapper {
   }
 
   friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const std::byte> &rhs) {
-    const std::byte *b = reinterpret_cast<const std::byte *>(lhs.data());
+    const std::byte *b = std::bit_cast<const std::byte *>(lhs.data());
     return std::equal(rhs.begin(), rhs.end(), b, b + lhs.size());
   }
 

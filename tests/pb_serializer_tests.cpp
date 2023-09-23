@@ -109,7 +109,7 @@ void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encod
   std::vector<std::byte> new_data;
   ut::expect(success(hpp::proto::out{new_data}(value)));
 
-  ut::expect(equal_range(encoded_data, new_data));
+  ut::expect(ranges_equal(encoded_data, new_data));
 }
 
 struct repeated_integers {
@@ -162,7 +162,7 @@ const ut::suite test_repeated_integers = [] {
 
 struct non_owning_repeated_integers {
   std::span<const int32_t> integers;
-  bool operator==(const non_owning_repeated_integers &other) const { return equal_range(integers, other.integers); }
+  bool operator==(const non_owning_repeated_integers &other) const { return ranges_equal(integers, other.integers); }
 };
 
 auto pb_meta(const non_owning_repeated_integers &)
@@ -171,7 +171,7 @@ auto pb_meta(const non_owning_repeated_integers &)
 struct non_owning_repeated_integers_unpacked {
   std::span<const zpp::bits::vsint32_t> integers;
   bool operator==(const non_owning_repeated_integers_unpacked &other) const {
-    return equal_range(integers, other.integers);
+    return ranges_equal(integers, other.integers);
   }
 };
 
@@ -181,7 +181,7 @@ auto pb_meta(const non_owning_repeated_integers_unpacked &)
 struct non_owning_repeated_integers_unpacked_explicit_type {
   std::span<const int32_t> integers;
   bool operator==(const non_owning_repeated_integers_unpacked_explicit_type &other) const {
-    return equal_range(integers, other.integers);
+    return ranges_equal(integers, other.integers);
   }
 };
 
@@ -313,12 +313,12 @@ const ut::suite test_repeated_fixed = [] {
 
 struct non_owning_repeated_fixed {
   std::span<const uint64_t> integers;
-  bool operator==(const non_owning_repeated_fixed &other) const { return equal_range(integers, other.integers); }
+  bool operator==(const non_owning_repeated_fixed &other) const { return ranges_equal(integers, other.integers); }
 };
 struct non_owning_repeated_fixed_explicit_type {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_explicit_type &other) const {
-    return equal_range(integers, other.integers);
+    return ranges_equal(integers, other.integers);
   }
 };
 
@@ -327,7 +327,7 @@ auto pb_meta(const non_owning_repeated_fixed_explicit_type &)
 struct non_owning_repeated_fixed_unpacked {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_unpacked &other) const {
-    return equal_range(integers, other.integers);
+    return ranges_equal(integers, other.integers);
   }
 };
 
@@ -337,7 +337,7 @@ auto pb_meta(const non_owning_repeated_fixed_unpacked &)
 struct non_owning_repeated_fixed_unpacked_explicit_type {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_unpacked_explicit_type &other) const {
-    return equal_range(integers, other.integers);
+    return ranges_equal(integers, other.integers);
   }
 };
 
@@ -413,7 +413,7 @@ const ut::suite test_repeated_bool = [] {
 
 struct non_owning_repeated_bool {
   std::span<const bool> booleans;
-  bool operator==(const non_owning_repeated_bool &other) const { return equal_range(booleans, other.booleans); }
+  bool operator==(const non_owning_repeated_bool &other) const { return ranges_equal(booleans, other.booleans); }
 };
 
 auto pb_meta(const non_owning_repeated_bool &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, bool>>;
@@ -421,7 +421,7 @@ auto pb_meta(const non_owning_repeated_bool &) -> std::tuple<hpp::proto::field_m
 struct non_owning_repeated_bool_unpacked {
   std::span<const bool> booleans;
   bool operator==(const non_owning_repeated_bool_unpacked &other) const {
-    return equal_range(booleans, other.booleans);
+    return ranges_equal(booleans, other.booleans);
   }
 };
 
@@ -473,7 +473,7 @@ const ut::suite test_repeated_enums = [] {
 struct non_owning_repeated_enum {
   enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::span<const NestedEnum> values;
-  bool operator==(const non_owning_repeated_enum &other) const { return equal_range(values, other.values); }
+  bool operator==(const non_owning_repeated_enum &other) const { return ranges_equal(values, other.values); }
 };
 
 auto pb_meta(const non_owning_repeated_enum &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
@@ -481,7 +481,7 @@ auto pb_meta(const non_owning_repeated_enum &) -> std::tuple<hpp::proto::field_m
 struct non_owning_repeated_enum_unpacked {
   enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::span<const NestedEnum> values;
-  bool operator==(const non_owning_repeated_enum_unpacked &other) const { return equal_range(values, other.values); }
+  bool operator==(const non_owning_repeated_enum_unpacked &other) const { return ranges_equal(values, other.values); }
 };
 
 auto pb_meta(const non_owning_repeated_enum_unpacked &)
@@ -512,7 +512,7 @@ auto pb_meta(const repeated_examples &) -> std::tuple<hpp::proto::field_meta<1, 
 
 struct non_owning_repeated_examples {
   std::span<const example> examples;
-  bool operator==(const non_owning_repeated_examples &other) const { return equal_range(examples, other.examples); }
+  bool operator==(const non_owning_repeated_examples &other) const { return ranges_equal(examples, other.examples); }
 };
 
 auto pb_meta(const non_owning_repeated_examples &)
@@ -587,7 +587,7 @@ auto pb_meta(const sequential_map_example &) -> std::tuple<
 
 struct non_owning_map_example {
   std::span<const std::pair<int32_t, color_t>> dict;
-  bool operator==(const non_owning_map_example &other) const { return equal_range(dict, other.dict); }
+  bool operator==(const non_owning_map_example &other) const { return ranges_equal(dict, other.dict); }
 };
 
 auto pb_meta(const non_owning_map_example &) -> std::tuple<
@@ -764,12 +764,12 @@ const ut::suite test_char_vector = [] {
 
 struct byte_span_example {
   std::span<const std::byte> value;
-  bool operator==(const byte_span_example &other) const { return equal_range(value, other.value); }
+  bool operator==(const byte_span_example &other) const { return ranges_equal(value, other.value); }
 };
 
 struct byte_span_explicit_presence {
   std::span<const std::byte> value;
-  bool operator==(const byte_span_explicit_presence &other) const { return equal_range(value, other.value); }
+  bool operator==(const byte_span_explicit_presence &other) const { return ranges_equal(value, other.value); }
 };
 
 auto pb_meta(const byte_span_explicit_presence &)
@@ -777,7 +777,7 @@ auto pb_meta(const byte_span_explicit_presence &)
 
 struct byte_span_with_default {
   std::span<const std::byte> value = "test"_bytes_view;
-  bool operator==(const byte_span_with_default &other) const { return equal_range(value, other.value); }
+  bool operator==(const byte_span_with_default &other) const { return ranges_equal(value, other.value); }
 };
 
 auto pb_meta(const byte_span_with_default &)
@@ -822,7 +822,7 @@ auto pb_meta(const repeated_strings_explicit_presence &)
 
 struct non_owning_repeated_string {
   std::span<std::string_view> values;
-  bool operator==(const non_owning_repeated_string &other) const { return equal_range(values, other.values); }
+  bool operator==(const non_owning_repeated_string &other) const { return ranges_equal(values, other.values); }
 };
 
 auto pb_meta(const non_owning_repeated_string &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
@@ -1055,7 +1055,7 @@ struct non_owning_extension_example {
     bool operator==(const extension_t &other) const {
       return std::equal(fields.begin(), fields.end(), other.fields.begin(), other.fields.end(),
                         [](const auto &lhs, const auto &rhs) {
-                          return lhs.first == rhs.first && equal_range(lhs.second, rhs.second);
+                          return lhs.first == rhs.first && ranges_equal(lhs.second, rhs.second);
                         });
     }
   } extensions;
@@ -1171,18 +1171,18 @@ const ut::suite test_non_owning_extensions = [] {
     {
       auto v = value.get_extension(non_owning_repeated_i32_ext(), mr);
       ut::expect(v.has_value());
-      ut::expect(equal_range(v.value(), std::initializer_list<uint32_t>{1, 2}));
+      ut::expect(ranges_equal(v.value(), std::initializer_list<uint32_t>{1, 2}));
     }
     {
       auto v = value.get_extension(non_owning_repeated_string_ext(), mr);
       ut::expect(v.has_value());
       using namespace std::literals;
-      ut::expect(equal_range(v.value(), std::initializer_list<std::string_view>{"abc"sv, "def"sv}));
+      ut::expect(ranges_equal(v.value(), std::initializer_list<std::string_view>{"abc"sv, "def"sv}));
     }
     {
       auto v = value.get_extension(non_owning_repeated_packed_i32_ext(), mr);
       ut::expect(v.has_value());
-      ut::expect(equal_range(v.value(), std::initializer_list<uint32_t>{1, 2, 3}));
+      ut::expect(ranges_equal(v.value(), std::initializer_list<uint32_t>{1, 2, 3}));
     }
 
     std::array<std::byte, encoded_data.size()> new_data{};
@@ -1195,32 +1195,32 @@ const ut::suite test_non_owning_extensions = [] {
     non_owning_extension_example value;
     ut::expect(!value.set_extension(non_owning_i32_ext(), 1, mr));
     ut::expect(value.extensions.fields.back().first == 10);
-    ut::expect(equal_range(value.extensions.fields.back().second, "\x50\x01"_bytes));
+    ut::expect(ranges_equal(value.extensions.fields.back().second, "\x50\x01"_bytes));
 
     ut::expect(!value.set_extension(non_owning_string_ext(), "test", mr));
     ut::expect(value.extensions.fields.back().first == 11);
-    ut::expect(equal_range(value.extensions.fields.back().second, "\x5a\x04\x74\x65\x73\x74"_bytes));
+    ut::expect(ranges_equal(value.extensions.fields.back().second, "\x5a\x04\x74\x65\x73\x74"_bytes));
 
     ut::expect(!value.set_extension(non_owning_i32_defaulted_ext(), 10, mr));
     ut::expect(value.extensions.fields.back().first != 13);
 
     ut::expect(!value.set_extension(non_owning_example_ext(), {.i = 150}, mr));
     ut::expect(value.extensions.fields.back().first == 15);
-    ut::expect(equal_range(value.extensions.fields.back().second, "\x7a\x03\x08\x96\x01"_bytes));
+    ut::expect(ranges_equal(value.extensions.fields.back().second, "\x7a\x03\x08\x96\x01"_bytes));
 
     ut::expect(!value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, mr));
     ut::expect(value.extensions.fields.back().first == 20);
-    ut::expect(equal_range(value.extensions.fields.back().second, "\xa0\x01\x01\xa0\x01\x02"_bytes));
+    ut::expect(ranges_equal(value.extensions.fields.back().second, "\xa0\x01\x01\xa0\x01\x02"_bytes));
 
     using namespace std::literals;
     ut::expect(!value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, mr));
     ut::expect(value.extensions.fields.back().first == 21);
     ut::expect(
-        equal_range(value.extensions.fields.back().second, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
+        ranges_equal(value.extensions.fields.back().second, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
     ut::expect(!value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, mr));
     ut::expect(value.extensions.fields.back().first == 22);
-    ut::expect(equal_range(value.extensions.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
+    ut::expect(ranges_equal(value.extensions.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };
 };
 

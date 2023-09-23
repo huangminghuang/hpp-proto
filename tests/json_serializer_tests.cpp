@@ -152,7 +152,12 @@ void verify(T &&msg, std::string_view json) {
 template <typename Msg, int MemoryResourceSize = 0>
 void verify_bytes(std::string_view text, std::string_view json) {
   using namespace boost::ut;
+#ifdef __cpp_lib_bit_cast
+  const std::span<const std::byte> bs{std::bit_cast<const std::byte *>(text.data()), text.size()};
+#else 
   const std::span<const std::byte> bs{reinterpret_cast<const std::byte *>(text.data()), text.size()};
+#endif
+
   Msg msg;
   if constexpr (requires { msg.field = bs; }) {
     msg.field = bs;

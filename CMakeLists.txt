@@ -114,7 +114,7 @@ install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
 configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake COPYONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake" 
               "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake" 
-              "${CMAKE_CURRENT_CURRENT_DIR}/cmake/add_hpp_proto_lib.cmake"
+              "${CMAKE_CURRENT_SOURCE_DIR}/cmake/add_hpp_proto_lib.cmake"
         DESTINATION "lib/cmake/hpp_proto")
 
 install(EXPORT hpp_proto-targets 
