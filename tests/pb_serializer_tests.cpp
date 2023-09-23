@@ -650,6 +650,7 @@ const ut::suite test_string_example = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_with_default{.value = "test"}, decode_only);
   };
 
+#if !defined(__clang_major__) || (__clang_major__ > 14)
   "string_with_optional"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_with_optional{.value = "test"});
   };
@@ -658,6 +659,7 @@ const ut::suite test_string_example = [] {
     string_with_optional const v;
     ut::expect(v.value.value_or_default() == "test");
   };
+#endif
 };
 
 struct string_view_example {
@@ -706,6 +708,7 @@ const ut::suite test_string_view_example = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_with_default{.value = "test"}, decode_only);
   };
 
+#if !defined(__clang_major__) || ( __clang_major__ > 14)
   "string_view_with_optional"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_with_optional{.value = "test"});
   };
@@ -714,6 +717,8 @@ const ut::suite test_string_view_example = [] {
     string_view_with_optional const v;
     ut::expect(v.value.value_or_default() == "test");
   };
+#endif
+
 };
 
 struct bytes_example {
@@ -764,6 +769,7 @@ const ut::suite test_bytes = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, bytes_with_default{.value = verified_value}, decode_only);
   };
 
+#if !defined(__clang_major__) || (__clang_major__ > 14)
   "bytes_with_optional"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, bytes_with_optional{.value = verified_value});
   };
@@ -772,6 +778,7 @@ const ut::suite test_bytes = [] {
     bytes_with_optional const v;
     ut::expect(v.value.value_or_default() == verified_value);
   };
+  #endif
 };
 
 struct char_vector_example {
@@ -821,6 +828,7 @@ const ut::suite test_char_vector = [] {
     verify("\x0a\x04\x74\x65\x00\x74"_bytes_array, char_vector_with_default{.value = verified_value});
   };
 
+#if !defined(__clang_major__) || (__clang_major__ > 14)
   "char_vector_with_optional"_test = [] {
     verify("\x0a\x04\x74\x65\x00\x74"_bytes_array, char_vector_with_optional{.value = verified_value});
   };
@@ -829,6 +837,7 @@ const ut::suite test_char_vector = [] {
     char_vector_with_optional const v;
     ut::expect(v.value.value_or_default() == std::vector<char>{'t', 'e', 's', 't'});
   };
+#endif
 };
 
 struct byte_span_example {
@@ -880,7 +889,9 @@ const ut::suite test_byte_span = [] {
 
   "byte_span_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, byte_span_with_default{}); };
 
+#if !defined(__clang_major__) || (__clang_major__ > 14)
   "byte_span_with_optional_empty"_test = [] { verify(std::array<std::byte, 0>{}, byte_span_with_optional{}); };
+#endif
 };
 
 struct repeated_strings {
