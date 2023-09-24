@@ -59,11 +59,11 @@ struct descriptor_pool {
   };
 
   struct descriptor_counter {
-    uint32_t files = 0;
-    uint32_t messages = 0;
-    uint32_t fields = 0;
-    uint32_t oneofs = 0;
-    uint32_t enums = 0;
+    std::size_t files = 0;
+    std::size_t messages = 0;
+    std::size_t fields = 0;
+    std::size_t oneofs = 0;
+    std::size_t enums = 0;
 
     descriptor_counter(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
       files = proto_files.size();

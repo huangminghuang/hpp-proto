@@ -290,8 +290,7 @@ struct hpp_addons {
           if (pos == 0) {
             cpp_field_type = qualified_cpp_name(proto.type_name);
           } else if (is_recursive) {
-            auto pos = proto.type_name.find_last_of('.');
-            cpp_field_type = resolve_keyword(proto.type_name.substr(pos + 1));
+            cpp_field_type = resolve_keyword(proto.type_name.substr(proto.type_name.find_last_of('.') + 1));
           } else {
             cpp_field_type = qualified_cpp_name(proto.type_name.substr(pos + 1));
           }
