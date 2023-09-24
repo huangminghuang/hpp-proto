@@ -1380,7 +1380,12 @@ auto pb_meta(const non_owning_recursive_type2 &)
 
 const ut::suite recursive_types = [] {
   "recursive_type1"_test = [] {
-    verify("\x0a\x02\x10\x02\x10\x01"_bytes_array, recursive_type1{recursive_type1{{}, 2}, 1});
+    recursive_type1 child;
+    child.payload = 2;
+    recursive_type1 value;
+    value.child = child;
+    value.payload = 1;
+    verify("\x0a\x02\x10\x02\x10\x01"_bytes_array, value);
   };
   "recursive_type2"_test = [] {
     recursive_type2 child;
