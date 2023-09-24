@@ -18,9 +18,9 @@ struct example {
 };
 auto pb_meta(const example &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
-static_assert(hpp::proto::to_bytes<example{150}>() == "089601"_decode_hex);
+static_assert(hpp::proto::to_bytes<example{150}>() == "\x08\x96\x01"_bytes_array);
 
-static_assert(hpp::proto::from_bytes<"089601"_decode_hex, example>().i == 150);
+static_assert(hpp::proto::from_bytes<"\x08\x96\x01"_bytes_array, example>().i == 150);
 
 static_assert(hpp::proto::to_bytes<example{}>().empty());
 
@@ -29,9 +29,9 @@ struct nested_example {
   example nested; // field number == 1
 };
 
-static_assert(hpp::proto::to_bytes<nested_example{.nested = example{150}}>() == "0a03089601"_decode_hex);
+static_assert(hpp::proto::to_bytes<nested_example{.nested = example{150}}>() == "\x0a\x03\x08\x96\x01"_bytes_array);
 
-static_assert(hpp::proto::from_bytes<"0a03089601"_decode_hex, nested_example>().nested.i == 150);
+static_assert(hpp::proto::from_bytes<"\x0a\x03\x08\x96\x01"_bytes_array, nested_example>().nested.i == 150);
 
 using namespace zpp::bits::literals;
 
@@ -44,9 +44,9 @@ struct example_explicit_presence {
 auto pb_meta(const example_explicit_presence &)
     -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence, zpp::bits::vint64_t>>;
 
-static_assert(hpp::proto::to_bytes<example_explicit_presence{}>() == "0800"_decode_hex);
+static_assert(hpp::proto::to_bytes<example_explicit_presence{}>() == "\x08\x00"_bytes_array);
 
-static_assert(hpp::proto::from_bytes<"0800"_decode_hex, example_explicit_presence>().i == 0);
+static_assert(hpp::proto::from_bytes<"\x08\x00"_bytes_array, example_explicit_presence>().i == 0);
 
 struct example_default_type {
   int32_t i = 1; // field number == 1
@@ -90,8 +90,8 @@ struct nested_explicit_id_example {
 auto pb_meta(const nested_explicit_id_example &) -> std::tuple<hpp::proto::field_meta<3>>;
 
 //// doesn't work with zpp::bits::unsized_t
-static_assert(hpp::proto::to_bytes<nested_explicit_id_example{.nested = example{150}}>() == "1a03089601"_decode_hex);
-static_assert(hpp::proto::from_bytes<"1a03089601"_decode_hex, nested_explicit_id_example>().nested.i == 150);
+static_assert(hpp::proto::to_bytes<nested_explicit_id_example{.nested = example{150}}>() == "\x1a\x03\x08\x96\x01"_bytes_array);
+static_assert(hpp::proto::from_bytes<"\x1a\x03\x08\x96\x01"_bytes_array, nested_explicit_id_example>().nested.i == 150);
 
 enum test_mode { decode_encode, decode_only };
 
@@ -1797,10 +1797,10 @@ const ut::suite test_default_person_in_address_book = [] {
   expect(b.people[0].email == ""sv);
   expect(b.people[0].phones.size() == 0_u);
 
-  std::array<std::byte, "0a00"_decode_hex.size()> new_data{};
+  std::array<std::byte, "\x0a\x00"_bytes_array.size()> new_data{};
   expect(success(hpp::proto::out{new_data}(b)));
 
-  expect(new_data == "0a00"_decode_hex);
+  expect(new_data == "\x0a\x00"_bytes_array);
 };
 
 const ut::suite test_empty_address_book = [] {
