@@ -22,7 +22,11 @@ template <typename T>
 concept integral_64_bits = std::same_as<std::decay_t<T>, uint64_t> || std::same_as<std::decay_t<T>, int64_t>;
 
 template <typename T>
-concept jsonfy_need_quote = integral_64_bits<T> || requires(T val) {
+concept map_with_integral_64_bits_mapped_type =
+    glz::detail::writable_map_t<T> && integral_64_bits<typename T::value_type::second_type>;
+
+template <typename T>
+concept jsonfy_need_quote = integral_64_bits<T> || map_with_integral_64_bits_mapped_type<T> || requires(T val) {
   val.size();
   requires integral_64_bits<typename T::value_type>;
 };
@@ -150,8 +154,8 @@ template <>
 struct to_json<hpp::proto::bytes> {
   template <auto Opts, class B>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
-    return to_json<hpp::proto::bytes_view>::op<Opts, B>(std::span<const typename hpp::proto::bytes::value_type>{value.data(), value.size()}, ctx,
-                                                        b, ix);
+    return to_json<hpp::proto::bytes_view>::op<Opts, B>(
+        std::span<const typename hpp::proto::bytes::value_type>{value.data(), value.size()}, ctx, b, ix);
   }
 };
 

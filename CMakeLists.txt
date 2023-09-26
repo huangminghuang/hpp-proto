@@ -15,7 +15,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 CPMAddPackage(gh:eyalz800/zpp_bits@4.4.19)
 CPMAddPackage(
   NAME glaze
-  VERSION 1.4.3.mod
+  VERSION 1.4.3.mod2
   GITHUB_REPOSITORY huangminghuang/glaze
 )
 
@@ -71,7 +71,7 @@ target_include_directories(libhpp_proto INTERFACE
 target_compile_features(libhpp_proto INTERFACE cxx_std_20)
 if (MSVC)
     # warning level 4
-    target_compile_options(libhpp_proto INTERFACE /W4 /wd4100;4189)
+    target_compile_options(libhpp_proto INTERFACE /W4)
 else()
     # additional warnings
     target_compile_options(libhpp_proto INTERFACE -Wall -Wextra -Wpedantic)

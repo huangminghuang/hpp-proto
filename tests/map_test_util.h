@@ -2,46 +2,46 @@
 #include <boost/ut.hpp>
 #include <google/protobuf/map_unittest.pb.hpp>
 
-inline void SetMapFields(protobuf_unittest::TestMap &message) {
+inline void SetMapFields(protobuf_unittest::TestMap *message) {
   using namespace hpp::proto::literals;
   
   // Add first element.
-  message.map_int32_int32[0] = 0;
-  message.map_int64_int64[0] = 0;
-  message.map_uint32_uint32[0] = 0;
-  message.map_uint64_uint64[0] = 0;
-  message.map_sint32_sint32[0] = 0;
-  message.map_sint64_sint64[0] = 0;
-  message.map_fixed32_fixed32[0] = 0;
-  message.map_fixed64_fixed64[0] = 0;
-  message.map_sfixed32_sfixed32[0] = 0;
-  message.map_sfixed64_sfixed64[0] = 0;
-  message.map_int32_float[0] = 0.0;
-  message.map_int32_double[0] = 0.0;
-  message.map_bool_bool[0] = false;
-  message.map_string_string["0"] = "0";
-  message.map_int32_bytes[0] = "0"_bytes;
-  message.map_int32_enum[0] = protobuf_unittest::MapEnum::MAP_ENUM_FOO;
-  message.map_int32_foreign_message[0].c = 0;
+  message->map_int32_int32[0] = 0;
+  message->map_int64_int64[0] = 0;
+  message->map_uint32_uint32[0] = 0;
+  message->map_uint64_uint64[0] = 0;
+  message->map_sint32_sint32[0] = 0;
+  message->map_sint64_sint64[0] = 0;
+  message->map_fixed32_fixed32[0] = 0;
+  message->map_fixed64_fixed64[0] = 0;
+  message->map_sfixed32_sfixed32[0] = 0;
+  message->map_sfixed64_sfixed64[0] = 0;
+  message->map_int32_float[0] = 0.0;
+  message->map_int32_double[0] = 0.0;
+  message->map_bool_bool[0] = false;
+  message->map_string_string["0"] = "0";
+  message->map_int32_bytes[0] = "0"_bytes;
+  message->map_int32_enum[0] = protobuf_unittest::MapEnum::MAP_ENUM_FOO;
+  message->map_int32_foreign_message[0].c = 0;
 
   // Add second element
-  message.map_int32_int32[1] = 1;
-  message.map_int64_int64[1] = 1;
-  message.map_uint32_uint32[1] = 1;
-  message.map_uint64_uint64[1] = 1;
-  message.map_sint32_sint32[1] = 1;
-  message.map_sint64_sint64[1] = 1;
-  message.map_fixed32_fixed32[1] = 1;
-  message.map_fixed64_fixed64[1] = 1;
-  message.map_sfixed32_sfixed32[1] = 1;
-  message.map_sfixed64_sfixed64[1] = 1;
-  message.map_int32_float[1] = 1.0;
-  message.map_int32_double[1] = 1.0;
-  message.map_bool_bool[1] = true;
-  message.map_string_string["1"] = "1";
-  message.map_int32_bytes[1] = "1"_bytes;
-  message.map_int32_enum[1] = protobuf_unittest::MapEnum::MAP_ENUM_BAR;
-  message.map_int32_foreign_message[1].c = 1;
+  message->map_int32_int32[1] = 1;
+  message->map_int64_int64[1] = 1;
+  message->map_uint32_uint32[1] = 1;
+  message->map_uint64_uint64[1] = 1;
+  message->map_sint32_sint32[1] = 1;
+  message->map_sint64_sint64[1] = 1;
+  message->map_fixed32_fixed32[1] = 1;
+  message->map_fixed64_fixed64[1] = 1;
+  message->map_sfixed32_sfixed32[1] = 1;
+  message->map_sfixed64_sfixed64[1] = 1;
+  message->map_int32_float[1] = 1.0;
+  message->map_int32_double[1] = 1.0;
+  message->map_bool_bool[1] = true;
+  message->map_string_string["1"] = "1";
+  message->map_int32_bytes[1] = "1"_bytes;
+  message->map_int32_enum[1] = protobuf_unittest::MapEnum::MAP_ENUM_BAR;
+  message->map_int32_foreign_message[1].c = 1;
 }
 
 void ExpectMapFieldsSet(const protobuf_unittest::TestMap &message) {

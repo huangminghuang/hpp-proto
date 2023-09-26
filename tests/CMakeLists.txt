@@ -124,6 +124,17 @@ add_hpp_proto_lib(map_unittest_proto_lib
     INPUT_DIR    ${protobuf_SOURCE_DIR}/src
     PROTO_FILES  google/protobuf/map_unittest.proto)
 
+
+add_executable(map_test map_test.cpp)
+target_link_libraries(map_test PRIVATE map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
+
+add_test(NAME map_test 
+         COMMAND map_test 
+         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+set_property(TEST map_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+
+
 add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
 target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 

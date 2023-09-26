@@ -60,7 +60,7 @@ const boost::ut::suite dynamic_serializer_test = [] {
 
   "map"_test = [] {
     protobuf_unittest::TestMap message;
-    SetMapFields(message);
+    SetMapFields(&message);
     test_fixture(message, "map_unittest.bin", "protobuf_unittest.TestMap");
   };
 };
