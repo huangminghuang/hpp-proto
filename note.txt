@@ -1,0 +1,39 @@
+
+
+TODO:
+- https://github.com/llvm/llvm-project/issues/50248
+- consider rename non_owning to arena 
+   * problematic naming since the memory can come from any source.
+- consider specialized span which disables initialize/assignment from std::vector, std::array, T[], std::initializer_list temporary objects
+- optimization:
+   - we need to split encoding into size estimation before encoding to avoid buffer size checking for every field
+   - google implementation has special optimization for the calculation of repeated varint size (wire_format_lite.cc static size_t VarintSize(const T* data, const int n))
+   - try dispatch table instead of linear search for decoding
+- build 
+   - enable clang-tidy checks
+- understand glaze error reporting and considering using system_error2
+- json proto name support (wait for alias key support)
+- well known types support, mostly JSON serialization (static and dynamic)
+   * any support ? 
+      - problem with protobuf any:
+         - the JSON serialization is not opaque
+         - the documentation indicates one can retrieve the binary format of the message description from the type URL in order to decode the message, it doesn't seem so that the official C++ implementation does it.
+      - the implementation should include
+         - type checking
+         - pack
+         - unpack
+      - Considering implement free functions in hpp::proto::detail namespace and then generate code to use the free functions
+
+
+Extension can be added:
+* 1. split pb into pb_in and pb_out which contain in and out respectively, use pb<> wrapper doesn't work for nested types
+* 2. optional, unique_ptr support
+* 3. oneof type support
+* 5. support for unpacked repeated fields
+* 6. deserialize() field handler optimization
+* 7. proto2 extension support (required for dynamic schema support)
+8. Any support
+* 9. extension meta generation
+* 10. json support https://github.com/stephenberry/glaze
+* 11. dynamic schema support
+15. service support?

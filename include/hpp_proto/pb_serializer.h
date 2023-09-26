@@ -61,6 +61,28 @@ struct field_meta {
   }
 };
 
+template <uint32_t Number, auto Accessor, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
+          auto DefaultValue = std::monostate{}>
+struct field_meta_ext {
+  constexpr static uint32_t number = Number;
+  constexpr static encoding_rule encoding = Encoding;
+  constexpr static auto accessor = Accessor;
+  using type = Type;
+
+  template <typename T>
+  inline static constexpr bool omit_value(const T &v) {
+    return (Encoding == encoding_rule::defaulted && is_default_value<T, DefaultValue>(v));
+  }
+
+  inline constexpr auto& get_field(auto&& item) const {
+    if constexpr (std::is_member_pointer_v<std::decay_t<decltype(item)>>) {
+      return item.*accessor;
+    } else {
+      return accessor(item);
+    }
+  }
+};
+
 using ::zpp::bits::errc;
 using ::zpp::bits::failure;
 
@@ -179,6 +201,9 @@ struct extension_meta : extension_meta_base<extension_meta<Extendee, Number, Enc
   static constexpr bool omit_value(const T &v) {
     return (Encoding == encoding_rule::defaulted && is_default_value<T, DefaultValue>(v));
   }
+
+  template <auto Accessor>
+  using to_field_meta = field_meta_ext<Number, Accessor, Encoding, Type, DefaultValue>;
 };
 
 template <typename Extendee, uint32_t Number, encoding_rule Encoding, typename Type, typename ValueType>
@@ -192,6 +217,9 @@ struct repeated_extension_meta
   using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
   using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
   using set_value_type = std::span<const element_type>;
+
+  template <auto Accessor>
+  using to_field_meta = field_meta_ext<Number, Accessor, Encoding, Type>;
 };
 
 enum class wire_type : unsigned int {
@@ -284,6 +312,21 @@ struct serialize_type<bool> {
 };
 
 template <typename KeyType, typename MappedType>
+struct map_entry_read_only_type {
+  typename serialize_type<KeyType>::read_type key;
+  typename serialize_type<MappedType>::read_type value;
+  using serialize = ::zpp::bits::members<2>;
+  constexpr static bool allow_inline_visit_members_lambda = true;
+
+  ZPP_BITS_INLINE constexpr map_entry_read_only_type(auto &&k, auto &&v)
+      : key((typename serialize_type<KeyType>::convertible_type)k),
+        value((typename serialize_type<MappedType>::convertible_type)v) {}
+
+  // using pb_meta = std::tuple<field_meta<1, encoding_rule::explicit_presence>,
+  //                            field_meta<2, encoding_rule::explicit_presence>>;
+};
+
+template <typename KeyType, typename MappedType>
 struct map_entry {
   using key_type = KeyType;
   using mapped_type = MappedType;
@@ -292,8 +335,8 @@ struct map_entry {
     typename serialize_type<KeyType>::type key;
     typename serialize_type<MappedType>::type value;
     constexpr static bool allow_inline_visit_members_lambda = true;
-    using pb_meta =
-        std::tuple<field_meta<1, encoding_rule::explicit_presence>, field_meta<2, encoding_rule::explicit_presence>>;
+    using pb_meta = std::tuple<field_meta_ext<1, &mutable_type::key, encoding_rule::explicit_presence>,
+                               field_meta_ext<2, &mutable_type::value, encoding_rule::explicit_presence>>;
 
     template <typename Target, typename Source>
     ZPP_BITS_INLINE constexpr static auto move_or_copy(Source &&src) {
@@ -319,166 +362,158 @@ struct map_entry {
       target.second = move_or_copy<V>(value);
     }
   };
-
-  struct read_only_type {
-    typename serialize_type<KeyType>::read_type key;
-    typename serialize_type<MappedType>::read_type value;
-    using serialize = ::zpp::bits::members<2>;
-    constexpr static bool allow_inline_visit_members_lambda = true;
-
-    ZPP_BITS_INLINE constexpr read_only_type(auto &&k, auto &&v)
-        : key((typename serialize_type<KeyType>::convertible_type)k),
-          value((typename serialize_type<MappedType>::convertible_type)v) {}
-
-    using pb_meta =
-        std::tuple<field_meta<1, encoding_rule::explicit_presence>, field_meta<2, encoding_rule::explicit_presence>>;
-  };
+  using read_only_type = map_entry_read_only_type<KeyType, MappedType>;
 };
+
+template <typename KeyType, typename MappedType>
+auto pb_meta(map_entry_read_only_type<KeyType, MappedType>) -> std::tuple<
+    field_meta_ext<1, &map_entry_read_only_type<KeyType, MappedType>::key, encoding_rule::explicit_presence>,
+    field_meta_ext<2, &map_entry_read_only_type<KeyType, MappedType>::value, encoding_rule::explicit_presence>>;
 
 namespace traits {
-template <typename Type>
-struct meta_of;
+  template <typename Type>
+  struct meta_of;
 
-template <concepts::has_local_meta Type>
-struct meta_of<Type> {
-  using type = typename Type::pb_meta;
-};
+  template <concepts::has_local_meta Type>
+  struct meta_of<Type> {
+    using type = typename Type::pb_meta;
+  };
 
-template <concepts::has_explicit_meta Type>
-struct meta_of<Type> {
-  using type = decltype(pb_meta(std::declval<Type>()));
-};
+  template <concepts::has_explicit_meta Type>
+  struct meta_of<Type> {
+    using type = decltype(pb_meta(std::declval<Type>()));
+  };
 
-template <typename Type, std::size_t Index>
-struct field_meta_of {
-  using type = field_meta<Index + 1>;
-};
+  template <typename Type, std::size_t Index>
+  struct field_meta_of {
+    using type = field_meta<Index + 1>;
+  };
 
-template <concepts::has_meta Type, std::size_t Index>
-struct field_meta_of<Type, Index> {
-  using type = typename std::tuple_element<Index, typename meta_of<Type>::type>::type;
-};
+  template <concepts::has_meta Type, std::size_t Index>
+  struct field_meta_of<Type, Index> {
+    using type = typename std::tuple_element<Index, typename meta_of<Type>::type>::type;
+  };
 
-constexpr auto get_default_size_type() { return std::monostate{}; }
+  constexpr auto get_default_size_type() { return std::monostate{}; }
 
-constexpr auto get_default_size_type(auto option, auto... options) {
-  if constexpr (requires { typename decltype(option)::default_size_type; }) {
-    if constexpr (std::is_void_v<typename decltype(option)::default_size_type>) {
-      return std::monostate{};
+  constexpr auto get_default_size_type(auto option, auto... options) {
+    if constexpr (requires { typename decltype(option)::default_size_type; }) {
+      if constexpr (std::is_void_v<typename decltype(option)::default_size_type>) {
+        return std::monostate{};
+      } else {
+        return typename decltype(option)::default_size_type{};
+      }
     } else {
-      return typename decltype(option)::default_size_type{};
-    }
-  } else {
-    return get_default_size_type(options...);
-  }
-}
-
-template <typename... Options>
-using default_size_type_t =
-    std::conditional_t<std::same_as<std::monostate, decltype(get_default_size_type(std::declval<Options>()...))>, void,
-                       decltype(get_default_size_type(std::declval<Options>()...))>;
-
-template <typename Meta, typename Type>
-using get_map_entry = typename Meta::type;
-
-template <typename T, std::size_t M, std::size_t N>
-constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N> rhs) {
-  std::array<T, M + N> result;
-  std::copy(lhs.begin(), lhs.end(), result.begin());
-  std::copy(rhs.begin(), rhs.end(), result.begin() + M);
-  return result;
-}
-
-template <typename Type>
-struct reverse_indices {
-  static std::optional<std::size_t> number_to_index(uint32_t number, std::size_t) {
-    if (number <= ::zpp::bits::access::number_of_members<Type>()) {
-      return number - 1;
-    } else {
-      return {};
+      return get_default_size_type(options...);
     }
   }
-};
 
-template <concepts::has_meta Type>
-struct reverse_indices<Type> {
+  template <typename... Options>
+  using default_size_type_t =
+      std::conditional_t<std::same_as<std::monostate, decltype(get_default_size_type(std::declval<Options>()...))>,
+                         void, decltype(get_default_size_type(std::declval<Options>()...))>;
 
-  template <typename T>
-    requires requires { T::number; }
-  constexpr static auto get_numbers(T meta) {
-    return std::array{meta.number};
-  }
+  template <typename Meta, typename Type>
+  using get_map_entry = typename Meta::type;
 
-  template <typename... T>
-  constexpr static auto get_numbers(std::tuple<T...> metas) {
-    return std::apply([](auto... elem) { return (... << get_numbers(elem)); }, metas);
-  }
-
-  template <typename T>
-    requires requires { T::encoding; }
-  constexpr static auto is_unpacked_repeated(T meta) {
-    return std::array{meta.encoding == encoding_rule::unpacked_repeated};
-  }
-
-  template <typename... T>
-  constexpr static auto is_unpacked_repeated(std::tuple<T...> metas) {
-    return std::apply([](auto... elem) { return (... << is_unpacked_repeated(elem)); }, metas);
-  }
-
-  template <std::size_t I, typename T>
-    requires requires { T::number; }
-  constexpr static auto index(T) {
-    return std::array{I};
-  }
-
-  template <std::size_t I, typename... T>
-  constexpr static auto index(std::tuple<T...>) {
-    std::array<std::size_t, sizeof...(T)> result;
-    std::fill(result.begin(), result.end(), I);
+  template <typename T, std::size_t M, std::size_t N>
+  constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N> rhs) {
+    std::array<T, M + N> result;
+    std::copy(lhs.begin(), lhs.end(), result.begin());
+    std::copy(rhs.begin(), rhs.end(), result.begin() + M);
     return result;
   }
 
-  constexpr static auto get_indices(std::index_sequence<>) { return std::array<std::size_t, 0>{}; }
-
-  template <std::size_t FirstIndex, std::size_t... Indices>
-  constexpr static auto get_indices(std::index_sequence<FirstIndex, Indices...>, auto first_elem, auto... elems) {
-    return index<FirstIndex>(first_elem) << get_indices(std::index_sequence<Indices...>{}, elems...);
-  }
-
-  template <typename... T>
-  constexpr static auto get_indices(std::tuple<T...> metas) {
-    return std::apply([](auto... elem) { return get_indices(std::make_index_sequence<sizeof...(T)>(), elem...); },
-                      metas);
-  }
-
-  static std::optional<std::size_t> number_to_index(uint32_t number, std::size_t &hint) {
-    const typename traits::meta_of<Type>::type metas;
-    static auto numbers = get_numbers(metas);
-    static auto indices = get_indices(metas);
-    static auto unpacked = is_unpacked_repeated(metas);
-
-    for (std::size_t i = 0; i < numbers.size(); ++i) {
-      if (numbers[(i + hint) % numbers.size()] == number) {
-        hint = i + (unpacked[i] == false);
-        return indices[i];
+  template <typename Type>
+  struct reverse_indices {
+    static std::optional<std::size_t> number_to_index(uint32_t number, std::size_t) {
+      if (number <= ::zpp::bits::access::number_of_members<Type>()) {
+        return number - 1;
+      } else {
+        return {};
       }
     }
-    return {};
-  }
-};
-template <typename Meta, typename Type>
-struct get_serialize_type;
+  };
 
-template <::zpp::bits::concepts::tuple Meta, typename Type>
-struct get_serialize_type<Meta, Type> {
-  using type = Type;
-};
+  template <concepts::has_meta Type>
+  struct reverse_indices<Type> {
 
-template <typename Meta, typename Type>
-  requires requires { typename Meta::type; }
-struct get_serialize_type<Meta, Type> {
-  using type = std::conditional_t<std::is_same_v<typename Meta::type, void>, Type, typename Meta::type>;
-};
+    template <typename T>
+      requires requires { T::number; }
+    constexpr static auto get_numbers(T meta) {
+      return std::array{meta.number};
+    }
+
+    template <typename... T>
+    constexpr static auto get_numbers(std::tuple<T...> metas) {
+      return std::apply([](auto... elem) { return (... << get_numbers(elem)); }, metas);
+    }
+
+    template <typename T>
+      requires requires { T::encoding; }
+    constexpr static auto is_unpacked_repeated(T meta) {
+      return std::array{meta.encoding == encoding_rule::unpacked_repeated};
+    }
+
+    template <typename... T>
+    constexpr static auto is_unpacked_repeated(std::tuple<T...> metas) {
+      return std::apply([](auto... elem) { return (... << is_unpacked_repeated(elem)); }, metas);
+    }
+
+    template <std::size_t I, typename T>
+      requires requires { T::number; }
+    constexpr static auto index(T) {
+      return std::array{I};
+    }
+
+    template <std::size_t I, typename... T>
+    constexpr static auto index(std::tuple<T...>) {
+      std::array<std::size_t, sizeof...(T)> result;
+      std::fill(result.begin(), result.end(), I);
+      return result;
+    }
+
+    constexpr static auto get_indices(std::index_sequence<>) { return std::array<std::size_t, 0>{}; }
+
+    template <std::size_t FirstIndex, std::size_t... Indices>
+    constexpr static auto get_indices(std::index_sequence<FirstIndex, Indices...>, auto first_elem, auto... elems) {
+      return index<FirstIndex>(first_elem) << get_indices(std::index_sequence<Indices...>{}, elems...);
+    }
+
+    template <typename... T>
+    constexpr static auto get_indices(std::tuple<T...> metas) {
+      return std::apply([](auto... elem) { return get_indices(std::make_index_sequence<sizeof...(T)>(), elem...); },
+                        metas);
+    }
+
+    static std::optional<std::size_t> number_to_index(uint32_t number, std::size_t &hint) {
+      const typename traits::meta_of<Type>::type metas;
+      static auto numbers = get_numbers(metas);
+      static auto indices = get_indices(metas);
+      static auto unpacked = is_unpacked_repeated(metas);
+
+      for (std::size_t i = 0; i < numbers.size(); ++i) {
+        if (numbers[(i + hint) % numbers.size()] == number) {
+          hint = i + (unpacked[i] == false);
+          return indices[i];
+        }
+      }
+      return {};
+    }
+  };
+  template <typename Meta, typename Type>
+  struct get_serialize_type;
+
+  template <::zpp::bits::concepts::tuple Meta, typename Type>
+  struct get_serialize_type<Meta, Type> {
+    using type = Type;
+  };
+
+  template <typename Meta, typename Type>
+    requires requires { typename Meta::type; }
+  struct get_serialize_type<Meta, Type> {
+    using type = std::conditional_t<std::is_same_v<typename Meta::type, void>, Type, typename Meta::type>;
+  };
 
 } // namespace traits
 
@@ -658,6 +693,9 @@ struct out {
   ZPP_BITS_INLINE constexpr errc serialize_unsized(auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
     return foreach_member(item, member_visitor<type>{this});
+
+    using metas = decltype(pb_meta(item));
+    std::apply([this, &item](auto meta) { return serialize_field(meta, meta.get_field(item)); }, metas{});
   }
 
   template <typename Meta>
@@ -1747,7 +1785,7 @@ constexpr auto from_bytes() {
 template <typename FieldType, typename MetaType>
 struct deserialize_wrapper_type {
   FieldType value;
-  using pb_meta = std::tuple<MetaType>;
+  using pb_meta = std::tuple<typename MetaType::template to_field_meta<&deserialize_wrapper_type::value>>;
   using serialize = ::zpp::bits::members<1>;
 };
 
