@@ -61,6 +61,30 @@ struct field_meta {
   }
 };
 
+template <uint32_t Number, auto Accessor, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
+          auto DefaultValue = std::monostate{}>
+struct field_meta_ext {
+  struct accesor_type {
+    constexpr auto &operator()(auto &&item) const {
+      if constexpr (std::is_member_pointer_v<decltype(Accessor)>)
+        return item.*Accessor;
+      else
+        return Accessor(std::forward<decltype(item)>(item));
+    }
+  };
+
+  constexpr static uint32_t number = Number;
+  constexpr static encoding_rule encoding = Encoding;
+  constexpr static auto access = accesor_type{};
+  using type = Type;
+
+  template <typename T>
+  inline static constexpr bool omit_value(const T &v) {
+    return (Encoding == encoding_rule::defaulted && is_default_value<T, DefaultValue>(v));
+  }
+};
+
+
 using ::zpp::bits::errc;
 using ::zpp::bits::failure;
 
@@ -296,10 +320,8 @@ struct map_entry_read_only_type {
 };
 
 template <typename KeyType, typename MappedType>
-auto pb_meta(map_entry_read_only_type<KeyType, MappedType>) -> std::tuple<
-    field_meta<1, encoding_rule::explicit_presence>,
-    field_meta<2, encoding_rule::explicit_presence>>;
-
+auto pb_meta(map_entry_read_only_type<KeyType, MappedType>)
+    -> std::tuple<field_meta<1, encoding_rule::explicit_presence>, field_meta<2, encoding_rule::explicit_presence>>;
 
 template <typename KeyType, typename MappedType>
 struct map_entry {
@@ -486,7 +508,15 @@ struct get_serialize_type<Meta, Type> {
   using type = std::conditional_t<std::is_same_v<typename Meta::type, void>, Type, typename Meta::type>;
 };
 
+template <typename Type>
+inline constexpr auto number_of_members = std::tuple_size_v<typename meta_of<Type>::type>;
 } // namespace traits
+
+template <typename T>
+concept is_field_meta_ext = requires { T::access; };
+
+template <typename T>
+concept has_field_meta_ext = is_field_meta_ext<typename std::tuple_element<0, typename traits::meta_of<T>::type>::type>;
 
 namespace concepts {
 template <typename Type>
@@ -509,14 +539,11 @@ constexpr errc iterative_apply(Function &&fun, Iterable &iterable) {
   return {};
 }
 
-constexpr errc execute_successively() { return {}; }
-
-template <typename F0, typename... F>
-constexpr errc execute_successively(F0 &&f0, F &&...f) {
-  if (auto result = f0(); failure(result)) [[unlikely]] {
-    return result;
-  }
-  return execute_successively(std::forward<F>(f)...);
+template <typename... F>
+inline constexpr std::errc execute_successively(F &&...f) {
+  std::errc result;
+  (void)(((result = f()) == std::errc{}) && ...);
+  return result;
 }
 
 template <std::size_t FirstIndex, std::size_t... Indices>
@@ -663,7 +690,18 @@ struct out {
 
   ZPP_BITS_INLINE constexpr errc serialize_unsized(auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
-    return foreach_member(item, member_visitor<type>{this});
+    if constexpr (has_field_meta_ext<type>) {
+      using metas = decltype(pb_meta(item));
+      return std::apply(
+          [&item, this](auto... meta) {
+            errc result;
+            (void)(((result = this->serialize_field(meta, meta.access(item))) == errc{}) && ...);
+            return result;
+          },
+          metas{});
+    } else {
+      return foreach_member(item, member_visitor<type>{this});
+    }
   }
 
   template <typename Meta>
@@ -1045,7 +1083,7 @@ public:
 
   template <typename Type>
   constexpr auto deserialize_funs() {
-    constexpr std::size_t num_members = ::zpp::bits::access::number_of_members<Type>();
+    constexpr std::size_t num_members = traits::number_of_members<Type>;
     return deserialize_funs<Type>(std::make_index_sequence<num_members>());
   }
 
@@ -1165,7 +1203,7 @@ public:
   template <std::size_t Index = 0>
   ZPP_BITS_INLINE constexpr errc deserialize_field_by_num(auto &item, uint32_t field_num, wire_type field_wire_type) {
     using type = std::remove_reference_t<decltype(item)>;
-    if constexpr (Index >= ::zpp::bits::number_of_members<type>()) {
+    if constexpr (Index >= traits::number_of_members<type>) {
       return skip_field(item, field_num, field_wire_type);
     } else if (!has_field_num(typename traits::field_meta_of<type, Index>::type{}, field_num)) {
       return deserialize_field_by_num<Index + 1>(item, field_num, field_wire_type);

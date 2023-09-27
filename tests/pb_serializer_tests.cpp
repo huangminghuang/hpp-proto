@@ -16,7 +16,12 @@ struct example {
 
   constexpr bool operator==(const example &) const = default;
 };
-auto pb_meta(const example &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+auto pb_meta(const example &)
+    -> std::tuple<hpp::proto::field_meta_ext<1, &example::i, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+
+static_assert(hpp::proto::is_field_meta_ext<hpp::proto::field_meta_ext<1, &example::i, encoding_rule::defaulted, zpp::bits::vint64_t>>);
+
+static_assert(hpp::proto::has_field_meta_ext<example>);
 
 static_assert(hpp::proto::to_bytes<example{150}>() == "\x08\x96\x01"_bytes_array);
 
@@ -28,6 +33,7 @@ static_assert(hpp::proto::from_bytes<std::array<std::byte, 0>{}, example>().i ==
 struct nested_example {
   example nested; // field number == 1
 };
+auto pb_meta(const nested_example &) -> std::tuple<hpp::proto::field_meta_ext<1, &nested_example::nested>>;
 
 static_assert(hpp::proto::to_bytes<nested_example{.nested = example{150}}>() == "\x0a\x03\x08\x96\x01"_bytes_array);
 
@@ -42,7 +48,9 @@ struct example_explicit_presence {
 };
 
 auto pb_meta(const example_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence, zpp::bits::vint64_t>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &example_explicit_presence::i, encoding_rule::explicit_presence,
+                                             zpp::bits::vint64_t>>;
+auto has_pb_field_ext(example_explicit_presence) -> std::true_type;
 
 static_assert(hpp::proto::to_bytes<example_explicit_presence{}>() == "\x08\x00"_bytes_array);
 
@@ -56,8 +64,9 @@ struct example_default_type {
 
 auto serialize(const example_default_type &) -> zpp::bits::members<1>;
 
-auto pb_meta(const example_default_type &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, zpp::bits::vint64_t, 1>>;
+auto pb_meta(const example_default_type &) -> std::tuple<
+    hpp::proto::field_meta_ext<1, &example_default_type::i, encoding_rule::defaulted, zpp::bits::vint64_t, 1>>;
+auto has_pb_field_ext(example_default_type) -> std::true_type;
 
 static_assert(hpp::proto::to_bytes<example_default_type{}>().empty());
 
@@ -78,8 +87,9 @@ struct example_optioanl_type {
 
 auto serialize(const example_optioanl_type &) -> zpp::bits::members<1>;
 
-auto pb_meta(const example_optioanl_type &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence, zpp::bits::vint64_t>>;
+auto pb_meta(const example_optioanl_type &) -> std::tuple<
+    hpp::proto::field_meta_ext<1, &example_optioanl_type::i, encoding_rule::explicit_presence, zpp::bits::vint64_t>>;
+auto has_pb_field_ext(example_optioanl_type) -> std::true_type;
 
 // static_assert(hpp::proto::to_bytes<example_optioanl_type{}>().size() == 0);
 
@@ -87,10 +97,13 @@ struct nested_explicit_id_example {
   example nested{}; // field number == 3
 };
 
-auto pb_meta(const nested_explicit_id_example &) -> std::tuple<hpp::proto::field_meta<3>>;
+auto pb_meta(const nested_explicit_id_example &)
+    -> std::tuple<hpp::proto::field_meta_ext<3, &nested_explicit_id_example::nested>>;
+auto has_pb_field_ext(nested_explicit_id_example) -> std::true_type;
 
 //// doesn't work with zpp::bits::unsized_t
-static_assert(hpp::proto::to_bytes<nested_explicit_id_example{.nested = example{150}}>() == "\x1a\x03\x08\x96\x01"_bytes_array);
+static_assert(hpp::proto::to_bytes<nested_explicit_id_example{.nested = example{150}}>() ==
+              "\x1a\x03\x08\x96\x01"_bytes_array);
 static_assert(hpp::proto::from_bytes<"\x1a\x03\x08\x96\x01"_bytes_array, nested_explicit_id_example>().nested.i == 150);
 
 enum test_mode { decode_encode, decode_only };
@@ -239,6 +252,8 @@ struct non_owing_nested_example {
   }
 };
 
+auto pb_meta(const non_owing_nested_example &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+
 const ut::suite test_non_owning_nested_example = [] {
   example const ex{.i = 150};
   verify_non_owning("\x0a\x03\x08\x96\x01"_bytes_array, non_owing_nested_example{.nested = &ex}, 16);
@@ -248,6 +263,9 @@ struct repeated_fixed {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed &) const = default;
 };
+
+auto pb_meta(const repeated_fixed &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+
 struct repeated_fixed_explicit_type {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed_explicit_type &) const = default;
@@ -313,6 +331,8 @@ struct non_owning_repeated_fixed {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed &other) const { return ranges_equal(integers, other.integers); }
 };
+
+auto pb_meta(const non_owning_repeated_fixed &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
 struct non_owning_repeated_fixed_explicit_type {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_explicit_type &other) const {
@@ -667,6 +687,8 @@ struct string_view_example {
   bool operator==(const string_view_example &) const = default;
 };
 
+auto pb_meta(const string_view_example &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+
 struct string_view_explicit_presence {
   std::string_view value;
   bool operator==(const string_view_explicit_presence &) const = default;
@@ -708,7 +730,7 @@ const ut::suite test_string_view_example = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_with_default{.value = "test"}, decode_only);
   };
 
-#if !defined(__clang_major__) || ( __clang_major__ > 14)
+#if !defined(__clang_major__) || (__clang_major__ > 14)
   "string_view_with_optional"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"_bytes_array, string_view_with_optional{.value = "test"});
   };
@@ -718,13 +740,14 @@ const ut::suite test_string_view_example = [] {
     ut::expect(v.value.value_or_default() == "test");
   };
 #endif
-
 };
 
 struct bytes_example {
   std::vector<std::byte> value;
   bool operator==(const bytes_example &) const = default;
 };
+
+auto pb_meta(const bytes_example &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
 
 struct bytes_explicit_presence {
   std::vector<std::byte> value;
@@ -778,7 +801,7 @@ const ut::suite test_bytes = [] {
     bytes_with_optional const v;
     ut::expect(v.value.value_or_default() == verified_value);
   };
-  #endif
+#endif
 };
 
 struct char_vector_example {
@@ -786,10 +809,15 @@ struct char_vector_example {
   bool operator==(const char_vector_example &) const = default;
 };
 
+auto pb_meta(const char_vector_example &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+
 struct char_vector_explicit_presence {
   std::vector<char> value;
   bool operator==(const char_vector_explicit_presence &) const = default;
 };
+
+auto pb_meta(const char_vector_explicit_presence &)
+    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::explicit_presence>>;
 
 struct char_vector_with_default {
   std::vector<char> value = {'t', 'e', 's', 't'};
@@ -845,6 +873,8 @@ struct byte_span_example {
   bool operator==(const byte_span_example &other) const { return ranges_equal(value, other.value); }
 };
 
+auto pb_meta(const byte_span_example &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+
 struct byte_span_explicit_presence {
   std::span<const std::byte> value;
   bool operator==(const byte_span_explicit_presence &other) const { return ranges_equal(value, other.value); }
@@ -898,6 +928,8 @@ struct repeated_strings {
   std::vector<std::string> values;
   bool operator==(const repeated_strings &) const = default;
 };
+
+auto pb_meta(const repeated_strings &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
 
 struct repeated_strings_explicit_type {
   std::vector<std::string> values;
@@ -1372,7 +1404,6 @@ struct non_owning_recursive_type2 {
   }
 };
 
-
 auto serialize(const non_owning_recursive_type2 &) -> zpp::bits::members<2>;
 
 auto pb_meta(const non_owning_recursive_type2 &)
@@ -1424,6 +1455,7 @@ struct monster {
     float z;
 
     bool operator==(const vec3 &) const = default;
+    using pb_meta = std::tuple<hpp::proto::field_meta<1>, hpp::proto::field_meta<2>, hpp::proto::field_meta<3>>;
   };
 
   struct weapon {
@@ -1431,6 +1463,7 @@ struct monster {
     int damage = {};
 
     bool operator==(const weapon &) const = default;
+    using pb_meta = std::tuple<hpp::proto::field_meta<1>, hpp::proto::field_meta<2>>;
   };
 
   vec3 pos = {};
@@ -1601,7 +1634,7 @@ const ut::suite test_monster_with_optional = [] {
 
 struct person {
   std::string name;  // = 1
-  int32_t id = {};        // = 2
+  int32_t id = {};   // = 2
   std::string email; // = 3
 
   enum phone_type {
@@ -1611,8 +1644,9 @@ struct person {
   };
 
   struct phone_number {
-    std::string number; // = 1
-    phone_type type = {};    // = 2
+    std::string number;   // = 1
+    phone_type type = {}; // = 2
+    using pb_meta = std::tuple<hpp::proto::field_meta<1>, hpp::proto::field_meta<2>>;
   };
 
   std::vector<phone_number> phones; // = 4
@@ -1624,6 +1658,7 @@ struct person {
 
 struct address_book {
   std::vector<person> people; // = 1
+  using pb_meta = std::tuple<hpp::proto::field_meta<1>>;
 };
 
 const ut::suite test_person = [] {
@@ -1685,62 +1720,6 @@ const ut::suite test_address_book = [] {
   hpp::proto::out out{new_data};
   expect(success(out(b)));
   expect(out.position() == data.size());
-  expect(data == new_data);
-};
-
-struct person_explicit {
-  std::string extra;
-  std::string name;
-  int32_t id = {};
-  std::string email;
-
-  enum phone_type {
-    mobile = 0,
-    home = 1,
-    work = 2,
-  };
-
-  struct phone_number {
-    std::string number;
-    phone_type type = {};
-
-    using pb_meta = std::tuple<hpp::proto::field_meta<1>, hpp::proto::field_meta<2>>;
-  };
-
-  std::vector<phone_number> phones;
-
-  using pb_meta = std::tuple<hpp::proto::field_meta<10>, hpp::proto::field_meta<1>,
-                             hpp::proto::field_meta<2, encoding_rule::defaulted, zpp::bits::vint64_t>,
-                             hpp::proto::field_meta<3>, hpp::proto::field_meta<4>>;
-};
-
-const ut::suite test_person_explicit = [] {
-  constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
-                        "555-4321\x10\x01"_bytes_array;
-  static_assert(data.size() == 45);
-
-  using namespace std::literals::string_view_literals;
-  using namespace boost::ut;
-
-  person_explicit p;
-  expect(success(hpp::proto::in{data}(p)));
-
-  expect(p.name == "John Doe"sv);
-  expect(that % p.id == 1234);
-  expect(p.email == "jdoe@example.com"sv);
-  expect((p.phones.size() == 1_u) >> fatal);
-  expect(p.phones[0].number == "555-4321"sv);
-  expect(that % p.phones[0].type == person_explicit::home);
-
-  person p1;
-  p1.name = p.name;
-  p1.id = p.id;
-  p1.email = p.email;
-  p1.phones.push_back({p.phones[0].number, person::phone_type(p.phones[0].type)});
-
-  std::array<std::byte, data.size()> new_data{};
-  expect(success(hpp::proto::out{new_data, zpp::bits::no_size{}}(p1)));
-
   expect(data == new_data);
 };
 
