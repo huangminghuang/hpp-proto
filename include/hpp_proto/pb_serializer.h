@@ -284,6 +284,24 @@ struct serialize_type<bool> {
 };
 
 template <typename KeyType, typename MappedType>
+struct map_entry_read_only_type {
+  typename serialize_type<KeyType>::read_type key;
+  typename serialize_type<MappedType>::read_type value;
+  using serialize = ::zpp::bits::members<2>;
+  constexpr static bool allow_inline_visit_members_lambda = true;
+
+  ZPP_BITS_INLINE constexpr map_entry_read_only_type(auto &&k, auto &&v)
+      : key((typename serialize_type<KeyType>::convertible_type)k),
+        value((typename serialize_type<MappedType>::convertible_type)v) {}
+};
+
+template <typename KeyType, typename MappedType>
+auto pb_meta(map_entry_read_only_type<KeyType, MappedType>) -> std::tuple<
+    field_meta<1, encoding_rule::explicit_presence>,
+    field_meta<2, encoding_rule::explicit_presence>>;
+
+
+template <typename KeyType, typename MappedType>
 struct map_entry {
   using key_type = KeyType;
   using mapped_type = MappedType;
@@ -320,19 +338,7 @@ struct map_entry {
     }
   };
 
-  struct read_only_type {
-    typename serialize_type<KeyType>::read_type key;
-    typename serialize_type<MappedType>::read_type value;
-    using serialize = ::zpp::bits::members<2>;
-    constexpr static bool allow_inline_visit_members_lambda = true;
-
-    ZPP_BITS_INLINE constexpr read_only_type(auto &&k, auto &&v)
-        : key((typename serialize_type<KeyType>::convertible_type)k),
-          value((typename serialize_type<MappedType>::convertible_type)v) {}
-
-    using pb_meta =
-        std::tuple<field_meta<1, encoding_rule::explicit_presence>, field_meta<2, encoding_rule::explicit_presence>>;
-  };
+  using read_only_type = map_entry_read_only_type<KeyType, MappedType>;
 };
 
 namespace traits {
