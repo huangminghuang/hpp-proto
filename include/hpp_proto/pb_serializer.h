@@ -84,7 +84,6 @@ struct field_meta_ext {
   }
 };
 
-
 using ::zpp::bits::errc;
 using ::zpp::bits::failure;
 
@@ -1215,31 +1214,40 @@ public:
   template <std::size_t Index>
   inline constexpr errc deserialize_field_by_index(auto &item, uint32_t field_num, wire_type field_wire_type) {
     using type = std::remove_reference_t<decltype(item)>;
-
-    if constexpr (disallow_inline_visit_members_lambda<type>()) {
-      return do_visit_members(item, [&](auto &&...items) constexpr {
-        std::tuple<decltype(items) &...> refs = {items...};
-        auto &field = std::get<Index>(refs);
-        using Meta = typename traits::field_meta_of<type, Index>::type;
-        if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
-          // this is extension, not a regular field
-          return errc{};
-        } else {
-          return deserialize_field(Meta(), field_wire_type, field_num, field);
-        }
-      });
+    if constexpr (has_field_meta_ext<type>) {
+      using Meta = typename traits::field_meta_of<type, Index>::type;
+      if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
+        // this is extension, not a regular field
+        return errc{};
+      } else {
+        return deserialize_field(Meta(), field_wire_type, field_num, Meta::access(item));
+      }
     } else {
-      return do_visit_members(item, [&](auto &&...items) ZPP_BITS_CONSTEXPR_INLINE_LAMBDA {
-        std::tuple<decltype(items) &...> refs = {items...};
-        auto &field = std::get<Index>(refs);
-        using Meta = typename traits::field_meta_of<type, Index>::type;
-        if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
-          // this is extension, not a regular field
-          return errc{};
-        } else {
-          return deserialize_field(Meta(), field_wire_type, field_num, field);
-        }
-      });
+      if constexpr (disallow_inline_visit_members_lambda<type>()) {
+        return do_visit_members(item, [&](auto &&...items) constexpr {
+          std::tuple<decltype(items) &...> refs = {items...};
+          auto &field = std::get<Index>(refs);
+          using Meta = typename traits::field_meta_of<type, Index>::type;
+          if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
+            // this is extension, not a regular field
+            return errc{};
+          } else {
+            return deserialize_field(Meta(), field_wire_type, field_num, field);
+          }
+        });
+      } else {
+        return do_visit_members(item, [&](auto &&...items) ZPP_BITS_CONSTEXPR_INLINE_LAMBDA {
+          std::tuple<decltype(items) &...> refs = {items...};
+          auto &field = std::get<Index>(refs);
+          using Meta = typename traits::field_meta_of<type, Index>::type;
+          if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
+            // this is extension, not a regular field
+            return errc{};
+          } else {
+            return deserialize_field(Meta(), field_wire_type, field_num, field);
+          }
+        });
+      }
     }
   }
 

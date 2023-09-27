@@ -19,10 +19,6 @@ struct example {
 auto pb_meta(const example &)
     -> std::tuple<hpp::proto::field_meta_ext<1, &example::i, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
-static_assert(hpp::proto::is_field_meta_ext<hpp::proto::field_meta_ext<1, &example::i, encoding_rule::defaulted, zpp::bits::vint64_t>>);
-
-static_assert(hpp::proto::has_field_meta_ext<example>);
-
 static_assert(hpp::proto::to_bytes<example{150}>() == "\x08\x96\x01"_bytes_array);
 
 static_assert(hpp::proto::from_bytes<"\x08\x96\x01"_bytes_array, example>().i == 150);
@@ -66,7 +62,6 @@ auto serialize(const example_default_type &) -> zpp::bits::members<1>;
 
 auto pb_meta(const example_default_type &) -> std::tuple<
     hpp::proto::field_meta_ext<1, &example_default_type::i, encoding_rule::defaulted, zpp::bits::vint64_t, 1>>;
-auto has_pb_field_ext(example_default_type) -> std::true_type;
 
 static_assert(hpp::proto::to_bytes<example_default_type{}>().empty());
 
@@ -89,7 +84,6 @@ auto serialize(const example_optioanl_type &) -> zpp::bits::members<1>;
 
 auto pb_meta(const example_optioanl_type &) -> std::tuple<
     hpp::proto::field_meta_ext<1, &example_optioanl_type::i, encoding_rule::explicit_presence, zpp::bits::vint64_t>>;
-auto has_pb_field_ext(example_optioanl_type) -> std::true_type;
 
 // static_assert(hpp::proto::to_bytes<example_optioanl_type{}>().size() == 0);
 
@@ -99,7 +93,6 @@ struct nested_explicit_id_example {
 
 auto pb_meta(const nested_explicit_id_example &)
     -> std::tuple<hpp::proto::field_meta_ext<3, &nested_explicit_id_example::nested>>;
-auto has_pb_field_ext(nested_explicit_id_example) -> std::true_type;
 
 //// doesn't work with zpp::bits::unsized_t
 static_assert(hpp::proto::to_bytes<nested_explicit_id_example{.nested = example{150}}>() ==
@@ -131,7 +124,7 @@ struct repeated_integers {
 };
 
 auto pb_meta(const repeated_integers &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, zpp::bits::vsint32_t>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_integers::integers, encoding_rule::defaulted, zpp::bits::vsint32_t>>;
 
 struct repeated_integers_unpacked {
   std::vector<zpp::bits::vsint32_t> integers;
@@ -139,7 +132,7 @@ struct repeated_integers_unpacked {
 };
 
 auto pb_meta(const repeated_integers_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_integers_unpacked::integers, encoding_rule::unpacked_repeated>>;
 
 struct repeated_integers_unpacked_explicit_type {
   std::vector<int32_t> integers;
@@ -147,7 +140,7 @@ struct repeated_integers_unpacked_explicit_type {
 };
 
 auto pb_meta(const repeated_integers_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, zpp::bits::vsint32_t>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_integers_unpacked_explicit_type::integers, encoding_rule::unpacked_repeated, zpp::bits::vsint32_t>>;
 
 using namespace boost::ut::literals;
 
@@ -179,7 +172,7 @@ struct non_owning_repeated_integers {
 };
 
 auto pb_meta(const non_owning_repeated_integers &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, zpp::bits::vsint32_t>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_integers::integers, encoding_rule::defaulted, zpp::bits::vsint32_t>>;
 
 struct non_owning_repeated_integers_unpacked {
   std::span<const zpp::bits::vsint32_t> integers;
@@ -189,7 +182,7 @@ struct non_owning_repeated_integers_unpacked {
 };
 
 auto pb_meta(const non_owning_repeated_integers_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_integers_unpacked::integers, encoding_rule::unpacked_repeated>>;
 
 struct non_owning_repeated_integers_unpacked_explicit_type {
   std::span<const int32_t> integers;
@@ -199,7 +192,7 @@ struct non_owning_repeated_integers_unpacked_explicit_type {
 };
 
 auto pb_meta(const non_owning_repeated_integers_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, zpp::bits::vsint32_t>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_integers_unpacked_explicit_type::integers, encoding_rule::unpacked_repeated, zpp::bits::vsint32_t>>;
 
 template <typename T>
 void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory_size, test_mode mode = decode_encode) {
@@ -252,7 +245,7 @@ struct non_owing_nested_example {
   }
 };
 
-auto pb_meta(const non_owing_nested_example &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+auto pb_meta(const non_owing_nested_example &) -> std::tuple<hpp::proto::field_meta_ext<1, &non_owing_nested_example::nested, encoding_rule::defaulted>>;
 
 const ut::suite test_non_owning_nested_example = [] {
   example const ex{.i = 150};
@@ -264,7 +257,7 @@ struct repeated_fixed {
   bool operator==(const repeated_fixed &) const = default;
 };
 
-auto pb_meta(const repeated_fixed &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+auto pb_meta(const repeated_fixed &) -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_fixed::integers, encoding_rule::defaulted>>;
 
 struct repeated_fixed_explicit_type {
   std::vector<uint64_t> integers;
@@ -272,14 +265,14 @@ struct repeated_fixed_explicit_type {
 };
 
 auto pb_meta(const repeated_fixed_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, uint64_t>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_fixed_explicit_type::integers, encoding_rule::defaulted, uint64_t>>;
 struct repeated_fixed_unpacked {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed_unpacked &) const = default;
 };
 
 auto pb_meta(const repeated_fixed_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_fixed_unpacked::integers, encoding_rule::unpacked_repeated>>;
 
 struct repeated_fixed_unpacked_explicit_type {
   std::vector<uint64_t> integers;
@@ -287,7 +280,7 @@ struct repeated_fixed_unpacked_explicit_type {
 };
 
 auto pb_meta(const repeated_fixed_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, uint64_t>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_fixed_unpacked_explicit_type::integers, encoding_rule::unpacked_repeated, uint64_t>>;
 
 const ut::suite test_repeated_fixed = [] {
   "repeated_fixed"_test = [] {
@@ -332,7 +325,7 @@ struct non_owning_repeated_fixed {
   bool operator==(const non_owning_repeated_fixed &other) const { return ranges_equal(integers, other.integers); }
 };
 
-auto pb_meta(const non_owning_repeated_fixed &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+auto pb_meta(const non_owning_repeated_fixed &) -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_fixed::integers, encoding_rule::defaulted>>;
 struct non_owning_repeated_fixed_explicit_type {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_explicit_type &other) const {
@@ -341,7 +334,7 @@ struct non_owning_repeated_fixed_explicit_type {
 };
 
 auto pb_meta(const non_owning_repeated_fixed_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, uint64_t>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_fixed_explicit_type::integers, encoding_rule::defaulted, uint64_t>>;
 struct non_owning_repeated_fixed_unpacked {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_unpacked &other) const {
@@ -350,7 +343,7 @@ struct non_owning_repeated_fixed_unpacked {
 };
 
 auto pb_meta(const non_owning_repeated_fixed_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_fixed_unpacked::integers, encoding_rule::unpacked_repeated>>;
 
 struct non_owning_repeated_fixed_unpacked_explicit_type {
   std::span<const uint64_t> integers;
@@ -360,7 +353,7 @@ struct non_owning_repeated_fixed_unpacked_explicit_type {
 };
 
 auto pb_meta(const non_owning_repeated_fixed_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, uint64_t>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_fixed_unpacked_explicit_type::integers, encoding_rule::unpacked_repeated, uint64_t>>;
 
 const ut::suite test_non_owning_repeated_fixed = [] {
   "non_owning_repeated_fixed"_test = [] {
@@ -411,7 +404,7 @@ struct repeated_bool {
   bool operator==(const repeated_bool &) const = default;
 };
 
-auto pb_meta(const repeated_bool &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, bool>>;
+auto pb_meta(const repeated_bool &) -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_bool::booleans, encoding_rule::defaulted, bool>>;
 
 struct repeated_bool_unpacked {
   std::vector<hpp::proto::boolean> booleans;
@@ -419,7 +412,7 @@ struct repeated_bool_unpacked {
 };
 
 auto pb_meta(const repeated_bool_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, bool>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_bool_unpacked::booleans, encoding_rule::unpacked_repeated, bool>>;
 
 const ut::suite test_repeated_bool = [] {
   "repeated_bool"_test = [] { verify("\x0a\x03\x01\x00\x01"_bytes_array, repeated_bool{{true, false, true}}); };
@@ -434,7 +427,7 @@ struct non_owning_repeated_bool {
   bool operator==(const non_owning_repeated_bool &other) const { return ranges_equal(booleans, other.booleans); }
 };
 
-auto pb_meta(const non_owning_repeated_bool &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted, bool>>;
+auto pb_meta(const non_owning_repeated_bool &) -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_bool::booleans, encoding_rule::defaulted, bool>>;
 
 struct non_owning_repeated_bool_unpacked {
   std::span<const bool> booleans;
@@ -444,7 +437,7 @@ struct non_owning_repeated_bool_unpacked {
 };
 
 auto pb_meta(const non_owning_repeated_bool_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated, bool>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_bool_unpacked::booleans, encoding_rule::unpacked_repeated, bool>>;
 
 const ut::suite test_non_owning_repeated_bool = [] {
   "non_owning_repeated_bool"_test = [] {
@@ -464,7 +457,7 @@ struct repeated_enum {
   bool operator==(const repeated_enum &) const = default;
 };
 
-auto pb_meta(const repeated_enum &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::defaulted>>;
+auto pb_meta(const repeated_enum &) -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_enum::values, encoding_rule::defaulted>>;
 
 struct repeated_enum_unpacked {
   enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
@@ -472,7 +465,7 @@ struct repeated_enum_unpacked {
   bool operator==(const repeated_enum_unpacked &) const = default;
 };
 
-auto pb_meta(const repeated_enum_unpacked &) -> std::tuple<hpp::proto::field_meta<1, encoding_rule::unpacked_repeated>>;
+auto pb_meta(const repeated_enum_unpacked &) -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_enum_unpacked::values, encoding_rule::unpacked_repeated>>;
 
 const ut::suite test_repeated_enums = [] {
   "repeated_enum"_test = [] {
