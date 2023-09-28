@@ -966,6 +966,12 @@ public:
   constexpr static bool has_memory_resource = false;
 };
 
+template <typename T, bool condition>
+struct assert_pointer_if {
+    static constexpr bool value = condition && std::is_pointer_v<T>;
+    static_assert(value, "Assertion failed <see below for more information>");
+};
+
 template <::zpp::bits::concepts::byte_view ByteView, typename MemoryResource = std::monostate,
           concepts::is_option... Options>
 class in : public in_base<ByteView, MemoryResource, Options...> {
@@ -1294,11 +1300,7 @@ public:
       }
       item.reset(loaded.release());
     } else if constexpr (std::is_pointer_v<type>) {
-#if _MSC_VER
-      static_assert(base_type::has_memory_resource, __FUNCTION__ ": memory resource is required");
-#else
-      static_assert(base_type::has_memory_resource, "memory resource is required");
-#endif
+      static_assert(assert_pointer_if<type, base_type::has_memory_resource>::value, ": memory resource is required");
       using element_type = std::remove_cvref_t<decltype(*item)>;
       void *buffer = this->mem_resource.allocate(sizeof(element_type), alignof(element_type));
       if (buffer == nullptr) [[unlikely]] {
