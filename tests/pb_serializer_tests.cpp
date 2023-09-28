@@ -19,21 +19,10 @@ struct example {
 auto pb_meta(const example &)
     -> std::tuple<hpp::proto::field_meta_ext<1, &example::i, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
-static_assert(hpp::proto::to_bytes<example{150}>() == "\x08\x96\x01"_bytes_array);
-
-static_assert(hpp::proto::from_bytes<"\x08\x96\x01"_bytes_array, example>().i == 150);
-
-static_assert(hpp::proto::to_bytes<example{}>().empty());
-
-static_assert(hpp::proto::from_bytes<std::array<std::byte, 0>{}, example>().i == 0);
 struct nested_example {
   example nested; // field number == 1
 };
 auto pb_meta(const nested_example &) -> std::tuple<hpp::proto::field_meta_ext<1, &nested_example::nested>>;
-
-static_assert(hpp::proto::to_bytes<nested_example{.nested = example{150}}>() == "\x0a\x03\x08\x96\x01"_bytes_array);
-
-static_assert(hpp::proto::from_bytes<"\x0a\x03\x08\x96\x01"_bytes_array, nested_example>().nested.i == 150);
 
 using namespace zpp::bits::literals;
 
@@ -48,10 +37,6 @@ auto pb_meta(const example_explicit_presence &)
                                              zpp::bits::vint64_t>>;
 auto has_pb_field_ext(example_explicit_presence) -> std::true_type;
 
-static_assert(hpp::proto::to_bytes<example_explicit_presence{}>() == "\x08\x00"_bytes_array);
-
-static_assert(hpp::proto::from_bytes<"\x08\x00"_bytes_array, example_explicit_presence>().i == 0);
-
 struct example_default_type {
   int32_t i = 1; // field number == 1
 
@@ -63,7 +48,6 @@ auto serialize(const example_default_type &) -> zpp::bits::members<1>;
 auto pb_meta(const example_default_type &) -> std::tuple<
     hpp::proto::field_meta_ext<1, &example_default_type::i, encoding_rule::defaulted, zpp::bits::vint64_t, 1>>;
 
-static_assert(hpp::proto::to_bytes<example_default_type{}>().empty());
 
 const ut::suite test_example_default_type = [] {
   auto [data, in, out] = hpp::proto::data_in_out(zpp::bits::no_size{});
@@ -72,7 +56,6 @@ const ut::suite test_example_default_type = [] {
   ut::expect(data.empty());
 };
 
-static_assert(hpp::proto::from_bytes<std::array<std::byte, 0>{}, example_default_type>().i == 1);
 
 struct example_optioanl_type {
   hpp::proto::optional<int32_t, 1> i; // field number == 1
@@ -94,10 +77,25 @@ struct nested_explicit_id_example {
 auto pb_meta(const nested_explicit_id_example &)
     -> std::tuple<hpp::proto::field_meta_ext<3, &nested_explicit_id_example::nested>>;
 
-//// doesn't work with zpp::bits::unsized_t
+#ifndef _MSC_VER
+static_assert(hpp::proto::to_bytes<example{150}>() == "\x08\x96\x01"_bytes_array);
+static_assert(hpp::proto::from_bytes<"\x08\x96\x01"_bytes_array, example>().i == 150);
+static_assert(hpp::proto::to_bytes<example{}>().empty());
+static_assert(hpp::proto::from_bytes<std::array<std::byte, 0>{}, example>().i == 0);
+
+static_assert(hpp::proto::to_bytes<nested_example{.nested = example{150}}>() == "\x0a\x03\x08\x96\x01"_bytes_array);
+static_assert(hpp::proto::from_bytes<"\x0a\x03\x08\x96\x01"_bytes_array, nested_example>().nested.i == 150);
+
+static_assert(hpp::proto::to_bytes<example_explicit_presence{}>() == "\x08\x00"_bytes_array);
+static_assert(hpp::proto::from_bytes<"\x08\x00"_bytes_array, example_explicit_presence>().i == 0);
+
+static_assert(hpp::proto::to_bytes<example_default_type{}>().empty());
+static_assert(hpp::proto::from_bytes<std::array<std::byte, 0>{}, example_default_type>().i == 1);
+
 static_assert(hpp::proto::to_bytes<nested_explicit_id_example{.nested = example{150}}>() ==
               "\x1a\x03\x08\x96\x01"_bytes_array);
 static_assert(hpp::proto::from_bytes<"\x1a\x03\x08\x96\x01"_bytes_array, nested_explicit_id_example>().nested.i == 150);
+#endif
 
 enum test_mode { decode_encode, decode_only };
 

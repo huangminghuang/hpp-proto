@@ -260,7 +260,12 @@ constexpr auto make_tag(uint32_t number, wire_type type) {
 
 template <typename Type, typename Meta>
 constexpr auto make_tag(Meta meta) {
-  return make_tag(meta.number, tag_type<Type>());
+  // check if Meta::number is static or not
+  if constexpr ( requires { *&Meta::number; }) {
+    return make_tag(Meta::number, tag_type<Type>());
+  } else {
+    return make_tag(meta.number, tag_type<Type>());
+  }
 }
 
 constexpr auto tag_type(auto tag) { return wire_type(tag.value & 0x7); }
@@ -968,8 +973,8 @@ public:
 
 template <typename T, bool condition>
 struct assert_pointer_if {
-    static constexpr bool value = condition && std::is_pointer_v<T>;
-    static_assert(value, "Assertion failed <see below for more information>");
+  static constexpr bool value = condition && std::is_pointer_v<T>;
+  static_assert(value, "Assertion failed <see below for more information>");
 };
 
 template <::zpp::bits::concepts::byte_view ByteView, typename MemoryResource = std::monostate,
