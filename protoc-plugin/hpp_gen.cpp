@@ -928,7 +928,7 @@ struct hpp_meta_generateor : code_generator {
     }
 
     for (auto *f : descriptor.extensions) {
-      process(*f, "", package);
+      process(*f, "", false);
     }
 
     if (!ns.empty()) {
@@ -953,7 +953,7 @@ struct hpp_meta_generateor : code_generator {
     uint32_t num_fields = 0;
     for (auto *f : descriptor.fields) {
       if (!f->proto.oneof_index.has_value()) {
-        process(*f, qualified_cpp_name, pb_name);
+        process(*f, qualified_cpp_name, false);
         num_fields++;
       } else {
         auto index = *f->proto.oneof_index;
@@ -966,7 +966,7 @@ struct hpp_meta_generateor : code_generator {
     }
 
     if (!descriptor.proto.extension_range.empty()) {
-      fmt::format_to(target, "{}hpp::proto::field_meta<UINT32_MAX>", indent());
+      fmt::format_to(target, "{}hpp::proto::field_meta_ext<UINT32_MAX, &{}::extensions>", indent(), qualified_cpp_name);
     } else if (!descriptor.fields.empty()) {
       auto &content = file.content;
       content.resize(content.size() - 2);
@@ -978,31 +978,12 @@ struct hpp_meta_generateor : code_generator {
     fmt::format_to(target, "auto serialize(const {}&) -> zpp::bits::members<{}>;\n\n", qualified_cpp_name,
                    num_fields + (!descriptor.proto.extension_range.empty() ? 1 : 0));
 
-    if (num_fields > 50) {
-      std::vector<int> v(num_fields);
-      std::iota(v.begin(), v.end(), 0);
-      auto args = fmt::format("a{}", fmt::join(v, ", a"));
-
-      fmt::format_to(target,
-                     "ZPP_BITS_INLINE constexpr decltype(auto) visit_members({0} &object, auto &&visitor) {{\n"
-                     "  auto&& [{1}] = object;\n"
-                     "  return visitor({1});\n"
-                     "}}\n\n"
-                     "ZPP_BITS_INLINE constexpr decltype(auto) visit_members(const {0} &object, auto &&visitor) {{\n"
-                     "  auto&& [{1}] = object;\n"
-                     "  return visitor({1});\n"
-                     "}}\n\n",
-                     qualified_cpp_name, args);
-    }
-
     fmt::format_to(target,
-                   "inline const char* pb_url(const {0}&) {{ return "
-                   "\"type.googleapis.com/{1}\"; }}\n\n"
                    "constexpr auto pb_message_name(const {0}&) {{ return \"{1}\"_cts; }}\n\n",
                    qualified_cpp_name, pb_name);
 
     for (auto *f : descriptor.extensions) {
-      process(*f, qualified_cpp_name, pb_name);
+      process(*f, qualified_cpp_name, false);
     }
 
     for (auto *m : descriptor.messages) {
@@ -1013,7 +994,7 @@ struct hpp_meta_generateor : code_generator {
   }
   // NOLINTEND(misc-no-recursion)
   // NOLINTBEGIN(readability-function-cognitive-complexity)
-  void process(field_descriptor_t &descriptor, const std::string &cpp_scope, const std::string & /*unused*/) {
+  void process(field_descriptor_t &descriptor, const std::string &cpp_scope, bool is_oneof = false) {
     std::string_view rule = "defaulted";
     auto proto = descriptor.proto;
     using enum gpb::FieldDescriptorProto::Label;
@@ -1064,9 +1045,16 @@ struct hpp_meta_generateor : code_generator {
       }
     }
 
+    auto cpp_name = cpp_scope.empty() ? descriptor.cpp_name : cpp_scope + "::" + descriptor.cpp_name;
+
     if (proto.extendee.empty()) {
-      fmt::format_to(target, "{}hpp::proto::field_meta<{}, hpp::proto::encoding_rule::{}{}>,\n", indent(), proto.number,
-                     rule, type_and_default_value);
+      if (is_oneof ) {
+        fmt::format_to(target, "{}hpp::proto::field_meta<{}, hpp::proto::encoding_rule::{}{}>,\n", indent(),
+                       proto.number, rule, type_and_default_value);
+      } else {
+        fmt::format_to(target, "{}hpp::proto::field_meta_ext<{}, &{}, hpp::proto::encoding_rule::{}{}>,\n", indent(),
+                       proto.number, cpp_name, rule, type_and_default_value);
+      }
     } else {
       std::string_view extension_prefix;
       if (proto.label == LABEL_REPEATED) {
@@ -1080,8 +1068,6 @@ struct hpp_meta_generateor : code_generator {
         type_and_default_value += ", " + descriptor.default_value_template_arg;
       }
 
-      auto cpp_name = cpp_scope.empty() ? descriptor.cpp_name : cpp_scope + "::" + descriptor.cpp_name;
-
       fmt::format_to(target,
                      "{0}constexpr auto {1}() {{\n"
                      "{0}  return hpp::proto::{2}extension_meta<{3}, {4}, "
@@ -1093,7 +1079,7 @@ struct hpp_meta_generateor : code_generator {
   }
   // NOLINTEND(readability-function-cognitive-complexity)
 
-  void process(oneof_descriptor_t &descriptor, const std::string &cpp_scope, const std::string &pb_scope) {
+  void process(oneof_descriptor_t &descriptor, const std::string &cpp_scope, const std::string & /* unused */) {
 
     if (descriptor.fields.size() > 1) {
       std::string types;
@@ -1102,10 +1088,11 @@ struct hpp_meta_generateor : code_generator {
         types += (sep + f->cpp_field_type);
         sep = ",";
       }
-      fmt::format_to(target, "{}std::tuple<\n", indent());
+      fmt::format_to(target, "{}hpp::proto::oneof_field_meta<\n", indent());
       indent_num += 2;
+      fmt::format_to(target, "{}&{}::{},\n", indent(), cpp_scope, descriptor.cpp_name);
       for (auto *f : descriptor.fields) {
-        process(*f, cpp_scope, pb_scope);
+        process(*f, cpp_scope, true);
       }
 
       indent_num -= 2;
@@ -1115,7 +1102,7 @@ struct hpp_meta_generateor : code_generator {
       }
       fmt::format_to(target, ">,\n");
     } else {
-      process(*descriptor.fields[0], cpp_scope, pb_scope);
+      process(*descriptor.fields[0], cpp_scope, false);
     }
   }
 

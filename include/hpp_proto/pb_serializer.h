@@ -61,21 +61,22 @@ struct field_meta {
   }
 };
 
+template <auto Accessor>
+struct accesor_type {
+  inline constexpr auto &operator()(auto &&item) const {
+    if constexpr (std::is_member_pointer_v<decltype(Accessor)>)
+      return item.*Accessor;
+    else
+      return Accessor(std::forward<decltype(item)>(item));
+  }
+};
+
 template <uint32_t Number, auto Accessor, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
           auto DefaultValue = std::monostate{}>
 struct field_meta_ext {
-  struct accesor_type {
-    constexpr auto &operator()(auto &&item) const {
-      if constexpr (std::is_member_pointer_v<decltype(Accessor)>)
-        return item.*Accessor;
-      else
-        return Accessor(std::forward<decltype(item)>(item));
-    }
-  };
-
   constexpr static uint32_t number = Number;
   constexpr static encoding_rule encoding = Encoding;
-  constexpr static auto access = accesor_type{};
+  constexpr static auto access = accesor_type<Accessor>{};
   using type = Type;
 
   template <typename T>
@@ -84,24 +85,14 @@ struct field_meta_ext {
   }
 };
 
+template <auto Accessor, typename... AlternativeMeta>
+struct oneof_field_meta {
+  constexpr static auto access = accesor_type<Accessor>{};
+  using alternatives_meta = std::tuple<AlternativeMeta...>;
+};
+
 using ::zpp::bits::errc;
 using ::zpp::bits::failure;
-
-ZPP_BITS_INLINE constexpr decltype(auto) do_visit_members(auto &&object, auto &&visitor) {
-  using namespace zpp::bits;
-  return visit_members(object, visitor);
-}
-
-template <typename Type>
-constexpr bool disallow_inline_visit_members_lambda() {
-  if constexpr (::zpp::bits::number_of_members<Type>() > ::zpp::bits::access::max_visit_members) {
-    return true;
-  } else if constexpr (requires { Type::allow_inline_visit_members_lambda; }) {
-    return !Type::allow_inline_visit_members_lambda;
-  } else {
-    return ::zpp::bits::access::self_referencing<Type>();
-  }
-}
 
 namespace concepts {
 
@@ -159,10 +150,22 @@ concept span = requires {
   requires std::same_as<T, std::span<typename T::value_type>>;
 };
 
+template <typename T>
+concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
+
 } // namespace concepts
 
 template <typename T>
 struct extension_meta_base {
+
+  struct accesor_type {
+    inline constexpr auto &operator()(auto &&item) const {
+      auto &[e] = item;
+      return e;
+    }
+  };
+
+  constexpr static auto access = accesor_type{};
 
   static constexpr void check(const concepts::pb_extension auto &extensions) {
     static_assert(std::same_as<typename std::remove_cvref_t<decltype(extensions)>::pb_extension, typename T::extendee>);
@@ -262,6 +265,9 @@ template <typename Meta>
 constexpr bool has_field_num(Meta meta, uint32_t num) {
   if constexpr (requires { meta.number; }) {
     return meta.number == num;
+  } else if constexpr (concepts::is_oneof_field_meta<Meta>) {
+    return std::apply([num](auto... elem) { return (has_field_num(elem, num) || ...); },
+                      typename Meta::alternatives_meta{});
   } else if constexpr (requires { std::tuple_size_v<Meta>; }) {
     return std::apply([num](auto... elem) { return (has_field_num(elem, num) || ...); }, meta);
   } else {
@@ -316,11 +322,23 @@ struct map_entry_read_only_type {
   ZPP_BITS_INLINE constexpr map_entry_read_only_type(auto &&k, auto &&v)
       : key((typename serialize_type<KeyType>::convertible_type)k),
         value((typename serialize_type<MappedType>::convertible_type)v) {}
+
+  struct key_accessor {
+    constexpr const auto &operator()(const map_entry_read_only_type &entry) const { return entry.key; }
+  };
+
+  struct value_accessor {
+    constexpr const auto &operator()(const map_entry_read_only_type &entry) const { return entry.value; }
+  };
+
+  using pb_meta = std::tuple<field_meta_ext<1, key_accessor{}, encoding_rule::explicit_presence>,
+                             field_meta_ext<2, value_accessor{}, encoding_rule::explicit_presence>>;
 };
 
-template <typename KeyType, typename MappedType>
-auto pb_meta(map_entry_read_only_type<KeyType, MappedType>)
-    -> std::tuple<field_meta<1, encoding_rule::explicit_presence>, field_meta<2, encoding_rule::explicit_presence>>;
+// template <typename KeyType, typename MappedType>
+// auto pb_meta(map_entry_read_only_type<KeyType, MappedType>) -> std::tuple<
+//     field_meta_ext<1, &map_entry_read_only_type<KeyType, MappedType>::key, encoding_rule::explicit_presence>,
+//     field_meta_ext<2, &map_entry_read_only_type<KeyType, MappedType>::value, encoding_rule::explicit_presence>>;
 
 template <typename KeyType, typename MappedType>
 struct map_entry {
@@ -331,8 +349,8 @@ struct map_entry {
     typename serialize_type<KeyType>::type key;
     typename serialize_type<MappedType>::type value;
     constexpr static bool allow_inline_visit_members_lambda = true;
-    using pb_meta =
-        std::tuple<field_meta<1, encoding_rule::explicit_presence>, field_meta<2, encoding_rule::explicit_presence>>;
+    using pb_meta = std::tuple<field_meta_ext<1, &mutable_type::key, encoding_rule::explicit_presence>,
+                               field_meta_ext<2, &mutable_type::value, encoding_rule::explicit_presence>>;
 
     template <typename Target, typename Source>
     ZPP_BITS_INLINE constexpr static auto move_or_copy(Source &&src) {
@@ -441,6 +459,11 @@ struct reverse_indices<Type> {
     return std::apply([](auto... elem) { return (... << get_numbers(elem)); }, metas);
   }
 
+  template <concepts::is_oneof_field_meta Meta>
+  constexpr static auto get_numbers(Meta /* unused */) {
+    return std::apply([](auto... elem) { return (... << get_numbers(elem)); }, typename Meta::alternatives_meta{});
+  }
+
   template <typename T>
     requires requires { T::encoding; }
   constexpr static auto is_unpacked_repeated(T meta) {
@@ -452,6 +475,12 @@ struct reverse_indices<Type> {
     return std::apply([](auto... elem) { return (... << is_unpacked_repeated(elem)); }, metas);
   }
 
+  template <concepts::is_oneof_field_meta Meta>
+  constexpr static auto is_unpacked_repeated(Meta /* unused */) {
+    return std::apply([](auto... elem) { return (... << is_unpacked_repeated(elem)); },
+                      typename Meta::alternatives_meta{});
+  }
+
   template <std::size_t I, typename T>
     requires requires { T::number; }
   constexpr static auto index(T) {
@@ -461,6 +490,13 @@ struct reverse_indices<Type> {
   template <std::size_t I, typename... T>
   constexpr static auto index(std::tuple<T...>) {
     std::array<std::size_t, sizeof...(T)> result;
+    std::fill(result.begin(), result.end(), I);
+    return result;
+  }
+
+  template <std::size_t I, concepts::is_oneof_field_meta Meta>
+  constexpr static auto index(Meta) {
+    std::array<std::size_t, std::tuple_size_v<typename Meta::alternatives_meta>> result;
     std::fill(result.begin(), result.end(), I);
     return result;
   }
@@ -497,6 +533,11 @@ template <typename Meta, typename Type>
 struct get_serialize_type;
 
 template <::zpp::bits::concepts::tuple Meta, typename Type>
+struct get_serialize_type<Meta, Type> {
+  using type = Type;
+};
+
+template <concepts::is_oneof_field_meta Meta, typename Type>
 struct get_serialize_type<Meta, Type> {
   using type = Type;
 };
@@ -556,22 +597,6 @@ ZPP_BITS_INLINE constexpr errc visit_many(auto &&visitor, std::index_sequence<Fi
 }
 
 ZPP_BITS_INLINE constexpr errc visit_many(auto &&, std::index_sequence<>) { return {}; }
-
-ZPP_BITS_INLINE constexpr errc foreach_member(auto &&item, auto &&visitor) {
-  using type = std::remove_cvref_t<decltype(item)>;
-
-  if constexpr (disallow_inline_visit_members_lambda<type>()) {
-    return do_visit_members(std::forward<decltype(item)>(item), [&](auto &&...items) constexpr {
-      return visit_many(std::forward<decltype(visitor)>(visitor), std::make_index_sequence<sizeof...(items)>{},
-                        std::forward<decltype(items)>(items)...);
-    });
-  } else {
-    return do_visit_members(item, [&](auto &&...items) ZPP_BITS_CONSTEXPR_INLINE_LAMBDA {
-      return visit_many(std::forward<decltype(visitor)>(visitor), std::make_index_sequence<sizeof...(items)>{},
-                        std::forward<decltype(items)>(items)...);
-    });
-  }
-}
 
 template <::zpp::bits::concepts::byte_view ByteView, typename... Options>
 constexpr auto make_out_archive(ByteView &&view, Options &&...) {
@@ -677,30 +702,16 @@ struct out {
     }
   }
 
-  template <typename Type>
-  struct member_visitor {
-    out *o;
-    template <std::size_t Index>
-    constexpr inline errc visit(auto &&member) const {
-      return o->serialize_field(typename traits::field_meta_of<Type, Index>::type{},
-                                std::forward<decltype(member)>(member));
-    }
-  };
-
   ZPP_BITS_INLINE constexpr errc serialize_unsized(auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
-    if constexpr (has_field_meta_ext<type>) {
-      using metas = decltype(pb_meta(item));
-      return std::apply(
-          [&item, this](auto... meta) {
-            errc result;
-            (void)(((result = this->serialize_field(meta, meta.access(item))) == errc{}) && ...);
-            return result;
-          },
-          metas{});
-    } else {
-      return foreach_member(item, member_visitor<type>{this});
-    }
+    using metas = typename traits::meta_of<type>::type;
+    return std::apply(
+        [&item, this](auto... meta) {
+          errc result;
+          (void)(((result = this->serialize_field(meta, meta.access(item))) == errc{}) && ...);
+          return result;
+        },
+        metas{});
   }
 
   template <typename Meta>
@@ -865,6 +876,11 @@ struct out {
       return serialize_oneof<I + 1, Meta>(std::forward<decltype(item)>(item));
     }
     return errc{};
+  }
+
+  template <std::size_t I, concepts::is_oneof_field_meta Meta>
+  ZPP_BITS_INLINE constexpr errc serialize_oneof(auto &&item) {
+    return serialize_oneof<I, typename Meta::alternatives_meta>(std::forward<decltype(item)>(item));
   }
 
   template <typename SizeType = ::zpp::bits::vsize_t>
@@ -1214,40 +1230,12 @@ public:
   template <std::size_t Index>
   inline constexpr errc deserialize_field_by_index(auto &item, uint32_t field_num, wire_type field_wire_type) {
     using type = std::remove_reference_t<decltype(item)>;
-    if constexpr (has_field_meta_ext<type>) {
-      using Meta = typename traits::field_meta_of<type, Index>::type;
-      if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
-        // this is extension, not a regular field
-        return errc{};
-      } else {
-        return deserialize_field(Meta(), field_wire_type, field_num, Meta::access(item));
-      }
+    using Meta = typename traits::field_meta_of<type, Index>::type;
+    if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
+      // this is extension, not a regular field
+      return errc{};
     } else {
-      if constexpr (disallow_inline_visit_members_lambda<type>()) {
-        return do_visit_members(item, [&](auto &&...items) constexpr {
-          std::tuple<decltype(items) &...> refs = {items...};
-          auto &field = std::get<Index>(refs);
-          using Meta = typename traits::field_meta_of<type, Index>::type;
-          if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
-            // this is extension, not a regular field
-            return errc{};
-          } else {
-            return deserialize_field(Meta(), field_wire_type, field_num, field);
-          }
-        });
-      } else {
-        return do_visit_members(item, [&](auto &&...items) ZPP_BITS_CONSTEXPR_INLINE_LAMBDA {
-          std::tuple<decltype(items) &...> refs = {items...};
-          auto &field = std::get<Index>(refs);
-          using Meta = typename traits::field_meta_of<type, Index>::type;
-          if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
-            // this is extension, not a regular field
-            return errc{};
-          } else {
-            return deserialize_field(Meta(), field_wire_type, field_num, field);
-          }
-        });
-      }
+      return deserialize_field(Meta(), field_wire_type, field_num, Meta::access(item));
     }
   }
 
@@ -1676,6 +1664,12 @@ public:
       }
     }
     return errc{};
+  }
+
+  template <std::size_t Index, concepts::is_oneof_field_meta Meta>
+  ZPP_BITS_INLINE constexpr auto deserialize_oneof(wire_type field_type, uint32_t field_num, auto &&item) {
+    return deserialize_oneof<Index, typename Meta::alternatives_meta>(field_type, field_num,
+                                                                      std::forward<decltype(item)>(item));
   }
 
   template <typename SizeType = typename base_type::default_size_type>
