@@ -972,8 +972,8 @@ public:
 };
 
 template <typename T, bool condition>
-struct assert_pointer_if {
-  static constexpr bool value = condition && std::is_pointer_v<T>;
+struct assert_type {
+  static constexpr bool value = condition;
   static_assert(value, "Assertion failed <see below for more information>");
 };
 
@@ -1305,7 +1305,7 @@ public:
       }
       item.reset(loaded.release());
     } else if constexpr (std::is_pointer_v<type>) {
-      static_assert(assert_pointer_if<type, base_type::has_memory_resource>::value, ": memory resource is required");
+      static_assert(base_type::has_memory_resource, "memory resource is required");
       using element_type = std::remove_cvref_t<decltype(*item)>;
       void *buffer = this->mem_resource.allocate(sizeof(element_type), alignof(element_type));
       if (buffer == nullptr) [[unlikely]] {
@@ -1455,7 +1455,7 @@ public:
         }
       }
     } else {
-      static_assert(base_type::has_memory_resource, "memory resource is required");
+      static_assert(assert_type< decltype(growable),base_type::has_memory_resource>::value, "memory resource is required");
     }
     return {};
   }
