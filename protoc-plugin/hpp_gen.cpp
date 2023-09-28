@@ -399,15 +399,6 @@ struct hpp_addons {
     std::string cpp_name;
 
     explicit oneof_descriptor(const gpb::OneofDescriptorProto &proto) : cpp_name(resolve_keyword(proto.name)) {}
-
-    void normalize_cpp_name() {
-      if (fields.size() == 1) {
-        std::string_view field_name = cpp_name;
-        if (field_name[0] == '_' && field_name.substr(1) == fields[0]->cpp_name) {
-          cpp_name = cpp_name.substr(1);
-        }
-      }
-    }
   };
 
   template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
@@ -1011,6 +1002,8 @@ struct hpp_meta_generateor : code_generator {
         }
         if ((packed.has_value() && !packed.value()) || (syntax == 2 && !packed.has_value())) {
           rule = "unpacked_repeated";
+        } else {
+          rule = "packed_repeated";
         }
       } else {
         rule = "unpacked_repeated";

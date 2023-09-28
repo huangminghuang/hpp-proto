@@ -46,7 +46,7 @@ using tl::expected;
 using tl::unexpected;
 #endif
 
-enum class encoding_rule { defaulted = 0, explicit_presence = 1, unpacked_repeated = 2, group = 3 };
+enum class encoding_rule { defaulted = 0, explicit_presence = 1, unpacked_repeated = 2, group = 3, packed_repeated = 4 };
 
 template <uint32_t Number, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
           auto DefaultValue = std::monostate{}>
@@ -268,8 +268,6 @@ constexpr bool has_field_num(Meta meta, uint32_t num) {
   } else if constexpr (concepts::is_oneof_field_meta<Meta>) {
     return std::apply([num](auto... elem) { return (has_field_num(elem, num) || ...); },
                       typename Meta::alternatives_meta{});
-  } else if constexpr (requires { std::tuple_size_v<Meta>; }) {
-    return std::apply([num](auto... elem) { return (has_field_num(elem, num) || ...); }, meta);
   } else {
     return false;
   }
@@ -335,10 +333,6 @@ struct map_entry_read_only_type {
                              field_meta_ext<2, value_accessor{}, encoding_rule::explicit_presence>>;
 };
 
-// template <typename KeyType, typename MappedType>
-// auto pb_meta(map_entry_read_only_type<KeyType, MappedType>) -> std::tuple<
-//     field_meta_ext<1, &map_entry_read_only_type<KeyType, MappedType>::key, encoding_rule::explicit_presence>,
-//     field_meta_ext<2, &map_entry_read_only_type<KeyType, MappedType>::value, encoding_rule::explicit_presence>>;
 
 template <typename KeyType, typename MappedType>
 struct map_entry {
@@ -487,13 +481,6 @@ struct reverse_indices<Type> {
     return std::array{I};
   }
 
-  template <std::size_t I, typename... T>
-  constexpr static auto index(std::tuple<T...>) {
-    std::array<std::size_t, sizeof...(T)> result;
-    std::fill(result.begin(), result.end(), I);
-    return result;
-  }
-
   template <std::size_t I, concepts::is_oneof_field_meta Meta>
   constexpr static auto index(Meta) {
     std::array<std::size_t, std::tuple_size_v<typename Meta::alternatives_meta>> result;
@@ -532,11 +519,6 @@ struct reverse_indices<Type> {
 template <typename Meta, typename Type>
 struct get_serialize_type;
 
-template <::zpp::bits::concepts::tuple Meta, typename Type>
-struct get_serialize_type<Meta, Type> {
-  using type = Type;
-};
-
 template <concepts::is_oneof_field_meta Meta, typename Type>
 struct get_serialize_type<Meta, Type> {
   using type = Type;
@@ -551,12 +533,6 @@ struct get_serialize_type<Meta, Type> {
 template <typename Type>
 inline constexpr auto number_of_members = std::tuple_size_v<typename meta_of<Type>::type>;
 } // namespace traits
-
-template <typename T>
-concept is_field_meta_ext = requires { T::access; };
-
-template <typename T>
-concept has_field_meta_ext = is_field_meta_ext<typename std::tuple_element<0, typename traits::meta_of<T>::type>::type>;
 
 namespace concepts {
 template <typename Type>

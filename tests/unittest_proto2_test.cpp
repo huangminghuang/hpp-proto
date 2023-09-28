@@ -4,7 +4,7 @@
 namespace ut = boost::ut;
 
 static_assert(
-    ensure_all_fields_encoding_rule<protobuf_unittest::TestPackedTypes, hpp::proto::encoding_rule::defaulted>());
+    ensure_all_fields_encoding_rule<protobuf_unittest::TestPackedTypes, hpp::proto::encoding_rule::packed_repeated>());
 
 static_assert(ensure_all_fields_encoding_rule<protobuf_unittest::TestUnpackedTypes,
                                               hpp::proto::encoding_rule::unpacked_repeated>());

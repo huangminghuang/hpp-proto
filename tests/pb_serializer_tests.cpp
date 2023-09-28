@@ -124,7 +124,7 @@ struct repeated_integers {
 };
 
 auto pb_meta(const repeated_integers &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &repeated_integers::integers, encoding_rule::defaulted, zpp::bits::vsint32_t>>;
+    hpp::proto::field_meta_ext<1, &repeated_integers::integers, encoding_rule::packed_repeated, zpp::bits::vsint32_t>>;
 
 struct repeated_integers_unpacked {
   std::vector<zpp::bits::vsint32_t> integers;
@@ -152,18 +152,18 @@ const ut::suite test_repeated_integers = [] {
   };
 
   "repeated_integers_unpacked"_test = [] {
-    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
-           repeated_integers_unpacked{{1, 2, 3, 4, -1, -2, -3, -4}});
+    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
+           repeated_integers_unpacked{{1, 2, 3, 4, 0, -1, -2, -3, -4}});
   };
 
   "repeated_integers_unpacked_decode"_test = [] {
-    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
-           repeated_integers{{1, 2, 3, 4, -1, -2, -3, -4}}, decode_only);
+    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
+           repeated_integers{{1, 2, 3, 4, 0, -1, -2, -3, -4}}, decode_only);
   };
 
   "repeated_integers_unpacked_explicit_type"_test = [] {
-    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
-           repeated_integers_unpacked_explicit_type{{1, 2, 3, 4, -1, -2, -3, -4}});
+    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
+           repeated_integers_unpacked_explicit_type{{1, 2, 3, 4, 0, -1, -2, -3, -4}});
   };
 };
 
@@ -173,7 +173,7 @@ struct non_owning_repeated_integers {
 };
 
 auto pb_meta(const non_owning_repeated_integers &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_integers::integers, encoding_rule::defaulted,
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_integers::integers, encoding_rule::packed_repeated,
                                              zpp::bits::vsint32_t>>;
 
 struct non_owning_repeated_integers_unpacked {
@@ -222,20 +222,20 @@ const ut::suite test_non_owning_repeated_integers = [] {
   };
 
   "non_owning_repeated_integers_unpacked"_test = [] {
-    std::array<zpp::bits::vsint32_t, 8> x{1, 2, 3, 4, -1, -2, -3, -4};
-    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
+    std::array<zpp::bits::vsint32_t, 9> x{1, 2, 3, 4, 0, -1, -2, -3, -4};
+    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
                       non_owning_repeated_integers_unpacked{x}, 64);
   };
 
   "non_owning_repeated_integers_unpacked_decode"_test = [] {
-    std::array x{1, 2, 3, 4, -1, -2, -3, -4};
-    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
+    std::array x{1, 2, 3, 4, 0, -1, -2, -3, -4};
+    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
                       non_owning_repeated_integers{x}, 64, decode_only);
   };
 
   "non_owning_repeated_integers_unpacked_explicit_type"_test = [] {
-    std::array x{1, 2, 3, 4, -1, -2, -3, -4};
-    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
+    std::array x{1, 2, 3, 4, 0, -1, -2, -3, -4};
+    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_array,
                       non_owning_repeated_integers_unpacked_explicit_type{x}, 64);
   };
 };
@@ -262,7 +262,7 @@ struct repeated_fixed {
 };
 
 auto pb_meta(const repeated_fixed &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_fixed::integers, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_fixed::integers, encoding_rule::packed_repeated>>;
 
 struct repeated_fixed_explicit_type {
   std::vector<uint64_t> integers;
@@ -270,7 +270,7 @@ struct repeated_fixed_explicit_type {
 };
 
 auto pb_meta(const repeated_fixed_explicit_type &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &repeated_fixed_explicit_type::integers, encoding_rule::defaulted, uint64_t>>;
+    hpp::proto::field_meta_ext<1, &repeated_fixed_explicit_type::integers, encoding_rule::packed_repeated, uint64_t>>;
 struct repeated_fixed_unpacked {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed_unpacked &) const = default;
@@ -342,7 +342,7 @@ struct non_owning_repeated_fixed_explicit_type {
 
 auto pb_meta(const non_owning_repeated_fixed_explicit_type &)
     -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_fixed_explicit_type::integers,
-                                             encoding_rule::defaulted, uint64_t>>;
+                                             encoding_rule::packed_repeated, uint64_t>>;
 struct non_owning_repeated_fixed_unpacked {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_unpacked &other) const {
@@ -414,7 +414,7 @@ struct repeated_bool {
 };
 
 auto pb_meta(const repeated_bool &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_bool::booleans, encoding_rule::defaulted, bool>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_bool::booleans, encoding_rule::packed_repeated, bool>>;
 
 struct repeated_bool_unpacked {
   std::vector<hpp::proto::boolean> booleans;
@@ -438,7 +438,7 @@ struct non_owning_repeated_bool {
 };
 
 auto pb_meta(const non_owning_repeated_bool &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_bool::booleans, encoding_rule::defaulted, bool>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_bool::booleans, encoding_rule::packed_repeated, bool>>;
 
 struct non_owning_repeated_bool_unpacked {
   std::span<const bool> booleans;
@@ -470,7 +470,7 @@ struct repeated_enum {
 };
 
 auto pb_meta(const repeated_enum &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_enum::values, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_enum::values, encoding_rule::packed_repeated>>;
 
 struct repeated_enum_unpacked {
   enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
@@ -502,7 +502,7 @@ struct non_owning_repeated_enum {
 };
 
 auto pb_meta(const non_owning_repeated_enum &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_enum::values, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_enum::values, encoding_rule::packed_repeated>>;
 
 struct non_owning_repeated_enum_unpacked {
   enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
@@ -590,16 +590,13 @@ const ut::suite test_repeated_group = [] {
 
 enum class color_t { red, blue, green };
 
-using ro_type = typename hpp::proto::map_entry_read_only_type<zpp::bits::vint64_t, color_t>;
-// static_assert(hpp::proto::has_field_meta_ext<ro_type>);
-
 struct map_example {
   std::map<int32_t, color_t> dict;
   bool operator==(const map_example &) const = default;
 };
 
 auto pb_meta(const map_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &map_example::dict, encoding_rule::defaulted,
+    -> std::tuple<hpp::proto::field_meta_ext<1, &map_example::dict, encoding_rule::unpacked_repeated,
                                              hpp::proto::map_entry<zpp::bits::vint64_t, color_t>>>;
 
 struct flat_map_example {
@@ -608,7 +605,7 @@ struct flat_map_example {
 };
 
 auto pb_meta(const flat_map_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &flat_map_example::dict, encoding_rule::defaulted,
+    -> std::tuple<hpp::proto::field_meta_ext<1, &flat_map_example::dict, encoding_rule::unpacked_repeated,
                                              hpp::proto::map_entry<zpp::bits::vint64_t, color_t>>>;
 
 struct sequential_map_example {
@@ -617,7 +614,7 @@ struct sequential_map_example {
 };
 
 auto pb_meta(const sequential_map_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &sequential_map_example::dict, encoding_rule::defaulted,
+    -> std::tuple<hpp::proto::field_meta_ext<1, &sequential_map_example::dict, encoding_rule::unpacked_repeated,
                                              hpp::proto::map_entry<zpp::bits::vint64_t, color_t>>>;
 
 struct non_owning_map_example {
@@ -626,7 +623,7 @@ struct non_owning_map_example {
 };
 
 auto pb_meta(const non_owning_map_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_map_example::dict, encoding_rule::defaulted,
+    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_map_example::dict, encoding_rule::unpacked_repeated,
                                              hpp::proto::map_entry<zpp::bits::vint64_t, color_t>>>;
 
 const ut::suite test_map_example = [] {
@@ -954,7 +951,7 @@ struct repeated_strings {
 };
 
 auto pb_meta(const repeated_strings &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_strings::values, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_strings::values, encoding_rule::unpacked_repeated>>;
 
 struct repeated_strings_explicit_type {
   std::vector<std::string> values;
@@ -962,16 +959,8 @@ struct repeated_strings_explicit_type {
 };
 
 auto pb_meta(const repeated_strings_explicit_type &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &repeated_strings_explicit_type::values, encoding_rule::defaulted, std::string>>;
+    hpp::proto::field_meta_ext<1, &repeated_strings_explicit_type::values, encoding_rule::unpacked_repeated, std::string>>;
 
-struct repeated_strings_explicit_presence {
-  std::vector<std::string> values;
-  bool operator==(const repeated_strings_explicit_presence &) const = default;
-};
-
-auto pb_meta(const repeated_strings_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_strings_explicit_presence::values,
-                                             encoding_rule::explicit_presence, std::string>>;
 
 struct non_owning_repeated_string {
   std::span<std::string_view> values;
@@ -990,10 +979,6 @@ const ut::suite test_repeated_strings = [] {
   "repeated_strings_explicit_type"_test = [] {
     verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_array,
            repeated_strings_explicit_type{.values = {"abc"s, "def"s}});
-  };
-  "repeated_strings_explicit_presence"_test = [] {
-    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_array,
-           repeated_strings_explicit_presence{.values = {"abc"s, "def"s}});
   };
 
   "non_owning_repeated_string"_test = [] {

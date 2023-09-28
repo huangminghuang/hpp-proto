@@ -330,8 +330,8 @@ auto serialize(const SourceCodeInfo&) -> zpp::bits::members<1>;
 constexpr auto pb_message_name(const SourceCodeInfo&) { return "google.protobuf.SourceCodeInfo"_cts; }
 
 auto pb_meta(const SourceCodeInfo::Location &) -> std::tuple<
-  hpp::proto::field_meta_ext<1, &SourceCodeInfo::Location::path, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
-  hpp::proto::field_meta_ext<2, &SourceCodeInfo::Location::span, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta_ext<1, &SourceCodeInfo::Location::path, hpp::proto::encoding_rule::packed_repeated, zpp::bits::vint64_t>,
+  hpp::proto::field_meta_ext<2, &SourceCodeInfo::Location::span, hpp::proto::encoding_rule::packed_repeated, zpp::bits::vint64_t>,
   hpp::proto::field_meta_ext<3, &SourceCodeInfo::Location::leading_comments, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta_ext<4, &SourceCodeInfo::Location::trailing_comments, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta_ext<6, &SourceCodeInfo::Location::leading_detached_comments, hpp::proto::encoding_rule::unpacked_repeated>>;
@@ -348,7 +348,7 @@ auto serialize(const GeneratedCodeInfo&) -> zpp::bits::members<1>;
 constexpr auto pb_message_name(const GeneratedCodeInfo&) { return "google.protobuf.GeneratedCodeInfo"_cts; }
 
 auto pb_meta(const GeneratedCodeInfo::Annotation &) -> std::tuple<
-  hpp::proto::field_meta_ext<1, &GeneratedCodeInfo::Annotation::path, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta_ext<1, &GeneratedCodeInfo::Annotation::path, hpp::proto::encoding_rule::packed_repeated, zpp::bits::vint64_t>,
   hpp::proto::field_meta_ext<2, &GeneratedCodeInfo::Annotation::source_file, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta_ext<3, &GeneratedCodeInfo::Annotation::begin, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
   hpp::proto::field_meta_ext<4, &GeneratedCodeInfo::Annotation::end, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
