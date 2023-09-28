@@ -46,7 +46,13 @@ using tl::expected;
 using tl::unexpected;
 #endif
 
-enum class encoding_rule { defaulted = 0, explicit_presence = 1, unpacked_repeated = 2, group = 3, packed_repeated = 4 };
+enum class encoding_rule {
+  defaulted = 0,
+  explicit_presence = 1,
+  unpacked_repeated = 2,
+  group = 3,
+  packed_repeated = 4
+};
 
 template <uint32_t Number, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
           auto DefaultValue = std::monostate{}>
@@ -332,7 +338,6 @@ struct map_entry_read_only_type {
   using pb_meta = std::tuple<field_meta_ext<1, key_accessor{}, encoding_rule::explicit_presence>,
                              field_meta_ext<2, value_accessor{}, encoding_rule::explicit_presence>>;
 };
-
 
 template <typename KeyType, typename MappedType>
 struct map_entry {
@@ -1289,7 +1294,11 @@ public:
       }
       item.reset(loaded.release());
     } else if constexpr (std::is_pointer_v<type>) {
+#if _MSC_VER
+      static_assert(base_type::has_memory_resource, __FUNCTION__ ": memory resource is required");
+#else
       static_assert(base_type::has_memory_resource, "memory resource is required");
+#endif
       using element_type = std::remove_cvref_t<decltype(*item)>;
       void *buffer = this->mem_resource.allocate(sizeof(element_type), alignof(element_type));
       if (buffer == nullptr) [[unlikely]] {
@@ -1309,7 +1318,11 @@ public:
       if (auto result = deserialize_field(meta, field_type, field_num, value); failure(result)) [[unlikely]] {
         return result;
       }
-      item = std::move(value);
+      if constexpr (std::is_arithmetic_v<type>) {
+        item = static_cast<type>(value);
+      } else {
+        item = std::move(value);
+      }
     } else if constexpr (concepts::numeric_or_byte<type>) {
       return this->m_archive(item);
     } else if constexpr (!::zpp::bits::concepts::container<type>) {
