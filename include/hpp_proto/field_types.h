@@ -187,7 +187,7 @@ public:
 
   template <class U>
   constexpr T value_or(U &&default_value) const & {
-    return impl.value_or(default_value);
+    return impl.value_or(static_cast<T>(default_value));
   }
   template <class U>
   constexpr T value_or(U &&default_value) && {
@@ -404,20 +404,23 @@ struct cts_wrapper {
   constexpr size_t size() const { return str.size(); }
   constexpr const char *data() const { return str.data(); }
   constexpr const char *c_str() const { return str.data(); }
+  constexpr const char *begin() const { return str.data(); }
+  constexpr const char *end() const { return str.data() + size(); }
 
-  operator std::string() const { return std::string{data()}; }
-  operator std::vector<std::byte>() const {
+  explicit operator std::string() const { return std::string{data()}; }
+  explicit operator std::vector<std::byte>() const {
     return std::vector<std::byte>{std::bit_cast<const std::byte *>(data()),
                                   std::bit_cast<const std::byte *>(data()) + size()};
   }
 
-  operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
+  explicit operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
 
-  operator std::string_view() const { return std::string_view(data(), size()); }
+  constexpr operator std::string_view() const { return std::string_view(data(), size()); }
   operator std::span<const std::byte>() const {
-    return std::span<const std::byte>{std::bit_cast<const std::byte *>(data()), size()};
-  }
-  operator std::span<char>() const { return std::span<char>{data(), size()}; }
+        return std::span<const std::byte>{
+            std::bit_cast<const std::byte *>(data()), size()};
+    }
+  constexpr operator std::span<const char>() const { return std::span<char>{data(), size()}; }
 
   friend constexpr bool operator==(const cts_wrapper &lhs, const std::string &rhs) {
     return static_cast<std::string>(lhs) == rhs;
@@ -432,8 +435,8 @@ struct cts_wrapper {
   }
 
   friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const std::byte> &rhs) {
-    const std::byte *b = std::bit_cast<const std::byte *>(lhs.data());
-    return std::equal(rhs.begin(), rhs.end(), b, b + lhs.size());
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
+                      [](char a, std::byte b) { return static_cast<std::byte>(a) == b; });
   }
 
   friend constexpr bool operator==(const cts_wrapper &lhs, const std::vector<char> &rhs) {

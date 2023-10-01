@@ -54,19 +54,6 @@ enum class encoding_rule {
   packed_repeated = 4
 };
 
-template <uint32_t Number, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
-          auto DefaultValue = std::monostate{}>
-struct field_meta {
-  constexpr static uint32_t number = Number;
-  constexpr static encoding_rule encoding = Encoding;
-  using type = Type;
-
-  template <typename T>
-  static constexpr bool omit_value(const T &v) {
-    return (Encoding == encoding_rule::defaulted && is_default_value<T, DefaultValue>(v));
-  }
-};
-
 template <auto Accessor>
 struct accesor_type {
   inline constexpr auto &operator()(auto &&item) const {
@@ -79,7 +66,7 @@ struct accesor_type {
 
 template <uint32_t Number, auto Accessor, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
           auto DefaultValue = std::monostate{}>
-struct field_meta_ext {
+struct field_meta {
   constexpr static uint32_t number = Number;
   constexpr static encoding_rule encoding = Encoding;
   constexpr static auto access = accesor_type<Accessor>{};
@@ -97,6 +84,19 @@ struct oneof_field_meta {
   using alternatives_meta = std::tuple<AlternativeMeta...>;
 };
 
+template <uint32_t Number, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
+          auto DefaultValue = std::monostate{}>
+struct oneof_alternative_meta {
+  constexpr static uint32_t number = Number;
+  constexpr static encoding_rule encoding = Encoding;
+  using type = Type;
+
+  template <typename T>
+  static constexpr bool omit_value(const T &v) {
+    return (Encoding == encoding_rule::defaulted && is_default_value<T, DefaultValue>(v));
+  }
+};
+
 using ::zpp::bits::errc;
 using ::zpp::bits::failure;
 
@@ -112,7 +112,7 @@ template <typename Type>
 concept has_meta = has_local_meta<Type> || has_explicit_meta<Type>;
 
 template <typename T>
-concept numeric = std::is_fundamental_v<T> || ::zpp::bits::concepts::varint<T> || std::is_enum_v<T> ||
+concept numeric = std::is_arithmetic_v<T> || ::zpp::bits::concepts::varint<T> || std::is_enum_v<T> ||
                   std::same_as<hpp::proto::boolean, T>;
 
 template <typename T>
@@ -158,6 +158,16 @@ concept span = requires {
 
 template <typename T>
 concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
+
+template <typename T>
+concept contiguous_range = requires(const T &t) {
+  { t.data() } -> std::same_as<typename T::const_pointer>;
+  t.size();
+};
+
+template <typename T>
+concept byte_serializable =
+    std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
 
 } // namespace concepts
 
@@ -215,8 +225,10 @@ struct extension_meta : extension_meta_base<extension_meta<Extendee, Number, Enc
 
 template <typename Extendee, uint32_t Number, encoding_rule Encoding, typename Type, typename ValueType>
 struct repeated_extension_meta
-    : field_meta<Number, Encoding, Type>,
-      extension_meta_base<repeated_extension_meta<Extendee, Number, Encoding, Type, ValueType>> {
+    : extension_meta_base<repeated_extension_meta<Extendee, Number, Encoding, Type, ValueType>> {
+  constexpr static uint32_t number = Number;
+  constexpr static encoding_rule encoding = Encoding;
+  using type = Type;
   constexpr static bool has_default_value = false;
   static constexpr bool is_repeated = true;
   using extendee = Extendee;
@@ -224,6 +236,11 @@ struct repeated_extension_meta
   using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
   using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
   using set_value_type = std::span<const element_type>;
+
+  template <typename T>
+  static constexpr bool omit_value(const T & /* unused */) {
+    return false;
+  }
 };
 
 enum class wire_type : unsigned int {
@@ -261,7 +278,7 @@ constexpr auto make_tag(uint32_t number, wire_type type) {
 template <typename Type, typename Meta>
 constexpr auto make_tag(Meta meta) {
   // check if Meta::number is static or not
-  if constexpr ( requires { *&Meta::number; }) {
+  if constexpr (requires { *&Meta::number; }) {
     return make_tag(Meta::number, tag_type<Type>());
   } else {
     return make_tag(meta.number, tag_type<Type>());
@@ -322,29 +339,6 @@ struct serialize_type<bool> {
 };
 
 template <typename KeyType, typename MappedType>
-struct map_entry_read_only_type {
-  typename serialize_type<KeyType>::read_type key;
-  typename serialize_type<MappedType>::read_type value;
-  using serialize = ::zpp::bits::members<2>;
-  constexpr static bool allow_inline_visit_members_lambda = true;
-
-  ZPP_BITS_INLINE constexpr map_entry_read_only_type(auto &&k, auto &&v)
-      : key((typename serialize_type<KeyType>::convertible_type)k),
-        value((typename serialize_type<MappedType>::convertible_type)v) {}
-
-  struct key_accessor {
-    constexpr const auto &operator()(const map_entry_read_only_type &entry) const { return entry.key; }
-  };
-
-  struct value_accessor {
-    constexpr const auto &operator()(const map_entry_read_only_type &entry) const { return entry.value; }
-  };
-
-  using pb_meta = std::tuple<field_meta_ext<1, key_accessor{}, encoding_rule::explicit_presence>,
-                             field_meta_ext<2, value_accessor{}, encoding_rule::explicit_presence>>;
-};
-
-template <typename KeyType, typename MappedType>
 struct map_entry {
   using key_type = KeyType;
   using mapped_type = MappedType;
@@ -353,8 +347,8 @@ struct map_entry {
     typename serialize_type<KeyType>::type key;
     typename serialize_type<MappedType>::type value;
     constexpr static bool allow_inline_visit_members_lambda = true;
-    using pb_meta = std::tuple<field_meta_ext<1, &mutable_type::key, encoding_rule::explicit_presence>,
-                               field_meta_ext<2, &mutable_type::value, encoding_rule::explicit_presence>>;
+    using pb_meta = std::tuple<field_meta<1, &mutable_type::key, encoding_rule::explicit_presence>,
+                               field_meta<2, &mutable_type::value, encoding_rule::explicit_presence>>;
 
     template <typename Target, typename Source>
     ZPP_BITS_INLINE constexpr static auto move_or_copy(Source &&src) {
@@ -381,7 +375,27 @@ struct map_entry {
     }
   };
 
-  using read_only_type = map_entry_read_only_type<KeyType, MappedType>;
+  struct read_only_type {
+    typename serialize_type<KeyType>::read_type key;
+    typename serialize_type<MappedType>::read_type value;
+    using serialize = ::zpp::bits::members<2>;
+    constexpr static bool allow_inline_visit_members_lambda = true;
+
+    ZPP_BITS_INLINE constexpr read_only_type(auto &&k, auto &&v)
+        : key((typename serialize_type<KeyType>::convertible_type)k),
+          value((typename serialize_type<MappedType>::convertible_type)v) {}
+
+    struct key_accessor {
+      constexpr const auto &operator()(const read_only_type &entry) const { return entry.key; }
+    };
+
+    struct value_accessor {
+      constexpr const auto &operator()(const read_only_type &entry) const { return entry.value; }
+    };
+
+    using pb_meta = std::tuple<field_meta<1, key_accessor{}, encoding_rule::explicit_presence>,
+                               field_meta<2, value_accessor{}, encoding_rule::explicit_presence>>;
+  };
 };
 
 namespace traits {
@@ -398,13 +412,8 @@ struct meta_of<Type> {
   using type = decltype(pb_meta(std::declval<Type>()));
 };
 
-template <typename Type, std::size_t Index>
-struct field_meta_of {
-  using type = field_meta<Index + 1>;
-};
-
 template <concepts::has_meta Type, std::size_t Index>
-struct field_meta_of<Type, Index> {
+struct field_meta_of {
   using type = typename std::tuple_element<Index, typename meta_of<Type>::type>::type;
 };
 
@@ -572,18 +581,6 @@ inline constexpr std::errc execute_successively(F &&...f) {
   return result;
 }
 
-template <std::size_t FirstIndex, std::size_t... Indices>
-ZPP_BITS_INLINE constexpr errc visit_many(auto &&visitor, std::index_sequence<FirstIndex, Indices...>,
-                                          auto &&first_item, auto &&...items) {
-  return execute_successively(
-      [&]() constexpr { return visitor.template visit<FirstIndex>(std::forward<decltype(first_item)>(first_item)); },
-      [&]() constexpr {
-        return visit_many(visitor, std::index_sequence<Indices...>{}, std::forward<decltype(items)>(items)...);
-      });
-}
-
-ZPP_BITS_INLINE constexpr errc visit_many(auto &&, std::index_sequence<>) { return {}; }
-
 template <::zpp::bits::concepts::byte_view ByteView, typename... Options>
 constexpr auto make_out_archive(ByteView &&view, Options &&...) {
   constexpr auto enlarger = ::zpp::bits::traits::enlarger<Options...>();
@@ -648,6 +645,63 @@ ZPP_BITS_INLINE constexpr errc serialize_sized(auto &archive, auto &&serialize_u
       ::zpp::bits::out<std::span<typename archive_type::byte_type, sizeof(SizeType)>>{message_length_span};
   return message_length_out(SizeType(message_size));
 }
+
+template <typename Byte = std::byte>
+struct unchecked_out {
+  using byte_type = Byte;
+  constexpr static bool endian_swapped = std::endian::little != std::endian::native;
+  std::span<byte_type> m_data;
+
+  void operator()(auto &&item) {
+    using type = std::remove_cvref<decltype(item)>;
+    if constexpr (concepts::byte_serializable<type>) {
+      if (std::is_constant_evaluated()) {
+        auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
+        for (std::size_t i = 0; i < sizeof(value); ++i) {
+          if constexpr (endian_swapped) {
+            m_data[i] = value[sizeof(value) - 1 - i];
+          } else {
+            m_data[i] = value[i];
+          }
+        }
+      } else {
+        if constexpr (endian_swapped && sizeof(type) != 1) {
+          std::reverse_copy(reinterpret_cast<const byte_type *>(&item),
+                            reinterpret_cast<const byte_type *>(&item) + sizeof(item), m_data.begin());
+        } else {
+          std::memcpy(m_data.data(), &item, sizeof(item));
+        }
+      }
+      m_data = m_data.subspan(sizeof(item));
+    } else if constexpr (zpp::bits::concepts::varint<type>) {
+      auto orig_value = item.value;
+      auto value = std::make_unsigned_t<typename type::value_type>(orig_value);
+      if constexpr (zpp::bits::varint_encoding::zig_zag == type::encoding) {
+        value = (value << 1) ^ (orig_value >> (sizeof(value) * CHAR_BIT - 1));
+      }
+
+      std::size_t position = 0;
+      while (value >= 0x80) {
+        m_data[position++] = byte_type((value & 0x7f) | 0x80);
+        value >>= (CHAR_BIT - 1);
+      }
+      m_data[position++] = byte_type(value);
+      m_data = m_data.subspan(position);
+    } else if constexpr (concepts::contiguous_range<type> && concepts::byte_serializable<typename type::value_type>) {
+      if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(typename type::value_type) == 1)) {
+        auto bytes_to_copy = item.size() * sizeof(typename type::value_type);
+        std::memcpy(m_data.data(), item.data(), bytes_to_copy);
+        m_data = m_data.subspan(bytes_to_copy);
+      } else {
+        for (auto x : item) {
+          this->operator()(x);
+        }
+      }
+    } else {
+      static_assert(!sizeof(type));
+    }
+  }
+};
 
 template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, typename... Options>
 struct out {
@@ -789,11 +843,7 @@ struct out {
                                typename Meta::type>;
 
         if constexpr (Meta::encoding == encoding_rule::group) {
-          return iterative_apply(
-              [&](auto &&element) constexpr {
-                return serialize_field(field_meta<meta.number, encoding_rule::group>{}, element);
-              },
-              item);
+          return iterative_apply([&](auto &&element) constexpr { return serialize_field(meta, element); }, item);
         } else if constexpr ((Meta::encoding == encoding_rule::unpacked_repeated ||
                               !concepts::numeric_or_byte<element_type>)&&!concepts::string_or_bytes<type>) {
           constexpr auto tag = make_tag<type>(meta);
@@ -1305,7 +1355,7 @@ public:
       }
       item.reset(loaded.release());
     } else if constexpr (std::is_pointer_v<type>) {
-      static_assert(base_type::has_memory_resource, "memory resource is required");
+      static_assert(assert_type<type, base_type::has_memory_resource>::value, "memory resource is required");
       using element_type = std::remove_cvref_t<decltype(*item)>;
       void *buffer = this->mem_resource.allocate(sizeof(element_type), alignof(element_type));
       if (buffer == nullptr) [[unlikely]] {
@@ -1455,7 +1505,8 @@ public:
         }
       }
     } else {
-      static_assert(assert_type< decltype(growable),base_type::has_memory_resource>::value, "memory resource is required");
+      static_assert(assert_type<decltype(growable), base_type::has_memory_resource>::value,
+                    "memory resource is required");
     }
     return {};
   }

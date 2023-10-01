@@ -685,7 +685,11 @@ struct msg_code_generator : code_generator {
     if (field_type_wrapper(descriptor).size() > 1) {
       initializer = "";
     } else if (!descriptor.default_value.empty()) {
-      initializer = " = " + descriptor.default_value;
+      if (descriptor.default_value.ends_with("_cts")) {
+        initializer = fmt::format("{{ {0} }} ", descriptor.default_value);
+      } else {
+        initializer = " = " + descriptor.default_value;
+      }
     }
     fmt::format_to(target, "{}{}{} {}{};\n", indent(), attribute, field_type(descriptor), descriptor.cpp_name,
                    initializer);
@@ -957,7 +961,7 @@ struct hpp_meta_generateor : code_generator {
     }
 
     if (!descriptor.proto.extension_range.empty()) {
-      fmt::format_to(target, "{}hpp::proto::field_meta_ext<UINT32_MAX, &{}::extensions>", indent(), qualified_cpp_name);
+      fmt::format_to(target, "{}hpp::proto::field_meta<UINT32_MAX, &{}::extensions>", indent(), qualified_cpp_name);
     } else if (!descriptor.fields.empty()) {
       auto &content = file.content;
       content.resize(content.size() - 2);
@@ -1042,10 +1046,10 @@ struct hpp_meta_generateor : code_generator {
 
     if (proto.extendee.empty()) {
       if (is_oneof ) {
-        fmt::format_to(target, "{}hpp::proto::field_meta<{}, hpp::proto::encoding_rule::{}{}>,\n", indent(),
+        fmt::format_to(target, "{}hpp::proto::oneof_alternative_meta<{}, hpp::proto::encoding_rule::{}{}>,\n", indent(),
                        proto.number, rule, type_and_default_value);
       } else {
-        fmt::format_to(target, "{}hpp::proto::field_meta_ext<{}, &{}, hpp::proto::encoding_rule::{}{}>,\n", indent(),
+        fmt::format_to(target, "{}hpp::proto::field_meta<{}, &{}, hpp::proto::encoding_rule::{}{}>,\n", indent(),
                        proto.number, cpp_name, rule, type_and_default_value);
       }
     } else {

@@ -17,12 +17,12 @@ struct example {
   constexpr bool operator==(const example &) const = default;
 };
 auto pb_meta(const example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &example::i, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+    -> std::tuple<hpp::proto::field_meta<1, &example::i, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
 struct nested_example {
   example nested; // field number == 1
 };
-auto pb_meta(const nested_example &) -> std::tuple<hpp::proto::field_meta_ext<1, &nested_example::nested>>;
+auto pb_meta(const nested_example &) -> std::tuple<hpp::proto::field_meta<1, &nested_example::nested>>;
 
 using namespace zpp::bits::literals;
 
@@ -33,7 +33,7 @@ struct example_explicit_presence {
 };
 
 auto pb_meta(const example_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &example_explicit_presence::i, encoding_rule::explicit_presence,
+    -> std::tuple<hpp::proto::field_meta<1, &example_explicit_presence::i, encoding_rule::explicit_presence,
                                              zpp::bits::vint64_t>>;
 auto has_pb_field_ext(example_explicit_presence) -> std::true_type;
 
@@ -46,7 +46,7 @@ struct example_default_type {
 auto serialize(const example_default_type &) -> zpp::bits::members<1>;
 
 auto pb_meta(const example_default_type &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &example_default_type::i, encoding_rule::defaulted, zpp::bits::vint64_t, 1>>;
+    hpp::proto::field_meta<1, &example_default_type::i, encoding_rule::defaulted, zpp::bits::vint64_t, 1>>;
 
 
 const ut::suite test_example_default_type = [] {
@@ -66,7 +66,7 @@ struct example_optioanl_type {
 auto serialize(const example_optioanl_type &) -> zpp::bits::members<1>;
 
 auto pb_meta(const example_optioanl_type &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &example_optioanl_type::i, encoding_rule::explicit_presence, zpp::bits::vint64_t>>;
+    hpp::proto::field_meta<1, &example_optioanl_type::i, encoding_rule::explicit_presence, zpp::bits::vint64_t>>;
 
 // static_assert(hpp::proto::to_bytes<example_optioanl_type{}>().size() == 0);
 
@@ -75,7 +75,7 @@ struct nested_explicit_id_example {
 };
 
 auto pb_meta(const nested_explicit_id_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<3, &nested_explicit_id_example::nested>>;
+    -> std::tuple<hpp::proto::field_meta<3, &nested_explicit_id_example::nested>>;
 
 #ifndef _MSC_VER
 static_assert(hpp::proto::to_bytes<example{150}>() == "\x08\x96\x01"_bytes_array);
@@ -122,7 +122,7 @@ struct repeated_integers {
 };
 
 auto pb_meta(const repeated_integers &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &repeated_integers::integers, encoding_rule::packed_repeated, zpp::bits::vsint32_t>>;
+    hpp::proto::field_meta<1, &repeated_integers::integers, encoding_rule::packed_repeated, zpp::bits::vsint32_t>>;
 
 struct repeated_integers_unpacked {
   std::vector<zpp::bits::vsint32_t> integers;
@@ -130,7 +130,7 @@ struct repeated_integers_unpacked {
 };
 
 auto pb_meta(const repeated_integers_unpacked &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &repeated_integers_unpacked::integers, encoding_rule::unpacked_repeated>>;
+    hpp::proto::field_meta<1, &repeated_integers_unpacked::integers, encoding_rule::unpacked_repeated>>;
 
 struct repeated_integers_unpacked_explicit_type {
   std::vector<int32_t> integers;
@@ -138,7 +138,7 @@ struct repeated_integers_unpacked_explicit_type {
 };
 
 auto pb_meta(const repeated_integers_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_integers_unpacked_explicit_type::integers,
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_integers_unpacked_explicit_type::integers,
                                              encoding_rule::unpacked_repeated, zpp::bits::vsint32_t>>;
 
 using namespace boost::ut::literals;
@@ -171,7 +171,7 @@ struct non_owning_repeated_integers {
 };
 
 auto pb_meta(const non_owning_repeated_integers &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_integers::integers, encoding_rule::packed_repeated,
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_integers::integers, encoding_rule::packed_repeated,
                                              zpp::bits::vsint32_t>>;
 
 struct non_owning_repeated_integers_unpacked {
@@ -182,7 +182,7 @@ struct non_owning_repeated_integers_unpacked {
 };
 
 auto pb_meta(const non_owning_repeated_integers_unpacked &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &non_owning_repeated_integers_unpacked::integers, encoding_rule::unpacked_repeated>>;
+    hpp::proto::field_meta<1, &non_owning_repeated_integers_unpacked::integers, encoding_rule::unpacked_repeated>>;
 
 struct non_owning_repeated_integers_unpacked_explicit_type {
   std::span<const int32_t> integers;
@@ -192,7 +192,7 @@ struct non_owning_repeated_integers_unpacked_explicit_type {
 };
 
 auto pb_meta(const non_owning_repeated_integers_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_integers_unpacked_explicit_type::integers,
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_integers_unpacked_explicit_type::integers,
                                              encoding_rule::unpacked_repeated, zpp::bits::vsint32_t>>;
 
 template <typename T>
@@ -247,7 +247,7 @@ struct non_owing_nested_example {
 };
 
 auto pb_meta(const non_owing_nested_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owing_nested_example::nested, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owing_nested_example::nested, encoding_rule::defaulted>>;
 
 const ut::suite test_non_owning_nested_example = [] {
   example const ex{.i = 150};
@@ -260,7 +260,7 @@ struct repeated_fixed {
 };
 
 auto pb_meta(const repeated_fixed &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_fixed::integers, encoding_rule::packed_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed::integers, encoding_rule::packed_repeated>>;
 
 struct repeated_fixed_explicit_type {
   std::vector<uint64_t> integers;
@@ -268,14 +268,14 @@ struct repeated_fixed_explicit_type {
 };
 
 auto pb_meta(const repeated_fixed_explicit_type &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &repeated_fixed_explicit_type::integers, encoding_rule::packed_repeated, uint64_t>>;
+    hpp::proto::field_meta<1, &repeated_fixed_explicit_type::integers, encoding_rule::packed_repeated, uint64_t>>;
 struct repeated_fixed_unpacked {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed_unpacked &) const = default;
 };
 
 auto pb_meta(const repeated_fixed_unpacked &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_fixed_unpacked::integers, encoding_rule::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed_unpacked::integers, encoding_rule::unpacked_repeated>>;
 
 struct repeated_fixed_unpacked_explicit_type {
   std::vector<uint64_t> integers;
@@ -283,7 +283,7 @@ struct repeated_fixed_unpacked_explicit_type {
 };
 
 auto pb_meta(const repeated_fixed_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_fixed_unpacked_explicit_type::integers,
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed_unpacked_explicit_type::integers,
                                              encoding_rule::unpacked_repeated, uint64_t>>;
 
 const ut::suite test_repeated_fixed = [] {
@@ -330,7 +330,7 @@ struct non_owning_repeated_fixed {
 };
 
 auto pb_meta(const non_owning_repeated_fixed &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_fixed::integers, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed::integers, encoding_rule::defaulted>>;
 struct non_owning_repeated_fixed_explicit_type {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_explicit_type &other) const {
@@ -339,7 +339,7 @@ struct non_owning_repeated_fixed_explicit_type {
 };
 
 auto pb_meta(const non_owning_repeated_fixed_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_fixed_explicit_type::integers,
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed_explicit_type::integers,
                                              encoding_rule::packed_repeated, uint64_t>>;
 struct non_owning_repeated_fixed_unpacked {
   std::span<const uint64_t> integers;
@@ -349,7 +349,7 @@ struct non_owning_repeated_fixed_unpacked {
 };
 
 auto pb_meta(const non_owning_repeated_fixed_unpacked &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &non_owning_repeated_fixed_unpacked::integers, encoding_rule::unpacked_repeated>>;
+    hpp::proto::field_meta<1, &non_owning_repeated_fixed_unpacked::integers, encoding_rule::unpacked_repeated>>;
 
 struct non_owning_repeated_fixed_unpacked_explicit_type {
   std::span<const uint64_t> integers;
@@ -359,7 +359,7 @@ struct non_owning_repeated_fixed_unpacked_explicit_type {
 };
 
 auto pb_meta(const non_owning_repeated_fixed_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_fixed_unpacked_explicit_type::integers,
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed_unpacked_explicit_type::integers,
                                              encoding_rule::unpacked_repeated, uint64_t>>;
 
 const ut::suite test_non_owning_repeated_fixed = [] {
@@ -412,7 +412,7 @@ struct repeated_bool {
 };
 
 auto pb_meta(const repeated_bool &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_bool::booleans, encoding_rule::packed_repeated, bool>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_bool::booleans, encoding_rule::packed_repeated, bool>>;
 
 struct repeated_bool_unpacked {
   std::vector<hpp::proto::boolean> booleans;
@@ -420,7 +420,7 @@ struct repeated_bool_unpacked {
 };
 
 auto pb_meta(const repeated_bool_unpacked &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &repeated_bool_unpacked::booleans, encoding_rule::unpacked_repeated, bool>>;
+    hpp::proto::field_meta<1, &repeated_bool_unpacked::booleans, encoding_rule::unpacked_repeated, bool>>;
 
 const ut::suite test_repeated_bool = [] {
   "repeated_bool"_test = [] { verify("\x0a\x03\x01\x00\x01"_bytes_array, repeated_bool{{true, false, true}}); };
@@ -436,7 +436,7 @@ struct non_owning_repeated_bool {
 };
 
 auto pb_meta(const non_owning_repeated_bool &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_bool::booleans, encoding_rule::packed_repeated, bool>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_bool::booleans, encoding_rule::packed_repeated, bool>>;
 
 struct non_owning_repeated_bool_unpacked {
   std::span<const bool> booleans;
@@ -446,7 +446,7 @@ struct non_owning_repeated_bool_unpacked {
 };
 
 auto pb_meta(const non_owning_repeated_bool_unpacked &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_bool_unpacked::booleans,
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_bool_unpacked::booleans,
                                              encoding_rule::unpacked_repeated, bool>>;
 
 const ut::suite test_non_owning_repeated_bool = [] {
@@ -468,7 +468,7 @@ struct repeated_enum {
 };
 
 auto pb_meta(const repeated_enum &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_enum::values, encoding_rule::packed_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_enum::values, encoding_rule::packed_repeated>>;
 
 struct repeated_enum_unpacked {
   enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
@@ -477,7 +477,7 @@ struct repeated_enum_unpacked {
 };
 
 auto pb_meta(const repeated_enum_unpacked &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_enum_unpacked::values, encoding_rule::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_enum_unpacked::values, encoding_rule::unpacked_repeated>>;
 
 const ut::suite test_repeated_enums = [] {
   "repeated_enum"_test = [] {
@@ -500,7 +500,7 @@ struct non_owning_repeated_enum {
 };
 
 auto pb_meta(const non_owning_repeated_enum &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_enum::values, encoding_rule::packed_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_enum::values, encoding_rule::packed_repeated>>;
 
 struct non_owning_repeated_enum_unpacked {
   enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
@@ -509,7 +509,7 @@ struct non_owning_repeated_enum_unpacked {
 };
 
 auto pb_meta(const non_owning_repeated_enum_unpacked &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &non_owning_repeated_enum_unpacked::values, encoding_rule::unpacked_repeated>>;
+    hpp::proto::field_meta<1, &non_owning_repeated_enum_unpacked::values, encoding_rule::unpacked_repeated>>;
 
 const ut::suite test_non_owning_repeated_enums = [] {
   "non_owning_repeated_enum"_test = [] {
@@ -533,7 +533,7 @@ struct repeated_examples {
 };
 
 auto pb_meta(const repeated_examples &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_examples::examples, encoding_rule::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_examples::examples, encoding_rule::unpacked_repeated>>;
 
 struct non_owning_repeated_examples {
   std::span<const example> examples;
@@ -541,7 +541,7 @@ struct non_owning_repeated_examples {
 };
 
 auto pb_meta(const non_owning_repeated_examples &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &non_owning_repeated_examples::examples, encoding_rule::unpacked_repeated>>;
+    hpp::proto::field_meta<1, &non_owning_repeated_examples::examples, encoding_rule::unpacked_repeated>>;
 
 const ut::suite test_repeated_example = [] {
   auto encoded = "\x0a\x02\x08\x01\x0a\x02\x08\x02\x0a\x02\x08\x03\x0a\x02\x08\x04\x0a\x0b\x08\xff\xff\xff\xff\xff\xff"
@@ -567,7 +567,7 @@ struct group {
 };
 
 auto pb_meta(const group &)
-    -> std::tuple<hpp::proto::field_meta_ext<2, &group::a, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+    -> std::tuple<hpp::proto::field_meta<2, &group::a, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
 struct repeated_group {
   std::vector<group> repeatedgroup;
@@ -575,7 +575,7 @@ struct repeated_group {
 };
 
 auto pb_meta(const repeated_group &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_group::repeatedgroup, encoding_rule::group>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_group::repeatedgroup, encoding_rule::group>>;
 
 const ut::suite test_repeated_group = [] {
   auto encoded = "\x0b\x10\x01\x0c\x0b\x10\x02\x0c"_bytes_array;
@@ -594,7 +594,7 @@ struct map_example {
 };
 
 auto pb_meta(const map_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &map_example::dict, encoding_rule::unpacked_repeated,
+    -> std::tuple<hpp::proto::field_meta<1, &map_example::dict, encoding_rule::unpacked_repeated,
                                              hpp::proto::map_entry<zpp::bits::vint64_t, color_t>>>;
 
 struct flat_map_example {
@@ -603,7 +603,7 @@ struct flat_map_example {
 };
 
 auto pb_meta(const flat_map_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &flat_map_example::dict, encoding_rule::unpacked_repeated,
+    -> std::tuple<hpp::proto::field_meta<1, &flat_map_example::dict, encoding_rule::unpacked_repeated,
                                              hpp::proto::map_entry<zpp::bits::vint64_t, color_t>>>;
 
 struct sequential_map_example {
@@ -612,7 +612,7 @@ struct sequential_map_example {
 };
 
 auto pb_meta(const sequential_map_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &sequential_map_example::dict, encoding_rule::unpacked_repeated,
+    -> std::tuple<hpp::proto::field_meta<1, &sequential_map_example::dict, encoding_rule::unpacked_repeated,
                                              hpp::proto::map_entry<zpp::bits::vint64_t, color_t>>>;
 
 struct non_owning_map_example {
@@ -621,7 +621,7 @@ struct non_owning_map_example {
 };
 
 auto pb_meta(const non_owning_map_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_map_example::dict, encoding_rule::unpacked_repeated,
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_map_example::dict, encoding_rule::unpacked_repeated,
                                              hpp::proto::map_entry<zpp::bits::vint64_t, color_t>>>;
 
 const ut::suite test_map_example = [] {
@@ -653,7 +653,7 @@ struct string_example {
 };
 
 auto pb_meta(const string_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &string_example::value, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_example::value, encoding_rule::defaulted>>;
 
 using namespace hpp::proto::literals;
 
@@ -662,7 +662,7 @@ struct string_with_default {
   bool operator==(const string_with_default &) const = default;
 };
 auto pb_meta(const string_with_default &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &string_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    hpp::proto::field_meta<1, &string_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 auto serialize(const string_with_default &) -> zpp::bits::members<1>;
 
@@ -671,7 +671,7 @@ struct string_with_optional {
   bool operator==(const string_with_optional &) const = default;
 };
 auto pb_meta(const string_with_optional &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &string_with_optional::value, encoding_rule::explicit_presence, void>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_with_optional::value, encoding_rule::explicit_presence, void>>;
 
 auto serialize(const string_with_optional &) -> zpp::bits::members<1>;
 
@@ -702,7 +702,7 @@ struct string_view_example {
 };
 
 auto pb_meta(const string_view_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &string_view_example::value, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_view_example::value, encoding_rule::defaulted>>;
 
 struct string_view_explicit_presence {
   std::string_view value;
@@ -710,14 +710,14 @@ struct string_view_explicit_presence {
 };
 
 auto pb_meta(const string_view_explicit_presence &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &string_view_explicit_presence::value, encoding_rule::explicit_presence>>;
+    hpp::proto::field_meta<1, &string_view_explicit_presence::value, encoding_rule::explicit_presence>>;
 
 struct string_view_with_default {
   std::string_view value = "test";
   bool operator==(const string_view_with_default &) const = default;
 };
 auto pb_meta(const string_view_with_default &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &string_view_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    hpp::proto::field_meta<1, &string_view_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 auto serialize(const string_view_with_default &) -> zpp::bits::members<1>;
 
@@ -726,7 +726,7 @@ struct string_view_with_optional {
   bool operator==(const string_view_with_optional &) const = default;
 };
 auto pb_meta(const string_view_with_optional &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &string_view_with_optional::value, encoding_rule::explicit_presence>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_view_with_optional::value, encoding_rule::explicit_presence>>;
 
 auto serialize(const string_view_with_optional &) -> zpp::bits::members<1>;
 
@@ -763,7 +763,7 @@ struct bytes_example {
 };
 
 auto pb_meta(const bytes_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &bytes_example::value, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta<1, &bytes_example::value, encoding_rule::defaulted>>;
 
 struct bytes_explicit_presence {
   std::vector<std::byte> value;
@@ -771,7 +771,7 @@ struct bytes_explicit_presence {
 };
 
 auto pb_meta(const bytes_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &bytes_explicit_presence::value, encoding_rule::explicit_presence>>;
+    -> std::tuple<hpp::proto::field_meta<1, &bytes_explicit_presence::value, encoding_rule::explicit_presence>>;
 
 struct bytes_with_default {
   std::vector<std::byte> value = "test"_bytes;
@@ -779,7 +779,7 @@ struct bytes_with_default {
 };
 
 auto pb_meta(const bytes_with_default &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &bytes_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    hpp::proto::field_meta<1, &bytes_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 auto serialize(const bytes_with_default &) -> zpp::bits::members<1>;
 
@@ -789,7 +789,7 @@ struct bytes_with_optional {
 };
 
 auto pb_meta(const bytes_with_optional &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &bytes_with_optional::value, encoding_rule::explicit_presence>>;
+    -> std::tuple<hpp::proto::field_meta<1, &bytes_with_optional::value, encoding_rule::explicit_presence>>;
 
 auto serialize(const bytes_with_optional &) -> zpp::bits::members<1>;
 
@@ -827,7 +827,7 @@ struct char_vector_example {
 };
 
 auto pb_meta(const char_vector_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &char_vector_example::value, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta<1, &char_vector_example::value, encoding_rule::defaulted>>;
 
 struct char_vector_explicit_presence {
   std::vector<char> value;
@@ -835,7 +835,7 @@ struct char_vector_explicit_presence {
 };
 
 auto pb_meta(const char_vector_explicit_presence &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &char_vector_explicit_presence::value, encoding_rule::explicit_presence>>;
+    hpp::proto::field_meta<1, &char_vector_explicit_presence::value, encoding_rule::explicit_presence>>;
 
 struct char_vector_with_default {
   std::vector<char> value = {'t', 'e', 's', 't'};
@@ -843,7 +843,7 @@ struct char_vector_with_default {
 };
 
 auto pb_meta(const char_vector_with_default &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &char_vector_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    hpp::proto::field_meta<1, &char_vector_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 auto serialize(const char_vector_with_default &) -> zpp::bits::members<1>;
 
@@ -853,7 +853,7 @@ struct char_vector_with_optional {
 };
 
 auto pb_meta(const char_vector_with_optional &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &char_vector_with_optional::value, encoding_rule::explicit_presence>>;
+    -> std::tuple<hpp::proto::field_meta<1, &char_vector_with_optional::value, encoding_rule::explicit_presence>>;
 
 auto serialize(const char_vector_with_optional &) -> zpp::bits::members<1>;
 
@@ -892,7 +892,7 @@ struct byte_span_example {
 };
 
 auto pb_meta(const byte_span_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &byte_span_example::value, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta<1, &byte_span_example::value, encoding_rule::defaulted>>;
 
 struct byte_span_explicit_presence {
   std::span<const std::byte> value;
@@ -900,7 +900,7 @@ struct byte_span_explicit_presence {
 };
 
 auto pb_meta(const byte_span_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &byte_span_explicit_presence::value, encoding_rule::explicit_presence>>;
+    -> std::tuple<hpp::proto::field_meta<1, &byte_span_explicit_presence::value, encoding_rule::explicit_presence>>;
 
 struct byte_span_with_default {
   std::span<const std::byte> value = "test"_bytes_view;
@@ -908,7 +908,7 @@ struct byte_span_with_default {
 };
 
 auto pb_meta(const byte_span_with_default &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &byte_span_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    hpp::proto::field_meta<1, &byte_span_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 auto serialize(const byte_span_with_default &) -> zpp::bits::members<1>;
 
@@ -921,7 +921,7 @@ struct byte_span_with_optional {
 };
 
 auto pb_meta(const byte_span_with_optional &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &byte_span_with_optional::value, encoding_rule::explicit_presence>>;
+    -> std::tuple<hpp::proto::field_meta<1, &byte_span_with_optional::value, encoding_rule::explicit_presence>>;
 
 auto serialize(const byte_span_with_optional &) -> zpp::bits::members<1>;
 
@@ -949,7 +949,7 @@ struct repeated_strings {
 };
 
 auto pb_meta(const repeated_strings &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &repeated_strings::values, encoding_rule::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_strings::values, encoding_rule::unpacked_repeated>>;
 
 struct repeated_strings_explicit_type {
   std::vector<std::string> values;
@@ -957,7 +957,7 @@ struct repeated_strings_explicit_type {
 };
 
 auto pb_meta(const repeated_strings_explicit_type &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &repeated_strings_explicit_type::values, encoding_rule::unpacked_repeated, std::string>>;
+    hpp::proto::field_meta<1, &repeated_strings_explicit_type::values, encoding_rule::unpacked_repeated, std::string>>;
 
 
 struct non_owning_repeated_string {
@@ -966,7 +966,7 @@ struct non_owning_repeated_string {
 };
 
 auto pb_meta(const non_owning_repeated_string &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_repeated_string::values, encoding_rule::defaulted>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_string::values, encoding_rule::defaulted>>;
 
 using namespace std::literals;
 
@@ -995,8 +995,8 @@ struct optional_bools {
 auto serialize(const optional_bools &) -> zpp::bits::members<2>;
 
 auto pb_meta(const optional_bools &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &optional_bools::false_defaulted, encoding_rule::explicit_presence>,
-    hpp::proto::field_meta_ext<2, &optional_bools::true_defaulted, encoding_rule::explicit_presence, bool, true>>;
+    hpp::proto::field_meta<1, &optional_bools::false_defaulted, encoding_rule::explicit_presence>,
+    hpp::proto::field_meta<2, &optional_bools::true_defaulted, encoding_rule::explicit_presence, bool, true>>;
 
 const ut::suite test_optional_bools = [] {
   "empty_optional_bools"_test = [] {
@@ -1019,9 +1019,9 @@ struct oneof_example {
 };
 
 auto pb_meta(const oneof_example &)
-    -> std::tuple<hpp::proto::oneof_field_meta<&oneof_example::value, hpp::proto::field_meta<1>,
-                                        hpp::proto::field_meta<2, encoding_rule::defaulted, zpp::bits::vint64_t>,
-                                        hpp::proto::field_meta<3>>>;
+    -> std::tuple<hpp::proto::oneof_field_meta<&oneof_example::value, hpp::proto::oneof_alternative_meta<1>,
+                                        hpp::proto::oneof_alternative_meta<2, encoding_rule::defaulted, zpp::bits::vint64_t>,
+                                        hpp::proto::oneof_alternative_meta<3>>>;
 
 const ut::suite test_oneof = [] {
   "empty_oneof_example"_test = [] { verify(std::array<std::byte, 0>{}, oneof_example{}); };
@@ -1060,8 +1060,8 @@ struct extension_example {
 };
 
 auto pb_meta(const extension_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &extension_example::int_value, encoding_rule::defaulted, zpp::bits::vint64_t>,
-                  hpp::proto::field_meta_ext<UINT32_MAX, &extension_example::extensions>>;
+    -> std::tuple<hpp::proto::field_meta<1, &extension_example::int_value, encoding_rule::defaulted, zpp::bits::vint64_t>,
+                  hpp::proto::field_meta<UINT32_MAX, &extension_example::extensions>>;
 
 constexpr auto i32_ext() {
   return hpp::proto::extension_meta<extension_example, 10, encoding_rule::explicit_presence, zpp::bits::vint64_t,
@@ -1222,8 +1222,8 @@ struct non_owning_extension_example {
 };
 
 auto pb_meta(const non_owning_extension_example &)
-    -> std::tuple<hpp::proto::field_meta_ext<1, &non_owning_extension_example::int_value,encoding_rule::defaulted, zpp::bits::vint64_t>,
-                  hpp::proto::field_meta_ext<UINT32_MAX, &non_owning_extension_example::extensions>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_extension_example::int_value,encoding_rule::defaulted, zpp::bits::vint64_t>,
+                  hpp::proto::field_meta<UINT32_MAX, &non_owning_extension_example::extensions>>;
 
 constexpr auto non_owning_i32_ext() {
   return hpp::proto::extension_meta<non_owning_extension_example, 10, encoding_rule::explicit_presence,
@@ -1375,8 +1375,8 @@ struct recursive_type1 {
 };
 
 auto pb_meta(const recursive_type1 &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &recursive_type1::child>,
-    hpp::proto::field_meta_ext<2, &recursive_type1::payload, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+    hpp::proto::field_meta<1, &recursive_type1::child>,
+    hpp::proto::field_meta<2, &recursive_type1::payload, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
 struct recursive_type2 {
   std::vector<recursive_type2> children;
@@ -1386,8 +1386,8 @@ struct recursive_type2 {
 };
 
 auto pb_meta(const recursive_type2 &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &recursive_type2::children>,
-    hpp::proto::field_meta_ext<2, &recursive_type2::payload, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+    hpp::proto::field_meta<1, &recursive_type2::children>,
+    hpp::proto::field_meta<2, &recursive_type2::payload, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
 struct non_owning_recursive_type1 {
   non_owning_recursive_type1 *child = nullptr;
@@ -1400,8 +1400,8 @@ struct non_owning_recursive_type1 {
 };
 
 auto pb_meta(const non_owning_recursive_type1 &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &non_owning_recursive_type1::child>,
-    hpp::proto::field_meta_ext<2, &non_owning_recursive_type1::payload, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+    hpp::proto::field_meta<1, &non_owning_recursive_type1::child>,
+    hpp::proto::field_meta<2, &non_owning_recursive_type1::payload, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
 struct non_owning_recursive_type2 {
   std::span<non_owning_recursive_type2> children = {};
@@ -1421,8 +1421,8 @@ struct non_owning_recursive_type2 {
 auto serialize(const non_owning_recursive_type2 &) -> zpp::bits::members<2>;
 
 auto pb_meta(const non_owning_recursive_type2 &) -> std::tuple<
-    hpp::proto::field_meta_ext<1, &non_owning_recursive_type2::children>,
-    hpp::proto::field_meta_ext<2, &non_owning_recursive_type2::payload, encoding_rule::defaulted, zpp::bits::vint64_t>>;
+    hpp::proto::field_meta<1, &non_owning_recursive_type2::children>,
+    hpp::proto::field_meta<2, &non_owning_recursive_type2::payload, encoding_rule::defaulted, zpp::bits::vint64_t>>;
 
 const ut::suite recursive_types = [] {
   "recursive_type1"_test = [] {
@@ -1470,8 +1470,8 @@ struct monster {
     float z;
 
     bool operator==(const vec3 &) const = default;
-    using pb_meta = std::tuple<hpp::proto::field_meta_ext<1, &vec3::x>, hpp::proto::field_meta_ext<2, &vec3::y>,
-                               hpp::proto::field_meta_ext<3, &vec3::z>>;
+    using pb_meta = std::tuple<hpp::proto::field_meta<1, &vec3::x>, hpp::proto::field_meta<2, &vec3::y>,
+                               hpp::proto::field_meta<3, &vec3::z>>;
   };
 
   struct weapon {
@@ -1480,7 +1480,7 @@ struct monster {
 
     bool operator==(const weapon &) const = default;
     using pb_meta =
-        std::tuple<hpp::proto::field_meta_ext<1, &weapon::name>, hpp::proto::field_meta_ext<2, &weapon::damage>>;
+        std::tuple<hpp::proto::field_meta<1, &weapon::name>, hpp::proto::field_meta<2, &weapon::damage>>;
   };
 
   vec3 pos = {};
@@ -1496,12 +1496,12 @@ struct monster {
 
   bool operator==(const monster &) const = default;
   using pb_meta =
-      std::tuple<hpp::proto::field_meta_ext<1, &monster::pos>,
-                 hpp::proto::field_meta_ext<2, &monster::mana, encoding_rule::defaulted, zpp::bits::vint64_t>,
-                 hpp::proto::field_meta_ext<3, &monster::hp>, hpp::proto::field_meta_ext<4, &monster::name>,
-                 hpp::proto::field_meta_ext<5, &monster::inventory>, hpp::proto::field_meta_ext<6, &monster::color>,
-                 hpp::proto::field_meta_ext<7, &monster::weapons>, hpp::proto::field_meta_ext<8, &monster::equipped>,
-                 hpp::proto::field_meta_ext<9, &monster::path>, hpp::proto::field_meta_ext<10, &monster::boss>>;
+      std::tuple<hpp::proto::field_meta<1, &monster::pos>,
+                 hpp::proto::field_meta<2, &monster::mana, encoding_rule::defaulted, zpp::bits::vint64_t>,
+                 hpp::proto::field_meta<3, &monster::hp>, hpp::proto::field_meta<4, &monster::name>,
+                 hpp::proto::field_meta<5, &monster::inventory>, hpp::proto::field_meta<6, &monster::color>,
+                 hpp::proto::field_meta<7, &monster::weapons>, hpp::proto::field_meta<8, &monster::equipped>,
+                 hpp::proto::field_meta<9, &monster::path>, hpp::proto::field_meta<10, &monster::boss>>;
 };
 
 const ut::suite test_monster = [] {
@@ -1596,16 +1596,16 @@ struct monster_with_optional {
 
   bool operator==(const monster_with_optional &) const = default;
   using pb_meta = std::tuple<
-      hpp::proto::field_meta_ext<1, &monster_with_optional::pos>,
-      hpp::proto::field_meta_ext<2, &monster_with_optional::mana, encoding_rule::defaulted, zpp::bits::vint64_t>,
-      hpp::proto::field_meta_ext<3, &monster_with_optional::hp>,
-      hpp::proto::field_meta_ext<4, &monster_with_optional::name>,
-      hpp::proto::field_meta_ext<5, &monster_with_optional::inventory>,
-      hpp::proto::field_meta_ext<6, &monster_with_optional::color>,
-      hpp::proto::field_meta_ext<7, &monster_with_optional::weapons>,
-      hpp::proto::field_meta_ext<8, &monster_with_optional::equipped>,
-      hpp::proto::field_meta_ext<9, &monster_with_optional::path>,
-      hpp::proto::field_meta_ext<10, &monster_with_optional::boss>>;
+      hpp::proto::field_meta<1, &monster_with_optional::pos>,
+      hpp::proto::field_meta<2, &monster_with_optional::mana, encoding_rule::defaulted, zpp::bits::vint64_t>,
+      hpp::proto::field_meta<3, &monster_with_optional::hp>,
+      hpp::proto::field_meta<4, &monster_with_optional::name>,
+      hpp::proto::field_meta<5, &monster_with_optional::inventory>,
+      hpp::proto::field_meta<6, &monster_with_optional::color>,
+      hpp::proto::field_meta<7, &monster_with_optional::weapons>,
+      hpp::proto::field_meta<8, &monster_with_optional::equipped>,
+      hpp::proto::field_meta<9, &monster_with_optional::path>,
+      hpp::proto::field_meta<10, &monster_with_optional::boss>>;
   using serialize = zpp::bits::members<10>;
 };
 
@@ -1671,21 +1671,21 @@ struct person {
   struct phone_number {
     std::string number;   // = 1
     phone_type type = {}; // = 2
-    using pb_meta = std::tuple<hpp::proto::field_meta_ext<1, &phone_number::number>,
-                               hpp::proto::field_meta_ext<2, &phone_number::type>>;
+    using pb_meta = std::tuple<hpp::proto::field_meta<1, &phone_number::number>,
+                               hpp::proto::field_meta<2, &phone_number::type>>;
   };
 
   std::vector<phone_number> phones; // = 4
 
   using pb_meta =
-      std::tuple<hpp::proto::field_meta_ext<1, &person::name>,
-                 hpp::proto::field_meta_ext<2, &person::id, encoding_rule::defaulted, zpp::bits::vint64_t>,
-                 hpp::proto::field_meta_ext<3, &person::email>, hpp::proto::field_meta_ext<4, &person::phones>>;
+      std::tuple<hpp::proto::field_meta<1, &person::name>,
+                 hpp::proto::field_meta<2, &person::id, encoding_rule::defaulted, zpp::bits::vint64_t>,
+                 hpp::proto::field_meta<3, &person::email>, hpp::proto::field_meta<4, &person::phones>>;
 };
 
 struct address_book {
   std::vector<person> people; // = 1
-  using pb_meta = std::tuple<hpp::proto::field_meta_ext<1, &address_book::people>>;
+  using pb_meta = std::tuple<hpp::proto::field_meta<1, &address_book::people>>;
 };
 
 const ut::suite test_person = [] {
@@ -1764,10 +1764,10 @@ struct person_map {
   hpp::proto::flat_map<std::string, phone_type> phones; // = 4
 
   using pb_meta =
-      std::tuple<hpp::proto::field_meta_ext<1, &person_map::name>,
-                 hpp::proto::field_meta_ext<2, &person_map::id, encoding_rule::defaulted, zpp::bits::vint64_t>,
-                 hpp::proto::field_meta_ext<3, &person_map::email>,
-                 hpp::proto::field_meta_ext<4, &person_map::phones, encoding_rule::defaulted,
+      std::tuple<hpp::proto::field_meta<1, &person_map::name>,
+                 hpp::proto::field_meta<2, &person_map::id, encoding_rule::defaulted, zpp::bits::vint64_t>,
+                 hpp::proto::field_meta<3, &person_map::email>,
+                 hpp::proto::field_meta<4, &person_map::phones, encoding_rule::defaulted,
                                             hpp::proto::map_entry<std::string, phone_type>>>;
 };
 
