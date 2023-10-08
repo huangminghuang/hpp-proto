@@ -16,11 +16,9 @@ const boost::ut::suite map_test = [] {
 
     protobuf_unittest::TestMap msg;
 
-    auto [data, in, out] = hpp::proto::data_in_out();
-    using zpp::bits::success;
-
-    expect(success(out(original)));
-    expect(success(in(msg)));
+    std::vector<char> data;
+    expect(!hpp::proto::write_proto(original, data));
+    expect(!hpp::proto::read_proto(msg, data));
 
     ExpectMapFieldsSet(msg);
   };

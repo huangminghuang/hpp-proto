@@ -57,10 +57,13 @@ enum class encoding_rule {
 template <auto Accessor>
 struct accesor_type {
   inline constexpr auto &operator()(auto &&item) const {
-    if constexpr (std::is_member_pointer_v<decltype(Accessor)>)
+    if constexpr (std::is_member_pointer_v<decltype(Accessor)>) {
       return item.*Accessor;
-    else
+    } else if constexpr (std::is_integral_v<decltype(Accessor)>) {
+      return std::get_if<Accessor>(&item);
+    } else {
       return Accessor(std::forward<decltype(item)>(item));
+    }
   }
 };
 
@@ -73,7 +76,7 @@ struct field_meta {
   using type = Type;
 
   template <typename T>
-  inline static constexpr bool omit_value(const T &v) {
+  static constexpr bool omit_value(const T &v) {
     return (Encoding == encoding_rule::defaulted && is_default_value<T, DefaultValue>(v));
   }
 };
@@ -82,19 +85,8 @@ template <auto Accessor, typename... AlternativeMeta>
 struct oneof_field_meta {
   constexpr static auto access = accesor_type<Accessor>{};
   using alternatives_meta = std::tuple<AlternativeMeta...>;
-};
 
-template <uint32_t Number, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
-          auto DefaultValue = std::monostate{}>
-struct oneof_alternative_meta {
-  constexpr static uint32_t number = Number;
-  constexpr static encoding_rule encoding = Encoding;
-  using type = Type;
-
-  template <typename T>
-  static constexpr bool omit_value(const T &v) {
-    return (Encoding == encoding_rule::defaulted && is_default_value<T, DefaultValue>(v));
-  }
+  static constexpr bool omit_value(const auto &v) { return v.index() == 0; }
 };
 
 using ::zpp::bits::errc;
@@ -140,12 +132,6 @@ concept scalar = numeric_or_byte<Type> || string_or_bytes<Type> || std::same_as<
 
 template <typename Type>
 concept pb_extension = requires(Type value) { typename Type::pb_extension; };
-
-template <typename Type>
-concept is_map_entry = requires {
-  typename Type::key_type;
-  typename Type::mapped_type;
-};
 
 template <typename Type>
 concept is_option = requires { typename std::remove_cvref_t<Type>::zpp_bits_option; };
@@ -398,6 +384,11 @@ struct map_entry {
   };
 };
 
+namespace concepts {
+template <typename T>
+concept is_map_entry = std::same_as<T, map_entry<typename T::key_type, typename T::mapped_type>>;
+}
+
 namespace traits {
 template <typename Type>
 struct meta_of;
@@ -646,23 +637,21 @@ ZPP_BITS_INLINE constexpr errc serialize_sized(auto &archive, auto &&serialize_u
   return message_length_out(SizeType(message_size));
 }
 
-template <typename Byte = std::byte>
+template <typename Byte>
 struct unchecked_out {
   using byte_type = Byte;
   constexpr static bool endian_swapped = std::endian::little != std::endian::native;
   std::span<byte_type> m_data;
 
-  void operator()(auto &&item) {
-    using type = std::remove_cvref<decltype(item)>;
+  inline constexpr void serialize(auto &&item) {
+    using type = std::remove_cvref_t<decltype(item)>;
     if constexpr (concepts::byte_serializable<type>) {
       if (std::is_constant_evaluated()) {
         auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
-        for (std::size_t i = 0; i < sizeof(value); ++i) {
-          if constexpr (endian_swapped) {
-            m_data[i] = value[sizeof(value) - 1 - i];
-          } else {
-            m_data[i] = value[i];
-          }
+        if constexpr (endian_swapped) {
+          std::copy(value.rbegin(), value.rend(), m_data.begin());
+        } else {
+          std::copy(value.begin(), value.end(), m_data.begin());
         }
       } else {
         if constexpr (endian_swapped && sizeof(type) != 1) {
@@ -688,19 +677,23 @@ struct unchecked_out {
       m_data[position++] = byte_type(value);
       m_data = m_data.subspan(position);
     } else if constexpr (concepts::contiguous_range<type> && concepts::byte_serializable<typename type::value_type>) {
-      if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(typename type::value_type) == 1)) {
-        auto bytes_to_copy = item.size() * sizeof(typename type::value_type);
-        std::memcpy(m_data.data(), item.data(), bytes_to_copy);
-        m_data = m_data.subspan(bytes_to_copy);
-      } else {
-        for (auto x : item) {
-          this->operator()(x);
+      if constexpr (concepts::byte_serializable<typename type::value_type>) {
+        if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(typename type::value_type) == 1)) {
+          auto bytes_to_copy = item.size() * sizeof(typename type::value_type);
+          std::memcpy(m_data.data(), item.data(), bytes_to_copy);
+          m_data = m_data.subspan(bytes_to_copy);
+        } else {
+          for (auto x : item) {
+            this->serialize(x);
+          }
         }
       }
     } else {
       static_assert(!sizeof(type));
     }
   }
+
+  inline constexpr void operator()(auto &&...item) { (serialize(item), ...); }
 };
 
 template <::zpp::bits::concepts::byte_view ByteView = std::vector<std::byte>, typename... Options>
@@ -759,145 +752,134 @@ struct out {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
-    if constexpr (::zpp::bits::concepts::empty<type>) {
+    if (meta.omit_value(item)) {
       return {};
-    } else if constexpr (concepts::oneof_type<type>) {
-      if (std::holds_alternative<std::monostate>(item)) {
-        return {};
+    }
+
+    if constexpr (concepts::oneof_type<type>) {
+      return serialize_oneof<0, typename Meta::alternatives_meta>(std::forward<decltype(item)>(item));
+    } else if constexpr (std::is_same_v<type, boolean>) {
+      constexpr auto tag = make_tag<bool>(meta);
+      return m_archive(tag, item.value);
+    } else if constexpr (concepts::pb_extension<type>) {
+      return iterative_apply([this](auto &&f) constexpr { return m_archive(::zpp::bits::bytes(f.second)); },
+                             item.fields);
+    } else if constexpr (concepts::optional<type>) {
+      if (item.has_value()) {
+        return serialize_field(meta, *item);
       }
-      return serialize_oneof<0, Meta>(std::forward<decltype(item)>(item));
+      return {};
+    } else if constexpr (::zpp::bits::concepts::owning_pointer<type> || std::is_pointer_v<type>) {
+      if (item) {
+        return serialize_field(meta, *item);
+      }
+      return {};
+    } else if constexpr (!std::is_same_v<type, serialize_type> && concepts::scalar<serialize_type> &&
+                         !::zpp::bits::concepts::container<type>) {
+      return serialize_field(meta, serialize_type(item));
+    } else if constexpr (std::is_enum_v<type> && !std::same_as<type, std::byte>) {
+      constexpr auto tag = make_tag<type>(meta);
+      return m_archive(tag, ::zpp::bits::vint64_t(std::underlying_type_t<type>(std::forward<decltype(item)>(item))));
+    } else if constexpr (concepts::numeric_or_byte<type>) {
+      constexpr auto tag = make_tag<type>(meta);
+      return m_archive(tag, item);
+    } else if constexpr (!::zpp::bits::concepts::container<type>) {
+      if constexpr (meta.encoding != encoding_rule::group) {
+        constexpr auto tag = make_tag<type>(meta);
+        return execute_successively(
+            [&, this]() constexpr { return m_archive(tag); },
+            [&, this]() constexpr { return serialize_sized(std::forward<decltype(item)>(item)); });
+      } else {
+        return execute_successively(
+            [&, this]() constexpr {
+              auto tag = ::zpp::bits::varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::sgroup)};
+              return m_archive(tag);
+            },
+            [&, this]() constexpr { return serialize_unsized(std::forward<decltype(item)>(item)); },
+            [&, this]() constexpr {
+              auto tag = ::zpp::bits::varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::egroup)};
+              return m_archive(tag);
+            });
+      }
+    } else if constexpr (::zpp::bits::concepts::associative_container<type> &&
+                         requires { typename type::mapped_type; }) {
+      return iterative_apply(
+          [&, this](auto &&entry) constexpr {
+            return execute_successively(
+                [&, this]() constexpr {
+                  constexpr auto tag = make_tag<type>(meta);
+                  return m_archive(tag);
+                },
+                [&, this]() constexpr {
+                  auto &&[key, value] = entry;
+                  using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
+                  return serialize_sized(value_type(key, value));
+                });
+          },
+          item);
     } else {
-
-      if (meta.omit_value(item)) {
+      if (item.empty()) {
         return {};
       }
+      using value_type = typename type::value_type;
+      using element_type =
+          std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::string_or_bytes<type>, value_type,
+                             typename Meta::type>;
 
-      if constexpr (std::is_same_v<type, boolean>) {
-        constexpr auto tag = make_tag<bool>(meta);
-        return m_archive(tag, item.value);
-      } else if constexpr (concepts::pb_extension<type>) {
-        return iterative_apply([this](auto &&f) constexpr { return m_archive(::zpp::bits::bytes(f.second)); },
-                               item.fields);
-      } else if constexpr (concepts::optional<type>) {
-        if (item.has_value()) {
-          return serialize_field(meta, *item);
-        }
-        return {};
-      } else if constexpr (::zpp::bits::concepts::owning_pointer<type> || std::is_pointer_v<type>) {
-        if (item) {
-          return serialize_field(meta, *item);
-        }
-        return {};
-      } else if constexpr (!std::is_same_v<type, serialize_type> && concepts::scalar<serialize_type> &&
-                           !::zpp::bits::concepts::container<type>) {
-        return serialize_field(meta, serialize_type(item));
-      } else if constexpr (std::is_enum_v<type> && !std::same_as<type, std::byte>) {
+      if constexpr (Meta::encoding == encoding_rule::group) {
+        return iterative_apply([&](auto &&element) constexpr { return serialize_field(meta, element); }, item);
+      } else if constexpr ((Meta::encoding == encoding_rule::unpacked_repeated ||
+                            !concepts::numeric_or_byte<element_type>)&&!concepts::string_or_bytes<type>) {
         constexpr auto tag = make_tag<type>(meta);
-        return m_archive(tag, ::zpp::bits::vint64_t(std::underlying_type_t<type>(std::forward<decltype(item)>(item))));
-      } else if constexpr (concepts::numeric_or_byte<type>) {
-        constexpr auto tag = make_tag<type>(meta);
-        return m_archive(tag, item);
-      } else if constexpr (!::zpp::bits::concepts::container<type>) {
-        if constexpr (meta.encoding != encoding_rule::group) {
-          constexpr auto tag = make_tag<type>(meta);
-          return execute_successively(
-              [&, this]() constexpr { return m_archive(tag); },
-              [&, this]() constexpr { return serialize_sized(std::forward<decltype(item)>(item)); });
-        } else {
-          return execute_successively(
-              [&, this]() constexpr {
-                auto tag =
-                    ::zpp::bits::varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::sgroup)};
-                return m_archive(tag);
-              },
-              [&, this]() constexpr { return serialize_unsized(std::forward<decltype(item)>(item)); },
-              [&, this]() constexpr {
-                auto tag =
-                    ::zpp::bits::varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::egroup)};
-                return m_archive(tag);
-              });
-        }
-      } else if constexpr (::zpp::bits::concepts::associative_container<type> &&
-                           requires { typename type::mapped_type; }) {
         return iterative_apply(
-            [&, this](auto &&entry) constexpr {
-              return execute_successively(
-                  [&, this]() constexpr {
-                    constexpr auto tag = make_tag<type>(meta);
-                    return m_archive(tag);
-                  },
-                  [&, this]() constexpr {
-                    auto &&[key, value] = entry;
-                    using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
-                    return serialize_sized(value_type(key, value));
-                  });
+            [&](auto &&element) constexpr {
+              if constexpr (concepts::is_map_entry<typename Meta::type>) {
+                return execute_successively([&, this]() constexpr { return m_archive(tag); },
+                                            [&, this]() constexpr {
+                                              auto &[k, v] = element;
+                                              return serialize_sized(typename Meta::type::read_only_type(k, v));
+                                            });
+
+              } else {
+                return serialize_field(meta, element);
+              }
             },
             item);
-      } else {
-        if (item.empty()) {
-          return {};
-        }
-        using value_type = typename type::value_type;
-        using element_type =
-            std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::string_or_bytes<type>, value_type,
-                               typename Meta::type>;
-
-        if constexpr (Meta::encoding == encoding_rule::group) {
-          return iterative_apply([&](auto &&element) constexpr { return serialize_field(meta, element); }, item);
-        } else if constexpr ((Meta::encoding == encoding_rule::unpacked_repeated ||
-                              !concepts::numeric_or_byte<element_type>)&&!concepts::string_or_bytes<type>) {
-          constexpr auto tag = make_tag<type>(meta);
-          return iterative_apply(
-              [&](auto &&element) constexpr {
-                if constexpr (concepts::is_map_entry<typename Meta::type>) {
-                  return execute_successively([&, this]() constexpr { return m_archive(tag); },
-                                              [&, this]() constexpr {
-                                                auto &[k, v] = element;
-                                                return serialize_sized(typename Meta::type::read_only_type(k, v));
-                                              });
-
-                } else {
-                  return serialize_field(meta, element);
-                }
-              },
-              item);
-        } else if constexpr (requires {
-                               requires std::is_fundamental_v<element_type> ||
-                                            std::same_as<typename type::value_type, std::byte>;
-                             }) {
-          // packed fundamental types or bytes
-          constexpr auto tag = make_tag<type>(meta);
-          auto size = item.size();
-          if constexpr (std::is_same_v<value_type, boolean>) {
-            return m_archive(
-                tag, ::zpp::bits::varint{size},
-                ::zpp::bits::unsized(std::span<const bool>{std::bit_cast<const bool *>(item.data()), size}));
-          } else {
-            return m_archive(tag, ::zpp::bits::varint{size * sizeof(typename type::value_type)},
-                             ::zpp::bits::unsized(std::forward<decltype(item)>(item)));
-          }
+      } else if constexpr (requires {
+                             requires std::is_fundamental_v<element_type> ||
+                                          std::same_as<typename type::value_type, std::byte>;
+                           }) {
+        // packed fundamental types or bytes
+        constexpr auto tag = make_tag<type>(meta);
+        auto size = item.size();
+        if constexpr (std::is_same_v<value_type, boolean>) {
+          return m_archive(tag, ::zpp::bits::varint{size},
+                           ::zpp::bits::unsized(std::span<const bool>{std::bit_cast<const bool *>(item.data()), size}));
         } else {
-          // packed varint or packed enum
-          using varint_type = std::conditional_t<std::is_enum_v<value_type>, ::zpp::bits::vint64_t, element_type>;
-
-          return execute_successively(
-              [&, this]() constexpr {
-                constexpr auto tag = make_tag<type>(meta);
-                const std::size_t size =
-                    std::transform_reduce(item.begin(), item.end(), 0u, std::plus{}, [](auto &element) {
-                      return ::zpp::bits::varint_size<varint_type::encoding>(
-                          static_cast<typename varint_type::value_type>(element));
-                    });
-                return m_archive(tag, ::zpp::bits::varint{size});
-              },
-              [&, this]() constexpr {
-                return iterative_apply(
-                    [&, this](auto &&element) constexpr {
-                      return m_archive(varint_type{static_cast<typename varint_type::value_type>(element)});
-                    },
-                    item);
-              });
+          return m_archive(tag, ::zpp::bits::varint{size * sizeof(typename type::value_type)},
+                           ::zpp::bits::unsized(std::forward<decltype(item)>(item)));
         }
+      } else {
+        // packed varint or packed enum
+        using varint_type = std::conditional_t<std::is_enum_v<value_type>, ::zpp::bits::vint64_t, element_type>;
+
+        return execute_successively(
+            [&, this]() constexpr {
+              constexpr auto tag = make_tag<type>(meta);
+              const std::size_t size =
+                  std::transform_reduce(item.begin(), item.end(), 0u, std::plus{}, [](auto &element) {
+                    return ::zpp::bits::varint_size<varint_type::encoding>(
+                        static_cast<typename varint_type::value_type>(element));
+                  });
+              return m_archive(tag, ::zpp::bits::varint{size});
+            },
+            [&, this]() constexpr {
+              return iterative_apply(
+                  [&, this](auto &&element) constexpr {
+                    return m_archive(varint_type{static_cast<typename varint_type::value_type>(element)});
+                  },
+                  item);
+            });
       }
     }
   }
@@ -912,11 +894,6 @@ struct out {
       return serialize_oneof<I + 1, Meta>(std::forward<decltype(item)>(item));
     }
     return errc{};
-  }
-
-  template <std::size_t I, concepts::is_oneof_field_meta Meta>
-  ZPP_BITS_INLINE constexpr errc serialize_oneof(auto &&item) {
-    return serialize_oneof<I, typename Meta::alternatives_meta>(std::forward<decltype(item)>(item));
   }
 
   template <typename SizeType = ::zpp::bits::vsize_t>

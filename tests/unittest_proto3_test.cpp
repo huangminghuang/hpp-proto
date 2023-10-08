@@ -25,11 +25,9 @@ const boost::ut::suite proto3_lite_test = [] {
 
     proto3_unittest::TestAllTypes msg;
 
-    auto [data, in, out] = hpp::proto::data_in_out();
-    using zpp::bits::success;
-
-    expect(success(out(original)));
-    expect(success(in(msg)));
+    std::vector<std::byte> data;
+    expect(!hpp::proto::write_proto(original, data));
+    expect(!hpp::proto::read_proto(msg, data));
 
     ExpectAllFieldsSet(msg);
   };
@@ -40,11 +38,9 @@ const boost::ut::suite proto3_lite_test = [] {
 
     proto3_unittest::TestUnpackedTypes msg;
 
-    auto [data, in, out] = hpp::proto::data_in_out();
-    using zpp::bits::success;
-
-    expect(success(out(original)));
-    expect(success(in(msg)));
+    std::vector<std::byte> data;
+    expect(!hpp::proto::write_proto(original, data));
+    expect(!hpp::proto::read_proto(msg, data));
 
     ExpectUnpackedFieldsSet(msg);
 

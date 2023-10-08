@@ -967,8 +967,8 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
 // -------------------------------------------------------------------
 
 inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
-  auto [data, out] = hpp::proto::data_out();
-  expect(success(out(message)));
+  std::vector<std::byte> data;
+  expect(!hpp::proto::write_proto(message, data));
   expect(eq(0, data.size()));
 
   monotonic_memory_resource mr(16);

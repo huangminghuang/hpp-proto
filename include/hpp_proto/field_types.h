@@ -472,9 +472,9 @@ auto operator""_bytes_view() {
 
 struct boolean {
   bool value = false;
-  boolean() = default;
-  boolean(bool v) : value(v) {}
-  operator bool() const { return value; }
+  constexpr boolean() = default;
+  constexpr boolean(bool v) : value(v) {}
+  constexpr operator bool() const { return value; }
 };
 
 template <typename T, auto Default = std::monostate{}>

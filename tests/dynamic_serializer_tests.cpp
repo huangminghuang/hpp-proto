@@ -11,11 +11,7 @@ void test_fixture(auto &message, const char *descriptorset_file, const char *mes
 
   std::string data;
 
-  // NOLINTBEGIN(misc-const-correctness)
-  hpp::proto::out out{data};
-  // NOLINTEND(misc-const-correctness)
-  using zpp::bits::success;
-  expect(success(out(message)));
+  expect(!hpp::proto::write_proto(message, data));
 
   auto descriptors = descriptorset_from_file(descriptorset_file);
   auto ser = hpp::proto::dynamic_serializer::make(descriptors);
