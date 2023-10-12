@@ -5,6 +5,7 @@
 #include <climits>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -15,7 +16,6 @@
 #include <tuple>
 #include <variant>
 #include <vector>
-#include <functional>
 
 #ifndef __cpp_lib_bit_cast
 namespace std {
@@ -2165,7 +2165,6 @@ using tl::expected;
 using tl::unexpected;
 #endif
 
-
 // workaround for clang not supporting floating-point types in non-type template
 // parameters as of clang-15
 template <int64_t x>
@@ -2186,7 +2185,6 @@ struct float_wrapper {
 #define HPP_PROTO_WRAP_FLOAT(v) v
 #define HPP_PROTO_WRAP_DOUBLE(v) v
 #endif
-
 
 template <int64_t x>
 static constexpr auto unwrap(double_wrapper<x>) {
@@ -2461,6 +2459,154 @@ public:
 #endif
 };
 
+template <std::size_t Len>
+struct compile_time_string {
+  using value_type = char;
+  char data_[Len];
+  constexpr size_t size() const { return Len - 1; }
+  constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(init, Len, data_); }
+  constexpr const char *data() const { return data_; }
+};
+
+template <std::size_t Len>
+struct compile_time_bytes {
+  using value_type = char;
+  std::byte data_[Len];
+  constexpr size_t size() const { return Len - 1; }
+  constexpr compile_time_bytes(const char (&init)[Len]) {
+    std::transform(init, init + Len, data_, [](char c) { return static_cast<std::byte>(c); });
+  }
+  constexpr const std::byte *data() const { return data_; }
+};
+
+template <compile_time_string cts>
+struct ctb_wrapper {
+  static constexpr compile_time_bytes bytes{cts.data_};
+
+  constexpr size_t size() const { return bytes.size(); }
+  constexpr const std::byte *data() const { return bytes.data(); }
+  constexpr const std::byte *begin() const { return bytes.data(); }
+  constexpr const std::byte *end() const { return bytes.data() + size(); }
+
+  constexpr operator std::span<const std::byte>() const { return std::span<const std::byte>{data(), size()}; }
+  explicit operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
+
+  friend constexpr bool operator==(const ctb_wrapper &lhs, const std::span<const std::byte> &rhs) {
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+  }
+};
+
+template <compile_time_string cts>
+struct cts_wrapper {
+  static constexpr compile_time_string str{cts};
+  constexpr size_t size() const { return str.size(); }
+  constexpr const char *data() const { return str.data(); }
+  constexpr const char *c_str() const { return str.data(); }
+  constexpr const char *begin() const { return str.data(); }
+  constexpr const char *end() const { return str.data() + size(); }
+
+  explicit operator std::string() const { return std::string{data()}; }
+  constexpr explicit operator std::vector<std::byte>() const {
+    return std::vector<std::byte>{std::bit_cast<const std::byte *>(data()),
+                                  std::bit_cast<const std::byte *>(data()) + size()};
+  }
+
+  constexpr explicit operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
+
+  constexpr operator std::string_view() const { return std::string_view(data(), size()); }
+
+  constexpr operator std::span<const std::byte>() const { return ctb_wrapper<cts>{}; }
+
+  constexpr operator std::span<const char>() const { return std::span<const char>{data(), size()}; }
+
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::string &rhs) {
+    return static_cast<std::string_view>(lhs) == rhs;
+  }
+
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::string_view &rhs) {
+    return static_cast<std::string_view>(lhs) == rhs;
+  }
+
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const std::byte> &rhs) {
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
+                      [](char a, std::byte b) { return static_cast<std::byte>(a) == b; });
+  }
+
+  friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const char> &rhs) {
+    return std::equal(rhs.begin(), rhs.end(), lhs.data(), lhs.data() + lhs.size());
+  }
+};
+
+using bytes_view = std::span<const std::byte>;
+template <compile_time_string str>
+constexpr auto operator""_cts() {
+  return cts_wrapper<str>{};
+}
+
+template <compile_time_string str>
+constexpr auto operator""_bytes_view() {
+  return static_cast<bytes_view>(ctb_wrapper<str>{});
+}
+
+template <compile_time_string str>
+constexpr auto operator""_bytes() {
+  return static_cast<std::vector<std::byte>>(ctb_wrapper<str>{});
+}
+
+namespace concepts {
+template <typename T>
+concept memory_resource = requires(T &object) {
+  { object.allocate(8, 8) } -> std::same_as<void *>;
+};
+} // namespace concepts
+
+namespace detail {
+
+template <typename T, concepts::memory_resource MemoryResource>
+class growable_span {
+public:
+  using value_type = std::remove_const_t<T>;
+
+  growable_span(std::span<T> &base, MemoryResource &mr) : base_(base), mr(mr) {}
+
+  void resize(std::size_t n) {
+    if (data_ == nullptr || n > base_.size()) {
+      data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
+      assert(data_ != nullptr);
+      std::uninitialized_copy(base_.begin(), base_.end(), data_);
+
+      if constexpr (!std::is_trivial_v<T>) {
+        std::uninitialized_default_construct(data_ + base_.size(), data_ + n);
+      } else {
+#ifdef __cpp_lib_start_lifetime_as
+        std::start_lifetime_as_array(data_ + base.size(), n);
+#endif
+      }
+      base_ = std::span<T>{data_, n};
+    } else {
+      base_ = std::span<T>(base_.data(), n);
+    }
+  }
+
+  value_type *data() const { return data_; }
+  value_type &operator[](std::size_t n) { return data_[n]; }
+  std::size_t size() const { return base_.size(); }
+  value_type *begin() const { return data_; }
+  value_type *end() const { return data_ + size(); }
+
+  void clear() {
+    base_ = std::span<T>{};
+    data_ = nullptr;
+  }
+
+private:
+  std::span<T> &base_;
+  value_type *data_ = nullptr;
+  MemoryResource &mr;
+};
+} // namespace detail
+
+
 /////////////////////////////////////////////////////////////////////////////////
 
 enum class varint_encoding {
@@ -2608,11 +2754,6 @@ template <typename T>
 concept is_size_cache = std::same_as<T, uint32_t *> || requires(T v) {
   { v++ } -> std::same_as<T>;
   *v = 0U;
-};
-
-template <typename T>
-concept memory_resource = requires(T &object) {
-  { object.allocate(8, 8) } -> std::same_as<void *>;
 };
 
 template <typename T>
@@ -2787,95 +2928,7 @@ struct repeated_extension_meta
   }
 };
 
-template <std::size_t Len>
-struct compile_time_string {
-  using value_type = char;
-  char data_[Len];
-  constexpr size_t size() const { return Len - 1; }
-  constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(init, Len, data_); }
-  constexpr const char *data() const { return data_; }
-};
 
-template <std::size_t Len>
-struct compile_time_bytes {
-  using value_type = char;
-  std::byte data_[Len];
-  constexpr size_t size() const { return Len - 1; }
-  constexpr compile_time_bytes(const char (&init)[Len]) {
-    std::transform(init, init + Len, data_, [](char c) { return static_cast<std::byte>(c); });
-  }
-  constexpr const std::byte *data() const { return data_; }
-};
-
-template <compile_time_string cts>
-struct ctb_wrapper {
-  static constexpr compile_time_bytes bytes{cts.data_};
-
-  constexpr size_t size() const { return bytes.size(); }
-  constexpr const std::byte *data() const { return bytes.data(); }
-  constexpr const std::byte *begin() const { return bytes.data(); }
-  constexpr const std::byte *end() const { return bytes.data() + size(); }
-
-  constexpr operator std::span<const std::byte>() const { return std::span<const std::byte>{data(), size()}; }
-  explicit operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
-};
-
-template <compile_time_string cts>
-struct cts_wrapper {
-  static constexpr compile_time_string str{cts};
-  constexpr size_t size() const { return str.size(); }
-  constexpr const char *data() const { return str.data(); }
-  constexpr const char *c_str() const { return str.data(); }
-  constexpr const char *begin() const { return str.data(); }
-  constexpr const char *end() const { return str.data() + size(); }
-
-  explicit operator std::string() const { return std::string{data()}; }
-  explicit operator std::vector<std::byte>() const {
-    return std::vector<std::byte>{std::bit_cast<const std::byte *>(data()),
-                                  std::bit_cast<const std::byte *>(data()) + size()};
-  }
-
-  explicit operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
-
-  constexpr operator std::string_view() const { return std::string_view(data(), size()); }
-
-  constexpr operator std::span<const std::byte>() const { return ctb_wrapper<cts>{}; }
-
-  constexpr operator std::span<const char>() const { return std::span<const char>{data(), size()}; }
-
-  friend constexpr bool operator==(const cts_wrapper &lhs, const std::string &rhs) {
-    return static_cast<std::string_view>(lhs) == rhs;
-  }
-
-  friend constexpr bool operator==(const cts_wrapper &lhs, const std::string_view &rhs) {
-    return static_cast<std::string_view>(lhs) == rhs;
-  }
-
-  friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const std::byte> &rhs) {
-    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
-                      [](char a, std::byte b) { return static_cast<std::byte>(a) == b; });
-  }
-
-  friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const char> &rhs) {
-    return std::equal(rhs.begin(), rhs.end(), lhs.data(), lhs.data() + lhs.size());
-  }
-};
-
-using bytes_view = std::span<const std::byte>;
-template <compile_time_string str>
-constexpr auto operator""_cts() {
-  return cts_wrapper<str>{};
-}
-
-template <compile_time_string str>
-constexpr auto operator""_bytes_view() {
-  return static_cast<bytes_view>(ctb_wrapper<str>{});
-}
-
-template <compile_time_string str>
-constexpr auto operator""_bytes() {
-  return static_cast<std::vector<std::byte>>(ctb_wrapper<str>{});
-}
 
 enum class wire_type : unsigned int {
   varint = 0,
@@ -3086,22 +3139,6 @@ struct reverse_indices {
   constexpr static auto get_numbers(Meta /* unused */) {
     return std::apply([](auto... elem) { return (... << get_numbers(elem)); }, typename Meta::alternatives_meta{});
   }
-  template <typename T>
-    requires requires { T::encoding; }
-  constexpr static auto is_unpacked_repeated(T meta) {
-    return std::array{meta.encoding == encoding_rule::unpacked_repeated};
-  }
-
-  template <typename... T>
-  constexpr static auto is_unpacked_repeated(std::tuple<T...> metas) {
-    return std::apply([](auto... elem) { return (... << is_unpacked_repeated(elem)); }, metas);
-  }
-
-  template <concepts::is_oneof_field_meta Meta>
-  constexpr static auto is_unpacked_repeated(Meta /* unused */) {
-    return std::apply([](auto... elem) { return (... << is_unpacked_repeated(elem)); },
-                      typename Meta::alternatives_meta{});
-  }
 
   template <std::size_t I, typename T>
     requires requires { T::number; }
@@ -3169,51 +3206,6 @@ public:
 };
 #endif
 
-namespace detail {
-
-template <typename T, concepts::memory_resource MemoryResource>
-class growable_span {
-public:
-  using value_type = std::remove_const_t<T>;
-
-  growable_span(std::span<T> &base, MemoryResource &mr) : base_(base), mr(mr) {}
-
-  void resize(std::size_t n) {
-    if (data_ == nullptr || n > base_.size()) {
-      data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
-      assert(data_ != nullptr);
-      std::uninitialized_copy(base_.begin(), base_.end(), data_);
-
-      if constexpr (!std::is_trivial_v<T>) {
-        std::uninitialized_default_construct(data_ + base_.size(), data_ + n);
-      } else {
-#ifdef __cpp_lib_start_lifetime_as
-        std::start_lifetime_as_array(data_ + base.size(), n);
-#endif
-      }
-      base_ = std::span<T>{data_, n};
-    } else {
-      base_ = std::span<T>(base_.data(), n);
-    }
-  }
-
-  value_type *data() const { return data_; }
-  value_type &operator[](std::size_t n) { return data_[n]; }
-  std::size_t size() const { return base_.size(); }
-  value_type *begin() const { return data_; }
-  value_type *end() const { return data_ + size(); }
-
-  void clear() {
-    base_ = std::span<T>{};
-    data_ = nullptr;
-  }
-
-private:
-  std::span<T> &base_;
-  value_type *data_ = nullptr;
-  MemoryResource &mr;
-};
-} // namespace detail
 
 struct pb_serializer {
   template <typename Byte>
@@ -3727,8 +3719,8 @@ struct pb_serializer {
     return base;
   }
 
-  constexpr static std::errc skip_field(uint32_t field_num, wire_type field_wire_type, concepts::has_extension auto &item, auto &context,
-                       basic_in &archive) {
+  constexpr static std::errc skip_field(uint32_t field_num, wire_type field_wire_type,
+                                        concepts::has_extension auto &item, auto &context, basic_in &archive) {
     auto tag = make_tag(field_num, field_wire_type);
     auto start_pos = archive.m_data.data() - varint_size<varint_encoding::normal>(tag.value);
 
@@ -4268,6 +4260,34 @@ struct pb_serializer {
     basic_in archive(buffer);
     return deserialize(item, context, archive);
   }
+
+  constexpr static std::errc deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer, concepts::memory_resource auto& memory_resource) {
+    struct context_type {
+      decltype(memory_resource) memory_resource;
+    } context {memory_resource};
+    basic_in archive(buffer);
+    return deserialize(item, context, archive);
+  }
+
+  consteval static auto to_bytes(auto ObjectLambda) {
+    constexpr auto sz = message_size(ObjectLambda());
+    if constexpr (sz == 0) {
+      return std::span<std::byte>{};
+    } else {
+      std::array<std::byte, sz> buffer;
+      serialize(ObjectLambda(), buffer);
+      return buffer;
+    }
+  }
+
+  template <typename T>
+  constexpr static auto from_bytes(auto &&buffer) {
+    T obj;
+    auto ec = deserialize(obj, buffer);
+    if (ec != std::errc{})
+      throw std::system_error(std::make_error_code(ec));
+    return obj;
+  }
 };
 
 template <typename FieldType, typename MetaType>
@@ -4428,34 +4448,7 @@ void expect_impl(bool predicate, const char *filename, int lineno) {
 
 #define expect(...) expect_impl(__VA_ARGS__, __FILE__, __LINE__)
 
-// void verify_basic_out() {
-//     using namespace hpp::proto;
-//     {
-//         std::array<std::byte, 4> data1;
-//         basic_out<std::byte> out{data1};
-//         out(1);
-//         expect(out.m_data.empty());
-//         expect("\x01\x00\x00\x00"_cts == data1);
-//     }
-//     {
-//         std::array<std::byte, 2> data1;
-//         basic_out<std::byte> out{data1};
-//         out(varint{150});
-//         expect(out.m_data.empty());
-//         expect("\x96\x01"_cts == data1);
-//     }
-//     {
-//         std::array<std::byte, 8> data1;
-//         basic_out<std::byte> out{data1};
-//         out(std::array{1, 2});
-//         expect(out.m_data.empty());
-//         expect("\x01\x00\x00\x00\x02\x00\x00\x00"_cts == data1);
-//     }
 
-//     constexpr std::string_view a = "abc"_cts;
-//     constexpr std::span<const std::byte> b = "abc"_cts;
-//     std::span<const std::byte> c = "abc"_cts;
-// }
 using namespace hpp::proto;
 
 struct example {
@@ -4718,26 +4711,6 @@ std::string to_hex(const T &data) {
   return result;
 }
 
-consteval auto to_pb_bytes(auto ObjectLambda) {
-  constexpr auto sz = hpp::proto::pb_serializer::message_size(ObjectLambda());
-  if constexpr (sz == 0) {
-    return std::span<std::byte>{};
-  } else {
-    std::array<std::byte, sz> buffer;
-    hpp::proto::pb_serializer::serialize(ObjectLambda(), buffer);
-    return buffer;
-  }
-}
-
-template <typename T>
-constexpr auto from_pb_bytes(auto &&buffer) {
-  T obj;
-  auto ec = pb_serializer::deserialize(obj, buffer);
-  if (ec != std::errc{})
-    throw std::system_error(std::make_error_code(ec));
-  return obj;
-}
-
 #define carg(...) ([]() constexpr -> decltype(auto) { return __VA_ARGS__; })
 
 void verify_basic_in() {
@@ -4761,8 +4734,8 @@ void verify_basic_in() {
 }
 
 constexpr void constexpr_verify(auto buffer, auto object_fun) {
-  static_assert(std::ranges::equal(buffer(), to_pb_bytes(object_fun)));
-  static_assert(object_fun() == from_pb_bytes<decltype(object_fun())>(buffer()));
+  static_assert(std::ranges::equal(buffer(), pb_serializer::to_bytes(object_fun)));
+  static_assert(object_fun() == pb_serializer::from_bytes<decltype(object_fun())>(buffer()));
 }
 
 int main() {
@@ -4777,11 +4750,11 @@ int main() {
   expect(ser.message_size(msg) == 10);
 
   constexpr_verify(carg("\x08\x96\x01"_bytes_view), carg(example{150}));
-  static_assert(to_pb_bytes(carg(example{})).empty());
+  static_assert(pb_serializer::to_bytes(carg(example{})).empty());
 
   constexpr_verify(carg("\x0a\x03\x08\x96\x01"_bytes_view), carg(nested_example{.nested = example{150}}));
 
-  static_assert(to_pb_bytes(carg(example_default_type{})).empty());
+  static_assert(pb_serializer::to_bytes(carg(example_default_type{})).empty());
 
 #if defined(__cpp_lib_constexpr_vector) && (__cpp_lib_constexpr_vector >= 201907L)
   {
@@ -4849,7 +4822,7 @@ int main() {
     std::vector<std::byte> data;
     ser.serialize(value, data);
 
-    expect("\x0a\x02\x10\x02\x10\x01"_cts == data);
+    expect(std::ranges::equal("\x0a\x02\x10\x02\x10\x01"_bytes_view, data));
 
     expect(pb_serializer::deserialize(value2, "\x0a\x02\x10\x02\x10\x01"_bytes_view) == std::errc{});
     expect(value == value2);
