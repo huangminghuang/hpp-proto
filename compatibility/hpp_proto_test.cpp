@@ -2606,7 +2606,6 @@ private:
 };
 } // namespace detail
 
-
 /////////////////////////////////////////////////////////////////////////////////
 
 enum class varint_encoding {
@@ -2928,8 +2927,6 @@ struct repeated_extension_meta
   }
 };
 
-
-
 enum class wire_type : unsigned int {
   varint = 0,
   fixed_64 = 1,
@@ -3205,7 +3202,6 @@ public:
   constexpr const T *data() const noexcept { return data; }
 };
 #endif
-
 
 struct pb_serializer {
   template <typename Byte>
@@ -4261,10 +4257,11 @@ struct pb_serializer {
     return deserialize(item, context, archive);
   }
 
-  constexpr static std::errc deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer, concepts::memory_resource auto& memory_resource) {
+  constexpr static std::errc deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer,
+                                         concepts::memory_resource auto &mr) {
     struct context_type {
-      decltype(memory_resource) memory_resource;
-    } context {memory_resource};
+      decltype(mr) memory_resource;
+    } context{mr};
     basic_in archive(buffer);
     return deserialize(item, context, archive);
   }
@@ -4348,7 +4345,9 @@ inline std::error_code extension_meta_base<ExtensionMeta>::write(concepts::pb_ex
   if (auto ec = pb_serializer::serialize(wrapper, data); ec != std::errc{}) [[unlikely]] {
     return std::make_error_code(ec);
   }
-  extensions.fields[ExtensionMeta::number] = std::move(data);
+  if (data.size()) {
+    extensions.fields[ExtensionMeta::number] = std::move(data);
+  }
   return {};
 }
 
@@ -4443,11 +4442,11 @@ auto pb_meta(const GoogleMessage1SubMessage &) -> std::tuple<
 void expect_impl(bool predicate, const char *filename, int lineno) {
   if (!predicate) {
     std::cerr << "expectation failed: " << filename << '(' << lineno << ") `\n";
+    throw std::runtime_error{""};
   }
 }
 
 #define expect(...) expect_impl(__VA_ARGS__, __FILE__, __LINE__)
-
 
 using namespace hpp::proto;
 
