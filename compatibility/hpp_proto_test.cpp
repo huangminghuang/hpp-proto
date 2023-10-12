@@ -2816,7 +2816,7 @@ struct ctb_wrapper {
   constexpr const std::byte *end() const { return bytes.data() + size(); }
 
   constexpr operator std::span<const std::byte>() const { return std::span<const std::byte>{data(), size()}; }
-  constexpr operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
+  explicit operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
 };
 
 template <compile_time_string cts>
