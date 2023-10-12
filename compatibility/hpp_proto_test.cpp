@@ -16,7 +16,6 @@
 #include <variant>
 #include <vector>
 
-namespace hpp::proto {
 
 #ifndef __cpp_lib_bit_cast
 namespace std
@@ -34,6 +33,7 @@ constexpr ToType bit_cast(FromType const & from) noexcept
 } // namespace std
 #endif
 
+namespace hpp::proto {
 template <typename T, auto Default = std::monostate{}>
 constexpr bool is_default_value(const T &val) {
   if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>,
