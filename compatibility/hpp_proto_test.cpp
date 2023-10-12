@@ -18,6 +18,22 @@
 
 namespace hpp::proto {
 
+#ifndef __cpp_lib_bit_cast
+namespace std
+{
+using namespace ::std;
+template <class ToType,
+          class FromType,
+          class = enable_if_t<sizeof(ToType) == sizeof(FromType) &&
+                              is_trivially_copyable_v<ToType> &&
+                              is_trivially_copyable_v<FromType>>>
+constexpr ToType bit_cast(FromType const & from) noexcept
+{
+    return __builtin_bit_cast(ToType, from);
+}
+} // namespace std
+#endif
+
 template <typename T, auto Default = std::monostate{}>
 constexpr bool is_default_value(const T &val) {
   if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>,
@@ -2610,7 +2626,6 @@ auto pb_meta(const repeated_group &)
 
 struct string_example {
   std::string value;
-  constexpr string_example() {}
   bool operator==(const string_example &) const = default;
 };
 
