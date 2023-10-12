@@ -2538,7 +2538,7 @@ template <typename Type>
 concept has_explicit_meta = concepts::tuple<decltype(pb_meta(std::declval<Type>()))>;
 
 template <typename Type>
-concept has_meta = has_local_meta<Type> || has_explicit_meta<Type>;
+concept has_meta = has_local_meta<std::remove_cvref_t<Type>> || has_explicit_meta<Type>;
 
 template <typename T>
 concept numeric =
@@ -4322,8 +4322,8 @@ inline std::error_code extension_meta_base<ExtensionMeta>::write(concepts::pb_ex
   using extension_type = std::remove_cvref_t<decltype(extensions)>;
   using value_type = std::remove_cvref_t<decltype(value)>;
 
-  serialize_wrapper_type<const value_type &, ExtensionMeta> wrapper(value);
-  typename extension_type::mapped_type data;
+  serialize_wrapper_type<decltype(value), ExtensionMeta> wrapper{std::forward<decltype(value)>(value)};
+  typename decltype(extensions.fields)::mapped_type data;
 
   if (auto ec = pb_serializer::serialize(wrapper, data); ec != std::errc{}) [[unlikely]] {
     return std::make_error_code(ec);
@@ -4925,4 +4925,27 @@ int main() {
 
     expect(std::ranges::equal(encoded_data, new_data));
   }
+  {
+    extension_example value;
+    expect(!value.set_extension(i32_ext(), 1));
+    expect(value.extensions.fields[10] == "\x50\x01"_bytes);
+
+    expect(!value.set_extension(string_ext(), "test"));
+    expect(value.extensions.fields[11] == "\x5a\x04\x74\x65\x73\x74"_bytes);
+
+    expect(!value.set_extension(i32_defaulted_ext(), 10));
+    expect(value.extensions.fields.count(13) == 0);
+
+    expect(!value.set_extension(example_ext(), {.i = 150}));
+    expect(value.extensions.fields[15] == "\x7a\x03\x08\x96\x01"_bytes);
+
+    expect(!value.set_extension(repeated_i32_ext(), {1, 2}));
+    expect(value.extensions.fields[20] == "\xa0\x01\x01\xa0\x01\x02"_bytes);
+
+    expect(!value.set_extension(repeated_string_ext(), {"abc", "def"}));
+    expect(value.extensions.fields[21] == "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes);
+
+    expect(!value.set_extension(repeated_packed_i32_ext(), {1, 2, 3}));
+    expect(value.extensions.fields[22] == "\xb2\x01\x03\01\02\03"_bytes);
+  };
 }
