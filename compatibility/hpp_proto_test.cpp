@@ -15,6 +15,7 @@
 #include <tuple>
 #include <variant>
 #include <vector>
+#include <functional>
 
 #ifndef __cpp_lib_bit_cast
 namespace std {
