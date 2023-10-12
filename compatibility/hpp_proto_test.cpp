@@ -11,7 +11,6 @@
 #include <numeric>
 #include <optional>
 #include <ranges>
-#include <source_location>
 #include <span>
 #include <tuple>
 #include <variant>
@@ -2407,14 +2406,14 @@ auto pb_meta(const GoogleMessage1SubMessage &) -> std::tuple<
                            hpp::proto::encoding_rule::defaulted,
                            hpp::proto::vuint64_t>>;
 
-void expect(bool predicate, const std::source_location location =
-                                std::source_location::current()) {
+void expect_impl(bool predicate, const char* filename, int lineno) {
   if (!predicate) {
-    std::cerr << "expectation failed: " << location.file_name() << '('
-              << location.line() << ':' << location.column() << ") `"
-              << location.function_name() << "\n";
+    std::cerr << "expectation failed: " << filename << '('
+              << lineno << ") `\n";
   }
 }
+
+#define expect(...) expect_impl(__VA_ARGS__, __FILE__, __LINE__)
 
 // void verify_basic_out() {
 //     using namespace hpp::proto;
