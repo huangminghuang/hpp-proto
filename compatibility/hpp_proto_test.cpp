@@ -2506,12 +2506,12 @@ struct cts_wrapper {
   constexpr const char *end() const { return str.data() + size(); }
 
   explicit operator std::string() const { return std::string{data()}; }
-  constexpr explicit operator std::vector<std::byte>() const {
+  explicit operator std::vector<std::byte>() const {
     return std::vector<std::byte>{std::bit_cast<const std::byte *>(data()),
                                   std::bit_cast<const std::byte *>(data()) + size()};
   }
 
-  constexpr explicit operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
+  explicit operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
 
   constexpr operator std::string_view() const { return std::string_view(data(), size()); }
 
