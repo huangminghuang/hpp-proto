@@ -257,15 +257,15 @@ struct hpp_addons {
         break;
       case TYPE_INT64:
         cpp_field_type = "int64_t";
-        cpp_meta_type = "zpp::bits::vint64_t";
+        cpp_meta_type = "hpp::proto::vint64_t";
         break;
       case TYPE_UINT64:
         cpp_field_type = "uint64_t";
-        cpp_meta_type = "zpp::bits::vuint64_t";
+        cpp_meta_type = "hpp::proto::vuint64_t";
         break;
       case TYPE_INT32:
         cpp_field_type = "int32_t";
-        cpp_meta_type = "zpp::bits::vint64_t";
+        cpp_meta_type = "hpp::proto::vint64_t";
         break;
       case TYPE_FIXED64:
         cpp_field_type = "uint64_t";
@@ -301,7 +301,7 @@ struct hpp_addons {
         break;
       case TYPE_UINT32:
         cpp_field_type = "uint32_t";
-        cpp_meta_type = "zpp::bits::vuint32_t";
+        cpp_meta_type = "hpp::proto::vuint32_t";
         break;
       case TYPE_SFIXED32:
         cpp_field_type = "int32_t";
@@ -311,11 +311,11 @@ struct hpp_addons {
         break;
       case TYPE_SINT32:
         cpp_field_type = "int32_t";
-        cpp_meta_type = "zpp::bits::vsint32_t";
+        cpp_meta_type = "hpp::proto::vsint32_t";
         break;
       case TYPE_SINT64:
         cpp_field_type = "int64_t";
-        cpp_meta_type = "zpp::bits::vsint64_t";
+        cpp_meta_type = "hpp::proto::vsint64_t";
         break;
       }
     }
@@ -913,8 +913,7 @@ struct hpp_meta_generateor : code_generator {
 
     if (!ns.empty()) {
       fmt::format_to(target,
-                     "\nnamespace {} {{\n\n"
-                     "using namespace zpp::bits::literals;\n\n",
+                     "\nnamespace {} {{\n\n",
                      root_namespace + ns);
     }
 
@@ -945,17 +944,14 @@ struct hpp_meta_generateor : code_generator {
     fmt::format_to(target, "auto pb_meta(const {} &) -> std::tuple<\n", qualified_cpp_name);
     indent_num += 2;
 
-    uint32_t num_fields = 0;
     for (auto *f : descriptor.fields) {
       if (!f->proto.oneof_index.has_value()) {
         process(*f, qualified_cpp_name, false);
-        num_fields++;
       } else {
         auto index = *f->proto.oneof_index;
         auto &oneof = *(descriptor.oneofs[index]);
         if (oneof.fields[0]->proto.number == f->proto.number) {
           process(oneof, qualified_cpp_name, pb_name);
-          num_fields++;
         }
       }
     }
@@ -969,9 +965,6 @@ struct hpp_meta_generateor : code_generator {
     indent_num -= 2;
 
     fmt::format_to(target, ">;\n\n");
-
-    fmt::format_to(target, "auto serialize(const {}&) -> zpp::bits::members<{}>;\n\n", qualified_cpp_name,
-                   num_fields + (!descriptor.proto.extension_range.empty() ? 1 : 0));
 
     fmt::format_to(target, "constexpr auto pb_message_name(const {0}&) {{ return \"{1}\"_cts; }}\n\n",
                    qualified_cpp_name, pb_name);

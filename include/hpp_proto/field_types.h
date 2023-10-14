@@ -48,7 +48,6 @@ using stdext::flat_map;
 #if !defined(__cpp_lib_flat_map)
 #define HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
 #endif
-namespace hpp::proto {
 
 #ifndef __cpp_lib_bit_cast
 namespace std {
@@ -61,6 +60,7 @@ constexpr ToType bit_cast(FromType const &from) noexcept {
 }
 } // namespace std
 #endif
+namespace hpp::proto {
 
 // workaround for clang not supporting floating-point types in non-type template
 // parameters as of clang-15
@@ -74,17 +74,10 @@ struct float_wrapper {
 };
 
 #if defined(__clang__)
-#if defined(__cpp_lib_bit_cast)
 #define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
   hpp::proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
 #define HPP_PROTO_WRAP_DOUBLE(v)                                                                                       \
   hpp::proto::double_wrapper<std::bit_cast<int64_t>(v)> {}
-#else
-#define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
-  hpp::proto::float_wrapper<hpp::proto::std::bit_cast<int32_t>(v)> {}
-#define HPP_PROTO_WRAP_DOUBLE(v)                                                                                       \
-  hpp::proto::double_wrapper<hpp::proto::std::bit_cast<int64_t>(v)> {}
-#endif
 #else
 #define HPP_PROTO_WRAP_FLOAT(v) v
 #define HPP_PROTO_WRAP_DOUBLE(v) v
@@ -398,6 +391,34 @@ struct compile_time_string {
   constexpr const char *data() const { return data_; }
 };
 
+template <std::size_t Len>
+struct compile_time_bytes {
+  using value_type = char;
+  std::byte data_[Len];
+  constexpr size_t size() const { return Len - 1; }
+  constexpr compile_time_bytes(const char (&init)[Len]) {
+    std::transform(init, init + Len, data_, [](char c) { return static_cast<std::byte>(c); });
+  }
+  constexpr const std::byte *data() const { return data_; }
+};
+
+template <compile_time_string cts>
+struct ctb_wrapper {
+  static constexpr compile_time_bytes bytes{cts.data_};
+
+  constexpr size_t size() const { return bytes.size(); }
+  constexpr const std::byte *data() const { return bytes.data(); }
+  constexpr const std::byte *begin() const { return bytes.data(); }
+  constexpr const std::byte *end() const { return bytes.data() + size(); }
+
+  constexpr operator std::span<const std::byte>() const { return std::span<const std::byte>{data(), size()}; }
+  explicit operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
+
+  friend constexpr bool operator==(const ctb_wrapper &lhs, const std::span<const std::byte> &rhs) {
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+  }
+};
+
 template <compile_time_string cts>
 struct cts_wrapper {
   static constexpr compile_time_string str{cts};
@@ -416,31 +437,22 @@ struct cts_wrapper {
   explicit operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
 
   constexpr operator std::string_view() const { return std::string_view(data(), size()); }
-  operator std::span<const std::byte>() const {
-        return std::span<const std::byte>{
-            std::bit_cast<const std::byte *>(data()), size()};
-    }
-  constexpr operator std::span<const char>() const { return std::span<char>{data(), size()}; }
+
+  constexpr operator std::span<const std::byte>() const { return ctb_wrapper<cts>{}; }
+
+  constexpr operator std::span<const char>() const { return std::span<const char>{data(), size()}; }
 
   friend constexpr bool operator==(const cts_wrapper &lhs, const std::string &rhs) {
-    return static_cast<std::string>(lhs) == rhs;
+    return static_cast<std::string_view>(lhs) == rhs;
   }
 
   friend constexpr bool operator==(const cts_wrapper &lhs, const std::string_view &rhs) {
     return static_cast<std::string_view>(lhs) == rhs;
   }
 
-  friend constexpr bool operator==(const cts_wrapper &lhs, const std::vector<std::byte> &rhs) {
-    return static_cast<std::vector<std::byte>>(lhs) == rhs;
-  }
-
   friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const std::byte> &rhs) {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
                       [](char a, std::byte b) { return static_cast<std::byte>(a) == b; });
-  }
-
-  friend constexpr bool operator==(const cts_wrapper &lhs, const std::vector<char> &rhs) {
-    return static_cast<std::vector<char>>(lhs) == rhs;
   }
 
   friend constexpr bool operator==(const cts_wrapper &lhs, const std::span<const char> &rhs) {
@@ -459,15 +471,14 @@ constexpr auto operator""_cts() {
 }
 
 template <compile_time_string str>
-constexpr auto operator""_bytes() {
-  return static_cast<bytes>(cts_wrapper<str>{});
+constexpr auto operator""_bytes_view() {
+  return static_cast<bytes_view>(ctb_wrapper<str>{});
 }
 
 template <compile_time_string str>
-auto operator""_bytes_view() {
-  return static_cast<bytes_view>(cts_wrapper<str>{});
+constexpr auto operator""_bytes() {
+  return static_cast<std::vector<std::byte>>(ctb_wrapper<str>{});
 }
-
 } // namespace literals
 
 struct boolean {

@@ -6,12 +6,12 @@
 
 namespace google::protobuf {
 
-using namespace zpp::bits::literals;
+using namespace hpp::proto::literals;
 
 auto pb_meta(const FileDescriptorSet &) -> std::tuple<
   hpp::proto::field_meta<1, &FileDescriptorSet::file, hpp::proto::encoding_rule::unpacked_repeated>>;
 
-auto serialize(const FileDescriptorSet&) -> zpp::bits::members<1>;
+
 
 constexpr auto pb_message_name(const FileDescriptorSet&) { return "google.protobuf.FileDescriptorSet"_cts; }
 
@@ -19,8 +19,8 @@ auto pb_meta(const FileDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &FileDescriptorProto::name, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<2, &FileDescriptorProto::package, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<3, &FileDescriptorProto::dependency, hpp::proto::encoding_rule::unpacked_repeated>,
-  hpp::proto::field_meta<10, &FileDescriptorProto::public_dependency, hpp::proto::encoding_rule::unpacked_repeated, zpp::bits::vint64_t>,
-  hpp::proto::field_meta<11, &FileDescriptorProto::weak_dependency, hpp::proto::encoding_rule::unpacked_repeated, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<10, &FileDescriptorProto::public_dependency, hpp::proto::encoding_rule::unpacked_repeated, hpp::proto::vint64_t>,
+  hpp::proto::field_meta<11, &FileDescriptorProto::weak_dependency, hpp::proto::encoding_rule::unpacked_repeated, hpp::proto::vint64_t>,
   hpp::proto::field_meta<4, &FileDescriptorProto::message_type, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<5, &FileDescriptorProto::enum_type, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<6, &FileDescriptorProto::service, hpp::proto::encoding_rule::unpacked_repeated>,
@@ -30,7 +30,7 @@ auto pb_meta(const FileDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<12, &FileDescriptorProto::syntax, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<13, &FileDescriptorProto::edition, hpp::proto::encoding_rule::defaulted>>;
 
-auto serialize(const FileDescriptorProto&) -> zpp::bits::members<13>;
+
 
 constexpr auto pb_message_name(const FileDescriptorProto&) { return "google.protobuf.FileDescriptorProto"_cts; }
 
@@ -46,24 +46,24 @@ auto pb_meta(const DescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<9, &DescriptorProto::reserved_range, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<10, &DescriptorProto::reserved_name, hpp::proto::encoding_rule::unpacked_repeated>>;
 
-auto serialize(const DescriptorProto&) -> zpp::bits::members<10>;
+
 
 constexpr auto pb_message_name(const DescriptorProto&) { return "google.protobuf.DescriptorProto"_cts; }
 
 auto pb_meta(const DescriptorProto::ExtensionRange &) -> std::tuple<
-  hpp::proto::field_meta<1, &DescriptorProto::ExtensionRange::start, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
-  hpp::proto::field_meta<2, &DescriptorProto::ExtensionRange::end, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<1, &DescriptorProto::ExtensionRange::start, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
+  hpp::proto::field_meta<2, &DescriptorProto::ExtensionRange::end, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
   hpp::proto::field_meta<3, &DescriptorProto::ExtensionRange::options, hpp::proto::encoding_rule::explicit_presence>>;
 
-auto serialize(const DescriptorProto::ExtensionRange&) -> zpp::bits::members<3>;
+
 
 constexpr auto pb_message_name(const DescriptorProto::ExtensionRange&) { return "google.protobuf.DescriptorProto.ExtensionRange"_cts; }
 
 auto pb_meta(const DescriptorProto::ReservedRange &) -> std::tuple<
-  hpp::proto::field_meta<1, &DescriptorProto::ReservedRange::start, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
-  hpp::proto::field_meta<2, &DescriptorProto::ReservedRange::end, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>>;
+  hpp::proto::field_meta<1, &DescriptorProto::ReservedRange::start, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
+  hpp::proto::field_meta<2, &DescriptorProto::ReservedRange::end, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>>;
 
-auto serialize(const DescriptorProto::ReservedRange&) -> zpp::bits::members<2>;
+
 
 constexpr auto pb_message_name(const DescriptorProto::ReservedRange&) { return "google.protobuf.DescriptorProto.ReservedRange"_cts; }
 
@@ -74,35 +74,35 @@ auto pb_meta(const ExtensionRangeOptions &) -> std::tuple<
   hpp::proto::field_meta<3, &ExtensionRangeOptions::verification, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::ExtensionRangeOptions::VerificationState::UNVERIFIED>,
   hpp::proto::field_meta<UINT32_MAX, &ExtensionRangeOptions::extensions>>;
 
-auto serialize(const ExtensionRangeOptions&) -> zpp::bits::members<5>;
+
 
 constexpr auto pb_message_name(const ExtensionRangeOptions&) { return "google.protobuf.ExtensionRangeOptions"_cts; }
 
 auto pb_meta(const ExtensionRangeOptions::Declaration &) -> std::tuple<
-  hpp::proto::field_meta<1, &ExtensionRangeOptions::Declaration::number, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<1, &ExtensionRangeOptions::Declaration::number, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
   hpp::proto::field_meta<2, &ExtensionRangeOptions::Declaration::full_name, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<3, &ExtensionRangeOptions::Declaration::type, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<5, &ExtensionRangeOptions::Declaration::reserved, hpp::proto::encoding_rule::defaulted, bool>,
   hpp::proto::field_meta<6, &ExtensionRangeOptions::Declaration::repeated, hpp::proto::encoding_rule::defaulted, bool>>;
 
-auto serialize(const ExtensionRangeOptions::Declaration&) -> zpp::bits::members<5>;
+
 
 constexpr auto pb_message_name(const ExtensionRangeOptions::Declaration&) { return "google.protobuf.ExtensionRangeOptions.Declaration"_cts; }
 
 auto pb_meta(const FieldDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &FieldDescriptorProto::name, hpp::proto::encoding_rule::defaulted>,
-  hpp::proto::field_meta<3, &FieldDescriptorProto::number, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<3, &FieldDescriptorProto::number, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
   hpp::proto::field_meta<4, &FieldDescriptorProto::label, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FieldDescriptorProto::Label::LABEL_OPTIONAL>,
   hpp::proto::field_meta<5, &FieldDescriptorProto::type, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::FieldDescriptorProto::Type::TYPE_DOUBLE>,
   hpp::proto::field_meta<6, &FieldDescriptorProto::type_name, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<2, &FieldDescriptorProto::extendee, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<7, &FieldDescriptorProto::default_value, hpp::proto::encoding_rule::defaulted>,
-  hpp::proto::field_meta<9, &FieldDescriptorProto::oneof_index, hpp::proto::encoding_rule::explicit_presence, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<9, &FieldDescriptorProto::oneof_index, hpp::proto::encoding_rule::explicit_presence, hpp::proto::vint64_t>,
   hpp::proto::field_meta<10, &FieldDescriptorProto::json_name, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<8, &FieldDescriptorProto::options, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<17, &FieldDescriptorProto::proto3_optional, hpp::proto::encoding_rule::defaulted, bool>>;
 
-auto serialize(const FieldDescriptorProto&) -> zpp::bits::members<11>;
+
 
 constexpr auto pb_message_name(const FieldDescriptorProto&) { return "google.protobuf.FieldDescriptorProto"_cts; }
 
@@ -110,7 +110,7 @@ auto pb_meta(const OneofDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &OneofDescriptorProto::name, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<2, &OneofDescriptorProto::options, hpp::proto::encoding_rule::explicit_presence>>;
 
-auto serialize(const OneofDescriptorProto&) -> zpp::bits::members<2>;
+
 
 constexpr auto pb_message_name(const OneofDescriptorProto&) { return "google.protobuf.OneofDescriptorProto"_cts; }
 
@@ -121,24 +121,24 @@ auto pb_meta(const EnumDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<4, &EnumDescriptorProto::reserved_range, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<5, &EnumDescriptorProto::reserved_name, hpp::proto::encoding_rule::unpacked_repeated>>;
 
-auto serialize(const EnumDescriptorProto&) -> zpp::bits::members<5>;
+
 
 constexpr auto pb_message_name(const EnumDescriptorProto&) { return "google.protobuf.EnumDescriptorProto"_cts; }
 
 auto pb_meta(const EnumDescriptorProto::EnumReservedRange &) -> std::tuple<
-  hpp::proto::field_meta<1, &EnumDescriptorProto::EnumReservedRange::start, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
-  hpp::proto::field_meta<2, &EnumDescriptorProto::EnumReservedRange::end, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>>;
+  hpp::proto::field_meta<1, &EnumDescriptorProto::EnumReservedRange::start, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
+  hpp::proto::field_meta<2, &EnumDescriptorProto::EnumReservedRange::end, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>>;
 
-auto serialize(const EnumDescriptorProto::EnumReservedRange&) -> zpp::bits::members<2>;
+
 
 constexpr auto pb_message_name(const EnumDescriptorProto::EnumReservedRange&) { return "google.protobuf.EnumDescriptorProto.EnumReservedRange"_cts; }
 
 auto pb_meta(const EnumValueDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &EnumValueDescriptorProto::name, hpp::proto::encoding_rule::defaulted>,
-  hpp::proto::field_meta<2, &EnumValueDescriptorProto::number, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<2, &EnumValueDescriptorProto::number, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
   hpp::proto::field_meta<3, &EnumValueDescriptorProto::options, hpp::proto::encoding_rule::explicit_presence>>;
 
-auto serialize(const EnumValueDescriptorProto&) -> zpp::bits::members<3>;
+
 
 constexpr auto pb_message_name(const EnumValueDescriptorProto&) { return "google.protobuf.EnumValueDescriptorProto"_cts; }
 
@@ -147,7 +147,7 @@ auto pb_meta(const ServiceDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<2, &ServiceDescriptorProto::method, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<3, &ServiceDescriptorProto::options, hpp::proto::encoding_rule::explicit_presence>>;
 
-auto serialize(const ServiceDescriptorProto&) -> zpp::bits::members<3>;
+
 
 constexpr auto pb_message_name(const ServiceDescriptorProto&) { return "google.protobuf.ServiceDescriptorProto"_cts; }
 
@@ -159,7 +159,7 @@ auto pb_meta(const MethodDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<5, &MethodDescriptorProto::client_streaming, hpp::proto::encoding_rule::defaulted, bool, false>,
   hpp::proto::field_meta<6, &MethodDescriptorProto::server_streaming, hpp::proto::encoding_rule::defaulted, bool, false>>;
 
-auto serialize(const MethodDescriptorProto&) -> zpp::bits::members<6>;
+
 
 constexpr auto pb_message_name(const MethodDescriptorProto&) { return "google.protobuf.MethodDescriptorProto"_cts; }
 
@@ -188,7 +188,7 @@ auto pb_meta(const FileOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &FileOptions::uninterpreted_option, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &FileOptions::extensions>>;
 
-auto serialize(const FileOptions&) -> zpp::bits::members<23>;
+
 
 constexpr auto pb_message_name(const FileOptions&) { return "google.protobuf.FileOptions"_cts; }
 
@@ -202,7 +202,7 @@ auto pb_meta(const MessageOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &MessageOptions::uninterpreted_option, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &MessageOptions::extensions>>;
 
-auto serialize(const MessageOptions&) -> zpp::bits::members<8>;
+
 
 constexpr auto pb_message_name(const MessageOptions&) { return "google.protobuf.MessageOptions"_cts; }
 
@@ -222,7 +222,7 @@ auto pb_meta(const FieldOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &FieldOptions::uninterpreted_option, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &FieldOptions::extensions>>;
 
-auto serialize(const FieldOptions&) -> zpp::bits::members<14>;
+
 
 constexpr auto pb_message_name(const FieldOptions&) { return "google.protobuf.FieldOptions"_cts; }
 
@@ -230,7 +230,7 @@ auto pb_meta(const FieldOptions::EditionDefault &) -> std::tuple<
   hpp::proto::field_meta<1, &FieldOptions::EditionDefault::edition, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<2, &FieldOptions::EditionDefault::value, hpp::proto::encoding_rule::defaulted>>;
 
-auto serialize(const FieldOptions::EditionDefault&) -> zpp::bits::members<2>;
+
 
 constexpr auto pb_message_name(const FieldOptions::EditionDefault&) { return "google.protobuf.FieldOptions.EditionDefault"_cts; }
 
@@ -239,7 +239,7 @@ auto pb_meta(const OneofOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &OneofOptions::uninterpreted_option, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &OneofOptions::extensions>>;
 
-auto serialize(const OneofOptions&) -> zpp::bits::members<3>;
+
 
 constexpr auto pb_message_name(const OneofOptions&) { return "google.protobuf.OneofOptions"_cts; }
 
@@ -251,7 +251,7 @@ auto pb_meta(const EnumOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &EnumOptions::uninterpreted_option, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &EnumOptions::extensions>>;
 
-auto serialize(const EnumOptions&) -> zpp::bits::members<6>;
+
 
 constexpr auto pb_message_name(const EnumOptions&) { return "google.protobuf.EnumOptions"_cts; }
 
@@ -262,7 +262,7 @@ auto pb_meta(const EnumValueOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &EnumValueOptions::uninterpreted_option, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &EnumValueOptions::extensions>>;
 
-auto serialize(const EnumValueOptions&) -> zpp::bits::members<5>;
+
 
 constexpr auto pb_message_name(const EnumValueOptions&) { return "google.protobuf.EnumValueOptions"_cts; }
 
@@ -272,7 +272,7 @@ auto pb_meta(const ServiceOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &ServiceOptions::uninterpreted_option, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &ServiceOptions::extensions>>;
 
-auto serialize(const ServiceOptions&) -> zpp::bits::members<4>;
+
 
 constexpr auto pb_message_name(const ServiceOptions&) { return "google.protobuf.ServiceOptions"_cts; }
 
@@ -283,20 +283,20 @@ auto pb_meta(const MethodOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &MethodOptions::uninterpreted_option, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &MethodOptions::extensions>>;
 
-auto serialize(const MethodOptions&) -> zpp::bits::members<5>;
+
 
 constexpr auto pb_message_name(const MethodOptions&) { return "google.protobuf.MethodOptions"_cts; }
 
 auto pb_meta(const UninterpretedOption &) -> std::tuple<
   hpp::proto::field_meta<2, &UninterpretedOption::name, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<3, &UninterpretedOption::identifier_value, hpp::proto::encoding_rule::defaulted>,
-  hpp::proto::field_meta<4, &UninterpretedOption::positive_int_value, hpp::proto::encoding_rule::defaulted, zpp::bits::vuint64_t>,
-  hpp::proto::field_meta<5, &UninterpretedOption::negative_int_value, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<4, &UninterpretedOption::positive_int_value, hpp::proto::encoding_rule::defaulted, hpp::proto::vuint64_t>,
+  hpp::proto::field_meta<5, &UninterpretedOption::negative_int_value, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
   hpp::proto::field_meta<6, &UninterpretedOption::double_value, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<7, &UninterpretedOption::string_value, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<8, &UninterpretedOption::aggregate_value, hpp::proto::encoding_rule::defaulted>>;
 
-auto serialize(const UninterpretedOption&) -> zpp::bits::members<7>;
+
 
 constexpr auto pb_message_name(const UninterpretedOption&) { return "google.protobuf.UninterpretedOption"_cts; }
 
@@ -304,7 +304,7 @@ auto pb_meta(const UninterpretedOption::NamePart &) -> std::tuple<
   hpp::proto::field_meta<1, &UninterpretedOption::NamePart::name_part, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<2, &UninterpretedOption::NamePart::is_extension, hpp::proto::encoding_rule::defaulted, bool>>;
 
-auto serialize(const UninterpretedOption::NamePart&) -> zpp::bits::members<2>;
+
 
 constexpr auto pb_message_name(const UninterpretedOption::NamePart&) { return "google.protobuf.UninterpretedOption.NamePart"_cts; }
 
@@ -318,43 +318,43 @@ auto pb_meta(const FeatureSet &) -> std::tuple<
   hpp::proto::field_meta<999, &FeatureSet::raw_features, hpp::proto::encoding_rule::explicit_presence>,
   hpp::proto::field_meta<UINT32_MAX, &FeatureSet::extensions>>;
 
-auto serialize(const FeatureSet&) -> zpp::bits::members<8>;
+
 
 constexpr auto pb_message_name(const FeatureSet&) { return "google.protobuf.FeatureSet"_cts; }
 
 auto pb_meta(const SourceCodeInfo &) -> std::tuple<
   hpp::proto::field_meta<1, &SourceCodeInfo::location, hpp::proto::encoding_rule::unpacked_repeated>>;
 
-auto serialize(const SourceCodeInfo&) -> zpp::bits::members<1>;
+
 
 constexpr auto pb_message_name(const SourceCodeInfo&) { return "google.protobuf.SourceCodeInfo"_cts; }
 
 auto pb_meta(const SourceCodeInfo::Location &) -> std::tuple<
-  hpp::proto::field_meta<1, &SourceCodeInfo::Location::path, hpp::proto::encoding_rule::packed_repeated, zpp::bits::vint64_t>,
-  hpp::proto::field_meta<2, &SourceCodeInfo::Location::span, hpp::proto::encoding_rule::packed_repeated, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<1, &SourceCodeInfo::Location::path, hpp::proto::encoding_rule::packed_repeated, hpp::proto::vint64_t>,
+  hpp::proto::field_meta<2, &SourceCodeInfo::Location::span, hpp::proto::encoding_rule::packed_repeated, hpp::proto::vint64_t>,
   hpp::proto::field_meta<3, &SourceCodeInfo::Location::leading_comments, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<4, &SourceCodeInfo::Location::trailing_comments, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<6, &SourceCodeInfo::Location::leading_detached_comments, hpp::proto::encoding_rule::unpacked_repeated>>;
 
-auto serialize(const SourceCodeInfo::Location&) -> zpp::bits::members<5>;
+
 
 constexpr auto pb_message_name(const SourceCodeInfo::Location&) { return "google.protobuf.SourceCodeInfo.Location"_cts; }
 
 auto pb_meta(const GeneratedCodeInfo &) -> std::tuple<
   hpp::proto::field_meta<1, &GeneratedCodeInfo::annotation, hpp::proto::encoding_rule::unpacked_repeated>>;
 
-auto serialize(const GeneratedCodeInfo&) -> zpp::bits::members<1>;
+
 
 constexpr auto pb_message_name(const GeneratedCodeInfo&) { return "google.protobuf.GeneratedCodeInfo"_cts; }
 
 auto pb_meta(const GeneratedCodeInfo::Annotation &) -> std::tuple<
-  hpp::proto::field_meta<1, &GeneratedCodeInfo::Annotation::path, hpp::proto::encoding_rule::packed_repeated, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<1, &GeneratedCodeInfo::Annotation::path, hpp::proto::encoding_rule::packed_repeated, hpp::proto::vint64_t>,
   hpp::proto::field_meta<2, &GeneratedCodeInfo::Annotation::source_file, hpp::proto::encoding_rule::defaulted>,
-  hpp::proto::field_meta<3, &GeneratedCodeInfo::Annotation::begin, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
-  hpp::proto::field_meta<4, &GeneratedCodeInfo::Annotation::end, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<3, &GeneratedCodeInfo::Annotation::begin, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
+  hpp::proto::field_meta<4, &GeneratedCodeInfo::Annotation::end, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
   hpp::proto::field_meta<5, &GeneratedCodeInfo::Annotation::semantic, hpp::proto::encoding_rule::defaulted, void, ::google::protobuf::GeneratedCodeInfo::Annotation::Semantic::NONE>>;
 
-auto serialize(const GeneratedCodeInfo::Annotation&) -> zpp::bits::members<5>;
+
 
 constexpr auto pb_message_name(const GeneratedCodeInfo::Annotation&) { return "google.protobuf.GeneratedCodeInfo.Annotation"_cts; }
 

@@ -7,15 +7,13 @@
 
 namespace google::protobuf::compiler {
 
-using namespace zpp::bits::literals;
-
 auto pb_meta(const Version &) -> std::tuple<
-  hpp::proto::field_meta<1, &Version::major, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
-  hpp::proto::field_meta<2, &Version::minor, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
-  hpp::proto::field_meta<3, &Version::patch, hpp::proto::encoding_rule::defaulted, zpp::bits::vint64_t>,
+  hpp::proto::field_meta<1, &Version::major, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
+  hpp::proto::field_meta<2, &Version::minor, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
+  hpp::proto::field_meta<3, &Version::patch, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
   hpp::proto::field_meta<4, &Version::suffix, hpp::proto::encoding_rule::defaulted>>;
 
-auto serialize(const Version&) -> zpp::bits::members<4>;
+
 
 constexpr auto pb_message_name(const Version&) { return "google.protobuf.compiler.Version"_cts; }
 
@@ -26,16 +24,16 @@ auto pb_meta(const CodeGeneratorRequest &) -> std::tuple<
   hpp::proto::field_meta<17, &CodeGeneratorRequest::source_file_descriptors, hpp::proto::encoding_rule::unpacked_repeated>,
   hpp::proto::field_meta<3, &CodeGeneratorRequest::compiler_version, hpp::proto::encoding_rule::explicit_presence>>;
 
-auto serialize(const CodeGeneratorRequest&) -> zpp::bits::members<5>;
+
 
 constexpr auto pb_message_name(const CodeGeneratorRequest&) { return "google.protobuf.compiler.CodeGeneratorRequest"_cts; }
 
 auto pb_meta(const CodeGeneratorResponse &) -> std::tuple<
   hpp::proto::field_meta<1, &CodeGeneratorResponse::error, hpp::proto::encoding_rule::defaulted>,
-  hpp::proto::field_meta<2, &CodeGeneratorResponse::supported_features, hpp::proto::encoding_rule::defaulted, zpp::bits::vuint64_t>,
+  hpp::proto::field_meta<2, &CodeGeneratorResponse::supported_features, hpp::proto::encoding_rule::defaulted, hpp::proto::vuint64_t>,
   hpp::proto::field_meta<15, &CodeGeneratorResponse::file, hpp::proto::encoding_rule::unpacked_repeated>>;
 
-auto serialize(const CodeGeneratorResponse&) -> zpp::bits::members<3>;
+
 
 constexpr auto pb_message_name(const CodeGeneratorResponse&) { return "google.protobuf.compiler.CodeGeneratorResponse"_cts; }
 
@@ -45,7 +43,7 @@ auto pb_meta(const CodeGeneratorResponse::File &) -> std::tuple<
   hpp::proto::field_meta<15, &CodeGeneratorResponse::File::content, hpp::proto::encoding_rule::defaulted>,
   hpp::proto::field_meta<16, &CodeGeneratorResponse::File::generated_code_info, hpp::proto::encoding_rule::explicit_presence>>;
 
-auto serialize(const CodeGeneratorResponse::File&) -> zpp::bits::members<4>;
+
 
 constexpr auto pb_message_name(const CodeGeneratorResponse::File&) { return "google.protobuf.compiler.CodeGeneratorResponse.File"_cts; }
 

@@ -11,8 +11,6 @@ if (APPLE)
 endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-
-CPMAddPackage(gh:eyalz800/zpp_bits@4.4.19)
 CPMAddPackage(
   NAME glaze
   VERSION 1.4.3.mod2
@@ -38,7 +36,7 @@ CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
 
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
-option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" ON)
+option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
 option(HPP_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -86,9 +84,9 @@ if (HPP_PROTO_TESTS)
   add_subdirectory(tests)
 endif()
 
-if (HPP_PROTO_BENCHMARKS)
-  add_subdirectory(benchmarks)
-endif()
+# if (HPP_PROTO_BENCHMARKS)
+#   add_subdirectory(benchmarks)
+# endif()
 
 write_basic_package_version_file(
     lib/cmake/hpp_proto/hpp_proto-config-version.cmake
