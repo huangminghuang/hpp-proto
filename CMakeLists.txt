@@ -63,7 +63,6 @@ endif()
 add_library(libhpp_proto INTERFACE)
 target_include_directories(libhpp_proto INTERFACE 
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${zpp_bits_SOURCE_DIR}>
   $<BUILD_INTERFACE:${expected_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(libhpp_proto INTERFACE cxx_std_20)
@@ -84,9 +83,9 @@ if (HPP_PROTO_TESTS)
   add_subdirectory(tests)
 endif()
 
-# if (HPP_PROTO_BENCHMARKS)
-#   add_subdirectory(benchmarks)
-# endif()
+if (HPP_PROTO_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()
 
 write_basic_package_version_file(
     lib/cmake/hpp_proto/hpp_proto-config-version.cmake
@@ -105,7 +104,6 @@ configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/compiler/plugin.proto 
 install(DIRECTORY include/ TYPE INCLUDE)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
 install(DIRECTORY ${expected_SOURCE_DIR}/include/ TYPE INCLUDE)
-install(FILES ${zpp_bits_SOURCE_DIR}/zpp_bits.h TYPE INCLUDE)
 install(TARGETS protoc libhpp_proto EXPORT hpp_proto-targets)
 install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
 
