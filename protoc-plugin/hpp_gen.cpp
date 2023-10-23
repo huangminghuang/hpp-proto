@@ -27,6 +27,7 @@
 #include <hpp_proto/descriptor_pool.h>
 #include <iostream>
 #include <numeric>
+#include <ranges>
 #include <set>
 #include <unordered_set>
 
@@ -912,9 +913,7 @@ struct hpp_meta_generateor : code_generator {
     auto ns = qualified_cpp_name(package);
 
     if (!ns.empty()) {
-      fmt::format_to(target,
-                     "\nnamespace {} {{\n\n",
-                     root_namespace + ns);
+      fmt::format_to(target, "\nnamespace {} {{\n\n", root_namespace + ns);
     }
 
     for (auto *m : descriptor.messages) {
@@ -982,7 +981,7 @@ struct hpp_meta_generateor : code_generator {
   // NOLINTEND(misc-no-recursion)
   // NOLINTBEGIN(readability-function-cognitive-complexity)
   void process(field_descriptor_t &descriptor, const std::string &cpp_scope, std::size_t oneof_index = 0) {
-    std::string_view rule = (oneof_index) == 0  ? "defaulted" : "explicit_presence" ;
+    std::string_view rule = (oneof_index) == 0 ? "defaulted" : "explicit_presence";
     auto proto = descriptor.proto;
     using enum gpb::FieldDescriptorProto::Label;
 
@@ -1260,46 +1259,35 @@ int main(int argc, const char **argv) {
   } else if (std::string_view("--input") == argv[1]) {
     read_file(std::ifstream(argv[2]));
   }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
-  if (const char *env_p = std::getenv("HPP_GEN_EXPORT_REQUEST")) {
-    std::ofstream out(env_p);
-    std::copy(request_data.begin(), request_data.end(), std::ostreambuf_iterator<char>(out));
-  }
-
-  if (const char *env_p = std::getenv("HPP_EXPLICIT_PRESENCE")) {
-    const std::string s = env_p;
-    std::size_t start_pos = 0;
-    std::size_t end_pos = 0;
-    if (!s.empty()) {
-      while ((end_pos = s.find(',', start_pos)) != std::string::npos) {
-        force_optionals.emplace_back(s.substr(start_pos, end_pos - start_pos));
-        start_pos = end_pos + 1;
-      }
-      force_optionals.emplace_back(s.substr(start_pos));
-    }
-  }
-
-  if (const char *env_p = std::getenv("HPP_ROOT_NAMESPACE")) {
-    root_namespace = env_p;
-    if (!root_namespace.ends_with("::")) {
-      root_namespace += "::";
-    }
-  }
-
-  if (const char *env_p = std::getenv("HPP_NON_OWNING")) {
-    non_owning_mode = strcmp("ON", env_p) == 0 || strcmp("TRUE", env_p) == 0 || strcmp("YES", env_p) == 0;
-  }
-
-  if (const char *env_p = std::getenv("HPP_TOP_DIRECTORY")) {
-    top_directory = env_p;
-  }
 
   gpb::compiler::CodeGeneratorRequest request;
 
   if (auto ec = hpp::proto::read_proto(request, request_data); ec) {
     (void)fputs("hpp decode error", stderr);
     return 1;
+  }
+
+  for (const auto word : std::views::split(request.parameter, ',')) {
+    std::string_view opt(word.begin(), word.end());
+    auto equal_sign_pos = opt.find("=");
+    auto opt_key = opt.substr(0, equal_sign_pos);
+    auto opt_value = opt.substr(equal_sign_pos + 1);
+
+    if (opt_key == "top_directory") {
+      top_directory = opt_value;
+    } else if (opt_key == "root_namespace") {
+      root_namespace = opt_value;
+      if (!root_namespace.ends_with("::")) {
+        root_namespace += "::";
+      }
+    } else if (opt_key == "non_owning") {
+      non_owning_mode = true;
+    } else if (opt_key == "explicit_presence") {
+      force_optionals.emplace_back(opt_value);
+    } else if (opt_key == "export_request") {
+      std::ofstream out(opt_value);
+      std::copy(request_data.begin(), request_data.end(), std::ostreambuf_iterator<char>(out));
+    }
   }
 
   hpp_gen_descriptor_pool pool(request.proto_file);

@@ -19,17 +19,17 @@ using namespace boost::ut;
 using namespace non_owning;
 
 // Set every field in the message to a unique value.
-inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_memory_resource &mr);
+inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_buffer_resource &mr);
 inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message);
 inline void SetRepeatedFields(protobuf_unittest::TestAllTypes *message);
 inline void SetDefaultFields(protobuf_unittest::TestAllTypes *message);
 inline void SetOneofFields(protobuf_unittest::TestAllTypes *message);
-inline void SetAll(protobuf_unittest::TestAllExtensions *message, monotonic_memory_resource &mr);
-inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message, monotonic_memory_resource &mr);
-inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *message, monotonic_memory_resource &mr);
-inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory_resource &mr);
-inline void SetAll(protobuf_unittest::TestPackedExtensions *message, monotonic_memory_resource &mr);
-inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_memory_resource &mr);
+inline void SetAll(protobuf_unittest::TestAllExtensions *message, monotonic_buffer_resource &mr);
+inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message, monotonic_buffer_resource &mr);
+inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *message, monotonic_buffer_resource &mr);
+inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_buffer_resource &mr);
+inline void SetAll(protobuf_unittest::TestPackedExtensions *message, monotonic_buffer_resource &mr);
+inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_buffer_resource &mr);
 inline void SetOneof1(protobuf_unittest::TestOneof2 *message);
 inline void SetOneof2(protobuf_unittest::TestOneof2 *message);
 
@@ -49,7 +49,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message);
 inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message);
 inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message);
 
-inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_memory_resource & /*unused*/) {
+inline void SetAll(protobuf_unittest::TestAllTypes *message, monotonic_buffer_resource & /*unused*/) {
   SetOptionalFields(message);
   SetRepeatedFields(message);
   SetDefaultFields(message);
@@ -404,7 +404,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message) {
 
 // -------------------------------------------------------------------
 
-inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory_resource & /*unused*/) {
+inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_buffer_resource & /*unused*/) {
   const static int32_t packed_int32[] = {601, 701};
   message->packed_int32 = packed_int32;
 
@@ -448,7 +448,7 @@ inline void SetAll(protobuf_unittest::TestPackedTypes *message, monotonic_memory
   message->packed_enum = packed_enum;
 }
 
-inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_memory_resource & /*unused*/) {
+inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, monotonic_buffer_resource & /*unused*/) {
   // The values applied here must match those of SetPackedFields.
 
   const static int32_t unpacked_int32[] = {601, 701};
@@ -597,7 +597,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message) {
 // All this code is exactly equivalent to the above code except that it's
 // manipulating extension fields instead of normal ones.
 
-inline void SetAll(protobuf_unittest::TestAllExtensions *message, monotonic_memory_resource &mr) {
+inline void SetAll(protobuf_unittest::TestAllExtensions *message, monotonic_buffer_resource &mr) {
   expect(!message->set_extension(protobuf_unittest::optional_int32_extension(), 101, mr));
   expect(!message->set_extension(protobuf_unittest::optional_int64_extension(), 102, mr));
   expect(!message->set_extension(protobuf_unittest::optional_uint32_extension(), 103, mr));
@@ -731,7 +731,7 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message, monotonic_memo
   SetOneofFields(message, mr);
 }
 
-inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message, monotonic_memory_resource &mr) {
+inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message, monotonic_buffer_resource &mr) {
   expect(!message->set_extension(protobuf_unittest::oneof_uint32_extension(), 601, mr));
   expect(!message->set_extension(protobuf_unittest::oneof_nested_message_extension(), {.bb = 602}, mr));
   expect(!message->set_extension(protobuf_unittest::oneof_string_extension(), "603", mr));
@@ -740,7 +740,7 @@ inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message, monoto
 
 // -------------------------------------------------------------------
 
-inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *message, monotonic_memory_resource &mr) {
+inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *message, monotonic_buffer_resource &mr) {
   // ABSL_CHECK(message);
   message->my_int = 1;
   message->my_string = "foo";
@@ -790,7 +790,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(message.has_extension(protobuf_unittest::optional_string_piece_extension()));
   expect(message.has_extension(protobuf_unittest::optional_cord_extension()));
 
-  monotonic_memory_resource mr(8192);
+  monotonic_buffer_resource mr(8192);
 
   expect(eq(101, message.get_extension(protobuf_unittest::optional_int32_extension()).value()));
   expect(eq(102, message.get_extension(protobuf_unittest::optional_int64_extension()).value()));
@@ -971,7 +971,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(!hpp::proto::write_proto(message, data));
   expect(eq(0, data.size()));
 
-  monotonic_memory_resource mr(16);
+  monotonic_buffer_resource mr(16);
 
   //.blah.has_value() should initially be false for all optional fields.
   expect(!message.has_extension(protobuf_unittest::optional_int32_extension()));
@@ -1129,7 +1129,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
 }
 // -------------------------------------------------------------------
 
-inline void SetAll(protobuf_unittest::TestPackedExtensions *message, monotonic_memory_resource &mr) {
+inline void SetAll(protobuf_unittest::TestPackedExtensions *message, monotonic_buffer_resource &mr) {
   const int32_t packed_int32[] = {601, 701};
   expect(!message->set_extension(protobuf_unittest::packed_int32_extension(), packed_int32, mr));
   const int64_t packed_int64[] = {602, 702};
@@ -1164,7 +1164,7 @@ inline void SetAll(protobuf_unittest::TestPackedExtensions *message, monotonic_m
 // -------------------------------------------------------------------
 
 inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message) {
-  monotonic_memory_resource mr(8192);
+  monotonic_buffer_resource mr(8192);
   expect(ranges_equal(message.get_extension(protobuf_unittest::packed_int32_extension(), mr).value(),
                      std::vector<int32_t>{601, 701}));
   expect(ranges_equal(message.get_extension(protobuf_unittest::packed_int64_extension(), mr).value(),
@@ -1200,7 +1200,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message)
 // -------------------------------------------------------------------
 
 inline void ExpectAllSet(const protobuf_unittest::TestUnpackedExtensions &message) {
-  monotonic_memory_resource mr(8192);
+  monotonic_buffer_resource mr(8192);
   expect(ranges_equal(message.get_extension(protobuf_unittest::unpacked_int32_extension(), mr).value(),
                      std::vector<int32_t>{601, 701}));
   expect(ranges_equal(message.get_extension(protobuf_unittest::unpacked_int64_extension(), mr).value(),
@@ -1302,7 +1302,7 @@ const boost::ut::suite proto_test = [] {
         T message;
         T message2;
         T message3;
-        monotonic_memory_resource mr{max_memory_resource_size};
+        monotonic_buffer_resource mr{max_memory_resource_size};
 
         if constexpr (requires { TestUtil::ExpectClear(message); }) {
           TestUtil::ExpectClear(message);
@@ -1325,7 +1325,7 @@ const boost::ut::suite proto_test = [] {
   "interoperate_with_google_protobuf_parser"_test =
       []<class T> {
         T original;
-        monotonic_memory_resource mr{max_memory_resource_size};
+        monotonic_buffer_resource mr{max_memory_resource_size};
 
         TestUtil::SetAll(&original, mr);
 

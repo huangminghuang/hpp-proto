@@ -164,7 +164,7 @@ template <typename T>
 void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory_size, test_mode mode = decode_encode) {
   std::remove_cvref_t<T> value;
 
-  monotonic_memory_resource mr{memory_size};
+  monotonic_buffer_resource mr{memory_size};
   ut::expect(!hpp::proto::read_proto(value, encoded_data, mr));
   ut::expect(value == expected_value);
 
@@ -1217,7 +1217,7 @@ const ut::suite test_non_owning_extensions = [] {
     non_owning_extension_example const expected_value{.int_value = 150, .extensions = {.fields = fields_storage}};
     non_owning_extension_example value;
 
-    monotonic_memory_resource mr{1024};
+    monotonic_buffer_resource mr{1024};
     ut::expect(!hpp::proto::read_proto(value, encoded_data, mr));
     ut::expect(value == expected_value);
 
@@ -1265,7 +1265,7 @@ const ut::suite test_non_owning_extensions = [] {
     ut::expect(std::ranges::equal(encoded_data, new_data));
   };
   "set_non_owning_extension"_test = [] {
-    monotonic_memory_resource mr{1024};
+    monotonic_buffer_resource mr{1024};
     non_owning_extension_example value;
     ut::expect(!value.set_extension(non_owning_i32_ext(), 1, mr));
     ut::expect(value.extensions.fields.back().first == 10);

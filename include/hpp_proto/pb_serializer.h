@@ -606,7 +606,7 @@ struct reverse_indices {
 
   constexpr static auto numbers = get_numbers(typename traits::meta_of<Type>::type{});
   constexpr static unsigned max_number = numbers.size() > 0 ? *std::max_element(numbers.begin(), numbers.end()) : 0;
-  constexpr static auto mask = max_number > 0 ? (1 << std::bit_width(max_number)) - 1 : 0;
+  constexpr static auto mask = (1 << std::bit_width(numbers.size())) - 1;
 
   template <std::size_t I, typename T>
     requires requires { T::number; }

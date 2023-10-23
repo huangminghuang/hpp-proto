@@ -58,12 +58,12 @@ inline std::ostream &operator<<(std::ostream &os, std::span<const std::byte> byt
 }
 } // namespace std
 
-struct monotonic_memory_resource {
+struct monotonic_buffer_resource {
   std::size_t size;
   void *mem = 0;
   void *cur = 0;
-  monotonic_memory_resource(std::size_t sz) : size(sz), mem(malloc(sz)), cur(mem) {}
-  ~monotonic_memory_resource() { free(mem); }
+  monotonic_buffer_resource(std::size_t sz) : size(sz), mem(malloc(sz)), cur(mem) {}
+  ~monotonic_buffer_resource() { free(mem); }
   void *allocate(std::size_t n, std::size_t alignment) {
     if (std::align(alignment, n, cur, size)) {
       size -= n;

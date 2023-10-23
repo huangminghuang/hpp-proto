@@ -34,7 +34,6 @@ CPMAddPackage(
 )
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
-
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
 option(HPP_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
@@ -77,6 +76,8 @@ endif()
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
 add_executable(hpp_proto::protoc ALIAS protoc)
 
+include(cmake/protobuf_generate.cmake)
+
 add_subdirectory(protoc-plugin)
 if (HPP_PROTO_TESTS)
   enable_testing()
@@ -110,7 +111,7 @@ install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
 configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake COPYONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake" 
               "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake" 
-              "${CMAKE_CURRENT_SOURCE_DIR}/cmake/add_hpp_proto_lib.cmake"
+              "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate.cmake"
         DESTINATION "lib/cmake/hpp_proto")
 
 install(EXPORT hpp_proto-targets 

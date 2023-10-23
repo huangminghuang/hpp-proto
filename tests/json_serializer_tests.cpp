@@ -142,7 +142,7 @@ void verify(T &&msg, std::string_view json) {
     expect((!hpp::proto::read_json(msg2, json)) >> fatal);
     expect(msg == msg2);
   } else {
-    monotonic_memory_resource mr{MemoryResourceSize};
+    monotonic_buffer_resource mr{MemoryResourceSize};
     expect((!hpp::proto::read_json(msg2, json, mr)) >> fatal);
     expect(msg == msg2);
   }

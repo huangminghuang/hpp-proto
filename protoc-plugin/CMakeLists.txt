@@ -8,12 +8,13 @@ if (MSVC)
     target_compile_definitions(protoc-gen-hpp PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
-set(PROTO_FILES google/protobuf/descriptor.proto 
+set(proto_files google/protobuf/descriptor.proto 
                 google/protobuf/compiler/plugin.proto)
 
 add_custom_target(gpb_descriptor
-    COMMENT "processing ${PROTO_FILES}"
-    COMMAND ${CMAKE_COMMAND} -E env "HPP_EXPLICIT_PRESENCE=.google.protobuf.FieldDescriptorProto.oneof_index,.google.protobuf.FieldOptions.packed" $<TARGET_FILE:protoc> --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include  -I ${protobuf_SOURCE_DIR}/src ${PROTO_FILES}
+    COMMENT "processing ${proto_files}"
+    COMMAND $<TARGET_FILE:protoc> --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include  -I ${protobuf_SOURCE_DIR}/src 
+             --hpp_opt=explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,explicit_presence=.google.protobuf.FieldOptions.packed ${proto_files}
     DEPENDS protoc protoc-gen-hpp
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     VERBATIM
