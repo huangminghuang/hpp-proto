@@ -27,7 +27,6 @@
 #include <hpp_proto/descriptor_pool.h>
 #include <iostream>
 #include <numeric>
-#include <ranges>
 #include <set>
 #include <unordered_set>
 
@@ -1245,6 +1244,16 @@ void mark_map_entries(hpp_gen_descriptor_pool &pool) {
   }
 }
 
+void split(std::string_view str, char deliminator, auto &&callback) {
+  std::string_view::iterator pos = str.begin();
+  while (pos < str.end()) {
+    auto next_pos = std::find(pos, str.end(), deliminator);
+    callback(std::string_view(pos, next_pos));
+    pos = next_pos + 1;
+  }
+}
+
+
 int main(int argc, const char **argv) {
 
   std::vector<char> request_data;
@@ -1267,11 +1276,10 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  for (const auto word : std::views::split(request.parameter, ',')) {
-    std::string_view opt(word.begin(), word.end());
+  split(request.parameter, ',', [&request_data](auto opt) {
     auto equal_sign_pos = opt.find("=");
     auto opt_key = opt.substr(0, equal_sign_pos);
-    auto opt_value = opt.substr(equal_sign_pos + 1);
+    auto opt_value = equal_sign_pos != std::string_view::npos ? opt.substr(equal_sign_pos + 1) : std::string_view{};
 
     if (opt_key == "top_directory") {
       top_directory = opt_value;
@@ -1288,7 +1296,7 @@ int main(int argc, const char **argv) {
       std::ofstream out(opt_value);
       std::copy(request_data.begin(), request_data.end(), std::ostreambuf_iterator<char>(out));
     }
-  }
+  });
 
   hpp_gen_descriptor_pool pool(request.proto_file);
   mark_map_entries(pool);
