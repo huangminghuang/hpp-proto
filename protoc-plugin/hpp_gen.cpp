@@ -57,7 +57,7 @@ const std::unordered_set<std::string_view> keywords = {
 // NOLINTEND(cert-err58-cpp)
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-std::vector<std::string> force_optionals;
+std::vector<std::string> proto2_explicit_presences;
 std::string root_namespace;
 std::string top_directory;
 bool non_owning_mode = false;
@@ -238,10 +238,6 @@ struct hpp_addons {
         : cpp_name(resolve_keyword(proto.name)), qualified_parent_name(parent_name) {
       using enum gpb::FieldDescriptorProto::Type;
       using enum gpb::FieldDescriptorProto::Label;
-      is_cpp_optional = (proto.label == LABEL_OPTIONAL) &&
-                        (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE || proto.proto3_optional ||
-                         std::any_of(force_optionals.begin(), force_optionals.end(),
-                                     [f = parent_name + "." + proto.name](const auto &s) { return f.starts_with(s); }));
       set_cpp_type(proto);
       set_default_value(proto);
     }
@@ -441,13 +437,9 @@ struct hpp_addons {
     std::vector<MessageD *> messages;
     std::vector<EnumD *> enums;
     std::vector<FieldD *> extensions;
-    int syntax;
-    explicit file_descriptor(const gpb::FileDescriptorProto &proto) {
-      if (proto.syntax == "proto3") {
-        syntax = 3;
-      } else {
-        syntax = 2;
-      }
+    std::string syntax;
+    explicit file_descriptor(const gpb::FileDescriptorProto &proto)
+        : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax) {
 
       messages.reserve(proto.message_type.size());
       enums.reserve(proto.enum_type.size());
@@ -552,7 +544,7 @@ struct code_generator {
 };
 
 struct msg_code_generator : code_generator {
-  int syntax = 0;
+  std::string syntax;
 
   explicit msg_code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files) : code_generator(files) {}
 
@@ -678,7 +670,21 @@ struct msg_code_generator : code_generator {
     return descriptor.cpp_field_type;
   }
 
+  void set_presence_rule(field_descriptor_t &descriptor) {
+    using enum gpb::FieldDescriptorProto::Type;
+    using enum gpb::FieldDescriptorProto::Label;
+    std::string qualified_name = std::string{descriptor.qualified_parent_name} + "." + descriptor.proto.name;
+    descriptor.is_cpp_optional =
+        (descriptor.proto.label == LABEL_OPTIONAL) &&
+        (descriptor.proto.type == TYPE_GROUP || descriptor.proto.type == TYPE_MESSAGE ||
+         descriptor.proto.proto3_optional ||
+         (syntax == "proto2" &&
+          std::any_of(proto2_explicit_presences.begin(), proto2_explicit_presences.end(),
+                      [&qualified_name](const auto &s) { return qualified_name.starts_with(s); })));
+  }
+
   void process(field_descriptor_t &descriptor) {
+    set_presence_rule(descriptor);
     std::string attribute;
     std::string initializer = " = {}";
 
@@ -889,7 +895,7 @@ bool is_numeric(enum gpb::FieldDescriptorProto::Type type) {
 }
 
 struct hpp_meta_generateor : code_generator {
-  int syntax = 0;
+  std::string syntax;
   using code_generator::code_generator;
 
   void process(file_descriptor_t &descriptor) {
@@ -994,7 +1000,7 @@ struct hpp_meta_generateor : code_generator {
         if (proto.options.has_value() && proto.options->packed.has_value()) {
           packed = proto.options->packed.value();
         }
-        if ((packed.has_value() && !packed.value()) || (syntax == 2 && !packed.has_value())) {
+        if ((packed.has_value() && !packed.value()) || (syntax == "proto2" && !packed.has_value())) {
           rule = "unpacked_repeated";
         } else {
           rule = "packed_repeated";
@@ -1253,7 +1259,6 @@ void split(std::string_view str, char deliminator, auto &&callback) {
   }
 }
 
-
 int main(int argc, const char **argv) {
 
   std::vector<char> request_data;
@@ -1290,13 +1295,17 @@ int main(int argc, const char **argv) {
       }
     } else if (opt_key == "non_owning") {
       non_owning_mode = true;
-    } else if (opt_key == "explicit_presence") {
-      force_optionals.emplace_back(opt_value);
+    } else if (opt_key == "proto2_explicit_presence") {
+      proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "export_request") {
       std::ofstream out(opt_value);
       std::copy(request_data.begin(), request_data.end(), std::ostreambuf_iterator<char>(out));
     }
   });
+
+  if (proto2_explicit_presences.empty()) {
+    proto2_explicit_presences.emplace_back(".");
+  }
 
   hpp_gen_descriptor_pool pool(request.proto_file);
   mark_map_entries(pool);

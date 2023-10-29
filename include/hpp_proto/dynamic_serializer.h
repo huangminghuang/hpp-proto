@@ -32,7 +32,7 @@ struct proto_json_addons {
 
   template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
   struct message_descriptor {
-    int syntax = 2;
+    std::string syntax;
     bool is_map_entry = false;
     std::vector<FieldD *> fields;
     message_descriptor(const google::protobuf::DescriptorProto &proto) {
@@ -41,21 +41,16 @@ struct proto_json_addons {
     }
     void add_field(FieldD &f) { fields.push_back(&f); }
     void add_enum(EnumD &) {}
-    void add_message(MessageD &) {}
+    void add_message(MessageD &m) { m.syntax = syntax; }
     void add_oneof(OneofD &) {}
     void add_extension(FieldD &f) { fields.push_back(&f); }
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
   struct file_descriptor {
-    int syntax;
-    file_descriptor(const google::protobuf::FileDescriptorProto &proto) {
-      if (proto.syntax == "proto3") {
-        syntax = 3;
-      } else {
-        syntax = 2;
-      }
-    }
+    std::string syntax;
+    file_descriptor(const google::protobuf::FileDescriptorProto &proto)
+        : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax) {}
     void add_enum(EnumD &) {}
     void add_message(MessageD &m) { m.syntax = syntax; }
     void add_extension(FieldD &) {}
@@ -109,7 +104,7 @@ class dynamic_serializer {
         bool const is_numeric = !(proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP || proto.type == TYPE_STRING ||
                                   proto.type == TYPE_BYTES);
         if (!is_numeric ||
-            ((packed.has_value() && !packed.value()) || (descriptor->syntax == 2 && !packed.has_value()))) {
+            ((packed.has_value() && !packed.value()) || (descriptor->syntax == "proto2" && !packed.has_value()))) {
           rule = dynamic_serializer::unpacked_repeated;
         } else {
           rule = dynamic_serializer::packed_repeated;

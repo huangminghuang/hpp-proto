@@ -68,6 +68,17 @@ struct glz::meta<explicit_optional_bool_example> {
   static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
 };
 
+struct explicit_optional_uint64_example {
+  hpp::proto::optional<uint64_t> field;
+  bool operator==(const explicit_optional_uint64_example &) const = default;
+};
+
+template <>
+struct glz::meta<explicit_optional_uint64_example> {
+  using T = explicit_optional_uint64_example;
+  static constexpr auto value = object("field", &T::field);
+};
+
 struct uint32_span_example {
   std::span<const uint32_t> field;
   bool operator==(const uint32_span_example &other) const {
@@ -154,7 +165,7 @@ void verify_bytes(std::string_view text, std::string_view json) {
   using namespace boost::ut;
 #ifdef __cpp_lib_bit_cast
   const std::span<const std::byte> bs{std::bit_cast<const std::byte *>(text.data()), text.size()};
-#else 
+#else
   const std::span<const std::byte> bs{reinterpret_cast<const std::byte *>(text.data()), text.size()};
 #endif
 
@@ -230,6 +241,11 @@ const ut::suite test_explicit_optional_bool = [] {
   verify<explicit_optional_bool_example>(explicit_optional_bool_example{}, R"({})");
   verify<explicit_optional_bool_example>(explicit_optional_bool_example{.field = true}, R"({"field":true})");
   verify<explicit_optional_bool_example>(explicit_optional_bool_example{.field = false}, R"({"field":false})");
+};
+
+const ut::suite test_explicit_optional_uint64 = [] {
+  verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{}, R"({})");
+  verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{.field = 32}, R"({"field":"32"})");
 };
 
 int main() {

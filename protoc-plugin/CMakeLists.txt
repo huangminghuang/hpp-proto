@@ -14,7 +14,7 @@ set(proto_files google/protobuf/descriptor.proto
 add_custom_target(gpb_descriptor
     COMMENT "processing ${proto_files}"
     COMMAND $<TARGET_FILE:protoc> --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include  -I ${protobuf_SOURCE_DIR}/src 
-             --hpp_opt=explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,explicit_presence=.google.protobuf.FieldOptions.packed ${proto_files}
+             --hpp_opt=proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed ${proto_files}
     DEPENDS protoc protoc-gen-hpp
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     VERBATIM

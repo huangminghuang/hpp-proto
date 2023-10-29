@@ -241,7 +241,11 @@ struct to_json<hpp::proto::optional<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     if (value.has_value()) {
-      to_json<Type>::template op<Opts>(*value, std::forward<Args>(args)...);
+      if constexpr (std::is_integral_v<Type> && sizeof(Type) > 4) {
+        to_json<glz::quoted_t<const Type>>::template op<Opts>(glz::quoted_t<const Type>{*value}, std::forward<Args>(args)...);
+      } else {
+        to_json<Type>::template op<Opts>(*value, std::forward<Args>(args)...);
+      }
     }
   }
 };
@@ -250,11 +254,21 @@ template <typename Type, auto Default>
 struct from_json<hpp::proto::optional<Type, Default>> {
   template <auto Options, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+    auto do_from_json = [](auto&& v, auto && ...args) noexcept {
+      using type = std::remove_cvref_t<decltype(v)>;
+      constexpr bool requires_quote = std::is_integral_v<type> && sizeof(type) > 4;
+      if constexpr (requires_quote) {
+        from_json<glz::quoted_t<type>>::template op<Options>(glz::quoted_t<type>{v}, std::forward<Args>(args)...);
+      } else {
+        from_json<type>::template op<Options>(v, std::forward<Args>(args)...);
+      }
+    };
+
     if constexpr (requires { value.emplace(); }) {
-      from_json<Type>::template op<Options>(value.emplace(), std::forward<Args>(args)...);
+      do_from_json(value.emplace(), std::forward<Args>(args)...);
     } else {
       Type v;
-      from_json<Type>::template op<Options>(v, std::forward<Args>(args)...);
+      do_from_json(v, std::forward<Args>(args)...);
       value = v;
     }
   } // namespace detail
