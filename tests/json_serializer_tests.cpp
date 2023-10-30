@@ -34,7 +34,7 @@ struct uint64_example {
 template <>
 struct glz::meta<uint64_example> {
   using T = uint64_example;
-  static constexpr auto value = object("field", glz::quoted<&uint64_example::field>());
+  static constexpr auto value = object("field", glz::quoted_num<&uint64_example::field>);
 };
 
 struct optional_example {

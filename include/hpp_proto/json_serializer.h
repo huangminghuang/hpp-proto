@@ -55,8 +55,8 @@ struct optional_ref {
   }
 
   template <concepts::jsonfy_need_quote U>
-  static glz::quoted_t<U> deref(U &v) {
-    return glz::quoted_t<U>{v};
+  static glz::quoted_num_t<U> deref(U &v) {
+    return glz::quoted_num_t<U>{v};
   }
 
   auto operator*() const -> decltype(deref(val)) { return deref(val); }
@@ -279,7 +279,7 @@ struct to_json<hpp::proto::optional_ref<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     if constexpr (std::is_same_v<Type, uint64_t>) {
-      static_assert(std::is_same_v<std::decay_t<decltype(*value)>, glz::quoted_t<uint64_t>>);
+      static_assert(std::is_same_v<std::decay_t<decltype(*value)>, glz::quoted_num_t<uint64_t>>);
     }
     if (bool(value)) {
       to_json<std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
@@ -455,7 +455,7 @@ struct from_json<T> {
     using k_t = typename T::value_type::first_type;
     for (auto &x : value) {
       if constexpr (std::is_arithmetic_v<k_t>) {
-        read<json>::op<opt_true<Opts, &opts::quoted>>(x.first, ctx, it, end);
+        read<json>::op<opt_true<Opts, &opts::quoted_num>>(x.first, ctx, it, end);
       } else {
         read<json>::op<Opts>(x.first, ctx, it, end);
       }

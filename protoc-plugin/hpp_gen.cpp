@@ -639,11 +639,12 @@ struct msg_code_generator : code_generator {
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.map_fields[0] != nullptr) {
       if (!non_owning_mode) {
-        const char *type = descriptor.map_fields[1]->is_recursive ? "std::map" : "hpp::proto::flat_map";
+        bool use_flat_map = (!descriptor.map_fields[1]->is_recursive  && descriptor.map_fields[0]->cpp_field_type != "bool");
+        const char *type = use_flat_map ? "hpp::proto::flat_map" : "std::map";
         // when using flat_map with bool, it would lead std::vector<bool> as one of its members; which is not what we
         // need.
-        auto transform_if_bool = [recursive = descriptor.map_fields[1]->is_recursive](const std::string &name) {
-          return recursive || name != "bool" ? name : std::string{"hpp::proto::boolean"};
+        auto transform_if_bool = [use_flat_map](const std::string &name) {
+          return (use_flat_map && name == "bool") ? std::string{"hpp::proto::boolean"} : name;
         };
         return fmt::format("{}<{},{}>", type, transform_if_bool(descriptor.map_fields[0]->cpp_field_type),
                            transform_if_bool(descriptor.map_fields[1]->cpp_field_type));
@@ -1190,7 +1191,7 @@ struct glaze_meta_generator : code_generator {
       auto type = descriptor.proto.type;
       if (type == TYPE_INT64 || type == TYPE_UINT64 || type == TYPE_FIXED64 || type == TYPE_SFIXED64 ||
           type == TYPE_SINT64) {
-        fmt::format_to(target, "    \"{}\", glz::quoted<&T::{}>(),\n", descriptor.proto.json_name, descriptor.cpp_name);
+        fmt::format_to(target, "    \"{}\", glz::quoted_num<&T::{}>,\n", descriptor.proto.json_name, descriptor.cpp_name);
       } else {
         fmt::format_to(target, "    \"{}\", &T::{},\n", descriptor.proto.json_name, descriptor.cpp_name);
       }
