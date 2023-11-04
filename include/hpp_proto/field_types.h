@@ -32,6 +32,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
+#include <ranges>
 
 #if __has_include(<flat_map>)
 #include <flat_map>
@@ -58,6 +59,27 @@ template <class ToType, class FromType,
 constexpr ToType bit_cast(FromType const &from) noexcept {
   return __builtin_bit_cast(ToType, from);
 }
+} // namespace std
+#endif
+
+#if !defined(__cpp_lib_ranges)
+namespace std {
+namespace ranges {
+template <class T>
+using iterator_t = decltype(std::begin(std::declval<T &>()));
+
+template <typename R>
+using range_value_t = std::iter_value_t<iterator_t<R>>;
+
+template <typename T>
+concept contiguous_range = requires(T &t) {
+  {
+    std::data(t)
+  } -> std::same_as<std::add_pointer_t<std::iter_reference_t<decltype(std::begin(std::declval<T &>()))>>>;
+  std::size(t);
+};
+
+} // namespace ranges
 } // namespace std
 #endif
 namespace hpp::proto {
@@ -514,6 +536,14 @@ template <typename T>
 concept memory_resource = requires(T &object) {
   { object.allocate(8, 8) } -> std::same_as<void *>;
 };
+
+template <typename Type>
+concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<std::remove_cv_t<Type>, unsigned char> ||
+                    std::same_as<std::remove_cv_t<Type>, std::byte>;
+
+template <typename T>
+concept contiguous_byte_range =
+    byte_type<typename std::ranges::range_value_t<T>> && std::ranges::contiguous_range<T>;
 } // namespace concepts
 
 namespace detail {

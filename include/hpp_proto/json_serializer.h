@@ -86,33 +86,27 @@ constexpr decltype(auto) as_optional_ref() {
 
 namespace glz {
 namespace detail {
-template <>
-struct to_json<hpp::proto::bytes_view> {
-  template <auto Opts, class B>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&, B &&b, auto &&ix) noexcept {
 
-    const auto n = value.size();
+struct base64 {
+  constexpr static std::size_t max_encode_size(hpp::proto::concepts::contiguous_byte_range auto &&source) noexcept {
+    std::size_t n = source.size();
+    return (n / 3 + (n % 3 ? 1 : 0)) * 4;
+  }
 
-    if constexpr (detail::resizeable<B>) {
-      std::size_t const encoded_size = (n / 3 + (n % 3 ? 1 : 0)) * 4;
-      if ((ix + 2 + encoded_size) >= b.size()) [[unlikely]] {
-        b.resize(std::max(b.size() * 2, ix + 2 + encoded_size));
-      }
-    }
+  constexpr static std::size_t encode(hpp::proto::concepts::contiguous_byte_range auto &&source, auto &&b) noexcept {
 
-    dump_unchecked<'"'>(b, ix);
-
+    const auto n = source.size();
     using V = std::decay_t<decltype(b[0])>;
-    static char const base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                       "abcdefghijklmnopqrstuvwxyz"
-                                       "0123456789+/";
+    constexpr char const base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                          "abcdefghijklmnopqrstuvwxyz"
+                                          "0123456789+/";
 
-    std::size_t i = 0;
+    std::size_t i = 0, ix = 0;
     if (n >= 3) {
       for (i = 0; i <= n - 3; i += 3) {
         uint32_t x = 0;
 
-        memcpy(&x, &value[i], 3);
+        memcpy(&x, &source[i], 3);
 
         if constexpr (std::endian::native == std::endian::little) {
           b[ix++] = static_cast<V>(base64_chars[(x >> 2) & 0x3F]);
@@ -135,17 +129,83 @@ struct to_json<hpp::proto::bytes_view> {
 
     if (i != n) {
 
-      b[ix++] = static_cast<V>(base64_chars[std::to_integer<int>((value[i] >> 2) & std::byte{0x3F})]);
-      std::byte const next = (i + 1 < n) ? value[i + 1] : std::byte{0};
+      b[ix++] = static_cast<V>(base64_chars[std::to_integer<int>((source[i] >> 2) & std::byte{0x3F})]);
+      std::byte const next = (i + 1 < n) ? source[i + 1] : std::byte{0};
       b[ix++] = static_cast<V>(
-          base64_chars[std::to_integer<int>((value[i] << 4 & std::byte{0x3F}) | ((next >> 4) & std::byte{0x0F}))]);
+          base64_chars[std::to_integer<int>((source[i] << 4 & std::byte{0x3F}) | ((next >> 4) & std::byte{0x0F}))]);
       if (i + 1 < n) {
         b[ix++] = static_cast<V>(base64_chars[std::to_integer<int>((next << 2 & std::byte{0x3F}))]);
       } else {
         b[ix++] = static_cast<V>('=');
       }
-      b.at(ix++) = static_cast<V>('=');
+      b[ix++] = static_cast<V>('=');
     }
+    return ix;
+  }
+
+  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto &&source, auto &&value) {
+
+    std::size_t n = source.size();
+    if (n % 4 != 0) {
+      return false;
+    }
+
+    size_t len = n / 4 * 3;
+    if (static_cast<char>(source[n - 1]) == '=') {
+      len--;
+    }
+    if (static_cast<char>(source[n - 2]) == '=') {
+      len--;
+    }
+    value.resize(len);
+    constexpr unsigned char decode_table[] = {
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55,
+        56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64, 64, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64, 64, 26, 27, 28, 29, 30, 31, 32,
+        33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64};
+    auto start = source.begin();
+
+    size_t j = 0;
+    while (start != source.end()) {
+      uint32_t const a = decode_table[static_cast<int>(*start++)];
+      uint32_t const b = decode_table[static_cast<int>(*start++)];
+      uint32_t const c = decode_table[static_cast<int>(*start++)];
+      uint32_t const d = decode_table[static_cast<int>(*start++)];
+      uint32_t const triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
+
+      using byte = std::ranges::range_value_t<decltype(value)>;
+
+      value[j++] = static_cast<byte>((triple >> 2 * 8) & 0xFF);
+      if (j < value.size()) {
+        value[j++] = static_cast<byte>((triple >> 1 * 8) & 0xFF);
+      }
+      if (j < value.size()) {
+        value[j++] = static_cast<byte>((triple >> 0 * 8) & 0xFF);
+      }
+    }
+    return true;
+  }
+};
+
+template <>
+struct to_json<hpp::proto::bytes_view> {
+  template <auto Opts, class B>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&, B &&b, auto &&ix) noexcept {
+    if constexpr (detail::resizeable<B>) {
+      std::size_t const encoded_size = base64::max_encode_size(value);
+      if ((ix + 2 + encoded_size) >= b.size()) [[unlikely]] {
+        b.resize(std::max(b.size() * 2, ix + 2 + encoded_size));
+      }
+    }
+
+    dump_unchecked<'"'>(b, ix);
+    ix += base64::encode(value, std::span{b}.subspan(ix));
     dump_unchecked<'"'>(b, ix);
   }
 };
@@ -173,18 +233,6 @@ GLZ_ALWAYS_INLINE void read_json_bytes(auto &&value, is_context auto &&ctx, It &
     match<'"'>(ctx, it, end);
   }
 
-  static constexpr unsigned char decode_table[] = {
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55,
-      56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64, 64, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
-      13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64, 64, 26, 27, 28, 29, 30, 31, 32,
-      33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64};
-
   // growth portion
   auto start = it;
   skip_till_quote(ctx, it, end);
@@ -195,35 +243,9 @@ GLZ_ALWAYS_INLINE void read_json_bytes(auto &&value, is_context auto &&ctx, It &
     return;
   }
 
-  if (n % 4 != 0) {
+  if (!base64::decode(std::span{start, start + n}, value)) {
     ctx.error = error_code::syntax_error;
     return;
-  }
-
-  size_t out_len = n / 4 * 3;
-  if (*(start + n - 1) == '=') {
-    out_len--;
-  }
-  if (*(start + n - 2) == '=') {
-    out_len--;
-  }
-
-  value.resize(out_len);
-  size_t j = 0;
-  while (start != it) {
-    uint32_t const a = decode_table[static_cast<int>(*start++)];
-    uint32_t const b = decode_table[static_cast<int>(*start++)];
-    uint32_t const c = decode_table[static_cast<int>(*start++)];
-    uint32_t const d = decode_table[static_cast<int>(*start++)];
-    uint32_t const triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
-
-    value[j++] = std::byte((triple >> 2 * 8) & 0xFF);
-    if (j < out_len) {
-      value[j++] = std::byte((triple >> 1 * 8) & 0xFF);
-    }
-    if (j < out_len) {
-      value[j++] = std::byte((triple >> 0 * 8) & 0xFF);
-    }
   }
   match<'"'>(ctx, it, end);
 }
@@ -242,7 +264,8 @@ struct to_json<hpp::proto::optional<Type, Default>> {
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     if (value.has_value()) {
       if constexpr (std::is_integral_v<Type> && sizeof(Type) > 4) {
-        to_json<glz::quoted_t<const Type>>::template op<Opts>(glz::quoted_t<const Type>{*value}, std::forward<Args>(args)...);
+        to_json<glz::quoted_t<const Type>>::template op<Opts>(glz::quoted_t<const Type>{*value},
+                                                              std::forward<Args>(args)...);
       } else {
         to_json<Type>::template op<Opts>(*value, std::forward<Args>(args)...);
       }
@@ -254,7 +277,7 @@ template <typename Type, auto Default>
 struct from_json<hpp::proto::optional<Type, Default>> {
   template <auto Options, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    auto do_from_json = [](auto&& v, auto && ...args) noexcept {
+    auto do_from_json = [](auto &&v, auto &&...args) noexcept {
       using type = std::remove_cvref_t<decltype(v)>;
       constexpr bool requires_quote = std::is_integral_v<type> && sizeof(type) > 4;
       if constexpr (requires_quote) {

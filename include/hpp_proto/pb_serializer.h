@@ -35,26 +35,7 @@
 #include <tl/expected.hpp>
 #endif
 
-#if !defined(__cpp_lib_ranges)
-namespace std {
-namespace ranges {
-template <class T>
-using iterator_t = decltype(std::begin(std::declval<T &>()));
 
-template <typename R>
-using range_value_t = std::iter_value_t<iterator_t<R>>;
-
-template <typename T>
-concept contiguous_range = requires(T &t) {
-  {
-    std::data(t)
-  } -> std::same_as<std::add_pointer_t<std::iter_reference_t<decltype(std::begin(std::declval<T &>()))>>>;
-  std::size(t);
-};
-
-} // namespace ranges
-} // namespace std
-#endif
 
 namespace hpp {
 namespace proto {
@@ -189,13 +170,7 @@ concept span = requires {
 template <typename T>
 concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
 
-template <typename Type>
-concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<std::remove_cv_t<Type>, unsigned char> ||
-                    std::same_as<std::remove_cv_t<Type>, std::byte>;
 
-template <typename T>
-concept contiguous_byte_range =
-    byte_type<typename std::remove_cvref_t<T>::value_type> && std::ranges::contiguous_range<T>;
 
 template <typename T>
 concept byte_serializable =
