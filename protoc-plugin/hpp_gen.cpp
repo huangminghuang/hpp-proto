@@ -1299,7 +1299,7 @@ int main(int argc, const char **argv) {
     } else if (opt_key == "proto2_explicit_presence") {
       proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "export_request") {
-      std::ofstream out(std::string(opt_value));
+      std::ofstream out{std::string(opt_value)};
       std::copy(request_data.begin(), request_data.end(), std::ostreambuf_iterator<char>(out));
     }
   });
