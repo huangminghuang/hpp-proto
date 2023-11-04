@@ -65,11 +65,9 @@ constexpr ToType bit_cast(FromType const &from) noexcept {
 #if !defined(__cpp_lib_ranges)
 namespace std {
 namespace ranges {
-template <class T>
-using iterator_t = decltype(std::begin(std::declval<T &>()));
 
-template <typename R>
-using range_value_t = std::iter_value_t<iterator_t<R>>;
+template <typename T>
+using range_value_t = std::iter_value_t<decltype(std::begin(std::declval<T &>()))>;
 
 template <typename T>
 concept contiguous_range = requires(T &t) {

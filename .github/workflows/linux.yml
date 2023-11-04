@@ -1,45 +1,55 @@
 ---
-name: Linux
-
-on:
-  push:
-    branches:
-      - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
-
-env:
-  CTEST_OUTPUT_ON_FAILURE: 1
-  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/cache@v2
-        with:
-          path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.1
-        with:
-          key: ${{ github.workflow }}
-          
-      - name: configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-      - name: build
-        run: cmake --build build -j4
-
-      - name: test
-        run: |
-          cd build
-          ctest --build-config Debug --output-on-failure
+  name: Linux
+  
+  on:
+    push:
+      branches:
+        - main
+        - develop
+        - compatiblity_test*
+    pull_request:
+      branches:
+        - main
+        - develop
+  
+  env:
+    CTEST_OUTPUT_ON_FAILURE: 1
+    CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+  
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+  
+      strategy:
+        matrix:
+          gcc: [12]
+  
+      env:
+        CC: gcc-${{ matrix.gcc }}
+        CXX: g++-${{ matrix.gcc }}
+  
+      steps:
+        - uses: actions/checkout@v2
+  
+        - uses: actions/cache@v2
+          with:
+            path: "**/cpm_modules"
+            key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+  
+        - name: ccache
+          uses: hendrikmuhs/ccache-action@v1.1
+          with:
+            key: ${{ github.workflow }}
+            
+        - name: configure
+          run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+  
+        - name: build
+          run: cmake --build build -j4
+  
+        - name: test
+          run: |
+            cd build
+            ctest --build-config Debug --output-on-failure
+  

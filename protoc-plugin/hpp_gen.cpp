@@ -1255,7 +1255,7 @@ void split(std::string_view str, char deliminator, auto &&callback) {
   std::string_view::iterator pos = str.begin();
   while (pos < str.end()) {
     auto next_pos = std::find(pos, str.end(), deliminator);
-    callback(std::string_view(pos, next_pos));
+    callback(std::string_view(pos, next_pos - pos));
     pos = next_pos + 1;
   }
 }
@@ -1299,7 +1299,7 @@ int main(int argc, const char **argv) {
     } else if (opt_key == "proto2_explicit_presence") {
       proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "export_request") {
-      std::ofstream out(opt_value);
+      std::ofstream out(std::string(opt_value));
       std::copy(request_data.begin(), request_data.end(), std::ostreambuf_iterator<char>(out));
     }
   });

@@ -69,7 +69,6 @@ class dynamic_serializer {
     return std::lower_bound(m.begin(), m.end(), key) - m.begin();
   }
 
-  // TODO: map is not properly modeled
   struct field_meta {
     uint32_t number;
     uint32_t type_index;
