@@ -1255,7 +1255,7 @@ void split(std::string_view str, char deliminator, auto &&callback) {
   std::string_view::iterator pos = str.begin();
   while (pos < str.end()) {
     auto next_pos = std::find(pos, str.end(), deliminator);
-    callback(std::string_view(pos, next_pos - pos));
+    callback(std::string_view{pos, next_pos});
     pos = next_pos + 1;
   }
 }

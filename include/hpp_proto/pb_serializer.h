@@ -28,6 +28,9 @@
 #include <hpp_proto/field_types.h>
 #include <map>
 #include <numeric>
+#include <climits>
+#include <memory>
+#include <cstring>
 
 #if __cplusplus >= 202302L
 #include <expected>
