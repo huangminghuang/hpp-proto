@@ -61,6 +61,9 @@ add_test(NAME proto3_lite_test
 
 set_property(TEST proto3_lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/non_owning)
+
+
 add_library(non_owning_unittest_proto3_proto_lib INTERFACE)
 target_include_directories(non_owning_unittest_proto3_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate(

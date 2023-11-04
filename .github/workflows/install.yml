@@ -19,6 +19,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        gcc: [12]
+
+    env:
+      CC: gcc-${{ matrix.gcc }}
+      CXX: g++-${{ matrix.gcc }}
+
     steps:
       - uses: actions/checkout@v2
 

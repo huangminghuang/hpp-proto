@@ -7,6 +7,7 @@ protobuf_generate(TARGET benchmark_messages_proto_lib
                   LANGUAGE hpp
                   IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/non_owning)
 add_library(non_owning_benchmark_messages_proto_lib INTERFACE ${proto_files})
 target_include_directories(non_owning_benchmark_messages_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/non_owning)
 protobuf_generate(TARGET non_owning_benchmark_messages_proto_lib
