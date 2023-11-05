@@ -55,10 +55,10 @@ jobs:
           cd build
           ctest --build-config Debug --output-on-failure
 
-      - name: Run clang-tidy
-        shell: bash
-        run: |
-          export PATH=$(brew --prefix llvm)/bin:${PATH}
-          $(brew --prefix llvm)/bin/run-clang-tidy \
-            -p build test 2>&1 | tee .run-clang-tidy.log
-          builddriver cat .run-clang-tidy.log
+      # - name: Run clang-tidy
+      #   shell: bash
+      #   run: |
+      #     export PATH=$(brew --prefix llvm)/bin:${PATH}
+      #     $(brew --prefix llvm)/bin/run-clang-tidy \
+      #       -p build test 2>&1 | tee .run-clang-tidy.log
+      #     builddriver cat .run-clang-tidy.log

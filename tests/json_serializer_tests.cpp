@@ -139,7 +139,7 @@ struct non_owning_nested_example {
 template <>
 struct glz::meta<non_owning_nested_example> {
   using T = non_owning_nested_example;
-  static constexpr auto value = object("nested", hpp::proto::as_optional_ref<&T::nested>());
+  static constexpr auto value = object("nested", &T::nested);
 };
 
 template <typename T, int MemoryResourceSize = 0>
