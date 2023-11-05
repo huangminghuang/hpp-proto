@@ -639,7 +639,7 @@ struct msg_code_generator : code_generator {
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.map_fields[0] != nullptr) {
       if (!non_owning_mode) {
-        bool use_flat_map =
+        const bool use_flat_map =
             (!descriptor.map_fields[1]->is_recursive && descriptor.map_fields[0]->cpp_field_type != "bool");
         const char *type = use_flat_map ? "hpp::proto::flat_map" : "std::map";
         // when using flat_map with bool, it would lead std::vector<bool> as one of its members; which is not what we
@@ -928,7 +928,7 @@ struct hpp_meta_generateor : code_generator {
     }
 
     for (auto *f : descriptor.extensions) {
-      process(*f, "", false);
+      process(*f, "", 0UL);
     }
 
     if (!ns.empty()) {
@@ -952,7 +952,7 @@ struct hpp_meta_generateor : code_generator {
 
     for (auto *f : descriptor.fields) {
       if (!f->proto.oneof_index.has_value()) {
-        process(*f, qualified_cpp_name, false);
+        process(*f, qualified_cpp_name, 0UL);
       } else {
         auto index = *f->proto.oneof_index;
         auto &oneof = *(descriptor.oneofs[index]);
@@ -976,7 +976,7 @@ struct hpp_meta_generateor : code_generator {
                    qualified_cpp_name, pb_name);
 
     for (auto *f : descriptor.extensions) {
-      process(*f, qualified_cpp_name, false);
+      process(*f, qualified_cpp_name, 0UL);
     }
 
     for (auto *m : descriptor.messages) {
@@ -987,7 +987,7 @@ struct hpp_meta_generateor : code_generator {
   }
   // NOLINTEND(misc-no-recursion)
   // NOLINTBEGIN(readability-function-cognitive-complexity)
-  void process(field_descriptor_t &descriptor, const std::string &cpp_scope, std::size_t oneof_index = 0) {
+  void process(field_descriptor_t &descriptor, const std::string &cpp_scope, std::size_t oneof_index) {
     std::string_view rule = (oneof_index) == 0 ? "defaulted" : "explicit_presence";
     auto proto = descriptor.proto;
     using enum gpb::FieldDescriptorProto::Label;
@@ -1256,7 +1256,7 @@ void mark_map_entries(hpp_gen_descriptor_pool &pool) {
 void split(std::string_view str, char deliminator, auto &&callback) {
   std::string_view::iterator pos = str.begin();
   while (pos < str.end()) {
-    auto next_pos = std::find(pos, str.end(), deliminator);
+    std::string_view::iterator next_pos = std::find(pos, str.end(), deliminator);
     callback(std::string_view{&*pos, static_cast<std::string_view::size_type>(next_pos - pos)});
     pos = next_pos + 1;
   }
@@ -1276,6 +1276,7 @@ int main(int argc, const char **argv) {
   } else if (std::string_view("--input") == argv[1]) {
     read_file(std::ifstream(argv[2]));
   }
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   gpb::compiler::CodeGeneratorRequest request;
 

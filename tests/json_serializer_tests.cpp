@@ -143,7 +143,7 @@ struct glz::meta<non_owning_nested_example> {
 };
 
 template <typename T, int MemoryResourceSize = 0>
-void verify(T &&msg, std::string_view json) {
+void verify(const T &msg, std::string_view json) {
   using namespace boost::ut;
   expect(json == hpp::proto::write_json(msg));
 
@@ -170,11 +170,14 @@ void verify_bytes(std::string_view text, std::string_view json) {
 #endif
 
   Msg msg;
+  // NOLINTBEGIN(bugprone-assignment-in-if-condition)
   if constexpr (requires { msg.field = bs; }) {
     msg.field = bs;
   } else {
     msg.field.assign(bs.begin(), bs.end());
   }
+  // NOLINTEND(bugprone-assignment-in-if-condition)
+
   verify<Msg, MemoryResourceSize>(std::move(msg), json);
 }
 // NOLINTEND(bugprone-easily-swappable-parameters)
