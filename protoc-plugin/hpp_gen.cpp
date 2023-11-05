@@ -639,7 +639,8 @@ struct msg_code_generator : code_generator {
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.map_fields[0] != nullptr) {
       if (!non_owning_mode) {
-        bool use_flat_map = (!descriptor.map_fields[1]->is_recursive  && descriptor.map_fields[0]->cpp_field_type != "bool");
+        bool use_flat_map =
+            (!descriptor.map_fields[1]->is_recursive && descriptor.map_fields[0]->cpp_field_type != "bool");
         const char *type = use_flat_map ? "hpp::proto::flat_map" : "std::map";
         // when using flat_map with bool, it would lead std::vector<bool> as one of its members; which is not what we
         // need.
@@ -1191,7 +1192,8 @@ struct glaze_meta_generator : code_generator {
       auto type = descriptor.proto.type;
       if (type == TYPE_INT64 || type == TYPE_UINT64 || type == TYPE_FIXED64 || type == TYPE_SFIXED64 ||
           type == TYPE_SINT64) {
-        fmt::format_to(target, "    \"{}\", glz::quoted_num<&T::{}>,\n", descriptor.proto.json_name, descriptor.cpp_name);
+        fmt::format_to(target, "    \"{}\", glz::quoted_num<&T::{}>,\n", descriptor.proto.json_name,
+                       descriptor.cpp_name);
       } else {
         fmt::format_to(target, "    \"{}\", &T::{},\n", descriptor.proto.json_name, descriptor.cpp_name);
       }
@@ -1255,7 +1257,7 @@ void split(std::string_view str, char deliminator, auto &&callback) {
   std::string_view::iterator pos = str.begin();
   while (pos < str.end()) {
     auto next_pos = std::find(pos, str.end(), deliminator);
-    callback(std::string_view{pos, next_pos});
+    callback(std::string_view{&*pos, static_cast<std::string_view::size_type>(next_pos - pos)});
     pos = next_pos + 1;
   }
 }

@@ -1263,7 +1263,7 @@ struct pb_serializer {
       if (old_size > 0 && fields[old_size - 1].first == field_num) {
         auto &entry = fields[old_size - 1].second;
         if (entry.data() + entry.size() == field_span.data()) {
-          entry = {entry.begin(), field_span.end()};
+          entry = entry.subspan(0, field_span.end() - entry.begin());
           return {};
         }
       }

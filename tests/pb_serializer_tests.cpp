@@ -633,7 +633,7 @@ auto pb_meta(const string_with_default &)
     -> std::tuple<hpp::proto::field_meta<1, &string_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 struct string_with_optional {
-  hpp::proto::optional<std::string, "test"_cts> value;
+  hpp::proto::optional<std::string, hpp::proto::cts_wrapper<"test">{}> value;
   bool operator==(const string_with_optional &) const = default;
 };
 auto pb_meta(const string_with_optional &)
@@ -682,7 +682,7 @@ auto pb_meta(const string_view_with_default &) -> std::tuple<
     hpp::proto::field_meta<1, &string_view_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 struct string_view_with_optional {
-  hpp::proto::optional<std::string_view, "test"_cts> value;
+  hpp::proto::optional<std::string_view, hpp::proto::cts_wrapper<"test">{}> value;
   bool operator==(const string_view_with_optional &) const = default;
 };
 auto pb_meta(const string_view_with_optional &)
@@ -738,7 +738,7 @@ auto pb_meta(const bytes_with_default &)
     -> std::tuple<hpp::proto::field_meta<1, &bytes_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 struct bytes_with_optional {
-  hpp::proto::optional<std::vector<std::byte>, "test"_cts> value;
+  hpp::proto::optional<std::vector<std::byte>, hpp::proto::cts_wrapper<"test">{}> value;
   bool operator==(const bytes_with_optional &) const = default;
 };
 
@@ -795,7 +795,7 @@ auto pb_meta(const char_vector_with_default &) -> std::tuple<
     hpp::proto::field_meta<1, &char_vector_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 struct char_vector_with_optional {
-  hpp::proto::optional<std::vector<char>, "test"_cts> value;
+  hpp::proto::optional<std::vector<char>, hpp::proto::cts_wrapper<"test">{}> value;
   bool operator==(const char_vector_with_optional &) const = default;
 };
 
@@ -854,7 +854,7 @@ auto pb_meta(const byte_span_with_default &) -> std::tuple<
     hpp::proto::field_meta<1, &byte_span_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
 
 struct byte_span_with_optional {
-  hpp::proto::optional<std::span<const std::byte>, "test"_cts> value;
+  hpp::proto::optional<std::span<const std::byte>, hpp::proto::cts_wrapper<"test">{}> value;
   bool operator==(const byte_span_with_optional &other) const {
     return (!value.has_value() && !other.value.has_value()) ||
            (value.has_value() && other.value.has_value() && std::ranges::equal(*value, *other.value));
