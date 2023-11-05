@@ -638,7 +638,7 @@ struct reverse_indices {
       for (uint32_t i = 0; i < numbers.size(); ++i) {
         auto num = numbers[i];
         auto masked_num = num & mask;
-        result[counts[masked_num]++] = {num, indices[i]};
+        result[counts[masked_num]++] = {num, static_cast<uint32_t>(indices[i])};
       }
       return result;
     }
