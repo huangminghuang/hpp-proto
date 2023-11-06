@@ -77,10 +77,13 @@ struct optional_ref<const hpp::proto::optional<bool, Default>, std::monostate{}>
   bool operator*() const { return *val; }
 };
 
-template <auto MemPtr, auto Default = std::monostate{}>
-constexpr decltype(auto) as_optional_ref() {
+template <auto MemPtr, auto Default>
+inline constexpr decltype(auto) as_optional_ref_impl() noexcept {
   return [](auto &&val) { return optional_ref<std::remove_reference_t<decltype(val.*MemPtr)>, Default>{val.*MemPtr}; };
 }
+
+template <auto MemPtr, auto Default = std::monostate{}>
+constexpr auto as_optional_ref = as_optional_ref_impl<MemPtr, Default>();
 
 } // namespace hpp::proto
 
@@ -221,33 +224,16 @@ struct to_json<hpp::proto::bytes> {
 
 template <auto Opts, class It, class End>
 GLZ_ALWAYS_INLINE void read_json_bytes(auto &&value, is_context auto &&ctx, It &&it, End &&end) noexcept {
+  std::string_view encoded;
+  from_json<std::string_view>::op<Opts>(encoded, ctx, it, end);
   if (static_cast<bool>(ctx.error)) [[unlikely]] {
     return;
   }
 
-  if constexpr (!Opts.opening_handled) {
-    if constexpr (!Opts.ws_handled) {
-      skip_ws<Opts>(ctx, it, end);
-    }
-
-    match<'"'>(ctx, it, end);
-  }
-
-  // growth portion
-  auto start = it;
-  skip_till_quote(ctx, it, end);
-  auto n = it - start;
-  if (n == 0) {
-    value.clear();
-    match<'"'>(ctx, it, end);
-    return;
-  }
-
-  if (!base64::decode(std::span{start, start + n}, value)) {
+  if (!base64::decode(encoded, value)) {
     ctx.error = error_code::syntax_error;
     return;
   }
-  match<'"'>(ctx, it, end);
 }
 
 template <>

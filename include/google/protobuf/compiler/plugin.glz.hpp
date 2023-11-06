@@ -8,20 +8,20 @@ template <>
 struct glz::meta<google::protobuf::compiler::Version> {
   using T = google::protobuf::compiler::Version;
   static constexpr auto value = object(
-    "major", hpp::proto::as_optional_ref<&T::major>(),
-    "minor", hpp::proto::as_optional_ref<&T::minor>(),
-    "patch", hpp::proto::as_optional_ref<&T::patch>(),
-    "suffix", hpp::proto::as_optional_ref<&T::suffix>());
+    "major", hpp::proto::as_optional_ref<&T::major>,
+    "minor", hpp::proto::as_optional_ref<&T::minor>,
+    "patch", hpp::proto::as_optional_ref<&T::patch>,
+    "suffix", hpp::proto::as_optional_ref<&T::suffix>);
 };
 
 template <>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest> {
   using T = google::protobuf::compiler::CodeGeneratorRequest;
   static constexpr auto value = object(
-    "fileToGenerate", hpp::proto::as_optional_ref<&T::file_to_generate>(),
-    "parameter", hpp::proto::as_optional_ref<&T::parameter>(),
-    "protoFile", hpp::proto::as_optional_ref<&T::proto_file>(),
-    "sourceFileDescriptors", hpp::proto::as_optional_ref<&T::source_file_descriptors>(),
+    "fileToGenerate", hpp::proto::as_optional_ref<&T::file_to_generate>,
+    "parameter", hpp::proto::as_optional_ref<&T::parameter>,
+    "protoFile", hpp::proto::as_optional_ref<&T::proto_file>,
+    "sourceFileDescriptors", hpp::proto::as_optional_ref<&T::source_file_descriptors>,
     "compilerVersion", &T::compiler_version);
 };
 
@@ -29,18 +29,18 @@ template <>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse> {
   using T = google::protobuf::compiler::CodeGeneratorResponse;
   static constexpr auto value = object(
-    "error", hpp::proto::as_optional_ref<&T::error>(),
-    "supportedFeatures", hpp::proto::as_optional_ref<&T::supported_features>(),
-    "file", hpp::proto::as_optional_ref<&T::file>());
+    "error", hpp::proto::as_optional_ref<&T::error>,
+    "supportedFeatures", hpp::proto::as_optional_ref<&T::supported_features>,
+    "file", hpp::proto::as_optional_ref<&T::file>);
 };
 
 template <>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse::File> {
   using T = google::protobuf::compiler::CodeGeneratorResponse::File;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>(),
-    "insertionPoint", hpp::proto::as_optional_ref<&T::insertion_point>(),
-    "content", hpp::proto::as_optional_ref<&T::content>(),
+    "name", hpp::proto::as_optional_ref<&T::name>,
+    "insertionPoint", hpp::proto::as_optional_ref<&T::insertion_point>,
+    "content", hpp::proto::as_optional_ref<&T::content>,
     "generatedCodeInfo", &T::generated_code_info);
 };
 

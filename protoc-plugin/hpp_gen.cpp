@@ -1202,7 +1202,7 @@ struct glaze_meta_generator : code_generator {
       if (!descriptor.default_value_template_arg.empty()) {
         name_and_default_value += ", " + descriptor.default_value_template_arg;
       }
-      fmt::format_to(target, "    \"{}\", hpp::proto::as_optional_ref<&T::{}>(),\n", descriptor.proto.json_name,
+      fmt::format_to(target, "    \"{}\", hpp::proto::as_optional_ref<&T::{}>,\n", descriptor.proto.json_name,
                      name_and_default_value);
     }
   }

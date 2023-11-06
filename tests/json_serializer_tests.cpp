@@ -10,7 +10,7 @@ struct bytes_example {
 template <>
 struct glz::meta<bytes_example> {
   using T = bytes_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
+  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
 };
 
 struct byte_span_example {
@@ -23,7 +23,7 @@ struct byte_span_example {
 template <>
 struct glz::meta<byte_span_example> {
   using T = byte_span_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
+  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
 };
 
 struct uint64_example {
@@ -50,10 +50,10 @@ struct glz::meta<optional_example> {
   using T = optional_example;
   static constexpr auto value = object(
       // clang-format off
-      "field1", hpp::proto::as_optional_ref<&T::field1>(), 
-      "field2", hpp::proto::as_optional_ref<&T::field2>(), 
-      "field3", hpp::proto::as_optional_ref<&T::field3>(), 
-      "field4", hpp::proto::as_optional_ref<&T::field4>());
+      "field1", hpp::proto::as_optional_ref<&T::field1>, 
+      "field2", hpp::proto::as_optional_ref<&T::field2>, 
+      "field3", hpp::proto::as_optional_ref<&T::field3>, 
+      "field4", hpp::proto::as_optional_ref<&T::field4>);
   // clang-format on
 };
 
@@ -65,7 +65,7 @@ struct explicit_optional_bool_example {
 template <>
 struct glz::meta<explicit_optional_bool_example> {
   using T = explicit_optional_bool_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
+  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
 };
 
 struct explicit_optional_uint64_example {
@@ -89,7 +89,7 @@ struct uint32_span_example {
 template <>
 struct glz::meta<uint32_span_example> {
   using T = uint32_span_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
+  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
 };
 
 struct pair_vector_example {
@@ -100,7 +100,7 @@ struct pair_vector_example {
 template <>
 struct glz::meta<pair_vector_example> {
   using T = pair_vector_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
+  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
 };
 
 struct pair_span_example {
@@ -113,7 +113,7 @@ struct pair_span_example {
 template <>
 struct glz::meta<pair_span_example> {
   using T = pair_span_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
+  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
 };
 
 struct object_span_example {
@@ -126,7 +126,7 @@ struct object_span_example {
 template <>
 struct glz::meta<object_span_example> {
   using T = object_span_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>());
+  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
 };
 
 struct non_owning_nested_example {
