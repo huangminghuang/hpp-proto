@@ -1590,11 +1590,11 @@ struct pb_serializer {
           }
         }
       }
+      return {};
     } else {
       unpacked_element_inserter<Meta, type> inserter{item};
       return inserter.deserialize(tag, context, archive);
-    }
-    return {};
+    } 
   }
 
   template <typename Meta>
