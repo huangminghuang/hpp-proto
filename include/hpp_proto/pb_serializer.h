@@ -680,7 +680,7 @@ public:
   constexpr ~constexpr_vector() { delete[] data_; }
   constexpr T *data() noexcept { return data_; }
   constexpr const T *data() const noexcept { return data_; }
-  operator std::span<T>() const { return std::span{data_, sz}; }
+  constexpr operator std::span<T>() const { return std::span{data_, sz}; }
 };
 #endif
 
