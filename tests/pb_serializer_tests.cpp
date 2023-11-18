@@ -1777,7 +1777,7 @@ const ut::suite test_decode_unknown_field = [] {
 #endif
 
 int main() {
-#ifndef _MSC_VER
+#if !defined( _MSC_VER) || ( defined(__clang_major__) && (__clang_major__ > 14))
   constexpr_verify(carg("\x08\x96\x01"_bytes_view), carg(example{150}));
   constexpr_verify(carg("\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view), carg(example{-1}));
   constexpr_verify(carg(""_bytes_view), carg(example{}));

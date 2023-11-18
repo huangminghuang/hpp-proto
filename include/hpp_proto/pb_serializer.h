@@ -845,7 +845,7 @@ struct pb_serializer {
   constexpr static std::size_t message_size(concepts::has_meta auto &&item, T &cache) {
     using type = std::remove_cvref_t<decltype(item)>;
     return std::apply([&item, &cache](auto &&...meta) constexpr { 
-      uint32_t sum=0;
+      std::size_t sum=0;
       auto sum_field_size = [&sum](auto&& ... args) constexpr {
         sum += field_size(std::forward<decltype(args)>(args) ...);
       };
