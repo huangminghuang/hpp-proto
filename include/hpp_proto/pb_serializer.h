@@ -22,24 +22,22 @@
 
 #ifndef HPP_PROTO_H
 #define HPP_PROTO_H
+#include <array>
 #include <bit>
 #include <cassert>
+#include <climits>
 #include <concepts>
+#include <cstring>
 #include <hpp_proto/field_types.h>
 #include <map>
-#include <numeric>
-#include <climits>
 #include <memory>
-#include <cstring>
-#include <array>
+#include <numeric>
 
 #if __cplusplus >= 202302L
 #include <expected>
 #else
 #include <tl/expected.hpp>
 #endif
-
-
 
 namespace hpp {
 namespace proto {
@@ -174,8 +172,6 @@ concept span = requires {
 template <typename T>
 concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
 
-
-
 template <typename T>
 concept byte_serializable =
     std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
@@ -262,9 +258,9 @@ struct field_meta {
                            v.get();
                          }) {
       return v.get() == nullptr;
+    } else {
+      return false;
     }
-
-    return false;
   }
 };
 
@@ -338,9 +334,9 @@ struct extension_meta : extension_meta_base<extension_meta<Extendee, Number, Enc
                            v.get();
                          }) {
       return v.get() == nullptr;
+    } else {
+      return false;
     }
-
-    return false;
   }
 };
 
@@ -790,6 +786,8 @@ struct pb_serializer {
 
         if constexpr (std::is_enum_v<element_type> || concepts::varint<element_type>) {
           return 1;
+        } else {
+          return 0;
         }
       }
     } else if constexpr (concepts::is_map_entry<serialize_type>) {
@@ -800,8 +798,9 @@ struct pb_serializer {
       } else {
         return 1;
       }
+    } else {
+      return 0;
     }
-    return 0;
   }
 
   template <std::size_t I, typename Meta>
@@ -812,8 +811,9 @@ struct pb_serializer {
                            std::get<I + 1>(std::forward<decltype(item)>(item)));
       }
       return oneof_cache_count<I + 1, Meta>(std::forward<decltype(item)>(item));
+    } else {
+      return 0;
     }
-    return 0;
   }
 
   constexpr static std::size_t message_size(concepts::has_meta auto &&item) {
@@ -1389,7 +1389,7 @@ struct pb_serializer {
 
     if constexpr (requires { growable.resize(1); }) {
       // packed repeated vector,
-      std::size_t size = count_packed_elements<element_type>(length, archive);
+      std::size_t size = count_packed_elements<element_type>(static_cast<uint32_t>(length), archive);
       growable.resize(size);
 
       using serialize_type = std::conditional_t<std::is_enum_v<value_type> && !std::same_as<value_type, std::byte>,
@@ -1414,7 +1414,7 @@ struct pb_serializer {
         return std::errc::result_out_of_range;
       }
       item = std::string_view((const char *)data.data(), length);
-
+      return {};
     } else if constexpr ((std::is_same_v<value_type, char> ||
                           std::is_same_v<value_type, std::byte>)&&std::is_same_v<type, std::span<const value_type>>) {
       // handling bytes
@@ -1423,6 +1423,7 @@ struct pb_serializer {
         return std::errc::result_out_of_range;
       }
       item = std::span<const value_type>((const value_type *)data.data(), length);
+      return {};
     } else if constexpr (requires { item.insert(value_type{}); }) {
       // packed repeated set
       auto fetch = [&item](auto &archive) constexpr {
@@ -1450,10 +1451,11 @@ struct pb_serializer {
           return result;
         }
       }
+      return {};
     } else {
       static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
+      return {};
     }
-    return {};
   }
 
   template <typename Meta, typename Container>
@@ -1586,6 +1588,7 @@ struct pb_serializer {
         return result;
       }
       item = static_cast<type>(value.value);
+      return {};
     } else if constexpr (std::is_same_v<type, boolean>) {
       return archive(item.value);
     } else if constexpr (concepts::optional<type>) {
@@ -1602,6 +1605,7 @@ struct pb_serializer {
         return result;
       }
       item.reset(loaded.release());
+      return {};
     } else if constexpr (std::is_pointer_v<type>) {
       static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
       using element_type = std::remove_cvref_t<decltype(*item)>;
@@ -1614,6 +1618,7 @@ struct pb_serializer {
         return result;
       }
       item = loaded;
+      return {};
     } else if constexpr (concepts::oneof_type<type>) {
       static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
       return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, std::forward<decltype(item)>(item), context,
@@ -1629,6 +1634,7 @@ struct pb_serializer {
       } else {
         item = std::move(value);
       }
+      return {};
     } else if constexpr (concepts::numeric_or_byte<type>) {
       return archive(item);
     } else if constexpr (concepts::has_meta<type>) {
@@ -1660,7 +1666,6 @@ struct pb_serializer {
         return deserialize_unpacked_repeated(meta, tag, std::forward<type>(item), context, archive);
       }
     }
-    return {};
   }
 
   constexpr static std::errc deserialize_group(uint32_t field_num, auto &&item, auto &context,
@@ -1699,8 +1704,9 @@ struct pb_serializer {
       } else {
         return deserialize_oneof<Index + 1, Meta>(tag, std::forward<decltype(item)>(item), context, archive);
       }
+    } else {
+      return {};
     }
-    return {};
   }
 
   template <std::size_t Index>
