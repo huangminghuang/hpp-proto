@@ -203,6 +203,37 @@ const ut::suite test_bytes_json = [] {
   };
 };
 
+
+struct string_as_bytes {
+  std::string field;
+  bool operator==(const string_as_bytes &other) const = default;
+};
+
+template <>
+struct glz::meta<string_as_bytes> {
+  using T = string_as_bytes;
+  static constexpr auto value = object("field", hpp::proto::with_codec<hpp::proto::base64, &T::field>);
+};
+
+const ut::suite test_with_codec = [] {
+  using namespace boost::ut::literals;
+  // "empty"_test = [] { verify_bytes<bytes_example>("", R"({})"); };
+  "one_padding"_test = [] { verify(string_as_bytes{"light work."}, R"({"field":"bGlnaHQgd29yay4="})"); };
+  // "two_padding"_test = [] { verify_bytes<bytes_example>("light work", R"({"field":"bGlnaHQgd29yaw=="})"); };
+  // "no_padding"_test = [] { verify_bytes<bytes_example>("light wor", R"({"field":"bGlnaHQgd29y"})"); };
+
+  // "non_owning_empty"_test = [] { verify_bytes<byte_span_example, 16>("", R"({})"); };
+  // "non_owning_one_padding"_test = [] {
+  //   verify_bytes<byte_span_example, 16>("light work.", R"({"field":"bGlnaHQgd29yay4="})");
+  // };
+  // "non_owning_two_padding"_test = [] {
+  //   verify_bytes<byte_span_example, 16>("light work", R"({"field":"bGlnaHQgd29yaw=="})");
+  // };
+  // "non_owning_no_padding"_test = [] {
+  //   verify_bytes<byte_span_example, 16>("light wor", R"({"field":"bGlnaHQgd29y"})");
+  // };
+};
+
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
 
 const ut::suite test_optional_json = [] {

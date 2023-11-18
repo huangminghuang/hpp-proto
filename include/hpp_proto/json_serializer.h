@@ -88,11 +88,6 @@ inline constexpr decltype(auto) as_optional_ref_impl() noexcept {
 template <auto MemPtr, auto Default = std::monostate{}>
 constexpr auto as_optional_ref = as_optional_ref_impl<MemPtr, Default>();
 
-} // namespace hpp::proto
-
-namespace glz {
-namespace detail {
-
 struct base64 {
   constexpr static std::size_t max_encode_size(hpp::proto::concepts::contiguous_byte_range auto &&source) noexcept {
     std::size_t n = source.size();
@@ -135,12 +130,12 @@ struct base64 {
 
     if (i != n) {
 
-      b[ix++] = static_cast<V>(base64_chars[std::to_integer<int>((source[i] >> 2) & std::byte{0x3F})]);
-      std::byte const next = (i + 1 < n) ? source[i + 1] : std::byte{0};
+      b[ix++] = static_cast<V>(base64_chars[(static_cast<int>(source[i] >> 2) & 0x3F)]);
+      int const next = (i + 1 < n) ? static_cast<int>(source[i + 1]) : 0;
       b[ix++] = static_cast<V>(
-          base64_chars[std::to_integer<int>((source[i] << 4 & std::byte{0x3F}) | ((next >> 4) & std::byte{0x0F}))]);
+          base64_chars[(static_cast<int>(source[i]) << 4 & 0x3F) | ((next >> 4) &  0x0F) ]);
       if (i + 1 < n) {
-        b[ix++] = static_cast<V>(base64_chars[std::to_integer<int>((next << 2 & std::byte{0x3F}))]);
+        b[ix++] = static_cast<V>(base64_chars[(next << 2 & 0x3F)]);
       } else {
         b[ix++] = static_cast<V>('=');
       }
@@ -199,6 +194,50 @@ struct base64 {
   }
 };
 
+template <typename Codec, typename T>
+struct with_codec_wrapper {
+  T &value;
+};
+
+template <typename T>
+struct json_codec;
+
+template <typename Codec, typename U>
+struct json_codec<with_codec_wrapper<Codec, U>> {
+  struct type {
+    constexpr static std::size_t max_encode_size(with_codec_wrapper<Codec, U> v) noexcept {
+      return Codec::max_encode_size(v.value);
+    }
+    constexpr static std::size_t encode(with_codec_wrapper<Codec, U> v, auto &&b) noexcept {
+      return Codec::encode(v.value, b);
+    }
+    constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto &&source, with_codec_wrapper<Codec, U> v) {
+      return Codec::decode(source, v.value);
+    }
+  };
+};
+
+template <typename Codec, auto MemPtr>
+inline constexpr decltype(auto) with_codec_impl() noexcept {
+  return
+      [](auto &&val) { return with_codec_wrapper<Codec, std::remove_reference_t<decltype(val.*MemPtr)>>{val.*MemPtr}; };
+}
+
+template <typename Codec, auto MemPtr>
+constexpr auto with_codec = with_codec_impl<Codec, MemPtr>();
+
+namespace concepts {
+template <typename T>
+concept has_codec = requires { typename json_codec<T>::type; };
+}
+
+} // namespace hpp::proto
+
+namespace glz {
+namespace detail {
+
+using base64 = hpp::proto::base64;
+
 template <>
 struct to_json<hpp::proto::bytes_view> {
   template <auto Opts, class B>
@@ -222,6 +261,42 @@ struct to_json<hpp::proto::bytes> {
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
     return to_json<hpp::proto::bytes_view>::op<Opts, B>(
         std::span<const typename hpp::proto::bytes::value_type>{value.data(), value.size()}, ctx, b, ix);
+  }
+};
+
+template <hpp::proto::concepts::has_codec T>
+struct to_json<T> {
+  template <auto Opts, class B>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&, B &&b, auto &&ix) noexcept {
+    using codec = typename hpp::proto::json_codec<T>::type;
+    if constexpr (detail::resizeable<B>) {
+      std::size_t const encoded_size = codec::max_encode_size(value);
+      if ((ix + 2 + encoded_size) >= b.size()) [[unlikely]] {
+        b.resize(std::max(b.size() * 2, ix + 2 + encoded_size));
+      }
+    }
+
+    dump_unchecked<'"'>(b, ix);
+    ix += codec::encode(value, std::span{b}.subspan(ix));
+    dump_unchecked<'"'>(b, ix);
+  }
+};
+
+template <hpp::proto::concepts::has_codec T>
+struct from_json<T> {
+  template <auto Opts, class It, class End>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {
+    std::string_view encoded;
+    from_json<std::string_view>::op<Opts>(encoded, ctx, it, end);
+    if (static_cast<bool>(ctx.error)) [[unlikely]] {
+      return;
+    }
+    
+    using codec = typename hpp::proto::json_codec<T>::type;
+    if (!codec::decode(encoded, value)) {
+      ctx.error = error_code::syntax_error;
+      return;
+    }
   }
 };
 
