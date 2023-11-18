@@ -1257,11 +1257,11 @@ struct pb_serializer {
       static_assert(concepts::span<fields_type>);
       auto &fields = item.extensions.fields;
 
-      auto old_size = fields.size();
-      if (old_size > 0 && fields[old_size - 1].first == field_num) {
-        auto &entry = fields[old_size - 1].second;
+      if (!fields.empty() && fields.back().first == field_num) {
+        // if the newly parsed has the same field number with previously parsed, just extends the content
+        auto &entry = fields.back().second;
         if (entry.data() + entry.size() == field_span.data()) {
-          entry = entry.subspan(0, field_span.end() - entry.begin());
+          entry = std::span{entry.data(), entry.size() + field_span.size()};
           return {};
         }
       }
@@ -1269,10 +1269,9 @@ struct pb_serializer {
       auto itr =
           std::find_if(fields.begin(), fields.end(), [field_num](const auto &e) { return e.first == field_num; });
       if (itr == fields.end()) [[likely]] {
-        decltype(auto) growable_fields = make_growable(context, fields);
-        growable_fields.resize(old_size + 1);
-        growable_fields[old_size] = {field_num, field_span};
+        make_growable(context, fields).push_back({field_num, field_span});
       } else {
+        // the extension with the same field number exists, append the content to the previously parsed.
         decltype(auto) v = make_growable(context, itr->second);
         auto s = v.size();
         v.resize(v.size() + field_span.size());

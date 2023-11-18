@@ -578,6 +578,11 @@ public:
   value_type *begin() const { return data_; }
   value_type *end() const { return data_ + size(); }
 
+  void push_back(const T& v) {
+    resize(size()+1);
+    data_[size()-1] = v;
+  }
+
   void clear() {
     base_ = std::span<T>{};
     data_ = nullptr;
