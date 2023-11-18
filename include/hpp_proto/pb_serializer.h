@@ -476,7 +476,10 @@ struct map_entry {
         return static_cast<Target>(src);
       }
     }
-
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#endif
     template <concepts::associative_container Container>
     constexpr void insert_to(Container &container) && {
       container.insert_or_assign(move_or_copy<typename Container::key_type>(key),
@@ -488,6 +491,9 @@ struct map_entry {
       target.first = move_or_copy<K>(key);
       target.second = move_or_copy<V>(value);
     }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
   };
 
   struct read_only_type {
@@ -914,7 +920,7 @@ struct pb_serializer {
         auto &[key, value] = item;
         decltype(auto) msg_size = *cache++;
         auto s = message_size(value_type{key, value}, cache);
-        msg_size = s;
+        msg_size = static_cast<uint32_t>(s);
         return tag_size + len_size(s);
       } else {
         static_assert(!sizeof(type));
@@ -931,8 +937,9 @@ struct pb_serializer {
                           std::get<I + 1>(std::forward<decltype(item)>(item)), cache);
       }
       return oneof_size<I + 1, Meta>(std::forward<decltype(item)>(item), cache);
+    } else {
+      return 0;
     }
-    return 0;
   }
 
   template <std::size_t MAX_CACHE_COUNT = 128, concepts::contiguous_byte_range Buffer>
@@ -1105,14 +1112,23 @@ struct pb_serializer {
           }
         }
         m_data = m_data.subspan(sizeof(item));
+        return {};
       } else if constexpr (std::is_enum_v<type>) {
         deserialize(varint{static_cast<int64_t>(item)});
+        return {};
       } else if constexpr (concepts::varint<type>) {
         using value_type = std::make_unsigned_t<typename type::value_type>;
 
         auto commit = [&item, this](auto value, std::size_t byte_count) {
           if constexpr (varint_encoding::zig_zag == type::encoding) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4146)
+#endif
             item = ((value >> 1) ^ -(value & 0x1));
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
           } else {
             item = value;
           }
@@ -1171,10 +1187,11 @@ struct pb_serializer {
             }
           }
         }
+        return {};
       } else {
         static_assert(!sizeof(type));
+        return {};
       }
-      return {};
     }
 
     constexpr std::errc skip_length_delimited() {
@@ -1403,7 +1420,14 @@ struct pb_serializer {
           if (auto result = archive(underlying); result != std::errc{}) [[unlikely]] {
             return result;
           }
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#endif
           value = static_cast<element_type>(underlying.value);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
         }
         return {};
       }

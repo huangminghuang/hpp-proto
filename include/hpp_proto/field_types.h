@@ -26,13 +26,13 @@
 #include <cassert>
 #include <functional>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <variant>
 #include <vector>
-#include <ranges>
 
 #if __has_include(<flat_map>)
 #include <flat_map>
@@ -513,11 +513,9 @@ constexpr bool is_default_value(const T &val) {
   if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
     if constexpr (requires { val.empty(); }) {
       return val.empty();
-    }
-    if constexpr (requires { val.has_value(); }) {
+    } else if constexpr (requires { val.has_value(); }) {
       return !val.has_value();
-    }
-    if constexpr (std::is_class_v<T>) {
+    } else if constexpr (std::is_class_v<T>) {
       return false;
     } else {
       return val == T{};
@@ -540,8 +538,7 @@ concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<s
                     std::same_as<std::remove_cv_t<Type>, std::byte>;
 
 template <typename T>
-concept contiguous_byte_range =
-    byte_type<typename std::ranges::range_value_t<T>> && std::ranges::contiguous_range<T>;
+concept contiguous_byte_range = byte_type<typename std::ranges::range_value_t<T>> && std::ranges::contiguous_range<T>;
 } // namespace concepts
 
 namespace detail {
@@ -578,9 +575,9 @@ public:
   value_type *begin() const { return data_; }
   value_type *end() const { return data_ + size(); }
 
-  void push_back(const T& v) {
-    resize(size()+1);
-    data_[size()-1] = v;
+  void push_back(const T &v) {
+    resize(size() + 1);
+    data_[size() - 1] = v;
   }
 
   void clear() {
