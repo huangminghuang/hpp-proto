@@ -672,13 +672,15 @@ using constexpr_vector = std::vector<T>;
 #else
 template <typename T>
 class constexpr_vector {
-  T *m_data;
+  T *data_;
+  std::size_t sz;
 
 public:
-  constexpr explicit constexpr_vector(std::size_t n) { m_data = new T[n]; }
-  constexpr ~constexpr_vector() { delete[] m_data; }
-  constexpr T *data() noexcept { return m_data; }
-  constexpr const T *data() const noexcept { return data; }
+  constexpr explicit constexpr_vector(std::size_t n) : data_(new T[n]), sz(n) {}
+  constexpr ~constexpr_vector() { delete[] data_; }
+  constexpr T *data() noexcept { return data_; }
+  constexpr const T *data() const noexcept { return data_; }
+  operator std::span<T>() const { return std::span{data_, sz}; }
 };
 #endif
 
@@ -842,9 +844,15 @@ struct pb_serializer {
   template <concepts::is_size_cache T>
   constexpr static std::size_t message_size(concepts::has_meta auto &&item, T &cache) {
     using type = std::remove_cvref_t<decltype(item)>;
-    return std::apply(
-        [&item, &cache](auto &&...meta) constexpr { return (field_size(meta, meta.access(item), cache) + ...); },
-        typename traits::meta_of<type>::type{});
+    return std::apply([&item, &cache](auto &&...meta) constexpr { 
+      uint32_t sum=0;
+      auto sum_field_size = [&sum](auto&& ... args) constexpr {
+        sum += field_size(std::forward<decltype(args)>(args) ...);
+      };
+      // we cannot directly use fold expression with '+' operator because it has undefined evaluation order. 
+      (sum_field_size(meta, meta.access(item), cache), ...); 
+      return sum;
+    }, typename traits::meta_of<type>::type{});
   }
 
   template <typename Meta>
@@ -946,9 +954,8 @@ struct pb_serializer {
   constexpr static std::errc serialize(concepts::has_meta auto &&item, Buffer &buffer) {
     std::size_t n = cache_count(item);
 
-    auto do_serialize = [&item, &buffer](uint32_t *cache) constexpr {
-      auto cache_end = cache;
-      std::size_t sz = message_size(item, cache_end);
+    auto do_serialize = [&item, &buffer](std::span<uint32_t> cache) constexpr {
+      std::size_t sz = message_size(item, cache);
       if constexpr (requires { buffer.resize(1); }) {
         buffer.resize(sz);
       } else {
@@ -957,7 +964,8 @@ struct pb_serializer {
         }
       }
       basic_out<typename std::remove_cvref_t<decltype(buffer)>::value_type> archive{buffer};
-      serialize(item, cache, archive);
+      auto cache_data = cache.data();
+      serialize(item, cache_data, archive);
       if constexpr (requires { buffer.subspan(0, 1); }) {
         buffer = buffer.subspan(0, sz);
       }
@@ -966,7 +974,7 @@ struct pb_serializer {
 
     if (std::is_constant_evaluated() || n > MAX_CACHE_COUNT) {
       constexpr_vector<uint32_t> cache(n);
-      return do_serialize(cache.data());
+      return do_serialize(cache);
     } else {
 #if defined(_MSC_VER)
       uint32_t *cache = static_cast<uint32_t *>(_alloca(n * sizeof(uint32_t)));
@@ -976,7 +984,7 @@ struct pb_serializer {
 #else
       uint32_t cache[MAX_CACHE_COUNT];
 #endif
-      return do_serialize(cache);
+      return do_serialize({cache, n});
     }
   }
 
@@ -1594,7 +1602,7 @@ struct pb_serializer {
     } else {
       unpacked_element_inserter<Meta, type> inserter{item};
       return inserter.deserialize(tag, context, archive);
-    } 
+    }
   }
 
   template <typename Meta>
