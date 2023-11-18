@@ -29,6 +29,10 @@
 #include <numeric>
 #include <set>
 #include <unordered_set>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 namespace gpb = google::protobuf;
 // NOLINTBEGIN(cert-err58-cpp)
@@ -515,23 +519,20 @@ struct code_generator {
       }
     }
 
-    std::size_t unresolved_size = unresolved_messages.size();
-    while (unresolved_size > 0) {
+    while (unresolved_messages.size() > 0) {
       for (auto itr = unresolved_messages.rbegin(); itr != unresolved_messages.rend(); ++itr) {
         auto &pm = *itr;
         auto &deps = pm->dependencies;
         if (std::includes(resolved_message_names.begin(), resolved_message_names.end(), deps.begin(), deps.end())) {
           resolved_messages.push_back(pm);
           resolved_message_names.insert(pm->cpp_name);
-          if (itr != unresolved_messages.rbegin()) {
-            std::swap(pm, unresolved_messages.back());
-          }
-          unresolved_messages.resize(unresolved_messages.size() - 1);
+          pm = nullptr;
         }
       }
 
-      if (unresolved_size > unresolved_messages.size()) {
-        unresolved_size = unresolved_messages.size();
+      auto null_end = std::remove(unresolved_messages.begin(), unresolved_messages.end(), nullptr);
+      if (null_end != unresolved_messages.end()) {
+        unresolved_messages.erase(null_end, unresolved_messages.end());
       } else {
         std::sort(unresolved_messages.begin(), unresolved_messages.end(),
                   [](auto lhs, auto rhs) { return lhs->cpp_name < rhs->cpp_name; });
@@ -1258,7 +1259,7 @@ void split(std::string_view str, char deliminator, auto &&callback) {
   while (pos < str.end()) {
     std::string_view::iterator next_pos = std::find(pos, str.end(), deliminator);
     callback(std::string_view{&*pos, static_cast<std::string_view::size_type>(next_pos - pos)});
-    pos = next_pos + 1;
+    pos = next_pos + (next_pos == str.end() ? 0 : 1);
   }
 }
 
@@ -1272,9 +1273,12 @@ int main(int argc, const char **argv) {
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   if (argc <= 2) {
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);
+#endif
     read_file(std::cin);
   } else if (std::string_view("--input") == argv[1]) {
-    read_file(std::ifstream(argv[2]));
+    read_file(std::ifstream(argv[2], std::ios::binary));
   }
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -1302,7 +1306,7 @@ int main(int argc, const char **argv) {
     } else if (opt_key == "proto2_explicit_presence") {
       proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "export_request") {
-      std::ofstream out{std::string(opt_value)};
+      std::ofstream out{std::string(opt_value), std::ios::binary};
       std::copy(request_data.begin(), request_data.end(), std::ostreambuf_iterator<char>(out));
     }
   });

@@ -1132,8 +1132,6 @@ struct pb_serializer {
               continue;
             }
             return commit(value, 1 + std::distance(m_data.data(), &byte_value));
-            m_data = m_data.subspan(1 + std::distance(m_data.data(), &byte_value));
-            return {};
           }
           return std::errc::result_out_of_range;
         } else {

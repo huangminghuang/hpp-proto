@@ -630,7 +630,7 @@ struct string_with_default {
   bool operator==(const string_with_default &) const = default;
 };
 auto pb_meta(const string_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, &string_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
 
 struct string_with_optional {
   hpp::proto::optional<std::string, hpp::proto::cts_wrapper<"test">{}> value;
@@ -679,7 +679,7 @@ struct string_view_with_default {
   bool operator==(const string_view_with_default &) const = default;
 };
 auto pb_meta(const string_view_with_default &) -> std::tuple<
-    hpp::proto::field_meta<1, &string_view_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    hpp::proto::field_meta<1, &string_view_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
 
 struct string_view_with_optional {
   hpp::proto::optional<std::string_view, hpp::proto::cts_wrapper<"test">{}> value;
@@ -735,7 +735,7 @@ struct bytes_with_default {
 };
 
 auto pb_meta(const bytes_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, &bytes_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    -> std::tuple<hpp::proto::field_meta<1, &bytes_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
 
 struct bytes_with_optional {
   hpp::proto::optional<std::vector<std::byte>, hpp::proto::cts_wrapper<"test">{}> value;
@@ -792,7 +792,7 @@ struct char_vector_with_default {
 };
 
 auto pb_meta(const char_vector_with_default &) -> std::tuple<
-    hpp::proto::field_meta<1, &char_vector_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    hpp::proto::field_meta<1, &char_vector_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
 
 struct char_vector_with_optional {
   hpp::proto::optional<std::vector<char>, hpp::proto::cts_wrapper<"test">{}> value;
@@ -851,7 +851,7 @@ struct byte_span_with_default {
 };
 
 auto pb_meta(const byte_span_with_default &) -> std::tuple<
-    hpp::proto::field_meta<1, &byte_span_with_default::value, encoding_rule::defaulted, void, "test"_cts>>;
+    hpp::proto::field_meta<1, &byte_span_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
 
 struct byte_span_with_optional {
   hpp::proto::optional<std::span<const std::byte>, hpp::proto::cts_wrapper<"test">{}> value;
@@ -1777,14 +1777,14 @@ const ut::suite test_decode_unknown_field = [] {
 #endif
 
 int main() {
-
+#ifndef _MSC_VER
   constexpr_verify(carg("\x08\x96\x01"_bytes_view), carg(example{150}));
   constexpr_verify(carg("\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view), carg(example{-1}));
   constexpr_verify(carg(""_bytes_view), carg(example{}));
   constexpr_verify(carg("\x0a\x03\x08\x96\x01"_bytes_view), carg(nested_example{.nested = example{150}}));
   constexpr_verify(carg("\x08\x00"_bytes_view), carg(example_explicit_presence{.i = 0}));
   constexpr_verify(carg(""_bytes_view), carg(example_default_type{}));
-
+#endif
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
 }
