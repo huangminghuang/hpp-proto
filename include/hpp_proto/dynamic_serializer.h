@@ -977,7 +977,7 @@ public:
 
   using opts = glz::opts;
 
-  template <auto Opts = opts{}>
+  template <auto Opts>
   inline std::error_code proto_to_json(std::string_view message_name,
                                        concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer) const {
 
@@ -1000,7 +1000,7 @@ public:
   expected<std::string, std::error_code> proto_to_json(std::string_view message_name,
                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
     std::string result;
-    if (auto ec = proto_to_json(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
+    if (auto ec = proto_to_json<opts{}>(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
         ec) {
       return unexpected(ec);
     }
