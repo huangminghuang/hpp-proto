@@ -1342,6 +1342,10 @@ int main(int argc, const char **argv) {
     (void)fputs("hpp encode error", stderr);
     return 1;
   }
+
+#ifdef _WIN32
+  _setmode(_fileno(stdout), _O_BINARY);
+#endif
   std::copy(data.begin(), data.end(), std::ostreambuf_iterator<char>(std::cout));
 
   return 0;

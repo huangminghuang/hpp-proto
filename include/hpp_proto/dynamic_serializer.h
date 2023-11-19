@@ -65,8 +65,8 @@ class dynamic_serializer {
     std::string name;
   };
 
-  static size_t find_index(const std::vector<std::string> &m, std::string_view key) {
-    return std::lower_bound(m.begin(), m.end(), key) - m.begin();
+  static uint32_t find_index(const std::vector<std::string> &m, std::string_view key) {
+    return static_cast<uint32_t>(std::lower_bound(m.begin(), m.end(), key) - m.begin());
   }
 
   struct field_meta {
@@ -114,8 +114,9 @@ class dynamic_serializer {
     }
   };
 
-  std::size_t message_index(std::string_view name) const {
-    return std::lower_bound(message_names.begin(), message_names.end(), name) - message_names.begin();
+  uint32_t message_index(std::string_view name) const {
+    return static_cast<uint32_t>(std::lower_bound(message_names.begin(), message_names.end(), name) -
+                                 message_names.begin());
   }
 
   using message_meta = std::vector<field_meta>;
@@ -980,7 +981,7 @@ public:
   std::error_code proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream,
                                 auto &&buffer) const {
     using buffer_type = std::decay_t<decltype(buffer)>;
-    std::size_t const id = message_index(message_name);
+    uint32_t const id = message_index(message_name);
     if (id == messages.size()) {
       return std::make_error_code(std::errc::invalid_argument);
     }
