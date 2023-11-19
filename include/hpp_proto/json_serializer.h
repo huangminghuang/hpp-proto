@@ -543,55 +543,34 @@ struct from_json<T *> {
 
 namespace hpp::proto {
 
-struct json_parse_error {
-  uint64_t ec : 8;
-  uint64_t location : 56;
+template <auto Opts, typename T, typename Buffer, glz::is_context Context>
+[[nodiscard]] inline glz::parse_error read_json(T &value, Buffer &&buffer, Context &&ctx) {
 
-  operator bool() const { return ec != 0; }
-
-  std::string format(const auto &buffer) {
-    static constexpr auto arr = glz::detail::make_enum_to_string_array<glz::error_code>();
-    const auto error_type_str = arr[ec];
-    const auto info = glz::detail::get_source_info(buffer, location);
-    if (info) {
-      return glz::detail::generate_error_string(error_type_str, *info);
-    }
-    return std::string(error_type_str);
-  }
-};
-
-template <typename T, typename Buffer, glz::is_context Context>
-[[nodiscard]] inline json_parse_error read_json(T &value, Buffer &&buffer, Context &&ctx) {
   using buffer_type = std::remove_cvref_t<Buffer>;
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<Buffer> ||
                     std::same_as<Context, glz::context>,
                 "temporary buffer cannot be used for non-owning object parsing");
-  constexpr glz::opts options{};
-  const char *b = buffer.data();
-  const char *e = b + buffer.size();
-  glz::detail::read<glz::json>::template op<options>(value, ctx, b, e);
+  return glz::read<Opts>(value, buffer, ctx);
+}
 
-  if constexpr (options.force_conformance) {
-    if (b < e) {
-      glz::detail::skip_ws<options>(ctx, b, e);
-      if (b != e) {
-        ctx.error = glz::error_code::syntax_error;
-      }
-    }
-  }
-
-  return json_parse_error{.ec = static_cast<uint8_t>(ctx.error),
-                          .location = static_cast<size_t>(std::distance(std::as_const(buffer).data(), b))};
+template <auto Opts, class T, typename Buffer, concepts::memory_resource MemoryResource>
+[[nodiscard]] inline glz::parse_error read_json(T &value, Buffer &&buffer, MemoryResource &mr) {
+  return read_json<Opts>(value, std::forward<Buffer>(buffer), non_owning_context<MemoryResource>{mr});
 }
 
 template <class T, typename Buffer, concepts::memory_resource MemoryResource>
-[[nodiscard]] inline json_parse_error read_json(T &value, Buffer &&buffer, MemoryResource &mr) {
-  return read_json(value, std::forward<Buffer>(buffer), non_owning_context<MemoryResource>{mr});
+[[nodiscard]] inline glz::parse_error read_json(T &value, Buffer &&buffer, MemoryResource &mr) {
+  return read_json<glz::opts{}>(value, std::forward<Buffer>(buffer), non_owning_context<MemoryResource>{mr});
+}
+
+template <auto Opts, class T>
+[[nodiscard]] inline glz::parse_error read_json(T &value, std::string_view buffer) {
+  return read_json<Opts>(value, buffer, glz::context{});
 }
 
 template <class T>
-[[nodiscard]] inline json_parse_error read_json(T &value, std::string_view buffer) {
-  return read_json(value, buffer, glz::context{});
+[[nodiscard]] inline glz::parse_error read_json(T &value, std::string_view buffer) {
+  return read_json<glz::opts{}>(value, buffer, glz::context{});
 }
 
 template <class T>
@@ -602,7 +581,7 @@ template <class T>
 }
 
 template <class T, class Buffer>
-inline void write_jsonc(T &&value, Buffer &&buffer) noexcept {
+inline void write_json(T &&value, Buffer &&buffer) noexcept {
   glz::write<glz::opts{}>(std::forward<T>(value), std::forward<Buffer>(buffer));
 }
 
