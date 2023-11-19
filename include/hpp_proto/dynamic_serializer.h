@@ -967,7 +967,7 @@ public:
   }
 
   template <concepts::contiguous_byte_range ByteView>
-  static expected<dynamic_serializer, std::error_code> make(ByteView filedescriptorset_stream) {
+  static inline expected<dynamic_serializer, std::error_code> make(ByteView filedescriptorset_stream) {
     google::protobuf::FileDescriptorSet fileset;
     if (auto ec = read_proto(fileset, filedescriptorset_stream); ec) {
       return unexpected{ec};
@@ -975,9 +975,12 @@ public:
     return dynamic_serializer{fileset};
   }
 
-  std::error_code proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream,
-                                auto &&buffer) const {
-    
+  using opts = glz::opts;
+
+  template <auto Opts = opts{}>
+  inline std::error_code proto_to_json(std::string_view message_name,
+                                       concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer) const {
+
     using buffer_type = std::decay_t<decltype(buffer)>;
     uint32_t const id = message_index(message_name);
     if (id == messages.size()) {
@@ -985,7 +988,7 @@ public:
     }
     buffer.resize(pb_encoded_stream.size() * 2);
     auto archive = pb_serializer::basic_in(pb_encoded_stream);
-    pb_to_json_state<glz::opts{}, buffer_type> state{*this, buffer};
+    pb_to_json_state<Opts, buffer_type> state{*this, buffer};
     const bool is_map_entry = false;
     if (auto ec = state.decode_message(id, is_map_entry, archive); ec != std::errc{}) {
       [[unlikely]] return std::make_error_code(ec);
