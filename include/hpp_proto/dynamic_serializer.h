@@ -975,9 +975,9 @@ public:
     return dynamic_serializer{fileset};
   }
 
-  template <auto Options = glz::opts{}>
   std::error_code proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream,
                                 auto &&buffer) const {
+    
     using buffer_type = std::decay_t<decltype(buffer)>;
     uint32_t const id = message_index(message_name);
     if (id == messages.size()) {
@@ -985,7 +985,7 @@ public:
     }
     buffer.resize(pb_encoded_stream.size() * 2);
     auto archive = pb_serializer::basic_in(pb_encoded_stream);
-    pb_to_json_state<Options, buffer_type> state{*this, buffer};
+    pb_to_json_state<glz::opts{}, buffer_type> state{*this, buffer};
     const bool is_map_entry = false;
     if (auto ec = state.decode_message(id, is_map_entry, archive); ec != std::errc{}) {
       [[unlikely]] return std::make_error_code(ec);
@@ -994,7 +994,6 @@ public:
     return {};
   }
 
-  template <auto Options = glz::opts{}>
   expected<std::string, std::error_code> proto_to_json(std::string_view message_name,
                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
     std::string result;
@@ -1005,7 +1004,6 @@ public:
     return result;
   }
 
-  template <auto Opts = glz::opts{}>
   std::error_code json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json_view,
                                 concepts::contiguous_byte_range auto &&buffer) const {
     uint32_t const id = message_index(message_name);
@@ -1016,13 +1014,12 @@ public:
     const char *it = json_view.data();
     const char *end = it + json_view.size();
     relocatable_out archive{buffer};
-    if (auto ec = state.template encode_message<Opts>(id, it, end, 0, archive); ec != std::errc{}) {
+    if (auto ec = state.template encode_message<glz::opts{}>(id, it, end, 0, archive); ec != std::errc{}) {
       [[unlikely]] return std::make_error_code(ec);
     }
     return {};
   }
 
-  template <auto Options = glz::opts{}>
   expected<std::vector<std::byte>, std::error_code> json_to_proto(std::string_view message_name,
                                                                   concepts::contiguous_byte_range auto &&json) {
     std::vector<std::byte> result;

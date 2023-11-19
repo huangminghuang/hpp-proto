@@ -32,10 +32,10 @@ void test_fixture(auto &message, const char *descriptorset_file, const char *mes
   expect(!ser->json_to_proto(message_name, *hpp_result, serialized));
   expect(eq(data, serialized));
 
-  hpp_result = ser->proto_to_json<glz::opts{.prettify = true}>(message_name, data);
-  expect(hpp_result.has_value() >> fatal);
-  expect(!ser->json_to_proto(message_name, *hpp_result, serialized));
-  expect(eq(data, serialized));
+  // hpp_result = ser->proto_to_json<glz::opts{.prettify = true}>(message_name, data);
+  // expect(hpp_result.has_value() >> fatal);
+  // expect(!ser->json_to_proto(message_name, *hpp_result, serialized));
+  // expect(eq(data, serialized));
 }
 // NOLINTEND(bugprone-easily-swappable-parameters)
 
