@@ -366,7 +366,6 @@ class dynamic_serializer {
         return decode_field_type<vsint64_t>(true, archive);
       }
       glz::unreachable();
-      return {};
     }
 
     std::errc decode_enum(uint32_t enum_index, concepts::is_basic_in auto &archive) {
@@ -678,7 +677,6 @@ class dynamic_serializer {
         return encode_map_key<vsint64_t>(key, archive);
       default:
         glz::unreachable();
-        return {};
       }
     }
 
@@ -748,7 +746,6 @@ class dynamic_serializer {
         return encode_type<Options, vsint64_t, true>(meta, it, end, archive);
       default:
         glz::unreachable();
-        return {};
       }
     }
 
@@ -1008,8 +1005,9 @@ public:
     return result;
   }
 
-  template <auto Opts = glz::opts{}, class JsonView, concepts::contiguous_byte_range Buffer>
-  std::error_code json_to_proto(std::string_view message_name, JsonView json_view, Buffer &&buffer) const {
+  template <auto Opts = glz::opts{}>
+  std::error_code json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json_view,
+                                concepts::contiguous_byte_range auto &&buffer) const {
     uint32_t const id = message_index(message_name);
     if (id == messages.size()) {
       return std::make_error_code(std::errc::invalid_argument);
