@@ -573,11 +573,23 @@ template <class T>
   return read_json<glz::opts{}>(value, buffer, glz::context{});
 }
 
+template <auto Opts, class T>
+[[nodiscard]] inline auto write_json(T &&value) noexcept {
+  std::string buffer{};
+  glz::write<Opts>(std::forward<T>(value), buffer);
+  return buffer;
+}
+
 template <class T>
 [[nodiscard]] inline auto write_json(T &&value) noexcept {
   std::string buffer{};
   glz::write<glz::opts{}>(std::forward<T>(value), buffer);
   return buffer;
+}
+
+template <auto Opts, class T, class Buffer>
+inline void write_json(T &&value, Buffer &&buffer) noexcept {
+  glz::write<Opts>(std::forward<T>(value), std::forward<Buffer>(buffer));
 }
 
 template <class T, class Buffer>
