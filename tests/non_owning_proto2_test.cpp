@@ -65,7 +65,7 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
   message->optional_fixed64 = 108;
   message->optional_sfixed32 = 109;
   message->optional_sfixed64 = 110;
-  message->optional_float = 111;
+  message->optional_float = 111.0f;
   message->optional_double = 112;
   message->optional_bool = true;
   message->optional_string = "115";
@@ -750,7 +750,7 @@ inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *mes
   // ABSL_CHECK(message);
   message->my_int = 1;
   message->my_string = "foo";
-  message->my_float = 1.0;
+  message->my_float = 1.0f;
   expect(!message->set_extension(protobuf_unittest::my_extension_int(), 23, mr));
   expect(!message->set_extension(protobuf_unittest::my_extension_string(), "bar", mr));
 }

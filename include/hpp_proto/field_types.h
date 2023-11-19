@@ -162,7 +162,7 @@ public:
   template <typename U>
     requires std::convertible_to<U, T>
   constexpr optional &operator=(U &&value) {
-    impl = std::forward<U>(value);
+    impl = static_cast<T>(value);
     return *this;
   }
 

@@ -3,6 +3,7 @@
 #include <hpp_proto/descriptor_pool.h>
 #include <hpp_proto/json_serializer.h>
 #include <hpp_proto/pb_serializer.h>
+#include <system_error>
 
 namespace hpp::proto {
 
