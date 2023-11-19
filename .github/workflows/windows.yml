@@ -34,7 +34,7 @@ jobs:
 
       - name: configure
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache -DHPP_PROTO_TESTS=OFF
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: build
         run: cmake --build build --config Release -j4
