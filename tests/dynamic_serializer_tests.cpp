@@ -19,12 +19,8 @@ void test_fixture(auto &message, const char *descriptorset_file, const char *mes
 
   auto gpb_result = gpb_based::proto_to_json(descriptors, message_name, data);
 
-  std::cout << "gpb_result\n" <<  gpb_result << "\n";
-
   auto hpp_result = ser->proto_to_json(message_name, data);
   expect(hpp_result.has_value() >> fatal);
-
-  std::cout << "hpp_result\n" << *hpp_result << "\n";
 
   expect(eq(gpb_result, *hpp_result));
 
@@ -32,10 +28,10 @@ void test_fixture(auto &message, const char *descriptorset_file, const char *mes
   expect(!ser->json_to_proto(message_name, *hpp_result, serialized));
   expect(eq(data, serialized));
 
-  // hpp_result = ser->proto_to_json<glz::opts{.prettify = true}>(message_name, data);
-  // expect(hpp_result.has_value() >> fatal);
-  // expect(!ser->json_to_proto(message_name, *hpp_result, serialized));
-  // expect(eq(data, serialized));
+  hpp_result = ser->proto_to_json<glz::opts{.prettify = true}>(message_name, data);
+  expect(hpp_result.has_value() >> fatal);
+  expect(!ser->json_to_proto(message_name, *hpp_result, serialized));
+  expect(eq(data, serialized));
 }
 // NOLINTEND(bugprone-easily-swappable-parameters)
 

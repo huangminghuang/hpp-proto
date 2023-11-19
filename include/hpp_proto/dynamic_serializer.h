@@ -790,6 +790,7 @@ class dynamic_serializer {
       static constexpr auto Opts = glz::ws_handled_off<Options>();
 
       glz::detail::match<'['>(context, it, end);
+      glz::detail::skip_ws<Options>(context, it, end);
       if (bool(context.error)) {
         [[unlikely]] return std::errc::illegal_byte_sequence;
       }
@@ -810,6 +811,10 @@ class dynamic_serializer {
         glz::detail::skip_ws<Opts>(context, it, end);
         if (i < n - 1) {
           glz::detail::match<','>(context, it, end);
+          glz::detail::skip_ws<Opts>(context, it, end);
+        }
+        if (bool(context.error)) {
+          [[unlikely]] return std::errc::illegal_byte_sequence;
         }
       }
       glz::detail::match<']'>(context, it, end);
@@ -967,7 +972,7 @@ public:
   }
 
   template <concepts::contiguous_byte_range ByteView>
-  static inline expected<dynamic_serializer, std::error_code> make(ByteView filedescriptorset_stream) {
+  static expected<dynamic_serializer, std::error_code> make(ByteView filedescriptorset_stream) {
     google::protobuf::FileDescriptorSet fileset;
     if (auto ec = read_proto(fileset, filedescriptorset_stream); ec) {
       return unexpected{ec};
@@ -975,12 +980,9 @@ public:
     return dynamic_serializer{fileset};
   }
 
-  using opts = glz::opts;
-
-  template <auto Opts>
-  inline std::error_code proto_to_json(std::string_view message_name,
-                                       concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer) const {
-
+  template <auto Options>
+  std::error_code proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream,
+                                auto &&buffer) const {
     using buffer_type = std::decay_t<decltype(buffer)>;
     uint32_t const id = message_index(message_name);
     if (id == messages.size()) {
@@ -988,7 +990,7 @@ public:
     }
     buffer.resize(pb_encoded_stream.size() * 2);
     auto archive = pb_serializer::basic_in(pb_encoded_stream);
-    pb_to_json_state<Opts, buffer_type> state{*this, buffer};
+    pb_to_json_state<Options, buffer_type> state{*this, buffer};
     const bool is_map_entry = false;
     if (auto ec = state.decode_message(id, is_map_entry, archive); ec != std::errc{}) {
       [[unlikely]] return std::make_error_code(ec);
@@ -997,16 +999,29 @@ public:
     return {};
   }
 
+  std::error_code proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream,
+                                auto &&buffer) const {
+    return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream, buffer);
+  }
+
+  template <auto Options>
   expected<std::string, std::error_code> proto_to_json(std::string_view message_name,
                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
     std::string result;
-    if (auto ec = proto_to_json<opts{}>(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
+    if (auto ec =
+            proto_to_json<Options>(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
         ec) {
       return unexpected(ec);
     }
     return result;
   }
 
+  expected<std::string, std::error_code> proto_to_json(std::string_view message_name,
+                                                       concepts::contiguous_byte_range auto &&pb_encoded_stream) {
+    return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream);
+  }
+
+  template <auto Opts>
   std::error_code json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json_view,
                                 concepts::contiguous_byte_range auto &&buffer) const {
     uint32_t const id = message_index(message_name);
@@ -1017,19 +1032,30 @@ public:
     const char *it = json_view.data();
     const char *end = it + json_view.size();
     relocatable_out archive{buffer};
-    if (auto ec = state.template encode_message<glz::opts{}>(id, it, end, 0, archive); ec != std::errc{}) {
+    if (auto ec = state.template encode_message<Opts>(id, it, end, 0, archive); ec != std::errc{}) {
       [[unlikely]] return std::make_error_code(ec);
     }
     return {};
   }
 
+  std::error_code json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json_view,
+                                concepts::contiguous_byte_range auto &&buffer) const {
+    return json_to_proto<glz::opts{}>(message_name, json_view, buffer);
+  }
+
+  template <auto Opts>
   expected<std::vector<std::byte>, std::error_code> json_to_proto(std::string_view message_name,
                                                                   concepts::contiguous_byte_range auto &&json) {
     std::vector<std::byte> result;
-    if (auto ec = json_to_proto(message_name, std::forward<decltype(json)>(json), result); ec) {
+    if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); ec) {
       return unexpected(ec);
     }
     return result;
+  }
+
+  expected<std::vector<std::byte>, std::error_code> json_to_proto(std::string_view message_name,
+                                                                  concepts::contiguous_byte_range auto &&json) {
+    return json_to_proto<glz::opts{}>(message_name, json);
   }
 };
 
