@@ -39,7 +39,10 @@ concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
 } // namespace concepts
 
 template <concepts::memory_resource MemoryResource>
-struct non_owning_context : glz::context {
+struct non_owning_context {
+  uint32_t indentation_level{};
+  std::string current_file; // top level file path
+  glz::error_code error{};
   MemoryResource &mr;
 
   non_owning_context(MemoryResource &mr) : mr(mr) {}

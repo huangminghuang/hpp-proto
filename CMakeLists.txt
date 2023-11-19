@@ -13,7 +13,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 CPMAddPackage(
   NAME glaze
-  VERSION 1.5.4.mod2
+  VERSION 1.6.0.mod
   GITHUB_REPOSITORY huangminghuang/glaze
 )
 
