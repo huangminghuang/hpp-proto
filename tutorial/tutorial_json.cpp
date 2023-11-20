@@ -20,9 +20,9 @@ int main() {
   }
 
   tutorial::AddressBook new_book;
-  auto ec = hpp::proto::read_json(new_book, json);
-  if (ec) {
-    std::cerr << "read json error: " << ec.format(json) << "\n";
+  auto pe = hpp::proto::read_json(new_book, json);
+  if (pe) {
+    std::cerr << "read json error: " << glz::format_error(pe,json) << "\n";
     return 1;
   }
 
