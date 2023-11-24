@@ -275,6 +275,12 @@ public:
     impl = uint8_t(default_value);
     return deref();
   }
+
+  bool &emplace(bool v) noexcept {
+    impl = uint8_t(v);
+    return deref();
+  }
+
   constexpr bool value() const {
     if (!has_value()) {
       throw std::bad_optional_access{};
@@ -294,6 +300,9 @@ public:
     return *this;
   }
   constexpr bool operator==(const optional &other) const = default;
+
+  constexpr void swap(optional &other) noexcept { std::swap(impl, other.impl); }
+  constexpr void reset() noexcept { impl = 0x80; }
 };
 
 template <typename T>

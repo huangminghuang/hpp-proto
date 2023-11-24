@@ -203,7 +203,6 @@ const ut::suite test_bytes_json = [] {
   };
 };
 
-
 struct string_as_bytes {
   std::string field;
   bool operator==(const string_as_bytes &other) const = default;
@@ -215,23 +214,37 @@ struct glz::meta<string_as_bytes> {
   static constexpr auto value = object("field", hpp::proto::with_codec<hpp::proto::base64, &T::field>);
 };
 
+struct optional_string_as_bytes {
+  std::optional<std::string> field1;
+  hpp::proto::optional<std::string, hpp::proto::cts_wrapper<"test">{}> field2;
+  std::string field3;
+  bool operator==(const optional_string_as_bytes &other) const = default;
+};
+
+template <>
+struct glz::meta<optional_string_as_bytes> {
+  using T = optional_string_as_bytes;
+  // clang-format off
+  static constexpr auto value = object("field1", hpp::proto::with_codec<hpp::proto::base64, &T::field1>, 
+                                       "field2", hpp::proto::with_codec<hpp::proto::base64, &T::field2>, 
+                                       "field3", hpp::proto::as_optional_ref<&T::field3, std::monostate{}, hpp::proto::base64>);
+  // clang-format on
+};
+
 const ut::suite test_with_codec = [] {
   using namespace boost::ut::literals;
   // "empty"_test = [] { verify_bytes<bytes_example>("", R"({})"); };
-  "one_padding"_test = [] { verify(string_as_bytes{"light work."}, R"({"field":"bGlnaHQgd29yay4="})"); };
-  // "two_padding"_test = [] { verify_bytes<bytes_example>("light work", R"({"field":"bGlnaHQgd29yaw=="})"); };
-  // "no_padding"_test = [] { verify_bytes<bytes_example>("light wor", R"({"field":"bGlnaHQgd29y"})"); };
+  "string_as_bytes"_test = [] { verify(string_as_bytes{"light work."}, R"({"field":"bGlnaHQgd29yay4="})"); };
+  "optional_string_as_bytes"_test = [] {
+    // verify(optional_string_as_bytes{.field1 = "light work.", .field2 = "light work", .field3="light wor"},
+    //        R"({"field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
 
-  // "non_owning_empty"_test = [] { verify_bytes<byte_span_example, 16>("", R"({})"); };
-  // "non_owning_one_padding"_test = [] {
-  //   verify_bytes<byte_span_example, 16>("light work.", R"({"field":"bGlnaHQgd29yay4="})");
-  // };
-  // "non_owning_two_padding"_test = [] {
-  //   verify_bytes<byte_span_example, 16>("light work", R"({"field":"bGlnaHQgd29yaw=="})");
-  // };
-  // "non_owning_no_padding"_test = [] {
-  //   verify_bytes<byte_span_example, 16>("light wor", R"({"field":"bGlnaHQgd29y"})");
-  // };
+    // verify(optional_string_as_bytes{.field1 = "light work.", .field2 = "light work"},
+    //        R"({"field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw=="})");
+
+    verify(optional_string_as_bytes{.field3="light wor"},
+           R"({"field3":"bGlnaHQgd29y"})");
+  };
 };
 
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };

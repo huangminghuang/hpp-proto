@@ -418,14 +418,6 @@ constexpr bool has_field_num(Meta meta, uint32_t num) {
   }
 }
 
-template <typename Type>
-constexpr void set_as_default(Type &value) {
-  using type = std::remove_cvref_t<Type>;
-  if constexpr (concepts::scalar<type>) {
-    value = type{};
-  }
-}
-
 template <typename T>
 struct serialize_type {
   using type = T;
