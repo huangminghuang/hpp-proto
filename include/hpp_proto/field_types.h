@@ -69,6 +69,12 @@ namespace ranges {
 template <typename T>
 using range_value_t = std::iter_value_t<decltype(std::begin(std::declval<T &>()))>;
 
+template< class T >
+concept range = requires( T& t ) {
+  std::begin(t); // equality-preserving for forward iterators
+  std::end  (t);
+};
+
 template <typename T>
 concept contiguous_range = requires(T &t) {
   {
@@ -548,6 +554,7 @@ concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<s
 
 template <typename T>
 concept contiguous_byte_range = byte_type<typename std::ranges::range_value_t<T>> && std::ranges::contiguous_range<T>;
+
 } // namespace concepts
 
 namespace detail {

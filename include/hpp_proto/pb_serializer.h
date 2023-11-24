@@ -148,11 +148,7 @@ template <typename Type>
 concept oneof_type = concepts::variant<Type>;
 
 template <typename Type>
-concept string_or_bytes = concepts::container<Type> && (std::same_as<char, typename Type::value_type> ||
-                                                        std::same_as<std::byte, typename Type::value_type>);
-
-template <typename Type>
-concept scalar = numeric_or_byte<Type> || string_or_bytes<Type> || std::same_as<Type, boolean>;
+concept scalar = numeric_or_byte<Type> || contiguous_byte_range<Type> || std::same_as<Type, boolean>;
 
 template <typename Type>
 concept pb_extension = requires(Type value) { typename Type::pb_extension; };
@@ -781,7 +777,7 @@ struct pb_serializer {
         return transform_accumulate(item, [](const auto &elem) constexpr { return cache_count(Meta{}, elem); });
       } else {
         using element_type =
-            std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::string_or_bytes<type>, value_type,
+            std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>, value_type,
                                typename Meta::type>;
 
         if constexpr (std::is_enum_v<element_type> || concepts::varint<element_type>) {
@@ -873,7 +869,7 @@ struct pb_serializer {
         }
       } else if constexpr (concepts::varint<type>) {
         return tag_size + varint_size<type::encoding, typename type::value_type>(item.value);
-      } else if constexpr (concepts::string_or_bytes<type>) {
+      } else if constexpr (concepts::contiguous_byte_range<type>) {
         return tag_size + len_size(item.size());
       } else if constexpr (requires { *item; }) {
         return field_size(meta, *item, cache);
@@ -896,7 +892,7 @@ struct pb_serializer {
                                       [&cache](const auto &elem) constexpr { return field_size(Meta{}, elem, cache); });
         } else {
           using element_type =
-              std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::string_or_bytes<type>,
+              std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
                                  value_type, typename Meta::type>;
 
           if constexpr (concepts::byte_serializable<element_type>) {
@@ -1008,7 +1004,7 @@ struct pb_serializer {
       archive(make_tag<type>(meta), item);
     } else if constexpr (concepts::numeric<type>) {
       archive(make_tag<serialize_type>(meta), serialize_type{item});
-    } else if constexpr (concepts::string_or_bytes<type>) {
+    } else if constexpr (concepts::contiguous_byte_range<type>) {
       archive(make_tag<type>(meta), varint{item.size()}, item);
     } else if constexpr (requires { *item; }) {
       return serialize_field(meta, *item, cache, archive);
@@ -1027,7 +1023,7 @@ struct pb_serializer {
       }
       using value_type = typename type::value_type;
       using element_type =
-          std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::string_or_bytes<type>, value_type,
+          std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>, value_type,
                              typename Meta::type>;
 
       if constexpr (concepts::has_meta<value_type> || Meta::encoding == encoding_rule::group ||
@@ -1677,7 +1673,7 @@ struct pb_serializer {
         growable.resize(old_size + 1);
         return deserialize_group(field_num, growable[old_size], context, archive);
       }
-    } else if constexpr (concepts::string_or_bytes<type>) {
+    } else if constexpr (concepts::contiguous_byte_range<type>) {
       return deserialize_packed_repeated(meta, std::forward<type>(item), context, archive);
     } else { // repeated non-group
       using value_type = typename type::value_type;

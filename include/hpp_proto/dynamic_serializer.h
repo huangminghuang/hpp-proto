@@ -188,7 +188,7 @@ class dynamic_serializer {
     template <typename T>
     std::errc decode_field_type(bool quote_required, concepts::is_basic_in auto &archive) {
       T value;
-      if constexpr (concepts::string_or_bytes<T>) {
+      if constexpr (concepts::contiguous_byte_range<T>) {
         vuint64_t len;
         if (auto ec = archive(len); ec != std::errc{}) [[unlikely]] {
           return ec;
@@ -555,7 +555,7 @@ class dynamic_serializer {
         return varint_size(static_cast<int64_t>(item));
       } else if constexpr (concepts::varint<type>) {
         return varint_size<type::encoding, typename type::value_type>(item.value);
-      } else if constexpr (concepts::string_or_bytes<type>) {
+      } else if constexpr (concepts::contiguous_byte_range<type>) {
         return varint_size(item.size()) + item.size();
       } else {
         static_assert(!sizeof(type));
@@ -565,7 +565,7 @@ class dynamic_serializer {
     template <typename Item>
     void serialize(Item &&item, concepts::is_basic_out auto &archive) {
       using type = std::remove_cvref_t<Item>;
-      if constexpr (concepts::string_or_bytes<type>) {
+      if constexpr (concepts::contiguous_byte_range<type>) {
         archive(varint{item.size()}, item);
       } else {
         archive(item);
