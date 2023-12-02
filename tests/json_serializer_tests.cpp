@@ -2,16 +2,8 @@
 #include <boost/ut.hpp>
 #include <hpp_proto/json_serializer.h>
 
-struct bytes_example {
-  hpp::proto::bytes field;
-  bool operator==(const bytes_example &other) const = default;
-};
-
-template <>
-struct glz::meta<bytes_example> {
-  using T = bytes_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
-};
+template <typename T>
+constexpr auto non_owning = false;
 
 struct byte_span_example {
   std::span<const std::byte> field;
@@ -87,6 +79,9 @@ struct uint32_span_example {
 };
 
 template <>
+constexpr auto non_owning<uint32_span_example> = true;
+
+template <>
 struct glz::meta<uint32_span_example> {
   using T = uint32_span_example;
   static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
@@ -111,6 +106,8 @@ struct pair_span_example {
 };
 
 template <>
+constexpr auto non_owning<pair_span_example> = true;
+template <>
 struct glz::meta<pair_span_example> {
   using T = pair_span_example;
   static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
@@ -122,6 +119,9 @@ struct object_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
+
+template <>
+constexpr auto non_owning<object_span_example> = true;
 
 template <>
 struct glz::meta<object_span_example> {
@@ -137,23 +137,54 @@ struct non_owning_nested_example {
 };
 
 template <>
+constexpr auto non_owning<non_owning_nested_example> = true;
+
+template <>
 struct glz::meta<non_owning_nested_example> {
   using T = non_owning_nested_example;
   static constexpr auto value = object("nested", &T::nested);
 };
 
-template <typename T, int MemoryResourceSize = 0>
+namespace ut = boost::ut;
+
+const ut::suite test_base64 = [] {
+  auto verify = [](std::string_view data, std::string_view encoded) {
+    using namespace boost::ut;
+    expect(ge(hpp::proto::base64::max_encode_size(data), encoded.size()));
+    std::string result;
+    result.resize(hpp::proto::base64::max_encode_size(data));
+    auto encoded_size = hpp::proto::base64::encode(data, result);
+    result.resize(encoded_size);
+    expect(eq(encoded, result));
+    expect(hpp::proto::base64::decode(encoded, result));
+    expect(eq(data, result));
+  };
+
+  verify("", "");
+  verify("light work.", "bGlnaHQgd29yay4=");
+  verify("light work", "bGlnaHQgd29yaw==");
+  verify("light wor", "bGlnaHQgd29y");
+
+  verify("f", "Zg==");
+  verify("fo", "Zm8=");
+  verify("foo", "Zm9v");
+  verify("foob", "Zm9vYg==");
+  verify("fooba", "Zm9vYmE=");
+  verify("foobar", "Zm9vYmFy");
+};
+
+template <typename T>
 void verify(const T &msg, std::string_view json) {
   using namespace boost::ut;
   expect(json == hpp::proto::write_json(msg));
 
   T msg2;
 
-  if constexpr (MemoryResourceSize == 0) {
+  if constexpr (!non_owning<T>) {
     expect((!hpp::proto::read_json(msg2, json)) >> fatal);
     expect(msg == msg2);
   } else {
-    monotonic_buffer_resource mr{MemoryResourceSize};
+    monotonic_buffer_resource mr{1024};
     expect((!hpp::proto::read_json(msg2, json, mr)) >> fatal);
     expect(msg == msg2);
   }
@@ -182,69 +213,54 @@ void verify_bytes(std::string_view text, std::string_view json) {
 }
 // NOLINTEND(bugprone-easily-swappable-parameters)
 
-namespace ut = boost::ut;
-
-const ut::suite test_bytes_json = [] {
-  using namespace boost::ut::literals;
-  "empty"_test = [] { verify_bytes<bytes_example>("", R"({})"); };
-  "one_padding"_test = [] { verify_bytes<bytes_example>("light work.", R"({"field":"bGlnaHQgd29yay4="})"); };
-  "two_padding"_test = [] { verify_bytes<bytes_example>("light work", R"({"field":"bGlnaHQgd29yaw=="})"); };
-  "no_padding"_test = [] { verify_bytes<bytes_example>("light wor", R"({"field":"bGlnaHQgd29y"})"); };
-
-  "non_owning_empty"_test = [] { verify_bytes<byte_span_example, 16>("", R"({})"); };
-  "non_owning_one_padding"_test = [] {
-    verify_bytes<byte_span_example, 16>("light work.", R"({"field":"bGlnaHQgd29yay4="})");
-  };
-  "non_owning_two_padding"_test = [] {
-    verify_bytes<byte_span_example, 16>("light work", R"({"field":"bGlnaHQgd29yaw=="})");
-  };
-  "non_owning_no_padding"_test = [] {
-    verify_bytes<byte_span_example, 16>("light wor", R"({"field":"bGlnaHQgd29y"})");
-  };
-};
-
-struct string_as_bytes {
-  std::string field;
-  bool operator==(const string_as_bytes &other) const = default;
+template <typename Bytes>
+struct bytes_example {
+  Bytes field0;
+  std::optional<Bytes> field1;
+  hpp::proto::optional<Bytes, hpp::proto::cts_wrapper<"test">{}> field2;
+  Bytes field3;
+  bool operator==(const bytes_example &other) const {
+    auto equal_optional_range = [](const auto &lhs, const auto &rhs) {
+      return (lhs.has_value() == rhs.has_value()) && (!lhs.has_value() || (std::ranges::equal(*lhs, *rhs)));
+    };
+    return std::ranges::equal(field0, other.field0) && equal_optional_range(field1, other.field1) &&
+           equal_optional_range(field2, other.field2) && std::ranges::equal(field3, other.field3);
+  }
 };
 
 template <>
-struct glz::meta<string_as_bytes> {
-  using T = string_as_bytes;
-  static constexpr auto value = object("field", hpp::proto::with_codec<hpp::proto::base64, &T::field>);
-};
+constexpr auto non_owning<std::string_view> = true;
 
-struct optional_string_as_bytes {
-  std::optional<std::string> field1;
-  hpp::proto::optional<std::string, hpp::proto::cts_wrapper<"test">{}> field2;
-  std::string field3;
-  bool operator==(const optional_string_as_bytes &other) const = default;
-};
+template <typename T>
+constexpr auto non_owning<std::span<const T>> = true;
 
-template <>
-struct glz::meta<optional_string_as_bytes> {
-  using T = optional_string_as_bytes;
+template <typename Bytes>
+constexpr auto non_owning<bytes_example<Bytes>> = non_owning<Bytes>;
+
+template <typename Bytes>
+struct glz::meta<bytes_example<Bytes>> {
+  using T = bytes_example<Bytes>;
   // clang-format off
-  static constexpr auto value = object("field1", hpp::proto::with_codec<hpp::proto::base64, &T::field1>, 
-                                       "field2", hpp::proto::with_codec<hpp::proto::base64, &T::field2>, 
-                                       "field3", hpp::proto::as_optional_ref<&T::field3, std::monostate{}, hpp::proto::base64>);
+  static constexpr auto value = object("field0", &T::field0,
+                                       "field1", &T::field1, 
+                                       "field2", &T::field2, 
+                                       "field3", hpp::proto::as_optional_ref<&T::field3>);
   // clang-format on
 };
 
-const ut::suite test_with_codec = [] {
+const ut::suite test_bytes = [] {
   using namespace boost::ut::literals;
-  // "empty"_test = [] { verify_bytes<bytes_example>("", R"({})"); };
-  "string_as_bytes"_test = [] { verify(string_as_bytes{"light work."}, R"({"field":"bGlnaHQgd29yay4="})"); };
-  "optional_string_as_bytes"_test = [] {
-    // verify(optional_string_as_bytes{.field1 = "light work.", .field2 = "light work", .field3="light wor"},
-    //        R"({"field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
+  using namespace boost::ut;
 
-    // verify(optional_string_as_bytes{.field1 = "light work.", .field2 = "light work"},
-    //        R"({"field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw=="})");
-
-    verify(optional_string_as_bytes{.field3="light wor"},
-           R"({"field3":"bGlnaHQgd29y"})");
-  };
+  "bytes"_test = []<class Bytes> {
+    verify(bytes_example<Bytes>{}, R"({"field0":""})");
+    using namespace hpp::proto::literals;
+    verify(bytes_example<Bytes>{.field0 = static_cast<Bytes>("foo"_cts),
+                                .field1 = static_cast<Bytes>("light work."_cts),
+                                .field2 = static_cast<Bytes>("light work"_cts),
+                                .field3 = static_cast<Bytes>("light wor"_cts)},
+           R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
+  } | std::tuple<std::vector<std::byte>, std::span<const std::byte>>{};
 };
 
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
@@ -255,33 +271,33 @@ const ut::suite test_optional_json = [] {
 
 const ut::suite test_uint32_span_json = [] {
   std::array<uint32_t, 3> content{1, 2, 3};
-  verify<uint32_span_example, 32>(uint32_span_example{.field = content}, R"({"field":[1,2,3]})");
+  verify<uint32_span_example>(uint32_span_example{.field = content}, R"({"field":[1,2,3]})");
 };
 
 const ut::suite test_pair_vector_json = [] {
   using namespace std::literals::string_literals;
-  verify<pair_vector_example, 128>(pair_vector_example{.field = {{"one"s, 1}, {"two"s, 2}, {"three"s, 3}}},
-                                   R"({"field":{"one":1,"two":2,"three":3}})");
+  verify<pair_vector_example>(pair_vector_example{.field = {{"one"s, 1}, {"two"s, 2}, {"three"s, 3}}},
+                              R"({"field":{"one":1,"two":2,"three":3}})");
 };
 
 const ut::suite test_pair_span_json = [] {
   using namespace std::literals::string_view_literals;
   std::array<std::pair<std::string_view, int32_t>, 3> content{{{"one"sv, 1}, {"two"sv, 2}, {"three"sv, 3}}};
-  verify<pair_span_example, 128>(pair_span_example{.field = content}, R"({"field":{"one":1,"two":2,"three":3}})");
+  verify<pair_span_example>(pair_span_example{.field = content}, R"({"field":{"one":1,"two":2,"three":3}})");
 };
 
 const ut::suite test_object_span_json = [] {
   std::array<optional_example, 3> content = {
       {{.field1 = 1, .field2 = 1ULL}, {.field1 = 2, .field2 = 2ULL}, {.field1 = 3, .field2 = 3ULL}}};
-  verify<object_span_example, 128>(
+  verify<object_span_example>(
       object_span_example{.field = content},
       R"({"field":[{"field1":1,"field2":"1"},{"field1":2,"field2":"2"},{"field1":3,"field2":"3"}]})");
 };
 
 const ut::suite test_non_owning_nested = [] {
   const optional_example nested = {.field1 = 1, .field2 = 1ULL};
-  verify<non_owning_nested_example, 128>(non_owning_nested_example{.nested = &nested},
-                                         R"({"nested":{"field1":1,"field2":"1"}})");
+  verify<non_owning_nested_example>(non_owning_nested_example{.nested = &nested},
+                                    R"({"nested":{"field1":1,"field2":"1"}})");
 };
 
 const ut::suite test_explicit_optional_bool = [] {
@@ -293,6 +309,25 @@ const ut::suite test_explicit_optional_bool = [] {
 const ut::suite test_explicit_optional_uint64 = [] {
   verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{}, R"({})");
   verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{.field = 32}, R"({"field":"32"})");
+};
+
+template <typename T, typename Codec>
+class add_codec : public T {
+public:
+  add_codec() = default;
+  add_codec(const add_codec &) = default;
+  add_codec(add_codec &&) = default;
+  add_codec &operator=(const add_codec &) = default;
+  add_codec &operator=(add_codec &&) = default;
+
+  template <typename... Args>
+  add_codec(Args &&...args) : T(std::forward<Args>(args)...) {}
+
+  template <typename... Args>
+  add_codec &operator=(Args &&...args) {
+    T::operator=(std::forward<Args>(args)...);
+    return *this;
+  }
 };
 
 int main() {

@@ -62,30 +62,7 @@ constexpr ToType bit_cast(FromType const &from) noexcept {
 } // namespace std
 #endif
 
-#if !defined(__cpp_lib_ranges)
-namespace std {
-namespace ranges {
 
-template <typename T>
-using range_value_t = std::iter_value_t<decltype(std::begin(std::declval<T &>()))>;
-
-template< class T >
-concept range = requires( T& t ) {
-  std::begin(t); // equality-preserving for forward iterators
-  std::end  (t);
-};
-
-template <typename T>
-concept contiguous_range = requires(T &t) {
-  {
-    std::data(t)
-  } -> std::same_as<std::add_pointer_t<std::iter_reference_t<decltype(std::begin(std::declval<T &>()))>>>;
-  std::size(t);
-};
-
-} // namespace ranges
-} // namespace std
-#endif
 namespace hpp::proto {
 
 // workaround for clang not supporting floating-point types in non-type template
@@ -454,6 +431,12 @@ struct ctb_wrapper {
   }
 };
 
+namespace concepts {
+template <typename Type>
+concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<std::remove_cv_t<Type>, unsigned char> ||
+                    std::same_as<std::remove_cv_t<Type>, std::byte>;
+};
+
 template <compile_time_string cts>
 struct cts_wrapper {
   static constexpr compile_time_string str{cts};
@@ -464,18 +447,17 @@ struct cts_wrapper {
   constexpr const char *end() const { return str.data() + size(); }
 
   explicit operator std::string() const { return std::string{data()}; }
-  explicit operator std::vector<std::byte>() const {
-    return std::vector<std::byte>{std::bit_cast<const std::byte *>(data()),
-                                  std::bit_cast<const std::byte *>(data()) + size()};
-  }
-
-  explicit operator std::vector<char>() const { return std::vector<char>{data(), data() + size()}; }
-
   constexpr operator std::string_view() const { return std::string_view(data(), size()); }
 
-  constexpr operator std::span<const std::byte>() const { return ctb_wrapper<cts>{}; }
+  template <concepts::byte_type Byte>
+  explicit operator std::vector<Byte>() const {
+    return std::vector<Byte>{std::bit_cast<const Byte *>(begin()), std::bit_cast<const Byte *>(end())};
+  }
 
-  constexpr operator std::span<const char>() const { return std::span<const char>{data(), size()}; }
+  template <concepts::byte_type Byte>
+  constexpr explicit operator std::span<const Byte>() const {
+    return std::span<const Byte>{std::bit_cast<const Byte *>(data()), size()};
+  }
 
   friend constexpr bool operator==(const cts_wrapper &lhs, const std::string &rhs) {
     return static_cast<std::string_view>(lhs) == rhs;
@@ -541,71 +523,4 @@ constexpr bool is_default_value(const T &val) {
     return Default == val;
   }
 }
-
-namespace concepts {
-template <typename T>
-concept memory_resource = requires(T &object) {
-  { object.allocate(8, 8) } -> std::same_as<void *>;
-};
-
-template <typename Type>
-concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<std::remove_cv_t<Type>, unsigned char> ||
-                    std::same_as<std::remove_cv_t<Type>, std::byte>;
-
-template <typename T>
-concept contiguous_byte_range = byte_type<typename std::ranges::range_value_t<T>> && std::ranges::contiguous_range<T>;
-
-} // namespace concepts
-
-namespace detail {
-
-template <typename T, concepts::memory_resource MemoryResource>
-class growable_span {
-public:
-  using value_type = std::remove_const_t<T>;
-
-  growable_span(std::span<T> &base, MemoryResource &mr) : base_(base), mr(mr) {}
-
-  void resize(std::size_t n) {
-    if (data_ == nullptr || n > base_.size()) {
-      data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
-      assert(data_ != nullptr);
-      std::uninitialized_copy(base_.begin(), base_.end(), data_);
-
-      if constexpr (!std::is_trivial_v<T>) {
-        std::uninitialized_default_construct(data_ + base_.size(), data_ + n);
-      } else {
-#ifdef __cpp_lib_start_lifetime_as
-        std::start_lifetime_as_array(data_ + base.size(), n);
-#endif
-      }
-      base_ = std::span<T>{data_, n};
-    } else {
-      base_ = std::span<T>(base_.data(), n);
-    }
-  }
-
-  value_type *data() const { return data_; }
-  value_type &operator[](std::size_t n) { return data_[n]; }
-  std::size_t size() const { return base_.size(); }
-  value_type *begin() const { return data_; }
-  value_type *end() const { return data_ + size(); }
-
-  void push_back(const T &v) {
-    resize(size() + 1);
-    data_[size() - 1] = v;
-  }
-
-  void clear() {
-    base_ = std::span<T>{};
-    data_ = nullptr;
-  }
-
-private:
-  std::span<T> &base_;
-  value_type *data_ = nullptr;
-  MemoryResource &mr;
-};
-} // namespace detail
-
 } // namespace hpp::proto

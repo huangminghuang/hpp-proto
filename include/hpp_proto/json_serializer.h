@@ -1,7 +1,7 @@
 #pragma once
 #include <bit>
 #include <glaze/glaze.hpp>
-#include <hpp_proto/field_types.h>
+#include <hpp_proto/memory_resource_utils.h>
 
 namespace hpp::proto {
 
@@ -33,7 +33,7 @@ concept jsonfy_need_quote = integral_64_bits<T> || map_with_integral_64_bits_map
 
 template <typename T>
 concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
-  { v.mr } -> concepts::memory_resource;
+  { v.memory_resource } -> concepts::memory_resource;
 };
 
 } // namespace concepts
@@ -43,82 +43,29 @@ struct non_owning_context {
   uint32_t indentation_level{};
   std::string current_file; // top level file path
   glz::error_code error{};
-  MemoryResource &mr;
+  MemoryResource &memory_resource;
 
-  non_owning_context(MemoryResource &mr) : mr(mr) {}
+  non_owning_context(MemoryResource &memory_resource) : memory_resource(memory_resource) {}
 };
 
-template <typename Codec, typename T>
-struct with_codec_wrapper {
-  T &value;
-};
 
-namespace concepts {
-template <typename T>
-concept is_optional = requires(T &v) {
-  typename T::value_type;
-  { v.has_value() } -> std::same_as<bool>;
-  { *v };
-};
 
-template <typename T>
-concept non_optional = !is_optional<T>;
-} // namespace concepts
 
-template <typename Codec, concepts::is_optional T>
-struct with_codec_wrapper<Codec, T> {
-  using underlying_value_type = typename std::remove_const_t<T>::value_type;
-  T &value;
-
-  constexpr operator bool() const { return value.has_value(); }
-
-  constexpr auto operator*() {
-    return with_codec_wrapper<
-        Codec, std::conditional_t<std::is_const_v<T>, const underlying_value_type, underlying_value_type>>{*value};
-  }
-
-  constexpr with_codec_wrapper<Codec, const underlying_value_type> operator*() const {
-    return with_codec_wrapper<Codec, const underlying_value_type>{*value};
-  }
-
-  constexpr with_codec_wrapper &operator=(glz::empty) {
-    if constexpr (requires { value.emplace(); }) {
-      value.emplace();
-    } else {
-      value = underlying_value_type{};
-    }
-    return *this;
-  }
-
-  void reset() { value.reset(); }
-
-  struct glaze {
-    static constexpr auto construct = [] { return glz::empty{}; };
-  };
-};
-
-template <typename T, auto Default = std::monostate{}, typename Codec = void>
+template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
   T &val;
   operator bool() const { return !is_default_value<T, Default>(val); }
 
   template <typename U>
-    requires std::same_as<Codec, void>
   static U &deref(U &v) {
     return v;
   }
 
   template <concepts::jsonfy_need_quote U>
-    requires std::same_as<Codec, void>
   static glz::quoted_num_t<U> deref(U &v) {
     return glz::quoted_num_t<U>{v};
   }
 
-  template <typename U>
-    requires(!std::same_as<Codec, void>)
-  static auto deref(U &v) {
-    return with_codec_wrapper<Codec, U>{v};
-  }
 
   auto operator*() const -> decltype(deref(val)) { return deref(val); }
 
@@ -134,9 +81,7 @@ struct optional_ref {
     }
   }
 
-  constexpr optional_ref &operator=(glz::empty) {
-    return *this;
-  }
+  constexpr optional_ref &operator=(glz::empty) { return *this; }
 
   struct glaze {
     static constexpr auto construct = [] { return glz::empty{}; };
@@ -144,7 +89,7 @@ struct optional_ref {
 };
 
 template <auto Default>
-struct optional_ref<hpp::proto::optional<bool, Default>, std::monostate{}, void> {
+struct optional_ref<hpp::proto::optional<bool, Default>, std::monostate{}> {
   hpp::proto::optional<bool, Default> &val;
   operator bool() const { return val.has_value(); }
   bool &emplace() const { return val.emplace(); }
@@ -152,21 +97,21 @@ struct optional_ref<hpp::proto::optional<bool, Default>, std::monostate{}, void>
 };
 
 template <auto Default>
-struct optional_ref<const hpp::proto::optional<bool, Default>, std::monostate{}, void> {
+struct optional_ref<const hpp::proto::optional<bool, Default>, std::monostate{}> {
   const hpp::proto::optional<bool, Default> &val;
   operator bool() const { return val.has_value(); }
   bool operator*() const { return *val; }
 };
 
-template <auto MemPtr, auto Default, typename Codec>
+template <auto MemPtr, auto Default>
 inline constexpr decltype(auto) as_optional_ref_impl() noexcept {
   return [](auto &&val) {
-    return optional_ref<std::remove_reference_t<decltype(val.*MemPtr)>, Default, Codec>{val.*MemPtr};
+    return optional_ref<std::remove_reference_t<decltype(val.*MemPtr)>, Default>{val.*MemPtr};
   };
 }
 
-template <auto MemPtr, auto Default = std::monostate{}, typename Codec = void>
-constexpr auto as_optional_ref = as_optional_ref_impl<MemPtr, Default, Codec>();
+template <auto MemPtr, auto Default = std::monostate{}>
+constexpr auto as_optional_ref = as_optional_ref_impl<MemPtr, Default>();
 
 struct base64 {
   constexpr static std::size_t max_encode_size(hpp::proto::concepts::contiguous_byte_range auto &&source) noexcept {
@@ -224,8 +169,12 @@ struct base64 {
   }
 
   constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto &&source, auto &&value) {
-
     std::size_t n = source.size();
+    if (n == 0) {
+      value.resize(0);
+      return true;
+    }
+
     if (n % 4 != 0) {
       return false;
     }
@@ -276,30 +225,16 @@ struct base64 {
 template <typename T>
 struct json_codec;
 
-template <typename Codec, concepts::non_optional U>
-struct json_codec<with_codec_wrapper<Codec, U>> {
-  struct type {
-    constexpr static std::size_t max_encode_size(with_codec_wrapper<Codec, U> v) noexcept {
-      return Codec::max_encode_size(v.value);
-    }
-    constexpr static std::size_t encode(with_codec_wrapper<Codec, U> v, auto &&b) noexcept {
-      return Codec::encode(v.value, b);
-    }
-    constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto &&source,
-                                 with_codec_wrapper<Codec, U> v) {
-      return Codec::decode(source, v.value);
-    }
-  };
+template <concepts::byte_type Byte>
+struct json_codec<std::vector<Byte>> {
+  using type = base64;
 };
 
-template <typename Codec, auto MemPtr>
-inline constexpr decltype(auto) with_codec_impl() noexcept {
-  return
-      [](auto &&val) { return with_codec_wrapper<Codec, std::remove_reference_t<decltype(val.*MemPtr)>>{val.*MemPtr}; };
-}
+template <concepts::byte_type Byte>
+struct json_codec<std::span<Byte>> {
+  using type = base64;
+};
 
-template <typename Codec, auto MemPtr>
-constexpr auto with_codec = with_codec_impl<Codec, MemPtr>();
 
 namespace concepts {
 template <typename T>
@@ -368,7 +303,7 @@ struct from_json<T> {
     }
 
     using codec = typename hpp::proto::json_codec<T>::type;
-    if (!codec::decode(encoded, value)) {
+    if (!codec::decode(encoded, hpp::proto::detail::make_growable(ctx, value))) {
       ctx.error = error_code::syntax_error;
       return;
     }
@@ -523,7 +458,7 @@ struct from_json<std::span<Type>> {
   template <auto Options>
   GLZ_ALWAYS_INLINE static void op(std::span<Type> &value, hpp::proto::concepts::is_non_owning_context auto &&ctx,
                                    auto &&it, auto &&end) {
-    hpp::proto::detail::growable_span growable{value, ctx.mr};
+    hpp::proto::detail::growable_span growable{value, ctx.memory_resource};
     using type = std::remove_const_t<Type>;
     if constexpr (std::same_as<type, std::byte> || std::same_as<type, char>) {
       read_json_bytes<Options>(growable, ctx, it, end);
@@ -681,7 +616,7 @@ struct from_json<T *> {
       }
       value = nullptr;
     } else {
-      void *addr = ctx.mr.allocate(sizeof(type), alignof(type));
+      void *addr = ctx.memory_resource.allocate(sizeof(type), alignof(type));
       type *obj = new (addr) type;
       read<json>::op<Opts>(*obj, ctx, it, end);
       value = obj;

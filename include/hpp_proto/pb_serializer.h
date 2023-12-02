@@ -28,7 +28,7 @@
 #include <climits>
 #include <concepts>
 #include <cstring>
-#include <hpp_proto/field_types.h>
+#include <hpp_proto/memory_resource_utils.h>
 #include <map>
 #include <memory>
 #include <numeric>
@@ -176,12 +176,6 @@ template <typename T>
 concept is_size_cache = std::same_as<T, uint32_t *> || requires(T v) {
   { v++ } -> std::same_as<T>;
   *v = 0U;
-};
-
-template <typename T>
-concept has_memory_resource = requires(T &object) {
-  object.memory_resource;
-  requires memory_resource<std::remove_cvref_t<decltype(object.memory_resource)>>;
 };
 
 template <typename T>
@@ -777,8 +771,8 @@ struct pb_serializer {
         return transform_accumulate(item, [](const auto &elem) constexpr { return cache_count(Meta{}, elem); });
       } else {
         using element_type =
-            std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>, value_type,
-                               typename Meta::type>;
+            std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
+                               value_type, typename Meta::type>;
 
         if constexpr (std::is_enum_v<element_type> || concepts::varint<element_type>) {
           return 1;
@@ -832,15 +826,17 @@ struct pb_serializer {
   template <concepts::is_size_cache T>
   constexpr static std::size_t message_size(concepts::has_meta auto &&item, T &cache) {
     using type = std::remove_cvref_t<decltype(item)>;
-    return std::apply([&item, &cache](auto &&...meta) constexpr { 
-      std::size_t sum=0;
-      auto sum_field_size = [&sum](auto&& ... args) constexpr {
-        sum += field_size(std::forward<decltype(args)>(args) ...);
-      };
-      // we cannot directly use fold expression with '+' operator because it has undefined evaluation order. 
-      (sum_field_size(meta, meta.access(item), cache), ...); 
-      return sum;
-    }, typename traits::meta_of<type>::type{});
+    return std::apply(
+        [&item, &cache](auto &&...meta) constexpr {
+          std::size_t sum = 0;
+          auto sum_field_size = [&sum](auto &&...args) constexpr {
+            sum += field_size(std::forward<decltype(args)>(args)...);
+          };
+          // we cannot directly use fold expression with '+' operator because it has undefined evaluation order.
+          (sum_field_size(meta, meta.access(item), cache), ...);
+          return sum;
+        },
+        typename traits::meta_of<type>::type{});
   }
 
   template <typename Meta>
@@ -1023,8 +1019,8 @@ struct pb_serializer {
       }
       using value_type = typename type::value_type;
       using element_type =
-          std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>, value_type,
-                             typename Meta::type>;
+          std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
+                             value_type, typename Meta::type>;
 
       if constexpr (concepts::has_meta<value_type> || Meta::encoding == encoding_rule::group ||
                     Meta::encoding == encoding_rule::unpacked_repeated) {
@@ -1234,17 +1230,6 @@ struct pb_serializer {
   template <concepts::contiguous_byte_range Range>
   basic_in(Range &&) -> basic_in<std::ranges::range_value_t<Range>>;
 
-  template <typename T>
-  constexpr static auto make_growable(concepts::has_memory_resource auto &&context, std::span<T> &base) {
-    return detail::growable_span<T, std::remove_cvref_t<decltype(context.memory_resource)>>{base,
-                                                                                            context.memory_resource};
-  }
-
-  template <typename T>
-  constexpr static T &make_growable(auto && /* unused */, T &base) {
-    return base;
-  }
-
   static std::errc skip_field(uint32_t tag, concepts::has_extension auto &item, auto &context,
                               concepts::is_basic_in auto &archive) {
 
@@ -1282,10 +1267,10 @@ struct pb_serializer {
       auto itr =
           std::find_if(fields.begin(), fields.end(), [field_num](const auto &e) { return e.first == field_num; });
       if (itr == fields.end()) [[likely]] {
-        make_growable(context, fields).push_back({field_num, field_span});
+        detail::make_growable(context, fields).push_back({field_num, field_span});
       } else {
         // the extension with the same field number exists, append the content to the previously parsed.
-        decltype(auto) v = make_growable(context, itr->second);
+        decltype(auto) v = detail::make_growable(context, itr->second);
         auto s = v.size();
         v.resize(v.size() + field_span.size());
         std::copy(field_span.begin(), field_span.end(), v.data() + s);
@@ -1389,7 +1374,6 @@ struct pb_serializer {
     using type = std::remove_reference_t<decltype(item)>;
     using value_type = typename type::value_type;
 
-    decltype(auto) growable = make_growable(context, item);
     using element_type =
         std::conditional_t<std::same_as<typename Meta::type, void> || std::same_as<value_type, char> ||
                                std::same_as<value_type, std::byte> || std::same_as<typename Meta::type, type>,
@@ -1400,34 +1384,7 @@ struct pb_serializer {
       return result;
     }
 
-    if constexpr (requires { growable.resize(1); }) {
-      // packed repeated vector,
-      std::size_t size = count_packed_elements<element_type>(static_cast<uint32_t>(length), archive);
-      growable.resize(size);
-
-      using serialize_type = std::conditional_t<std::is_enum_v<value_type> && !std::same_as<value_type, std::byte>,
-                                                vint64_t, element_type>;
-
-      if constexpr (concepts::byte_serializable<serialize_type>) {
-        return archive(growable);
-      } else {
-        for (auto &value : growable) {
-          serialize_type underlying;
-          if (auto result = archive(underlying); result != std::errc{}) [[unlikely]] {
-            return result;
-          }
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4244)
-#endif
-          value = static_cast<element_type>(underlying.value);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-        }
-        return {};
-      }
-    } else if constexpr (std::is_same_v<type, std::string_view>) {
+    if constexpr (std::is_same_v<type, std::string_view>) {
       // handling string_view
       auto data = archive.read(length);
       if (data.size() != length) {
@@ -1435,46 +1392,77 @@ struct pb_serializer {
       }
       item = std::string_view((const char *)data.data(), length);
       return {};
-    } else if constexpr ((std::is_same_v<value_type, char> ||
-                          std::is_same_v<value_type, std::byte>)&&std::is_same_v<type, std::span<const value_type>>) {
-      // handling bytes
-      auto data = archive.read(length);
-      if (data.size() != length) {
-        return std::errc::result_out_of_range;
-      }
-      item = std::span<const value_type>((const value_type *)data.data(), length);
-      return {};
-    } else if constexpr (requires { item.insert(value_type{}); }) {
-      // packed repeated set
-      auto fetch = [&item](auto &archive) constexpr {
-        element_type value;
-
-        if constexpr (std::is_enum_v<element_type>) {
-          vint64_t underlying;
-          if (auto result = archive(underlying); result != std::errc{}) [[unlikely]] {
-            return result;
-          }
-          value = static_cast<element_type>(underlying.value);
-        } else {
-          // varint
-          if (auto result = archive(value); result != std::errc{}) [[unlikely]] {
-            return result;
-          }
-        }
-        item.insert(value_type(value));
-        return std::errc{};
-      };
-
-      basic_in new_archive{archive.read(length)};
-      while (!new_archive.empty()) {
-        if (auto result = fetch(new_archive); result != std::errc{}) [[unlikely]] {
-          return result;
-        }
-      }
-      return {};
     } else {
-      static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
-      return {};
+      decltype(auto) growable = detail::make_growable(context, item);
+
+      if constexpr (requires { growable.resize(1); }) {
+        // packed repeated vector,
+        std::size_t size = count_packed_elements<element_type>(static_cast<uint32_t>(length), archive);
+        growable.resize(size);
+
+        using serialize_type = std::conditional_t<std::is_enum_v<value_type> && !std::same_as<value_type, std::byte>,
+                                                  vint64_t, element_type>;
+
+        if constexpr (concepts::byte_serializable<serialize_type>) {
+          return archive(growable);
+        } else {
+          for (auto &value : growable) {
+            serialize_type underlying;
+            if (auto result = archive(underlying); result != std::errc{}) [[unlikely]] {
+              return result;
+            }
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#endif
+            value = static_cast<element_type>(underlying.value);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+          }
+          return {};
+        }
+      } else if constexpr ((std::is_same_v<value_type, char> ||
+                            std::is_same_v<value_type, std::byte>)&&std::is_same_v<type, std::span<const value_type>>) {
+        // handling bytes
+        auto data = archive.read(length);
+        if (data.size() != length) {
+          return std::errc::result_out_of_range;
+        }
+        item = std::span<const value_type>((const value_type *)data.data(), length);
+        return {};
+      } else if constexpr (requires { item.insert(value_type{}); }) {
+        // packed repeated set
+        auto fetch = [&item](auto &archive) constexpr {
+          element_type value;
+
+          if constexpr (std::is_enum_v<element_type>) {
+            vint64_t underlying;
+            if (auto result = archive(underlying); result != std::errc{}) [[unlikely]] {
+              return result;
+            }
+            value = static_cast<element_type>(underlying.value);
+          } else {
+            // varint
+            if (auto result = archive(value); result != std::errc{}) [[unlikely]] {
+              return result;
+            }
+          }
+          item.insert(value_type(value));
+          return std::errc{};
+        };
+
+        basic_in new_archive{archive.read(length)};
+        while (!new_archive.empty()) {
+          if (auto result = fetch(new_archive); result != std::errc{}) [[unlikely]] {
+            return result;
+          }
+        }
+        return {};
+      } else {
+        static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
+        return {};
+      }
     }
   }
 
@@ -1562,7 +1550,7 @@ struct pb_serializer {
 
     using type = std::remove_reference_t<decltype(item)>;
 
-    decltype(auto) growable = make_growable(context, item);
+    decltype(auto) growable = detail::make_growable(context, item);
 
     if constexpr (concepts::resizable_or_reservable<decltype(growable)>) {
       std::size_t count = 0;
@@ -1668,7 +1656,7 @@ struct pb_serializer {
       if constexpr (requires { item.emplace_back(); }) {
         return deserialize_group(field_num, item.emplace_back(), context, archive);
       } else {
-        decltype(auto) growable = make_growable(context, item);
+        decltype(auto) growable = detail::make_growable(context, item);
         auto old_size = item.size();
         growable.resize(old_size + 1);
         return deserialize_group(field_num, growable[old_size], context, archive);
@@ -1913,8 +1901,7 @@ inline std::error_code extension_meta_base<ExtensionMeta>::write(concepts::pb_ex
   check(extensions);
 
   std::span<std::byte> buf;
-  using memory_resource_type = std::remove_cvref_t<decltype(mr)>;
-  detail::growable_span<std::byte, memory_resource_type> data{buf, mr};
+  detail::growable_span data{buf, mr};
 
   serialize_wrapper_type<decltype(value), ExtensionMeta> wrapper{std::forward<decltype(value)>(value)};
 
@@ -1924,8 +1911,7 @@ inline std::error_code extension_meta_base<ExtensionMeta>::write(concepts::pb_ex
 
   if (data.size()) {
     auto old_size = extensions.fields.size();
-    detail::growable_span<typename decltype(extensions.fields)::value_type, memory_resource_type> growable_fields{
-        extensions.fields, mr};
+    detail::growable_span growable_fields{extensions.fields, mr};
     growable_fields.resize(old_size + 1);
     extensions.fields[old_size] = {ExtensionMeta::number, {data.data(), data.size()}};
   }
