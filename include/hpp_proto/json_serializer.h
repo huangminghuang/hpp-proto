@@ -48,9 +48,6 @@ struct non_owning_context {
   non_owning_context(MemoryResource &memory_resource) : memory_resource(memory_resource) {}
 };
 
-
-
-
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
   T &val;
@@ -65,7 +62,6 @@ struct optional_ref {
   static glz::quoted_num_t<U> deref(U &v) {
     return glz::quoted_num_t<U>{v};
   }
-
 
   auto operator*() const -> decltype(deref(val)) { return deref(val); }
 
@@ -105,9 +101,7 @@ struct optional_ref<const hpp::proto::optional<bool, Default>, std::monostate{}>
 
 template <auto MemPtr, auto Default>
 inline constexpr decltype(auto) as_optional_ref_impl() noexcept {
-  return [](auto &&val) {
-    return optional_ref<std::remove_reference_t<decltype(val.*MemPtr)>, Default>{val.*MemPtr};
-  };
+  return [](auto &&val) { return optional_ref<std::remove_reference_t<decltype(val.*MemPtr)>, Default>{val.*MemPtr}; };
 }
 
 template <auto MemPtr, auto Default = std::monostate{}>
@@ -225,21 +219,17 @@ struct base64 {
 template <typename T>
 struct json_codec;
 
-template <concepts::byte_type Byte>
-struct json_codec<std::vector<Byte>> {
-  using type = base64;
-};
-
-template <concepts::byte_type Byte>
-struct json_codec<std::span<Byte>> {
-  using type = base64;
-};
-
-
 namespace concepts {
 template <typename T>
 concept has_codec = requires { typename json_codec<T>::type; };
-}
+} // namespace concepts
+
+struct use_base64;
+
+template <>
+struct json_codec<use_base64> {
+  using type = base64;
+};
 
 } // namespace hpp::proto
 
@@ -247,32 +237,6 @@ namespace glz {
 namespace detail {
 
 using base64 = hpp::proto::base64;
-
-template <>
-struct to_json<hpp::proto::bytes_view> {
-  template <auto Opts, class B>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&, B &&b, auto &&ix) noexcept {
-    if constexpr (detail::resizeable<B>) {
-      std::size_t const encoded_size = base64::max_encode_size(value);
-      if ((ix + 2 + encoded_size) >= b.size()) [[unlikely]] {
-        b.resize(std::max(b.size() * 2, ix + 2 + encoded_size));
-      }
-    }
-
-    dump_unchecked<'"'>(b, ix);
-    ix += base64::encode(value, std::span{b}.subspan(ix));
-    dump_unchecked<'"'>(b, ix);
-  }
-};
-
-template <>
-struct to_json<hpp::proto::bytes> {
-  template <auto Opts, class B>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
-    return to_json<hpp::proto::bytes_view>::op<Opts, B>(
-        std::span<const typename hpp::proto::bytes::value_type>{value.data(), value.size()}, ctx, b, ix);
-  }
-};
 
 template <hpp::proto::concepts::has_codec T>
 struct to_json<T> {
@@ -289,6 +253,22 @@ struct to_json<T> {
     dump_unchecked<'"'>(b, ix);
     ix += codec::encode(value, std::span{b}.subspan(ix));
     dump_unchecked<'"'>(b, ix);
+  }
+};
+
+template <>
+struct to_json<hpp::proto::bytes_view> {
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto &&...args) noexcept {
+    to_json<hpp::proto::use_base64>::template op<Opts>(std::forward<decltype(args)>(args)...);
+  }
+};
+
+template <>
+struct to_json<hpp::proto::bytes> {
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto &&...args) noexcept {
+    to_json<hpp::proto::use_base64>::template op<Opts>(std::forward<decltype(args)>(args)...);
   }
 };
 
@@ -310,25 +290,11 @@ struct from_json<T> {
   }
 };
 
-template <auto Opts, class It, class End>
-GLZ_ALWAYS_INLINE void read_json_bytes(auto &&value, is_context auto &&ctx, It &&it, End &&end) noexcept {
-  std::string_view encoded;
-  from_json<std::string_view>::op<Opts>(encoded, ctx, it, end);
-  if (static_cast<bool>(ctx.error)) [[unlikely]] {
-    return;
-  }
-
-  if (!base64::decode(encoded, value)) {
-    ctx.error = error_code::syntax_error;
-    return;
-  }
-}
-
 template <>
 struct from_json<hpp::proto::bytes> {
-  template <auto Opts, class It, class End>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {
-    read_json_bytes<Opts, It, End>(value, ctx, it, end);
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto &&...args) {
+    from_json<hpp::proto::use_base64>::template op<Opts>(std::forward<decltype(args)>(args)...);
   }
 };
 
@@ -368,8 +334,8 @@ struct from_json<hpp::proto::optional<Type, Default>> {
       do_from_json(v, std::forward<Args>(args)...);
       value = v;
     }
-  } // namespace detail
-};  // namespace glz
+  } 
+};  
 
 template <typename Type, auto Default>
 struct to_json<hpp::proto::optional_ref<Type, Default>> {
@@ -459,9 +425,8 @@ struct from_json<std::span<Type>> {
   GLZ_ALWAYS_INLINE static void op(std::span<Type> &value, hpp::proto::concepts::is_non_owning_context auto &&ctx,
                                    auto &&it, auto &&end) {
     hpp::proto::detail::growable_span growable{value, ctx.memory_resource};
-    using type = std::remove_const_t<Type>;
-    if constexpr (std::same_as<type, std::byte> || std::same_as<type, char>) {
-      read_json_bytes<Options>(growable, ctx, it, end);
+    if constexpr (hpp::proto::concepts::byte_type<Type>) {
+      from_json<hpp::proto::use_base64>::template op<Options>(growable, ctx, it, end);
     } else {
       from_json<decltype(growable)>::template op<Options>(growable, ctx, it, end);
     }
