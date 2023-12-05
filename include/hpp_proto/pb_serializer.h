@@ -28,27 +28,16 @@
 #include <climits>
 #include <concepts>
 #include <cstring>
-#include <hpp_proto/memory_resource_utils.h>
 #include <map>
 #include <memory>
 #include <numeric>
 
-#if __cplusplus >= 202302L
-#include <expected>
-#else
-#include <tl/expected.hpp>
-#endif
+#include <hpp_proto/expected.h>
+#include <hpp_proto/memory_resource_utils.h>
+
 
 namespace hpp {
 namespace proto {
-
-#if defined(__cpp_lib_expected)
-using std::expected;
-using std::unexpected;
-#else
-using tl::expected;
-using tl::unexpected;
-#endif
 
 enum class varint_encoding {
   normal,

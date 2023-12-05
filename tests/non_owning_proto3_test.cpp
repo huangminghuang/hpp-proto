@@ -189,7 +189,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
                                                   {data.data(), data.size()});
 
-    expect(hpp::proto::write_json(original) == original_json);
+    expect(hpp::proto::write_json(original).value() == original_json);
 
     proto3_unittest::TestAllTypes msg;
     expect(!hpp::proto::read_json(msg, original_json, mr));

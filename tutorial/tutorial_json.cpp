@@ -12,9 +12,10 @@ int main() {
                   .email = "bob@email.com",
                   .phones = {{.number = "22222222", .type = tutorial::Person::PhoneType::HOME}}}}};
 
-  auto json = hpp::proto::write_json(address_book);
+  std::string json;
+  auto we = hpp::proto::write_json(address_book, json);
 
-  if (json.empty()) {
+  if (we) {
     std::cerr << "write json error\n";
     return 1;
   }
@@ -27,4 +28,4 @@ int main() {
   }
 
   return 0;
-}
+} 

@@ -7,7 +7,7 @@
 template <typename T>
   requires requires { glz::meta<T>::value; }
 std::ostream &operator<<(std::ostream &os, const T &v) {
-  return os << hpp::proto::write_json(v);
+  return os << hpp::proto::write_json(v).value();
 }
 
 namespace TestUtil {
@@ -1345,7 +1345,7 @@ const boost::ut::suite proto_test = [] {
 
         auto generated_json = hpp::proto::write_json(original);
 
-        expect(eq(generated_json, original_json));
+        expect(eq(generated_json.value(), original_json));
 
         T msg;
         expect(!hpp::proto::read_json(msg, original_json, mr));

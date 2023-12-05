@@ -1,19 +1,12 @@
 #pragma once
 #include <glaze/glaze.hpp>
+#include <system_error>
+
 #include <hpp_proto/descriptor_pool.h>
 #include <hpp_proto/json_serializer.h>
 #include <hpp_proto/pb_serializer.h>
-#include <system_error>
 
 namespace hpp::proto {
-
-#if defined(__cpp_lib_expected)
-using std::expected;
-using std::unexpected;
-#else
-using tl::expected;
-using tl::unexpected;
-#endif
 
 struct proto_json_addons {
   template <typename Derived>

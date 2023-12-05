@@ -1,6 +1,7 @@
 #include "test_util.h"
 #include <boost/ut.hpp>
 #include <hpp_proto/json_serializer.h>
+#include <hpp_proto/timestamp_codec.h>
 
 template <typename T>
 constexpr auto non_owning = false;
@@ -176,7 +177,7 @@ const ut::suite test_base64 = [] {
 template <typename T>
 void verify(const T &msg, std::string_view json) {
   using namespace boost::ut;
-  expect(json == hpp::proto::write_json(msg));
+  expect(eq(json, hpp::proto::write_json(msg).value()));
 
   T msg2;
 
@@ -189,29 +190,6 @@ void verify(const T &msg, std::string_view json) {
     expect(msg == msg2);
   }
 }
-
-// NOLINTBEGIN(bugprone-easily-swappable-parameters)
-template <typename Msg, int MemoryResourceSize = 0>
-void verify_bytes(std::string_view text, std::string_view json) {
-  using namespace boost::ut;
-#ifdef __cpp_lib_bit_cast
-  const std::span<const std::byte> bs{std::bit_cast<const std::byte *>(text.data()), text.size()};
-#else
-  const std::span<const std::byte> bs{reinterpret_cast<const std::byte *>(text.data()), text.size()};
-#endif
-
-  Msg msg;
-  // NOLINTBEGIN(bugprone-assignment-in-if-condition)
-  if constexpr (requires { msg.field = bs; }) {
-    msg.field = bs;
-  } else {
-    msg.field.assign(bs.begin(), bs.end());
-  }
-  // NOLINTEND(bugprone-assignment-in-if-condition)
-
-  verify<Msg, MemoryResourceSize>(std::move(msg), json);
-}
-// NOLINTEND(bugprone-easily-swappable-parameters)
 
 template <typename Bytes>
 struct bytes_example {
@@ -311,26 +289,34 @@ const ut::suite test_explicit_optional_uint64 = [] {
   verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{.field = 32}, R"({"field":"32"})");
 };
 
-template <typename T, typename Codec>
-class add_codec : public T {
-public:
-  add_codec() = default;
-  add_codec(const add_codec &) = default;
-  add_codec(add_codec &&) = default;
-  add_codec &operator=(const add_codec &) = default;
-  add_codec &operator=(add_codec &&) = default;
+struct timestamp_t {
+  int64_t seconds;
+  int32_t nanos;
+  bool operator==(const timestamp_t &) const = default;
+};
 
-  template <typename... Args>
-  add_codec(Args &&...args) : T(std::forward<Args>(args)...) {}
+template <>
+struct hpp::proto::json_codec<timestamp_t> {
+  using type = timestamp_codec;
+};
 
-  template <typename... Args>
-  add_codec &operator=(Args &&...args) {
-    T::operator=(std::forward<Args>(args)...);
-    return *this;
-  }
+const ut::suite test_timestamp = [] {
+  verify<timestamp_t>(timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
+  verify<timestamp_t>(timestamp_t{.seconds = 1000, .nanos = 20}, R"("1970-01-01T00:16:40.000000020Z")");
+
+  timestamp_t msg;
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2Z")"));
+  ut::expect(msg == timestamp_t{.seconds = 1000, .nanos = 200000000});
+
+  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2xZ")"));
+  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")"));
+  ut::expect(hpp::proto::read_json(msg, R"("197-01-01T00:16:40")"));
+
+  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
 };
 
 int main() {
+
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
 }

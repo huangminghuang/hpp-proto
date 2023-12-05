@@ -1,6 +1,8 @@
 #pragma once
 #include <bit>
 #include <glaze/glaze.hpp>
+
+#include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
 
 namespace hpp::proto {
@@ -113,7 +115,8 @@ struct base64 {
     return (n / 3 + (n % 3 ? 1 : 0)) * 4;
   }
 
-  constexpr static std::size_t encode(hpp::proto::concepts::contiguous_byte_range auto &&source, auto &&b) noexcept {
+  // @returns The number bytes written to b, -1 for error
+  constexpr static int64_t encode(hpp::proto::concepts::contiguous_byte_range auto &&source, auto &&b) noexcept {
 
     const auto n = source.size();
     using V = std::decay_t<decltype(b[0])>;
@@ -241,7 +244,7 @@ using base64 = hpp::proto::base64;
 template <hpp::proto::concepts::has_codec T>
 struct to_json<T> {
   template <auto Opts, class B>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&, B &&b, auto &&ix) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
     using codec = typename hpp::proto::json_codec<T>::type;
     if constexpr (detail::resizeable<B>) {
       std::size_t const encoded_size = codec::max_encode_size(value);
@@ -251,7 +254,12 @@ struct to_json<T> {
     }
 
     dump_unchecked<'"'>(b, ix);
-    ix += codec::encode(value, std::span{b}.subspan(ix));
+    auto bytes_written = codec::encode(value, std::span{b}.subspan(ix));
+    if (bytes_written < 0) {
+      ctx.error = glz::error_code::syntax_error;
+      return;
+    }
+    ix += bytes_written;
     dump_unchecked<'"'>(b, ix);
   }
 };
@@ -334,8 +342,8 @@ struct from_json<hpp::proto::optional<Type, Default>> {
       do_from_json(v, std::forward<Args>(args)...);
       value = v;
     }
-  } 
-};  
+  }
+};
 
 template <typename Type, auto Default>
 struct to_json<hpp::proto::optional_ref<Type, Default>> {
@@ -623,28 +631,40 @@ template <class T>
   return read_json<glz::opts{}>(value, buffer, glz::context{});
 }
 
+template <auto Opts, class T, class Buffer>
+inline std::error_code write_json(T &&value, Buffer &&buffer) noexcept {
+  glz::context ctx;
+  glz::write<Opts>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
+  if (ctx.error != glz::error_code::none)
+    return std::make_error_code(std::errc::bad_message);
+  return {};
+}
+
+template <class T, class Buffer>
+inline std::error_code write_json(T &&value, Buffer &&buffer) noexcept {
+  glz::context ctx;
+  glz::write<glz::opts{}>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
+   if (ctx.error != glz::error_code::none)
+    return std::make_error_code(std::errc::bad_message);
+  return {};
+}
+
 template <auto Opts, class T>
-[[nodiscard]] inline auto write_json(T &&value) noexcept {
+[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, std::error_code> {
   std::string buffer{};
-  glz::write<Opts>(std::forward<T>(value), buffer);
+  auto ec = write_json<Opts>(std::forward<T>(value), buffer);
+  if (ec)
+    return unexpected(ec);
   return buffer;
 }
 
 template <class T>
-[[nodiscard]] inline auto write_json(T &&value) noexcept {
+[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, std::error_code> {
   std::string buffer{};
-  glz::write<glz::opts{}>(std::forward<T>(value), buffer);
+  auto ec = write_json(std::forward<T>(value), buffer);
+  if (ec)
+    return unexpected(ec);
   return buffer;
-}
-
-template <auto Opts, class T, class Buffer>
-inline void write_json(T &&value, Buffer &&buffer) noexcept {
-  glz::write<Opts>(std::forward<T>(value), std::forward<Buffer>(buffer));
-}
-
-template <class T, class Buffer>
-inline void write_json(T &&value, Buffer &&buffer) noexcept {
-  glz::write<glz::opts{}>(std::forward<T>(value), std::forward<Buffer>(buffer));
 }
 
 } // namespace hpp::proto

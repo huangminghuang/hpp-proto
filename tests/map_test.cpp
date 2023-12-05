@@ -33,7 +33,7 @@ const boost::ut::suite map_test = [] {
     auto original_json =
         gpb_based::proto_to_json(map_unittest_descriptorset, "protobuf_unittest.TestMap", {data.data(), data.size()});
 
-    expect(hpp::proto::write_json(original) == original_json);
+    expect(hpp::proto::write_json(original).value() == original_json);
 
     protobuf_unittest::TestMap msg;
     expect(!hpp::proto::read_json(msg, original_json));

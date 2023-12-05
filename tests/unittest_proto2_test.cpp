@@ -51,7 +51,7 @@ const ut::suite proto_test = [] {
 
         auto generated_json = hpp::proto::write_json(original);
 
-        expect(eq(generated_json, original_json));
+        expect(eq(generated_json.value(), original_json));
 
         T msg;
         expect(!hpp::proto::read_json(msg, original_json));
