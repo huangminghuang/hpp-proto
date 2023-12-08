@@ -86,6 +86,11 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
 
 // -------------------------------------------------------------------
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 inline void SetRepeatedFields(protobuf_unittest::TestAllTypes *message) {
   const static int32_t repeated_int32[] = {201, 301};
   message->repeated_int32 = repeated_int32;
@@ -971,7 +976,9 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(eq("603"sv, message.get_extension(protobuf_unittest::oneof_string_extension()).value()));
   expect(ranges_equal("604"_bytes_view, message.get_extension(protobuf_unittest::oneof_bytes_extension(), mr).value()));
 }
-
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 // -------------------------------------------------------------------
 
 inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
@@ -1341,7 +1348,7 @@ const boost::ut::suite proto_test = [] {
         expect(!hpp::proto::write_proto(original, data));
 
         auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(),
-                                                      pb_message_name(original).c_str(), {data.data(), data.size()});
+                                                      original.proto_message_name_, {data.data(), data.size()});
 
         auto generated_json = hpp::proto::write_json(original);
 

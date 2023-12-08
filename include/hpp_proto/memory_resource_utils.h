@@ -55,12 +55,13 @@ template <typename Base, concepts::memory_resource MemoryResource>
 class growable_span {
 public:
   using value_type = typename Base::value_type;
+  MemoryResource &memory_resource;
 
-  growable_span(Base &base, MemoryResource &mr) : base_(base), mr(mr) {}
+  growable_span(Base &base, MemoryResource &mr) : memory_resource(mr), base_(base) {}
 
   void resize(std::size_t n) {
     if (data_ == nullptr || n > base_.size()) {
-      data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
+      data_ = static_cast<value_type *>(memory_resource.allocate(n * sizeof(value_type), alignof(value_type)));
       assert(data_ != nullptr);
       std::uninitialized_copy(base_.begin(), base_.end(), data_);
 
@@ -96,7 +97,6 @@ public:
 private:
   Base &base_;
   value_type *data_ = nullptr;
-  MemoryResource &mr;
 };
 
 template <typename T>

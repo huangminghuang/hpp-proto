@@ -227,7 +227,9 @@ template <typename T>
 concept has_codec = requires { typename json_codec<T>::type; };
 } // namespace concepts
 
-struct use_base64;
+struct use_base64{
+  constexpr static bool reflect = false;
+};
 
 template <>
 struct json_codec<use_base64> {
@@ -257,6 +259,12 @@ struct to_json<T> {
     auto bytes_written = codec::encode(value, std::span{b}.subspan(ix));
     if (bytes_written < 0) {
       ctx.error = glz::error_code::syntax_error;
+      if constexpr (requires {
+                      value.proto_message_name_;
+                      ctx.error_message_name;
+                    }) {
+        ctx.error_message_name = value.proto_message_name_;
+      }
       return;
     }
     ix += bytes_written;
@@ -601,6 +609,14 @@ struct from_json<T *> {
 
 namespace hpp::proto {
 
+[[nodiscard]] inline std::string format_error(const glz::parse_error &pe, const auto &buffer) {
+  return glz::format_error(pe, buffer);
+}
+struct write_error final {
+  const char *error_message_name = nullptr;
+  operator bool() const { return error_message_name != nullptr; }
+};
+
 template <auto Opts, typename T, typename Buffer, glz::is_context Context>
 [[nodiscard]] inline glz::parse_error read_json(T &value, Buffer &&buffer, Context &&ctx) {
 
@@ -631,26 +647,33 @@ template <class T>
   return read_json<glz::opts{}>(value, buffer, glz::context{});
 }
 
+struct write_context {
+  uint32_t indentation_level{};
+  std::string current_file; // top level file path
+  glz::error_code error{};
+  const char *error_message_name = nullptr;
+};
+
 template <auto Opts, class T, class Buffer>
-inline std::error_code write_json(T &&value, Buffer &&buffer) noexcept {
-  glz::context ctx;
+inline write_error write_json(T &&value, Buffer &&buffer) noexcept {
+  write_context ctx;
   glz::write<Opts>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
   if (ctx.error != glz::error_code::none)
-    return std::make_error_code(std::errc::bad_message);
+    return write_error{ctx.error_message_name};
   return {};
 }
 
 template <class T, class Buffer>
-inline std::error_code write_json(T &&value, Buffer &&buffer) noexcept {
-  glz::context ctx;
+inline write_error write_json(T &&value, Buffer &&buffer) noexcept {
+  write_context ctx;
   glz::write<glz::opts{}>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
-   if (ctx.error != glz::error_code::none)
-    return std::make_error_code(std::errc::bad_message);
+  if (ctx.error != glz::error_code::none)
+    return write_error{ctx.error_message_name ? ctx.error_message_name : "unknown message"};
   return {};
 }
 
 template <auto Opts, class T>
-[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, std::error_code> {
+[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, write_error> {
   std::string buffer{};
   auto ec = write_json<Opts>(std::forward<T>(value), buffer);
   if (ec)
@@ -659,7 +682,7 @@ template <auto Opts, class T>
 }
 
 template <class T>
-[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, std::error_code> {
+[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, write_error> {
   std::string buffer{};
   auto ec = write_json(std::forward<T>(value), buffer);
   if (ec)

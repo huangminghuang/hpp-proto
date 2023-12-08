@@ -2,19 +2,18 @@
 #include <ctime>
 
 #if defined(_WIN32)
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 #endif
 
 #if defined(_WIN32)
-  inline struct tm *gmtime_r( const time_t *timer, struct tm *buf ) {
-    if(gmtime_s(buf, timer) == 0) return buf;
-    return nullptr;
-  }
+inline struct tm *gmtime_r(const time_t *timer, struct tm *buf) {
+  if (gmtime_s(buf, timer) == 0)
+    return buf;
+  return nullptr;
+}
 
-  inline char* strptime(const char* s,
-                          const char* f,
-                          struct tm* tm) {
+inline char *strptime(const char *s, const char *f, struct tm *tm) {
   static auto c_cocale = std::locale(setlocale(LC_ALL, nullptr));
   std::istringstream input(s);
   input.imbue(c_cocale);
@@ -22,66 +21,68 @@
   if (input.fail()) {
     return nullptr;
   }
-  return (char*)(s + input.tellg());
+  return (char *)(s + input.tellg());
 }
 #endif
+
+namespace hpp::proto {
 
 struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
 
-  static int64_t encode(auto &&source, auto &&b) noexcept {
-    if (source.nanos > 999999999) [[unlikely]]
+  static int64_t encode(auto &&value, auto &&b) noexcept {
+    if (value.nanos > 999999999) [[unlikely]]
       return -1;
-    time_t sec = source.seconds;
+    time_t sec = value.seconds;
     struct tm tm;
 
     if (gmtime_r(&sec, &tm) == nullptr) [[unlikely]]
       return -1;
     char *buf = static_cast<char *>(std::data(b));
     int64_t bytes_written = std::strftime(buf, std::size("yyyy-mm-ddThh:mm:ss"), "%FT%T", &tm);
-    if (source.nanos > 0) {
-        bytes_written += snprintf(buf + bytes_written, std::size(".000000000Z"), ".%09zuZ", static_cast<std::size_t>(source.nanos));
+    if (value.nanos > 0) {
+      bytes_written +=
+          snprintf(buf + bytes_written, std::size(".000000000Z"), ".%09zuZ", static_cast<std::size_t>(value.nanos));
     } else {
-        buf[bytes_written++] = 'Z';
+      buf[bytes_written++] = 'Z';
     }
     return bytes_written;
   }
 
-  static bool decode(auto &&source, auto &&value) {
+  static bool decode(auto &&josn, auto &&value) {
+    if (josn.empty() || josn.front() == ' ' || josn.back() != 'Z')
+      return false;
+
+    const char *cur = josn.data();
+    const char *end = josn.data() + josn.size() - 1;
+
     struct tm tm;
     memset(&tm, 0, sizeof(tm));
-    const char *p = strptime(source.data(), "%FT%T", &tm);
-    if (p == nullptr) [[unlikely]]
+
+    cur = strptime(cur, "%FT%T", &tm);
+    if (cur == nullptr) [[unlikely]]
       return false;
     tm.tm_isdst = 0; // Not daylight saving
     value.seconds = std::mktime(&tm);
     value.seconds += tm.tm_gmtoff;
-
-    auto bytes_left = source.size() - (p - source.data());
-
-    if (source.back() != 'Z' || bytes_left > 11)
-      return false;
-
-    if (bytes_left == 1) {
+    if (cur == end) {
       value.nanos = 0;
       return true;
     }
-
-    if (*p++ != '.') [[unlikely]]
+    if (*cur++ != '.' || (end - cur) > 9 || *cur < '0' || *cur > '9') [[unlikely]]
       return false;
-
-    std::array<char, 10> nanos_buf;
-    auto it = std::copy(p, &*(source.end() - 1), nanos_buf.begin());
-    std::fill(it, nanos_buf.end() - 1, '0');
-    nanos_buf.back() = '\0';
-    uint64_t nanos;
-
-    auto ix = std::find_if_not(nanos_buf.begin(), nanos_buf.end(), [](auto c) { return c == '0'; });
-    auto e = glz::detail::stoui64(nanos, ix);
-    if (!e || ix != nanos_buf.end()-1) [[unlikely]] {
-      return false;
+    char *it;
+    if ((end - cur) == 9) [[likely]] {
+      value.nanos = std::strtol(cur, &it, 10);
+      return it == end;
+    } else {
+      char nanos_buf[10] = "000000000";
+      std::copy(cur, end, std::begin(nanos_buf));
+      value.nanos = std::strtol(nanos_buf, &it, 10);
+      return it == std::end(nanos_buf) -1 ;
     }
-    value.nanos = static_cast<int32_t>(nanos);
-    return true;
+    
   }
 };
+
+} // namespace hpp::proto

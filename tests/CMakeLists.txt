@@ -63,7 +63,6 @@ set_property(TEST proto3_lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_con
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/non_owning)
 
-
 add_library(non_owning_unittest_proto3_proto_lib INTERFACE)
 target_include_directories(non_owning_unittest_proto3_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate(
@@ -155,3 +154,12 @@ add_test(NAME dynamic_serializer_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 set_property(TEST dynamic_serializer_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+
+add_executable(well_known_types_tests well_known_types_tests.cpp)
+target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../include ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+target_link_libraries(well_known_types_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze)
+add_dependencies(well_known_types_tests well_known_types)
+add_test(NAME well_known_types_tests
+    COMMAND well_known_types_tests
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+set_property(TEST well_known_types_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")

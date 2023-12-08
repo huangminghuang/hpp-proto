@@ -704,6 +704,10 @@ inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message) {
 //
 // All this code is exactly equivalent to the above code except that it's
 // manipulating extension fields instead of normal ones.
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
 
 inline void SetAll(protobuf_unittest::TestAllExtensions *message) {
   expect(!message->set_extension(protobuf_unittest::optional_int32_extension(), 101));
@@ -1032,7 +1036,9 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(eq("603"s, message.get_extension(protobuf_unittest::oneof_string_extension()).value()));
   expect(eq("604"_bytes, message.get_extension(protobuf_unittest::oneof_bytes_extension()).value()));
 }
-
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 // -------------------------------------------------------------------
 
 inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {

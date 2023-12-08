@@ -47,7 +47,7 @@ const ut::suite proto_test = [] {
         expect(!hpp::proto::write_proto(original, data));
 
         auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(),
-                                                      pb_message_name(original).c_str(), {data.data(), data.size()});
+                                                      original.proto_message_name_, {data.data(), data.size()});
 
         auto generated_json = hpp::proto::write_json(original);
 

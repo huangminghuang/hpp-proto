@@ -2,6 +2,8 @@
 #include <boost/ut.hpp>
 #include <hpp_proto/json_serializer.h>
 #include <hpp_proto/timestamp_codec.h>
+#include <hpp_proto/duration_codec.h>
+#include<source_location>
 
 template <typename T>
 constexpr auto non_owning = false;
@@ -175,18 +177,19 @@ const ut::suite test_base64 = [] {
 };
 
 template <typename T>
-void verify(const T &msg, std::string_view json) {
+void verify(const T &msg, std::string_view json, const std::source_location& from_loc= std::source_location::current()) {
   using namespace boost::ut;
-  expect(eq(json, hpp::proto::write_json(msg).value()));
+  std::string from_line_number = "from line " + std::to_string(from_loc.line());
+  expect(eq(json, hpp::proto::write_json(msg).value())) << from_line_number;
 
   T msg2;
 
   if constexpr (!non_owning<T>) {
-    expect((!hpp::proto::read_json(msg2, json)) >> fatal);
+    expect((!hpp::proto::read_json(msg2, json)) >> fatal) << from_line_number;;
     expect(msg == msg2);
   } else {
     monotonic_buffer_resource mr{1024};
-    expect((!hpp::proto::read_json(msg2, json, mr)) >> fatal);
+    expect((!hpp::proto::read_json(msg2, json, mr)) >> fatal) << from_line_number;;
     expect(msg == msg2);
   }
 }
@@ -290,14 +293,16 @@ const ut::suite test_explicit_optional_uint64 = [] {
 };
 
 struct timestamp_t {
-  int64_t seconds;
-  int32_t nanos;
+  constexpr static bool reflect = false;
+  constexpr static auto proto_message_name_ = "timestamp_t";
+  int64_t seconds = {};
+  int32_t nanos = {};
   bool operator==(const timestamp_t &) const = default;
 };
 
 template <>
 struct hpp::proto::json_codec<timestamp_t> {
-  using type = timestamp_codec;
+  using type = hpp::proto::timestamp_codec;
 };
 
 const ut::suite test_timestamp = [] {
@@ -311,8 +316,73 @@ const ut::suite test_timestamp = [] {
   ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2xZ")"));
   ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")"));
   ut::expect(hpp::proto::read_json(msg, R"("197-01-01T00:16:40")"));
+  ut::expect(hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")"));
+
 
   ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+};
+
+struct duration_t {
+  constexpr static bool reflect = false;
+  constexpr static auto proto_message_name_ = "duration_t";
+  int64_t seconds = {};
+  int32_t nanos = {};
+  bool operator==(const duration_t &) const = default;
+};
+
+template <>
+struct hpp::proto::json_codec<duration_t> {
+  using type = hpp::proto::duration_codec;
+};
+
+const ut::suite test_duration = [] {
+  verify<duration_t>(duration_t{.seconds = 1000}, R"("1000s")");
+  verify<duration_t>(duration_t{.seconds = 1000, .nanos = 20}, R"("1000.000000020s")");
+  verify<duration_t>(duration_t{.seconds = -1000, .nanos = -20}, R"("-1000.000000020s")");
+
+  duration_t msg;
+  ut::expect(!hpp::proto::read_json(msg, R"("1000.2s")"));
+  ut::expect(msg == duration_t{.seconds = 1000, .nanos = 200000000});
+
+  ut::expect(!hpp::proto::read_json(msg, R"("-1000.2s")"));
+  ut::expect(msg == duration_t{.seconds = -1000, .nanos = -200000000});
+
+  ut::expect(hpp::proto::read_json(msg, R"("1000")"));
+  ut::expect(hpp::proto::read_json(msg, R"("1000.2xs")"));
+  ut::expect(hpp::proto::read_json(msg, R"("-1000.-10000000s")"));
+  ut::expect(hpp::proto::read_json(msg, R"("-1000. 10000000s")"));
+  ut::expect(hpp::proto::read_json(msg, R"("1000.0000000000000000s")"));
+
+
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+};
+
+
+struct Int64Value {
+  int64_t value;
+  bool operator == (const Int64Value&) const = default;
+};
+
+namespace glz::detail {
+template <>
+struct to_json<Int64Value> {
+  template <auto Opts>
+  GLZ_FLATTEN static void op(auto &value, auto&& ...args) {
+    write<json>::template op<opt_true<Opts, &opts::quoted_num>>(value.value, std::forward<decltype(args)>(args)...);
+  }
+};
+
+template <>
+struct from_json<Int64Value> {
+  template <auto Opts>
+  GLZ_FLATTEN static void op(auto &value, auto&& ...args) {
+    read<json>::template op<opt_true<Opts, &opts::quoted_num>>(value.value, std::forward<decltype(args)>(args)...);
+  }
+};
+}
+
+const ut::suite test_wrapper = [] {
+  verify<Int64Value>(Int64Value{1000}, R"("1000")");
 };
 
 int main() {
