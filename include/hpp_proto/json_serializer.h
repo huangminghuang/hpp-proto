@@ -260,10 +260,10 @@ struct to_json<T> {
     if (bytes_written < 0) {
       ctx.error = glz::error_code::syntax_error;
       if constexpr (requires {
-                      value.proto_message_name_;
+                      value.protobuf_message_name_;
                       ctx.error_message_name;
                     }) {
-        ctx.error_message_name = value.proto_message_name_;
+        ctx.error_message_name = value.protobuf_message_name_;
       }
       return;
     }

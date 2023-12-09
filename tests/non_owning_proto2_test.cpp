@@ -1348,7 +1348,7 @@ const boost::ut::suite proto_test = [] {
         expect(!hpp::proto::write_proto(original, data));
 
         auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(),
-                                                      original.proto_message_name_, {data.data(), data.size()});
+                                                      original.protobuf_message_name_, {data.data(), data.size()});
 
         auto generated_json = hpp::proto::write_json(original);
 

@@ -584,7 +584,7 @@ public:
         return it->second;
     }
 
-    template<class... Args, class = decltype(std::pair<Key, Mapped>(std::declval<Args&&>()...), void())>
+    template<class... Args /*, class = decltype(std::pair<Key, Mapped>(std::declval<Args&&>()...), void()) */>
     std::pair<iterator, bool> emplace(Args&&... args) {
         std::pair<Key, Mapped> t(static_cast<Args&&>(args)...);
         auto it = this->lower_bound(t.first);

@@ -736,13 +736,11 @@ struct msg_code_generator : code_generator {
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.map_fields[0] != nullptr) {
       if (!non_owning_mode) {
-        const bool use_flat_map =
-            (!descriptor.map_fields[1]->is_recursive && descriptor.map_fields[0]->cpp_field_type != "bool");
-        const char *type = use_flat_map ? "hpp::proto::flat_map" : "std::map";
+        const char *type = "hpp::proto::flat_map";
         // when using flat_map with bool, it would lead std::vector<bool> as one of its members; which is not what we
         // need.
-        auto transform_if_bool = [use_flat_map](const std::string &name) {
-          return (use_flat_map && name == "bool") ? std::string{"hpp::proto::boolean"} : name;
+        auto transform_if_bool = [](const std::string &name) {
+          return (name == "bool") ? std::string{"hpp::proto::boolean"} : name;
         };
         return fmt::format("{}<{},{}>", type, transform_if_bool(descriptor.map_fields[0]->cpp_field_type),
                            transform_if_bool(descriptor.map_fields[1]->cpp_field_type));
@@ -866,7 +864,7 @@ struct msg_code_generator : code_generator {
       fmt::format_to(target, "{}constexpr static bool reflect = false;\n", indent());
     }
 
-    fmt::format_to(target, "{}static constexpr auto proto_message_name_ = \"{}\";\n", indent(), descriptor.pb_name);
+    fmt::format_to(target, "{}static constexpr auto protobuf_message_name_ = \"{}\";\n", indent(), descriptor.pb_name);
 
     for (auto &e : descriptor.enums) {
       process(*e);
@@ -954,34 +952,13 @@ struct msg_code_generator : code_generator {
     }
 
     if (!non_owning_mode) {
-      if (!descriptor.has_recursive_map_field) {
-        fmt::format_to(target,
-                       "\n{0}bool operator == (const {1}&) const = default;\n"
-                       "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR\n"
-                       "\n{0}auto operator <=> (const {1}&) const = default;\n"
-                       "#endif\n",
-                       indent(), descriptor.cpp_name);
-      } else {
-        fmt::format_to(target,
-                       "\n{0}bool operator == (const {1}&) const;\n"
-                       "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR\n"
-                       "\n{0}auto operator <=> (const {1}&) const;\n"
-                       "#endif\n",
-                       indent(), descriptor.cpp_name);
+      fmt::format_to(target,
+                     "\n{0}bool operator == (const {1}&) const = default;\n"
+                     "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR\n"
+                     "\n{0}auto operator <=> (const {1}&) const = default;\n"
+                     "#endif\n",
+                     indent(), descriptor.cpp_name);
 
-        std::string full_cpp_name = descriptor.cpp_name;
-        for (message_descriptor_t *parent = descriptor.message_parent; parent != nullptr;
-             parent = parent->message_parent) {
-          full_cpp_name = parent->cpp_name + "::" + full_cpp_name;
-        };
-
-        fmt::format_to(out_of_class_target,
-                       "\nbool {0}::operator == (const {0}&) const = default;\n"
-                       "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR\n"
-                       "\nauto {0}::operator <=> (const {0}&) const = default;\n"
-                       "#endif\n",
-                       full_cpp_name);
-      }
     } else {
       bool need_explicit_constructors = false;
       for (auto *f : descriptor.fields) {

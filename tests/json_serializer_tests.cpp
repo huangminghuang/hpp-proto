@@ -294,7 +294,7 @@ const ut::suite test_explicit_optional_uint64 = [] {
 
 struct timestamp_t {
   constexpr static bool reflect = false;
-  constexpr static auto proto_message_name_ = "timestamp_t";
+  constexpr static auto protobuf_message_name_ = "timestamp_t";
   int64_t seconds = {};
   int32_t nanos = {};
   bool operator==(const timestamp_t &) const = default;
@@ -324,7 +324,7 @@ const ut::suite test_timestamp = [] {
 
 struct duration_t {
   constexpr static bool reflect = false;
-  constexpr static auto proto_message_name_ = "duration_t";
+  constexpr static auto protobuf_message_name_ = "duration_t";
   int64_t seconds = {};
   int32_t nanos = {};
   bool operator==(const duration_t &) const = default;
