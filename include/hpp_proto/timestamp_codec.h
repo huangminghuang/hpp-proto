@@ -88,7 +88,7 @@ struct timestamp_codec {
     if (*cur++ != '.') [[unlikely]]
       return false;
 
-    std::string_view nanos_digits{cur, end};
+    std::string_view nanos_digits{cur, static_cast<std::size_t>(end - cur)};
 
     if (nanos_digits.size() > 9 || !parse_decimal(value.nanos, nanos_digits)) [[unlikely]]
       return false;
