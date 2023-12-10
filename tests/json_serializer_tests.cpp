@@ -3,7 +3,6 @@
 #include <hpp_proto/json_serializer.h>
 #include <hpp_proto/timestamp_codec.h>
 #include <hpp_proto/duration_codec.h>
-#include<source_location>
 
 template <typename T>
 constexpr auto non_owning = false;
@@ -176,8 +175,10 @@ const ut::suite test_base64 = [] {
   verify("foobar", "Zm9vYmFy");
 };
 
+using source_location = boost::ut::reflection::source_location;
+
 template <typename T>
-void verify(const T &msg, std::string_view json, const std::source_location& from_loc= std::source_location::current()) {
+void verify(const T &msg, std::string_view json, const source_location& from_loc= source_location::current()) {
   using namespace boost::ut;
   std::string from_line_number = "from line " + std::to_string(from_loc.line());
   expect(eq(json, hpp::proto::write_json(msg).value())) << from_line_number;
