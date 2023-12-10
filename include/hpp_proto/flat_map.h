@@ -1219,4 +1219,16 @@ flat_map(sorted_unique_t, std::initializer_list<std::pair<const Key, T>>, Alloca
 
 #endif
 
+// When flat_map is used in recursive context, its iterator fails to satisfy the input_iterator concept in libc++.  
+// It causes problem for the generic empty_range() function in glaze; therefore, we need an specialized version
+// of empty_range() here.
+template<
+    class Key,
+    class Mapped,
+    class Compare = std::less<Key>,
+    class KeyContainer = std::vector<Key>,
+    class MappedContainer = std::vector<Mapped>
+>
+bool empty_range(const flat_map<Key, Mapped, Compare,KeyContainer,  MappedContainer>& r) { return r.empty(); }
+
 } // namespace stdext

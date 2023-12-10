@@ -227,7 +227,7 @@ template <typename T>
 concept has_codec = requires { typename json_codec<T>::type; };
 } // namespace concepts
 
-struct use_base64{
+struct use_base64 {
   constexpr static bool reflect = false;
 };
 
@@ -368,12 +368,14 @@ struct to_json<hpp::proto::optional_ref<Type, Default>> {
 
 template <typename Type, auto Default>
 struct from_json<hpp::proto::optional_ref<Type, Default>> {
-  template <auto Options, class... Args>
+  template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     if constexpr (requires { value.emplace(); }) {
-      from_json<std::decay_t<decltype(*value)>>::template op<Options>(value.emplace(), std::forward<Args>(args)...);
+      read<json>::template op<Opts>(value.emplace(), std::forward<decltype(args)>(args)...);
+      // from_json<std::decay_t<decltype(*value)>>::template op<Options>(value.emplace(), std::forward<Args>(args)...);
     } else {
-      from_json<std::decay_t<decltype(*value)>>::template op<Options>(*value, std::forward<Args>(args)...);
+      read<json>::template op<Opts>(*value, std::forward<decltype(args)>(args)...);
+      // from_json<std::decay_t<decltype(*value)>>::template op<Options>(*value, std::forward<Args>(args)...);
     }
   }
 };
@@ -400,7 +402,7 @@ struct to_json<hpp::proto::oneof_wrapper<Type, Index>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     auto v = std::get_if<Index>(value.value);
-    to_json<std::remove_pointer_t<decltype(v)>>::template op<Opts>(*v, std::forward<Args>(args)...);
+    write<json>::template op<Opts>(*v, std::forward<decltype(args)>(args)...);
   }
 };
 

@@ -1,18 +1,16 @@
 #include <google/protobuf/duration.glz.hpp>
+#include <google/protobuf/empty.glz.hpp>
 #include <google/protobuf/field_mask.glz.hpp>
+#include <google/protobuf/struct.glz.hpp>
 #include <google/protobuf/timestamp.glz.hpp>
 #include <google/protobuf/wrappers.glz.hpp>
-#include <google/protobuf/empty.glz.hpp>
-#include <google/protobuf/struct.glz.hpp>
 
 #include <boost/ut.hpp>
 namespace ut = boost::ut;
 using source_location = boost::ut::reflection::source_location;
 
-
 template <typename T>
-void verify(const T &msg, std::string_view json,
-            const source_location &from_loc = source_location::current()) {
+void verify(const T &msg, std::string_view json, const source_location &from_loc = source_location::current()) {
   using namespace boost::ut;
   std::string from_line_number = "from line " + std::to_string(from_loc.line());
   expect(eq(json, hpp::proto::write_json(msg).value())) << from_line_number;
@@ -67,7 +65,7 @@ const ut::suite test_duration = [] {
 const ut::suite test_field_mask = [] {
   using namespace google::protobuf;
   verify<FieldMask>(FieldMask{}, R"("")");
-  verify<FieldMask>(FieldMask{ .paths = { "abc", "def"} }, R"("abc,def")");
+  verify<FieldMask>(FieldMask{.paths = {"abc", "def"}}, R"("abc,def")");
 };
 
 const ut::suite test_wrapper = [] {
@@ -83,6 +81,18 @@ const ut::suite test_empty = [] {
 const ut::suite test_null_value = [] {
   using namespace google::protobuf;
   verify<NullValue>(NullValue{}, "null");
+};
+
+const ut::suite test_value = [] {
+  using namespace google::protobuf;
+  verify<Value>(Value{.kind = NullValue{}}, R"(null)");
+  verify<Value>(Value{.kind = true}, R"(true)");
+  verify<Value>(Value{.kind = false}, R"(false)");
+  verify<Value>(Value{.kind = 1.0}, R"(1)");
+  verify<Value>(Value{.kind = "abc"}, R"("abc")");
+  verify<Value>(Value{.kind = ListValue{{Value{.kind = true}, Value{.kind = 1.0}}}}, R"([true,1])");
+  verify<Value>(Value{.kind = Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}}}},
+                R"({"f1":true,"f2":1})");
 };
 
 int main() {
