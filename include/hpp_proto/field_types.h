@@ -62,7 +62,6 @@ constexpr ToType bit_cast(FromType const &from) noexcept {
 } // namespace std
 #endif
 
-
 namespace hpp::proto {
 
 // workaround for clang not supporting floating-point types in non-type template
@@ -522,5 +521,11 @@ constexpr bool is_default_value(const T &val) {
   } else {
     return Default == val;
   }
+}
+
+inline const char *message_name(auto &&v)
+  requires requires {  message_type_url(v); }
+{
+  return message_type_url(v).c_str() + std::size("type.googleapis.com");
 }
 } // namespace hpp::proto

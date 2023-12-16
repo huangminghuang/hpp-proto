@@ -704,7 +704,7 @@ struct msg_code_generator : code_generator {
     }
 
     for (auto *m : order_messages(descriptor.messages)) {
-      process(*m, descriptor.proto.package);
+      process(*m, "", descriptor.proto.package);
     }
 
     std::copy(out_of_class_data.begin(), out_of_class_data.end(), target);
@@ -842,13 +842,18 @@ struct msg_code_generator : code_generator {
   }
 
   // NOLINTBEGIN(misc-no-recursion,readability-function-cognitive-complexity)
-  void process(message_descriptor_t &descriptor, const std::string &pb_scope) {
+  void process(message_descriptor_t &descriptor, const std::string &cpp_scope, const std::string &pb_scope) {
     if (descriptor.is_map_entry) {
       return;
     }
 
     if (!pb_scope.empty()) {
       descriptor.pb_name = pb_scope + "." + descriptor.pb_name;
+    }
+
+    std::string qualified_cpp_name = descriptor.cpp_name;
+    if (!cpp_scope.empty()) {
+      qualified_cpp_name = cpp_scope + "::" + qualified_cpp_name;
     }
 
     for (const auto &fwd : descriptor.forward_declarations) {
@@ -864,14 +869,12 @@ struct msg_code_generator : code_generator {
       fmt::format_to(target, "{}constexpr static bool reflect = false;\n", indent());
     }
 
-    fmt::format_to(target, "{}static constexpr auto protobuf_message_name_ = \"{}\";\n", indent(), descriptor.pb_name);
-
     for (auto &e : descriptor.enums) {
       process(*e);
     }
 
     for (auto *m : order_messages(descriptor.messages)) {
-      process(*m, descriptor.pb_name);
+      process(*m, qualified_cpp_name, descriptor.pb_name);
     }
 
     for (auto *f : descriptor.fields) {
@@ -995,6 +998,9 @@ struct msg_code_generator : code_generator {
 
     indent_num -= 2;
     fmt::format_to(target, "{}}};\n\n", indent());
+    fmt::format_to(out_of_class_target,
+                   "constexpr auto message_type_url(const {0}&) {{ return \"type.googleapis.com/{1}\"_cts; }}\n",
+                   qualified_cpp_name, descriptor.pb_name);
   }
   // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
 };
@@ -1355,21 +1361,28 @@ struct glaze_meta_generator : code_generator {
                      "  static constexpr auto value = object(\n",
                      qualified_name);
 
-      for (auto *f : descriptor.fields) {
-        if (!f->proto.oneof_index.has_value()) {
-          process(*f);
-        } else {
-          auto index = *f->proto.oneof_index;
-          auto &oneof = *(descriptor.oneofs[index]);
-          if (oneof.fields[0]->proto.number == f->proto.number) {
-            process(oneof);
+      if (descriptor.pb_name == "google.protobuf.Any") {
+        fmt::format_to(target,
+                       "\"@type\", hpp::proto::as_optional_ref<&T::type_url>,\n"
+                       "\"@value\", hpp::proto::as_optional_ref<&T::value>",
+                       qualified_name);
+
+      } else {
+        for (auto *f : descriptor.fields) {
+          if (!f->proto.oneof_index.has_value()) {
+            process(*f);
+          } else {
+            auto index = *f->proto.oneof_index;
+            auto &oneof = *(descriptor.oneofs[index]);
+            if (oneof.fields[0]->proto.number == f->proto.number) {
+              process(oneof);
+            }
           }
         }
-      }
-
-      if (!descriptor.fields.empty()) {
-        auto &content = file.content;
-        content.resize(content.size() - 2);
+        if (!descriptor.fields.empty()) {
+          auto &content = file.content;
+          content.resize(content.size() - 2);
+        }
       }
 
       fmt::format_to(target, ");\n}};\n\n");

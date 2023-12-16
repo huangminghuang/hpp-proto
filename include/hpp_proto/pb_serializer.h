@@ -35,7 +35,6 @@
 #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
 
-
 namespace hpp {
 namespace proto {
 
@@ -107,6 +106,9 @@ concept variant = requires(Type variant) {
   std::get_if<0>(&variant);
   std::variant_size_v<std::remove_cvref_t<Type>>;
 };
+
+template <typename Type>
+concept string = std::same_as<Type, std::string> || std::same_as<Type, std::string_view>;
 
 template <typename Type>
 concept has_local_meta = concepts::tuple<typename Type::pb_meta>;
@@ -1920,6 +1922,38 @@ template <typename T, typename Buffer>
 template <typename T, typename Buffer, concepts::memory_resource MemoryResource>
 [[nodiscard]] std::error_code read_proto(T &msg, Buffer &&buffer, MemoryResource &mr) {
   return std::make_error_code(pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), mr));
+}
+
+namespace concepts {
+template <typename T>
+concept is_any = requires(T &obj) {
+  { obj.type_url } -> concepts::string;
+  { obj.value } -> concepts::contiguous_byte_range;
+};
+}
+
+[[nodiscard]] std::error_code pack_any(concepts::is_any auto &any, auto &&msg) {
+  any.type_url = message_type_url(msg);
+  return write_proto(msg, any.value);
+}
+
+[[nodiscard]] std::error_code unpack_any(concepts::is_any auto &&any, auto &&msg) {
+  if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
+    return read_proto(msg, any.value);
+  }
+  return std::make_error_code(std::errc::invalid_argument);
+}
+
+[[nodiscard]] std::error_code pack_any(concepts::is_any auto &any, auto &&msg, concepts::memory_resource auto &mr) {
+  any.type_url = message_type_url(msg);
+  return write_proto(msg, detail::make_growable(mr, any.value));
+}
+
+[[nodiscard]] std::error_code unpack_any(concepts::is_any auto &&any, auto &&msg, concepts::memory_resource auto &mr) {
+  if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
+    return read_proto(msg, any.value, mr);
+  }
+  return std::make_error_code(std::errc::invalid_argument);
 }
 
 } // namespace proto

@@ -7,7 +7,7 @@ struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
 
   static int64_t encode(auto &&value, auto &&b) noexcept {
-    if (value.nanos > 999999999) [[unlikely]]
+    if (value.nanos > 999999999 || value.nanos < 0) [[unlikely]]
       return -1;
     using namespace std::chrono;
     const auto seconds_in_a_day = seconds(24h).count();

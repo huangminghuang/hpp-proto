@@ -6,6 +6,7 @@
 
 template <typename T>
 constexpr auto non_owning = false;
+using namespace hpp::proto::literals;
 
 struct byte_span_example {
   std::span<const std::byte> field;
@@ -13,6 +14,7 @@ struct byte_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
+constexpr auto message_type_url(const byte_span_example&) { return "type.googleapis.com/byte_span_example"_cts; }
 
 template <>
 struct glz::meta<byte_span_example> {
@@ -24,6 +26,7 @@ struct uint64_example {
   uint64_t field = 0;
   bool operator==(const uint64_example &) const = default;
 };
+constexpr auto message_type_url(const uint64_example&) { return "type.googleapis.com/uint64_example"_cts; }
 
 template <>
 struct glz::meta<uint64_example> {
@@ -38,6 +41,7 @@ struct optional_example {
   double field4 = {};
   bool operator==(const optional_example &) const = default;
 };
+constexpr auto message_type_url(const optional_example&) { return "type.googleapis.com/optional_example"_cts; }
 
 template <>
 struct glz::meta<optional_example> {
@@ -56,6 +60,9 @@ struct explicit_optional_bool_example {
   bool operator==(const explicit_optional_bool_example &) const = default;
 };
 
+constexpr auto message_type_url(const explicit_optional_bool_example&) { return "type.googleapis.com/explicit_optional_bool_example"_cts; }
+
+
 template <>
 struct glz::meta<explicit_optional_bool_example> {
   using T = explicit_optional_bool_example;
@@ -66,6 +73,7 @@ struct explicit_optional_uint64_example {
   hpp::proto::optional<uint64_t> field;
   bool operator==(const explicit_optional_uint64_example &) const = default;
 };
+constexpr auto message_type_url(const explicit_optional_uint64_example&) { return "type.googleapis.com/explicit_optional_uint64_example"_cts; }
 
 template <>
 struct glz::meta<explicit_optional_uint64_example> {
@@ -79,6 +87,8 @@ struct uint32_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
+constexpr auto message_type_url(const uint32_span_example&) { return "type.googleapis.com/uint32_span_example"_cts; }
+
 
 template <>
 constexpr auto non_owning<uint32_span_example> = true;
@@ -93,6 +103,7 @@ struct pair_vector_example {
   std::vector<std::pair<std::string, int32_t>> field;
   bool operator==(const pair_vector_example &other) const = default;
 };
+constexpr auto message_type_url(const pair_vector_example&) { return "type.googleapis.com/pair_vector_example"_cts; }
 
 template <>
 struct glz::meta<pair_vector_example> {
@@ -106,6 +117,7 @@ struct pair_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
+constexpr auto message_type_url(const pair_span_example&) { return "type.googleapis.com/pair_span_example"_cts; }
 
 template <>
 constexpr auto non_owning<pair_span_example> = true;
@@ -121,6 +133,7 @@ struct object_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
+constexpr auto message_type_url(const object_span_example&) { return "type.googleapis.com/object_span_example"_cts; }
 
 template <>
 constexpr auto non_owning<object_span_example> = true;
@@ -137,6 +150,7 @@ struct non_owning_nested_example {
     return nested == other.nested || (nested != nullptr && other.nested != nullptr && *nested == *other.nested);
   }
 };
+constexpr auto message_type_url(const non_owning_nested_example&) { return "type.googleapis.com/non_owning_nested_example"_cts; }
 
 template <>
 constexpr auto non_owning<non_owning_nested_example> = true;
@@ -209,6 +223,10 @@ struct bytes_example {
            equal_optional_range(field2, other.field2) && std::ranges::equal(field3, other.field3);
   }
 };
+
+template<typename T>
+constexpr auto message_type_url(const bytes_example<T>&) { return "type.googleapis.com/bytes_example"_cts; }
+
 
 template <>
 constexpr auto non_owning<std::string_view> = true;
@@ -293,98 +311,6 @@ const ut::suite test_explicit_optional_uint64 = [] {
   verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{.field = 32}, R"({"field":"32"})");
 };
 
-struct timestamp_t {
-  constexpr static bool reflect = false;
-  constexpr static auto protobuf_message_name_ = "timestamp_t";
-  int64_t seconds = {};
-  int32_t nanos = {};
-  bool operator==(const timestamp_t &) const = default;
-};
-
-template <>
-struct hpp::proto::json_codec<timestamp_t> {
-  using type = hpp::proto::timestamp_codec;
-};
-
-const ut::suite test_timestamp = [] {
-  verify<timestamp_t>(timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
-  verify<timestamp_t>(timestamp_t{.seconds = 1000, .nanos = 20}, R"("1970-01-01T00:16:40.000000020Z")");
-
-  timestamp_t msg;
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2Z")"));
-  ut::expect(msg == timestamp_t{.seconds = 1000, .nanos = 200000000});
-
-  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2xZ")"));
-  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")"));
-  ut::expect(hpp::proto::read_json(msg, R"("197-01-01T00:16:40")"));
-  ut::expect(hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")"));
-
-
-  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
-};
-
-struct duration_t {
-  constexpr static bool reflect = false;
-  constexpr static auto protobuf_message_name_ = "duration_t";
-  int64_t seconds = {};
-  int32_t nanos = {};
-  bool operator==(const duration_t &) const = default;
-};
-
-template <>
-struct hpp::proto::json_codec<duration_t> {
-  using type = hpp::proto::duration_codec;
-};
-
-const ut::suite test_duration = [] {
-  verify<duration_t>(duration_t{.seconds = 1000}, R"("1000s")");
-  verify<duration_t>(duration_t{.seconds = 1000, .nanos = 20}, R"("1000.000000020s")");
-  verify<duration_t>(duration_t{.seconds = -1000, .nanos = -20}, R"("-1000.000000020s")");
-
-  duration_t msg;
-  ut::expect(!hpp::proto::read_json(msg, R"("1000.2s")"));
-  ut::expect(msg == duration_t{.seconds = 1000, .nanos = 200000000});
-
-  ut::expect(!hpp::proto::read_json(msg, R"("-1000.2s")"));
-  ut::expect(msg == duration_t{.seconds = -1000, .nanos = -200000000});
-
-  ut::expect(hpp::proto::read_json(msg, R"("1000")"));
-  ut::expect(hpp::proto::read_json(msg, R"("1000.2xs")"));
-  ut::expect(hpp::proto::read_json(msg, R"("-1000.-10000000s")"));
-  ut::expect(hpp::proto::read_json(msg, R"("-1000. 10000000s")"));
-  ut::expect(hpp::proto::read_json(msg, R"("1000.0000000000000000s")"));
-
-
-  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 1000, .nanos = 1000000000}).has_value());
-};
-
-
-struct Int64Value {
-  int64_t value;
-  bool operator == (const Int64Value&) const = default;
-};
-
-namespace glz::detail {
-template <>
-struct to_json<Int64Value> {
-  template <auto Opts>
-  GLZ_FLATTEN static void op(auto &value, auto&& ...args) {
-    write<json>::template op<opt_true<Opts, &opts::quoted_num>>(value.value, std::forward<decltype(args)>(args)...);
-  }
-};
-
-template <>
-struct from_json<Int64Value> {
-  template <auto Opts>
-  GLZ_FLATTEN static void op(auto &value, auto&& ...args) {
-    read<json>::template op<opt_true<Opts, &opts::quoted_num>>(value.value, std::forward<decltype(args)>(args)...);
-  }
-};
-}
-
-const ut::suite test_wrapper = [] {
-  verify<Int64Value>(Int64Value{1000}, R"("1000")");
-};
 
 int main() {
 

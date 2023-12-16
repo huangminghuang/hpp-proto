@@ -109,6 +109,15 @@ constexpr auto make_growable(concepts::has_memory_resource auto &&context, std::
 }
 
 template <typename T>
+constexpr auto make_growable(concepts::memory_resource auto &mr, std::span<T> &base) {
+  return growable_span{base, mr};
+}
+
+constexpr auto make_growable(concepts::memory_resource auto &mr, std::string_view &base) {
+  return growable_span{base, mr};
+}
+
+template <typename T>
 constexpr T &make_growable(auto && /* unused */, T &base) {
   return base;
 }

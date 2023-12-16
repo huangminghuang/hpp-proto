@@ -1,5 +1,0 @@
-syntax = "proto2";
-
-message Test {
-    optional int32 field1 = 1;
-}
