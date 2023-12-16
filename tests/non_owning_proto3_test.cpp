@@ -152,8 +152,8 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     monotonic_buffer_resource mr{4096};
     std::vector<std::byte> data;
 
-    expect(!hpp::proto::write_proto(original, data));
-    expect(!hpp::proto::read_proto(msg, data, mr));
+    expect(hpp::proto::write_proto(original, data).success());
+    expect(hpp::proto::read_proto(msg, data, mr).success());
 
     ExpectAllFieldsSet(msg);
   };
@@ -166,8 +166,8 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
 
     monotonic_buffer_resource mr{4096};
     std::vector<std::byte> data;
-    expect(!hpp::proto::write_proto(original, data));
-    expect(!hpp::proto::read_proto(msg, data, mr));
+    expect(hpp::proto::write_proto(original, data).success());
+    expect(hpp::proto::read_proto(msg, data, mr).success());
 
     ExpectUnpackedFieldsSet(msg);
 
@@ -184,7 +184,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
 
     monotonic_buffer_resource mr{4096};
     std::vector<char> data;
-    expect(!hpp::proto::write_proto(original, data));
+    expect(hpp::proto::write_proto(original, data).success());
 
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
                                                   {data.data(), data.size()});

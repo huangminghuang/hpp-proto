@@ -49,7 +49,7 @@ auto pb_meta(const example_default_type &) -> std::tuple<
 const ut::suite test_example_default_type = [] {
   example_default_type const v;
   std::vector<std::byte> data;
-  ut::expect(!hpp::proto::write_proto(v, data));
+  ut::expect(hpp::proto::write_proto(v, data).success());
   ut::expect(data.empty());
 };
 
@@ -68,7 +68,7 @@ template <typename T>
 void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encode) {
   std::remove_cvref_t<T> value;
 
-  ut::expect(!hpp::proto::read_proto(value, encoded_data));
+  ut::expect(hpp::proto::read_proto(value, encoded_data).success());
   ut::expect(value == expected_value);
 
   if (mode == decode_only) {
@@ -76,7 +76,7 @@ void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encod
   }
 
   std::vector<std::byte> new_data;
-  ut::expect(!hpp::proto::write_proto(value, new_data));
+  ut::expect(hpp::proto::write_proto(value, new_data).success());
 
   ut::expect(std::ranges::equal(encoded_data, new_data));
 }
@@ -165,7 +165,7 @@ void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory
   std::remove_cvref_t<T> value;
 
   monotonic_buffer_resource mr{memory_size};
-  ut::expect(!hpp::proto::read_proto(value, encoded_data, mr));
+  ut::expect(hpp::proto::read_proto(value, encoded_data, mr).success());
   ut::expect(value == expected_value);
 
   if (mode == decode_only) {
@@ -173,7 +173,7 @@ void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory
   }
 
   std::vector<std::byte> new_data{};
-  ut::expect(!hpp::proto::write_proto(value, new_data));
+  ut::expect(hpp::proto::write_proto(value, new_data).success());
 
   ut::expect(std::ranges::equal(encoded_data, new_data));
 }
@@ -980,13 +980,13 @@ struct extension_example {
   [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions, std::monostate{}); }
 
   template <typename Meta>
-  [[nodiscard]] std::error_code set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  [[nodiscard]] hpp::proto::errc set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
   }
 
   template <typename Meta>
     requires Meta::is_repeated
-  [[nodiscard]] std::error_code set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  [[nodiscard]] hpp::proto::errc set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
 
@@ -1051,7 +1051,7 @@ const ut::suite test_extensions = [] {
                                   {21U, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes},
                                   {22U, "\xb2\x01\x03\01\02\03"_bytes}}}};
     extension_example value;
-    ut::expect(!hpp::proto::read_proto(value, encoded_data));
+    ut::expect(hpp::proto::read_proto(value, encoded_data).success());
     ut::expect(value == expected_value);
 
     ut::expect(value.has_extension(i32_ext()));
@@ -1092,31 +1092,31 @@ const ut::suite test_extensions = [] {
     }
 
     std::vector<std::byte> new_data{};
-    ut::expect(!hpp::proto::write_proto(value, new_data));
+    ut::expect(hpp::proto::write_proto(value, new_data).success());
 
     ut::expect(std::ranges::equal(encoded_data, new_data));
   };
   "set_extension"_test = [] {
     extension_example value;
-    ut::expect(!value.set_extension(i32_ext(), 1));
+    ut::expect(value.set_extension(i32_ext(), 1).success());
     ut::expect(value.extensions.fields[10] == "\x50\x01"_bytes);
 
-    ut::expect(!value.set_extension(string_ext(), "test"));
+    ut::expect(value.set_extension(string_ext(), "test").success());
     ut::expect(value.extensions.fields[11] == "\x5a\x04\x74\x65\x73\x74"_bytes);
 
-    ut::expect(!value.set_extension(i32_defaulted_ext(), 10));
+    ut::expect(value.set_extension(i32_defaulted_ext(), 10).success());
     ut::expect(value.extensions.fields.count(13) == 0);
 
-    ut::expect(!value.set_extension(example_ext(), {.i = 150}));
+    ut::expect(value.set_extension(example_ext(), {.i = 150}).success());
     ut::expect(value.extensions.fields[15] == "\x7a\x03\x08\x96\x01"_bytes);
 
-    ut::expect(!value.set_extension(repeated_i32_ext(), {1, 2}));
+    ut::expect(value.set_extension(repeated_i32_ext(), {1, 2}).success());
     ut::expect(value.extensions.fields[20] == "\xa0\x01\x01\xa0\x01\x02"_bytes);
 
-    ut::expect(!value.set_extension(repeated_string_ext(), {"abc", "def"}));
+    ut::expect(value.set_extension(repeated_string_ext(), {"abc", "def"}).success());
     ut::expect(value.extensions.fields[21] == "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes);
 
-    ut::expect(!value.set_extension(repeated_packed_i32_ext(), {1, 2, 3}));
+    ut::expect(value.set_extension(repeated_packed_i32_ext(), {1, 2, 3}).success());
     ut::expect(value.extensions.fields[22] == "\xb2\x01\x03\01\02\03"_bytes);
   };
 };
@@ -1141,14 +1141,14 @@ struct non_owning_extension_example {
   }
 
   template <typename Meta>
-  [[nodiscard]] std::error_code set_extension(Meta meta, typename Meta::set_value_type &&value,
+  [[nodiscard]] hpp::proto::errc set_extension(Meta meta, typename Meta::set_value_type &&value,
                                               hpp::proto::concepts::memory_resource auto &mr) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), mr);
   }
 
   template <typename Meta>
     requires Meta::is_repeated
-  [[nodiscard]] std::error_code set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value,
+  [[nodiscard]] hpp::proto::errc set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value,
                                               hpp::proto::concepts::memory_resource auto &mr) {
     return meta.write(extensions, std::span<const typename Meta::element_type>(value.begin(), value.end()), mr);
   }
@@ -1218,7 +1218,7 @@ const ut::suite test_non_owning_extensions = [] {
     non_owning_extension_example value;
 
     monotonic_buffer_resource mr{1024};
-    ut::expect(!hpp::proto::read_proto(value, encoded_data, mr));
+    ut::expect(hpp::proto::read_proto(value, encoded_data, mr).success());
     ut::expect(value == expected_value);
 
     ut::expect(value.has_extension(non_owning_i32_ext()));
@@ -1260,39 +1260,39 @@ const ut::suite test_non_owning_extensions = [] {
     }
 
     std::vector<std::byte> new_data{};
-    ut::expect(!hpp::proto::write_proto(value, new_data));
+    ut::expect(hpp::proto::write_proto(value, new_data).success());
 
     ut::expect(std::ranges::equal(encoded_data, new_data));
   };
   "set_non_owning_extension"_test = [] {
     monotonic_buffer_resource mr{1024};
     non_owning_extension_example value;
-    ut::expect(!value.set_extension(non_owning_i32_ext(), 1, mr));
+    ut::expect(value.set_extension(non_owning_i32_ext(), 1, mr).success());
     ut::expect(value.extensions.fields.back().first == 10);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x50\x01"_bytes));
 
-    ut::expect(!value.set_extension(non_owning_string_ext(), "test", mr));
+    ut::expect(value.set_extension(non_owning_string_ext(), "test", mr).success());
     ut::expect(value.extensions.fields.back().first == 11);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x5a\x04\x74\x65\x73\x74"_bytes));
 
-    ut::expect(!value.set_extension(non_owning_i32_defaulted_ext(), 10, mr));
+    ut::expect(value.set_extension(non_owning_i32_defaulted_ext(), 10, mr).success());
     ut::expect(value.extensions.fields.back().first != 13);
 
-    ut::expect(!value.set_extension(non_owning_example_ext(), {.i = 150}, mr));
+    ut::expect(value.set_extension(non_owning_example_ext(), {.i = 150}, mr).success());
     ut::expect(value.extensions.fields.back().first == 15);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x7a\x03\x08\x96\x01"_bytes));
 
-    ut::expect(!value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, mr));
+    ut::expect(value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, mr).success());
     ut::expect(value.extensions.fields.back().first == 20);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\xa0\x01\x01\xa0\x01\x02"_bytes));
 
     using namespace std::literals;
-    ut::expect(!value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, mr));
+    ut::expect(value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, mr).success());
     ut::expect(value.extensions.fields.back().first == 21);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
-    ut::expect(!value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, mr));
+    ut::expect(value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, mr).success());
     ut::expect(value.extensions.fields.back().first == 22);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };
@@ -1458,9 +1458,9 @@ const ut::suite test_monster = [] {
                      .boss = true};
 
   std::vector<std::byte> data;
-  ut::expect(!hpp::proto::write_proto(m, data));
+  ut::expect(hpp::proto::write_proto(m, data).success());
   monster m2;
-  ut::expect(!hpp::proto::read_proto(m2, data));
+  ut::expect(hpp::proto::read_proto(m2, data).success());
 
   ut::expect(m.pos == m2.pos);
   ut::expect(m.mana == m2.mana);
@@ -1525,9 +1525,9 @@ const ut::suite test_monster_with_optional = [] {
 
   {
     std::vector<std::byte> data;
-    ut::expect(!hpp::proto::write_proto(m, data));
+    ut::expect(hpp::proto::write_proto(m, data).success());
     monster_with_optional m2;
-    ut::expect(!hpp::proto::read_proto(m2, data));
+    ut::expect(hpp::proto::read_proto(m2, data).success());
 
     ut::expect(m.pos == m2.pos);
     ut::expect(m.mana == m2.mana);
@@ -1545,9 +1545,9 @@ const ut::suite test_monster_with_optional = [] {
   m.equipped.reset();
   {
     std::vector<std::byte> data;
-    ut::expect(!hpp::proto::write_proto(m, data));
+    ut::expect(hpp::proto::write_proto(m, data).success());
     monster_with_optional m2;
-    ut::expect(!hpp::proto::read_proto(m2, data));
+    ut::expect(hpp::proto::read_proto(m2, data).success());
     ut::expect(m == m2);
   }
 };
@@ -1589,7 +1589,7 @@ const ut::suite test_person = [] {
   static_assert(data.size() == 45);
 
   person p;
-  ut::expect(!hpp::proto::read_proto(p, data));
+  ut::expect(hpp::proto::read_proto(p, data).success());
 
   using namespace std::literals::string_view_literals;
   using namespace boost::ut;
@@ -1602,7 +1602,7 @@ const ut::suite test_person = [] {
   ut::expect(that % p.phones[0].type == person::home);
 
   std::array<std::byte, data.size()> new_data{};
-  ut::expect(!hpp::proto::write_proto(p, new_data));
+  ut::expect(hpp::proto::write_proto(p, new_data).success());
 
   ut::expect(std::ranges::equal(data, new_data));
 };
@@ -1620,7 +1620,7 @@ const ut::suite test_address_book = [] {
   using namespace boost::ut;
 
   address_book b;
-  ut::expect(!hpp::proto::read_proto(b, data));
+  ut::expect(hpp::proto::read_proto(b, data).success());
 
   expect(b.people.size() == 2_u);
   expect(b.people[0].name == "John Doe"sv);
@@ -1639,7 +1639,7 @@ const ut::suite test_address_book = [] {
   expect(b.people[1].phones[1].type == person::work);
 
   std::array<std::byte, data.size()> new_data{};
-  expect(!hpp::proto::write_proto(b, new_data));
+  expect(hpp::proto::write_proto(b, new_data).success());
   expect(std::ranges::equal(data, new_data));
 };
 
@@ -1672,7 +1672,7 @@ const ut::suite test_person_map = [] {
   using namespace boost::ut;
 
   person_map p;
-  expect(!hpp::proto::read_proto(p, data));
+  expect(hpp::proto::read_proto(p, data).success());
 
   expect(p.name == "John Doe"sv);
   expect(that % p.id == 1234);
@@ -1682,7 +1682,7 @@ const ut::suite test_person_map = [] {
   expect(that % p.phones["555-4321"] == person_map::home);
 
   std::array<std::byte, data.size()> new_data{};
-  expect(!hpp::proto::write_proto(p, new_data));
+  expect(hpp::proto::write_proto(p, new_data).success());
 
   expect(std::ranges::equal(data, new_data));
 };
@@ -1694,7 +1694,7 @@ const ut::suite test_default_person_in_address_book = [] {
   using namespace boost::ut;
 
   address_book b;
-  expect(!hpp::proto::read_proto(b, data));
+  expect(hpp::proto::read_proto(b, data).success());
 
   expect(b.people.size() == 1_u);
   expect(b.people[0].name == ""sv);
@@ -1703,7 +1703,7 @@ const ut::suite test_default_person_in_address_book = [] {
   expect(b.people[0].phones.size() == 0_u);
 
   std::array<std::byte, "\x0a\x00"_bytes_view.size()> new_data{};
-  expect(!hpp::proto::write_proto(b, new_data));
+  expect(hpp::proto::write_proto(b, new_data).success());
 
   expect(std::ranges::equal(new_data, "\x0a\x00"_bytes_view));
 };
@@ -1714,12 +1714,12 @@ const ut::suite test_empty_address_book = [] {
   using namespace boost::ut;
 
   address_book b;
-  expect(!hpp::proto::read_proto(b, data));
+  expect(hpp::proto::read_proto(b, data).success());
 
   expect(b.people.size() == 0_u);
 
   std::vector<std::byte> new_data{};
-  expect(!hpp::proto::write_proto(b, new_data));
+  expect(hpp::proto::write_proto(b, new_data).success());
   expect(new_data.empty());
 };
 
@@ -1729,7 +1729,7 @@ const ut::suite test_empty_person = [] {
   using namespace boost::ut;
 
   person p;
-  expect(!hpp::proto::read_proto(p, data));
+  expect(hpp::proto::read_proto(p, data).success());
 
   expect(p.name.size() == 0_u);
   expect(p.name == ""sv);
@@ -1738,7 +1738,7 @@ const ut::suite test_empty_person = [] {
   expect(p.phones.size() == 0_u);
 
   std::vector<std::byte> new_data{};
-  expect(!hpp::proto::write_proto(p, new_data));
+  expect(hpp::proto::write_proto(p, new_data).success());
   expect(new_data.empty());
 };
 

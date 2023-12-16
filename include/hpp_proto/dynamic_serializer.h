@@ -140,13 +140,13 @@ class dynamic_serializer {
       return false;
     }
 
-    std::errc skip_field(uint32_t number, wire_type field_wire_type, concepts::is_basic_in auto &archive) {
+    errc skip_field(uint32_t number, wire_type field_wire_type, concepts::is_basic_in auto &archive) {
       vuint64_t length = 0;
       switch (field_wire_type) {
       case wire_type::varint:
         return archive(length);
       case wire_type::length_delimited:
-        if (auto ec = archive(length); ec != std::errc{}) [[unlikely]] {
+        if (auto ec = archive(length); ec.failure()) [[unlikely]] {
           return ec;
         }
         return archive.skip(length);
@@ -161,7 +161,7 @@ class dynamic_serializer {
       }
     }
 
-    std::errc skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
+    errc skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
       while (!archive.empty()) {
         vuint32_t tag;
         archive(tag);
@@ -170,7 +170,7 @@ class dynamic_serializer {
 
         if (next_type == wire_type::egroup && field_num == next_field_num) {
           return {};
-        } else if (auto result = skip_field(next_field_num, next_type, archive); result != std::errc{}) [[unlikely]] {
+        } else if (auto result = skip_field(next_field_num, next_type, archive); result.failure()) [[unlikely]] {
           return result;
         }
       }
@@ -179,11 +179,11 @@ class dynamic_serializer {
     }
 
     template <typename T>
-    std::errc decode_field_type(bool quote_required, concepts::is_basic_in auto &archive) {
+    errc decode_field_type(bool quote_required, concepts::is_basic_in auto &archive) {
       T value;
       if constexpr (concepts::contiguous_byte_range<T>) {
         vuint64_t len;
-        if (auto ec = archive(len); ec != std::errc{}) [[unlikely]] {
+        if (auto ec = archive(len); ec.failure()) [[unlikely]] {
           return ec;
         }
         auto bytes = archive.read(len);
@@ -193,7 +193,7 @@ class dynamic_serializer {
         auto data = std::bit_cast<const typename T::value_type *>(bytes.data());
         value.assign(data, data + bytes.size());
       } else {
-        if (auto ec = archive(value); ec != std::errc{}) [[unlikely]] {
+        if (auto ec = archive(value); ec.failure()) [[unlikely]] {
           return ec;
         }
       }
@@ -211,7 +211,7 @@ class dynamic_serializer {
       return {};
     }
 
-    std::errc decode_packed_repeated(const dynamic_serializer::field_meta &meta, concepts::is_basic_in auto &archive) {
+    errc decode_packed_repeated(const dynamic_serializer::field_meta &meta, concepts::is_basic_in auto &archive) {
       glz::detail::dump<'['>(b, ix);
       if constexpr (Options.prettify) {
         context.indentation_level += Options.indentation_width;
@@ -220,7 +220,7 @@ class dynamic_serializer {
       }
 
       vuint64_t length = 0;
-      if (auto ec = archive(length); ec != std::errc{}) [[unlikely]] {
+      if (auto ec = archive(length); ec.failure()) [[unlikely]] {
         return ec;
       }
 
@@ -241,7 +241,7 @@ class dynamic_serializer {
           }
         }
         const bool is_map_key = false;
-        if (auto ec = decode_field(meta, is_map_key, new_archive); ec != std::errc{}) [[unlikely]] {
+        if (auto ec = decode_field(meta, is_map_key, new_archive); ec.failure()) [[unlikely]] {
           return ec;
         }
       }
@@ -256,7 +256,7 @@ class dynamic_serializer {
       return {};
     }
 
-    std::errc decode_unpacked_repeated(uint32_t field_index, const dynamic_serializer::field_meta &meta,
+    errc decode_unpacked_repeated(uint32_t field_index, const dynamic_serializer::field_meta &meta,
                                        std::vector<uint64_t> &unpacked_repeated_positions,
                                        concepts::is_basic_in auto &archive) {
       auto old_pos =
@@ -278,7 +278,7 @@ class dynamic_serializer {
         glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
       const bool is_map_key = false;
-      if (auto ec = decode_field(meta, is_map_key, archive); ec != std::errc{}) [[unlikely]] {
+      if (auto ec = decode_field(meta, is_map_key, archive); ec.failure()) [[unlikely]] {
         return ec;
       }
 
@@ -309,7 +309,7 @@ class dynamic_serializer {
       return {};
     }
 
-    std::errc decode_field(const dynamic_serializer::field_meta &meta, bool is_map_key,
+    errc decode_field(const dynamic_serializer::field_meta &meta, bool is_map_key,
                            concepts::is_basic_in auto &archive) {
       using enum google::protobuf::FieldDescriptorProto::Type;
       switch (meta.type) {
@@ -361,10 +361,10 @@ class dynamic_serializer {
       glz::unreachable();
     }
 
-    std::errc decode_enum(uint32_t enum_index, concepts::is_basic_in auto &archive) {
+    errc decode_enum(uint32_t enum_index, concepts::is_basic_in auto &archive) {
       auto &meta = pb_meta.enums[enum_index];
       vint64_t value;
-      if (auto ec = archive(value); ec != std::errc{}) [[unlikely]] {
+      if (auto ec = archive(value); ec.failure()) [[unlikely]] {
         return ec;
       }
       for (std::size_t i = 0; i < meta.size(); ++i) {
@@ -379,7 +379,7 @@ class dynamic_serializer {
       return {};
     }
 
-    std::errc decode_field(const dynamic_serializer::message_meta &msg_meta, uint32_t number, wire_type field_wire_type,
+    errc decode_field(const dynamic_serializer::message_meta &msg_meta, uint32_t number, wire_type field_wire_type,
                            std::vector<uint64_t> &unpacked_repeated_positions, uint32_t &field_index, char &separator,
                            bool is_map_entry, concepts::is_basic_in auto &archive) {
       if (circular_find(field_index, number, msg_meta)) {
@@ -414,32 +414,32 @@ class dynamic_serializer {
         }
 
         if (field_m.rule == dynamic_serializer::encoding::none) {
-          if (auto ec = decode_field(field_m, is_map_entry && field_index == 0, archive); ec != std::errc{})
+          if (auto ec = decode_field(field_m, is_map_entry && field_index == 0, archive); ec.failure())
               [[unlikely]] {
             return ec;
           }
         } else if (field_m.rule == dynamic_serializer::encoding::packed_repeated &&
                    field_wire_type == wire_type::length_delimited) {
-          if (auto ec = decode_packed_repeated(field_m, archive); ec != std::errc{}) [[unlikely]] {
+          if (auto ec = decode_packed_repeated(field_m, archive); ec.failure()) [[unlikely]] {
             return ec;
           }
         } else {
           if (auto ec = decode_unpacked_repeated(field_index, field_m, unpacked_repeated_positions, archive);
-              ec != std::errc{}) [[unlikely]] {
+              ec.failure()) [[unlikely]] {
             return ec;
           }
         }
 
       } else [[unlikely]] {
         //  cannot find the field definition from the schema, skip it
-        if (auto ec = skip_field(number, field_wire_type, archive); ec != std::errc{}) [[unlikely]] {
+        if (auto ec = skip_field(number, field_wire_type, archive); ec.failure()) [[unlikely]] {
           return ec;
         }
       }
       return {};
     }
 
-    std::errc decode_group(uint32_t msg_index, uint32_t field_number, concepts::is_basic_in auto &archive) {
+    errc decode_group(uint32_t msg_index, uint32_t field_number, concepts::is_basic_in auto &archive) {
       const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
       glz::detail::dump<'{'>(b, ix);
       if constexpr (Options.prettify) {
@@ -474,7 +474,7 @@ class dynamic_serializer {
         const bool is_map_key = false;
         if (auto ec = decode_field(msg_meta, number, field_wire_type, unpacked_repeated_positions, field_index,
                                    separator, is_map_key, archive);
-            ec != std::errc{}) [[unlikely]] {
+            ec.failure()) [[unlikely]] {
           return ec;
         }
       }
@@ -482,7 +482,7 @@ class dynamic_serializer {
       return std::errc::result_out_of_range;
     }
 
-    std::errc decode_message(uint32_t msg_index, bool is_map_entry, concepts::is_basic_in auto &archive) {
+    errc decode_message(uint32_t msg_index, bool is_map_entry, concepts::is_basic_in auto &archive) {
 
       const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
 
@@ -502,7 +502,7 @@ class dynamic_serializer {
 
       while (!archive.empty()) {
         vuint32_t tag;
-        if (auto ec = archive(tag); ec != std::errc{}) [[unlikely]] {
+        if (auto ec = archive(tag); ec.failure()) [[unlikely]] {
           return ec;
         }
         auto number = tag_number(tag);
@@ -510,7 +510,7 @@ class dynamic_serializer {
 
         if (auto ec = decode_field(msg_meta, number, field_wire_type, unpacked_repeated_positions, field_index,
                                    separator, is_map_entry, archive);
-            ec != std::errc{}) [[unlikely]] {
+            ec.failure()) [[unlikely]] {
           return ec;
         }
       }
@@ -594,7 +594,7 @@ class dynamic_serializer {
     }
 
     template <auto Options, typename T, bool quoted>
-    std::errc encode_type(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
+    errc encode_type(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
       T value;
       if (quoted) {
         glz::detail::match<'"'>(context, it, end);
@@ -624,7 +624,7 @@ class dynamic_serializer {
     }
 
     template <typename T>
-    std::errc encode_map_key(std::string_view key, auto &archive) {
+    errc encode_map_key(std::string_view key, auto &archive) {
       T value;
       glz::detail::read<glz::json>::op<glz::opts{.ws_handled = true}>(get_underlying_value(value), context, key.begin(),
                                                                       key.end());
@@ -636,7 +636,7 @@ class dynamic_serializer {
       return {};
     }
 
-    std::errc encode_map_key(const dynamic_serializer::field_meta &meta, std::string_view key, auto &archive) {
+    errc encode_map_key(const dynamic_serializer::field_meta &meta, std::string_view key, auto &archive) {
       using enum google::protobuf::FieldDescriptorProto::Type;
       switch (meta.type) {
       case TYPE_DOUBLE:
@@ -673,11 +673,11 @@ class dynamic_serializer {
       }
     }
 
-    std::errc serialize_sized(auto &archive, auto &&serialize) {
+    errc serialize_sized(auto &archive, auto &&serialize) {
       std::vector<std::byte> buffer;
       {
         relocatable_out new_rchive{buffer};
-        if (auto result = serialize(new_rchive); result != std::errc{}) [[unlikely]] {
+        if (auto result = serialize(new_rchive); result.failure()) [[unlikely]] {
           return result;
         }
       }
@@ -686,7 +686,7 @@ class dynamic_serializer {
     }
 
     template <auto Options>
-    std::errc encode_field(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
+    errc encode_field(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
       using enum google::protobuf::FieldDescriptorProto::Type;
       switch (meta.type) {
       case TYPE_DOUBLE:
@@ -710,7 +710,7 @@ class dynamic_serializer {
       case TYPE_GROUP: {
         archive(make_tag(meta.number, wire_type::sgroup));
 
-        if (auto ec = encode_message<Options>(meta.type_index, it, end, 0, archive); ec != std::errc{}) [[unlikely]] {
+        if (auto ec = encode_message<Options>(meta.type_index, it, end, 0, archive); ec.failure()) [[unlikely]] {
           return ec;
         }
 
@@ -743,7 +743,7 @@ class dynamic_serializer {
     }
 
     template <auto Opts>
-    std::errc encode_enum(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
+    errc encode_enum(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
       auto &enum_meta = pb_meta.enums[meta.type_index];
       if constexpr (!Opts.ws_handled) {
         glz::detail::skip_ws<Opts>(context, it, end);
@@ -773,7 +773,7 @@ class dynamic_serializer {
     }
 
     template <auto Options>
-    std::errc encode_repeated(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
+    errc encode_repeated(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
       if constexpr (!Options.ws_handled) {
         glz::detail::skip_ws<Options>(context, it, end);
         if (bool(context.error)) {
@@ -798,7 +798,7 @@ class dynamic_serializer {
 
       size_t i = 0;
       for (i = 0; i < n; ++i) {
-        if (auto ec = encode_field<Opts>(meta, it, end, archive); ec != std::errc{}) [[unlikely]] {
+        if (auto ec = encode_field<Opts>(meta, it, end, archive); ec.failure()) [[unlikely]] {
           return ec;
         }
         glz::detail::skip_ws<Opts>(context, it, end);
@@ -826,7 +826,7 @@ class dynamic_serializer {
     }
 
     template <auto Options>
-    std::errc encode_message(uint32_t msg_index, auto &&it, auto &&end, uint32_t map_entry_number, auto &archive) {
+    errc encode_message(uint32_t msg_index, auto &&it, auto &&end, uint32_t map_entry_number, auto &archive) {
       const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
       using namespace glz::detail;
 
@@ -889,12 +889,12 @@ class dynamic_serializer {
           [[unlikely]] return std::errc::illegal_byte_sequence;
         }
 
-        std::errc ec;
+        errc ec;
 
         if (map_entry_number) {
           archive(make_tag(map_entry_number, wire_type::length_delimited));
           ec = serialize_sized(archive, [this, &msg_meta, key, &it, &end](auto &archive) {
-            if (auto ec = this->encode_map_key(msg_meta[0], key, archive); ec != std::errc{}) [[unlikely]] {
+            if (auto ec = this->encode_map_key(msg_meta[0], key, archive); ec.failure()) [[unlikely]] {
               return ec;
             }
             return encode_field<Opts>(msg_meta[1], it, end, archive);
@@ -914,7 +914,7 @@ class dynamic_serializer {
           }
         }
 
-        if (ec != std::errc{}) [[unlikely]] {
+        if (ec.failure()) [[unlikely]] {
           return ec;
         }
 
@@ -965,88 +965,88 @@ public:
   }
 
   template <concepts::contiguous_byte_range ByteView>
-  static expected<dynamic_serializer, std::error_code> make(ByteView filedescriptorset_stream) {
+  static expected<dynamic_serializer, hpp::proto::errc> make(ByteView filedescriptorset_stream) {
     google::protobuf::FileDescriptorSet fileset;
-    if (auto ec = read_proto(fileset, filedescriptorset_stream); ec) {
-      return unexpected{ec};
+    if (auto ec = read_proto(fileset, filedescriptorset_stream); ec.failure()) {
+      return unexpected(ec);
     }
     return dynamic_serializer{fileset};
   }
 
   template <auto Options>
-  std::error_code proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream,
+  hpp::proto::errc proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream,
                                 auto &&buffer) const {
     using buffer_type = std::decay_t<decltype(buffer)>;
     uint32_t const id = message_index(message_name);
     if (id == messages.size()) {
-      return std::make_error_code(std::errc::invalid_argument);
+      return std::errc::invalid_argument;
     }
     buffer.resize(pb_encoded_stream.size() * 2);
     auto archive = pb_serializer::basic_in(pb_encoded_stream);
     pb_to_json_state<Options, buffer_type> state{*this, buffer};
     const bool is_map_entry = false;
-    if (auto ec = state.decode_message(id, is_map_entry, archive); ec != std::errc{}) {
-      [[unlikely]] return std::make_error_code(ec);
+    if (auto ec = state.decode_message(id, is_map_entry, archive); ec.failure()) {
+      [[unlikely]] return ec;
     }
     buffer.resize(state.ix);
     return {};
   }
 
-  std::error_code proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream,
+  hpp::proto::errc proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream,
                                 auto &&buffer) const {
     return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream, buffer);
   }
 
   template <auto Options>
-  expected<std::string, std::error_code> proto_to_json(std::string_view message_name,
+  expected<std::string, hpp::proto::errc> proto_to_json(std::string_view message_name,
                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
     std::string result;
     if (auto ec =
             proto_to_json<Options>(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
-        ec) {
+        ec.failure()) {
       return unexpected(ec);
     }
     return result;
   }
 
-  expected<std::string, std::error_code> proto_to_json(std::string_view message_name,
+  expected<std::string, hpp::proto::errc> proto_to_json(std::string_view message_name,
                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
     return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream);
   }
 
   template <auto Opts>
-  std::error_code json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json_view,
+  hpp::proto::errc json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json_view,
                                 concepts::contiguous_byte_range auto &&buffer) const {
     uint32_t const id = message_index(message_name);
     if (id == messages.size()) {
-      return std::make_error_code(std::errc::invalid_argument);
+      return std::errc::invalid_argument;
     }
     json_to_pb_state state{*this};
     const char *it = json_view.data();
     const char *end = it + json_view.size();
     relocatable_out archive{buffer};
-    if (auto ec = state.template encode_message<Opts>(id, it, end, 0, archive); ec != std::errc{}) {
-      [[unlikely]] return std::make_error_code(ec);
+    if (auto ec = state.template encode_message<Opts>(id, it, end, 0, archive); ec.failure()) {
+      [[unlikely]] return ec;
     }
     return {};
   }
 
-  std::error_code json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json_view,
+  hpp::proto::errc json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json_view,
                                 concepts::contiguous_byte_range auto &&buffer) const {
     return json_to_proto<glz::opts{}>(message_name, json_view, buffer);
   }
 
   template <auto Opts>
-  expected<std::vector<std::byte>, std::error_code> json_to_proto(std::string_view message_name,
+  expected<std::vector<std::byte>, hpp::proto::errc> json_to_proto(std::string_view message_name,
                                                                   concepts::contiguous_byte_range auto &&json) {
     std::vector<std::byte> result;
-    if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); ec) {
+    if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); ec.failure()) {
       return unexpected(ec);
     }
     return result;
   }
 
-  expected<std::vector<std::byte>, std::error_code> json_to_proto(std::string_view message_name,
+  expected<std::vector<std::byte>, hpp::proto::errc> json_to_proto(std::string_view message_name,
                                                                   concepts::contiguous_byte_range auto &&json) {
     return json_to_proto<glz::opts{}>(message_name, json);
   }

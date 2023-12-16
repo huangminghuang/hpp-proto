@@ -609,144 +609,144 @@ inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message) {
 // manipulating extension fields instead of normal ones.
 
 inline void SetAll(protobuf_unittest::TestAllExtensions *message, monotonic_buffer_resource &mr) {
-  expect(!message->set_extension(protobuf_unittest::optional_int32_extension(), 101, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_int64_extension(), 102, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_uint32_extension(), 103, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_uint64_extension(), 104, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_sint32_extension(), 105, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_sint64_extension(), 106, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_fixed32_extension(), 107, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_fixed64_extension(), 108, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_sfixed32_extension(), 109, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_sfixed64_extension(), 110, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_float_extension(), 111, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_double_extension(), 112, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_bool_extension(), true, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_string_extension(), "115", mr));
-  expect(!message->set_extension(protobuf_unittest::optional_bytes_extension(), "116"_bytes_view, mr));
+  expect(message->set_extension(protobuf_unittest::optional_int32_extension(), 101, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_int64_extension(), 102, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_uint32_extension(), 103, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_uint64_extension(), 104, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_sint32_extension(), 105, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_sint64_extension(), 106, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_fixed32_extension(), 107, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_fixed64_extension(), 108, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_sfixed32_extension(), 109, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_sfixed64_extension(), 110, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_float_extension(), 111, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_double_extension(), 112, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_bool_extension(), true, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_string_extension(), "115", mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_bytes_extension(), "116"_bytes_view, mr).success());
 
-  expect(!message->set_extension(protobuf_unittest::optionalgroup_extension(), {.a = 117}, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_nested_message_extension(), {.bb = 118}, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_foreign_message_extension(), {.c = 119}, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_import_message_extension(), {.d = 120}, mr));
+  expect(message->set_extension(protobuf_unittest::optionalgroup_extension(), {.a = 117}, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_nested_message_extension(), {.bb = 118}, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_foreign_message_extension(), {.c = 119}, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_import_message_extension(), {.d = 120}, mr).success());
 
-  expect(!message->set_extension(protobuf_unittest::optional_nested_enum_extension(),
-                                 protobuf_unittest::TestAllTypes::NestedEnum::BAZ, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_foreign_enum_extension(),
-                                 protobuf_unittest::ForeignEnum::FOREIGN_BAZ, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_import_enum_extension(),
-                                 protobuf_unittest_import::ImportEnum::IMPORT_BAZ, mr));
+  expect(message->set_extension(protobuf_unittest::optional_nested_enum_extension(),
+                                 protobuf_unittest::TestAllTypes::NestedEnum::BAZ, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_foreign_enum_extension(),
+                                 protobuf_unittest::ForeignEnum::FOREIGN_BAZ, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_import_enum_extension(),
+                                 protobuf_unittest_import::ImportEnum::IMPORT_BAZ, mr).success());
 
-  expect(!message->set_extension(protobuf_unittest::optional_string_piece_extension(), "124", mr));
-  expect(!message->set_extension(protobuf_unittest::optional_cord_extension(), "125", mr));
+  expect(message->set_extension(protobuf_unittest::optional_string_piece_extension(), "124", mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_cord_extension(), "125", mr).success());
 
-  expect(!message->set_extension(protobuf_unittest::optional_public_import_message_extension(), {.e = 126}, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_lazy_message_extension(), {.bb = 127}, mr));
-  expect(!message->set_extension(protobuf_unittest::optional_unverified_lazy_message_extension(), {.bb = 128}, mr));
+  expect(message->set_extension(protobuf_unittest::optional_public_import_message_extension(), {.e = 126}, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_lazy_message_extension(), {.bb = 127}, mr).success());
+  expect(message->set_extension(protobuf_unittest::optional_unverified_lazy_message_extension(), {.bb = 128}, mr).success());
 
   // -----------------------------------------------------------------
 
   const static int32_t repeated_int32_extension[] = {201, 301};
-  expect(!message->set_extension(protobuf_unittest::repeated_int32_extension(), repeated_int32_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_int32_extension(), repeated_int32_extension, mr).success());
   const static int64_t repeated_int64_extension[] = {202, 302};
-  expect(!message->set_extension(protobuf_unittest::repeated_int64_extension(), repeated_int64_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_int64_extension(), repeated_int64_extension, mr).success());
   const static uint32_t repeated_uint32_extension[] = {203, 303};
-  expect(!message->set_extension(protobuf_unittest::repeated_uint32_extension(), repeated_uint32_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_uint32_extension(), repeated_uint32_extension, mr).success());
   const static uint64_t repeated_uint64_extension[] = {204, 304};
-  expect(!message->set_extension(protobuf_unittest::repeated_uint64_extension(), repeated_uint64_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_uint64_extension(), repeated_uint64_extension, mr).success());
   const static int32_t repeated_sint32_extension[] = {205, 305};
-  expect(!message->set_extension(protobuf_unittest::repeated_sint32_extension(), repeated_sint32_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_sint32_extension(), repeated_sint32_extension, mr).success());
   const static int64_t repeated_sint64_extension[] = {206, 306};
-  expect(!message->set_extension(protobuf_unittest::repeated_sint64_extension(), repeated_sint64_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_sint64_extension(), repeated_sint64_extension, mr).success());
   const static uint32_t repeated_fixed32_extension[] = {207, 307};
-  expect(!message->set_extension(protobuf_unittest::repeated_fixed32_extension(), repeated_fixed32_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_fixed32_extension(), repeated_fixed32_extension, mr).success());
   const static uint64_t repeated_fixed64_extension[] = {208, 308};
-  expect(!message->set_extension(protobuf_unittest::repeated_fixed64_extension(), repeated_fixed64_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_fixed64_extension(), repeated_fixed64_extension, mr).success());
   const static int32_t repeated_sfixed32_extension[] = {209, 309};
-  expect(!message->set_extension(protobuf_unittest::repeated_sfixed32_extension(), repeated_sfixed32_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_sfixed32_extension(), repeated_sfixed32_extension, mr).success());
   const static int64_t repeated_sfixed64_extension[] = {210, 310};
-  expect(!message->set_extension(protobuf_unittest::repeated_sfixed64_extension(), repeated_sfixed64_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_sfixed64_extension(), repeated_sfixed64_extension, mr).success());
   const static float repeated_float_extension[] = {211, 311};
-  expect(!message->set_extension(protobuf_unittest::repeated_float_extension(), repeated_float_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_float_extension(), repeated_float_extension, mr).success());
   const static double repeated_double_extension[] = {212, 312};
-  expect(!message->set_extension(protobuf_unittest::repeated_double_extension(), repeated_double_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_double_extension(), repeated_double_extension, mr).success());
   const static bool repeated_bool_extension[] = {true, false};
-  expect(!message->set_extension(protobuf_unittest::repeated_bool_extension(), repeated_bool_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_bool_extension(), repeated_bool_extension, mr).success());
   const static std::string_view repeated_string_extension[] = {"215", "315"};
-  expect(!message->set_extension(protobuf_unittest::repeated_string_extension(), repeated_string_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_string_extension(), repeated_string_extension, mr).success());
   const static std::span<const std::byte> repeated_bytes_extension[] = {"216"_bytes_view, "316"_bytes_view};
-  expect(!message->set_extension(protobuf_unittest::repeated_bytes_extension(), repeated_bytes_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_bytes_extension(), repeated_bytes_extension, mr).success());
 
   const static protobuf_unittest::RepeatedGroup_extension repeatedgroup[] = {{.a = 217}, {.a = 317}};
-  expect(!message->set_extension(protobuf_unittest::repeatedgroup_extension(), repeatedgroup, mr));
+  expect(message->set_extension(protobuf_unittest::repeatedgroup_extension(), repeatedgroup, mr).success());
   const static protobuf_unittest::TestAllTypes::NestedMessage repeated_nested_message_extension[] = {{.bb = 218},
                                                                                                      {.bb = 318}};
-  expect(!message->set_extension(protobuf_unittest::repeated_nested_message_extension(),
-                                 repeated_nested_message_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_nested_message_extension(),
+                                 repeated_nested_message_extension, mr).success());
   const static protobuf_unittest::ForeignMessage repeated_foreign_message_extension[] = {{.c = 219}, {.c = 319}};
-  expect(!message->set_extension(protobuf_unittest::repeated_foreign_message_extension(),
-                                 repeated_foreign_message_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_foreign_message_extension(),
+                                 repeated_foreign_message_extension, mr).success());
   const static protobuf_unittest_import::ImportMessage repeated_import_message_extension[] = {{.d = 220}, {.d = 320}};
-  expect(!message->set_extension(protobuf_unittest::repeated_import_message_extension(),
-                                 repeated_import_message_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_import_message_extension(),
+                                 repeated_import_message_extension, mr).success());
   const static protobuf_unittest::TestAllTypes::NestedMessage repeated_lazy_message_extension[] = {{.bb = 227},
                                                                                                    {.bb = 327}};
-  expect(!message->set_extension(protobuf_unittest::repeated_lazy_message_extension(), repeated_lazy_message_extension,
-                                 mr));
+  expect(message->set_extension(protobuf_unittest::repeated_lazy_message_extension(), repeated_lazy_message_extension,
+                                 mr).success());
 
   const static protobuf_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
       protobuf_unittest::TestAllTypes::NestedEnum::BAR, protobuf_unittest::TestAllTypes::NestedEnum::BAZ};
-  expect(!message->set_extension(protobuf_unittest::repeated_nested_enum_extension(), repeated_nested_enum, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_nested_enum_extension(), repeated_nested_enum, mr).success());
   const static protobuf_unittest::ForeignEnum repeated_foreign_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
                                                                          protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
-  expect(!message->set_extension(protobuf_unittest::repeated_foreign_enum_extension(), repeated_foreign_enum, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_foreign_enum_extension(), repeated_foreign_enum, mr).success());
   const static protobuf_unittest_import::ImportEnum repeated_import_enum[] = {
       protobuf_unittest_import::ImportEnum::IMPORT_BAR, protobuf_unittest_import::ImportEnum::IMPORT_BAZ};
-  expect(!message->set_extension(protobuf_unittest::repeated_import_enum_extension(), repeated_import_enum, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_import_enum_extension(), repeated_import_enum, mr).success());
 
   const static std::string_view repeated_string_piece_extension[] = {"224"sv, "324"sv};
-  expect(!message->set_extension(protobuf_unittest::repeated_string_piece_extension(), repeated_string_piece_extension,
-                                 mr));
+  expect(message->set_extension(protobuf_unittest::repeated_string_piece_extension(), repeated_string_piece_extension,
+                                 mr).success());
   const static std::string_view repeated_cord_extension[] = {"225"sv, "325"sv};
-  expect(!message->set_extension(protobuf_unittest::repeated_cord_extension(), repeated_cord_extension, mr));
+  expect(message->set_extension(protobuf_unittest::repeated_cord_extension(), repeated_cord_extension, mr).success());
 
   // -----------------------------------------------------------------
 
-  expect(!message->set_extension(protobuf_unittest::default_int32_extension(), 401, mr));
-  expect(!message->set_extension(protobuf_unittest::default_int64_extension(), 402, mr));
-  expect(!message->set_extension(protobuf_unittest::default_uint32_extension(), 403, mr));
-  expect(!message->set_extension(protobuf_unittest::default_uint64_extension(), 404, mr));
-  expect(!message->set_extension(protobuf_unittest::default_sint32_extension(), 405, mr));
-  expect(!message->set_extension(protobuf_unittest::default_sint64_extension(), 406, mr));
-  expect(!message->set_extension(protobuf_unittest::default_fixed32_extension(), 407, mr));
-  expect(!message->set_extension(protobuf_unittest::default_fixed64_extension(), 408, mr));
-  expect(!message->set_extension(protobuf_unittest::default_sfixed32_extension(), 409, mr));
-  expect(!message->set_extension(protobuf_unittest::default_sfixed64_extension(), 410, mr));
-  expect(!message->set_extension(protobuf_unittest::default_float_extension(), 411, mr));
-  expect(!message->set_extension(protobuf_unittest::default_double_extension(), 412, mr));
+  expect(message->set_extension(protobuf_unittest::default_int32_extension(), 401, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_int64_extension(), 402, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_uint32_extension(), 403, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_uint64_extension(), 404, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_sint32_extension(), 405, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_sint64_extension(), 406, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_fixed32_extension(), 407, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_fixed64_extension(), 408, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_sfixed32_extension(), 409, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_sfixed64_extension(), 410, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_float_extension(), 411, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_double_extension(), 412, mr).success());
 
-  expect(!message->set_extension(protobuf_unittest::default_bool_extension(), false, mr));
-  expect(!message->set_extension(protobuf_unittest::default_string_extension(), "415", mr));
-  expect(!message->set_extension(protobuf_unittest::default_bytes_extension(), "416"_bytes_view, mr));
+  expect(message->set_extension(protobuf_unittest::default_bool_extension(), false, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_string_extension(), "415", mr).success());
+  expect(message->set_extension(protobuf_unittest::default_bytes_extension(), "416"_bytes_view, mr).success());
 
-  expect(!message->set_extension(protobuf_unittest::default_nested_enum_extension(),
-                                 protobuf_unittest::TestAllTypes::NestedEnum::FOO, mr));
-  expect(!message->set_extension(protobuf_unittest::default_foreign_enum_extension(),
-                                 protobuf_unittest::ForeignEnum::FOREIGN_FOO, mr));
-  expect(!message->set_extension(protobuf_unittest::default_import_enum_extension(),
-                                 protobuf_unittest_import::ImportEnum::IMPORT_FOO, mr));
+  expect(message->set_extension(protobuf_unittest::default_nested_enum_extension(),
+                                 protobuf_unittest::TestAllTypes::NestedEnum::FOO, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_foreign_enum_extension(),
+                                 protobuf_unittest::ForeignEnum::FOREIGN_FOO, mr).success());
+  expect(message->set_extension(protobuf_unittest::default_import_enum_extension(),
+                                 protobuf_unittest_import::ImportEnum::IMPORT_FOO, mr).success());
 
-  expect(!message->set_extension(protobuf_unittest::default_string_piece_extension(), "424", mr));
-  expect(!message->set_extension(protobuf_unittest::default_cord_extension(), "425", mr));
+  expect(message->set_extension(protobuf_unittest::default_string_piece_extension(), "424", mr).success());
+  expect(message->set_extension(protobuf_unittest::default_cord_extension(), "425", mr).success());
 
   SetOneofFields(message, mr);
 }
 
 inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message, monotonic_buffer_resource &mr) {
-  expect(!message->set_extension(protobuf_unittest::oneof_uint32_extension(), 601, mr));
-  expect(!message->set_extension(protobuf_unittest::oneof_nested_message_extension(), {.bb = 602}, mr));
-  expect(!message->set_extension(protobuf_unittest::oneof_string_extension(), "603", mr));
-  expect(!message->set_extension(protobuf_unittest::oneof_bytes_extension(), "604"_bytes_view, mr));
+  expect(message->set_extension(protobuf_unittest::oneof_uint32_extension(), 601, mr).success());
+  expect(message->set_extension(protobuf_unittest::oneof_nested_message_extension(), {.bb = 602}, mr).success());
+  expect(message->set_extension(protobuf_unittest::oneof_string_extension(), "603", mr).success());
+  expect(message->set_extension(protobuf_unittest::oneof_bytes_extension(), "604"_bytes_view, mr).success());
 }
 
 // -------------------------------------------------------------------
@@ -756,8 +756,8 @@ inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *mes
   message->my_int = 1;
   message->my_string = "foo";
   message->my_float = 1.0f;
-  expect(!message->set_extension(protobuf_unittest::my_extension_int(), 23, mr));
-  expect(!message->set_extension(protobuf_unittest::my_extension_string(), "bar", mr));
+  expect(message->set_extension(protobuf_unittest::my_extension_int(), 23, mr).success());
+  expect(message->set_extension(protobuf_unittest::my_extension_string(), "bar", mr).success());
 }
 // -------------------------------------------------------------------
 
@@ -983,7 +983,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
 
 inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   std::vector<std::byte> data;
-  expect(!hpp::proto::write_proto(message, data));
+  expect(hpp::proto::write_proto(message, data).success());
   expect(eq(0, data.size()));
 
   monotonic_buffer_resource mr(16);
@@ -1146,34 +1146,34 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
 
 inline void SetAll(protobuf_unittest::TestPackedExtensions *message, monotonic_buffer_resource &mr) {
   const int32_t packed_int32[] = {601, 701};
-  expect(!message->set_extension(protobuf_unittest::packed_int32_extension(), packed_int32, mr));
+  expect(message->set_extension(protobuf_unittest::packed_int32_extension(), packed_int32, mr).success());
   const int64_t packed_int64[] = {602, 702};
-  expect(!message->set_extension(protobuf_unittest::packed_int64_extension(), packed_int64, mr));
+  expect(message->set_extension(protobuf_unittest::packed_int64_extension(), packed_int64, mr).success());
   const uint32_t packed_uint32[] = {603, 703};
-  expect(!message->set_extension(protobuf_unittest::packed_uint32_extension(), packed_uint32, mr));
+  expect(message->set_extension(protobuf_unittest::packed_uint32_extension(), packed_uint32, mr).success());
   const uint64_t packed_uint64[] = {604, 704};
-  expect(!message->set_extension(protobuf_unittest::packed_uint64_extension(), packed_uint64, mr));
+  expect(message->set_extension(protobuf_unittest::packed_uint64_extension(), packed_uint64, mr).success());
   const int32_t packed_sint32[] = {605, 705};
-  expect(!message->set_extension(protobuf_unittest::packed_sint32_extension(), packed_sint32, mr));
+  expect(message->set_extension(protobuf_unittest::packed_sint32_extension(), packed_sint32, mr).success());
   const int64_t packed_sint64[] = {606, 706};
-  expect(!message->set_extension(protobuf_unittest::packed_sint64_extension(), packed_sint64, mr));
+  expect(message->set_extension(protobuf_unittest::packed_sint64_extension(), packed_sint64, mr).success());
   const uint32_t packed_fixed32[] = {607, 707};
-  expect(!message->set_extension(protobuf_unittest::packed_fixed32_extension(), packed_fixed32, mr));
+  expect(message->set_extension(protobuf_unittest::packed_fixed32_extension(), packed_fixed32, mr).success());
   const uint64_t packed_fixed64[] = {608, 708};
-  expect(!message->set_extension(protobuf_unittest::packed_fixed64_extension(), packed_fixed64, mr));
+  expect(message->set_extension(protobuf_unittest::packed_fixed64_extension(), packed_fixed64, mr).success());
   const int32_t packed_sfixed32[] = {609, 709};
-  expect(!message->set_extension(protobuf_unittest::packed_sfixed32_extension(), packed_sfixed32, mr));
+  expect(message->set_extension(protobuf_unittest::packed_sfixed32_extension(), packed_sfixed32, mr).success());
   const int64_t packed_sfixed64[] = {610, 710};
-  expect(!message->set_extension(protobuf_unittest::packed_sfixed64_extension(), packed_sfixed64, mr));
+  expect(message->set_extension(protobuf_unittest::packed_sfixed64_extension(), packed_sfixed64, mr).success());
   const float packed_float[] = {611, 711};
-  expect(!message->set_extension(protobuf_unittest::packed_float_extension(), packed_float, mr));
+  expect(message->set_extension(protobuf_unittest::packed_float_extension(), packed_float, mr).success());
   const double packed_double[] = {612, 712};
-  expect(!message->set_extension(protobuf_unittest::packed_double_extension(), packed_double, mr));
+  expect(message->set_extension(protobuf_unittest::packed_double_extension(), packed_double, mr).success());
   const bool packed_bool[] = {true, false};
-  expect(!message->set_extension(protobuf_unittest::packed_bool_extension(), packed_bool, mr));
+  expect(message->set_extension(protobuf_unittest::packed_bool_extension(), packed_bool, mr).success());
   const protobuf_unittest::ForeignEnum packed_enum[] = {protobuf_unittest::ForeignEnum::FOREIGN_BAR,
                                                         protobuf_unittest::ForeignEnum::FOREIGN_BAZ};
-  expect(!message->set_extension(protobuf_unittest::packed_enum_extension(), packed_enum, mr));
+  expect(message->set_extension(protobuf_unittest::packed_enum_extension(), packed_enum, mr).success());
 }
 
 // -------------------------------------------------------------------
@@ -1326,8 +1326,8 @@ const boost::ut::suite proto_test = [] {
         message2 = message;
 
         std::vector<std::byte> data;
-        expect(!hpp::proto::write_proto(message2, data));
-        expect(!hpp::proto::read_proto(message3, data, mr));
+        expect(hpp::proto::write_proto(message2, data).success());
+        expect(hpp::proto::read_proto(message3, data, mr).success());
 
         TestUtil::ExpectAllSet(message);
         TestUtil::ExpectAllSet(message2);
@@ -1345,7 +1345,7 @@ const boost::ut::suite proto_test = [] {
         TestUtil::SetAll(&original, mr);
 
         std::vector<char> data;
-        expect(!hpp::proto::write_proto(original, data));
+        expect(hpp::proto::write_proto(original, data).success());
 
         auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(),
                                                       hpp::proto::message_name(original), {data.data(), data.size()});

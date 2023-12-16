@@ -26,8 +26,8 @@ const ut::suite proto_test = [] {
         message2 = message;
 
         std::vector<std::byte> data;
-        expect(!hpp::proto::write_proto(message2, data));
-        expect(!hpp::proto::read_proto(message3, data));
+        expect(hpp::proto::write_proto(message2, data).success());
+        expect(hpp::proto::read_proto(message3, data).success());
 
         TestUtil::ExpectAllSet(message);
         TestUtil::ExpectAllSet(message2);
@@ -44,7 +44,7 @@ const ut::suite proto_test = [] {
         TestUtil::SetAll(&original);
 
         std::vector<char> data;
-        expect(!hpp::proto::write_proto(original, data));
+        expect(hpp::proto::write_proto(original, data).success());
 
         auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(),
                                                       hpp::proto::message_name(original), {data.data(), data.size()});

@@ -11,7 +11,7 @@ void test_fixture(auto &message, const char *descriptorset_file, const char *mes
 
   std::string data;
 
-  expect(!hpp::proto::write_proto(message, data));
+  expect(hpp::proto::write_proto(message, data).success());
 
   auto descriptors = descriptorset_from_file(descriptorset_file);
   auto ser = hpp::proto::dynamic_serializer::make(descriptors);
@@ -25,12 +25,12 @@ void test_fixture(auto &message, const char *descriptorset_file, const char *mes
   expect(eq(gpb_result, *hpp_result));
 
   std::string serialized;
-  expect(!ser->json_to_proto(message_name, *hpp_result, serialized));
+  expect(ser->json_to_proto(message_name, *hpp_result, serialized).success());
   expect(eq(data, serialized));
 
   hpp_result = ser->proto_to_json<glz::opts{.prettify = true}>(message_name, data);
   expect(hpp_result.has_value() >> fatal);
-  expect(!ser->json_to_proto(message_name, *hpp_result, serialized));
+  expect(ser->json_to_proto(message_name, *hpp_result, serialized).success());
   expect(eq(data, serialized));
 }
 // NOLINTEND(bugprone-easily-swappable-parameters)
