@@ -16,6 +16,10 @@ if(CMAKE_BUILD_TYPE STREQUAL Debug AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_link_options(-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined)
 endif()
 
+if(MSVC)
+    add_compile_options(/bigobj)
+endif()
+
 add_library(Boost::ut INTERFACE IMPORTED)
 target_include_directories(Boost::ut INTERFACE ${ut_SOURCE_DIR}/include)
 target_compile_definitions(Boost::ut INTERFACE BOOST_UT_DISABLE_MODULE)
