@@ -213,7 +213,7 @@ template <typename Bytes>
 struct bytes_example {
   Bytes field0;
   std::optional<Bytes> field1;
-  hpp::proto::optional<Bytes, hpp::proto::cts_wrapper<"test">{}> field2;
+  hpp::proto::optional<Bytes, hpp::proto::string_literal<"test">{}> field2;
   Bytes field3;
   bool operator==(const bytes_example &other) const {
     auto equal_optional_range = [](const auto &lhs, const auto &rhs) {

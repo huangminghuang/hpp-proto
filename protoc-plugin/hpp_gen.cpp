@@ -224,6 +224,22 @@ std::size_t replace_all(std::string &inout, std::string_view what, std::string_v
   return count;
 }
 
+template <typename T>
+std::string to_hex(const T &data) {
+  static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+  std::string result;
+  result.resize(data.size() * 4);
+  int index = 0;
+  for (auto b : data) {
+    unsigned char c = static_cast<unsigned char>(b);
+    result[index++] = '\\';
+    result[index++] = 'x';
+    result[index++] = qmap[c >> 4];
+    result[index++] = qmap[c & '\x0F'];
+  }
+  return result;
+}
+
 struct hpp_addons {
 
   template <typename Derived>
@@ -333,13 +349,13 @@ struct hpp_addons {
             default_value = fmt::format("\"{}\"", escaped);
             // the reason to generate "hpp::proto::compile_time_string" here is instead of using ""_cts is
             // to avoid "using namespace hpp::proto::literals;" statement in global namespace space
-            default_value_template_arg = fmt::format("hpp::proto::cts_wrapper<\"{}\">{{}}", escaped);
+            default_value_template_arg = fmt::format("hpp::proto::string_literal<\"{}\">{{}}", escaped);
           }
         } else if (proto.type == TYPE_BYTES) {
           if (!proto.default_value.empty()) {
             std::string escaped = cpp_escape(proto.default_value);
             default_value = fmt::format("\"{}\"_cts", escaped);
-            default_value_template_arg = fmt::format("hpp::proto::cts_wrapper<\"{}\">{{}}", escaped);
+            default_value_template_arg = fmt::format("hpp::proto::string_literal<\"{}\">{{}}", escaped);
           }
         } else if (proto.type == TYPE_ENUM) {
           default_value = fmt::format("{}::{}", cpp_field_type, proto.default_value);
@@ -453,13 +469,23 @@ struct hpp_addons {
     std::vector<MessageD *> messages;
     std::vector<EnumD *> enums;
     std::vector<FieldD *> extensions;
+    std::vector<FileD *> dependencies;
+    std::vector<std::string> dependency_names;
+
     std::string syntax;
+    std::string cpp_namespace;
+    std::string cpp_name;
     explicit file_descriptor(const gpb::FileDescriptorProto &proto)
         : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax) {
 
       messages.reserve(proto.message_type.size());
       enums.reserve(proto.enum_type.size());
       extensions.reserve(proto.extension.size());
+      cpp_namespace = root_namespace + qualified_cpp_name(proto.package);
+      cpp_name = proto.name;
+      std::replace_if(
+          cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return !std::isalnum(c); }, '_');
+      cpp_name = resolve_keyword(cpp_name);
     }
     void add_enum(EnumD &e) { enums.push_back(&e); }
     void add_message(MessageD &m) {
@@ -467,6 +493,27 @@ struct hpp_addons {
       messages.push_back(&m);
     }
     void add_extension(FieldD &f) { extensions.push_back(&f); }
+
+    void resolve_dependencies(const hpp::proto::flat_map<std::string, FileD *> &map) {
+      auto &self = static_cast<FileD &>(*this);
+      dependencies.resize(self.proto.dependency.size());
+      std::transform(self.proto.dependency.begin(), self.proto.dependency.end(), dependencies.begin(),
+                     [&map](auto &dep) { return map.at(dep); });
+    }
+
+    const std::vector<std::string> &get_dependency_names() {
+      if (dependency_names.empty()) {
+        auto it = std::back_inserter(dependency_names);
+        for (auto *dep : dependencies) {
+          auto &names = dep->get_dependency_names();
+          std::copy(names.begin(), names.end(), it);
+        }
+        std::sort(dependency_names.begin(), dependency_names.end());
+        dependency_names.erase(std::unique(dependency_names.begin(), dependency_names.end()), dependency_names.end());
+        dependency_names.push_back(cpp_name);
+      }
+      return dependency_names;
+    }
   };
 };
 
@@ -692,7 +739,7 @@ struct msg_code_generator : code_generator {
       fmt::format_to(target, "#include <{}.msg.hpp>\n", basename(d));
     }
 
-    auto ns = root_namespace + qualified_cpp_name(descriptor.proto.package);
+    const auto &ns = descriptor.cpp_namespace;
     if (!ns.empty()) {
       fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
     }
@@ -1484,6 +1531,46 @@ struct glaze_meta_generator : code_generator {
   }
 };
 
+struct desc_hpp_generateor : code_generator {
+  using code_generator::code_generator;
+
+  void process(file_descriptor_t &descriptor) {
+    auto path = descriptor.proto.name;
+    file.name = path.substr(0, path.size() - 5) + "desc.hpp";
+
+    fmt::format_to(target, "#pragma once\n"
+                           "#include <hpp_proto/dynamic_serializer.h>\n\n");
+
+    for (const auto &d : descriptor.proto.dependency) {
+      fmt::format_to(target, "#include <{}.desc.hpp>\n", basename(d));
+    }
+
+    const auto ns = "hpp::proto::file_descriptors";
+    fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
+
+    std::vector<uint8_t> buf;
+    (void) hpp::proto::write_proto(descriptor.proto, buf);
+    
+    fmt::format_to(target,
+                   "using namespace std::literals::string_view_literals;\n"
+                   "constexpr file_descriptor_pb _desc_{}{{\"{}\"sv}};\n\n",
+                   descriptor.cpp_name, to_hex(buf));
+
+    fmt::format_to(target, "inline auto desc_set_{}(){{\n", descriptor.cpp_name);
+    auto &dependency_names = descriptor.get_dependency_names();
+    fmt::format_to(target, "  return std::array<file_descriptor_pb, {}> {{\n", dependency_names.size());
+    for (const auto &p : dependency_names) {
+      fmt::format_to(target, "    _desc_{},\n", p);
+    }
+
+    fmt::format_to(target,
+                   "  }};\n"
+                   "}}\n"
+                   "}} //{}\n",
+                   ns);
+  }
+};
+
 void mark_map_entries(hpp_gen_descriptor_pool &pool) {
   for (auto &f : pool.fields) {
     using enum google::protobuf::FieldDescriptorProto::Type;
@@ -1558,11 +1645,20 @@ int main(int argc, const char **argv) {
     proto2_explicit_presences.emplace_back(".");
   }
 
+  // remove all source info
+  for (auto& f : request.proto_file) {
+    f.source_code_info.reset();
+  }
+
   hpp_gen_descriptor_pool pool(request.proto_file);
   mark_map_entries(pool);
 
   gpb::compiler::CodeGeneratorResponse response;
   response.supported_features = (uint64_t)gpb::compiler::CodeGeneratorResponse::Feature::FEATURE_PROTO3_OPTIONAL;
+
+  for (auto &f : pool.files) {
+    f.resolve_dependencies(pool.file_map);
+  }
 
   for (const auto &file_name : request.file_to_generate) {
     auto itr = pool.file_map.find(file_name);
@@ -1578,6 +1674,11 @@ int main(int argc, const char **argv) {
 
     glaze_meta_generator glz_meta_code(response.file);
     glz_meta_code.process(descriptor);
+
+    if (descriptor.messages.size()) {
+      desc_hpp_generateor desc_hpp_code(response.file);
+      desc_hpp_code.process(descriptor);
+    }
   }
 
   std::vector<char> data;

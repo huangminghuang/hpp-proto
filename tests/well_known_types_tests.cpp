@@ -83,6 +83,8 @@ const ut::suite test_null_value = [] {
   verify<NullValue>(NullValue{}, "null");
 };
 
+#if !defined(_MSC_VER) || (_MSC_VER > 1937)
+
 const ut::suite test_value = [] {
   using namespace google::protobuf;
   verify<Value>(Value{.kind = NullValue{}}, R"(null)");
@@ -94,6 +96,8 @@ const ut::suite test_value = [] {
   verify<Value>(Value{.kind = Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}}}},
                 R"({"f1":true,"f2":1})");
 };
+
+#endif
 
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

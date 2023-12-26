@@ -630,10 +630,10 @@ struct string_with_default {
   bool operator==(const string_with_default &) const = default;
 };
 auto pb_meta(const string_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, &string_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_with_default::value, encoding_rule::defaulted, void, hpp::proto::string_literal<"test">{}>>;
 
 struct string_with_optional {
-  hpp::proto::optional<std::string, hpp::proto::cts_wrapper<"test">{}> value;
+  hpp::proto::optional<std::string, hpp::proto::string_literal<"test">{}> value;
   bool operator==(const string_with_optional &) const = default;
 };
 auto pb_meta(const string_with_optional &)
@@ -679,10 +679,10 @@ struct string_view_with_default {
   bool operator==(const string_view_with_default &) const = default;
 };
 auto pb_meta(const string_view_with_default &) -> std::tuple<
-    hpp::proto::field_meta<1, &string_view_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
+    hpp::proto::field_meta<1, &string_view_with_default::value, encoding_rule::defaulted, void, hpp::proto::string_literal<"test">{}>>;
 
 struct string_view_with_optional {
-  hpp::proto::optional<std::string_view, hpp::proto::cts_wrapper<"test">{}> value;
+  hpp::proto::optional<std::string_view, hpp::proto::string_literal<"test">{}> value;
   bool operator==(const string_view_with_optional &) const = default;
 };
 auto pb_meta(const string_view_with_optional &)
@@ -735,10 +735,10 @@ struct bytes_with_default {
 };
 
 auto pb_meta(const bytes_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, &bytes_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
+    -> std::tuple<hpp::proto::field_meta<1, &bytes_with_default::value, encoding_rule::defaulted, void, hpp::proto::string_literal<"test">{}>>;
 
 struct bytes_with_optional {
-  hpp::proto::optional<std::vector<std::byte>, hpp::proto::cts_wrapper<"test">{}> value;
+  hpp::proto::optional<std::vector<std::byte>, hpp::proto::string_literal<"test">{}> value;
   bool operator==(const bytes_with_optional &) const = default;
 };
 
@@ -792,10 +792,10 @@ struct char_vector_with_default {
 };
 
 auto pb_meta(const char_vector_with_default &) -> std::tuple<
-    hpp::proto::field_meta<1, &char_vector_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
+    hpp::proto::field_meta<1, &char_vector_with_default::value, encoding_rule::defaulted, void, hpp::proto::string_literal<"test">{}>>;
 
 struct char_vector_with_optional {
-  hpp::proto::optional<std::vector<char>, hpp::proto::cts_wrapper<"test">{}> value;
+  hpp::proto::optional<std::vector<char>, hpp::proto::string_literal<"test">{}> value;
   bool operator==(const char_vector_with_optional &) const = default;
 };
 
@@ -851,10 +851,10 @@ struct byte_span_with_default {
 };
 
 auto pb_meta(const byte_span_with_default &) -> std::tuple<
-    hpp::proto::field_meta<1, &byte_span_with_default::value, encoding_rule::defaulted, void, hpp::proto::cts_wrapper<"test">{}>>;
+    hpp::proto::field_meta<1, &byte_span_with_default::value, encoding_rule::defaulted, void, hpp::proto::string_literal<"test">{}>>;
 
 struct byte_span_with_optional {
-  hpp::proto::optional<std::span<const std::byte>, hpp::proto::cts_wrapper<"test">{}> value;
+  hpp::proto::optional<std::span<const std::byte>, hpp::proto::string_literal<"test">{}> value;
   bool operator==(const byte_span_with_optional &other) const {
     return (!value.has_value() && !other.value.has_value()) ||
            (value.has_value() && other.value.has_value() && std::ranges::equal(*value, *other.value));

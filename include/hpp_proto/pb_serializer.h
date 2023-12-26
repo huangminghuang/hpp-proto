@@ -108,7 +108,8 @@ concept variant = requires(Type variant) {
 };
 
 template <typename Type>
-concept string = std::same_as<Type, std::string> || std::same_as<Type, std::string_view>;
+concept string =
+    std::same_as<std::remove_cvref_t<Type>, std::string> || std::same_as<std::remove_cvref_t<Type>, std::string_view>;
 
 template <typename Type>
 concept has_local_meta = concepts::tuple<typename Type::pb_meta>;
@@ -938,24 +939,24 @@ struct pb_serializer {
     }
   }
 
-  template <std::size_t MAX_CACHE_COUNT = 128, concepts::contiguous_byte_range Buffer>
+  template <bool overwrite_buffer = true, std::size_t MAX_CACHE_COUNT = 128, concepts::contiguous_byte_range Buffer>
   constexpr static errc serialize(concepts::has_meta auto &&item, Buffer &buffer) {
     std::size_t n = cache_count(item);
 
     auto do_serialize = [&item, &buffer](std::span<uint32_t> cache) constexpr -> errc {
-      std::size_t sz = message_size(item, cache);
+      std::size_t msg_sz = message_size(item, cache);
+      std::size_t old_size = overwrite_buffer ? 0 : buffer.size();
+      std::size_t new_size = old_size + msg_sz;
       if constexpr (requires { buffer.resize(1); }) {
-        buffer.resize(sz);
-      } else {
-        if (sz < buffer.size()) {
-          return std::errc::not_enough_memory;
-        }
+        buffer.resize(new_size);
+      } else if (new_size < buffer.size()) {
+        return std::errc::not_enough_memory;
       }
       basic_out<typename std::remove_cvref_t<decltype(buffer)>::value_type> archive{buffer};
       auto cache_data = cache.data();
       serialize(item, cache_data, archive);
       if constexpr (requires { buffer.subspan(0, 1); }) {
-        buffer = buffer.subspan(0, sz);
+        buffer = buffer.subspan(old_size, msg_sz);
       }
       return {};
     };
@@ -1402,15 +1403,18 @@ struct pb_serializer {
       if constexpr (requires { growable.resize(1); }) {
         // packed repeated vector,
         std::size_t size = count_packed_elements<element_type>(static_cast<uint32_t>(length), archive);
-        growable.resize(size);
+        
 
         using serialize_type = std::conditional_t<std::is_enum_v<value_type> && !std::same_as<value_type, std::byte>,
                                                   vint64_t, element_type>;
 
         if constexpr (concepts::byte_serializable<serialize_type>) {
+          growable.resize(size);
           return archive(growable);
         } else {
-          for (auto &value : growable) {
+          std::size_t old_size = item.size();
+          growable.resize(old_size + size);
+          for (auto &value : std::span{growable.begin() + old_size, growable.end() }) {
             serialize_type underlying;
             if (auto result = archive(underlying); result.failure()) [[unlikely]] {
               return result;
@@ -1801,7 +1805,6 @@ struct pb_serializer {
   constexpr static errc deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer) {
     std::monostate context;
     basic_in<std::ranges::range_value_t<decltype(buffer)>> archive(buffer);
-    item = {};
     return deserialize(item, context, archive);
   }
 
@@ -1811,7 +1814,6 @@ struct pb_serializer {
       decltype(mr) memory_resource;
     } context{mr};
     basic_in<std::ranges::range_value_t<decltype(buffer)>> archive(buffer);
-    item = {};
     return deserialize(item, context, archive);
   }
 
@@ -1828,7 +1830,7 @@ struct pb_serializer {
 
   template <typename T>
   constexpr static auto from_bytes(auto &&buffer) {
-    T obj;
+    T obj = {};
     auto ec = deserialize(obj, buffer);
     if (ec.failure())
       throw std::system_error(std::make_error_code(ec));
@@ -1927,11 +1929,23 @@ template <typename T, typename Buffer>
 
 template <typename T, typename Buffer>
 [[nodiscard]] errc read_proto(T &msg, Buffer &&buffer) {
+  msg = {};
   return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer));
 }
 
 template <typename T, typename Buffer, concepts::memory_resource MemoryResource>
 [[nodiscard]] errc read_proto(T &msg, Buffer &&buffer, MemoryResource &mr) {
+  msg = {};
+  return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), mr);
+}
+
+template <typename T, typename Buffer>
+[[nodiscard]] errc merge_proto(T &msg, Buffer &&buffer) {
+  return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer));
+}
+
+template <typename T, typename Buffer, concepts::memory_resource MemoryResource>
+[[nodiscard]] errc merge_proto(T &msg, Buffer &&buffer, MemoryResource &mr) {
   return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), mr);
 }
 

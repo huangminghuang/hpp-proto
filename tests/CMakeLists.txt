@@ -150,8 +150,20 @@ add_test(NAME map_test
 
 set_property(TEST map_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
+
+add_library(any_test_lib INTERFACE ${protobuf_SOURCE_DIR}/src/google/protobuf/any_test.proto )
+target_include_directories(any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
+protobuf_generate(
+    TARGET any_test_lib
+    LANGUAGE hpp
+    IMPORT_DIRS ${protobuf_SOURCE_DIR}/src)
+
+gen_proto_descriptor_set(any_test.bin
+    IMPORT_DIRS ${protobuf_SOURCE_DIR}/src
+    PROTOS ${protobuf_SOURCE_DIR}/src/google/protobuf/any_test.proto)
+
 add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
-target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
+target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
 
 add_test(NAME dynamic_serializer_tests
     COMMAND dynamic_serializer_tests

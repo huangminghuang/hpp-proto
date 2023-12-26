@@ -14,6 +14,9 @@ template <typename T>
 using range_value_t = std::iter_value_t<decltype(std::begin(std::declval<T &>()))>;
 
 template <class T>
+using iterator_t = decltype(std::ranges::begin(std::declval<T &>()));
+
+template <class T>
 concept range = requires(T &t) {
   std::begin(t); // equality-preserving for forward iterators
   std::end(t);
@@ -27,6 +30,20 @@ concept contiguous_range = requires(T &t) {
   std::size(t);
 };
 
+template <class T>
+concept input_range = std::ranges::range<T> && std::input_iterator<std::ranges::iterator_t<T>>;
+
+} // namespace ranges
+} // namespace std
+#endif
+
+#if !defined(__cpp_lib_ranges_contains)
+namespace std {
+namespace ranges {
+template <std::ranges::input_range R, class T>
+constexpr bool contains(R &&r, const T &value) {
+  return std::find(std::begin(r), std::end(r), value) != std::end(r);
+}
 } // namespace ranges
 } // namespace std
 #endif

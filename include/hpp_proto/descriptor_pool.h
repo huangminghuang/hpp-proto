@@ -109,7 +109,7 @@ struct descriptor_pool {
     reserve(enum_map, counter.enums);
 
     for (auto &proto : proto_files) {
-      if (!proto.name.empty()) {
+      if (!proto.name.empty() && file_map.count(proto.name) == 0) {
         build(files.emplace_back(proto));
       }
     }
