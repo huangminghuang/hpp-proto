@@ -188,7 +188,7 @@ class dynamic_serializer {
 
   std::size_t message_index(std::string_view name) const {
     auto it = std::lower_bound(message_names.begin(), message_names.end(), name);
-    if (*it != name)
+    if (it == message_names.end() || *it != name)
       return message_names.size();
     return it - message_names.begin();
   }
@@ -211,6 +211,9 @@ class dynamic_serializer {
   std::size_t protobuf_timestamp_message_index = std::numeric_limits<std::size_t>::max();
   std::size_t protobuf_duration_message_index = std::numeric_limits<std::size_t>::max();
   std::size_t protobuf_field_mask_message_index = std::numeric_limits<std::size_t>::max();
+  std::size_t protobuf_value_message_index = std::numeric_limits<std::size_t>::max();
+  std::size_t protobuf_list_value_message_index = std::numeric_limits<std::size_t>::max();
+  std::size_t protobuf_struct_message_index = std::numeric_limits<std::size_t>::max();
   std::vector<std::size_t> protobuf_wrapper_type_message_indices;
 
   template <glz::opts Options, typename Buffer>
@@ -622,7 +625,7 @@ class dynamic_serializer {
 
     template <typename T>
     errc decode_wellknown_with_codec(concepts::is_basic_in auto &archive) {
-      wellknown::Duration v;
+      T v;
       if (auto ec = read_proto(v, archive.m_data); ec.failure()) [[unlikely]]
         return ec;
 
@@ -633,26 +636,75 @@ class dynamic_serializer {
       return {};
     }
 
+    errc decode_list_value(const dynamic_serializer::message_meta &msg_meta, concepts::is_basic_in auto &archive) {
+      std::vector<uint64_t> unpacked_repeated_positions(msg_meta.size());
+      while (!archive.empty()) {
+        vuint32_t tag;
+        if (auto ec = archive(tag); ec.failure()) [[unlikely]] {
+          return ec;
+        }
+        if (tag_number(tag) != 1 || tag_type(tag) != wire_type::length_delimited) [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        if (auto ec = decode_unpacked_repeated(0, msg_meta[0], unpacked_repeated_positions, archive); ec.failure())
+            [[unlikely]] {
+          return ec;
+        }
+      }
+      return {};
+    }
+
+    errc decode_struct_field(const dynamic_serializer::message_meta &msg_meta, uint32_t number,
+                             wire_type field_wire_type, char &separator, concepts::is_basic_in auto &archive) {
+      if (number != 1 || field_wire_type != wire_type::length_delimited) [[unlikely]] {
+        return std::errc::bad_message;
+      }
+
+      if (separator) {
+        // not the first field in a message, output the separator
+        glz::detail::dump<','>(b, ix);
+        if (Options.prettify) {
+          glz::detail::dump<'\n'>(b, ix);
+          glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+        }
+      }
+
+      if (auto ec = decode_field(msg_meta[0], true, archive); ec.failure()) [[unlikely]] {
+        return ec;
+      }
+
+      separator = ',';
+      return {};
+    }
+
+    errc decode_wrapper_type(const dynamic_serializer::message_meta &msg_meta, concepts::is_basic_in auto &archive) {
+      vuint32_t tag;
+      if (auto ec = archive(tag); ec.failure()) [[unlikely]] {
+        return ec;
+      }
+      if (tag_number(tag) != 1) [[unlikely]]
+        return std::errc::bad_message;
+      return decode_field(msg_meta[0], false, archive);
+    }
+
     errc decode_message(std::size_t msg_index, bool is_map_entry, concepts::is_basic_in auto &archive) {
+      const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
+
       if (msg_index == pb_meta.protobuf_duration_message_index) {
         return decode_wellknown_with_codec<wellknown::Duration>(archive);
       } else if (msg_index == pb_meta.protobuf_timestamp_message_index) {
         return decode_wellknown_with_codec<wellknown::Timestamp>(archive);
       } else if (msg_index == pb_meta.protobuf_field_mask_message_index) {
         return decode_wellknown_with_codec<wellknown::FieldMask>(archive);
+      } else if (msg_index == pb_meta.protobuf_list_value_message_index) {
+        return decode_list_value(msg_meta, archive);
       } else if (std::ranges::contains(pb_meta.protobuf_wrapper_type_message_indices, msg_index)) {
-        vuint32_t tag;
-        if (auto ec = archive(tag); ec.failure()) [[unlikely]] {
-          return ec;
-        }
-        if (tag_number(tag) != 1)
-          return std::errc::bad_message;
-        return decode_field(pb_meta.messages[msg_index][0], false, archive);
+        return decode_wrapper_type(msg_meta, archive);
       }
 
-      const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
+      const bool dump_brace = !is_map_entry && msg_index != pb_meta.protobuf_value_message_index;
 
-      if (!is_map_entry) {
+      if (dump_brace) {
         glz::detail::dump<'{'>(b, ix);
         if constexpr (Options.prettify) {
           context.indentation_level += Options.indentation_width;
@@ -677,16 +729,29 @@ class dynamic_serializer {
           }
           auto number = tag_number(tag);
           auto field_wire_type = tag_type(tag);
-
-          if (auto ec = decode_field(msg_meta, number, field_wire_type, unpacked_repeated_positions, field_index,
-                                     separator, is_map_entry, archive);
-              ec.failure()) [[unlikely]] {
-            return ec;
+          if (msg_index == pb_meta.protobuf_struct_message_index) {
+            if (auto ec = decode_struct_field(msg_meta, number, field_wire_type, separator, archive); ec.failure())
+                [[unlikely]] {
+              return ec;
+            }
+          } else if (msg_index != pb_meta.protobuf_value_message_index) {
+            if (auto ec = decode_field(msg_meta, number, field_wire_type, unpacked_repeated_positions, field_index,
+                                       separator, is_map_entry, archive);
+                ec.failure()) [[unlikely]] {
+              return ec;
+            }
+          } else {
+            if (circular_find(field_index, number, msg_meta)) {
+              auto &field_m = msg_meta[field_index];
+              if (auto ec = decode_field(field_m, false, archive); ec.failure()) [[unlikely]] {
+                return ec;
+              }
+            }
           }
         }
       }
 
-      if (!is_map_entry) {
+      if (dump_brace) {
         if constexpr (Options.prettify) {
           context.indentation_level -= Options.indentation_width;
           glz::detail::dump<'\n'>(b, ix);
@@ -926,7 +991,7 @@ class dynamic_serializer {
       if (enum_meta.empty()) {
         // this is google.protbuf.NullValue
         glz::detail::match<"null">(context, it, end);
-        archive(varint{0});
+        archive(make_tag(meta.number, wire_type::varint), varint{0});
         return {};
       }
 
@@ -1011,7 +1076,49 @@ class dynamic_serializer {
       if (bool(context.error)) {
         [[unlikely]] return std::errc::illegal_byte_sequence;
       }
-      return serialize_sized(archive, [&value](auto &archive) { return write_proto(value, archive.buffer); });
+      if (auto ec = append_proto(value, archive.buffer); ec.failure())
+        return ec;
+      archive.position = archive.buffer.size();
+      return {};
+    }
+
+    template <auto Options>
+    errc encode_value(const dynamic_serializer::message_meta &meta, auto &&it, auto &&end, auto &archive) {
+      if constexpr (!Options.ws_handled) {
+        glz::detail::skip_ws<Options>(context, it, end);
+        if (bool(context.error)) {
+          [[unlikely]] return std::errc::illegal_byte_sequence;
+        }
+      }
+      enum value_kind { kind_null, kind_number, kind_string, kind_bool, kind_struct, kind_list };
+
+      static constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Options>()>();
+
+      switch (static_cast<char>(*it)) {
+      case 'n':
+        return encode_field<Opts>(meta[kind_null], it, end, archive);
+      case 'f':
+      case 't':
+        return encode_field<Opts>(meta[kind_bool], it, end, archive);
+      case '"':
+        return encode_field<Opts>(meta[kind_string], it, end, archive);
+      case '{': {
+        archive(make_tag(meta[kind_struct].number, wire_type::length_delimited));
+        const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[pb_meta.protobuf_struct_message_index];
+        return serialize_sized(archive, [&](auto &archive) {
+          auto meta = msg_meta[0];
+          return this->encode_message<Options>(meta.type_index, it, end, meta.is_map_entry, archive);
+        });
+      }
+      case '[': {
+        archive(make_tag(meta[kind_list].number, wire_type::length_delimited));
+        const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[pb_meta.protobuf_list_value_message_index];
+        return serialize_sized(archive,
+                               [&](auto &archive) { return encode_repeated<Opts>(msg_meta[0], it, end, archive); });
+      }
+      default:
+        return encode_field<Opts>(meta[kind_number], it, end, archive);
+      }
     }
 
     template <auto Options>
@@ -1023,12 +1130,11 @@ class dynamic_serializer {
         return encode_wellknown_with_codec<Options, wellknown::Timestamp>(it, end, archive);
       } else if (msg_index == pb_meta.protobuf_field_mask_message_index) {
         return encode_wellknown_with_codec<Options, wellknown::FieldMask>(it, end, archive);
+      } else if (msg_index == pb_meta.protobuf_value_message_index) {
+        return this->encode_value<Options>(pb_meta.messages[msg_index], it, end, archive);
       } else if (std::ranges::contains(pb_meta.protobuf_wrapper_type_message_indices, msg_index)) {
         auto &meta = pb_meta.messages[msg_index][0];
-        archive(make_tag(1, wire_type::length_delimited));
-        return serialize_sized(archive, [this, index = meta.type_index, &it, &end](auto &archive) {
-          return this->encode_message<Options>(index, it, end, false, archive);
-        });
+        return this->encode_field<Options>(meta, it, end, archive);
       }
 
       const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
@@ -1157,20 +1263,22 @@ public:
   dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
     descriptor_pool<proto_json_addons> pool(set.file);
 
-    enums.reserve(pool.enums.size());
-    const auto &enum_descriptors = pool.enum_map.values();
-    std::transform(enum_descriptors.begin(), enum_descriptors.end(), std::back_inserter(enums),
-                   [](const auto descriptor) {
-                     dynamic_serializer::enum_meta m;
-                     if (descriptor->proto.name != "google.protobuf.NullValue") {
+    if (pool.enum_map.size() != 1 || pool.enum_map.begin()->first != ".google.protobuf.NullValue") {
+      enums.reserve(pool.enums.size());
+      const auto &enum_descriptors = pool.enum_map.values();
+      std::transform(enum_descriptors.begin(), enum_descriptors.end(), std::back_inserter(enums),
+                     [](const auto descriptor) {
+                       dynamic_serializer::enum_meta m;
                        const auto values = descriptor->proto.value;
                        m.reserve(values.size());
                        std::transform(values.begin(), values.end(), std::back_inserter(m), [](auto &v) {
                          return dynamic_serializer::enum_value_meta{v.number, v.name};
                        });
-                     }
-                     return m;
-                   });
+                       return m;
+                     });
+    } else {
+      enums.push_back(dynamic_serializer::enum_meta{});
+    }
 
     messages.reserve(pool.messages.size());
     const auto &message_descriptors = pool.message_map.values();
@@ -1195,12 +1303,14 @@ public:
     protobuf_timestamp_message_index = message_index("google.protobuf.Timestamp");
     protobuf_duration_message_index = message_index("google.protobuf.Duration");
     protobuf_field_mask_message_index = message_index("google.protobuf.FieldMask");
+    protobuf_value_message_index = message_index("google.protobuf.Value");
+    protobuf_list_value_message_index = message_index("google.protobuf.ListValue");
+    protobuf_struct_message_index = message_index("google.protobuf.Struct");
 
-    std::array well_known_wrapper_types {
+    std::array well_known_wrapper_types{
         "google.protobuf.DoubleValue", "google.protobuf.FloatValue",  "google.protobuf.Int64Value",
         "google.protobuf.UInt64Value", "google.protobuf.Int32Value",  "google.protobuf.UInt32Value",
-        "google.protobuf.BoolValue",   "google.protobuf.StringValue", "google.protobuf.BytesValue",
-        "google.protobuf.ListValue",   "google.protobuf.Struct"};
+        "google.protobuf.BoolValue",   "google.protobuf.StringValue", "google.protobuf.BytesValue"};
 
     protobuf_wrapper_type_message_indices.resize(well_known_wrapper_types.size());
     std::transform(std::begin(well_known_wrapper_types), std::end(well_known_wrapper_types),

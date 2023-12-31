@@ -31,6 +31,7 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <system_error>
 
 #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
@@ -748,8 +749,13 @@ struct pb_serializer {
 
   constexpr static std::size_t cache_count(concepts::has_meta auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
-    return std::apply([&item](auto &&...meta) constexpr { return (cache_count(meta, meta.access(item)) + ...); },
-                      typename traits::meta_of<type>::type{});
+    using meta_type = typename traits::meta_of<type>::type;
+    if constexpr (std::tuple_size_v<meta_type> == 0) {
+      return 0;
+    } else {
+      return std::apply([&item](auto &&...meta) constexpr { return (cache_count(meta, meta.access(item)) + ...); },
+                        meta_type{});
+    }
   }
 
   template <typename Meta>
@@ -1403,7 +1409,6 @@ struct pb_serializer {
       if constexpr (requires { growable.resize(1); }) {
         // packed repeated vector,
         std::size_t size = count_packed_elements<element_type>(static_cast<uint32_t>(length), archive);
-        
 
         using serialize_type = std::conditional_t<std::is_enum_v<value_type> && !std::same_as<value_type, std::byte>,
                                                   vint64_t, element_type>;
@@ -1414,7 +1419,7 @@ struct pb_serializer {
         } else {
           std::size_t old_size = item.size();
           growable.resize(old_size + size);
-          for (auto &value : std::span{growable.begin() + old_size, growable.end() }) {
+          for (auto &value : std::span{growable.begin() + old_size, growable.end()}) {
             serialize_type underlying;
             if (auto result = archive(underlying); result.failure()) [[unlikely]] {
               return result;
@@ -1925,6 +1930,12 @@ inline errc extension_meta_base<ExtensionMeta>::write(concepts::pb_extension aut
 template <typename T, typename Buffer>
 [[nodiscard]] errc write_proto(T &&msg, Buffer &buffer) {
   return pb_serializer::serialize(std::forward<T>(msg), buffer);
+}
+
+template <typename T, typename Buffer>
+[[nodiscard]] errc append_proto(T &&msg, Buffer &buffer) {
+  constexpr bool overwrite_buffer = false;
+  return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer);
 }
 
 template <typename T, typename Buffer>
