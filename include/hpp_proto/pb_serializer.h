@@ -1927,35 +1927,37 @@ inline errc extension_meta_base<ExtensionMeta>::write(concepts::pb_extension aut
   return {};
 }
 
-template <typename T, typename Buffer>
+template <typename T, concepts::contiguous_output_byte_range Buffer>
 [[nodiscard]] errc write_proto(T &&msg, Buffer &buffer) {
   return pb_serializer::serialize(std::forward<T>(msg), buffer);
 }
 
-template <typename T, typename Buffer>
+/// @brief serialize a message to the end of the supplied buffer
+template <typename T, concepts::resizable_contiguous_byte_container Buffer>
 [[nodiscard]] errc append_proto(T &&msg, Buffer &buffer) {
   constexpr bool overwrite_buffer = false;
   return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer);
 }
 
-template <typename T, typename Buffer>
+template <typename T, concepts::contiguous_byte_range Buffer>
 [[nodiscard]] errc read_proto(T &msg, Buffer &&buffer) {
   msg = {};
   return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer));
 }
 
-template <typename T, typename Buffer, concepts::memory_resource MemoryResource>
+template <typename T, concepts::contiguous_byte_range Buffer, concepts::memory_resource MemoryResource>
 [[nodiscard]] errc read_proto(T &msg, Buffer &&buffer, MemoryResource &mr) {
   msg = {};
   return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), mr);
 }
 
-template <typename T, typename Buffer>
+/// @brief  deserialize from the buffer and merge the content with the existing msg 
+template <typename T, concepts::contiguous_byte_range Buffer>
 [[nodiscard]] errc merge_proto(T &msg, Buffer &&buffer) {
   return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer));
 }
 
-template <typename T, typename Buffer, concepts::memory_resource MemoryResource>
+template <typename T, concepts::contiguous_byte_range Buffer, concepts::memory_resource MemoryResource>
 [[nodiscard]] errc merge_proto(T &msg, Buffer &&buffer, MemoryResource &mr) {
   return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), mr);
 }

@@ -33,6 +33,9 @@ concept contiguous_range = requires(T &t) {
 template <class T>
 concept input_range = std::ranges::range<T> && std::input_iterator<std::ranges::iterator_t<T>>;
 
+template <class R, class T>
+concept output_range = std::ranges::range<R> && std::output_iterator<std::ranges::iterator_t<R>, T>;
+
 } // namespace ranges
 } // namespace std
 #endif
@@ -63,6 +66,14 @@ concept has_memory_resource = requires(T &object) {
 
 template <typename T>
 concept contiguous_byte_range = byte_type<typename std::ranges::range_value_t<T>> && std::ranges::contiguous_range<T>;
+
+template <typename T>
+concept contiguous_output_byte_range = contiguous_byte_range<T> && std::ranges::output_range<T, typename std::ranges::range_value_t<T>>;
+
+template <typename T>
+concept resizable_contiguous_byte_container = contiguous_byte_range<T> && requires (T& v) {
+  v.resize(0);
+};
 
 } // namespace concepts
 

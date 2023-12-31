@@ -6,6 +6,7 @@ namespace ut = boost::ut;
 using hpp::proto::encoding_rule;
 using namespace boost::ut::literals;
 using namespace hpp::proto::literals;
+using namespace std::string_view_literals;
 
 #define carg(...) ([]() constexpr -> decltype(auto) { return __VA_ARGS__; })
 
@@ -48,7 +49,7 @@ auto pb_meta(const example_default_type &) -> std::tuple<
 
 const ut::suite test_example_default_type = [] {
   example_default_type const v;
-  std::vector<std::byte> data;
+  std::vector<char> data;
   ut::expect(hpp::proto::write_proto(v, data).success());
   ut::expect(data.empty());
 };
@@ -75,7 +76,7 @@ void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encod
     return;
   }
 
-  std::vector<std::byte> new_data;
+  std::vector<char> new_data;
   ut::expect(hpp::proto::write_proto(value, new_data).success());
 
   ut::expect(std::ranges::equal(encoded_data, new_data));
@@ -108,22 +109,22 @@ auto pb_meta(const repeated_integers_unpacked_explicit_type &)
 
 const ut::suite test_repeated_integers = [] {
   "repeated_integers"_test = [] {
-    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_view,
+    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv,
            repeated_integers{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
   };
 
   "repeated_integers_unpacked"_test = [] {
-    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_view,
+    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
            repeated_integers_unpacked{{1, 2, 3, 4, 0, -1, -2, -3, -4}});
   };
 
   "repeated_integers_unpacked_decode"_test = [] {
-    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_view,
+    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
            repeated_integers{{1, 2, 3, 4, 0, -1, -2, -3, -4}}, decode_only);
   };
 
   "repeated_integers_unpacked_explicit_type"_test = [] {
-    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_view,
+    verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
            repeated_integers_unpacked_explicit_type{{1, 2, 3, 4, 0, -1, -2, -3, -4}});
   };
 };
@@ -172,7 +173,7 @@ void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory
     return;
   }
 
-  std::vector<std::byte> new_data{};
+  std::vector<char> new_data{};
   ut::expect(hpp::proto::write_proto(value, new_data).success());
 
   ut::expect(std::ranges::equal(encoded_data, new_data));
@@ -181,24 +182,24 @@ void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory
 const ut::suite test_non_owning_repeated_integers = [] {
   "non_owning_repeated_integers"_test = [] {
     std::array x{0, 1, 2, 3, 4, -1, -2, -3, -4};
-    verify_non_owning("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_view, non_owning_repeated_integers{x}, 64);
+    verify_non_owning("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, non_owning_repeated_integers{x}, 64);
   };
 
   "non_owning_repeated_integers_unpacked"_test = [] {
     std::array<hpp::proto::vsint32_t, 9> x{1, 2, 3, 4, 0, -1, -2, -3, -4};
-    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_view,
+    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
                       non_owning_repeated_integers_unpacked{x}, 64);
   };
 
   "non_owning_repeated_integers_unpacked_decode"_test = [] {
     std::array x{1, 2, 3, 4, 0, -1, -2, -3, -4};
-    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_view,
+    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
                       non_owning_repeated_integers{x}, 64, decode_only);
   };
 
   "non_owning_repeated_integers_unpacked_explicit_type"_test = [] {
     std::array x{1, 2, 3, 4, 0, -1, -2, -3, -4};
-    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"_bytes_view,
+    verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
                       non_owning_repeated_integers_unpacked_explicit_type{x}, 64);
   };
 };
@@ -216,7 +217,7 @@ auto pb_meta(const non_owing_nested_example &)
 
 const ut::suite test_non_owning_nested_example = [] {
   example const ex{.i = 150};
-  verify_non_owning("\x0a\x03\x08\x96\x01"_bytes_view, non_owing_nested_example{.nested = &ex}, 16);
+  verify_non_owning("\x0a\x03\x08\x96\x01"sv, non_owing_nested_example{.nested = &ex}, 16);
 };
 
 struct repeated_fixed {
@@ -254,37 +255,37 @@ auto pb_meta(const repeated_fixed_unpacked_explicit_type &)
 const ut::suite test_repeated_fixed = [] {
   "repeated_fixed"_test = [] {
     verify(
-        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         repeated_fixed{{1, 2, 3}});
   };
 
   "repeated_fixed_explicit_type"_test = [] {
     verify(
-        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         repeated_fixed_explicit_type{{1, 2, 3}});
   };
 
   "repeated_fixed_unpacked"_test = [] {
     verify(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         repeated_fixed_unpacked{{1, 2, 3}});
   };
 
   "repeated_fixed_unpacked_decode"_test = [] {
     verify(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         repeated_fixed{{1, 2, 3}}, decode_only);
   };
 
   "repeated_fixed_unpacked_explicit_type_decode"_test = [] {
     verify(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         repeated_fixed_explicit_type{{1, 2, 3}}, decode_only);
   };
 
   "repeated_fixed_unpacked_explicit_type"_test = [] {
     verify(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         repeated_fixed_unpacked_explicit_type{{1, 2, 3}});
   };
 };
@@ -331,42 +332,42 @@ const ut::suite test_non_owning_repeated_fixed = [] {
   "non_owning_repeated_fixed"_test = [] {
     std::array<uint64_t, 3> x{1, 2, 3};
     verify_non_owning(
-        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         non_owning_repeated_fixed{x}, 32);
   };
 
   "non_owning_repeated_fixed_explicit_type"_test = [] {
     std::array<uint64_t, 3> x{1, 2, 3};
     verify_non_owning(
-        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         non_owning_repeated_fixed_explicit_type{x}, 32);
   };
 
   "non_owning_repeated_fixed_unpacked"_test = [] {
     std::array<uint64_t, 3> x{1, 2, 3};
     verify_non_owning(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         non_owning_repeated_fixed_unpacked{x}, 32);
   };
 
   "non_owning_repeated_fixed_unpacked_decode"_test = [] {
     std::array<uint64_t, 3> x{1, 2, 3};
     verify_non_owning(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         non_owning_repeated_fixed{x}, 32, decode_only);
   };
 
   "non_owning_repeated_fixed_unpacked_explicit_type_decode"_test = [] {
     std::array<uint64_t, 3> x{1, 2, 3};
     verify_non_owning(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         non_owning_repeated_fixed_explicit_type{x}, 32, decode_only);
   };
 
   "non_owning_repeated_fixed_unpacked_explicit_type"_test = [] {
     std::array<uint64_t, 3> x{1, 2, 3};
     verify_non_owning(
-        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"_bytes_view,
+        "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
         non_owning_repeated_fixed_unpacked_explicit_type{x}, 32);
   };
 };
@@ -388,10 +389,10 @@ auto pb_meta(const repeated_bool_unpacked &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_bool_unpacked::booleans, encoding_rule::unpacked_repeated, bool>>;
 
 const ut::suite test_repeated_bool = [] {
-  "repeated_bool"_test = [] { verify("\x0a\x03\x01\x00\x01"_bytes_view, repeated_bool{{true, false, true}}); };
+  "repeated_bool"_test = [] { verify("\x0a\x03\x01\x00\x01"sv, repeated_bool{{true, false, true}}); };
 
   "repeated_bool_unpacked"_test = [] {
-    verify("\x08\x01\x08\x00\x08\x01"_bytes_view, repeated_bool_unpacked{{true, false, true}});
+    verify("\x08\x01\x08\x00\x08\x01"sv, repeated_bool_unpacked{{true, false, true}});
   };
 };
 
@@ -416,12 +417,12 @@ auto pb_meta(const non_owning_repeated_bool_unpacked &) -> std::tuple<
 const ut::suite test_non_owning_repeated_bool = [] {
   "non_owning_repeated_bool"_test = [] {
     std::array x{true, false, true};
-    verify_non_owning("\x0a\x03\x01\x00\x01"_bytes_view, non_owning_repeated_bool{x}, 8);
+    verify_non_owning("\x0a\x03\x01\x00\x01"sv, non_owning_repeated_bool{x}, 8);
   };
 
   "non_owning_repeated_bool_unpacked"_test = [] {
     std::array x{true, false, true};
-    verify_non_owning("\x08\x01\x08\x00\x08\x01"_bytes_view, non_owning_repeated_bool_unpacked{x}, 8);
+    verify_non_owning("\x08\x01\x08\x00\x08\x01"sv, non_owning_repeated_bool_unpacked{x}, 8);
   };
 };
 
@@ -446,13 +447,13 @@ auto pb_meta(const repeated_enum_unpacked &)
 const ut::suite test_repeated_enums = [] {
   "repeated_enum"_test = [] {
     using enum repeated_enum::NestedEnum;
-    verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view,
+    verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
            repeated_enum{{FOO, BAR, BAZ, NEG}});
   };
 
   "repeated_enum_unpacked"_test = [] {
     using enum repeated_enum_unpacked::NestedEnum;
-    verify("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view,
+    verify("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
            repeated_enum_unpacked{{FOO, BAR, BAZ, NEG}});
   };
 };
@@ -481,14 +482,14 @@ const ut::suite test_non_owning_repeated_enums = [] {
   "non_owning_repeated_enum"_test = [] {
     using enum non_owning_repeated_enum::NestedEnum;
     std::array<non_owning_repeated_enum::NestedEnum, 4> x{FOO, BAR, BAZ, NEG};
-    verify_non_owning("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view,
+    verify_non_owning("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
                       non_owning_repeated_enum{x}, 64);
   };
 
   "non_owning_repeated_enum_unpacked"_test = [] {
     using enum non_owning_repeated_enum_unpacked::NestedEnum;
     std::array<non_owning_repeated_enum_unpacked::NestedEnum, 4> x{FOO, BAR, BAZ, NEG};
-    verify_non_owning("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view,
+    verify_non_owning("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
                       non_owning_repeated_enum_unpacked{x}, 32);
   };
 };
@@ -514,7 +515,7 @@ auto pb_meta(const non_owning_repeated_examples &)
 const ut::suite test_repeated_example = [] {
   auto encoded = "\x0a\x02\x08\x01\x0a\x02\x08\x02\x0a\x02\x08\x03\x0a\x02\x08\x04\x0a\x0b\x08\xff\xff\xff\xff\xff\xff"
                  "\xff\xff\xff\x01\x0a\x0b\x08\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x01\x0a\x0b\x08\xfd\xff\xff\xff\xff"
-                 "\xff\xff\xff\xff\x01\x0a\x0b\x08\xfc\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view;
+                 "\xff\xff\xff\xff\x01\x0a\x0b\x08\xfc\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv;
 
   "repeated_example"_test = [&] {
     repeated_examples const expected{.examples = {{1}, {2}, {3}, {4}, {-1}, {-2}, {-3}, {-4}}};
@@ -546,7 +547,7 @@ auto pb_meta(const repeated_group &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_group::repeatedgroup, encoding_rule::group>>;
 
 const ut::suite test_repeated_group = [] {
-  auto encoded = "\x0b\x10\x01\x0c\x0b\x10\x02\x0c"_bytes_view;
+  auto encoded = "\x0b\x10\x01\x0c\x0b\x10\x02\x0c"sv;
 
   "repeated_group"_test = [&] {
     const repeated_group expected{.repeatedgroup = {{1}, {2}}};
@@ -593,7 +594,7 @@ auto pb_meta(const non_owning_map_example &)
                                          hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
 
 const ut::suite test_map_example = [] {
-  auto encoded = "\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"_bytes_view;
+  auto encoded = "\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"sv;
 
   "map_example"_test = [&] {
     verify(encoded, map_example{{{1, color_t::red}, {2, color_t::blue}, {3, color_t::green}}});
@@ -640,16 +641,16 @@ auto pb_meta(const string_with_optional &)
     -> std::tuple<hpp::proto::field_meta<1, &string_with_optional::value, encoding_rule::explicit_presence>>;
 
 const ut::suite test_string_example = [] {
-  "string_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_example{.value = "test"}); };
+  "string_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, string_example{.value = "test"}); };
 
-  "string_with_default_empty"_test = [] { verify(""_bytes_view, string_with_default{}); };
+  "string_with_default_empty"_test = [] { verify(""sv, string_with_default{}); };
 
   "string_with_default"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_with_default{.value = "test"}, decode_only);
+    verify("\x0a\x04\x74\x65\x73\x74"sv, string_with_default{.value = "test"}, decode_only);
   };
 
   "string_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_with_optional{.value = "test"});
+    verify("\x0a\x04\x74\x65\x73\x74"sv, string_with_optional{.value = "test"});
   };
 
   "optional_value_access"_test = [] {
@@ -690,21 +691,21 @@ auto pb_meta(const string_view_with_optional &)
 
 const ut::suite test_string_view_example = [] {
   "string_view_example"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_example{.value = "test"});
+    verify("\x0a\x04\x74\x65\x73\x74"sv, string_view_example{.value = "test"});
   };
 
   "string_view_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_explicit_presence{.value = "test"});
+    verify("\x0a\x04\x74\x65\x73\x74"sv, string_view_explicit_presence{.value = "test"});
   };
 
-  "string_view_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, string_view_with_default{}); };
+  "string_view_with_default_empty"_test = [] { verify(""sv, string_view_with_default{}); };
 
   "string_view_with_default"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_with_default{.value = "test"}, decode_only);
+    verify("\x0a\x04\x74\x65\x73\x74"sv, string_view_with_default{.value = "test"}, decode_only);
   };
 
   "string_view_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, string_view_with_optional{.value = "test"});
+    verify("\x0a\x04\x74\x65\x73\x74"sv, string_view_with_optional{.value = "test"});
   };
 
   "optional_value_access"_test = [] {
@@ -748,20 +749,20 @@ auto pb_meta(const bytes_with_optional &)
 const ut::suite test_bytes = [] {
   const static auto verified_value = "\x74\x65\x73\x74"_bytes;
 
-  "bytes_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, bytes_example{.value = verified_value}); };
+  "bytes_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_example{.value = verified_value}); };
 
   "bytes_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, bytes_explicit_presence{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_explicit_presence{.value = verified_value});
   };
 
-  "bytes_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, bytes_with_default{}); };
+  "bytes_with_default_empty"_test = [] { verify(""sv, bytes_with_default{}); };
 
   "bytes_with_default"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, bytes_with_default{.value = verified_value}, decode_only);
+    verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_with_default{.value = verified_value}, decode_only);
   };
 
   "bytes_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, bytes_with_optional{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_with_optional{.value = verified_value});
   };
 
   "optional_value_access"_test = [] {
@@ -806,21 +807,21 @@ const ut::suite test_char_vector = [] {
   const static auto verified_value = std::vector<char>{'t', 'e', '\0', 't'};
 
   "char_vector_example"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"_bytes_view, char_vector_example{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x00\x74"sv, char_vector_example{.value = verified_value});
   };
 
   "char_vector_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"_bytes_view, char_vector_explicit_presence{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x00\x74"sv, char_vector_explicit_presence{.value = verified_value});
   };
 
-  "char_vector_with_default_empty"_test = [] { verify(std::array<std::byte, 0>{}, char_vector_with_default{}); };
+  "char_vector_with_default_empty"_test = [] { verify(""sv, char_vector_with_default{}); };
 
   "char_vector_with_default"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"_bytes_view, char_vector_with_default{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x00\x74"sv, char_vector_with_default{.value = verified_value});
   };
 
   "char_vector_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"_bytes_view, char_vector_with_optional{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x00\x74"sv, char_vector_with_optional{.value = verified_value});
   };
 
   "optional_value_access"_test = [] {
@@ -868,16 +869,16 @@ const ut::suite test_byte_span = [] {
   static const std::byte verified_value[] = {std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
 
   "byte_span_example"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, byte_span_example{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x73\x74"sv, byte_span_example{.value = verified_value});
   };
 
   "byte_span_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, byte_span_explicit_presence{.value = verified_value});
+    verify("\x0a\x04\x74\x65\x73\x74"sv, byte_span_explicit_presence{.value = verified_value});
   };
 
-  "byte_span_with_default_empty"_test = [] { verify(""_bytes_view, byte_span_with_default{}); };
+  "byte_span_with_default_empty"_test = [] { verify(""sv, byte_span_with_default{}); };
 
-  "byte_span_with_optional_empty"_test = [] { verify(""_bytes_view, byte_span_with_optional{}); };
+  "byte_span_with_optional_empty"_test = [] { verify(""sv, byte_span_with_optional{}); };
 };
 
 struct repeated_strings {
@@ -908,17 +909,17 @@ using namespace std::literals;
 
 const ut::suite test_repeated_strings = [] {
   "repeated_strings"_test = [] {
-    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view, repeated_strings{.values = {"abc"s, "def"s}});
+    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv, repeated_strings{.values = {"abc"s, "def"s}});
   };
   "repeated_strings_explicit_type"_test = [] {
-    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view,
+    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv,
            repeated_strings_explicit_type{.values = {"abc"s, "def"s}});
   };
 
   "non_owning_repeated_string"_test = [] {
     std::string_view storage[] = {"abc"sv, "def"sv};
 
-    verify_non_owning("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"_bytes_view,
+    verify_non_owning("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv,
                       non_owning_repeated_string{.values = storage}, 32);
   };
 };
@@ -935,16 +936,16 @@ auto pb_meta(const optional_bools &) -> std::tuple<
 
 const ut::suite test_optional_bools = [] {
   "empty_optional_bools"_test = [] {
-    std::vector<std::byte> const data;
+    std::vector<char> const data;
     verify(data, optional_bools{});
   };
 
   "optional_bools_all_true"_test = [] {
-    verify("\x08\x01\x10\x01"_bytes_view, optional_bools{.false_defaulted = true, .true_defaulted = true});
+    verify("\x08\x01\x10\x01"sv, optional_bools{.false_defaulted = true, .true_defaulted = true});
   };
 
   "optional_bools_all_false"_test = [] {
-    verify("\x08\x00\x10\x00"_bytes_view, optional_bools{.false_defaulted = false, .true_defaulted = false});
+    verify("\x08\x00\x10\x00"sv, optional_bools{.false_defaulted = false, .true_defaulted = false});
   };
 };
 
@@ -959,14 +960,14 @@ auto pb_meta(const oneof_example &) -> std::tuple<
                                  hpp::proto::field_meta<3, 3, encoding_rule::explicit_presence>>>;
 
 const ut::suite test_oneof = [] {
-  "empty_oneof_example"_test = [] { verify(std::array<std::byte, 0>{}, oneof_example{}); };
+  "empty_oneof_example"_test = [] { verify(""sv, oneof_example{}); };
 
-  "string_oneof_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"_bytes_view, oneof_example{.value = "test"}); };
+  "string_oneof_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, oneof_example{.value = "test"}); };
 
-  "integer_oneof_example_5"_test = [] { verify("\x10\x05"_bytes_view, oneof_example{.value = 5}); };
-  "integer_oneof_example_0"_test = [] { verify("\x10\x00"_bytes_view, oneof_example{.value = 0}); };
+  "integer_oneof_example_5"_test = [] { verify("\x10\x05"sv, oneof_example{.value = 5}); };
+  "integer_oneof_example_0"_test = [] { verify("\x10\x00"sv, oneof_example{.value = 0}); };
 
-  "enum_oneof_example"_test = [] { verify("\x18\x02"_bytes_view, oneof_example{.value = color_t::green}); };
+  "enum_oneof_example"_test = [] { verify("\x18\x02"sv, oneof_example{.value = color_t::green}); };
 };
 
 struct extension_example {
@@ -1041,7 +1042,7 @@ constexpr auto repeated_packed_i32_ext() {
 const ut::suite test_extensions = [] {
   "get_extension"_test = [] {
     auto encoded_data =
-        "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"_bytes_view;
+        "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;
     const extension_example expected_value{
         .int_value = 150,
         .extensions = {.fields = {{10U, "\x50\x01"_bytes},
@@ -1091,7 +1092,7 @@ const ut::suite test_extensions = [] {
       ut::expect(v == std::vector<int32_t>{1, 2, 3});
     }
 
-    std::vector<std::byte> new_data{};
+    std::vector<char> new_data{};
     ut::expect(hpp::proto::write_proto(value, new_data).success());
 
     ut::expect(std::ranges::equal(encoded_data, new_data));
@@ -1204,7 +1205,7 @@ constexpr auto non_owning_repeated_packed_i32_ext() {
 const ut::suite test_non_owning_extensions = [] {
   "get_non_owning_extension"_test = [] {
     auto encoded_data =
-        "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"_bytes_view;
+        "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;
 
     std::array<std::pair<uint32_t, std::span<const std::byte>>, 6> fields_storage = {
         {{10U, "\x50\x01"_bytes_view},
@@ -1259,7 +1260,7 @@ const ut::suite test_non_owning_extensions = [] {
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<uint32_t>{1, 2, 3}));
     }
 
-    std::vector<std::byte> new_data{};
+    std::vector<char> new_data{};
     ut::expect(hpp::proto::write_proto(value, new_data).success());
 
     ut::expect(std::ranges::equal(encoded_data, new_data));
@@ -1365,7 +1366,7 @@ const ut::suite recursive_types = [] {
     recursive_type1 value;
     value.child = child;
     value.payload = 1;
-    verify("\x0a\x02\x10\x02\x10\x01"_bytes_view, value);
+    verify("\x0a\x02\x10\x02\x10\x01"sv, value);
   };
   "recursive_type2"_test = [] {
     recursive_type2 child;
@@ -1374,14 +1375,14 @@ const ut::suite recursive_types = [] {
     value.children.push_back(child);
     value.payload = 1;
 
-    verify("\x0a\x02\x10\x02\x10\x01"_bytes_view, value);
+    verify("\x0a\x02\x10\x02\x10\x01"sv, value);
   };
 
   "non_owning_recursive_type1"_test = [] {
     non_owning_recursive_type1 child{nullptr, 2};
     non_owning_recursive_type1 const value{&child, 1};
 
-    verify_non_owning("\x0a\x02\x10\x02\x10\x01"_bytes_view, value, 64);
+    verify_non_owning("\x0a\x02\x10\x02\x10\x01"sv, value, 64);
   };
 
   "non_owning_recursive_type2"_test = [] {
@@ -1391,7 +1392,7 @@ const ut::suite recursive_types = [] {
     value.children = child;
     value.payload = 1;
 
-    verify_non_owning("\x0a\x02\x10\x02\x10\x01"_bytes_view, value, 64);
+    verify_non_owning("\x0a\x02\x10\x02\x10\x01"sv, value, 64);
   };
 };
 // NOLINTEND(misc-no-recursion)
@@ -1457,7 +1458,7 @@ const ut::suite test_monster = [] {
                      .path = {monster::vec3{2.0, 3.0, 4.0}, monster::vec3{5.0, 6.0, 7.0}},
                      .boss = true};
 
-  std::vector<std::byte> data;
+  std::vector<char> data;
   ut::expect(hpp::proto::write_proto(m, data).success());
   monster m2;
   ut::expect(hpp::proto::read_proto(m2, data).success());
@@ -1524,7 +1525,7 @@ const ut::suite test_monster_with_optional = [] {
                              .boss = true};
 
   {
-    std::vector<std::byte> data;
+    std::vector<char> data;
     ut::expect(hpp::proto::write_proto(m, data).success());
     monster_with_optional m2;
     ut::expect(hpp::proto::read_proto(m2, data).success());
@@ -1544,7 +1545,7 @@ const ut::suite test_monster_with_optional = [] {
 
   m.equipped.reset();
   {
-    std::vector<std::byte> data;
+    std::vector<char> data;
     ut::expect(hpp::proto::write_proto(m, data).success());
     monster_with_optional m2;
     ut::expect(hpp::proto::read_proto(m2, data).success());
@@ -1585,7 +1586,7 @@ struct address_book {
 
 const ut::suite test_person = [] {
   constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
-                        "555-4321\x10\x01"_bytes_view;
+                        "555-4321\x10\x01"sv;
   static_assert(data.size() == 45);
 
   person p;
@@ -1601,7 +1602,7 @@ const ut::suite test_person = [] {
   ut::expect(p.phones[0].number == "555-4321"sv);
   ut::expect(that % p.phones[0].type == person::home);
 
-  std::array<std::byte, data.size()> new_data{};
+  std::array<char, data.size()> new_data{};
   ut::expect(hpp::proto::write_proto(p, new_data).success());
 
   ut::expect(std::ranges::equal(data, new_data));
@@ -1612,7 +1613,7 @@ const ut::suite test_address_book = [] {
                         "555-4321\x10\x01\n>\n\nJohn Doe "
                         "2\x10\xd3\t\x1a\x11jdoe2@example.com\"\x0c\n\x08"
                         "555-4322\x10\x01\"\x0c\n\x08"
-                        "555-4323\x10\x02"_bytes_view;
+                        "555-4323\x10\x02"sv;
 
   static_assert(data.size() == 111);
 
@@ -1638,7 +1639,7 @@ const ut::suite test_address_book = [] {
   expect(b.people[1].phones[1].number == "555-4323"sv);
   expect(b.people[1].phones[1].type == person::work);
 
-  std::array<std::byte, data.size()> new_data{};
+  std::array<char, data.size()> new_data{};
   expect(hpp::proto::write_proto(b, new_data).success());
   expect(std::ranges::equal(data, new_data));
 };
@@ -1665,7 +1666,7 @@ struct person_map {
 
 const ut::suite test_person_map = [] {
   constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
-                        "555-4321\x10\x01"_bytes_view;
+                        "555-4321\x10\x01"sv;
   static_assert(data.size() == 45);
 
   using namespace std::literals::string_view_literals;
@@ -1681,14 +1682,14 @@ const ut::suite test_person_map = [] {
   expect((p.phones.contains("555-4321")) >> fatal);
   expect(that % p.phones["555-4321"] == person_map::home);
 
-  std::array<std::byte, data.size()> new_data{};
+  std::array<char, data.size()> new_data{};
   expect(hpp::proto::write_proto(p, new_data).success());
 
   expect(std::ranges::equal(data, new_data));
 };
 
 const ut::suite test_default_person_in_address_book = [] {
-  constexpr auto data = "\n\x00"_bytes_view;
+  constexpr auto data = "\n\x00"sv;
 
   using namespace std::literals::string_view_literals;
   using namespace boost::ut;
@@ -1702,14 +1703,14 @@ const ut::suite test_default_person_in_address_book = [] {
   expect(b.people[0].email == ""sv);
   expect(b.people[0].phones.size() == 0_u);
 
-  std::array<std::byte, "\x0a\x00"_bytes_view.size()> new_data{};
+  std::array<char, "\x0a\x00"sv.size()> new_data{};
   expect(hpp::proto::write_proto(b, new_data).success());
 
-  expect(std::ranges::equal(new_data, "\x0a\x00"_bytes_view));
+  expect(std::ranges::equal(new_data, "\x0a\x00"sv));
 };
 
 const ut::suite test_empty_address_book = [] {
-  constexpr auto data = ""_bytes_view;
+  constexpr auto data = ""sv;
 
   using namespace boost::ut;
 
@@ -1718,13 +1719,13 @@ const ut::suite test_empty_address_book = [] {
 
   expect(b.people.size() == 0_u);
 
-  std::vector<std::byte> new_data{};
+  std::vector<char> new_data{};
   expect(hpp::proto::write_proto(b, new_data).success());
   expect(new_data.empty());
 };
 
 const ut::suite test_empty_person = [] {
-  constexpr auto data = ""_bytes_view;
+  constexpr auto data = ""sv;
   using namespace std::literals::string_view_literals;
   using namespace boost::ut;
 
@@ -1737,44 +1738,20 @@ const ut::suite test_empty_person = [] {
   expect(p.email == ""sv);
   expect(p.phones.size() == 0_u);
 
-  std::vector<std::byte> new_data{};
+  std::vector<char> new_data{};
   expect(hpp::proto::write_proto(p, new_data).success());
   expect(new_data.empty());
 };
 
-#if 0
-void verify_unknown_fields(auto encoded_data, auto expected_value) {
-  decltype(expected_value) value;
-  hpp::proto::in in{encoded_data};
-  ut::expect(success(in(value)));
-  ut::expect(value == expected_value);
-  ut::expect(in.has_unknown_fields());
-}
-
-const ut::suite test_decode_unknown_field = [] {
-  "string_example_varint_unknown"_test = [] {
-    verify_unknown_fields("\x18\x02\x0a\x04\x74\x65\x73\x74"_bytes_view, string_example{.value = "test"});
-  };
-
-  "string_example_i64_unknown"_test = [] {
-    verify_unknown_fields("\x19\x01\x02\x03\x04\x05\x06\x07\x08\x0a\x04\x74\x65\x73\x74"_bytes_view,
-                          string_example{.value = "test"});
-  };
-
-  "string_example_length_delimited_unknown"_test = [] {
-    verify_unknown_fields("\x1a\x02\x02\x03\x0a\x04\x74\x65\x73\x74"_bytes_view, string_example{.value = "test"});
-  };
-
-  "string_example_i32_unknown"_test = [] {
-    verify_unknown_fields("\x1d\x01\x02\x03\x04\x0a\x04\x74\x65\x73\x74"_bytes_view, string_example{.value = "test"});
-  };
-
-  "string_example_invalid_wire_type"_test = [] {
-    string_example value;
-    ut::expect(!!hpp::proto::read_proto(value, "\x1c\x02\x0a\x04\x74\x65\x73\x74"_bytes_view));
-  };
-};
-#endif
+const ut::suite test_write_to_non_resizable_buffer =  [] {
+  using namespace boost::ut;
+  char buf[8];
+  std::span<char> s{buf};
+  expect(s.size() == 8);
+  example msg{150};
+  expect(hpp::proto::write_proto(msg, s).success());
+  expect(std::ranges::equal("\x08\x96\x01"sv, s));
+} ;
 
 int main() {
 #if !defined( _MSC_VER) || ( defined(__clang_major__) && (__clang_major__ > 14))
