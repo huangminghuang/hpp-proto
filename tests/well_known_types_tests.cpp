@@ -35,7 +35,7 @@ void verify(const T &msg, std::string_view json, const hpp::proto::dynamic_seria
 
   T msg2;
 
-  expect((!hpp::proto::read_json(msg2, json)) >> fatal) << from_line_number;
+  expect((hpp::proto::read_json(msg2, json).success()) >> fatal) << from_line_number;
   expect(msg == msg2);
 
   if constexpr (requires { hpp::proto::message_name(msg); }) {
@@ -67,13 +67,13 @@ const ut::suite test_timestamp = [] {
   verify<timestamp_t>(timestamp_t{.seconds = 1000, .nanos = 20}, R"("1970-01-01T00:16:40.000000020Z")", *ser);
 
   timestamp_t msg;
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2Z")"));
+  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2Z")").success());
   ut::expect(msg == timestamp_t{.seconds = 1000, .nanos = 200000000});
 
-  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2xZ")"));
-  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")"));
-  ut::expect(hpp::proto::read_json(msg, R"("197-01-01T00:16:40")"));
-  ut::expect(hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")"));
+  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2xZ")").failure());
+  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")").failure());
+  ut::expect(hpp::proto::read_json(msg, R"("197-01-01T00:16:40")").failure());
+  ut::expect(hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").failure());
 
   ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
 };
@@ -89,17 +89,17 @@ const ut::suite test_duration = [] {
   verify<duration_t>(duration_t{.seconds = -1000, .nanos = -20}, R"("-1000.000000020s")", *ser);
 
   duration_t msg;
-  ut::expect(!hpp::proto::read_json(msg, R"("1000.2s")"));
+  ut::expect(hpp::proto::read_json(msg, R"("1000.2s")").success());
   ut::expect(msg == duration_t{.seconds = 1000, .nanos = 200000000});
 
-  ut::expect(!hpp::proto::read_json(msg, R"("-1000.2s")"));
+  ut::expect(hpp::proto::read_json(msg, R"("-1000.2s")").success());
   ut::expect(msg == duration_t{.seconds = -1000, .nanos = -200000000});
 
-  ut::expect(hpp::proto::read_json(msg, R"("1000")"));
-  ut::expect(hpp::proto::read_json(msg, R"("1000.2xs")"));
-  ut::expect(hpp::proto::read_json(msg, R"("-1000.-10000000s")"));
-  ut::expect(hpp::proto::read_json(msg, R"("-1000. 10000000s")"));
-  ut::expect(hpp::proto::read_json(msg, R"("1000.0000000000000000s")"));
+  ut::expect(hpp::proto::read_json(msg, R"("1000")").failure());
+  ut::expect(hpp::proto::read_json(msg, R"("1000.2xs")").failure());
+  ut::expect(hpp::proto::read_json(msg, R"("-1000.-10000000s")").failure());
+  ut::expect(hpp::proto::read_json(msg, R"("-1000. 10000000s")").failure());
+  ut::expect(hpp::proto::read_json(msg, R"("1000.0000000000000000s")").failure());
 
   ut::expect(!hpp::proto::write_json(duration_t{.seconds = 1000, .nanos = 1000000000}).has_value());
 };

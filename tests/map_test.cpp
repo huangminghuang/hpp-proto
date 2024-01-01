@@ -36,7 +36,7 @@ const boost::ut::suite map_test = [] {
     expect(hpp::proto::write_json(original).value() == original_json);
 
     protobuf_unittest::TestMap msg;
-    expect(!hpp::proto::read_json(msg, original_json));
+    expect(hpp::proto::read_json(msg, original_json).success());
 
     ExpectMapFieldsSet(msg);
   };

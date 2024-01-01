@@ -35,19 +35,18 @@ concept jsonfy_need_quote = integral_64_bits<T> || map_with_integral_64_bits_map
 
 template <typename T>
 concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
-  { v.memory_resource } -> concepts::memory_resource;
+  { v.memory_resource() } -> concepts::memory_resource;
 };
 
 } // namespace concepts
 
-template <concepts::memory_resource MemoryResource>
-struct non_owning_context {
+template <typename ...AuxContext>
+struct json_serializer_context : aux_contexts<AuxContext...>{
   uint32_t indentation_level{};
   std::string current_file; // top level file path
   glz::error_code error{};
-  MemoryResource &memory_resource;
 
-  non_owning_context(MemoryResource &memory_resource) : memory_resource(memory_resource) {}
+  json_serializer_context(AuxContext& ...ctx) : aux_contexts<AuxContext...>(ctx...) {}
 };
 
 template <typename T, auto Default = std::monostate{}>
@@ -299,7 +298,7 @@ struct from_json<T> {
     }
 
     using codec = typename hpp::proto::json_codec<T>::type;
-    if (!codec::decode(encoded, hpp::proto::detail::make_growable(ctx, value))) {
+    if (!codec::decode(encoded, hpp::proto::make_growable(ctx, value))) {
       ctx.error = error_code::syntax_error;
       return;
     }
@@ -442,7 +441,7 @@ struct from_json<std::span<Type>> {
   template <auto Options>
   GLZ_ALWAYS_INLINE static void op(std::span<Type> &value, hpp::proto::concepts::is_non_owning_context auto &&ctx,
                                    auto &&it, auto &&end) {
-    hpp::proto::detail::growable_span growable{value, ctx.memory_resource};
+    hpp::proto::detail::growable_span growable{value, ctx.memory_resource()};
     if constexpr (hpp::proto::concepts::byte_type<Type>) {
       from_json<hpp::proto::use_base64>::template op<Options>(growable, ctx, it, end);
     } else {
@@ -599,7 +598,7 @@ struct from_json<T *> {
       }
       value = nullptr;
     } else {
-      void *addr = ctx.memory_resource.allocate(sizeof(type), alignof(type));
+      void *addr = ctx.memory_resource().allocate(sizeof(type), alignof(type));
       type *obj = new (addr) type;
       read<json>::op<Opts>(*obj, ctx, it, end);
       value = obj;
@@ -611,41 +610,47 @@ struct from_json<T *> {
 
 namespace hpp::proto {
 
-[[nodiscard]] inline std::string format_error(const glz::parse_error &pe, const auto &buffer) {
-  return glz::format_error(pe, buffer);
-}
-struct write_error final {
+struct read_json_error final {
+  glz::parse_error pe;
+  bool failure() const { return static_cast<bool>(pe); }
+  bool success() const { return !failure(); }
+  std::string message(const auto &buffer) const { return glz::format_error(pe, buffer); }
+};
+
+struct write_json_error final {
   const char *error_message_name = nullptr;
-  operator bool() const { return error_message_name != nullptr; }
+  bool failure() const { return error_message_name != nullptr; }
+  bool success() const { return !failure(); }
+  const char *message() const { return error_message_name; }
 };
 
 template <auto Opts, typename T, typename Buffer, glz::is_context Context>
-[[nodiscard]] inline glz::parse_error read_json(T &value, Buffer &&buffer, Context &&ctx) {
+[[nodiscard]] inline read_json_error read_json(T &value, Buffer &&buffer, Context &&ctx) {
 
   using buffer_type = std::remove_cvref_t<Buffer>;
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<Buffer> ||
                     std::same_as<Context, glz::context>,
                 "temporary buffer cannot be used for non-owning object parsing");
-  return glz::read<Opts>(value, buffer, ctx);
+  return { glz::read<Opts>(value, buffer, ctx) };
 }
 
 template <auto Opts, class T, typename Buffer, concepts::memory_resource MemoryResource>
-[[nodiscard]] inline glz::parse_error read_json(T &value, Buffer &&buffer, MemoryResource &mr) {
-  return read_json<Opts>(value, std::forward<Buffer>(buffer), non_owning_context<MemoryResource>{mr});
+[[nodiscard]] inline read_json_error read_json(T &value, Buffer &&buffer, MemoryResource &mr) {
+  return read_json<Opts>(value, std::forward<Buffer>(buffer), json_serializer_context{mr});
 }
 
 template <class T, typename Buffer, concepts::memory_resource MemoryResource>
-[[nodiscard]] inline glz::parse_error read_json(T &value, Buffer &&buffer, MemoryResource &mr) {
-  return read_json<glz::opts{}>(value, std::forward<Buffer>(buffer), non_owning_context<MemoryResource>{mr});
+[[nodiscard]] inline read_json_error read_json(T &value, Buffer &&buffer, MemoryResource &mr) {
+  return read_json<glz::opts{}>(value, std::forward<Buffer>(buffer), json_serializer_context{mr});
 }
 
 template <auto Opts, class T>
-[[nodiscard]] inline glz::parse_error read_json(T &value, std::string_view buffer) {
+[[nodiscard]] inline read_json_error read_json(T &value, std::string_view buffer) {
   return read_json<Opts>(value, buffer, glz::context{});
 }
 
 template <class T>
-[[nodiscard]] inline glz::parse_error read_json(T &value, std::string_view buffer) {
+[[nodiscard]] inline read_json_error read_json(T &value, std::string_view buffer) {
   return read_json<glz::opts{}>(value, buffer, glz::context{});
 }
 
@@ -657,25 +662,25 @@ struct write_context {
 };
 
 template <auto Opts, class T, class Buffer>
-inline write_error write_json(T &&value, Buffer &&buffer) noexcept {
+inline write_json_error write_json(T &&value, Buffer &&buffer) noexcept {
   write_context ctx;
   glz::write<Opts>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
   if (ctx.error != glz::error_code::none)
-    return write_error{ctx.error_message_name};
+    return write_json_error{ctx.error_message_name};
   return {};
 }
 
 template <class T, class Buffer>
-inline write_error write_json(T &&value, Buffer &&buffer) noexcept {
+inline write_json_error write_json(T &&value, Buffer &&buffer) noexcept {
   write_context ctx;
   glz::write<glz::opts{}>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
   if (ctx.error != glz::error_code::none)
-    return write_error{ctx.error_message_name ? ctx.error_message_name : "unknown message"};
+    return write_json_error{ctx.error_message_name ? ctx.error_message_name : "unknown message"};
   return {};
 }
 
 template <auto Opts, class T>
-[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, write_error> {
+[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, write_json_error> {
   std::string buffer{};
   auto ec = write_json<Opts>(std::forward<T>(value), buffer);
   if (ec)
@@ -684,10 +689,9 @@ template <auto Opts, class T>
 }
 
 template <class T>
-[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, write_error> {
+[[nodiscard]] inline auto write_json(T &&value) noexcept -> expected<std::string, write_json_error> {
   std::string buffer{};
-  auto ec = write_json(std::forward<T>(value), buffer);
-  if (ec)
+  if (auto ec = write_json(std::forward<T>(value), buffer); ec.failure())
     return unexpected(ec);
   return buffer;
 }

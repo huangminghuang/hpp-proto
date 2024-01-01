@@ -978,7 +978,7 @@ struct extension_example {
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions, std::monostate{}); }
+  [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions); }
 
   template <typename Meta>
   [[nodiscard]] hpp::proto::errc set_extension(Meta meta, typename Meta::set_value_type &&value) {
@@ -1135,7 +1135,7 @@ struct non_owning_extension_example {
     }
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions, std::monostate{}); }
+  [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions); }
 
   [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::memory_resource auto &mr) {
     return meta.read(extensions, mr);

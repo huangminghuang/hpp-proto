@@ -64,7 +64,7 @@ const boost::ut::suite proto3_lite_test = [] {
     expect(hpp::proto::write_json(original).value() == original_json);
 
     proto3_unittest::TestAllTypes msg;
-    expect(!hpp::proto::read_json(msg, original_json));
+    expect(hpp::proto::read_json(msg, original_json).success());
 
     ExpectAllFieldsSet(msg);
   };

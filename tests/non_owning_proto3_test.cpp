@@ -192,7 +192,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     expect(hpp::proto::write_json(original).value() == original_json);
 
     proto3_unittest::TestAllTypes msg;
-    expect(!hpp::proto::read_json(msg, original_json, mr));
+    expect(hpp::proto::read_json(msg, original_json, mr).success());
 
     ExpectAllFieldsSet(msg);
   };

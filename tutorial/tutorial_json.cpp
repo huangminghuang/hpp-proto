@@ -13,17 +13,15 @@ int main() {
                   .phones = {{.number = "22222222", .type = tutorial::Person::PhoneType::HOME}}}}};
 
   std::string json;
-  auto we = hpp::proto::write_json(address_book, json);
 
-  if (we) {
+  if (auto we = hpp::proto::write_json(address_book, json); we.failure()) {
     std::cerr << "write json error\n";
     return 1;
   }
 
   tutorial::AddressBook new_book;
-  auto pe = hpp::proto::read_json(new_book, json);
-  if (pe) {
-    std::cerr << "read json error: " << glz::format_error(pe,json) << "\n";
+  if (auto pe = hpp::proto::read_json(new_book, json); pe.failure()) {
+    std::cerr << "read json error: " << pe.message(json) << "\n";
     return 1;
   }
 

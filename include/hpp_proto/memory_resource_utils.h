@@ -60,36 +60,86 @@ concept memory_resource = requires(T &object) {
 
 template <typename T>
 concept has_memory_resource = requires(T &object) {
-  object.memory_resource;
-  requires memory_resource<std::remove_cvref_t<decltype(object.memory_resource)>>;
+  object.memory_resource();
+  requires memory_resource<std::remove_cvref_t<decltype(object.memory_resource())>>;
 };
 
 template <typename T>
 concept contiguous_byte_range = byte_type<typename std::ranges::range_value_t<T>> && std::ranges::contiguous_range<T>;
 
 template <typename T>
-concept contiguous_output_byte_range = contiguous_byte_range<T> && std::ranges::output_range<T, typename std::ranges::range_value_t<T>>;
+concept contiguous_output_byte_range =
+    contiguous_byte_range<T> && std::ranges::output_range<T, typename std::ranges::range_value_t<T>>;
 
 template <typename T>
-concept resizable_contiguous_byte_container = contiguous_byte_range<T> && requires (T& v) {
-  v.resize(0);
-};
+concept resizable_contiguous_byte_container = contiguous_byte_range<T> && requires(T &v) { v.resize(0); };
+
+template <typename T>
+concept is_aux_contexts = requires { typename T::is_aux_contexts; };
 
 } // namespace concepts
+
+template <typename... T>
+struct aux_contexts : std::reference_wrapper<T>... {
+  using is_aux_contexts = void;
+  constexpr aux_contexts(T &...ctx) : std::reference_wrapper<T>(ctx)... {}
+
+  template <typename U>
+  U &get() const {
+    return static_cast<const std::reference_wrapper<U> &>(*this).get();
+  }
+
+  template <typename U, typename... Rest>
+  auto &get_memory_resource() const {
+    if constexpr (concepts::memory_resource<U>) {
+      return this->template get<U>();
+    } else {
+      return this->get_memory_resource<Rest...>();
+    }
+  }
+
+  template <typename U, typename... Rest>
+  constexpr static bool has_memory_resource_impl() {
+    if constexpr (concepts::memory_resource<U>) {
+      return true;
+    } else if constexpr (sizeof...(Rest) > 0) {
+      return has_memory_resource_impl<Rest...>();
+    } else {
+      return false;
+    }
+  }
+
+  template <typename... U>
+  constexpr static bool has_memory_resource() {
+    if constexpr (sizeof...(U) > 0) {
+      return has_memory_resource_impl<U...>();
+    } else {
+      return false;
+    }
+  }
+
+  auto &memory_resource() const
+    requires(has_memory_resource<T...>())
+  {
+    return get_memory_resource<T...>();
+  }
+};
 
 namespace detail {
 
 template <typename Base, concepts::memory_resource MemoryResource>
 class growable_span {
+  MemoryResource &mr;
+
 public:
   using value_type = typename Base::value_type;
-  MemoryResource &memory_resource;
+  MemoryResource &memory_resource() { return mr; }
 
-  growable_span(Base &base, MemoryResource &mr) : memory_resource(mr), base_(base) {}
+  growable_span(Base &base, MemoryResource &mr) : mr(mr), base_(base) {}
 
   void resize(std::size_t n) {
     if (data_ == nullptr || n > base_.size()) {
-      data_ = static_cast<value_type *>(memory_resource.allocate(n * sizeof(value_type), alignof(value_type)));
+      data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       assert(data_ != nullptr);
       std::uninitialized_copy(base_.begin(), base_.end(), data_);
 
@@ -126,30 +176,29 @@ private:
   Base &base_;
   value_type *data_ = nullptr;
 };
+} // namespace detail
 
 template <typename T>
 constexpr auto make_growable(concepts::has_memory_resource auto &&context, std::span<T> &base) {
-  return growable_span{base, context.memory_resource};
+  return detail::growable_span{base, context.memory_resource()};
 }
 
 constexpr auto make_growable(concepts::has_memory_resource auto &&context, std::string_view &base) {
-  return growable_span{base, context.memory_resource};
+  return detail::growable_span{base, context.memory_resource};
 }
 
 template <typename T>
 constexpr auto make_growable(concepts::memory_resource auto &mr, std::span<T> &base) {
-  return growable_span{base, mr};
+  return detail::growable_span{base, mr};
 }
 
 constexpr auto make_growable(concepts::memory_resource auto &mr, std::string_view &base) {
-  return growable_span{base, mr};
+  return detail::growable_span{base, mr};
 }
 
 template <typename T>
 constexpr T &make_growable(auto && /* unused */, T &base) {
   return base;
 }
-
-} // namespace detail
 
 } // namespace hpp::proto

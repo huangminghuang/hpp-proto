@@ -54,7 +54,7 @@ const ut::suite proto_test = [] {
         expect(eq(generated_json.value(), original_json));
 
         T msg;
-        expect(!hpp::proto::read_json(msg, original_json));
+        expect(hpp::proto::read_json(msg, original_json).success());
 
         TestUtil::ExpectAllSet(msg);
       } |
