@@ -955,7 +955,7 @@ struct pb_serializer {
       std::size_t new_size = old_size + msg_sz;
       if constexpr (requires { buffer.resize(1); }) {
         buffer.resize(new_size);
-      } else if (new_size < buffer.size()) {
+      } else if (new_size > buffer.size()) {
         return std::errc::not_enough_memory;
       }
       basic_out<typename std::remove_cvref_t<decltype(buffer)>::value_type> archive{buffer};

@@ -200,7 +200,7 @@ void verify(const T &msg, std::string_view json, const source_location& from_loc
   T msg2;
 
   if constexpr (!non_owning<T>) {
-    expect((!hpp::proto::read_json(msg2, json).success()) >> fatal) << from_line_number;;
+    expect((hpp::proto::read_json(msg2, json).success()) >> fatal) << from_line_number;;
     expect(msg == msg2);
   } else {
     monotonic_buffer_resource mr{1024};
