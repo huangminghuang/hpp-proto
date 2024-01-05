@@ -1419,7 +1419,7 @@ struct pb_serializer {
         } else {
           std::size_t old_size = item.size();
           growable.resize(old_size + size);
-          for (auto &value : std::span<value_type>{growable.begin() + old_size, size}) {
+          for (auto &value : std::span<value_type>{growable.data() + old_size, size}) {
             serialize_type underlying;
             if (auto result = archive(underlying); result.failure()) [[unlikely]] {
               return result;
