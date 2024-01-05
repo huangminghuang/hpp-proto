@@ -14,9 +14,6 @@ template <typename T>
 using range_value_t = std::iter_value_t<decltype(std::begin(std::declval<T &>()))>;
 
 template <class T>
-using iterator_t = decltype(std::ranges::begin(std::declval<T &>()));
-
-template <class T>
 concept range = requires(T &t) {
   std::begin(t); // equality-preserving for forward iterators
   std::end(t);

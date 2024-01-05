@@ -14,15 +14,15 @@ int main() {
 
   std::vector<std::byte> buffer;
 
-  if (auto ec = hpp::proto::write_proto(address_book, buffer); ec) {
-    std::cerr << "protobuf serialization failed: " << ec.message() << "\n";
+  if (auto ec = hpp::proto::write_proto(address_book, buffer); ec.failure()) {
+    std::cerr << "protobuf serialization failed\n";
     return 1;
   }
 
   tutorial::AddressBook new_address_book;
 
-  if (auto ec = hpp::proto::read_proto(new_address_book, buffer); ec) {
-    std::cerr << "protobuf deserialization failed: " << ec.message() << "\n";
+  if (auto ec = hpp::proto::read_proto(new_address_book, buffer); ec.failure()) {
+    std::cerr << "protobuf deserialization failed\n";
     return 1;
   }
 

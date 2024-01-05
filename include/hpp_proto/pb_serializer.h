@@ -840,7 +840,7 @@ struct pb_serializer {
     return std::apply(
         [&item, &cache](auto &&...meta) constexpr {
           std::size_t sum = 0;
-          auto sum_field_size = [&sum](auto &&...args) constexpr {
+          [[maybe_unused]] auto sum_field_size = [&sum](auto &&...args) constexpr {
             sum += field_size(std::forward<decltype(args)>(args)...);
           };
           // we cannot directly use fold expression with '+' operator because it has undefined evaluation order.
