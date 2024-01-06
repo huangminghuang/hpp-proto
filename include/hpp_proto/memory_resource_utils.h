@@ -33,6 +33,16 @@ concept input_range = std::ranges::range<T> && std::input_iterator<std::ranges::
 template <class R, class T>
 concept output_range = std::ranges::range<R> && std::output_iterator<std::ranges::iterator_t<R>, T>;
 
+template <typename Range1, typename Range2>
+constexpr bool equal(Range1 &&r1, Range2 &&r2) {
+  return std::equal(std::begin(r1), std::end(r1), std::begin(r2), std::end(r2));
+}
+
+template <typename RG1, typename RG2, typename BinaryPredicate>
+constexpr bool equal(RG1 &&r1, RG2 &&r2, BinaryPredicate p) {
+  return std::equal(std::begin(r1), std::end(r1), std::begin(r2), std::end(r2), p);
+}
+
 } // namespace ranges
 } // namespace std
 #endif

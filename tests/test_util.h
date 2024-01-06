@@ -90,20 +90,3 @@ template <typename RG1, typename RG2, typename BinaryPredicate>
 bool ranges_equal(RG1 &&r1, RG2 &&r2, BinaryPredicate p) {
   return std::equal(r1.begin(), r1.end(), r2.begin(), r2.end(), p);
 }
-
-
-#if !defined(__cpp_lib_ranges)
-namespace std {
-namespace ranges {
-template <typename Range1, typename Range2>
-constexpr bool equal(Range1 &&r1, Range2 &&r2) {
-  return std::equal(std::begin(r1), std::end(r1), std::begin(r2), std::end(r2));
-}
-
-template <typename RG1, typename RG2, typename BinaryPredicate>
-constexpr bool equal(RG1 &&r1, RG2 &&r2, BinaryPredicate p) {
-  return std::equal(std::begin(r1), std::end(r1), std::begin(r2), std::end(r2), p);
-}
-} // namespace ranges
-} // namespace std
-#endif
