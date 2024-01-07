@@ -631,6 +631,7 @@ template <auto Opts, typename T, typename Buffer, glz::is_context Context>
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<Buffer> ||
                     std::same_as<Context, glz::context>,
                 "temporary buffer cannot be used for non-owning object parsing");
+  value = {};
   return { glz::read<Opts>(value, buffer, ctx) };
 }
 
