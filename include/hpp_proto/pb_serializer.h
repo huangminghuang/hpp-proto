@@ -38,7 +38,9 @@
 
 namespace hpp {
 namespace proto {
-
+/////////////////////////////////////////////////////////////////
+// varint code is based on https://github.com/eyalz800/zpp_bits
+/////////////////////////////////////////////////////////////////
 enum class varint_encoding {
   normal,
   zig_zag,
@@ -79,6 +81,7 @@ inline constexpr auto varint_size(auto value) {
            (CHAR_BIT - 1);
   }
 }
+/////////////////////////////////////////////////////
 
 namespace concepts {
 
@@ -86,20 +89,11 @@ template <typename Type>
 concept varint = requires { requires std::same_as<Type, varint<typename Type::value_type, Type::encoding>>; };
 
 template <typename Type>
-concept container = requires(Type container) {
-  typename std::remove_cvref_t<Type>::value_type;
-  container.size();
-  container.begin();
-  container.end();
-};
-
-template <typename Type>
 concept associative_container =
-    container<Type> && requires(Type container) { typename std::remove_cvref_t<Type>::key_type; };
+    std::ranges::range<Type> && requires(Type container) { typename std::remove_cvref_t<Type>::key_type; };
 
 template <typename Type>
-concept tuple = !container<Type> && requires(Type tuple) { sizeof(std::tuple_size<std::remove_cvref_t<Type>>); } &&
-                !requires(Type tuple) { tuple.index(); };
+concept tuple = !std::ranges::range<Type> && requires(Type tuple) { sizeof(std::tuple_size<std::remove_cvref_t<Type>>); };
 
 template <typename Type>
 concept variant = requires(Type variant) {
@@ -773,10 +767,10 @@ struct pb_serializer {
       return cache_count(meta, *item);
     } else if constexpr (concepts::has_meta<type>) {
       return cache_count(item) + (meta.encoding != encoding_rule::group);
-    } else if constexpr (concepts::container<type>) {
+    } else if constexpr (std::ranges::input_range<type>) {
       if (item.empty())
         return 0;
-      using value_type = typename type::value_type;
+      using value_type = typename std::ranges::range_value_t<type>;
       if constexpr (concepts::has_meta<value_type> || Meta::encoding == encoding_rule::unpacked_repeated ||
                     Meta::encoding == encoding_rule::group) {
         return transform_accumulate(item, [](const auto &elem) constexpr { return cache_count(Meta{}, elem); });
@@ -889,10 +883,10 @@ struct pb_serializer {
         } else {
           return 2 * tag_size + message_size(item, cache);
         }
-      } else if constexpr (concepts::container<type>) {
+      } else if constexpr (std::ranges::input_range<type>) {
         if (item.empty())
           return 0;
-        using value_type = typename type::value_type;
+        using value_type = typename std::ranges::range_value_t<type>;
         if constexpr (concepts::has_meta<value_type> || Meta::encoding == encoding_rule::unpacked_repeated ||
                       Meta::encoding == encoding_rule::group) {
           return transform_accumulate(item,
@@ -1024,11 +1018,11 @@ struct pb_serializer {
         serialize(std::forward<decltype(item)>(item), cache, archive);
         archive(varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::egroup)});
       }
-    } else if constexpr (concepts::container<type>) {
+    } else if constexpr (std::ranges::range<type>) {
       if (item.empty()) {
         return;
       }
-      using value_type = typename type::value_type;
+      using value_type = typename std::ranges::range_value_t<type>;
       using element_type =
           std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
                              value_type, typename Meta::type>;
@@ -1645,7 +1639,7 @@ struct pb_serializer {
       return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, std::forward<decltype(item)>(item), context,
                                                                     archive);
     } else if constexpr (!std::is_same_v<type, serialize_type> && concepts::scalar<serialize_type> &&
-                         !concepts::container<type>) {
+                         !std::ranges::range<type>) {
       serialize_type value;
       if (auto result = deserialize_field(meta, tag, value, context, archive); result.failure()) [[unlikely]] {
         return result;
@@ -1954,6 +1948,7 @@ concept is_any = requires(T &obj) {
 }
 
 [[nodiscard]] errc unpack_any(concepts::is_any auto &&any, auto &&msg, concepts::memory_resource auto &...ctx) {
+  static_assert(sizeof...(ctx) <= 1);
   if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
     return read_proto(msg, any.value, ctx...);
   }
@@ -1961,6 +1956,7 @@ concept is_any = requires(T &obj) {
 }
 
 [[nodiscard]] errc pack_any(concepts::is_any auto &any, auto &&msg, concepts::memory_resource auto &...ctx) {
+  static_assert(sizeof...(ctx) <= 1);
   any.type_url = message_type_url(msg);
   decltype(auto) v = make_growable(aux_contexts{ctx...}, any.value);
   return write_proto(msg, v);

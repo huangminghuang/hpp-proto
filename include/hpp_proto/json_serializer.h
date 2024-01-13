@@ -621,7 +621,7 @@ struct write_json_error final {
   const char *error_message_name = nullptr;
   bool failure() const { return error_message_name != nullptr; }
   bool success() const { return !failure(); }
-  const char *message() const { return error_message_name; }
+  std::string message() const { return std::string("invalid value for message ") + error_message_name; }
 };
 
 template <auto Opts, typename T, typename Buffer, glz::is_context Context>
