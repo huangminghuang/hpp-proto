@@ -150,17 +150,31 @@ add_test(NAME map_test
 
 set_property(TEST map_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-
-add_library(any_test_lib INTERFACE ${protobuf_SOURCE_DIR}/src/google/protobuf/any_test.proto )
+add_library(any_test_lib INTERFACE ${protobuf_SOURCE_DIR}/src/google/protobuf/any_test.proto)
 target_include_directories(any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
 protobuf_generate(
     TARGET any_test_lib
     LANGUAGE hpp
     IMPORT_DIRS ${protobuf_SOURCE_DIR}/src)
 
-gen_proto_descriptor_set(any_test.bin
+add_library(non_owning_any_test_lib INTERFACE 
+    ${protobuf_SOURCE_DIR}/src/google/protobuf/any.proto 
+    ${protobuf_SOURCE_DIR}/src/google/protobuf/any_test.proto
+    ${protobuf_SOURCE_DIR}/src/google/protobuf/field_mask.proto)
+target_include_directories(non_owning_any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+protobuf_generate(
+    TARGET non_owning_any_test_lib
+    LANGUAGE hpp
     IMPORT_DIRS ${protobuf_SOURCE_DIR}/src
-    PROTOS ${protobuf_SOURCE_DIR}/src/google/protobuf/any_test.proto)
+    PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/non_owning
+    PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
+
+add_executable(any_test any_test.cpp)
+target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto any_test_lib non_owning_any_test_lib)
+
+add_test(NAME any_test
+    COMMAND any_test
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
 target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)

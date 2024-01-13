@@ -1953,23 +1953,17 @@ concept is_any = requires(T &obj) {
   return write_proto(msg, any.value);
 }
 
-[[nodiscard]] errc unpack_any(concepts::is_any auto &&any, auto &&msg) {
+[[nodiscard]] errc unpack_any(concepts::is_any auto &&any, auto &&msg, concepts::memory_resource auto &...ctx) {
   if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
-    return read_proto(msg, any.value);
+    return read_proto(msg, any.value, ctx...);
   }
   return std::errc::invalid_argument;
 }
 
-[[nodiscard]] errc pack_any(concepts::is_any auto &any, auto &&msg, concepts::memory_resource auto &mr) {
+[[nodiscard]] errc pack_any(concepts::is_any auto &any, auto &&msg, concepts::memory_resource auto &...ctx) {
   any.type_url = message_type_url(msg);
-  return write_proto(msg, make_growable(mr, any.value));
-}
-
-[[nodiscard]] errc unpack_any(concepts::is_any auto &&any, auto &&msg, concepts::memory_resource auto &mr) {
-  if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
-    return read_proto(msg, any.value, mr);
-  }
-  return std::errc::invalid_argument;
+  decltype(auto) v = make_growable(aux_contexts{ctx...}, any.value);
+  return write_proto(msg, v);
 }
 
 } // namespace proto
