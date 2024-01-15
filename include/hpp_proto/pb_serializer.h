@@ -282,9 +282,9 @@ struct extension_meta_base {
     static_assert(std::same_as<typename std::remove_cvref_t<decltype(extensions)>::pb_extension, typename T::extendee>);
   }
 
-  static auto read(const concepts::pb_extension auto &extensions, concepts::memory_resource auto &&...ctx);
+  static auto read(const concepts::pb_extension auto &extensions, concepts::is_pb_context auto &&...ctx);
   static errc write(concepts::pb_extension auto &extensions, auto &&value);
-  static errc write(concepts::pb_extension auto &extensions, auto &&value, concepts::memory_resource auto &mr);
+  static errc write(concepts::pb_extension auto &extensions, auto &&value, concepts::is_pb_context auto &&ctx);
   static bool element_of(const concepts::pb_extension auto &extensions) {
     check(extensions);
     if constexpr (requires { extensions.fields.count(T::number); }) {
@@ -1771,7 +1771,7 @@ struct pb_serializer {
     return (*fun_ptrs[tag_number(tag) & mask])(tag, item, context, archive);
   }
 
-  constexpr static errc deserialize(concepts::has_meta auto &item, concepts::is_aux_contexts auto &context,
+  constexpr static errc deserialize(concepts::has_meta auto &item, concepts::is_pb_context auto &context,
                                     concepts::is_basic_in auto &archive) {
 
     while (!archive.empty()) {
@@ -1802,8 +1802,15 @@ struct pb_serializer {
     return std::errc::result_out_of_range;
   }
 
+  constexpr static errc deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer) {
+
+    basic_in<std::ranges::range_value_t<decltype(buffer)>> archive(buffer);
+    pb_context ctx;
+    return deserialize(item, ctx, archive);
+  }
+
   constexpr static errc deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer,
-                                    concepts::is_aux_contexts auto &&context) {
+                                    concepts::is_pb_context auto &&context) {
 
     basic_in<std::ranges::range_value_t<decltype(buffer)>> archive(buffer);
     return deserialize(item, context, archive);
@@ -1823,7 +1830,7 @@ struct pb_serializer {
   template <typename T>
   constexpr static auto from_bytes(auto &&buffer) {
     T obj = {};
-    auto ec = deserialize(obj, buffer, aux_contexts{});
+    auto ec = deserialize(obj, buffer, pb_context{});
     if (ec.failure())
       throw std::system_error(std::make_error_code(ec));
     return obj;
@@ -1838,7 +1845,7 @@ struct serialize_wrapper_type {
 
 template <typename ExtensionMeta>
 inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extension auto &extensions,
-                                                     concepts::memory_resource auto &&...ctx) {
+                                                     concepts::is_pb_context auto &&...ctx) {
   check(extensions);
   decltype(extensions.fields.begin()) itr;
 
@@ -1854,7 +1861,7 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
 
   serialize_wrapper_type<value_type, ExtensionMeta> wrapper;
   if (itr != extensions.fields.end()) {
-    if (auto ec = pb_serializer::deserialize(wrapper, itr->second, aux_contexts{ctx...}); ec.failure()) [[unlikely]] {
+    if (auto ec = pb_serializer::deserialize(wrapper, itr->second, ctx...); ec.failure()) [[unlikely]] {
       return return_type{unexpected(ec)};
     }
     return return_type{wrapper.value};
@@ -1887,11 +1894,11 @@ inline errc extension_meta_base<ExtensionMeta>::write(concepts::pb_extension aut
 
 template <typename ExtensionMeta>
 inline errc extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions, auto &&value,
-                                                      concepts::memory_resource auto &mr) {
+                                                      concepts::is_pb_context auto && ctx) {
   check(extensions);
 
   std::span<std::byte> buf;
-  detail::growable_span data{buf, mr};
+  auto data = make_growable(ctx, buf);
 
   serialize_wrapper_type<decltype(value), ExtensionMeta> wrapper{std::forward<decltype(value)>(value)};
 
@@ -1901,7 +1908,7 @@ inline errc extension_meta_base<ExtensionMeta>::write(concepts::pb_extension aut
 
   if (data.size()) {
     auto old_size = extensions.fields.size();
-    detail::growable_span growable_fields{extensions.fields, mr};
+    auto growable_fields = make_growable(ctx, extensions.fields);
     growable_fields.resize(old_size + 1);
     extensions.fields[old_size] = {ExtensionMeta::number, {data.data(), data.size()}};
   }
@@ -1921,17 +1928,17 @@ template <typename T, concepts::resizable_contiguous_byte_container Buffer>
 }
 
 template <typename T, concepts::contiguous_byte_range Buffer>
-[[nodiscard]] errc read_proto(T &msg, Buffer &&buffer, concepts::memory_resource auto &...ctx) {
+[[nodiscard]] errc read_proto(T &msg, Buffer &&buffer, concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   msg = {};
-  return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), aux_contexts{ctx...});
+  return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), ctx...);
 }
 
 /// @brief  deserialize from the buffer and merge the content with the existing msg
 template <typename T, concepts::contiguous_byte_range Buffer>
-[[nodiscard]] errc merge_proto(T &msg, Buffer &&buffer, concepts::memory_resource auto &...ctx) {
+[[nodiscard]] errc merge_proto(T &msg, Buffer &&buffer, concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
-  return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), aux_contexts{ctx...});
+  return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), ctx...);
 }
 
 namespace concepts {
@@ -1947,19 +1954,18 @@ concept is_any = requires(T &obj) {
   return write_proto(msg, any.value);
 }
 
-[[nodiscard]] errc unpack_any(concepts::is_any auto &&any, auto &&msg, concepts::memory_resource auto &...ctx) {
+[[nodiscard]] errc pack_any(concepts::is_any auto &any, auto &&msg, concepts::is_pb_context auto &&ctx) {
+  any.type_url = message_type_url(msg);
+  decltype(auto) v = make_growable(ctx, any.value);
+  return write_proto(msg, v);
+}
+
+[[nodiscard]] errc unpack_any(concepts::is_any auto &&any, auto &&msg, concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
     return read_proto(msg, any.value, ctx...);
   }
   return std::errc::invalid_argument;
-}
-
-[[nodiscard]] errc pack_any(concepts::is_any auto &any, auto &&msg, concepts::memory_resource auto &...ctx) {
-  static_assert(sizeof...(ctx) <= 1);
-  any.type_url = message_type_url(msg);
-  decltype(auto) v = make_growable(aux_contexts{ctx...}, any.value);
-  return write_proto(msg, v);
 }
 
 } // namespace proto

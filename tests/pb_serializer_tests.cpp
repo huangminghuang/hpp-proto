@@ -166,7 +166,7 @@ void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory
   std::remove_cvref_t<T> value;
 
   monotonic_buffer_resource mr{memory_size};
-  ut::expect(hpp::proto::read_proto(value, encoded_data, mr).success());
+  ut::expect(hpp::proto::read_proto(value, encoded_data, hpp::proto::pb_context{mr}).success());
   ut::expect(value == expected_value);
 
   if (mode == decode_only) {
@@ -1137,20 +1137,20 @@ struct non_owning_extension_example {
 
   [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions); }
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::memory_resource auto &mr) {
+  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_pb_context auto &&mr) {
     return meta.read(extensions, mr);
   }
 
   template <typename Meta>
   [[nodiscard]] hpp::proto::errc set_extension(Meta meta, typename Meta::set_value_type &&value,
-                                              hpp::proto::concepts::memory_resource auto &mr) {
+                                              hpp::proto::concepts::is_pb_context auto &&mr) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), mr);
   }
 
   template <typename Meta>
     requires Meta::is_repeated
   [[nodiscard]] hpp::proto::errc set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value,
-                                              hpp::proto::concepts::memory_resource auto &mr) {
+                                              hpp::proto::concepts::is_pb_context auto &&mr) {
     return meta.write(extensions, std::span<const typename Meta::element_type>(value.begin(), value.end()), mr);
   }
 
@@ -1219,7 +1219,8 @@ const ut::suite test_non_owning_extensions = [] {
     non_owning_extension_example value;
 
     monotonic_buffer_resource mr{1024};
-    ut::expect(hpp::proto::read_proto(value, encoded_data, mr).success());
+    hpp::proto::pb_context ctx(mr);
+    ut::expect(hpp::proto::read_proto(value, encoded_data, ctx).success());
     ut::expect(value == expected_value);
 
     ut::expect(value.has_extension(non_owning_i32_ext()));
@@ -1234,7 +1235,7 @@ const ut::suite test_non_owning_extensions = [] {
       ut::expect(v.value() == 1);
     }
     {
-      auto v = value.get_extension(non_owning_string_ext(), mr);
+      auto v = value.get_extension(non_owning_string_ext(), ctx);
       ut::expect(v.has_value());
       ut::expect(v.value() == "test");
     }
@@ -1244,18 +1245,18 @@ const ut::suite test_non_owning_extensions = [] {
       ut::expect(v.value() == example{.i = 150});
     }
     {
-      auto v = value.get_extension(non_owning_repeated_i32_ext(), mr);
+      auto v = value.get_extension(non_owning_repeated_i32_ext(), ctx);
       ut::expect(v.has_value());
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<uint32_t>{1, 2}));
     }
     {
-      auto v = value.get_extension(non_owning_repeated_string_ext(), mr);
+      auto v = value.get_extension(non_owning_repeated_string_ext(), ctx);
       ut::expect(v.has_value());
       using namespace std::literals;
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<std::string_view>{"abc"sv, "def"sv}));
     }
     {
-      auto v = value.get_extension(non_owning_repeated_packed_i32_ext(), mr);
+      auto v = value.get_extension(non_owning_repeated_packed_i32_ext(), ctx);
       ut::expect(v.has_value());
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<uint32_t>{1, 2, 3}));
     }
@@ -1267,33 +1268,34 @@ const ut::suite test_non_owning_extensions = [] {
   };
   "set_non_owning_extension"_test = [] {
     monotonic_buffer_resource mr{1024};
+    hpp::proto::pb_context ctx(mr);
     non_owning_extension_example value;
-    ut::expect(value.set_extension(non_owning_i32_ext(), 1, mr).success());
+    ut::expect(value.set_extension(non_owning_i32_ext(), 1, ctx).success());
     ut::expect(value.extensions.fields.back().first == 10);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x50\x01"_bytes));
 
-    ut::expect(value.set_extension(non_owning_string_ext(), "test", mr).success());
+    ut::expect(value.set_extension(non_owning_string_ext(), "test", ctx).success());
     ut::expect(value.extensions.fields.back().first == 11);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x5a\x04\x74\x65\x73\x74"_bytes));
 
-    ut::expect(value.set_extension(non_owning_i32_defaulted_ext(), 10, mr).success());
+    ut::expect(value.set_extension(non_owning_i32_defaulted_ext(), 10, ctx).success());
     ut::expect(value.extensions.fields.back().first != 13);
 
-    ut::expect(value.set_extension(non_owning_example_ext(), {.i = 150}, mr).success());
+    ut::expect(value.set_extension(non_owning_example_ext(), {.i = 150}, ctx).success());
     ut::expect(value.extensions.fields.back().first == 15);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x7a\x03\x08\x96\x01"_bytes));
 
-    ut::expect(value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, mr).success());
+    ut::expect(value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, ctx).success());
     ut::expect(value.extensions.fields.back().first == 20);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\xa0\x01\x01\xa0\x01\x02"_bytes));
 
     using namespace std::literals;
-    ut::expect(value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, mr).success());
+    ut::expect(value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, ctx).success());
     ut::expect(value.extensions.fields.back().first == 21);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
-    ut::expect(value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, mr).success());
+    ut::expect(value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, ctx).success());
     ut::expect(value.extensions.fields.back().first == 22);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };

@@ -82,14 +82,14 @@ template <typename T>
 concept resizable_contiguous_byte_container = contiguous_byte_range<T> && requires(T &v) { v.resize(0); };
 
 template <typename T>
-concept is_aux_contexts = requires { typename T::is_aux_contexts; };
+concept is_pb_context = requires { typename std::remove_cvref_t<T>::is_pb_context; };
 
 } // namespace concepts
 
 template <typename... T>
-struct aux_contexts : std::reference_wrapper<T>... {
-  using is_aux_contexts = void;
-  constexpr aux_contexts(T &...ctx) : std::reference_wrapper<T>(ctx)... {}
+struct pb_context : std::reference_wrapper<T>... {
+  using is_pb_context = void;
+  constexpr pb_context(T &...ctx) : std::reference_wrapper<T>(ctx)... {}
 
   template <typename U>
   U &get() const {

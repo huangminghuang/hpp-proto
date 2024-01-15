@@ -46,12 +46,10 @@ void verify(const T &msg, std::string_view json, const hpp::proto::dynamic_seria
     expect(!ec.failure()) << from_line_number;
 
     std::string json_buf;
-    ec = ser.proto_to_json(message_name, pb, json_buf);
-    expect(!ec.failure()) << from_line_number;
+    expect(ser.proto_to_json(message_name, pb, json_buf).success()) << from_line_number;
     expect(json_buf == json) << from_line_number;
     hpp::proto::bytes pb_buf;
-    ec = ser.json_to_proto(message_name, json, pb_buf);
-    expect(!ec.failure()) << from_line_number;
+    expect(ser.json_to_proto(message_name, json, pb_buf).success()) << from_line_number;
     expect(std::ranges::equal(pb_buf, pb)) << from_line_number;
   }
 }

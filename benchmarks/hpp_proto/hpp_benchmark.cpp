@@ -38,7 +38,7 @@ int main() {
           GoogleMessage1 message;
 #ifdef NON_OWNING
           monotonic_buffer_resource memory_resource(data.size());
-          return hpp::proto::read_proto(message, data, memory_resource).success();
+          return hpp::proto::read_proto(message, data, hpp::proto::pb_context{memory_resource}).success();
 #else
           return hpp::proto::read_proto(message, data).success();
 #endif
@@ -48,7 +48,7 @@ int main() {
     GoogleMessage1 message;
 #ifdef NON_OWNING
     monotonic_buffer_resource memory_resource(data.size());
-    (void)hpp::proto::read_proto(message, data, memory_resource);
+    (void)hpp::proto::read_proto(message, data, hpp::proto::pb_context{memory_resource});
 #else
     (void)hpp::proto::read_proto(message, data);
 #endif
