@@ -594,7 +594,7 @@ class dynamic_serializer {
     }
 
     template <auto Options>
-    errc decode_any(const auto &v, std::vector<uint64_t> &unpacked_repeated_positions) {
+    errc decode_any(const auto &v) {
 
       auto msg_index = pb_meta.message_index_from_type_url(v.type_url);
       if (msg_index >= pb_meta.messages.size())
@@ -608,28 +608,13 @@ class dynamic_serializer {
       }
 
       glz::detail::write<glz::json>::op<Options>(v.type_url, context, b, ix);
-
-      const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
-      uint32_t field_index = 0;
-      char separator = ',';
-
-      auto value_archive = pb_serializer::basic_in(v.value);
-
-      while (!value_archive.empty()) {
-        vuint32_t tag;
-        if (auto ec = value_archive(tag); ec.failure()) [[unlikely]] {
-          return ec;
-        }
-        auto number = tag_number(tag);
-        auto field_wire_type = tag_type(tag);
-
-        if (auto ec = decode_field<Options>(msg_meta, number, field_wire_type, unpacked_repeated_positions, field_index,
-                                            separator, false, value_archive);
-            ec.failure()) [[unlikely]] {
-          return ec;
-        }
+      glz::detail::dump<','>(b, ix);
+      if (Options.prettify) {
+        glz::detail::dump<'\n'>(b, ix);
+        glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
-      return {};
+      auto value_archive = pb_serializer::basic_in(v.value);
+      return decode_message<Options>(msg_index, false, value_archive);
     }
 
     template <auto Options, typename T>
@@ -738,7 +723,7 @@ class dynamic_serializer {
         wellknown::Any v;
         if (auto ec = read_proto(v, archive.m_data); ec.failure()) [[unlikely]]
           return ec;
-        if (auto ec = decode_any<opts>(v, unpacked_repeated_positions); ec.failure()) [[unlikely]]
+        if (auto ec = decode_any<opts>(v); ec.failure()) [[unlikely]]
           return ec;
       } else {
         while (!archive.empty()) {
@@ -1280,6 +1265,7 @@ class dynamic_serializer {
   };
 
 public:
+  using is_auxiliary_context = void;
   dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
     descriptor_pool<proto_json_addons> pool(set.file);
 
@@ -1488,19 +1474,11 @@ public:
   void to_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &&b, auto &&ix) {
     pb_to_json_state state(*this, b);
     state.ix = ix;
-    std::vector<uint64_t> positions;
-    state.template decode_any<Options>(value, positions);
+    state.template decode_any<Options>(value);
+    ctx.error = state.context.error;
+    ix = state.ix;
   }
 };
-
-std::string_view message_name_from_type_url(std::string_view type_url) {
-  if (auto pos = type_url.find('/'); pos == std::string_view::npos) {
-    return {};
-  } else {
-    return type_url.substr(pos + 1);
-  }
-}
-
 } // namespace hpp::proto
 
 namespace glz::detail {

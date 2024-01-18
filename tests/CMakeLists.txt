@@ -170,7 +170,7 @@ protobuf_generate(
     PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
 
 add_executable(any_test any_test.cpp)
-target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto any_test_lib non_owning_any_test_lib)
+target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib non_owning_any_test_lib)
 
 add_test(NAME any_test
     COMMAND any_test

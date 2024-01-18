@@ -969,33 +969,33 @@ struct msg_code_generator : code_generator {
                        indent(), descriptor.cpp_name);
 
       } else {
-        fmt::format_to(
-            target,
-            "\n"
-            "{0}struct extension_t {{\n"
-            "{0}  using pb_extension = {1};\n"
-            "{0}  std::span<std::pair<uint32_t, hpp::proto::bytes_view>> fields;\n"
-            "{0}}} extensions;\n\n"
-            "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_pb_context auto && ...ctx) const {{\n"
-            "{0}  static_assert(sizeof...(ctx) <= 1);"
-            "{0}  return meta.read(extensions, ctx...);\n"
-            "{0}}}\n"
-            "{0}template<typename Meta>\n"
-            "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value,\n"
-            "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
-            "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), ctx);\n"
-            "{0}}}\n"
-            "{0}template<typename Meta>\n"
-            "{0}requires Meta::is_repeated\n"
-            "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
-            "{0}                                 std::initializer_list<typename Meta::element_type> value,\n"
-            "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
-            "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}}, ctx);\n"
-            "{0}}}\n"
-            "{0}bool has_extension(auto meta) const {{\n"
-            "{0}  return meta.element_of(extensions);\n"
-            "{0}}}\n",
-            indent(), descriptor.cpp_name);
+        fmt::format_to(target,
+                       "\n"
+                       "{0}struct extension_t {{\n"
+                       "{0}  using pb_extension = {1};\n"
+                       "{0}  std::span<std::pair<uint32_t, hpp::proto::bytes_view>> fields;\n"
+                       "{0}}} extensions;\n\n"
+                       "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_pb_context auto && "
+                       "...ctx) const {{\n"
+                       "{0}  static_assert(sizeof...(ctx) <= 1);"
+                       "{0}  return meta.read(extensions, ctx...);\n"
+                       "{0}}}\n"
+                       "{0}template<typename Meta>\n"
+                       "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value,\n"
+                       "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
+                       "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), ctx);\n"
+                       "{0}}}\n"
+                       "{0}template<typename Meta>\n"
+                       "{0}requires Meta::is_repeated\n"
+                       "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
+                       "{0}                                 std::initializer_list<typename Meta::element_type> value,\n"
+                       "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
+                       "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}}, ctx);\n"
+                       "{0}}}\n"
+                       "{0}bool has_extension(auto meta) const {{\n"
+                       "{0}  return meta.element_of(extensions);\n"
+                       "{0}}}\n",
+                       indent(), descriptor.cpp_name);
       }
     }
 
@@ -1277,22 +1277,35 @@ struct glaze_meta_generator : code_generator {
   void process(file_descriptor_t &descriptor) {
     auto file_name = descriptor.proto.name;
     file.name = file_name.substr(0, file_name.size() - 5) + "glz.hpp";
-    fmt::format_to(target, "#pragma once\n\n"
-                           "#include <hpp_proto/json_serializer.h>\n");
 
-    for (const auto &d : descriptor.proto.dependency) {
-      fmt::format_to(target, "#include <{}.glz.hpp>\n", basename(d));
+    std::string sole_message_name;
+    if (descriptor.messages.size() == 1) {
+      sole_message_name = descriptor.messages[0]->pb_name;
     }
 
-    fmt::format_to(target, "#include <{}.msg.hpp>\n\n", basename(descriptor.proto.name));
+    if (sole_message_name != "google.protobuf.Any") {
+      fmt::format_to(target, "#pragma once\n\n"
+                             "#include <hpp_proto/json_serializer.h>\n");
+
+      for (const auto &d : descriptor.proto.dependency) {
+        fmt::format_to(target, "#include <{}.glz.hpp>\n", basename(d));
+      }
+
+      fmt::format_to(target, "#include <{}.msg.hpp>\n\n", basename(descriptor.proto.name));
+
+      if (!sole_message_name.empty() && well_known_codecs.count(sole_message_name)) {
+        fmt::format_to(target, "#include <hpp_proto/{}.h>\n\n", well_known_codecs.at(sole_message_name));
+      }
+    } else {
+      fmt::format_to(target,
+                     "#pragma once\n\n"
+                     "#include <hpp_proto/dynamic_serializer.h>\n\n"
+                     "#include <{}.msg.hpp>\n\n",
+                     basename(descriptor.proto.name));
+    }
 
     auto package = descriptor.proto.package;
     auto ns = root_namespace + qualified_cpp_name(package);
-
-    if (package == "google.protobuf" && descriptor.messages.size() == 1 &&
-        well_known_codecs.count(descriptor.messages[0]->pb_name)) {
-      fmt::format_to(target, "#include <hpp_proto/{}.h>\n\n", well_known_codecs.at(descriptor.messages[0]->pb_name));
-    }
 
     for (auto *m : descriptor.messages) {
       process(*m, ns);
@@ -1398,6 +1411,48 @@ struct glaze_meta_generator : code_generator {
                      "}} // namespace glz::detail\n\n",
                      // clang-format on
                      qualified_name, scope);
+    } else if (descriptor.pb_name == "google.protobuf.Any") {
+      fmt::format_to(
+          target,
+          "namespace glz::detail {{\n"
+          "template <>\n"
+          "struct to_json<{0}> {{\n"
+          "  template <auto Opts, class B>"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {{\n"
+          "    if constexpr (requires {{ ctx.template get<hpp::proto::dynamic_serializer>(); }}) {{\n"
+          "      auto &dyn_serializer = ctx.template get<hpp::proto::dynamic_serializer>();\n\n"
+          "      if constexpr (!Opts.opening_handled) {{\n"
+          "        glz::detail::dump<'{{'>(b, ix);\n"
+          "        if constexpr (Opts.prettify) {{\n"
+          "          ctx.indentation_level += Opts.indentation_width;\n"
+          "          glz::detail::dump<'\\n'>(b, ix);\n"
+          "          glz::detail::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);\n"
+          "        }}\n"
+          "      }}\n"
+          "      dyn_serializer.template to_json_any<Opts>(value, ctx, b, ix);\n"
+          "    }} else {{\n"
+          "      static_assert(!sizeof(value), \"JSON serialization for Any message requires `dynamic_serializer` in "
+          "the context\");\n"
+          "    }}\n"
+          "  }}\n"
+          "}};\n\n"
+          "template <>\n"
+          "struct from_json<{0}> {{\n"
+          "  template <auto Options, class It, class End>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {{\n"
+          "    if constexpr (requires {{ ctx.template get<hpp::proto::dynamic_serializer>(); }}) {{\n"
+          "      auto &dyn_serializer = ctx.template get<hpp::proto::dynamic_serializer>();\n"
+          "      return dyn_serializer.template from_json_any<Options>(value, ctx, it, end);\n"
+          "    }} else {{\n"
+          "      static_assert(!sizeof(value),\n"
+          "                    \"JSON deserialization for Any message requires `dynamic_serializer` in the "
+          "context\");\n"
+          "    }}\n"
+          "  }}\n"
+          "}};\n"
+          "}} // namespace glz::detail\n",
+          qualified_name);
+
     } else {
       fmt::format_to(target,
                      "template <>\n"
@@ -1406,28 +1461,20 @@ struct glaze_meta_generator : code_generator {
                      "  static constexpr auto value = object(\n",
                      qualified_name);
 
-      if (descriptor.pb_name == "google.protobuf.Any") {
-        fmt::format_to(target,
-                       "\"@type\", hpp::proto::as_optional_ref<&T::type_url>,\n"
-                       "\"@value\", hpp::proto::as_optional_ref<&T::value>",
-                       qualified_name);
-
-      } else {
-        for (auto *f : descriptor.fields) {
-          if (!f->proto.oneof_index.has_value()) {
-            process(*f);
-          } else {
-            auto index = *f->proto.oneof_index;
-            auto &oneof = *(descriptor.oneofs[index]);
-            if (oneof.fields[0]->proto.number == f->proto.number) {
-              process(oneof);
-            }
+      for (auto *f : descriptor.fields) {
+        if (!f->proto.oneof_index.has_value()) {
+          process(*f);
+        } else {
+          auto index = *f->proto.oneof_index;
+          auto &oneof = *(descriptor.oneofs[index]);
+          if (oneof.fields[0]->proto.number == f->proto.number) {
+            process(oneof);
           }
         }
-        if (!descriptor.fields.empty()) {
-          auto &content = file.content;
-          content.resize(content.size() - 2);
-        }
+      }
+      if (!descriptor.fields.empty()) {
+        auto &content = file.content;
+        content.resize(content.size() - 2);
       }
 
       fmt::format_to(target, ");\n}};\n\n");
@@ -1547,8 +1594,8 @@ struct desc_hpp_generateor : code_generator {
     fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
 
     std::vector<uint8_t> buf;
-    (void) hpp::proto::write_proto(descriptor.proto, buf);
-    
+    (void)hpp::proto::write_proto(descriptor.proto, buf);
+
     fmt::format_to(target,
                    "using namespace std::literals::string_view_literals;\n"
                    "constexpr file_descriptor_pb _desc_{}{{\"{}\"sv}};\n\n",
@@ -1644,7 +1691,7 @@ int main(int argc, const char **argv) {
   }
 
   // remove all source info
-  for (auto& f : request.proto_file) {
+  for (auto &f : request.proto_file) {
     f.source_code_info.reset();
   }
 
