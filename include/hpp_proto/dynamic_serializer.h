@@ -1476,9 +1476,9 @@ public:
     return dynamic_serializer{fileset};
   }
 
-  template <auto Options = glz::opts{}>
+  template <auto Options = glz::opts{}, concepts::contiguous_byte_range InputRange, class OutputRange>
   hpp::proto::errc proto_to_json(std::string_view message_name,
-                                 concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer,
+                                 InputRange &&pb_encoded_stream, OutputRange &&buffer,
                                  uint32_t indentation_level = 0) const {
     using buffer_type = std::decay_t<decltype(buffer)>;
     auto const id = message_index(message_name);
@@ -1497,9 +1497,9 @@ public:
     return {};
   }
 
-  template <auto Options = glz::opts{}>
+  template <auto Options = glz::opts{}, concepts::contiguous_byte_range InputRange>
   expected<std::string, hpp::proto::errc> proto_to_json(std::string_view message_name,
-                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
+                                                        InputRange &&pb_encoded_stream) {
     std::string result;
     if (auto ec =
             proto_to_json<Options>(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
@@ -1511,15 +1511,15 @@ public:
 
   template <auto Opts>
   hpp::proto::read_json_error json_to_proto(std::string_view message_name,
-                                            concepts::contiguous_byte_range auto &&json_view,
+                                            std::string_view json_view,
                                             concepts::contiguous_byte_range auto &&buffer) const {
     uint32_t const id = message_index(message_name);
     if (id == messages.size()) {
       return read_json_error{glz::parse_error{glz::error_code::unknown_key, 0}};
     }
     json_to_pb_state state{*this};
-    const char *it = std::ranges::cdata(json_view);
-    const char *end = it + std::ranges::size(json_view);
+    const char *it = json_view.data();
+    const char *end = it + json_view.size();
     relocatable_out archive{buffer};
     if (auto ec = state.template encode_message<Opts>(id, it, end, 0, archive); ec.failure()) [[unlikely]] {
       auto location = std::distance<const char *>(json_view.data(), it);
@@ -1531,14 +1531,14 @@ public:
   }
 
   hpp::proto::read_json_error json_to_proto(std::string_view message_name,
-                                            concepts::contiguous_byte_range auto &&json_view,
+                                            std::string_view json_view,
                                             concepts::contiguous_byte_range auto &&buffer) const {
     return json_to_proto<glz::opts{}>(message_name, json_view, buffer);
   }
 
   template <auto Opts>
   expected<std::vector<std::byte>, hpp::proto::read_json_error>
-  json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json) {
+  json_to_proto(std::string_view message_name, std::string_view json) {
     std::vector<std::byte> result;
     if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); ec.failure()) {
       return unexpected(ec);
@@ -1547,7 +1547,7 @@ public:
   }
 
   expected<std::vector<std::byte>, hpp::proto::read_json_error>
-  json_to_proto(std::string_view message_name, concepts::contiguous_byte_range auto &&json) {
+  json_to_proto(std::string_view message_name, std::string_view json) {
     return json_to_proto<glz::opts{}>(message_name, json);
   }
 
