@@ -207,10 +207,7 @@ class dynamic_serializer {
   std::vector<enum_meta> enums;
   std::vector<std::string> message_names;
 
-  // protobuf_any_message_index is deliberately to be initialized to a different value so that
-  // it could be different from the rest. This is to be used by from_json_any() when any meta
-  // is not avaiable.
-  std::size_t protobuf_any_message_index = std::numeric_limits<std::size_t>::max() - 1;
+  std::size_t protobuf_any_message_index = std::numeric_limits<std::size_t>::max();
   std::size_t protobuf_timestamp_message_index = std::numeric_limits<std::size_t>::max();
   std::size_t protobuf_duration_message_index = std::numeric_limits<std::size_t>::max();
   std::size_t protobuf_field_mask_message_index = std::numeric_limits<std::size_t>::max();
@@ -218,6 +215,12 @@ class dynamic_serializer {
   std::size_t protobuf_list_value_message_index = std::numeric_limits<std::size_t>::max();
   std::size_t protobuf_struct_message_index = std::numeric_limits<std::size_t>::max();
   std::vector<std::size_t> protobuf_wrapper_type_message_indices;
+
+  bool is_wellknown_message(std::size_t msg_index) const {
+    return msg_index == protobuf_duration_message_index || msg_index == protobuf_timestamp_message_index ||
+           msg_index == protobuf_field_mask_message_index || msg_index == protobuf_list_value_message_index ||
+           std::ranges::contains(protobuf_wrapper_type_message_indices, msg_index);
+  }
 
   template <typename Buffer>
   struct pb_to_json_state {
@@ -600,9 +603,7 @@ class dynamic_serializer {
       if (msg_index >= pb_meta.messages.size())
         return std::errc::no_message_available;
 
-      auto field_name = "@type";
-      glz::detail::write<glz::json>::op<Options>(field_name, context, b, ix);
-      glz::detail::dump<':'>(b, ix);
+      glz::detail::dump<"\"@type\":">(b, ix);
       if constexpr (Options.prettify) {
         glz::detail::dump<' '>(b, ix);
       }
@@ -613,8 +614,30 @@ class dynamic_serializer {
         glz::detail::dump<'\n'>(b, ix);
         glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
+
       auto value_archive = pb_serializer::basic_in(v.value);
-      return decode_message<Options>(msg_index, false, value_archive);
+      const bool is_wellknown = pb_meta.is_wellknown_message(msg_index);
+      if (is_wellknown) {
+        glz::detail::dump<"\"value\":">(b, ix);
+        if constexpr (Options.prettify) {
+          glz::detail::dump<' '>(b, ix);
+        }
+
+        if (auto ec = decode_message<Options>(msg_index, false, value_archive); ec.failure()) [[unlikely]] {
+          return ec;
+        }
+
+        if constexpr (Options.prettify) {
+          context.indentation_level -= Options.indentation_width;
+          glz::detail::dump<'\n'>(b, ix);
+          glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+        }
+        glz::detail::dump<'}'>(b, ix);
+        return {};
+      } else {
+        constexpr auto opts = glz::opening_handled<Options>();
+        return decode_message<opts>(msg_index, false, value_archive);
+      }
     }
 
     template <auto Options, typename T>
@@ -1126,6 +1149,120 @@ class dynamic_serializer {
     }
 
     template <auto Options>
+    bool parse_opening(auto &&it, auto &&end) {
+      using namespace glz::detail;
+      if constexpr (!Options.opening_handled) {
+        if constexpr (!Options.ws_handled) {
+
+          skip_ws<Options>(context, it, end);
+          if (bool(context.error)) [[unlikely]] {
+            return false;
+          }
+        }
+
+        match<'{'>(context, it, end);
+        if (bool(context.error)) [[unlikely]] {
+          return false;
+        }
+      }
+
+      skip_ws<Options>(context, it, end);
+      if (bool(context.error)) [[unlikely]] {
+        return false;
+      }
+      return true;
+    }
+
+    template <auto Options>
+    bool parse_colon(auto &&it, auto &&end) {
+      using namespace glz::detail;
+      skip_ws<Options>(context, it, end);
+      if (bool(context.error)) [[unlikely]] {
+        return false;
+      }
+      match<':'>(context, it, end);
+      if (bool(context.error)) [[unlikely]] {
+        return false;
+      }
+      skip_ws<Options>(context, it, end);
+      if (bool(context.error)) [[unlikely]] {
+        return false;
+      }
+      return true;
+    }
+
+    template <auto Options>
+    std::string_view parse_key(auto &&it, auto &&end) {
+      const auto key = glz::detail::parse_key(context, it, end);
+      if (bool(context.error) || !parse_colon<Options>(it, end)) [[unlikely]] {
+        return {};
+      }
+      return key;
+    }
+
+    template <auto Opts, bool sized>
+    errc encode_any_value(std::size_t msg_index, auto &&it, auto &&end, auto &archive) {
+      if constexpr (!sized) {
+        return this->encode_message<Opts>(msg_index, it, end, false, archive);
+      } else {
+        return serialize_sized(archive, [this, msg_index, &it, &end](auto &archive) {
+          return this->encode_message<Opts>(msg_index, it, end, false, archive);
+        });
+      }
+    }
+
+    template <auto Options, bool any_value_only = false>
+    errc encode_any(auto &type_url, auto &&it, auto &&end, auto &archive) {
+      if (!parse_opening<Options>(it, end)) [[unlikely]] {
+        return std::errc::illegal_byte_sequence;
+      }
+
+      const auto key = parse_key<Options>(it, end);
+      if (bool(context.error)) [[unlikely]] {
+        return std::errc::illegal_byte_sequence;
+      }
+
+      if (key == "@type") {
+        constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Options>()>();
+        using namespace glz::detail;
+        from_json<std::string_view>::op<Opts>(type_url, context, it, end);
+        if (bool(context.error)) [[unlikely]] {
+          return std::errc::illegal_byte_sequence;
+        }
+        auto msg_index = pb_meta.message_index_from_type_url(type_url);
+        if (msg_index >= pb_meta.messages.size())
+          return std::errc::no_message_available;
+
+        if constexpr (!any_value_only) {
+          archive(make_tag(1, wire_type::length_delimited));
+          archive(type_url);
+          archive(make_tag(2, wire_type::length_delimited));
+        }
+
+        if (!pb_meta.is_wellknown_message(msg_index)) {
+          return encode_any_value<glz::opening_handled<Opts>(), !any_value_only>(msg_index, it, end, archive);
+        } else {
+          match<','>(context, it, end);
+          if (bool(context.error)) [[unlikely]] {
+            return std::errc::illegal_byte_sequence;
+          }
+          skip_ws<Opts>(context, it, end);
+          if (bool(context.error)) [[unlikely]] {
+            return std::errc::illegal_byte_sequence;
+          }
+          match<"\"value\"">(context, it, end);
+
+          if (!parse_colon<Opts>(it, end)) [[unlikely]] {
+            return std::errc::illegal_byte_sequence;
+          }
+          return encode_any_value<Opts, !any_value_only>(msg_index, it, end, archive);
+        }
+      } else [[unlikely]] {
+        return std::errc::illegal_byte_sequence;
+      }
+    }
+
+    template <auto Options>
     errc encode_message(uint32_t msg_index, auto &&it, auto &&end, uint32_t map_entry_number, auto &archive) {
 
       if (msg_index == pb_meta.protobuf_duration_message_index) {
@@ -1135,34 +1272,21 @@ class dynamic_serializer {
       } else if (msg_index == pb_meta.protobuf_field_mask_message_index) {
         return encode_wellknown_with_codec<Options, wellknown::FieldMask>(it, end, archive);
       } else if (msg_index == pb_meta.protobuf_value_message_index) {
-        return this->encode_value<Options>(pb_meta.messages[msg_index], it, end, archive);
+        return encode_value<Options>(pb_meta.messages[msg_index], it, end, archive);
+      } else if (msg_index == pb_meta.protobuf_any_message_index) {
+        std::string_view type_url;
+        return encode_any<Options>(type_url, it, end, archive);
       } else if (std::ranges::contains(pb_meta.protobuf_wrapper_type_message_indices, msg_index)) {
         auto &meta = pb_meta.messages[msg_index][0];
         return this->encode_field<Options>(meta, it, end, archive);
       }
 
       using namespace glz::detail;
-
-      if constexpr (!Options.opening_handled) {
-        if constexpr (!Options.ws_handled) {
-          skip_ws<Options>(context, it, end);
-          if (bool(context.error)) {
-            [[unlikely]] return std::errc::illegal_byte_sequence;
-          }
-        }
-
-        match<'{'>(context, it, end);
-        if (bool(context.error)) {
-          [[unlikely]] return std::errc::illegal_byte_sequence;
-        }
+      if (!parse_opening<Options>(it, end)) [[unlikely]] {
+        return std::errc::illegal_byte_sequence;
       }
 
-      skip_ws<Options>(context, it, end);
-      if (bool(context.error)) {
-        [[unlikely]] return std::errc::illegal_byte_sequence;
-      }
-
-      static constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Options>()>();
+      constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Options>()>();
 
       uint32_t field_index = 0;
 
@@ -1184,21 +1308,7 @@ class dynamic_serializer {
           }
         }
 
-        const auto key = glz::detail::parse_key(context, it, end);
-
-        if (bool(context.error)) [[unlikely]] {
-          return std::errc::illegal_byte_sequence;
-        }
-
-        skip_ws<Opts>(context, it, end);
-        if (bool(context.error)) [[unlikely]] {
-          return std::errc::illegal_byte_sequence;
-        }
-        match<':'>(context, it, end);
-        if (bool(context.error)) [[unlikely]] {
-          return std::errc::illegal_byte_sequence;
-        }
-        skip_ws<Opts>(context, it, end);
+        const auto key = parse_key<Options>(it, end);
         if (bool(context.error)) [[unlikely]] {
           return std::errc::illegal_byte_sequence;
         }
@@ -1214,27 +1324,6 @@ class dynamic_serializer {
             }
             return encode_field<Opts>(msg_meta[1], it, end, archive);
           });
-        } else if (msg_index == pb_meta.protobuf_any_message_index) {
-          if (key == "@type") {
-            std::string_view type_url;
-            from_json<std::string_view>::op<Opts>(type_url, context, it, end);
-            if (bool(context.error)) {
-              [[unlikely]] return std::errc::illegal_byte_sequence;
-            }
-            msg_index = pb_meta.message_index_from_type_url(type_url);
-            if (msg_index >= pb_meta.messages.size())
-              return std::errc::no_message_available;
-            archive(make_tag(1, wire_type::length_delimited));
-            archive(type_url);
-            archive(make_tag(2, wire_type::length_delimited));
-
-            return serialize_sized(archive, [this, msg_index, &it, &end](auto &archive) {
-              return this->encode_message<glz::opening_handled<Opts>()>(msg_index, it, end, false, archive);
-            });
-
-          } else {
-            return std::errc::illegal_byte_sequence;
-          }
         } else {
           const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
           if (!circular_find(field_index, key, msg_meta)) [[unlikely]] {
@@ -1256,8 +1345,8 @@ class dynamic_serializer {
         }
 
         skip_ws<Opts>(context, it, end);
-        if (bool(context.error)) {
-          [[unlikely]] return std::errc::illegal_byte_sequence;
+        if (bool(context.error)) [[unlikely]] {
+          return std::errc::illegal_byte_sequence;
         }
       }
       return {};
@@ -1429,8 +1518,8 @@ public:
       return read_json_error{glz::parse_error{glz::error_code::unknown_key, 0}};
     }
     json_to_pb_state state{*this};
-    const char *it = json_view.data();
-    const char *end = it + json_view.size();
+    const char *it = std::ranges::cdata(json_view);
+    const char *end = it + std::ranges::size(json_view);
     relocatable_out archive{buffer};
     if (auto ec = state.template encode_message<Opts>(id, it, end, 0, archive); ec.failure()) [[unlikely]] {
       auto location = std::distance<const char *>(json_view.data(), it);
@@ -1466,7 +1555,7 @@ public:
   void from_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, It &&it, End &&end) {
     json_to_pb_state state{*this};
     relocatable_out archive{value.value};
-    state.template encode_message<Options>(protobuf_any_message_index, it, end, 0, archive);
+    state.template encode_any<Options, true>(value.type_url, it, end, archive);
     ctx.error = state.context.error;
   }
 
@@ -1480,41 +1569,3 @@ public:
   }
 };
 } // namespace hpp::proto
-
-namespace glz::detail {
-template <hpp::proto::concepts::is_any T>
-struct to_json<T> {
-  template <auto Opts, class B>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
-    if constexpr (requires { ctx.template get<hpp::proto::dynamic_serializer>(); }) {
-      auto &dyn_serializer = ctx.template get<hpp::proto::dynamic_serializer>();
-
-      if constexpr (!Opts.opening_handled) {
-        glz::detail::dump<'{'>(b, ix);
-        if constexpr (Opts.prettify) {
-          ctx.indentation_level += Opts.indentation_width;
-          glz::detail::dump<'\n'>(b, ix);
-          glz::detail::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
-        }
-      }
-      dyn_serializer.to_json_any(value, ctx, b, ix);
-    } else {
-      static_assert(!sizeof(value), "JSON serialization for Any message requires `dynamic_serializer` in the context");
-    }
-  }
-};
-
-template <hpp::proto::concepts::is_any T>
-struct from_json<T> {
-  template <auto Options, class It, class End>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {
-    if constexpr (requires { ctx.template get<hpp::proto::dynamic_serializer>(); }) {
-      auto &dyn_serializer = ctx.template get<hpp::proto::dynamic_serializer>();
-      return dyn_serializer.from_json_any(value, ctx, it, end);
-    } else {
-      static_assert(!sizeof(value),
-                    "JSON deserialization for Any message requires `dynamic_serializer` in the context");
-    }
-  }
-};
-} // namespace glz::detail

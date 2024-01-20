@@ -1,10 +1,12 @@
-#include "google/protobuf/any_test.pb.hpp"
-#include "non_owning/google/protobuf/any_test.pb.hpp"
-#include "non_owning/google/protobuf/field_mask.pb.hpp"
-#include <google/protobuf/field_mask.pb.hpp>
-
+#include <google/protobuf/any_test.desc.hpp>
 #include <google/protobuf/any_test.glz.hpp>
+#include <google/protobuf/any_test.pb.hpp>
 #include <google/protobuf/field_mask.desc.hpp>
+#include <google/protobuf/field_mask.pb.hpp>
+#include <google/protobuf/unittest_proto3.desc.hpp>
+#include <google/protobuf/unittest_proto3.pb.hpp>
+#include <non_owning/google/protobuf/any_test.pb.hpp>
+#include <non_owning/google/protobuf/field_mask.pb.hpp>
 
 #include "test_util.h"
 #include <boost/ut.hpp>
@@ -48,7 +50,7 @@ suite test_any = [] {
     expect(std::ranges::equal(paths, fm2.paths));
   };
 
-  "any_json"_test = [] {
+  "any_json_wellknown"_test = [] {
     protobuf_unittest::TestAny message;
     google::protobuf::FieldMask fm{.paths = {"/usr/share", "/usr/local/share"}};
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm).success());
@@ -57,14 +59,40 @@ suite test_any = [] {
         hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_field_mask_proto());
     expect(ser.has_value());
 
-    const std::string expected_json = R"({"@type":"type.googleapis.com/google.protobuf.FieldMask","anyValue":"/usr/share,/usr/local/share"})";
+    const std::string_view expected_json =
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/local/share"}})";
     std::string buf;
     expect(hpp::proto::write_json(message, buf, hpp::proto::json_context{*ser}).success());
-    expect(buf == expected_json);
+    expect(eq(buf, expected_json));
 
-    // protobuf_unittest::TestAny message2;
-    // expect(hpp::proto::read_json(message2, expected_json, hpp::proto::json_context{*ser}).success());
-    // expect(message == message2);
+    protobuf_unittest::TestAny message2;
+    expect(hpp::proto::read_json(message2, expected_json, hpp::proto::json_context{*ser}).success());
+    expect(message == message2);
+  };
+
+  "any_josn"_test = [] {
+    protobuf_unittest::TestAny message;
+    proto3_unittest::ForeignMessage submessage{.c = 1234};
+    expect(hpp::proto::pack_any(message.any_value.emplace(), submessage).success());
+
+    std::string data;
+    expect(hpp::proto::write_proto(message, data).success());
+
+    auto ser = hpp::proto::dynamic_serializer::make(
+        hpp::proto::file_descriptors::desc_set_google_protobuf_unittest_proto3_proto(),
+        hpp::proto::file_descriptors::desc_set_google_protobuf_any_test_proto());
+
+    expect(ser.has_value() >> fatal);
+    const char *message_name = "protobuf_unittest.TestAny";
+    std::string_view expected_json =
+        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234}})";
+    auto hpp_result = ser->proto_to_json(message_name, data);
+    expect(hpp_result.has_value() >> fatal);
+    expect(eq(expected_json, *hpp_result));
+
+    std::string serialized;
+    expect(ser->json_to_proto(message_name, expected_json, serialized).success());
+    expect(eq(data, serialized));
   };
 };
 

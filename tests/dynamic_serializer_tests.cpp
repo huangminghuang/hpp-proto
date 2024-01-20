@@ -1,7 +1,4 @@
-#include "google/protobuf/any_test.glz.hpp"
-#include "google/protobuf/any_test.pb.hpp"
-#include "google/protobuf/any_test.desc.hpp"
-#include "google/protobuf/unittest_proto3.desc.hpp"
+
 
 #include "gpb_proto_json/gpb_proto_json.h"
 #include "map_test_util.h"
@@ -59,31 +56,6 @@ const boost::ut::suite dynamic_serializer_test = [] {
     protobuf_unittest::TestMap message;
     SetMapFields(&message);
     test_fixture(message, "protobuf_unittest.TestMap", "map_unittest.bin");
-  };
-
-  "any"_test = [] {
-    protobuf_unittest::TestAny message;
-    proto3_unittest::ForeignMessage submessage{.c = 1234};
-    expect(hpp::proto::pack_any(message.any_value.emplace(), submessage).success());
-
-    std::string data;
-    expect(hpp::proto::write_proto(message, data).success());
-
-    auto ser = hpp::proto::dynamic_serializer::make(
-      hpp::proto::file_descriptors::desc_set_google_protobuf_unittest_proto3_proto(),
-      hpp::proto::file_descriptors::desc_set_google_protobuf_any_test_proto()
-    );
-
-    expect(ser.has_value() >> fatal);
-    const char* message_name = "protobuf_unittest.TestAny";
-
-    auto hpp_result = ser->proto_to_json<glz::opts{.prettify = true}>(message_name, data);
-    expect(hpp_result.has_value() >> fatal);
-
-    std::string serialized;
-    expect(ser->json_to_proto(message_name, *hpp_result, serialized).success());
-    expect(eq(data, serialized));
-
   };
 };
 
