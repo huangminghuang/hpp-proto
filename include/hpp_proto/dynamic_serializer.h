@@ -1286,7 +1286,7 @@ class dynamic_serializer {
         return std::errc::illegal_byte_sequence;
       }
 
-      constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Options>()>();
+      static constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Options>()>();
 
       uint32_t field_index = 0;
 
@@ -1476,7 +1476,7 @@ public:
     return dynamic_serializer{fileset};
   }
 
-  template <auto Options = glz::opts{}, concepts::contiguous_byte_range InputRange, class OutputRange>
+  template <auto Options = glz::opts{}, class InputRange, class OutputRange>
   hpp::proto::errc proto_to_json(std::string_view message_name,
                                  InputRange &&pb_encoded_stream, OutputRange &&buffer,
                                  uint32_t indentation_level = 0) const {
@@ -1497,7 +1497,7 @@ public:
     return {};
   }
 
-  template <auto Options = glz::opts{}, concepts::contiguous_byte_range InputRange>
+  template <auto Options = glz::opts{}, class InputRange>
   expected<std::string, hpp::proto::errc> proto_to_json(std::string_view message_name,
                                                         InputRange &&pb_encoded_stream) {
     std::string result;
