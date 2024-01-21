@@ -1144,14 +1144,14 @@ struct hpp_meta_generateor : code_generator {
   // NOLINTEND(misc-no-recursion)
   // NOLINTBEGIN(readability-function-cognitive-complexity)
   void process(field_descriptor_t &descriptor, const std::string &cpp_scope, std::size_t oneof_index) {
-    std::string_view rule = (oneof_index) == 0 ? "defaulted" : "explicit_presence";
+    std::string_view options = (oneof_index) == 0 ? "none" : "explicit_presence";
     auto proto = descriptor.proto;
     using enum gpb::FieldDescriptorProto::Label;
 
     const bool numeric = is_numeric(proto.type);
 
     if (descriptor.is_cpp_optional) {
-      rule = "explicit_presence";
+      options = "explicit_presence";
     } else if (proto.label == LABEL_REPEATED) {
       if (numeric) {
         std::optional<bool> packed;
@@ -1159,17 +1159,17 @@ struct hpp_meta_generateor : code_generator {
           packed = proto.options->packed.value();
         }
         if ((packed.has_value() && !packed.value()) || (syntax == "proto2" && !packed.has_value())) {
-          rule = "unpacked_repeated";
+          options = "unpacked_repeated";
         } else {
-          rule = "packed_repeated";
+          options = "none";
         }
       } else {
-        rule = "unpacked_repeated";
+        options = "unpacked_repeated";
       }
     }
 
     if (proto.type == gpb::FieldDescriptorProto::Type::TYPE_GROUP) {
-      rule = "group";
+      options = "group";
     }
 
     if (descriptor.map_fields[0] != nullptr) {
@@ -1184,7 +1184,7 @@ struct hpp_meta_generateor : code_generator {
 
     std::string default_value;
 
-    if (rule == "defaulted") {
+    if (options == "none") {
       default_value = descriptor.default_value_template_arg;
     }
 
@@ -1201,8 +1201,8 @@ struct hpp_meta_generateor : code_generator {
     std::string access = (oneof_index == 0) ? "&" + cpp_name : std::to_string(oneof_index);
 
     if (proto.extendee.empty()) {
-      fmt::format_to(target, "{}hpp::proto::field_meta<{}, {}, hpp::proto::encoding_rule::{}{}>,\n", indent(),
-                     proto.number, access, rule, type_and_default_value);
+      fmt::format_to(target, "{}hpp::proto::field_meta<{}, {}, hpp::proto::field_option::{}{}>,\n", indent(),
+                     proto.number, access, options, type_and_default_value);
     } else {
       std::string_view extension_prefix;
       if (proto.label == LABEL_REPEATED) {
@@ -1219,10 +1219,10 @@ struct hpp_meta_generateor : code_generator {
       fmt::format_to(target,
                      "{0}constexpr auto {1}() {{\n"
                      "{0}  return hpp::proto::{2}extension_meta<{3}, {4}, "
-                     "hpp::proto::encoding_rule::{5}{6}>{{}};\n"
+                     "hpp::proto::field_option::{5}{6}>{{}};\n"
                      "{0}}}\n\n",
                      indent(), cpp_name, extension_prefix, qualified_cpp_name(descriptor.proto.extendee), proto.number,
-                     rule, type_and_default_value);
+                     options, type_and_default_value);
     }
   }
   // NOLINTEND(readability-function-cognitive-complexity)

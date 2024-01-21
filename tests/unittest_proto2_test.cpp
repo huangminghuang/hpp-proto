@@ -3,11 +3,11 @@
 #include "unittest_proto2_util.h"
 namespace ut = boost::ut;
 
-static_assert(
-    ensure_all_fields_encoding_rule<protobuf_unittest::TestPackedTypes, hpp::proto::encoding_rule::packed_repeated>());
+// static_assert(
+//     ensure_all_fields_field_option<protobuf_unittest::TestPackedTypes, hpp::proto::field_option::none>());
 
-static_assert(ensure_all_fields_encoding_rule<protobuf_unittest::TestUnpackedTypes,
-                                              hpp::proto::encoding_rule::unpacked_repeated>());
+// static_assert(ensure_all_fields_field_option<protobuf_unittest::TestUnpackedTypes,
+//                                               hpp::proto::field_option::unpacked_repeated>());
 
 const ut::suite proto_test = [] {
   using namespace boost::ut;

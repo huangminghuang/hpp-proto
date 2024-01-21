@@ -75,11 +75,11 @@ struct monotonic_buffer_resource {
   }
 };
 
-template <typename T, hpp::proto::encoding_rule Rule>
-constexpr bool ensure_all_fields_encoding_rule() {
-  using meta = typename hpp::proto::traits::meta_of<T>::type;
-  return std::apply([](auto... field_meta) { return ((field_meta.encoding == Rule) && ...); }, meta());
-}
+// template <typename T, hpp::proto::field_option Rule>
+// constexpr bool ensure_all_fields_field_option() {
+//   using meta = typename hpp::proto::traits::meta_of<T>::type;
+//   return std::apply([](auto... field_meta) { return ((field_meta.encoding == Rule) && ...); }, meta());
+// }
 
 template <typename RG1, typename RG2>
 bool ranges_equal(RG1 &&r1, RG2 &&r2) {

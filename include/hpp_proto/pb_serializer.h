@@ -28,18 +28,18 @@
 #include <climits>
 #include <concepts>
 #include <cstring>
+#include <glaze/util/expected.hpp>
 #include <map>
 #include <memory>
 #include <numeric>
 #include <system_error>
-#include <glaze/util/expected.hpp>
 // #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
 
 namespace hpp {
 namespace proto {
-  using glz::expected;
-  using glz::unexpected;
+using glz::expected;
+using glz::unexpected;
 /////////////////////////////////////////////////////////////////
 // varint code is based on https://github.com/eyalz800/zpp_bits
 /////////////////////////////////////////////////////////////////
@@ -95,7 +95,8 @@ concept associative_container =
     std::ranges::range<Type> && requires(Type container) { typename std::remove_cvref_t<Type>::key_type; };
 
 template <typename Type>
-concept tuple = !std::ranges::range<Type> && requires(Type tuple) { sizeof(std::tuple_size<std::remove_cvref_t<Type>>); };
+concept tuple =
+    !std::ranges::range<Type> && requires(Type tuple) { sizeof(std::tuple_size<std::remove_cvref_t<Type>>); };
 
 template <typename Type>
 concept variant = requires(Type variant) {
@@ -198,12 +199,11 @@ concept is_basic_out = requires { typename Type::is_basic_out; };
 
 } // namespace concepts
 
-enum class encoding_rule {
-  defaulted = 0,
+enum field_option {
+  none = 0,
   explicit_presence = 1,
   unpacked_repeated = 2,
-  group = 3,
-  packed_repeated = 4
+  group = 4
 };
 
 template <auto Accessor>
@@ -216,17 +216,19 @@ struct accesor_type {
   }
 };
 
-template <uint32_t Number, auto Accessor, encoding_rule Encoding = encoding_rule::defaulted, typename Type = void,
-          auto DefaultValue = std::monostate{}>
-struct field_meta {
+template <uint32_t Number, int options, typename Type, auto DefaultValue>
+struct field_meta_base {
+
   constexpr static uint32_t number = Number;
-  constexpr static encoding_rule encoding = Encoding;
-  constexpr static auto access = accesor_type<Accessor>{};
   using type = Type;
 
+  constexpr static bool is_explicit_presence = (options & field_option::explicit_presence);
+  constexpr static bool is_unpacked_repeated = (options & field_option::unpacked_repeated);
+  constexpr static bool is_group = (options & field_option::group);
+
   template <typename T>
-  inline static constexpr bool omit_value(const T &v) {
-    if constexpr (Encoding == encoding_rule::defaulted) {
+  static constexpr bool omit_value(const T &v) {
+    if constexpr (options == field_option::none) {
       return is_default_value<T, DefaultValue>(v);
     } else if constexpr (requires { v.has_value(); }) {
       return !v.has_value();
@@ -241,6 +243,12 @@ struct field_meta {
       return false;
     }
   }
+};
+
+template <uint32_t Number, auto Accessor, int options = field_option::none, typename Type = void,
+          auto DefaultValue = std::monostate{}>
+struct field_meta : field_meta_base<Number, options, Type, DefaultValue> {
+  constexpr static auto access = accesor_type<Accessor>{};
 };
 
 template <auto Accessor, typename... AlternativeMeta>
@@ -298,13 +306,10 @@ struct extension_meta_base {
   }
 };
 
-template <typename Extendee, uint32_t Number, encoding_rule Encoding, typename Type, typename ValueType,
+template <typename Extendee, uint32_t Number, int options, typename Type, typename ValueType,
           auto DefaultValue = std::monostate{}>
-struct extension_meta : extension_meta_base<extension_meta<Extendee, Number, Encoding, Type, ValueType, DefaultValue>> {
-
-  constexpr static uint32_t number = Number;
-  constexpr static encoding_rule encoding = Encoding;
-  using type = Type;
+struct extension_meta : field_meta_base<Number, options, Type, DefaultValue>,
+                        extension_meta_base<extension_meta<Extendee, Number, options, Type, ValueType, DefaultValue>> {
   constexpr static auto default_value = unwrap(DefaultValue);
   constexpr static bool has_default_value = !std::same_as<std::remove_const_t<decltype(DefaultValue)>, std::monostate>;
   static constexpr bool is_repeated = false;
@@ -312,32 +317,12 @@ struct extension_meta : extension_meta_base<extension_meta<Extendee, Number, Enc
 
   using get_result_type = ValueType;
   using set_value_type = ValueType;
-
-  template <typename T>
-  static constexpr bool omit_value(const T &v) {
-    if constexpr (Encoding == encoding_rule::defaulted) {
-      return is_default_value<T, DefaultValue>(v);
-    } else if constexpr (requires { v.has_value(); }) {
-      return !v.has_value();
-    } else if constexpr (std::is_pointer_v<std::remove_cvref_t<T>>) {
-      return v == nullptr;
-    } else if constexpr (requires {
-                           typename T::element_type;
-                           v.get();
-                         }) {
-      return v.get() == nullptr;
-    } else {
-      return false;
-    }
-  }
 };
 
-template <typename Extendee, uint32_t Number, encoding_rule Encoding, typename Type, typename ValueType>
+template <typename Extendee, uint32_t Number, int options, typename Type, typename ValueType>
 struct repeated_extension_meta
-    : extension_meta_base<repeated_extension_meta<Extendee, Number, Encoding, Type, ValueType>> {
-  constexpr static uint32_t number = Number;
-  constexpr static encoding_rule encoding = Encoding;
-  using type = Type;
+    : field_meta_base<Number, options, Type, std::monostate{}>,
+      extension_meta_base<repeated_extension_meta<Extendee, Number, options, Type, ValueType>> {
   constexpr static bool has_default_value = false;
   static constexpr bool is_repeated = true;
   using extendee = Extendee;
@@ -386,12 +371,7 @@ constexpr auto make_tag(uint32_t number, wire_type type) {
 
 template <typename Type, typename Meta>
 constexpr auto make_tag(Meta meta) {
-  // check if Meta::number is static or not
-  if constexpr (requires { *&Meta::number; }) {
-    return make_tag(Meta::number, tag_type<Type>());
-  } else {
-    return make_tag(meta.number, tag_type<Type>());
-  }
+  return make_tag(meta.number, tag_type<Type>());
 }
 
 constexpr auto tag_type(uint32_t tag) { return wire_type(tag & 0x7); }
@@ -447,8 +427,8 @@ struct map_entry {
     typename serialize_type<KeyType>::type key;
     typename serialize_type<MappedType>::type value;
     constexpr static bool allow_inline_visit_members_lambda = true;
-    using pb_meta = std::tuple<field_meta<1, &mutable_type::key, encoding_rule::explicit_presence>,
-                               field_meta<2, &mutable_type::value, encoding_rule::explicit_presence>>;
+    using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence>,
+                               field_meta<2, &mutable_type::value, field_option::explicit_presence>>;
 
     template <typename Target, typename Source>
     constexpr static auto move_or_copy(Source &&src) {
@@ -497,8 +477,8 @@ struct map_entry {
       constexpr const auto &operator()(const read_only_type &entry) const { return entry.value; }
     };
 
-    using pb_meta = std::tuple<field_meta<1, key_accessor{}, encoding_rule::explicit_presence>,
-                               field_meta<2, value_accessor{}, encoding_rule::explicit_presence>>;
+    using pb_meta = std::tuple<field_meta<1, key_accessor{}, field_option::explicit_presence>,
+                               field_meta<2, value_accessor{}, field_option::explicit_presence>>;
   };
 };
 
@@ -768,13 +748,12 @@ struct pb_serializer {
     } else if constexpr (requires { *item; }) {
       return cache_count(meta, *item);
     } else if constexpr (concepts::has_meta<type>) {
-      return cache_count(item) + (meta.encoding != encoding_rule::group);
+      return cache_count(item) + (!meta.is_group);
     } else if constexpr (std::ranges::input_range<type>) {
       if (item.empty())
         return 0;
       using value_type = typename std::ranges::range_value_t<type>;
-      if constexpr (concepts::has_meta<value_type> || Meta::encoding == encoding_rule::unpacked_repeated ||
-                    Meta::encoding == encoding_rule::group) {
+      if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
         return transform_accumulate(item, [](const auto &elem) constexpr { return cache_count(Meta{}, elem); });
       } else {
         using element_type =
@@ -877,7 +856,7 @@ struct pb_serializer {
       } else if constexpr (requires { *item; }) {
         return field_size(meta, *item, cache);
       } else if constexpr (concepts::has_meta<type>) {
-        if constexpr (meta.encoding != encoding_rule::group) {
+        if constexpr (!meta.is_group) {
           decltype(auto) msg_size = *cache++;
           auto s = static_cast<uint32_t>(message_size(item, cache));
           msg_size = s;
@@ -889,8 +868,7 @@ struct pb_serializer {
         if (item.empty())
           return 0;
         using value_type = typename std::ranges::range_value_t<type>;
-        if constexpr (concepts::has_meta<value_type> || Meta::encoding == encoding_rule::unpacked_repeated ||
-                      Meta::encoding == encoding_rule::group) {
+        if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
           return transform_accumulate(item,
                                       [&cache](const auto &elem) constexpr { return field_size(Meta{}, elem, cache); });
         } else {
@@ -1012,7 +990,7 @@ struct pb_serializer {
     } else if constexpr (requires { *item; }) {
       return serialize_field(meta, *item, cache, archive);
     } else if constexpr (concepts::has_meta<type>) {
-      if constexpr (meta.encoding != encoding_rule::group) {
+      if constexpr (!meta.is_group) {
         archive(make_tag<type>(meta), varint{*cache++});
         serialize(std::forward<decltype(item)>(item), cache, archive);
       } else {
@@ -1029,8 +1007,7 @@ struct pb_serializer {
           std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
                              value_type, typename Meta::type>;
 
-      if constexpr (concepts::has_meta<value_type> || Meta::encoding == encoding_rule::group ||
-                    Meta::encoding == encoding_rule::unpacked_repeated) {
+      if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
         for (const auto &element : item) {
           if constexpr (std::same_as<element_type, std::remove_cvref_t<decltype(element)>> ||
                         concepts::is_map_entry<typename Meta::type>) {
@@ -1655,12 +1632,12 @@ struct pb_serializer {
     } else if constexpr (concepts::numeric_or_byte<type>) {
       return archive(item);
     } else if constexpr (concepts::has_meta<type>) {
-      if constexpr (meta.encoding != encoding_rule::group) {
+      if constexpr (!meta.is_group) {
         return deserialize_sized(item, context, archive);
       } else {
         return deserialize_group(field_num, item, context, archive);
       }
-    } else if constexpr (meta.encoding == encoding_rule::group) {
+    } else if constexpr (meta.is_group) {
       // repeated group
       if constexpr (requires { item.emplace_back(); }) {
         return deserialize_group(field_num, item.emplace_back(), context, archive);
@@ -1674,7 +1651,7 @@ struct pb_serializer {
       return deserialize_packed_repeated(meta, std::forward<type>(item), context, archive);
     } else { // repeated non-group
       using value_type = typename type::value_type;
-      if constexpr (concepts::numeric<value_type> && meta.encoding != encoding_rule::unpacked_repeated) {
+      if constexpr (concepts::numeric<value_type> && !meta.is_unpacked_repeated) {
         if (tag_type(tag) != wire_type::length_delimited) {
           return deserialize_unpacked_repeated(meta, tag, std::forward<type>(item), context, archive);
         }
@@ -1777,8 +1754,8 @@ struct pb_serializer {
                                     concepts::is_basic_in auto &archive) {
 
     while (!archive.empty()) {
-            vuint32_t tag;
-            if (auto result = archive(tag); result.failure()) [[unlikely]] {
+      vuint32_t tag;
+      if (auto result = archive(tag); result.failure()) [[unlikely]] {
         return result;
       }
 
@@ -1896,7 +1873,7 @@ inline errc extension_meta_base<ExtensionMeta>::write(concepts::pb_extension aut
 
 template <typename ExtensionMeta>
 inline errc extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions, auto &&value,
-                                                      concepts::is_pb_context auto && ctx) {
+                                                      concepts::is_pb_context auto &&ctx) {
   check(extensions);
 
   std::span<std::byte> buf;

@@ -39,8 +39,8 @@ struct Any {
   std::string type_url = {};
   std::vector<std::byte> value = {};
 };
-auto pb_meta(const Any &) -> std::tuple<hpp::proto::field_meta<1, &Any::type_url, hpp::proto::encoding_rule::defaulted>,
-                                        hpp::proto::field_meta<2, &Any::value, hpp::proto::encoding_rule::defaulted>>;
+auto pb_meta(const Any &) -> std::tuple<hpp::proto::field_meta<1, &Any::type_url, hpp::proto::field_option::none>,
+                                        hpp::proto::field_meta<2, &Any::value, hpp::proto::field_option::none>>;
 
 struct Duration {
   constexpr static bool glaze_reflect = false;
@@ -49,8 +49,8 @@ struct Duration {
 };
 
 auto pb_meta(const Duration &) -> std::tuple<
-    hpp::proto::field_meta<1, &Duration::seconds, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
-    hpp::proto::field_meta<2, &Duration::nanos, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>>;
+    hpp::proto::field_meta<1, &Duration::seconds, hpp::proto::field_option::none, hpp::proto::vint64_t>,
+    hpp::proto::field_meta<2, &Duration::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
 
 struct Timestamp {
   constexpr static bool glaze_reflect = false;
@@ -59,8 +59,8 @@ struct Timestamp {
 };
 
 auto pb_meta(const Timestamp &) -> std::tuple<
-    hpp::proto::field_meta<1, &Timestamp::seconds, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>,
-    hpp::proto::field_meta<2, &Timestamp::nanos, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>>;
+    hpp::proto::field_meta<1, &Timestamp::seconds, hpp::proto::field_option::none, hpp::proto::vint64_t>,
+    hpp::proto::field_meta<2, &Timestamp::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
 
 struct FieldMask {
   constexpr static bool glaze_reflect = false;
@@ -68,7 +68,7 @@ struct FieldMask {
 };
 
 auto pb_meta(const FieldMask &)
-    -> std::tuple<hpp::proto::field_meta<1, &FieldMask::paths, hpp::proto::encoding_rule::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &FieldMask::paths, hpp::proto::field_option::unpacked_repeated>>;
 } // namespace wellknown
 
 template <>

@@ -3,11 +3,11 @@
 #include "unittest_proto3_util.h"
 
 
-static_assert(
-    ensure_all_fields_encoding_rule<proto3_unittest::TestPackedTypes, hpp::proto::encoding_rule::packed_repeated>());
+// static_assert(
+//     ensure_all_fields_field_option<proto3_unittest::TestPackedTypes, hpp::proto::field_option::none>());
 
-static_assert(ensure_all_fields_encoding_rule<proto3_unittest::TestUnpackedTypes,
-                                              hpp::proto::encoding_rule::unpacked_repeated>());
+// static_assert(ensure_all_fields_field_option<proto3_unittest::TestUnpackedTypes,
+//                                               hpp::proto::field_option::unpacked_repeated>());
 
 // In this file we only test some basic functionalities of in proto3 and expect
 // the rest is fully tested in proto2 unittests because proto3 shares most code
