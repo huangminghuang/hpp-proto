@@ -43,7 +43,7 @@ auto pb_meta(const Any &) -> std::tuple<hpp::proto::field_meta<1, &Any::type_url
                                         hpp::proto::field_meta<2, &Any::value, hpp::proto::encoding_rule::defaulted>>;
 
 struct Duration {
-  constexpr static bool reflect = false;
+  constexpr static bool glaze_reflect = false;
   int64_t seconds = {};
   int32_t nanos = {};
 };
@@ -53,7 +53,7 @@ auto pb_meta(const Duration &) -> std::tuple<
     hpp::proto::field_meta<2, &Duration::nanos, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>>;
 
 struct Timestamp {
-  constexpr static bool reflect = false;
+  constexpr static bool glaze_reflect = false;
   int64_t seconds = {};
   int32_t nanos = {};
 };
@@ -63,7 +63,7 @@ auto pb_meta(const Timestamp &) -> std::tuple<
     hpp::proto::field_meta<2, &Timestamp::nanos, hpp::proto::encoding_rule::defaulted, hpp::proto::vint64_t>>;
 
 struct FieldMask {
-  constexpr static bool reflect = false;
+  constexpr static bool glaze_reflect = false;
   std::vector<std::string> paths;
 };
 

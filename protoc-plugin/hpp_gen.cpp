@@ -913,7 +913,7 @@ struct msg_code_generator : code_generator {
     indent_num += 2;
 
     if (well_known_codecs.count(descriptor.pb_name)) {
-      fmt::format_to(target, "{}constexpr static bool reflect = false;\n", indent());
+      fmt::format_to(target, "{}constexpr static bool glaze_reflect = false;\n", indent());
     }
 
     for (auto &e : descriptor.enums) {

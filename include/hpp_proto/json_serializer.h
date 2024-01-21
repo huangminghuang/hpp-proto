@@ -41,12 +41,8 @@ concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
 } // namespace concepts
 
 template <typename... AuxContext>
-struct json_context : pb_context<AuxContext...> {
-  uint32_t indentation_level{};
-  std::string current_file; // top level file path
-  glz::error_code error{};
+struct json_context : glz::context, pb_context<AuxContext...> {
   const char *error_message_name = nullptr;
-
   json_context(AuxContext &...ctx) : pb_context<AuxContext...>(ctx...) {}
 };
 
@@ -228,7 +224,7 @@ concept has_codec = requires { typename json_codec<T>::type; };
 } // namespace concepts
 
 struct use_base64 {
-  constexpr static bool reflect = false;
+  constexpr static bool glaze_reflect = false;
 };
 
 template <>
