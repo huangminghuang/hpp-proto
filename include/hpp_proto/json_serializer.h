@@ -2,7 +2,7 @@
 #include <bit>
 #include <glaze/glaze.hpp>
 
-#include <hpp_proto/expected.h>
+// #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
 
 namespace hpp::proto {
@@ -650,12 +650,12 @@ inline write_json_error write_json(T &&value, Buffer &&buffer) noexcept {
 
 template <auto Opts = glz::opts{}, class T>
 [[nodiscard]] inline auto write_json(T &&value, glz::is_context auto &&...ctx) noexcept
-    -> expected<std::string, write_json_error> {
+    -> glz::expected<std::string, write_json_error> {
   static_assert(sizeof...(ctx) <= 1);
   std::string buffer{};
   auto ec = write_json<Opts>(std::forward<T>(value), buffer, ctx...);
   if (!ec.success())
-    return unexpected(ec);
+    return glz::unexpected(ec);
   return buffer;
 }
 

@@ -17,8 +17,6 @@ CPMAddPackage(
   GITHUB_REPOSITORY huangminghuang/glaze
 )
 
-set(EXPECTED_BUILD_TESTS OFF)
-CPMAddPackage(gh:TartanLlama/expected@1.1.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 CPMAddPackage(
@@ -64,7 +62,7 @@ endif()
 add_library(libhpp_proto INTERFACE)
 target_include_directories(libhpp_proto INTERFACE 
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${expected_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(libhpp_proto INTERFACE cxx_std_20)
 if (MSVC)

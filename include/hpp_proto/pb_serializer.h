@@ -32,12 +32,14 @@
 #include <memory>
 #include <numeric>
 #include <system_error>
-
-#include <hpp_proto/expected.h>
+#include <glaze/util/expected.hpp>
+// #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
 
 namespace hpp {
 namespace proto {
+  using glz::expected;
+  using glz::unexpected;
 /////////////////////////////////////////////////////////////////
 // varint code is based on https://github.com/eyalz800/zpp_bits
 /////////////////////////////////////////////////////////////////

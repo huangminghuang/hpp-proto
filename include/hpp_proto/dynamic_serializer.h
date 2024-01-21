@@ -1419,19 +1419,23 @@ public:
         protobuf_wrapper_type_message_indices.end());
   }
 
-  static expected<dynamic_serializer, hpp::proto::errc> make(concepts::contiguous_byte_range auto &&stream) {
+  static auto make(concepts::contiguous_byte_range auto &&stream) {
+    // workaround for glz::expected requires its template parameters to be complete types
+    using result_t = glz::expected<dynamic_serializer, hpp::proto::errc>;
     google::protobuf::FileDescriptorSet fileset;
     if (auto ec = read_proto(fileset, stream); ec.failure())
-      return unexpected(ec);
+      return result_t{glz::unexpected(ec)};
 
-    return dynamic_serializer{fileset};
+    return result_t{dynamic_serializer{fileset}};
   }
 
-  static expected<dynamic_serializer, hpp::proto::errc> make(concepts::input_bytes_range auto &&stream_range) {
+  static auto make(concepts::input_bytes_range auto &&stream_range) {
+    // workaround for glz::expected requires its template parameters to be complete types
+    using result_t = glz::expected<dynamic_serializer, hpp::proto::errc>;
     google::protobuf::FileDescriptorSet fileset;
     for (const auto &stream : stream_range) {
       if (auto ec = merge_proto(fileset, stream); ec.failure())
-        return unexpected(ec);
+        return result_t{glz::unexpected(ec)};
     }
     // double check if we have duplicated files
     std::unordered_map<std::string, google::protobuf::FileDescriptorProto *> file_map;
@@ -1442,7 +1446,7 @@ public:
       if (!inserted) {
         if (*map_itr->second != *itr) {
           // in this case, we have two files with identical names but different content
-          return unexpected(std::errc::invalid_argument);
+          return glz::unexpected(std::errc::invalid_argument);
         } else {
           std::rotate(itr, itr + 1, last);
           --last;
@@ -1451,11 +1455,12 @@ public:
     }
     fileset.file.erase(last, fileset.file.end());
 
-    return dynamic_serializer{fileset};
+    return result_t{dynamic_serializer{fileset}};
   }
 
-  static expected<dynamic_serializer, hpp::proto::errc> make(concepts::file_descriptor_pb_array auto &&...args) {
-
+  static auto make(concepts::file_descriptor_pb_array auto &&...args) {
+    // workaround for glz::expected requires its template parameters to be complete types
+    using result_t = glz::expected<dynamic_serializer, hpp::proto::errc>;
     constexpr auto s = (std::tuple_size_v<std::remove_cvref_t<decltype(args)>> + ...);
     std::array<file_descriptor_pb, s> tmp;
     auto it = tmp.begin();
@@ -1470,10 +1475,10 @@ public:
 
     for (std::size_t i = 0; i < size; ++i) {
       if (auto ec = read_proto(fileset.file[i], tmp[i].value); ec.failure())
-        return unexpected(ec);
+        return result_t{glz::unexpected(ec)};
     }
 
-    return dynamic_serializer{fileset};
+    return result_t{dynamic_serializer{fileset}};
   }
 
 #if defined(_MSC_VER) && (_MSC_VER < 1938)
@@ -1535,8 +1540,7 @@ public:
 #endif
 
   template <auto Opts>
-  hpp::proto::read_json_error json_to_proto(std::string_view message_name,
-                                            std::string_view json_view,
+  hpp::proto::read_json_error json_to_proto(std::string_view message_name, std::string_view json_view,
                                             concepts::contiguous_byte_range auto &&buffer) const {
     auto const id = message_index(message_name);
     if (id == messages.size()) {
@@ -1555,24 +1559,23 @@ public:
     return {};
   }
 
-  hpp::proto::read_json_error json_to_proto(std::string_view message_name,
-                                            std::string_view json_view,
+  hpp::proto::read_json_error json_to_proto(std::string_view message_name, std::string_view json_view,
                                             concepts::contiguous_byte_range auto &&buffer) const {
     return json_to_proto<glz::opts{}>(message_name, json_view, buffer);
   }
 
   template <auto Opts>
-  expected<std::vector<std::byte>, hpp::proto::read_json_error>
-  json_to_proto(std::string_view message_name, std::string_view json) {
+  glz::expected<std::vector<std::byte>, hpp::proto::read_json_error> json_to_proto(std::string_view message_name,
+                                                                              std::string_view json) {
     std::vector<std::byte> result;
     if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); ec.failure()) {
-      return unexpected(ec);
+      return glz::unexpected(ec);
     }
     return result;
   }
 
-  expected<std::vector<std::byte>, hpp::proto::read_json_error>
-  json_to_proto(std::string_view message_name, std::string_view json) {
+  glz::expected<std::vector<std::byte>, hpp::proto::read_json_error> json_to_proto(std::string_view message_name,
+                                                                              std::string_view json) {
     return json_to_proto<glz::opts{}>(message_name, json);
   }
 
@@ -1593,4 +1596,5 @@ public:
     ix = state.ix;
   }
 };
+
 } // namespace hpp::proto
