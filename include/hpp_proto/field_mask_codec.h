@@ -6,7 +6,7 @@ namespace hpp::proto {
 
 struct field_mask_codec {
   constexpr static std::size_t max_encode_size(auto &&value) noexcept {
-    return value.paths.size() + std::transform_reduce(value.paths.begin(), value.paths.end(), 0, std::plus{},
+    return value.paths.size() + std::transform_reduce(value.paths.begin(), value.paths.end(), 0ULL, std::plus{},
                                                       [](auto &p) { return p.size(); });
   }
 

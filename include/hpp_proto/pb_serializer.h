@@ -1775,8 +1775,8 @@ struct pb_serializer {
                                     concepts::is_basic_in auto &archive) {
 
     while (!archive.empty()) {
-      vuint32_t tag;
-      if (auto result = archive(tag); result.failure()) [[unlikely]] {
+            vuint32_t tag;
+            if (auto result = archive(tag); result.failure()) [[unlikely]] {
         return result;
       }
 

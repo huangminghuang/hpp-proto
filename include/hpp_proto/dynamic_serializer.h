@@ -1263,7 +1263,7 @@ class dynamic_serializer {
     }
 
     template <auto Options>
-    errc encode_message(uint32_t msg_index, auto &&it, auto &&end, uint32_t map_entry_number, auto &archive) {
+    errc encode_message(std::size_t msg_index, auto &&it, auto &&end, uint32_t map_entry_number, auto &archive) {
 
       if (msg_index == pb_meta.protobuf_duration_message_index) {
         return encode_wellknown_with_codec<Options, wellknown::Duration>(it, end, archive);
@@ -1513,7 +1513,7 @@ public:
   hpp::proto::read_json_error json_to_proto(std::string_view message_name,
                                             std::string_view json_view,
                                             concepts::contiguous_byte_range auto &&buffer) const {
-    uint32_t const id = message_index(message_name);
+    auto const id = message_index(message_name);
     if (id == messages.size()) {
       return read_json_error{glz::parse_error{glz::error_code::unknown_key, 0}};
     }

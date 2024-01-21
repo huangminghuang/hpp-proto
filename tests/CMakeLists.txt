@@ -17,7 +17,7 @@ if(CMAKE_BUILD_TYPE STREQUAL Debug AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 if(MSVC)
-    add_compile_options(/bigobj)
+    add_compile_options(/bigobj /wd4459 /wd4125)
 endif()
 
 add_library(Boost::ut INTERFACE IMPORTED)
