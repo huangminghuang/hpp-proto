@@ -1600,7 +1600,7 @@ const ut::suite test_person = [] {
   ut::expect(p.name == "John Doe"sv);
   ut::expect(that % p.id == 1234);
   ut::expect(p.email == "jdoe@example.com"sv);
-  ut::expect((p.phones.size() == 1_u) >> fatal);
+  ut::expect(fatal((p.phones.size() == 1_u)));
   ut::expect(p.phones[0].number == "555-4321"sv);
   ut::expect(that % p.phones[0].type == person::home);
 
@@ -1629,13 +1629,13 @@ const ut::suite test_address_book = [] {
   expect(b.people[0].name == "John Doe"sv);
   expect(that % b.people[0].id == 1234);
   expect(b.people[0].email == "jdoe@example.com"sv);
-  expect((b.people[0].phones.size() == 1U) >> fatal);
+  expect(fatal((b.people[0].phones.size() == 1U)));
   expect(b.people[0].phones[0].number == "555-4321"sv);
   expect(b.people[0].phones[0].type == person::home);
   expect(b.people[1].name == "John Doe 2"sv);
   expect(that % b.people[1].id == 1235);
   expect(b.people[1].email == "jdoe2@example.com"sv);
-  expect((b.people[1].phones.size() == 2_u) >> fatal);
+  expect(fatal((b.people[1].phones.size() == 2_u)));
   expect(b.people[1].phones[0].number == "555-4322"sv);
   expect(b.people[1].phones[0].type == person::home);
   expect(b.people[1].phones[1].number == "555-4323"sv);
@@ -1680,8 +1680,8 @@ const ut::suite test_person_map = [] {
   expect(p.name == "John Doe"sv);
   expect(that % p.id == 1234);
   expect(p.email == "jdoe@example.com"sv);
-  expect((p.phones.size() == 1_u) >> fatal);
-  expect((p.phones.contains("555-4321")) >> fatal);
+  expect(fatal((p.phones.size() == 1_u)));
+  expect(fatal((p.phones.contains("555-4321"))));
   expect(that % p.phones["555-4321"] == person_map::home);
 
   std::array<char, data.size()> new_data{};

@@ -82,12 +82,12 @@ suite test_any = [] {
         hpp::proto::file_descriptors::desc_set_google_protobuf_unittest_proto3_proto(),
         hpp::proto::file_descriptors::desc_set_google_protobuf_any_test_proto());
 
-    expect(ser.has_value() >> fatal);
+    expect(fatal(ser.has_value()));
     const char *message_name = "protobuf_unittest.TestAny";
     std::string_view expected_json =
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234}})";
     auto hpp_result = ser->proto_to_json(message_name, data);
-    expect(hpp_result.has_value() >> fatal);
+    expect(fatal(hpp_result.has_value()));
     expect(eq(expected_json, *hpp_result));
 
     std::string serialized;

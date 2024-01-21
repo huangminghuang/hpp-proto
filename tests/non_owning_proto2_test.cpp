@@ -215,30 +215,30 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message) {
   expect(protobuf_unittest_import::ImportEnum::IMPORT_BAZ == message.optional_import_enum.value());
 
   // -----------------------------------------------------------------
-  expect(eq(2, message.repeated_int32.size()) >> fatal);
-  expect(eq(2, message.repeated_int64.size()) >> fatal);
-  expect(eq(2, message.repeated_uint32.size()) >> fatal);
-  expect(eq(2, message.repeated_uint64.size()) >> fatal);
-  expect(eq(2, message.repeated_sint32.size()) >> fatal);
-  expect(eq(2, message.repeated_sint64.size()) >> fatal);
-  expect(eq(2, message.repeated_fixed32.size()) >> fatal);
-  expect(eq(2, message.repeated_fixed64.size()) >> fatal);
-  expect(eq(2, message.repeated_sfixed32.size()) >> fatal);
-  expect(eq(2, message.repeated_sfixed64.size()) >> fatal);
-  expect(eq(2, message.repeated_float.size()) >> fatal);
-  expect(eq(2, message.repeated_double.size()) >> fatal);
-  expect(eq(2, message.repeated_bool.size()) >> fatal);
-  expect(eq(2, message.repeated_string.size()) >> fatal);
-  expect(eq(2, message.repeated_bytes.size()) >> fatal);
+  expect(fatal(eq(2, message.repeated_int32.size())));
+  expect(fatal(eq(2, message.repeated_int64.size())));
+  expect(fatal(eq(2, message.repeated_uint32.size())));
+  expect(fatal(eq(2, message.repeated_uint64.size())));
+  expect(fatal(eq(2, message.repeated_sint32.size())));
+  expect(fatal(eq(2, message.repeated_sint64.size())));
+  expect(fatal(eq(2, message.repeated_fixed32.size())));
+  expect(fatal(eq(2, message.repeated_fixed64.size())));
+  expect(fatal(eq(2, message.repeated_sfixed32.size())));
+  expect(fatal(eq(2, message.repeated_sfixed64.size())));
+  expect(fatal(eq(2, message.repeated_float.size())));
+  expect(fatal(eq(2, message.repeated_double.size())));
+  expect(fatal(eq(2, message.repeated_bool.size())));
+  expect(fatal(eq(2, message.repeated_string.size())));
+  expect(fatal(eq(2, message.repeated_bytes.size())));
 
-  expect(eq(2, message.repeatedgroup.size()) >> fatal);
-  expect(eq(2, message.repeated_nested_message.size()) >> fatal);
-  expect(eq(2, message.repeated_foreign_message.size()) >> fatal);
-  expect(eq(2, message.repeated_import_message.size()) >> fatal);
-  expect(eq(2, message.repeated_lazy_message.size()) >> fatal);
-  expect(eq(2, message.repeated_nested_enum.size()) >> fatal);
-  expect(eq(2, message.repeated_foreign_enum.size()) >> fatal);
-  expect(eq(2, message.repeated_import_enum.size()) >> fatal);
+  expect(fatal(eq(2, message.repeatedgroup.size())));
+  expect(fatal(eq(2, message.repeated_nested_message.size())));
+  expect(fatal(eq(2, message.repeated_foreign_message.size())));
+  expect(fatal(eq(2, message.repeated_import_message.size())));
+  expect(fatal(eq(2, message.repeated_lazy_message.size())));
+  expect(fatal(eq(2, message.repeated_nested_enum.size())));
+  expect(fatal(eq(2, message.repeated_foreign_enum.size())));
+  expect(fatal(eq(2, message.repeated_import_enum.size())));
 
   expect(eq(201, message.repeated_int32[0]));
   expect(eq(202, message.repeated_int64[0]));
@@ -508,20 +508,20 @@ inline void SetAll(protobuf_unittest::TestUnpackedTypes *message, auto && /*unus
 // -------------------------------------------------------------------
 
 inline void ExpectAllSet(const protobuf_unittest::TestPackedTypes &message) {
-  expect(eq(2, message.packed_int32.size()) >> fatal);
-  expect(eq(2, message.packed_int64.size()) >> fatal);
-  expect(eq(2, message.packed_uint32.size()) >> fatal);
-  expect(eq(2, message.packed_uint64.size()) >> fatal);
-  expect(eq(2, message.packed_sint32.size()) >> fatal);
-  expect(eq(2, message.packed_sint64.size()) >> fatal);
-  expect(eq(2, message.packed_fixed32.size()) >> fatal);
-  expect(eq(2, message.packed_fixed64.size()) >> fatal);
-  expect(eq(2, message.packed_sfixed32.size()) >> fatal);
-  expect(eq(2, message.packed_sfixed64.size()) >> fatal);
-  expect(eq(2, message.packed_float.size()) >> fatal);
-  expect(eq(2, message.packed_double.size()) >> fatal);
-  expect(eq(2, message.packed_bool.size()) >> fatal);
-  expect(eq(2, message.packed_enum.size()) >> fatal);
+  expect(fatal(eq(2, message.packed_int32.size())));
+  expect(fatal(eq(2, message.packed_int64.size())));
+  expect(fatal(eq(2, message.packed_uint32.size())));
+  expect(fatal(eq(2, message.packed_uint64.size())));
+  expect(fatal(eq(2, message.packed_sint32.size())));
+  expect(fatal(eq(2, message.packed_sint64.size())));
+  expect(fatal(eq(2, message.packed_fixed32.size())));
+  expect(fatal(eq(2, message.packed_fixed64.size())));
+  expect(fatal(eq(2, message.packed_sfixed32.size())));
+  expect(fatal(eq(2, message.packed_sfixed64.size())));
+  expect(fatal(eq(2, message.packed_float.size())));
+  expect(fatal(eq(2, message.packed_double.size())));
+  expect(fatal(eq(2, message.packed_bool.size())));
+  expect(fatal(eq(2, message.packed_enum.size())));
 
   expect(eq(601, message.packed_int32[0]));
   expect(eq(602, message.packed_int64[0]));
@@ -556,20 +556,20 @@ inline void ExpectAllSet(const protobuf_unittest::TestPackedTypes &message) {
 
 inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message) {
   // The values expected here must match those of ExpectPackedFieldsSet.
-  expect(eq(2, message.unpacked_int32.size()) >> fatal);
-  expect(eq(2, message.unpacked_int64.size()) >> fatal);
-  expect(eq(2, message.unpacked_uint32.size()) >> fatal);
-  expect(eq(2, message.unpacked_uint64.size()) >> fatal);
-  expect(eq(2, message.unpacked_sint32.size()) >> fatal);
-  expect(eq(2, message.unpacked_sint64.size()) >> fatal);
-  expect(eq(2, message.unpacked_fixed32.size()) >> fatal);
-  expect(eq(2, message.unpacked_fixed64.size()) >> fatal);
-  expect(eq(2, message.unpacked_sfixed32.size()) >> fatal);
-  expect(eq(2, message.unpacked_sfixed64.size()) >> fatal);
-  expect(eq(2, message.unpacked_float.size()) >> fatal);
-  expect(eq(2, message.unpacked_double.size()) >> fatal);
-  expect(eq(2, message.unpacked_bool.size()) >> fatal);
-  expect(eq(2, message.unpacked_enum.size()) >> fatal);
+  expect(fatal(eq(2, message.unpacked_int32.size())));
+  expect(fatal(eq(2, message.unpacked_int64.size())));
+  expect(fatal(eq(2, message.unpacked_uint32.size())));
+  expect(fatal(eq(2, message.unpacked_uint64.size())));
+  expect(fatal(eq(2, message.unpacked_sint32.size())));
+  expect(fatal(eq(2, message.unpacked_sint64.size())));
+  expect(fatal(eq(2, message.unpacked_fixed32.size())));
+  expect(fatal(eq(2, message.unpacked_fixed64.size())));
+  expect(fatal(eq(2, message.unpacked_sfixed32.size())));
+  expect(fatal(eq(2, message.unpacked_sfixed64.size())));
+  expect(fatal(eq(2, message.unpacked_float.size())));
+  expect(fatal(eq(2, message.unpacked_double.size())));
+  expect(fatal(eq(2, message.unpacked_bool.size())));
+  expect(fatal(eq(2, message.unpacked_enum.size())));
 
   expect(eq(601, message.unpacked_int32[0]));
   expect(eq(602, message.unpacked_int64[0]));
@@ -1268,12 +1268,12 @@ inline void SetOneof2(protobuf_unittest::TestOneof2 *message) {
 }
 
 inline void ExpectOneofSet1(const protobuf_unittest::TestOneof2 &message) {
-  expect(eq(protobuf_unittest::TestOneof2::foo_lazy_message, message.foo.index()) >> fatal);
+  expect(fatal(eq(protobuf_unittest::TestOneof2::foo_lazy_message, message.foo.index())));
   const auto &foo_lazy_message = std::get<protobuf_unittest::TestOneof2::foo_lazy_message>(message.foo);
 
-  expect(eq(protobuf_unittest::TestOneof2::bar_string, message.bar.index()) >> fatal);
+  expect(fatal(eq(protobuf_unittest::TestOneof2::bar_string, message.bar.index())));
 
-  expect(eq(0, foo_lazy_message.corge_int.size()) >> fatal);
+  expect(fatal(eq(0, foo_lazy_message.corge_int.size())));
 
   expect(eq(100, foo_lazy_message.moo_int.value()));
   expect(eq("101"sv, std::get<protobuf_unittest::TestOneof2::bar_string>(message.bar)));

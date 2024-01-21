@@ -200,11 +200,11 @@ void verify(const T &msg, std::string_view json, const source_location& from_loc
   T msg2;
 
   if constexpr (!non_owning<T>) {
-    expect((hpp::proto::read_json(msg2, json).success()) >> fatal) << from_line_number;;
+    expect(fatal((hpp::proto::read_json(msg2, json).success()))) << from_line_number;;
     expect(msg == msg2);
   } else {
     monotonic_buffer_resource mr{1024};
-    expect((hpp::proto::read_json(msg2, json, hpp::proto::json_context{mr}).success()) >> fatal) << from_line_number;;
+    expect(fatal((hpp::proto::read_json(msg2, json, hpp::proto::json_context{mr}).success()))) << from_line_number;;
     expect(msg == msg2);
   }
 }
@@ -313,7 +313,6 @@ const ut::suite test_explicit_optional_uint64 = [] {
 
 
 int main() {
-
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
 }

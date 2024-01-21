@@ -17,12 +17,12 @@ void test_fixture(auto &message, const char *message_name, const char *descripto
 
   auto descriptors = descriptorset_from_file(descriptorset_file);
   auto ser = hpp::proto::dynamic_serializer::make(descriptors);
-  expect(ser.has_value() >> fatal);
+  expect(fatal(ser.has_value()));
 
   auto gpb_result = gpb_based::proto_to_json(descriptors, message_name, data);
 
   auto hpp_result = ser->proto_to_json(message_name, data);
-  expect(hpp_result.has_value() >> fatal);
+  expect(fatal(hpp_result.has_value()));
 
   expect(eq(gpb_result, *hpp_result));
 
@@ -31,7 +31,7 @@ void test_fixture(auto &message, const char *message_name, const char *descripto
   expect(eq(data, serialized));
 
   hpp_result = ser->proto_to_json<glz::opts{.prettify = true}>(message_name, data);
-  expect(hpp_result.has_value() >> fatal);
+  expect(fatal(hpp_result.has_value()));
   expect(ser->json_to_proto(message_name, *hpp_result, serialized).success());
   expect(eq(data, serialized));
 }
