@@ -1476,9 +1476,17 @@ public:
     return dynamic_serializer{fileset};
   }
 
-  template <auto Options = glz::opts{}, class InputRange, class OutputRange>
+#if defined(_MSC_VER) && (_MSC_VER < 1938)
+#define TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED
+#endif
+
+#if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
+  template <auto Options>
+#else
+  template <auto Options = glz::opts{}>
+#endif
   hpp::proto::errc proto_to_json(std::string_view message_name,
-                                 InputRange &&pb_encoded_stream, OutputRange &&buffer,
+                                 concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer,
                                  uint32_t indentation_level = 0) const {
     using buffer_type = std::decay_t<decltype(buffer)>;
     auto const id = message_index(message_name);
@@ -1497,9 +1505,13 @@ public:
     return {};
   }
 
-  template <auto Options = glz::opts{}, class InputRange>
+#if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
+  template <auto Options>
+#else
+  template <auto Options = glz::opts{}>
+#endif
   expected<std::string, hpp::proto::errc> proto_to_json(std::string_view message_name,
-                                                        InputRange &&pb_encoded_stream) {
+                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
     std::string result;
     if (auto ec =
             proto_to_json<Options>(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
@@ -1508,6 +1520,19 @@ public:
     }
     return result;
   }
+
+#if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
+  hpp::proto::errc proto_to_json(std::string_view message_name,
+                                 concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer,
+                                 uint32_t indentation_level = 0) const {
+    return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream, buffer, indentation_level);
+  }
+
+  expected<std::string, hpp::proto::errc> proto_to_json(std::string_view message_name,
+                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
+    return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream);
+  }
+#endif
 
   template <auto Opts>
   hpp::proto::read_json_error json_to_proto(std::string_view message_name,
