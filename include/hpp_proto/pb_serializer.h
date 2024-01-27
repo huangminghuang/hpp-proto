@@ -222,9 +222,9 @@ struct field_meta_base {
   constexpr static uint32_t number = Number;
   using type = Type;
 
-  constexpr static bool is_explicit_presence = (options & field_option::explicit_presence);
-  constexpr static bool is_unpacked_repeated = (options & field_option::unpacked_repeated);
-  constexpr static bool is_group = (options & field_option::group);
+  constexpr static bool is_explicit_presence = static_cast<bool>(options & field_option::explicit_presence);
+  constexpr static bool is_unpacked_repeated = static_cast<bool>(options & field_option::unpacked_repeated);
+  constexpr static bool is_group = static_cast<bool>(options & field_option::group);
 
   template <typename T>
   static constexpr bool omit_value(const T &v) {
