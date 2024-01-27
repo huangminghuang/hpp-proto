@@ -21,7 +21,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 CPMAddPackage(
   NAME protobuf
-  VERSION 24.2
+  VERSION 25.2
   GITHUB_REPOSITORY protocolbuffers/protobuf
   OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
           "protobuf_INSTALL OFF"

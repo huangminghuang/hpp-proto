@@ -175,8 +175,9 @@ inline void SetDefaultFields(protobuf_unittest::TestAllTypes *message) {
 // ------------------------------------------------------------------
 inline void SetOneofFields(protobuf_unittest::TestAllTypes *message) {
   message->oneof_field = 601U;
-  message->oneof_field = protobuf_unittest::TestAllTypes::NestedMessage{.bb = 602};
-  message->oneof_field = "603";
+  using enum protobuf_unittest::TestAllTypes::oneof_field_oneof_case;
+  message->oneof_field.emplace<static_cast<int>(oneof_nested_message)>( protobuf_unittest::TestAllTypes::NestedMessage{.bb = 602});
+  message->oneof_field.emplace<static_cast<int>(oneof_string)>("603");
   message->oneof_field = "604"_bytes_view;
 }
 
