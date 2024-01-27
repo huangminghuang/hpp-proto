@@ -104,7 +104,6 @@ configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/compiler/plugin.proto 
 
 install(DIRECTORY include/ TYPE INCLUDE)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
-install(DIRECTORY ${expected_SOURCE_DIR}/include/ TYPE INCLUDE)
 install(TARGETS protoc libhpp_proto EXPORT hpp_proto-targets)
 install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
 

@@ -9,12 +9,12 @@ if(NOT ut_POPULATED)
     FetchContent_Populate(ut)
 endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL Debug AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    # g++ have problem to compile absil (used by google protobuf) when sanitizer is enabled
-    # https://github.com/abseil/abseil-cpp/issues/1379
-    add_compile_options(-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined)
-    add_link_options(-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined)
-endif()
+# if(CMAKE_BUILD_TYPE STREQUAL Debug AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#     # g++ have problem to compile absil (used by google protobuf) when sanitizer is enabled
+#     # https://github.com/abseil/abseil-cpp/issues/1379
+#     add_compile_options(-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined)
+#     add_link_options(-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined)
+# endif()
 
 if(MSVC)
     add_compile_options(/bigobj /wd4459 /wd4125)
