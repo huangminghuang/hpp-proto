@@ -155,9 +155,9 @@ function(protobuf_generate)
 
     add_custom_command(
       OUTPUT ${_generated_srcs}
-      COMMAND hpp_proto::protoc
+      COMMAND protobuf::protoc
       ARGS ${protobuf_generate_PROTOC_OPTIONS} --${protobuf_generate_LANGUAGE}_out ${_plugin_options}:${protobuf_generate_PROTOC_OUT_DIR} ${_plugin} ${_protobuf_include_path} ${_abs_file}
-      DEPENDS ${_abs_file} hpp_proto::protoc ${protobuf_generate_DEPENDENCIES}
+      DEPENDS ${_abs_file} protobuf::protoc ${protobuf_generate_DEPENDENCIES}
       COMMENT ${_comment}
       VERBATIM )
   endforeach()
