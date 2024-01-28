@@ -32,7 +32,8 @@ function(gen_proto_descriptor_set out_file)
     add_custom_command(
         COMMENT "Generating ${out_file}"
         OUTPUT  ${out_file}
-        COMMAND protobuf::protoc ${_include_dirs} --include_imports --descriptor_set_out=${out_file} ${_rel_protos}
+        COMMAND hpp_proto::protoc 
+        ARGS ${_include_dirs} --include_imports --descriptor_set_out=${out_file} ${_rel_protos}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
 

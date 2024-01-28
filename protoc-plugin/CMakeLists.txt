@@ -13,7 +13,7 @@ set(proto_files google/protobuf/descriptor.proto
 
 add_custom_target(gpb_descriptor
     COMMENT "processing ${proto_files}"
-    COMMAND protobuf::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include  -I ${Protobuf_INCLUDE_DIRS}
+    COMMAND hpp_proto::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include  -I ${Protobuf_INCLUDE_DIRS}
              --hpp_opt=proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed ${proto_files}
     DEPENDS protoc protoc-gen-hpp
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -36,9 +36,9 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../include)
 
 add_custom_target(well_known_types ALL
     COMMENT "processing ${well_known_types_proto}"
-    COMMAND protobuf::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_BINARY_DIR}/../include  -I ${Protobuf_INCLUDE_DIRS}
+    COMMAND hpp_proto::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_BINARY_DIR}/../include  -I ${Protobuf_INCLUDE_DIRS}
             ${well_known_types_proto}
-    DEPENDS protobuf::protoc protoc-gen-hpp
+    DEPENDS hpp_proto::protoc protoc-gen-hpp
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     VERBATIM
 )

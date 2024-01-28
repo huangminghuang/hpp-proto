@@ -1,3 +1,7 @@
+if (@HPP_PROTO_USE_PROTOBUF_PACKAGE@)
+    find_package(Protobuf REQUIRED)
+    add_executable(hpp_proto::protoc ALIAS protobuf::protoc)
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/hpp_proto-targets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/protobuf_generate.cmake")

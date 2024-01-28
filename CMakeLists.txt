@@ -5,10 +5,8 @@ project(hpp_proto
 
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
-option(HPP_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
-
-set(HPP_PROTO_PROTOC_PROVIDER "module" CACHE STRING "Provider of protoc executable")
-set_property(CACHE HPP_PROTO_PROTOC_PROVIDER PROPERTY STRINGS "module" "package")
+option(HPP_PROTO_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
+option(HPP_PROTO_USE_PROTOBUF_PACKAGE "Use find_package functionality to locate the pre-installed Protobuf" OFF)
 
 include(cmake/CPM.cmake)
 
@@ -28,9 +26,10 @@ CPMAddPackage(
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 
-
-
-if(HPP_PROTO_PROTOC_PROVIDER STREQUAL module)
+if(HPP_PROTO_USE_PROTOBUF_PACKAGE)
+  find_package(Protobuf REQUIRED)
+  add_executable(hpp_proto::protoc ALIAS protobuf::protoc)
+else()
   CPMAddPackage(
     NAME protobuf
     VERSION 24.4
@@ -42,12 +41,10 @@ if(HPP_PROTO_PROTOC_PROVIDER STREQUAL module)
     "protobuf_BUILD_PROTOC_BINARIES ON"
     "EXCLUDE_FROM_ALL"
   )
-  add_executable(protobuf::protoc ALIAS protoc)
+  add_executable(hpp_proto::protoc ALIAS protoc)
   add_library(protobuf::libprotobuf ALIAS libprotobuf)
   add_library(protobuf::libprotoc ALIAS libprotoc)
   set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
-else()
-  find_package(Protobuf REQUIRED)
 endif()
 
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
@@ -57,7 +54,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   cmake_path(GET CLANG_REAL_PATH PARENT_PATH CLANG_DIR)
 endif()
 
-if(HPP_ENABLE_CLANG_TIDY)
+if(HPP_PROTO_ENABLE_CLANG_TIDY)
   if(EXISTS "${CLANG_DIR}/clang-tidy")
     set(CLANG_TIDY_EXE "${CLANG_DIR}/clang-tidy")
   else()
@@ -109,7 +106,7 @@ write_basic_package_version_file(
   COMPATIBILITY AnyNewerVersion
 )
 
-if(HPP_PROTO_PROTOC_PROVIDER STREQUAL module)
+if(NOT HPP_PROTO_USE_PROTOBUF_PACKAGE)
   # copy google proto files into include directory
   file(GLOB GOOGLE_PROTOFILES RELATIVE "${protobuf_SOURCE_DIR}/src/google/protobuf" "${protobuf_SOURCE_DIR}/src/google/protobuf/*.proto")
   list(FILTER GOOGLE_PROTOFILES EXCLUDE REGEX ".*test.*")
@@ -126,7 +123,7 @@ install(DIRECTORY include/ TYPE INCLUDE)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
 install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
 
-configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake COPYONLY)
+configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"
   "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake"
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate.cmake"
