@@ -736,7 +736,7 @@ struct msg_code_generator : code_generator {
                            "#include <hpp_proto/field_types.h>\n");
 
     for (const auto &d : descriptor.proto.dependency) {
-      fmt::format_to(target, "#include <{}.msg.hpp>\n", basename(d));
+      fmt::format_to(target, "#include \"{}.msg.hpp\"\n", basename(d));
     }
 
     const auto &ns = descriptor.cpp_namespace;
@@ -1067,10 +1067,10 @@ struct hpp_meta_generateor : code_generator {
     fmt::format_to(target,
                    "#pragma once\n\n"
                    "#include <hpp_proto/pb_serializer.h>\n"
-                   "#include <{}.msg.hpp>\n",
+                   "#include \"{}.msg.hpp\"\n",
                    basename(descriptor.proto.name));
     for (const auto &d : descriptor.proto.dependency) {
-      fmt::format_to(target, "#include <{}.pb.hpp>\n", basename(d));
+      fmt::format_to(target, "#include \"{}.pb.hpp\"\n", basename(d));
     }
 
     fmt::format_to(target, "\n");
@@ -1288,10 +1288,10 @@ struct glaze_meta_generator : code_generator {
                              "#include <hpp_proto/json_serializer.h>\n");
 
       for (const auto &d : descriptor.proto.dependency) {
-        fmt::format_to(target, "#include <{}.glz.hpp>\n", basename(d));
+        fmt::format_to(target, "#include \"{}.glz.hpp\"\n", basename(d));
       }
 
-      fmt::format_to(target, "#include <{}.msg.hpp>\n\n", basename(descriptor.proto.name));
+      fmt::format_to(target, "#include \"{}.msg.hpp\"\n\n", basename(descriptor.proto.name));
 
       if (!sole_message_name.empty() && well_known_codecs.count(sole_message_name)) {
         fmt::format_to(target, "#include <hpp_proto/{}.h>\n\n", well_known_codecs.at(sole_message_name));
@@ -1300,7 +1300,7 @@ struct glaze_meta_generator : code_generator {
       fmt::format_to(target,
                      "#pragma once\n\n"
                      "#include <hpp_proto/dynamic_serializer.h>\n\n"
-                     "#include <{}.msg.hpp>\n\n",
+                     "#include \"{}.msg.hpp\"\n\n",
                      basename(descriptor.proto.name));
     }
 
@@ -1587,7 +1587,7 @@ struct desc_hpp_generateor : code_generator {
                            "#include <hpp_proto/dynamic_serializer.h>\n\n");
 
     for (const auto &d : descriptor.proto.dependency) {
-      fmt::format_to(target, "#include <{}.desc.hpp>\n", basename(d));
+      fmt::format_to(target, "#include \"{}.desc.hpp\"\n", basename(d));
     }
 
     const auto ns = "hpp::proto::file_descriptors";

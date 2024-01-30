@@ -1,5 +1,5 @@
 if (@HPP_PROTO_USE_PROTOBUF_PACKAGE@)
-    find_package(Protobuf REQUIRED)
+    find_dependency(Protobuf)
     add_executable(hpp_proto::protoc ALIAS protobuf::protoc)
 endif()
 
