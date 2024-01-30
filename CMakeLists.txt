@@ -28,7 +28,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED On)
 
 if(HPP_PROTO_USE_PROTOBUF_PACKAGE)
   find_package(Protobuf REQUIRED)
-  add_executable(hpp_proto::protoc ALIAS protobuf::protoc)
 else()
   CPMAddPackage(
     NAME protobuf
@@ -41,7 +40,7 @@ else()
     "protobuf_BUILD_PROTOC_BINARIES ON"
     "EXCLUDE_FROM_ALL"
   )
-  add_executable(hpp_proto::protoc ALIAS protoc)
+  add_executable(protobuf::protoc ALIAS protoc)
   add_library(protobuf::libprotobuf ALIAS libprotobuf)
   add_library(protobuf::libprotoc ALIAS libprotoc)
   set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
