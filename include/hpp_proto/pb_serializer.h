@@ -199,12 +199,7 @@ concept is_basic_out = requires { typename Type::is_basic_out; };
 
 } // namespace concepts
 
-enum field_option {
-  none = 0,
-  explicit_presence = 1,
-  unpacked_repeated = 2,
-  group = 4
-};
+enum field_option { none = 0, explicit_presence = 1, unpacked_repeated = 2, group = 4 };
 
 template <auto Accessor>
 struct accesor_type {
@@ -932,7 +927,8 @@ struct pb_serializer {
       } else if (new_size > buffer.size()) {
         return std::errc::not_enough_memory;
       }
-      basic_out<typename std::remove_cvref_t<decltype(buffer)>::value_type> archive{buffer};
+
+      basic_out archive{buffer};
       auto cache_data = cache.data();
       serialize(item, cache_data, archive);
       if constexpr (requires { buffer.subspan(0, 1); }) {
