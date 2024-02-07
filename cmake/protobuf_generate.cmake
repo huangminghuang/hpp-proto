@@ -154,7 +154,7 @@ function(protobuf_generate)
     endif()
 
     if (NOT TARGET protobuf::protoc)
-      add_exectuable(protobuf::protoc ALIAS hpp_proto::protoc)
+      add_executable(protobuf::protoc ALIAS hpp_proto::protoc)
     endif()
 
     add_custom_command(
