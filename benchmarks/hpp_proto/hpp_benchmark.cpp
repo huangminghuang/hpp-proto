@@ -38,9 +38,9 @@ int main() {
           GoogleMessage1 message;
 #ifdef NON_OWNING
           monotonic_buffer_resource memory_resource(data.size());
-          return hpp::proto::read_proto(message, data, hpp::proto::pb_context{memory_resource}).success();
+          return hpp::proto::read_proto(message, data, hpp::proto::pb_context{memory_resource}).ok();
 #else
-          return hpp::proto::read_proto(message, data).success();
+          return hpp::proto::read_proto(message, data).ok();
 #endif
         },
         repetitions, "decoding message");
@@ -56,7 +56,7 @@ int main() {
     benchmark(
         [&message]() -> bool {
           std::vector<char> data;
-          return hpp::proto::write_proto(message, data).success();
+          return hpp::proto::write_proto(message, data).ok();
         },
         repetitions, "encoding message");
   } catch (...) {

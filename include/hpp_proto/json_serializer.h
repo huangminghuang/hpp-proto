@@ -607,22 +607,20 @@ struct from_json<T *> {
 
 namespace hpp::proto {
 
-struct read_json_error final {
+struct read_json_status final {
   glz::parse_error pe;
-  bool failure() const { return static_cast<bool>(pe); }
-  bool success() const { return !failure(); }
+  bool ok() const { return !static_cast<bool>(pe); }
   std::string message(const auto &buffer) const { return glz::format_error(pe, buffer); }
 };
 
-struct write_json_error final {
+struct write_json_status final {
   const char *error_message_name = nullptr;
-  bool failure() const { return error_message_name != nullptr; }
-  bool success() const { return !failure(); }
+  bool ok() const { return error_message_name == nullptr; }
   std::string message() const { return std::string("invalid value for message ") + error_message_name; }
 };
 
 template <auto Opts = glz::opts{}, typename Buffer, glz::is_context ...Context>
-[[nodiscard]] inline read_json_error read_json(auto &value, Buffer &&buffer, Context &&...ctx) {
+[[nodiscard]] inline read_json_status read_json(auto &value, Buffer &&buffer, Context &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   using buffer_type = std::remove_cvref_t<Buffer>;
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<Buffer> ||
@@ -634,15 +632,15 @@ template <auto Opts = glz::opts{}, typename Buffer, glz::is_context ...Context>
 
 
 template <auto Opts = glz::opts{}, class T, class Buffer>
-inline write_json_error write_json(T &&value, Buffer &&buffer, glz::is_context auto &&ctx) noexcept {
+inline write_json_status write_json(T &&value, Buffer &&buffer, glz::is_context auto &&ctx) noexcept {
   glz::write<Opts>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
   if (ctx.error != glz::error_code::none)
-    return write_json_error{ctx.error_message_name ? ctx.error_message_name : "unknown message"};
+    return write_json_status{ctx.error_message_name ? ctx.error_message_name : "unknown message"};
   return {};
 }
 
 template <auto Opts = glz::opts{}, class T, class Buffer>
-inline write_json_error write_json(T &&value, Buffer &&buffer) noexcept {
+inline write_json_status write_json(T &&value, Buffer &&buffer) noexcept {
   json_context ctx{};
   return write_json(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
 }
@@ -650,11 +648,11 @@ inline write_json_error write_json(T &&value, Buffer &&buffer) noexcept {
 
 template <auto Opts = glz::opts{}, class T>
 [[nodiscard]] inline auto write_json(T &&value, glz::is_context auto &&...ctx) noexcept
-    -> glz::expected<std::string, write_json_error> {
+    -> glz::expected<std::string, write_json_status> {
   static_assert(sizeof...(ctx) <= 1);
   std::string buffer{};
   auto ec = write_json<Opts>(std::forward<T>(value), buffer, ctx...);
-  if (!ec.success())
+  if (!ec.ok())
     return glz::unexpected(ec);
   return buffer;
 }

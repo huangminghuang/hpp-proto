@@ -17,8 +17,8 @@ const boost::ut::suite map_test = [] {
     protobuf_unittest::TestMap msg;
 
     std::vector<char> data;
-    expect(hpp::proto::write_proto(original, data).success());
-    expect(hpp::proto::read_proto(msg, data).success());
+    expect(hpp::proto::write_proto(original, data).ok());
+    expect(hpp::proto::read_proto(msg, data).ok());
 
     ExpectMapFieldsSet(msg);
   };
@@ -28,7 +28,7 @@ const boost::ut::suite map_test = [] {
     SetMapFields(&original);
 
     std::vector<char> data;
-    expect(hpp::proto::write_proto(original, data).success());
+    expect(hpp::proto::write_proto(original, data).ok());
 
     auto original_json =
         gpb_based::proto_to_json(map_unittest_descriptorset, "protobuf_unittest.TestMap", {data.data(), data.size()});
@@ -36,7 +36,7 @@ const boost::ut::suite map_test = [] {
     expect(hpp::proto::write_json(original).value() == original_json);
 
     protobuf_unittest::TestMap msg;
-    expect(hpp::proto::read_json(msg, original_json).success());
+    expect(hpp::proto::read_json(msg, original_json).ok());
 
     ExpectMapFieldsSet(msg);
   };

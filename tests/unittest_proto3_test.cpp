@@ -26,8 +26,8 @@ const boost::ut::suite proto3_lite_test = [] {
     proto3_unittest::TestAllTypes msg;
 
     std::vector<std::byte> data;
-    expect(hpp::proto::write_proto(original, data).success());
-    expect(hpp::proto::read_proto(msg, data).success());
+    expect(hpp::proto::write_proto(original, data).ok());
+    expect(hpp::proto::read_proto(msg, data).ok());
 
     ExpectAllFieldsSet(msg);
   };
@@ -39,8 +39,8 @@ const boost::ut::suite proto3_lite_test = [] {
     proto3_unittest::TestUnpackedTypes msg;
 
     std::vector<std::byte> data;
-    expect(hpp::proto::write_proto(original, data).success());
-    expect(hpp::proto::read_proto(msg, data).success());
+    expect(hpp::proto::write_proto(original, data).ok());
+    expect(hpp::proto::read_proto(msg, data).ok());
 
     ExpectUnpackedFieldsSet(msg);
 
@@ -56,7 +56,7 @@ const boost::ut::suite proto3_lite_test = [] {
     SetAllFields(&original);
 
     std::vector<char> data;
-    expect(hpp::proto::write_proto(original, data).success());
+    expect(hpp::proto::write_proto(original, data).ok());
 
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
                                                   {data.data(), data.size()});
@@ -64,7 +64,7 @@ const boost::ut::suite proto3_lite_test = [] {
     expect(hpp::proto::write_json(original).value() == original_json);
 
     proto3_unittest::TestAllTypes msg;
-    expect(hpp::proto::read_json(msg, original_json).success());
+    expect(hpp::proto::read_json(msg, original_json).ok());
 
     ExpectAllFieldsSet(msg);
   };

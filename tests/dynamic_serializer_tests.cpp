@@ -13,7 +13,7 @@ void test_fixture(auto &message, const char *message_name, const char *descripto
 
   std::string data;
 
-  expect(hpp::proto::write_proto(message, data).success());
+  expect(hpp::proto::write_proto(message, data).ok());
 
   auto descriptors = descriptorset_from_file(descriptorset_file);
   auto ser = hpp::proto::dynamic_serializer::make(descriptors);
@@ -27,12 +27,12 @@ void test_fixture(auto &message, const char *message_name, const char *descripto
   expect(eq(gpb_result, *hpp_result));
 
   std::string serialized;
-  expect(ser->json_to_proto(message_name, *hpp_result, serialized).success());
+  expect(ser->json_to_proto(message_name, *hpp_result, serialized).ok());
   expect(eq(data, serialized));
 
   hpp_result = ser->proto_to_json<glz::opts{.prettify = true}>(message_name, data);
   expect(fatal(hpp_result.has_value()));
-  expect(ser->json_to_proto(message_name, *hpp_result, serialized).success());
+  expect(ser->json_to_proto(message_name, *hpp_result, serialized).ok());
   expect(eq(data, serialized));
 }
 // NOLINTEND(bugprone-easily-swappable-parameters)

@@ -1659,7 +1659,7 @@ int main(int argc, const char **argv) {
 
   gpb::compiler::CodeGeneratorRequest request;
 
-  if (auto ec = hpp::proto::read_proto(request, request_data); ec.failure()) {
+  if (auto ec = hpp::proto::read_proto(request, request_data); !ec.ok()) {
     (void)fputs("hpp decode error", stderr);
     return 1;
   }
@@ -1727,7 +1727,7 @@ int main(int argc, const char **argv) {
   }
 
   std::vector<char> data;
-  if (auto ec = hpp::proto::write_proto(response, data); ec.failure()) {
+  if (auto ec = hpp::proto::write_proto(response, data); !ec.ok()) {
     (void)fputs("hpp encode error", stderr);
     return 1;
   }
