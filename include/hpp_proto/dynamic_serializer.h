@@ -1354,7 +1354,7 @@ class dynamic_serializer {
   };
 
 public:
-  using is_auxiliary_context = void;
+  using auxiliary_context_type = std::reference_wrapper<dynamic_serializer>;
   dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
     descriptor_pool<proto_json_addons> pool(set.file);
 
@@ -1516,7 +1516,7 @@ public:
   template <auto Options = glz::opts{}>
 #endif
   expected<std::string, hpp::proto::status> proto_to_json(std::string_view message_name,
-                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
+                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) const {
     std::string result;
     if (auto ec =
             proto_to_json<Options>(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
@@ -1534,7 +1534,7 @@ public:
   }
 
   expected<std::string, hpp::proto::status> proto_to_json(std::string_view message_name,
-                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) {
+                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) const {
     return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream);
   }
 #endif
@@ -1566,7 +1566,7 @@ public:
 
   template <auto Opts>
   glz::expected<std::vector<std::byte>, hpp::proto::read_json_status> json_to_proto(std::string_view message_name,
-                                                                              std::string_view json) {
+                                                                              std::string_view json) const {
     std::vector<std::byte> result;
     if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); !ec.ok()) {
       return glz::unexpected(ec);
@@ -1575,12 +1575,12 @@ public:
   }
 
   glz::expected<std::vector<std::byte>, hpp::proto::read_json_status> json_to_proto(std::string_view message_name,
-                                                                              std::string_view json) {
+                                                                              std::string_view json) const {
     return json_to_proto<glz::opts{}>(message_name, json);
   }
 
   template <auto Options, class It, class End>
-  void from_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, It &&it, End &&end) {
+  void from_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, It &&it, End &&end) const {
     json_to_pb_state state{*this};
     relocatable_out archive{value.value};
     state.template encode_any<Options, true>(value.type_url, it, end, archive);
@@ -1588,7 +1588,7 @@ public:
   }
 
   template <auto Options>
-  void to_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &&b, auto &&ix) {
+  void to_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &&b, auto &&ix) const {
     pb_to_json_state state(*this, b);
     state.ix = ix;
     state.template decode_any<Options>(value);

@@ -43,8 +43,13 @@ concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
 template <typename... AuxContext>
 struct json_context : glz::context, pb_context<AuxContext...> {
   const char *error_message_name = nullptr;
-  json_context(AuxContext &...ctx) : pb_context<AuxContext...>(ctx...) {}
+  template <typename ...U>
+  json_context(U &&...ctx) : pb_context<AuxContext...>(std::forward<U>(ctx)...) {}
 };
+
+template <typename ...U>
+json_context(U&& ...u) -> json_context<std::remove_cvref_t<U>...>;
+
 
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {

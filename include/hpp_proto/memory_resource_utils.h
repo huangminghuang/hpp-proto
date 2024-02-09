@@ -61,7 +61,7 @@ constexpr bool contains(R &&r, const T &value) {
 namespace hpp::proto {
 namespace concepts {
 template <typename T>
-concept memory_resource = requires(T &object) {
+concept memory_resource = !std::copyable<T> && requires(T &object) {
   { object.allocate(8, 8) } -> std::same_as<void *>;
 };
 
@@ -85,18 +85,33 @@ template <typename T>
 concept is_pb_context = requires { typename std::remove_cvref_t<T>::is_pb_context; };
 
 template <typename T>
-concept is_auxiliary_context = memory_resource<T> || requires { typename T::is_auxiliary_context; };
+concept is_auxiliary_context = memory_resource<T> || requires { typename T::auxiliary_context_type; };
 
 } // namespace concepts
 
-template <concepts::is_auxiliary_context ...T>
-struct pb_context : std::reference_wrapper<T>... {
+template <typename T>
+struct pb_context_base {
+  using type = typename T::auxiliary_context_type;
+};
+
+template <concepts::memory_resource T>
+struct pb_context_base<T> {
+  using type = std::reference_wrapper<T>;
+};
+
+template <typename ... T>
+struct pb_context : pb_context_base<T>::type... {
   using is_pb_context = void;
-  constexpr pb_context(T &...ctx) : std::reference_wrapper<T>(ctx)... {}
+  template <typename ...U>
+  constexpr pb_context(U &&...ctx) : pb_context_base<T>::type(std::forward<U>(ctx))... {}
 
   template <concepts::is_auxiliary_context U>
-  U &get() const {
-    return static_cast<const std::reference_wrapper<U> &>(*this).get();
+  constexpr auto &get() const {
+    if constexpr (std::copyable<U>) {
+      return static_cast<const U &>(*this);
+    } else {
+      return static_cast<const std::reference_wrapper<U> &>(*this).get();
+    }
   }
 
   template <typename U, typename... Rest>
@@ -134,6 +149,9 @@ struct pb_context : std::reference_wrapper<T>... {
     return get_memory_resource<T...>();
   }
 };
+
+template <typename ...U>
+pb_context(U&& ...u) -> pb_context<std::remove_cvref_t<U>...>;
 
 namespace detail {
 
@@ -194,7 +212,7 @@ constexpr auto make_growable(concepts::has_memory_resource auto &&context, std::
 }
 
 constexpr auto make_growable(concepts::has_memory_resource auto &&context, std::string_view &base) {
-  return detail::growable_span{base, context.memory_resource};
+  return detail::growable_span{base, context.memory_resource()};
 }
 
 template <typename T>

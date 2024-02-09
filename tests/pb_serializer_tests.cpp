@@ -44,8 +44,8 @@ struct example_default_type {
   constexpr bool operator==(const example_default_type &) const = default;
 };
 
-auto pb_meta(const example_default_type &) -> std::tuple<
-    hpp::proto::field_meta<1, &example_default_type::i, field_option::none, hpp::proto::vint64_t, 1>>;
+auto pb_meta(const example_default_type &)
+    -> std::tuple<hpp::proto::field_meta<1, &example_default_type::i, field_option::none, hpp::proto::vint64_t, 1>>;
 
 const ut::suite test_example_default_type = [] {
   example_default_type const v;
@@ -87,8 +87,8 @@ struct repeated_integers {
   bool operator==(const repeated_integers &) const = default;
 };
 
-auto pb_meta(const repeated_integers &) -> std::tuple<
-    hpp::proto::field_meta<1, &repeated_integers::integers, field_option::none, hpp::proto::vsint32_t>>;
+auto pb_meta(const repeated_integers &)
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_integers::integers, field_option::none, hpp::proto::vsint32_t>>;
 
 struct repeated_integers_unpacked {
   std::vector<hpp::proto::vsint32_t> integers;
@@ -109,8 +109,7 @@ auto pb_meta(const repeated_integers_unpacked_explicit_type &)
 
 const ut::suite test_repeated_integers = [] {
   "repeated_integers"_test = [] {
-    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv,
-           repeated_integers{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
+    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, repeated_integers{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
   };
 
   "repeated_integers_unpacked"_test = [] {
@@ -136,9 +135,8 @@ struct non_owning_repeated_integers {
   }
 };
 
-auto pb_meta(const non_owning_repeated_integers &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_integers::integers, field_option::none,
-                                         hpp::proto::vsint32_t>>;
+auto pb_meta(const non_owning_repeated_integers &) -> std::tuple<
+    hpp::proto::field_meta<1, &non_owning_repeated_integers::integers, field_option::none, hpp::proto::vsint32_t>>;
 
 struct non_owning_repeated_integers_unpacked {
   std::span<const hpp::proto::vsint32_t> integers;
@@ -166,7 +164,9 @@ void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory
   std::remove_cvref_t<T> value;
 
   monotonic_buffer_resource mr{memory_size};
-  ut::expect(hpp::proto::read_proto(value, encoded_data, hpp::proto::pb_context{mr}).ok());
+  ut::expect(
+      hpp::proto::read_proto(value, encoded_data, hpp::proto::pb_context{mr, hpp::proto::always_allocate_memory{}})
+          .ok());
   ut::expect(value == expected_value);
 
   if (mode == decode_only) {
@@ -233,8 +233,8 @@ struct repeated_fixed_explicit_type {
   bool operator==(const repeated_fixed_explicit_type &) const = default;
 };
 
-auto pb_meta(const repeated_fixed_explicit_type &) -> std::tuple<
-    hpp::proto::field_meta<1, &repeated_fixed_explicit_type::integers, field_option::none, uint64_t>>;
+auto pb_meta(const repeated_fixed_explicit_type &)
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed_explicit_type::integers, field_option::none, uint64_t>>;
 struct repeated_fixed_unpacked {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed_unpacked &) const = default;
@@ -254,15 +254,13 @@ auto pb_meta(const repeated_fixed_unpacked_explicit_type &)
 
 const ut::suite test_repeated_fixed = [] {
   "repeated_fixed"_test = [] {
-    verify(
-        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
-        repeated_fixed{{1, 2, 3}});
+    verify("\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
+           repeated_fixed{{1, 2, 3}});
   };
 
   "repeated_fixed_explicit_type"_test = [] {
-    verify(
-        "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
-        repeated_fixed_explicit_type{{1, 2, 3}});
+    verify("\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
+           repeated_fixed_explicit_type{{1, 2, 3}});
   };
 
   "repeated_fixed_unpacked"_test = [] {
@@ -304,9 +302,8 @@ struct non_owning_repeated_fixed_explicit_type {
   }
 };
 
-auto pb_meta(const non_owning_repeated_fixed_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed_explicit_type::integers,
-                                         field_option::none, uint64_t>>;
+auto pb_meta(const non_owning_repeated_fixed_explicit_type &) -> std::tuple<
+    hpp::proto::field_meta<1, &non_owning_repeated_fixed_explicit_type::integers, field_option::none, uint64_t>>;
 struct non_owning_repeated_fixed_unpacked {
   std::span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_unpacked &other) const {
@@ -447,8 +444,7 @@ auto pb_meta(const repeated_enum_unpacked &)
 const ut::suite test_repeated_enums = [] {
   "repeated_enum"_test = [] {
     using enum repeated_enum::NestedEnum;
-    verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
-           repeated_enum{{FOO, BAR, BAZ, NEG}});
+    verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv, repeated_enum{{FOO, BAR, BAZ, NEG}});
   };
 
   "repeated_enum_unpacked"_test = [] {
@@ -482,8 +478,8 @@ const ut::suite test_non_owning_repeated_enums = [] {
   "non_owning_repeated_enum"_test = [] {
     using enum non_owning_repeated_enum::NestedEnum;
     std::array<non_owning_repeated_enum::NestedEnum, 4> x{FOO, BAR, BAZ, NEG};
-    verify_non_owning("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
-                      non_owning_repeated_enum{x}, 64);
+    verify_non_owning("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv, non_owning_repeated_enum{x},
+                      64);
   };
 
   "non_owning_repeated_enum_unpacked"_test = [] {
@@ -631,7 +627,8 @@ struct string_with_default {
   bool operator==(const string_with_default &) const = default;
 };
 auto pb_meta(const string_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, &string_with_default::value, field_option::none, void, hpp::proto::string_literal<"test">{}>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_with_default::value, field_option::none, void,
+                                         hpp::proto::string_literal<"test">{}>>;
 
 struct string_with_optional {
   hpp::proto::optional<std::string, hpp::proto::string_literal<"test">{}> value;
@@ -649,9 +646,7 @@ const ut::suite test_string_example = [] {
     verify("\x0a\x04\x74\x65\x73\x74"sv, string_with_default{.value = "test"}, decode_only);
   };
 
-  "string_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"sv, string_with_optional{.value = "test"});
-  };
+  "string_with_optional"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, string_with_optional{.value = "test"}); };
 
   "optional_value_access"_test = [] {
     string_with_optional const v;
@@ -679,8 +674,9 @@ struct string_view_with_default {
   std::string_view value = "test";
   bool operator==(const string_view_with_default &) const = default;
 };
-auto pb_meta(const string_view_with_default &) -> std::tuple<
-    hpp::proto::field_meta<1, &string_view_with_default::value, field_option::none, void, hpp::proto::string_literal<"test">{}>>;
+auto pb_meta(const string_view_with_default &)
+    -> std::tuple<hpp::proto::field_meta<1, &string_view_with_default::value, field_option::none, void,
+                                         hpp::proto::string_literal<"test">{}>>;
 
 struct string_view_with_optional {
   hpp::proto::optional<std::string_view, hpp::proto::string_literal<"test">{}> value;
@@ -691,7 +687,30 @@ auto pb_meta(const string_view_with_optional &)
 
 const ut::suite test_string_view_example = [] {
   "string_view_example"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"sv, string_view_example{.value = "test"});
+    auto encoded_data = "\x0a\x04\x74\x65\x73\x74"sv;
+    auto expected_value = string_view_example{.value = "test"};
+    verify(encoded_data, expected_value);
+    using namespace boost::ut::spec;
+
+    describe("always allocate memory option") = [&] {
+      string_view_example value;
+      monotonic_buffer_resource mr{32};
+      ut::expect(
+          hpp::proto::read_proto(value, encoded_data, hpp::proto::pb_context{mr, hpp::proto::always_allocate_memory{}})
+              .ok());
+
+      ut::expect(value.value.data() != encoded_data.data() + 2);
+    };
+
+    describe("no always allocate memory option") = [&] {
+      string_view_example value;
+      monotonic_buffer_resource mr{32};
+      ut::expect(
+          hpp::proto::read_proto(value, encoded_data, hpp::proto::pb_context{mr})
+              .ok());
+
+      ut::expect(value.value.data() == encoded_data.data() + 2);
+    };
   };
 
   "string_view_explicit_presence"_test = [] {
@@ -719,8 +738,7 @@ struct bytes_example {
   bool operator==(const bytes_example &) const = default;
 };
 
-auto pb_meta(const bytes_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &bytes_example::value, field_option::none>>;
+auto pb_meta(const bytes_example &) -> std::tuple<hpp::proto::field_meta<1, &bytes_example::value, field_option::none>>;
 
 struct bytes_explicit_presence {
   std::vector<std::byte> value;
@@ -736,7 +754,8 @@ struct bytes_with_default {
 };
 
 auto pb_meta(const bytes_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, &bytes_with_default::value, field_option::none, void, hpp::proto::string_literal<"test">{}>>;
+    -> std::tuple<hpp::proto::field_meta<1, &bytes_with_default::value, field_option::none, void,
+                                         hpp::proto::string_literal<"test">{}>>;
 
 struct bytes_with_optional {
   hpp::proto::optional<std::vector<std::byte>, hpp::proto::string_literal<"test">{}> value;
@@ -792,8 +811,9 @@ struct char_vector_with_default {
   bool operator==(const char_vector_with_default &) const = default;
 };
 
-auto pb_meta(const char_vector_with_default &) -> std::tuple<
-    hpp::proto::field_meta<1, &char_vector_with_default::value, field_option::none, void, hpp::proto::string_literal<"test">{}>>;
+auto pb_meta(const char_vector_with_default &)
+    -> std::tuple<hpp::proto::field_meta<1, &char_vector_with_default::value, field_option::none, void,
+                                         hpp::proto::string_literal<"test">{}>>;
 
 struct char_vector_with_optional {
   hpp::proto::optional<std::vector<char>, hpp::proto::string_literal<"test">{}> value;
@@ -851,8 +871,9 @@ struct byte_span_with_default {
   bool operator==(const byte_span_with_default &other) const { return std::ranges::equal(value, other.value); }
 };
 
-auto pb_meta(const byte_span_with_default &) -> std::tuple<
-    hpp::proto::field_meta<1, &byte_span_with_default::value, field_option::none, void, hpp::proto::string_literal<"test">{}>>;
+auto pb_meta(const byte_span_with_default &)
+    -> std::tuple<hpp::proto::field_meta<1, &byte_span_with_default::value, field_option::none, void,
+                                         hpp::proto::string_literal<"test">{}>>;
 
 struct byte_span_with_optional {
   hpp::proto::optional<std::span<const std::byte>, hpp::proto::string_literal<"test">{}> value;
@@ -868,9 +889,7 @@ auto pb_meta(const byte_span_with_optional &)
 const ut::suite test_byte_span = [] {
   static const std::byte verified_value[] = {std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
 
-  "byte_span_example"_test = [] {
-    verify("\x0a\x04\x74\x65\x73\x74"sv, byte_span_example{.value = verified_value});
-  };
+  "byte_span_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, byte_span_example{.value = verified_value}); };
 
   "byte_span_explicit_presence"_test = [] {
     verify("\x0a\x04\x74\x65\x73\x74"sv, byte_span_explicit_presence{.value = verified_value});
@@ -912,15 +931,13 @@ const ut::suite test_repeated_strings = [] {
     verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv, repeated_strings{.values = {"abc"s, "def"s}});
   };
   "repeated_strings_explicit_type"_test = [] {
-    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv,
-           repeated_strings_explicit_type{.values = {"abc"s, "def"s}});
+    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv, repeated_strings_explicit_type{.values = {"abc"s, "def"s}});
   };
 
   "non_owning_repeated_string"_test = [] {
     std::string_view storage[] = {"abc"sv, "def"sv};
 
-    verify_non_owning("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv,
-                      non_owning_repeated_string{.values = storage}, 32);
+    verify_non_owning("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv, non_owning_repeated_string{.values = storage}, 64);
   };
 };
 
@@ -996,9 +1013,9 @@ struct extension_example {
   bool operator==(const extension_example &other) const = default;
 };
 
-auto pb_meta(const extension_example &) -> std::tuple<
-    hpp::proto::field_meta<1, &extension_example::int_value, field_option::none, hpp::proto::vint64_t>,
-    hpp::proto::field_meta<UINT32_MAX, &extension_example::extensions>>;
+auto pb_meta(const extension_example &)
+    -> std::tuple<hpp::proto::field_meta<1, &extension_example::int_value, field_option::none, hpp::proto::vint64_t>,
+                  hpp::proto::field_meta<UINT32_MAX, &extension_example::extensions>>;
 
 constexpr auto i32_ext() {
   return hpp::proto::extension_meta<extension_example, 10, field_option::explicit_presence, hpp::proto::vint64_t,
@@ -1006,8 +1023,7 @@ constexpr auto i32_ext() {
 }
 
 constexpr auto string_ext() {
-  return hpp::proto::extension_meta<extension_example, 11, field_option::explicit_presence, std::string,
-                                    std::string>{};
+  return hpp::proto::extension_meta<extension_example, 11, field_option::explicit_presence, std::string, std::string>{};
 }
 
 constexpr auto i32_defaulted_ext() {
@@ -1143,14 +1159,14 @@ struct non_owning_extension_example {
 
   template <typename Meta>
   [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::set_value_type &&value,
-                                              hpp::proto::concepts::is_pb_context auto &&mr) {
+                                                 hpp::proto::concepts::is_pb_context auto &&mr) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), mr);
   }
 
   template <typename Meta>
     requires Meta::is_repeated
   [[nodiscard]] hpp::proto::status set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value,
-                                              hpp::proto::concepts::is_pb_context auto &&mr) {
+                                                 hpp::proto::concepts::is_pb_context auto &&mr) {
     return meta.write(extensions, std::span<const typename Meta::element_type>(value.begin(), value.end()), mr);
   }
 
@@ -1168,13 +1184,13 @@ constexpr auto non_owning_i32_ext() {
 }
 
 constexpr auto non_owning_string_ext() {
-  return hpp::proto::extension_meta<non_owning_extension_example, 11, field_option::explicit_presence,
-                                    std::string_view, std::string_view>{};
+  return hpp::proto::extension_meta<non_owning_extension_example, 11, field_option::explicit_presence, std::string_view,
+                                    std::string_view>{};
 }
 
 constexpr auto non_owning_i32_defaulted_ext() {
-  return hpp::proto::extension_meta<non_owning_extension_example, 13, field_option::none, hpp::proto::vint64_t,
-                                    int32_t, hpp::proto::vint64_t{10}>{};
+  return hpp::proto::extension_meta<non_owning_extension_example, 13, field_option::none, hpp::proto::vint64_t, int32_t,
+                                    hpp::proto::vint64_t{10}>{};
 }
 
 constexpr auto non_owning_i32_unset_ext() {
@@ -1198,8 +1214,8 @@ constexpr auto non_owning_repeated_string_ext() {
 }
 
 constexpr auto non_owning_repeated_packed_i32_ext() {
-  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 22, field_option::none,
-                                             hpp::proto::vint64_t, int32_t>{};
+  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 22, field_option::none, hpp::proto::vint64_t,
+                                             int32_t>{};
 }
 
 const ut::suite test_non_owning_extensions = [] {
@@ -1495,16 +1511,17 @@ struct monster_with_optional {
   bool boss = {};
 
   bool operator==(const monster_with_optional &) const = default;
-  using pb_meta = std::tuple<
-      hpp::proto::field_meta<1, &monster_with_optional::pos>,
-      hpp::proto::field_meta<2, &monster_with_optional::mana, field_option::none, hpp::proto::vint64_t>,
-      hpp::proto::field_meta<3, &monster_with_optional::hp>, hpp::proto::field_meta<4, &monster_with_optional::name>,
-      hpp::proto::field_meta<5, &monster_with_optional::inventory>,
-      hpp::proto::field_meta<6, &monster_with_optional::color>,
-      hpp::proto::field_meta<7, &monster_with_optional::weapons, field_option::unpacked_repeated>,
-      hpp::proto::field_meta<8, &monster_with_optional::equipped>,
-      hpp::proto::field_meta<9, &monster_with_optional::path, field_option::unpacked_repeated>,
-      hpp::proto::field_meta<10, &monster_with_optional::boss>>;
+  using pb_meta =
+      std::tuple<hpp::proto::field_meta<1, &monster_with_optional::pos>,
+                 hpp::proto::field_meta<2, &monster_with_optional::mana, field_option::none, hpp::proto::vint64_t>,
+                 hpp::proto::field_meta<3, &monster_with_optional::hp>,
+                 hpp::proto::field_meta<4, &monster_with_optional::name>,
+                 hpp::proto::field_meta<5, &monster_with_optional::inventory>,
+                 hpp::proto::field_meta<6, &monster_with_optional::color>,
+                 hpp::proto::field_meta<7, &monster_with_optional::weapons, field_option::unpacked_repeated>,
+                 hpp::proto::field_meta<8, &monster_with_optional::equipped>,
+                 hpp::proto::field_meta<9, &monster_with_optional::path, field_option::unpacked_repeated>,
+                 hpp::proto::field_meta<10, &monster_with_optional::boss>>;
 };
 
 const ut::suite test_monster_with_optional = [] {
@@ -1745,7 +1762,7 @@ const ut::suite test_empty_person = [] {
   expect(new_data.empty());
 };
 
-const ut::suite test_write_to_non_resizable_buffer =  [] {
+const ut::suite test_write_to_non_resizable_buffer = [] {
   using namespace boost::ut;
   char buf[8];
   std::span<char> s{buf};
@@ -1753,10 +1770,10 @@ const ut::suite test_write_to_non_resizable_buffer =  [] {
   example msg{150};
   expect(hpp::proto::write_proto(msg, s).ok());
   expect(std::ranges::equal("\x08\x96\x01"sv, s));
-} ;
+};
 
 int main() {
-#if !defined( _MSC_VER) || ( defined(__clang_major__) && (__clang_major__ > 14))
+#if !defined(_MSC_VER) || (defined(__clang_major__) && (__clang_major__ > 14))
   constexpr_verify(carg("\x08\x96\x01"_bytes_view), carg(example{150}));
   constexpr_verify(carg("\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view), carg(example{-1}));
   constexpr_verify(carg(""_bytes_view), carg(example{}));

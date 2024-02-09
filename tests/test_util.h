@@ -63,6 +63,7 @@ struct monotonic_buffer_resource {
   void *mem = 0;
   void *cur = 0;
   monotonic_buffer_resource(std::size_t sz) : size(sz), mem(malloc(sz)), cur(mem) {}
+  monotonic_buffer_resource(const monotonic_buffer_resource&) = delete;
   ~monotonic_buffer_resource() { free(mem); }
   void *allocate(std::size_t n, std::size_t alignment) {
     if (std::align(alignment, n, cur, size)) {

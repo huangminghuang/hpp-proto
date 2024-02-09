@@ -40,6 +40,13 @@ namespace hpp {
 namespace proto {
 using glz::expected;
 using glz::unexpected;
+
+// Always allocate memory for string and bytes fields when
+// deserializing non-owning messages.
+struct always_allocate_memory {
+  using auxiliary_context_type = always_allocate_memory;
+};
+
 /////////////////////////////////////////////////////////////////
 // varint code is based on https://github.com/eyalz800/zpp_bits
 /////////////////////////////////////////////////////////////////
@@ -173,6 +180,9 @@ concept resizable = requires {
   std::declval<T &>().resize(1);
   std::declval<T>()[0];
 };
+
+template <typename T>
+concept not_resizable = !resizable<T>;
 
 template <typename T>
 concept resizable_or_reservable =
@@ -1210,7 +1220,7 @@ struct pb_serializer {
   basic_in(Range &&) -> basic_in<std::ranges::range_value_t<Range>>;
 
   static status skip_field(uint32_t tag, concepts::has_extension auto &item, auto &context,
-                         concepts::is_basic_in auto &archive) {
+                           concepts::is_basic_in auto &archive) {
 
     auto unwound = archive.unwind_tag(tag);
 
@@ -1260,7 +1270,7 @@ struct pb_serializer {
   }
 
   constexpr static status skip_field(uint32_t tag, concepts::has_meta auto &, auto & /* unused */,
-                                   concepts::is_basic_in auto &archive) {
+                                     concepts::is_basic_in auto &archive) {
     return do_skip_field(tag, archive);
   }
 
@@ -1326,7 +1336,7 @@ struct pb_serializer {
   }
 
   constexpr static status count_unpacked_elements(uint32_t input_tag, std::size_t &count,
-                                                concepts::is_basic_in auto archive) {
+                                                  concepts::is_basic_in auto archive) {
     vuint32_t parsed_tag;
 
     do {
@@ -1347,9 +1357,9 @@ struct pb_serializer {
     return {};
   }
 
-  template <typename Meta>
-  constexpr static status deserialize_packed_repeated(Meta, auto &&item, auto &context,
-                                                    concepts::is_basic_in auto &archive) {
+  template <typename Meta, typename Context>
+  constexpr static status deserialize_packed_repeated(Meta, auto &&item, Context &context,
+                                                      concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
     using value_type = typename type::value_type;
 
@@ -1363,13 +1373,13 @@ struct pb_serializer {
       return result;
     }
 
-    if constexpr (std::is_same_v<type, std::string_view>) {
-      // handling string_view
+    if constexpr (concepts::byte_type<value_type> && concepts::not_resizable<type> && ! std::is_base_of_v<always_allocate_memory, Context>) {
+      // handling string_view or span of byte
       auto data = archive.read(length);
       if (data.size() != length) {
         return std::errc::result_out_of_range;
       }
-      item = std::string_view((const char *)data.data(), length);
+      item = type((const value_type *)data.data(), length);
       return {};
     } else {
       decltype(auto) growable = make_growable(context, item);
@@ -1403,15 +1413,6 @@ struct pb_serializer {
           }
           return {};
         }
-      } else if constexpr ((std::is_same_v<value_type, char> ||
-                            std::is_same_v<value_type, std::byte>)&&std::is_same_v<type, std::span<const value_type>>) {
-        // handling bytes
-        auto data = archive.read(length);
-        if (data.size() != length) {
-          return std::errc::result_out_of_range;
-        }
-        item = std::span<const value_type>((const value_type *)data.data(), length);
-        return {};
       } else if constexpr (requires { item.insert(value_type{}); }) {
         // packed repeated set
         auto fetch = [&item](auto &archive) constexpr {
@@ -1527,7 +1528,7 @@ struct pb_serializer {
 
   template <typename Meta>
   constexpr static status deserialize_unpacked_repeated(Meta, uint32_t tag, auto &&item, auto &context,
-                                                      concepts::is_basic_in auto &archive) {
+                                                        concepts::is_basic_in auto &archive) {
 
     using type = std::remove_reference_t<decltype(item)>;
 
@@ -1564,7 +1565,7 @@ struct pb_serializer {
 
   template <typename Meta>
   constexpr static status deserialize_field(Meta meta, uint32_t tag, auto &&item, auto &context,
-                                          concepts::is_basic_in auto &archive) {
+                                            concepts::is_basic_in auto &archive) {
 
     const uint32_t field_num = tag_number(tag);
 
@@ -1658,7 +1659,7 @@ struct pb_serializer {
   }
 
   constexpr static status deserialize_group(uint32_t field_num, auto &&item, auto &context,
-                                          concepts::is_basic_in auto &archive) {
+                                            concepts::is_basic_in auto &archive) {
 
     while (!archive.empty()) {
       vuint32_t tag;
@@ -1680,7 +1681,7 @@ struct pb_serializer {
 
   template <std::size_t Index, concepts::tuple Meta>
   constexpr static status deserialize_oneof(int32_t tag, auto &&item, auto &context,
-                                          concepts::is_basic_in auto &archive) {
+                                            concepts::is_basic_in auto &archive) {
     if constexpr (Index < std::tuple_size_v<Meta>) {
       using meta = typename std::tuple_element<Index, Meta>::type;
       if (meta::number == tag_number(tag)) {
@@ -1700,7 +1701,7 @@ struct pb_serializer {
 
   template <std::size_t Index>
   constexpr static status deserialize_field_by_index(uint32_t tag, auto &item, auto &context,
-                                                   concepts::is_basic_in auto &archive) {
+                                                     concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
     using Meta = typename traits::field_meta_of<type, Index>::type;
     if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
@@ -1713,7 +1714,7 @@ struct pb_serializer {
 
   template <uint32_t MaskedNum, uint32_t I = 0>
   constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, auto &context,
-                                                        concepts::is_basic_in auto &archive) {
+                                                          concepts::is_basic_in auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto table = traits::reverse_indices<type>::template lookup_table_for_masked_number<MaskedNum>();
     if constexpr (table.empty() || I >= table.size()) {
@@ -1734,7 +1735,7 @@ struct pb_serializer {
   }
 
   constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, auto &context,
-                                                 concepts::is_basic_in auto &archive) {
+                                                   concepts::is_basic_in auto &archive) {
 
     using type = std::remove_cvref_t<decltype(item)>;
     using context_type = std::remove_cvref_t<decltype(context)>;
@@ -1746,7 +1747,7 @@ struct pb_serializer {
   }
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_pb_context auto &context,
-                                    concepts::is_basic_in auto &archive) {
+                                      concepts::is_basic_in auto &archive) {
 
     while (!archive.empty()) {
       vuint32_t tag;
@@ -1784,7 +1785,7 @@ struct pb_serializer {
   }
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer,
-                                    concepts::is_pb_context auto &&context) {
+                                      concepts::is_pb_context auto &&context) {
 
     basic_in<std::ranges::range_value_t<decltype(buffer)>> archive(buffer);
     return deserialize(item, context, archive);
@@ -1868,7 +1869,7 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
 
 template <typename ExtensionMeta>
 inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions, auto &&value,
-                                                      concepts::is_pb_context auto &&ctx) {
+                                                        concepts::is_pb_context auto &&ctx) {
   check(extensions);
 
   std::span<std::byte> buf;
