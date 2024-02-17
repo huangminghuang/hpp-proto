@@ -1087,7 +1087,7 @@ struct pb_serializer {
           item = std::bit_cast<type>(value);
         } else {
           if constexpr (endian_swapped && sizeof(type) != 1) {
-            std::reverse_copy(m_data.begin(), m_data.begin() + sizeof(item), std::bit_cast<const std::byte *>(&item));
+            std::reverse_copy(m_data.begin(), m_data.begin() + sizeof(item), reinterpret_cast<const std::byte *>(&item));
           } else {
             std::memcpy(&item, m_data.data(), sizeof(item));
           }
@@ -1234,7 +1234,7 @@ struct pb_serializer {
 
     unwound = unwound.subspan(0, unwound.size() - archive.size());
 
-    std::span<const byte_type> field_span{std::bit_cast<const byte_type *>(unwound.data()), unwound.size()};
+    std::span<const byte_type> field_span{reinterpret_cast<const byte_type *>(unwound.data()), unwound.size()};
     const uint32_t field_num = tag_number(tag);
 
     if constexpr (concepts::associative_container<fields_type>) {
