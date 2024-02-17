@@ -397,7 +397,7 @@ template <std::size_t Len>
 struct compile_time_string {
   using value_type = char;
   char data_[Len];
-  constexpr size_t size() const { return Len - 1; }
+  constexpr std::size_t size() const { return Len - 1; }
   constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(init, Len, data_); }
   constexpr const char *data() const { return data_; }
 };
@@ -406,7 +406,7 @@ template <std::size_t Len>
 struct compile_time_bytes {
   using value_type = char;
   std::byte data_[Len];
-  constexpr size_t size() const { return Len - 1; }
+  constexpr std::size_t size() const { return Len - 1; }
   constexpr compile_time_bytes(const char (&init)[Len]) {
     std::transform(init, init + Len, data_, [](char c) { return static_cast<std::byte>(c); });
   }
@@ -450,12 +450,12 @@ struct string_literal {
 
   template <concepts::byte_type Byte>
   explicit operator std::vector<Byte>() const {
-    return std::vector<Byte>{std::bit_cast<const Byte *>(begin()), std::bit_cast<const Byte *>(end())};
+    return std::vector<Byte>{reinterpret_cast<const Byte *>(begin()), reinterpret_cast<const Byte *>(end())};
   }
 
   template <concepts::byte_type Byte>
-  constexpr explicit operator std::span<const Byte>() const {
-    return std::span<const Byte>{std::bit_cast<const Byte *>(data()), size()};
+  explicit operator std::span<const Byte>() const {
+    return std::span<const Byte>{reinterpret_cast<const Byte *>(data()), size()};
   }
 
   friend constexpr bool operator==(const string_literal &lhs, const std::string &rhs) {
