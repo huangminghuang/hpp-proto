@@ -48,6 +48,17 @@ endif()
 
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
+if (HPP_PROTO_BENCHMARKS)
+  CPMAddPackage(
+    NAME benchmark
+    GITHUB_REPOSITORY google/benchmark
+    VERSION 1.8.3
+    OPTIONS
+    "BENCHMARK_ENABLE_TESTING OFF"
+    "BENCHMARK_ENABLE_INSTALL OFF"
+  )
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   file(REAL_PATH ${CMAKE_CXX_COMPILER} CLANG_REAL_PATH)
   cmake_path(GET CLANG_REAL_PATH PARENT_PATH CLANG_DIR)
