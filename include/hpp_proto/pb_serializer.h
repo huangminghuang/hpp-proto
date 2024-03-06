@@ -35,6 +35,7 @@
 #include <system_error>
 // #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
+// #include <is_utf8.h>
 
 namespace hpp {
 namespace proto {
@@ -1644,7 +1645,14 @@ struct pb_serializer {
         return deserialize_group(field_num, growable[old_size], context, archive);
       }
     } else if constexpr (concepts::contiguous_byte_range<type>) {
-      return deserialize_packed_repeated(meta, std::forward<type>(item), context, archive);
+      if (auto result =  deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok())
+        return result;
+      
+      // if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
+      //   if (!is_utf8(item.data(), item.size()))
+      //     return std::errc::bad_message;
+      // }
+      return {};
     } else { // repeated non-group
       using value_type = typename type::value_type;
       if constexpr (concepts::numeric<value_type> && !meta.is_unpacked_repeated) {

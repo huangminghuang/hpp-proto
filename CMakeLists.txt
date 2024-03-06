@@ -47,6 +47,7 @@ else()
 endif()
 
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+CPMAddPackage("gh:simdutf/is_utf8#v1.3.1")
 
 if (HPP_PROTO_BENCHMARKS)
   CPMAddPackage(
@@ -87,6 +88,7 @@ target_include_directories(libhpp_proto INTERFACE
   $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(libhpp_proto INTERFACE cxx_std_20)
+target_link_libraries(libhpp_proto INTERFACE is_utf8::is_utf8)
 
 if(MSVC)
   # warning level 4
@@ -138,6 +140,16 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.
   "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake"
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate.cmake"
   DESTINATION "lib/cmake/hpp_proto")
+
+install(
+  FILES ${is_utf8_SOURCE_DIR}/include/is_utf8.h
+  TYPE INCLUDE
+)
+
+install(
+  TARGETS is_utf8
+  EXPORT hpp_proto-targets
+)
 
 install(EXPORT hpp_proto-targets
   DESTINATION lib/cmake/hpp_proto
