@@ -31,7 +31,7 @@ if(HPP_PROTO_USE_PROTOBUF_PACKAGE)
 else()
   CPMAddPackage(
     NAME protobuf
-    VERSION 24.4
+    VERSION 25.3
     GITHUB_REPOSITORY protocolbuffers/protobuf
     OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
     "protobuf_INSTALL OFF"
@@ -89,6 +89,14 @@ target_include_directories(libhpp_proto INTERFACE
   $<INSTALL_INTERFACE:include>)
 target_compile_features(libhpp_proto INTERFACE cxx_std_20)
 target_link_libraries(libhpp_proto INTERFACE is_utf8::is_utf8)
+
+add_library(libhpp_proto_no_utf8_validation INTERFACE)
+target_include_directories(libhpp_proto_no_utf8_validation INTERFACE
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(libhpp_proto_no_utf8_validation INTERFACE cxx_std_20)
+target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_NO_UTF8_VALIDATION)
 
 if(MSVC)
   # warning level 4

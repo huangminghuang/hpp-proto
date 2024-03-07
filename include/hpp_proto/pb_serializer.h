@@ -35,7 +35,9 @@
 #include <system_error>
 // #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
-// #include <is_utf8.h>
+#ifndef HPP_PROTO_NO_UTF8_VALIDATION
+#include <is_utf8.h>
+#endif
 
 namespace hpp {
 namespace proto {
@@ -940,7 +942,8 @@ struct pb_serializer {
 
       basic_out archive{buffer};
       auto cache_data = cache.data();
-      serialize(item, cache_data, archive);
+      if (!serialize(item, cache_data, archive))
+        return std::errc::bad_message;
       if constexpr (requires { buffer.subspan(0, 1); }) {
         buffer = buffer.subspan(old_size, msg_sz);
       }
@@ -963,19 +966,20 @@ struct pb_serializer {
     }
   }
 
-  constexpr static void serialize(concepts::has_meta auto &&item, uint32_t *&cache, auto &archive) {
+  constexpr static bool serialize(concepts::has_meta auto &&item, uint32_t *&cache, auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using metas = typename traits::meta_of<type>::type;
-    return std::apply([&](auto... meta) { (serialize_field(meta, meta.access(item), cache, archive), ...); }, metas{});
+    return std::apply([&](auto... meta) { return (serialize_field(meta, meta.access(item), cache, archive) && ...); },
+                      metas{});
   }
 
   template <typename Meta>
-  constexpr static void serialize_field(Meta meta, auto &&item, uint32_t *&cache, auto &archive) {
+  constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache, auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
     if (meta.omit_value(item)) {
-      return;
+      return true;
     }
 
     if constexpr (concepts::oneof_type<type>) {
@@ -992,21 +996,28 @@ struct pb_serializer {
     } else if constexpr (concepts::numeric<type>) {
       archive(make_tag<serialize_type>(meta), serialize_type{item});
     } else if constexpr (concepts::contiguous_byte_range<type>) {
+#ifndef HPP_PROTO_NO_UTF8_VALIDATION
+      if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
+        if (!is_utf8(item.data(), item.size()))
+          return false;
+      }
+#endif
       archive(make_tag<type>(meta), varint{item.size()}, item);
     } else if constexpr (requires { *item; }) {
       return serialize_field(meta, *item, cache, archive);
     } else if constexpr (concepts::has_meta<type>) {
       if constexpr (!meta.is_group) {
         archive(make_tag<type>(meta), varint{*cache++});
-        serialize(std::forward<decltype(item)>(item), cache, archive);
+        return serialize(std::forward<decltype(item)>(item), cache, archive);
       } else {
         archive(varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::sgroup)});
-        serialize(std::forward<decltype(item)>(item), cache, archive);
+        if (!serialize(std::forward<decltype(item)>(item), cache, archive))
+          return false;
         archive(varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::egroup)});
       }
     } else if constexpr (std::ranges::range<type>) {
       if (item.empty()) {
-        return;
+        return true;
       }
       using value_type = typename std::ranges::range_value_t<type>;
       using element_type =
@@ -1017,9 +1028,11 @@ struct pb_serializer {
         for (const auto &element : item) {
           if constexpr (std::same_as<element_type, std::remove_cvref_t<decltype(element)>> ||
                         concepts::is_map_entry<typename Meta::type>) {
-            serialize_field(meta, element, cache, archive);
+            if (!serialize_field(meta, element, cache, archive))
+              return false;
           } else {
-            serialize_field(meta, static_cast<element_type>(element), cache, archive);
+            if (!serialize_field(meta, static_cast<element_type>(element), cache, archive))
+              return false;
           }
         }
       } else if constexpr (requires {
@@ -1042,14 +1055,15 @@ struct pb_serializer {
       archive(tag, varint{*cache++});
       using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
       static_assert(concepts::has_meta<value_type>);
-      serialize(value_type{key, value}, cache, archive);
+      return serialize(value_type{key, value}, cache, archive);
     } else {
       static_assert(!sizeof(type));
     }
+    return true;
   }
 
   template <std::size_t I, concepts::tuple Meta>
-  constexpr static void serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
+  constexpr static bool serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return serialize_field(typename std::tuple_element<I, Meta>::type{},
@@ -1057,6 +1071,7 @@ struct pb_serializer {
       }
       return serialize_oneof<I + 1, Meta>(std::forward<decltype(item)>(item), cache, archive);
     }
+    return true;
   }
 
   template <typename Byte>
@@ -1088,7 +1103,8 @@ struct pb_serializer {
           item = std::bit_cast<type>(value);
         } else {
           if constexpr (endian_swapped && sizeof(type) != 1) {
-            std::reverse_copy(m_data.begin(), m_data.begin() + sizeof(item), reinterpret_cast<const std::byte *>(&item));
+            std::reverse_copy(m_data.begin(), m_data.begin() + sizeof(item),
+                              reinterpret_cast<const std::byte *>(&item));
           } else {
             std::memcpy(&item, m_data.data(), sizeof(item));
           }
@@ -1374,7 +1390,8 @@ struct pb_serializer {
       return result;
     }
 
-    if constexpr (concepts::byte_type<value_type> && concepts::not_resizable<type> && ! std::is_base_of_v<always_allocate_memory, Context>) {
+    if constexpr (concepts::byte_type<value_type> && concepts::not_resizable<type> &&
+                  !std::is_base_of_v<always_allocate_memory, Context>) {
       // handling string_view or span of byte
       auto data = archive.read(length);
       if (data.size() != length) {
@@ -1645,13 +1662,14 @@ struct pb_serializer {
         return deserialize_group(field_num, growable[old_size], context, archive);
       }
     } else if constexpr (concepts::contiguous_byte_range<type>) {
-      if (auto result =  deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok())
+      if (auto result = deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok())
         return result;
-      
-      // if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
-      //   if (!is_utf8(item.data(), item.size()))
-      //     return std::errc::bad_message;
-      // }
+#ifndef HPP_PROTO_NO_UTF8_VALIDATION
+      if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
+        if (!is_utf8(item.data(), item.size()))
+          return std::errc::bad_message;
+      }
+#endif
       return {};
     } else { // repeated non-group
       using value_type = typename type::value_type;
