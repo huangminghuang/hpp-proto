@@ -49,6 +49,11 @@ endif()
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 CPMAddPackage("gh:simdutf/is_utf8#v1.3.1")
 
+## For some reason, the "unit" target in is_utf8 is marked as EXCLUDE_FROM_ALL, and yet
+## it is impossible disable the test only for is_utf8 without modifying its CMakeLists.txt;
+## therefore, we set the "unit" EXCLUDE_FROM_ALL property directly.
+set_target_properties(unit PROPERTIES EXCLUDE_FROM_ALL FALSE)
+
 if (HPP_PROTO_BENCHMARKS)
   CPMAddPackage(
     NAME benchmark

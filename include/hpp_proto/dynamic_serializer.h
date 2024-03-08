@@ -264,7 +264,8 @@ class dynamic_serializer {
     }
 
     status skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
-      while (archive.in_avail()>=0) {
+      while (archive.in_avail()>0) {
+        archive.prepare_unchecked_parse();
         vuint32_t tag;
         archive(tag);
         uint32_t const next_field_num = tag_number(tag);
@@ -568,6 +569,7 @@ class dynamic_serializer {
       char separator = '\0';
 
       while (archive.in_avail() > 0) {
+        archive.prepare_unchecked_parse();
         vuint32_t tag;
         archive(tag);
 
