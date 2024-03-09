@@ -10,7 +10,46 @@
 #include "non_owning/benchmark_messages_proto3.pb.hpp"
 #include "owning/benchmark_messages_proto3.pb.hpp"
 
-std::string data_dir = DATA_DIR;
+inline void set_message_google(auto& message) {
+    message.set_field1("");
+    message.set_field2(8);
+    message.set_field3(2066379);
+    message.set_field4("3K+6)#");
+    message.set_field9("10)2uiSuoXL1^)v}icF@>P(j<t#~tz\\lg??S&(<hr7EVs\'l{\'5`Gohc_(=t eS s{_I?iCwaG]L\'*Pu5(&w_:4{~Z");
+    message.set_field12(true);
+    message.set_field14(true);
+    auto submsg = message.mutable_field15();
+    submsg->set_field1(25);
+    submsg->set_field2(36);
+    submsg->set_field15("\"?6PY4]L2c<}~2;\\TVF_w^[@YfbIc*v/N+Z-oYuaWZr4C;5ib|*s@RCBbuvrQ3g(k,N");
+    submsg->set_field21(2813090458170031956);
+    submsg->set_field22(38);
+    submsg->set_field23(true);
+    message.set_field18("{=Qwfe~#n{");
+    message.set_field67(1591432);
+    message.set_field100(31);
+}
+
+inline void set_message_hpp(auto& message) {
+    message.field1 = "";
+    message.field2 = 8;
+    message.field3 = 2066379;
+    message.field4 = "3K+6)#";
+    message.field9 = "10)2uiSuoXL1^)v}icF@>P(j<t#~tz\\lg??S&(<hr7EVs\'l{\'5`Gohc_(=t eS s{_I?iCwaG]L\'*Pu5(&w_:4{~Z";
+    message.field12 = true;
+    message.field14 = true;
+    auto &submsg = message.field15.emplace();
+    submsg.field1 = 25;
+    submsg.field2 = 36;
+    submsg.field15 = "\"?6PY4]L2c<}~2;\\TVF_w^[@YfbIc*v/N+Z-oYuaWZr4C;5ib|*s@RCBbuvrQ3g(k,N";
+    submsg.field21 = 2813090458170031956;
+    submsg.field22 = 38;
+    submsg.field23 = true;
+    message.field18 = "{=Qwfe~#n{";
+    message.field67 = 1591432;
+    message.field100 = 31;
+
+}
 
 struct monotonic_buffer_resource {
   std::size_t size;
@@ -33,20 +72,12 @@ struct monotonic_buffer_resource {
   void reset() { cur = mem; }
 };
 
-std::vector<char> read_data_file(std::string filename) {
-  std::filebuf buf;
-  if (buf.open(filename, std::ios::binary | std::ios::in) == nullptr) {
-    std::cerr << "Open file " << filename << " for read failed\n";
-    throw std::system_error{std::make_error_code(std::errc::no_such_file_or_directory)};
-  }
-
-  return {std::istreambuf_iterator<char>{&buf}, std::istreambuf_iterator<char>{}};
-}
-
 std::span<char> get_data() {
   static std::span<char> data;
   if (data.empty()) {
-    static std::vector<char> storage = read_data_file(data_dir + "/google_message1.dat");
+    benchmarks::proto2::GoogleMessage1 msg;
+    set_message_google(msg);
+    static std::string storage = msg.SerializeAsString();
     data = std::span{storage};
   }
   return data;
@@ -55,7 +86,6 @@ std::span<char> get_data() {
 template <typename Message>
 void google_deserialize(benchmark::State &state) {
   auto data = get_data();
-
   for (auto _ : state) {
     Message message;
     message.ParseFromArray(data.data(), static_cast<int>(data.size()));
@@ -107,22 +137,7 @@ template <typename Message>
 void google_serialize(benchmark::State &state) {
   for (auto _ : state) {
     Message message;
-    message.set_field2(8);
-    message.set_field3(2066379);
-    message.set_field4("3K+6)#");
-    message.set_field9("10)2uiSuoXL1^)v}icF@>P(j<t#~tz\\lg??S&(<hr7EVs\'l{\'5`Gohc_(=t eS s{_I?iCwaG]L\'*Pu5(&w_:4{~Z");
-    message.set_field12(true);
-    message.set_field14(true);
-    auto submsg = message.mutable_field15();
-    submsg->set_field1(25);
-    submsg->set_field2(36);
-    submsg->set_field15("\"?6PY4]L2c<}~2;\\TVF_w^[@YfbIc*v/N+Z-oYuaWZr4C;5ib|*s@RCBbuvrQ3g(k,N");
-    submsg->set_field21(2813090458170031956);
-    submsg->set_field22(38);
-    submsg->set_field23(true);
-    message.set_field18("{=Qwfe~#n{");
-    message.set_field67(1591432);
-    message.set_field100(31);
+    set_message_google(message);
     std::string buffer;
     message.SerializeToString(&buffer);
   }
@@ -134,23 +149,7 @@ template <typename Message>
 void hpp_serialize_owning(benchmark::State &state) {
   for (auto _ : state) {
     Message message;
-    message.field2 = 8;
-    message.field3 = 2066379;
-    message.field4 = "3K+6)#";
-    message.field9 = "10)2uiSuoXL1^)v}icF@>P(j<t#~tz\\lg??S&(<hr7EVs\'l{\'5`Gohc_(=t eS s{_I?iCwaG]L\'*Pu5(&w_:4{~Z";
-    message.field12 = true;
-    message.field14 = true;
-    auto &submsg = message.field15.emplace();
-    submsg.field1 = 25;
-    submsg.field2 = 36;
-    submsg.field15 = "\"?6PY4]L2c<}~2;\\TVF_w^[@YfbIc*v/N+Z-oYuaWZr4C;5ib|*s@RCBbuvrQ3g(k,N";
-    submsg.field21 = 2813090458170031956;
-    submsg.field22 = 38;
-    submsg.field23 = true;
-    message.field18 = "{=Qwfe~#n{";
-    message.field67 = 1591432;
-    message.field100 = 31;
-
+    set_message_hpp(message);
     std::vector<char> buffer;
     (void)hpp::proto::write_proto(message, buffer);
   }
@@ -162,22 +161,7 @@ template <typename Message>
 void hpp_serialize_nonowning(benchmark::State &state) {
   for (auto _ : state) {
     Message message;
-    message.field2 = 8;
-    message.field3 = 2066379;
-    message.field4 = "3K+6)#";
-    message.field9 = "10)2uiSuoXL1^)v}icF@>P(j<t#~tz\\lg??S&(<hr7EVs\'l{\'5`Gohc_(=t eS s{_I?iCwaG]L\'*Pu5(&w_:4{~Z";
-    message.field12 = true;
-    message.field14 = true;
-    auto &submsg = message.field15.emplace();
-    submsg.field1 = 25;
-    submsg.field2 = 36;
-    submsg.field15 = "\"?6PY4]L2c<}~2;\\TVF_w^[@YfbIc*v/N+Z-oYuaWZr4C;5ib|*s@RCBbuvrQ3g(k,N";
-    submsg.field21 = 2813090458170031956;
-    submsg.field22 = 38;
-    submsg.field23 = true;
-    message.field18 = "{=Qwfe~#n{";
-    message.field67 = 1591432;
-    message.field100 = 31;
+    set_message_hpp(message);
     std::vector<char> buffer;
     (void)hpp::proto::write_proto(message, buffer);
   }

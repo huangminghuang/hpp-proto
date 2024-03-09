@@ -20,7 +20,6 @@ protobuf_generate(TARGET google_benchmark_messages_lib
 
 add_executable(proto_bench benchmark.cpp)
 target_include_directories(proto_bench PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-target_compile_definitions(proto_bench PRIVATE DATA_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\")
 target_link_libraries(proto_bench 
     hpp_owning_benchmark_messages_lib
     hpp_non_owning_benchmark_messages_lib 
