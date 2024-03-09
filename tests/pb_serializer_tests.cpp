@@ -637,6 +637,14 @@ struct string_with_optional {
 auto pb_meta(const string_with_optional &)
     -> std::tuple<hpp::proto::field_meta<1, &string_with_optional::value, field_option::explicit_presence>>;
 
+struct string_required {
+  std::string value;
+  bool operator==(const string_required &) const = default;
+};
+
+auto pb_meta(const string_required &)
+    -> std::tuple<hpp::proto::field_meta<1, &string_required::value, field_option::explicit_presence>>;
+
 const ut::suite test_string_example = [] {
   "string_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, string_example{.value = "test"}); };
 
@@ -651,6 +659,10 @@ const ut::suite test_string_example = [] {
   "optional_value_access"_test = [] {
     string_with_optional const v;
     ut::expect(v.value.value_or_default() == "test");
+  };
+
+  "string_requried"_test = [] {
+    verify("\x0a\x00"sv, string_required{}); 
   };
 };
 

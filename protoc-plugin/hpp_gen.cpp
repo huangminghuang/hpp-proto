@@ -1150,7 +1150,7 @@ struct hpp_meta_generateor : code_generator {
 
     const bool numeric = is_numeric(proto.type);
 
-    if (descriptor.is_cpp_optional) {
+    if (descriptor.is_cpp_optional || descriptor.proto.label == LABEL_REQUIRED) {
       options = "explicit_presence";
     } else if (proto.label == LABEL_REPEATED) {
       if (numeric) {
