@@ -70,7 +70,7 @@ void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encod
   std::remove_cvref_t<T> value;
 
   ut::expect(hpp::proto::read_proto(value, encoded_data).ok());
-  ut::expect(value == expected_value);
+  ut::expect(ut::fatal(value == expected_value));
 
   if (mode == decode_only) {
     return;
@@ -1491,7 +1491,7 @@ const ut::suite test_monster = [] {
   std::vector<char> data;
   ut::expect(hpp::proto::write_proto(m, data).ok());
   monster m2;
-  ut::expect(hpp::proto::read_proto(m2, data).ok());
+  ut::expect(ut::fatal(hpp::proto::read_proto(m2, data).ok()));
 
   ut::expect(m.pos == m2.pos);
   ut::expect(m.mana == m2.mana);

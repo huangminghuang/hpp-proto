@@ -265,9 +265,7 @@ class dynamic_serializer {
 
     status skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
       while (archive.in_avail()>0) {
-        archive.prepare_unchecked_parse();
-        vuint32_t tag;
-        archive(tag);
+        auto tag = archive.read_tag();
         uint32_t const next_field_num = tag_number(tag);
         wire_type const next_type = proto::tag_type(tag);
 
@@ -569,10 +567,7 @@ class dynamic_serializer {
       char separator = '\0';
 
       while (archive.in_avail() > 0) {
-        archive.prepare_unchecked_parse();
-        vuint32_t tag;
-        archive(tag);
-
+        auto tag = archive.read_tag();
         auto number = tag_number(tag);
         auto field_wire_type = tag_type(tag);
 
@@ -660,10 +655,7 @@ class dynamic_serializer {
     status decode_list_value(const dynamic_serializer::message_meta &msg_meta, concepts::is_basic_in auto &archive) {
       std::vector<uint64_t> unpacked_repeated_positions(msg_meta.size());
       while (archive.in_avail() > 0) {
-        vuint32_t tag;
-        if (auto ec = archive(tag); !ec.ok()) [[unlikely]] {
-          return ec;
-        }
+        auto tag = archive.read_tag();
         if (tag_number(tag) != 1 || tag_type(tag) != wire_type::length_delimited) [[unlikely]] {
           return std::errc::bad_message;
         }
@@ -701,10 +693,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status decode_wrapper_type(const dynamic_serializer::message_meta &msg_meta, concepts::is_basic_in auto &archive) {
-      vuint32_t tag;
-      if (auto ec = archive(tag); !ec.ok()) [[unlikely]] {
-        return ec;
-      }
+      auto tag = archive.read_tag();
       if (tag_number(tag) != 1) [[unlikely]]
         return std::errc::bad_message;
       return decode_field<Options>(msg_meta[0], false, archive);
@@ -753,10 +742,7 @@ class dynamic_serializer {
           return ec;
       } else {
         while (archive.in_avail() > 0) {
-          vuint32_t tag;
-          if (auto ec = archive(tag); !ec.ok()) [[unlikely]] {
-            return ec;
-          }
+          auto tag = archive.read_tag();
           auto number = tag_number(tag);
           auto field_wire_type = tag_type(tag);
           if (msg_index == pb_meta.protobuf_struct_message_index) {

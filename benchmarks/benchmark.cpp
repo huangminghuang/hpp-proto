@@ -86,9 +86,10 @@ std::span<char> get_data() {
 template <typename Message>
 void google_deserialize(benchmark::State &state) {
   auto data = get_data();
-  for (auto _ : state) {
-    Message message;
-    message.ParseFromArray(data.data(), static_cast<int>(data.size()));
+  for (auto _ : state) {  
+    Message message;  
+    auto r = message.ParseFromArray(data.data(), static_cast<int>(data.size()));
+    benchmark::DoNotOptimize(r);
   }
 }
 BENCHMARK(google_deserialize<benchmarks::proto2::GoogleMessage1>);
@@ -100,7 +101,8 @@ void google_deserialize_arena(benchmark::State &state) {
   for (auto _ : state) {
     google::protobuf::Arena arena;
     Message *message = google::protobuf::Arena::CreateMessage<Message>(&arena);
-    message->ParseFromArray(data.data(), static_cast<int>(data.size()));
+    auto r = message->ParseFromArray(data.data(), static_cast<int>(data.size()));
+    benchmark::DoNotOptimize(r);
   }
 }
 
@@ -110,10 +112,10 @@ BENCHMARK(google_deserialize_arena<benchmarks::proto3::GoogleMessage1>);
 template <typename Message>
 void hpp_deserialize_owning(benchmark::State &state) {
   auto data = get_data();
-
   for (auto _ : state) {
     Message message;
-    (void)hpp::proto::read_proto(message, data);
+    auto r = hpp::proto::read_proto(message, data);
+    benchmark::DoNotOptimize(r);
   }
 }
 BENCHMARK(hpp_deserialize_owning<owning::benchmarks::proto2::GoogleMessage1>);
@@ -123,11 +125,12 @@ template <typename Message>
 void hpp_deserialize_non_owning(benchmark::State &state) {
   auto data = get_data();
   monotonic_buffer_resource memory_resource(data.size());
-
+  
   for (auto _ : state) {
     memory_resource.reset();
     Message message;
-    (void)hpp::proto::read_proto(message, data, hpp::proto::pb_context{memory_resource});
+    auto r = hpp::proto::read_proto(message, data, hpp::proto::pb_context{memory_resource});
+    benchmark::DoNotOptimize(r);
   }
 }
 BENCHMARK(hpp_deserialize_non_owning<non_owning::benchmarks::proto2::GoogleMessage1>);
@@ -139,7 +142,8 @@ void google_serialize(benchmark::State &state) {
     Message message;
     set_message_google(message);
     std::string buffer;
-    message.SerializeToString(&buffer);
+    auto r = message.SerializeToString(&buffer);
+    benchmark::DoNotOptimize(r);
   }
 }
 BENCHMARK(google_serialize<benchmarks::proto2::GoogleMessage1>);
@@ -151,7 +155,8 @@ void hpp_serialize_owning(benchmark::State &state) {
     Message message;
     set_message_hpp(message);
     std::vector<char> buffer;
-    (void)hpp::proto::write_proto(message, buffer);
+    auto r = hpp::proto::write_proto(message, buffer);
+    benchmark::DoNotOptimize(r);
   }
 }
 BENCHMARK(hpp_serialize_owning<owning::benchmarks::proto2::GoogleMessage1>);
@@ -163,7 +168,8 @@ void hpp_serialize_nonowning(benchmark::State &state) {
     Message message;
     set_message_hpp(message);
     std::vector<char> buffer;
-    (void)hpp::proto::write_proto(message, buffer);
+    auto r = hpp::proto::write_proto(message, buffer);
+    benchmark::DoNotOptimize(r);
   }
 }
 BENCHMARK(hpp_serialize_nonowning<non_owning::benchmarks::proto2::GoogleMessage1>);

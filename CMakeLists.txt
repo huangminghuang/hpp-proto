@@ -3,6 +3,10 @@ project(hpp_proto
   VERSION 0.1.0
   LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
 option(HPP_PROTO_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
@@ -23,47 +27,7 @@ CPMAddPackage(
   GITHUB_REPOSITORY huangminghuang/glaze
 )
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED On)
-
-if(HPP_PROTO_USE_PROTOBUF_PACKAGE)
-  find_package(Protobuf REQUIRED)
-else()
-  CPMAddPackage(
-    NAME protobuf
-    VERSION 25.3
-    GITHUB_REPOSITORY protocolbuffers/protobuf
-    OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
-    "protobuf_INSTALL OFF"
-    "protobuf_BUILD_TESTS OFF"
-    "protobuf_BUILD_PROTOBUF_BINARIES ON"
-    "protobuf_BUILD_PROTOC_BINARIES ON"
-    "EXCLUDE_FROM_ALL"
-  )
-  add_executable(protobuf::protoc ALIAS protoc)
-  add_library(protobuf::libprotobuf ALIAS libprotobuf)
-  add_library(protobuf::libprotoc ALIAS libprotoc)
-  set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
-endif()
-
-CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 CPMAddPackage("gh:simdutf/is_utf8#v1.3.1")
-
-## For some reason, the "unit" target in is_utf8 is marked as EXCLUDE_FROM_ALL, and yet
-## it is impossible disable the test only for is_utf8 without modifying its CMakeLists.txt;
-## therefore, we set the "unit" EXCLUDE_FROM_ALL property directly.
-set_target_properties(unit PROPERTIES EXCLUDE_FROM_ALL FALSE)
-
-if (HPP_PROTO_BENCHMARKS)
-  CPMAddPackage(
-    NAME benchmark
-    GITHUB_REPOSITORY google/benchmark
-    VERSION 1.8.3
-    OPTIONS
-    "BENCHMARK_ENABLE_TESTING OFF"
-    "BENCHMARK_ENABLE_INSTALL OFF"
-  )
-endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   file(REAL_PATH ${CMAKE_CXX_COMPILER} CLANG_REAL_PATH)
@@ -113,59 +77,115 @@ endif()
 
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
 
-include(cmake/protobuf_generate.cmake)
-
-add_subdirectory(protoc-plugin)
-
 if(HPP_PROTO_TESTS)
+  CPMAddPackage(
+    NAME ut
+    GITHUB_REPOSITORY boost-ext/ut
+    VERSION 2.0.1
+    DOWNLOAD_ONLY ON
+  )
+  add_library(Boost::ut INTERFACE IMPORTED)
+  target_include_directories(Boost::ut INTERFACE ${ut_SOURCE_DIR}/include)
+  target_compile_definitions(Boost::ut INTERFACE BOOST_UT_DISABLE_MODULE)
+
   enable_testing()
-  add_subdirectory(tests)
+  add_subdirectory(unittests)
+  include(CTest)
 endif()
 
-if(HPP_PROTO_BENCHMARKS)
-  add_subdirectory(benchmarks)
+if(HPP_PROTO_PROTOC_PLUGIN)
+  if(HPP_PROTO_USE_PROTOBUF_PACKAGE)
+    find_package(Protobuf REQUIRED)
+  else()
+    CPMAddPackage(
+      NAME protobuf
+      VERSION 25.3
+      GITHUB_REPOSITORY protocolbuffers/protobuf
+      OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
+      "protobuf_INSTALL OFF"
+      "protobuf_BUILD_TESTS OFF"
+      "protobuf_BUILD_PROTOBUF_BINARIES ON"
+      "protobuf_BUILD_PROTOC_BINARIES ON"
+      "EXCLUDE_FROM_ALL"
+    )
+    add_executable(protobuf::protoc ALIAS protoc)
+    add_library(protobuf::libprotobuf ALIAS libprotobuf)
+    add_library(protobuf::libprotoc ALIAS libprotoc)
+    set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
+  endif()
+
+  CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+
+  # # For some reason, the "unit" target in is_utf8 is marked as EXCLUDE_FROM_ALL, and yet
+  # # it is impossible disable the test only for is_utf8 without modifying its CMakeLists.txt;
+  # # therefore, we set the "unit" EXCLUDE_FROM_ALL property directly.
+  set_target_properties(unit PROPERTIES EXCLUDE_FROM_ALL FALSE)
+
+  if(HPP_PROTO_BENCHMARKS)
+    CPMAddPackage(
+      NAME benchmark
+      GITHUB_REPOSITORY google/benchmark
+      VERSION 1.8.3
+      OPTIONS
+      "BENCHMARK_ENABLE_TESTING OFF"
+      "BENCHMARK_ENABLE_INSTALL OFF"
+    )
+  endif()
+
+  include(cmake/protobuf_generate.cmake)
+
+  add_subdirectory(protoc-plugin)
+
+  if(HPP_PROTO_TESTS)
+    add_subdirectory(tests)
+  endif()
+
+  if(HPP_PROTO_BENCHMARKS)
+    add_subdirectory(benchmarks)
+  endif()
+
+  write_basic_package_version_file(
+    lib/cmake/hpp_proto/hpp_proto-config-version.cmake
+    COMPATIBILITY AnyNewerVersion
+  )
+
+  if(NOT HPP_PROTO_USE_PROTOBUF_PACKAGE)
+    # copy google proto files into include directory
+    file(GLOB GOOGLE_PROTOFILES RELATIVE "${protobuf_SOURCE_DIR}/src/google/protobuf" "${protobuf_SOURCE_DIR}/src/google/protobuf/*.proto")
+    list(FILTER GOOGLE_PROTOFILES EXCLUDE REGEX ".*test.*")
+
+    foreach(f ${GOOGLE_PROTOFILES})
+      configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/${f} include/google/protobuf/${f} COPYONLY)
+    endforeach()
+
+    configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/compiler/plugin.proto include/google/protobuf/compiler/plugin.proto COPYONLY)
+    install(TARGETS protoc libhpp_proto EXPORT hpp_proto-targets)
+  endif()
+
+  install(DIRECTORY include/ TYPE INCLUDE)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
+  install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
+
+  configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate.cmake"
+    DESTINATION "lib/cmake/hpp_proto")
+
+  install(
+    FILES ${is_utf8_SOURCE_DIR}/include/is_utf8.h
+    TYPE INCLUDE
+  )
+
+  install(
+    TARGETS is_utf8
+    EXPORT hpp_proto-targets
+  )
+
+  install(EXPORT hpp_proto-targets
+    DESTINATION lib/cmake/hpp_proto
+    NAMESPACE hpp_proto::)
+  export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake
+    NAMESPACE hpp_proto::)
 endif()
 
-write_basic_package_version_file(
-  lib/cmake/hpp_proto/hpp_proto-config-version.cmake
-  COMPATIBILITY AnyNewerVersion
-)
-
-if(NOT HPP_PROTO_USE_PROTOBUF_PACKAGE)
-  # copy google proto files into include directory
-  file(GLOB GOOGLE_PROTOFILES RELATIVE "${protobuf_SOURCE_DIR}/src/google/protobuf" "${protobuf_SOURCE_DIR}/src/google/protobuf/*.proto")
-  list(FILTER GOOGLE_PROTOFILES EXCLUDE REGEX ".*test.*")
-
-  foreach(f ${GOOGLE_PROTOFILES})
-    configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/${f} include/google/protobuf/${f} COPYONLY)
-  endforeach()
-
-  configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/compiler/plugin.proto include/google/protobuf/compiler/plugin.proto COPYONLY)
-  install(TARGETS protoc libhpp_proto EXPORT hpp_proto-targets)
-endif()
-
-install(DIRECTORY include/ TYPE INCLUDE)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
-install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
-
-configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake"
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate.cmake"
-  DESTINATION "lib/cmake/hpp_proto")
-
-install(
-  FILES ${is_utf8_SOURCE_DIR}/include/is_utf8.h
-  TYPE INCLUDE
-)
-
-install(
-  TARGETS is_utf8
-  EXPORT hpp_proto-targets
-)
-
-install(EXPORT hpp_proto-targets
-  DESTINATION lib/cmake/hpp_proto
-  NAMESPACE hpp_proto::)
-export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake
-  NAMESPACE hpp_proto::)
