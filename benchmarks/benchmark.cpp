@@ -10,58 +10,58 @@
 #include "non_owning/benchmark_messages_proto3.pb.hpp"
 #include "owning/benchmark_messages_proto3.pb.hpp"
 
-inline void set_message_google(auto& message) {
-    message.set_field1("");
-    message.set_field2(8);
-    message.set_field3(2066379);
-    message.set_field4("3K+6)#");
-    message.set_field9("10)2uiSuoXL1^)v}icF@>P(j<t#~tz\\lg??S&(<hr7EVs\'l{\'5`Gohc_(=t eS s{_I?iCwaG]L\'*Pu5(&w_:4{~Z");
-    message.set_field12(true);
-    message.set_field14(true);
-    auto submsg = message.mutable_field15();
-    submsg->set_field1(25);
-    submsg->set_field2(36);
-    submsg->set_field15("\"?6PY4]L2c<}~2;\\TVF_w^[@YfbIc*v/N+Z-oYuaWZr4C;5ib|*s@RCBbuvrQ3g(k,N");
-    submsg->set_field21(2813090458170031956);
-    submsg->set_field22(38);
-    submsg->set_field23(true);
-    message.set_field18("{=Qwfe~#n{");
-    message.set_field67(1591432);
-    message.set_field100(31);
+inline void set_message_google(auto &message) {
+  message.set_field1("");
+  message.set_field2(8);
+  message.set_field3(2066379);
+  message.set_field4("3K+6)#");
+  message.set_field9("10)2uiSuoXL1^)v}icF@>P(j<t#~tz\\lg??S&(<hr7EVs\'l{\'5`Gohc_(=t eS s{_I?iCwaG]L\'*Pu5(&w_:4{~Z");
+  message.set_field12(true);
+  message.set_field14(true);
+  auto submsg = message.mutable_field15();
+  submsg->set_field1(25);
+  submsg->set_field2(36);
+  submsg->set_field15("\"?6PY4]L2c<}~2;\\TVF_w^[@YfbIc*v/N+Z-oYuaWZr4C;5ib|*s@RCBbuvrQ3g(k,N");
+  submsg->set_field21(2813090458170031956);
+  submsg->set_field22(38);
+  submsg->set_field23(true);
+  message.set_field18("{=Qwfe~#n{");
+  message.set_field67(1591432);
+  message.set_field100(31);
 }
 
-inline void set_message_hpp(auto& message) {
-    message.field1 = "";
-    message.field2 = 8;
-    message.field3 = 2066379;
-    message.field4 = "3K+6)#";
-    message.field9 = "10)2uiSuoXL1^)v}icF@>P(j<t#~tz\\lg??S&(<hr7EVs\'l{\'5`Gohc_(=t eS s{_I?iCwaG]L\'*Pu5(&w_:4{~Z";
-    message.field12 = true;
-    message.field14 = true;
-    auto &submsg = message.field15.emplace();
-    submsg.field1 = 25;
-    submsg.field2 = 36;
-    submsg.field15 = "\"?6PY4]L2c<}~2;\\TVF_w^[@YfbIc*v/N+Z-oYuaWZr4C;5ib|*s@RCBbuvrQ3g(k,N";
-    submsg.field21 = 2813090458170031956;
-    submsg.field22 = 38;
-    submsg.field23 = true;
-    message.field18 = "{=Qwfe~#n{";
-    message.field67 = 1591432;
-    message.field100 = 31;
-
+inline void set_message_hpp(auto &message) {
+  message.field1 = "";
+  message.field2 = 8;
+  message.field3 = 2066379;
+  message.field4 = "3K+6)#";
+  message.field9 = "10)2uiSuoXL1^)v}icF@>P(j<t#~tz\\lg??S&(<hr7EVs\'l{\'5`Gohc_(=t eS s{_I?iCwaG]L\'*Pu5(&w_:4{~Z";
+  message.field12 = true;
+  message.field14 = true;
+  auto &submsg = message.field15.emplace();
+  submsg.field1 = 25;
+  submsg.field2 = 36;
+  submsg.field15 = "\"?6PY4]L2c<}~2;\\TVF_w^[@YfbIc*v/N+Z-oYuaWZr4C;5ib|*s@RCBbuvrQ3g(k,N";
+  submsg.field21 = 2813090458170031956;
+  submsg.field22 = 38;
+  submsg.field23 = true;
+  message.field18 = "{=Qwfe~#n{";
+  message.field67 = 1591432;
+  message.field100 = 31;
 }
 
 struct monotonic_buffer_resource {
   std::size_t size;
+  std::size_t remaining;
   void *mem = 0;
   void *cur = 0;
-  monotonic_buffer_resource(std::size_t sz) : size(sz), mem(malloc(sz)), cur(mem) {}
+  monotonic_buffer_resource(std::size_t sz) : size(sz), remaining(sz), mem(malloc(sz)), cur(mem) {}
   monotonic_buffer_resource(const monotonic_buffer_resource &) = delete;
 
   ~monotonic_buffer_resource() { free(mem); }
   void *allocate(std::size_t n, std::size_t alignment) noexcept {
-    if (std::align(alignment, n, cur, size)) {
-      size -= n;
+    if (std::align(alignment, n, cur, remaining)) {
+      remaining -= n;
       auto result = cur;
       cur = (char *)cur + n;
       return result;
@@ -69,7 +69,10 @@ struct monotonic_buffer_resource {
     abort();
   }
 
-  void reset() { cur = mem; }
+  void reset() { 
+    cur = mem; 
+    remaining = size;
+  }
 };
 
 std::span<char> get_data() {
@@ -86,8 +89,8 @@ std::span<char> get_data() {
 template <typename Message>
 void google_deserialize(benchmark::State &state) {
   auto data = get_data();
-  for (auto _ : state) {  
-    Message message;  
+  for (auto _ : state) {
+    Message message;
     auto r = message.ParseFromArray(data.data(), static_cast<int>(data.size()));
     benchmark::DoNotOptimize(r);
   }
@@ -125,11 +128,12 @@ template <typename Message>
 void hpp_deserialize_non_owning(benchmark::State &state) {
   auto data = get_data();
   monotonic_buffer_resource memory_resource(data.size());
-  
+
   for (auto _ : state) {
     memory_resource.reset();
     Message message;
-    auto r = hpp::proto::read_proto(message, data, hpp::proto::pb_context{memory_resource});
+    auto r = hpp::proto::read_proto(message, data,
+                                    hpp::proto::pb_context{memory_resource, hpp::proto::always_allocate_memory{}});
     benchmark::DoNotOptimize(r);
   }
 }

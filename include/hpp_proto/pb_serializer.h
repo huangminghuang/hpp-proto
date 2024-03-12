@@ -233,7 +233,7 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
   return data;
 }
 
-template <concepts::byte_type Byte, typename Type>
+template <concepts::byte_type Byte, typename Type, int MAX_BYTES=((sizeof(Type) * 8 + 6)/7)>
 constexpr inline const Byte *unrolled_parse_varint(const Byte *p, const Byte *end, Type &value) {
   value = 0;
   do {
@@ -243,13 +243,14 @@ constexpr inline const Byte *unrolled_parse_varint(const Byte *p, const Byte *en
       next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 1)); if (next_byte < 0x80) [[likely]] { break; }
       next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 2)); if (next_byte < 0x80) [[likely]] { break; }
       next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 3)); if (next_byte < 0x80) [[likely]] { break; }
+      if constexpr (MAX_BYTES > 4) {
       next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 4)); if (next_byte < 0x80) [[likely]] { break; }
-      if constexpr (sizeof(value) > 4) {
+      if constexpr (MAX_BYTES > 5) {
       next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 5)); if (next_byte < 0x80) [[likely]] { break; }
       next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 6)); if (next_byte < 0x80) [[likely]] { break; }
       next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 7)); if (next_byte < 0x80) [[likely]] { break; }
       next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 8)); if (next_byte < 0x80) [[likely]] { break; }
-      next_byte = Type(*p++); value |= ((next_byte & 0x01) << ((CHAR_BIT - 1) * 9)); if (next_byte < 0x80) [[likely]] { break; } }
+      next_byte = Type(*p++); value |= ((next_byte & 0x01) << ((CHAR_BIT - 1) * 9)); if (next_byte < 0x80) [[likely]] { break; } } }
       return end;
     // clang-format on
   } while (false);
@@ -1323,8 +1324,8 @@ struct pb_serializer {
 
     std::span<const byte_type> unwind_tag(uint32_t tag) {
       auto tag_len = varint_size<varint_encoding::normal>(tag);
-      auto size = tag_len + in_avail();
-      return {source_buffer_end - size, size};
+      auto len = tag_len + in_avail();
+      return {source_buffer_end - len, len};
     }
     //////////////////
 
@@ -1343,15 +1344,15 @@ struct pb_serializer {
     constexpr uint32_t read_tag() {
       std::ptrdiff_t offset = current_begin - current_slope_begin;
       if (offset > 0) {
-        auto size = in_avail();
+        auto len = in_avail();
         current_begin = current_slope_begin + offset;
-        current_end = current_begin + size;
+        current_end = current_begin + len;
         current_slope_begin = current_end;
         next_begin = nullptr;
       }
-      vuint32_t tag;
-      deserialize(tag);
-      return tag.value;
+      uint32_t tag;
+      current_begin = unrolled_parse_varint<byte_type, uint32_t, 4>(current_begin, current_end+1, tag);
+      return tag;
     }
   };
 
@@ -1362,11 +1363,10 @@ struct pb_serializer {
                            concepts::is_basic_in auto &archive) {
 
     auto unwound = archive.unwind_tag(tag);
-
+    auto tag_len = varint_size<varint_encoding::normal>(tag);
     if (auto result = do_skip_field(tag, archive); !result.ok()) [[unlikely]] {
       return result;
     }
-
     using fields_type = std::remove_cvref_t<decltype(item.extensions.fields)>;
     using bytes_type = typename fields_type::value_type::second_type;
     using byte_type = typename bytes_type::value_type;
@@ -1468,8 +1468,6 @@ struct pb_serializer {
 
   constexpr static status count_unpacked_elements(uint32_t input_tag, std::size_t &count,
                                                   concepts::is_basic_in auto archive) {
-    vuint32_t parsed_tag;
-
     do {
       if (auto result = do_skip_field(input_tag, archive); !result.ok()) {
         return result;
@@ -1480,11 +1478,7 @@ struct pb_serializer {
       if (archive.in_avail() == 0) {
         return {};
       }
-
-      if (auto result = archive(parsed_tag); !result.ok()) [[unlikely]] {
-        return result;
-      }
-    } while (parsed_tag == input_tag);
+    } while (archive.read_tag() == input_tag);
     return {};
   }
 
