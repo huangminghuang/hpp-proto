@@ -27,7 +27,14 @@ CPMAddPackage(
   GITHUB_REPOSITORY huangminghuang/glaze
 )
 
-CPMAddPackage("gh:simdutf/is_utf8#v1.3.1")
+CPMAddPackage(
+  NAME is_utf8
+  VERSION 1.3.1
+  GITHUB_REPOSITORY simdutf/is_utf8
+  DOWNLOAD_ONLY ON
+)
+
+add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   file(REAL_PATH ${CMAKE_CXX_COMPILER} CLANG_REAL_PATH)
@@ -57,7 +64,7 @@ target_include_directories(libhpp_proto INTERFACE
   $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(libhpp_proto INTERFACE cxx_std_20)
-target_link_libraries(libhpp_proto INTERFACE is_utf8::is_utf8)
+target_link_libraries(libhpp_proto INTERFACE is_utf8)
 
 add_library(libhpp_proto_no_utf8_validation INTERFACE)
 target_include_directories(libhpp_proto_no_utf8_validation INTERFACE
@@ -115,11 +122,6 @@ if(HPP_PROTO_PROTOC_PLUGIN)
   endif()
 
   CPMAddPackage("gh:fmtlib/fmt#10.1.0")
-
-  # # For some reason, the "unit" target in is_utf8 is marked as EXCLUDE_FROM_ALL, and yet
-  # # it is impossible disable the test only for is_utf8 without modifying its CMakeLists.txt;
-  # # therefore, we set the "unit" EXCLUDE_FROM_ALL property directly.
-  set_target_properties(unit PROPERTIES EXCLUDE_FROM_ALL FALSE)
 
   if(HPP_PROTO_BENCHMARKS)
     CPMAddPackage(

@@ -613,7 +613,9 @@ class dynamic_serializer {
         glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
 
-      auto value_archive = pb_serializer::basic_in(v.value);
+      pb_context pb_ctx;
+      pb_serializer::contiguous_input_stream strm(v.value, pb_ctx);
+      auto value_archive = strm.archive();
       const bool is_wellknown = pb_meta.is_wellknown_message(msg_index);
       if (is_wellknown) {
         glz::detail::dump<"\"value\":">(b, ix);
@@ -641,7 +643,8 @@ class dynamic_serializer {
     template <auto Options, typename T>
     status decode_wellknown_with_codec(concepts::is_basic_in auto &archive) {
       T v;
-      if (auto ec = read_proto(v, archive.buffer()); !ec.ok()) [[unlikely]]
+      pb_context ctx;
+      if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]]
         return ec;
 
       glz::detail::write<glz::json>::op<Options>(v, context, b, ix);
@@ -736,7 +739,8 @@ class dynamic_serializer {
 
       if (msg_index == pb_meta.protobuf_any_message_index) {
         wellknown::Any v;
-        if (auto ec = read_proto(v, archive.buffer()); !ec.ok()) [[unlikely]]
+        pb_context ctx;
+        if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]]
           return ec;
         if (auto ec = decode_any<opts>(v); !ec.ok()) [[unlikely]]
           return ec;
@@ -1490,7 +1494,11 @@ public:
       return std::errc::invalid_argument;
     }
     buffer.resize(pb_encoded_stream.size() * 2);
-    auto archive = pb_serializer::basic_in(pb_encoded_stream);
+
+    pb_context pb_ctx;
+    pb_serializer::contiguous_input_stream strm(pb_encoded_stream, pb_ctx);
+    auto archive = strm.archive();
+
     pb_to_json_state<buffer_type> state{*this, buffer};
     state.context.indentation_level = indentation_level;
     const bool is_map_entry = false;
