@@ -259,7 +259,7 @@ class dynamic_serializer {
       case wire_type::fixed_32:
         return archive.skip(4);
       default:
-        return std::errc::result_out_of_range;
+        return std::errc::bad_message;
       }
     }
 
@@ -276,7 +276,7 @@ class dynamic_serializer {
         }
       }
 
-      return std::errc::result_out_of_range;
+      return std::errc::bad_message;
     }
 
     template <auto Options, typename T>
@@ -288,7 +288,7 @@ class dynamic_serializer {
           return ec;
         }
         if (archive.in_avail() < len) {
-          return std::errc::result_out_of_range;
+          return std::errc::bad_message;
         }
         value.resize(len);
         if (auto ec = archive(value); !ec.ok())
@@ -327,7 +327,7 @@ class dynamic_serializer {
       }
 
       if (archive.in_avail() <  length) {
-        [[unlikely]] return std::errc::result_out_of_range;
+        [[unlikely]] return std::errc::bad_message;
       }
 
       auto new_archive = archive.split(length);
@@ -347,7 +347,7 @@ class dynamic_serializer {
       }
 
       if (new_archive.in_avail() < 0)
-        return std::errc::result_out_of_range;
+        return std::errc::bad_message;
 
       if constexpr (Options.prettify) {
         context.indentation_level -= Options.indentation_width;
@@ -442,7 +442,7 @@ class dynamic_serializer {
         vint64_t length = 0;
         archive(length);
         if (archive.in_avail() < length) {
-          [[unlikely]] return std::errc::result_out_of_range;
+          [[unlikely]] return std::errc::bad_message;
         }
 
         auto new_archive = archive.split(length);
@@ -591,7 +591,7 @@ class dynamic_serializer {
         }
       }
 
-      return std::errc::result_out_of_range;
+      return std::errc::bad_message;
     }
 
     template <auto Options>
@@ -667,7 +667,7 @@ class dynamic_serializer {
           return ec;
         }
       }
-      return archive.in_avail() == 0 ? std::errc{} : std::errc::result_out_of_range;
+      return archive.in_avail() == 0 ? std::errc{} : std::errc::bad_message;
     }
 
     template <auto Options>
@@ -770,7 +770,7 @@ class dynamic_serializer {
           }
         }
         if (archive.in_avail() < 0)
-          return std::errc::result_out_of_range;
+          return std::errc::bad_message;
       }
 
       if (dump_brace) {

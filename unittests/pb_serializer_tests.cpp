@@ -82,81 +82,81 @@ void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encod
   ut::expect(std::ranges::equal(encoded_data, new_data));
 }
 
-struct repeated_integers {
+struct repeated_sint32 {
   std::vector<int32_t> integers;
-  bool operator==(const repeated_integers &) const = default;
+  bool operator==(const repeated_sint32 &) const = default;
 };
 
-auto pb_meta(const repeated_integers &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_integers::integers, field_option::none, hpp::proto::vsint32_t>>;
+auto pb_meta(const repeated_sint32 &)
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32::integers, field_option::none, hpp::proto::vsint32_t>>;
 
-struct repeated_integers_unpacked {
+struct repeated_sint32_unpacked {
   std::vector<hpp::proto::vsint32_t> integers;
-  bool operator==(const repeated_integers_unpacked &) const = default;
+  bool operator==(const repeated_sint32_unpacked &) const = default;
 };
 
-auto pb_meta(const repeated_integers_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_integers_unpacked::integers, field_option::unpacked_repeated>>;
+auto pb_meta(const repeated_sint32_unpacked &)
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32_unpacked::integers, field_option::unpacked_repeated>>;
 
-struct repeated_integers_unpacked_explicit_type {
+struct repeated_sint32_unpacked_explicit_type {
   std::vector<int32_t> integers;
-  bool operator==(const repeated_integers_unpacked_explicit_type &) const = default;
+  bool operator==(const repeated_sint32_unpacked_explicit_type &) const = default;
 };
 
-auto pb_meta(const repeated_integers_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_integers_unpacked_explicit_type::integers,
+auto pb_meta(const repeated_sint32_unpacked_explicit_type &)
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32_unpacked_explicit_type::integers,
                                          field_option::unpacked_repeated, hpp::proto::vsint32_t>>;
 
-const ut::suite test_repeated_integers = [] {
-  "repeated_integers"_test = [] {
-    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, repeated_integers{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
+const ut::suite test_repeated_sint32 = [] {
+  "repeated_sint32"_test = [] {
+    verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, repeated_sint32{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
   };
 
-  "repeated_integers_unpacked"_test = [] {
+  "repeated_sint32_unpacked"_test = [] {
     verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-           repeated_integers_unpacked{{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+           repeated_sint32_unpacked{{1, 2, 3, 4, 0, -1, -2, -3, -4}});
   };
 
-  "repeated_integers_unpacked_decode"_test = [] {
+  "repeated_sint32_unpacked_decode"_test = [] {
     verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-           repeated_integers{{1, 2, 3, 4, 0, -1, -2, -3, -4}}, decode_only);
+           repeated_sint32{{1, 2, 3, 4, 0, -1, -2, -3, -4}}, decode_only);
   };
 
-  "repeated_integers_unpacked_explicit_type"_test = [] {
+  "repeated_sint32_unpacked_explicit_type"_test = [] {
     verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-           repeated_integers_unpacked_explicit_type{{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+           repeated_sint32_unpacked_explicit_type{{1, 2, 3, 4, 0, -1, -2, -3, -4}});
   };
 };
 
-struct non_owning_repeated_integers {
+struct non_owning_repeated_sint32 {
   std::span<const int32_t> integers;
-  bool operator==(const non_owning_repeated_integers &other) const {
+  bool operator==(const non_owning_repeated_sint32 &other) const {
     return std::ranges::equal(integers, other.integers);
   }
 };
 
-auto pb_meta(const non_owning_repeated_integers &) -> std::tuple<
-    hpp::proto::field_meta<1, &non_owning_repeated_integers::integers, field_option::none, hpp::proto::vsint32_t>>;
+auto pb_meta(const non_owning_repeated_sint32 &) -> std::tuple<
+    hpp::proto::field_meta<1, &non_owning_repeated_sint32::integers, field_option::none, hpp::proto::vsint32_t>>;
 
-struct non_owning_repeated_integers_unpacked {
+struct non_owning_repeated_sint32_unpacked {
   std::span<const hpp::proto::vsint32_t> integers;
-  bool operator==(const non_owning_repeated_integers_unpacked &other) const {
+  bool operator==(const non_owning_repeated_sint32_unpacked &other) const {
     return std::ranges::equal(integers, other.integers);
   }
 };
 
-auto pb_meta(const non_owning_repeated_integers_unpacked &) -> std::tuple<
-    hpp::proto::field_meta<1, &non_owning_repeated_integers_unpacked::integers, field_option::unpacked_repeated>>;
+auto pb_meta(const non_owning_repeated_sint32_unpacked &) -> std::tuple<
+    hpp::proto::field_meta<1, &non_owning_repeated_sint32_unpacked::integers, field_option::unpacked_repeated>>;
 
-struct non_owning_repeated_integers_unpacked_explicit_type {
+struct non_owning_repeated_sint32_unpacked_explicit_type {
   std::span<const int32_t> integers;
-  bool operator==(const non_owning_repeated_integers_unpacked_explicit_type &other) const {
+  bool operator==(const non_owning_repeated_sint32_unpacked_explicit_type &other) const {
     return std::ranges::equal(integers, other.integers);
   }
 };
 
-auto pb_meta(const non_owning_repeated_integers_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_integers_unpacked_explicit_type::integers,
+auto pb_meta(const non_owning_repeated_sint32_unpacked_explicit_type &)
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_sint32_unpacked_explicit_type::integers,
                                          field_option::unpacked_repeated, hpp::proto::vsint32_t>>;
 
 template <typename T>
@@ -179,28 +179,28 @@ void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory
   ut::expect(std::ranges::equal(encoded_data, new_data));
 }
 
-const ut::suite test_non_owning_repeated_integers = [] {
-  "non_owning_repeated_integers"_test = [] {
+const ut::suite test_non_owning_repeated_sint32 = [] {
+  "non_owning_repeated_sint32"_test = [] {
     std::array x{0, 1, 2, 3, 4, -1, -2, -3, -4};
-    verify_non_owning("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, non_owning_repeated_integers{x}, 128);
+    verify_non_owning("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, non_owning_repeated_sint32{x}, 128);
   };
 
-  "non_owning_repeated_integers_unpacked"_test = [] {
+  "non_owning_repeated_sint32_unpacked"_test = [] {
     std::array<hpp::proto::vsint32_t, 9> x{1, 2, 3, 4, 0, -1, -2, -3, -4};
     verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-                      non_owning_repeated_integers_unpacked{x}, 128);
+                      non_owning_repeated_sint32_unpacked{x}, 128);
   };
 
-  "non_owning_repeated_integers_unpacked_decode"_test = [] {
+  "non_owning_repeated_sint32_unpacked_decode"_test = [] {
     std::array x{1, 2, 3, 4, 0, -1, -2, -3, -4};
     verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-                      non_owning_repeated_integers{x}, 128, decode_only);
+                      non_owning_repeated_sint32{x}, 128, decode_only);
   };
 
-  "non_owning_repeated_integers_unpacked_explicit_type"_test = [] {
+  "non_owning_repeated_sint32_unpacked_explicit_type"_test = [] {
     std::array x{1, 2, 3, 4, 0, -1, -2, -3, -4};
     verify_non_owning("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-                      non_owning_repeated_integers_unpacked_explicit_type{x}, 128);
+                      non_owning_repeated_sint32_unpacked_explicit_type{x}, 128);
   };
 };
 
@@ -604,12 +604,12 @@ const ut::suite test_map_example = [] {
     verify(encoded, sequential_map_example{{{1, color_t::red}, {2, color_t::blue}, {3, color_t::green}}});
   };
 
-  // "non_owning_map_example"_test = [&] {
-  //   using value_type = std::pair<int32_t, color_t>;
-  //   std::array<value_type, 3> x = {value_type{1, color_t::red}, value_type{2, color_t::blue},
-  //                                  value_type{3, color_t::green}};
-  //   verify_non_owning(encoded, non_owning_map_example{x}, 64);
-  // };
+  "non_owning_map_example"_test = [&] {
+    using value_type = std::pair<int32_t, color_t>;
+    std::array<value_type, 3> x = {value_type{1, color_t::red}, value_type{2, color_t::blue},
+                                   value_type{3, color_t::green}};
+    verify_non_owning(encoded, non_owning_map_example{x}, 64);
+  };
 };
 
 struct string_example {
@@ -661,9 +661,7 @@ const ut::suite test_string_example = [] {
     ut::expect(v.value.value_or_default() == "test");
   };
 
-  "string_requried"_test = [] {
-    verify("\x0a\x00"sv, string_required{}); 
-  };
+  "string_requried"_test = [] { verify("\x0a\x00"sv, string_required{}); };
 };
 
 struct string_view_example {
@@ -880,7 +878,9 @@ auto pb_meta(const byte_span_with_optional &)
 const ut::suite test_byte_span = [] {
   static const std::byte verified_value[] = {std::byte{0x74}, std::byte{0x65}, std::byte{0x73}, std::byte{0x74}};
 
-  "byte_span_example"_test = [] { verify_non_owning("\x0a\x04\x74\x65\x73\x74"sv, byte_span_example{.value = verified_value}, 64); };
+  "byte_span_example"_test = [] {
+    verify_non_owning("\x0a\x04\x74\x65\x73\x74"sv, byte_span_example{.value = verified_value}, 64);
+  };
 
   "byte_span_explicit_presence"_test = [] {
     verify_non_owning("\x0a\x04\x74\x65\x73\x74"sv, byte_span_explicit_presence{.value = verified_value}, 64);
@@ -889,6 +889,69 @@ const ut::suite test_byte_span = [] {
   "byte_span_with_default_empty"_test = [] { verify_non_owning(""sv, byte_span_with_default{}, 64); };
 
   "byte_span_with_optional_empty"_test = [] { verify_non_owning(""sv, byte_span_with_optional{}, 64); };
+};
+
+struct repeated_int32 {
+  std::vector<int32_t> integers;
+  bool operator==(const repeated_int32 &) const = default;
+};
+
+auto pb_meta(const repeated_int32 &)
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_int32::integers, field_option::none, hpp::proto::vint32_t>>;
+
+
+const ut::suite test_segmented_byte_range = [] {
+  "bytes_with_segmented_input"_test = [] {
+    char_vector_example value;
+    value.value.resize(128);
+    std::iota(value.value.begin(), value.value.end(), '\0');
+
+    std::vector<char> encoded;
+    ut::expect(hpp::proto::write_proto(value, encoded).ok());
+    ut::expect(encoded.size() == 131);
+
+    auto verify = [&](const std::vector<int> &sizes) {
+      std::vector<std::span<char>> segments;
+      segments.resize(sizes.size());
+      char *b = encoded.data();
+      for (unsigned i = 0; i < sizes.size(); ++i) {
+        char *e = b + sizes[i];
+        segments[i] = {b, e};
+        b = e;
+      }
+      char_vector_example decoded;
+      ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, hpp::proto::pb_context{}).ok());
+      ut::expect(value == decoded);
+    };
+
+    verify({48, 48, 25, 10});
+    verify({10, 48, 25, 48});
+    verify({25, 48, 10, 48});
+  };
+
+  "packed_int32_with_segmented_input"_test = [] {
+    repeated_int32 value;
+    value.integers.resize(32);
+    std::iota(value.integers.begin(), value.integers.end(), -15);
+    std::vector<char> encoded;
+    ut::expect(hpp::proto::write_proto(value, encoded).ok());
+
+    auto verify = [&](const std::vector<int> &sizes) {
+      std::vector<std::span<char>> segments;
+      segments.resize(sizes.size());
+      char *b = encoded.data();
+      for (unsigned i = 0; i < sizes.size(); ++i) {
+        char *e = b + sizes[i];
+        segments[i] = {b, e};
+        b = e;
+      }
+      repeated_int32 decoded;
+      ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, hpp::proto::pb_context{}).ok());
+      ut::expect(value == decoded);
+    };
+
+    verify({90, 10, 70});
+  };
 };
 
 struct repeated_strings {
