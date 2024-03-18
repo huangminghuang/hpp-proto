@@ -37,6 +37,9 @@
 #include <execution>
 #include <glaze/util/expected.hpp>
 #include <hpp_proto/memory_resource_utils.h>
+#if defined(__GNUC__)
+#include <experimental/simd>
+#endif
 
 bool is_utf8(const char *src, size_t len);
 
@@ -218,9 +221,7 @@ concept segmented_byte_range =
     std::ranges::random_access_range<Range> && contiguous_byte_range<std::ranges::range_value_t<Range>>;
 
 template <typename Range>
-concept input_byte_range =
-    segmented_byte_range<Range> || contiguous_byte_range<Range>;
-
+concept input_byte_range = segmented_byte_range<Range> || contiguous_byte_range<Range>;
 
 } // namespace concepts
 
@@ -1354,19 +1355,20 @@ struct pb_serializer {
       return result;
     }
 
-    constexpr std::size_t
-#if defined(__GNUC__) && !defined(__clang__) && defined(NDEBUG)
-        __attribute__((optimize("O2")))
+    constexpr std::size_t count_number_of_varints_in_region(std::size_t n) {
+      auto begin = current.begin;
+      auto end = begin + n;
+      std::size_t result = 0;
+#if defined(__GNUC__) && !defined(__APPLE_CC__)
+      const char *vector_end = end - (n % v.size());
+
+      for (; begin != vector_end; begin += v.size()) {
+        v.copy_from(reinterpret_cast<const uint8_t *>(begin), stdx::element_aligned);
+        v = (~v & stdx::simd<uint8_t>(0x80));
+        result += stdx::popcount(v != 0);
+      }
 #endif
-        count_number_of_varints_in_region(std::size_t n) {
-      return std::transform_reduce(
-#if !defined(__APPLE__) || !defined(__clang__)
-          // unseq has no effect with clang on Mac platform; it seems the vectorization is applied regardless
-          // unseq is used or not based on benchmark. However, using unseq requires `-fexperimental-library` compiler
-          // flag.
-          std::execution::unseq,
-#endif
-          current.begin, current.begin + n, 0U, std::plus{}, [](auto v) { return (~uint8_t(v) & uint8_t(0x80)) != 0; });
+      return std::transform_reduce(begin, end, result, std::plus{}, [](auto v) { return int8_t(v) >= 0; });
     };
 
     // Given the fact that the next n bytes are all variable length integers,
@@ -1420,8 +1422,7 @@ struct pb_serializer {
       auto &value = item.extensions.fields[field_num];
       auto s = value.size();
       value.resize(s + field_archive.in_avail());
-      std::span<byte_type> field_span =
-          std::span{reinterpret_cast<byte_type *>(value.data() + s), field_len};
+      std::span<byte_type> field_span = std::span{reinterpret_cast<byte_type *>(value.data() + s), field_len};
       return field_archive(field_span);
     } else {
       static_assert(concepts::span<fields_type>);
@@ -1451,8 +1452,7 @@ struct pb_serializer {
       decltype(auto) v = make_growable(context, itr->second);
       auto s = v.size();
       v.resize(v.size() + field_archive.in_avail());
-      std::span<byte_type> field_span =
-          std::span{reinterpret_cast<byte_type *>(v.data() + s), field_len};
+      std::span<byte_type> field_span = std::span{reinterpret_cast<byte_type *>(v.data() + s), field_len};
       return field_archive(field_span);
     }
   }
