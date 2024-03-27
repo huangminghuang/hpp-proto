@@ -37,9 +37,6 @@
 #include <execution>
 #include <glaze/util/expected.hpp>
 #include <hpp_proto/memory_resource_utils.h>
-#if defined(__GNUC__)
-#include <experimental/simd>
-#endif
 
 bool is_utf8(const char *src, size_t len);
 
@@ -1359,17 +1356,18 @@ struct pb_serializer {
       auto begin = current.begin;
       auto end = begin + n;
       std::size_t result = 0;
-#if defined(__GNUC__) && !defined(__APPLE_CC__)
-      const char *vector_end = end - (n % v.size());
-
-      for (; begin != vector_end; begin += v.size()) {
-        v.copy_from(reinterpret_cast<const uint8_t *>(begin), stdx::element_aligned);
-        v = (~v & stdx::simd<uint8_t>(0x80));
-        result += stdx::popcount(v != 0);
+      for (; end - begin >= 8; begin += sizeof(uint64_t)) {
+        uint64_t v;
+        memcpy(&v, begin, sizeof(v));
+        result += std::popcount(~v & 0x8080808080808080ULL);
       }
-#endif
-      return std::transform_reduce(begin, end, result, std::plus{}, [](auto v) { return int8_t(v) >= 0; });
-    };
+      if (end - begin > 0) {
+        uint64_t v = UINT64_MAX;
+        memcpy(&v, begin, end - begin);
+        result += std::popcount(~v & 0x8080808080808080ULL);
+      }
+      return result;
+    }
 
     // Given the fact that the next n bytes are all variable length integers,
     // find the number of integers in the range.
