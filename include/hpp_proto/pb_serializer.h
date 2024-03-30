@@ -838,7 +838,8 @@ struct pb_serializer {
 
   template <typename Range, typename UnaryOperation>
   constexpr static std::size_t transform_accumulate(Range &&range, UnaryOperation &&unary_op) {
-    return std::transform_reduce(range.begin(), range.end(), std::size_t{0}, std::plus{}, unary_op);
+    return std::accumulate(range.begin(), range.end(), std::size_t{0},
+                           [&unary_op](std::size_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
   }
 
   constexpr static std::size_t cache_count(concepts::has_meta auto &&item) {
