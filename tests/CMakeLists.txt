@@ -43,7 +43,7 @@ protobuf_generate(
     PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto
-    PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
+    PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning,export_request=unittest_proto3.request.bin)
 
 add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
 target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib gpb_proto_json)
@@ -159,3 +159,6 @@ add_test(NAME well_known_types_tests
     COMMAND well_known_types_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set_property(TEST well_known_types_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+
+add_executable(proto3_decode proto3_decode.cpp)
+target_link_libraries(proto3_decode PRIVATE unittest_proto3_proto_lib)
