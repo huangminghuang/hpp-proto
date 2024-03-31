@@ -1860,9 +1860,13 @@ struct pb_serializer {
   }
 
   template <std::size_t Index>
+#if defined(__GNUC__)
   __attribute__((always_inline))
-  constexpr static status deserialize_field_by_index(uint32_t tag, auto &item, auto &context,
-                                                     concepts::is_basic_in auto &archive) {
+#elif defined(_MSC_VER)
+  __forceinline
+#endif
+  constexpr static status
+  deserialize_field_by_index(uint32_t tag, auto &item, auto &context, concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
     using Meta = typename traits::field_meta_of<type, Index>::type;
     if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
@@ -1874,9 +1878,13 @@ struct pb_serializer {
   }
 
   template <uint32_t MaskedNum, uint32_t I = 0>
+#if defined(__GNUC__)
   __attribute__((always_inline))
-  constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, auto &context,
-                                                          concepts::is_basic_in auto &archive) {
+#elif defined(_MSC_VER)
+  __forceinline
+#endif
+  constexpr static status
+  deserialize_field_by_masked_num(uint32_t tag, auto &item, auto &context, concepts::is_basic_in auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto table = traits::reverse_indices<type>::template lookup_table_for_masked_number<MaskedNum>();
     if constexpr (table.empty() || I >= table.size()) {
@@ -1890,20 +1898,16 @@ struct pb_serializer {
     }
   }
 
-  template <typename Type, typename Context, concepts::is_basic_in Archive, std::size_t... MaskedNum>
-  constexpr static auto deserialize_by_masked_num_funs(std::index_sequence<MaskedNum...>) {
-    using deserialize_fun_ptr = status (*)(uint32_t, Type &, Context &, Archive &);
-    return std::array<deserialize_fun_ptr, sizeof...(MaskedNum)>{&deserialize_field_by_masked_num<MaskedNum>...};
-  }
-
   template <uint32_t... MaskNum>
   constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, auto &context,
-                                                          concepts::is_basic_in auto &archive, std::integer_sequence<uint32_t, MaskNum...>) {
+                                                          concepts::is_basic_in auto &archive,
+                                                          std::integer_sequence<uint32_t, MaskNum...>) {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto mask = traits::reverse_indices<type>::mask;
-    status r;                                                        
-    (void) ((((tag_number(tag) & mask) == MaskNum) && (r=deserialize_field_by_masked_num<MaskNum>(tag, item, context, archive), true)) ||
-                ...);
+    status r;
+    (void)((((tag_number(tag) & mask) == MaskNum) &&
+            (r = deserialize_field_by_masked_num<MaskNum>(tag, item, context, archive), true)) ||
+           ...);
     return r;
   }
 
@@ -1911,14 +1915,9 @@ struct pb_serializer {
                                                    concepts::is_basic_in auto &archive) {
 
     using type = std::remove_cvref_t<decltype(item)>;
-    // using context_type = std::remove_cvref_t<decltype(context)>;
-    // using archive_type = std::remove_cvref_t<decltype(archive)>;
     constexpr auto mask = traits::reverse_indices<type>::mask;
-    // constexpr auto fun_ptrs =
-    //     deserialize_by_masked_num_funs<type, context_type, archive_type>(std::make_index_sequence<mask + 1>());
-    // return (*fun_ptrs[tag_number(tag) & mask])(tag, item, context, archive);
-
-    return deserialize_field_by_masked_num(tag, item, context, archive, std::make_integer_sequence<uint32_t, mask + 1>());
+    return deserialize_field_by_masked_num(tag, item, context, archive,
+                                           std::make_integer_sequence<uint32_t, mask + 1>());
   }
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_pb_context auto &context,
