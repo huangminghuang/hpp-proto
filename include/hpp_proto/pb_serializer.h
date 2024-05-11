@@ -240,38 +240,141 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
   return data;
 }
 
-template <concepts::byte_type Byte, typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr inline const Byte *unrolled_parse_varint(const Byte *p, const Byte *end, Type &value) {
-  value = 0;
-  do {
-    // clang-format off
-      Type next_byte; 
-      next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 0)); if (next_byte < 0x80) [[likely]] { break; }
-      next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 1)); if (next_byte < 0x80) [[likely]] { break; }
-      next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 2)); if (next_byte < 0x80) [[likely]] { break; }
-      next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 3)); if (next_byte < 0x80) [[likely]] { break; }
-      if constexpr (MAX_BYTES > 4) {
-      next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 4)); if (next_byte < 0x80) [[likely]] { break; }
-      if constexpr (MAX_BYTES > 5) {
-      next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 5)); if (next_byte < 0x80) [[likely]] { break; }
-      next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 6)); if (next_byte < 0x80) [[likely]] { break; }
-      next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 7)); if (next_byte < 0x80) [[likely]] { break; }
-      next_byte = Type(*p++); value |= ((next_byte & 0x7f) << ((CHAR_BIT - 1) * 8)); if (next_byte < 0x80) [[likely]] { break; }
-      next_byte = Type(*p++); value |= ((next_byte & 0x01) << ((CHAR_BIT - 1) * 9)); if (next_byte < 0x80) [[likely]] { break; } } }
-      return end;
-    // clang-format on
-  } while (false);
-  return p;
+// This function is adapted from
+// https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/varint_shuffle.h
+//
+// It requires p points to at least 10 valid bytes. If it is an unterminated varint,
+// the function return end + 1; otherwise, the function returns the pointer passed
+// the consumed input data.
+template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7), concepts::byte_type Byte>
+constexpr inline const Byte *shift_mix_parse_varint(const Byte *p, const Byte *end, int64_t &res1) {
+
+  // The algorithm relies on sign extension for each byte to set all high bits
+  // when the varint continues. It also relies on asserting all of the lower
+  // bits for each successive byte read. This allows the result to be aggregated
+  // using a bitwise AND. For example:
+  //
+  //          8       1          64     57 ... 24     17  16      9  8       1
+  // ptr[0] = 1aaa aaaa ; res1 = 1111 1111 ... 1111 1111  1111 1111  1aaa aaaa
+  // ptr[1] = 1bbb bbbb ; res2 = 1111 1111 ... 1111 1111  11bb bbbb  b111 1111
+  // ptr[2] = 0ccc cccc ; res3 = 0000 0000 ... 000c cccc  cc11 1111  1111 1111
+  //                             ---------------------------------------------
+  //        res1 & res2 & res3 = 0000 0000 ... 000c cccc  ccbb bbbb  baaa aaaa
+  //
+  // On x86-64, a shld from a single register filled with enough 1s in the high
+  // bits can accomplish all this in one instruction. It so happens that res1
+  // has 57 high bits of ones, which is enough for the largest shift done.
+  //
+  // Just as importantly, by keeping results in res1, res2, and res3, we take
+  // advantage of the superscalar abilities of the CPU.
+  const auto next = [&p] { return static_cast<const int8_t>(*p++); };
+  const auto last = [&p] { return static_cast<const int8_t>(p[-1]); };
+
+  // Shifts "byte" left by n * 7 bits, filling vacated bits from `ones`.
+  constexpr auto shl_byte = [](int n, int8_t byte, int64_t ones) constexpr -> int64_t {
+    return static_cast<int64_t>((static_cast<uint64_t>(byte) << n * 7) | (static_cast<uint64_t>(ones) >> (64 - n * 7)));
+  };
+
+  constexpr auto shl_and = [shl_byte](int n, int8_t byte, int64_t ones, int64_t &res) {
+    res &= shl_byte(n, byte, ones);
+    return res >= 0;
+  };
+
+  constexpr auto shl = [shl_byte](int n, int8_t byte, int64_t ones, int64_t &res) {
+    res = shl_byte(n, byte, ones);
+    return res >= 0;
+  };
+
+  int64_t res2, res3; // accumulated result chunks
+
+  const auto done1 = [&] {
+    res1 &= res2;
+    return p;
+  };
+
+  const auto done2 = [&] {
+    res2 &= res3;
+    return done1();
+  };
+
+  res1 = next();
+  if (res1 >= 0) [[likely]]
+    return p;
+
+  // Densify all ops with explicit FALSE predictions from here on, except that
+  // we predict length = 5 as a common length for fields like timestamp.
+  if (shl(1, next(), res1, res2)) [[unlikely]]
+    return done1();
+
+  if (shl(2, next(), res1, res3)) [[unlikely]]
+    return done2();
+
+  if (shl_and(3, next(), res1, res2)) [[unlikely]]
+    return done2();
+
+  if constexpr (MAX_BYTES > 4) {
+    if (shl_and(4, next(), res1, res3)) [[likely]]
+      return done2();
+  }
+
+  if constexpr (sizeof(Type) == 8) {
+    // 64 bits integers
+    if (shl_and(5, next(), res1, res2)) [[unlikely]]
+      return done2();
+
+    if (shl_and(6, next(), res1, res3)) [[unlikely]]
+      return done2();
+
+    if (shl_and(7, next(), res1, res2)) [[unlikely]]
+      return done2();
+
+    if (shl_and(8, next(), res1, res3)) [[unlikely]]
+      return done2();
+  } else if constexpr (std::same_as<Type, int32_t>) {
+    // An overlong int32 is expected to span the full 10 bytes
+    if (!(next() & 0x80)) [[unlikely]]
+      return done2();
+
+    if (!(next() & 0x80)) [[unlikely]]
+      return done2();
+
+    if (!(next() & 0x80)) [[unlikely]]
+      return done2();
+
+    if (!(next() & 0x80)) [[unlikely]]
+      return done2();
+  }
+
+  // For valid 64bit varints, the 10th byte/ptr[9] should be exactly 1. In this
+  // case, the continuation bit of ptr[8] already set the top bit of res3
+  // correctly, so all we have to do is check that the expected case is true.
+  if (next() == 1) [[likely]]
+    return done2();
+
+  if (last() & 0x80) [[likely]] {
+    // If the continue bit is set, it is an unterminated varint.
+    return end + 1;
+  }
+
+  // A zero value of the first bit of the 10th byte represents an
+  // over-serialized varint. This case should not happen, but if does (say, due
+  // to a nonconforming serializer), deassert the continuation bit that came
+  // from ptr[8].
+  if (sizeof(Type) == 8 && (last() & 1) == 0) {
+    constexpr int bits = 64 - 1;
+    res3 ^= int64_t{1} << bits;
+  }
+  return done2();
 }
 
 template <concepts::byte_type Byte, concepts::varint VarintType>
 constexpr const Byte *unchecked_parse_varint(const Byte *p, const Byte *end, VarintType &item) {
-  std::make_unsigned_t<typename VarintType::encode_type> res;
+  int64_t res;
   if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
-    p = unrolled_parse_varint(p, end, res);
-    item = ((res >> 1) ^ -(res & 0x1));
+    p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
+    item = ((static_cast<uint64_t>(res) >> 1) ^ -(static_cast<uint64_t>(res) & 0x1));
   } else {
-    p = unrolled_parse_varint(p, end, res);
+    p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
     item = static_cast<typename VarintType::value_type>(res);
   }
   return p;
@@ -280,14 +383,14 @@ constexpr const Byte *unchecked_parse_varint(const Byte *p, const Byte *end, Var
 template <concepts::byte_type Byte>
 constexpr const Byte *unchecked_parse_bool(const Byte *p, bool &value) {
   // This function is adapted from
-  // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_tc_table_lite.cc
+  // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   const auto next = [&p] { return static_cast<unsigned char>(*p++); };
   unsigned char byte = next();
   if (byte == 0 || byte == 1) [[likely]] {
     // This is the code path almost always taken,
     // so we take care to make it very efficient.
     if (sizeof(byte) == sizeof(value)) {
-      memcpy(&value, &byte, 1);
+      std::memcpy(&value, &byte, 1);
     } else {
       // The C++ standard does not specify that a `bool` takes only one byte
       value = byte;
@@ -1300,6 +1403,18 @@ struct pb_serializer {
       return {};
     }
 
+    template <concepts::varint T, typename U>
+    constexpr status deserialize(std::span<U> item) {
+      for (auto &value : item) {
+        T underlying;
+        if (auto result = this->deserialize(underlying); !result.ok()) [[unlikely]] {
+          return result;
+        }
+        value = static_cast<U>(underlying.value);
+      }
+      return {};
+    }
+
     constexpr status skip_varint() {
       current.begin = std::find_if(current.begin, current.end, [](auto v) { return static_cast<int8_t>(v) >= 0; }) + 1;
       return {};
@@ -1359,12 +1474,12 @@ struct pb_serializer {
       std::size_t result = 0;
       for (; end - begin >= 8; begin += sizeof(uint64_t)) {
         uint64_t v;
-        memcpy(&v, begin, sizeof(v));
+        std::memcpy(&v, begin, sizeof(v));
         result += std::popcount(~v & 0x8080808080808080ULL);
       }
       if (end - begin > 0) {
         uint64_t v = UINT64_MAX;
-        memcpy(&v, begin, end - begin);
+        std::memcpy(&v, begin, end - begin);
         result += std::popcount(~v & 0x8080808080808080ULL);
       }
       return result;
@@ -1396,9 +1511,9 @@ struct pb_serializer {
 
     constexpr uint32_t read_tag() {
       maybe_advance_region();
-      uint32_t tag;
-      current.begin = unrolled_parse_varint<byte_type, uint32_t, 4>(current.begin, current.end + 1, tag);
-      return tag;
+      int64_t res;
+      current.begin = shift_mix_parse_varint<uint32_t, 4>(current.begin, current.end, res);
+      return static_cast<uint32_t>(res);
     }
   };
 
@@ -1537,7 +1652,7 @@ struct pb_serializer {
     using type = std::remove_reference_t<decltype(item)>;
     using value_type = typename type::value_type;
 
-    using element_type =
+    using encode_type =
         std::conditional_t<std::same_as<typename Meta::type, void> || std::same_as<value_type, char> ||
                                std::same_as<value_type, std::byte> || std::same_as<typename Meta::type, type>,
                            value_type, typename Meta::type>;
@@ -1566,35 +1681,19 @@ struct pb_serializer {
 
       if constexpr (requires { growable.resize(1); }) {
         // packed repeated vector,
-        auto n = count_packed_elements<element_type>(static_cast<uint32_t>(length), archive);
+        auto n = count_packed_elements<encode_type>(static_cast<uint32_t>(length), archive);
         if (!n.has_value())
           return std::errc::bad_message;
         std::size_t size = *n;
 
-        using serialize_type = std::conditional_t<std::is_enum_v<value_type> && !std::same_as<value_type, std::byte>,
-                                                  vint64_t, element_type>;
-
-        if constexpr (concepts::byte_serializable<serialize_type>) {
-          growable.resize(size);
+        growable.resize(size);
+        if constexpr (concepts::byte_serializable<encode_type>) {
           return archive(growable);
+        } else if constexpr (std::is_enum_v<encode_type>){
+          return archive.template deserialize<vint64_t>(std::span{growable.data(), size});
         } else {
-          std::size_t old_size = item.size();
-          growable.resize(old_size + size);
-          for (auto &value : std::span<value_type>{growable.data() + old_size, size}) {
-            serialize_type underlying;
-            if (auto result = archive(underlying); !result.ok()) [[unlikely]] {
-              return result;
-            }
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4244)
-#endif
-            value = static_cast<element_type>(underlying.value);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-          }
-          return {};
+          static_assert(concepts::varint<encode_type>);
+          return archive.template deserialize<encode_type>(std::span{growable.data(), size});
         }
       } else {
         static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
@@ -1860,13 +1959,13 @@ struct pb_serializer {
   }
 
   template <std::size_t Index>
-#if defined(__GNUC__)
-  __attribute__((always_inline))
-#elif defined(_MSC_VER)
-  __forceinline
-#endif
-  constexpr static status
-  deserialize_field_by_index(uint32_t tag, auto &item, auto &context, concepts::is_basic_in auto &archive) {
+  // #if defined(__GNUC__)
+  //   __attribute__((always_inline))
+  // #elif defined(_MSC_VER)
+  //   __forceinline
+  // #endif
+  constexpr static status deserialize_field_by_index(uint32_t tag, auto &item, auto &context,
+                                                     concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
     using Meta = typename traits::field_meta_of<type, Index>::type;
     if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
@@ -1878,13 +1977,13 @@ struct pb_serializer {
   }
 
   template <uint32_t MaskedNum, uint32_t I = 0>
-#if defined(__GNUC__)
-  __attribute__((always_inline))
-#elif defined(_MSC_VER)
-  __forceinline
-#endif
-  constexpr static status
-  deserialize_field_by_masked_num(uint32_t tag, auto &item, auto &context, concepts::is_basic_in auto &archive) {
+  // #if defined(__GNUC__)
+  //   __attribute__((always_inline))
+  // #elif defined(_MSC_VER)
+  //   __forceinline
+  // #endif
+  constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, auto &context,
+                                                          concepts::is_basic_in auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto table = traits::reverse_indices<type>::template lookup_table_for_masked_number<MaskedNum>();
     if constexpr (table.empty() || I >= table.size()) {
