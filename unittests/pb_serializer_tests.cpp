@@ -899,6 +899,20 @@ struct repeated_int32 {
 auto pb_meta(const repeated_int32 &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_int32::integers, field_option::none, hpp::proto::vint32_t>>;
 
+template <typename T>
+void verify_segmented_input(auto& encoded, const T& value, const std::vector<int> &sizes) {
+      std::vector<std::span<char>> segments;
+      segments.resize(sizes.size());
+      char *b = encoded.data();
+      for (unsigned i = 0; i < sizes.size(); ++i) {
+        char *e = b + sizes[i];
+        segments[i] = {b, e};
+        b = e;
+      }
+      T decoded;
+      ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, hpp::proto::pb_context{}).ok());
+      ut::expect(value == decoded);
+    };
 
 const ut::suite test_segmented_byte_range = [] {
   "bytes_with_segmented_input"_test = [] {
@@ -910,23 +924,9 @@ const ut::suite test_segmented_byte_range = [] {
     ut::expect(hpp::proto::write_proto(value, encoded).ok());
     ut::expect(encoded.size() == 131);
 
-    auto verify = [&](const std::vector<int> &sizes) {
-      std::vector<std::span<char>> segments;
-      segments.resize(sizes.size());
-      char *b = encoded.data();
-      for (unsigned i = 0; i < sizes.size(); ++i) {
-        char *e = b + sizes[i];
-        segments[i] = {b, e};
-        b = e;
-      }
-      char_vector_example decoded;
-      ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, hpp::proto::pb_context{}).ok());
-      ut::expect(value == decoded);
-    };
-
-    verify({48, 48, 25, 10});
-    verify({10, 48, 25, 48});
-    verify({25, 48, 10, 48});
+    verify_segmented_input(encoded, value, {48, 48, 25, 10});
+    verify_segmented_input(encoded, value, {10, 48, 25, 48});
+    verify_segmented_input(encoded, value, {25, 48, 10, 48});
   };
 
   "packed_int32_with_segmented_input"_test = [] {
@@ -936,21 +936,21 @@ const ut::suite test_segmented_byte_range = [] {
     std::vector<char> encoded;
     ut::expect(hpp::proto::write_proto(value, encoded).ok());
 
-    auto verify = [&](const std::vector<int> &sizes) {
-      std::vector<std::span<char>> segments;
-      segments.resize(sizes.size());
-      char *b = encoded.data();
-      for (unsigned i = 0; i < sizes.size(); ++i) {
-        char *e = b + sizes[i];
-        segments[i] = {b, e};
-        b = e;
-      }
-      repeated_int32 decoded;
-      ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, hpp::proto::pb_context{}).ok());
-      ut::expect(value == decoded);
-    };
+    verify(encoded, value);
+    verify_segmented_input(encoded, value, {90, 10, 70});
+  };
 
-    verify({90, 10, 70});
+  "packed_sint32_with_segmented_input"_test = [] {
+    repeated_sint32 value;
+    value.integers.resize(32);
+    std::iota(value.integers.begin(), value.integers.end(), INT32_MAX-15);
+    std::vector<char> encoded;
+    ut::expect(hpp::proto::write_proto(value, encoded).ok());
+
+    verify(encoded, value);
+    int len = encoded.size();
+    int s = (len - 10)/2;
+    verify_segmented_input(encoded, value, {s, 10, len - 10 - s});
   };
 };
 

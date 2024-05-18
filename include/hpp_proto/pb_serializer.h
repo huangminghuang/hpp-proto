@@ -38,6 +38,14 @@
 #include <glaze/util/expected.hpp>
 #include <hpp_proto/memory_resource_utils.h>
 
+#if defined(__x86_64__) || defined(_M_AMD64) // x64
+#if defined(_MSC_VER)
+#include <intrin.h>
+#elif defined(__GNUC__) || defined(__clang__)
+#include <cpuid.h>
+#endif
+#endif
+
 bool is_utf8(const char *src, size_t len);
 
 namespace hpp {
@@ -881,6 +889,139 @@ public:
 };
 #endif
 
+#if defined(__x86_64__) || defined(_M_AMD64) // x64
+#if defined(__GNUC__)
+#define FORCE_INLINE [[gnu::always_inline]] inline
+#elif defined(_MSC_VER)
+#pragma warning(error : 4714)
+#define FORCE_INLINE __forceinline
+#else
+#define FORCE_INLINE inline
+#endif
+template <concepts::varint T, typename Result>
+class sfvint_parser {
+  // This class implements the variable-length integer decoding algorithm from https://arxiv.org/html/2403.06898v1
+  constexpr static int MaskLength = 6;
+  Result *res;
+  int shift_bits = 0;
+  uint64_t pt_val = 0;
+
+public:
+  sfvint_parser(Result *data) : res(data) {}
+
+  static consteval int calc_shift_bits(unsigned sign_bits) {
+    unsigned mask = 1 << (MaskLength - 1);
+    int result = 0;
+    for (; mask != 0 && (sign_bits & mask); mask >>= 1) {
+      result += 1;
+    }
+    return result * 7;
+  }
+
+  static consteval uint64_t calc_word_mask() {
+    uint64_t result = 0x80ULL;
+    for (int i = 0; i < MaskLength - 1; ++i)
+      result = (result << CHAR_BIT | 0x80ULL);
+    return result;
+  }
+
+  static constexpr auto word_mask = calc_word_mask();
+  static consteval uint64_t calc_extract_mask(uint64_t sign_bits) {
+    int64_t extract_mask = 0x7fULL;
+    for (int i = 0; i < std::countr_one(sign_bits); ++i) {
+      extract_mask <<= CHAR_BIT;
+      extract_mask |= 0x7fULL;
+    }
+    return extract_mask;
+  }
+
+  FORCE_INLINE void output(uint64_t v) {
+    if constexpr (varint_encoding::zig_zag == T::encoding) {
+      *res++ = static_cast<Result>((v >> 1) ^ -(v & 0x1));
+    } else {
+      *res++ = static_cast<Result>(v);
+    }
+  }
+
+  static uint64_t pext_u64(uint64_t a, uint64_t mask) {
+#if defined(__GNUC__) || defined(__clang__)
+    uint64_t result;
+    asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask));
+    return result;
+#elif defined(_MSC_VER)
+    return _pext_u64(a, mask);
+#endif
+  }
+
+  template <uint64_t SignBits, int I>
+  inline void output(uint64_t word, uint64_t &extract_mask) {
+    if constexpr (I < MaskLength) {
+      extract_mask |= 0x7fULL << (CHAR_BIT * I);
+      if ((SignBits & (0x01ULL << I)) == 0) {
+        output(pext_u64(word, extract_mask));
+        extract_mask = 0;
+      }
+      output<SignBits, I + 1>(word, extract_mask);
+    }
+  }
+
+  template <uint64_t SignBits>
+  FORCE_INLINE void fixed_masked_parse(uint64_t word) {
+    uint64_t extract_mask = calc_extract_mask(SignBits);
+    if constexpr (std::countr_one(SignBits) < MaskLength) {
+      output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
+      constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
+      extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);
+      output<SignBits, bytes_processed>(word, extract_mask);
+      pt_val = 0;
+      shift_bits = 0;
+    }
+
+    if constexpr (SignBits & (0x01ULL << (MaskLength - 1))) {
+      pt_val |= pext_u64(word, extract_mask) << shift_bits;
+    }
+
+    shift_bits += calc_shift_bits(SignBits);
+  }
+
+  template <std::size_t... I>
+  FORCE_INLINE void parse_word(uint64_t masked_bits, uint64_t word, std::index_sequence<I...>) {
+    (void)((masked_bits == I && (fixed_masked_parse<I>(word), true)) || ...);
+  }
+
+  template <concepts::byte_type Byte>
+  const Byte *parse_partial(const Byte *begin, const Byte *end) {
+    for (; end - begin >= MaskLength; begin += MaskLength) {
+      uint64_t word;
+      memcpy(&word, begin, sizeof(word));
+      auto mval = pext_u64(word, word_mask);
+      parse_word(mval, word, std::make_index_sequence<1 << MaskLength>());
+    }
+    return begin;
+  }
+
+  template <concepts::byte_type Byte>
+  const Byte *parse(const Byte *begin, const Byte *end) {
+    begin = parse_partial(begin, end);
+    int bytes_left = end - begin;
+    uint64_t word = 0;
+    memcpy(&word, begin, bytes_left);
+    for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
+      pt_val |= ((word & 0x7fULL) << shift_bits);
+      if (word & 0x80ULL) {
+        shift_bits += (CHAR_BIT - 1);
+      } else {
+        output(pt_val);
+        pt_val = 0;
+        shift_bits = 0;
+      }
+    }
+
+    return end;
+  }
+};
+#endif
+
 struct pb_serializer {
   template <typename Byte>
   struct basic_out {
@@ -1403,8 +1544,56 @@ struct pb_serializer {
       return {};
     }
 
+#if defined(__x86_64__) || defined(_M_AMD64) // x64
+    // workaround for C++20 doesn't support static in constexpr function
+    static bool has_bmi2() {
+      auto check = [] {
+        auto is_bmi2_bit_set = [](auto ebx) {
+          return (ebx & (1 << 8)) != 0; // Check BMI2 bit
+        };
+
+#if defined(_MSC_VER)
+        int cpuInfo[4];
+        __cpuidex(cpuInfo, 7, 0);
+        return is_bmi2_bit_set(cpuInfo[1]);
+#elif defined(__GNUC__) || defined(__clang__)
+        unsigned int eax, ebx, ecx, edx;
+        if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
+          return is_bmi2_bit_set(ebx);
+        } else {
+          return false;
+        }
+#else
+        return false;
+#endif
+      };
+      static bool result = check();
+      return result;
+    }
+#endif // x64
+
     template <concepts::varint T, typename U>
-    constexpr status deserialize(std::span<U> item) {
+    constexpr status deserialize(uint32_t bytes_count, std::span<U> item) {
+#if defined(__x86_64__) || defined(_M_AMD64) // x64
+      if (!std::is_constant_evaluated() && has_bmi2()) {
+        sfvint_parser<T, U> parser(item.data());
+        if constexpr (!contiguous) {
+          while (bytes_count > region_size()) {
+            auto saved_begin = current.begin;
+            current.begin = parser.parse_partial(current.begin, current.end);
+            bytes_count -= (current.begin - saved_begin);
+            maybe_advance_region();
+          }
+        }
+        auto end = current.begin + bytes_count;
+        current.begin = parser.parse(current.begin, end);
+        if (end != current.begin) [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        return {};
+      }
+#endif
+      (void)bytes_count; // avoid unused parameter warning
       for (auto &value : item) {
         T underlying;
         if (auto result = this->deserialize(underlying); !result.ok()) [[unlikely]] {
@@ -1689,11 +1878,11 @@ struct pb_serializer {
         growable.resize(size);
         if constexpr (concepts::byte_serializable<encode_type>) {
           return archive(growable);
-        } else if constexpr (std::is_enum_v<encode_type>){
-          return archive.template deserialize<vint64_t>(std::span{growable.data(), size});
+        } else if constexpr (std::is_enum_v<encode_type>) {
+          return archive.template deserialize<vint64_t>(length, std::span{growable.data(), size});
         } else {
           static_assert(concepts::varint<encode_type>);
-          return archive.template deserialize<encode_type>(std::span{growable.data(), size});
+          return archive.template deserialize<encode_type>(length, std::span{growable.data(), size});
         }
       } else {
         static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
@@ -2151,31 +2340,31 @@ struct pb_serializer {
                                       concepts::is_pb_context auto &&context) {
     const auto num_segments = std::size(buffer);
     const auto num_regions = num_segments * 2;
-    const auto patch_buffer_byte_count = num_segments * patch_buffer_size;
-    const auto regions_byte_count = num_regions * sizeof(input_buffer_region<char>);
+    const auto patch_buffer_bytes_count = num_segments * patch_buffer_size;
+    const auto regions_bytes_count = num_regions * sizeof(input_buffer_region<char>);
     using buffer_type = std::remove_cvref_t<decltype(buffer)>;
     using segment_type = std::ranges::range_value_t<buffer_type>;
     using byte_type = std::ranges::range_value_t<segment_type>;
 
     if constexpr (requires { context.memory_resource(); }) {
-      auto patch_buffer = static_cast<byte_type *>(context.memory_resource().allocate(patch_buffer_byte_count, 1));
+      auto patch_buffer = static_cast<byte_type *>(context.memory_resource().allocate(patch_buffer_bytes_count, 1));
       if (num_segments > 16) {
         std::vector<input_buffer_region<byte_type>> regions(num_regions);
         return deserialize(item, context, buffer, regions.data(), patch_buffer);
       } else {
         input_buffer_region<byte_type> *regions =
-            static_cast<input_buffer_region<byte_type> *>(alloca(regions_byte_count));
+            static_cast<input_buffer_region<byte_type> *>(alloca(regions_bytes_count));
         return deserialize(item, context, buffer, regions, patch_buffer);
       }
     } else {
       if (num_segments > 8) {
-        std::vector<byte_type> patch_buffer(patch_buffer_byte_count);
+        std::vector<byte_type> patch_buffer(patch_buffer_bytes_count);
         std::vector<input_buffer_region<byte_type>> regions(num_regions);
         return deserialize(item, context, buffer, regions.data(), patch_buffer.data());
       } else {
-        auto patch_buffer = static_cast<byte_type *>(alloca(patch_buffer_byte_count));
+        auto patch_buffer = static_cast<byte_type *>(alloca(patch_buffer_bytes_count));
         input_buffer_region<byte_type> *regions =
-            static_cast<input_buffer_region<byte_type> *>(alloca(regions_byte_count));
+            static_cast<input_buffer_region<byte_type> *>(alloca(regions_bytes_count));
         return deserialize(item, context, buffer, regions, patch_buffer);
       }
     }
@@ -2312,7 +2501,7 @@ concept is_any = requires(T &obj) {
   { obj.type_url } -> concepts::string;
   { obj.value } -> concepts::contiguous_byte_range;
 };
-}
+} // namespace concepts
 
 [[nodiscard]] status pack_any(concepts::is_any auto &any, auto &&msg) {
   any.type_url = message_type_url(msg);
