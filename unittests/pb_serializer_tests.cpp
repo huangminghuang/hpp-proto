@@ -16,7 +16,7 @@ constexpr void constexpr_verify(auto buffer, auto object_fun) {
 }
 
 struct example {
-  int32_t i; // field number == 1
+  int32_t i = 0; // field number == 1
 
   constexpr bool operator==(const example &) const = default;
 };

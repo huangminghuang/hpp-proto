@@ -1,4 +1,4 @@
-set(proto_files benchmark_messages_proto3.proto benchmark_messages_proto2.proto)
+set(proto_files benchmark_messages_proto3.proto benchmark_messages_proto2.proto packed_repeated_message.proto)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/owning)
 add_library(hpp_owning_benchmark_messages_lib INTERFACE ${proto_files})
@@ -19,6 +19,7 @@ protobuf_generate(TARGET google_benchmark_messages_lib
     LANGUAGE cpp)
 
 add_executable(proto_bench benchmark.cpp)
+
 target_include_directories(proto_bench PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(proto_bench 
     hpp_owning_benchmark_messages_lib

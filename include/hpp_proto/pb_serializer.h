@@ -2393,7 +2393,7 @@ struct pb_serializer {
 
 template <typename FieldType, typename MetaType>
 struct serialize_wrapper_type {
-  FieldType value;
+  FieldType value = {};
   using pb_meta = std::tuple<MetaType>;
 };
 
