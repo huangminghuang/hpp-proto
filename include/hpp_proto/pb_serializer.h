@@ -100,7 +100,7 @@ using vuint32_t = varint<uint32_t>;
 using vsint64_t = varint<int64_t, varint_encoding::zig_zag>;
 using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 
-/////////////////////////////////////////////////////
+////////////////////////////////////////////////////
 
 namespace concepts {
 
@@ -1548,21 +1548,12 @@ struct pb_serializer {
     // workaround for C++20 doesn't support static in constexpr function
     static bool has_bmi2() {
       auto check = [] {
-        auto is_bmi2_bit_set = [](auto ebx) {
-          return (ebx & (1 << 8)) != 0; // Check BMI2 bit
-        };
-
 #if defined(_MSC_VER)
         int cpuInfo[4];
         __cpuidex(cpuInfo, 7, 0);
-        return is_bmi2_bit_set(cpuInfo[1]);
+        return (cpuInfo[1] & (1 << 8)) != 0; // Check BMI2 bit
 #elif defined(__GNUC__) || defined(__clang__)
-        unsigned int eax, ebx, ecx, edx;
-        if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
-          return is_bmi2_bit_set(ebx);
-        } else {
-          return false;
-        }
+        return __builtin_cpu_supports("bmi2");
 #else
         return false;
 #endif
@@ -1661,15 +1652,28 @@ struct pb_serializer {
       auto begin = current.begin;
       auto end = begin + n;
       std::size_t result = 0;
+      auto popcount = [](uint64_t v) -> int {
+#if defined(__x86_64__) && defined(__GNUC__) && !defined(__clang__)
+        if (!std::is_constant_evaluated()) {
+          if (__builtin_cpu_supports ("popcnt")) {
+            int64_t count;
+            __asm__ ("popcntq %1, %0" : "=r" (count) : "rm" (v));
+            return count;
+          }
+        }
+#endif
+        return std::popcount(v);
+      };
+
       for (; end - begin >= 8; begin += sizeof(uint64_t)) {
         uint64_t v;
         std::memcpy(&v, begin, sizeof(v));
-        result += std::popcount(~v & 0x8080808080808080ULL);
+        result += popcount(~v & 0x8080808080808080ULL);
       }
       if (end - begin > 0) {
         uint64_t v = UINT64_MAX;
         std::memcpy(&v, begin, end - begin);
-        result += std::popcount(~v & 0x8080808080808080ULL);
+        result += popcount(~v & 0x8080808080808080ULL);
       }
       return result;
     }
