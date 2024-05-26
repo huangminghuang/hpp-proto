@@ -29,7 +29,7 @@ CPMAddPackage(
 
 CPMAddPackage(
   NAME is_utf8
-  VERSION 1.3.1
+  VERSION 1.3.2
   GITHUB_REPOSITORY simdutf/is_utf8
   DOWNLOAD_ONLY ON
 )

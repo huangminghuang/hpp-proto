@@ -1447,7 +1447,7 @@ struct pb_serializer {
     using byte_type = Byte;
     input_buffer_region_base<Byte> current;
     const input_buffer_region<Byte> *next_region;
-    ssize_t size_exclude_current = 0; // the remaining size excluding those in current
+    ptrdiff_t size_exclude_current = 0; // the remaining size excluding those in current
 
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
 
@@ -1467,15 +1467,15 @@ struct pb_serializer {
     using is_basic_in = void;
     constexpr static bool contiguous = Contiguous;
 
-    constexpr ssize_t region_size() const { return current.end - current.begin; }
-    constexpr ssize_t in_avail() const { return region_size() + size_exclude_current; }
+    constexpr ptrdiff_t region_size() const { return current.end - current.begin; }
+    constexpr ptrdiff_t in_avail() const { return region_size() + size_exclude_current; }
     constexpr const byte_type *data() const { return current.begin; }
 
-    constexpr explicit basic_in(const input_buffer_region<Byte> *regions, ssize_t size_exclude_first_region)
+    constexpr explicit basic_in(const input_buffer_region<Byte> *regions, ptrdiff_t size_exclude_first_region)
         : current(*regions), next_region(++regions), size_exclude_current(size_exclude_first_region) {}
 
     constexpr basic_in(input_buffer_region_base<Byte> cur, const input_buffer_region<Byte> *regions,
-                       ssize_t size_exclude_current)
+                       ptrdiff_t size_exclude_current)
         : current(cur), next_region(regions), size_exclude_current(size_exclude_current) {}
 
     constexpr status deserialize(bool &item) {
@@ -2264,12 +2264,12 @@ struct pb_serializer {
   };
 
   template <typename Byte>
-  constexpr static ssize_t setup_input_regions(concepts::segmented_byte_range auto &&source,
+  constexpr static ptrdiff_t setup_input_regions(concepts::segmented_byte_range auto &&source,
                                                input_buffer_region<Byte> *regions, Byte *patch_buffer) {
 
     bool is_first_segment = true;
     regions->effective_size = 0;
-    ssize_t total_size = 0;
+    ptrdiff_t total_size = 0;
     for (auto &segment : source) {
       const auto segment_size = std::ranges::size(segment);
       total_size += segment_size;
