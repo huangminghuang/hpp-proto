@@ -389,7 +389,7 @@ constexpr const Byte *unchecked_parse_varint(const Byte *p, const Byte *end, Var
   int64_t res;
   if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
     p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
-    item = ((static_cast<uint64_t>(res) >> 1) ^ -(static_cast<uint64_t>(res) & 0x1));
+    item = static_cast<typename VarintType::value_type>((static_cast<uint64_t>(res) >> 1) ^ -(static_cast<int64_t>(res) & 0x1));
   } else {
     p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
     item = static_cast<typename VarintType::value_type>(res);
@@ -938,7 +938,7 @@ public:
 
   HPP_PROTO_INLINE void output(uint64_t v) {
     if constexpr (varint_encoding::zig_zag == T::encoding) {
-      *res++ = static_cast<Result>((v >> 1) ^ -(v & 0x1));
+      *res++ = static_cast<Result>((v >> 1) ^ -static_cast<int64_t>(v & 0x1));
     } else {
       *res++ = static_cast<Result>(v);
     }
@@ -1004,7 +1004,7 @@ public:
   template <concepts::byte_type Byte>
   const Byte *parse(const Byte *begin, const Byte *end) {
     begin = parse_partial(begin, end);
-    int bytes_left = end - begin;
+    ptrdiff_t bytes_left = end - begin;
     uint64_t word = 0;
     memcpy(&word, begin, bytes_left);
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
@@ -1522,7 +1522,7 @@ struct pb_serializer {
       requires std::ranges::contiguous_range<T> && concepts::byte_serializable<typename T::value_type>
     constexpr status deserialize(T &item) {
       if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(typename T::value_type) == 1)) {
-        auto bytes_to_copy = item.size() * sizeof(typename T::value_type);
+        ptrdiff_t bytes_to_copy = item.size() * sizeof(typename T::value_type);
         if constexpr (contiguous) {
           std::memcpy(item.data(), current.begin, bytes_to_copy);
           current.begin += bytes_to_copy;
@@ -1530,7 +1530,7 @@ struct pb_serializer {
           char *p = static_cast<char *>(item.data());
           while (bytes_to_copy) {
             maybe_advance_region();
-            auto n = std::min<int32_t>(bytes_to_copy, region_size());
+            auto n = std::min<ptrdiff_t>(bytes_to_copy, region_size());
             std::memcpy(p, current.begin, n);
             p += n;
             bytes_to_copy -= n;
@@ -1573,7 +1573,7 @@ struct pb_serializer {
           while (bytes_count > region_size()) {
             auto saved_begin = current.begin;
             current.begin = parser.parse_partial(current.begin, current.end);
-            bytes_count -= (current.begin - saved_begin);
+            bytes_count -= static_cast<uint32_t>(current.begin - saved_begin);
             maybe_advance_region();
           }
         }
@@ -1617,7 +1617,7 @@ struct pb_serializer {
     // split the object at the specified length;
     // return the first half and set the current
     // object as the second half.
-    constexpr auto split(ssize_t length) {
+    constexpr auto split(ptrdiff_t length) {
       assert(in_avail() >= length);
       auto old_current_begin = current.begin;
       current.begin += length;
@@ -1690,10 +1690,10 @@ struct pb_serializer {
           std::size_t result = 0;
           while (num_bytes > 0 && in_avail() > 0) {
             archive.maybe_advance_region();
-            auto n = std::min<ssize_t>(num_bytes, archive.region_size());
+            auto n = std::min<ptrdiff_t>(num_bytes, archive.region_size());
             result += count_number_of_varints_in_region(n);
             archive.current.begin += n;
-            num_bytes -= n;
+            num_bytes -= static_cast<uint32_t>(n);
           }
           if (num_bytes == 0) [[likely]]
             return result;
@@ -1751,7 +1751,7 @@ struct pb_serializer {
 
       if (itr == fields.end() && field_archive.in_avail() == field_archive.region_size()) [[likely]] {
         std::span<const byte_type> field_span;
-        if (auto result = field_archive.read_bytes(field_len, field_span); !result.ok()) [[unlikely]]
+        if (auto result = field_archive.read_bytes(static_cast<uint32_t>(field_len), field_span); !result.ok()) [[unlikely]]
           return result;
         make_growable(context, fields).push_back({field_num, field_span});
         return {};

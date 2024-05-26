@@ -948,7 +948,7 @@ const ut::suite test_segmented_byte_range = [] {
     ut::expect(hpp::proto::write_proto(value, encoded).ok());
 
     verify(encoded, value);
-    int len = encoded.size();
+    int len = static_cast<int>(encoded.size());
     int s = (len - 10)/2;
     verify_segmented_input(encoded, value, {s, 10, len - 10 - s});
   };
