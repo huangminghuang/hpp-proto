@@ -106,7 +106,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
   else()
     CPMAddPackage(
       NAME protobuf
-      VERSION 25.3
+      VERSION 27.0
       GITHUB_REPOSITORY protocolbuffers/protobuf
       OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
       "protobuf_INSTALL OFF"
