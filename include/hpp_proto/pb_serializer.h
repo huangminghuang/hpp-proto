@@ -46,6 +46,15 @@
 #endif
 #endif
 
+#if defined(__GNUC__)
+#define HPP_PROTO_INLINE [[gnu::always_inline]] inline
+#elif defined(_MSC_VER)
+#pragma warning(error : 4714)
+#define HPP_PROTO_INLINE __forceinline
+#else
+#define HPP_PROTO_INLINE inline
+#endif
+
 bool is_utf8(const char *src, size_t len);
 
 namespace hpp {
@@ -890,14 +899,6 @@ public:
 #endif
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
-#if defined(__GNUC__)
-#define FORCE_INLINE [[gnu::always_inline]] inline
-#elif defined(_MSC_VER)
-#pragma warning(error : 4714)
-#define FORCE_INLINE __forceinline
-#else
-#define FORCE_INLINE inline
-#endif
 template <concepts::varint T, typename Result>
 class sfvint_parser {
   // This class implements the variable-length integer decoding algorithm from https://arxiv.org/html/2403.06898v1
@@ -935,7 +936,7 @@ public:
     return extract_mask;
   }
 
-  FORCE_INLINE void output(uint64_t v) {
+  HPP_PROTO_INLINE void output(uint64_t v) {
     if constexpr (varint_encoding::zig_zag == T::encoding) {
       *res++ = static_cast<Result>((v >> 1) ^ -(v & 0x1));
     } else {
@@ -966,7 +967,7 @@ public:
   }
 
   template <uint64_t SignBits>
-  FORCE_INLINE void fixed_masked_parse(uint64_t word) {
+  HPP_PROTO_INLINE void fixed_masked_parse(uint64_t word) {
     uint64_t extract_mask = calc_extract_mask(SignBits);
     if constexpr (std::countr_one(SignBits) < MaskLength) {
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
@@ -985,7 +986,7 @@ public:
   }
 
   template <std::size_t... I>
-  FORCE_INLINE void parse_word(uint64_t masked_bits, uint64_t word, std::index_sequence<I...>) {
+  HPP_PROTO_INLINE void parse_word(uint64_t masked_bits, uint64_t word, std::index_sequence<I...>) {
     (void)((masked_bits == I && (fixed_masked_parse<I>(word), true)) || ...);
   }
 
@@ -1030,7 +1031,7 @@ struct pb_serializer {
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
     std::span<byte_type> m_data;
 
-    constexpr void serialize(auto &&item) {
+    HPP_PROTO_INLINE constexpr void serialize(auto &&item) {
       using type = std::remove_cvref_t<decltype(item)>;
       if constexpr (concepts::byte_serializable<type>) {
         if (std::is_constant_evaluated()) {
@@ -1072,7 +1073,7 @@ struct pb_serializer {
       }
     }
 
-    constexpr void operator()(auto &&...item) { (serialize(item), ...); }
+    HPP_PROTO_INLINE constexpr void operator()(auto &&...item) { (serialize(item), ...); }
   };
 
   template <concepts::contiguous_byte_range Range>
@@ -1098,7 +1099,7 @@ struct pb_serializer {
   }
 
   template <typename Meta>
-  constexpr static std::size_t cache_count(Meta meta, auto &&item) {
+  HPP_PROTO_INLINE constexpr static std::size_t cache_count(Meta meta, auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
 
     if (meta.omit_value(item))
@@ -1143,7 +1144,7 @@ struct pb_serializer {
   }
 
   template <std::size_t I, typename Meta>
-  constexpr static std::size_t oneof_cache_count(auto &&item) {
+  HPP_PROTO_INLINE constexpr static std::size_t oneof_cache_count(auto &&item) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return cache_count(typename std::tuple_element<I, Meta>::type{},
@@ -1173,7 +1174,7 @@ struct pb_serializer {
   }
 
   template <concepts::is_size_cache T>
-  constexpr static std::size_t message_size(concepts::has_meta auto &&item, T &cache) {
+  HPP_PROTO_INLINE constexpr static std::size_t message_size(concepts::has_meta auto &&item, T &cache) {
     using type = std::remove_cvref_t<decltype(item)>;
     return std::apply(
         [&item, &cache](auto &&...meta) constexpr {
@@ -1189,7 +1190,7 @@ struct pb_serializer {
   }
 
   template <typename Meta>
-  constexpr static std::size_t field_size(Meta meta, auto &&item, concepts::is_size_cache auto &cache) {
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(Meta meta, auto &&item, concepts::is_size_cache auto &cache) {
     using type = std::remove_cvref_t<decltype(item)>;
 
     if (meta.omit_value(item))
@@ -1270,7 +1271,7 @@ struct pb_serializer {
   }
 
   template <std::size_t I, typename Meta>
-  constexpr static std::size_t oneof_size(auto &&item, concepts::is_size_cache auto &cache) {
+  HPP_PROTO_INLINE constexpr static std::size_t oneof_size(auto &&item, concepts::is_size_cache auto &cache) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return field_size(typename std::tuple_element<I, Meta>::type{},
@@ -1330,7 +1331,7 @@ struct pb_serializer {
   }
 
   template <typename Meta>
-  constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache, auto &archive) {
+  HPP_PROTO_INLINE constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache, auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
@@ -1419,7 +1420,7 @@ struct pb_serializer {
   }
 
   template <std::size_t I, concepts::tuple Meta>
-  constexpr static bool serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
+  HPP_PROTO_INLINE constexpr static bool serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return serialize_field(typename std::tuple_element<I, Meta>::type{},
@@ -2528,5 +2529,7 @@ concept is_any = requires(T &obj) {
 
 } // namespace proto
 } // namespace hpp
+
+#undef HPP_PROTO_INLINE
 
 #endif
