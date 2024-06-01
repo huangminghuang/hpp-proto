@@ -1,37 +1,10 @@
-# use CPMAddPackage for ut would make ut part of the installed target
-FetchContent_Declare(
-    ut
-    GIT_REPOSITORY https://github.com/boost-ext/ut
-    GIT_TAG v2.0.1
-)
-
-if(NOT ut_POPULATED)
-    FetchContent_Populate(ut)
-endif()
 
 if(MSVC)
     add_compile_options(/bigobj /wd4459 /wd4125)
 endif()
 
-add_library(Boost::ut INTERFACE IMPORTED)
-target_include_directories(Boost::ut INTERFACE ${ut_SOURCE_DIR}/include)
-target_compile_definitions(Boost::ut INTERFACE BOOST_UT_DISABLE_MODULE)
 
 add_subdirectory(gpb_proto_json)
-
-add_executable(pb_serializer_tests pb_serializer_tests.cpp)
-target_link_libraries(pb_serializer_tests PRIVATE hpp_proto::libhpp_proto Boost::ut)
-
-add_test(NAME pb_serializer_tests
-    COMMAND pb_serializer_tests
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-add_executable(json_serializer_tests json_serializer_tests.cpp)
-target_link_libraries(json_serializer_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze)
-
-add_test(NAME json_serializer_tests
-    COMMAND json_serializer_tests
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 include(../cmake/gen_proto_descriptor_set.cmake)
 
@@ -70,7 +43,7 @@ protobuf_generate(
     PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto
-    PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
+    PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning,export_request=unittest_proto3.request.bin)
 
 add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
 target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib gpb_proto_json)
@@ -186,3 +159,6 @@ add_test(NAME well_known_types_tests
     COMMAND well_known_types_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set_property(TEST well_known_types_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+
+add_executable(proto3_decode proto3_decode.cpp)
+target_link_libraries(proto3_decode PRIVATE unittest_proto3_proto_lib)

@@ -229,7 +229,7 @@ std::string to_hex(const T &data) {
   static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
   std::string result;
   result.resize(data.size() * 4);
-  int index = 0;
+  unsigned index = 0;
   for (auto b : data) {
     unsigned char c = static_cast<unsigned char>(b);
     result[index++] = '\\';
@@ -1150,7 +1150,7 @@ struct hpp_meta_generateor : code_generator {
 
     const bool numeric = is_numeric(proto.type);
 
-    if (descriptor.is_cpp_optional) {
+    if (descriptor.is_cpp_optional || descriptor.proto.label == LABEL_REQUIRED) {
       options = "explicit_presence";
     } else if (proto.label == LABEL_REPEATED) {
       if (numeric) {

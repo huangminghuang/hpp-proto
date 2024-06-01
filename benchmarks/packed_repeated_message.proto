@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package repeated_packed;
+
+message TestMessage {
+    repeated uint64 x = 1;
+}

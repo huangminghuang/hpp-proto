@@ -166,7 +166,7 @@ public:
   growable_span(Base &base, MemoryResource &mr) : mr(mr), base_(base) {}
 
   void resize(std::size_t n) {
-    if (data_ == nullptr || n > base_.size()) {
+    if ( (n > 0 && data_ == nullptr) || n > base_.size()) {
       data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       assert(data_ != nullptr);
       std::uninitialized_copy(base_.begin(), base_.end(), data_);

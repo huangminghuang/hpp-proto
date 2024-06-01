@@ -259,14 +259,13 @@ class dynamic_serializer {
       case wire_type::fixed_32:
         return archive.skip(4);
       default:
-        return std::errc::result_out_of_range;
+        return std::errc::bad_message;
       }
     }
 
     status skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
-      while (!archive.empty()) {
-        vuint32_t tag;
-        archive(tag);
+      while (archive.in_avail()>0) {
+        auto tag = archive.read_tag();
         uint32_t const next_field_num = tag_number(tag);
         wire_type const next_type = proto::tag_type(tag);
 
@@ -277,23 +276,23 @@ class dynamic_serializer {
         }
       }
 
-      return std::errc::result_out_of_range;
+      return std::errc::bad_message;
     }
 
     template <auto Options, typename T>
     status decode_field_type(bool quote_required, concepts::is_basic_in auto &archive) {
       T value;
       if constexpr (concepts::contiguous_byte_range<T>) {
-        vuint64_t len;
+        vint64_t len;
         if (auto ec = archive(len); !ec.ok()) [[unlikely]] {
           return ec;
         }
-        auto bytes = archive.read(len);
-        if (len != bytes.size()) {
-          return std::errc::result_out_of_range;
+        if (archive.in_avail() < len) {
+          return std::errc::bad_message;
         }
-        auto data = std::bit_cast<const typename T::value_type *>(bytes.data());
-        value.assign(data, data + bytes.size());
+        value.resize(len);
+        if (auto ec = archive(value); !ec.ok())
+          return ec;
       } else {
         if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
           return ec;
@@ -322,20 +321,18 @@ class dynamic_serializer {
         glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
 
-      vuint64_t length = 0;
+      vint64_t length = 0;
       if (auto ec = archive(length); !ec.ok()) [[unlikely]] {
         return ec;
       }
 
-      auto field_span = archive.read(length);
-
-      if (field_span.size() != length) {
-        [[unlikely]] return std::errc::result_out_of_range;
+      if (archive.in_avail() <  length) {
+        [[unlikely]] return std::errc::bad_message;
       }
 
-      pb_serializer::basic_in new_archive{field_span};
+      auto new_archive = archive.split(length);
 
-      for (int n = 0; !new_archive.empty(); ++n) {
+      for (int n = 0; new_archive.in_avail() > 0; ++n) {
         if (n > 0) {
           glz::detail::dump<','>(b, ix);
           if constexpr (Options.prettify) {
@@ -348,6 +345,9 @@ class dynamic_serializer {
           return ec;
         }
       }
+
+      if (new_archive.in_avail() < 0)
+        return std::errc::bad_message;
 
       if constexpr (Options.prettify) {
         context.indentation_level -= Options.indentation_width;
@@ -439,13 +439,13 @@ class dynamic_serializer {
       case TYPE_GROUP:
         return decode_group<Options>(meta.type_index, meta.number, archive);
       case TYPE_MESSAGE: {
-        vuint64_t length = 0;
+        vint64_t length = 0;
         archive(length);
-        if (archive.size() < length) {
-          [[unlikely]] return std::errc::result_out_of_range;
+        if (archive.in_avail() < length) {
+          [[unlikely]] return std::errc::bad_message;
         }
 
-        pb_serializer::basic_in new_archive{archive.read(length)};
+        auto new_archive = archive.split(length);
         return decode_message<Options>(meta.type_index, meta.is_map_entry, new_archive);
       }
       case TYPE_BYTES:
@@ -566,10 +566,8 @@ class dynamic_serializer {
       uint32_t field_index = 0;
       char separator = '\0';
 
-      while (!archive.empty()) {
-        vuint32_t tag;
-        archive(tag);
-
+      while (archive.in_avail() > 0) {
+        auto tag = archive.read_tag();
         auto number = tag_number(tag);
         auto field_wire_type = tag_type(tag);
 
@@ -593,7 +591,7 @@ class dynamic_serializer {
         }
       }
 
-      return std::errc::result_out_of_range;
+      return std::errc::bad_message;
     }
 
     template <auto Options>
@@ -615,7 +613,9 @@ class dynamic_serializer {
         glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
 
-      auto value_archive = pb_serializer::basic_in(v.value);
+      pb_context pb_ctx;
+      pb_serializer::contiguous_input_stream strm(v.value, pb_ctx);
+      auto value_archive = strm.archive();
       const bool is_wellknown = pb_meta.is_wellknown_message(msg_index);
       if (is_wellknown) {
         glz::detail::dump<"\"value\":">(b, ix);
@@ -643,7 +643,8 @@ class dynamic_serializer {
     template <auto Options, typename T>
     status decode_wellknown_with_codec(concepts::is_basic_in auto &archive) {
       T v;
-      if (auto ec = read_proto(v, archive.m_data); !ec.ok()) [[unlikely]]
+      pb_context ctx;
+      if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]]
         return ec;
 
       glz::detail::write<glz::json>::op<Options>(v, context, b, ix);
@@ -656,11 +657,8 @@ class dynamic_serializer {
     template <auto Options>
     status decode_list_value(const dynamic_serializer::message_meta &msg_meta, concepts::is_basic_in auto &archive) {
       std::vector<uint64_t> unpacked_repeated_positions(msg_meta.size());
-      while (!archive.empty()) {
-        vuint32_t tag;
-        if (auto ec = archive(tag); !ec.ok()) [[unlikely]] {
-          return ec;
-        }
+      while (archive.in_avail() > 0) {
+        auto tag = archive.read_tag();
         if (tag_number(tag) != 1 || tag_type(tag) != wire_type::length_delimited) [[unlikely]] {
           return std::errc::bad_message;
         }
@@ -669,7 +667,7 @@ class dynamic_serializer {
           return ec;
         }
       }
-      return {};
+      return archive.in_avail() == 0 ? std::errc{} : std::errc::bad_message;
     }
 
     template <auto Options>
@@ -698,10 +696,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status decode_wrapper_type(const dynamic_serializer::message_meta &msg_meta, concepts::is_basic_in auto &archive) {
-      vuint32_t tag;
-      if (auto ec = archive(tag); !ec.ok()) [[unlikely]] {
-        return ec;
-      }
+      auto tag = archive.read_tag();
       if (tag_number(tag) != 1) [[unlikely]]
         return std::errc::bad_message;
       return decode_field<Options>(msg_meta[0], false, archive);
@@ -744,16 +739,14 @@ class dynamic_serializer {
 
       if (msg_index == pb_meta.protobuf_any_message_index) {
         wellknown::Any v;
-        if (auto ec = read_proto(v, archive.m_data); !ec.ok()) [[unlikely]]
+        pb_context ctx;
+        if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]]
           return ec;
         if (auto ec = decode_any<opts>(v); !ec.ok()) [[unlikely]]
           return ec;
       } else {
-        while (!archive.empty()) {
-          vuint32_t tag;
-          if (auto ec = archive(tag); !ec.ok()) [[unlikely]] {
-            return ec;
-          }
+        while (archive.in_avail() > 0) {
+          auto tag = archive.read_tag();
           auto number = tag_number(tag);
           auto field_wire_type = tag_type(tag);
           if (msg_index == pb_meta.protobuf_struct_message_index) {
@@ -776,6 +769,8 @@ class dynamic_serializer {
             }
           }
         }
+        if (archive.in_avail() < 0)
+          return std::errc::bad_message;
       }
 
       if (dump_brace) {
@@ -1499,7 +1494,11 @@ public:
       return std::errc::invalid_argument;
     }
     buffer.resize(pb_encoded_stream.size() * 2);
-    auto archive = pb_serializer::basic_in(pb_encoded_stream);
+
+    pb_context pb_ctx;
+    pb_serializer::contiguous_input_stream strm(pb_encoded_stream, pb_ctx);
+    auto archive = strm.archive();
+
     pb_to_json_state<buffer_type> state{*this, buffer};
     state.context.indentation_level = indentation_level;
     const bool is_map_entry = false;
