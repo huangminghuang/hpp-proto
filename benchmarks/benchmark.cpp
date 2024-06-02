@@ -143,7 +143,7 @@ void google_deserialize_arena(benchmark::State &state) {
   auto data = get_data((Message *)nullptr);
   for (auto _ : state) {
     google::protobuf::Arena arena;
-    Message *message = google::protobuf::Arena::CreateMessage<Message>(&arena);
+    Message *message = google::protobuf::Arena::Create<Message>(&arena);
     auto r = message->ParseFromArray(data.data(), static_cast<int>(data.size()));
     benchmark::DoNotOptimize(r);
   }

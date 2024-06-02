@@ -1391,7 +1391,7 @@ struct glaze_meta_generator : code_generator {
                      "    static constexpr auto Opts = ws_handled_off<Options>();\n"
                      "    if (*it == 'n') {{\n"
                      "      ++it;\n"
-                     "      match<\"ull\">(ctx, it, end);\n"
+                     "      match<\"ull\", Opts>(ctx, it, end);\n"
                      "      if (bool(ctx.error)) [[unlikely]]\n"
                      "        return;\n"
                      "      value.kind.template emplace<{1}::NullValue>();\n"

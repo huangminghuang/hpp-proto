@@ -11,19 +11,18 @@ struct duration_codec {
     if (value.nanos > 999999999 || !has_same_sign(value.seconds, value.nanos)) [[unlikely]]
       return -1;
     char *buf = static_cast<char *>(std::data(b));
-    char *it = buf;
-    it = glz::to_chars(it, value.seconds);
+    auto ix = glz::to_chars(buf, value.seconds) - buf;
     if (value.nanos != 0) {
       int32_t nanos = std::abs(value.nanos);
-      glz::detail::dump<'.'>(it);
+      glz::detail::dump<'.'>(b, ix);
       char nanos_buf[18] = "00000000";
       char *p = nanos_buf + 8;
       p = glz::to_chars(p, nanos);
-      std::memcpy(it, p - 9, 9);
-      it += 9;
+      std::memcpy(buf + ix, p - 9, 9);
+      ix += 9;
     }
-    glz::detail::dump<'s'>(it);
-    return it - buf;
+    glz::detail::dump<'s'>(b, ix);
+    return ix;
   }
 
   static bool decode(auto &&josn, auto &&value) {

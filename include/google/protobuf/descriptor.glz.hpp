@@ -1,7 +1,7 @@
 #pragma once
 
 #include <hpp_proto/json_serializer.h>
-#include <google/protobuf/descriptor.msg.hpp>
+#include "google/protobuf/descriptor.msg.hpp"
 
 template <>
 struct glz::meta<google::protobuf::FileDescriptorSet> {
@@ -26,7 +26,7 @@ struct glz::meta<google::protobuf::FileDescriptorProto> {
     "options", &T::options,
     "sourceCodeInfo", &T::source_code_info,
     "syntax", hpp::proto::as_optional_ref<&T::syntax>,
-    "edition", hpp::proto::as_optional_ref<&T::edition>);
+    "edition", hpp::proto::as_optional_ref<&T::edition, ::google::protobuf::Edition::EDITION_UNKNOWN>);
 };
 
 template <>
@@ -137,8 +137,8 @@ struct glz::meta<google::protobuf::FieldDescriptorProto::Label> {
   using enum google::protobuf::FieldDescriptorProto::Label;
   static constexpr auto value = enumerate(
     "LABEL_OPTIONAL", LABEL_OPTIONAL,
-    "LABEL_REQUIRED", LABEL_REQUIRED,
-    "LABEL_REPEATED", LABEL_REPEATED);
+    "LABEL_REPEATED", LABEL_REPEATED,
+    "LABEL_REQUIRED", LABEL_REQUIRED);
 };
 
 template <>
@@ -212,7 +212,6 @@ struct glz::meta<google::protobuf::FileOptions> {
     "ccGenericServices", hpp::proto::as_optional_ref<&T::cc_generic_services, false>,
     "javaGenericServices", hpp::proto::as_optional_ref<&T::java_generic_services, false>,
     "pyGenericServices", hpp::proto::as_optional_ref<&T::py_generic_services, false>,
-    "phpGenericServices", hpp::proto::as_optional_ref<&T::php_generic_services, false>,
     "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>,
     "ccEnableArenas", hpp::proto::as_optional_ref<&T::cc_enable_arenas, true>,
     "objcClassPrefix", hpp::proto::as_optional_ref<&T::objc_class_prefix>,
@@ -264,6 +263,7 @@ struct glz::meta<google::protobuf::FieldOptions> {
     "targets", hpp::proto::as_optional_ref<&T::targets>,
     "editionDefaults", hpp::proto::as_optional_ref<&T::edition_defaults>,
     "features", &T::features,
+    "featureSupport", &T::feature_support,
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
@@ -271,8 +271,18 @@ template <>
 struct glz::meta<google::protobuf::FieldOptions::EditionDefault> {
   using T = google::protobuf::FieldOptions::EditionDefault;
   static constexpr auto value = object(
-    "edition", hpp::proto::as_optional_ref<&T::edition>,
+    "edition", hpp::proto::as_optional_ref<&T::edition, ::google::protobuf::Edition::EDITION_UNKNOWN>,
     "value", hpp::proto::as_optional_ref<&T::value>);
+};
+
+template <>
+struct glz::meta<google::protobuf::FieldOptions::FeatureSupport> {
+  using T = google::protobuf::FieldOptions::FeatureSupport;
+  static constexpr auto value = object(
+    "editionIntroduced", hpp::proto::as_optional_ref<&T::edition_introduced, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+    "editionDeprecated", hpp::proto::as_optional_ref<&T::edition_deprecated, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+    "deprecationWarning", hpp::proto::as_optional_ref<&T::deprecation_warning>,
+    "editionRemoved", hpp::proto::as_optional_ref<&T::edition_removed, ::google::protobuf::Edition::EDITION_UNKNOWN>);
 };
 
 template <>
@@ -344,6 +354,7 @@ struct glz::meta<google::protobuf::EnumValueOptions> {
     "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>,
     "features", &T::features,
     "debugRedact", hpp::proto::as_optional_ref<&T::debug_redact, false>,
+    "featureSupport", &T::feature_support,
     "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
@@ -403,10 +414,9 @@ struct glz::meta<google::protobuf::FeatureSet> {
     "fieldPresence", hpp::proto::as_optional_ref<&T::field_presence, ::google::protobuf::FeatureSet::FieldPresence::FIELD_PRESENCE_UNKNOWN>,
     "enumType", hpp::proto::as_optional_ref<&T::enum_type, ::google::protobuf::FeatureSet::EnumType::ENUM_TYPE_UNKNOWN>,
     "repeatedFieldEncoding", hpp::proto::as_optional_ref<&T::repeated_field_encoding, ::google::protobuf::FeatureSet::RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN>,
-    "stringFieldValidation", hpp::proto::as_optional_ref<&T::string_field_validation, ::google::protobuf::FeatureSet::StringFieldValidation::STRING_FIELD_VALIDATION_UNKNOWN>,
+    "utf8Validation", hpp::proto::as_optional_ref<&T::utf8_validation, ::google::protobuf::FeatureSet::Utf8Validation::UTF8_VALIDATION_UNKNOWN>,
     "messageEncoding", hpp::proto::as_optional_ref<&T::message_encoding, ::google::protobuf::FeatureSet::MessageEncoding::MESSAGE_ENCODING_UNKNOWN>,
-    "jsonFormat", hpp::proto::as_optional_ref<&T::json_format, ::google::protobuf::FeatureSet::JsonFormat::JSON_FORMAT_UNKNOWN>,
-    "rawFeatures", &T::raw_features);
+    "jsonFormat", hpp::proto::as_optional_ref<&T::json_format, ::google::protobuf::FeatureSet::JsonFormat::JSON_FORMAT_UNKNOWN>);
 };
 
 template <>
@@ -438,12 +448,11 @@ struct glz::meta<google::protobuf::FeatureSet::RepeatedFieldEncoding> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FeatureSet::StringFieldValidation> {
-  using enum google::protobuf::FeatureSet::StringFieldValidation;
+struct glz::meta<google::protobuf::FeatureSet::Utf8Validation> {
+  using enum google::protobuf::FeatureSet::Utf8Validation;
   static constexpr auto value = enumerate(
-    "STRING_FIELD_VALIDATION_UNKNOWN", STRING_FIELD_VALIDATION_UNKNOWN,
-    "MANDATORY", MANDATORY,
-    "HINT", HINT,
+    "UTF8_VALIDATION_UNKNOWN", UTF8_VALIDATION_UNKNOWN,
+    "VERIFY", VERIFY,
     "NONE", NONE);
 };
 
@@ -463,6 +472,24 @@ struct glz::meta<google::protobuf::FeatureSet::JsonFormat> {
     "JSON_FORMAT_UNKNOWN", JSON_FORMAT_UNKNOWN,
     "ALLOW", ALLOW,
     "LEGACY_BEST_EFFORT", LEGACY_BEST_EFFORT);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSetDefaults> {
+  using T = google::protobuf::FeatureSetDefaults;
+  static constexpr auto value = object(
+    "defaults", hpp::proto::as_optional_ref<&T::defaults>,
+    "minimumEdition", hpp::proto::as_optional_ref<&T::minimum_edition, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+    "maximumEdition", hpp::proto::as_optional_ref<&T::maximum_edition, ::google::protobuf::Edition::EDITION_UNKNOWN>);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSetDefaults::FeatureSetEditionDefault> {
+  using T = google::protobuf::FeatureSetDefaults::FeatureSetEditionDefault;
+  static constexpr auto value = object(
+    "edition", hpp::proto::as_optional_ref<&T::edition, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+    "overridableFeatures", &T::overridable_features,
+    "fixedFeatures", &T::fixed_features);
 };
 
 template <>
@@ -508,5 +535,23 @@ struct glz::meta<google::protobuf::GeneratedCodeInfo::Annotation::Semantic> {
     "NONE", NONE,
     "SET", SET,
     "ALIAS", ALIAS);
+};
+
+template <>
+struct glz::meta<google::protobuf::Edition> {
+  using enum google::protobuf::Edition;
+  static constexpr auto value = enumerate(
+    "EDITION_UNKNOWN", EDITION_UNKNOWN,
+    "EDITION_LEGACY", EDITION_LEGACY,
+    "EDITION_PROTO2", EDITION_PROTO2,
+    "EDITION_PROTO3", EDITION_PROTO3,
+    "EDITION_2023", EDITION_2023,
+    "EDITION_2024", EDITION_2024,
+    "EDITION_1_TEST_ONLY", EDITION_1_TEST_ONLY,
+    "EDITION_2_TEST_ONLY", EDITION_2_TEST_ONLY,
+    "EDITION_99997_TEST_ONLY", EDITION_99997_TEST_ONLY,
+    "EDITION_99998_TEST_ONLY", EDITION_99998_TEST_ONLY,
+    "EDITION_99999_TEST_ONLY", EDITION_99999_TEST_ONLY,
+    "EDITION_MAX", EDITION_MAX);
 };
 

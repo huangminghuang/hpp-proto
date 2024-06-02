@@ -1011,8 +1011,8 @@ class dynamic_serializer {
       }
 
       if (enum_meta.empty()) {
-        // this is google.protbuf.NullValue
-        glz::detail::match<"null">(context, it, end);
+        // this is google.protobuf.NullValue
+        glz::detail::match<"null", Opts>(context, it, end);
         archive(make_tag(meta.number, wire_type::varint), varint{0});
         return {};
       }
@@ -1245,7 +1245,7 @@ class dynamic_serializer {
           if (bool(context.error)) [[unlikely]] {
             return std::errc::illegal_byte_sequence;
           }
-          match<"\"value\"">(context, it, end);
+          match<"\"value\"", Opts>(context, it, end);
 
           if (!parse_colon<Opts>(it, end)) [[unlikely]] {
             return std::errc::illegal_byte_sequence;

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <hpp_proto/json_serializer.h>
-#include <google/protobuf/descriptor.glz.hpp>
-#include <google/protobuf/compiler/plugin.msg.hpp>
+#include "google/protobuf/descriptor.glz.hpp"
+#include "google/protobuf/compiler/plugin.msg.hpp"
 
 template <>
 struct glz::meta<google::protobuf::compiler::Version> {
@@ -31,6 +31,8 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse> {
   static constexpr auto value = object(
     "error", hpp::proto::as_optional_ref<&T::error>,
     "supportedFeatures", hpp::proto::as_optional_ref<&T::supported_features>,
+    "minimumEdition", hpp::proto::as_optional_ref<&T::minimum_edition>,
+    "maximumEdition", hpp::proto::as_optional_ref<&T::maximum_edition>,
     "file", hpp::proto::as_optional_ref<&T::file>);
 };
 

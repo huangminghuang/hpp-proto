@@ -9,6 +9,7 @@ namespace hpp::proto {
 
 template <typename T, std::size_t Index>
 struct oneof_wrapper {
+  static constexpr auto glaze_reflect = false;
   T *value;
   operator bool() const { return value->index() == Index; }
   auto &operator*() const { return std::get<Index>(*value); }
@@ -18,6 +19,12 @@ template <std::size_t Index, typename T>
 oneof_wrapper<T, Index> wrap_oneof(T &v) {
   return oneof_wrapper<T, Index>{&v};
 }
+
+template <typename T>
+struct map_wrapper {
+  static constexpr auto glaze_reflect = false;
+  T &value;
+};
 
 namespace concepts {
 template <typename T>
@@ -43,16 +50,16 @@ concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
 template <typename... AuxContext>
 struct json_context : glz::context, pb_context<AuxContext...> {
   const char *error_message_name = nullptr;
-  template <typename ...U>
+  template <typename... U>
   json_context(U &&...ctx) : pb_context<AuxContext...>(std::forward<U>(ctx)...) {}
 };
 
-template <typename ...U>
-json_context(U&& ...u) -> json_context<std::remove_cvref_t<U>...>;
-
+template <typename... U>
+json_context(U &&...u) -> json_context<std::remove_cvref_t<U>...>;
 
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
+  static constexpr auto glaze_reflect = false;
   T &val;
   operator bool() const { return !is_default_value<T, Default>(val); }
 
@@ -62,8 +69,8 @@ struct optional_ref {
   }
 
   template <concepts::jsonfy_need_quote U>
-  static glz::quoted_num_t<U> deref(U &v) {
-    return glz::quoted_num_t<U>{v};
+  static glz::detail::opts_wrapper_t<U, &glz::opts::quoted_num> deref(U &v) {
+    return glz::detail::opts_wrapper_t<U, &glz::opts::quoted_num>{v};
   }
 
   auto operator*() const -> decltype(deref(val)) { return deref(val); }
@@ -89,6 +96,7 @@ struct optional_ref {
 
 template <auto Default>
 struct optional_ref<hpp::proto::optional<bool, Default>, std::monostate{}> {
+  static constexpr auto glaze_reflect = false;
   hpp::proto::optional<bool, Default> &val;
   operator bool() const { return val.has_value(); }
   bool &emplace() const { return val.emplace(); }
@@ -97,6 +105,7 @@ struct optional_ref<hpp::proto::optional<bool, Default>, std::monostate{}> {
 
 template <auto Default>
 struct optional_ref<const hpp::proto::optional<bool, Default>, std::monostate{}> {
+  static constexpr auto glaze_reflect = false;
   const hpp::proto::optional<bool, Default> &val;
   operator bool() const { return val.has_value(); }
   bool operator*() const { return *val; }
@@ -249,7 +258,7 @@ struct to_json<T> {
   template <auto Opts, class B>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
     using codec = typename hpp::proto::json_codec<T>::type;
-    if constexpr (detail::resizeable<B>) {
+    if constexpr (resizable<B>) {
       std::size_t const encoded_size = codec::max_encode_size(value);
       if ((ix + 2 + encoded_size) >= b.size()) {
         b.resize(std::max(b.size() * 2, ix + 2 + encoded_size));
@@ -359,7 +368,8 @@ struct to_json<hpp::proto::optional_ref<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     if constexpr (std::is_same_v<Type, uint64_t>) {
-      static_assert(std::is_same_v<std::decay_t<decltype(*value)>, glz::quoted_num_t<uint64_t>>);
+      static_assert(std::is_same_v<std::decay_t<decltype(*value)>,
+                                   glz::detail::opts_wrapper_t<uint64_t, &glz::opts::quoted_num>>);
     }
     if (bool(value)) {
       to_json<std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
@@ -373,10 +383,12 @@ struct from_json<hpp::proto::optional_ref<Type, Default>> {
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     if constexpr (requires { value.emplace(); }) {
       read<json>::template op<Opts>(value.emplace(), std::forward<decltype(args)>(args)...);
-      // from_json<std::decay_t<decltype(*value)>>::template op<Options>(value.emplace(), std::forward<Args>(args)...);
+    } else if constexpr (writable_map_t<Type> && resizable<Type>) {
+      hpp::proto::map_wrapper<std::decay_t<decltype(*value)>> wrapped{*value};
+      read<json>::template op<Opts>(wrapped,
+                                    std::forward<decltype(args)>(args)...);
     } else {
       read<json>::template op<Opts>(*value, std::forward<decltype(args)>(args)...);
-      // from_json<std::decay_t<decltype(*value)>>::template op<Options>(*value, std::forward<Args>(args)...);
     }
   }
 };
@@ -446,6 +458,9 @@ struct from_json<std::span<Type>> {
     hpp::proto::detail::growable_span growable{value, ctx.memory_resource()};
     if constexpr (hpp::proto::concepts::byte_type<Type>) {
       from_json<hpp::proto::use_base64>::template op<Options>(growable, ctx, it, end);
+    } else if constexpr (pair_t<std::remove_cvref_t<Type>>) {
+      hpp::proto::map_wrapper<decltype(growable)> wrapped{growable};
+      read<json>::template op<Options>(wrapped, ctx, it, end);
     } else {
       from_json<decltype(growable)>::template op<Options>(growable, ctx, it, end);
     }
@@ -478,13 +493,13 @@ template <auto Opts>
       break;
     }
     case '{':
-      skip_until_closed<'{', '}'>(ctx, it, end);
+      skip_until_closed<Opts, '{', '}'>(ctx, it, end);
       if (bool(ctx.error)) {
         [[unlikely]] return {};
       }
       break;
     case '[':
-      skip_until_closed<'[', ']'>(ctx, it, end);
+      skip_until_closed<Opts, '[', ']'>(ctx, it, end);
       if (bool(ctx.error)) {
         [[unlikely]] return {};
       }
@@ -511,10 +526,10 @@ template <auto Opts>
 }
 
 template <typename T>
-  requires writable_map_t<T> && resizeable<T>
-struct from_json<T> {
+struct from_json<hpp::proto::map_wrapper<T>> {
   template <auto Options>
-  GLZ_FLATTEN static void op(auto &value, is_context auto &&ctx, auto &&it, auto &&end) {
+  GLZ_FLATTEN static void op(auto &&v, is_context auto &&ctx, auto &&it, auto &&end) {
+    auto &value = v.value;
     if constexpr (!Options.ws_handled) {
       skip_ws<Options>(ctx, it, end);
       if (bool(ctx.error)) {
@@ -594,7 +609,7 @@ struct from_json<T *> {
 
     if (*it == 'n') {
       ++it;
-      match<"ull">(ctx, it, end);
+      match<"ull", Opts>(ctx, it, end);
       if (bool(ctx.error)) {
         [[unlikely]] return;
       }
@@ -624,7 +639,7 @@ struct write_json_status final {
   std::string message() const { return std::string("invalid value for message ") + error_message_name; }
 };
 
-template <auto Opts = glz::opts{}, typename Buffer, glz::is_context ...Context>
+template <auto Opts = glz::opts{}, typename Buffer, glz::is_context... Context>
 [[nodiscard]] inline read_json_status read_json(auto &value, Buffer &&buffer, Context &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   using buffer_type = std::remove_cvref_t<Buffer>;
@@ -634,7 +649,6 @@ template <auto Opts = glz::opts{}, typename Buffer, glz::is_context ...Context>
   value = {};
   return {glz::read<Opts>(value, buffer, ctx...)};
 }
-
 
 template <auto Opts = glz::opts{}, class T, class Buffer>
 inline write_json_status write_json(T &&value, Buffer &&buffer, glz::is_context auto &&ctx) noexcept {
@@ -649,7 +663,6 @@ inline write_json_status write_json(T &&value, Buffer &&buffer) noexcept {
   json_context ctx{};
   return write_json(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
 }
-
 
 template <auto Opts = glz::opts{}, class T>
 [[nodiscard]] inline auto write_json(T &&value, glz::is_context auto &&...ctx) noexcept
