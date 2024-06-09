@@ -44,8 +44,9 @@ const boost::ut::suite proto3_lite_test = [] {
 
     ExpectUnpackedFieldsSet(msg);
 
-    auto json_string = glz::write_json(original);
-    auto m = gpb_based::json_to_proto(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes", json_string);
+    auto r = glz::write_json(original);
+    expect(r.has_value());
+    auto m = gpb_based::json_to_proto(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes", r.value());
 
     expect(eq(m.size(), data.size()));
     expect(memcmp(data.data(), m.data(), m.size()) == 0);
