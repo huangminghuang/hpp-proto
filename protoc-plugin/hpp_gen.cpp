@@ -1382,7 +1382,7 @@ struct glaze_meta_generator : code_generator {
                      "template <>\n"
                      "struct from_json<{0}> {{\n"
                      "  template <auto Options>\n"
-                     "  GLZ_FLATTEN static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
+                     "  static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
                      "    if constexpr (!Options.ws_handled) {{\n"
                      "      skip_ws<Options>(ctx, it, end);\n"
                      "      if (bool(ctx.error)) [[unlikely]]\n"
@@ -1524,8 +1524,8 @@ struct glaze_meta_generator : code_generator {
     if (descriptor.fields.size() > 1) {
       for (unsigned i = 0; i < descriptor.fields.size(); ++i) {
         fmt::format_to(target,
-                       "    \"{}\", [](auto &&self) -> auto {{ return hpp::proto::wrap_oneof<{}>(self.{}); }},\n",
-                       descriptor.fields[i]->proto.json_name, i + 1, descriptor.cpp_name);
+                       "    \"{}\", hpp::proto::as_oneof_member<&T::{},{}>,\n",
+                       descriptor.fields[i]->proto.json_name, descriptor.cpp_name, i + 1);
       }
     } else {
       process(*descriptor.fields[0]);

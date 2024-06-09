@@ -161,6 +161,20 @@ struct glz::meta<non_owning_nested_example> {
   static constexpr auto value = object("nested", &T::nested);
 };
 
+struct oneof_example {
+  std::variant<std::monostate, std::string, int32_t> value;
+  bool operator==(const oneof_example &) const = default;
+};
+
+template <>
+struct glz::meta<oneof_example> {
+  using T = oneof_example;
+  static constexpr auto value = object(
+    "string_field", hpp::proto::as_oneof_member<&T::value,1>,
+    "int32_field", hpp::proto::as_oneof_member<&T::value,2>
+  );
+};
+
 namespace ut = boost::ut;
 
 const ut::suite test_base64 = [] {
@@ -309,6 +323,10 @@ const ut::suite test_explicit_optional_bool = [] {
 const ut::suite test_explicit_optional_uint64 = [] {
   verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{}, R"({})");
   verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{.field = 32}, R"({"field":"32"})");
+};
+
+const ut::suite test_oneof = [] {
+  verify<oneof_example>(oneof_example{.value = "abc"}, R"({"string_field":"abc"})");
 };
 
 

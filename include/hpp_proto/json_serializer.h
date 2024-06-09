@@ -16,7 +16,7 @@ struct oneof_wrapper {
 };
 
 template <std::size_t Index, typename T>
-oneof_wrapper<T, Index> wrap_oneof(T &v) {
+constexpr oneof_wrapper<T, Index> wrap_oneof(T &v) {
   return oneof_wrapper<T, Index>{&v};
 }
 
@@ -118,6 +118,14 @@ inline constexpr decltype(auto) as_optional_ref_impl() noexcept {
 
 template <auto MemPtr, auto Default = std::monostate{}>
 constexpr auto as_optional_ref = as_optional_ref_impl<MemPtr, Default>();
+
+template <auto MemPtr, int Index>
+inline constexpr decltype(auto) as_oneof_member_impl() noexcept {
+  return [](auto &&val) -> auto { return wrap_oneof<Index>(val.*MemPtr); };
+}
+
+template <auto MemPtr, int Index>
+constexpr auto as_oneof_member = as_oneof_member_impl<MemPtr, Index>();
 
 struct base64 {
   constexpr static std::size_t max_encode_size(hpp::proto::concepts::contiguous_byte_range auto &&source) noexcept {
