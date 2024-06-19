@@ -60,6 +60,7 @@ json_context(U &&...u) -> json_context<std::remove_cvref_t<U>...>;
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
   static constexpr auto glaze_reflect = false;
+  using value_type = T;
   T &val;
   operator bool() const { return !is_default_value<T, Default>(val); }
 
