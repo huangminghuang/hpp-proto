@@ -48,9 +48,9 @@ struct Duration {
   int32_t nanos = {};
 };
 
-auto pb_meta(const Duration &) -> std::tuple<
-    hpp::proto::field_meta<1, &Duration::seconds, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-    hpp::proto::field_meta<2, &Duration::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
+auto pb_meta(const Duration &)
+    -> std::tuple<hpp::proto::field_meta<1, &Duration::seconds, hpp::proto::field_option::none, hpp::proto::vint64_t>,
+                  hpp::proto::field_meta<2, &Duration::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
 
 struct Timestamp {
   constexpr static bool glaze_reflect = false;
@@ -58,9 +58,9 @@ struct Timestamp {
   int32_t nanos = {};
 };
 
-auto pb_meta(const Timestamp &) -> std::tuple<
-    hpp::proto::field_meta<1, &Timestamp::seconds, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-    hpp::proto::field_meta<2, &Timestamp::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
+auto pb_meta(const Timestamp &)
+    -> std::tuple<hpp::proto::field_meta<1, &Timestamp::seconds, hpp::proto::field_option::none, hpp::proto::vint64_t>,
+                  hpp::proto::field_meta<2, &Timestamp::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
 
 struct FieldMask {
   constexpr static bool glaze_reflect = false;
@@ -264,7 +264,7 @@ class dynamic_serializer {
     }
 
     status skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
-      while (archive.in_avail()>0) {
+      while (archive.in_avail() > 0) {
         auto tag = archive.read_tag();
         uint32_t const next_field_num = tag_number(tag);
         wire_type const next_type = proto::tag_type(tag);
@@ -326,7 +326,7 @@ class dynamic_serializer {
         return ec;
       }
 
-      if (archive.in_avail() <  length) {
+      if (archive.in_avail() < length) {
         [[unlikely]] return std::errc::bad_message;
       }
 
@@ -361,8 +361,8 @@ class dynamic_serializer {
 
     template <auto Options>
     status decode_unpacked_repeated(uint32_t field_index, const dynamic_serializer::field_meta &meta,
-                                  std::vector<uint64_t> &unpacked_repeated_positions,
-                                  concepts::is_basic_in auto &archive) {
+                                    std::vector<uint64_t> &unpacked_repeated_positions,
+                                    concepts::is_basic_in auto &archive) {
       auto old_pos =
           unpacked_repeated_positions[field_index]; // the end position of previous repeated element being decoded
       auto start_pos = ix;
@@ -415,7 +415,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status decode_field(const dynamic_serializer::field_meta &meta, bool is_map_key,
-                      concepts::is_basic_in auto &archive) {
+                        concepts::is_basic_in auto &archive) {
       using enum google::protobuf::FieldDescriptorProto::Type;
       switch (meta.type) {
       case TYPE_DOUBLE:
@@ -493,8 +493,8 @@ class dynamic_serializer {
 
     template <auto Options>
     status decode_field(const dynamic_serializer::message_meta &msg_meta, uint32_t number, wire_type field_wire_type,
-                      std::vector<uint64_t> &unpacked_repeated_positions, uint32_t &field_index, char &separator,
-                      bool is_map_entry, concepts::is_basic_in auto &archive) {
+                        std::vector<uint64_t> &unpacked_repeated_positions, uint32_t &field_index, char &separator,
+                        bool is_map_entry, concepts::is_basic_in auto &archive) {
       if (circular_find(field_index, number, msg_meta)) {
         auto &field_m = msg_meta[field_index];
 
@@ -662,8 +662,8 @@ class dynamic_serializer {
         if (tag_number(tag) != 1 || tag_type(tag) != wire_type::length_delimited) [[unlikely]] {
           return std::errc::bad_message;
         }
-        if (auto ec = decode_unpacked_repeated<Options>(0, msg_meta[0], unpacked_repeated_positions, archive);
-            !ec.ok()) [[unlikely]] {
+        if (auto ec = decode_unpacked_repeated<Options>(0, msg_meta[0], unpacked_repeated_positions, archive); !ec.ok())
+            [[unlikely]] {
           return ec;
         }
       }
@@ -672,7 +672,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status decode_struct_field(const dynamic_serializer::message_meta &msg_meta, uint32_t number,
-                             wire_type field_wire_type, char &separator, concepts::is_basic_in auto &archive) {
+                               wire_type field_wire_type, char &separator, concepts::is_basic_in auto &archive) {
       if (number != 1 || field_wire_type != wire_type::length_delimited) [[unlikely]] {
         return std::errc::bad_message;
       }
@@ -750,8 +750,8 @@ class dynamic_serializer {
           auto number = tag_number(tag);
           auto field_wire_type = tag_type(tag);
           if (msg_index == pb_meta.protobuf_struct_message_index) {
-            if (auto ec = decode_struct_field<opts>(msg_meta, number, field_wire_type, separator, archive);
-                !ec.ok()) [[unlikely]] {
+            if (auto ec = decode_struct_field<opts>(msg_meta, number, field_wire_type, separator, archive); !ec.ok())
+                [[unlikely]] {
               return ec;
             }
           } else if (msg_index != pb_meta.protobuf_value_message_index) {
@@ -884,8 +884,8 @@ class dynamic_serializer {
     template <typename T>
     status encode_map_key(std::string_view key, auto &archive) {
       T value;
-      glz::detail::read<glz::json>::op<glz::opts{.ws_handled = true}>(get_underlying_value(value), context, key.begin(),
-                                                                      key.end());
+      glz::detail::read<glz::json>::op<glz::opts{.ws_handled = true}>(get_underlying_value(value), context, key.data(),
+                                                                      key.data()+key.size());
       if (bool(context.error)) {
         [[unlikely]] return std::errc::illegal_byte_sequence;
       }
@@ -1011,8 +1011,8 @@ class dynamic_serializer {
       }
 
       if (enum_meta.empty()) {
-        // this is google.protbuf.NullValue
-        glz::detail::match<"null">(context, it, end);
+        // this is google.protobuf.NullValue
+        glz::detail::match<"null", Opts>(context, it, end);
         archive(make_tag(meta.number, wire_type::varint), varint{0});
         return {};
       }
@@ -1245,7 +1245,7 @@ class dynamic_serializer {
           if (bool(context.error)) [[unlikely]] {
             return std::errc::illegal_byte_sequence;
           }
-          match<"\"value\"">(context, it, end);
+          match<"\"value\"", Opts>(context, it, end);
 
           if (!parse_colon<Opts>(it, end)) [[unlikely]] {
             return std::errc::illegal_byte_sequence;
@@ -1486,8 +1486,8 @@ public:
   template <auto Options = glz::opts{}>
 #endif
   hpp::proto::status proto_to_json(std::string_view message_name,
-                                 concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer,
-                                 uint32_t indentation_level = 0) const {
+                                   concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer,
+                                   uint32_t indentation_level = 0) const {
     using buffer_type = std::decay_t<decltype(buffer)>;
     auto const id = message_index(message_name);
     if (id == messages.size()) {
@@ -1514,8 +1514,8 @@ public:
 #else
   template <auto Options = glz::opts{}>
 #endif
-  expected<std::string, hpp::proto::status> proto_to_json(std::string_view message_name,
-                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) const {
+  expected<std::string, hpp::proto::status>
+  proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream) const {
     std::string result;
     if (auto ec =
             proto_to_json<Options>(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
@@ -1527,23 +1527,23 @@ public:
 
 #if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
   hpp::proto::status proto_to_json(std::string_view message_name,
-                                 concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer,
-                                 uint32_t indentation_level = 0) const {
+                                   concepts::contiguous_byte_range auto &&pb_encoded_stream, auto &&buffer,
+                                   uint32_t indentation_level = 0) const {
     return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream, buffer, indentation_level);
   }
 
-  expected<std::string, hpp::proto::status> proto_to_json(std::string_view message_name,
-                                                        concepts::contiguous_byte_range auto &&pb_encoded_stream) const {
+  expected<std::string, hpp::proto::status>
+  proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto &&pb_encoded_stream) const {
     return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream);
   }
 #endif
 
   template <auto Opts>
-  hpp::proto::read_json_status json_to_proto(std::string_view message_name, std::string_view json_view,
-                                            concepts::contiguous_byte_range auto &&buffer) const {
+  hpp::proto::json_status json_to_proto(std::string_view message_name, std::string_view json_view,
+                                        concepts::contiguous_byte_range auto &&buffer) const {
     auto const id = message_index(message_name);
     if (id == messages.size()) {
-      return read_json_status{glz::parse_error{glz::error_code::unknown_key, 0}};
+      return json_status{{glz::error_code::unknown_key}};
     }
     json_to_pb_state state{*this};
     const char *it = json_view.data();
@@ -1551,21 +1551,21 @@ public:
     relocatable_out archive{buffer};
     if (auto ec = state.template encode_message<Opts>(id, it, end, 0, archive); !ec.ok()) [[unlikely]] {
       auto location = std::distance<const char *>(json_view.data(), it);
-      return read_json_status{glz::parse_error{
-          (state.context.error == glz::error_code::none ? glz::error_code::syntax_error : state.context.error),
-          static_cast<size_t>(location)}};
+      return json_status{
+          {.ec = (state.context.error == glz::error_code::none ? glz::error_code::syntax_error : state.context.error),
+           .location = static_cast<size_t>(location)}};
     }
     return {};
   }
 
-  hpp::proto::read_json_status json_to_proto(std::string_view message_name, std::string_view json_view,
-                                            concepts::contiguous_byte_range auto &&buffer) const {
+  hpp::proto::json_status json_to_proto(std::string_view message_name, std::string_view json_view,
+                                        concepts::contiguous_byte_range auto &&buffer) const {
     return json_to_proto<glz::opts{}>(message_name, json_view, buffer);
   }
 
   template <auto Opts>
-  glz::expected<std::vector<std::byte>, hpp::proto::read_json_status> json_to_proto(std::string_view message_name,
-                                                                              std::string_view json) const {
+  glz::expected<std::vector<std::byte>, hpp::proto::json_status> json_to_proto(std::string_view message_name,
+                                                                                    std::string_view json) const {
     std::vector<std::byte> result;
     if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); !ec.ok()) {
       return glz::unexpected(ec);
@@ -1573,13 +1573,13 @@ public:
     return result;
   }
 
-  glz::expected<std::vector<std::byte>, hpp::proto::read_json_status> json_to_proto(std::string_view message_name,
-                                                                              std::string_view json) const {
+  glz::expected<std::vector<std::byte>, hpp::proto::json_status> json_to_proto(std::string_view message_name,
+                                                                                    std::string_view json) const {
     return json_to_proto<glz::opts{}>(message_name, json);
   }
 
-  template <auto Options, class It, class End>
-  void from_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, It &&it, End &&end) const {
+  template <auto Options, class End>
+  void from_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &&it, End &&end) const {
     json_to_pb_state state{*this};
     relocatable_out archive{value.value};
     state.template encode_any<Options, true>(value.type_url, it, end, archive);

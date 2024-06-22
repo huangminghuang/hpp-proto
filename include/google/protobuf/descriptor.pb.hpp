@@ -1,15 +1,13 @@
 #pragma once
 
 #include <hpp_proto/pb_serializer.h>
-#include <google/protobuf/descriptor.msg.hpp>
+#include "google/protobuf/descriptor.msg.hpp"
 
 
 namespace google::protobuf {
 
 auto pb_meta(const FileDescriptorSet &) -> std::tuple<
   hpp::proto::field_meta<1, &FileDescriptorSet::file, hpp::proto::field_option::unpacked_repeated>>;
-
-constexpr auto pb_message_name(const FileDescriptorSet&) { return "google.protobuf.FileDescriptorSet"_cts; }
 
 auto pb_meta(const FileDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &FileDescriptorProto::name, hpp::proto::field_option::none>,
@@ -24,9 +22,7 @@ auto pb_meta(const FileDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<8, &FileDescriptorProto::options, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<9, &FileDescriptorProto::source_code_info, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<12, &FileDescriptorProto::syntax, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<13, &FileDescriptorProto::edition, hpp::proto::field_option::none>>;
-
-constexpr auto pb_message_name(const FileDescriptorProto&) { return "google.protobuf.FileDescriptorProto"_cts; }
+  hpp::proto::field_meta<14, &FileDescriptorProto::edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>>;
 
 auto pb_meta(const DescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &DescriptorProto::name, hpp::proto::field_option::none>,
@@ -40,20 +36,14 @@ auto pb_meta(const DescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<9, &DescriptorProto::reserved_range, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<10, &DescriptorProto::reserved_name, hpp::proto::field_option::unpacked_repeated>>;
 
-constexpr auto pb_message_name(const DescriptorProto&) { return "google.protobuf.DescriptorProto"_cts; }
-
 auto pb_meta(const DescriptorProto::ExtensionRange &) -> std::tuple<
   hpp::proto::field_meta<1, &DescriptorProto::ExtensionRange::start, hpp::proto::field_option::none, hpp::proto::vint64_t>,
   hpp::proto::field_meta<2, &DescriptorProto::ExtensionRange::end, hpp::proto::field_option::none, hpp::proto::vint64_t>,
   hpp::proto::field_meta<3, &DescriptorProto::ExtensionRange::options, hpp::proto::field_option::explicit_presence>>;
 
-constexpr auto pb_message_name(const DescriptorProto::ExtensionRange&) { return "google.protobuf.DescriptorProto.ExtensionRange"_cts; }
-
 auto pb_meta(const DescriptorProto::ReservedRange &) -> std::tuple<
   hpp::proto::field_meta<1, &DescriptorProto::ReservedRange::start, hpp::proto::field_option::none, hpp::proto::vint64_t>,
   hpp::proto::field_meta<2, &DescriptorProto::ReservedRange::end, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
-
-constexpr auto pb_message_name(const DescriptorProto::ReservedRange&) { return "google.protobuf.DescriptorProto.ReservedRange"_cts; }
 
 auto pb_meta(const ExtensionRangeOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &ExtensionRangeOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
@@ -62,16 +52,12 @@ auto pb_meta(const ExtensionRangeOptions &) -> std::tuple<
   hpp::proto::field_meta<3, &ExtensionRangeOptions::verification, hpp::proto::field_option::none, void, ::google::protobuf::ExtensionRangeOptions::VerificationState::UNVERIFIED>,
   hpp::proto::field_meta<UINT32_MAX, &ExtensionRangeOptions::extensions>>;
 
-constexpr auto pb_message_name(const ExtensionRangeOptions&) { return "google.protobuf.ExtensionRangeOptions"_cts; }
-
 auto pb_meta(const ExtensionRangeOptions::Declaration &) -> std::tuple<
   hpp::proto::field_meta<1, &ExtensionRangeOptions::Declaration::number, hpp::proto::field_option::none, hpp::proto::vint64_t>,
   hpp::proto::field_meta<2, &ExtensionRangeOptions::Declaration::full_name, hpp::proto::field_option::none>,
   hpp::proto::field_meta<3, &ExtensionRangeOptions::Declaration::type, hpp::proto::field_option::none>,
   hpp::proto::field_meta<5, &ExtensionRangeOptions::Declaration::reserved, hpp::proto::field_option::none, bool>,
   hpp::proto::field_meta<6, &ExtensionRangeOptions::Declaration::repeated, hpp::proto::field_option::none, bool>>;
-
-constexpr auto pb_message_name(const ExtensionRangeOptions::Declaration&) { return "google.protobuf.ExtensionRangeOptions.Declaration"_cts; }
 
 auto pb_meta(const FieldDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &FieldDescriptorProto::name, hpp::proto::field_option::none>,
@@ -86,13 +72,9 @@ auto pb_meta(const FieldDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<8, &FieldDescriptorProto::options, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<17, &FieldDescriptorProto::proto3_optional, hpp::proto::field_option::none, bool>>;
 
-constexpr auto pb_message_name(const FieldDescriptorProto&) { return "google.protobuf.FieldDescriptorProto"_cts; }
-
 auto pb_meta(const OneofDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &OneofDescriptorProto::name, hpp::proto::field_option::none>,
   hpp::proto::field_meta<2, &OneofDescriptorProto::options, hpp::proto::field_option::explicit_presence>>;
-
-constexpr auto pb_message_name(const OneofDescriptorProto&) { return "google.protobuf.OneofDescriptorProto"_cts; }
 
 auto pb_meta(const EnumDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &EnumDescriptorProto::name, hpp::proto::field_option::none>,
@@ -101,27 +83,19 @@ auto pb_meta(const EnumDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<4, &EnumDescriptorProto::reserved_range, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<5, &EnumDescriptorProto::reserved_name, hpp::proto::field_option::unpacked_repeated>>;
 
-constexpr auto pb_message_name(const EnumDescriptorProto&) { return "google.protobuf.EnumDescriptorProto"_cts; }
-
 auto pb_meta(const EnumDescriptorProto::EnumReservedRange &) -> std::tuple<
   hpp::proto::field_meta<1, &EnumDescriptorProto::EnumReservedRange::start, hpp::proto::field_option::none, hpp::proto::vint64_t>,
   hpp::proto::field_meta<2, &EnumDescriptorProto::EnumReservedRange::end, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
-
-constexpr auto pb_message_name(const EnumDescriptorProto::EnumReservedRange&) { return "google.protobuf.EnumDescriptorProto.EnumReservedRange"_cts; }
 
 auto pb_meta(const EnumValueDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &EnumValueDescriptorProto::name, hpp::proto::field_option::none>,
   hpp::proto::field_meta<2, &EnumValueDescriptorProto::number, hpp::proto::field_option::none, hpp::proto::vint64_t>,
   hpp::proto::field_meta<3, &EnumValueDescriptorProto::options, hpp::proto::field_option::explicit_presence>>;
 
-constexpr auto pb_message_name(const EnumValueDescriptorProto&) { return "google.protobuf.EnumValueDescriptorProto"_cts; }
-
 auto pb_meta(const ServiceDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &ServiceDescriptorProto::name, hpp::proto::field_option::none>,
   hpp::proto::field_meta<2, &ServiceDescriptorProto::method, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<3, &ServiceDescriptorProto::options, hpp::proto::field_option::explicit_presence>>;
-
-constexpr auto pb_message_name(const ServiceDescriptorProto&) { return "google.protobuf.ServiceDescriptorProto"_cts; }
 
 auto pb_meta(const MethodDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &MethodDescriptorProto::name, hpp::proto::field_option::none>,
@@ -130,8 +104,6 @@ auto pb_meta(const MethodDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<4, &MethodDescriptorProto::options, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<5, &MethodDescriptorProto::client_streaming, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<6, &MethodDescriptorProto::server_streaming, hpp::proto::field_option::none, bool, false>>;
-
-constexpr auto pb_message_name(const MethodDescriptorProto&) { return "google.protobuf.MethodDescriptorProto"_cts; }
 
 auto pb_meta(const FileOptions &) -> std::tuple<
   hpp::proto::field_meta<1, &FileOptions::java_package, hpp::proto::field_option::none>,
@@ -144,7 +116,6 @@ auto pb_meta(const FileOptions &) -> std::tuple<
   hpp::proto::field_meta<16, &FileOptions::cc_generic_services, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<17, &FileOptions::java_generic_services, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<18, &FileOptions::py_generic_services, hpp::proto::field_option::none, bool, false>,
-  hpp::proto::field_meta<42, &FileOptions::php_generic_services, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<23, &FileOptions::deprecated, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<31, &FileOptions::cc_enable_arenas, hpp::proto::field_option::none, bool, true>,
   hpp::proto::field_meta<36, &FileOptions::objc_class_prefix, hpp::proto::field_option::none>,
@@ -158,8 +129,6 @@ auto pb_meta(const FileOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &FileOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &FileOptions::extensions>>;
 
-constexpr auto pb_message_name(const FileOptions&) { return "google.protobuf.FileOptions"_cts; }
-
 auto pb_meta(const MessageOptions &) -> std::tuple<
   hpp::proto::field_meta<1, &MessageOptions::message_set_wire_format, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<2, &MessageOptions::no_standard_descriptor_accessor, hpp::proto::field_option::none, bool, false>,
@@ -169,8 +138,6 @@ auto pb_meta(const MessageOptions &) -> std::tuple<
   hpp::proto::field_meta<12, &MessageOptions::features, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<999, &MessageOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &MessageOptions::extensions>>;
-
-constexpr auto pb_message_name(const MessageOptions&) { return "google.protobuf.MessageOptions"_cts; }
 
 auto pb_meta(const FieldOptions &) -> std::tuple<
   hpp::proto::field_meta<1, &FieldOptions::ctype, hpp::proto::field_option::none, void, ::google::protobuf::FieldOptions::CType::STRING>,
@@ -185,23 +152,24 @@ auto pb_meta(const FieldOptions &) -> std::tuple<
   hpp::proto::field_meta<19, &FieldOptions::targets, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<20, &FieldOptions::edition_defaults, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<21, &FieldOptions::features, hpp::proto::field_option::explicit_presence>,
+  hpp::proto::field_meta<22, &FieldOptions::feature_support, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<999, &FieldOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &FieldOptions::extensions>>;
 
-constexpr auto pb_message_name(const FieldOptions&) { return "google.protobuf.FieldOptions"_cts; }
-
 auto pb_meta(const FieldOptions::EditionDefault &) -> std::tuple<
-  hpp::proto::field_meta<1, &FieldOptions::EditionDefault::edition, hpp::proto::field_option::none>,
+  hpp::proto::field_meta<3, &FieldOptions::EditionDefault::edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
   hpp::proto::field_meta<2, &FieldOptions::EditionDefault::value, hpp::proto::field_option::none>>;
 
-constexpr auto pb_message_name(const FieldOptions::EditionDefault&) { return "google.protobuf.FieldOptions.EditionDefault"_cts; }
+auto pb_meta(const FieldOptions::FeatureSupport &) -> std::tuple<
+  hpp::proto::field_meta<1, &FieldOptions::FeatureSupport::edition_introduced, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+  hpp::proto::field_meta<2, &FieldOptions::FeatureSupport::edition_deprecated, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+  hpp::proto::field_meta<3, &FieldOptions::FeatureSupport::deprecation_warning, hpp::proto::field_option::none>,
+  hpp::proto::field_meta<4, &FieldOptions::FeatureSupport::edition_removed, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>>;
 
 auto pb_meta(const OneofOptions &) -> std::tuple<
   hpp::proto::field_meta<1, &OneofOptions::features, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<999, &OneofOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &OneofOptions::extensions>>;
-
-constexpr auto pb_message_name(const OneofOptions&) { return "google.protobuf.OneofOptions"_cts; }
 
 auto pb_meta(const EnumOptions &) -> std::tuple<
   hpp::proto::field_meta<2, &EnumOptions::allow_alias, hpp::proto::field_option::none, bool>,
@@ -211,16 +179,13 @@ auto pb_meta(const EnumOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &EnumOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &EnumOptions::extensions>>;
 
-constexpr auto pb_message_name(const EnumOptions&) { return "google.protobuf.EnumOptions"_cts; }
-
 auto pb_meta(const EnumValueOptions &) -> std::tuple<
   hpp::proto::field_meta<1, &EnumValueOptions::deprecated, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<2, &EnumValueOptions::features, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<3, &EnumValueOptions::debug_redact, hpp::proto::field_option::none, bool, false>,
+  hpp::proto::field_meta<4, &EnumValueOptions::feature_support, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<999, &EnumValueOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &EnumValueOptions::extensions>>;
-
-constexpr auto pb_message_name(const EnumValueOptions&) { return "google.protobuf.EnumValueOptions"_cts; }
 
 auto pb_meta(const ServiceOptions &) -> std::tuple<
   hpp::proto::field_meta<34, &ServiceOptions::features, hpp::proto::field_option::explicit_presence>,
@@ -228,16 +193,12 @@ auto pb_meta(const ServiceOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &ServiceOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &ServiceOptions::extensions>>;
 
-constexpr auto pb_message_name(const ServiceOptions&) { return "google.protobuf.ServiceOptions"_cts; }
-
 auto pb_meta(const MethodOptions &) -> std::tuple<
   hpp::proto::field_meta<33, &MethodOptions::deprecated, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<34, &MethodOptions::idempotency_level, hpp::proto::field_option::none, void, ::google::protobuf::MethodOptions::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>,
   hpp::proto::field_meta<35, &MethodOptions::features, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<999, &MethodOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &MethodOptions::extensions>>;
-
-constexpr auto pb_message_name(const MethodOptions&) { return "google.protobuf.MethodOptions"_cts; }
 
 auto pb_meta(const UninterpretedOption &) -> std::tuple<
   hpp::proto::field_meta<2, &UninterpretedOption::name, hpp::proto::field_option::unpacked_repeated>,
@@ -248,30 +209,31 @@ auto pb_meta(const UninterpretedOption &) -> std::tuple<
   hpp::proto::field_meta<7, &UninterpretedOption::string_value, hpp::proto::field_option::none>,
   hpp::proto::field_meta<8, &UninterpretedOption::aggregate_value, hpp::proto::field_option::none>>;
 
-constexpr auto pb_message_name(const UninterpretedOption&) { return "google.protobuf.UninterpretedOption"_cts; }
-
 auto pb_meta(const UninterpretedOption::NamePart &) -> std::tuple<
-  hpp::proto::field_meta<1, &UninterpretedOption::NamePart::name_part, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<2, &UninterpretedOption::NamePart::is_extension, hpp::proto::field_option::none, bool>>;
-
-constexpr auto pb_message_name(const UninterpretedOption::NamePart&) { return "google.protobuf.UninterpretedOption.NamePart"_cts; }
+  hpp::proto::field_meta<1, &UninterpretedOption::NamePart::name_part, hpp::proto::field_option::explicit_presence>,
+  hpp::proto::field_meta<2, &UninterpretedOption::NamePart::is_extension, hpp::proto::field_option::explicit_presence, bool>>;
 
 auto pb_meta(const FeatureSet &) -> std::tuple<
   hpp::proto::field_meta<1, &FeatureSet::field_presence, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::FieldPresence::FIELD_PRESENCE_UNKNOWN>,
   hpp::proto::field_meta<2, &FeatureSet::enum_type, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::EnumType::ENUM_TYPE_UNKNOWN>,
   hpp::proto::field_meta<3, &FeatureSet::repeated_field_encoding, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN>,
-  hpp::proto::field_meta<4, &FeatureSet::string_field_validation, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::StringFieldValidation::STRING_FIELD_VALIDATION_UNKNOWN>,
+  hpp::proto::field_meta<4, &FeatureSet::utf8_validation, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::Utf8Validation::UTF8_VALIDATION_UNKNOWN>,
   hpp::proto::field_meta<5, &FeatureSet::message_encoding, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::MessageEncoding::MESSAGE_ENCODING_UNKNOWN>,
   hpp::proto::field_meta<6, &FeatureSet::json_format, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::JsonFormat::JSON_FORMAT_UNKNOWN>,
-  hpp::proto::field_meta<999, &FeatureSet::raw_features, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<UINT32_MAX, &FeatureSet::extensions>>;
 
-constexpr auto pb_message_name(const FeatureSet&) { return "google.protobuf.FeatureSet"_cts; }
+auto pb_meta(const FeatureSetDefaults &) -> std::tuple<
+  hpp::proto::field_meta<1, &FeatureSetDefaults::defaults, hpp::proto::field_option::unpacked_repeated>,
+  hpp::proto::field_meta<4, &FeatureSetDefaults::minimum_edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+  hpp::proto::field_meta<5, &FeatureSetDefaults::maximum_edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>>;
+
+auto pb_meta(const FeatureSetDefaults::FeatureSetEditionDefault &) -> std::tuple<
+  hpp::proto::field_meta<3, &FeatureSetDefaults::FeatureSetEditionDefault::edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+  hpp::proto::field_meta<4, &FeatureSetDefaults::FeatureSetEditionDefault::overridable_features, hpp::proto::field_option::explicit_presence>,
+  hpp::proto::field_meta<5, &FeatureSetDefaults::FeatureSetEditionDefault::fixed_features, hpp::proto::field_option::explicit_presence>>;
 
 auto pb_meta(const SourceCodeInfo &) -> std::tuple<
   hpp::proto::field_meta<1, &SourceCodeInfo::location, hpp::proto::field_option::unpacked_repeated>>;
-
-constexpr auto pb_message_name(const SourceCodeInfo&) { return "google.protobuf.SourceCodeInfo"_cts; }
 
 auto pb_meta(const SourceCodeInfo::Location &) -> std::tuple<
   hpp::proto::field_meta<1, &SourceCodeInfo::Location::path, hpp::proto::field_option::none, hpp::proto::vint64_t>,
@@ -280,12 +242,8 @@ auto pb_meta(const SourceCodeInfo::Location &) -> std::tuple<
   hpp::proto::field_meta<4, &SourceCodeInfo::Location::trailing_comments, hpp::proto::field_option::none>,
   hpp::proto::field_meta<6, &SourceCodeInfo::Location::leading_detached_comments, hpp::proto::field_option::unpacked_repeated>>;
 
-constexpr auto pb_message_name(const SourceCodeInfo::Location&) { return "google.protobuf.SourceCodeInfo.Location"_cts; }
-
 auto pb_meta(const GeneratedCodeInfo &) -> std::tuple<
   hpp::proto::field_meta<1, &GeneratedCodeInfo::annotation, hpp::proto::field_option::unpacked_repeated>>;
-
-constexpr auto pb_message_name(const GeneratedCodeInfo&) { return "google.protobuf.GeneratedCodeInfo"_cts; }
 
 auto pb_meta(const GeneratedCodeInfo::Annotation &) -> std::tuple<
   hpp::proto::field_meta<1, &GeneratedCodeInfo::Annotation::path, hpp::proto::field_option::none, hpp::proto::vint64_t>,
@@ -293,7 +251,5 @@ auto pb_meta(const GeneratedCodeInfo::Annotation &) -> std::tuple<
   hpp::proto::field_meta<3, &GeneratedCodeInfo::Annotation::begin, hpp::proto::field_option::none, hpp::proto::vint64_t>,
   hpp::proto::field_meta<4, &GeneratedCodeInfo::Annotation::end, hpp::proto::field_option::none, hpp::proto::vint64_t>,
   hpp::proto::field_meta<5, &GeneratedCodeInfo::Annotation::semantic, hpp::proto::field_option::none, void, ::google::protobuf::GeneratedCodeInfo::Annotation::Semantic::NONE>>;
-
-constexpr auto pb_message_name(const GeneratedCodeInfo::Annotation&) { return "google.protobuf.GeneratedCodeInfo.Annotation"_cts; }
 
 } // namespace google::protobuf

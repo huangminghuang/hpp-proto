@@ -5,6 +5,21 @@
 namespace google::protobuf {
 
 using namespace hpp::proto::literals;
+enum class Edition {
+  EDITION_UNKNOWN = 0,
+  EDITION_LEGACY = 900,
+  EDITION_PROTO2 = 998,
+  EDITION_PROTO3 = 999,
+  EDITION_2023 = 1000,
+  EDITION_2024 = 1001,
+  EDITION_1_TEST_ONLY = 1,
+  EDITION_2_TEST_ONLY = 2,
+  EDITION_99997_TEST_ONLY = 99997,
+  EDITION_99998_TEST_ONLY = 99998,
+  EDITION_99999_TEST_ONLY = 99999,
+  EDITION_MAX = 2147483647 
+};
+
 struct UninterpretedOption {
   struct NamePart {
     std::string name_part = {};
@@ -52,10 +67,9 @@ struct FeatureSet {
     EXPANDED = 2 
   };
 
-  enum class StringFieldValidation {
-    STRING_FIELD_VALIDATION_UNKNOWN = 0,
-    MANDATORY = 1,
-    HINT = 2,
+  enum class Utf8Validation {
+    UTF8_VALIDATION_UNKNOWN = 0,
+    VERIFY = 2,
     NONE = 3 
   };
 
@@ -74,10 +88,9 @@ struct FeatureSet {
   FieldPresence field_presence = FieldPresence::FIELD_PRESENCE_UNKNOWN;
   EnumType enum_type = EnumType::ENUM_TYPE_UNKNOWN;
   RepeatedFieldEncoding repeated_field_encoding = RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN;
-  StringFieldValidation string_field_validation = StringFieldValidation::STRING_FIELD_VALIDATION_UNKNOWN;
+  Utf8Validation utf8_validation = Utf8Validation::UTF8_VALIDATION_UNKNOWN;
   MessageEncoding message_encoding = MessageEncoding::MESSAGE_ENCODING_UNKNOWN;
   JsonFormat json_format = JsonFormat::JSON_FORMAT_UNKNOWN;
-  hpp::proto::heap_based_optional<FeatureSet> raw_features;
 
   struct extension_t {
     using pb_extension = FeatureSet;
@@ -89,7 +102,7 @@ struct FeatureSet {
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
+    return meta.read(extensions);
   }
   template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
@@ -162,6 +175,30 @@ struct GeneratedCodeInfo {
 #endif
 };
 
+struct FeatureSetDefaults {
+  struct FeatureSetEditionDefault {
+    Edition edition = Edition::EDITION_UNKNOWN;
+    std::optional<FeatureSet> overridable_features;
+    std::optional<FeatureSet> fixed_features;
+
+    bool operator == (const FeatureSetEditionDefault&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
+
+    auto operator <=> (const FeatureSetEditionDefault&) const = default;
+#endif
+  };
+
+  std::vector<FeatureSetEditionDefault> defaults;
+  Edition minimum_edition = Edition::EDITION_UNKNOWN;
+  Edition maximum_edition = Edition::EDITION_UNKNOWN;
+
+  bool operator == (const FeatureSetDefaults&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
+
+  auto operator <=> (const FeatureSetDefaults&) const = default;
+#endif
+};
+
 struct MethodOptions {
   enum class IdempotencyLevel {
     IDEMPOTENCY_UNKNOWN = 0,
@@ -184,7 +221,7 @@ struct MethodOptions {
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
+    return meta.read(extensions);
   }
   template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
@@ -218,7 +255,7 @@ struct ServiceOptions {
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
+    return meta.read(extensions);
   }
   template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
@@ -234,41 +271,6 @@ struct ServiceOptions {
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
 
   auto operator <=> (const ServiceOptions&) const = default;
-#endif
-};
-
-struct EnumValueOptions {
-  bool deprecated = false;
-  std::optional<FeatureSet> features;
-  bool debug_redact = false;
-  std::vector<UninterpretedOption> uninterpreted_option;
-
-  struct extension_t {
-    using pb_extension = EnumValueOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-  auto operator <=> (const extension_t&) const = default;
-#endif
-  } extensions;
-
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
-  }
-  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
-  }
-  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
-  }
-  bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
-  }
-
-  bool operator == (const EnumValueOptions&) const = default;
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-
-  auto operator <=> (const EnumValueOptions&) const = default;
 #endif
 };
 
@@ -289,7 +291,7 @@ struct EnumOptions {
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
+    return meta.read(extensions);
   }
   template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
@@ -322,7 +324,7 @@ struct OneofOptions {
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
+    return meta.read(extensions);
   }
   template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
@@ -374,13 +376,26 @@ struct FieldOptions {
   };
 
   struct EditionDefault {
-    std::string edition = {};
+    Edition edition = Edition::EDITION_UNKNOWN;
     std::string value = {};
 
     bool operator == (const EditionDefault&) const = default;
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
 
     auto operator <=> (const EditionDefault&) const = default;
+#endif
+  };
+
+  struct FeatureSupport {
+    Edition edition_introduced = Edition::EDITION_UNKNOWN;
+    Edition edition_deprecated = Edition::EDITION_UNKNOWN;
+    std::string deprecation_warning = {};
+    Edition edition_removed = Edition::EDITION_UNKNOWN;
+
+    bool operator == (const FeatureSupport&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
+
+    auto operator <=> (const FeatureSupport&) const = default;
 #endif
   };
 
@@ -396,6 +411,7 @@ struct FieldOptions {
   std::vector<OptionTargetType> targets;
   std::vector<EditionDefault> edition_defaults;
   std::optional<FeatureSet> features;
+  std::optional<FeatureSupport> feature_support;
   std::vector<UninterpretedOption> uninterpreted_option;
 
   struct extension_t {
@@ -408,7 +424,7 @@ struct FieldOptions {
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
+    return meta.read(extensions);
   }
   template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
@@ -446,7 +462,7 @@ struct MessageOptions {
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
+    return meta.read(extensions);
   }
   template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
@@ -482,7 +498,6 @@ struct FileOptions {
   bool cc_generic_services = false;
   bool java_generic_services = false;
   bool py_generic_services = false;
-  bool php_generic_services = false;
   bool deprecated = false;
   bool cc_enable_arenas = true;
   std::string objc_class_prefix = {};
@@ -505,7 +520,7 @@ struct FileOptions {
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
+    return meta.read(extensions);
   }
   template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
@@ -551,43 +566,6 @@ struct ServiceDescriptorProto {
 #endif
 };
 
-struct EnumValueDescriptorProto {
-  std::string name = {};
-  int32_t number = {};
-  std::optional<EnumValueOptions> options;
-
-  bool operator == (const EnumValueDescriptorProto&) const = default;
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-
-  auto operator <=> (const EnumValueDescriptorProto&) const = default;
-#endif
-};
-
-struct EnumDescriptorProto {
-  struct EnumReservedRange {
-    int32_t start = {};
-    int32_t end = {};
-
-    bool operator == (const EnumReservedRange&) const = default;
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-
-    auto operator <=> (const EnumReservedRange&) const = default;
-#endif
-  };
-
-  std::string name = {};
-  std::vector<EnumValueDescriptorProto> value;
-  std::optional<EnumOptions> options;
-  std::vector<EnumReservedRange> reserved_range;
-  std::vector<std::string> reserved_name;
-
-  bool operator == (const EnumDescriptorProto&) const = default;
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-
-  auto operator <=> (const EnumDescriptorProto&) const = default;
-#endif
-};
-
 struct OneofDescriptorProto {
   std::string name = {};
   std::optional<OneofOptions> options;
@@ -623,8 +601,8 @@ struct FieldDescriptorProto {
 
   enum class Label {
     LABEL_OPTIONAL = 1,
-    LABEL_REQUIRED = 2,
-    LABEL_REPEATED = 3 
+    LABEL_REPEATED = 3,
+    LABEL_REQUIRED = 2 
   };
 
   std::string name = {};
@@ -681,7 +659,7 @@ struct ExtensionRangeOptions {
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions, std::monostate{});
+    return meta.read(extensions);
   }
   template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
     return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
@@ -697,6 +675,79 @@ struct ExtensionRangeOptions {
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
 
   auto operator <=> (const ExtensionRangeOptions&) const = default;
+#endif
+};
+
+struct EnumValueOptions {
+  bool deprecated = false;
+  std::optional<FeatureSet> features;
+  bool debug_redact = false;
+  std::optional<FieldOptions::FeatureSupport> feature_support;
+  std::vector<UninterpretedOption> uninterpreted_option;
+
+  struct extension_t {
+    using pb_extension = EnumValueOptions;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    bool operator==(const extension_t &other) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
+  auto operator <=> (const extension_t&) const = default;
+#endif
+  } extensions;
+
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions);
+  }
+  template<typename Meta>  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
+  }
+  template<typename Meta>  requires Meta::is_repeated  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span{value.begin(), value.end()});
+  }
+  bool has_extension(auto meta) const {
+    return meta.element_of(extensions);
+  }
+
+  bool operator == (const EnumValueOptions&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
+
+  auto operator <=> (const EnumValueOptions&) const = default;
+#endif
+};
+
+struct EnumValueDescriptorProto {
+  std::string name = {};
+  int32_t number = {};
+  std::optional<EnumValueOptions> options;
+
+  bool operator == (const EnumValueDescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
+
+  auto operator <=> (const EnumValueDescriptorProto&) const = default;
+#endif
+};
+
+struct EnumDescriptorProto {
+  struct EnumReservedRange {
+    int32_t start = {};
+    int32_t end = {};
+
+    bool operator == (const EnumReservedRange&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
+
+    auto operator <=> (const EnumReservedRange&) const = default;
+#endif
+  };
+
+  std::string name = {};
+  std::vector<EnumValueDescriptorProto> value;
+  std::optional<EnumOptions> options;
+  std::vector<EnumReservedRange> reserved_range;
+  std::vector<std::string> reserved_name;
+
+  bool operator == (const EnumDescriptorProto&) const = default;
+#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
+
+  auto operator <=> (const EnumDescriptorProto&) const = default;
 #endif
 };
 
@@ -755,7 +806,7 @@ struct FileDescriptorProto {
   std::optional<FileOptions> options;
   std::optional<SourceCodeInfo> source_code_info;
   std::string syntax = {};
-  std::string edition = {};
+  Edition edition = Edition::EDITION_UNKNOWN;
 
   bool operator == (const FileDescriptorProto&) const = default;
 #ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
@@ -774,4 +825,37 @@ struct FileDescriptorSet {
 #endif
 };
 
+constexpr auto message_type_url(const UninterpretedOption::NamePart&) { return "type.googleapis.com/google.protobuf.UninterpretedOption.NamePart"_cts; }
+constexpr auto message_type_url(const UninterpretedOption&) { return "type.googleapis.com/google.protobuf.UninterpretedOption"_cts; }
+constexpr auto message_type_url(const FeatureSet&) { return "type.googleapis.com/google.protobuf.FeatureSet"_cts; }
+constexpr auto message_type_url(const SourceCodeInfo::Location&) { return "type.googleapis.com/google.protobuf.SourceCodeInfo.Location"_cts; }
+constexpr auto message_type_url(const SourceCodeInfo&) { return "type.googleapis.com/google.protobuf.SourceCodeInfo"_cts; }
+constexpr auto message_type_url(const GeneratedCodeInfo::Annotation&) { return "type.googleapis.com/google.protobuf.GeneratedCodeInfo.Annotation"_cts; }
+constexpr auto message_type_url(const GeneratedCodeInfo&) { return "type.googleapis.com/google.protobuf.GeneratedCodeInfo"_cts; }
+constexpr auto message_type_url(const FeatureSetDefaults::FeatureSetEditionDefault&) { return "type.googleapis.com/google.protobuf.FeatureSetDefaults.FeatureSetEditionDefault"_cts; }
+constexpr auto message_type_url(const FeatureSetDefaults&) { return "type.googleapis.com/google.protobuf.FeatureSetDefaults"_cts; }
+constexpr auto message_type_url(const MethodOptions&) { return "type.googleapis.com/google.protobuf.MethodOptions"_cts; }
+constexpr auto message_type_url(const ServiceOptions&) { return "type.googleapis.com/google.protobuf.ServiceOptions"_cts; }
+constexpr auto message_type_url(const EnumOptions&) { return "type.googleapis.com/google.protobuf.EnumOptions"_cts; }
+constexpr auto message_type_url(const OneofOptions&) { return "type.googleapis.com/google.protobuf.OneofOptions"_cts; }
+constexpr auto message_type_url(const FieldOptions::EditionDefault&) { return "type.googleapis.com/google.protobuf.FieldOptions.EditionDefault"_cts; }
+constexpr auto message_type_url(const FieldOptions::FeatureSupport&) { return "type.googleapis.com/google.protobuf.FieldOptions.FeatureSupport"_cts; }
+constexpr auto message_type_url(const FieldOptions&) { return "type.googleapis.com/google.protobuf.FieldOptions"_cts; }
+constexpr auto message_type_url(const MessageOptions&) { return "type.googleapis.com/google.protobuf.MessageOptions"_cts; }
+constexpr auto message_type_url(const FileOptions&) { return "type.googleapis.com/google.protobuf.FileOptions"_cts; }
+constexpr auto message_type_url(const MethodDescriptorProto&) { return "type.googleapis.com/google.protobuf.MethodDescriptorProto"_cts; }
+constexpr auto message_type_url(const ServiceDescriptorProto&) { return "type.googleapis.com/google.protobuf.ServiceDescriptorProto"_cts; }
+constexpr auto message_type_url(const OneofDescriptorProto&) { return "type.googleapis.com/google.protobuf.OneofDescriptorProto"_cts; }
+constexpr auto message_type_url(const FieldDescriptorProto&) { return "type.googleapis.com/google.protobuf.FieldDescriptorProto"_cts; }
+constexpr auto message_type_url(const ExtensionRangeOptions::Declaration&) { return "type.googleapis.com/google.protobuf.ExtensionRangeOptions.Declaration"_cts; }
+constexpr auto message_type_url(const ExtensionRangeOptions&) { return "type.googleapis.com/google.protobuf.ExtensionRangeOptions"_cts; }
+constexpr auto message_type_url(const EnumValueOptions&) { return "type.googleapis.com/google.protobuf.EnumValueOptions"_cts; }
+constexpr auto message_type_url(const EnumValueDescriptorProto&) { return "type.googleapis.com/google.protobuf.EnumValueDescriptorProto"_cts; }
+constexpr auto message_type_url(const EnumDescriptorProto::EnumReservedRange&) { return "type.googleapis.com/google.protobuf.EnumDescriptorProto.EnumReservedRange"_cts; }
+constexpr auto message_type_url(const EnumDescriptorProto&) { return "type.googleapis.com/google.protobuf.EnumDescriptorProto"_cts; }
+constexpr auto message_type_url(const DescriptorProto::ExtensionRange&) { return "type.googleapis.com/google.protobuf.DescriptorProto.ExtensionRange"_cts; }
+constexpr auto message_type_url(const DescriptorProto::ReservedRange&) { return "type.googleapis.com/google.protobuf.DescriptorProto.ReservedRange"_cts; }
+constexpr auto message_type_url(const DescriptorProto&) { return "type.googleapis.com/google.protobuf.DescriptorProto"_cts; }
+constexpr auto message_type_url(const FileDescriptorProto&) { return "type.googleapis.com/google.protobuf.FileDescriptorProto"_cts; }
+constexpr auto message_type_url(const FileDescriptorSet&) { return "type.googleapis.com/google.protobuf.FileDescriptorSet"_cts; }
 } // namespace google::protobuf

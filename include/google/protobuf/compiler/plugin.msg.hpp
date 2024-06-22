@@ -1,7 +1,7 @@
 #pragma once
 
 #include <hpp_proto/field_types.h>
-#include <google/protobuf/descriptor.msg.hpp>
+#include "google/protobuf/descriptor.msg.hpp"
 
 namespace google::protobuf::compiler {
 
@@ -41,6 +41,8 @@ struct CodeGeneratorResponse {
 
   std::string error = {};
   uint64_t supported_features = {};
+  int32_t minimum_edition = {};
+  int32_t maximum_edition = {};
   std::vector<File> file;
 
   bool operator == (const CodeGeneratorResponse&) const = default;
@@ -64,4 +66,8 @@ struct CodeGeneratorRequest {
 #endif
 };
 
+constexpr auto message_type_url(const Version&) { return "type.googleapis.com/google.protobuf.compiler.Version"_cts; }
+constexpr auto message_type_url(const CodeGeneratorResponse::File&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse.File"_cts; }
+constexpr auto message_type_url(const CodeGeneratorResponse&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse"_cts; }
+constexpr auto message_type_url(const CodeGeneratorRequest&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest"_cts; }
 } // namespace google::protobuf::compiler
