@@ -884,8 +884,8 @@ class dynamic_serializer {
     template <typename T>
     status encode_map_key(std::string_view key, auto &archive) {
       T value;
-      glz::detail::read<glz::json>::op<glz::opts{.ws_handled = true}>(get_underlying_value(value), context, key.begin(),
-                                                                      key.end());
+      glz::detail::read<glz::json>::op<glz::opts{.ws_handled = true}>(get_underlying_value(value), context, key.data(),
+                                                                      key.data()+key.size());
       if (bool(context.error)) {
         [[unlikely]] return std::errc::illegal_byte_sequence;
       }
@@ -1578,8 +1578,8 @@ public:
     return json_to_proto<glz::opts{}>(message_name, json);
   }
 
-  template <auto Options, class It, class End>
-  void from_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, It &&it, End &&end) const {
+  template <auto Options, class End>
+  void from_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &&it, End &&end) const {
     json_to_pb_state state{*this};
     relocatable_out archive{value.value};
     state.template encode_any<Options, true>(value.type_url, it, end, archive);
