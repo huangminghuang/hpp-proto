@@ -119,7 +119,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     add_library(protobuf::libprotobuf ALIAS libprotobuf)
     add_library(protobuf::libprotoc ALIAS libprotoc)
     set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
-  endif()
+  endif(HPP_PROTO_USE_PROTOBUF_PACKAGE)
 
   CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
@@ -132,7 +132,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
       "BENCHMARK_ENABLE_TESTING OFF"
       "BENCHMARK_ENABLE_INSTALL OFF"
     )
-  endif()
+  endif(HPP_PROTO_BENCHMARKS)
 
   include(cmake/protobuf_generate.cmake)
 
@@ -162,7 +162,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
 
     configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/compiler/plugin.proto include/google/protobuf/compiler/plugin.proto COPYONLY)
     install(TARGETS protoc libhpp_proto EXPORT hpp_proto-targets)
-  endif()
+  endif(NOT HPP_PROTO_USE_PROTOBUF_PACKAGE)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
@@ -189,5 +189,4 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     NAMESPACE hpp_proto::)
   export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake
     NAMESPACE hpp_proto::)
-endif()
-
+endif(HPP_PROTO_PROTOC_PLUGIN)
