@@ -1377,10 +1377,6 @@ struct recursive_type1 {
   uint32_t payload = {};
 
   bool operator==(const recursive_type1 &other) const = default;
-
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-  friend auto operator<=>(const recursive_type1 &, const recursive_type1 &) = default;
-#endif
 };
 
 auto pb_meta(const recursive_type1 &)

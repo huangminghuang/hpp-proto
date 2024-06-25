@@ -956,9 +956,6 @@ struct msg_code_generator : code_generator {
                        "{0}  using pb_extension = {1};\n"
                        "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
                        "{0}  bool operator==(const extension_t &other) const = default;\n"
-                       "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR\n"
-                       "{0}auto operator <=> (const extension_t&) const = default;\n"
-                       "#endif\n"
                        "{0}}} extensions;\n\n"
                        "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
                        "{0}  return meta.read(extensions);\n"
@@ -1011,10 +1008,7 @@ struct msg_code_generator : code_generator {
 
     if (!non_owning_mode) {
       fmt::format_to(target,
-                     "\n{0}bool operator == (const {1}&) const = default;\n"
-                     "#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR\n"
-                     "\n{0}auto operator <=> (const {1}&) const = default;\n"
-                     "#endif\n",
+                     "\n{0}bool operator == (const {1}&) const = default;\n",
                      indent(), descriptor.cpp_name);
 
     } else {

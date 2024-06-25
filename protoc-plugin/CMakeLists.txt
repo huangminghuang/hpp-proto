@@ -1,3 +1,4 @@
+CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
 add_executable(protoc-gen-hpp hpp_gen.cpp)
 add_executable(hpp_proto::protoc-gen-hpp ALIAS protoc-gen-hpp)
@@ -15,7 +16,7 @@ add_custom_target(gpb_descriptor
     COMMENT "processing ${proto_files}"
     COMMAND protobuf::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include  -I ${Protobuf_INCLUDE_DIRS}
              --hpp_opt=proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed ${proto_files}
-    DEPENDS protoc protoc-gen-hpp
+    DEPENDS protobuf::protoc protoc-gen-hpp
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     VERBATIM
 )

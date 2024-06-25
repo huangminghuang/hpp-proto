@@ -16,12 +16,8 @@ namespace hpp::proto {
 struct file_descriptor_pb {
   std::string_view value;
 
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-  auto operator<=>(const file_descriptor_pb &) const = default;
-#else
   constexpr bool operator==(const file_descriptor_pb &) const = default;
   constexpr bool operator<(const file_descriptor_pb &other) const { return value < other.value; };
-#endif
 };
 
 namespace concepts {

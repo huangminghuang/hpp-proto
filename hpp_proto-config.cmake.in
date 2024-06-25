@@ -1,4 +1,4 @@
-if (@HPP_PROTO_USE_PROTOBUF_PACKAGE@)
+if (@Protobuf_FOUND@)
     find_dependency(Protobuf)
 endif()
 
