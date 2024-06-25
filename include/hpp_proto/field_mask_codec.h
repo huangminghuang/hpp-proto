@@ -31,7 +31,7 @@ struct field_mask_codec {
     auto cur = json.begin();
     for (auto &p : value.paths) {
       auto comma_pos = std::find_if(cur, json.end(), is_comma);
-      auto &path = hpp::proto::make_growable(value, p);
+      auto &path = hpp::proto::as_modifiable(value, p);
       path.resize(comma_pos - cur);
       std::copy(cur, comma_pos, path.begin());
 #if defined(_MSC_VER)

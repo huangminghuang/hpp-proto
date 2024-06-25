@@ -318,7 +318,7 @@ struct from_json<T> {
     }
 
     using codec = typename hpp::proto::json_codec<T>::type;
-    if (!codec::decode(encoded, hpp::proto::make_growable(ctx, value))) {
+    if (!codec::decode(encoded, hpp::proto::as_modifiable(ctx, value))) {
       ctx.error = error_code::syntax_error;
       return;
     }
@@ -464,14 +464,14 @@ struct from_json<std::span<Type>> {
   template <auto Options>
   GLZ_ALWAYS_INLINE static void op(std::span<Type> &value, hpp::proto::concepts::is_non_owning_context auto &&ctx,
                                    auto &&it, auto &&end) {
-    hpp::proto::detail::growable_span growable{value, ctx.memory_resource()};
+    auto v = hpp::proto::as_modifiable(ctx, value);
     if constexpr (hpp::proto::concepts::byte_type<Type>) {
-      from_json<hpp::proto::use_base64>::template op<Options>(growable, ctx, it, end);
+      from_json<hpp::proto::use_base64>::template op<Options>(v, ctx, it, end);
     } else if constexpr (pair_t<std::remove_cvref_t<Type>>) {
-      hpp::proto::map_wrapper<decltype(growable)> wrapped{growable};
+      hpp::proto::map_wrapper<decltype(v)> wrapped{v};
       read<json>::template op<Options>(wrapped, ctx, it, end);
     } else {
-      from_json<decltype(growable)>::template op<Options>(growable, ctx, it, end);
+      from_json<decltype(v)>::template op<Options>(v, ctx, it, end);
     }
   }
 };
