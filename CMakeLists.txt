@@ -23,7 +23,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 CPMAddPackage(
   NAME glaze
-  GIT_TAG v2.9.0.mod
+  GIT_TAG v2.9.5.mod
   GITHUB_REPOSITORY huangminghuang/glaze
 )
 
@@ -74,12 +74,12 @@ target_include_directories(libhpp_proto_no_utf8_validation INTERFACE
 target_compile_features(libhpp_proto_no_utf8_validation INTERFACE cxx_std_20)
 target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_NO_UTF8_VALIDATION)
 
-if(MSVC)
-  # warning level 4
-  target_compile_options(libhpp_proto INTERFACE /W4)
+if (MSVC)
+  target_compile_options(libhpp_proto INTERFACE "/Zc:preprocessor" "/W4")
+  target_compile_options(libhpp_proto_no_utf8_validation INTERFACE "/Zc:preprocessor" "/W4")
 else()
-  # additional warnings
-  target_compile_options(libhpp_proto INTERFACE -Wall -Wextra -Wpedantic)
+  target_compile_options(libhpp_proto INTERFACE "-Wall" "-Wall" "-Wextra" "-Wpedantic" "-Wno-missing-braces" )
+  target_compile_options(libhpp_proto_no_utf8_validation INTERFACE "-Wall" "-Wextra" "-Wpedantic" "-Wno-missing-braces")
 endif()
 
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)

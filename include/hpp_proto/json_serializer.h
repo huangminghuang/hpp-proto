@@ -539,7 +539,7 @@ struct from_json<hpp::proto::map_wrapper<T>> {
   template <auto Options>
   static void op(auto &&v, is_context auto &&ctx, auto &&it, auto &&end) {
     auto &value = v.value;
-    if constexpr (!Options.ws_handled) {
+    if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
       if (bool(ctx.error)) {
         [[unlikely]] return;
@@ -601,7 +601,7 @@ struct from_json<T *> {
   template <auto Options>
   static void op(auto &value, hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it,
                              auto &&end) {
-    if constexpr (!Options.ws_handled) {
+    if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
       if (bool(ctx.error)) {
         [[unlikely]] return;
