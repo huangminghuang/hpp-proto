@@ -140,6 +140,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
 
   if(HPP_PROTO_TESTS)
     add_subdirectory(tests)
+    add_subdirectory(tutorial)
   endif()
 
   if(HPP_PROTO_BENCHMARKS)

@@ -4,9 +4,9 @@ project(hpp_proto_tutorial
         VERSION 1.0.0
         LANGUAGES CXX)
 
-
-find_package(hpp_proto CONFIG REQUIRED)
-
+if(PROJECT_IS_TOP_LEVEL)
+  find_package(hpp_proto CONFIG REQUIRED)
+endif()
 
 add_library(tutorial_lib INTERFACE tutorial.proto)
 target_include_directories(tutorial_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
