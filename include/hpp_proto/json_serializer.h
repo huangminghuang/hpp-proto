@@ -1,6 +1,9 @@
 #pragma once
 #include <bit>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-braces"
 #include <glaze/glaze.hpp>
+#pragma GCC diagnostic pop
 
 // #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>

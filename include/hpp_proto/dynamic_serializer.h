@@ -1,5 +1,9 @@
 #pragma once
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-braces"
 #include <glaze/glaze.hpp>
+#pragma GCC diagnostic pop
+
 #include <system_error>
 #include <unordered_map>
 
