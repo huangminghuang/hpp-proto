@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2023 Huang-Ming Huang
+// Copyright (c) 2024 Huang-Ming Huang
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -85,7 +85,7 @@ inline constexpr auto varint_size(auto value) {
            (CHAR_BIT - 1);
   }
 }
-template <typename Type, varint_encoding Encoding = varint_encoding::normal>
+template <std::integral Type, varint_encoding Encoding = varint_encoding::normal>
 struct varint {
   varint() = default;
   using value_type = Type;
@@ -193,15 +193,6 @@ concept is_size_cache = std::same_as<T, uint32_t *> || requires(T v) {
   { v++ } -> std::same_as<T>;
   *v = 0U;
 };
-
-template <typename T>
-concept resizable = requires {
-  std::declval<T &>().resize(1);
-  std::declval<T>()[0];
-};
-
-template <typename T>
-concept not_resizable = !resizable<T>;
 
 template <typename T>
 concept non_owning_bytes = std::same_as<std::remove_cvref_t<T>, std::string_view> ||
@@ -1753,11 +1744,11 @@ struct pb_serializer {
         std::span<const byte_type> field_span;
         if (auto result = field_archive.read_bytes(static_cast<uint32_t>(field_len), field_span); !result.ok()) [[unlikely]]
           return result;
-        make_growable(context, fields).push_back({field_num, field_span});
+        as_modifiable(context, fields).push_back({field_num, field_span});
         return {};
       }
       // the extension with the same field number exists, append the content to the previously parsed.
-      decltype(auto) v = make_growable(context, itr->second);
+      decltype(auto) v = as_modifiable(context, itr->second);
       auto s = v.size();
       v.resize(v.size() + field_archive.in_avail());
       std::span<byte_type> field_span = std::span{reinterpret_cast<byte_type *>(v.data() + s), field_len};
@@ -1866,28 +1857,28 @@ struct pb_serializer {
         }
         return std::errc::bad_message;
       } else {
-        decltype(auto) growable = make_growable(context, item);
-        growable.resize(length);
-        return archive(growable);
+        decltype(auto) v = as_modifiable(context, item);
+        v.resize(length);
+        return archive(v);
       }
     } else {
-      decltype(auto) growable = make_growable(context, item);
+      decltype(auto) v = as_modifiable(context, item);
 
-      if constexpr (requires { growable.resize(1); }) {
+      if constexpr (requires { v.resize(1); }) {
         // packed repeated vector,
         auto n = count_packed_elements<encode_type>(static_cast<uint32_t>(length), archive);
         if (!n.has_value())
           return std::errc::bad_message;
         std::size_t size = *n;
 
-        growable.resize(size);
+        v.resize(size);
         if constexpr (concepts::byte_serializable<encode_type>) {
-          return archive(growable);
+          return archive(v);
         } else if constexpr (std::is_enum_v<encode_type>) {
-          return archive.template deserialize<vint64_t>(length, std::span{growable.data(), size});
+          return archive.template deserialize<vint64_t>(length, std::span{v.data(), size});
         } else {
           static_assert(concepts::varint<encode_type>);
-          return archive.template deserialize<encode_type>(length, std::span{growable.data(), size});
+          return archive.template deserialize<encode_type>(length, std::span{v.data(), size});
         }
       } else {
         static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
@@ -1964,13 +1955,13 @@ struct pb_serializer {
     }
   };
 
-  constexpr static void resize_or_reserve(concepts::resizable_or_reservable auto &growable, std::size_t size) {
-    if constexpr (requires { growable.resize(1); }) {
-      growable.resize(size);
-    } else if constexpr (requires { growable.reserve(size); }) { // e.g. boost::flat_map
-      growable.reserve(size);
+  constexpr static void resize_or_reserve(concepts::resizable_or_reservable auto &mut, std::size_t size) {
+    if constexpr (requires { mut.resize(1); }) {
+      mut.resize(size);
+    } else if constexpr (requires { mut.reserve(size); }) { // e.g. boost::flat_map
+      mut.reserve(size);
     } else { // e.g. std::flat_map
-      reserve(growable, size);
+      reserve(mut, size);
     }
   }
 
@@ -1980,9 +1971,9 @@ struct pb_serializer {
 
     using type = std::remove_reference_t<decltype(item)>;
 
-    decltype(auto) growable = make_growable(context, item);
+    decltype(auto) v = as_modifiable(context, item);
 
-    if constexpr (concepts::resizable_or_reservable<decltype(growable)>) {
+    if constexpr (concepts::resizable_or_reservable<decltype(v)>) {
       std::size_t count = 0;
       if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
         return result;
@@ -1990,10 +1981,10 @@ struct pb_serializer {
       auto old_size = item.size();
       const std::size_t new_size = item.size() + count;
 
-      resize_or_reserve(growable, new_size);
+      resize_or_reserve(v, new_size);
 
       for (auto i = old_size; i < new_size; ++i) {
-        unpacked_element_inserter<Meta, std::remove_cvref_t<decltype(growable)>> inserter(growable, i);
+        unpacked_element_inserter<Meta, std::remove_cvref_t<decltype(v)>> inserter(v, i);
         if (auto result = inserter.deserialize(tag, context, archive); !result.ok()) [[unlikely]] {
           return result;
         }
@@ -2086,10 +2077,10 @@ struct pb_serializer {
       if constexpr (requires { item.emplace_back(); }) {
         return deserialize_group(field_num, item.emplace_back(), context, archive);
       } else {
-        decltype(auto) growable = make_growable(context, item);
+        decltype(auto) v = as_modifiable(context, item);
         auto old_size = item.size();
-        growable.resize(old_size + 1);
-        return deserialize_group(field_num, growable[old_size], context, archive);
+        v.resize(old_size + 1);
+        return deserialize_group(field_num, v[old_size], context, archive);
       }
     } else if constexpr (concepts::contiguous_byte_range<type>) {
       if (auto result = deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok())
@@ -2171,11 +2162,6 @@ struct pb_serializer {
   }
 
   template <uint32_t MaskedNum, uint32_t I = 0>
-  // #if defined(__GNUC__)
-  //   __attribute__((always_inline))
-  // #elif defined(_MSC_VER)
-  //   __forceinline
-  // #endif
   constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, auto &context,
                                                           concepts::is_basic_in auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
@@ -2327,8 +2313,8 @@ struct pb_serializer {
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer,
                                       concepts::is_pb_context auto &&context) {
     contiguous_input_stream strm{buffer, context};
-    auto achive = strm.archive();
-    return deserialize(item, context, achive);
+    auto archive = strm.archive();
+    return deserialize(item, context, archive);
   }
 
   template <typename Byte>
@@ -2337,8 +2323,8 @@ struct pb_serializer {
                                       Byte *patch_buffer) {
     auto total_size = setup_input_regions(buffer, regions, patch_buffer);
     constexpr bool is_contigueous = false;
-    auto achive = basic_in<Byte, is_contigueous>(regions, total_size - regions->effective_size);
-    return deserialize(item, context, achive);
+    auto archive = basic_in<Byte, is_contigueous>(regions, total_size - regions->effective_size);
+    return deserialize(item, context, archive);
   }
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::segmented_byte_range auto &&buffer,
@@ -2457,7 +2443,7 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
   check(extensions);
 
   std::span<std::byte> buf;
-  auto data = make_growable(ctx, buf);
+  auto data = as_modifiable(ctx, buf);
 
   serialize_wrapper_type<decltype(value), ExtensionMeta> wrapper{std::forward<decltype(value)>(value)};
 
@@ -2467,8 +2453,8 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
 
   if (data.size()) {
     auto old_size = extensions.fields.size();
-    auto growable_fields = make_growable(ctx, extensions.fields);
-    growable_fields.resize(old_size + 1);
+    auto fields = as_modifiable(ctx, extensions.fields);
+    fields.resize(old_size + 1);
     extensions.fields[old_size] = {ExtensionMeta::number, {data.data(), data.size()}};
   }
   return {};
@@ -2515,7 +2501,7 @@ concept is_any = requires(T &obj) {
 
 [[nodiscard]] status pack_any(concepts::is_any auto &any, auto &&msg, concepts::is_pb_context auto &&ctx) {
   any.type_url = message_type_url(msg);
-  decltype(auto) v = make_growable(ctx, any.value);
+  decltype(auto) v = as_modifiable(ctx, any.value);
   return write_proto(msg, v);
 }
 

@@ -1,0 +1,87 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 23,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "default",
+            "displayName": "Default Config",
+            "description": "Default build using Ninja generator",
+            "generator": "Ninja",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+                "HPP_PROTO_PROTOC_PLUGIN": true,
+                "HPP_PROTO_TESTS": true,
+                "HPP_PROTO_USE_PROTOBUF_PACKAGE": false
+            }
+        },
+        {
+            "name": "dev",
+            "inherits": "default",
+            "displayName": "Developer Mode",
+            "description": "Debug build and test against google protobuf implementation",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "core-dev",
+            "inherits": "default",
+            "displayName": "Core Developer Mode",
+            "description": "Builds hpp-proto core library unit tests only",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "HPP_PROTO_PROTOC_PLUGIN": false
+            }
+        },
+        {
+            "name": "release",
+            "inherits": "default",
+            "displayName": "Release",
+            "description": "Optimized build with tests",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "benchmark",
+            "inherits": "default",
+            "displayName": "Benchmark",
+            "description": "Optimized build with benchmark",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "HPP_PROTO_BENCHMARKS": true
+            }
+        },
+        {
+            "name": "system-protoc",
+            "inherits": "default",
+            "displayName": "System prototc",
+            "description": "Optimized build with system protoc",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "HPP_PROTO_USE_PROTOBUF_PACKAGE": true
+            }
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "all",
+            "displayName": "Automated Tests",
+            "configurePreset": "dev",
+            "output": {
+                "verbosity": "verbose",
+                "outputOnFailure": true
+            }
+        }
+    ]
+}

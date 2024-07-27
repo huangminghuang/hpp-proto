@@ -14,14 +14,14 @@ int main() {
 
   std::string json;
 
-  if (auto we = hpp::proto::write_json(address_book, json); !we.ok()) {
+  if (auto e = hpp::proto::write_json(address_book, json); !e.ok()) {
     std::cerr << "write json error\n";
     return 1;
   }
 
   tutorial::AddressBook new_book;
-  if (auto pe = hpp::proto::read_json(new_book, json); !pe.ok()) {
-    std::cerr << "read json error: " << pe.message(json) << "\n";
+  if (auto e = hpp::proto::read_json(new_book, json); !e.ok()) {
+    std::cerr << "read json error: " << e.message(json) << "\n";
     return 1;
   }
 

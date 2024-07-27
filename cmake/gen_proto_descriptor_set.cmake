@@ -28,10 +28,6 @@ function(gen_proto_descriptor_set out_file)
     endforeach()
 
     list(TRANSFORM _include_dirs PREPEND -I)
-
-    if (NOT TARGET protobuf::protoc)
-      add_exectuable(protobuf::protoc ALIAS hpp_proto::protoc)
-    endif()
                             
     add_custom_command(
         COMMENT "Generating ${out_file}"

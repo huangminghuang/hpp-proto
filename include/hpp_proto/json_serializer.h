@@ -1,8 +1,14 @@
 #pragma once
 #include <bit>
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-braces"
+#endif
 #include <glaze/glaze.hpp>
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
-// #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
 
 namespace hpp::proto {
@@ -318,7 +324,7 @@ struct from_json<T> {
     }
 
     using codec = typename hpp::proto::json_codec<T>::type;
-    if (!codec::decode(encoded, hpp::proto::make_growable(ctx, value))) {
+    if (!codec::decode(encoded, hpp::proto::as_modifiable(ctx, value))) {
       ctx.error = error_code::syntax_error;
       return;
     }
@@ -464,14 +470,14 @@ struct from_json<std::span<Type>> {
   template <auto Options>
   GLZ_ALWAYS_INLINE static void op(std::span<Type> &value, hpp::proto::concepts::is_non_owning_context auto &&ctx,
                                    auto &&it, auto &&end) {
-    hpp::proto::detail::growable_span growable{value, ctx.memory_resource()};
+    auto v = hpp::proto::as_modifiable(ctx, value);
     if constexpr (hpp::proto::concepts::byte_type<Type>) {
-      from_json<hpp::proto::use_base64>::template op<Options>(growable, ctx, it, end);
+      from_json<hpp::proto::use_base64>::template op<Options>(v, ctx, it, end);
     } else if constexpr (pair_t<std::remove_cvref_t<Type>>) {
-      hpp::proto::map_wrapper<decltype(growable)> wrapped{growable};
+      hpp::proto::map_wrapper<decltype(v)> wrapped{v};
       read<json>::template op<Options>(wrapped, ctx, it, end);
     } else {
-      from_json<decltype(growable)>::template op<Options>(growable, ctx, it, end);
+      from_json<decltype(v)>::template op<Options>(v, ctx, it, end);
     }
   }
 };
@@ -539,7 +545,7 @@ struct from_json<hpp::proto::map_wrapper<T>> {
   template <auto Options>
   static void op(auto &&v, is_context auto &&ctx, auto &&it, auto &&end) {
     auto &value = v.value;
-    if constexpr (!Options.ws_handled) {
+    if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
       if (bool(ctx.error)) {
         [[unlikely]] return;
@@ -601,7 +607,7 @@ struct from_json<T *> {
   template <auto Options>
   static void op(auto &value, hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it,
                              auto &&end) {
-    if constexpr (!Options.ws_handled) {
+    if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
       if (bool(ctx.error)) {
         [[unlikely]] return;

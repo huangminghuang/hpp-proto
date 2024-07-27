@@ -7,10 +7,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
-option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
+option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
 option(HPP_PROTO_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
-option(HPP_PROTO_USE_PROTOBUF_PACKAGE "Use find_package functionality to locate the pre-installed Protobuf" OFF)
+option(HPP_PROTO_COMPILE_PROTOC "Alwyas compile protoc from source" OFF)
 
 include(cmake/CPM.cmake)
 
@@ -23,7 +23,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 CPMAddPackage(
   NAME glaze
-  VERSION 2.9.0.mod
+  GIT_TAG v2.9.5.mod
   GITHUB_REPOSITORY huangminghuang/glaze
 )
 
@@ -74,13 +74,7 @@ target_include_directories(libhpp_proto_no_utf8_validation INTERFACE
 target_compile_features(libhpp_proto_no_utf8_validation INTERFACE cxx_std_20)
 target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_NO_UTF8_VALIDATION)
 
-if(MSVC)
-  # warning level 4
-  target_compile_options(libhpp_proto INTERFACE /W4)
-else()
-  # additional warnings
-  target_compile_options(libhpp_proto INTERFACE -Wall -Wextra -Wpedantic)
-endif()
+
 
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
 
@@ -101,9 +95,11 @@ if(HPP_PROTO_TESTS)
 endif()
 
 if(HPP_PROTO_PROTOC_PLUGIN)
-  if(HPP_PROTO_USE_PROTOBUF_PACKAGE)
-    find_package(Protobuf REQUIRED)
-  else()
+  if (NOT HPP_PROTO_COMPILE_PROTOC)
+    find_package(Protobuf)
+  endif()
+
+  if(NOT Protobuf_FOUND)
     CPMAddPackage(
       NAME protobuf
       VERSION 27.0
@@ -118,10 +114,8 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     add_executable(protobuf::protoc ALIAS protoc)
     add_library(protobuf::libprotobuf ALIAS libprotobuf)
     add_library(protobuf::libprotoc ALIAS libprotoc)
-    set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
-  endif()
-
-  CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+    set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)  
+  endif(NOT Protobuf_FOUND)
 
   if(HPP_PROTO_BENCHMARKS)
     CPMAddPackage(
@@ -132,7 +126,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
       "BENCHMARK_ENABLE_TESTING OFF"
       "BENCHMARK_ENABLE_INSTALL OFF"
     )
-  endif()
+  endif(HPP_PROTO_BENCHMARKS)
 
   include(cmake/protobuf_generate.cmake)
 
@@ -140,6 +134,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
 
   if(HPP_PROTO_TESTS)
     add_subdirectory(tests)
+    add_subdirectory(tutorial)
   endif()
 
   if(HPP_PROTO_BENCHMARKS)
@@ -151,7 +146,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     COMPATIBILITY AnyNewerVersion
   )
 
-  if(NOT HPP_PROTO_USE_PROTOBUF_PACKAGE)
+  if(NOT Protobuf_FOUND)
     # copy google proto files into include directory
     file(GLOB GOOGLE_PROTOFILES RELATIVE "${protobuf_SOURCE_DIR}/src/google/protobuf" "${protobuf_SOURCE_DIR}/src/google/protobuf/*.proto")
     list(FILTER GOOGLE_PROTOFILES EXCLUDE REGEX ".*test.*")
@@ -162,7 +157,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
 
     configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/compiler/plugin.proto include/google/protobuf/compiler/plugin.proto COPYONLY)
     install(TARGETS protoc libhpp_proto EXPORT hpp_proto-targets)
-  endif()
+  endif(NOT Protobuf_FOUND)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
@@ -189,5 +184,4 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     NAMESPACE hpp_proto::)
   export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake
     NAMESPACE hpp_proto::)
-endif()
-
+endif(HPP_PROTO_PROTOC_PLUGIN)

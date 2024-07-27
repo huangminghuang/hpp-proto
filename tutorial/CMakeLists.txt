@@ -4,9 +4,15 @@ project(hpp_proto_tutorial
         VERSION 1.0.0
         LANGUAGES CXX)
 
+if(PROJECT_IS_TOP_LEVEL)
+  find_package(hpp_proto CONFIG REQUIRED)
+endif()
 
-find_package(hpp_proto CONFIG REQUIRED)
-
+if (MSVC)
+  add_compile_options("/Zc:preprocessor" "/W4")
+else()
+  add_compile_options("-Wall" "-Wall" "-Wextra" "-Wpedantic")
+endif()
 
 add_library(tutorial_lib INTERFACE tutorial.proto)
 target_include_directories(tutorial_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})

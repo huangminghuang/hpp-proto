@@ -72,6 +72,15 @@ concept has_memory_resource = requires(T &object) {
 };
 
 template <typename T>
+concept resizable = requires {
+  std::declval<T &>().resize(1);
+  std::declval<T>()[0];
+};
+
+template <typename T>
+concept not_resizable = !resizable<T>;
+
+template <typename T>
 concept contiguous_byte_range = byte_type<typename std::ranges::range_value_t<T>> && std::ranges::contiguous_range<T>;
 
 template <typename T>
@@ -79,13 +88,17 @@ concept contiguous_output_byte_range =
     contiguous_byte_range<T> && std::ranges::output_range<T, typename std::ranges::range_value_t<T>>;
 
 template <typename T>
-concept resizable_contiguous_byte_container = contiguous_byte_range<T> && requires(T &v) { v.resize(0); };
+concept resizable_contiguous_byte_container = contiguous_byte_range<T> && resizable<T>;
 
 template <typename T>
 concept is_pb_context = requires { typename std::remove_cvref_t<T>::is_pb_context; };
 
 template <typename T>
 concept is_auxiliary_context = memory_resource<T> || requires { typename T::auxiliary_context_type; };
+
+template <typename T>
+concept dynamic_sized_view =
+    std::same_as<T, std::span<typename T::element_type, std::dynamic_extent>> || std::same_as<T, std::string_view>;
 
 } // namespace concepts
 
@@ -99,10 +112,10 @@ struct pb_context_base<T> {
   using type = std::reference_wrapper<T>;
 };
 
-template <typename ... T>
+template <typename... T>
 struct pb_context : pb_context_base<T>::type... {
   using is_pb_context = void;
-  template <typename ...U>
+  template <typename... U>
   constexpr pb_context(U &&...ctx) : pb_context_base<T>::type(std::forward<U>(ctx))... {}
 
   template <concepts::is_auxiliary_context U>
@@ -150,43 +163,51 @@ struct pb_context : pb_context_base<T>::type... {
   }
 };
 
-template <typename ...U>
-pb_context(U&& ...u) -> pb_context<std::remove_cvref_t<U>...>;
+template <typename... U>
+pb_context(U &&...u) -> pb_context<std::remove_cvref_t<U>...>;
 
 namespace detail {
 
-template <typename Base, concepts::memory_resource MemoryResource>
-class growable_span {
-  MemoryResource &mr;
-
+/// The `arena_span` class adapts an existing std::span or std::string_view, allowing the underlying
+/// memory to be allocated from a designated memory resource. This memory resource releases the allocated
+/// memory only upon its destruction, similar to std::pmr::monotonic_buffer_resource.
+///
+/// `arena_span` will never deallocate its underlying memory in any circumstance; that is, `resize()` and `push_back()`
+///  will always allocate new memory blocks from the associate memory resource without calling `deallocate()`.
+///
+/// @tparam View
+/// @tparam MemoryResource
+template <concepts::dynamic_sized_view View, concepts::memory_resource MemoryResource>
+class arena_span {
 public:
-  using value_type = typename Base::value_type;
+  using value_type = typename View::value_type;
   MemoryResource &memory_resource() { return mr; }
 
-  growable_span(Base &base, MemoryResource &mr) : mr(mr), base_(base) {}
+  arena_span(View &view, MemoryResource &mr) : mr(mr), view_(view) {}
+  arena_span(View &view, concepts::has_memory_resource auto &ctx) : mr(ctx.memory_resource()), view_(view) {}
 
   void resize(std::size_t n) {
-    if ( (n > 0 && data_ == nullptr) || n > base_.size()) {
+    if ((n > 0 && data_ == nullptr) || n > view_.size()) {
       data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       assert(data_ != nullptr);
-      std::uninitialized_copy(base_.begin(), base_.end(), data_);
+      std::uninitialized_copy(view_.begin(), view_.end(), data_);
 
       if constexpr (!std::is_trivial_v<value_type>) {
-        std::uninitialized_default_construct(data_ + base_.size(), data_ + n);
+        std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
       } else {
 #ifdef __cpp_lib_start_lifetime_as
-        std::start_lifetime_as_array(data_ + base.size(), n);
+        std::start_lifetime_as_array(data_ + view.size(), n);
 #endif
       }
-      base_ = Base{data_, n};
+      view_ = View{data_, n};
     } else {
-      base_ = Base(base_.data(), n);
+      view_ = View(view_.data(), n);
     }
   }
 
   value_type *data() const { return data_; }
   value_type &operator[](std::size_t n) { return data_[n]; }
-  std::size_t size() const { return base_.size(); }
+  std::size_t size() const { return view_.size(); }
   value_type *begin() const { return data_; }
   value_type *end() const { return data_ + size(); }
 
@@ -196,37 +217,29 @@ public:
   }
 
   void clear() {
-    base_ = Base{};
+    view_ = View{};
     data_ = nullptr;
   }
 
 private:
-  Base &base_;
+  MemoryResource &mr;
+  View &view_;
   value_type *data_ = nullptr;
 };
+
+template <concepts::dynamic_sized_view View, concepts::has_memory_resource Context>
+arena_span(View &view, Context &ctx)
+    -> arena_span<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
 } // namespace detail
 
-template <typename T>
-constexpr auto make_growable(concepts::has_memory_resource auto &&context, std::span<T> &base) {
-  return detail::growable_span{base, context.memory_resource()};
-}
-
-constexpr auto make_growable(concepts::has_memory_resource auto &&context, std::string_view &base) {
-  return detail::growable_span{base, context.memory_resource()};
+constexpr auto as_modifiable(auto &&context, concepts::dynamic_sized_view auto &view) {
+  return detail::arena_span{view, context};
 }
 
 template <typename T>
-constexpr auto make_growable(concepts::memory_resource auto &mr, std::span<T> &base) {
-  return detail::growable_span{base, mr};
-}
-
-constexpr auto make_growable(concepts::memory_resource auto &mr, std::string_view &base) {
-  return detail::growable_span{base, mr};
-}
-
-template <typename T>
-constexpr T &make_growable(auto && /* unused */, T &base) {
-  return base;
+requires (!concepts::dynamic_sized_view<T>)
+constexpr T &as_modifiable(auto && /* unused */, T &view) {
+  return view;
 }
 
 } // namespace hpp::proto

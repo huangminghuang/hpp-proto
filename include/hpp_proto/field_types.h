@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2023 Huang-Ming Huang
+// Copyright (c) 2024 Huang-Ming Huang
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -33,22 +33,10 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
-
-#if __has_include(<flat_map>)
-#include <flat_map>
-namespace hpp::proto {
-using std::flat_map;
-}
-#else
 #include <hpp_proto/flat_map.h>
 namespace hpp::proto {
 using stdext::flat_map;
 }
-#endif
-
-#if !defined(__cpp_lib_flat_map)
-#define HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-#endif
 
 #ifndef __cpp_lib_bit_cast
 namespace std {
@@ -222,9 +210,6 @@ public:
   }
 
   constexpr bool operator==(const optional &other) const = default;
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-  constexpr auto operator<=>(const optional &other) const = default;
-#endif
 };
 
 // remove the implicit conversions for optional<bool> because those are very error-prone to use.
@@ -368,29 +353,6 @@ public:
   }
 
   constexpr bool operator==(std::nullopt_t) const { return !has_value(); }
-
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-
-  constexpr std::strong_ordering operator<=>(const heap_based_optional &rhs) const {
-    if (has_value() && rhs.has_value()) {
-      return **this <=> *rhs;
-    } else {
-      return has_value() <=> rhs.has_value();
-    }
-  }
-
-  constexpr std::strong_ordering operator<=>(const T &rhs) const {
-    if (has_value()) {
-      return **this <=> rhs;
-    } else {
-      return std::strong_ordering::less;
-    }
-  }
-
-  constexpr std::strong_ordering operator<=>(std::nullopt_t) const {
-    return has_value() ? std::strong_ordering::greater : std::strong_ordering::equal;
-  }
-#endif
 };
 
 template <std::size_t Len>

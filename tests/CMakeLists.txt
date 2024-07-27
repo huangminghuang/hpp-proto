@@ -1,8 +1,9 @@
 
-if(MSVC)
-    add_compile_options(/bigobj /wd4459 /wd4125)
+if (MSVC)
+  add_compile_options("/Zc:preprocessor" "/W4" "/bigobj" "/wd4459" "/wd4125")
+else()
+  add_compile_options("-Wall" "-Wall" "-Wextra" "-Wpedantic")
 endif()
-
 
 add_subdirectory(gpb_proto_json)
 

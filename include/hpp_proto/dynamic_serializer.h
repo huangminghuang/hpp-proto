@@ -1,12 +1,11 @@
 #pragma once
-#include <glaze/glaze.hpp>
 #include <system_error>
 #include <unordered_map>
 
+#include <hpp_proto/json_serializer.h>
 #include <hpp_proto/descriptor_pool.h>
 #include <hpp_proto/duration_codec.h>
 #include <hpp_proto/field_mask_codec.h>
-#include <hpp_proto/json_serializer.h>
 #include <hpp_proto/pb_serializer.h>
 #include <hpp_proto/timestamp_codec.h>
 
@@ -16,12 +15,8 @@ namespace hpp::proto {
 struct file_descriptor_pb {
   std::string_view value;
 
-#ifndef HPP_PROTO_DISABLE_THREEWAY_COMPARATOR
-  auto operator<=>(const file_descriptor_pb &) const = default;
-#else
   constexpr bool operator==(const file_descriptor_pb &) const = default;
   constexpr bool operator<(const file_descriptor_pb &other) const { return value < other.value; };
-#endif
 };
 
 namespace concepts {
@@ -719,7 +714,7 @@ class dynamic_serializer {
       }
 
       const bool dump_brace =
-          !Options.opening_handled && !is_map_entry && msg_index != pb_meta.protobuf_value_message_index;
+          !has_opening_handled(Options) && !is_map_entry && msg_index != pb_meta.protobuf_value_message_index;
 
       if (dump_brace) {
         glz::detail::dump<'{'>(b, ix);
@@ -884,7 +879,7 @@ class dynamic_serializer {
     template <typename T>
     status encode_map_key(std::string_view key, auto &archive) {
       T value;
-      glz::detail::read<glz::json>::op<glz::opts{.ws_handled = true}>(get_underlying_value(value), context, key.data(),
+      glz::detail::read<glz::json>::op<glz::ws_handled<glz::opts{}>()>(get_underlying_value(value), context, key.data(),
                                                                       key.data()+key.size());
       if (bool(context.error)) {
         [[unlikely]] return std::errc::illegal_byte_sequence;
@@ -1003,7 +998,7 @@ class dynamic_serializer {
     template <auto Opts>
     status encode_enum(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
       auto &enum_meta = pb_meta.enums[meta.type_index];
-      if constexpr (!Opts.ws_handled) {
+      if constexpr (!has_ws_handled(Opts)) {
         glz::detail::skip_ws<Opts>(context, it, end);
         if (bool(context.error)) {
           [[unlikely]] return std::errc::illegal_byte_sequence;
@@ -1039,7 +1034,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status encode_repeated(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
-      if constexpr (!Options.ws_handled) {
+      if constexpr (!has_ws_handled(Options)) {
         glz::detail::skip_ws<Options>(context, it, end);
         if (bool(context.error)) {
           [[unlikely]] return std::errc::illegal_byte_sequence;
@@ -1106,7 +1101,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status encode_value(const dynamic_serializer::message_meta &meta, auto &&it, auto &&end, auto &archive) {
-      if constexpr (!Options.ws_handled) {
+      if constexpr (!has_ws_handled(Options)) {
         glz::detail::skip_ws<Options>(context, it, end);
         if (bool(context.error)) {
           [[unlikely]] return std::errc::illegal_byte_sequence;
@@ -1146,8 +1141,8 @@ class dynamic_serializer {
     template <auto Options>
     bool parse_opening(auto &&it, auto &&end) {
       using namespace glz::detail;
-      if constexpr (!Options.opening_handled) {
-        if constexpr (!Options.ws_handled) {
+      if constexpr (!has_opening_handled(Options)) {
+        if constexpr (!has_ws_handled(Options)) {
 
           skip_ws<Options>(context, it, end);
           if (bool(context.error)) [[unlikely]] {
@@ -1285,7 +1280,7 @@ class dynamic_serializer {
 
       uint32_t field_index = 0;
 
-      bool first = !Options.opening_handled;
+      bool first = !has_opening_handled(Options);
       while (true) {
         if (*it == '}') [[unlikely]] {
           ++it;
