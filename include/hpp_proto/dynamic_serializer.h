@@ -1,16 +1,11 @@
 #pragma once
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-braces"
-#include <glaze/glaze.hpp>
-#pragma GCC diagnostic pop
-
 #include <system_error>
 #include <unordered_map>
 
+#include <hpp_proto/json_serializer.h>
 #include <hpp_proto/descriptor_pool.h>
 #include <hpp_proto/duration_codec.h>
 #include <hpp_proto/field_mask_codec.h>
-#include <hpp_proto/json_serializer.h>
 #include <hpp_proto/pb_serializer.h>
 #include <hpp_proto/timestamp_codec.h>
 

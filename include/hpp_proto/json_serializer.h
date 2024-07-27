@@ -1,11 +1,14 @@
 #pragma once
 #include <bit>
+#if defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-braces"
+#endif
 #include <glaze/glaze.hpp>
+#if defined(__GNUC__)
 #pragma GCC diagnostic pop
+#endif
 
-// #include <hpp_proto/expected.h>
 #include <hpp_proto/memory_resource_utils.h>
 
 namespace hpp::proto {
