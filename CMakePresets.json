@@ -16,7 +16,7 @@
                 "CMAKE_EXPORT_COMPILE_COMMANDS": true,
                 "HPP_PROTO_PROTOC_PLUGIN": true,
                 "HPP_PROTO_TESTS": true,
-                "HPP_PROTO_USE_PROTOBUF_PACKAGE": false
+                "HPP_PROTO_COMPILE_PROTOC": true
             }
         },
         {
@@ -69,7 +69,7 @@
             "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "HPP_PROTO_USE_PROTOBUF_PACKAGE": true
+                "HPP_PROTO_COMPILE_PROTOC": false
             }
         }
     ],

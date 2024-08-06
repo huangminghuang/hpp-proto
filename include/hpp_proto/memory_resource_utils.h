@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <hpp_proto/field_types.h>
+#include <memory_resource>
 #include <ranges>
 #include <span>
 #include <string_view>
@@ -166,80 +167,235 @@ struct pb_context : pb_context_base<T>::type... {
 template <typename... U>
 pb_context(U &&...u) -> pb_context<std::remove_cvref_t<U>...>;
 
+template <concepts::memory_resource T>
+T &get_memory_resource(T &v) {
+  return v;
+}
+
+template <concepts::has_memory_resource T>
+auto &get_memory_resource(T &v) {
+  return v.memory_resource();
+}
+
+template <typename T>
+using memory_resource_type = std::remove_reference_t<decltype(get_memory_resource(std::declval<T>))>;
+
+namespace concepts {
+template <typename T>
+concept context_with_memory_resource = requires(T &v) { get_memory_resource(v); };
+}
+
 namespace detail {
 
-/// The `arena_span` class adapts an existing std::span or std::string_view, allowing the underlying
+template <typename T, typename ByteT>
+struct raw_data_iterator {
+  const ByteT *base;
+
+  using iterator_category = std::random_access_iterator_tag;
+  using difference_type = std::size_t;
+  using value_type = T;
+  using reference = value_type &;
+  using pointer = value_type *;
+
+  constexpr std::size_t operator-(raw_data_iterator other) const { return (this->base - other.base) / sizeof(T); }
+  constexpr bool operator==(raw_data_iterator other) { return other.base = this->base; }
+  constexpr bool operator!=(raw_data_iterator s) { return !(*this == s); }
+
+  constexpr raw_data_iterator &operator++() {
+    this->base += sizeof(T);
+    return *this;
+  }
+
+  constexpr raw_data_iterator &operator+=(std::size_t n) {
+    this->base += (n * sizeof(T));
+    return *this;
+  }
+
+  constexpr raw_data_iterator &operator--() {
+    this->base -= sizeof(T);
+    return *this;
+  }
+
+  constexpr raw_data_iterator &operator-=(std::size_t n) {
+    this->base -= (n * sizeof(T));
+    return *this;
+  }
+
+  constexpr T operator*() const {
+    std::array<ByteT, sizeof(T)> v;
+    if (std::endian::little == std::endian::native)
+      std::copy(base, base+sizeof(T), v.data());
+    else
+      std::reverse_copy(base, base+sizeof(T), v.data());
+    return std::bit_cast<T>(v);
+  }
+};
+
+/// The `arena_vector` class adapts an existing std::span or std::string_view, allowing the underlying
 /// memory to be allocated from a designated memory resource. This memory resource releases the allocated
 /// memory only upon its destruction, similar to std::pmr::monotonic_buffer_resource.
 ///
-/// `arena_span` will never deallocate its underlying memory in any circumstance; that is, `resize()` and `push_back()`
+/// `arena_vector` will never deallocate its underlying memory in any circumstance; that is, `resize()` and
+/// `push_back()`
 ///  will always allocate new memory blocks from the associate memory resource without calling `deallocate()`.
 ///
 /// @tparam View
 /// @tparam MemoryResource
 template <concepts::dynamic_sized_view View, concepts::memory_resource MemoryResource>
-class arena_span {
+class arena_vector {
 public:
   using value_type = typename View::value_type;
-  MemoryResource &memory_resource() { return mr; }
+  using reference = value_type &;
+  using const_reference = const value_type &;
+  using pointer = value_type *;
+  using const_pointer = const value_type *;
+  using difference_type = std::size_t;
+  using iterator = pointer;
+  using const_iterator = const iterator;
 
-  arena_span(View &view, MemoryResource &mr) : mr(mr), view_(view) {}
-  arena_span(View &view, concepts::has_memory_resource auto &ctx) : mr(ctx.memory_resource()), view_(view) {}
+  static_assert(std::is_trivially_destructible_v<value_type>);
+  static_assert(std::is_nothrow_default_constructible_v<value_type>);
+  static_assert(std::is_nothrow_copy_constructible_v<value_type>);
 
-  void resize(std::size_t n) {
-    if ((n > 0 && data_ == nullptr) || n > view_.size()) {
+  constexpr MemoryResource &memory_resource() { return mr; }
+
+  constexpr arena_vector(View &view, MemoryResource &mr) : mr(mr), view_(view) {}
+  constexpr arena_vector(View &view, concepts::has_memory_resource auto &ctx)
+      : mr(ctx.memory_resource()), view_(view) {}
+
+  constexpr void resize(std::size_t n) {
+    if (capacity_ < n) {
       data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       assert(data_ != nullptr);
       std::uninitialized_copy(view_.begin(), view_.end(), data_);
+      std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
+      capacity_ = n;
+    } else if (n > view_.size()) {
+      std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
+    }
+    view_ = View(data_, n);
+  }
 
-      if constexpr (!std::is_trivial_v<value_type>) {
-        std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
-      } else {
-#ifdef __cpp_lib_start_lifetime_as
-        std::start_lifetime_as_array(data_ + view.size(), n);
-#endif
-      }
-      view_ = View{data_, n};
-    } else {
-      view_ = View(view_.data(), n);
+  constexpr arena_vector &operator=(const std::ranges::sized_range auto &r) {
+    assign_range(std::forward<decltype(r)>(r));
+    return *this;
+  }
+
+  constexpr value_type *data() const { return data_; }
+  constexpr reference operator[](std::size_t n) { return data_[n]; }
+  constexpr std::size_t size() const { return view_.size(); }
+  constexpr value_type *begin() const { return data_; }
+  constexpr value_type *end() const { return data_ + size(); }
+
+  constexpr reference front() { return data_[0]; }
+  constexpr reference back() { return data_[size() - 1]; }
+
+  constexpr void push_back(const value_type &v) { emplace_back(v); }
+
+  template <class... Args>
+  constexpr reference emplace_back(Args &&...args) {
+    std::size_t n = size();
+    assign_range_with_size(view_, n + 1);
+    std::construct_at(data_ + n, std::forward<Args>(args)...);
+    return data_[size() - 1];
+  }
+
+  constexpr void clear() {
+    view_ = View{};
+    data_ = nullptr;
+    capacity_ = 0;
+  }
+
+  constexpr void assign_range(std::ranges::sized_range auto &&r) {
+    assign_range_with_size(std::forward<decltype(r)>(r), std::ranges::size(r));
+  }
+
+  void append_range(std::ranges::sized_range auto &&r) {
+    auto old_size = view_.size();
+    auto n = std::ranges::size(r);
+    assign_range_with_size(view_, old_size + n);
+    std::ranges::uninitialized_copy(std::forward<decltype(r)>(r), std::span{data_ + old_size, n});
+  }
+
+  void reserve(std::size_t n) {
+    if (capacity_ < n) {
+      auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
+      std::ranges::uninitialized_copy(view_, std::span{new_data, n});
+      data_ = new_data;
+      capacity_ = n;
+      view_ = View{data_, view_.size()};
     }
   }
 
-  value_type *data() const { return data_; }
-  value_type &operator[](std::size_t n) { return data_[n]; }
-  std::size_t size() const { return view_.size(); }
-  value_type *begin() const { return data_; }
-  value_type *end() const { return data_ + size(); }
+  template <typename ByteT>
+  void append_raw_data(const ByteT* start_pos, std::size_t num_elements) {
 
-  void push_back(const value_type &v) {
-    resize(size() + 1);
-    data_[size() - 1] = v;
-  }
-
-  void clear() {
-    view_ = View{};
-    data_ = nullptr;
+    auto old_size = view_.size();
+    std::size_t n = old_size + num_elements;
+    assign_range_with_size(view_, n);
+    if (std::is_constant_evaluated() || (sizeof(value_type)> 1 && std::endian::little != std::endian::native)) {
+      using input_it = raw_data_iterator<value_type, ByteT>;
+      std::uninitialized_copy(input_it{start_pos},  input_it{start_pos + num_elements * sizeof(value_type)}, data_ + old_size);
+    } else {
+      std::memcpy(data_ + old_size, start_pos, num_elements *sizeof(value_type));
+    }
   }
 
 private:
   MemoryResource &mr;
   View &view_;
   value_type *data_ = nullptr;
+  std::size_t capacity_ = 0;
+
+  void assign_range_with_size(std::ranges::sized_range auto &&r, std::size_t n) {
+    if (capacity_ < n) {
+      auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
+      std::ranges::uninitialized_copy(std::forward<decltype(r)>(r), std::span{new_data, n});
+      data_ = new_data;
+    } else {
+      if constexpr (std::same_as<std::remove_cvref_t<decltype(r)>, View>) {
+        if (view_.data() != r.data()) {
+          std::ranges::copy(std::forward<decltype(r)>(r), data_);
+        }
+      } else {
+        std::ranges::copy(std::forward<decltype(r)>(r), data_);
+      }
+    }
+    view_ = View{data_, n};
+  }
 };
 
 template <concepts::dynamic_sized_view View, concepts::has_memory_resource Context>
-arena_span(View &view, Context &ctx)
-    -> arena_span<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
+arena_vector(View &view, Context &ctx)
+    -> arena_vector<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
+
 } // namespace detail
 
 constexpr auto as_modifiable(auto &&context, concepts::dynamic_sized_view auto &view) {
-  return detail::arena_span{view, context};
+  return detail::arena_vector{view, context};
 }
 
 template <typename T>
-requires (!concepts::dynamic_sized_view<T>)
+  requires(!concepts::dynamic_sized_view<T>)
 constexpr T &as_modifiable(auto && /* unused */, T &view) {
   return view;
+}
+
+template <typename T, typename ByteT>
+constexpr void append_raw_data(T &container, const ByteT* start_pos, std::size_t num_elements) {
+  using value_type = typename T::value_type;
+  if constexpr (requires { container.append_raw_data(start_pos, num_elements); }) {
+    container.append_raw_data(start_pos, num_elements);
+  } else if (std::is_constant_evaluated() || (sizeof(value_type)> 1 && std::endian::little != std::endian::native)) {
+    using input_it = detail::raw_data_iterator<value_type, ByteT>;
+    container.insert(container.end(), input_it{start_pos}, input_it{start_pos+num_elements * sizeof(value_type)});
+  } else {
+    // auto n = container.size();
+    // container.resize(n + num_elements);
+    // std::memcpy(container.data() + n, start_pos, num_elements * sizeof(value_type));
+    auto first = reinterpret_cast<const value_type*>(start_pos);
+    container.insert(container.end(), first, first + num_elements);
+  }
 }
 
 } // namespace hpp::proto

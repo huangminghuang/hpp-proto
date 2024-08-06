@@ -285,8 +285,8 @@ class dynamic_serializer {
         if (archive.in_avail() < len) {
           return std::errc::bad_message;
         }
-        value.resize(len);
-        if (auto ec = archive(value); !ec.ok())
+        value.resize(0);
+        if (auto ec = archive.deserialize_packed(len, value); !ec.ok())
           return ec;
       } else {
         if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
