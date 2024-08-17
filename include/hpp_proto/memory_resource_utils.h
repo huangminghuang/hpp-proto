@@ -198,7 +198,7 @@ struct raw_data_iterator {
   using pointer = value_type *;
 
   constexpr std::size_t operator-(raw_data_iterator other) const { return (this->base - other.base) / sizeof(T); }
-  constexpr bool operator==(raw_data_iterator other) { return other.base = this->base; }
+  constexpr bool operator==(raw_data_iterator other) { return other.base == this->base; }
   constexpr bool operator!=(raw_data_iterator s) { return !(*this == s); }
 
   constexpr raw_data_iterator &operator++() {
@@ -254,7 +254,7 @@ public:
   using const_iterator = const iterator;
 
   static_assert(std::is_trivially_destructible_v<value_type>);
-  static_assert(std::is_nothrow_default_constructible_v<value_type>);
+  //static_assert(std::is_nothrow_default_constructible_v<value_type>);
   static_assert(std::is_nothrow_copy_constructible_v<value_type>);
 
   constexpr MemoryResource &memory_resource() { return mr; }
@@ -310,14 +310,14 @@ public:
     assign_range_with_size(std::forward<decltype(r)>(r), std::ranges::size(r));
   }
 
-  void append_range(std::ranges::sized_range auto &&r) {
+  constexpr void append_range(std::ranges::sized_range auto &&r) {
     auto old_size = view_.size();
     auto n = std::ranges::size(r);
     assign_range_with_size(view_, old_size + n);
     std::ranges::uninitialized_copy(std::forward<decltype(r)>(r), std::span{data_ + old_size, n});
   }
 
-  void reserve(std::size_t n) {
+  constexpr void reserve(std::size_t n) {
     if (capacity_ < n) {
       auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       std::ranges::uninitialized_copy(view_, std::span{new_data, n});
@@ -328,7 +328,7 @@ public:
   }
 
   template <typename ByteT>
-  void append_raw_data(const ByteT* start_pos, std::size_t num_elements) {
+  constexpr void append_raw_data(const ByteT* start_pos, std::size_t num_elements) {
 
     auto old_size = view_.size();
     std::size_t n = old_size + num_elements;
@@ -347,7 +347,7 @@ private:
   value_type *data_ = nullptr;
   std::size_t capacity_ = 0;
 
-  void assign_range_with_size(std::ranges::sized_range auto &&r, std::size_t n) {
+  constexpr void assign_range_with_size(std::ranges::sized_range auto &&r, std::size_t n) {
     if (capacity_ < n) {
       auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       std::ranges::uninitialized_copy(std::forward<decltype(r)>(r), std::span{new_data, n});

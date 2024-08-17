@@ -680,7 +680,7 @@ struct map_entry {
 #endif
     template <typename K, typename V>
     explicit operator std::pair<K, V>() && {
-      return {static_cast<K &&>(key), static_cast<V &&>(value)};
+      return {std::move(static_cast<K>(key)), std::move(static_cast<V>(value))};
     }
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -1924,7 +1924,7 @@ struct pb_serializer {
         value_encode_type element;
         if (auto result = deserialize_element(element); !result.ok())  [[unlikely]]
           return result;
-        v[i] = static_cast<value_type&&>(std::move(element));
+        v[i] = std::move(static_cast<value_type>(std::move(element)));
       }
 
       if (i < new_size - 1) {
