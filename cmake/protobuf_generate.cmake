@@ -43,6 +43,8 @@ function(protobuf_generate)
 
   if(NOT protobuf_generate_PROTOC_OUT_DIR)
     set(protobuf_generate_PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+  else()
+    file(MAKE_DIRECTORY ${protobuf_generate_PROTOC_OUT_DIR})
   endif()
 
   if(protobuf_generate_EXPORT_MACRO AND protobuf_generate_LANGUAGE STREQUAL cpp)

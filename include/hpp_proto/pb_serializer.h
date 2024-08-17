@@ -96,6 +96,12 @@ struct varint {
   constexpr operator Type &() & { return value; }
   constexpr operator Type() const { return value; }
 
+  template <typename E>
+    requires(std::is_enum_v<E> && std::same_as<encode_type, int64_t> && Encoding == varint_encoding::normal)
+  constexpr operator E() const {
+    return static_cast<E>(value);
+  }
+
   constexpr std::size_t encode_size() const { return varint_size<Encoding>(static_cast<encode_type>(value)); }
   Type value{};
 };
@@ -114,7 +120,7 @@ using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 namespace concepts {
 
 template <typename Type>
-concept varint = requires { requires std::same_as<Type, varint<typename Type::value_type, Type::encoding>>; };
+concept varint = requires { requires std::same_as<Type, hpp::proto::varint<typename Type::value_type, Type::encoding>>; };
 
 template <typename Type>
 concept associative_container =
@@ -197,10 +203,6 @@ concept is_size_cache = std::same_as<T, uint32_t *> || requires(T v) {
 template <typename T>
 concept non_owning_bytes = std::same_as<std::remove_cvref_t<T>, std::string_view> ||
                            (concepts::span<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
-
-template <typename T>
-concept resizable_or_reservable =
-    resizable<T> || requires { std::declval<T &>().reserve(1); } || requires { reserve(std::declval<T &>(), 1); };
 
 template <typename Type>
 concept has_extension = has_meta<Type> && requires(Type value) {
@@ -380,7 +382,8 @@ constexpr const Byte *unchecked_parse_varint(const Byte *p, const Byte *end, Var
   int64_t res;
   if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
     p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
-    item = static_cast<typename VarintType::value_type>((static_cast<uint64_t>(res) >> 1) ^ -(static_cast<int64_t>(res) & 0x1));
+    item = static_cast<typename VarintType::value_type>((static_cast<uint64_t>(res) >> 1) ^
+                                                        -(static_cast<int64_t>(res) & 0x1));
   } else {
     p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
     item = static_cast<typename VarintType::value_type>(res);
@@ -671,30 +674,13 @@ struct map_entry {
     using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence>,
                                field_meta<2, &mutable_type::value, field_option::explicit_presence>>;
 
-    template <typename Target, typename Source>
-    constexpr static auto move_or_copy(Source &&src) {
-      if constexpr (requires(Target target) { target = std::move(src); }) {
-        return std::move(src);
-      } else if constexpr (std::is_enum_v<Target> && std::is_same_v<std::remove_cvref_t<Source>, vint64_t>) {
-        return static_cast<Target>(src.value);
-      } else {
-        return static_cast<Target>(src);
-      }
-    }
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4244)
 #endif
-    template <concepts::associative_container Container>
-    constexpr void insert_to(Container &container) && {
-      container.insert_or_assign(move_or_copy<typename Container::key_type>(key),
-                                 move_or_copy<typename Container::mapped_type>(value));
-    }
-
     template <typename K, typename V>
-    constexpr void to(std::pair<K, V> &target) && {
-      target.first = move_or_copy<K>(key);
-      target.second = move_or_copy<V>(value);
+    explicit operator std::pair<K, V>() && {
+      return {std::move(static_cast<K>(key)), std::move(static_cast<V>(value))};
     }
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -1181,7 +1167,8 @@ struct pb_serializer {
   }
 
   template <typename Meta>
-  HPP_PROTO_INLINE constexpr static std::size_t field_size(Meta meta, auto &&item, concepts::is_size_cache auto &cache) {
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(Meta meta, auto &&item,
+                                                           concepts::is_size_cache auto &cache) {
     using type = std::remove_cvref_t<decltype(item)>;
 
     if (meta.omit_value(item))
@@ -1499,8 +1486,7 @@ struct pb_serializer {
     template <typename T>
       requires std::is_enum_v<T> && (sizeof(T) > 1)
     constexpr status deserialize(T &item) {
-      deserialize(varint{static_cast<int64_t>(item)});
-      return {};
+      return deserialize(varint{static_cast<int64_t>(item)});
     }
 
     template <concepts::varint T>
@@ -1510,27 +1496,19 @@ struct pb_serializer {
     }
 
     template <typename T>
-      requires std::ranges::contiguous_range<T> && concepts::byte_serializable<typename T::value_type>
-    constexpr status deserialize(T &item) {
-      if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(typename T::value_type) == 1)) {
-        ptrdiff_t bytes_to_copy = item.size() * sizeof(typename T::value_type);
-        if constexpr (contiguous) {
-          std::memcpy(item.data(), current.begin, bytes_to_copy);
-          current.begin += bytes_to_copy;
-        } else {
-          char *p = static_cast<char *>(item.data());
-          while (bytes_to_copy) {
-            maybe_advance_region();
-            auto n = std::min<ptrdiff_t>(bytes_to_copy, region_size());
-            std::memcpy(p, current.begin, n);
-            p += n;
-            bytes_to_copy -= n;
-            current.begin += n;
-          }
-        }
+    constexpr status deserialize_packed(std::size_t n, T &item) {
+      using value_type = typename T::value_type;
+      item.reserve(n);
+      if constexpr (contiguous) {
+        append_raw_data(item, current.begin, n);
+        current.begin += n * sizeof(value_type);
       } else {
-        for (auto &x : item) {
-          this->deserialize(x);
+        while (n) {
+          maybe_advance_region();
+          auto k = std::min<std::size_t>(n, region_size() / sizeof(value_type));
+          append_raw_data(item, current.begin, k);
+          n -= k;
+          current.begin += k * sizeof(value_type);
         }
       }
       return {};
@@ -1555,11 +1533,14 @@ struct pb_serializer {
     }
 #endif // x64
 
-    template <concepts::varint T, typename U>
-    constexpr status deserialize(uint32_t bytes_count, std::span<U> item) {
+    template <concepts::varint T, typename Item>
+    constexpr status deserialize_packed_varint(uint32_t bytes_count, std::size_t size, Item &item) {
+      using value_type = typename Item::value_type;
+      item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
       if (!std::is_constant_evaluated() && has_bmi2()) {
-        sfvint_parser<T, U> parser(item.data());
+
+        sfvint_parser<T, value_type> parser(item.data());
         if constexpr (!contiguous) {
           while (bytes_count > region_size()) {
             auto saved_begin = current.begin;
@@ -1577,12 +1558,12 @@ struct pb_serializer {
       }
 #endif
       (void)bytes_count; // avoid unused parameter warning
-      for (auto &value : item) {
+      for (unsigned i = 0; i < size; ++i) {
         T underlying;
         if (auto result = this->deserialize(underlying); !result.ok()) [[unlikely]] {
           return result;
         }
-        value = static_cast<U>(underlying.value);
+        item[i] = static_cast<value_type>(underlying.value);
       }
       return {};
     }
@@ -1647,9 +1628,9 @@ struct pb_serializer {
       auto popcount = [](uint64_t v) -> int {
 #if defined(__x86_64__) && defined(__GNUC__) && !defined(__clang__)
         if (!std::is_constant_evaluated()) {
-          if (__builtin_cpu_supports ("popcnt")) {
+          if (__builtin_cpu_supports("popcnt")) {
             int64_t count;
-            __asm__ ("popcntq %1, %0" : "=r" (count) : "rm" (v));
+            __asm__("popcntq %1, %0" : "=r"(count) : "rm"(v));
             return count;
           }
         }
@@ -1719,10 +1700,7 @@ struct pb_serializer {
 
     if constexpr (concepts::associative_container<fields_type>) {
       auto &value = item.extensions.fields[field_num];
-      auto s = value.size();
-      value.resize(s + field_archive.in_avail());
-      std::span<byte_type> field_span = std::span{reinterpret_cast<byte_type *>(value.data() + s), field_len};
-      return field_archive(field_span);
+      return field_archive.deserialize_packed(field_archive.in_avail(), value);
     } else {
       static_assert(concepts::span<fields_type>);
       auto &fields = item.extensions.fields;
@@ -1742,17 +1720,15 @@ struct pb_serializer {
 
       if (itr == fields.end() && field_archive.in_avail() == field_archive.region_size()) [[likely]] {
         std::span<const byte_type> field_span;
-        if (auto result = field_archive.read_bytes(static_cast<uint32_t>(field_len), field_span); !result.ok()) [[unlikely]]
+        if (auto result = field_archive.read_bytes(static_cast<uint32_t>(field_len), field_span); !result.ok())
+            [[unlikely]]
           return result;
         as_modifiable(context, fields).push_back({field_num, field_span});
         return {};
       }
       // the extension with the same field number exists, append the content to the previously parsed.
       decltype(auto) v = as_modifiable(context, itr->second);
-      auto s = v.size();
-      v.resize(v.size() + field_archive.in_avail());
-      std::span<byte_type> field_span = std::span{reinterpret_cast<byte_type *>(v.data() + s), field_len};
-      return field_archive(field_span);
+      return field_archive.deserialize_packed(field_archive.in_avail(), v);
     }
   }
 
@@ -1842,8 +1818,8 @@ struct pb_serializer {
                                std::same_as<value_type, std::byte> || std::same_as<typename Meta::type, type>,
                            value_type, typename Meta::type>;
 
-    vuint32_t length;
-    if (auto result = archive(length); !result.ok()) [[unlikely]] {
+    vuint32_t byte_count;
+    if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
       return result;
     }
 
@@ -1852,13 +1828,13 @@ struct pb_serializer {
       static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
       // handling string_view or span of byte
       if constexpr (std::remove_cvref_t<decltype(archive)>::contiguous) {
-        if (archive.in_avail() >= length) {
-          return archive.read_bytes(length, item);
+        if (archive.in_avail() >= byte_count) {
+          return archive.read_bytes(byte_count, item);
         }
         return std::errc::bad_message;
       } else {
         decltype(auto) v = as_modifiable(context, item);
-        v.resize(length);
+        v.resize(byte_count);
         return archive(v);
       }
     } else {
@@ -1866,19 +1842,19 @@ struct pb_serializer {
 
       if constexpr (requires { v.resize(1); }) {
         // packed repeated vector,
-        auto n = count_packed_elements<encode_type>(static_cast<uint32_t>(length), archive);
+        auto n = count_packed_elements<encode_type>(static_cast<uint32_t>(byte_count), archive);
         if (!n.has_value())
           return std::errc::bad_message;
         std::size_t size = *n;
 
-        v.resize(size);
         if constexpr (concepts::byte_serializable<encode_type>) {
-          return archive(v);
+          v.resize(0);
+          return archive.deserialize_packed(size, v);
         } else if constexpr (std::is_enum_v<encode_type>) {
-          return archive.template deserialize<vint64_t>(length, std::span{v.data(), size});
+          return archive.template deserialize_packed_varint<vint64_t>(byte_count, size, v);
         } else {
           static_assert(concepts::varint<encode_type>);
-          return archive.template deserialize<encode_type>(length, std::span{v.data(), size});
+          return archive.template deserialize_packed_varint<encode_type>(byte_count, size, v);
         }
       } else {
         static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
@@ -1887,119 +1863,77 @@ struct pb_serializer {
     }
   }
 
-  template <typename Meta, typename Container>
-  struct unpacked_element_inserter {
-
-    template <typename MetaType>
-    struct get_base_value_type {
-      using type = typename Container::value_type;
-    };
-
-    template <concepts::is_map_entry MetaType>
-    struct get_base_value_type<MetaType> {
-      using type = typename Meta::type::mutable_type;
-    };
-
-    using base_value_type = typename get_base_value_type<typename Meta::type>::type;
-
-    template <typename C>
-    struct element_type {
-      C &item;
-      base_value_type value;
-      constexpr element_type(C &item, std::size_t) : item(item) {}
-
-      constexpr ~element_type() {
-        if constexpr (concepts::is_map_entry<typename Meta::type>) {
-          std::move(value).insert_to(item);
-        } else if constexpr (requires { item.insert(value); }) {
-          item.insert(std::move(value));
-        } else {
-          static_assert(!sizeof(base_value_type), "memory resource is required");
-        }
-      }
-    };
-
-    template <concepts::resizable C>
-      requires std::same_as<std::remove_const_t<typename C::value_type>, base_value_type>
-    struct element_type<C> {
-      base_value_type &value;
-      constexpr element_type(C &item, std::size_t i) : value(item[i]) {}
-    };
-
-    template <concepts::resizable C>
-      requires(!std::same_as<std::remove_const_t<typename C::value_type>, base_value_type>)
-    struct element_type<C> {
-      std::remove_const_t<typename C::value_type> &target;
-      base_value_type value;
-
-      constexpr element_type(C &item, std::size_t i) : target(item[i]) {}
-      constexpr ~element_type() {
-        if constexpr (requires { std::move(value).to(target); }) {
-          std::move(value).to(target);
-        } else {
-          target = std::move(value);
-        }
-      }
-    };
-
-    element_type<Container> element;
-
-    constexpr unpacked_element_inserter(Container &item, std::size_t i = 0) : element(item, i) {}
-
-    constexpr status deserialize(uint32_t tag, auto &context, concepts::is_basic_in auto &archive) {
-      if constexpr (concepts::scalar<base_value_type>) {
-        return pb_serializer::deserialize_field(Meta{}, tag, element.value, context, archive);
-      } else {
-        return pb_serializer::deserialize_sized(element.value, context, archive);
-      }
-    }
+  template <typename MetaType, typename ValueType>
+  struct get_value_encode_type {
+    using type = ValueType;
   };
 
-  constexpr static void resize_or_reserve(concepts::resizable_or_reservable auto &mut, std::size_t size) {
-    if constexpr (requires { mut.resize(1); }) {
-      mut.resize(size);
-    } else if constexpr (requires { mut.reserve(size); }) { // e.g. boost::flat_map
-      mut.reserve(size);
-    } else { // e.g. std::flat_map
-      reserve(mut, size);
-    }
-  }
+  template <concepts::is_map_entry MetaType, typename ValueType>
+  struct get_value_encode_type<MetaType, ValueType> {
+    using type = typename MetaType::mutable_type;
+  };
 
   template <typename Meta>
   constexpr static status deserialize_unpacked_repeated(Meta, uint32_t tag, auto &&item, auto &context,
                                                         concepts::is_basic_in auto &archive) {
 
     using type = std::remove_reference_t<decltype(item)>;
+    using value_type = typename type::value_type;
+    using value_encode_type = typename get_value_encode_type<typename Meta::type, value_type>::type;
 
     decltype(auto) v = as_modifiable(context, item);
 
-    if constexpr (concepts::resizable_or_reservable<decltype(v)>) {
-      std::size_t count = 0;
-      if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
-        return result;
+    std::size_t count = 0;
+    if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
+      return result;
+    }
+    auto old_size = item.size();
+    const std::size_t new_size = item.size() + count;
+
+    auto deserialize_element = [&](value_encode_type &element) {
+      if constexpr (concepts::scalar<value_encode_type>) {
+        return pb_serializer::deserialize_field(Meta{}, tag, element, context, archive);
+      } else {
+        return pb_serializer::deserialize_sized(element, context, archive);
       }
-      auto old_size = item.size();
-      const std::size_t new_size = item.size() + count;
+    };
 
-      resize_or_reserve(v, new_size);
+    if constexpr (concepts::flat_map<type>) {
+      reserve(v, new_size);
+    } else if constexpr (requires { v.resize(new_size); }) {
+      v.resize(new_size);
+    }
 
-      for (auto i = old_size; i < new_size; ++i) {
-        unpacked_element_inserter<Meta, std::remove_cvref_t<decltype(v)>> inserter(v, i);
-        if (auto result = inserter.deserialize(tag, context, archive); !result.ok()) [[unlikely]] {
+    for (auto i = old_size; i < new_size; ++i) {
+      if constexpr (concepts::associative_container<type>) {
+        value_encode_type element;
+
+        if (auto result = deserialize_element(element); !result.ok())
+          return result;
+
+        value_type val = static_cast<value_type>(std::move(element));
+        if constexpr (requires { v.insert_or_assign(std::move(val.first), std::move(val.second)); }) {
+          v.insert_or_assign(std::move(val.first), std::move(val.second));
+        } else { // pre-C++23 std::map
+          v[std::move(val.first)] = std::move(val.second);
+        }
+      } else if constexpr(std::same_as<value_encode_type, value_type>) {
+        if (auto result = deserialize_element(v[i]); !result.ok())  [[unlikely]]
+          return result;
+      } else {
+        value_encode_type element;
+        if (auto result = deserialize_element(element); !result.ok())  [[unlikely]]
+          return result;
+        v[i] = std::move(static_cast<value_type>(std::move(element)));
+      }
+
+      if (i < new_size - 1) {
+        if (auto result = skip_tag(tag, archive); !result.ok()) [[unlikely]] {
           return result;
         }
-
-        if (i < new_size - 1) {
-          if (auto result = skip_tag(tag, archive); !result.ok()) [[unlikely]] {
-            return result;
-          }
-        }
       }
-      return {};
-    } else {
-      unpacked_element_inserter<Meta, type> inserter{item};
-      return inserter.deserialize(tag, context, archive);
     }
+    return {};
   }
 
   template <typename Meta>
@@ -2074,14 +2008,8 @@ struct pb_serializer {
       }
     } else if constexpr (meta.is_group) {
       // repeated group
-      if constexpr (requires { item.emplace_back(); }) {
-        return deserialize_group(field_num, item.emplace_back(), context, archive);
-      } else {
-        decltype(auto) v = as_modifiable(context, item);
-        auto old_size = item.size();
-        v.resize(old_size + 1);
-        return deserialize_group(field_num, v[old_size], context, archive);
-      }
+      decltype(auto) v = as_modifiable(context, item);
+      return deserialize_group(field_num, v.emplace_back(), context, archive);
     } else if constexpr (concepts::contiguous_byte_range<type>) {
       if (auto result = deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok())
         return result;
@@ -2251,7 +2179,7 @@ struct pb_serializer {
 
   template <typename Byte>
   constexpr static ptrdiff_t setup_input_regions(concepts::segmented_byte_range auto &&source,
-                                               input_buffer_region<Byte> *regions, Byte *patch_buffer) {
+                                                 input_buffer_region<Byte> *regions, Byte *patch_buffer) {
 
     bool is_first_segment = true;
     regions->effective_size = 0;
@@ -2452,10 +2380,9 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
   }
 
   if (data.size()) {
-    auto old_size = extensions.fields.size();
+    using fields_mapped_type = std::remove_cvref_t<decltype(extensions.fields)>::value_type::second_type;
     auto fields = as_modifiable(ctx, extensions.fields);
-    fields.resize(old_size + 1);
-    extensions.fields[old_size] = {ExtensionMeta::number, {data.data(), data.size()}};
+    fields.emplace_back(ExtensionMeta::number, fields_mapped_type{data.data(), data.size()});
   }
   return {};
 }

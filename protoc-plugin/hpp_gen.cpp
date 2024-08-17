@@ -248,6 +248,7 @@ struct hpp_addons {
   struct field_descriptor {
     std::string cpp_name;
     std::string cpp_field_type;
+    std::string qualified_cpp_field_type;
     std::string cpp_meta_type = "void";
     std::string default_value;
     std::string default_value_template_arg;
@@ -270,34 +271,43 @@ struct hpp_addons {
       switch (proto.type) {
       case TYPE_DOUBLE:
         cpp_field_type = "double";
+        qualified_cpp_field_type = "double";
         break;
       case TYPE_FLOAT:
         cpp_field_type = "float";
+        qualified_cpp_field_type = "float";
         break;
       case TYPE_INT64:
         cpp_field_type = "int64_t";
+        qualified_cpp_field_type = "int64_t";
         cpp_meta_type = "hpp::proto::vint64_t";
         break;
       case TYPE_UINT64:
         cpp_field_type = "uint64_t";
+        qualified_cpp_field_type = "uint64_t";
         cpp_meta_type = "hpp::proto::vuint64_t";
         break;
       case TYPE_INT32:
         cpp_field_type = "int32_t";
+        qualified_cpp_field_type = "int32_t";
         cpp_meta_type = "hpp::proto::vint64_t";
         break;
       case TYPE_FIXED64:
         cpp_field_type = "uint64_t";
+        qualified_cpp_field_type = "uint64_t";
         break;
       case TYPE_FIXED32:
         cpp_field_type = "uint32_t";
+        qualified_cpp_field_type = "uint32_t";
         break;
       case TYPE_BOOL:
         cpp_field_type = "bool";
+        qualified_cpp_field_type = "bool";
         cpp_meta_type = "bool";
         break;
       case TYPE_STRING:
         cpp_field_type = non_owning_mode ? "std::string_view" : "std::string";
+        qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_GROUP:
       case TYPE_MESSAGE:
@@ -306,8 +316,9 @@ struct hpp_addons {
           auto pos = shared_scope_position(qualified_parent_name, proto.type_name);
 
           is_recursive = (pos == proto.type_name.size());
+          qualified_cpp_field_type = qualified_cpp_name(proto.type_name);
           if (pos == 0) {
-            cpp_field_type = qualified_cpp_name(proto.type_name);
+            cpp_field_type = qualified_cpp_field_type;
           } else if (is_recursive) {
             cpp_field_type = resolve_keyword(proto.type_name.substr(proto.type_name.find_last_of('.') + 1));
           } else {
@@ -317,23 +328,29 @@ struct hpp_addons {
         break;
       case TYPE_BYTES:
         cpp_field_type = non_owning_mode ? "hpp::proto::bytes_view" : "hpp::proto::bytes";
+        qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_UINT32:
         cpp_field_type = "uint32_t";
+        qualified_cpp_field_type = cpp_field_type;
         cpp_meta_type = "hpp::proto::vuint32_t";
         break;
       case TYPE_SFIXED32:
         cpp_field_type = "int32_t";
+        qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_SFIXED64:
         cpp_field_type = "int64_t";
+        qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_SINT32:
         cpp_field_type = "int32_t";
+        qualified_cpp_field_type = cpp_field_type;
         cpp_meta_type = "hpp::proto::vsint32_t";
         break;
       case TYPE_SINT64:
         cpp_field_type = "int64_t";
+        qualified_cpp_field_type = cpp_field_type;
         cpp_meta_type = "hpp::proto::vsint64_t";
         break;
       }
@@ -1036,10 +1053,10 @@ struct msg_code_generator : code_generator {
 
         fmt::format_to(target,
                        "#ifdef _LIBCPP_VERSION\n"
-                       "{0}constexpr {1}() = default;\n"
-                       "{0}constexpr {1}(const {1}& other)\n"
+                       "{0}constexpr {1}() noexcept = default;\n"
+                       "{0}constexpr {1}(const {1}& other) noexcept\n"
                        "{0}  : {2}{{}}\n"
-                       "{0}constexpr {1}& operator=(const {1}& other) = default;\n"
+                       "{0}constexpr {1}& operator=(const {1}& other) noexcept = default;\n"
                        "#endif // _LIBCPP_VERSION\n",
                        indent(), descriptor.cpp_name, copy_constructor_init_list);
       }
@@ -1180,7 +1197,7 @@ struct hpp_meta_generateor : code_generator {
     if (descriptor.map_fields[0] != nullptr) {
 
       auto get_meta_type = [](const auto *field) {
-        return field->cpp_meta_type == "void" ? field->cpp_field_type : field->cpp_meta_type;
+        return field->cpp_meta_type == "void" ? field->qualified_cpp_field_type : field->cpp_meta_type;
       };
 
       descriptor.cpp_meta_type = fmt::format("hpp::proto::map_entry<{}, {}>", get_meta_type(descriptor.map_fields[0]),

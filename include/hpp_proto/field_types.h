@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cassert>
 #include <functional>
+#include <hpp_proto/flat_map.h>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -33,7 +34,6 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
-#include <hpp_proto/flat_map.h>
 namespace hpp::proto {
 using stdext::flat_map;
 }
@@ -396,7 +396,14 @@ namespace concepts {
 template <typename Type>
 concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<std::remove_cv_t<Type>, unsigned char> ||
                     std::same_as<std::remove_cv_t<Type>, std::byte>;
+
+template <typename Type>
+concept flat_map = requires {
+  typename Type::key_type;
+  typename Type::mapped_type;
+  requires std::same_as<Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type>>;
 };
+}; // namespace concepts
 
 template <compile_time_string cts>
 struct string_literal {
@@ -486,8 +493,17 @@ constexpr bool is_default_value(const T &val) {
 }
 
 inline const char *message_name(auto &&v)
-  requires requires {  message_type_url(v); }
+  requires requires { message_type_url(v); }
 {
   return message_type_url(v).c_str() + std::size("type.googleapis.com");
+}
+
+template <concepts::flat_map T>
+constexpr static void reserve(T &mut, std::size_t size) {
+  typename T::key_container_type keys;
+  typename T::mapped_container_type values;
+  keys.reserve(size);
+  values.reserve(size);
+  mut.replace(std::move(keys), std::move(values));
 }
 } // namespace hpp::proto

@@ -400,8 +400,7 @@ struct from_json<hpp::proto::optional_ref<Type, Default>> {
       read<json>::template op<Opts>(value.emplace(), std::forward<decltype(args)>(args)...);
     } else if constexpr (writable_map_t<Type> && resizable<Type>) {
       hpp::proto::map_wrapper<std::decay_t<decltype(*value)>> wrapped{*value};
-      read<json>::template op<Opts>(wrapped,
-                                    std::forward<decltype(args)>(args)...);
+      read<json>::template op<Opts>(wrapped, std::forward<decltype(args)>(args)...);
     } else {
       read<json>::template op<Opts>(*value, std::forward<decltype(args)>(args)...);
     }
@@ -605,8 +604,7 @@ struct from_json<hpp::proto::map_wrapper<T>> {
 template <typename T>
 struct from_json<T *> {
   template <auto Options>
-  static void op(auto &value, hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it,
-                             auto &&end) {
+  static void op(auto &value, hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it, auto &&end) {
     if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
       if (bool(ctx.error)) {
@@ -661,7 +659,7 @@ template <auto Opts = glz::opts{}, typename Buffer, glz::is_context... Context>
 
 template <auto Opts = glz::opts{}, class T, class Buffer>
 inline json_status write_json(T &&value, Buffer &&buffer, glz::is_context auto &&ctx) noexcept {
-  return { glz::write<Opts>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx) };
+  return {glz::write<Opts>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx)};
 }
 
 template <auto Opts = glz::opts{}, class T, class Buffer>
