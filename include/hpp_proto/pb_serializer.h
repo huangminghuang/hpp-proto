@@ -120,7 +120,7 @@ using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 namespace concepts {
 
 template <typename Type>
-concept varint = requires { requires std::same_as<Type, varint<typename Type::value_type, Type::encoding>>; };
+concept varint = requires { requires std::same_as<Type, hpp::proto::varint<typename Type::value_type, Type::encoding>>; };
 
 template <typename Type>
 concept associative_container =
@@ -1534,7 +1534,7 @@ struct pb_serializer {
 #endif // x64
 
     template <concepts::varint T, typename Item>
-    constexpr status deserialize_packed_varint(uint32_t bytes_count, uint32_t size, Item &item) {
+    constexpr status deserialize_packed_varint(uint32_t bytes_count, std::size_t size, Item &item) {
       using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64

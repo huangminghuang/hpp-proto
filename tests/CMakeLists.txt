@@ -1,6 +1,6 @@
 
 if (MSVC)
-  add_compile_options("/Zc:preprocessor" "/W4" "/bigobj" "/wd4459" "/wd4125")
+  add_compile_options("/Zc:preprocessor" "/bigobj" "/wd4459" "/wd4125")
 else()
   add_compile_options("-Wall" "-Wall" "-Wextra" "-Wpedantic")
 endif()
