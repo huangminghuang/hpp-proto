@@ -6,7 +6,6 @@
 
 template <typename T>
 constexpr auto non_owning = false;
-using namespace hpp::proto::literals;
 
 struct byte_span_example {
   std::span<const std::byte> field;
@@ -14,7 +13,7 @@ struct byte_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
-constexpr auto message_type_url(const byte_span_example&) { return "type.googleapis.com/byte_span_example"_cts; }
+constexpr auto message_type_url(const byte_span_example&) { return hpp::proto::string_literal<"type.googleapis.com/byte_span_example">{}; }
 
 template <>
 struct glz::meta<byte_span_example> {
@@ -26,7 +25,7 @@ struct uint64_example {
   uint64_t field = 0;
   bool operator==(const uint64_example &) const = default;
 };
-constexpr auto message_type_url(const uint64_example&) { return "type.googleapis.com/uint64_example"_cts; }
+constexpr auto message_type_url(const uint64_example&) { return hpp::proto::string_literal<"type.googleapis.com/uint64_example">{}; }
 
 template <>
 struct glz::meta<uint64_example> {
@@ -41,7 +40,7 @@ struct optional_example {
   double field4 = {};
   bool operator==(const optional_example &) const = default;
 };
-constexpr auto message_type_url(const optional_example&) { return "type.googleapis.com/optional_example"_cts; }
+constexpr auto message_type_url(const optional_example&) { return hpp::proto::string_literal<"type.googleapis.com/optional_example">{}; }
 
 template <>
 struct glz::meta<optional_example> {
@@ -60,7 +59,7 @@ struct explicit_optional_bool_example {
   bool operator==(const explicit_optional_bool_example &) const = default;
 };
 
-constexpr auto message_type_url(const explicit_optional_bool_example&) { return "type.googleapis.com/explicit_optional_bool_example"_cts; }
+constexpr auto message_type_url(const explicit_optional_bool_example&) { return hpp::proto::string_literal<"type.googleapis.com/explicit_optional_bool_example">{}; }
 
 
 template <>
@@ -73,7 +72,7 @@ struct explicit_optional_uint64_example {
   hpp::proto::optional<uint64_t> field;
   bool operator==(const explicit_optional_uint64_example &) const = default;
 };
-constexpr auto message_type_url(const explicit_optional_uint64_example&) { return "type.googleapis.com/explicit_optional_uint64_example"_cts; }
+constexpr auto message_type_url(const explicit_optional_uint64_example&) { return hpp::proto::string_literal<"type.googleapis.com/explicit_optional_uint64_example">{}; }
 
 template <>
 struct glz::meta<explicit_optional_uint64_example> {
@@ -87,7 +86,7 @@ struct uint32_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
-constexpr auto message_type_url(const uint32_span_example&) { return "type.googleapis.com/uint32_span_example"_cts; }
+constexpr auto message_type_url(const uint32_span_example&) { return hpp::proto::string_literal<"type.googleapis.com/uint32_span_example">{}; }
 
 
 template <>
@@ -103,7 +102,7 @@ struct pair_vector_example {
   std::vector<std::pair<std::string, int32_t>> field;
   bool operator==(const pair_vector_example &other) const = default;
 };
-constexpr auto message_type_url(const pair_vector_example&) { return "type.googleapis.com/pair_vector_example"_cts; }
+constexpr auto message_type_url(const pair_vector_example&) { return hpp::proto::string_literal<"type.googleapis.com/pair_vector_example">{}; }
 
 template <>
 struct glz::meta<pair_vector_example> {
@@ -117,7 +116,7 @@ struct pair_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
-constexpr auto message_type_url(const pair_span_example&) { return "type.googleapis.com/pair_span_example"_cts; }
+constexpr auto message_type_url(const pair_span_example&) { return hpp::proto::string_literal<"type.googleapis.com/pair_span_example">{}; }
 
 template <>
 constexpr auto non_owning<pair_span_example> = true;
@@ -133,7 +132,7 @@ struct object_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
-constexpr auto message_type_url(const object_span_example&) { return "type.googleapis.com/object_span_example"_cts; }
+constexpr auto message_type_url(const object_span_example&) { return hpp::proto::string_literal<"type.googleapis.com/object_span_example">{}; }
 
 template <>
 constexpr auto non_owning<object_span_example> = true;
@@ -150,7 +149,7 @@ struct non_owning_nested_example {
     return nested == other.nested || (nested != nullptr && other.nested != nullptr && *nested == *other.nested);
   }
 };
-constexpr auto message_type_url(const non_owning_nested_example&) { return "type.googleapis.com/non_owning_nested_example"_cts; }
+constexpr auto message_type_url(const non_owning_nested_example&) { return hpp::proto::string_literal<"type.googleapis.com/non_owning_nested_example">{}; }
 
 template <>
 constexpr auto non_owning<non_owning_nested_example> = true;
@@ -239,7 +238,7 @@ struct bytes_example {
 };
 
 template<typename T>
-constexpr auto message_type_url(const bytes_example<T>&) { return "type.googleapis.com/bytes_example"_cts; }
+constexpr auto message_type_url(const bytes_example<T>&) { return hpp::proto::string_literal<"type.googleapis.com/bytes_example">{}; }
 
 
 template <>
@@ -268,11 +267,10 @@ const ut::suite test_bytes = [] {
 
   "bytes"_test = []<class Bytes> {
     verify(bytes_example<Bytes>{}, R"({"field0":""})");
-    using namespace hpp::proto::literals;
-    verify(bytes_example<Bytes>{.field0 = static_cast<Bytes>("foo"_cts),
-                                .field1 = static_cast<Bytes>("light work."_cts),
-                                .field2 = static_cast<Bytes>("light work"_cts),
-                                .field3 = static_cast<Bytes>("light wor"_cts)},
+    verify(bytes_example<Bytes>{.field0 = "foo"_bytes,
+                                .field1 = "light work."_bytes,
+                                .field2 = "light work"_bytes,
+                                .field3 = "light wor"_bytes},
            R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
   } | std::tuple<std::vector<std::byte>, std::span<const std::byte>>{};
 };

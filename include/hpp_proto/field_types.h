@@ -417,16 +417,6 @@ struct string_literal {
   explicit operator std::string() const { return std::string{data()}; }
   constexpr operator std::string_view() const { return std::string_view(data(), size()); }
 
-  template <concepts::byte_type Byte>
-  explicit operator std::vector<Byte>() const {
-    return std::vector<Byte>{reinterpret_cast<const Byte *>(begin()), reinterpret_cast<const Byte *>(end())};
-  }
-
-  template <concepts::byte_type Byte>
-  explicit operator std::span<const Byte>() const {
-    return std::span<const Byte>{reinterpret_cast<const Byte *>(data()), size()};
-  }
-
   friend constexpr bool operator==(const string_literal &lhs, const std::string &rhs) {
     return static_cast<std::string_view>(lhs) == rhs;
   }
@@ -434,37 +424,11 @@ struct string_literal {
   friend constexpr bool operator==(const string_literal &lhs, const std::string_view &rhs) {
     return static_cast<std::string_view>(lhs) == rhs;
   }
-
-  friend constexpr bool operator==(const string_literal &lhs, const std::span<const std::byte> &rhs) {
-    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
-                      [](char a, std::byte b) { return static_cast<std::byte>(a) == b; });
-  }
-
-  friend constexpr bool operator==(const string_literal &lhs, const std::span<const char> &rhs) {
-    return std::equal(rhs.begin(), rhs.end(), lhs.data(), lhs.data() + lhs.size());
-  }
 };
 
 using bytes = std::vector<std::byte>;
 using bytes_view = std::span<const std::byte>;
 
-namespace literals {
-
-template <compile_time_string str>
-constexpr auto operator""_cts() {
-  return string_literal<str>{};
-}
-
-template <compile_time_string str>
-constexpr auto operator""_bytes_view() {
-  return static_cast<bytes_view>(bytes_literal<str>{});
-}
-
-template <compile_time_string str>
-constexpr auto operator""_bytes() {
-  return static_cast<std::vector<std::byte>>(bytes_literal<str>{});
-}
-} // namespace literals
 
 struct boolean {
   bool value = false;

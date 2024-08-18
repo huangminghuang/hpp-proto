@@ -5,7 +5,6 @@
 namespace ut = boost::ut;
 using hpp::proto::field_option;
 using namespace boost::ut::literals;
-using namespace hpp::proto::literals;
 using namespace std::string_view_literals;
 
 #define carg(...) ([]() constexpr -> decltype(auto) { return __VA_ARGS__; })
@@ -620,8 +619,6 @@ struct string_example {
 auto pb_meta(const string_example &)
     -> std::tuple<hpp::proto::field_meta<1, &string_example::value, field_option::none>>;
 
-using namespace hpp::proto::literals;
-
 struct string_with_default {
   std::string value = "test";
   bool operator==(const string_with_default &) const = default;
@@ -744,10 +741,10 @@ struct bytes_with_default {
 
 auto pb_meta(const bytes_with_default &)
     -> std::tuple<hpp::proto::field_meta<1, &bytes_with_default::value, field_option::none, void,
-                                         hpp::proto::string_literal<"test">{}>>;
+                                         hpp::proto::bytes_literal<"test">{}>>;
 
 struct bytes_with_optional {
-  hpp::proto::optional<std::vector<std::byte>, hpp::proto::string_literal<"test">{}> value;
+  hpp::proto::optional<std::vector<std::byte>, hpp::proto::bytes_literal<"test">{}> value;
   bool operator==(const bytes_with_optional &) const = default;
 };
 
@@ -779,66 +776,6 @@ const ut::suite test_bytes = [] {
   };
 };
 
-struct char_vector_example {
-  std::vector<char> value;
-  bool operator==(const char_vector_example &) const = default;
-};
-
-auto pb_meta(const char_vector_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &char_vector_example::value, field_option::none>>;
-
-struct char_vector_explicit_presence {
-  std::vector<char> value;
-  bool operator==(const char_vector_explicit_presence &) const = default;
-};
-
-auto pb_meta(const char_vector_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta<1, &char_vector_explicit_presence::value, field_option::explicit_presence>>;
-
-struct char_vector_with_default {
-  std::vector<char> value = {'t', 'e', 's', 't'};
-  bool operator==(const char_vector_with_default &) const = default;
-};
-
-auto pb_meta(const char_vector_with_default &)
-    -> std::tuple<hpp::proto::field_meta<1, &char_vector_with_default::value, field_option::none, void,
-                                         hpp::proto::string_literal<"test">{}>>;
-
-struct char_vector_with_optional {
-  hpp::proto::optional<std::vector<char>, hpp::proto::string_literal<"test">{}> value;
-  bool operator==(const char_vector_with_optional &) const = default;
-};
-
-auto pb_meta(const char_vector_with_optional &)
-    -> std::tuple<hpp::proto::field_meta<1, &char_vector_with_optional::value, field_option::explicit_presence>>;
-
-const ut::suite test_char_vector = [] {
-  const static auto verified_value = std::vector<char>{'t', 'e', '\0', 't'};
-
-  "char_vector_example"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"sv, char_vector_example{.value = verified_value});
-  };
-
-  "char_vector_explicit_presence"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"sv, char_vector_explicit_presence{.value = verified_value});
-  };
-
-  "char_vector_with_default_empty"_test = [] { verify(""sv, char_vector_with_default{}); };
-
-  "char_vector_with_default"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"sv, char_vector_with_default{.value = verified_value});
-  };
-
-  "char_vector_with_optional"_test = [] {
-    verify("\x0a\x04\x74\x65\x00\x74"sv, char_vector_with_optional{.value = verified_value});
-  };
-
-  "optional_value_access"_test = [] {
-    char_vector_with_optional const v;
-    ut::expect(v.value.value_or_default() == std::vector<char>{'t', 'e', 's', 't'});
-  };
-};
-
 struct byte_span_example {
   std::span<const std::byte> value;
   bool operator==(const byte_span_example &other) const { return std::ranges::equal(value, other.value); }
@@ -862,10 +799,10 @@ struct byte_span_with_default {
 
 auto pb_meta(const byte_span_with_default &)
     -> std::tuple<hpp::proto::field_meta<1, &byte_span_with_default::value, field_option::none, void,
-                                         hpp::proto::string_literal<"test">{}>>;
+                                         hpp::proto::bytes_literal<"test">{}>>;
 
 struct byte_span_with_optional {
-  hpp::proto::optional<std::span<const std::byte>, hpp::proto::string_literal<"test">{}> value;
+  hpp::proto::optional<std::span<const std::byte>, hpp::proto::bytes_literal<"test">{}> value;
   bool operator==(const byte_span_with_optional &other) const {
     return (!value.has_value() && !other.value.has_value()) ||
            (value.has_value() && other.value.has_value() && std::ranges::equal(*value, *other.value));
@@ -916,9 +853,11 @@ void verify_segmented_input(auto& encoded, const T& value, const std::vector<int
 
 const ut::suite test_segmented_byte_range = [] {
   "bytes_with_segmented_input"_test = [] {
-    char_vector_example value;
+    bytes_example value;
     value.value.resize(128);
-    std::iota(value.value.begin(), value.value.end(), '\0');
+    for (int i = 0; i < 128; ++i) {
+      value.value[i] = std::byte(i);
+    }
 
     std::vector<char> encoded;
     ut::expect(hpp::proto::write_proto(value, encoded).ok());

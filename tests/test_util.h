@@ -76,3 +76,14 @@ struct monotonic_buffer_resource {
   }
 };
 
+template <hpp::proto::compile_time_string str>
+constexpr auto operator""_bytes_view() {
+  return static_cast<hpp::proto::bytes_view>(hpp::proto::bytes_literal<str>{});
+}
+
+template <hpp::proto::compile_time_string str>
+constexpr auto operator""_bytes() {
+  return static_cast<std::vector<std::byte>>(hpp::proto::bytes_literal<str>{});
+}
+
+

@@ -14,7 +14,6 @@ std::ostream &operator<<(std::ostream &os, const T &v) {
 
 namespace TestUtil {
 using namespace std::literals::string_literals;
-using namespace hpp::proto::literals;
 using namespace boost::ut;
 
 // Set every field in the message to a unique value.

@@ -36,6 +36,8 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse> {
   static constexpr auto value = object(
     "error", hpp::proto::as_optional_ref<&T::error>,
     "supportedFeatures", hpp::proto::as_optional_ref<&T::supported_features>,
+    "minimumEdition", hpp::proto::as_optional_ref<&T::minimum_edition>,
+    "maximumEdition", hpp::proto::as_optional_ref<&T::maximum_edition>,
     "file", hpp::proto::as_optional_ref<&T::file>);
 };
 
