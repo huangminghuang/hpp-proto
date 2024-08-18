@@ -38,7 +38,7 @@ function(protobuf_generate)
     target_link_libraries(${protobuf_generate_TARGET} ${_scope} hpp_proto::libhpp_proto)
     target_compile_features(${protobuf_generate_TARGET} ${_scope} cxx_std_20)
   elseif(protobuf_generate_LANGUAGE STREQUAL cpp)
-    target_link_libraries(${protobuf_generate_TARGET} PUBLIC libprotobuf)
+    target_link_libraries(${protobuf_generate_TARGET} PUBLIC protobuf::libprotobuf)
   endif()
 
   if(NOT protobuf_generate_PROTOC_OUT_DIR)
