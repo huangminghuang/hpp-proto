@@ -3,7 +3,7 @@ project(hpp_proto
   VERSION 0.1.0
   LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 20) # requires for compiling is_utf
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
@@ -77,6 +77,12 @@ target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_N
 
 
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
+
+if (MSVC)
+  add_compile_options("/Zc:preprocessor" "/EHsc")
+else()
+  add_compile_options("-Wall" "-Wall" "-Wextra" "-Wpedantic")
+endif()
 
 if(HPP_PROTO_TESTS)
   CPMAddPackage(

@@ -7,7 +7,6 @@
 
 using namespace non_owning;
 using namespace std::string_view_literals;
-using namespace hpp::proto::literals;
 
 // We selectively set/check a few representative fields rather than all fields
 // as this test is only expected to cover the basics of lite support.
@@ -84,7 +83,6 @@ inline void SetUnpackedFields(proto3_unittest::TestUnpackedTypes *message) {
 
 inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   namespace ut = boost::ut;
-  using namespace hpp::proto::literals;
 
   ut::expect(100 == m.optional_int32);
   ut::expect("asdf"sv == m.optional_string);

@@ -6,8 +6,6 @@
 // We selectively set/check a few representative fields rather than all fields
 // as this test is only expected to cover the basics of lite support.
 inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
-  using namespace hpp::proto::literals;
-
   m->optional_int32 = 100;
   m->optional_string = "asdf";
   m->optional_bytes = "jkl;"_bytes;
@@ -52,7 +50,6 @@ inline void SetUnpackedFields(proto3_unittest::TestUnpackedTypes *message) {
 
 inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   namespace ut = boost::ut;
-  using namespace hpp::proto::literals;
 
   ut::expect(100 == m.optional_int32);
   ut::expect("asdf" == m.optional_string);

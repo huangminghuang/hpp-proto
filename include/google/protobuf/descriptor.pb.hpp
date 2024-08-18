@@ -27,7 +27,7 @@ auto pb_meta(const FileDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<8, &FileDescriptorProto::options, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<9, &FileDescriptorProto::source_code_info, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<12, &FileDescriptorProto::syntax, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<13, &FileDescriptorProto::edition, hpp::proto::field_option::none>>;
+  hpp::proto::field_meta<14, &FileDescriptorProto::edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>>;
 
 auto pb_meta(const DescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &DescriptorProto::name, hpp::proto::field_option::none>,
@@ -121,7 +121,6 @@ auto pb_meta(const FileOptions &) -> std::tuple<
   hpp::proto::field_meta<16, &FileOptions::cc_generic_services, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<17, &FileOptions::java_generic_services, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<18, &FileOptions::py_generic_services, hpp::proto::field_option::none, bool, false>,
-  hpp::proto::field_meta<42, &FileOptions::php_generic_services, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<23, &FileOptions::deprecated, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<31, &FileOptions::cc_enable_arenas, hpp::proto::field_option::none, bool, true>,
   hpp::proto::field_meta<36, &FileOptions::objc_class_prefix, hpp::proto::field_option::none>,
@@ -158,12 +157,19 @@ auto pb_meta(const FieldOptions &) -> std::tuple<
   hpp::proto::field_meta<19, &FieldOptions::targets, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<20, &FieldOptions::edition_defaults, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<21, &FieldOptions::features, hpp::proto::field_option::explicit_presence>,
+  hpp::proto::field_meta<22, &FieldOptions::feature_support, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<999, &FieldOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &FieldOptions::extensions>>;
 
 auto pb_meta(const FieldOptions::EditionDefault &) -> std::tuple<
-  hpp::proto::field_meta<1, &FieldOptions::EditionDefault::edition, hpp::proto::field_option::none>,
+  hpp::proto::field_meta<3, &FieldOptions::EditionDefault::edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
   hpp::proto::field_meta<2, &FieldOptions::EditionDefault::value, hpp::proto::field_option::none>>;
+
+auto pb_meta(const FieldOptions::FeatureSupport &) -> std::tuple<
+  hpp::proto::field_meta<1, &FieldOptions::FeatureSupport::edition_introduced, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+  hpp::proto::field_meta<2, &FieldOptions::FeatureSupport::edition_deprecated, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+  hpp::proto::field_meta<3, &FieldOptions::FeatureSupport::deprecation_warning, hpp::proto::field_option::none>,
+  hpp::proto::field_meta<4, &FieldOptions::FeatureSupport::edition_removed, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>>;
 
 auto pb_meta(const OneofOptions &) -> std::tuple<
   hpp::proto::field_meta<1, &OneofOptions::features, hpp::proto::field_option::explicit_presence>,
@@ -182,6 +188,7 @@ auto pb_meta(const EnumValueOptions &) -> std::tuple<
   hpp::proto::field_meta<1, &EnumValueOptions::deprecated, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<2, &EnumValueOptions::features, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<3, &EnumValueOptions::debug_redact, hpp::proto::field_option::none, bool, false>,
+  hpp::proto::field_meta<4, &EnumValueOptions::feature_support, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<999, &EnumValueOptions::uninterpreted_option, hpp::proto::field_option::unpacked_repeated>,
   hpp::proto::field_meta<UINT32_MAX, &EnumValueOptions::extensions>>;
 
@@ -215,11 +222,20 @@ auto pb_meta(const FeatureSet &) -> std::tuple<
   hpp::proto::field_meta<1, &FeatureSet::field_presence, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::FieldPresence::FIELD_PRESENCE_UNKNOWN>,
   hpp::proto::field_meta<2, &FeatureSet::enum_type, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::EnumType::ENUM_TYPE_UNKNOWN>,
   hpp::proto::field_meta<3, &FeatureSet::repeated_field_encoding, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN>,
-  hpp::proto::field_meta<4, &FeatureSet::string_field_validation, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::StringFieldValidation::STRING_FIELD_VALIDATION_UNKNOWN>,
+  hpp::proto::field_meta<4, &FeatureSet::utf8_validation, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::Utf8Validation::UTF8_VALIDATION_UNKNOWN>,
   hpp::proto::field_meta<5, &FeatureSet::message_encoding, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::MessageEncoding::MESSAGE_ENCODING_UNKNOWN>,
   hpp::proto::field_meta<6, &FeatureSet::json_format, hpp::proto::field_option::none, void, ::google::protobuf::FeatureSet::JsonFormat::JSON_FORMAT_UNKNOWN>,
-  hpp::proto::field_meta<999, &FeatureSet::raw_features, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<UINT32_MAX, &FeatureSet::extensions>>;
+
+auto pb_meta(const FeatureSetDefaults &) -> std::tuple<
+  hpp::proto::field_meta<1, &FeatureSetDefaults::defaults, hpp::proto::field_option::unpacked_repeated>,
+  hpp::proto::field_meta<4, &FeatureSetDefaults::minimum_edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+  hpp::proto::field_meta<5, &FeatureSetDefaults::maximum_edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>>;
+
+auto pb_meta(const FeatureSetDefaults::FeatureSetEditionDefault &) -> std::tuple<
+  hpp::proto::field_meta<3, &FeatureSetDefaults::FeatureSetEditionDefault::edition, hpp::proto::field_option::none, void, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+  hpp::proto::field_meta<4, &FeatureSetDefaults::FeatureSetEditionDefault::overridable_features, hpp::proto::field_option::explicit_presence>,
+  hpp::proto::field_meta<5, &FeatureSetDefaults::FeatureSetEditionDefault::fixed_features, hpp::proto::field_option::explicit_presence>>;
 
 auto pb_meta(const SourceCodeInfo &) -> std::tuple<
   hpp::proto::field_meta<1, &SourceCodeInfo::location, hpp::proto::field_option::unpacked_repeated>>;

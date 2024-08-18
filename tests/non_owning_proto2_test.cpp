@@ -12,7 +12,6 @@ std::ostream &operator<<(std::ostream &os, const T &v) {
 
 namespace TestUtil {
 using namespace std::literals::string_view_literals;
-using namespace hpp::proto::literals;
 using namespace boost::ut;
 using namespace non_owning;
 

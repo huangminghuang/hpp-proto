@@ -10,7 +10,6 @@
 
 namespace google::protobuf::compiler {
 
-using namespace hpp::proto::literals;
 struct Version {
   int32_t major = {};
   int32_t minor = {};
@@ -38,6 +37,8 @@ struct CodeGeneratorResponse {
 
   std::string error = {};
   uint64_t supported_features = {};
+  int32_t minimum_edition = {};
+  int32_t maximum_edition = {};
   std::vector<File> file;
 
   bool operator == (const CodeGeneratorResponse&) const = default;
@@ -53,8 +54,8 @@ struct CodeGeneratorRequest {
   bool operator == (const CodeGeneratorRequest&) const = default;
 };
 
-constexpr auto message_type_url(const Version&) { return "type.googleapis.com/google.protobuf.compiler.Version"_cts; }
-constexpr auto message_type_url(const CodeGeneratorResponse::File&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse.File"_cts; }
-constexpr auto message_type_url(const CodeGeneratorResponse&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse"_cts; }
-constexpr auto message_type_url(const CodeGeneratorRequest&) { return "type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest"_cts; }
+constexpr auto message_type_url(const Version&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.Version">{}; }
+constexpr auto message_type_url(const CodeGeneratorResponse::File&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse.File">{}; }
+constexpr auto message_type_url(const CodeGeneratorResponse&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse">{}; }
+constexpr auto message_type_url(const CodeGeneratorRequest&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest">{}; }
 } // namespace google::protobuf::compiler

@@ -58,7 +58,8 @@
             "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "HPP_PROTO_BENCHMARKS": true
+                "HPP_PROTO_BENCHMARKS": true,
+                "HPP_PROTO_COMPILE_PROTOC": false
             }
         },
         {
