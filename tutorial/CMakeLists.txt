@@ -8,12 +8,6 @@ if(PROJECT_IS_TOP_LEVEL)
   find_package(hpp_proto CONFIG REQUIRED)
 endif()
 
-if (MSVC)
-  add_compile_options("/Zc:preprocessor" "/W4")
-else()
-  add_compile_options("-Wall" "-Wall" "-Wextra" "-Wpedantic")
-endif()
-
 add_subdirectory(regular)
 add_subdirectory(non_owning)
 add_subdirectory(mixed_ownership)
