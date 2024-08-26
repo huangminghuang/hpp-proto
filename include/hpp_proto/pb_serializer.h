@@ -120,7 +120,8 @@ using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 namespace concepts {
 
 template <typename Type>
-concept varint = requires { requires std::same_as<Type, hpp::proto::varint<typename Type::value_type, Type::encoding>>; };
+concept varint =
+    requires { requires std::same_as<Type, hpp::proto::varint<typename Type::value_type, Type::encoding>>; };
 
 template <typename Type>
 concept associative_container =
@@ -507,7 +508,7 @@ struct oneof_field_meta {
   }
 };
 
-struct status {
+struct [[nodiscard]] status {
   std::errc ec = {};
   constexpr status() = default;
   constexpr status(const status &) = default;
@@ -1301,7 +1302,7 @@ struct pb_serializer {
     }
   }
 
-  constexpr static bool serialize(concepts::has_meta auto &&item, uint32_t *&cache, auto &archive) {
+  [[nodiscard]] constexpr static bool serialize(concepts::has_meta auto &&item, uint32_t *&cache, auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using metas = typename traits::meta_of<type>::type;
     return std::apply([&](auto... meta) { return (serialize_field(meta, meta.access(item), cache, archive) && ...); },
@@ -1309,7 +1310,7 @@ struct pb_serializer {
   }
 
   template <typename Meta>
-  HPP_PROTO_INLINE constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache, auto &archive) {
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache, auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
@@ -1398,7 +1399,7 @@ struct pb_serializer {
   }
 
   template <std::size_t I, concepts::tuple Meta>
-  HPP_PROTO_INLINE constexpr static bool serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return serialize_field(typename std::tuple_element<I, Meta>::type{},
@@ -1438,6 +1439,24 @@ struct pb_serializer {
         current.slope_begin = next_region->slope_begin;
         size_exclude_current -= (next_region->effective_size);
         ++next_region;
+      }
+    }
+
+    template <typename T, typename ByteT>
+    constexpr void append_raw_data(T &container, const ByteT *start_pos, std::size_t num_elements) {
+      using value_type = typename T::value_type;
+      if constexpr (requires { container.append_raw_data(start_pos, num_elements); }) {
+        container.append_raw_data(start_pos, num_elements);
+      } else if (std::is_constant_evaluated() ||
+                 (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
+        using input_it = detail::raw_data_iterator<value_type, ByteT>;
+        container.insert(container.end(), input_it{start_pos}, input_it{start_pos + num_elements * sizeof(value_type)});
+      } else {
+        // auto n = container.size();
+        // container.resize(n + num_elements);
+        // std::memcpy(container.data() + n, start_pos, num_elements * sizeof(value_type));
+        auto first = reinterpret_cast<const value_type *>(start_pos);
+        container.insert(container.end(), first, first + num_elements);
       }
     }
 
@@ -1917,12 +1936,12 @@ struct pb_serializer {
         } else { // pre-C++23 std::map
           v[std::move(val.first)] = std::move(val.second);
         }
-      } else if constexpr(std::same_as<value_encode_type, value_type>) {
-        if (auto result = deserialize_element(v[i]); !result.ok())  [[unlikely]]
+      } else if constexpr (std::same_as<value_encode_type, value_type>) {
+        if (auto result = deserialize_element(v[i]); !result.ok()) [[unlikely]]
           return result;
       } else {
         value_encode_type element;
-        if (auto result = deserialize_element(element); !result.ok())  [[unlikely]]
+        if (auto result = deserialize_element(element); !result.ok()) [[unlikely]]
           return result;
         v[i] = std::move(static_cast<value_type>(std::move(element)));
       }
@@ -2143,7 +2162,8 @@ struct pb_serializer {
 
   constexpr static status deserialize_sized(auto &&item, auto &context, concepts::is_basic_in auto &archive) {
     vuint32_t len;
-    archive(len);
+    if (auto result = archive(len); !result.ok()) [[unlikely]]
+      return result;
 
     if (len < archive.in_avail()) [[likely]] {
       auto new_archive = archive.split(len);
@@ -2295,7 +2315,9 @@ struct pb_serializer {
       return std::span<std::byte>{};
     } else {
       std::array<std::byte, sz> buffer;
-      serialize(ObjectLambda(), buffer);
+      if (auto result = serialize(ObjectLambda(), buffer); !result.ok()) {
+        throw std::system_error(std::make_error_code(result.ec));
+      }
       return buffer;
     }
   }
@@ -2303,8 +2325,7 @@ struct pb_serializer {
   template <typename T>
   constexpr static auto from_bytes(auto &&buffer) {
     T obj = {};
-    auto result = deserialize(obj, buffer, pb_context{});
-    if (!result.ok())
+    if (auto result = deserialize(obj, buffer, pb_context{}); !result.ok())
       throw std::system_error(std::make_error_code(result.ec));
     return obj;
   }

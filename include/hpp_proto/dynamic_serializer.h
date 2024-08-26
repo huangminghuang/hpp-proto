@@ -2,10 +2,10 @@
 #include <system_error>
 #include <unordered_map>
 
-#include <hpp_proto/json_serializer.h>
 #include <hpp_proto/descriptor_pool.h>
 #include <hpp_proto/duration_codec.h>
 #include <hpp_proto/field_mask_codec.h>
+#include <hpp_proto/json_serializer.h>
 #include <hpp_proto/pb_serializer.h>
 #include <hpp_proto/timestamp_codec.h>
 
@@ -435,9 +435,8 @@ class dynamic_serializer {
         return decode_group<Options>(meta.type_index, meta.number, archive);
       case TYPE_MESSAGE: {
         vint64_t length = 0;
-        archive(length);
-        if (archive.in_avail() < length) {
-          [[unlikely]] return std::errc::bad_message;
+        if (!archive(length).ok() || archive.in_avail() < length) [[unlikely]] {
+          return std::errc::bad_message;
         }
 
         auto new_archive = archive.split(length);
@@ -880,7 +879,7 @@ class dynamic_serializer {
     status encode_map_key(std::string_view key, auto &archive) {
       T value;
       glz::detail::read<glz::json>::op<glz::ws_handled<glz::opts{}>()>(get_underlying_value(value), context, key.data(),
-                                                                      key.data()+key.size());
+                                                                       key.data() + key.size());
       if (bool(context.error)) {
         [[unlikely]] return std::errc::illegal_byte_sequence;
       }
@@ -1560,7 +1559,7 @@ public:
 
   template <auto Opts>
   glz::expected<std::vector<std::byte>, hpp::proto::json_status> json_to_proto(std::string_view message_name,
-                                                                                    std::string_view json) const {
+                                                                               std::string_view json) const {
     std::vector<std::byte> result;
     if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); !ec.ok()) {
       return glz::unexpected(ec);
@@ -1569,24 +1568,31 @@ public:
   }
 
   glz::expected<std::vector<std::byte>, hpp::proto::json_status> json_to_proto(std::string_view message_name,
-                                                                                    std::string_view json) const {
+                                                                               std::string_view json) const {
     return json_to_proto<glz::opts{}>(message_name, json);
   }
 
   template <auto Options, class End>
-  void from_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &&it, End &&end) const {
+  void from_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &&it,
+                     End &&end) const {
     json_to_pb_state state{*this};
     relocatable_out archive{value.value};
-    state.template encode_any<Options, true>(value.type_url, it, end, archive);
-    ctx.error = state.context.error;
+    if (!state.template encode_any<Options, true>(value.type_url, it, end, archive).ok()) {
+      ctx.error = glz::error_code::syntax_error;
+    } else {
+      ctx.error = state.context.error;
+    }
   }
 
   template <auto Options>
   void to_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &&b, auto &&ix) const {
     pb_to_json_state state(*this, b);
     state.ix = ix;
-    state.template decode_any<Options>(value);
-    ctx.error = state.context.error;
+    if (!state.template decode_any<Options>(value).ok()) {
+      ctx.error = glz::error_code::syntax_error;
+    } else {
+      ctx.error = state.context.error;
+    }
     ix = state.ix;
   }
 };
