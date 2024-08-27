@@ -109,6 +109,9 @@ auto pb_meta(const repeated_sint32_unpacked_explicit_type &)
 const ut::suite test_repeated_sint32 = [] {
   "repeated_sint32"_test = [] {
     verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, repeated_sint32{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
+    auto encoded_data = "\x0a\x09\0x01\0x80\0x80\x80\x80\x80\0x10\x02\x03"sv;
+    repeated_sint32 value;
+    ut::expect(!hpp::proto::read_proto(value, encoded_data).ok());
   };
 
   "repeated_sint32_unpacked"_test = [] {

@@ -886,6 +886,7 @@ class sfvint_parser {
   uint64_t pt_val = 0;
 
 public:
+  bool has_error = false;
   sfvint_parser(Result *data) : res(data) {}
 
   static consteval int calc_shift_bits(unsigned sign_bits) {
@@ -915,11 +916,12 @@ public:
   }
 
   HPP_PROTO_INLINE void output(uint64_t v) {
-    if constexpr (varint_encoding::zig_zag == T::encoding) {
-      *res++ = static_cast<Result>((v >> 1) ^ -static_cast<int64_t>(v & 0x1));
-    } else {
-      *res++ = static_cast<Result>(v);
+    auto r = (varint_encoding::zig_zag == T::encoding) ? (v >> 1) ^ -static_cast<int64_t>(v & 0x1) : v;
+    if constexpr (sizeof(r) > sizeof(*res)) {
+      auto high_32_bits = r >> 32;
+      has_error |= (high_32_bits != 0 && (std::is_signed_v<Result> && high_32_bits != 0xFFFFFFFF));
     }
+    *res++ = static_cast<Result>(v);
   }
 
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
@@ -1310,7 +1312,8 @@ struct pb_serializer {
   }
 
   template <typename Meta>
-  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache, auto &archive) {
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache,
+                                                                       auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
@@ -1570,7 +1573,7 @@ struct pb_serializer {
         }
         auto end = current.begin + bytes_count;
         current.begin = parser.parse(current.begin, end);
-        if (end != current.begin) [[unlikely]] {
+        if (end != current.begin || parser.has_error) [[unlikely]] {
           return std::errc::bad_message;
         }
         return {};
