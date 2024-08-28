@@ -880,7 +880,10 @@ public:
 template <concepts::varint T, typename Result>
 class sfvint_parser {
   // This class implements the variable-length integer decoding algorithm from https://arxiv.org/html/2403.06898v1
-  constexpr static int MaskLength = 6;
+  constexpr static int mask_length = 6;
+  // google implementation only treat more than 10 bytes encoded value as error; i.e. a 6 bytes 
+  // encoded value does not treated as error for uint32 
+  constexpr static int max_effective_bits = 10*7;
   Result *res;
   int shift_bits = 0;
   uint64_t pt_val = 0;
@@ -890,7 +893,7 @@ public:
   sfvint_parser(Result *data) : res(data) {}
 
   static consteval int calc_shift_bits(unsigned sign_bits) {
-    unsigned mask = 1 << (MaskLength - 1);
+    unsigned mask = 1 << (mask_length - 1);
     int result = 0;
     for (; mask != 0 && (sign_bits & mask); mask >>= 1) {
       result += 1;
@@ -900,7 +903,7 @@ public:
 
   static consteval uint64_t calc_word_mask() {
     uint64_t result = 0x80ULL;
-    for (int i = 0; i < MaskLength - 1; ++i)
+    for (int i = 0; i < mask_length - 1; ++i)
       result = (result << CHAR_BIT | 0x80ULL);
     return result;
   }
@@ -917,11 +920,7 @@ public:
 
   HPP_PROTO_INLINE void output(uint64_t v) {
     auto r = (varint_encoding::zig_zag == T::encoding) ? (v >> 1) ^ -static_cast<int64_t>(v & 0x1) : v;
-    if constexpr (sizeof(r) > sizeof(*res)) {
-      auto high_32_bits = r >> 32;
-      has_error |= (high_32_bits != 0 && (std::is_signed_v<Result> && high_32_bits != 0xFFFFFFFF));
-    }
-    *res++ = static_cast<Result>(v);
+    *res++ = static_cast<Result>(r);
   }
 
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
@@ -936,29 +935,30 @@ public:
 
   template <uint64_t SignBits, int I>
   inline void output(uint64_t word, uint64_t &extract_mask) {
-    if constexpr (I < MaskLength) {
+    if constexpr (I < mask_length) {
       extract_mask |= 0x7fULL << (CHAR_BIT * I);
       if ((SignBits & (0x01ULL << I)) == 0) {
         output(pext_u64(word, extract_mask));
         extract_mask = 0;
       }
       output<SignBits, I + 1>(word, extract_mask);
-    }
+    } 
   }
 
   template <uint64_t SignBits>
   HPP_PROTO_INLINE void fixed_masked_parse(uint64_t word) {
     uint64_t extract_mask = calc_extract_mask(SignBits);
-    if constexpr (std::countr_one(SignBits) < MaskLength) {
+    if constexpr (std::countr_one(SignBits) < mask_length) {
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
       constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
+      has_error |= ((bytes_processed*7 + shift_bits) > max_effective_bits);
       extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);
       output<SignBits, bytes_processed>(word, extract_mask);
       pt_val = 0;
       shift_bits = 0;
     }
 
-    if constexpr (SignBits & (0x01ULL << (MaskLength - 1))) {
+    if constexpr (SignBits & (0x01ULL << (mask_length - 1))) {
       pt_val |= pext_u64(word, extract_mask) << shift_bits;
     }
 
@@ -972,11 +972,12 @@ public:
 
   template <concepts::byte_type Byte>
   const Byte *parse_partial(const Byte *begin, const Byte *end) {
-    for (; end - begin >= MaskLength; begin += MaskLength) {
+    end -= ((end - begin) % mask_length);
+    for (; begin < end ; begin += mask_length) {
       uint64_t word;
       memcpy(&word, begin, sizeof(word));
       auto mval = pext_u64(word, word_mask);
-      parse_word(mval, word, std::make_index_sequence<1 << MaskLength>());
+      parse_word(mval, word, std::make_index_sequence<1 << mask_length>());
     }
     return begin;
   }
@@ -989,6 +990,7 @@ public:
     memcpy(&word, begin, bytes_left);
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
       pt_val |= ((word & 0x7fULL) << shift_bits);
+      has_error |= (shift_bits >= max_effective_bits);
       if (word & 0x80ULL) {
         shift_bits += (CHAR_BIT - 1);
       } else {
@@ -1659,15 +1661,17 @@ struct pb_serializer {
 #endif
         return std::popcount(v);
       };
+      auto remaining = (end - begin) % 8;
+      end -= remaining;
 
-      for (; end - begin >= 8; begin += sizeof(uint64_t)) {
+      for (; begin < end; begin += sizeof(uint64_t)) {
         uint64_t v;
         std::memcpy(&v, begin, sizeof(v));
         result += popcount(~v & 0x8080808080808080ULL);
       }
-      if (end - begin > 0) {
+      if (remaining > 0) {
         uint64_t v = UINT64_MAX;
-        std::memcpy(&v, begin, end - begin);
+        std::memcpy(&v, begin, remaining);
         result += popcount(~v & 0x8080808080808080ULL);
       }
       return result;
