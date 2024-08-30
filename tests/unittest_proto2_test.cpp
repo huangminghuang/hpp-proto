@@ -3,7 +3,6 @@
 #include "unittest_proto2_util.h"
 namespace ut = boost::ut;
 
-
 using TestRequired_meta = decltype(pb_meta(std::declval<protobuf_unittest::TestRequired>()));
 static_assert(std::tuple_element_t<0, TestRequired_meta>::is_explicit_presence);
 
@@ -43,7 +42,9 @@ const ut::suite proto_test = [] {
 
         std::vector<char> data;
         expect(hpp::proto::write_proto(original, data).ok());
-
+#if __has_include(<google/protobuf/json/json.h>)
+        // older version of google protobuf implementation has bug to serialize group to json;
+        // disable this test when the version of protobuf is too old.
         auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(),
                                                       hpp::proto::message_name(original), {data.data(), data.size()});
 
@@ -55,6 +56,7 @@ const ut::suite proto_test = [] {
         expect(hpp::proto::read_json(msg, original_json).ok());
 
         TestUtil::ExpectAllSet(msg);
+#endif
       } |
       std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestUnpackedTypes,
                  protobuf_unittest::TestPackedTypes>{};

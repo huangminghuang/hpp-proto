@@ -30,7 +30,7 @@ using namespace ut;
 template <typename T>
 void verify(const T &msg, std::string_view json, const hpp::proto::dynamic_serializer &ser,
             const source_location &from_loc = source_location::current()) {
-  std::string from_line_number = std::string("from ") + from_loc.file_name() + ":" + std::to_string(from_loc.line());
+  const std::string from_line_number = std::string("from ") + from_loc.file_name() + ":" + std::to_string(from_loc.line());
   expect(eq(json, hpp::proto::write_json(msg).value())) << from_line_number;
 
   T msg2;

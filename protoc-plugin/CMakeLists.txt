@@ -1,4 +1,5 @@
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+add_compile_options(${HPP_PROTO_COMPILE_OPTIONS})
 
 add_executable(protoc-gen-hpp hpp_gen.cpp)
 add_executable(hpp_proto::protoc-gen-hpp ALIAS protoc-gen-hpp)

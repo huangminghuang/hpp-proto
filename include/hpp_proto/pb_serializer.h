@@ -369,7 +369,7 @@ constexpr inline const Byte *shift_mix_parse_varint(const Byte *p, const Byte *e
 
   // A zero value of the first bit of the 10th byte represents an
   // over-serialized varint. This case should not happen, but if does (say, due
-  // to a nonconforming serializer), deassert the continuation bit that came
+  // to a nonconforming serializer), de-assert the continuation bit that came
   // from ptr[8].
   if (sizeof(Type) == 8 && (last() & 1) == 0) {
     constexpr int bits = 64 - 1;
@@ -453,7 +453,7 @@ constexpr const Byte *unchecked_parse_bool(const Byte *p, bool &value) {
 enum field_option { none = 0, explicit_presence = 1, unpacked_repeated = 2, group = 4 };
 
 template <auto Accessor>
-struct accesor_type {
+struct accessor_type {
   inline constexpr auto &operator()(auto &&item) const {
     if constexpr (std::is_member_pointer_v<decltype(Accessor)>)
       return item.*Accessor;
@@ -494,12 +494,12 @@ struct field_meta_base {
 template <uint32_t Number, auto Accessor, int options = field_option::none, typename Type = void,
           auto DefaultValue = std::monostate{}>
 struct field_meta : field_meta_base<Number, options, Type, DefaultValue> {
-  constexpr static auto access = accesor_type<Accessor>{};
+  constexpr static auto access = accessor_type<Accessor>{};
 };
 
 template <auto Accessor, typename... AlternativeMeta>
 struct oneof_field_meta {
-  constexpr static auto access = accesor_type<Accessor>{};
+  constexpr static auto access = accessor_type<Accessor>{};
   using alternatives_meta = std::tuple<AlternativeMeta...>;
   using type = void;
   template <typename T>
@@ -524,14 +524,14 @@ struct [[nodiscard]] status {
 template <typename T>
 struct extension_meta_base {
 
-  struct accesor_type {
+  struct accessor_type {
     inline constexpr auto &operator()(auto &&item) const {
       auto &[e] = item;
       return e;
     }
   };
 
-  constexpr static auto access = accesor_type{};
+  constexpr static auto access = accessor_type{};
 
   static constexpr void check(const concepts::pb_extension auto &extensions) {
     static_assert(std::same_as<typename std::remove_cvref_t<decltype(extensions)>::pb_extension, typename T::extendee>);
@@ -810,13 +810,13 @@ struct reverse_indices {
   constexpr static auto indices = get_indices(typename traits::meta_of<Type>::type{});
 
   consteval static auto build_lookup_table_indices() {
-    std::array<uint32_t, mask + 1> masked_number_occurances;
-    masked_number_occurances.fill(0U);
+    std::array<uint32_t, mask + 1> masked_number_occurrence;
+    masked_number_occurrence.fill(0U);
     for (auto num : numbers) {
-      ++masked_number_occurances[num & mask];
+      ++masked_number_occurrence[num & mask];
     }
     std::array<uint32_t, mask + 2> table_indices = {0};
-    std::partial_sum(masked_number_occurances.begin(), masked_number_occurances.end(), table_indices.begin() + 1);
+    std::partial_sum(masked_number_occurrence.begin(), masked_number_occurrence.end(), table_indices.begin() + 1);
     return table_indices;
   }
 
@@ -881,9 +881,9 @@ template <concepts::varint T, typename Result>
 class sfvint_parser {
   // This class implements the variable-length integer decoding algorithm from https://arxiv.org/html/2403.06898v1
   constexpr static int mask_length = 6;
-  // google implementation only treat more than 10 bytes encoded value as error; i.e. a 6 bytes 
-  // encoded value does not treated as error for uint32 
-  constexpr static int max_effective_bits = 10*7;
+  // google implementation only treat more than 10 bytes encoded value as error; i.e. a 6 bytes
+  // encoded value does not treated as error for uint32
+  constexpr static int max_effective_bits = 10 * 7;
   Result *res;
   int shift_bits = 0;
   uint64_t pt_val = 0;
@@ -942,7 +942,7 @@ public:
         extract_mask = 0;
       }
       output<SignBits, I + 1>(word, extract_mask);
-    } 
+    }
   }
 
   template <uint64_t SignBits>
@@ -951,7 +951,7 @@ public:
     if constexpr (std::countr_one(SignBits) < mask_length) {
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
       constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
-      has_error |= ((bytes_processed*7 + shift_bits) > max_effective_bits);
+      has_error |= ((bytes_processed * 7 + shift_bits) > max_effective_bits);
       extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);
       output<SignBits, bytes_processed>(word, extract_mask);
       pt_val = 0;
@@ -973,7 +973,7 @@ public:
   template <concepts::byte_type Byte>
   const Byte *parse_partial(const Byte *begin, const Byte *end) {
     end -= ((end - begin) % mask_length);
-    for (; begin < end ; begin += mask_length) {
+    for (; begin < end; begin += mask_length) {
       uint64_t word;
       memcpy(&word, begin, sizeof(word));
       auto mval = pext_u64(word, word_mask);
@@ -983,14 +983,18 @@ public:
   }
 
   template <concepts::byte_type Byte>
-  const Byte *parse(const Byte *begin, const Byte *end) {
+#if defined(__GNUC__) || defined(__clang__)
+  __attribute__((no_sanitize("undefined")))
+#endif
+  const Byte *
+  parse(const Byte *begin, const Byte *end) {
     begin = parse_partial(begin, end);
     ptrdiff_t bytes_left = end - begin;
     uint64_t word = 0;
     memcpy(&word, begin, bytes_left);
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
-      pt_val |= ((word & 0x7fULL) << shift_bits);
       has_error |= (shift_bits >= max_effective_bits);
+      pt_val |= ((word & 0x7fULL) << shift_bits);
       if (word & 0x80ULL) {
         shift_bits += (CHAR_BIT - 1);
       } else {
@@ -1293,7 +1297,7 @@ struct pb_serializer {
     if (std::is_constant_evaluated() || n > MAX_CACHE_COUNT) {
       constexpr_vector<uint32_t> cache(n);
       return do_serialize(cache);
-    } else {
+    } else if (n > 0) {
 #if defined(_MSC_VER)
       uint32_t *cache = static_cast<uint32_t *>(_alloca(n * sizeof(uint32_t)));
 #elif defined(__GNUC__)
@@ -1303,6 +1307,8 @@ struct pb_serializer {
       uint32_t cache[MAX_CACHE_COUNT];
 #endif
       return do_serialize({cache, n});
+    } else {
+      return do_serialize({static_cast<uint32_t *>(nullptr), 0});
     }
   }
 
@@ -1457,11 +1463,9 @@ struct pb_serializer {
         using input_it = detail::raw_data_iterator<value_type, ByteT>;
         container.insert(container.end(), input_it{start_pos}, input_it{start_pos + num_elements * sizeof(value_type)});
       } else {
-        // auto n = container.size();
-        // container.resize(n + num_elements);
-        // std::memcpy(container.data() + n, start_pos, num_elements * sizeof(value_type));
-        auto first = reinterpret_cast<const value_type *>(start_pos);
-        container.insert(container.end(), first, first + num_elements);
+        auto n = container.size();
+        container.resize(n + num_elements);
+        std::memcpy(container.data() + n, start_pos, num_elements * sizeof(value_type));
       }
     }
 
@@ -2277,8 +2281,8 @@ struct pb_serializer {
                                       concepts::segmented_byte_range auto &&buffer, input_buffer_region<Byte> *regions,
                                       Byte *patch_buffer) {
     auto total_size = setup_input_regions(buffer, regions, patch_buffer);
-    constexpr bool is_contigueous = false;
-    auto archive = basic_in<Byte, is_contigueous>(regions, total_size - regions->effective_size);
+    constexpr bool is_contiguous = false;
+    auto archive = basic_in<Byte, is_contiguous>(regions, total_size - regions->effective_size);
     return deserialize(item, context, archive);
   }
 

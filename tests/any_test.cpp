@@ -13,7 +13,7 @@
 
 using namespace boost::ut;
 
-suite test_any = [] {
+const suite test_any = [] {
   "any"_test = [] {
     protobuf_unittest::TestAny message;
     google::protobuf::FieldMask fm{.paths = {"/usr/share", "/usr/local/share"}};
@@ -70,10 +70,10 @@ suite test_any = [] {
     expect(message == message2);
   };
 
-  "any_josn"_test = [] {
+  "any_json"_test = [] {
     protobuf_unittest::TestAny message;
-    proto3_unittest::ForeignMessage submessage{.c = 1234};
-    expect(hpp::proto::pack_any(message.any_value.emplace(), submessage).ok());
+    proto3_unittest::ForeignMessage sub_message{.c = 1234};
+    expect(hpp::proto::pack_any(message.any_value.emplace(), sub_message).ok());
 
     std::string data;
     expect(hpp::proto::write_proto(message, data).ok());
@@ -84,7 +84,7 @@ suite test_any = [] {
 
     expect(fatal(ser.has_value()));
     const char *message_name = "protobuf_unittest.TestAny";
-    std::string_view expected_json =
+    const std::string_view expected_json =
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234}})";
     auto hpp_result = ser->proto_to_json(message_name, data);
     expect(fatal(hpp_result.has_value()));

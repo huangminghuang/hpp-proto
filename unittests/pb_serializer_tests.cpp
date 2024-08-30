@@ -674,7 +674,7 @@ const ut::suite test_string_example = [] {
     ut::expect(v.value.value_or_default() == "test");
   };
 
-  "string_requried"_test = [] { verify("\x0a\x00"sv, string_required{}); };
+  "string_required"_test = [] { verify("\x0a\x00"sv, string_required{}); };
 };
 
 struct string_view_example {
@@ -898,13 +898,14 @@ const ut::suite test_segmented_byte_range = [] {
   "packed_sint32_with_segmented_input"_test = [] {
     repeated_sint32 value;
     value.integers.resize(32);
-    std::iota(value.integers.begin(), value.integers.end(), INT32_MAX-15);
+    std::iota(value.integers.begin(), value.integers.begin()+16, INT32_MAX-16);
+    std::iota(value.integers.begin()+16, value.integers.end(), INT32_MIN);
     std::vector<char> encoded;
     ut::expect(hpp::proto::write_proto(value, encoded).ok());
 
     verify(encoded, value);
-    int len = static_cast<int>(encoded.size());
-    int s = (len - 10)/2;
+    const int len = static_cast<int>(encoded.size());
+    const int s = (len - 10)/2;
     verify_segmented_input(encoded, value, {s, 10, len - 10 - s});
   };
 };
@@ -1008,7 +1009,7 @@ struct extension_example {
 
   template <typename Meta>
   [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
+    return meta.write(extensions, std::move(value));
   }
 
   template <typename Meta>
@@ -1169,7 +1170,7 @@ struct non_owning_extension_example {
   template <typename Meta>
   [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::set_value_type &&value,
                                                  hpp::proto::concepts::is_pb_context auto &&mr) {
-    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), mr);
+    return meta.write(extensions, std::move(value), mr);
   }
 
   template <typename Meta>
@@ -1364,7 +1365,7 @@ auto pb_meta(const non_owning_recursive_type1 &) -> std::tuple<
     hpp::proto::field_meta<2, &non_owning_recursive_type1::payload, field_option::none, hpp::proto::vint64_t>>;
 
 struct non_owning_recursive_type2 {
-  std::span<non_owning_recursive_type2> children = {};
+  std::span<non_owning_recursive_type2> children;
   int32_t payload = {};
 #ifdef _LIBCPP_VERSION
   constexpr non_owning_recursive_type2() noexcept = default;
@@ -1582,7 +1583,7 @@ struct person {
   int32_t id = {};   // = 2
   std::string email; // = 3
 
-  enum phone_type {
+  enum phone_type : uint8_t {
     mobile = 0,
     home = 1,
     work = 2,
@@ -1673,7 +1674,7 @@ struct person_map {
   int32_t id = {};   // = 2
   std::string email; // = 3
 
-  enum phone_type {
+  enum phone_type : uint8_t {
     mobile = 0,
     home = 1,
     work = 2,
@@ -1722,10 +1723,10 @@ const ut::suite test_default_person_in_address_book = [] {
   expect(hpp::proto::read_proto(b, data).ok());
 
   expect(b.people.size() == 1_u);
-  expect(b.people[0].name == ""sv);
+  expect(b.people[0].name.empty());
   expect(that % b.people[0].id == 0);
-  expect(b.people[0].email == ""sv);
-  expect(b.people[0].phones.size() == 0_u);
+  expect(b.people[0].email.empty());
+  expect(b.people[0].phones.empty());
 
   std::array<char, "\x0a\x00"sv.size()> new_data{};
   expect(hpp::proto::write_proto(b, new_data).ok());
@@ -1756,11 +1757,10 @@ const ut::suite test_empty_person = [] {
   person p;
   expect(hpp::proto::read_proto(p, data).ok());
 
-  expect(p.name.size() == 0_u);
-  expect(p.name == ""sv);
+  expect(p.name.empty());
   expect(that % p.id == 0);
-  expect(p.email == ""sv);
-  expect(p.phones.size() == 0_u);
+  expect(p.email.empty());
+  expect(p.phones.empty());
 
   std::vector<char> new_data{};
   expect(hpp::proto::write_proto(p, new_data).ok());

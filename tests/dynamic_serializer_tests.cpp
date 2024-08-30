@@ -39,13 +39,15 @@ void test_fixture(auto &message, const char *message_name, const char *descripto
 
 const boost::ut::suite dynamic_serializer_test = [] {
   using namespace boost::ut;
-
+#if __has_include(<google/protobuf/json/json.h>)
+  // older version of google protobuf implementation has bug to serialize group to json;
+  // disable this test when the version of protobuf is too old.
   "unittest_proto2"_test = [] {
     protobuf_unittest::TestAllTypes message;
     TestUtil::SetAll(&message);
     test_fixture(message, "protobuf_unittest.TestAllTypes", "unittest_proto2.bin");
   };
-
+#endif
   "unittest_proto3"_test = [] {
     proto3_unittest::TestAllTypes message;
     SetAllFields(&message);

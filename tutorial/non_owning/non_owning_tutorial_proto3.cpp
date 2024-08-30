@@ -71,6 +71,7 @@ int main() {
     return 1;
   }
 
+  // NOLINTBEGIN(misc-const-correctness,bugprone-unchecked-optional-access)
   {
     std::span<const tutorial::Person> people = new_address_book.people;
     assert_true(people.size() == 2);
@@ -96,6 +97,7 @@ int main() {
     assert_true(std::get<tutorial::Person::oneof_field_oneof_case::oneof_string>(alex_oneof_field) ==
                 "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
   }
+  // NOLINTEND(misc-const-correctness,bugprone-unchecked-optional-access)
 
   std::string json;
 

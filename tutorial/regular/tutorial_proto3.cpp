@@ -45,6 +45,7 @@ int main() {
 
   assert_true(address_book == new_address_book);
 
+  // NOLINTBEGIN(misc-const-correctness,bugprone-unchecked-optional-access)
   std::vector<tutorial::Person> &people = address_book.people;
   assert_true(people.size() == 2);
   tutorial::Person &alex = address_book.people[0];
@@ -58,6 +59,7 @@ int main() {
   std::optional<tutorial::Person::NestedMessage> &alex_nested_message = alex.nested_message;
   assert_true(alex_nested_message.has_value());
   assert_true(alex_nested_message->bb == 89);
+  // NOLINTEND(misc-const-correctness,bugprone-unchecked-optional-access)
 
   std::variant<std::monostate, uint32_t, tutorial::Person::NestedMessage, std::string, hpp::proto::bytes>
       &alex_oneof_field = alex.oneof_field;

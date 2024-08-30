@@ -1,7 +1,7 @@
 
 function(gen_proto_descriptor_set out_file)
     set(oneValueArgs "")
-        set(multiValueArgs PROTOS IMPORT_DIRS)
+        set(multiValueArgs PROTOS IMPORT_DIRS PROTOC_OPTIONS)
         cmake_parse_arguments(HPP "${options}" "${oneValueArgs}"
                             "${multiValueArgs}" ${ARGN})
 
@@ -33,7 +33,7 @@ function(gen_proto_descriptor_set out_file)
         COMMENT "Generating ${out_file}"
         OUTPUT  ${out_file}
         COMMAND protobuf::protoc 
-        ARGS ${_include_dirs} --include_imports --descriptor_set_out=${out_file} ${_rel_protos}
+        ARGS ${_include_dirs} ${HPP_PROTOC_OPTIONS} --include_imports --descriptor_set_out=${out_file} ${_rel_protos}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
 

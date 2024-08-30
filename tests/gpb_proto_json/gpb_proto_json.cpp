@@ -13,10 +13,10 @@ std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_n
   gpb::DynamicMessageFactory factory(&pool);
 
   std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
-  message->ParseFromString(data);
+  message->ParseFromArray(data.data(), data.size());
 
   std::string result;
-  gpb::json::PrintOptions options;
+  gpb::util::JsonPrintOptions options;
 
   (void)gpb::util::MessageToJsonString(*message, &result, options);
 
@@ -28,17 +28,17 @@ std::string json_to_proto(const gpb::DescriptorPool &pool, const char *message_n
   gpb::DynamicMessageFactory factory(&pool);
 
   std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
-  (void)gpb::util::JsonStringToMessage(data, message.get());
+  (void)gpb::util::JsonStringToMessage(std::string{data}, message.get());
   return message->SerializeAsString();
 }
 
 std::string proto_to_json(std::string_view filedescriptorset_stream, const char *message_name, std::string_view data) {
   gpb::FileDescriptorSet fileset;
-  fileset.ParseFromString(filedescriptorset_stream);
+  fileset.ParseFromArray(filedescriptorset_stream.data(),(int) filedescriptorset_stream.size());
 
   gpb::SimpleDescriptorDatabase database;
   for (int i = 0; i < fileset.file_size(); ++i) {
-    database.AddUnowned(&fileset.file(i));
+    database.Add(fileset.file(i));
   }
 
   const gpb::DescriptorPool pool(&database);
@@ -47,11 +47,11 @@ std::string proto_to_json(std::string_view filedescriptorset_stream, const char 
 
 std::string json_to_proto(std::string_view filedescriptorset_stream, const char *message_name, std::string_view data) {
   gpb::FileDescriptorSet fileset;
-  fileset.ParseFromString(filedescriptorset_stream);
+  fileset.ParseFromArray(filedescriptorset_stream.data(), (int)filedescriptorset_stream.size());
 
   gpb::SimpleDescriptorDatabase database;
   for (int i = 0; i < fileset.file_size(); ++i) {
-    database.AddUnowned(&fileset.file(i));
+    database.Add(fileset.file(i));
   }
 
   const gpb::DescriptorPool pool(&database);

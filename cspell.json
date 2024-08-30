@@ -1,0 +1,69 @@
+// cSpell Settings
+{
+    // Version of the setting file.  Always 0.2
+    "version": "0.2",
+    // language - current active spelling language
+    "language": "en",
+    // words - list of words to be always considered correct
+    "words": [
+        "descriptorset",
+        "filedescriptorset",
+        "fileset",
+        "protoc",
+        "minghuang",
+        "oneof",
+        "idempotency",
+        "jstype",
+        "SFIXED",
+        "GENCODE",
+        "extendee",
+        "googleapis",
+        "varint",
+        "varints",
+        "vint",
+        "vuint",
+        "vsint",
+        "ccbb",
+        "baaa",
+        "shld",
+        "superscalar",
+        "sgroup",
+        "egroup",
+        "metas",
+        "sfvint",
+        "mval",
+        "cpuidex",
+        "popcnt",
+        "popcntq",
+        "qmap",
+        "oneofs",
+        "dependee",
+        "LIBCPP",
+        "bugprone",
+        "dumpn",
+        "proto",
+        "protobuf",
+        "sint",
+        "ctype",
+        "repeatedgroup",
+        "optionalgroup",
+        "bools",
+        "Tiananmen",
+        "Glna",
+        "Wmissing",
+        "corge",
+        "foob",
+        "fooba",
+        "addressbook",
+        "struct",
+        "cerr",
+        "Bbuild",
+        "DCMAKE"
+
+    ],
+    // flagWords - list of words to be always considered incorrect
+    // This is useful for offensive words and common spelling errors.
+    // For example "hte" should be "the"
+    "flagWords": [
+    ]
+}

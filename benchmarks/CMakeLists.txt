@@ -1,3 +1,12 @@
+CPMAddPackage(
+      NAME benchmark
+      GITHUB_REPOSITORY google/benchmark
+      VERSION 1.8.3
+      OPTIONS
+      "BENCHMARK_ENABLE_TESTING OFF"
+      "BENCHMARK_ENABLE_INSTALL OFF"
+    )
+    
 set(proto_files benchmark_messages_proto3.proto benchmark_messages_proto2.proto packed_repeated_message.proto)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/owning)

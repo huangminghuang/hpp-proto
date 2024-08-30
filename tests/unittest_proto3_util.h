@@ -14,7 +14,6 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->optional_nested_enum = proto3_unittest::TestAllTypes::NestedEnum::BAZ;
   m->optional_foreign_enum = proto3_unittest::ForeignEnum::FOREIGN_BAZ;
   m->optional_lazy_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 45 };
-  m->optional_unverified_lazy_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 46 };
 
   m->repeated_int32.push_back(100);
   m->repeated_string.push_back("asdf");
@@ -62,8 +61,6 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   ut::expect(proto3_unittest::ForeignEnum::FOREIGN_BAZ == m.optional_foreign_enum);
   ut::expect(true == m.optional_lazy_message.has_value());
   ut::expect(45 == m.optional_lazy_message->bb);
-  ut::expect(true == m.optional_unverified_lazy_message.has_value());
-  ut::expect(46 == m.optional_unverified_lazy_message->bb);
 
   ut::expect(1 == m.repeated_int32.size());
   ut::expect(100 == m.repeated_int32[0]);

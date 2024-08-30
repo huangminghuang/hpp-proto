@@ -38,7 +38,9 @@ int main() {
   }
   assert_true(address_book == new_address_book);
 
+  // NOLINTBEGIN(misc-const-correctness)
   std::vector<tutorial::Person>& people = address_book.people;
+  // NOLINTEND(misc-const-correctness)
   assert_true(people.size() == 2);
   tutorial::Person& alex = address_book.people[0];
   hpp::proto::optional<std::string>& alex_name = alex.name;

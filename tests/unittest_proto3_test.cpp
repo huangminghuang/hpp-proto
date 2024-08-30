@@ -2,15 +2,8 @@
 #include "test_util.h"
 #include "unittest_proto3_util.h"
 
-
-// static_assert(
-//     ensure_all_fields_field_option<proto3_unittest::TestPackedTypes, hpp::proto::field_option::none>());
-
-// static_assert(ensure_all_fields_field_option<proto3_unittest::TestUnpackedTypes,
-//                                               hpp::proto::field_option::unpacked_repeated>());
-
 // In this file we only test some basic functionalities of in proto3 and expect
-// the rest is fully tested in proto2 unittests because proto3 shares most code
+// the rest is fully tested in proto2 unit tests because proto3 shares most code
 // with proto2.
 
 const boost::ut::suite proto3_lite_test = [] {
