@@ -24,7 +24,7 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <google/protobuf/compiler/plugin.pb.hpp>
-#include <hpp_proto/descriptor_pool.h>
+#include <hpp_proto/descriptor_pool.hpp>
 #include <iostream>
 #include <numeric>
 #include <set>
@@ -753,7 +753,7 @@ struct msg_code_generator : code_generator {
     gen_file_header(file_name);
     file.name = file_name.substr(0, file_name.size() - 5) + "msg.hpp";
     fmt::format_to(target, "#pragma once\n\n"
-                           "#include <hpp_proto/field_types.h>\n");
+                           "#include <hpp_proto/field_types.hpp>\n");
 
     for (const auto &d : descriptor.proto.dependency) {
       fmt::format_to(target, "#include \"{}.msg.hpp\"\n", basename(d));
@@ -1073,7 +1073,7 @@ struct hpp_meta_generator : code_generator {
     syntax = descriptor.syntax;
     fmt::format_to(target,
                    "#pragma once\n\n"
-                   "#include <hpp_proto/pb_serializer.h>\n"
+                   "#include <hpp_proto/pb_serializer.hpp>\n"
                    "#include \"{}.msg.hpp\"\n",
                    basename(descriptor.proto.name));
     for (const auto &d : descriptor.proto.dependency) {
@@ -1293,7 +1293,7 @@ struct glaze_meta_generator : code_generator {
 
     if (sole_message_name != "google.protobuf.Any") {
       fmt::format_to(target, "#pragma once\n\n"
-                             "#include <hpp_proto/json_serializer.h>\n");
+                             "#include <hpp_proto/json_serializer.hpp>\n");
 
       for (const auto &d : descriptor.proto.dependency) {
         fmt::format_to(target, "#include \"{}.glz.hpp\"\n", basename(d));
@@ -1302,12 +1302,12 @@ struct glaze_meta_generator : code_generator {
       fmt::format_to(target, "#include \"{}.msg.hpp\"\n\n", basename(descriptor.proto.name));
 
       if (!sole_message_name.empty() && well_known_codecs.contains(sole_message_name)) {
-        fmt::format_to(target, "#include <hpp_proto/{}.h>\n\n", well_known_codecs.at(sole_message_name));
+        fmt::format_to(target, "#include <hpp_proto/{}.hpp>\n\n", well_known_codecs.at(sole_message_name));
       }
     } else {
       fmt::format_to(target,
                      "#pragma once\n\n"
-                     "#include <hpp_proto/dynamic_serializer.h>\n\n"
+                     "#include <hpp_proto/dynamic_serializer.hpp>\n\n"
                      "#include \"{}.msg.hpp\"\n\n",
                      basename(descriptor.proto.name));
     }
@@ -1592,7 +1592,7 @@ struct desc_hpp_generator : code_generator {
     file.name = path.substr(0, path.size() - 5) + "desc.hpp";
 
     fmt::format_to(target, "#pragma once\n"
-                           "#include <hpp_proto/dynamic_serializer.h>\n\n");
+                           "#include <hpp_proto/dynamic_serializer.hpp>\n\n");
 
     for (const auto &d : descriptor.proto.dependency) {
       fmt::format_to(target, "#include \"{}.desc.hpp\"\n", basename(d));

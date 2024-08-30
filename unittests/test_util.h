@@ -6,7 +6,7 @@
 #include <span>
 #include <algorithm>
 #include <ranges>
-#include <hpp_proto/pb_serializer.h>
+#include <hpp_proto/pb_serializer.hpp>
 
 namespace std {
 inline std::ostream &operator<<(std::ostream &os, std::byte b) {
@@ -35,8 +35,8 @@ inline std::ostream &operator<<(std::ostream &os, std::span<const std::byte> byt
 
 struct monotonic_buffer_resource {
   std::size_t size;
-  void *mem = 0;
-  void *cur = 0;
+  void *mem = nullptr;
+  void *cur = nullptr;
   monotonic_buffer_resource(std::size_t sz) : size(sz), mem(malloc(sz)), cur(mem) {}
   monotonic_buffer_resource(const monotonic_buffer_resource&) = delete;
   ~monotonic_buffer_resource() { free(mem); }

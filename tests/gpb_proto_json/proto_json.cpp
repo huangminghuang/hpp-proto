@@ -1,4 +1,4 @@
-#include "gpb_proto_json.h"
+#include "gpb_proto_json.hpp"
 #include <cxxopts.hpp>
 #include <iostream>
 #include <fstream>

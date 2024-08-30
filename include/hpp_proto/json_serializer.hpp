@@ -9,7 +9,7 @@
 #pragma GCC diagnostic pop
 #endif
 
-#include <hpp_proto/memory_resource_utils.h>
+#include <hpp_proto/memory_resource_utils.hpp>
 
 namespace hpp::proto {
 
@@ -17,7 +17,9 @@ template <typename T, std::size_t Index>
 struct oneof_wrapper {
   static constexpr auto glaze_reflect = false;
   T *value;
+  // NOLINTBEGIN(hicpp-explicit-conversions)
   operator bool() const { return value->index() == Index; }
+  // NOLINTEND(hicpp-explicit-conversions)
   auto &operator*() const { return std::get<Index>(*value); }
 };
 
@@ -29,7 +31,9 @@ constexpr oneof_wrapper<T, Index> wrap_oneof(T &v) {
 template <typename T>
 struct map_wrapper {
   static constexpr auto glaze_reflect = false;
+  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
   T &value;
+  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 namespace concepts {

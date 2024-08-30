@@ -1,6 +1,6 @@
 # hpp-proto
 
-hpp-proto is a C++20-based tool that simplifies the use of Protocol Buffers in C++. The tool achieves this by generating C++ aggregate types from .proto files and providing a header only library to encode/decode Protobuf data using these types. It's worth noting that the generated aggregate types heavily use the C++ Standard Library containers such as std::vector and std::string, in contrast to the Google implementation, which makes them easier to use and integrate with existing C++ codebases. 
+hpp-proto is a C++20-based tool that simplifies the use of Protocol Buffers in C++. The tool achieves this by generating C++ aggregate types from .proto files and providing a header only library to encode/decode Protobuf data using these types. It's worth noting that the generated aggregate types heavily use the C++ Standard Library containers such as std::vector and std::string, in contrast to the Google implementation, which makes them easier to use and integrate with existing C++ codebase. 
 
 ## Features
 * All Protocol Buffers message definitions are mapped to simple C++ aggregates based on standard C++ library.

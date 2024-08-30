@@ -13,12 +13,13 @@ std::string read_data_file(const char* filename) {
 }
 
 int main(int argc, const char** argv) {
-
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " filename\n";
         return 1;
     }
     auto data = read_data_file(argv[1]);
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
     benchmarks::proto3::GoogleMessage1 message;
     if (!message.ParseFromArray(data.data(), static_cast<int>(data.size()))) {

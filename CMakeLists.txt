@@ -13,6 +13,7 @@ option(HPP_PROTO_COMPILE_PROTOC "Alwyas compile protoc from source" OFF)
 option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
 
 
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/CPM.cmake)

@@ -1,6 +1,6 @@
 
-#include "gpb_proto_json/gpb_proto_json.h"
-#include "test_util.h"
+#include "gpb_proto_json/gpb_proto_json.hpp"
+#include "test_util.hpp"
 #include <boost/ut.hpp>
 #include <non_owning/google/protobuf/unittest_proto3.glz.hpp>
 #include <non_owning/google/protobuf/unittest_proto3.pb.hpp>

@@ -1,4 +1,4 @@
-#include "gpb_proto_json.h"
+#include "gpb_proto_json.hpp"
 #include <google/protobuf/compiler/importer.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/dynamic_message.h>
@@ -10,13 +10,15 @@ namespace gpb = google::protobuf;
 std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data) {
 
   const auto* message_descriptor = pool.FindMessageTypeByName(message_name);
+  // NOLINTBEGIN(misc-const-correctness)
   gpb::DynamicMessageFactory factory(&pool);
+  // NOLINTEND(misc-const-correctness)
 
   std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
-  message->ParseFromArray(data.data(), data.size());
+  message->ParseFromArray(data.data(), static_cast<int>(data.size()));
 
   std::string result;
-  gpb::util::JsonPrintOptions options;
+  const gpb::util::JsonPrintOptions options;
 
   (void)gpb::util::MessageToJsonString(*message, &result, options);
 
@@ -25,7 +27,9 @@ std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_n
 
 std::string json_to_proto(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data) {
   const auto* message_descriptor = pool.FindMessageTypeByName(message_name);
+  // NOLINTBEGIN(misc-const-correctness)
   gpb::DynamicMessageFactory factory(&pool);
+  // NOLINTEND(misc-const-correctness)
 
   std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
   (void)gpb::util::JsonStringToMessage(std::string{data}, message.get());

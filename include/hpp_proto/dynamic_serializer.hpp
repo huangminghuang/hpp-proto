@@ -2,12 +2,12 @@
 #include <system_error>
 #include <unordered_map>
 
-#include <hpp_proto/descriptor_pool.h>
-#include <hpp_proto/duration_codec.h>
-#include <hpp_proto/field_mask_codec.h>
-#include <hpp_proto/json_serializer.h>
-#include <hpp_proto/pb_serializer.h>
-#include <hpp_proto/timestamp_codec.h>
+#include <hpp_proto/descriptor_pool.hpp>
+#include <hpp_proto/duration_codec.hpp>
+#include <hpp_proto/field_mask_codec.hpp>
+#include <hpp_proto/json_serializer.hpp>
+#include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/timestamp_codec.hpp>
 
 namespace hpp::proto {
 
@@ -928,8 +928,8 @@ class dynamic_serializer {
     status serialize_sized(auto &archive, auto &&serialize) {
       std::vector<std::byte> buffer;
       {
-        relocatable_out new_rchive{buffer};
-        if (auto result = serialize(new_rchive); !result.ok()) [[unlikely]] {
+        relocatable_out new_archive{buffer};
+        if (auto result = serialize(new_archive); !result.ok()) [[unlikely]] {
           return result;
         }
       }

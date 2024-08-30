@@ -8,7 +8,7 @@
 #include <non_owning/google/protobuf/any_test.pb.hpp>
 #include <non_owning/google/protobuf/field_mask.pb.hpp>
 
-#include "test_util.h"
+#include "test_util.hpp"
 #include <boost/ut.hpp>
 
 using namespace boost::ut;

@@ -1,11 +1,11 @@
 
 
-#include "gpb_proto_json/gpb_proto_json.h"
-#include "map_test_util.h"
-#include "test_util.h"
-#include "unittest_proto2_util.h"
-#include "unittest_proto3_util.h"
-#include <hpp_proto/dynamic_serializer.h>
+#include "gpb_proto_json/gpb_proto_json.hpp"
+#include "map_test_util.hpp"
+#include "test_util.hpp"
+#include "unittest_proto2_util.hpp"
+#include "unittest_proto3_util.hpp"
+#include <hpp_proto/dynamic_serializer.hpp>
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 void test_fixture(auto &message, const char *message_name, const char *descriptorset_file) {
   using namespace boost::ut::literals;

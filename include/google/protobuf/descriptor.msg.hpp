@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <hpp_proto/field_types.h>
+#include <hpp_proto/field_types.hpp>
 
 namespace google::protobuf {
 

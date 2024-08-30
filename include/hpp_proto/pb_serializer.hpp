@@ -36,7 +36,7 @@
 
 #include <execution>
 #include <glaze/util/expected.hpp>
-#include <hpp_proto/memory_resource_utils.h>
+#include <hpp_proto/memory_resource_utils.hpp>
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
 #if defined(_MSC_VER)
@@ -57,8 +57,7 @@
 
 bool is_utf8(const char *src, size_t len);
 
-namespace hpp {
-namespace proto {
+namespace hpp::proto {
 using glz::expected;
 using glz::unexpected;
 
@@ -70,13 +69,13 @@ struct always_allocate_memory {
 
 /////////////////////////////////////////////////////
 
-enum class varint_encoding {
+enum class varint_encoding : uint8_t {
   normal,
   zig_zag,
 };
 
 template <varint_encoding Encoding = varint_encoding::normal>
-inline constexpr auto varint_size(auto value) {
+constexpr auto varint_size(auto value) {
   if constexpr (Encoding == varint_encoding::zig_zag) {
     return varint_size(std::make_unsigned_t<decltype(value)>((value << 1) ^ (value >> (sizeof(value) * CHAR_BIT - 1))));
   } else {
@@ -518,7 +517,7 @@ struct [[nodiscard]] status {
 
   constexpr status &operator=(const status &) = default;
 
-  constexpr bool ok() { return ec == std::errc{}; }
+  constexpr bool ok() const { return ec == std::errc{}; }
 };
 
 template <typename T>
@@ -750,7 +749,7 @@ constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N>
 }
 
 template <typename T, std::size_t M>
-constexpr std::array<T, M> operator<<(std::array<T, M> lhs, std::span<uint32_t>) {
+constexpr std::array<T, M> operator<<(std::array<T, M> lhs, std::span<uint32_t> /*unused*/) {
   return lhs;
 }
 
@@ -2472,8 +2471,7 @@ concept is_any = requires(T &obj) {
   return std::errc::invalid_argument;
 }
 
-} // namespace proto
-} // namespace hpp
+} // namespace hpp::proto
 
 #undef HPP_PROTO_INLINE
 

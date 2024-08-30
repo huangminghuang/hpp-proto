@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <numeric>
-#include <hpp_proto/memory_resource_utils.h>
+#include <hpp_proto/memory_resource_utils.hpp>
 namespace hpp::proto {
 
 struct field_mask_codec {
@@ -11,8 +11,9 @@ struct field_mask_codec {
   }
 
   static int64_t encode(auto &&value, auto &&b) noexcept {
-    if (value.paths.empty())
+    if (value.paths.empty()) {
       return 0;
+    }
     char *cur = std::data(b);
     for (auto &p : value.paths) {
       cur = std::copy(std::begin(p), std::end(p), cur);
@@ -23,8 +24,9 @@ struct field_mask_codec {
   }
 
   static bool decode(auto &&json, auto &&value) {
-    if (json.empty())
+    if (json.empty()) {
       return true;
+    }
     auto is_comma = [](auto c) { return c == ','; };
     auto num_commas = std::count_if(json.begin(), json.end(), is_comma);
     value.paths.resize(num_commas + 1);

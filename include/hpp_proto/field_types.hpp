@@ -25,7 +25,7 @@
 #include <algorithm>
 #include <cassert>
 #include <functional>
-#include <hpp_proto/flat_map.h>
+#include <hpp_proto/flat_map.hpp>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -63,6 +63,7 @@ struct float_wrapper {
   constexpr bool operator==(float v) const { return v == std::bit_cast<float>(x); }
 };
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #if defined(__clang__)
 #define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
   hpp::proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
@@ -72,14 +73,15 @@ struct float_wrapper {
 #define HPP_PROTO_WRAP_FLOAT(v) v
 #define HPP_PROTO_WRAP_DOUBLE(v) v
 #endif
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 template <int64_t x>
-static constexpr auto unwrap(double_wrapper<x>) {
+static constexpr auto unwrap(double_wrapper<x> /* unused */) {
   return std::bit_cast<double>(x);
 }
 
 template <int32_t x>
-static constexpr auto unwrap(float_wrapper<x>) {
+static constexpr auto unwrap(float_wrapper<x> /* unused */) {
   return std::bit_cast<float>(x);
 }
 
@@ -96,7 +98,10 @@ public:
   using value_type = T;
 
   constexpr optional() noexcept = default;
-  constexpr optional(std::nullopt_t) noexcept : impl(std::nullopt) {}
+  constexpr ~optional() noexcept = default;
+
+  // NOLINTBEGIN(hicpp-explicit-conversions)
+  constexpr optional(std::nullopt_t /*unused*/) noexcept : impl(std::nullopt) {}
 
   constexpr optional(optional &&) = default;
   constexpr optional(const optional &) = default;
@@ -104,7 +109,7 @@ public:
   template <class U>
   constexpr optional(const optional<U> &other) : impl(other.impl) {}
   template <class U>
-  constexpr optional(optional<U> &&other) : impl(std::move(other.impl)) {}
+  constexpr optional(optional<U> &&other) : impl(std::move(other).impl) {}
 
   constexpr optional(const std::optional<T> &other) : impl(other) {}
   constexpr optional(std::optional<T> &&other) : impl(std::move(other)) {}
@@ -114,17 +119,19 @@ public:
   constexpr optional(std::optional<U> &&other) : impl(std::move(other)) {}
 
   template <class... Args>
-  constexpr explicit optional(std::in_place_t, Args &&...args) : impl(std::in_place, forward<Args>(args)...) {}
+  constexpr explicit optional(std::in_place_t /* unused */, Args &&...args)
+      : impl(std::in_place, std::forward<Args>(args)...) {}
 
   template <class U, class... Args>
-  constexpr explicit optional(std::in_place_t, std::initializer_list<U> ilist, Args &&...args)
-      : impl(std::in_place, ilist, forward<Args>(args)...) {}
+  constexpr explicit optional(std::in_place_t /* unused */, std::initializer_list<U> list, Args &&...args)
+      : impl(std::in_place, list, std::forward<Args>(args)...) {}
 
   template <typename U>
     requires std::convertible_to<U, T>
   constexpr optional(U &&value) : impl(std::forward<U>(value)) {}
+  // NOLINTEND(hicpp-explicit-conversions)
 
-  constexpr optional &operator=(std::nullopt_t) noexcept {
+  constexpr optional &operator=(std::nullopt_t /* unused */) noexcept {
     impl = std::nullopt;
     return *this;
   }
@@ -144,6 +151,7 @@ public:
     impl = other.imp;
     return *this;
   }
+
   template <class U>
   constexpr optional &operator=(optional<U> &&other) {
     impl = std::move(other.imp);
@@ -156,25 +164,25 @@ public:
   }
 
   constexpr optional &operator=(std::optional<T> &&v) {
-    impl = move(v);
+    impl = std::move(v);
     return *this;
   }
 
-  constexpr bool has_value() const noexcept { return impl.has_value(); }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return impl.has_value(); }
   constexpr operator bool() const noexcept { return has_value(); }
 
-  constexpr T &value() & { return impl.value(); }
-  constexpr const T &value() const & { return impl.value(); }
-  constexpr T &&value() && { return std::move(impl.value()); }
-  constexpr const T &&value() const && { return std::move(impl.value()); }
+  [[nodiscard]] constexpr T &value() & { return impl.value(); }
+  [[nodiscard]] constexpr const T &value() const & { return impl.value(); }
+  [[nodiscard]] constexpr T &&value() && { return std::move(impl.value()); }
+  [[nodiscard]] constexpr const T &&value() const && { return std::move(impl.value()); }
 
   template <class U>
   constexpr T value_or(U &&default_value) const & {
-    return impl.value_or(static_cast<T>(default_value));
+    return impl.value_or(static_cast<T>(std::forward<U>(default_value)));
   }
   template <class U>
   constexpr T value_or(U &&default_value) && {
-    return impl.value_or(default_value);
+    return impl.value_or(std::forward<U>(default_value));
   }
 
   constexpr T *operator->() noexcept { return impl.operator->(); }
@@ -192,7 +200,7 @@ public:
   constexpr void swap(optional &other) noexcept { impl.swap(other.impl); }
   constexpr void reset() noexcept { impl.reset(); }
 
-  constexpr T value_or_default() const {
+  [[nodiscard]] constexpr T value_or_default() const {
     if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
       return this->value_or(T{});
     } else if constexpr (requires { T{Default.data(), Default.size()}; }) {
@@ -224,14 +232,15 @@ class optional<bool, Default> {
 public:
   using value_type = bool;
   constexpr optional() noexcept = default;
-  constexpr optional(bool v) noexcept { impl = uint8_t(v); };
+  constexpr ~optional() noexcept = default;
+  constexpr optional(bool v) noexcept : impl(uint8_t(v)) {};
   constexpr optional(const optional &) noexcept = default;
   constexpr optional &operator=(const optional &) noexcept = default;
 
-  constexpr bool has_value() const noexcept { return impl != 0x80; }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return impl != 0x80; }
   constexpr bool operator*() const noexcept {
     assert(has_value());
-    return impl;
+    return impl != 0;
   }
   bool &operator*() noexcept {
     assert(has_value());
@@ -248,16 +257,16 @@ public:
     return deref();
   }
 
-  constexpr bool value() const {
+  [[nodiscard]] constexpr bool value() const {
     if (!has_value()) {
       throw std::bad_optional_access{};
     }
-    return impl;
+    return impl != 0;
   }
 
-  constexpr bool value_or_default() const noexcept {
+  [[nodiscard]] constexpr bool value_or_default() const noexcept {
     if (has_value()) {
-      return impl;
+      return impl != 0;
     }
     return default_value;
   }
@@ -278,7 +287,7 @@ class heap_based_optional {
 
 public:
   using value_type = T;
-  constexpr heap_based_optional() noexcept {}
+  constexpr heap_based_optional() noexcept = default;
   constexpr heap_based_optional(std::nullopt_t) noexcept {}
   constexpr ~heap_based_optional() { delete obj; }
 
@@ -428,7 +437,6 @@ struct string_literal {
 
 using bytes = std::vector<std::byte>;
 using bytes_view = std::span<const std::byte>;
-
 
 struct boolean {
   bool value = false;

@@ -1,36 +1,39 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
-#include <hpp_proto/json_serializer.h>
+#include <hpp_proto/json_serializer.hpp>
 
 namespace hpp::proto {
 struct duration_codec {
-  constexpr static std::size_t max_encode_size(auto &&) noexcept { return 32; }
+  constexpr static std::size_t max_encode_size(auto && /*unused*/) noexcept { return 32; }
 
   static int64_t encode(auto &&value, auto &&b) noexcept {
     auto has_same_sign = [](auto x, auto y) { return (x ^ y) >= 0; };
-    if (value.nanos > 999999999 || !has_same_sign(value.seconds, value.nanos)) [[unlikely]]
+    if (value.nanos > 999999999 || !has_same_sign(value.seconds, value.nanos)) [[unlikely]] {
       return -1;
+    }
     char *buf = static_cast<char *>(std::data(b));
     auto ix = glz::to_chars(buf, value.seconds) - buf;
     if (value.nanos != 0) {
       int32_t nanos = std::abs(value.nanos);
       glz::detail::dump<'.'>(b, ix);
       char nanos_buf[18] = "00000000";
-      char *p = nanos_buf + 8;
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      char *p = &nanos_buf[8];
       p = glz::to_chars(p, nanos);
       std::memcpy(buf + ix, p - 9, 9);
+      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       ix += 9;
     }
     glz::detail::dump<'s'>(b, ix);
     return ix;
   }
 
-  static bool decode(auto &&josn, auto &&value) {
-    if (josn.empty() || josn.front() == ' ' || josn.back() != 's')
+  static bool decode(auto &&json, auto &&value) {
+    if (json.empty() || json.front() == ' ' || json.back() != 's')
       return false;
-    const char *beg = std::data(josn);
-    const char *end = beg + std::size(josn) - 1;
+    const char *beg = std::data(json);
+    const char *end = beg + std::size(json) - 1;
     char *it;
 
     value.seconds = std::strtoll(beg, &it, 10);

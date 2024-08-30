@@ -1,13 +1,15 @@
 #include "test_util.h"
 #include <boost/ut.hpp>
-#include <hpp_proto/pb_serializer.h>
+#include <hpp_proto/pb_serializer.hpp>
 
 namespace ut = boost::ut;
 using hpp::proto::field_option;
 using namespace boost::ut::literals;
 using namespace std::string_view_literals;
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define carg(...) ([]() constexpr -> decltype(auto) { return __VA_ARGS__; })
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 constexpr void constexpr_verify(auto buffer, auto object_fun) {
   static_assert(std::ranges::equal(buffer(), hpp::proto::pb_serializer::to_bytes(object_fun)));
@@ -62,10 +64,10 @@ struct example_optional_type {
 auto pb_meta(const example_optional_type &) -> std::tuple<
     hpp::proto::field_meta<1, &example_optional_type::i, field_option::explicit_presence, hpp::proto::vint64_t>>;
 
-enum test_mode { decode_encode, decode_only };
+enum test_mode : uint8_t { decode_encode, decode_only };
 
 template <typename T>
-void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encode) {
+void verify(auto encoded_data, const T &expected_value, test_mode mode = decode_encode) {
   std::remove_cvref_t<T> value;
 
   ut::expect(hpp::proto::read_proto(value, encoded_data).ok());
@@ -175,7 +177,7 @@ auto pb_meta(const non_owning_repeated_sint32_unpacked_explicit_type &)
                                          field_option::unpacked_repeated, hpp::proto::vsint32_t>>;
 
 template <typename T>
-void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory_size, test_mode mode = decode_encode) {
+void verify_non_owning(auto encoded_data, const T &expected_value, std::size_t memory_size, test_mode mode = decode_encode) {
   std::remove_cvref_t<T> value;
 
   monotonic_buffer_resource mr{memory_size};
@@ -439,7 +441,7 @@ const ut::suite test_non_owning_repeated_bool = [] {
 };
 
 struct repeated_enum {
-  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::vector<NestedEnum> values;
   bool operator==(const repeated_enum &) const = default;
 };
@@ -448,7 +450,7 @@ auto pb_meta(const repeated_enum &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_enum::values, field_option::none>>;
 
 struct repeated_enum_unpacked {
-  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::vector<NestedEnum> values;
   bool operator==(const repeated_enum_unpacked &) const = default;
 };
@@ -470,7 +472,7 @@ const ut::suite test_repeated_enums = [] {
 };
 
 struct non_owning_repeated_enum {
-  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::span<const NestedEnum> values;
   bool operator==(const non_owning_repeated_enum &other) const { return std::ranges::equal(values, other.values); }
 };
@@ -479,7 +481,7 @@ auto pb_meta(const non_owning_repeated_enum &)
     -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_enum::values, field_option::none>>;
 
 struct non_owning_repeated_enum_unpacked {
-  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::span<const NestedEnum> values;
   bool operator==(const non_owning_repeated_enum_unpacked &other) const {
     return std::ranges::equal(values, other.values);
@@ -566,7 +568,7 @@ const ut::suite test_repeated_group = [] {
   };
 };
 
-enum class color_t { red, blue, green };
+enum class color_t : uint8_t { red, blue, green };
 
 struct map_example {
   std::map<int32_t, color_t> dict;
@@ -857,8 +859,11 @@ void verify_segmented_input(auto& encoded, const T& value, const std::vector<int
       std::vector<std::span<char>> segments;
       segments.resize(sizes.size());
       char *b = encoded.data();
+      assert( sizes.size() > 0);
       for (unsigned i = 0; i < sizes.size(); ++i) {
+        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         char *e = b + sizes[i];
+        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         segments[i] = {b, e};
         b = e;
       }

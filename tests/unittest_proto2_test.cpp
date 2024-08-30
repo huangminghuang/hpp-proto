@@ -1,6 +1,6 @@
 
-#include "gpb_proto_json/gpb_proto_json.h"
-#include "unittest_proto2_util.h"
+#include "gpb_proto_json/gpb_proto_json.hpp"
+#include "unittest_proto2_util.hpp"
 namespace ut = boost::ut;
 
 using TestRequired_meta = decltype(pb_meta(std::declval<protobuf_unittest::TestRequired>()));

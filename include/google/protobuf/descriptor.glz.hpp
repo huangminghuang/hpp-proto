@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <hpp_proto/json_serializer.h>
+#include <hpp_proto/json_serializer.hpp>
 #include "google/protobuf/descriptor.msg.hpp"
 
 template <>
