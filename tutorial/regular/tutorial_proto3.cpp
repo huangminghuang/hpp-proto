@@ -24,7 +24,10 @@ int main() {
                  {.name = "Bob",
                   .id = 2,
                   .email = "bob@email.com",
-                  .phones = {{.number = "22222222", .type = PHONE_TYPE_HOME}}}}};
+                  .phones = {{.number = "22222222", .type = PHONE_TYPE_HOME}},
+                  .nested_message = {},
+                  .map_string_nested_message = {},
+                  .oneof_field = {}}}};
 
   std::vector<std::byte> buffer;
 
@@ -60,7 +63,8 @@ int main() {
       &alex_oneof_field = alex.oneof_field;
 
   assert_true(alex_oneof_field.index() == tutorial::Person::oneof_field_oneof_case::oneof_string);
-  assert_true(std::get<std::string>(alex_oneof_field) == "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
+  assert_true(std::get<std::string>(alex_oneof_field) ==
+              "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
 
   std::string json;
 

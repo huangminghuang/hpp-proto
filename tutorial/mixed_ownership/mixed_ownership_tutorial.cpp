@@ -2,8 +2,8 @@
 #include <memory_resource>
 #include <source_location>
 
-#include "regular/addressbook_proto3.pb.hpp" 
-#include "non_owning/addressbook_proto3.pb.hpp"  
+#include "non_owning/addressbook_proto3.pb.hpp"
+#include "regular/addressbook_proto3.pb.hpp"
 
 inline void assert_true(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
@@ -25,7 +25,10 @@ int main() {
                  {.name = "Bob",
                   .id = 2,
                   .email = "bob@email.com",
-                  .phones = {{.number = "22222222", .type = PHONE_TYPE_HOME}}}}};
+                  .phones = {{.number = "22222222", .type = PHONE_TYPE_HOME}},
+                  .nested_message = {},
+                  .map_string_nested_message = {},
+                  .oneof_field = {}}}};
 
   std::vector<std::byte> buffer;
 
@@ -63,8 +66,8 @@ int main() {
     std::span<const std::pair<std::string_view, tutorial::Person::NestedMessage>> map_string_nested_message =
         alex.map_string_nested_message;
     assert_true(map_string_nested_message.size() == 2);
-    const std::variant<std::monostate, uint32_t, tutorial::Person::NestedMessage, std::string_view, hpp::proto::bytes_view>
-      &alex_oneof_field = alex.oneof_field;
+    const std::variant<std::monostate, uint32_t, tutorial::Person::NestedMessage, std::string_view,
+                       hpp::proto::bytes_view> &alex_oneof_field = alex.oneof_field;
     assert_true(alex_oneof_field.index() == tutorial::Person::oneof_field_oneof_case::oneof_string);
     assert_true(std::get<tutorial::Person::oneof_field_oneof_case::oneof_string>(alex_oneof_field) ==
                 "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");

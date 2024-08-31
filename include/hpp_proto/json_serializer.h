@@ -640,14 +640,14 @@ struct from_json<T *> {
 
 namespace hpp::proto {
 
-struct json_status final {
+struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
   bool ok() const { return !static_cast<bool>(ctx); }
   std::string message(const auto &buffer) const { return glz::format_error(ctx, buffer); }
 };
 
 template <auto Opts = glz::opts{}, typename Buffer, glz::is_context... Context>
-[[nodiscard]] inline json_status read_json(auto &value, Buffer &&buffer, Context &&...ctx) {
+inline json_status read_json(auto &value, Buffer &&buffer, Context &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   using buffer_type = std::remove_cvref_t<Buffer>;
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<Buffer> ||
@@ -669,7 +669,7 @@ inline json_status write_json(T &&value, Buffer &&buffer) noexcept {
 }
 
 template <auto Opts = glz::opts{}, class T>
-[[nodiscard]] inline auto write_json(T &&value, glz::is_context auto &&...ctx) noexcept
+inline auto write_json(T &&value, glz::is_context auto &&...ctx) noexcept
     -> glz::expected<std::string, json_status> {
   static_assert(sizeof...(ctx) <= 1);
   std::string buffer{};

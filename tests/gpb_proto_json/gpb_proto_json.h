@@ -1,4 +1,5 @@
 #include <string_view>
+#include <string>
 #include "gpb_proto_json_export.h"
 namespace gpb_based {
 

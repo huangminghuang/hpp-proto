@@ -106,6 +106,15 @@ auto pb_meta(const repeated_sint32_unpacked_explicit_type &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32_unpacked_explicit_type::integers,
                                          field_option::unpacked_repeated, hpp::proto::vsint32_t>>;
 
+struct repeated_uint64 {
+  std::vector<uint64_t> integers;
+  bool operator==(const repeated_uint64 &) const = default;
+};
+
+auto pb_meta(const repeated_uint64 &)
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_uint64::integers, field_option::none, hpp::proto::vuint64_t>>;
+
+
 const ut::suite test_repeated_sint32 = [] {
   "repeated_sint32"_test = [] {
     verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, repeated_sint32{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
@@ -125,6 +134,13 @@ const ut::suite test_repeated_sint32 = [] {
     verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
            repeated_sint32_unpacked_explicit_type{{1, 2, 3, 4, 0, -1, -2, -3, -4}});
   };
+
+  "overlong integer"_test = [] {
+    repeated_uint64 value;
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x0d\x01\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x02"sv).ok()); 
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x0d\x01\x02\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10"sv).ok()); 
+  };
+
 };
 
 struct non_owning_repeated_sint32 {

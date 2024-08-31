@@ -120,7 +120,8 @@ using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 namespace concepts {
 
 template <typename Type>
-concept varint = requires { requires std::same_as<Type, hpp::proto::varint<typename Type::value_type, Type::encoding>>; };
+concept varint =
+    requires { requires std::same_as<Type, hpp::proto::varint<typename Type::value_type, Type::encoding>>; };
 
 template <typename Type>
 concept associative_container =
@@ -507,7 +508,7 @@ struct oneof_field_meta {
   }
 };
 
-struct status {
+struct [[nodiscard]] status {
   std::errc ec = {};
   constexpr status() = default;
   constexpr status(const status &) = default;
@@ -879,16 +880,20 @@ public:
 template <concepts::varint T, typename Result>
 class sfvint_parser {
   // This class implements the variable-length integer decoding algorithm from https://arxiv.org/html/2403.06898v1
-  constexpr static int MaskLength = 6;
+  constexpr static int mask_length = 6;
+  // google implementation only treat more than 10 bytes encoded value as error; i.e. a 6 bytes 
+  // encoded value does not treated as error for uint32 
+  constexpr static int max_effective_bits = 10*7;
   Result *res;
   int shift_bits = 0;
   uint64_t pt_val = 0;
 
 public:
+  bool has_error = false;
   sfvint_parser(Result *data) : res(data) {}
 
   static consteval int calc_shift_bits(unsigned sign_bits) {
-    unsigned mask = 1 << (MaskLength - 1);
+    unsigned mask = 1 << (mask_length - 1);
     int result = 0;
     for (; mask != 0 && (sign_bits & mask); mask >>= 1) {
       result += 1;
@@ -898,7 +903,7 @@ public:
 
   static consteval uint64_t calc_word_mask() {
     uint64_t result = 0x80ULL;
-    for (int i = 0; i < MaskLength - 1; ++i)
+    for (int i = 0; i < mask_length - 1; ++i)
       result = (result << CHAR_BIT | 0x80ULL);
     return result;
   }
@@ -914,11 +919,8 @@ public:
   }
 
   HPP_PROTO_INLINE void output(uint64_t v) {
-    if constexpr (varint_encoding::zig_zag == T::encoding) {
-      *res++ = static_cast<Result>((v >> 1) ^ -static_cast<int64_t>(v & 0x1));
-    } else {
-      *res++ = static_cast<Result>(v);
-    }
+    auto r = (varint_encoding::zig_zag == T::encoding) ? (v >> 1) ^ -static_cast<int64_t>(v & 0x1) : v;
+    *res++ = static_cast<Result>(r);
   }
 
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
@@ -933,29 +935,30 @@ public:
 
   template <uint64_t SignBits, int I>
   inline void output(uint64_t word, uint64_t &extract_mask) {
-    if constexpr (I < MaskLength) {
+    if constexpr (I < mask_length) {
       extract_mask |= 0x7fULL << (CHAR_BIT * I);
       if ((SignBits & (0x01ULL << I)) == 0) {
         output(pext_u64(word, extract_mask));
         extract_mask = 0;
       }
       output<SignBits, I + 1>(word, extract_mask);
-    }
+    } 
   }
 
   template <uint64_t SignBits>
   HPP_PROTO_INLINE void fixed_masked_parse(uint64_t word) {
     uint64_t extract_mask = calc_extract_mask(SignBits);
-    if constexpr (std::countr_one(SignBits) < MaskLength) {
+    if constexpr (std::countr_one(SignBits) < mask_length) {
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
       constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
+      has_error |= ((bytes_processed*7 + shift_bits) > max_effective_bits);
       extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);
       output<SignBits, bytes_processed>(word, extract_mask);
       pt_val = 0;
       shift_bits = 0;
     }
 
-    if constexpr (SignBits & (0x01ULL << (MaskLength - 1))) {
+    if constexpr (SignBits & (0x01ULL << (mask_length - 1))) {
       pt_val |= pext_u64(word, extract_mask) << shift_bits;
     }
 
@@ -969,11 +972,12 @@ public:
 
   template <concepts::byte_type Byte>
   const Byte *parse_partial(const Byte *begin, const Byte *end) {
-    for (; end - begin >= MaskLength; begin += MaskLength) {
+    end -= ((end - begin) % mask_length);
+    for (; begin < end ; begin += mask_length) {
       uint64_t word;
       memcpy(&word, begin, sizeof(word));
       auto mval = pext_u64(word, word_mask);
-      parse_word(mval, word, std::make_index_sequence<1 << MaskLength>());
+      parse_word(mval, word, std::make_index_sequence<1 << mask_length>());
     }
     return begin;
   }
@@ -986,6 +990,7 @@ public:
     memcpy(&word, begin, bytes_left);
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
       pt_val |= ((word & 0x7fULL) << shift_bits);
+      has_error |= (shift_bits >= max_effective_bits);
       if (word & 0x80ULL) {
         shift_bits += (CHAR_BIT - 1);
       } else {
@@ -1301,7 +1306,7 @@ struct pb_serializer {
     }
   }
 
-  constexpr static bool serialize(concepts::has_meta auto &&item, uint32_t *&cache, auto &archive) {
+  [[nodiscard]] constexpr static bool serialize(concepts::has_meta auto &&item, uint32_t *&cache, auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using metas = typename traits::meta_of<type>::type;
     return std::apply([&](auto... meta) { return (serialize_field(meta, meta.access(item), cache, archive) && ...); },
@@ -1309,7 +1314,8 @@ struct pb_serializer {
   }
 
   template <typename Meta>
-  HPP_PROTO_INLINE constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache, auto &archive) {
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache,
+                                                                       auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
@@ -1398,7 +1404,7 @@ struct pb_serializer {
   }
 
   template <std::size_t I, concepts::tuple Meta>
-  HPP_PROTO_INLINE constexpr static bool serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return serialize_field(typename std::tuple_element<I, Meta>::type{},
@@ -1438,6 +1444,24 @@ struct pb_serializer {
         current.slope_begin = next_region->slope_begin;
         size_exclude_current -= (next_region->effective_size);
         ++next_region;
+      }
+    }
+
+    template <typename T, typename ByteT>
+    constexpr void append_raw_data(T &container, const ByteT *start_pos, std::size_t num_elements) {
+      using value_type = typename T::value_type;
+      if constexpr (requires { container.append_raw_data(start_pos, num_elements); }) {
+        container.append_raw_data(start_pos, num_elements);
+      } else if (std::is_constant_evaluated() ||
+                 (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
+        using input_it = detail::raw_data_iterator<value_type, ByteT>;
+        container.insert(container.end(), input_it{start_pos}, input_it{start_pos + num_elements * sizeof(value_type)});
+      } else {
+        // auto n = container.size();
+        // container.resize(n + num_elements);
+        // std::memcpy(container.data() + n, start_pos, num_elements * sizeof(value_type));
+        auto first = reinterpret_cast<const value_type *>(start_pos);
+        container.insert(container.end(), first, first + num_elements);
       }
     }
 
@@ -1551,7 +1575,7 @@ struct pb_serializer {
         }
         auto end = current.begin + bytes_count;
         current.begin = parser.parse(current.begin, end);
-        if (end != current.begin) [[unlikely]] {
+        if (end != current.begin || parser.has_error) [[unlikely]] {
           return std::errc::bad_message;
         }
         return {};
@@ -1637,15 +1661,17 @@ struct pb_serializer {
 #endif
         return std::popcount(v);
       };
+      auto remaining = (end - begin) % 8;
+      end -= remaining;
 
-      for (; end - begin >= 8; begin += sizeof(uint64_t)) {
+      for (; begin < end; begin += sizeof(uint64_t)) {
         uint64_t v;
         std::memcpy(&v, begin, sizeof(v));
         result += popcount(~v & 0x8080808080808080ULL);
       }
-      if (end - begin > 0) {
+      if (remaining > 0) {
         uint64_t v = UINT64_MAX;
-        std::memcpy(&v, begin, end - begin);
+        std::memcpy(&v, begin, remaining);
         result += popcount(~v & 0x8080808080808080ULL);
       }
       return result;
@@ -1917,12 +1943,12 @@ struct pb_serializer {
         } else { // pre-C++23 std::map
           v[std::move(val.first)] = std::move(val.second);
         }
-      } else if constexpr(std::same_as<value_encode_type, value_type>) {
-        if (auto result = deserialize_element(v[i]); !result.ok())  [[unlikely]]
+      } else if constexpr (std::same_as<value_encode_type, value_type>) {
+        if (auto result = deserialize_element(v[i]); !result.ok()) [[unlikely]]
           return result;
       } else {
         value_encode_type element;
-        if (auto result = deserialize_element(element); !result.ok())  [[unlikely]]
+        if (auto result = deserialize_element(element); !result.ok()) [[unlikely]]
           return result;
         v[i] = std::move(static_cast<value_type>(std::move(element)));
       }
@@ -2143,7 +2169,8 @@ struct pb_serializer {
 
   constexpr static status deserialize_sized(auto &&item, auto &context, concepts::is_basic_in auto &archive) {
     vuint32_t len;
-    archive(len);
+    if (auto result = archive(len); !result.ok()) [[unlikely]]
+      return result;
 
     if (len < archive.in_avail()) [[likely]] {
       auto new_archive = archive.split(len);
@@ -2295,7 +2322,9 @@ struct pb_serializer {
       return std::span<std::byte>{};
     } else {
       std::array<std::byte, sz> buffer;
-      serialize(ObjectLambda(), buffer);
+      if (auto result = serialize(ObjectLambda(), buffer); !result.ok()) {
+        throw std::system_error(std::make_error_code(result.ec));
+      }
       return buffer;
     }
   }
@@ -2303,8 +2332,7 @@ struct pb_serializer {
   template <typename T>
   constexpr static auto from_bytes(auto &&buffer) {
     T obj = {};
-    auto result = deserialize(obj, buffer, pb_context{});
-    if (!result.ok())
+    if (auto result = deserialize(obj, buffer, pb_context{}); !result.ok())
       throw std::system_error(std::make_error_code(result.ec));
     return obj;
   }

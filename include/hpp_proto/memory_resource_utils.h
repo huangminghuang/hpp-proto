@@ -381,21 +381,4 @@ constexpr T &as_modifiable(auto && /* unused */, T &view) {
   return view;
 }
 
-template <typename T, typename ByteT>
-constexpr void append_raw_data(T &container, const ByteT* start_pos, std::size_t num_elements) {
-  using value_type = typename T::value_type;
-  if constexpr (requires { container.append_raw_data(start_pos, num_elements); }) {
-    container.append_raw_data(start_pos, num_elements);
-  } else if (std::is_constant_evaluated() || (sizeof(value_type)> 1 && std::endian::little != std::endian::native)) {
-    using input_it = detail::raw_data_iterator<value_type, ByteT>;
-    container.insert(container.end(), input_it{start_pos}, input_it{start_pos+num_elements * sizeof(value_type)});
-  } else {
-    // auto n = container.size();
-    // container.resize(n + num_elements);
-    // std::memcpy(container.data() + n, start_pos, num_elements * sizeof(value_type));
-    auto first = reinterpret_cast<const value_type*>(start_pos);
-    container.insert(container.end(), first, first + num_elements);
-  }
-}
-
 } // namespace hpp::proto
