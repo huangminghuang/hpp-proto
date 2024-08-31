@@ -40,3 +40,4 @@ ExtraArgs:
   - -Wno-unknown-warning-option
   - -Wno-ignored-optimization-argument
   - -Wno-unused-command-line-argument
+  - -extra-arg=-std=c++20
