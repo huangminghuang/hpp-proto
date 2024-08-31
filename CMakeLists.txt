@@ -62,19 +62,20 @@ target_include_directories(libhpp_proto_no_utf8_validation INTERFACE
 target_compile_features(libhpp_proto_no_utf8_validation INTERFACE cxx_std_20)
 target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_NO_UTF8_VALIDATION)
 
-
-
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
+add_library(hpp_proto::libhpp_proto_no_utf8_validation ALIAS libhpp_proto_no_utf8_validation)
 
 if (MSVC)
-  set(HPP_PROTO_COMPILE_OPTIONS "/Zc:preprocessor" "/EHsc")
+  add_compile_options("/EHsc")
+  target_compile_options(libhpp_proto INTERFACE "/Zc:preprocessor")
+  target_compile_options(libhpp_proto_no_utf8_validation INTERFACE "/Zc:preprocessor")
 else()
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
 endif()
 
 if (HPP_PROTO_ENABLE_SANITIZER)
   if (MSVC)
-    add_compile_options("/fsanitize=address")
+    add_compile_options("/fsanitize=address" "/Zi")
     add_link_options("/fsanitize=address")
   else()
     add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
