@@ -1,8 +1,8 @@
 #include "test_util.h"
 #include <boost/ut.hpp>
-#include <hpp_proto/json_serializer.h>
-#include <hpp_proto/timestamp_codec.h>
-#include <hpp_proto/duration_codec.h>
+#include <hpp_proto/json_serializer.hpp>
+#include <hpp_proto/timestamp_codec.hpp>
+#include <hpp_proto/duration_codec.hpp>
 
 template <typename T>
 constexpr auto non_owning = false;

@@ -4,7 +4,7 @@
 //    protoc --plugin=protoc-gen-hpp=/Users/huang-minghuang/opensource/hpp-proto/build/debug/protoc-plugin/protoc-gen-hpp --hpp_out proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed:${out_dir} google/protobuf/compiler/plugin.proto
 
 #pragma once
-#include <hpp_proto/dynamic_serializer.h>
+#include <hpp_proto/dynamic_serializer.hpp>
 
 #include "google/protobuf/descriptor.desc.hpp"
 

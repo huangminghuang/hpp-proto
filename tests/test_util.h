@@ -7,7 +7,7 @@
 #include <span>
 #include <algorithm>
 #include <ranges>
-#include <hpp_proto/pb_serializer.h>
+#include <hpp_proto/pb_serializer.hpp>
 
 inline std::string descriptorset_from_file(const char* filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);

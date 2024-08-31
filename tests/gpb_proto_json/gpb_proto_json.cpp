@@ -1,4 +1,4 @@
-#include "gpb_proto_json.h"
+#include "gpb_proto_json.hpp"
 #include <google/protobuf/compiler/importer.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/dynamic_message.h>

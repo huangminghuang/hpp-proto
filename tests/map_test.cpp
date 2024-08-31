@@ -1,8 +1,8 @@
-#include "gpb_proto_json/gpb_proto_json.h"
+#include "gpb_proto_json/gpb_proto_json.hpp"
 #include "map_test_util.h"
 #include "test_util.h"
 #include <google/protobuf/map_unittest.glz.hpp>
-#include <hpp_proto/pb_serializer.h>
+#include <hpp_proto/pb_serializer.hpp>
 
 const boost::ut::suite map_test = [] {
   using namespace boost::ut;

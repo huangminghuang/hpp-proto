@@ -6,7 +6,7 @@
 #include <span>
 #include <algorithm>
 #include <ranges>
-#include <hpp_proto/pb_serializer.h>
+#include <hpp_proto/pb_serializer.hpp>
 
 namespace std {
 inline std::ostream &operator<<(std::ostream &os, std::byte b) {

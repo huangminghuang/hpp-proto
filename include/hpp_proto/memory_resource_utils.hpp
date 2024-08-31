@@ -1,7 +1,7 @@
 #pragma once
 
 #include <concepts>
-#include <hpp_proto/field_types.h>
+#include <hpp_proto/field_types.hpp>
 #include <memory_resource>
 #include <ranges>
 #include <span>
