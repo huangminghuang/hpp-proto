@@ -23,10 +23,11 @@ Checks: "*,
         -readability-magic-numbers,
         -cppcoreguidelines-avoid-c-arrays,
         -hicpp-avoid-c-arrays,
-        -modernize-avoid-c-arrays
+        -modernize-avoid-c-arrays,
+        -misc-const-correctness
 "
 WarningsAsErrors: ''
-HeaderFilterRegex: ''
+HeaderFilterRegex: '.*'
 FormatStyle:     none
 
 CheckOptions:

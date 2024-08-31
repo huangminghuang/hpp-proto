@@ -10,13 +10,15 @@ namespace gpb = google::protobuf;
 std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data) {
 
   const auto* message_descriptor = pool.FindMessageTypeByName(message_name);
+  // NOLINTBEGIN(misc-const-correctness)
   gpb::DynamicMessageFactory factory(&pool);
+  // NOLINTEND(misc-const-correctness)
 
   std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
-  message->ParseFromString(data);
+  message->ParseFromArray(data.data(), static_cast<int>(data.size()));
 
   std::string result;
-  gpb::json::PrintOptions options;
+  const gpb::util::JsonPrintOptions options;
 
   (void)gpb::util::MessageToJsonString(*message, &result, options);
 
@@ -25,20 +27,22 @@ std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_n
 
 std::string json_to_proto(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data) {
   const auto* message_descriptor = pool.FindMessageTypeByName(message_name);
+  // NOLINTBEGIN(misc-const-correctness)
   gpb::DynamicMessageFactory factory(&pool);
+  // NOLINTEND(misc-const-correctness)
 
   std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
-  (void)gpb::util::JsonStringToMessage(data, message.get());
+  (void)gpb::util::JsonStringToMessage(std::string{data}, message.get());
   return message->SerializeAsString();
 }
 
 std::string proto_to_json(std::string_view filedescriptorset_stream, const char *message_name, std::string_view data) {
   gpb::FileDescriptorSet fileset;
-  fileset.ParseFromString(filedescriptorset_stream);
+  fileset.ParseFromArray(filedescriptorset_stream.data(),(int) filedescriptorset_stream.size());
 
   gpb::SimpleDescriptorDatabase database;
   for (int i = 0; i < fileset.file_size(); ++i) {
-    database.AddUnowned(&fileset.file(i));
+    database.Add(fileset.file(i));
   }
 
   const gpb::DescriptorPool pool(&database);
@@ -47,11 +51,11 @@ std::string proto_to_json(std::string_view filedescriptorset_stream, const char 
 
 std::string json_to_proto(std::string_view filedescriptorset_stream, const char *message_name, std::string_view data) {
   gpb::FileDescriptorSet fileset;
-  fileset.ParseFromString(filedescriptorset_stream);
+  fileset.ParseFromArray(filedescriptorset_stream.data(), (int)filedescriptorset_stream.size());
 
   gpb::SimpleDescriptorDatabase database;
   for (int i = 0; i < fileset.file_size(); ++i) {
-    database.AddUnowned(&fileset.file(i));
+    database.Add(fileset.file(i));
   }
 
   const gpb::DescriptorPool pool(&database);

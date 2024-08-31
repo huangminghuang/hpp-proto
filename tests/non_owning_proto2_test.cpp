@@ -76,7 +76,6 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
   message->optional_import_message.emplace().d = 120;
   message->optional_public_import_message.emplace().e = 126;
   message->optional_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage{.bb = 127};
-  message->optional_unverified_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage{.bb = 128};
 
   message->optional_nested_enum = protobuf_unittest::TestAllTypes::NestedEnum::BAZ;
   message->optional_foreign_enum = protobuf_unittest::ForeignEnum::FOREIGN_BAZ;
@@ -207,8 +206,6 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message) {
   expect(message.optional_public_import_message.has_value() &&
          126 == message.optional_public_import_message->e.value());
   expect(message.optional_lazy_message.has_value() && 127 == message.optional_lazy_message->bb.value());
-  expect(message.optional_unverified_lazy_message.has_value() &&
-         128 == message.optional_unverified_lazy_message->bb.value());
 
   expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ == message.optional_nested_enum.value());
   expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.optional_foreign_enum.value());
@@ -345,7 +342,6 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message) {
   expect(!message.optional_import_message.has_value());
   expect(!message.optional_public_import_message.has_value());
   expect(!message.optional_lazy_message.has_value());
-  expect(!message.optional_unverified_lazy_message.has_value());
 
   expect(!message.optional_nested_enum.has_value());
   expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO == message.optional_nested_enum.value_or_default());
@@ -643,7 +639,6 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message, auto &&ctx) {
 
   expect(message->set_extension(protobuf_unittest::optional_public_import_message_extension(), {.e = 126}, ctx).ok());
   expect(message->set_extension(protobuf_unittest::optional_lazy_message_extension(), {.bb = 127}, ctx).ok());
-  expect(message->set_extension(protobuf_unittest::optional_unverified_lazy_message_extension(), {.bb = 128}, ctx).ok());
 
   // -----------------------------------------------------------------
 
@@ -785,7 +780,6 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(message.has_extension(protobuf_unittest::optional_import_message_extension()));
   expect(message.has_extension(protobuf_unittest::optional_public_import_message_extension()));
   expect(message.has_extension(protobuf_unittest::optional_lazy_message_extension()));
-  expect(message.has_extension(protobuf_unittest::optional_unverified_lazy_message_extension()));
 
   expect(message.get_extension(protobuf_unittest::optionalgroup_extension())->a);
   expect(message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb);
@@ -793,7 +787,6 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(message.get_extension(protobuf_unittest::optional_import_message_extension())->d);
   expect(message.get_extension(protobuf_unittest::optional_public_import_message_extension())->e);
   expect(message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb);
-  expect(message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb);
 
   expect(message.has_extension(protobuf_unittest::optional_nested_enum_extension()));
   expect(message.has_extension(protobuf_unittest::optional_foreign_enum_extension()));
@@ -838,9 +831,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(
       eq(126, message.get_extension(protobuf_unittest::optional_public_import_message_extension()).value().e.value()));
   expect(eq(127, message.get_extension(protobuf_unittest::optional_lazy_message_extension()).value().bb.value()));
-  expect(eq(128,
-            message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension()).value().bb.value()));
-
+  
   // -----------------------------------------------------------------
 
   expect(std::ranges::equal(message.get_extension(protobuf_unittest::repeated_int32_extension(), ctx).value(),
@@ -1014,7 +1005,6 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(!message.has_extension(protobuf_unittest::optional_import_message_extension()));
   expect(!message.has_extension(protobuf_unittest::optional_public_import_message_extension()));
   expect(!message.has_extension(protobuf_unittest::optional_lazy_message_extension()));
-  expect(!message.has_extension(protobuf_unittest::optional_unverified_lazy_message_extension()));
 
   expect(!message.has_extension(protobuf_unittest::optional_nested_enum_extension()));
   expect(!message.has_extension(protobuf_unittest::optional_foreign_enum_extension()));
@@ -1047,7 +1037,6 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(!message.get_extension(protobuf_unittest::optional_import_message_extension()).has_value());
   expect(!message.get_extension(protobuf_unittest::optional_public_import_message_extension()).has_value());
   expect(!message.get_extension(protobuf_unittest::optional_lazy_message_extension()).has_value());
-  expect(!message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension()).has_value());
 
   // Enums without defaults are set to the first value in the enum.
   expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO ==
@@ -1354,6 +1343,10 @@ const boost::ut::suite proto_test = [] {
         std::vector<char> data;
         expect(hpp::proto::write_proto(original, data).ok());
 
+#if __has_include(<google/protobuf/json/json.h>)
+        // older version of google protobuf implementation has bug to serialize group to json;
+        // disable this test when the version of protobuf is too old.
+
         auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(),
                                                       hpp::proto::message_name(original), {data.data(), data.size()});
 
@@ -1365,6 +1358,7 @@ const boost::ut::suite proto_test = [] {
         expect(hpp::proto::read_json(msg, original_json, hpp::proto::json_context{mr}).ok());
 
         TestUtil::ExpectAllSet(msg);
+#endif
       } |
       std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestUnpackedTypes,
                  protobuf_unittest::TestPackedTypes>{};
