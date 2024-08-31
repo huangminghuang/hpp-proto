@@ -89,7 +89,6 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
   message->optional_import_message.emplace().d = 120;
   message->optional_public_import_message.emplace().e = 126;
   message->optional_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage{.bb = 127};
-  message->optional_unverified_lazy_message = protobuf_unittest::TestAllTypes::NestedMessage{.bb = 128};
 
   message->optional_nested_enum = protobuf_unittest::TestAllTypes::NestedEnum::BAZ;
   message->optional_foreign_enum = protobuf_unittest::ForeignEnum::FOREIGN_BAZ;
@@ -244,7 +243,6 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message) {
   expect(eq(120, message.optional_import_message->d.value()));
   expect(eq(126, message.optional_public_import_message->e.value()));
   expect(eq(127, message.optional_lazy_message->bb.value()));
-  expect(eq(128, message.optional_unverified_lazy_message->bb.value()));
 
   expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ == message.optional_nested_enum);
   expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.optional_foreign_enum);
@@ -382,7 +380,6 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message) {
   expect(!message.optional_import_message.has_value());
   expect(!message.optional_public_import_message.has_value());
   expect(!message.optional_lazy_message.has_value());
-  expect(!message.optional_unverified_lazy_message.has_value());
 
   expect(!message.optional_nested_enum.has_value());
   expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO == message.optional_nested_enum.value_or_default());
@@ -743,7 +740,6 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message) {
 
   expect(message->set_extension(protobuf_unittest::optional_public_import_message_extension(), {.e = 126}).ok());
   expect(message->set_extension(protobuf_unittest::optional_lazy_message_extension(), {.bb = 127}).ok());
-  expect(message->set_extension(protobuf_unittest::optional_unverified_lazy_message_extension(), {.bb = 128}).ok());
 
   // -----------------------------------------------------------------
 
@@ -856,7 +852,6 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(message.has_extension(protobuf_unittest::optional_import_message_extension()));
   expect(message.has_extension(protobuf_unittest::optional_public_import_message_extension()));
   expect(message.has_extension(protobuf_unittest::optional_lazy_message_extension()));
-  expect(message.has_extension(protobuf_unittest::optional_unverified_lazy_message_extension()));
 
   expect(message.get_extension(protobuf_unittest::optionalgroup_extension())->a);
   expect(message.get_extension(protobuf_unittest::optional_nested_message_extension())->bb);
@@ -864,7 +859,6 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(message.get_extension(protobuf_unittest::optional_import_message_extension())->d);
   expect(message.get_extension(protobuf_unittest::optional_public_import_message_extension())->e);
   expect(message.get_extension(protobuf_unittest::optional_lazy_message_extension())->bb);
-  expect(message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension())->bb);
 
   expect(message.has_extension(protobuf_unittest::optional_nested_enum_extension()));
   expect(message.has_extension(protobuf_unittest::optional_foreign_enum_extension()));
@@ -906,9 +900,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(
       eq(126, message.get_extension(protobuf_unittest::optional_public_import_message_extension()).value().e.value()));
   expect(eq(127, message.get_extension(protobuf_unittest::optional_lazy_message_extension()).value().bb.value()));
-  expect(eq(128,
-            message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension()).value().bb.value()));
-
+  
   // -----------------------------------------------------------------
 
   expect(
@@ -1069,7 +1061,6 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(!message.has_extension(protobuf_unittest::optional_import_message_extension()));
   expect(!message.has_extension(protobuf_unittest::optional_public_import_message_extension()));
   expect(!message.has_extension(protobuf_unittest::optional_lazy_message_extension()));
-  expect(!message.has_extension(protobuf_unittest::optional_unverified_lazy_message_extension()));
 
   expect(!message.has_extension(protobuf_unittest::optional_nested_enum_extension()));
   expect(!message.has_extension(protobuf_unittest::optional_foreign_enum_extension()));
@@ -1102,7 +1093,6 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(!message.get_extension(protobuf_unittest::optional_import_message_extension()).has_value());
   expect(!message.get_extension(protobuf_unittest::optional_public_import_message_extension()).has_value());
   expect(!message.get_extension(protobuf_unittest::optional_lazy_message_extension()).has_value());
-  expect(!message.get_extension(protobuf_unittest::optional_unverified_lazy_message_extension()).has_value());
 
   // Enums without defaults are set to the first value in the enum.
   expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO ==

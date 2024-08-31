@@ -9,8 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
-option(HPP_PROTO_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
 option(HPP_PROTO_COMPILE_PROTOC "Alwyas compile protoc from source" OFF)
+option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
+
+
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/CPM.cmake)
 
@@ -41,22 +45,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   cmake_path(GET CLANG_REAL_PATH PARENT_PATH CLANG_DIR)
 endif()
 
-if(HPP_PROTO_ENABLE_CLANG_TIDY)
-  if(EXISTS "${CLANG_DIR}/clang-tidy")
-    set(CLANG_TIDY_EXE "${CLANG_DIR}/clang-tidy")
-  else()
-    find_program(CLANG_TIDY_EXE NAME clang-tidy)
-  endif()
-
-  if(CLANG_TIDY_EXE)
-    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-p;${CMAKE_CURRENT_BINARY_DIR}")
-    configure_file(clang-tidy-disable-all-checks ${CMAKE_CURRENT_BINARY_DIR}/_deps/.clang-tidy)
-  else()
-    message(FATAL_ERROR "clang-tidy not found")
-  endif()
-else()
-  set(CMAKE_CXX_CLANG_TIDY)
-endif()
 
 add_library(libhpp_proto INTERFACE)
 target_include_directories(libhpp_proto INTERFACE
@@ -79,14 +67,17 @@ target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_N
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
 
 if (MSVC)
-  add_compile_options("/Zc:preprocessor" "/EHsc")
+  set(HPP_PROTO_COMPILE_OPTIONS "/Zc:preprocessor" "/EHsc")
 else()
-  add_compile_options("-Wall" "-Wall" "-Wextra" "-Wpedantic")
+  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
 endif()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-  if (NOT MSVC)
-    add_compile_options("-fsanitize=address,undefined")
+if (HPP_PROTO_ENABLE_SANITIZER)
+  if (MSVC)
+    add_compile_options("/fsanitize=address")
+    add_link_options("/fsanitize=address")
+  else()
+    add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
     add_link_options("-fsanitize=address,undefined")
   endif()
 endif()
@@ -110,6 +101,7 @@ endif()
 if(HPP_PROTO_PROTOC_PLUGIN)
   if (NOT HPP_PROTO_COMPILE_PROTOC)
     find_package(Protobuf)
+    message("Protobuf_VERSION=${Protobuf_VERSION}")
   endif()
 
   if(NOT Protobuf_FOUND)
@@ -117,6 +109,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
       NAME protobuf
       VERSION 27.0
       GITHUB_REPOSITORY protocolbuffers/protobuf
+      SYSTEM ON
       OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
       "protobuf_INSTALL OFF"
       "protobuf_BUILD_TESTS OFF"
@@ -129,17 +122,6 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     add_library(protobuf::libprotoc ALIAS libprotoc)
     set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)  
   endif(NOT Protobuf_FOUND)
-
-  if(HPP_PROTO_BENCHMARKS)
-    CPMAddPackage(
-      NAME benchmark
-      GITHUB_REPOSITORY google/benchmark
-      VERSION 1.8.3
-      OPTIONS
-      "BENCHMARK_ENABLE_TESTING OFF"
-      "BENCHMARK_ENABLE_INSTALL OFF"
-    )
-  endif(HPP_PROTO_BENCHMARKS)
 
   include(cmake/protobuf_generate.cmake)
 

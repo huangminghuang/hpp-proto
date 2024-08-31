@@ -1,4 +1,16 @@
+CPMAddPackage(
+      NAME benchmark
+      GITHUB_REPOSITORY google/benchmark
+      VERSION 1.8.3
+      OPTIONS
+      "BENCHMARK_ENABLE_TESTING OFF"
+      "BENCHMARK_ENABLE_INSTALL OFF"
+    )
+    
 set(proto_files benchmark_messages_proto3.proto benchmark_messages_proto2.proto packed_repeated_message.proto)
+
+# disable clang-tidy check for generated file
+configure_file(../clang-tidy-disable-all-checks .clang-tidy)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/owning)
 add_library(hpp_owning_benchmark_messages_lib INTERFACE ${proto_files})
