@@ -1,5 +1,5 @@
 
-#include "gpb_proto_json/gpb_proto_json.h"
+#include "gpb_proto_json/gpb_proto_json.hpp"
 #include "unittest_proto2_util.h"
 namespace ut = boost::ut;
 

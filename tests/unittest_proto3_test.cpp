@@ -1,4 +1,4 @@
-#include "gpb_proto_json/gpb_proto_json.h"
+#include "gpb_proto_json/gpb_proto_json.hpp"
 #include "test_util.h"
 #include "unittest_proto3_util.h"
 

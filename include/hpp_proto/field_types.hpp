@@ -25,7 +25,7 @@
 #include <algorithm>
 #include <cassert>
 #include <functional>
-#include <hpp_proto/flat_map.h>
+#include <hpp_proto/flat_map.hpp>
 #include <optional>
 #include <ranges>
 #include <span>

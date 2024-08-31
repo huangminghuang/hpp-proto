@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <hpp_proto/pb_serializer.h>
+#include <hpp_proto/pb_serializer.hpp>
 #include "google/protobuf/descriptor.msg.hpp"
 
 

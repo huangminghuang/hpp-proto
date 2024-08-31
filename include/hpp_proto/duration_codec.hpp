@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
-#include <hpp_proto/json_serializer.h>
+#include <hpp_proto/json_serializer.hpp>
 
 namespace hpp::proto {
 struct duration_codec {

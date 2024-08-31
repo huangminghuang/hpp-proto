@@ -9,7 +9,7 @@
 #pragma GCC diagnostic pop
 #endif
 
-#include <hpp_proto/memory_resource_utils.h>
+#include <hpp_proto/memory_resource_utils.hpp>
 
 namespace hpp::proto {
 

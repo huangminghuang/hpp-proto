@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <numeric>
-#include <hpp_proto/memory_resource_utils.h>
+#include <hpp_proto/memory_resource_utils.hpp>
 namespace hpp::proto {
 
 struct field_mask_codec {

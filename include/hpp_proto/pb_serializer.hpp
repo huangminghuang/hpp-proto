@@ -36,7 +36,7 @@
 
 #include <execution>
 #include <glaze/util/expected.hpp>
-#include <hpp_proto/memory_resource_utils.h>
+#include <hpp_proto/memory_resource_utils.hpp>
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
 #if defined(_MSC_VER)
