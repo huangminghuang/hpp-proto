@@ -233,7 +233,7 @@ std::string to_hex(const T &data) {
   result.resize(data.size() * 4);
   unsigned index = 0;
   for (auto b : data) {
-    unsigned char c = static_cast<unsigned char>(b);
+    auto c = static_cast<unsigned char>(b);
     result[index++] = '\\';
     result[index++] = 'x';
     result[index++] = qmap[c >> 4];
@@ -594,13 +594,13 @@ struct code_generator {
   // NOLINTEND(misc-no-recursion)
 
   static message_descriptor_t *resolve_container_dependency_cycle(std::vector<message_descriptor_t *> &unresolved) {
-    // First, find the depenedecy which used the by repeated field
+    // First, find the depenedency which used the by repeated field
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto *mssage = message_parent_of(f);
-        if (std::find(unresolved.begin(), unresolved.end(), mssage) != unresolved.end()) {
-          used_by_messages[mssage] |= (f->proto.label != gpb::FieldDescriptorProto::Label::LABEL_REPEATED);
+        auto *message = message_parent_of(f);
+        if (std::find(unresolved.begin(), unresolved.end(), message) != unresolved.end()) {
+          used_by_messages[message] |= (f->proto.label != gpb::FieldDescriptorProto::Label::LABEL_REPEATED);
           f->is_recursive = true;
         }
       }
@@ -617,9 +617,9 @@ struct code_generator {
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto *mssage = message_parent_of(f);
-        if (std::find(unresolved.begin(), unresolved.end(), mssage) != unresolved.end() || mssage->is_map_entry) {
-          used_by_messages[mssage] |= !(mssage->is_map_entry);
+        auto *message = message_parent_of(f);
+        if (std::find(unresolved.begin(), unresolved.end(), message) != unresolved.end() || message->is_map_entry) {
+          used_by_messages[message] |= !(message->is_map_entry);
           f->is_recursive = true;
         }
       }

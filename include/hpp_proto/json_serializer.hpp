@@ -17,7 +17,9 @@ template <typename T, std::size_t Index>
 struct oneof_wrapper {
   static constexpr auto glaze_reflect = false;
   T *value;
+  // NOLINTBEGIN(hicpp-explicit-conversions)
   operator bool() const { return value->index() == Index; }
+  // NOLINTEND(hicpp-explicit-conversions)
   auto &operator*() const { return std::get<Index>(*value); }
 };
 
@@ -29,7 +31,9 @@ constexpr oneof_wrapper<T, Index> wrap_oneof(T &v) {
 template <typename T>
 struct map_wrapper {
   static constexpr auto glaze_reflect = false;
+  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
   T &value;
+  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 namespace concepts {
@@ -57,19 +61,19 @@ template <typename... AuxContext>
 struct json_context : glz::context, pb_context<AuxContext...> {
   const char *error_message_name = nullptr;
   template <typename... U>
-  json_context(U &&...ctx) : pb_context<AuxContext...>(std::forward<U>(ctx)...) {}
+  explicit json_context(U &&...ctx) : pb_context<AuxContext...>(std::forward<U>(ctx)...) {}
 };
 
 template <typename... U>
 json_context(U &&...u) -> json_context<std::remove_cvref_t<U>...>;
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members,hicpp-explicit-conversions,modernize-use-nodiscard)
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
   static constexpr auto glaze_reflect = false;
   using value_type = T;
   T &val;
   operator bool() const { return !is_default_value<T, Default>(val); }
-
   template <typename U>
   static U &deref(U &v) {
     return v;
@@ -106,6 +110,7 @@ struct optional_ref<hpp::proto::optional<bool, Default>, std::monostate{}> {
   static constexpr auto glaze_reflect = false;
   hpp::proto::optional<bool, Default> &val;
   operator bool() const { return val.has_value(); }
+
   bool &emplace() const { return val.emplace(); }
   bool operator*() const { return *val; }
 };
@@ -117,9 +122,10 @@ struct optional_ref<const hpp::proto::optional<bool, Default>, std::monostate{}>
   operator bool() const { return val.has_value(); }
   bool operator*() const { return *val; }
 };
+// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members,hicpp-explicit-conversions,modernize-use-nodiscard)
 
 template <auto MemPtr, auto Default>
-inline constexpr decltype(auto) as_optional_ref_impl() noexcept {
+constexpr decltype(auto) as_optional_ref_impl() noexcept {
   return [](auto &&val) { return optional_ref<std::remove_reference_t<decltype(val.*MemPtr)>, Default>{val.*MemPtr}; };
 }
 
@@ -127,7 +133,7 @@ template <auto MemPtr, auto Default = std::monostate{}>
 constexpr auto as_optional_ref = as_optional_ref_impl<MemPtr, Default>();
 
 template <auto MemPtr, int Index>
-inline constexpr decltype(auto) as_oneof_member_impl() noexcept {
+constexpr decltype(auto) as_oneof_member_impl() noexcept {
   return [](auto &&val) -> auto { return wrap_oneof<Index>(val.*MemPtr); };
 }
 
@@ -149,7 +155,10 @@ struct base64 {
                                           "abcdefghijklmnopqrstuvwxyz"
                                           "0123456789+/";
 
-    std::size_t i = 0, ix = 0;
+    std::size_t i = 0;
+    std::size_t ix = 0;
+
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     if (n >= 3) {
       for (i = 0; i <= n - 3; i += 3) {
         uint32_t x = 0;
@@ -157,19 +166,19 @@ struct base64 {
         memcpy(&x, &source[i], 3);
 
         if constexpr (std::endian::native == std::endian::little) {
-          b[ix++] = static_cast<V>(base64_chars[(x >> 2) & 0x3F]);
-          b[ix++] = static_cast<V>(base64_chars[((x << 4) & 0x30) | ((x >> 12) & 0x0F)]);
-          b[ix++] = static_cast<V>(base64_chars[((x >> 6) & 0x3C) | (x >> 22)]);
-          b[ix++] = static_cast<V>(base64_chars[(x >> 16) & 0x3F]);
+          b[ix++] = static_cast<V>(base64_chars[(x >> 2U) & 0x3FU]);
+          b[ix++] = static_cast<V>(base64_chars[((x << 4U) & 0x30U) | ((x >> 12U) & 0x0FU)]);
+          b[ix++] = static_cast<V>(base64_chars[((x >> 6U) & 0x3CU) | (x >> 22U)]);
+          b[ix++] = static_cast<V>(base64_chars[(x >> 16U) & 0x3FU]);
         } else {
-          x >>= 8;
-          b[ix + 3] = static_cast<V>(base64_chars[x & 0x3F]);
-          x >>= 6;
-          b[ix + 2] = static_cast<V>(base64_chars[x & 0x3F]);
-          x >>= 6;
-          b[ix + 1] = static_cast<V>(base64_chars[x & 0x3F]);
-          x >>= 6;
-          b[ix] = static_cast<V>(base64_chars[x & 0x3F]);
+          x >>= 8U;
+          b[ix + 3] = static_cast<V>(base64_chars[x & 0x3FU]);
+          x >>= 6U;
+          b[ix + 2] = static_cast<V>(base64_chars[x & 0x3FU]);
+          x >>= 6U;
+          b[ix + 1] = static_cast<V>(base64_chars[x & 0x3FU]);
+          x >>= 6U;
+          b[ix] = static_cast<V>(base64_chars[x & 0x3FU]);
           ix += 4;
         }
       }
@@ -177,17 +186,18 @@ struct base64 {
 
     if (i != n) {
 
-      b[ix++] = static_cast<V>(base64_chars[(static_cast<int>(source[i] >> 2) & 0x3F)]);
-      int const next = (i + 1 < n) ? static_cast<int>(source[i + 1]) : 0;
-      b[ix++] = static_cast<V>(base64_chars[(static_cast<int>(source[i]) << 4 & 0x3F) | ((next >> 4) & 0x0F)]);
+      b[ix++] = static_cast<V>(base64_chars[(static_cast<unsigned>(source[i] >> 2U) & 0x3FU)]);
+      unsigned const next = (i + 1 < n) ? static_cast<unsigned>(source[i + 1]) : 0U;
+      b[ix++] = static_cast<V>(base64_chars[(static_cast<unsigned>(source[i]) << 4U & 0x3FU) | ((next >> 4U) & 0x0FU)]);
       if (i + 1 < n) {
-        b[ix++] = static_cast<V>(base64_chars[(next << 2 & 0x3F)]);
+        b[ix++] = static_cast<V>(base64_chars[(next << 2U & 0x3FU)]);
       } else {
         b[ix++] = static_cast<V>('=');
       }
       b[ix++] = static_cast<V>('=');
     }
-    return ix;
+    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+    return static_cast<int64_t>(ix);
   }
 
   constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto &&source, auto &&value) {
@@ -223,23 +233,25 @@ struct base64 {
     auto start = source.begin();
 
     size_t j = 0;
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     while (start != source.end()) {
-      uint32_t const a = decode_table[static_cast<int>(*start++)];
-      uint32_t const b = decode_table[static_cast<int>(*start++)];
-      uint32_t const c = decode_table[static_cast<int>(*start++)];
-      uint32_t const d = decode_table[static_cast<int>(*start++)];
-      uint32_t const triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
+      uint32_t const a = decode_table[static_cast<uint8_t>(*start++)];
+      uint32_t const b = decode_table[static_cast<uint8_t>(*start++)];
+      uint32_t const c = decode_table[static_cast<uint8_t>(*start++)];
+      uint32_t const d = decode_table[static_cast<uint8_t>(*start++)];
+      uint32_t const triple = (a << 3U * 6) + (b << 2U * 6) + (c << 1U * 6) + (d << 0U * 6);
 
       using byte = std::ranges::range_value_t<decltype(value)>;
 
-      value[j++] = static_cast<byte>((triple >> 2 * 8) & 0xFF);
+      value[j++] = static_cast<byte>((triple >> 2U * 8) & 0xFFU);
       if (j < value.size()) {
-        value[j++] = static_cast<byte>((triple >> 1 * 8) & 0xFF);
+        value[j++] = static_cast<byte>((triple >> 1U * 8) & 0xFFU);
       }
       if (j < value.size()) {
-        value[j++] = static_cast<byte>((triple >> 0 * 8) & 0xFF);
+        value[j++] = static_cast<byte>((triple >> 0U * 8) & 0xFFU);
       }
     }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
     return true;
   }
 };
@@ -263,15 +275,14 @@ struct json_codec<use_base64> {
 
 } // namespace hpp::proto
 
-namespace glz {
-namespace detail {
+namespace glz::detail {
 
 using base64 = hpp::proto::base64;
 
 template <hpp::proto::concepts::has_codec T>
 struct to_json<T> {
   template <auto Opts, class B>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &b, auto &&ix) noexcept {
     using codec = typename hpp::proto::json_codec<T>::type;
     if constexpr (resizable<B>) {
       std::size_t const encoded_size = codec::max_encode_size(value);
@@ -318,7 +329,7 @@ struct from_json<T> {
   template <auto Opts, class It, class End>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {
     std::string_view encoded;
-    from_json<std::string_view>::op<Opts>(encoded, ctx, it, end);
+    from_json<std::string_view>::op<Opts>(encoded, ctx, std::forward<It>(it), std::forward<End>(end));
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
       return;
     }
@@ -629,20 +640,21 @@ struct from_json<T *> {
       value = nullptr;
     } else {
       void *addr = ctx.memory_resource().allocate(sizeof(type), alignof(type));
+      // NOLINTBEGIN(cppcoreguidelines-owning-memory)
       type *obj = new (addr) type;
+      // NOLINTEND(cppcoreguidelines-owning-memory)
       read<json>::op<Opts>(*obj, ctx, it, end);
       value = obj;
     }
   }
 };
-} // namespace detail
-} // namespace glz
+} // namespace glz::detail
 
 namespace hpp::proto {
 
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
-  bool ok() const { return !static_cast<bool>(ctx); }
+  [[nodiscard]] bool ok() const { return !static_cast<bool>(ctx); }
   std::string message(const auto &buffer) const { return glz::format_error(ctx, buffer); }
 };
 
@@ -651,10 +663,10 @@ inline json_status read_json(auto &value, Buffer &&buffer, Context &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   using buffer_type = std::remove_cvref_t<Buffer>;
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<Buffer> ||
-                    (false || (concepts::has_memory_resource<Context> || ...)),
+                    ((concepts::has_memory_resource<Context> || ...)),
                 "temporary buffer cannot be used for non-owning object parsing");
   value = {};
-  return {glz::read<Opts>(value, buffer, ctx...)};
+  return {glz::read<Opts>(value, std::forward<Buffer>(buffer), std::forward<Context>(ctx)...)};
 }
 
 template <auto Opts = glz::opts{}, class T, class Buffer>
@@ -669,13 +681,13 @@ inline json_status write_json(T &&value, Buffer &&buffer) noexcept {
 }
 
 template <auto Opts = glz::opts{}, class T>
-inline auto write_json(T &&value, glz::is_context auto &&...ctx) noexcept
-    -> glz::expected<std::string, json_status> {
+inline auto write_json(T &&value, glz::is_context auto &&...ctx) noexcept -> glz::expected<std::string, json_status> {
   static_assert(sizeof...(ctx) <= 1);
   std::string buffer{};
   auto ec = write_json<Opts>(std::forward<T>(value), buffer, ctx...);
-  if (!ec.ok())
+  if (!ec.ok()) {
     return glz::unexpected(ec);
+  }
   return buffer;
 }
 

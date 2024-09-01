@@ -24,7 +24,11 @@ Checks: "*,
         -cppcoreguidelines-avoid-c-arrays,
         -hicpp-avoid-c-arrays,
         -modernize-avoid-c-arrays,
-        -misc-const-correctness
+        -misc-const-correctness,
+        -hicpp-named-parameter,
+        -hicpp-no-array-decay,
+        -readability-named-parameter,
+        -misc-no-recursion
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'

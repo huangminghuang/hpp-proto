@@ -63,6 +63,7 @@ struct float_wrapper {
   constexpr bool operator==(float v) const { return v == std::bit_cast<float>(x); }
 };
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #if defined(__clang__)
 #define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
   hpp::proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
@@ -72,14 +73,15 @@ struct float_wrapper {
 #define HPP_PROTO_WRAP_FLOAT(v) v
 #define HPP_PROTO_WRAP_DOUBLE(v) v
 #endif
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 template <int64_t x>
-static constexpr auto unwrap(double_wrapper<x>) {
+static constexpr auto unwrap(double_wrapper<x> /* unused */) {
   return std::bit_cast<double>(x);
 }
 
 template <int32_t x>
-static constexpr auto unwrap(float_wrapper<x>) {
+static constexpr auto unwrap(float_wrapper<x> /* unused */) {
   return std::bit_cast<float>(x);
 }
 
@@ -88,6 +90,7 @@ static constexpr auto unwrap(T v) {
   return v;
 }
 
+// NOLINTBEGIN(hicpp-explicit-conversions)
 template <typename T, auto Default = std::monostate{}>
 class optional {
   std::optional<T> impl;
@@ -96,15 +99,19 @@ public:
   using value_type = T;
 
   constexpr optional() noexcept = default;
-  constexpr optional(std::nullopt_t) noexcept : impl(std::nullopt) {}
+  constexpr ~optional() noexcept = default;
+  constexpr optional(std::nullopt_t /* unused */) noexcept : impl(std::nullopt) {}
 
   constexpr optional(optional &&) = default;
   constexpr optional(const optional &) = default;
 
   template <class U>
   constexpr optional(const optional<U> &other) : impl(other.impl) {}
+
+  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
   template <class U>
   constexpr optional(optional<U> &&other) : impl(std::move(other.impl)) {}
+  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
   constexpr optional(const std::optional<T> &other) : impl(other) {}
   constexpr optional(std::optional<T> &&other) : impl(std::move(other)) {}
@@ -114,17 +121,17 @@ public:
   constexpr optional(std::optional<U> &&other) : impl(std::move(other)) {}
 
   template <class... Args>
-  constexpr explicit optional(std::in_place_t, Args &&...args) : impl(std::in_place, forward<Args>(args)...) {}
+  constexpr explicit optional(std::in_place_t, Args &&...args) : impl(std::in_place, std::forward<Args>(args)...) {}
 
   template <class U, class... Args>
-  constexpr explicit optional(std::in_place_t, std::initializer_list<U> ilist, Args &&...args)
-      : impl(std::in_place, ilist, forward<Args>(args)...) {}
+  constexpr explicit optional(std::in_place_t, std::initializer_list<U> list, Args &&...args)
+      : impl(std::in_place, list, std::forward<Args>(args)...) {}
 
   template <typename U>
     requires std::convertible_to<U, T>
   constexpr optional(U &&value) : impl(std::forward<U>(value)) {}
 
-  constexpr optional &operator=(std::nullopt_t) noexcept {
+  constexpr optional &operator=(std::nullopt_t /* unused */) noexcept {
     impl = std::nullopt;
     return *this;
   }
@@ -132,7 +139,10 @@ public:
   template <typename U>
     requires std::convertible_to<U, T>
   constexpr optional &operator=(U &&value) {
-    impl = static_cast<T>(value);
+    static_assert(!std::is_pointer_v<T>);
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    impl = static_cast<T>(std::forward<U>(value));
+    // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     return *this;
   }
 
@@ -144,11 +154,14 @@ public:
     impl = other.imp;
     return *this;
   }
+
+  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
   template <class U>
   constexpr optional &operator=(optional<U> &&other) {
     impl = std::move(other.imp);
     return *this;
   }
+  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
   constexpr optional &operator=(const std::optional<T> &v) {
     impl = v;
@@ -156,32 +169,36 @@ public:
   }
 
   constexpr optional &operator=(std::optional<T> &&v) {
-    impl = move(v);
+    impl = std::move(v);
     return *this;
   }
 
-  constexpr bool has_value() const noexcept { return impl.has_value(); }
-  constexpr operator bool() const noexcept { return has_value(); }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return impl.has_value(); }
+  [[nodiscard]] constexpr operator bool() const noexcept { return has_value(); }
 
-  constexpr T &value() & { return impl.value(); }
-  constexpr const T &value() const & { return impl.value(); }
-  constexpr T &&value() && { return std::move(impl.value()); }
-  constexpr const T &&value() const && { return std::move(impl.value()); }
+  // NOLINTBEGIN(bugprone-unchecked-optional-access)
+  [[nodiscard]] constexpr T &value() & { return impl.value(); }
+  [[nodiscard]] constexpr const T &value() const & { return impl.value(); }
+  [[nodiscard]] constexpr T &&value() && { return std::move(impl.value()); }
+  [[nodiscard]] constexpr const T &&value() const && { return std::move(impl.value()); }
 
   template <class U>
   constexpr T value_or(U &&default_value) const & {
-    return impl.value_or(static_cast<T>(default_value));
+    return impl.value_or(static_cast<T>(std::forward<U>(default_value)));
   }
   template <class U>
   constexpr T value_or(U &&default_value) && {
-    return impl.value_or(default_value);
+    return impl.value_or(std::forward<U>(default_value));
   }
 
   constexpr T *operator->() noexcept { return impl.operator->(); }
   constexpr const T *operator->() const noexcept { return impl.operator->(); }
 
+  
   constexpr T &operator*() & noexcept { return *impl; }
   constexpr const T &operator*() const & noexcept { return *impl; }
+  // NOLINTEND(bugprone-unchecked-optional-access)
+
   constexpr T &&operator*() && noexcept { return *impl; }
   constexpr const T &&operator*() const && noexcept { return *impl; }
 
@@ -192,7 +209,7 @@ public:
   constexpr void swap(optional &other) noexcept { impl.swap(other.impl); }
   constexpr void reset() noexcept { impl.reset(); }
 
-  constexpr T value_or_default() const {
+  [[nodiscard]] constexpr T value_or_default() const {
     if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
       return this->value_or(T{});
     } else if constexpr (requires { T{Default.data(), Default.size()}; }) {
@@ -224,14 +241,17 @@ class optional<bool, Default> {
 public:
   using value_type = bool;
   constexpr optional() noexcept = default;
-  constexpr optional(bool v) noexcept { impl = uint8_t(v); };
+  constexpr ~optional() noexcept = default;
+  constexpr optional(bool v) noexcept : impl(uint8_t(v)) {};
   constexpr optional(const optional &) noexcept = default;
+  constexpr optional(optional &&) noexcept = default;
   constexpr optional &operator=(const optional &) noexcept = default;
+  constexpr optional &operator=(optional &&) noexcept = default;
 
-  constexpr bool has_value() const noexcept { return impl != 0x80; }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return impl != 0x80; }
   constexpr bool operator*() const noexcept {
     assert(has_value());
-    return impl;
+    return impl != 0;
   }
   bool &operator*() noexcept {
     assert(has_value());
@@ -248,16 +268,16 @@ public:
     return deref();
   }
 
-  constexpr bool value() const {
+  [[nodiscard]] constexpr bool value() const {
     if (!has_value()) {
       throw std::bad_optional_access{};
     }
-    return impl;
+    return impl != 0;
   }
 
-  constexpr bool value_or_default() const noexcept {
+  [[nodiscard]] constexpr bool value_or_default() const noexcept {
     if (has_value()) {
-      return impl;
+      return impl != 0;
     }
     return default_value;
   }
@@ -272,15 +292,17 @@ public:
   constexpr void reset() noexcept { impl = 0x80; }
 };
 
+// NOLINTBEGIN(cppcoreguidelines-owning-memory)
 template <typename T>
 class heap_based_optional {
   T *obj = nullptr;
 
 public:
   using value_type = T;
-  constexpr heap_based_optional() noexcept {}
-  constexpr heap_based_optional(std::nullopt_t) noexcept {}
-  constexpr ~heap_based_optional() { delete obj; }
+  constexpr heap_based_optional() noexcept = default;
+  constexpr ~heap_based_optional() noexcept { delete obj; };
+
+  constexpr heap_based_optional(std::nullopt_t /* unused */) noexcept {};
 
   constexpr heap_based_optional(const T &object) : obj(new T(object)) {}
   constexpr heap_based_optional(heap_based_optional &&other) noexcept { std::swap(obj, other.obj); }
@@ -301,7 +323,7 @@ public:
     return *this;
   }
 
-  constexpr bool has_value() const noexcept { return obj; }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return obj; }
   constexpr operator bool() const noexcept { return has_value(); }
 
   constexpr T &value() {
@@ -310,7 +332,7 @@ public:
     }
     return *obj;
   }
-  constexpr const T &value() const {
+  [[ nodiscard ]] constexpr const T &value() const {
     if (!has_value()) {
       throw std::bad_optional_access();
     }
@@ -352,37 +374,41 @@ public:
     }
   }
 
-  constexpr bool operator==(std::nullopt_t) const { return !has_value(); }
+  constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
 };
+// NOLINTEND(cppcoreguidelines-owning-memory)
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 template <std::size_t Len>
 struct compile_time_string {
   using value_type = char;
   char data_[Len];
-  constexpr std::size_t size() const { return Len - 1; }
-  constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(init, Len, data_); }
-  constexpr const char *data() const { return data_; }
+  [[nodiscard]] constexpr std::size_t size() const { return Len - 1; }
+  constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(&init[0], Len, &data_[0]); }
+  [[nodiscard]] constexpr const char *data() const { return &data_[0]; }
 };
 
 template <std::size_t Len>
 struct compile_time_bytes {
   using value_type = char;
   std::byte data_[Len];
-  constexpr std::size_t size() const { return Len - 1; }
+  [[nodiscard]] constexpr std::size_t size() const { return Len - 1; }
   constexpr compile_time_bytes(const char (&init)[Len]) {
-    std::transform(init, init + Len, data_, [](char c) { return static_cast<std::byte>(c); });
+    std::transform(&init[0], &init[Len], &data_[0], [](char c) { return static_cast<std::byte>(c); });
   }
-  constexpr const std::byte *data() const { return data_; }
+  [[nodiscard]] constexpr const std::byte *data() const { return &data_[0]; }
 };
 
 template <compile_time_string cts>
 struct bytes_literal {
   static constexpr compile_time_bytes bytes{cts.data_};
 
-  constexpr size_t size() const { return bytes.size(); }
-  constexpr const std::byte *data() const { return bytes.data(); }
-  constexpr const std::byte *begin() const { return bytes.data(); }
-  constexpr const std::byte *end() const { return bytes.data() + size(); }
+  [[nodiscard]] constexpr size_t size() const { return bytes.size(); }
+  [[nodiscard]] constexpr const std::byte *data() const { return bytes.data(); }
+  [[nodiscard]] constexpr const std::byte *begin() const { return bytes.data(); }
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  [[nodiscard]] constexpr const std::byte *end() const { return bytes.data() + size(); }
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   constexpr operator std::span<const std::byte>() const { return std::span<const std::byte>{data(), size()}; }
   explicit operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
@@ -391,6 +417,7 @@ struct bytes_literal {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
   }
 };
+// NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
 namespace concepts {
 template <typename Type>
@@ -408,11 +435,11 @@ concept flat_map = requires {
 template <compile_time_string cts>
 struct string_literal {
   static constexpr compile_time_string str{cts};
-  constexpr size_t size() const { return str.size(); }
-  constexpr const char *data() const { return str.data(); }
-  constexpr const char *c_str() const { return str.data(); }
-  constexpr const char *begin() const { return str.data(); }
-  constexpr const char *end() const { return str.data() + size(); }
+  [[nodiscard]] constexpr size_t size() const { return str.size(); }
+  [[nodiscard]] constexpr const char *data() const { return str.data(); }
+  [[nodiscard]] constexpr const char *c_str() const { return str.data(); }
+  [[nodiscard]] constexpr const char *begin() const { return str.data(); }
+  [[nodiscard]] constexpr const char *end() const { return str.data() + size(); }
 
   explicit operator std::string() const { return std::string{data()}; }
   constexpr operator std::string_view() const { return std::string_view(data(), size()); }
@@ -429,13 +456,13 @@ struct string_literal {
 using bytes = std::vector<std::byte>;
 using bytes_view = std::span<const std::byte>;
 
-
 struct boolean {
   bool value = false;
   constexpr boolean() = default;
   constexpr boolean(bool v) : value(v) {}
   constexpr operator bool() const { return value; }
 };
+// NOLINTEND(hicpp-explicit-conversions)
 
 template <typename T, auto Default = std::monostate{}>
 constexpr bool is_default_value(const T &val) {
@@ -459,7 +486,9 @@ constexpr bool is_default_value(const T &val) {
 inline const char *message_name(auto &&v)
   requires requires { message_type_url(v); }
 {
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   return message_type_url(v).c_str() + std::size("type.googleapis.com");
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 template <concepts::flat_map T>

@@ -674,7 +674,7 @@ const ut::suite test_string_example = [] {
     ut::expect(v.value.value_or_default() == "test");
   };
 
-  "string_requried"_test = [] { verify("\x0a\x00"sv, string_required{}); };
+  "string_required"_test = [] { verify("\x0a\x00"sv, string_required{}); };
 };
 
 struct string_view_example {

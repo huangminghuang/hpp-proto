@@ -13,7 +13,7 @@
 
 using namespace boost::ut;
 
-suite test_any = [] {
+const suite test_any = [] {
   "any"_test = [] {
     protobuf_unittest::TestAny message;
     google::protobuf::FieldMask fm{.paths = {"/usr/share", "/usr/local/share"}};

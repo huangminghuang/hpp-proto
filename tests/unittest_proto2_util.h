@@ -820,7 +820,6 @@ inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message) {
 // -------------------------------------------------------------------
 
 inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *message) {
-  // ABSL_CHECK(message);
   message->my_int = 1;
   message->my_string = "foo";
   message->my_float = 1.0f;

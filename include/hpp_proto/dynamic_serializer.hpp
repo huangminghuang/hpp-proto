@@ -31,8 +31,8 @@ concept file_descriptor_pb_array =
 
 namespace wellknown {
 struct Any {
-  std::string type_url = {};
-  std::vector<std::byte> value = {};
+  std::string type_url;
+  std::vector<std::byte> value;
 };
 auto pb_meta(const Any &) -> std::tuple<hpp::proto::field_meta<1, &Any::type_url, hpp::proto::field_option::none>,
                                         hpp::proto::field_meta<2, &Any::value, hpp::proto::field_option::none>>;
@@ -89,12 +89,12 @@ struct proto_json_addons {
 
   template <typename EnumD>
   struct enum_descriptor {
-    enum_descriptor(const google::protobuf::EnumDescriptorProto &) {}
+    explicit enum_descriptor(const google::protobuf::EnumDescriptorProto &) {}
   };
 
   template <typename OneofD, typename FieldD>
   struct oneof_descriptor {
-    oneof_descriptor(const google::protobuf::OneofDescriptorProto &) {}
+    explicit oneof_descriptor(const google::protobuf::OneofDescriptorProto &) {}
   };
 
   template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
@@ -102,7 +102,7 @@ struct proto_json_addons {
     std::string syntax;
     bool is_map_entry = false;
     std::vector<FieldD *> fields;
-    message_descriptor(const google::protobuf::DescriptorProto &proto) {
+    explicit message_descriptor(const google::protobuf::DescriptorProto &proto) {
       fields.reserve(proto.field.size() + proto.extension.size());
       is_map_entry = proto.options.has_value() && proto.options->map_entry;
     }
@@ -116,7 +116,7 @@ struct proto_json_addons {
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
   struct file_descriptor {
     std::string syntax;
-    file_descriptor(const google::protobuf::FileDescriptorProto &proto)
+    explicit file_descriptor(const google::protobuf::FileDescriptorProto &proto)
         : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax) {}
     void add_enum(EnumD &) {}
     void add_message(MessageD &m) { m.syntax = syntax; }

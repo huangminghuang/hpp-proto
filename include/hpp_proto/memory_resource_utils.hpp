@@ -49,14 +49,14 @@ constexpr bool equal(RG1 &&r1, RG2 &&r2, BinaryPredicate p) {
 #endif
 
 #if !defined(__cpp_lib_ranges_contains)
-namespace std {
-namespace ranges {
+// NOLINTBEGIN(cert-dcl58-cpp)
+namespace std::ranges {
 template <std::ranges::input_range R, class T>
 constexpr bool contains(R &&r, const T &value) {
-  return std::find(std::begin(r), std::end(r), value) != std::end(r);
+  return std::find(std::begin(std::forward<R>(r)), std::end(std::forward<R>(r)), value) != std::end(std::forward<R>(r));
 }
-} // namespace ranges
-} // namespace std
+} // namespace std::ranges
+// NOLINTEND(cert-dcl58-cpp)
 #endif
 
 namespace hpp::proto {
@@ -117,10 +117,10 @@ template <typename... T>
 struct pb_context : pb_context_base<T>::type... {
   using is_pb_context = void;
   template <typename... U>
-  constexpr pb_context(U &&...ctx) : pb_context_base<T>::type(std::forward<U>(ctx))... {}
+  constexpr explicit pb_context(U &&...ctx) : pb_context_base<T>::type(std::forward<U>(ctx))... {}
 
   template <concepts::is_auxiliary_context U>
-  constexpr auto &get() const {
+  [[nodiscard]] constexpr auto &get() const {
     if constexpr (std::copyable<U>) {
       return static_cast<const U &>(*this);
     } else {
@@ -129,7 +129,7 @@ struct pb_context : pb_context_base<T>::type... {
   }
 
   template <typename U, typename... Rest>
-  auto &get_memory_resource() const {
+  [[nodiscard]] auto &get_memory_resource() const {
     if constexpr (concepts::memory_resource<U>) {
       return this->template get<U>();
     } else {
@@ -157,7 +157,7 @@ struct pb_context : pb_context_base<T>::type... {
     }
   }
 
-  auto &memory_resource() const
+  [[nodiscard]] auto &memory_resource() const
     requires(has_memory_resource<T...>())
   {
     return get_memory_resource<T...>();
@@ -183,10 +183,10 @@ using memory_resource_type = std::remove_reference_t<decltype(get_memory_resourc
 namespace concepts {
 template <typename T>
 concept context_with_memory_resource = requires(T &v) { get_memory_resource(v); };
-}
+} // namespace concepts
 
 namespace detail {
-
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 template <typename T, typename ByteT>
 struct raw_data_iterator {
   const ByteT *base;
@@ -197,7 +197,10 @@ struct raw_data_iterator {
   using reference = value_type &;
   using pointer = value_type *;
 
+  // NOLINTBEGIN(bugprone-sizeof-expression)
   constexpr std::size_t operator-(raw_data_iterator other) const { return (this->base - other.base) / sizeof(T); }
+  // NOLINTEND(bugprone-sizeof-expression)
+  
   constexpr bool operator==(raw_data_iterator other) { return other.base == this->base; }
   constexpr bool operator!=(raw_data_iterator s) { return !(*this == s); }
 
@@ -222,11 +225,14 @@ struct raw_data_iterator {
   }
 
   constexpr T operator*() const {
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     std::array<ByteT, sizeof(T)> v;
-    if (std::endian::little == std::endian::native)
-      std::copy(base, base+sizeof(T), v.data());
-    else
-      std::reverse_copy(base, base+sizeof(T), v.data());
+    if (std::endian::little == std::endian::native) {
+      std::copy(base, base + sizeof(T), v.data());
+    } else {
+      std::reverse_copy(base, base + sizeof(T), v.data());
+    }
+    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     return std::bit_cast<T>(v);
   }
 };
@@ -241,6 +247,7 @@ struct raw_data_iterator {
 ///
 /// @tparam View
 /// @tparam MemoryResource
+
 template <concepts::dynamic_sized_view View, concepts::memory_resource MemoryResource>
 class arena_vector {
 public:
@@ -254,7 +261,7 @@ public:
   using const_iterator = const iterator;
 
   static_assert(std::is_trivially_destructible_v<value_type>);
-  //static_assert(std::is_nothrow_default_constructible_v<value_type>);
+  // static_assert(std::is_nothrow_default_constructible_v<value_type>);
   static_assert(std::is_nothrow_copy_constructible_v<value_type>);
 
   constexpr MemoryResource &memory_resource() { return mr; }
@@ -281,11 +288,11 @@ public:
     return *this;
   }
 
-  constexpr value_type *data() const { return data_; }
+  [[nodiscard]] constexpr value_type *data() const { return data_; }
   constexpr reference operator[](std::size_t n) { return data_[n]; }
-  constexpr std::size_t size() const { return view_.size(); }
-  constexpr value_type *begin() const { return data_; }
-  constexpr value_type *end() const { return data_ + size(); }
+  [[nodiscard]] constexpr std::size_t size() const { return view_.size(); }
+  [[nodiscard]] constexpr value_type *begin() const { return data_; }
+  [[nodiscard]] constexpr value_type *end() const { return data_ + size(); }
 
   constexpr reference front() { return data_[0]; }
   constexpr reference back() { return data_[size() - 1]; }
@@ -328,22 +335,25 @@ public:
   }
 
   template <typename ByteT>
-  constexpr void append_raw_data(const ByteT* start_pos, std::size_t num_elements) {
+  constexpr void append_raw_data(const ByteT *start_pos, std::size_t num_elements) {
 
     auto old_size = view_.size();
     std::size_t n = old_size + num_elements;
     assign_range_with_size(view_, n);
-    if (std::is_constant_evaluated() || (sizeof(value_type)> 1 && std::endian::little != std::endian::native)) {
+    if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
       using input_it = raw_data_iterator<value_type, ByteT>;
-      std::uninitialized_copy(input_it{start_pos},  input_it{start_pos + num_elements * sizeof(value_type)}, data_ + old_size);
+      std::uninitialized_copy(input_it{start_pos}, input_it{start_pos + num_elements * sizeof(value_type)},
+                              data_ + old_size);
     } else {
-      std::memcpy(data_ + old_size, start_pos, num_elements *sizeof(value_type));
+      std::memcpy(data_ + old_size, start_pos, num_elements * sizeof(value_type));
     }
   }
 
 private:
+  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
   MemoryResource &mr;
   View &view_;
+  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
   value_type *data_ = nullptr;
   std::size_t capacity_ = 0;
 
@@ -364,6 +374,7 @@ private:
     view_ = View{data_, n};
   }
 };
+// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 template <concepts::dynamic_sized_view View, concepts::has_memory_resource Context>
 arena_vector(View &view, Context &ctx)
