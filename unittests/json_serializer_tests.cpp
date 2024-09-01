@@ -55,7 +55,7 @@ struct glz::meta<optional_example> {
 };
 
 struct explicit_optional_bool_example {
-  hpp::proto::optional<bool> field = {};
+  hpp::proto::optional<bool> field;
   bool operator==(const explicit_optional_bool_example &) const = default;
 };
 

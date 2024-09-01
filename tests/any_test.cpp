@@ -70,7 +70,7 @@ const suite test_any = [] {
     expect(message == message2);
   };
 
-  "any_josn"_test = [] {
+  "any_json"_test = [] {
     protobuf_unittest::TestAny message;
     proto3_unittest::ForeignMessage submessage{.c = 1234};
     expect(hpp::proto::pack_any(message.any_value.emplace(), submessage).ok());

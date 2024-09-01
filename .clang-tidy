@@ -28,7 +28,9 @@ Checks: "*,
         -hicpp-named-parameter,
         -hicpp-no-array-decay,
         -readability-named-parameter,
-        -misc-no-recursion
+        -misc-no-recursion,
+        -clang-analyzer-optin.performance.Padding,
+        -modernize-raw-string-literal
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'

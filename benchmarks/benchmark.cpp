@@ -2,7 +2,6 @@
 #include <random>
 #include <memory_resource>
 #include <benchmark/benchmark.h>
-
 #include "benchmark_messages_proto2.pb.h"
 #include "non_owning/benchmark_messages_proto2.pb.hpp"
 #include "owning/benchmark_messages_proto2.pb.hpp"

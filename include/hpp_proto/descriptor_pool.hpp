@@ -13,6 +13,7 @@ void reserve(FlatMap &m, std::size_t s) {
   m.replace(std::move(keys), std::move(values));
 }
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
 template <typename AddOns>
 struct descriptor_pool {
   struct field_descriptor_t : AddOns::template field_descriptor<field_descriptor_t> {
@@ -25,14 +26,14 @@ struct descriptor_pool {
   struct oneof_descriptor_t : AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
     const google::protobuf::OneofDescriptorProto &proto;
-    oneof_descriptor_t(const google::protobuf::OneofDescriptorProto &proto)
+    explicit oneof_descriptor_t(const google::protobuf::OneofDescriptorProto &proto)
         : AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t>(proto), proto(proto) {}
   };
 
   struct enum_descriptor_t : AddOns::template enum_descriptor<enum_descriptor_t> {
     using pool_type = descriptor_pool;
     const google::protobuf::EnumDescriptorProto proto;
-    enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto)
+    explicit enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto)
         : AddOns::template enum_descriptor<enum_descriptor_t>(proto), proto(proto) {}
   };
 
@@ -41,7 +42,7 @@ struct descriptor_pool {
     using pool_type = descriptor_pool;
     const google::protobuf::DescriptorProto &proto;
 
-    message_descriptor_t(const google::protobuf::DescriptorProto &proto)
+    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto)
         : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t, oneof_descriptor_t,
                                               field_descriptor_t>(proto),
           proto(proto) {}
@@ -52,7 +53,7 @@ struct descriptor_pool {
     using pool_type = descriptor_pool;
     const google::protobuf::FileDescriptorProto &proto;
 
-    file_descriptor_t(const google::protobuf::FileDescriptorProto &proto)
+    explicit file_descriptor_t(const google::protobuf::FileDescriptorProto &proto)
         : AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t, enum_descriptor_t,
                                            field_descriptor_t>(proto),
           proto(proto) {}
@@ -65,10 +66,9 @@ struct descriptor_pool {
     std::size_t oneofs = 0;
     std::size_t enums = 0;
 
-    descriptor_counter(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
-      files = proto_files.size();
-
-      for (auto &f : proto_files) {
+    explicit descriptor_counter(const std::vector<google::protobuf::FileDescriptorProto> &proto_files)
+        : files(proto_files.size()) {
+      for (const auto &f : proto_files) {
         count(f.message_type);
         enums += f.enum_type.size();
         fields += f.extension.size();
@@ -77,7 +77,7 @@ struct descriptor_pool {
 
     void count(const std::vector<google::protobuf::DescriptorProto> &proto_messages) {
       messages += proto_messages.size();
-      for (auto &m : proto_messages) {
+      for (const auto &m : proto_messages) {
         count(m.nested_type);
         enums += m.enum_type.size();
         fields += m.field.size() + m.extension.size();
@@ -96,7 +96,7 @@ struct descriptor_pool {
   flat_map<std::string, message_descriptor_t *> message_map;
   flat_map<std::string, enum_descriptor_t *> enum_map;
 
-  descriptor_pool(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
+  explicit descriptor_pool(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
 
     const descriptor_counter counter(proto_files);
     files.reserve(counter.files);
@@ -108,7 +108,7 @@ struct descriptor_pool {
     reserve(message_map, counter.messages);
     reserve(enum_map, counter.enums);
 
-    for (auto &proto : proto_files) {
+    for (const auto &proto : proto_files) {
       if (!proto.name.empty() && file_map.count(proto.name) == 0) {
         build(files.emplace_back(proto));
       }
@@ -184,4 +184,5 @@ struct descriptor_pool {
     }
   }
 };
+// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 } // namespace hpp::proto

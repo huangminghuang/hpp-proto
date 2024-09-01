@@ -186,7 +186,7 @@ struct base64 {
 
     if (i != n) {
 
-      b[ix++] = static_cast<V>(base64_chars[(static_cast<unsigned>(source[i] >> 2U) & 0x3FU)]);
+      b[ix++] = static_cast<V>(base64_chars[((static_cast<unsigned>(source[i]) >> 2U) & 0x3FU)]);
       unsigned const next = (i + 1 < n) ? static_cast<unsigned>(source[i + 1]) : 0U;
       b[ix++] = static_cast<V>(base64_chars[(static_cast<unsigned>(source[i]) << 4U & 0x3FU) | ((next >> 4U) & 0x0FU)]);
       if (i + 1 < n) {
@@ -632,7 +632,9 @@ struct from_json<T *> {
     }
 
     if (*it == 'n') {
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       ++it;
+      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       match<"ull", Opts>(ctx, it, end);
       if (bool(ctx.error)) {
         [[unlikely]] return;
@@ -655,7 +657,7 @@ namespace hpp::proto {
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
   [[nodiscard]] bool ok() const { return !static_cast<bool>(ctx); }
-  std::string message(const auto &buffer) const { return glz::format_error(ctx, buffer); }
+  [[nodiscard]] std::string message(const auto &buffer) const { return glz::format_error(ctx, buffer); }
 };
 
 template <auto Opts = glz::opts{}, typename Buffer, glz::is_context... Context>

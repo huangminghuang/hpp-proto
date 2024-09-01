@@ -59,6 +59,7 @@
         "sint",
         "stdext",
         "struct",
+        "submessage",
         "submsg",
         "superscalar",
         "Tiananmen",

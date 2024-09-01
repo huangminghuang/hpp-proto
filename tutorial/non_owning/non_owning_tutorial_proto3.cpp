@@ -85,7 +85,9 @@ int main() {
 
     const std::optional<tutorial::Person::NestedMessage> &alex_nested_message = alex.nested_message;
     assert_true(alex_nested_message.has_value());
+    //NOLINTBEGIN(bugprone-unchecked-optional-access)
     assert_true(alex_nested_message->bb == 89);
+    //NOLINTEND(bugprone-unchecked-optional-access)
     std::span<const std::pair<std::string_view, tutorial::Person::NestedMessage>> map_string_nested_message =
         alex.map_string_nested_message;
     assert_true(std::ranges::equal(map_string_nested_message, address_book.people[0].map_string_nested_message));

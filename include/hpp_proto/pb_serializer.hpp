@@ -705,8 +705,8 @@ struct map_entry {
   using key_type = KeyType;
   using mapped_type = MappedType;
   struct mutable_type {
-    typename serialize_type<KeyType>::type key;
-    typename serialize_type<MappedType>::type value;
+    typename serialize_type<KeyType>::type key = {};
+    typename serialize_type<MappedType>::type value = {};
     constexpr static bool allow_inline_visit_members_lambda = true;
     using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence>,
                                field_meta<2, &mutable_type::value, field_option::explicit_presence>>;
@@ -725,8 +725,10 @@ struct map_entry {
   };
 
   struct read_only_type {
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     typename serialize_type<KeyType>::read_type key;
     typename serialize_type<MappedType>::read_type value;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     constexpr static bool allow_inline_visit_members_lambda = true;
 
     constexpr read_only_type(auto &&k, auto &&v)
@@ -1209,7 +1211,6 @@ struct pb_serializer {
       return 0;
     }
   }
-  
 
   constexpr static std::size_t message_size(concepts::has_meta auto &&item) {
     struct null_size_cache {
@@ -1245,7 +1246,6 @@ struct pb_serializer {
         },
         typename traits::meta_of<type>::type{});
   }
- 
 
   // NOLINTBEGIN(readability-function-cognitive-complexity)
   template <typename Meta>
@@ -1376,7 +1376,7 @@ struct pb_serializer {
     if (std::is_constant_evaluated() || n > MAX_CACHE_COUNT) {
       constexpr_vector<uint32_t> cache(n);
       return do_serialize(cache);
-    } else {
+    } else if (n > 0){
 #if defined(_MSC_VER)
       auto *cache = static_cast<uint32_t *>(_alloca(n * sizeof(uint32_t)));
 #elif defined(__GNUC__)
@@ -1385,6 +1385,9 @@ struct pb_serializer {
 #else
       uint32_t cache[MAX_CACHE_COUNT];
 #endif
+      return do_serialize({cache, n});
+    } else {
+      uint32_t * cache = nullptr;
       return do_serialize({cache, n});
     }
   }
@@ -1442,7 +1445,7 @@ struct pb_serializer {
         if (!serialize(std::forward<decltype(item)>(item), cache, archive)) {
           return false;
         }
-        archive(varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::egroup)});
+        archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::egroup)});
       }
     } else if constexpr (std::ranges::range<type>) {
       if (item.empty()) {
@@ -2437,7 +2440,7 @@ struct pb_serializer {
     if constexpr (sz == 0) {
       return std::span<std::byte>{};
     } else {
-      std::array<std::byte, sz> buffer;
+      std::array<std::byte, sz> buffer = {};
       if (auto result = serialize(ObjectLambda(), buffer); !result.ok()) {
         throw std::system_error(std::make_error_code(result.ec));
       }
@@ -2457,7 +2460,9 @@ struct pb_serializer {
 
 template <typename FieldType, typename MetaType>
 struct serialize_wrapper_type {
+  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
   FieldType value = {};
+  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
   using pb_meta = std::tuple<MetaType>;
 };
 

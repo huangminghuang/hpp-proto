@@ -9,10 +9,11 @@ struct field_mask_codec {
     return value.paths.size() + std::transform_reduce(value.paths.begin(), value.paths.end(), 0ULL, std::plus{},
                                                       [](auto &p) { return p.size(); });
   }
-
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   static int64_t encode(auto &&value, auto &&b) noexcept {
-    if (value.paths.empty())
+    if (value.paths.empty()){
       return 0;
+    }
     char *cur = std::data(b);
     for (auto &p : value.paths) {
       cur = std::copy(std::begin(p), std::end(p), cur);
@@ -23,8 +24,9 @@ struct field_mask_codec {
   }
 
   static bool decode(auto &&json, auto &&value) {
-    if (json.empty())
+    if (json.empty()){
       return true;
+    }
     auto is_comma = [](auto c) { return c == ','; };
     auto num_commas = std::count_if(json.begin(), json.end(), is_comma);
     value.paths.resize(num_commas + 1);
@@ -40,5 +42,6 @@ struct field_mask_codec {
     }
     return true;
   }
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 };
 } // namespace hpp::proto

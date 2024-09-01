@@ -57,7 +57,9 @@ int main() {
   assert_true(alex_phones[0].type == PHONE_TYPE_MOBILE);
   std::optional<tutorial::Person::NestedMessage> &alex_nested_message = alex.nested_message;
   assert_true(alex_nested_message.has_value());
+  //NOLINTBEGIN(bugprone-unchecked-optional-access)
   assert_true(alex_nested_message->bb == 89);
+  //NOLINTEND(bugprone-unchecked-optional-access)
 
   std::variant<std::monostate, uint32_t, tutorial::Person::NestedMessage, std::string, hpp::proto::bytes>
       &alex_oneof_field = alex.oneof_field;

@@ -102,9 +102,9 @@ struct proto_json_addons {
     std::string syntax;
     bool is_map_entry = false;
     std::vector<FieldD *> fields;
-    explicit message_descriptor(const google::protobuf::DescriptorProto &proto) {
+    explicit message_descriptor(const google::protobuf::DescriptorProto &proto)
+        : is_map_entry(proto.options.has_value() && proto.options->map_entry) {
       fields.reserve(proto.field.size() + proto.extension.size());
-      is_map_entry = proto.options.has_value() && proto.options->map_entry;
     }
     void add_field(FieldD &f) { fields.push_back(&f); }
     void add_enum(EnumD &) {}
@@ -137,12 +137,12 @@ class dynamic_serializer {
   }
 
   struct field_meta {
-    uint32_t number;
-    uint32_t type_index;
+    uint32_t number = 0;
+    uint32_t type_index = 0;
     std::string name;
     std::string json_name;
-    google::protobuf::FieldDescriptorProto::Type type;
-    encoding rule;
+    google::protobuf::FieldDescriptorProto::Type type = {};
+    encoding rule = encoding::none;
     bool is_map_entry = false;
 
     field_meta() = default;
@@ -167,8 +167,8 @@ class dynamic_serializer {
         if (proto.options.has_value() && proto.options->packed.has_value()) {
           packed = proto.options->packed.value();
         }
-        bool const is_numeric = !(proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP || proto.type == TYPE_STRING ||
-                                  proto.type == TYPE_BYTES);
+        bool const is_numeric = (proto.type != TYPE_MESSAGE && proto.type != TYPE_GROUP && proto.type != TYPE_STRING &&
+                                 proto.type != TYPE_BYTES);
         if (!is_numeric ||
             ((packed.has_value() && !packed.value()) || (descriptor->syntax == "proto2" && !packed.has_value()))) {
           rule = dynamic_serializer::unpacked_repeated;
@@ -181,17 +181,19 @@ class dynamic_serializer {
     }
   };
 
-  std::size_t message_index(std::string_view name) const {
+  [[nodiscard]] std::size_t message_index(std::string_view name) const {
     auto it = std::lower_bound(message_names.begin(), message_names.end(), name);
-    if (it == message_names.end() || *it != name)
+    if (it == message_names.end() || *it != name) {
       return message_names.size();
+    }
     return it - message_names.begin();
   }
 
-  std::size_t message_index_from_type_url(std::string_view type_url) const {
+  [[nodiscard]] std::size_t message_index_from_type_url(std::string_view type_url) const {
     auto slash_pos = type_url.find('/');
-    if (slash_pos >= type_url.size() - 1)
+    if (slash_pos >= type_url.size() - 1) {
       return message_names.size();
+    }
     return message_index(type_url.substr(slash_pos + 1));
   }
 
@@ -211,16 +213,19 @@ class dynamic_serializer {
   std::size_t protobuf_struct_message_index = std::numeric_limits<std::size_t>::max();
   std::vector<std::size_t> protobuf_wrapper_type_message_indices;
 
-  bool is_wellknown_message(std::size_t msg_index) const {
+  [[nodiscard]] bool is_wellknown_message(std::size_t msg_index) const {
     return msg_index == protobuf_duration_message_index || msg_index == protobuf_timestamp_message_index ||
            msg_index == protobuf_field_mask_message_index || msg_index == protobuf_list_value_message_index ||
            std::ranges::contains(protobuf_wrapper_type_message_indices, msg_index);
   }
 
+  // NOLINTBEGIN(readability-function-cognitive-complexity)
   template <typename Buffer>
   struct pb_to_json_state {
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     const dynamic_serializer &pb_meta;
     Buffer &b;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     glz::context context;
     std::size_t ix = 0;
 
@@ -286,8 +291,9 @@ class dynamic_serializer {
           return std::errc::bad_message;
         }
         value.resize(0);
-        if (auto ec = archive.deserialize_packed(len, value); !ec.ok())
+        if (auto ec = archive.deserialize_packed(len, value); !ec.ok()) [[unlikely]] {
           return ec;
+        }
       } else {
         if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
           return ec;
@@ -341,8 +347,9 @@ class dynamic_serializer {
         }
       }
 
-      if (new_archive.in_avail() < 0)
+      if (new_archive.in_avail() < 0) [[unlikely]] {
         return std::errc::bad_message;
+      }
 
       if constexpr (Options.prettify) {
         context.indentation_level -= Options.indentation_width;
@@ -462,7 +469,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status decode_enum(uint32_t enum_index, concepts::is_basic_in auto &archive) {
-      auto &meta = pb_meta.enums[enum_index];
+      const auto &meta = pb_meta.enums[enum_index];
       vint64_t value;
       if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
         return ec;
@@ -472,10 +479,10 @@ class dynamic_serializer {
         glz::detail::dump<"null">(b, ix);
         return {};
       } else {
-        for (std::size_t i = 0; i < meta.size(); ++i) {
-          if (meta[i].number == value) {
+        for (const auto &m : meta) {
+          if (m.number == value) {
             glz::detail::dump<'"'>(b, ix);
-            glz::detail::dump(meta[i].name, b, ix);
+            glz::detail::dump(m.name, b, ix);
             glz::detail::dump<'"'>(b, ix);
             return {};
           }
@@ -490,7 +497,7 @@ class dynamic_serializer {
                         std::vector<uint64_t> &unpacked_repeated_positions, uint32_t &field_index, char &separator,
                         bool is_map_entry, concepts::is_basic_in auto &archive) {
       if (circular_find(field_index, number, msg_meta)) {
-        auto &field_m = msg_meta[field_index];
+        const auto &field_m = msg_meta[field_index];
 
         if (separator && (!field_m.is_map_entry || unpacked_repeated_positions[field_index] == 0)) {
           // not the first field in a message, output the separator
@@ -507,7 +514,7 @@ class dynamic_serializer {
         } else if (field_m.rule == dynamic_serializer::encoding::none ||
                    unpacked_repeated_positions[field_index] == 0) {
           // output the field name only when it's a non-repeated field or the beginning of repeated field
-          auto &field_name = field_m.json_name;
+          const auto &field_name = field_m.json_name;
           glz::detail::write<glz::json>::op<Options>(field_name, context, b, ix);
           glz::detail::dump<':'>(b, ix);
           if constexpr (Options.prettify) {
@@ -546,6 +553,7 @@ class dynamic_serializer {
       return {};
     }
 
+    // NOLINTBEGIN(bugprone-easily-swappable-parameters)
     template <auto Options>
     status decode_group(uint32_t msg_index, uint32_t field_number, concepts::is_basic_in auto &archive) {
       const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
@@ -587,13 +595,15 @@ class dynamic_serializer {
 
       return std::errc::bad_message;
     }
+    // NOLINTEND(bugprone-easily-swappable-parameters)
 
     template <auto Options>
     status decode_any(const auto &v) {
 
       auto msg_index = pb_meta.message_index_from_type_url(v.type_url);
-      if (msg_index >= pb_meta.messages.size())
+      if (msg_index >= pb_meta.messages.size()) [[unlikely]] {
         return std::errc::no_message_available;
+      }
 
       glz::detail::dump<"\"@type\":">(b, ix);
       if constexpr (Options.prettify) {
@@ -638,8 +648,9 @@ class dynamic_serializer {
     status decode_wellknown_with_codec(concepts::is_basic_in auto &archive) {
       T v;
       pb_context ctx;
-      if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]]
+      if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]] {
         return ec;
+      }
 
       glz::detail::write<glz::json>::op<Options>(v, context, b, ix);
       if (static_cast<bool>(context.error)) [[unlikely]] {
@@ -691,8 +702,9 @@ class dynamic_serializer {
     template <auto Options>
     status decode_wrapper_type(const dynamic_serializer::message_meta &msg_meta, concepts::is_basic_in auto &archive) {
       auto tag = archive.read_tag();
-      if (tag_number(tag) != 1) [[unlikely]]
+      if (tag_number(tag) != 1) [[unlikely]] {
         return std::errc::bad_message;
+      }
       return decode_field<Options>(msg_meta[0], false, archive);
     }
 
@@ -734,10 +746,12 @@ class dynamic_serializer {
       if (msg_index == pb_meta.protobuf_any_message_index) {
         wellknown::Any v;
         pb_context ctx;
-        if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]]
+        if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]] {
           return ec;
-        if (auto ec = decode_any<opts>(v); !ec.ok()) [[unlikely]]
+        }
+        if (auto ec = decode_any<opts>(v); !ec.ok()) [[unlikely]] {
           return ec;
+        }
       } else {
         while (archive.in_avail() > 0) {
           auto tag = archive.read_tag();
@@ -756,15 +770,16 @@ class dynamic_serializer {
             }
           } else {
             if (circular_find(field_index, number, msg_meta)) {
-              auto &field_m = msg_meta[field_index];
+              const auto &field_m = msg_meta[field_index];
               if (auto ec = decode_field<opts>(field_m, false, archive); !ec.ok()) [[unlikely]] {
                 return ec;
               }
             }
           }
         }
-        if (archive.in_avail() < 0)
+        if (archive.in_avail() < 0) [[unlikely]] {
           return std::errc::bad_message;
+        }
       }
 
       if (dump_brace) {
@@ -784,15 +799,22 @@ class dynamic_serializer {
 
   template <typename Buffer>
   struct relocatable_out {
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     Buffer &buffer;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     std::size_t position = 0;
 
-    relocatable_out(Buffer &buffer) : buffer(buffer) {}
+    explicit relocatable_out(Buffer &buffer) : buffer(buffer) {}
+    relocatable_out(const relocatable_out &) = delete;
+    relocatable_out(relocatable_out &&) = delete;
+
+    relocatable_out &operator=(const relocatable_out &) = delete;
+    relocatable_out &operator=(relocatable_out &&) = delete;
 
     ~relocatable_out() { buffer.resize(position); }
-    std::size_t remaining_size() const { return buffer.size() - position; }
+    [[nodiscard]] std::size_t remaining_size() const { return buffer.size() - position; }
 
-    std::size_t size_for(auto &&item) const {
+    [[nodiscard]] std::size_t size_for(const auto &item) const {
       using type = std::remove_cvref_t<decltype(item)>;
       if constexpr (concepts::byte_serializable<type>) {
         return sizeof(item);
@@ -808,7 +830,7 @@ class dynamic_serializer {
     }
 
     template <typename Item>
-    void serialize(Item &&item, concepts::is_basic_out auto &archive) {
+    void serialize(const Item &item, concepts::is_basic_out auto &archive) {
       using type = std::remove_cvref_t<Item>;
       if constexpr (concepts::contiguous_byte_range<type>) {
         archive(varint{item.size()}, item);
@@ -823,8 +845,9 @@ class dynamic_serializer {
       if (remaining_size() < sz) {
         buffer.resize(2 * (buffer.size() + sz));
       }
-
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       auto out_span = std::span{buffer.data() + position, remaining_size()};
+      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       pb_serializer::basic_out archive{out_span};
       (serialize(std::forward<Item>(item), archive), ...);
       position += sz;
@@ -832,7 +855,9 @@ class dynamic_serializer {
   };
 
   struct json_to_pb_state {
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     const dynamic_serializer &pb_meta;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     glz::context context = {};
 
     template <typename T>
@@ -928,8 +953,8 @@ class dynamic_serializer {
     status serialize_sized(auto &archive, auto &&serialize) {
       std::vector<std::byte> buffer;
       {
-        relocatable_out new_rchive{buffer};
-        if (auto result = serialize(new_rchive); !result.ok()) [[unlikely]] {
+        relocatable_out new_archive{buffer};
+        if (auto result = serialize(new_archive); !result.ok()) [[unlikely]] {
           return result;
         }
       }
@@ -996,7 +1021,7 @@ class dynamic_serializer {
 
     template <auto Opts>
     status encode_enum(const dynamic_serializer::field_meta &meta, auto &&it, auto &&end, auto &archive) {
-      auto &enum_meta = pb_meta.enums[meta.type_index];
+      const auto &enum_meta = pb_meta.enums[meta.type_index];
       if constexpr (!has_ws_handled(Opts)) {
         glz::detail::skip_ws<Opts>(context, it, end);
         if (bool(context.error)) {
@@ -1016,12 +1041,12 @@ class dynamic_serializer {
         [[unlikely]] return std::errc::illegal_byte_sequence;
       }
 
-      for (std::size_t i = 0; i < enum_meta.size(); ++i) {
-        if (enum_meta[i].name == key) {
+      for (const auto &m : enum_meta) {
+        if (m.name == key) {
           if (meta.rule == dynamic_serializer::encoding::packed_repeated) {
-            archive(varint{enum_meta[i].number});
+            archive(varint{m.number});
           } else {
-            archive(make_tag(meta.number, wire_type::varint), varint{enum_meta[i].number});
+            archive(make_tag(meta.number, wire_type::varint), varint{m.number});
           }
           return {};
         }
@@ -1073,7 +1098,8 @@ class dynamic_serializer {
       return {};
     }
 
-    bool circular_find(uint32_t &field_index, std::string_view name, const dynamic_serializer::message_meta &msg_meta) {
+    static bool circular_find(uint32_t &field_index, std::string_view name,
+                              const dynamic_serializer::message_meta &msg_meta) {
       for (uint32_t i = field_index; i < msg_meta.size() + field_index; ++i) {
         uint32_t const j = i % msg_meta.size();
         if (msg_meta[j].json_name == name) {
@@ -1089,11 +1115,12 @@ class dynamic_serializer {
       T value;
       glz::detail::read<glz::json>::op<Options>(value, context, it, end);
 
-      if (bool(context.error)) {
-        [[unlikely]] return std::errc::illegal_byte_sequence;
+      if (bool(context.error)) [[unlikely]] {
+        return std::errc::illegal_byte_sequence;
       }
-      if (auto ec = append_proto(value, archive.buffer); !ec.ok())
+      if (auto ec = append_proto(value, archive.buffer); !ec.ok()) [[unlikely]] {
         return ec;
+      }
       archive.position = archive.buffer.size();
       return {};
     }
@@ -1106,7 +1133,7 @@ class dynamic_serializer {
           [[unlikely]] return std::errc::illegal_byte_sequence;
         }
       }
-      enum value_kind { kind_null, kind_number, kind_string, kind_bool, kind_struct, kind_list };
+      enum value_kind : uint8_t { kind_null, kind_number, kind_string, kind_bool, kind_struct, kind_list };
 
       static constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Options>()>();
 
@@ -1219,8 +1246,9 @@ class dynamic_serializer {
           return std::errc::illegal_byte_sequence;
         }
         auto msg_index = pb_meta.message_index_from_type_url(type_url);
-        if (msg_index >= pb_meta.messages.size())
+        if (msg_index >= pb_meta.messages.size()) [[unlikely]] {
           return std::errc::no_message_available;
+        }
 
         if constexpr (!any_value_only) {
           archive(make_tag(1, wire_type::length_delimited));
@@ -1266,7 +1294,7 @@ class dynamic_serializer {
         std::string_view type_url;
         return encode_any<Options>(type_url, it, end, archive);
       } else if (std::ranges::contains(pb_meta.protobuf_wrapper_type_message_indices, msg_index)) {
-        auto &meta = pb_meta.messages[msg_index][0];
+        const auto &meta = pb_meta.messages[msg_index][0];
         return this->encode_field<Options>(meta, it, end, archive);
       }
 
@@ -1282,7 +1310,9 @@ class dynamic_serializer {
       bool first = !has_opening_handled(Options);
       while (true) {
         if (*it == '}') [[unlikely]] {
+          // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
           ++it;
+          // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
           return {};
         } else if (first) {
           [[unlikely]] first = false;
@@ -1341,10 +1371,10 @@ class dynamic_serializer {
       return {};
     }
   };
-
+  // NOLINTEND(readability-function-cognitive-complexity)
 public:
   using auxiliary_context_type = std::reference_wrapper<dynamic_serializer>;
-  dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
+  explicit dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
     descriptor_pool<proto_json_addons> pool(set.file);
 
     if (pool.enum_map.size() != 1 || pool.enum_map.begin()->first != ".google.protobuf.NullValue") {
@@ -1355,13 +1385,12 @@ public:
                        dynamic_serializer::enum_meta m;
                        const auto values = descriptor->proto.value;
                        m.reserve(values.size());
-                       std::transform(values.begin(), values.end(), std::back_inserter(m), [](auto &v) {
-                         return dynamic_serializer::enum_value_meta{v.number, v.name};
-                       });
+                       std::transform(values.begin(), values.end(), std::back_inserter(m),
+                                      [](auto &v) { return dynamic_serializer::enum_value_meta{v.number, v.name}; });
                        return m;
                      });
     } else {
-      enums.push_back(dynamic_serializer::enum_meta{});
+      enums.emplace_back();
     }
 
     messages.reserve(pool.messages.size());
@@ -1412,8 +1441,9 @@ public:
     // workaround for glz::expected requires its template parameters to be complete types
     using result_t = glz::expected<dynamic_serializer, hpp::proto::status>;
     google::protobuf::FileDescriptorSet fileset;
-    if (auto ec = read_proto(fileset, stream); !ec.ok())
+    if (auto ec = read_proto(fileset, stream); !ec.ok()) [[unlikely]] {
       return result_t{glz::unexpected(ec)};
+    }
 
     return result_t{dynamic_serializer{fileset}};
   }
@@ -1423,8 +1453,9 @@ public:
     using result_t = glz::expected<dynamic_serializer, hpp::proto::status>;
     google::protobuf::FileDescriptorSet fileset;
     for (const auto &stream : stream_range) {
-      if (auto ec = merge_proto(fileset, stream); !ec.ok())
+      if (auto ec = merge_proto(fileset, stream); !ec.ok()) [[unlikely]] {
         return result_t{glz::unexpected(ec)};
+      }
     }
     // double check if we have duplicated files
     std::unordered_map<std::string, google::protobuf::FileDescriptorProto *> file_map;
@@ -1433,7 +1464,7 @@ public:
     for (; itr != last; ++itr) {
       auto [map_itr, inserted] = file_map.try_emplace(itr->name, &(*itr));
       if (!inserted) {
-        if (*map_itr->second != *itr) {
+        if (*map_itr->second != *itr) [[unlikely]] {
           // in this case, we have two files with identical names but different content
           return glz::unexpected(std::errc::invalid_argument);
         } else {
@@ -1463,8 +1494,11 @@ public:
     fileset.file.resize(size);
 
     for (std::size_t i = 0; i < size; ++i) {
-      if (auto ec = read_proto(fileset.file[i], tmp[i].value); !ec.ok())
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+      if (auto ec = read_proto(fileset.file[i], tmp[i].value); !ec.ok()) [[unlikely]] {
         return result_t{glz::unexpected(ec)};
+      }
+      // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
     }
 
     return result_t{dynamic_serializer{fileset}};
@@ -1484,7 +1518,7 @@ public:
                                    uint32_t indentation_level = 0) const {
     using buffer_type = std::decay_t<decltype(buffer)>;
     auto const id = message_index(message_name);
-    if (id == messages.size()) {
+    if (id == messages.size()) [[unlikely]] {
       return std::errc::invalid_argument;
     }
     buffer.resize(pb_encoded_stream.size() * 2);
@@ -1513,7 +1547,7 @@ public:
     std::string result;
     if (auto ec =
             proto_to_json<Options>(message_name, std::forward<decltype(pb_encoded_stream)>(pb_encoded_stream), result);
-        !ec.ok()) {
+        !ec.ok()) [[unlikely]] {
       return unexpected(ec);
     }
     return result;
@@ -1531,17 +1565,19 @@ public:
     return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream);
   }
 #endif
-
+  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   template <auto Opts>
   hpp::proto::json_status json_to_proto(std::string_view message_name, std::string_view json_view,
                                         concepts::contiguous_byte_range auto &&buffer) const {
     auto const id = message_index(message_name);
-    if (id == messages.size()) {
+    if (id == messages.size()) [[unlikely]] {
       return json_status{{glz::error_code::unknown_key}};
     }
     json_to_pb_state state{*this};
     const char *it = json_view.data();
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const char *end = it + json_view.size();
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     relocatable_out archive{buffer};
     if (auto ec = state.template encode_message<Opts>(id, it, end, 0, archive); !ec.ok()) [[unlikely]] {
       auto location = std::distance<const char *>(json_view.data(), it);
@@ -1551,6 +1587,7 @@ public:
     }
     return {};
   }
+  // NOLINTEND(bugprone-easily-swappable-parameters)
 
   hpp::proto::json_status json_to_proto(std::string_view message_name, std::string_view json_view,
                                         concepts::contiguous_byte_range auto &&buffer) const {
@@ -1558,17 +1595,18 @@ public:
   }
 
   template <auto Opts>
-  glz::expected<std::vector<std::byte>, hpp::proto::json_status> json_to_proto(std::string_view message_name,
-                                                                               std::string_view json) const {
+  [[nodiscard]] glz::expected<std::vector<std::byte>, hpp::proto::json_status>
+  json_to_proto(std::string_view message_name, std::string_view json) const {
     std::vector<std::byte> result;
-    if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); !ec.ok()) {
+    if (auto ec = json_to_proto<Opts>(message_name, std::forward<decltype(json)>(json), result); !ec.ok())
+        [[unlikely]] {
       return glz::unexpected(ec);
     }
     return result;
   }
 
-  glz::expected<std::vector<std::byte>, hpp::proto::json_status> json_to_proto(std::string_view message_name,
-                                                                               std::string_view json) const {
+  [[nodiscard]] glz::expected<std::vector<std::byte>, hpp::proto::json_status>
+  json_to_proto(std::string_view message_name, std::string_view json) const {
     return json_to_proto<glz::opts{}>(message_name, json);
   }
 
@@ -1577,7 +1615,8 @@ public:
                      End &&end) const {
     json_to_pb_state state{*this};
     relocatable_out archive{value.value};
-    if (!state.template encode_any<Options, true>(value.type_url, it, end, archive).ok()) {
+    if (!state.template encode_any<Options, true>(value.type_url, it, std::forward<End>(end), archive).ok())
+        [[unlikely]] {
       ctx.error = glz::error_code::syntax_error;
     } else {
       ctx.error = state.context.error;
@@ -1588,7 +1627,7 @@ public:
   void to_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &&b, auto &&ix) const {
     pb_to_json_state state(*this, b);
     state.ix = ix;
-    if (!state.template decode_any<Options>(value).ok()) {
+    if (!state.template decode_any<Options>(value).ok()) [[unlikely]] {
       ctx.error = glz::error_code::syntax_error;
     } else {
       ctx.error = state.context.error;
