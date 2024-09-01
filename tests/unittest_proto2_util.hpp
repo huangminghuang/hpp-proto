@@ -1,9 +1,10 @@
 #pragma once
-#include "test_util.h"
+#include "test_util.hpp"
 #include <boost/ut.hpp>
 #include <google/protobuf/unittest.glz.hpp>
 #include <google/protobuf/unittest.pb.hpp>
 
+// NOLINTBEGIN(cert-dcl58-cpp)
 namespace std {
 template <typename T>
   requires requires { glz::meta<T>::value; }
@@ -11,6 +12,7 @@ std::ostream &operator<<(std::ostream &os, const T &v) {
   return os << hpp::proto::write_json(v).value();
 }
 } // namespace std
+// NOLINTEND(cert-dcl58-cpp)
 
 namespace TestUtil {
 using namespace std::literals::string_literals;
@@ -77,7 +79,7 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
   message->optional_fixed64 = 108;
   message->optional_sfixed32 = 109;
   message->optional_sfixed64 = 110;
-  message->optional_float = 111.0f;
+  message->optional_float = 111.0F;
   message->optional_double = 112;
   message->optional_bool = true;
   message->optional_string = "115";
@@ -110,8 +112,8 @@ inline void AddRepeatedFields1(protobuf_unittest::TestAllTypes *message) {
   message->repeated_sfixed64.push_back(210);
   message->repeated_float.push_back(211);
   message->repeated_double.push_back(212);
-  message->repeated_bool.push_back(true);
-  message->repeated_string.push_back("215");
+  message->repeated_bool.emplace_back(true);
+  message->repeated_string.emplace_back("215");
   message->repeated_bytes.push_back("216"_bytes);
 
   message->repeatedgroup.emplace_back().a = 217;
@@ -139,8 +141,8 @@ inline void AddRepeatedFields2(protobuf_unittest::TestAllTypes *message) {
   message->repeated_sfixed64.push_back(310);
   message->repeated_float.push_back(311);
   message->repeated_double.push_back(312);
-  message->repeated_bool.push_back(false);
-  message->repeated_string.push_back("315");
+  message->repeated_bool.emplace_back(false);
+  message->repeated_string.emplace_back("315");
   message->repeated_bytes.push_back("316"_bytes);
 
   message->repeatedgroup.emplace_back().a = 317;
@@ -167,7 +169,7 @@ inline void SetDefaultFields(protobuf_unittest::TestAllTypes *message) {
   message->default_fixed64 = 408;
   message->default_sfixed32 = 409;
   message->default_sfixed64 = 410;
-  message->default_float = 411.0f;
+  message->default_float = 411.0F;
   message->default_double = 412;
   message->default_bool = false;
   message->default_string = "415";
@@ -237,12 +239,14 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message) {
   expect(eq("115"s, message.optional_string));
   expect(eq("116"_bytes, message.optional_bytes));
 
+  //NOLINTBEGIN(bugprone-unchecked-optional-access)
   expect(eq(117, message.optionalgroup->a.value()));
   expect(eq(118, message.optional_nested_message->bb.value()));
   expect(eq(119, message.optional_foreign_message->c.value()));
   expect(eq(120, message.optional_import_message->d.value()));
   expect(eq(126, message.optional_public_import_message->e.value()));
   expect(eq(127, message.optional_lazy_message->bb.value()));
+  //NOLINTEND(bugprone-unchecked-optional-access)
 
   expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ == message.optional_nested_enum);
   expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.optional_foreign_enum);
@@ -546,7 +550,7 @@ inline void SetAll(protobuf_unittest::TestPackedTypes *message) {
   message->packed_sfixed64.push_back(610);
   message->packed_float.push_back(611);
   message->packed_double.push_back(612);
-  message->packed_bool.push_back(true);
+  message->packed_bool.emplace_back(true);
   message->packed_enum.push_back(protobuf_unittest::ForeignEnum::FOREIGN_BAR);
   // add a second one of each field
   message->packed_int32.push_back(701);
@@ -561,7 +565,7 @@ inline void SetAll(protobuf_unittest::TestPackedTypes *message) {
   message->packed_sfixed64.push_back(710);
   message->packed_float.push_back(711);
   message->packed_double.push_back(712);
-  message->packed_bool.push_back(false);
+  message->packed_bool.emplace_back(false);
   message->packed_enum.push_back(protobuf_unittest::ForeignEnum::FOREIGN_BAZ);
 }
 
@@ -580,7 +584,7 @@ inline void SetAll(protobuf_unittest::TestUnpackedTypes *message) {
   message->unpacked_sfixed64.push_back(610);
   message->unpacked_float.push_back(611);
   message->unpacked_double.push_back(612);
-  message->unpacked_bool.push_back(true);
+  message->unpacked_bool.emplace_back(true);
   message->unpacked_enum.push_back(protobuf_unittest::ForeignEnum::FOREIGN_BAR);
   // add a second one of each field
   message->unpacked_int32.push_back(701);
@@ -595,7 +599,7 @@ inline void SetAll(protobuf_unittest::TestUnpackedTypes *message) {
   message->unpacked_sfixed64.push_back(710);
   message->unpacked_float.push_back(711);
   message->unpacked_double.push_back(712);
-  message->unpacked_bool.push_back(false);
+  message->unpacked_bool.emplace_back(false);
   message->unpacked_enum.push_back(protobuf_unittest::ForeignEnum::FOREIGN_BAZ);
 }
 
@@ -820,10 +824,9 @@ inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message) {
 // -------------------------------------------------------------------
 
 inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *message) {
-  // ABSL_CHECK(message);
   message->my_int = 1;
   message->my_string = "foo";
-  message->my_float = 1.0f;
+  message->my_float = 1.0F;
   expect(message->set_extension(protobuf_unittest::my_extension_int(), 23).ok());
   expect(message->set_extension(protobuf_unittest::my_extension_string(), "bar").ok());
 }
@@ -1082,7 +1085,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(eq(0, message.get_extension(protobuf_unittest::optional_sfixed64_extension()).value()));
   expect(eq(0, message.get_extension(protobuf_unittest::optional_float_extension()).value()));
   expect(eq(0.0, message.get_extension(protobuf_unittest::optional_double_extension()).value()));
-  expect(eq(0.0f, message.get_extension(protobuf_unittest::optional_bool_extension()).value()));
+  expect(eq(0.0F, message.get_extension(protobuf_unittest::optional_bool_extension()).value()));
   expect(eq(""s, message.get_extension(protobuf_unittest::optional_string_extension()).value()));
   expect(eq(""_bytes, message.get_extension(protobuf_unittest::optional_bytes_extension()).value()));
 
@@ -1296,7 +1299,7 @@ inline void SetOneof2(protobuf_unittest::TestOneof2 *message) {
 
 inline void ExpectOneofSet1(const protobuf_unittest::TestOneof2 &message) {
   expect(fatal(eq(protobuf_unittest::TestOneof2::foo_lazy_message, message.foo.index())));
-  auto &foo_lazy_message = std::get<protobuf_unittest::TestOneof2::foo_lazy_message>(message.foo);
+  const auto &foo_lazy_message = std::get<protobuf_unittest::TestOneof2::foo_lazy_message>(message.foo);
 
   expect(fatal(eq(protobuf_unittest::TestOneof2::bar_string, message.bar.index())));
 
@@ -1335,6 +1338,6 @@ inline std::string unittest_proto2_descriptorset() {
   in.seekg(0, std::ios::end);
   contents.resize(in.tellg());
   in.seekg(0, std::ios::beg);
-  in.read(&contents[0], contents.size());
+  in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
   return contents;
 }

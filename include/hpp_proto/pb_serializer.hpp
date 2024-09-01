@@ -57,8 +57,7 @@
 
 bool is_utf8(const char *src, size_t len);
 
-namespace hpp {
-namespace proto {
+namespace hpp::proto {
 using glz::expected;
 using glz::unexpected;
 
@@ -70,20 +69,22 @@ struct always_allocate_memory {
 
 /////////////////////////////////////////////////////
 
-enum class varint_encoding {
+enum class varint_encoding : uint8_t {
   normal,
   zig_zag,
 };
 
 template <varint_encoding Encoding = varint_encoding::normal>
-inline constexpr auto varint_size(auto value) {
+constexpr auto varint_size(auto value) {
+  // NOLINTBEGIN(hicpp-signed-bitwise)
   if constexpr (Encoding == varint_encoding::zig_zag) {
     return varint_size(std::make_unsigned_t<decltype(value)>((value << 1) ^ (value >> (sizeof(value) * CHAR_BIT - 1))));
   } else {
-    return ((sizeof(value) * CHAR_BIT) - std::countl_zero(std::make_unsigned_t<decltype(value)>(value | 0x1)) +
+    return ((sizeof(value) * CHAR_BIT) - std::countl_zero(std::make_unsigned_t<decltype(value)>(value) | 1U) +
             (CHAR_BIT - 2)) /
            (CHAR_BIT - 1);
   }
+  // NOLINTEND(hicpp-signed-bitwise)
 }
 template <std::integral Type, varint_encoding Encoding = varint_encoding::normal>
 struct varint {
@@ -92,17 +93,21 @@ struct varint {
   using encode_type =
       std::conditional_t<std::is_same_v<Type, int32_t> && Encoding == varint_encoding::normal, int64_t, value_type>;
   static constexpr auto encoding = Encoding;
+  // NOLINTBEGIN(hicpp-explicit-conversions)
   constexpr varint(Type value) : value(value) {}
   constexpr operator Type &() & { return value; }
   constexpr operator Type() const { return value; }
+  // NOLINTEND(hicpp-explicit-conversions)
 
   template <typename E>
     requires(std::is_enum_v<E> && std::same_as<encode_type, int64_t> && Encoding == varint_encoding::normal)
-  constexpr operator E() const {
+  constexpr explicit operator E() const {
     return static_cast<E>(value);
   }
 
-  constexpr std::size_t encode_size() const { return varint_size<Encoding>(static_cast<encode_type>(value)); }
+  [[nodiscard]] constexpr std::size_t encode_size() const {
+    return varint_size<Encoding>(static_cast<encode_type>(value));
+  }
   Type value{};
 };
 
@@ -197,7 +202,9 @@ concept byte_serializable =
 
 template <typename T>
 concept is_size_cache = std::same_as<T, uint32_t *> || requires(T v) {
+  // NOLINTBEGIN(bugprone-inc-dec-in-conditions)
   { v++ } -> std::same_as<T>;
+  // NOLINTEND(bugprone-inc-dec-in-conditions)
   *v = 0U;
 };
 
@@ -240,14 +247,18 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
   auto value = std::make_unsigned_t<typename VarintType::encode_type>(item.value);
 
   if constexpr (varint_encoding::zig_zag == decltype(item)::encoding) {
-    value = (value << 1) ^ (item.value >> (sizeof(value) * CHAR_BIT - 1));
+    // NOLINTBEGIN(hicpp-signed-bitwise)
+    value = (value << 1U) ^ (item.value >> (sizeof(value) * CHAR_BIT - 1));
+    // NOLINTEND(hicpp-signed-bitwise)
   }
 
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   while (value >= 0x80) {
-    *data++ = Byte((value & 0x7f) | 0x80);
-    value >>= (CHAR_BIT - 1);
+    *data++ = Byte((value & 0x7fU) | 0x80U);
+    value >>= static_cast<unsigned>(CHAR_BIT - 1);
   }
   *data++ = Byte(value);
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   return data;
 }
 
@@ -257,8 +268,9 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // It requires p points to at least 10 valid bytes. If it is an unterminated varint,
 // the function return end + 1; otherwise, the function returns the pointer passed
 // the consumed input data.
+// NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7), concepts::byte_type Byte>
-constexpr inline const Byte *shift_mix_parse_varint(const Byte *p, const Byte *end, int64_t &res1) {
+constexpr const Byte *shift_mix_parse_varint(const Byte *p, const Byte *end, int64_t &res1) {
 
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
@@ -309,51 +321,64 @@ constexpr inline const Byte *shift_mix_parse_varint(const Byte *p, const Byte *e
   };
 
   res1 = next();
-  if (res1 >= 0) [[likely]]
+  if (res1 >= 0) [[likely]] {
     return p;
+  }
 
   // Densify all ops with explicit FALSE predictions from here on, except that
   // we predict length = 5 as a common length for fields like timestamp.
-  if (shl(1, next(), res1, res2)) [[unlikely]]
+  if (shl(1, next(), res1, res2)) [[unlikely]] {
     return done1();
+  }
 
-  if (shl(2, next(), res1, res3)) [[unlikely]]
+  if (shl(2, next(), res1, res3)) [[unlikely]] {
     return done2();
+  }
 
-  if (shl_and(3, next(), res1, res2)) [[unlikely]]
+  if (shl_and(3, next(), res1, res2)) [[unlikely]] {
     return done2();
+  }
 
   if constexpr (MAX_BYTES > 4) {
-    if (shl_and(4, next(), res1, res3)) [[likely]]
+    if (shl_and(4, next(), res1, res3)) [[likely]] {
       return done2();
+    }
   }
 
   if constexpr (sizeof(Type) == 8) {
     // 64 bits integers
-    if (shl_and(5, next(), res1, res2)) [[unlikely]]
+    if (shl_and(5, next(), res1, res2)) [[unlikely]] {
       return done2();
+    }
 
-    if (shl_and(6, next(), res1, res3)) [[unlikely]]
+    if (shl_and(6, next(), res1, res3)) [[unlikely]] {
       return done2();
+    }
 
-    if (shl_and(7, next(), res1, res2)) [[unlikely]]
+    if (shl_and(7, next(), res1, res2)) [[unlikely]] {
       return done2();
+    }
 
-    if (shl_and(8, next(), res1, res3)) [[unlikely]]
+    if (shl_and(8, next(), res1, res3)) [[unlikely]] {
       return done2();
+    }
   } else if constexpr (std::same_as<Type, int32_t>) {
     // An overlong int32 is expected to span the full 10 bytes
-    if (!(next() & 0x80)) [[unlikely]]
+    if (!(next() & 0x80)) [[unlikely]] {
       return done2();
+    }
 
-    if (!(next() & 0x80)) [[unlikely]]
+    if (!(next() & 0x80)) [[unlikely]] {
       return done2();
+    }
 
-    if (!(next() & 0x80)) [[unlikely]]
+    if (!(next() & 0x80)) [[unlikely]] {
       return done2();
+    }
 
-    if (!(next() & 0x80)) [[unlikely]]
+    if (!(next() & 0x80)) [[unlikely]] {
       return done2();
+    }
   }
 
   // For valid 64bit varints, the 10th byte/ptr[9] should be exactly 1. In this
@@ -376,20 +401,6 @@ constexpr inline const Byte *shift_mix_parse_varint(const Byte *p, const Byte *e
     res3 ^= int64_t{1} << bits;
   }
   return done2();
-}
-
-template <concepts::byte_type Byte, concepts::varint VarintType>
-constexpr const Byte *unchecked_parse_varint(const Byte *p, const Byte *end, VarintType &item) {
-  int64_t res;
-  if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
-    p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
-    item = static_cast<typename VarintType::value_type>((static_cast<uint64_t>(res) >> 1) ^
-                                                        -(static_cast<int64_t>(res) & 0x1));
-  } else {
-    p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
-    item = static_cast<typename VarintType::value_type>(res);
-  }
-  return p;
 }
 
 template <concepts::byte_type Byte>
@@ -447,22 +458,41 @@ constexpr const Byte *unchecked_parse_bool(const Byte *p, bool &value) {
   value = byte;
   return p;
 }
+// NOLINTEND
+
+template <concepts::byte_type Byte, concepts::varint VarintType>
+constexpr const Byte *unchecked_parse_varint(const Byte *p, const Byte *end, VarintType &item) {
+  // NOLINTBEGIN(cppcoreguidelines-init-variables)
+  int64_t res;
+  // NOLINTEND(cppcoreguidelines-init-variables)
+  if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
+    p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
+    // NOLINTBEGIN(hicpp-signed-bitwise)
+    item = static_cast<typename VarintType::value_type>((static_cast<uint64_t>(res) >> 1) ^ -(res & 0x1));
+    // NOLINTEND(hicpp-signed-bitwise)
+  } else {
+    p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
+    item = static_cast<typename VarintType::value_type>(res);
+  }
+  return p;
+}
 
 ///////////////////
 
-enum field_option { none = 0, explicit_presence = 1, unpacked_repeated = 2, group = 4 };
+enum field_option : uint8_t { none = 0, explicit_presence = 1, unpacked_repeated = 2, group = 4 };
 
 template <auto Accessor>
-struct accesor_type {
-  inline constexpr auto &operator()(auto &&item) const {
-    if constexpr (std::is_member_pointer_v<decltype(Accessor)>)
+struct accessor_type {
+  constexpr auto &operator()(auto &&item) const {
+    if constexpr (std::is_member_pointer_v<decltype(Accessor)>) {
       return item.*Accessor;
-    else
+    } else {
       return Accessor(std::forward<decltype(item)>(item));
+    }
   }
 };
 
-template <uint32_t Number, int options, typename Type, auto DefaultValue>
+template <uint32_t Number, uint8_t options, typename Type, auto DefaultValue>
 struct field_meta_base {
 
   constexpr static uint32_t number = Number;
@@ -494,44 +524,50 @@ struct field_meta_base {
 template <uint32_t Number, auto Accessor, int options = field_option::none, typename Type = void,
           auto DefaultValue = std::monostate{}>
 struct field_meta : field_meta_base<Number, options, Type, DefaultValue> {
-  constexpr static auto access = accesor_type<Accessor>{};
+  constexpr static auto access = accessor_type<Accessor>{};
 };
 
 template <auto Accessor, typename... AlternativeMeta>
 struct oneof_field_meta {
-  constexpr static auto access = accesor_type<Accessor>{};
+  constexpr static auto access = accessor_type<Accessor>{};
   using alternatives_meta = std::tuple<AlternativeMeta...>;
   using type = void;
   template <typename T>
-  inline static constexpr bool omit_value(const T &v) {
+  static constexpr bool omit_value(const T &v) {
     return v.index() == 0;
   }
 };
 
 struct [[nodiscard]] status {
   std::errc ec = {};
-  constexpr status() = default;
-  constexpr status(const status &) = default;
 
-  constexpr status(std::errc e) : ec(e) {}
-  constexpr operator std::errc() { return ec; }
+  constexpr status() noexcept = default;
+  constexpr ~status() noexcept = default;
+  constexpr status(const status &) noexcept = default;
+  constexpr status(status &&) noexcept = default;
 
-  constexpr status &operator=(const status &) = default;
+  // NOLINTBEGIN(hicpp-explicit-conversions)
+  constexpr status(std::errc e) noexcept : ec(e) {}
+  constexpr operator std::errc() const noexcept { return ec; }
+  // NOLINTEND(hicpp-explicit-conversions)
 
-  constexpr bool ok() { return ec == std::errc{}; }
+  constexpr status &operator=(const status &) noexcept = default;
+  constexpr status &operator=(status &&) noexcept = default;
+
+  [[nodiscard]] constexpr bool ok() const noexcept { return ec == std::errc{}; }
 };
 
 template <typename T>
 struct extension_meta_base {
 
-  struct accesor_type {
-    inline constexpr auto &operator()(auto &&item) const {
+  struct accessor_type {
+    constexpr auto &operator()(auto &&item) const {
       auto &[e] = item;
       return e;
     }
   };
 
-  constexpr static auto access = accesor_type{};
+  constexpr static auto access = accessor_type{};
 
   static constexpr void check(const concepts::pb_extension auto &extensions) {
     static_assert(std::same_as<typename std::remove_cvref_t<decltype(extensions)>::pb_extension, typename T::extendee>);
@@ -582,7 +618,7 @@ struct repeated_extension_meta
   }
 };
 
-enum class wire_type : unsigned int {
+enum class wire_type : uint8_t {
   varint = 0,
   fixed_64 = 1,
   length_delimited = 2,
@@ -611,7 +647,7 @@ constexpr auto tag_type() {
 }
 
 constexpr auto make_tag(uint32_t number, wire_type type) {
-  return varint{(number << 3) | std::underlying_type_t<wire_type>(type)};
+  return varint{(number << 3U) | std::underlying_type_t<wire_type>(type)};
 }
 
 template <typename Type, typename Meta>
@@ -619,9 +655,9 @@ constexpr auto make_tag(Meta meta) {
   return make_tag(meta.number, tag_type<Type>());
 }
 
-constexpr auto tag_type(uint32_t tag) { return wire_type(tag & 0x7); }
+constexpr auto tag_type(uint32_t tag) { return wire_type(tag & 7U); }
 
-constexpr auto tag_number(uint32_t tag) { return (tag >> 3); }
+constexpr auto tag_number(uint32_t tag) { return (tag >> 3U); }
 
 template <typename Meta>
 constexpr bool has_field_num(Meta meta, uint32_t num) {
@@ -669,8 +705,8 @@ struct map_entry {
   using key_type = KeyType;
   using mapped_type = MappedType;
   struct mutable_type {
-    typename serialize_type<KeyType>::type key;
-    typename serialize_type<MappedType>::type value;
+    typename serialize_type<KeyType>::type key = {};
+    typename serialize_type<MappedType>::type value = {};
     constexpr static bool allow_inline_visit_members_lambda = true;
     using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence>,
                                field_meta<2, &mutable_type::value, field_option::explicit_presence>>;
@@ -689,8 +725,10 @@ struct map_entry {
   };
 
   struct read_only_type {
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     typename serialize_type<KeyType>::read_type key;
     typename serialize_type<MappedType>::read_type value;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     constexpr static bool allow_inline_visit_members_lambda = true;
 
     constexpr read_only_type(auto &&k, auto &&v)
@@ -743,7 +781,9 @@ using get_map_entry = typename Meta::type;
 
 template <typename T, std::size_t M, std::size_t N>
 constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N> rhs) {
+  // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::array<T, M + N> result;
+  // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::copy(lhs.begin(), lhs.end(), result.begin());
   std::copy(rhs.begin(), rhs.end(), result.begin() + M);
   return result;
@@ -779,7 +819,10 @@ struct reverse_indices {
 
   constexpr static auto numbers = get_numbers(typename traits::meta_of<Type>::type{});
   constexpr static unsigned max_number = numbers.size() > 0 ? *std::max_element(numbers.begin(), numbers.end()) : 0;
-  constexpr static auto mask = (1 << std::bit_width(numbers.size())) - 1;
+
+  // NOLINTBEGIN(hicpp-signed-bitwise)
+  constexpr static auto mask = (1U << std::bit_width(numbers.size())) - 1;
+  // NOLINTEND(hicpp-signed-bitwise)
 
   template <std::size_t I, typename T>
     requires requires { T::number; }
@@ -789,7 +832,9 @@ struct reverse_indices {
 
   template <std::size_t I, concepts::is_oneof_field_meta Meta>
   constexpr static auto index(Meta) {
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     std::array<std::size_t, std::tuple_size_v<typename Meta::alternatives_meta>> result;
+    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     std::fill(result.begin(), result.end(), I);
     return result;
   }
@@ -810,13 +855,19 @@ struct reverse_indices {
   constexpr static auto indices = get_indices(typename traits::meta_of<Type>::type{});
 
   consteval static auto build_lookup_table_indices() {
-    std::array<uint32_t, mask + 1> masked_number_occurances;
-    masked_number_occurances.fill(0U);
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+    std::array<uint32_t, mask + 1> masked_number_occurrences;
+    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+    masked_number_occurrences.fill(0U);
     for (auto num : numbers) {
-      ++masked_number_occurances[num & mask];
+      ++masked_number_occurrences[num & mask];
     }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+
     std::array<uint32_t, mask + 2> table_indices = {0};
-    std::partial_sum(masked_number_occurances.begin(), masked_number_occurances.end(), table_indices.begin() + 1);
+    std::partial_sum(masked_number_occurrences.begin(), masked_number_occurrences.end(), table_indices.begin() + 1);
     return table_indices;
   }
 
@@ -825,15 +876,19 @@ struct reverse_indices {
     if constexpr (numbers.empty()) {
       return std::span<std::pair<uint32_t, uint32_t>>{};
     } else {
+      // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
       std::array<uint32_t, mask + 1> counts;
+      // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
       std::copy(lookup_table_indices.begin(), lookup_table_indices.end() - 1, counts.begin());
 
       std::array<std::pair<uint32_t, uint32_t>, numbers.size()> result;
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
       for (uint32_t i = 0; i < numbers.size(); ++i) {
         auto num = numbers[i];
         auto masked_num = num & mask;
         result[counts[masked_num]++] = {num, static_cast<uint32_t>(indices[i])};
       }
+      // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
       return result;
     }
   }
@@ -880,22 +935,22 @@ public:
 template <concepts::varint T, typename Result>
 class sfvint_parser {
   // This class implements the variable-length integer decoding algorithm from https://arxiv.org/html/2403.06898v1
-  constexpr static int mask_length = 6;
-  // google implementation only treat more than 10 bytes encoded value as error; i.e. a 6 bytes 
-  // encoded value does not treated as error for uint32 
-  constexpr static int max_effective_bits = 10*7;
+  constexpr static unsigned mask_length = 6;
+  // google implementation only treat more than 10 bytes encoded value as error; i.e. a 6 bytes
+  // encoded value does not treated as error for uint32
+  constexpr static unsigned max_effective_bits = 10 * 7;
   Result *res;
-  int shift_bits = 0;
+  unsigned shift_bits = 0;
   uint64_t pt_val = 0;
 
 public:
   bool has_error = false;
-  sfvint_parser(Result *data) : res(data) {}
+  explicit sfvint_parser(Result *data) : res(data) {}
 
   static consteval int calc_shift_bits(unsigned sign_bits) {
-    unsigned mask = 1 << (mask_length - 1);
+    unsigned mask = 1U << (mask_length - 1);
     int result = 0;
-    for (; mask != 0 && (sign_bits & mask); mask >>= 1) {
+    for (; mask != 0 && static_cast<bool>(sign_bits & mask); mask >>= 1U) {
       result += 1;
     }
     return result * 7;
@@ -903,14 +958,15 @@ public:
 
   static consteval uint64_t calc_word_mask() {
     uint64_t result = 0x80ULL;
-    for (int i = 0; i < mask_length - 1; ++i)
+    for (int i = 0; i < mask_length - 1; ++i) {
       result = (result << CHAR_BIT | 0x80ULL);
+    }
     return result;
   }
 
   static constexpr auto word_mask = calc_word_mask();
   static consteval uint64_t calc_extract_mask(uint64_t sign_bits) {
-    int64_t extract_mask = 0x7fULL;
+    uint64_t extract_mask = 0x7fULL;
     for (int i = 0; i < std::countr_one(sign_bits); ++i) {
       extract_mask <<= CHAR_BIT;
       extract_mask |= 0x7fULL;
@@ -919,30 +975,38 @@ public:
   }
 
   HPP_PROTO_INLINE void output(uint64_t v) {
-    auto r = (varint_encoding::zig_zag == T::encoding) ? (v >> 1) ^ -static_cast<int64_t>(v & 0x1) : v;
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic,hicpp-signed-bitwise)
+    auto r = (varint_encoding::zig_zag == T::encoding) ? (v >> 1U) ^ -static_cast<int64_t>(v & 1U) : v;
     *res++ = static_cast<Result>(r);
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic,hicpp-signed-bitwise)
   }
 
+  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
 #if defined(__GNUC__) || defined(__clang__)
+    // NOLINTBEGIN(cppcoreguidelines-init-variables,hicpp-no-assembler)
     uint64_t result;
     asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask));
+    // NOLINTEND(cppcoreguidelines-init-variables,hicpp-no-assembler)
     return result;
 #elif defined(_MSC_VER)
     return _pext_u64(a, mask);
 #endif
   }
+  // NOLINTEND(bugprone-easily-swappable-parameters)
 
-  template <uint64_t SignBits, int I>
-  inline void output(uint64_t word, uint64_t &extract_mask) {
+  template <uint64_t SignBits, unsigned I>
+  void output(uint64_t word, uint64_t &extract_mask) {
     if constexpr (I < mask_length) {
       extract_mask |= 0x7fULL << (CHAR_BIT * I);
-      if ((SignBits & (0x01ULL << I)) == 0) {
+      // NOLINTBEGIN(misc-redundant-expression)
+      if constexpr ((SignBits & (0x01ULL << I)) == 0) {
         output(pext_u64(word, extract_mask));
         extract_mask = 0;
       }
+      // NOLINTEND(misc-redundant-expression)
       output<SignBits, I + 1>(word, extract_mask);
-    } 
+    }
   }
 
   template <uint64_t SignBits>
@@ -951,7 +1015,7 @@ public:
     if constexpr (std::countr_one(SignBits) < mask_length) {
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
       constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
-      has_error |= ((bytes_processed*7 + shift_bits) > max_effective_bits);
+      has_error |= ((bytes_processed * 7 + shift_bits) > max_effective_bits);
       extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);
       output<SignBits, bytes_processed>(word, extract_mask);
       pt_val = 0;
@@ -972,13 +1036,15 @@ public:
 
   template <concepts::byte_type Byte>
   const Byte *parse_partial(const Byte *begin, const Byte *end) {
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     end -= ((end - begin) % mask_length);
-    for (; begin < end ; begin += mask_length) {
-      uint64_t word;
+    for (; begin < end; begin += mask_length) {
+      uint64_t word = 0;
       memcpy(&word, begin, sizeof(word));
       auto mval = pext_u64(word, word_mask);
-      parse_word(mval, word, std::make_index_sequence<1 << mask_length>());
+      parse_word(mval, word, std::make_index_sequence<1U << mask_length>());
     }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return begin;
   }
 
@@ -1013,6 +1079,7 @@ struct pb_serializer {
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
     std::span<byte_type> m_data;
 
+    // NOLINTBEGIN(readability-function-cognitive-complexity)
     HPP_PROTO_INLINE constexpr void serialize(auto &&item) {
       using type = std::remove_cvref_t<decltype(item)>;
       if constexpr (concepts::byte_serializable<type>) {
@@ -1025,8 +1092,10 @@ struct pb_serializer {
           }
         } else {
           if constexpr (endian_swapped && sizeof(type) != 1) {
+            // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
             std::reverse_copy(reinterpret_cast<const byte_type *>(&item),
                               reinterpret_cast<const byte_type *>(&item) + sizeof(item), m_data.begin());
+            // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
           } else {
             std::memcpy(m_data.data(), &item, sizeof(item));
           }
@@ -1054,6 +1123,7 @@ struct pb_serializer {
         static_assert(!sizeof(type));
       }
     }
+    // NOLINTEND(readability-function-cognitive-complexity)
 
     HPP_PROTO_INLINE constexpr void operator()(auto &&...item) { (serialize(item), ...); }
   };
@@ -1064,7 +1134,7 @@ struct pb_serializer {
   constexpr static std::size_t len_size(std::size_t len) { return varint_size(len) + len; }
 
   template <typename Range, typename UnaryOperation>
-  constexpr static std::size_t transform_accumulate(Range &&range, UnaryOperation &&unary_op) {
+  constexpr static std::size_t transform_accumulate(const Range &range, const UnaryOperation &unary_op) {
     return std::accumulate(range.begin(), range.end(), std::size_t{0},
                            [&unary_op](std::size_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
   }
@@ -1084,20 +1154,24 @@ struct pb_serializer {
   HPP_PROTO_INLINE constexpr static std::size_t cache_count(Meta meta, auto &&item) {
     using type = std::remove_cvref_t<decltype(item)>;
 
-    if (meta.omit_value(item))
+    if (meta.omit_value(item)) {
       return 0;
+    }
 
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
     if constexpr (concepts::oneof_type<type>) {
       return oneof_cache_count<0, typename Meta::alternatives_meta>(item);
     } else if constexpr (requires { *item; }) {
+      // NOLINTBEGIN(bugprone-unchecked-optional-access)
       return cache_count(meta, *item);
+      // NOLINTEND(bugprone-unchecked-optional-access)
     } else if constexpr (concepts::has_meta<type>) {
       return cache_count(item) + (!meta.is_group);
     } else if constexpr (std::ranges::input_range<type>) {
-      if (item.empty())
+      if (item.empty()) {
         return 0;
+      }
       using value_type = typename std::ranges::range_value_t<type>;
       if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
         return transform_accumulate(item, [](const auto &elem) constexpr { return cache_count(Meta{}, elem); });
@@ -1141,11 +1215,13 @@ struct pb_serializer {
   constexpr static std::size_t message_size(concepts::has_meta auto &&item) {
     struct null_size_cache {
       struct null_assignable {
-        constexpr void operator=(uint32_t) const {}
+        constexpr null_assignable &operator=(uint32_t) { return *this; }
       };
       uint32_t storage = 0;
-      constexpr null_assignable operator*() { return null_assignable{}; }
-      constexpr null_size_cache operator++(int) { return *this; }
+      constexpr null_assignable operator*() const { return null_assignable{}; }
+      // NOLINTBEGIN(cert-dcl21-cpp)
+      constexpr null_size_cache operator++(int) const { return *this; }
+      // NOLINTEND(cert-dcl21-cpp)
     } cache;
     return message_size(item, cache);
   }
@@ -1171,13 +1247,15 @@ struct pb_serializer {
         typename traits::meta_of<type>::type{});
   }
 
+  // NOLINTBEGIN(readability-function-cognitive-complexity)
   template <typename Meta>
   HPP_PROTO_INLINE constexpr static std::size_t field_size(Meta meta, auto &&item,
                                                            concepts::is_size_cache auto &cache) {
     using type = std::remove_cvref_t<decltype(item)>;
 
-    if (meta.omit_value(item))
+    if (meta.omit_value(item)) {
       return 0;
+    }
 
     if constexpr (concepts::oneof_type<type>) {
       return oneof_size<0, typename Meta::alternatives_meta>(item, cache);
@@ -1186,7 +1264,7 @@ struct pb_serializer {
     } else {
       using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
-      constexpr std::size_t tag_size = varint_size(meta.number << 3);
+      constexpr std::size_t tag_size = varint_size(meta.number << 3U);
       if constexpr (std::is_enum_v<type> && !std::same_as<type, std::byte>) {
         return tag_size + varint_size(static_cast<int64_t>(std::underlying_type_t<type>(item)));
       } else if constexpr (concepts::byte_serializable<type>) {
@@ -1201,7 +1279,9 @@ struct pb_serializer {
       } else if constexpr (concepts::contiguous_byte_range<type>) {
         return tag_size + len_size(item.size());
       } else if constexpr (requires { *item; }) {
+        // NOLINTBEGIN(bugprone-unchecked-optional-access)
         return field_size(meta, *item, cache);
+        // NOLINTEND(bugprone-unchecked-optional-access)
       } else if constexpr (concepts::has_meta<type>) {
         if constexpr (!meta.is_group) {
           decltype(auto) msg_size = *cache++;
@@ -1212,8 +1292,9 @@ struct pb_serializer {
           return 2 * tag_size + message_size(item, cache);
         }
       } else if constexpr (std::ranges::input_range<type>) {
-        if (item.empty())
+        if (item.empty()) {
           return 0;
+        }
         using value_type = typename std::ranges::range_value_t<type>;
         if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
           return transform_accumulate(item,
@@ -1252,6 +1333,7 @@ struct pb_serializer {
       }
     }
   }
+  // NOLINTEND(readability-function-cognitive-complexity)
 
   template <std::size_t I, typename Meta>
   HPP_PROTO_INLINE constexpr static std::size_t oneof_size(auto &&item, concepts::is_size_cache auto &cache) {
@@ -1281,9 +1363,10 @@ struct pb_serializer {
       }
 
       basic_out archive{buffer};
-      auto cache_data = cache.data();
-      if (!serialize(item, cache_data, archive))
+      auto *cache_data = cache.data();
+      if (!serialize(item, cache_data, archive)) {
         return std::errc::bad_message;
+      }
       if constexpr (requires { buffer.subspan(0, 1); }) {
         buffer = buffer.subspan(old_size, msg_sz);
       }
@@ -1293,15 +1376,18 @@ struct pb_serializer {
     if (std::is_constant_evaluated() || n > MAX_CACHE_COUNT) {
       constexpr_vector<uint32_t> cache(n);
       return do_serialize(cache);
-    } else {
+    } else if (n > 0){
 #if defined(_MSC_VER)
-      uint32_t *cache = static_cast<uint32_t *>(_alloca(n * sizeof(uint32_t)));
+      auto *cache = static_cast<uint32_t *>(_alloca(n * sizeof(uint32_t)));
 #elif defined(__GNUC__)
-      uint32_t *cache =
+      auto *cache =
           static_cast<uint32_t *>(__builtin_alloca_with_align(n * sizeof(uint32_t), CHAR_BIT * sizeof(uint32_t)));
 #else
       uint32_t cache[MAX_CACHE_COUNT];
 #endif
+      return do_serialize({cache, n});
+    } else {
+      uint32_t * cache = nullptr;
       return do_serialize({cache, n});
     }
   }
@@ -1313,6 +1399,7 @@ struct pb_serializer {
                       metas{});
   }
 
+  // NOLINTBEGIN(readability-function-cognitive-complexity,cppcoreguidelines-pro-bounds-pointer-arithmetic)
   template <typename Meta>
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache,
                                                                        auto &archive) {
@@ -1339,22 +1426,26 @@ struct pb_serializer {
     } else if constexpr (concepts::contiguous_byte_range<type>) {
 #ifndef HPP_PROTO_NO_UTF8_VALIDATION
       if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
-        if (!is_utf8(item.data(), item.size()))
+        if (!is_utf8(item.data(), item.size())) {
           return false;
+        }
       }
 #endif
       archive(make_tag<type>(meta), varint{item.size()}, item);
     } else if constexpr (requires { *item; }) {
+      // NOLINTBEGIN(bugprone-unchecked-optional-access)
       return serialize_field(meta, *item, cache, archive);
+      // NOLINTEND(bugprone-unchecked-optional-access)
     } else if constexpr (concepts::has_meta<type>) {
       if constexpr (!meta.is_group) {
         archive(make_tag<type>(meta), varint{*cache++});
         return serialize(std::forward<decltype(item)>(item), cache, archive);
       } else {
-        archive(varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::sgroup)});
-        if (!serialize(std::forward<decltype(item)>(item), cache, archive))
+        archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::sgroup)});
+        if (!serialize(std::forward<decltype(item)>(item), cache, archive)) {
           return false;
-        archive(varint{(meta.number << 3) | std::underlying_type_t<wire_type>(wire_type::egroup)});
+        }
+        archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::egroup)});
       }
     } else if constexpr (std::ranges::range<type>) {
       if (item.empty()) {
@@ -1369,11 +1460,13 @@ struct pb_serializer {
         for (const auto &element : item) {
           if constexpr (std::same_as<element_type, std::remove_cvref_t<decltype(element)>> ||
                         concepts::is_map_entry<typename Meta::type>) {
-            if (!serialize_field(meta, element, cache, archive))
+            if (!serialize_field(meta, element, cache, archive)) {
               return false;
+            }
           } else {
-            if (!serialize_field(meta, static_cast<element_type>(element), cache, archive))
+            if (!serialize_field(meta, static_cast<element_type>(element), cache, archive)) {
               return false;
+            }
           }
         }
       } else if constexpr (requires {
@@ -1402,6 +1495,7 @@ struct pb_serializer {
     }
     return true;
   }
+  // NOLINTEND(readability-function-cognitive-complexity,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   template <std::size_t I, concepts::tuple Meta>
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
@@ -1426,6 +1520,7 @@ struct pb_serializer {
     std::size_t effective_size;
   };
 
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   template <typename Byte, bool Contiguous>
   struct basic_in {
     using byte_type = Byte;
@@ -1436,7 +1531,7 @@ struct pb_serializer {
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
 
     constexpr void maybe_advance_region() {
-      std::ptrdiff_t offset;
+      std::ptrdiff_t offset = 0;
       while ((offset = current.begin - current.slope_begin) >= 0 && current.end > current.slope_begin) {
         auto len = in_avail();
         current.begin = next_region->begin + offset;
@@ -1457,24 +1552,23 @@ struct pb_serializer {
         using input_it = detail::raw_data_iterator<value_type, ByteT>;
         container.insert(container.end(), input_it{start_pos}, input_it{start_pos + num_elements * sizeof(value_type)});
       } else {
-        // auto n = container.size();
-        // container.resize(n + num_elements);
-        // std::memcpy(container.data() + n, start_pos, num_elements * sizeof(value_type));
-        auto first = reinterpret_cast<const value_type *>(start_pos);
-        container.insert(container.end(), first, first + num_elements);
+        auto n = container.size();
+        container.resize(n + num_elements);
+        std::memcpy(container.data() + n, start_pos, num_elements * sizeof(value_type));
       }
     }
 
   public:
     using is_basic_in = void;
     constexpr static bool contiguous = Contiguous;
+    [[nodiscard]] constexpr ptrdiff_t region_size() const { return current.end - current.begin; }
+    [[nodiscard]] constexpr ptrdiff_t in_avail() const { return region_size() + size_exclude_current; }
+    [[nodiscard]] constexpr const byte_type *data() const { return current.begin; }
 
-    constexpr ptrdiff_t region_size() const { return current.end - current.begin; }
-    constexpr ptrdiff_t in_avail() const { return region_size() + size_exclude_current; }
-    constexpr const byte_type *data() const { return current.begin; }
-
+    // NOLINTBEGIN(cppcoreguidelines-slicing)
     constexpr explicit basic_in(const input_buffer_region<Byte> *regions, ptrdiff_t size_exclude_first_region)
         : current(*regions), next_region(++regions), size_exclude_current(size_exclude_first_region) {}
+    // NOLINTEND(cppcoreguidelines-slicing)
 
     constexpr basic_in(input_buffer_region_base<Byte> cur, const input_buffer_region<Byte> *regions,
                        ptrdiff_t size_exclude_current)
@@ -1487,8 +1581,9 @@ struct pb_serializer {
 
     template <concepts::byte_serializable T>
     constexpr status deserialize(T &item) {
+
       if (std::is_constant_evaluated()) {
-        std::array<std::remove_const_t<byte_type>, sizeof(item)> value;
+        std::array<std::remove_const_t<byte_type>, sizeof(item)> value = {};
         if constexpr (endian_swapped) {
           std::reverse_copy(current.begin, current.begin + sizeof(item), value.begin());
         } else {
@@ -1497,13 +1592,14 @@ struct pb_serializer {
         item = std::bit_cast<T>(value);
       } else {
         if constexpr (endian_swapped && sizeof(T) != 1) {
+          // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
           std::reverse_copy(current.begin, current.begin + sizeof(item), reinterpret_cast<const std::byte *>(&item));
+          // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
         } else {
           std::memcpy(&item, current.begin, sizeof(item));
         }
       }
       current.begin += sizeof(item);
-
       return {};
     }
 
@@ -1557,6 +1653,7 @@ struct pb_serializer {
     }
 #endif // x64
 
+    // NOLINTBEGIN(bugprone-easily-swappable-parameters)
     template <concepts::varint T, typename Item>
     constexpr status deserialize_packed_varint(uint32_t bytes_count, std::size_t size, Item &item) {
       using value_type = typename Item::value_type;
@@ -1591,6 +1688,7 @@ struct pb_serializer {
       }
       return {};
     }
+    // NOLINTEND(bugprone-easily-swappable-parameters)
 
     constexpr status skip_varint() {
       current.begin = std::find_if(current.begin, current.end, [](auto v) { return static_cast<int8_t>(v) >= 0; }) + 1;
@@ -1616,7 +1714,7 @@ struct pb_serializer {
     constexpr auto split(ptrdiff_t length) {
       assert(in_avail() >= length);
       auto old_current_begin = current.begin;
-      current.begin += length;
+      static_cast<void>(skip(length));
       return basic_in<byte_type, contiguous>{
           input_buffer_region_base<Byte>{old_current_begin, old_current_begin + length, current.slope_begin},
           next_region, size_exclude_current};
@@ -1627,7 +1725,7 @@ struct pb_serializer {
     constexpr status read_bytes(uint32_t length, T &item) {
       assert(in_avail() >= static_cast<int32_t>(length));
       item = T{(const typename T::value_type *)current.begin, length};
-      current.begin += length;
+      static_cast<void>(skip(length));
       return {};
     }
 
@@ -1665,7 +1763,7 @@ struct pb_serializer {
       end -= remaining;
 
       for (; begin < end; begin += sizeof(uint64_t)) {
-        uint64_t v;
+        uint64_t v = 0;
         std::memcpy(&v, begin, sizeof(v));
         result += popcount(~v & 0x8080808080808080ULL);
       }
@@ -1693,8 +1791,9 @@ struct pb_serializer {
             archive.current.begin += n;
             num_bytes -= static_cast<uint32_t>(n);
           }
-          if (num_bytes == 0) [[likely]]
+          if (num_bytes == 0) [[likely]] {
             return result;
+          }
         }
 
         return {};
@@ -1703,11 +1802,14 @@ struct pb_serializer {
 
     constexpr uint32_t read_tag() {
       maybe_advance_region();
+      // NOLINTBEGIN(cppcoreguidelines-init-variables)
       int64_t res;
+      // NOLINTEND(cppcoreguidelines-init-variables)
       current.begin = shift_mix_parse_varint<uint32_t, 4>(current.begin, current.end, res);
       return static_cast<uint32_t>(res);
     }
   };
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   static status skip_field(uint32_t tag, concepts::has_extension auto &item, auto &context,
                            concepts::is_basic_in auto &archive) {
@@ -1735,10 +1837,12 @@ struct pb_serializer {
           field_archive.in_avail() == field_archive.region_size()) {
         // if the newly parsed has the same field number with previously parsed, just extends the content
         auto &entry = fields.back().second;
+        // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
         if (reinterpret_cast<const byte_type *>(field_archive.data()) == entry.data() + entry.size()) {
           entry = std::span{entry.data(), entry.size() + field_len};
           return {};
         }
+        // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
       }
 
       auto itr =
@@ -1747,8 +1851,9 @@ struct pb_serializer {
       if (itr == fields.end() && field_archive.in_avail() == field_archive.region_size()) [[likely]] {
         std::span<const byte_type> field_span;
         if (auto result = field_archive.read_bytes(static_cast<uint32_t>(field_len), field_span); !result.ok())
-            [[unlikely]]
+            [[unlikely]] {
           return result;
+        }
         as_modifiable(context, fields).push_back({field_num, field_span});
         return {};
       }
@@ -1757,7 +1862,6 @@ struct pb_serializer {
       return field_archive.deserialize_packed(field_archive.in_avail(), v);
     }
   }
-
   constexpr static status skip_field(uint32_t tag, concepts::has_meta auto &, auto & /* unused */,
                                      concepts::is_basic_in auto &archive) {
     return do_skip_field(tag, archive);
@@ -1819,6 +1923,7 @@ struct pb_serializer {
 
   constexpr static status count_unpacked_elements(uint32_t input_tag, std::size_t &count,
                                                   concepts::is_basic_in auto archive) {
+    // NOLINTBEGIN(cppcoreguidelines-avoid-do-while)
     do {
       if (auto result = do_skip_field(input_tag, archive); !result.ok()) {
         return result;
@@ -1830,6 +1935,7 @@ struct pb_serializer {
         return {};
       }
     } while (archive.read_tag() == input_tag);
+    // NOLINTEND(cppcoreguidelines-avoid-do-while)
     return {};
   }
 
@@ -1869,8 +1975,9 @@ struct pb_serializer {
       if constexpr (requires { v.resize(1); }) {
         // packed repeated vector,
         auto n = count_packed_elements<encode_type>(static_cast<uint32_t>(byte_count), archive);
-        if (!n.has_value())
+        if (!n.has_value()) {
           return std::errc::bad_message;
+        }
         std::size_t size = *n;
 
         if constexpr (concepts::byte_serializable<encode_type>) {
@@ -1899,6 +2006,7 @@ struct pb_serializer {
     using type = typename MetaType::mutable_type;
   };
 
+  // NOLINTBEGIN(readability-function-cognitive-complexity)
   template <typename Meta>
   constexpr static status deserialize_unpacked_repeated(Meta, uint32_t tag, auto &&item, auto &context,
                                                         concepts::is_basic_in auto &archive) {
@@ -1934,22 +2042,25 @@ struct pb_serializer {
       if constexpr (concepts::associative_container<type>) {
         value_encode_type element;
 
-        if (auto result = deserialize_element(element); !result.ok())
+        if (auto result = deserialize_element(element); !result.ok()) {
           return result;
+        }
 
-        value_type val = static_cast<value_type>(std::move(element));
+        auto val = static_cast<value_type>(std::move(element));
         if constexpr (requires { v.insert_or_assign(std::move(val.first), std::move(val.second)); }) {
           v.insert_or_assign(std::move(val.first), std::move(val.second));
         } else { // pre-C++23 std::map
           v[std::move(val.first)] = std::move(val.second);
         }
       } else if constexpr (std::same_as<value_encode_type, value_type>) {
-        if (auto result = deserialize_element(v[i]); !result.ok()) [[unlikely]]
+        if (auto result = deserialize_element(v[i]); !result.ok()) [[unlikely]] {
           return result;
+        }
       } else {
         value_encode_type element;
-        if (auto result = deserialize_element(element); !result.ok()) [[unlikely]]
+        if (auto result = deserialize_element(element); !result.ok()) [[unlikely]] {
           return result;
+        }
         v[i] = std::move(static_cast<value_type>(std::move(element)));
       }
 
@@ -2002,7 +2113,9 @@ struct pb_serializer {
       if (buffer == nullptr) [[unlikely]] {
         return std::errc::not_enough_memory;
       }
+      // NOLINTBEGIN(cppcoreguidelines-owning-memory)
       auto loaded = new (buffer) element_type;
+      // NOLINTEND(cppcoreguidelines-owning-memory)
       if (auto result = deserialize_field(meta, tag, *loaded, context, archive); !result.ok()) [[unlikely]] {
         return result;
       }
@@ -2037,12 +2150,14 @@ struct pb_serializer {
       decltype(auto) v = as_modifiable(context, item);
       return deserialize_group(field_num, v.emplace_back(), context, archive);
     } else if constexpr (concepts::contiguous_byte_range<type>) {
-      if (auto result = deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok())
+      if (auto result = deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok()) {
         return result;
+      }
 #ifndef HPP_PROTO_NO_UTF8_VALIDATION
       if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
-        if (!is_utf8(item.data(), item.size()))
+        if (!is_utf8(item.data(), item.size())) {
           return std::errc::bad_message;
+        }
       }
 #endif
       return {};
@@ -2058,6 +2173,7 @@ struct pb_serializer {
       }
     }
   }
+  // NOLINTEND(readability-function-cognitive-complexity)
 
   constexpr static status deserialize_group(uint32_t field_num, auto &&item, auto &context,
                                             concepts::is_basic_in auto &archive) {
@@ -2169,8 +2285,9 @@ struct pb_serializer {
 
   constexpr static status deserialize_sized(auto &&item, auto &context, concepts::is_basic_in auto &archive) {
     vuint32_t len;
-    if (auto result = archive(len); !result.ok()) [[unlikely]]
+    if (auto result = archive(len); !result.ok()) [[unlikely]] {
       return result;
+    }
 
     if (len < archive.in_avail()) [[likely]] {
       auto new_archive = archive.split(len);
@@ -2188,7 +2305,7 @@ struct pb_serializer {
   template <typename Context, typename Byte>
   struct patch_buffer_type {
     std::array<Byte, patch_buffer_size> buffer = {Byte{0}};
-    constexpr patch_buffer_type(Context &) {}
+    constexpr explicit patch_buffer_type(Context &) {}
     constexpr auto data() { return buffer.data(); }
   };
 
@@ -2197,8 +2314,8 @@ struct pb_serializer {
   template <concepts::has_memory_resource Context, typename Byte>
   struct patch_buffer_type<Context, Byte> {
     Byte *buffer;
-    constexpr patch_buffer_type(Context &context) {
-      buffer = static_cast<Byte *>(context.memory_resource().allocate(patch_buffer_size, 1));
+    constexpr explicit patch_buffer_type(Context &context)
+        : buffer(static_cast<Byte *>(context.memory_resource().allocate(patch_buffer_size, 1))) {
       memset(buffer, 0, patch_buffer_size);
     }
     constexpr auto data() { return buffer; }
@@ -2207,7 +2324,7 @@ struct pb_serializer {
   template <typename Byte>
   constexpr static ptrdiff_t setup_input_regions(concepts::segmented_byte_range auto &&source,
                                                  input_buffer_region<Byte> *regions, Byte *patch_buffer) {
-
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     bool is_first_segment = true;
     regions->effective_size = 0;
     ptrdiff_t total_size = 0;
@@ -2239,6 +2356,7 @@ struct pb_serializer {
       }
       is_first_segment = false;
     }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     regions->end = patch_buffer;
     *patch_buffer = Byte{0};
     return total_size;
@@ -2250,14 +2368,17 @@ struct pb_serializer {
     patch_buffer_type<Context, byte_type> patch_buffer;
     std::array<input_buffer_region<byte_type>, 2> regions;
 
-    constexpr contiguous_input_stream(Buffer &buffer, Context &context) : patch_buffer(context) {
-      setup_input_regions<byte_type>(std::span{&buffer, 1}, &regions[0], patch_buffer.data());
+    constexpr contiguous_input_stream(Buffer &buffer, Context &context) noexcept : patch_buffer(context) {
+      setup_input_regions<byte_type>(std::span{&buffer, 1}, regions.data(), patch_buffer.data());
     }
 
     constexpr auto archive() { return basic_in<byte_type, true>(this->regions.data(), 0); }
 
+    constexpr ~contiguous_input_stream() noexcept = default;
     contiguous_input_stream(const contiguous_input_stream &) = delete;
+    contiguous_input_stream(contiguous_input_stream &&) = delete;
     contiguous_input_stream &operator=(const contiguous_input_stream &) = delete;
+    contiguous_input_stream &operator=(contiguous_input_stream &&) = delete;
   };
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer) {
@@ -2277,8 +2398,8 @@ struct pb_serializer {
                                       concepts::segmented_byte_range auto &&buffer, input_buffer_region<Byte> *regions,
                                       Byte *patch_buffer) {
     auto total_size = setup_input_regions(buffer, regions, patch_buffer);
-    constexpr bool is_contigueous = false;
-    auto archive = basic_in<Byte, is_contigueous>(regions, total_size - regions->effective_size);
+    constexpr bool is_contiguous = false;
+    auto archive = basic_in<Byte, is_contiguous>(regions, total_size - regions->effective_size);
     return deserialize(item, context, archive);
   }
 
@@ -2298,8 +2419,7 @@ struct pb_serializer {
         std::vector<input_buffer_region<byte_type>> regions(num_regions);
         return deserialize(item, context, buffer, regions.data(), patch_buffer);
       } else {
-        input_buffer_region<byte_type> *regions =
-            static_cast<input_buffer_region<byte_type> *>(alloca(regions_bytes_count));
+        auto *regions = static_cast<input_buffer_region<byte_type> *>(alloca(regions_bytes_count));
         return deserialize(item, context, buffer, regions, patch_buffer);
       }
     } else {
@@ -2309,8 +2429,7 @@ struct pb_serializer {
         return deserialize(item, context, buffer, regions.data(), patch_buffer.data());
       } else {
         auto patch_buffer = static_cast<byte_type *>(alloca(patch_buffer_bytes_count));
-        input_buffer_region<byte_type> *regions =
-            static_cast<input_buffer_region<byte_type> *>(alloca(regions_bytes_count));
+        auto *regions = static_cast<input_buffer_region<byte_type> *>(alloca(regions_bytes_count));
         return deserialize(item, context, buffer, regions, patch_buffer);
       }
     }
@@ -2321,7 +2440,7 @@ struct pb_serializer {
     if constexpr (sz == 0) {
       return std::span<std::byte>{};
     } else {
-      std::array<std::byte, sz> buffer;
+      std::array<std::byte, sz> buffer = {};
       if (auto result = serialize(ObjectLambda(), buffer); !result.ok()) {
         throw std::system_error(std::make_error_code(result.ec));
       }
@@ -2332,15 +2451,18 @@ struct pb_serializer {
   template <typename T>
   constexpr static auto from_bytes(auto &&buffer) {
     T obj = {};
-    if (auto result = deserialize(obj, buffer, pb_context{}); !result.ok())
+    if (auto result = deserialize(obj, buffer, pb_context{}); !result.ok()) {
       throw std::system_error(std::make_error_code(result.ec));
+    }
     return obj;
   }
 };
 
 template <typename FieldType, typename MetaType>
 struct serialize_wrapper_type {
+  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
   FieldType value = {};
+  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
   using pb_meta = std::tuple<MetaType>;
 };
 
@@ -2468,8 +2590,7 @@ concept is_any = requires(T &obj) {
   return std::errc::invalid_argument;
 }
 
-} // namespace proto
-} // namespace hpp
+} // namespace hpp::proto
 
 #undef HPP_PROTO_INLINE
 

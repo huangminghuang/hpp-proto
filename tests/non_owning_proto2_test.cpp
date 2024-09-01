@@ -1,5 +1,5 @@
 #include "gpb_proto_json/gpb_proto_json.hpp"
-#include "test_util.h"
+#include "test_util.hpp"
 #include <boost/ut.hpp>
 #include <non_owning/google/protobuf/unittest.glz.hpp>
 #include <non_owning/google/protobuf/unittest.pb.hpp>
@@ -64,7 +64,7 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
   message->optional_fixed64 = 108;
   message->optional_sfixed32 = 109;
   message->optional_sfixed64 = 110;
-  message->optional_float = 111.0f;
+  message->optional_float = 111.0F;
   message->optional_double = 112;
   message->optional_bool = true;
   message->optional_string = "115";
@@ -748,10 +748,9 @@ inline void SetOneofFields(protobuf_unittest::TestAllExtensions *message, auto &
 // -------------------------------------------------------------------
 
 inline void SetAllFieldsAndExtensions(protobuf_unittest::TestFieldOrderings *message, auto &&ctx) {
-  // ABSL_CHECK(message);
   message->my_int = 1;
   message->my_string = "foo";
-  message->my_float = 1.0f;
+  message->my_float = 1.0F;
   expect(message->set_extension(protobuf_unittest::my_extension_int(), 23, ctx).ok());
   expect(message->set_extension(protobuf_unittest::my_extension_string(), "bar", ctx).ok());
 }

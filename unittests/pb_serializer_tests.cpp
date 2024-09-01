@@ -1,4 +1,4 @@
-#include "test_util.h"
+#include "test_util.hpp"
 #include <boost/ut.hpp>
 #include <hpp_proto/pb_serializer.hpp>
 
@@ -7,7 +7,9 @@ using hpp::proto::field_option;
 using namespace boost::ut::literals;
 using namespace std::string_view_literals;
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define carg(...) ([]() constexpr -> decltype(auto) { return __VA_ARGS__; })
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 constexpr void constexpr_verify(auto buffer, auto object_fun) {
   static_assert(std::ranges::equal(buffer(), hpp::proto::pb_serializer::to_bytes(object_fun)));
@@ -62,10 +64,10 @@ struct example_optional_type {
 auto pb_meta(const example_optional_type &) -> std::tuple<
     hpp::proto::field_meta<1, &example_optional_type::i, field_option::explicit_presence, hpp::proto::vint64_t>>;
 
-enum test_mode { decode_encode, decode_only };
+enum test_mode : uint8_t { decode_encode, decode_only };
 
 template <typename T>
-void verify(auto encoded_data, T &&expected_value, test_mode mode = decode_encode) {
+void verify(auto encoded_data, const T &expected_value, test_mode mode = decode_encode) {
   std::remove_cvref_t<T> value;
 
   ut::expect(hpp::proto::read_proto(value, encoded_data).ok());
@@ -175,7 +177,7 @@ auto pb_meta(const non_owning_repeated_sint32_unpacked_explicit_type &)
                                          field_option::unpacked_repeated, hpp::proto::vsint32_t>>;
 
 template <typename T>
-void verify_non_owning(auto encoded_data, T &&expected_value, std::size_t memory_size, test_mode mode = decode_encode) {
+void verify_non_owning(auto encoded_data, const T &expected_value, std::size_t memory_size, test_mode mode = decode_encode) {
   std::remove_cvref_t<T> value;
 
   monotonic_buffer_resource mr{memory_size};
@@ -439,7 +441,7 @@ const ut::suite test_non_owning_repeated_bool = [] {
 };
 
 struct repeated_enum {
-  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::vector<NestedEnum> values;
   bool operator==(const repeated_enum &) const = default;
 };
@@ -448,7 +450,7 @@ auto pb_meta(const repeated_enum &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_enum::values, field_option::none>>;
 
 struct repeated_enum_unpacked {
-  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::vector<NestedEnum> values;
   bool operator==(const repeated_enum_unpacked &) const = default;
 };
@@ -470,7 +472,7 @@ const ut::suite test_repeated_enums = [] {
 };
 
 struct non_owning_repeated_enum {
-  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::span<const NestedEnum> values;
   bool operator==(const non_owning_repeated_enum &other) const { return std::ranges::equal(values, other.values); }
 };
@@ -479,7 +481,7 @@ auto pb_meta(const non_owning_repeated_enum &)
     -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_enum::values, field_option::none>>;
 
 struct non_owning_repeated_enum_unpacked {
-  enum class NestedEnum { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::span<const NestedEnum> values;
   bool operator==(const non_owning_repeated_enum_unpacked &other) const {
     return std::ranges::equal(values, other.values);
@@ -566,7 +568,7 @@ const ut::suite test_repeated_group = [] {
   };
 };
 
-enum class color_t { red, blue, green };
+enum class color_t : uint8_t { red, blue, green };
 
 struct map_example {
   std::map<int32_t, color_t> dict;
@@ -674,7 +676,7 @@ const ut::suite test_string_example = [] {
     ut::expect(v.value.value_or_default() == "test");
   };
 
-  "string_requried"_test = [] { verify("\x0a\x00"sv, string_required{}); };
+  "string_required"_test = [] { verify("\x0a\x00"sv, string_required{}); };
 };
 
 struct string_view_example {
@@ -857,8 +859,11 @@ void verify_segmented_input(auto& encoded, const T& value, const std::vector<int
       std::vector<std::span<char>> segments;
       segments.resize(sizes.size());
       char *b = encoded.data();
+      assert( sizes.size() > 0);
       for (unsigned i = 0; i < sizes.size(); ++i) {
+        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         char *e = b + sizes[i];
+        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         segments[i] = {b, e};
         b = e;
       }
@@ -898,13 +903,14 @@ const ut::suite test_segmented_byte_range = [] {
   "packed_sint32_with_segmented_input"_test = [] {
     repeated_sint32 value;
     value.integers.resize(32);
-    std::iota(value.integers.begin(), value.integers.end(), INT32_MAX-15);
+    std::iota(value.integers.begin(), value.integers.begin()+16, INT32_MAX-16);
+    std::iota(value.integers.begin()+16, value.integers.end(), INT32_MIN);
     std::vector<char> encoded;
     ut::expect(hpp::proto::write_proto(value, encoded).ok());
 
     verify(encoded, value);
-    int len = static_cast<int>(encoded.size());
-    int s = (len - 10)/2;
+    const int len = static_cast<int>(encoded.size());
+    const int s = (len - 10)/2;
     verify_segmented_input(encoded, value, {s, 10, len - 10 - s});
   };
 };
@@ -1008,7 +1014,7 @@ struct extension_example {
 
   template <typename Meta>
   [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));
+    return meta.write(extensions, std::move(value));
   }
 
   template <typename Meta>
@@ -1169,7 +1175,7 @@ struct non_owning_extension_example {
   template <typename Meta>
   [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::set_value_type &&value,
                                                  hpp::proto::concepts::is_pb_context auto &&mr) {
-    return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), mr);
+    return meta.write(extensions, std::move(value), mr);
   }
 
   template <typename Meta>
@@ -1364,7 +1370,7 @@ auto pb_meta(const non_owning_recursive_type1 &) -> std::tuple<
     hpp::proto::field_meta<2, &non_owning_recursive_type1::payload, field_option::none, hpp::proto::vint64_t>>;
 
 struct non_owning_recursive_type2 {
-  std::span<non_owning_recursive_type2> children = {};
+  std::span<non_owning_recursive_type2> children;
   int32_t payload = {};
 #ifdef _LIBCPP_VERSION
   constexpr non_owning_recursive_type2() noexcept = default;
@@ -1582,7 +1588,7 @@ struct person {
   int32_t id = {};   // = 2
   std::string email; // = 3
 
-  enum phone_type {
+  enum phone_type : uint8_t {
     mobile = 0,
     home = 1,
     work = 2,
@@ -1673,7 +1679,7 @@ struct person_map {
   int32_t id = {};   // = 2
   std::string email; // = 3
 
-  enum phone_type {
+  enum phone_type : uint8_t {
     mobile = 0,
     home = 1,
     work = 2,
@@ -1722,10 +1728,10 @@ const ut::suite test_default_person_in_address_book = [] {
   expect(hpp::proto::read_proto(b, data).ok());
 
   expect(b.people.size() == 1_u);
-  expect(b.people[0].name == ""sv);
+  expect(b.people[0].name.empty());
   expect(that % b.people[0].id == 0);
-  expect(b.people[0].email == ""sv);
-  expect(b.people[0].phones.size() == 0_u);
+  expect(b.people[0].email.empty());
+  expect(b.people[0].phones.empty());
 
   std::array<char, "\x0a\x00"sv.size()> new_data{};
   expect(hpp::proto::write_proto(b, new_data).ok());
@@ -1756,11 +1762,10 @@ const ut::suite test_empty_person = [] {
   person p;
   expect(hpp::proto::read_proto(p, data).ok());
 
-  expect(p.name.size() == 0_u);
-  expect(p.name == ""sv);
+  expect(p.name.empty());
   expect(that % p.id == 0);
-  expect(p.email == ""sv);
-  expect(p.phones.size() == 0_u);
+  expect(p.email.empty());
+  expect(p.phones.empty());
 
   std::vector<char> new_data{};
   expect(hpp::proto::write_proto(p, new_data).ok());

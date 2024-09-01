@@ -35,7 +35,7 @@
 #include <initializer_list>
 #include <iterator>
 #include <vector>
-
+// NOLINTBEGIN
 namespace stdext {
 
 namespace flatmap_detail {
@@ -1232,3 +1232,4 @@ template<
 bool empty_range(const flat_map<Key, Mapped, Compare,KeyContainer,  MappedContainer>& r) { return r.empty(); }
 
 } // namespace stdext
+// NOLINTEND

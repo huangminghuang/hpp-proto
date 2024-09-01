@@ -5,10 +5,11 @@ namespace hpp::proto {
 
 struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
-
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   static int64_t encode(auto &&value, auto &&b) noexcept {
-    if (value.nanos > 999999999 || value.nanos < 0) [[unlikely]]
+    if (value.nanos > 999999999 || value.nanos < 0) [[unlikely]] {
       return -1;
+    }
     using namespace std::chrono;
     const auto seconds_in_a_day = seconds(24h).count();
 
@@ -47,8 +48,9 @@ struct timestamp_codec {
   static bool parse_decimal(int32_t &v, std::string_view str) {
     v = 0;
     for (char digit : str) {
-      if (digit < '0' || digit > '9')
+      if (digit < '0' || digit > '9') [[unlikely]] {
         return false;
+      }
       v = (v * 10) + (digit - '0');
     }
     return true;
@@ -57,46 +59,59 @@ struct timestamp_codec {
   static bool decode(auto &&json, auto &&value) {
 
     if (json.size() < std::size("yyyy-mm-ddThh:mm:ss") || json.size() > std::size("yyyy-mm-ddThh:mm:ss.000000000") ||
-        json.back() != 'Z')
+        json.back() != 'Z') [[unlikely]] {
       return false;
+    }
 
     const char *cur = json.data();
     const char *end = json.data() + json.size() - 1;
 
+    // NOLINTBEGIN(readability-isolate-declaration,cppcoreguidelines-init-variables)
     int32_t yy, mm, dd, hh, mn, ss;
+    // NOLINTEND(readability-isolate-declaration,cppcoreguidelines-init-variables)
 
+    // NOLINTBEGIN(bugprone-easily-swappable-parameters)
     auto parse_digits_with_separator = [&cur](int32_t &v, std::size_t sz, char separator) {
-      if (!parse_decimal(v, std::string_view{cur, sz})) [[unlikely]]
+      if (!parse_decimal(v, std::string_view{cur, sz})) [[unlikely]] {
         return false;
+      }
       cur += sz;
       return separator == '\0' || *cur++ == separator;
     };
+    // NOLINTEND(bugprone-easily-swappable-parameters)
 
     if (!parse_digits_with_separator(yy, 4, '-') || !parse_digits_with_separator(mm, 2, '-') ||
         !parse_digits_with_separator(dd, 2, 'T') || !parse_digits_with_separator(hh, 2, ':') ||
-        !parse_digits_with_separator(mn, 2, ':') || !parse_digits_with_separator(ss, 2, '\0')) [[unlikely]]
+        !parse_digits_with_separator(mn, 2, ':') || !parse_digits_with_separator(ss, 2, '\0')) [[unlikely]] {
       return false;
+    }
 
     using namespace std::chrono;
     value.seconds = (sys_days(year_month_day(year(yy), month(mm), day(dd))) + hours(hh) + minutes(mn) + seconds(ss))
                         .time_since_epoch()
                         .count();
 
-    if (cur == end)
+    if (cur == end) {
       return true;
+    }
 
-    if (*cur++ != '.') [[unlikely]]
+    if (*cur++ != '.') [[unlikely]] {
       return false;
+    }
 
     std::string_view nanos_digits{cur, static_cast<std::size_t>(end - cur)};
 
-    if (nanos_digits.size() > 9 || !parse_decimal(value.nanos, nanos_digits)) [[unlikely]]
+    if (nanos_digits.size() > 9 || !parse_decimal(value.nanos, nanos_digits)) [[unlikely]] {
       return false;
+    }
 
     static int pow10[9] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     value.nanos *= pow10[9 - nanos_digits.size()];
+    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
     return true;
   }
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 };
 
 } // namespace hpp::proto

@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iostream>
 
-std::vector<char> read_data_file(const char* filename) {
+std::vector<char> read_data_file(const char *filename) {
   std::filebuf buf;
   if (buf.open(filename, std::ios::binary | std::ios::in) == nullptr) {
     std::cerr << "Open file " << filename << " for read failed\n";
@@ -12,22 +12,23 @@ std::vector<char> read_data_file(const char* filename) {
   return {std::istreambuf_iterator<char>{&buf}, std::istreambuf_iterator<char>{}};
 }
 
-int main(int argc, const char** argv) {
+int main(int argc, const char **argv) {
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  if (argc != 2) {
+    std::cerr << "Usage: " << argv[0] << " filename\n";
+    return 1;
+  }
+  auto data = read_data_file(argv[1]);
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " filename\n";
-        return 1;
-    }
-    auto data = read_data_file(argv[1]);
-
-    owning::benchmarks::proto3::GoogleMessage1 message;
-    if (!hpp::proto::read_proto(message, data).ok()) {
-        std::cerr << "decode failure\n";
-        return 1;
-    }
-    if (!hpp::proto::write_proto(message, data).ok()) {
-        std::cerr << "encode failure\n";
-        return 1;
-    }
-    return 0;
+  owning::benchmarks::proto3::GoogleMessage1 message;
+  if (!hpp::proto::read_proto(message, data).ok()) {
+    std::cerr << "decode failure\n";
+    return 1;
+  }
+  if (!hpp::proto::write_proto(message, data).ok()) {
+    std::cerr << "encode failure\n";
+    return 1;
+  }
+  return 0;
 }

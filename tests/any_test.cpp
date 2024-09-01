@@ -8,12 +8,12 @@
 #include <non_owning/google/protobuf/any_test.pb.hpp>
 #include <non_owning/google/protobuf/field_mask.pb.hpp>
 
-#include "test_util.h"
+#include "test_util.hpp"
 #include <boost/ut.hpp>
 
 using namespace boost::ut;
 
-suite test_any = [] {
+const suite test_any = [] {
   "any"_test = [] {
     protobuf_unittest::TestAny message;
     google::protobuf::FieldMask fm{.paths = {"/usr/share", "/usr/local/share"}};
@@ -70,7 +70,7 @@ suite test_any = [] {
     expect(message == message2);
   };
 
-  "any_josn"_test = [] {
+  "any_json"_test = [] {
     protobuf_unittest::TestAny message;
     proto3_unittest::ForeignMessage submessage{.c = 1234};
     expect(hpp::proto::pack_any(message.any_value.emplace(), submessage).ok());

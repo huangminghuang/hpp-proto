@@ -13,7 +13,6 @@ option(HPP_PROTO_COMPILE_PROTOC "Alwyas compile protoc from source" OFF)
 option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
 
 
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/CPM.cmake)
@@ -24,6 +23,16 @@ if(APPLE)
 endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+if (HPP_PROTO_ENABLE_SANITIZER)
+  if (MSVC)
+    add_compile_options("/fsanitize=address" "/Zi")
+    add_link_options("/fsanitize=address")
+  else()
+    add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
+    add_link_options("-fsanitize=address,undefined")
+  endif()
+endif()
 
 CPMAddPackage(
   NAME glaze
@@ -71,16 +80,6 @@ if (MSVC)
   target_compile_options(libhpp_proto_no_utf8_validation INTERFACE "/Zc:preprocessor")
 else()
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
-endif()
-
-if (HPP_PROTO_ENABLE_SANITIZER)
-  if (MSVC)
-    add_compile_options("/fsanitize=address" "/Zi")
-    add_link_options("/fsanitize=address")
-  else()
-    add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
-    add_link_options("-fsanitize=address,undefined")
-  endif()
 endif()
 
 if(HPP_PROTO_TESTS)

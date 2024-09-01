@@ -233,11 +233,13 @@ std::string to_hex(const T &data) {
   result.resize(data.size() * 4);
   unsigned index = 0;
   for (auto b : data) {
-    unsigned char c = static_cast<unsigned char>(b);
+    const auto c = static_cast<unsigned>(b);
     result[index++] = '\\';
     result[index++] = 'x';
-    result[index++] = qmap[c >> 4];
-    result[index++] = qmap[c & '\x0F'];
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+    result[index++] = qmap[c >> 4U];
+    result[index++] = qmap[c & 0x0FU];
+    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
   }
   return result;
 }
@@ -387,9 +389,9 @@ struct hpp_addons {
           } else if (proto.type == TYPE_FLOAT) {
             if (proto.default_value.find('.') == std::string::npos &&
                 proto.default_value.find('e') == std::string::npos) {
-              default_value = proto.default_value + ".0f";
+              default_value = proto.default_value + ".0F";
             } else {
-              default_value = proto.default_value + "f";
+              default_value = proto.default_value + "F";
             }
           } else {
             default_value = fmt::format("double({})", proto.default_value);
@@ -493,15 +495,14 @@ struct hpp_addons {
     std::string cpp_namespace;
     std::string cpp_name;
     explicit file_descriptor(const gpb::FileDescriptorProto &proto)
-        : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax) {
+        : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax), cpp_name(proto.name) {
 
       messages.reserve(proto.message_type.size());
       enums.reserve(proto.enum_type.size());
       extensions.reserve(proto.extension.size());
       cpp_namespace = root_namespace + qualified_cpp_name(proto.package);
-      cpp_name = proto.name;
       std::replace_if(
-          cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return !std::isalnum(c); }, '_');
+          cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
       cpp_name = resolve_keyword(cpp_name);
     }
     void add_enum(EnumD &e) { enums.push_back(&e); }
@@ -518,6 +519,7 @@ struct hpp_addons {
                      [&map](auto &dep) { return map.at(dep); });
     }
 
+    // NOLINTBEGIN(misc-no-recursion)
     const std::vector<std::string> &get_dependency_names() {
       if (dependency_names.empty()) {
         auto it = std::back_inserter(dependency_names);
@@ -531,6 +533,7 @@ struct hpp_addons {
       }
       return dependency_names;
     }
+    // NOLINTEND(misc-no-recursion)
   };
 };
 
@@ -553,20 +556,11 @@ struct code_generator {
   using field_descriptor_t = hpp_gen_descriptor_pool::field_descriptor_t;
   using file_descriptor_t = hpp_gen_descriptor_pool::file_descriptor_t;
 
-  inline static message_descriptor_t *message_parent_of(field_descriptor_t *f) {
+  static message_descriptor_t *message_parent_of(field_descriptor_t *f) {
     return static_cast<message_descriptor_t *>(f->parent);
   }
 
-  inline static message_descriptor_t *message_parent_of(message_descriptor_t *m) { return m->message_parent; }
-
-  inline static file_descriptor_t *file_parent_of(message_descriptor_t *m) {
-    message_descriptor_t *p;
-    do {
-      p = m->message_parent;
-    } while (p != nullptr);
-
-    return static_cast<file_descriptor_t *>(p->file_parent);
-  }
+  static message_descriptor_t *message_parent_of(message_descriptor_t *m) { return m->message_parent; }
 
   explicit code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
       : file(files.emplace_back()), target(file.content) {}
@@ -594,38 +588,38 @@ struct code_generator {
   // NOLINTEND(misc-no-recursion)
 
   static message_descriptor_t *resolve_container_dependency_cycle(std::vector<message_descriptor_t *> &unresolved) {
-    // First, find the depenedecy which used the by repeated field
+    // First, find the dependency which used the by repeated field
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto *mssage = message_parent_of(f);
-        if (std::find(unresolved.begin(), unresolved.end(), mssage) != unresolved.end()) {
-          used_by_messages[mssage] |= (f->proto.label != gpb::FieldDescriptorProto::Label::LABEL_REPEATED);
+        auto *message = message_parent_of(f);
+        if (std::find(unresolved.begin(), unresolved.end(), message) != unresolved.end()) {
+          used_by_messages[message] |= (f->proto.label != gpb::FieldDescriptorProto::Label::LABEL_REPEATED);
           f->is_recursive = true;
         }
       }
 
-      for (auto [m, no_non_repeated_useage] : used_by_messages) {
-        if (!no_non_repeated_useage && !m->is_map_entry) {
+      for (auto [m, no_non_repeated_usage] : used_by_messages) {
+        if (!no_non_repeated_usage && !m->is_map_entry) {
           m->dependencies.erase(depended->cpp_name);
           m->forward_declarations.insert(depended->cpp_name);
           return m;
         }
       }
     }
-    // find the depenedecy which used the by map field
+    // find the dependency which used the by map field
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto *mssage = message_parent_of(f);
-        if (std::find(unresolved.begin(), unresolved.end(), mssage) != unresolved.end() || mssage->is_map_entry) {
-          used_by_messages[mssage] |= !(mssage->is_map_entry);
+        auto *message = message_parent_of(f);
+        if (std::find(unresolved.begin(), unresolved.end(), message) != unresolved.end() || message->is_map_entry) {
+          used_by_messages[message] |= !(message->is_map_entry);
           f->is_recursive = true;
         }
       }
 
-      for (auto [m, no_non_map_useage] : used_by_messages) {
-        if (!no_non_map_useage) {
+      for (auto [m, no_non_map_usage] : used_by_messages) {
+        if (!no_non_map_usage) {
           m->message_parent->has_recursive_map_field = true;
           m->message_parent->dependencies.erase(depended->cpp_name);
           m->message_parent->forward_declarations.insert(depended->cpp_name);
@@ -661,9 +655,8 @@ struct code_generator {
       }
     }
 
-    while (unresolved_messages.size() > 0) {
-      for (auto itr = unresolved_messages.rbegin(); itr != unresolved_messages.rend(); ++itr) {
-        auto &pm = *itr;
+    while (!unresolved_messages.empty()) {
+      for ( auto &pm :  std::ranges::reverse_view{unresolved_messages}) {
         auto &deps = pm->dependencies;
         if (std::includes(resolved_message_names.begin(), resolved_message_names.end(), deps.begin(), deps.end())) {
           resolved_messages.push_back(pm);
@@ -677,7 +670,7 @@ struct code_generator {
         unresolved_messages.erase(null_end, unresolved_messages.end());
       } else {
         message_descriptor_t *to_be_resolved = resolve_container_dependency_cycle(unresolved_messages);
-        if (to_be_resolved) {
+        if (to_be_resolved != nullptr) {
           resolved_messages.push_back(to_be_resolved);
           unresolved_messages.erase(std::remove(unresolved_messages.begin(), unresolved_messages.end(), to_be_resolved),
                                     unresolved_messages.end());
@@ -693,7 +686,7 @@ struct code_generator {
     return resolved_messages;
   }
 
-  void gen_file_header(const std::string &file) {
+  void gen_file_header(const std::string &file) const {
     fmt::format_to(target,
                    "// Generated by the protocol buffer compiler.  DO NOT EDIT!\n"
                    "// NO CHECKED-IN PROTOBUF GENCODE\n"
@@ -719,21 +712,21 @@ struct msg_code_generator : code_generator {
         auto type_name = field.proto.type_name;
         auto message_name = field.qualified_parent_name;
         auto pos = shared_scope_position(message_name, type_name);
-        std::string depender;
+        std::string dependent;
         std::string dependee;
         if (pos > 0 && pos < message_name.size() && pos != type_name.size()) {
-          auto depender_pos = message_name.find_first_of('.', pos + 1);
-          depender = message_name.substr(0, depender_pos);
+          auto dependent_pos = message_name.find_first_of('.', pos + 1);
+          dependent = message_name.substr(0, dependent_pos);
           dependee = type_name.substr(pos + 1);
           auto dependee_pos = dependee.find('.');
           if (dependee_pos != std::string::npos) {
             dependee = dependee.substr(0, dependee_pos);
           } else if (type == TYPE_ENUM) {
-            depender = "";
+            dependent = "";
           }
         }
 
-        auto itr = pool.message_map.find(depender);
+        auto itr = pool.message_map.find(dependent);
         if (itr != pool.message_map.end()) {
           itr->second->dependencies.insert(qualified_cpp_name(dependee));
         }
@@ -768,7 +761,8 @@ struct msg_code_generator : code_generator {
 
     const auto &ns = descriptor.cpp_namespace;
     if (!ns.empty()) {
-      fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
+      fmt::format_to(target, "\nnamespace {} {{\n"
+                             "//NOLINTBEGIN(readability-redundant-member-init,performance-enum-size)\n\n", ns);
     }
 
     for (auto *e : descriptor.enums) {
@@ -782,7 +776,8 @@ struct msg_code_generator : code_generator {
     std::copy(out_of_class_data.begin(), out_of_class_data.end(), target);
 
     if (!ns.empty()) {
-      fmt::format_to(target, "}} // namespace {}\n", ns);
+      fmt::format_to(target, "// NOLINTEND(readability-redundant-member-init,performance-enum-size)\n"
+                             "}} // namespace {}\n", ns);
     }
   }
 
@@ -933,7 +928,7 @@ struct msg_code_generator : code_generator {
     fmt::format_to(target, "{}struct {}{} {{\n", indent(), attribute, descriptor.cpp_name);
     indent_num += 2;
 
-    if (well_known_codecs.count(descriptor.pb_name)) {
+    if (well_known_codecs.contains(descriptor.pb_name)) {
       fmt::format_to(target, "{}constexpr static bool glaze_reflect = false;\n", indent());
     }
 
@@ -956,7 +951,7 @@ struct msg_code_generator : code_generator {
     }
 
     for (auto *f : descriptor.extensions) {
-      fmt::format_to(target, "\n{}constexpr auto {}();\n", indent(), f->cpp_name);
+      fmt::format_to(target, "\n{}static constexpr auto {}();\n", indent(), f->cpp_name);
     }
 
     if (!descriptor.proto.extension_range.empty()) {
@@ -971,17 +966,17 @@ struct msg_code_generator : code_generator {
                        "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
                        "{0}  return meta.read(extensions);\n"
                        "{0}}}\n"
-                       "{0}template<typename Meta>"
+                       "{0}template<typename Meta>\n"
                        "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
-                       "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value));\n"
+                       "{0}  return meta.write(extensions, std::move(value));\n"
                        "{0}}}\n"
-                       "{0}template<typename Meta>"
-                       "{0}requires Meta::is_repeated"
+                       "{0}template<typename Meta>\n"
+                       "{0}requires Meta::is_repeated\n"
                        "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename "
                        "Meta::element_type> value) {{\n"
                        "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}});\n"
                        "{0}}}\n"
-                       "{0}bool has_extension(auto meta) const {{\n"
+                       "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
                        "{0}  return meta.element_of(extensions);\n"
                        "{0}}}\n",
                        indent(), descriptor.cpp_name);
@@ -995,13 +990,13 @@ struct msg_code_generator : code_generator {
                        "{0}}} extensions;\n\n"
                        "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_pb_context auto && "
                        "...ctx) const {{\n"
-                       "{0}  static_assert(sizeof...(ctx) <= 1);"
+                       "{0}  static_assert(sizeof...(ctx) <= 1);\n"
                        "{0}  return meta.read(extensions, ctx...);\n"
                        "{0}}}\n"
                        "{0}template<typename Meta>\n"
                        "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value,\n"
                        "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
-                       "{0}  return meta.write(extensions, std::forward<typename Meta::set_value_type>(value), ctx);\n"
+                       "{0}  return meta.write(extensions, std::move(value), ctx);\n"
                        "{0}}}\n"
                        "{0}template<typename Meta>\n"
                        "{0}requires Meta::is_repeated\n"
@@ -1010,7 +1005,7 @@ struct msg_code_generator : code_generator {
                        "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
                        "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}}, ctx);\n"
                        "{0}}}\n"
-                       "{0}bool has_extension(auto meta) const {{\n"
+                       "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
                        "{0}  return meta.element_of(extensions);\n"
                        "{0}}}\n",
                        indent(), descriptor.cpp_name);
@@ -1068,7 +1063,7 @@ bool is_numeric(enum gpb::FieldDescriptorProto::Type type) {
   return type != TYPE_MESSAGE && type != TYPE_STRING && type != TYPE_BYTES && type != TYPE_GROUP;
 }
 
-struct hpp_meta_generateor : code_generator {
+struct hpp_meta_generator : code_generator {
   std::string syntax;
   using code_generator::code_generator;
 
@@ -1308,7 +1303,7 @@ struct glaze_meta_generator : code_generator {
 
       fmt::format_to(target, "#include \"{}.msg.hpp\"\n\n", basename(descriptor.proto.name));
 
-      if (!sole_message_name.empty() && well_known_codecs.count(sole_message_name)) {
+      if (!sole_message_name.empty() && well_known_codecs.contains(sole_message_name)) {
         fmt::format_to(target, "#include <hpp_proto/{}.hpp>\n\n", well_known_codecs.at(sole_message_name));
       }
     } else {
@@ -1331,7 +1326,7 @@ struct glaze_meta_generator : code_generator {
     }
   }
 
-  // NOLINTBEGIN(misc-no-recursion)
+  // NOLINTBEGIN(misc-no-recursion,readability-function-cognitive-complexity)
   void process(message_descriptor_t &descriptor, const std::string &scope) {
     auto qualified_name = !scope.empty() ? scope + "::" + descriptor.cpp_name : descriptor.cpp_name;
 
@@ -1340,7 +1335,7 @@ struct glaze_meta_generator : code_generator {
         "google.protobuf.UInt64Value", "google.protobuf.Int32Value",  "google.protobuf.UInt32Value",
         "google.protobuf.BoolValue",   "google.protobuf.StringValue", "google.protobuf.BytesValue"};
 
-    if (well_known_wrapper_types.count(descriptor.pb_name)) {
+    if (well_known_wrapper_types.contains(descriptor.pb_name)) {
       std::string opts = "Opts";
       if (descriptor.pb_name == "google.protobuf.Int64Value" || descriptor.pb_name == "google.protobuf.UInt64Value") {
         opts = "opt_true<Opts, &opts::quoted_num>";
@@ -1365,7 +1360,7 @@ struct glaze_meta_generator : code_generator {
                      "}};\n"
                      "}} // namespace glz::detail\n\n",
                      qualified_name, opts);
-    } else if (well_known_codecs.count(descriptor.pb_name)) {
+    } else if (well_known_codecs.contains(descriptor.pb_name)) {
       fmt::format_to(target,
                      "template <>\n"
                      "struct hpp::proto::json_codec<{0}> {{\n"
@@ -1400,15 +1395,19 @@ struct glaze_meta_generator : code_generator {
                      "  static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
                      "    if constexpr (!has_ws_handled(Options)) {{\n"
                      "      skip_ws<Options>(ctx, it, end);\n"
-                     "      if (bool(ctx.error)) [[unlikely]]\n"
+                     "      if (bool(ctx.error)) [[unlikely]]{{\n"
                      "        return;\n"
+                     "      }}\n"
                      "    }}\n"
                      "    static constexpr auto Opts = ws_handled_off<Options>();\n"
                      "    if (*it == 'n') {{\n"
+                     "      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)\n"
                      "      ++it;\n"
+                     "      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)\n"
                      "      match<\"ull\", Opts>(ctx, it, end);\n"
-                     "      if (bool(ctx.error)) [[unlikely]]\n"
+                     "      if (bool(ctx.error)) [[unlikely]]{{\n"
                      "        return;\n"
+                     "      }}\n"
                      "      value.kind.template emplace<{1}::NullValue>();\n"
                      "    }} else if ((*it >= '0' && *it <= '9') || *it == '-') {{\n"
                      "      read<json>::op<Opts>(value.kind.template emplace<double>(), ctx, it, end);\n"
@@ -1433,7 +1432,7 @@ struct glaze_meta_generator : code_generator {
           "template <>\n"
           "struct to_json<{0}> {{\n"
           "  template <auto Opts, class B>"
-          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &&b, auto &&ix) noexcept {{\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &b, auto &&ix) noexcept {{\n"
           "    if constexpr (requires {{ ctx.template get<hpp::proto::dynamic_serializer>(); }}) {{\n"
           "      auto &dyn_serializer = ctx.template get<hpp::proto::dynamic_serializer>();\n\n"
           "      if constexpr (!has_opening_handled(Opts)) {{\n"
@@ -1457,7 +1456,7 @@ struct glaze_meta_generator : code_generator {
           "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {{\n"
           "    if constexpr (requires {{ ctx.template get<hpp::proto::dynamic_serializer>(); }}) {{\n"
           "      auto &dyn_serializer = ctx.template get<hpp::proto::dynamic_serializer>();\n"
-          "      return dyn_serializer.template from_json_any<Options>(value, ctx, it, end);\n"
+          "      return dyn_serializer.template from_json_any<Options>(value, ctx, std::forward<It>(it), std::forward<End>(end));\n"
           "    }} else {{\n"
           "      static_assert(!sizeof(value),\n"
           "                    \"JSON deserialization for Any message requires `dynamic_serializer` in the "
@@ -1505,7 +1504,7 @@ struct glaze_meta_generator : code_generator {
       }
     }
   }
-  // NOLINTEND(misc-no-recursion)
+  // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
 
   void process(field_descriptor_t &descriptor) {
     using enum google::protobuf::FieldDescriptorProto::Type;
@@ -1513,7 +1512,7 @@ struct glaze_meta_generator : code_generator {
 
     if (descriptor.is_cpp_optional && descriptor.proto.type != TYPE_BOOL) {
       // we remove operator! from hpp::optional<bool> to make the interface less confusing; however, this
-      // make it unfullfilling the optional concept in glaze library; therefor, we need to apply as_optional_ref
+      // make it unfulfilling the optional concept in glaze library; therefor, we need to apply as_optional_ref
       // as a workaround.
       fmt::format_to(target, "    \"{}\", &T::{},\n", descriptor.proto.json_name, descriptor.cpp_name);
     } else if (descriptor.proto.label == LABEL_REQUIRED) {
@@ -1590,7 +1589,7 @@ struct glaze_meta_generator : code_generator {
   }
 };
 
-struct desc_hpp_generateor : code_generator {
+struct desc_hpp_generator : code_generator {
   using code_generator::code_generator;
 
   void process(file_descriptor_t &descriptor) {
@@ -1605,7 +1604,7 @@ struct desc_hpp_generateor : code_generator {
       fmt::format_to(target, "#include \"{}.desc.hpp\"\n", basename(d));
     }
 
-    const auto ns = "hpp::proto::file_descriptors";
+    const auto * const ns = "hpp::proto::file_descriptors";
     fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
 
     std::vector<uint8_t> buf;
@@ -1617,7 +1616,7 @@ struct desc_hpp_generateor : code_generator {
                    descriptor.cpp_name, to_hex(buf));
 
     fmt::format_to(target, "inline auto desc_set_{}(){{\n", descriptor.cpp_name);
-    auto &dependency_names = descriptor.get_dependency_names();
+    const auto &dependency_names = descriptor.get_dependency_names();
     fmt::format_to(target, "  return std::array<file_descriptor_pb, {}> {{\n", dependency_names.size());
     for (const auto &p : dependency_names) {
       fmt::format_to(target, "    _desc_{},\n", p);
@@ -1654,8 +1653,9 @@ void split(std::string_view str, char deliminator, auto &&callback) {
 }
 
 int main(int argc, const char **argv) {
-
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   plugin_name = argv[0];
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   std::vector<char> request_data;
 
   auto read_file = [&request_data](auto &&strm) {
@@ -1732,14 +1732,14 @@ int main(int argc, const char **argv) {
     msg_code.resolve_message_dependencies(pool);
     msg_code.process(descriptor);
 
-    hpp_meta_generateor hpp_meta_code(response.file);
+    hpp_meta_generator hpp_meta_code(response.file);
     hpp_meta_code.process(descriptor);
 
     glaze_meta_generator glz_meta_code(response.file);
     glz_meta_code.process(descriptor);
 
-    if (descriptor.messages.size()) {
-      desc_hpp_generateor desc_hpp_code(response.file);
+    if (!descriptor.messages.empty()) {
+      desc_hpp_generator desc_hpp_code(response.file);
       desc_hpp_code.process(descriptor);
     }
   }
