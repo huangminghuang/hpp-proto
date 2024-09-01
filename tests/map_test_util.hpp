@@ -1,5 +1,5 @@
 #pragma once
-#include "test_util.h"
+#include "test_util.hpp"
 #include <boost/ut.hpp>
 #include <google/protobuf/map_unittest.pb.hpp>
 

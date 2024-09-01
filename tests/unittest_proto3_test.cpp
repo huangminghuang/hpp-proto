@@ -1,6 +1,6 @@
 #include "gpb_proto_json/gpb_proto_json.hpp"
-#include "test_util.h"
-#include "unittest_proto3_util.h"
+#include "test_util.hpp"
+#include "unittest_proto3_util.hpp"
 
 
 // static_assert(

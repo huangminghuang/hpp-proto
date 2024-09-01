@@ -1,6 +1,6 @@
 #include "gpb_proto_json/gpb_proto_json.hpp"
-#include "map_test_util.h"
-#include "test_util.h"
+#include "map_test_util.hpp"
+#include "test_util.hpp"
 #include <google/protobuf/map_unittest.glz.hpp>
 #include <hpp_proto/pb_serializer.hpp>
 

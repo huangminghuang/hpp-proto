@@ -1,4 +1,4 @@
-#include "test_util.h"
+#include "test_util.hpp"
 #include <boost/ut.hpp>
 #include <hpp_proto/json_serializer.hpp>
 #include <hpp_proto/timestamp_codec.hpp>
