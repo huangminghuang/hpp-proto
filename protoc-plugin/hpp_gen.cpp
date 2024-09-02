@@ -501,8 +501,7 @@ struct hpp_addons {
       enums.reserve(proto.enum_type.size());
       extensions.reserve(proto.extension.size());
       cpp_namespace = root_namespace + qualified_cpp_name(proto.package);
-      std::replace_if(
-          cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
+      std::replace_if(cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
       cpp_name = resolve_keyword(cpp_name);
     }
     void add_enum(EnumD &e) { enums.push_back(&e); }
@@ -656,7 +655,7 @@ struct code_generator {
     }
 
     while (!unresolved_messages.empty()) {
-      for ( auto &pm :  std::ranges::reverse_view{unresolved_messages}) {
+      for (auto &pm : std::ranges::reverse_view{unresolved_messages}) {
         auto &deps = pm->dependencies;
         if (std::includes(resolved_message_names.begin(), resolved_message_names.end(), deps.begin(), deps.end())) {
           resolved_messages.push_back(pm);
@@ -761,8 +760,10 @@ struct msg_code_generator : code_generator {
 
     const auto &ns = descriptor.cpp_namespace;
     if (!ns.empty()) {
-      fmt::format_to(target, "\nnamespace {} {{\n"
-                             "//NOLINTBEGIN(readability-redundant-member-init,performance-enum-size)\n\n", ns);
+      fmt::format_to(target,
+                     "\nnamespace {} {{\n"
+                     "//NOLINTBEGIN(readability-redundant-member-init,performance-enum-size)\n\n",
+                     ns);
     }
 
     for (auto *e : descriptor.enums) {
@@ -776,8 +777,10 @@ struct msg_code_generator : code_generator {
     std::copy(out_of_class_data.begin(), out_of_class_data.end(), target);
 
     if (!ns.empty()) {
-      fmt::format_to(target, "// NOLINTEND(readability-redundant-member-init,performance-enum-size)\n"
-                             "}} // namespace {}\n", ns);
+      fmt::format_to(target,
+                     "// NOLINTEND(readability-redundant-member-init,performance-enum-size)\n"
+                     "}} // namespace {}\n",
+                     ns);
     }
   }
 
@@ -1052,7 +1055,8 @@ struct msg_code_generator : code_generator {
     indent_num -= 2;
     fmt::format_to(target, "{}}};\n\n", indent());
     fmt::format_to(out_of_class_target,
-                   "constexpr auto message_type_url(const {0}&) {{ return hpp::proto::string_literal<\"type.googleapis.com/{1}\">{{}}; }}\n",
+                   "constexpr auto message_type_url(const {0}&) {{ return "
+                   "hpp::proto::string_literal<\"type.googleapis.com/{1}\">{{}}; }}\n",
                    qualified_cpp_name, descriptor.pb_name);
   }
   // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
@@ -1456,7 +1460,8 @@ struct glaze_meta_generator : code_generator {
           "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {{\n"
           "    if constexpr (requires {{ ctx.template get<hpp::proto::dynamic_serializer>(); }}) {{\n"
           "      auto &dyn_serializer = ctx.template get<hpp::proto::dynamic_serializer>();\n"
-          "      return dyn_serializer.template from_json_any<Options>(value, ctx, std::forward<It>(it), std::forward<End>(end));\n"
+          "      return dyn_serializer.template from_json_any<Options>(value, ctx, std::forward<It>(it), "
+          "std::forward<End>(end));\n"
           "    }} else {{\n"
           "      static_assert(!sizeof(value),\n"
           "                    \"JSON deserialization for Any message requires `dynamic_serializer` in the "
@@ -1604,7 +1609,7 @@ struct desc_hpp_generator : code_generator {
       fmt::format_to(target, "#include \"{}.desc.hpp\"\n", basename(d));
     }
 
-    const auto * const ns = "hpp::proto::file_descriptors";
+    const auto *const ns = "hpp::proto::file_descriptors";
     fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
 
     std::vector<uint8_t> buf;

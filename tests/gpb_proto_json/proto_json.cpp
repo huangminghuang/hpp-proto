@@ -1,9 +1,9 @@
 #include "gpb_proto_json.hpp"
 #include <cxxopts.hpp>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
-std::string descriptorset(const char* filename) {
+std::string descriptorset(const char *filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
   std::string contents;
   in.seekg(0, std::ios::end);
@@ -30,8 +30,9 @@ int main(int argc, char **argv) {
   auto result = options.parse(argc, argv);
 
   if (result.count("help")) {
-    std::cout << options.help() << "\n;
-    return 0;
+    std::cout << options.help()
+              << "\n;
+        return 0;
   }
 
   if (!result.count("descriptor_set_in")) {

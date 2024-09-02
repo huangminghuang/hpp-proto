@@ -1,8 +1,8 @@
 #include "test_util.hpp"
 #include <boost/ut.hpp>
+#include <hpp_proto/duration_codec.hpp>
 #include <hpp_proto/json_serializer.hpp>
 #include <hpp_proto/timestamp_codec.hpp>
-#include <hpp_proto/duration_codec.hpp>
 
 template <typename T>
 constexpr auto non_owning = false;
@@ -13,7 +13,9 @@ struct byte_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
-constexpr auto message_type_url(const byte_span_example&) { return hpp::proto::string_literal<"type.googleapis.com/byte_span_example">{}; }
+constexpr auto message_type_url(const byte_span_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/byte_span_example">{};
+}
 
 template <>
 struct glz::meta<byte_span_example> {
@@ -25,7 +27,9 @@ struct uint64_example {
   uint64_t field = 0;
   bool operator==(const uint64_example &) const = default;
 };
-constexpr auto message_type_url(const uint64_example&) { return hpp::proto::string_literal<"type.googleapis.com/uint64_example">{}; }
+constexpr auto message_type_url(const uint64_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/uint64_example">{};
+}
 
 template <>
 struct glz::meta<uint64_example> {
@@ -40,7 +44,9 @@ struct optional_example {
   double field4 = {};
   bool operator==(const optional_example &) const = default;
 };
-constexpr auto message_type_url(const optional_example&) { return hpp::proto::string_literal<"type.googleapis.com/optional_example">{}; }
+constexpr auto message_type_url(const optional_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/optional_example">{};
+}
 
 template <>
 struct glz::meta<optional_example> {
@@ -59,8 +65,9 @@ struct explicit_optional_bool_example {
   bool operator==(const explicit_optional_bool_example &) const = default;
 };
 
-constexpr auto message_type_url(const explicit_optional_bool_example&) { return hpp::proto::string_literal<"type.googleapis.com/explicit_optional_bool_example">{}; }
-
+constexpr auto message_type_url(const explicit_optional_bool_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/explicit_optional_bool_example">{};
+}
 
 template <>
 struct glz::meta<explicit_optional_bool_example> {
@@ -72,7 +79,9 @@ struct explicit_optional_uint64_example {
   hpp::proto::optional<uint64_t> field;
   bool operator==(const explicit_optional_uint64_example &) const = default;
 };
-constexpr auto message_type_url(const explicit_optional_uint64_example&) { return hpp::proto::string_literal<"type.googleapis.com/explicit_optional_uint64_example">{}; }
+constexpr auto message_type_url(const explicit_optional_uint64_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/explicit_optional_uint64_example">{};
+}
 
 template <>
 struct glz::meta<explicit_optional_uint64_example> {
@@ -86,8 +95,9 @@ struct uint32_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
-constexpr auto message_type_url(const uint32_span_example&) { return hpp::proto::string_literal<"type.googleapis.com/uint32_span_example">{}; }
-
+constexpr auto message_type_url(const uint32_span_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/uint32_span_example">{};
+}
 
 template <>
 constexpr auto non_owning<uint32_span_example> = true;
@@ -102,7 +112,9 @@ struct pair_vector_example {
   std::vector<std::pair<std::string, int32_t>> field;
   bool operator==(const pair_vector_example &other) const = default;
 };
-constexpr auto message_type_url(const pair_vector_example&) { return hpp::proto::string_literal<"type.googleapis.com/pair_vector_example">{}; }
+constexpr auto message_type_url(const pair_vector_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/pair_vector_example">{};
+}
 
 template <>
 struct glz::meta<pair_vector_example> {
@@ -116,7 +128,9 @@ struct pair_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
-constexpr auto message_type_url(const pair_span_example&) { return hpp::proto::string_literal<"type.googleapis.com/pair_span_example">{}; }
+constexpr auto message_type_url(const pair_span_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/pair_span_example">{};
+}
 
 template <>
 constexpr auto non_owning<pair_span_example> = true;
@@ -132,7 +146,9 @@ struct object_span_example {
     return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
   }
 };
-constexpr auto message_type_url(const object_span_example&) { return hpp::proto::string_literal<"type.googleapis.com/object_span_example">{}; }
+constexpr auto message_type_url(const object_span_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/object_span_example">{};
+}
 
 template <>
 constexpr auto non_owning<object_span_example> = true;
@@ -149,7 +165,9 @@ struct non_owning_nested_example {
     return nested == other.nested || (nested != nullptr && other.nested != nullptr && *nested == *other.nested);
   }
 };
-constexpr auto message_type_url(const non_owning_nested_example&) { return hpp::proto::string_literal<"type.googleapis.com/non_owning_nested_example">{}; }
+constexpr auto message_type_url(const non_owning_nested_example &) {
+  return hpp::proto::string_literal<"type.googleapis.com/non_owning_nested_example">{};
+}
 
 template <>
 constexpr auto non_owning<non_owning_nested_example> = true;
@@ -168,10 +186,8 @@ struct oneof_example {
 template <>
 struct glz::meta<oneof_example> {
   using T = oneof_example;
-  static constexpr auto value = object(
-    "string_field", hpp::proto::as_oneof_member<&T::value,1>,
-    "int32_field", hpp::proto::as_oneof_member<&T::value,2>
-  );
+  static constexpr auto value = object("string_field", hpp::proto::as_oneof_member<&T::value, 1>, "int32_field",
+                                       hpp::proto::as_oneof_member<&T::value, 2>);
 };
 
 namespace ut = boost::ut;
@@ -205,7 +221,7 @@ const ut::suite test_base64 = [] {
 using source_location = boost::ut::reflection::source_location;
 
 template <typename T>
-void verify(const T &msg, std::string_view json, const source_location& from_loc= source_location::current()) {
+void verify(const T &msg, std::string_view json, const source_location &from_loc = source_location::current()) {
   using namespace boost::ut;
   std::string from_line_number = "from line " + std::to_string(from_loc.line());
   expect(eq(json, hpp::proto::write_json(msg).value())) << from_line_number;
@@ -213,11 +229,13 @@ void verify(const T &msg, std::string_view json, const source_location& from_loc
   T msg2;
 
   if constexpr (!non_owning<T>) {
-    expect(fatal((hpp::proto::read_json(msg2, json).ok()))) << from_line_number;;
+    expect(fatal((hpp::proto::read_json(msg2, json).ok()))) << from_line_number;
+    ;
     expect(msg == msg2);
   } else {
     monotonic_buffer_resource mr{1024};
-    expect(fatal((hpp::proto::read_json(msg2, json, hpp::proto::json_context{mr}).ok()))) << from_line_number;;
+    expect(fatal((hpp::proto::read_json(msg2, json, hpp::proto::json_context{mr}).ok()))) << from_line_number;
+    ;
     expect(msg == msg2);
   }
 }
@@ -237,9 +255,10 @@ struct bytes_example {
   }
 };
 
-template<typename T>
-constexpr auto message_type_url(const bytes_example<T>&) { return hpp::proto::string_literal<"type.googleapis.com/bytes_example">{}; }
-
+template <typename T>
+constexpr auto message_type_url(const bytes_example<T> &) {
+  return hpp::proto::string_literal<"type.googleapis.com/bytes_example">{};
+}
 
 template <>
 constexpr auto non_owning<std::string_view> = true;
@@ -323,10 +342,7 @@ const ut::suite test_explicit_optional_uint64 = [] {
   verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{.field = 32}, R"({"field":"32"})");
 };
 
-const ut::suite test_oneof = [] {
-  verify<oneof_example>(oneof_example{.value = "abc"}, R"({"string_field":"abc"})");
-};
-
+const ut::suite test_oneof = [] { verify<oneof_example>(oneof_example{.value = "abc"}, R"({"string_field":"abc"})"); };
 
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

@@ -1,15 +1,15 @@
 
 #pragma once
 
+#include <algorithm>
 #include <fstream>
+#include <hpp_proto/pb_serializer.hpp>
+#include <ranges>
+#include <span>
 #include <string>
 #include <vector>
-#include <span>
-#include <algorithm>
-#include <ranges>
-#include <hpp_proto/pb_serializer.hpp>
 
-inline std::string descriptorset_from_file(const char* filename) {
+inline std::string descriptorset_from_file(const char *filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
   std::string contents;
   in.seekg(0, std::ios::end);
@@ -45,7 +45,7 @@ inline std::ostream &operator<<(std::ostream &os, std::byte b) {
   result[2] = qmap[c >> 4U];
   result[3] = qmap[c & 0x0FU];
   // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
-  return os << static_cast<const char*>(result);
+  return os << static_cast<const char *>(result);
 }
 
 inline std::ostream &operator<<(std::ostream &os, const std::vector<std::byte> &bytes) {
@@ -69,17 +69,17 @@ struct monotonic_buffer_resource {
   std::unique_ptr<char[]> mem;
   void *cur = nullptr;
   explicit monotonic_buffer_resource(std::size_t sz) : size(sz), mem(new char[sz]), cur(mem.get()) {}
-  monotonic_buffer_resource(const monotonic_buffer_resource&) = delete;
-  monotonic_buffer_resource(monotonic_buffer_resource&&) = delete;
+  monotonic_buffer_resource(const monotonic_buffer_resource &) = delete;
+  monotonic_buffer_resource(monotonic_buffer_resource &&) = delete;
 
-  monotonic_buffer_resource& operator=(const monotonic_buffer_resource&) = delete;
-  monotonic_buffer_resource& operator=(monotonic_buffer_resource&&) = delete;
+  monotonic_buffer_resource &operator=(const monotonic_buffer_resource &) = delete;
+  monotonic_buffer_resource &operator=(monotonic_buffer_resource &&) = delete;
 
   ~monotonic_buffer_resource() = default;
   void *allocate(std::size_t n, std::size_t alignment) {
     if (std::align(alignment, n, cur, size) != nullptr) {
       size -= n;
-      auto* result = cur;
+      auto *result = cur;
       // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       cur = static_cast<char *>(cur) + n;
       // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -98,5 +98,3 @@ template <hpp::proto::compile_time_string str>
 constexpr auto operator""_bytes() {
   return static_cast<std::vector<std::byte>>(hpp::proto::bytes_literal<str>{});
 }
-
-

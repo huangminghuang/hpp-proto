@@ -20,7 +20,7 @@ int main(int argc, const char **argv) {
   }
   auto data = read_data_file(argv[1]);
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  
+
   proto3_unittest::TestAllTypes message;
   if (!hpp::proto::read_proto(message, data).ok()) {
     std::cerr << "decode failure\n";

@@ -31,7 +31,7 @@ struct duration_codec {
   }
 
   static bool decode(auto &&json, auto &&value) {
-    if (json.empty() || json.front() == ' ' || json.back() != 's'){
+    if (json.empty() || json.front() == ' ' || json.back() != 's') {
       return false;
     }
     const char *beg = std::data(json);
@@ -62,12 +62,12 @@ struct duration_codec {
       char nanos_buf[10] = "000000000";
       std::copy(const_cast<const char *>(it), end, std::begin(nanos_buf));
       value.nanos = std::strtoul(&nanos_buf[0], &it, 10);
-      if (it != std::end(nanos_buf) - 1){
+      if (it != std::end(nanos_buf) - 1) {
         return false;
       }
     }
 
-    if (value.seconds < 0){
+    if (value.seconds < 0) {
       value.nanos = -value.nanos;
     }
     return true;

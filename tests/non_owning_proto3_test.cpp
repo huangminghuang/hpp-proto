@@ -16,11 +16,11 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->optional_string = "asdf";
   m->optional_bytes = "jkl;"_bytes_view;
 
-  m->optional_nested_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 42 };
+  m->optional_nested_message = proto3_unittest::TestAllTypes::NestedMessage{.bb = 42};
   m->optional_foreign_message.emplace().c = 43;
   m->optional_nested_enum = proto3_unittest::TestAllTypes::NestedEnum::BAZ;
   m->optional_foreign_enum = proto3_unittest::ForeignEnum::FOREIGN_BAZ;
-  m->optional_lazy_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 45 };
+  m->optional_lazy_message = proto3_unittest::TestAllTypes::NestedMessage{.bb = 45};
 
   const static int32_t repeated_int32[] = {100};
   m->repeated_int32 = repeated_int32;
@@ -43,7 +43,7 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->repeated_lazy_message = repeated_lazy_message;
 
   m->oneof_field = 1U;
-  m->oneof_field = proto3_unittest::TestAllTypes::NestedMessage { .bb = 50 };
+  m->oneof_field = proto3_unittest::TestAllTypes::NestedMessage{.bb = 50};
   m->oneof_field = "test"; // only this one remains set
 }
 
