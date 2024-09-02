@@ -696,7 +696,7 @@ struct code_generator {
                    "//    protoc --plugin=protoc-gen-hpp=/path/to/{}\n"
                    "//           --hpp_out {}:${{out_dir}}\n"
                    "//           {}\n\n",
-                   plugin_name.filename().c_str(), plugin_parameters, file);
+                   plugin_name.filename().string(), plugin_parameters, file);
   }
 };
 
