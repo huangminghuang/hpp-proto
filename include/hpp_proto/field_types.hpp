@@ -194,7 +194,6 @@ public:
   constexpr T *operator->() noexcept { return impl.operator->(); }
   constexpr const T *operator->() const noexcept { return impl.operator->(); }
 
-  
   constexpr T &operator*() & noexcept { return *impl; }
   constexpr const T &operator*() const & noexcept { return *impl; }
   // NOLINTEND(bugprone-unchecked-optional-access)
@@ -332,7 +331,7 @@ public:
     }
     return *obj;
   }
-  [[ nodiscard ]] constexpr const T &value() const {
+  [[nodiscard]] constexpr const T &value() const {
     if (!has_value()) {
       throw std::bad_optional_access();
     }

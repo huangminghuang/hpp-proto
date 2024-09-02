@@ -214,7 +214,8 @@ inline void ModifyRepeatedFields(protobuf_unittest::TestAllTypes *message) {
 inline void SetOneofFields(protobuf_unittest::TestAllTypes *message) {
   message->oneof_field = 601U;
   using enum protobuf_unittest::TestAllTypes::oneof_field_oneof_case;
-  message->oneof_field.emplace<static_cast<int>(oneof_nested_message)>( protobuf_unittest::TestAllTypes::NestedMessage{.bb = 602});
+  message->oneof_field.emplace<static_cast<int>(oneof_nested_message)>(
+      protobuf_unittest::TestAllTypes::NestedMessage{.bb = 602});
   message->oneof_field.emplace<static_cast<int>(oneof_string)>("603");
   message->oneof_field = "604"_bytes;
 }
@@ -239,14 +240,14 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllTypes &message) {
   expect(eq("115"s, message.optional_string));
   expect(eq("116"_bytes, message.optional_bytes));
 
-  //NOLINTBEGIN(bugprone-unchecked-optional-access)
+  // NOLINTBEGIN(bugprone-unchecked-optional-access)
   expect(eq(117, message.optionalgroup->a.value()));
   expect(eq(118, message.optional_nested_message->bb.value()));
   expect(eq(119, message.optional_foreign_message->c.value()));
   expect(eq(120, message.optional_import_message->d.value()));
   expect(eq(126, message.optional_public_import_message->e.value()));
   expect(eq(127, message.optional_lazy_message->bb.value()));
-  //NOLINTEND(bugprone-unchecked-optional-access)
+  // NOLINTEND(bugprone-unchecked-optional-access)
 
   expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ == message.optional_nested_enum);
   expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ == message.optional_foreign_enum);
@@ -732,12 +733,18 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message) {
   expect(message->set_extension(protobuf_unittest::optional_foreign_message_extension(), {.c = 119}).ok());
   expect(message->set_extension(protobuf_unittest::optional_import_message_extension(), {.d = 120}).ok());
 
-  expect(message->set_extension(protobuf_unittest::optional_nested_enum_extension(),
-                                 protobuf_unittest::TestAllTypes::NestedEnum::BAZ).ok());
-  expect(message->set_extension(protobuf_unittest::optional_foreign_enum_extension(),
-                                 protobuf_unittest::ForeignEnum::FOREIGN_BAZ).ok());
-  expect(message->set_extension(protobuf_unittest::optional_import_enum_extension(),
-                                 protobuf_unittest_import::ImportEnum::IMPORT_BAZ).ok());
+  expect(message
+             ->set_extension(protobuf_unittest::optional_nested_enum_extension(),
+                             protobuf_unittest::TestAllTypes::NestedEnum::BAZ)
+             .ok());
+  expect(message
+             ->set_extension(protobuf_unittest::optional_foreign_enum_extension(),
+                             protobuf_unittest::ForeignEnum::FOREIGN_BAZ)
+             .ok());
+  expect(message
+             ->set_extension(protobuf_unittest::optional_import_enum_extension(),
+                             protobuf_unittest_import::ImportEnum::IMPORT_BAZ)
+             .ok());
 
   expect(message->set_extension(protobuf_unittest::optional_string_piece_extension(), "124").ok());
   expect(message->set_extension(protobuf_unittest::optional_cord_extension(), "125").ok());
@@ -764,20 +771,27 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message) {
   expect(message->set_extension(protobuf_unittest::repeated_bytes_extension(), {"216"_bytes, "316"_bytes}).ok());
 
   expect(message->set_extension(protobuf_unittest::repeatedgroup_extension(), {{.a = 217}, {.a = 317}}).ok());
-  expect(message->set_extension(protobuf_unittest::repeated_nested_message_extension(), {{.bb = 218}, {.bb = 318}}).ok());
-  expect(message->set_extension(protobuf_unittest::repeated_foreign_message_extension(), {{.c = 219}, {.c = 319}}).ok());
+  expect(
+      message->set_extension(protobuf_unittest::repeated_nested_message_extension(), {{.bb = 218}, {.bb = 318}}).ok());
+  expect(
+      message->set_extension(protobuf_unittest::repeated_foreign_message_extension(), {{.c = 219}, {.c = 319}}).ok());
   expect(message->set_extension(protobuf_unittest::repeated_import_message_extension(), {{.d = 220}, {.d = 320}}).ok());
   expect(message->set_extension(protobuf_unittest::repeated_lazy_message_extension(), {{.bb = 227}, {.bb = 327}}).ok());
 
-  expect(message->set_extension(
-      protobuf_unittest::repeated_nested_enum_extension(),
-      {protobuf_unittest::TestAllTypes::NestedEnum::BAR, protobuf_unittest::TestAllTypes::NestedEnum::BAZ}).ok());
-  expect(message->set_extension(
-      protobuf_unittest::repeated_foreign_enum_extension(),
-      {protobuf_unittest::ForeignEnum::FOREIGN_BAR, protobuf_unittest::ForeignEnum::FOREIGN_BAZ}).ok());
-  expect(message->set_extension(
-      protobuf_unittest::repeated_import_enum_extension(),
-      {protobuf_unittest_import::ImportEnum::IMPORT_BAR, protobuf_unittest_import::ImportEnum::IMPORT_BAZ}).ok());
+  expect(message
+             ->set_extension(
+                 protobuf_unittest::repeated_nested_enum_extension(),
+                 {protobuf_unittest::TestAllTypes::NestedEnum::BAR, protobuf_unittest::TestAllTypes::NestedEnum::BAZ})
+             .ok());
+  expect(message
+             ->set_extension(protobuf_unittest::repeated_foreign_enum_extension(),
+                             {protobuf_unittest::ForeignEnum::FOREIGN_BAR, protobuf_unittest::ForeignEnum::FOREIGN_BAZ})
+             .ok());
+  expect(message
+             ->set_extension(
+                 protobuf_unittest::repeated_import_enum_extension(),
+                 {protobuf_unittest_import::ImportEnum::IMPORT_BAR, protobuf_unittest_import::ImportEnum::IMPORT_BAZ})
+             .ok());
 
   expect(message->set_extension(protobuf_unittest::repeated_string_piece_extension(), {"224", "324"}).ok());
   expect(message->set_extension(protobuf_unittest::repeated_cord_extension(), {"225", "325"}).ok());
@@ -801,12 +815,18 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message) {
   expect(message->set_extension(protobuf_unittest::default_string_extension(), "415").ok());
   expect(message->set_extension(protobuf_unittest::default_bytes_extension(), "416"_bytes).ok());
 
-  expect(message->set_extension(protobuf_unittest::default_nested_enum_extension(),
-                                 protobuf_unittest::TestAllTypes::NestedEnum::FOO).ok());
-  expect(message->set_extension(protobuf_unittest::default_foreign_enum_extension(),
-                                 protobuf_unittest::ForeignEnum::FOREIGN_FOO).ok());
-  expect(message->set_extension(protobuf_unittest::default_import_enum_extension(),
-                                 protobuf_unittest_import::ImportEnum::IMPORT_FOO).ok());
+  expect(message
+             ->set_extension(protobuf_unittest::default_nested_enum_extension(),
+                             protobuf_unittest::TestAllTypes::NestedEnum::FOO)
+             .ok());
+  expect(message
+             ->set_extension(protobuf_unittest::default_foreign_enum_extension(),
+                             protobuf_unittest::ForeignEnum::FOREIGN_FOO)
+             .ok());
+  expect(message
+             ->set_extension(protobuf_unittest::default_import_enum_extension(),
+                             protobuf_unittest_import::ImportEnum::IMPORT_FOO)
+             .ok());
 
   expect(message->set_extension(protobuf_unittest::default_string_piece_extension(), "424").ok());
   expect(message->set_extension(protobuf_unittest::default_cord_extension(), "425").ok());
@@ -903,7 +923,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(
       eq(126, message.get_extension(protobuf_unittest::optional_public_import_message_extension()).value().e.value()));
   expect(eq(127, message.get_extension(protobuf_unittest::optional_lazy_message_extension()).value().bb.value()));
-  
+
   // -----------------------------------------------------------------
 
   expect(
@@ -1209,9 +1229,10 @@ inline void SetAll(protobuf_unittest::TestPackedExtensions *message) {
   expect(message->set_extension(protobuf_unittest::packed_float_extension(), {611, 711}).ok());
   expect(message->set_extension(protobuf_unittest::packed_double_extension(), {612, 712}).ok());
   expect(message->set_extension(protobuf_unittest::packed_bool_extension(), {true, false}).ok());
-  expect(message->set_extension(
-      protobuf_unittest::packed_enum_extension(),
-      {protobuf_unittest::ForeignEnum::FOREIGN_BAR, protobuf_unittest::ForeignEnum::FOREIGN_BAZ}).ok());
+  expect(message
+             ->set_extension(protobuf_unittest::packed_enum_extension(),
+                             {protobuf_unittest::ForeignEnum::FOREIGN_BAR, protobuf_unittest::ForeignEnum::FOREIGN_BAZ})
+             .ok());
 }
 
 // -------------------------------------------------------------------

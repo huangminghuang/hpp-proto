@@ -2,7 +2,6 @@
 #include "test_util.hpp"
 #include "unittest_proto3_util.hpp"
 
-
 // static_assert(
 //     ensure_all_fields_field_option<proto3_unittest::TestPackedTypes, hpp::proto::field_option::none>());
 

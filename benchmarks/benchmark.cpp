@@ -1,10 +1,10 @@
-#include <fstream>
-#include <random>
-#include <memory_resource>
-#include <benchmark/benchmark.h>
 #include "benchmark_messages_proto2.pb.h"
 #include "non_owning/benchmark_messages_proto2.pb.hpp"
 #include "owning/benchmark_messages_proto2.pb.hpp"
+#include <benchmark/benchmark.h>
+#include <fstream>
+#include <memory_resource>
+#include <random>
 
 #include "benchmark_messages_proto3.pb.h"
 #include "non_owning/benchmark_messages_proto3.pb.hpp"
@@ -72,7 +72,9 @@ std::span<char> get_data(owning::benchmarks::proto3::GoogleMessage1 * /*unused*/
 std::span<char> get_data(non_owning::benchmarks::proto2::GoogleMessage1 * /*unused*/) {
   return get_GoogleMessage1_data();
 }
-std::span<char> get_data(non_owning::benchmarks::proto3::GoogleMessage1 * /*unused*/) { return get_GoogleMessage1_data(); }
+std::span<char> get_data(non_owning::benchmarks::proto3::GoogleMessage1 * /*unused*/) {
+  return get_GoogleMessage1_data();
+}
 
 std::span<char> get_packed_repeated_data() {
   const int len = 1000;
@@ -146,8 +148,8 @@ BENCHMARK(hpp_deserialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
 template <typename Message>
 void hpp_deserialize_non_owning(benchmark::State &state) {
   auto data = get_data((Message *)nullptr);
-  
-  std::vector<char>  buf(16 * 1024ULL);
+
+  std::vector<char> buf(16 * 1024ULL);
 
   for (auto _ : state) {
     std::pmr::monotonic_buffer_resource memory_resource(buf.data(), buf.size());

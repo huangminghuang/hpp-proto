@@ -9,11 +9,11 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->optional_int32 = 100;
   m->optional_string = "asdf";
   m->optional_bytes = "jkl;"_bytes;
-  m->optional_nested_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 42 };
+  m->optional_nested_message = proto3_unittest::TestAllTypes::NestedMessage{.bb = 42};
   m->optional_foreign_message.emplace().c = 43;
   m->optional_nested_enum = proto3_unittest::TestAllTypes::NestedEnum::BAZ;
   m->optional_foreign_enum = proto3_unittest::ForeignEnum::FOREIGN_BAZ;
-  m->optional_lazy_message = proto3_unittest::TestAllTypes::NestedMessage { .bb = 45 };
+  m->optional_lazy_message = proto3_unittest::TestAllTypes::NestedMessage{.bb = 45};
 
   m->repeated_int32.push_back(100);
   m->repeated_string.emplace_back("asdf");
@@ -25,7 +25,7 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->repeated_lazy_message.emplace_back().bb = 49;
 
   m->oneof_field = 1U;
-  m->oneof_field = proto3_unittest::TestAllTypes::NestedMessage { .bb = 50 };
+  m->oneof_field = proto3_unittest::TestAllTypes::NestedMessage{.bb = 50};
   m->oneof_field = "test"; // only this one remains set
 }
 
@@ -49,7 +49,7 @@ inline void SetUnpackedFields(proto3_unittest::TestUnpackedTypes *message) {
 
 inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   namespace ut = boost::ut;
-  //NOLINTBEGIN(bugprone-unchecked-optional-access)
+  // NOLINTBEGIN(bugprone-unchecked-optional-access)
   ut::expect(100 == m.optional_int32);
   ut::expect("asdf" == m.optional_string);
   ut::expect("jkl;"_bytes == m.optional_bytes);
@@ -61,7 +61,7 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   ut::expect(proto3_unittest::ForeignEnum::FOREIGN_BAZ == m.optional_foreign_enum);
   ut::expect(m.optional_lazy_message.has_value());
   ut::expect(45 == m.optional_lazy_message->bb);
-  //NOLINTEND(bugprone-unchecked-optional-access)
+  // NOLINTEND(bugprone-unchecked-optional-access)
 
   ut::expect(1 == m.repeated_int32.size());
   ut::expect(100 == m.repeated_int32[0]);
@@ -102,4 +102,3 @@ inline void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message)
   ut::expect(std::vector{proto3_unittest::TestAllTypes::NestedEnum::BAR,
                          proto3_unittest::TestAllTypes::NestedEnum::BAZ} == message.repeated_nested_enum);
 }
-

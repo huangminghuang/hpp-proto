@@ -1376,7 +1376,7 @@ struct pb_serializer {
     if (std::is_constant_evaluated() || n > MAX_CACHE_COUNT) {
       constexpr_vector<uint32_t> cache(n);
       return do_serialize(cache);
-    } else if (n > 0){
+    } else if (n > 0) {
 #if defined(_MSC_VER)
       auto *cache = static_cast<uint32_t *>(_alloca(n * sizeof(uint32_t)));
 #elif defined(__GNUC__)
@@ -1387,7 +1387,7 @@ struct pb_serializer {
 #endif
       return do_serialize({cache, n});
     } else {
-      uint32_t * cache = nullptr;
+      uint32_t *cache = nullptr;
       return do_serialize({cache, n});
     }
   }

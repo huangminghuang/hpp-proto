@@ -12,8 +12,8 @@ inline void assert_true(bool condition, const std::source_location location = st
   }
 }
 
-inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buffer_resource* mbr) {
-  char* buf = static_cast<char*>(mbr->allocate(str.size(), 1));
+inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buffer_resource *mbr) {
+  char *buf = static_cast<char *>(mbr->allocate(str.size(), 1));
   std::copy(str.begin(), str.end(), buf);
   return {buf, str.size()};
 }
@@ -67,7 +67,7 @@ int main() {
     std::span<const tutorial::Person> people = new_address_book.people;
     assert_true(people.size() == 2);
     const tutorial::Person &alex = address_book.people[0];
-    const hpp::proto::optional<std::string_view>& alex_name = alex.name;
+    const hpp::proto::optional<std::string_view> &alex_name = alex.name;
     assert_true(alex_name.has_value());
     assert_true(*alex_name == "Alex");
     const hpp::proto::optional<int32_t> &alex_id = alex.id;

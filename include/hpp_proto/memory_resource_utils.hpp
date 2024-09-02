@@ -200,7 +200,7 @@ struct raw_data_iterator {
   // NOLINTBEGIN(bugprone-sizeof-expression)
   constexpr std::size_t operator-(raw_data_iterator other) const { return (this->base - other.base) / sizeof(T); }
   // NOLINTEND(bugprone-sizeof-expression)
-  
+
   constexpr bool operator==(raw_data_iterator other) { return other.base == this->base; }
   constexpr bool operator!=(raw_data_iterator s) { return !(*this == s); }
 

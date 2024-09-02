@@ -3,7 +3,6 @@
 #include "unittest_proto2_util.hpp"
 namespace ut = boost::ut;
 
-
 using TestRequired_meta = decltype(pb_meta(std::declval<protobuf_unittest::TestRequired>()));
 static_assert(std::tuple_element_t<0, TestRequired_meta>::is_explicit_presence);
 
