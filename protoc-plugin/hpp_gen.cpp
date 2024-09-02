@@ -502,8 +502,7 @@ struct hpp_addons {
       enums.reserve(proto.enum_type.size());
       extensions.reserve(proto.extension.size());
       cpp_namespace = root_namespace + qualified_cpp_name(proto.package);
-      std::replace_if(
-          cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
+      std::replace_if(cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
       cpp_name = resolve_keyword(cpp_name);
     }
     void add_enum(EnumD &e) { enums.push_back(&e); }
@@ -1114,7 +1113,7 @@ struct hpp_meta_generator : code_generator {
       fmt::format_to(target, "}} // namespace {}\n", root_namespace + ns);
     }
 
-    fmt::format_to(target,"// clang-format on\n");
+    fmt::format_to(target, "// clang-format on\n");
   }
 
   // NOLINTBEGIN(misc-no-recursion)
@@ -1338,7 +1337,7 @@ struct glaze_meta_generator : code_generator {
       process(*e, ns);
     }
 
-    fmt::format_to(target,"// clang-format on\n");
+    fmt::format_to(target, "// clang-format on\n");
   }
 
   // NOLINTBEGIN(misc-no-recursion,readability-function-cognitive-complexity)
