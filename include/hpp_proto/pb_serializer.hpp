@@ -1124,8 +1124,8 @@ struct pb_serializer {
       }
     }
     // NOLINTEND(readability-function-cognitive-complexity)
-
-    HPP_PROTO_INLINE constexpr void operator()(auto &&...item) { (serialize(item), ...); }
+    template <typename ...Args>
+    HPP_PROTO_INLINE constexpr void operator()(Args &&...item) { (serialize(std::forward<Args>(item)), ...); }
   };
 
   template <concepts::contiguous_byte_range Range>
@@ -1139,7 +1139,7 @@ struct pb_serializer {
                            [&unary_op](std::size_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
   }
 
-  constexpr static std::size_t cache_count(concepts::has_meta auto &&item) {
+  constexpr static std::size_t cache_count(concepts::has_meta auto const &item) {
     using type = std::remove_cvref_t<decltype(item)>;
     using meta_type = typename traits::meta_of<type>::type;
     if constexpr (std::tuple_size_v<meta_type> == 0) {
@@ -1151,7 +1151,7 @@ struct pb_serializer {
   }
 
   template <typename Meta>
-  HPP_PROTO_INLINE constexpr static std::size_t cache_count(Meta meta, auto &&item) {
+  HPP_PROTO_INLINE constexpr static std::size_t cache_count(Meta meta, auto const &item) {
     using type = std::remove_cvref_t<decltype(item)>;
 
     if (meta.omit_value(item)) {
@@ -1200,7 +1200,7 @@ struct pb_serializer {
   }
 
   template <std::size_t I, typename Meta>
-  HPP_PROTO_INLINE constexpr static std::size_t oneof_cache_count(auto &&item) {
+  HPP_PROTO_INLINE constexpr static std::size_t oneof_cache_count(auto const &item) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return cache_count(typename std::tuple_element<I, Meta>::type{},
@@ -1212,7 +1212,7 @@ struct pb_serializer {
     }
   }
 
-  constexpr static std::size_t message_size(concepts::has_meta auto &&item) {
+  constexpr static std::size_t message_size(concepts::has_meta auto const &item) {
     struct null_size_cache {
       struct null_assignable {
         constexpr null_assignable &operator=(uint32_t) { return *this; }
@@ -1232,7 +1232,7 @@ struct pb_serializer {
   }
 
   template <concepts::is_size_cache T>
-  HPP_PROTO_INLINE constexpr static std::size_t message_size(concepts::has_meta auto &&item, T &cache) {
+  HPP_PROTO_INLINE constexpr static std::size_t message_size(concepts::has_meta auto const &item, T &cache) {
     using type = std::remove_cvref_t<decltype(item)>;
     return std::apply(
         [&item, &cache](auto &&...meta) constexpr {
@@ -1249,7 +1249,7 @@ struct pb_serializer {
 
   // NOLINTBEGIN(readability-function-cognitive-complexity)
   template <typename Meta>
-  HPP_PROTO_INLINE constexpr static std::size_t field_size(Meta meta, auto &&item,
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(Meta meta, auto const &item,
                                                            concepts::is_size_cache auto &cache) {
     using type = std::remove_cvref_t<decltype(item)>;
 
@@ -1336,7 +1336,7 @@ struct pb_serializer {
   // NOLINTEND(readability-function-cognitive-complexity)
 
   template <std::size_t I, typename Meta>
-  HPP_PROTO_INLINE constexpr static std::size_t oneof_size(auto &&item, concepts::is_size_cache auto &cache) {
+  HPP_PROTO_INLINE constexpr static std::size_t oneof_size(auto const &item, concepts::is_size_cache auto &cache) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return field_size(typename std::tuple_element<I, Meta>::type{},
@@ -1349,7 +1349,7 @@ struct pb_serializer {
   }
 
   template <bool overwrite_buffer = true, std::size_t MAX_CACHE_COUNT = 128, concepts::contiguous_byte_range Buffer>
-  constexpr static status serialize(concepts::has_meta auto &&item, Buffer &buffer) {
+  constexpr static status serialize(concepts::has_meta auto const &item, Buffer &buffer) {
     std::size_t n = cache_count(item);
 
     auto do_serialize = [&item, &buffer](std::span<uint32_t> cache) constexpr -> status {

@@ -38,18 +38,6 @@ namespace hpp::proto {
 using stdext::flat_map;
 }
 
-#ifndef __cpp_lib_bit_cast
-namespace std {
-using namespace ::std;
-template <class ToType, class FromType,
-          class = enable_if_t<sizeof(ToType) == sizeof(FromType) && is_trivially_copyable_v<ToType> &&
-                              is_trivially_copyable_v<FromType>>>
-constexpr ToType bit_cast(FromType const &from) noexcept {
-  return __builtin_bit_cast(ToType, from);
-}
-} // namespace std
-#endif
-
 namespace hpp::proto {
 
 // workaround for clang not supporting floating-point types in non-type template
@@ -150,6 +138,7 @@ public:
   constexpr optional &operator=(optional &&) = default;
 
   template <class U>
+    requires std::convertible_to<U, T>
   constexpr optional &operator=(const optional<U> &other) {
     impl = other.imp;
     return *this;

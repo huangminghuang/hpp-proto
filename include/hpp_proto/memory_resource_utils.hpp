@@ -7,47 +7,6 @@
 #include <span>
 #include <string_view>
 
-#if !defined(__cpp_lib_ranges)
-namespace std {
-namespace ranges {
-
-template <typename T>
-using range_value_t = std::iter_value_t<decltype(std::begin(std::declval<T &>()))>;
-
-template <class T>
-concept range = requires(T &t) {
-  std::begin(t); // equality-preserving for forward iterators
-  std::end(t);
-};
-
-template <typename T>
-concept contiguous_range = requires(T &t) {
-  {
-    std::data(t)
-  } -> std::same_as<std::add_pointer_t<std::iter_reference_t<decltype(std::begin(std::declval<T &>()))>>>;
-  std::size(t);
-};
-
-template <class T>
-concept input_range = std::ranges::range<T> && std::input_iterator<std::ranges::iterator_t<T>>;
-
-template <class R, class T>
-concept output_range = std::ranges::range<R> && std::output_iterator<std::ranges::iterator_t<R>, T>;
-
-template <typename Range1, typename Range2>
-constexpr bool equal(Range1 &&r1, Range2 &&r2) {
-  return std::equal(std::begin(r1), std::end(r1), std::begin(r2), std::end(r2));
-}
-
-template <typename RG1, typename RG2, typename BinaryPredicate>
-constexpr bool equal(RG1 &&r1, RG2 &&r2, BinaryPredicate p) {
-  return std::equal(std::begin(r1), std::end(r1), std::begin(r2), std::end(r2), p);
-}
-
-} // namespace ranges
-} // namespace std
-#endif
-
 #if !defined(__cpp_lib_ranges_contains)
 // NOLINTBEGIN(cert-dcl58-cpp)
 namespace std::ranges {

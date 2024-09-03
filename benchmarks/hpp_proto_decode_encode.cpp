@@ -13,13 +13,12 @@ std::vector<char> read_data_file(const char *filename) {
 }
 
 int main(int argc, const char **argv) {
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  std::span<const char*> args{argv, static_cast<std::size_t>(argc)};
   if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " filename\n";
+    std::cerr << "Usage: " << args[0] << " filename\n";
     return 1;
   }
-  auto data = read_data_file(argv[1]);
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  auto data = read_data_file(args[1]);
 
   owning::benchmarks::proto3::GoogleMessage1 message;
   if (!hpp::proto::read_proto(message, data).ok()) {

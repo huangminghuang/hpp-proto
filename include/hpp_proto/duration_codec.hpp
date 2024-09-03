@@ -5,32 +5,35 @@
 
 namespace hpp::proto {
 struct duration_codec {
-  constexpr static std::size_t max_encode_size(auto &&) noexcept { return 32; }
+  constexpr static std::size_t max_encode_size(const auto &) noexcept { return 32; }
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  static int64_t encode(auto &&value, auto &&b) noexcept {
+  static int64_t encode(auto const &value, auto &&b) noexcept {
     // NOLINTBEGIN(hicpp-signed-bitwise)
     auto has_same_sign = [](auto x, auto y) { return (x ^ y) >= 0; };
     // NOLINTEND(hicpp-signed-bitwise)
     if (value.nanos > 999999999 || !has_same_sign(value.seconds, value.nanos)) [[unlikely]] {
       return -1;
     }
-    char *buf = static_cast<char *>(std::data(b));
-    auto ix = glz::to_chars(buf, value.seconds) - buf;
+
+    assert(b.size() >= max_encode_size(value));
+
+    auto *buf = std::data(b);
+    auto ix = std::distance(buf, glz::to_chars(buf, value.seconds));
+
     if (value.nanos != 0) {
       int32_t nanos = std::abs(value.nanos);
-      glz::detail::dump<'.'>(b, ix);
-      char nanos_buf[18] = "00000000";
-      char *p = &nanos_buf[8];
-      p = glz::to_chars(p, nanos);
-      std::memcpy(buf + ix, p - 9, 9);
-      ix += 9;
+      glz::detail::dump_unchecked<'.'>(b, ix);
+      const auto hi = nanos / 100000000;
+      b[ix++] = '0' + hi;
+      glz::to_chars_u64_len_8(&b[ix], uint32_t(nanos % 100000000));
+      ix += 8;
     }
-    glz::detail::dump<'s'>(b, ix);
+    glz::detail::dump_unchecked<'s'>(b, ix);
     return ix;
   }
 
-  static bool decode(auto &&json, auto &&value) {
+  static bool decode(auto const &json, auto &value) {
     if (json.empty() || json.front() == ' ' || json.back() != 's') {
       return false;
     }
@@ -47,11 +50,16 @@ struct duration_codec {
       value.nanos = 0;
       return true;
     }
-    // NOLINTBEGIN(bugprone-inc-dec-in-conditions)
-    if (*it++ != '.' || (end - it) > 9 || *it < '0' || *it > '9') [[unlikely]] {
+    
+    if (*it != '.'){
       return false;
     }
-    // NOLINTEND(bugprone-inc-dec-in-conditions)
+
+    ++it;
+
+    if ((end - it) > 9 || *it < '0' || *it > '9') [[unlikely]] {
+      return false;
+    }
 
     if ((end - it) == 9) [[likely]] {
       value.nanos = std::strtoul(it, &it, 10);

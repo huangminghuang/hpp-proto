@@ -141,13 +141,13 @@ template <auto MemPtr, int Index>
 constexpr auto as_oneof_member = as_oneof_member_impl<MemPtr, Index>();
 
 struct base64 {
-  constexpr static std::size_t max_encode_size(hpp::proto::concepts::contiguous_byte_range auto &&source) noexcept {
+  constexpr static std::size_t max_encode_size(hpp::proto::concepts::contiguous_byte_range auto const &source) noexcept {
     std::size_t n = source.size();
-    return (n / 3 + (n % 3 ? 1 : 0)) * 4;
+    return (n / 3 + (n % 3 > 0 ? 1 : 0)) * 4;
   }
 
   // @returns The number bytes written to b, -1 for error
-  constexpr static int64_t encode(hpp::proto::concepts::contiguous_byte_range auto &&source, auto &&b) noexcept {
+  constexpr static int64_t encode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &&b) noexcept {
 
     const auto n = source.size();
     using V = std::decay_t<decltype(b[0])>;
@@ -200,7 +200,7 @@ struct base64 {
     return static_cast<int64_t>(ix);
   }
 
-  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto &&source, auto &&value) {
+  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &&value) {
     std::size_t n = source.size();
     if (n == 0) {
       value.resize(0);

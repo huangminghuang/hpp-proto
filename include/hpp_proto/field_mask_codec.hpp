@@ -5,25 +5,26 @@
 namespace hpp::proto {
 
 struct field_mask_codec {
-  constexpr static std::size_t max_encode_size(auto &&value) noexcept {
+  constexpr static std::size_t max_encode_size(auto const &value) noexcept {
     return value.paths.size() + std::transform_reduce(value.paths.begin(), value.paths.end(), 0ULL, std::plus{},
                                                       [](auto &p) { return p.size(); });
   }
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  static int64_t encode(auto &&value, auto &&b) noexcept {
+  static int64_t encode(auto const &value, auto &&b) noexcept {
     if (value.paths.empty()) {
       return 0;
     }
-    char *cur = std::data(b);
+    auto* buf = std::data(std::forward<decltype(b)>(b));
+    char *cur = buf;
     for (auto &p : value.paths) {
       cur = std::copy(std::begin(p), std::end(p), cur);
       *cur++ = ',';
     }
     --cur;
-    return cur - std::data(b);
+    return cur - buf;
   }
 
-  static bool decode(auto &&json, auto &&value) {
+  static bool decode(auto const &json, auto &value) {
     if (json.empty()) {
       return true;
     }
