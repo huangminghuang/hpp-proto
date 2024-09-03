@@ -22,7 +22,7 @@ struct timestamp_codec {
     } else if constexpr (Len == 2) {
       std::memcpy(buf, &glz::char_table[val * 2], 2);
       buf += 2;
-    } 
+    }
     *buf++ = sep;
     return buf;
   }

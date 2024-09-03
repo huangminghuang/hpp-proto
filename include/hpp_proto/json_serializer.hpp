@@ -141,7 +141,8 @@ template <auto MemPtr, int Index>
 constexpr auto as_oneof_member = as_oneof_member_impl<MemPtr, Index>();
 
 struct base64 {
-  constexpr static std::size_t max_encode_size(hpp::proto::concepts::contiguous_byte_range auto const &source) noexcept {
+  constexpr static std::size_t
+  max_encode_size(hpp::proto::concepts::contiguous_byte_range auto const &source) noexcept {
     std::size_t n = source.size();
     return (n / 3 + (n % 3 > 0 ? 1 : 0)) * 4;
   }

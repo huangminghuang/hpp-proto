@@ -13,7 +13,7 @@ std::vector<char> read_data_file(const char *filename) {
 }
 
 int main(int argc, const char **argv) {
-  std::span<const char*> args{argv, static_cast<std::size_t>(argc)};
+  std::span<const char *> args{argv, static_cast<std::size_t>(argc)};
   if (argc != 2) {
     std::cerr << "Usage: " << args[0] << " filename\n";
     return 1;

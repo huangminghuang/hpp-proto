@@ -1390,7 +1390,7 @@ struct non_owning_recursive_type2 {
   constexpr ~non_owning_recursive_type2() noexcept = default;
   constexpr non_owning_recursive_type2(const non_owning_recursive_type2 &other) noexcept
       : children(other.children.data(), other.children.size()), payload(other.payload) {
-    // clang libc++ has trouble to copy the span when non_owning_recursive_type2 is not a complete type 
+    // clang libc++ has trouble to copy the span when non_owning_recursive_type2 is not a complete type
   }
   constexpr non_owning_recursive_type2 &operator=(const non_owning_recursive_type2 &other) noexcept = default;
   // NOLINTEND(cppcoreguidelines-special-member-functions)

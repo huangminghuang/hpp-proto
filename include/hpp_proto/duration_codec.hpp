@@ -50,8 +50,8 @@ struct duration_codec {
       value.nanos = 0;
       return true;
     }
-    
-    if (*it != '.'){
+
+    if (*it != '.') {
       return false;
     }
 

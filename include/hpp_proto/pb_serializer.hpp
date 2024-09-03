@@ -1124,8 +1124,10 @@ struct pb_serializer {
       }
     }
     // NOLINTEND(readability-function-cognitive-complexity)
-    template <typename ...Args>
-    HPP_PROTO_INLINE constexpr void operator()(Args &&...item) { (serialize(std::forward<Args>(item)), ...); }
+    template <typename... Args>
+    HPP_PROTO_INLINE constexpr void operator()(Args &&...item) {
+      (serialize(std::forward<Args>(item)), ...);
+    }
   };
 
   template <concepts::contiguous_byte_range Range>

@@ -14,7 +14,7 @@ struct field_mask_codec {
     if (value.paths.empty()) {
       return 0;
     }
-    auto* buf = std::data(std::forward<decltype(b)>(b));
+    auto *buf = std::data(std::forward<decltype(b)>(b));
     char *cur = buf;
     for (auto &p : value.paths) {
       cur = std::copy(std::begin(p), std::end(p), cur);
