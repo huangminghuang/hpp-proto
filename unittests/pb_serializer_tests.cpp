@@ -12,8 +12,8 @@ using namespace std::string_view_literals;
 // NOLINTEND(cppcoreguidelines-macro-usage)
 
 constexpr void constexpr_verify(auto buffer, auto object_fun) {
-  static_assert(std::ranges::equal(buffer(), hpp::proto::pb_serializer::to_bytes(object_fun)));
-  static_assert(object_fun() == hpp::proto::pb_serializer::from_bytes<decltype(object_fun())>(buffer()));
+  static_assert(std::ranges::equal(buffer(), hpp::proto::write_proto(object_fun)));
+  static_assert(object_fun() == hpp::proto::read_proto<decltype(object_fun())>(buffer()));
 }
 
 struct example {
