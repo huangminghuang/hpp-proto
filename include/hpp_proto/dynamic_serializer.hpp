@@ -369,12 +369,8 @@ class dynamic_serializer {
           unpacked_repeated_positions[field_index]; // the end position of previous repeated element being decoded
       auto start_pos = ix;
       if (old_pos == 0) {
-        if (meta.is_map_entry) {
-          glz::detail::dump<'{'>(b, ix);
-        } else {
-          glz::detail::dump<'['>(b, ix);
-        }
-
+        auto c = meta.is_map_entry ? '{' : '[';
+        glz::detail::dump(c, b, ix);
       } else {
         glz::detail::dump<','>(b, ix);
       }
@@ -406,11 +402,8 @@ class dynamic_serializer {
           glz::detail::dump<'\n'>(b, ix);
           glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
         }
-        if (meta.is_map_entry) {
-          glz::detail::dump<'}'>(b, ix);
-        } else {
-          glz::detail::dump<']'>(b, ix);
-        }
+        auto c = meta.is_map_entry ? '}' : ']';
+        glz::detail::dump(c, b, ix);
       }
       return {};
     }

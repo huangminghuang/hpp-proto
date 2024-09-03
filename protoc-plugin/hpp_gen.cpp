@@ -1671,7 +1671,7 @@ void split(std::string_view str, char deliminator, auto &&callback) {
 }
 
 int main(int argc, const char **argv) {
-  std::span<const char *> args(argv, static_cast<std::size_t>(argc));
+  std::span<const char *> args{argv, static_cast<std::size_t>(argc)};
   plugin_name = args[0];
   std::vector<char> request_data;
 
@@ -1679,16 +1679,14 @@ int main(int argc, const char **argv) {
     std::copy(std::istreambuf_iterator<char>(strm), std::istreambuf_iterator<char>(), std::back_inserter(request_data));
   };
 
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   if (argc <= 2) {
 #ifdef _WIN32
     _setmode(_fileno(stdin), _O_BINARY);
 #endif
     read_file(std::cin);
-  } else if (std::string_view("--input") == argv[1]) {
-    read_file(std::ifstream(argv[2], std::ios::binary));
+  } else if (std::string_view("--input") == args[1]) {
+    read_file(std::ifstream(args[2], std::ios::binary));
   }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   gpb::compiler::CodeGeneratorRequest request;
 

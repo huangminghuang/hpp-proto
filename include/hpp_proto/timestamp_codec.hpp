@@ -6,6 +6,27 @@ namespace hpp::proto {
 struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
+  template <int Len, char sep>
+  static char *fixed_len_to_chars(char *buf, auto val) {
+    static_assert(Len == 2 || Len == 4 || Len == 9);
+
+    assert(val >= 0);
+    if constexpr (Len == 9) {
+      const int hi = val / 100000000;
+      assert(hi < 10);
+      *buf++ = '0' + static_cast<uint8_t>(hi);
+      buf = glz::to_chars_u64_len_8(buf, uint32_t(val % 100000000));
+    } else if constexpr (Len == 4) {
+      buf = glz::to_chars_u64_len_4(buf, uint32_t(val));
+    } else if constexpr (Len == 2) {
+      std::memcpy(buf, &glz::char_table[val * 2], 2);
+      buf += 2;
+    }
+    *buf++ = sep;
+    return buf;
+  }
+
   static int64_t encode(auto &&value, auto &&b) noexcept {
     if (value.nanos > 999999999 || value.nanos < 0) [[unlikely]] {
       return -1;
@@ -18,28 +39,17 @@ struct timestamp_codec {
                        (value.seconds < 0 ? days(1) : days(0))};
 
     char *buf = static_cast<char *>(std::data(b));
-    auto dump_number_with_separator = [&buf](auto number, int number_of_digits, char separator) {
-      char *cur = buf + number_of_digits;
-      *cur-- = separator;
-      while (cur >= buf) {
-        *cur-- = '0' + (number % 10);
-        number /= 10;
-      }
-      buf += number_of_digits + (separator != '\0');
-    };
-
-    dump_number_with_separator((int)ymd.year(), 4, '-');
-    dump_number_with_separator((unsigned)ymd.month(), 2, '-');
-    dump_number_with_separator((unsigned)ymd.day(), 2, 'T');
-    dump_number_with_separator(hms.hours().count(), 2, ':');
-    dump_number_with_separator(hms.minutes().count(), 2, ':');
-    dump_number_with_separator(hms.seconds().count(), 2, '\0');
+    buf = fixed_len_to_chars<4, '-'>(buf, (int)ymd.year());
+    buf = fixed_len_to_chars<2, '-'>(buf, (unsigned)ymd.month());
+    buf = fixed_len_to_chars<2, 'T'>(buf, (unsigned)ymd.day());
+    buf = fixed_len_to_chars<2, ':'>(buf, hms.hours().count());
+    buf = fixed_len_to_chars<2, ':'>(buf, hms.minutes().count());
 
     if (value.nanos > 0) {
-      *buf++ = '.';
-      dump_number_with_separator(value.nanos, 9, 'Z');
+      buf = fixed_len_to_chars<2, '.'>(buf, hms.seconds().count());
+      buf = fixed_len_to_chars<9, 'Z'>(buf, value.nanos);
     } else {
-      *buf++ = 'Z';
+      buf = fixed_len_to_chars<2, 'Z'>(buf, hms.seconds().count());
     }
     return buf - static_cast<char *>(std::data(b));
   }
