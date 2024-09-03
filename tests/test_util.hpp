@@ -2,7 +2,8 @@
 #pragma once
 
 #include <algorithm>
-#include <fstream>
+#include <iostream>
+#include <cstdio>
 #include <hpp_proto/pb_serializer.hpp>
 #include <ranges>
 #include <span>
@@ -10,12 +11,15 @@
 #include <vector>
 
 inline std::string descriptorset_from_file(const char *filename) {
-  std::ifstream in(filename, std::ios::in | std::ios::binary);
   std::string contents;
-  in.seekg(0, std::ios::end);
-  contents.resize(in.tellg());
-  in.seekg(0, std::ios::beg);
-  in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
+  std::unique_ptr<std::FILE, decltype(&std::fclose)> file{std::fopen(filename, "rb"), &std::fclose};
+  auto f = file.get();
+  if (f != nullptr) {
+    std::fseek(f, 0, SEEK_END); 
+    contents.resize(std::ftell(f));
+    std::fseek(f, 0, SEEK_SET);
+    std::fread(contents.data(), 1, contents.size(), f);
+  }
   return contents;
 }
 
