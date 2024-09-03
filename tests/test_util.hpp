@@ -2,9 +2,9 @@
 #pragma once
 
 #include <algorithm>
-#include <iostream>
 #include <cstdio>
 #include <hpp_proto/pb_serializer.hpp>
+#include <iostream>
 #include <ranges>
 #include <span>
 #include <string>
@@ -15,7 +15,7 @@ inline std::string descriptorset_from_file(const char *filename) {
   std::unique_ptr<std::FILE, decltype(&std::fclose)> file{std::fopen(filename, "rb"), &std::fclose};
   auto f = file.get();
   if (f != nullptr) {
-    std::fseek(f, 0, SEEK_END); 
+    std::fseek(f, 0, SEEK_END);
     contents.resize(std::ftell(f));
     std::fseek(f, 0, SEEK_SET);
     std::fread(contents.data(), 1, contents.size(), f);
