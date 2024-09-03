@@ -1,6 +1,7 @@
 #include "benchmark_messages_proto3.pb.h"
 #include <fstream>
 #include <iostream>
+#include <span>
 
 std::string read_data_file(const char *filename) {
   std::filebuf buf;

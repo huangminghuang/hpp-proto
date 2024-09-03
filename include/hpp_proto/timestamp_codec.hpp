@@ -20,7 +20,10 @@ struct timestamp_codec {
     } else if constexpr (Len == 4) {
       buf = glz::to_chars_u64_len_4(buf, uint32_t(val));
     } else if constexpr (Len == 2) {
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+      assert(val < 100);
       std::memcpy(buf, &glz::char_table[val * 2], 2);
+      // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
       buf += 2;
     }
     *buf++ = sep;
