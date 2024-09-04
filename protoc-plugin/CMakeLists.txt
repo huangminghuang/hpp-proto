@@ -1,4 +1,3 @@
-CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 add_compile_options(${HPP_PROTO_COMPILE_OPTIONS})
 
 add_executable(protoc-gen-hpp hpp_gen.cpp)

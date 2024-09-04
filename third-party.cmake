@@ -41,6 +41,8 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     endif(NOT Protobuf_FOUND)
 endif(HPP_PROTO_PROTOC_PLUGIN)
 
+CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+
 if(HPP_PROTO_TESTS)
     CPMAddPackage(
         NAME ut
