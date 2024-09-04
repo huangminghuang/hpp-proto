@@ -33,10 +33,16 @@ jobs:
         with:
           key: ${{ github.workflow }}
 
+      - name: Setup Ninja
+        uses: wirekang/setup-ninja@v1
+        with:
+          platform: win
+          tag: v1.12.1
+
       - name: configure
         shell: bash
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: build
         shell: bash
