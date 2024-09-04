@@ -14,6 +14,7 @@ option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitize
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(APPLE)
   set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
@@ -33,7 +34,6 @@ if (HPP_PROTO_ENABLE_SANITIZER)
   else()
     add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
     add_link_options("-fsanitize=address,undefined")
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
   endif()
 endif()
 
