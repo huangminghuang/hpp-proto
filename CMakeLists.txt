@@ -5,23 +5,22 @@ project(hpp_proto
 
 set(CMAKE_CXX_STANDARD 20) # requires for compiling is_utf
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
+## hpp-proto requires protoc from google protobuf implementation for code generation;
+## set HPP_PROTO_COMPILE_PROTOC to ON for building protoc from source instead of using
+## find_package(Protobuf) to locate protoc
 option(HPP_PROTO_COMPILE_PROTOC "Alwyas compile protoc from source" OFF)
 option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
-
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 
 if(APPLE)
   set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
   set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 endif()
-
 
 if (HPP_PROTO_ENABLE_SANITIZER)
   if (MSVC)

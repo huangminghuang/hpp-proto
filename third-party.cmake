@@ -12,8 +12,8 @@ CPMAddPackage(
     GITHUB_REPOSITORY simdutf/is_utf8
     DOWNLOAD_ONLY ON
 )
-
 add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
+target_compile_features(is_utf8 INTERFACE cxx_std_20)
 
 if(HPP_PROTO_PROTOC_PLUGIN)
     if(NOT HPP_PROTO_COMPILE_PROTOC)
