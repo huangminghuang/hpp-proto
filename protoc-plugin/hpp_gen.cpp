@@ -1679,14 +1679,10 @@ int main(int argc, const char **argv) {
     std::copy(std::istreambuf_iterator<char>(strm), std::istreambuf_iterator<char>(), std::back_inserter(request_data));
   };
 
-  if (argc <= 2) {
 #ifdef _WIN32
-    _setmode(_fileno(stdin), _O_BINARY);
+  _setmode(_fileno(stdin), _O_BINARY);
 #endif
-    read_file(std::cin);
-  } else if (std::string_view("--input") == args[1]) {
-    read_file(std::ifstream(args[2], std::ios::binary));
-  }
+  read_file(std::cin);
 
   gpb::compiler::CodeGeneratorRequest request;
 
