@@ -3,16 +3,6 @@ project(hpp_proto
   VERSION 0.1.0
   LANGUAGES CXX)
 
-if(CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")
-  find_program(CCACHE_PROGRAM ccache)
-
-  if(CCACHE_PROGRAM)
-    message(STATUS "Found ccache: ${CCACHE_PROGRAM}")
-  else()
-    message(WARNING "ccache Not Found")
-  endif()
-endif()
-
 set(CMAKE_CXX_STANDARD 20) # requires for compiling is_utf
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -46,6 +36,28 @@ if(HPP_PROTO_ENABLE_SANITIZER)
   else()
     add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
     add_link_options("-fsanitize=address,undefined")
+  endif()
+endif()
+
+if (CMAKE_GENERATOR MATCHES "Visual Studio")
+  find_program(ccache_exe ccache)
+  if(ccache_exe)
+    file(COPY_FILE
+      ${ccache_exe} ${CMAKE_BINARY_DIR}/cl.exe
+      ONLY_IF_DIFFERENT)
+
+    # By default Visual Studio generators will use /Zi which is not compatible
+    # with ccache, so tell Visual Studio to use /Z7 instead.
+    message(STATUS "Setting MSVC debug information format to 'Embedded'")
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+
+    set(CMAKE_VS_GLOBALS
+      "CLToolExe=cl.exe"
+      "CLToolPath=${CMAKE_BINARY_DIR}"
+      "TrackFileAccess=false"
+      "UseMultiToolTask=true"
+      "DebugInformationFormat=OldStyle"
+    )
   endif()
 endif()
 
