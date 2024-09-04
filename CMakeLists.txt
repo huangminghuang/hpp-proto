@@ -3,6 +3,16 @@ project(hpp_proto
   VERSION 0.1.0
   LANGUAGES CXX)
 
+if(CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")
+  find_program(CCACHE_PROGRAM ccache)
+
+  if(CCACHE_PROGRAM)
+    message(STATUS "Found ccache: ${CCACHE_PROGRAM}")
+  else()
+    message(WARNING "ccache Not Found")
+  endif()
+endif()
+
 set(CMAKE_CXX_STANDARD 20) # requires for compiling is_utf
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -11,9 +21,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
-## hpp-proto requires protoc from google protobuf implementation for code generation;
-## set HPP_PROTO_COMPILE_PROTOC to ON for building protoc from source instead of using
-## find_package(Protobuf) to locate protoc
+
+# # hpp-proto requires protoc from google protobuf implementation for code generation;
+# # set HPP_PROTO_COMPILE_PROTOC to ON for building protoc from source instead of using
+# # find_package(Protobuf) to locate protoc
 option(HPP_PROTO_COMPILE_PROTOC "Alwyas compile protoc from source" OFF)
 option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
 
@@ -22,8 +33,8 @@ if(APPLE)
   set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 endif()
 
-if (HPP_PROTO_ENABLE_SANITIZER)
-  if (MSVC)
+if(HPP_PROTO_ENABLE_SANITIZER)
+  if(MSVC)
     add_compile_options("/fsanitize=address" "/Zi")
     add_link_options("/fsanitize=address")
   else()
@@ -53,7 +64,7 @@ target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_N
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
 add_library(hpp_proto::libhpp_proto_no_utf8_validation ALIAS libhpp_proto_no_utf8_validation)
 
-if (MSVC)
+if(MSVC)
   add_compile_options("/EHsc")
   target_compile_options(libhpp_proto INTERFACE "/Zc:preprocessor")
   target_compile_options(libhpp_proto_no_utf8_validation INTERFACE "/Zc:preprocessor")
