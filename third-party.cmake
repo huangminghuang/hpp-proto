@@ -15,6 +15,32 @@ CPMAddPackage(
 
 add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
 
+if(HPP_PROTO_PROTOC_PLUGIN)
+    if(NOT HPP_PROTO_COMPILE_PROTOC)
+        find_package(Protobuf)
+        message("Protobuf_VERSION=${Protobuf_VERSION}")
+    endif()
+
+    if(NOT Protobuf_FOUND)
+        CPMAddPackage(
+            NAME protobuf
+            VERSION 27.0
+            GITHUB_REPOSITORY protocolbuffers/protobuf
+            SYSTEM ON
+            OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
+            "protobuf_INSTALL OFF"
+            "protobuf_BUILD_TESTS OFF"
+            "protobuf_BUILD_PROTOBUF_BINARIES ON"
+            "protobuf_BUILD_PROTOC_BINARIES ON"
+            "EXCLUDE_FROM_ALL"
+        )
+        add_executable(protobuf::protoc ALIAS protoc)
+        add_library(protobuf::libprotobuf ALIAS libprotobuf)
+        add_library(protobuf::libprotoc ALIAS libprotoc)
+        set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
+    endif(NOT Protobuf_FOUND)
+endif(HPP_PROTO_PROTOC_PLUGIN)
+
 if(HPP_PROTO_TESTS)
     CPMAddPackage(
         NAME ut
