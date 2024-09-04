@@ -26,7 +26,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.14
@@ -34,13 +34,16 @@ jobs:
           key: ${{ github.workflow }}
 
       - name: configure
+        shell: bash
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: build
+        shell: bash
         run: cmake --build build --config Release -j4
 
       - name: test
+        shell: bash
         run: |
           cd build
           ctest --build-config Release --output-on-failure
