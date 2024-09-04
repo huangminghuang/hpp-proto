@@ -2436,28 +2436,6 @@ struct pb_serializer {
       }
     }
   }
-
-  consteval static auto to_bytes(auto ObjectLambda) {
-    constexpr auto sz = message_size(ObjectLambda());
-    if constexpr (sz == 0) {
-      return std::span<std::byte>{};
-    } else {
-      std::array<std::byte, sz> buffer = {};
-      if (auto result = serialize(ObjectLambda(), buffer); !result.ok()) {
-        throw std::system_error(std::make_error_code(result.ec));
-      }
-      return buffer;
-    }
-  }
-
-  template <typename T>
-  constexpr static auto from_bytes(auto &&buffer) {
-    T obj = {};
-    if (auto result = deserialize(obj, buffer, pb_context{}); !result.ok()) {
-      throw std::system_error(std::make_error_code(result.ec));
-    }
-    return obj;
-  }
 };
 
 template <typename FieldType, typename MetaType>
@@ -2539,6 +2517,20 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
   return {};
 }
 
+consteval auto write_proto(auto make_object) {
+  constexpr auto obj = make_object();
+  constexpr auto sz = pb_serializer::message_size(obj);
+  if constexpr (sz == 0) {
+    return std::span<std::byte>{};
+  } else {
+    std::array<std::byte, sz> buffer = {};
+    if (auto result = pb_serializer::serialize(obj, buffer); !result.ok()) {
+      throw std::system_error(std::make_error_code(result.ec));
+    }
+    return buffer;
+  }
+}
+
 template <typename T, concepts::contiguous_output_byte_range Buffer>
 [[nodiscard]] status write_proto(T &&msg, Buffer &buffer) {
   return pb_serializer::serialize(std::forward<T>(msg), buffer);
@@ -2549,6 +2541,15 @@ template <typename T, concepts::resizable_contiguous_byte_container Buffer>
 [[nodiscard]] status append_proto(T &&msg, Buffer &buffer) {
   constexpr bool overwrite_buffer = false;
   return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer);
+}
+
+template <typename T>
+constexpr static T read_proto(concepts::input_byte_range auto &&buffer) {
+  T obj = {};
+  if (auto result = pb_serializer::deserialize(obj, buffer, pb_context{}); !result.ok()) {
+    throw std::system_error(std::make_error_code(result.ec));
+  }
+  return obj;
 }
 
 template <typename T, concepts::input_byte_range Buffer>
