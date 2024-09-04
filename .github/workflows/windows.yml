@@ -6,7 +6,7 @@ on:
     branches:
       - main
       - develop
-      - msvc_test
+      - dev/**
   pull_request:
     branches:
       - main

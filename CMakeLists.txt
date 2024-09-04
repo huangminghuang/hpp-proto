@@ -14,15 +14,14 @@ option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitize
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-include(cmake/CPM.cmake)
 
 if(APPLE)
   set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
   set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 endif()
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if (HPP_PROTO_ENABLE_SANITIZER)
   if (MSVC)
@@ -34,26 +33,7 @@ if (HPP_PROTO_ENABLE_SANITIZER)
   endif()
 endif()
 
-CPMAddPackage(
-  NAME glaze
-  GIT_TAG v2.9.5.mod
-  GITHUB_REPOSITORY huangminghuang/glaze
-)
-
-CPMAddPackage(
-  NAME is_utf8
-  VERSION 1.3.2
-  GITHUB_REPOSITORY simdutf/is_utf8
-  DOWNLOAD_ONLY ON
-)
-
-add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  file(REAL_PATH ${CMAKE_CXX_COMPILER} CLANG_REAL_PATH)
-  cmake_path(GET CLANG_REAL_PATH PARENT_PATH CLANG_DIR)
-endif()
-
+include(third-party.cmake)
 
 add_library(libhpp_proto INTERFACE)
 target_include_directories(libhpp_proto INTERFACE
@@ -83,16 +63,6 @@ else()
 endif()
 
 if(HPP_PROTO_TESTS)
-  CPMAddPackage(
-    NAME ut
-    GITHUB_REPOSITORY boost-ext/ut
-    VERSION 2.0.1
-    DOWNLOAD_ONLY ON
-  )
-  add_library(Boost::ut INTERFACE IMPORTED)
-  target_include_directories(Boost::ut INTERFACE ${ut_SOURCE_DIR}/include)
-  target_compile_definitions(Boost::ut INTERFACE BOOST_UT_DISABLE_MODULE)
-
   enable_testing()
   add_subdirectory(unittests)
   include(CTest)

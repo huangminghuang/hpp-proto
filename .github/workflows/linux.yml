@@ -6,7 +6,7 @@
       branches:
         - main
         - develop
-        - compatiblity_test*
+        - dev/**
     pull_request:
       branches:
         - main
