@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - develop
+      - dev/**
   pull_request:
     branches:
       - main
@@ -33,7 +34,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
       # - name: install ninja
       #   sudo apt-get install ninja-build
@@ -45,7 +46,7 @@ jobs:
 
       - name: build and install library
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           sudo cmake --build build --target install
 
       - name: configure

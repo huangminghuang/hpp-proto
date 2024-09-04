@@ -6,9 +6,6 @@ project(hpp_proto_tutorial
 
 if(PROJECT_IS_TOP_LEVEL)
   find_package(hpp_proto CONFIG REQUIRED)
-else()
-  # disable clang-tidy check for generated file
-  configure_file(../clang-tidy-disable-all-checks .clang-tidy)
 endif()
 
 
