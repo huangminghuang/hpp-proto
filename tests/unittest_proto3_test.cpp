@@ -16,7 +16,7 @@ const boost::ut::suite proto3_lite_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
 
-  auto unittest_proto3_descriptorset = descriptorset_from_file("unittest_proto3.bin");
+  auto unittest_proto3_descriptorset = read_file("unittest.desc.pb");
 
   "protobuf"_test = [] {
     proto3_unittest::TestAllTypes original;
@@ -37,7 +37,7 @@ const boost::ut::suite proto3_lite_test = [] {
 
     proto3_unittest::TestUnpackedTypes msg;
 
-    std::vector<std::byte> data;
+    std::vector<char> data;
     expect(hpp::proto::write_proto(original, data).ok());
     expect(hpp::proto::read_proto(msg, data).ok());
 
@@ -45,10 +45,10 @@ const boost::ut::suite proto3_lite_test = [] {
 
     auto r = glz::write_json(original);
     expect(r.has_value());
-    auto m = gpb_based::json_to_proto(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes", r.value());
-
-    expect(eq(m.size(), data.size()));
-    expect(memcmp(data.data(), m.data(), m.size()) == 0);
+    auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes",
+        {data.data(), data.size()});
+    expect(fatal(!original_json.empty()));
+    expect(eq(*r, original_json));
   };
 
   "glaze"_test = [&] {
@@ -60,7 +60,7 @@ const boost::ut::suite proto3_lite_test = [] {
 
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
                                                   {data.data(), data.size()});
-
+    expect(fatal(!original_json.empty()));
     expect(hpp::proto::write_json(original).value() == original_json);
 
     proto3_unittest::TestAllTypes msg;

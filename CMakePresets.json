@@ -13,10 +13,9 @@
             "generator": "Ninja",
             "hidden": true,
             "cacheVariables": {
-                "CMAKE_EXPORT_COMPILE_COMMANDS": true,
                 "HPP_PROTO_PROTOC_PLUGIN": true,
                 "HPP_PROTO_TESTS": true,
-                "HPP_PROTO_COMPILE_PROTOC": true
+                "HPP_PROTO_PROTOC": "compile"
             }
         },
         {
@@ -61,7 +60,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "HPP_PROTO_BENCHMARKS": true,
-                "HPP_PROTO_COMPILE_PROTOC": false
+                "HPP_PROTO_PROTOC": "find"
             }
         },
         {
@@ -72,9 +71,9 @@
             "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "HPP_PROTO_COMPILE_PROTOC": false
+                "HPP_PROTO_PROTOC": "find"
             }
-        }
+        }   
     ],
     "testPresets": [
         {

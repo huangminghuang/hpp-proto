@@ -5,21 +5,34 @@ if(MSVC)
 endif()
 
 set(Min_Protobuf_VERSION 3.12.0)
-if (Protobuf_FOUND AND "${Protobuf_VERSION}" VERSION_LESS "${Min_Protobuf_VERSION}")
+
+if("${Protobuf_VERSION}" VERSION_LESS "${Min_Protobuf_VERSION}")
     message(WARNING "The programs in tests directory requires protobuf version ${Min_Protobuf_VERSION} or greater.")
 else()
-    add_subdirectory(gpb_proto_json)
-
-    if (Protobuf_VERSION AND "${Protobuf_VERSION}" VERSION_LESS "3.15.0")
-        set(PROTOC3_OPTIONAL_OPTION PROTOC_OPTIONS --experimental_allow_proto3_optional)
+    if("${Protobuf_VERSION}" VERSION_LESS "3.15.0")
+        set(PROTOC3_OPTIONAL_OPTION --experimental_allow_proto3_optional)
     endif()
 
-    include(../cmake/gen_proto_descriptor_set.cmake)
+    if((TARGET protobuf::libprotoc) AND("${Protobuf_VERSION}" VERSION_GREATER_EQUAL "22.0"))
+        set(use_libprotobuf ON)
+    endif()
+    add_subdirectory(gpb_proto_json)
 
-    gen_proto_descriptor_set(unittest_proto3.bin
-        IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-        ${PROTOC3_OPTIONAL_OPTION}
-        PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto)
+    add_custom_command(
+        COMMENT "Generating unittest.desc.pb"
+        OUTPUT unittest.desc.pb
+        COMMAND protobuf::protoc
+        ARGS -I ${CMAKE_CURRENT_SOURCE_DIR} ${PROTOC3_OPTIONAL_OPTION} --include_imports --descriptor_set_out=unittest.desc.pb
+        google/protobuf/unittest.proto
+        google/protobuf/unittest_proto3.proto
+        google/protobuf/map_unittest.proto
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+
+    add_subdirectory(data)
+
+    add_custom_target(unittest.desc.pb.target ALL
+        DEPENDS unittest.desc.pb)
 
     add_library(unittest_proto3_proto_lib INTERFACE)
     target_include_directories(unittest_proto3_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
@@ -54,7 +67,7 @@ else()
         PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto
         ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto
         ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto
-        PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning,export_request=unittest_proto3.request.bin)
+        PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
 
     add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
     target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib gpb_proto_json)
@@ -85,10 +98,6 @@ else()
 
     set_property(TEST non_owning_proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-    gen_proto_descriptor_set(unittest_proto2.bin
-        IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-        PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto)
-
     add_library(unittest_proto_lib INTERFACE)
     target_include_directories(unittest_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
     protobuf_generate(
@@ -105,10 +114,6 @@ else()
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     set_property(TEST proto2_lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
-
-    gen_proto_descriptor_set(map_unittest.bin
-        IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-        PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto)
 
     add_library(map_unittest_proto_lib INTERFACE)
     target_include_directories(map_unittest_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
@@ -127,49 +132,53 @@ else()
 
     set_property(TEST map_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-    add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
-    target_include_directories(any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
-    protobuf_generate(
-        TARGET any_test_lib
-        LANGUAGE hpp
-        IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${Protobuf_INCLUDE_DIRS})
+    if(Protobuf_INCLUDE_DIRS)
+        add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
+        target_include_directories(any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
+        protobuf_generate(
+            TARGET any_test_lib
+            LANGUAGE hpp
+            IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${Protobuf_INCLUDE_DIRS})
 
-    add_library(non_owning_any_test_lib INTERFACE
-        ${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto
-        ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto
-        ${Protobuf_INCLUDE_DIRS}/google/protobuf/field_mask.proto)
-    target_include_directories(non_owning_any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-    protobuf_generate(
-        TARGET non_owning_any_test_lib
-        LANGUAGE hpp
-        IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${Protobuf_INCLUDE_DIRS}
-        PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/non_owning
-        PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
+        add_library(non_owning_any_test_lib INTERFACE
+            ${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto
+            ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto
+            ${Protobuf_INCLUDE_DIRS}/google/protobuf/field_mask.proto)
+        target_include_directories(non_owning_any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(
+            TARGET non_owning_any_test_lib
+            LANGUAGE hpp
+            IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${Protobuf_INCLUDE_DIRS}
+            PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/non_owning
+            PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
 
-    add_executable(any_test any_test.cpp)
-    target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib non_owning_any_test_lib)
+        add_executable(any_test any_test.cpp)
+        target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib non_owning_any_test_lib)
 
-    add_test(NAME any_test
-        COMMAND any_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+        add_test(NAME any_test
+            COMMAND any_test
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-    add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
-    target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
+        add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
+        target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
 
-    add_test(NAME dynamic_serializer_tests
-        COMMAND dynamic_serializer_tests
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+        add_test(NAME dynamic_serializer_tests
+            COMMAND dynamic_serializer_tests
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-    set_property(TEST dynamic_serializer_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+        set_property(TEST dynamic_serializer_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-    add_executable(well_known_types_tests well_known_types_tests.cpp)
-    target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../include ${CMAKE_CURRENT_SOURCE_DIR}/../include)
-    target_link_libraries(well_known_types_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze)
-    add_dependencies(well_known_types_tests well_known_types)
-    add_test(NAME well_known_types_tests
-        COMMAND well_known_types_tests
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-    set_property(TEST well_known_types_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+        add_executable(well_known_types_tests well_known_types_tests.cpp)
+        target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../include ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+        target_link_libraries(well_known_types_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze)
+        add_dependencies(well_known_types_tests well_known_types)
+        add_test(NAME well_known_types_tests
+            COMMAND well_known_types_tests
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+        set_property(TEST well_known_types_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+    else()
+        message(WARNING "No proto file for well known types are found, all tests involves well known types are skipped.")
+    endif(Protobuf_INCLUDE_DIRS)
 
     add_executable(proto3_decode proto3_decode.cpp)
     target_link_libraries(proto3_decode PRIVATE unittest_proto3_proto_lib)

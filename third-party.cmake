@@ -15,33 +15,65 @@ CPMAddPackage(
 add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
 target_compile_features(is_utf8 INTERFACE cxx_std_20)
 
-if(HPP_PROTO_PROTOC_PLUGIN)
-    if(NOT HPP_PROTO_COMPILE_PROTOC)
-        find_package(Protobuf)
-        message("Protobuf_VERSION=${Protobuf_VERSION}")
+CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+
+macro(define_protoc_import_target PROTOC_PATH)
+    execute_process(
+        COMMAND ${PROTOC_PATH} --version
+        OUTPUT_VARIABLE protoc_version_output
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    string(REGEX MATCH "[0-9]+(\\.[0-9]+)*" Protobuf_VERSION "${protoc_version_output}")
+    message(Protobuf_VERSION=${Protobuf_VERSION})
+    get_filename_component(PROTOC_BASE_DIR ${PROTOC_PATH} DIRECTORY)
+    get_filename_component(PROTOBUF_INCLUDE_DIR "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
+    if (EXISTS ${PROTOBUF_INCLUDE_DIR}/google/protobuf/any.proto)
+        set(Protobuf_INCLUDE_DIRS ${PROTOBUF_INCLUDE_DIR})
     endif()
 
-    if(NOT Protobuf_FOUND)
-        CPMAddPackage(
-            NAME protobuf
-            VERSION 27.0
-            GITHUB_REPOSITORY protocolbuffers/protobuf
-            SYSTEM ON
-            OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
-            "protobuf_INSTALL OFF"
-            "protobuf_BUILD_TESTS OFF"
-            "protobuf_BUILD_PROTOBUF_BINARIES ON"
-            "protobuf_BUILD_PROTOC_BINARIES ON"
-            "EXCLUDE_FROM_ALL"
-        )
-        add_executable(protobuf::protoc ALIAS protoc)
-        add_library(protobuf::libprotobuf ALIAS libprotobuf)
-        add_library(protobuf::libprotoc ALIAS libprotoc)
-        set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
-    endif(NOT Protobuf_FOUND)
-endif(HPP_PROTO_PROTOC_PLUGIN)
+    add_executable(protoc IMPORTED)
+    set_property(TARGET protoc PROPERTY
+        IMPORTED_LOCATION ${PROTOC_PATH})
+    add_executable(protobuf::protoc ALIAS protoc)
+endmacro()
 
-CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+if(EXISTS ${HPP_PROTO_PROTOC})
+    define_protoc_import_target(${HPP_PROTO_PROTOC})
+elseif(HPP_PROTO_PROTOC STREQUAL "find")
+    find_package(Protobuf)
+
+    if(NOT Protobuf_FOUND)
+        find_program(PROTOC_PATH NAMES protoc)
+        if (PROTOC_PATH)
+            define_protoc_import_target(${HPP_PROTO_PROTOC})
+        else()
+            message(FATAL_ERROR "Could not find 'protoc', you can\n"
+                                "  - make sure the 'protoc' is available in your PATH system variable, or\n"
+                                "  - use '-DHPP_PROTO_PROTOC=compile' during cmake configuration stage for compiling protoc from source, or\n"
+                                "  - use '-DHPP_PROTO_PROTOC=/path/to/protoc' during cmake configuration stage to specify the abosolute path of protoc.")
+        endif()
+    endif()
+elseif(HPP_PROTO_PROTOC STREQUAL "compile")
+    set(Protobuf_VERSION 27.0)
+    CPMAddPackage(
+        NAME protobuf
+        VERSION ${Protobuf_VERSION}
+        GITHUB_REPOSITORY protocolbuffers/protobuf
+        SYSTEM ON
+        OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
+        "protobuf_INSTALL OFF"
+        "protobuf_BUILD_TESTS OFF"
+        "protobuf_BUILD_PROTOBUF_BINARIES ON"
+        "protobuf_BUILD_PROTOC_BINARIES ON"
+        "EXCLUDE_FROM_ALL"
+    )
+    add_executable(protobuf::protoc ALIAS protoc)
+    add_library(protobuf::libprotobuf ALIAS libprotobuf)
+    add_library(protobuf::libprotoc ALIAS libprotoc)
+    set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
+else()
+    message(FATAL_ERROR "HPP_PROTO_PROTOC must be set")
+endif()
 
 if(HPP_PROTO_TESTS)
     CPMAddPackage(
@@ -53,7 +85,7 @@ if(HPP_PROTO_TESTS)
     add_library(Boost::ut INTERFACE IMPORTED)
     target_include_directories(Boost::ut INTERFACE ${ut_SOURCE_DIR}/include)
     target_compile_definitions(Boost::ut INTERFACE BOOST_UT_DISABLE_MODULE)
-endif()
+endif(HPP_PROTO_TESTS)
 
 if(HPP_PROTO_BENCHMARKS)
     CPMAddPackage(

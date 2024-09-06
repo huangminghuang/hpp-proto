@@ -12,11 +12,9 @@ option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
 
-# # hpp-proto requires protoc from google protobuf implementation for code generation;
-# # set HPP_PROTO_COMPILE_PROTOC to ON for building protoc from source instead of using
-# # find_package(Protobuf) to locate protoc
-option(HPP_PROTO_COMPILE_PROTOC "Alwyas compile protoc from source" OFF)
 option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
+
+set(HPP_PROTO_PROTOC "find" CACHE STRING "The path to protoc, or 'find' for locating using find_program, or 'compile' for compiling from source")
 
 if(APPLE)
   set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
@@ -39,8 +37,9 @@ if(HPP_PROTO_ENABLE_SANITIZER)
   endif()
 endif()
 
-if (CMAKE_GENERATOR MATCHES "Visual Studio")
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
   find_program(ccache_exe ccache)
+
   if(ccache_exe)
     file(COPY_FILE
       ${ccache_exe} ${CMAKE_BINARY_DIR}/cl.exe
@@ -112,18 +111,20 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     COMPATIBILITY AnyNewerVersion
   )
 
-  if(NOT Protobuf_FOUND)
+  if(HPP_PROTO_PROTOC STREQUAL "compile")
     # copy google proto files into include directory
     file(GLOB GOOGLE_PROTOFILES RELATIVE "${protobuf_SOURCE_DIR}/src/google/protobuf" "${protobuf_SOURCE_DIR}/src/google/protobuf/*.proto")
     list(FILTER GOOGLE_PROTOFILES EXCLUDE REGEX ".*test.*")
+    list(APPEND GOOGLE_PROTOFILES "compiler/plugin.proto")
 
     foreach(f ${GOOGLE_PROTOFILES})
       configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/${f} include/google/protobuf/${f} COPYONLY)
     endforeach()
 
-    configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/compiler/plugin.proto include/google/protobuf/compiler/plugin.proto COPYONLY)
-    install(TARGETS protoc libhpp_proto EXPORT hpp_proto-targets)
-  endif(NOT Protobuf_FOUND)
+    install(TARGETS protoc EXPORT hpp_proto-targets)
+  endif()
+
+  install(TARGETS libhpp_proto EXPORT hpp_proto-targets)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)

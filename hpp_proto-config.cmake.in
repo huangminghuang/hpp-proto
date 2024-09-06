@@ -1,5 +1,11 @@
 if (@Protobuf_FOUND@)
     find_dependency(Protobuf)
+else()
+    find_program(protoc_exe protoc)
+    add_executable(protoc IMPORTED)
+    set_property(TARGET protoc PROPERTY
+                 IMPORTED_LOCATION ${protoc_exe})
+    add_executable(protobuf::protoc ALIAS protoc)
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/hpp_proto-targets.cmake")

@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-inline std::string descriptorset_from_file(const char *filename) {
-  std::ifstream in(filename, std::ios::in | std::ios::binary);
+inline std::string read_file(const std::string& filename) {
+  std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
   std::string contents;
   in.seekg(0, std::ios::end);
   contents.resize(in.tellg());
@@ -19,50 +19,32 @@ inline std::string descriptorset_from_file(const char *filename) {
   return contents;
 }
 
-template <typename T>
-std::string to_hex(const T &data) {
-  static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+std::array<char, 2> to_hex(hpp::proto::concepts::byte_type auto c) {
+    static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+    const auto uc = static_cast<unsigned char>(c);
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+    return { qmap[uc >> 4U], qmap[uc & 0x0FU]};
+    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+}
+
+std::string to_hex(hpp::proto::concepts::contiguous_byte_range auto const &data) {
   std::string result;
   result.resize(data.size() * 2);
   int index = 0;
   for (auto b : data) {
-    const auto c = static_cast<unsigned>(b);
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    result[index++] = qmap[c >> 4U];
-    result[index++] = qmap[c & 0x0FU];
-    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+    std::ranges::copy(to_hex(b), &result[index]);
+    index += 2;
   }
   return result;
 }
 
-// NOLINTBEGIN(cert-dcl58-cpp)
-namespace std {
-inline std::ostream &operator<<(std::ostream &os, std::byte b) {
-  static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-  char result[] = "\\x00";
-  const auto c = static_cast<unsigned char>(b);
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-  result[2] = qmap[c >> 4U];
-  result[3] = qmap[c & 0x0FU];
-  // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
-  return os << static_cast<const char *>(result);
-}
-
 inline std::ostream &operator<<(std::ostream &os, const std::vector<std::byte> &bytes) {
-  for (auto b : bytes) {
-    os << b;
-  }
-  return os;
+  return os << to_hex(bytes);
 }
 
 inline std::ostream &operator<<(std::ostream &os, std::span<const std::byte> bytes) {
-  for (auto b : bytes) {
-    os << b;
-  }
-  return os;
+  return os << to_hex(bytes);
 }
-} // namespace std
-// NOLINTEND(cert-dcl58-cpp)
 
 struct monotonic_buffer_resource {
   std::size_t size;
