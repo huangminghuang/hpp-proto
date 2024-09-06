@@ -23,6 +23,9 @@ env:
 jobs:
   build:
     runs-on: macos-latest
+    strategy:
+        matrix:
+          protoc: ["compile"]
 
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +33,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
+          key: ${{ github.workflow }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
       - name: Install ninja and python
         shell: bash
@@ -39,12 +42,12 @@ jobs:
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.14
         with:
-          key: ${{ github.workflow }}
+          key: ${{ github.workflow }}-${{ matrix.protoc }}
 
       - name: configure
         shell: bash
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+          cmake -S . -B build -G Ninja -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: build

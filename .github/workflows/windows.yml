@@ -23,6 +23,9 @@ env:
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+        matrix:
+          protoc: ["compile"]
 
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +49,7 @@ jobs:
       - name: configure
         shell: bash
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: build
         shell: bash

@@ -1,11 +1,22 @@
-if (@Protobuf_FOUND@)
-    find_dependency(Protobuf)
-else()
-    find_program(protoc_exe protoc)
-    add_executable(protoc IMPORTED)
-    set_property(TARGET protoc PROPERTY
-                 IMPORTED_LOCATION ${protoc_exe})
-    add_executable(protobuf::protoc ALIAS protoc)
+set(HPP_PROTO_PROTOC @HPP_PROTO_PROTOC@)
+if (NOT HPP_PROTO_PROTOC STREQUAL "compile")
+    if (HPP_PROTO_PROTOC STREQUAL "find")
+        find_dependency(Protobuf)
+    endif()
+
+    if (NOT Protobuf_FOUND)
+        if (HPP_PROTO_PROTOC STREQUAL "find")
+            find_program(PROTOC_EXE protoc REQUIRED)
+        else()
+            set(PROTOC_EXE ${HPP_PROTO_PROTOC})
+        endif()
+
+        add_executable(protoc IMPORTED)
+        set_property(TARGET protoc PROPERTY
+                    IMPORTED_LOCATION ${PROTOC_EXE})
+        add_executable(protobuf::protoc ALIAS protoc)
+
+    endif()
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/hpp_proto-targets.cmake")
