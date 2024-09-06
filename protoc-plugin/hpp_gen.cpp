@@ -228,11 +228,11 @@ std::size_t replace_all(std::string &inout, std::string_view what, std::string_v
 }
 
 std::array<char, 4> to_hex_literal(hpp::proto::concepts::byte_type auto c) {
-    static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-    const auto uc = static_cast<unsigned char>(c);
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    return { '\\', 'x', qmap[uc >> 4U], qmap[uc & 0x0FU]};
-    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+  static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+  const auto uc = static_cast<unsigned char>(c);
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+  return {'\\', 'x', qmap[uc >> 4U], qmap[uc & 0x0FU]};
+  // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
 }
 
 std::string to_hex_literal(hpp::proto::concepts::contiguous_byte_range auto const &data) {

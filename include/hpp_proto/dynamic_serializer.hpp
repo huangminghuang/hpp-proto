@@ -363,8 +363,8 @@ class dynamic_serializer {
 
     template <auto Options>
     status unpacked_repeated_to_json(uint32_t field_index, const dynamic_serializer::field_meta &meta,
-                                    std::vector<uint64_t> &unpacked_repeated_positions,
-                                    concepts::is_basic_in auto &archive) {
+                                     std::vector<uint64_t> &unpacked_repeated_positions,
+                                     concepts::is_basic_in auto &archive) {
       auto old_pos =
           unpacked_repeated_positions[field_index]; // the end position of previous repeated element being decoded
       auto start_pos = ix;
@@ -410,7 +410,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status field_to_json(const dynamic_serializer::field_meta &meta, bool is_map_key,
-                        concepts::is_basic_in auto &archive) {
+                         concepts::is_basic_in auto &archive) {
       using enum google::protobuf::FieldDescriptorProto::Type;
       switch (meta.type) {
       case TYPE_DOUBLE:
@@ -487,8 +487,8 @@ class dynamic_serializer {
 
     template <auto Options>
     status field_to_json(const dynamic_serializer::message_meta &msg_meta, uint32_t number, wire_type field_wire_type,
-                        std::vector<uint64_t> &unpacked_repeated_positions, uint32_t &field_index, char &separator,
-                        bool is_map_entry, concepts::is_basic_in auto &archive) {
+                         std::vector<uint64_t> &unpacked_repeated_positions, uint32_t &field_index, char &separator,
+                         bool is_map_entry, concepts::is_basic_in auto &archive) {
       if (circular_find(field_index, number, msg_meta)) {
         const auto &field_m = msg_meta[field_index];
         if (separator && unpacked_repeated_positions[field_index] == 0) {
@@ -574,8 +574,8 @@ class dynamic_serializer {
         }
 
         const bool is_map_key = false;
-        if (auto ec = field_to_json<Options>(msg_meta, number, field_wire_type, unpacked_repeated_positions, field_index,
-                                            separator, is_map_key, archive);
+        if (auto ec = field_to_json<Options>(msg_meta, number, field_wire_type, unpacked_repeated_positions,
+                                             field_index, separator, is_map_key, archive);
             !ec.ok()) [[unlikely]] {
           return ec;
         }
@@ -655,8 +655,8 @@ class dynamic_serializer {
         if (tag_number(tag) != 1 || tag_type(tag) != wire_type::length_delimited) [[unlikely]] {
           return std::errc::bad_message;
         }
-        if (auto ec = unpacked_repeated_to_json<Options>(0, msg_meta[0], unpacked_repeated_positions, archive); !ec.ok())
-            [[unlikely]] {
+        if (auto ec = unpacked_repeated_to_json<Options>(0, msg_meta[0], unpacked_repeated_positions, archive);
+            !ec.ok()) [[unlikely]] {
           return ec;
         }
       }
@@ -665,7 +665,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status struct_field_to_json(const dynamic_serializer::message_meta &msg_meta, uint32_t number,
-                               wire_type field_wire_type, char &separator, concepts::is_basic_in auto &archive) {
+                                wire_type field_wire_type, char &separator, concepts::is_basic_in auto &archive) {
       if (number != 1 || field_wire_type != wire_type::length_delimited) [[unlikely]] {
         return std::errc::bad_message;
       }
@@ -752,7 +752,7 @@ class dynamic_serializer {
             }
           } else if (msg_index != pb_meta.protobuf_value_message_index) {
             if (auto ec = field_to_json<opts>(msg_meta, number, field_wire_type, unpacked_repeated_positions,
-                                             field_index, separator, is_map_entry, archive);
+                                              field_index, separator, is_map_entry, archive);
                 !ec.ok()) [[unlikely]] {
               return ec;
             }

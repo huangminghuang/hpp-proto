@@ -170,7 +170,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     auto r = glz::write_json(original);
     expect(r.has_value());
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes",
-        {data.data(), data.size()});
+                                                  {data.data(), data.size()});
 
     expect(fatal(!original_json.empty()));
     expect(eq(*r, original_json));
