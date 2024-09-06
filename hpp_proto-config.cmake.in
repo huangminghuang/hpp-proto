@@ -1,6 +1,7 @@
 set(HPP_PROTO_PROTOC @HPP_PROTO_PROTOC@)
 if (NOT HPP_PROTO_PROTOC STREQUAL "compile")
     if (HPP_PROTO_PROTOC STREQUAL "find")
+        include(CMakeFindDependencyMacro)
         find_dependency(Protobuf)
     endif()
 
