@@ -984,7 +984,7 @@ public:
   // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
 #if defined(_WIN32)
-      return _pext_u64(a, mask);
+    return _pext_u64(a, mask);
 #elif defined(__GNUC__) || defined(__clang__)
     // NOLINTBEGIN(cppcoreguidelines-init-variables,hicpp-no-assembler)
     uint64_t result;
