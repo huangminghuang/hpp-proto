@@ -25,7 +25,7 @@ jobs:
     runs-on: macos-latest
     strategy:
         matrix:
-          protoc: ["compile"]
+          protoc: ["find"]
 
     steps:
       - uses: actions/checkout@v4
@@ -35,9 +35,9 @@ jobs:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
-      - name: Install ninja and python
+      - name: Install ninja and protobuf
         shell: bash
-        run: brew install clang-format ninja python llvm 
+        run: brew install ninja protobuf
         
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.14

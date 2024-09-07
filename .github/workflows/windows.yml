@@ -25,7 +25,7 @@ jobs:
     runs-on: windows-latest
     strategy:
         matrix:
-          protoc: ["compile"]
+          protoc: ["find"]
 
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +45,11 @@ jobs:
         with:
           platform: win
           tag: v1.12.1
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "28.x"
 
       - name: configure
         shell: bash
