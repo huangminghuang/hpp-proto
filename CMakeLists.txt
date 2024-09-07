@@ -30,16 +30,6 @@ else()
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
 endif()
 
-if(HPP_PROTO_ENABLE_SANITIZER)
-  if(MSVC)
-    add_compile_options("/fsanitize=address" "/Zi")
-    add_link_options("/fsanitize=address")
-  else()
-    add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
-    add_link_options("-fsanitize=address,undefined")
-  endif()
-endif()
-
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   find_program(ccache_exe ccache)
 
@@ -64,6 +54,16 @@ if(CMAKE_GENERATOR MATCHES "Visual Studio")
 endif()
 
 include(third-party.cmake)
+
+if(HPP_PROTO_ENABLE_SANITIZER)
+  if(MSVC)
+    add_compile_options("/fsanitize=address" "/Zi")
+    add_link_options("/fsanitize=address")
+  else()
+    add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
+    add_link_options("-fsanitize=address,undefined")
+  endif()
+endif()
 
 add_library(libhpp_proto INTERFACE)
 target_include_directories(libhpp_proto INTERFACE
