@@ -16,6 +16,7 @@ else()
     if((TARGET protobuf::libprotoc) AND("${Protobuf_VERSION}" VERSION_GREATER_EQUAL "22.0"))
         set(use_libprotobuf ON)
     endif()
+
     add_subdirectory(gpb_proto_json)
 
     add_custom_command(
@@ -145,12 +146,20 @@ else()
         protobuf_generate(
             TARGET non_owning_any_test_lib
             LANGUAGE hpp
-            IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}" "${CMAKE_CURRENT_SOURCE_DIR}"
+            IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
             PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
             PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning"
             PROTOS "${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto"
-            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
             "${Protobuf_INCLUDE_DIRS}/google/protobuf/field_mask.proto")
+
+        protobuf_generate(
+            TARGET non_owning_any_test_lib
+            LANGUAGE hpp
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
+            PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning"
+            PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
+        )
 
         add_executable(any_test any_test.cpp)
         target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib non_owning_any_test_lib)
