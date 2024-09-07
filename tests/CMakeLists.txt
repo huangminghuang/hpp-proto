@@ -155,7 +155,7 @@ else()
         protobuf_generate(
             TARGET non_owning_any_test_lib
             LANGUAGE hpp
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${Protobuf_INCLUDE_DIRS}"
             PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
             PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning"
             PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
