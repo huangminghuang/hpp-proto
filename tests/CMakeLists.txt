@@ -140,17 +140,17 @@ else()
             LANGUAGE hpp
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${Protobuf_INCLUDE_DIRS}")
 
-        add_library(non_owning_any_test_lib INTERFACE
-            "${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto"
-            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
-            "${Protobuf_INCLUDE_DIRS}/google/protobuf/field_mask.proto")
+        add_library(non_owning_any_test_lib INTERFACE)
         target_include_directories(non_owning_any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
         protobuf_generate(
             TARGET non_owning_any_test_lib
             LANGUAGE hpp
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${Protobuf_INCLUDE_DIRS}"
+            IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}" "${CMAKE_CURRENT_SOURCE_DIR}"
             PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-            PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning")
+            PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning"
+            PROTOS "${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto"
+            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
+            "${Protobuf_INCLUDE_DIRS}/google/protobuf/field_mask.proto")
 
         add_executable(any_test any_test.cpp)
         target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib non_owning_any_test_lib)
