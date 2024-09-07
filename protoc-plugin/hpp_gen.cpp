@@ -227,20 +227,21 @@ std::size_t replace_all(std::string &inout, std::string_view what, std::string_v
   return count;
 }
 
-template <typename T>
-std::string to_hex(const T &data) {
+std::array<char, 4> to_hex_literal(hpp::proto::concepts::byte_type auto c) {
   static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+  const auto uc = static_cast<unsigned char>(c);
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+  return {'\\', 'x', qmap[uc >> 4U], qmap[uc & 0x0FU]};
+  // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+}
+
+std::string to_hex_literal(hpp::proto::concepts::contiguous_byte_range auto const &data) {
   std::string result;
   result.resize(data.size() * 4);
-  unsigned index = 0;
+  int index = 0;
   for (auto b : data) {
-    const auto c = static_cast<unsigned>(b);
-    result[index++] = '\\';
-    result[index++] = 'x';
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    result[index++] = qmap[c >> 4U];
-    result[index++] = qmap[c & 0x0FU];
-    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+    std::ranges::copy(to_hex_literal(b), &result[index]);
+    index += 4;
   }
   return result;
 }
@@ -1630,7 +1631,7 @@ struct desc_hpp_generator : code_generator {
                    "constexpr file_descriptor_pb _desc_{}{{\n"
                    "  \"{}\"sv\n"
                    "}};\n\n",
-                   descriptor.cpp_name, to_hex(buf));
+                   descriptor.cpp_name, to_hex_literal(buf));
 
     fmt::format_to(target, "inline auto desc_set_{}(){{\n", descriptor.cpp_name);
     const auto &dependency_names = descriptor.get_dependency_names();

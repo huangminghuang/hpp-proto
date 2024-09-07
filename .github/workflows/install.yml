@@ -7,10 +7,14 @@ on:
       - main
       - develop
       - dev/**
+    paths-ignore:
+      - '**.md'
   pull_request:
     branches:
       - main
       - develop
+    paths-ignore:
+      - '**.md'
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
@@ -36,17 +40,18 @@ jobs:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
-      # - name: install ninja
-      #   sudo apt-get install ninja-build
-
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.14
         with:
           key: ${{ github.workflow }}
 
+      - name: install protoc
+        run: |
+          sudo apt install -y protobuf-compiler libprotobuf-dev
+
       - name: build and install library
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DHPP_PROTO_TESTS=OFF
           sudo cmake --build build --target install
 
       - name: configure

@@ -1319,7 +1319,7 @@ inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message) {
 } // namespace TestUtil
 
 inline std::string unittest_proto2_descriptorset() {
-  std::ifstream in("unittest_proto2.bin", std::ios::in | std::ios::binary);
+  std::ifstream in("unittest.desc.pb", std::ios::in | std::ios::binary);
   std::string contents;
   in.seekg(0, std::ios::end);
   contents.resize(in.tellg());
@@ -1370,13 +1370,9 @@ const boost::ut::suite proto_test = [] {
         std::vector<char> data;
         expect(hpp::proto::write_proto(original, data).ok());
 
-#if __has_include(<google/protobuf/json/json.h>)
-        // older version of google protobuf implementation has bug to serialize group to json;
-        // disable this test when the version of protobuf is too old.
-
         auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(),
                                                       hpp::proto::message_name(original), {data.data(), data.size()});
-
+        expect(fatal(!original_json.empty()));
         auto generated_json = hpp::proto::write_json(original);
 
         expect(eq(generated_json.value(), original_json));
@@ -1385,7 +1381,6 @@ const boost::ut::suite proto_test = [] {
         expect(hpp::proto::read_json(msg, original_json, hpp::proto::json_context{mr}).ok());
 
         TestUtil::ExpectAllSet(msg);
-#endif
       } |
       std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestUnpackedTypes,
                  protobuf_unittest::TestPackedTypes>{};

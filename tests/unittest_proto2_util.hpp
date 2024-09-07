@@ -1354,7 +1354,7 @@ inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message) {
 } // namespace TestUtil
 
 inline std::string unittest_proto2_descriptorset() {
-  std::ifstream in("unittest_proto2.bin", std::ios::in | std::ios::binary);
+  std::ifstream in("unittest.desc.pb", std::ios::in | std::ios::binary);
   std::string contents;
   in.seekg(0, std::ios::end);
   contents.resize(in.tellg());

@@ -1,5 +1,16 @@
-if (@Protobuf_FOUND@)
+set(HPP_PROTO_PROTOC @HPP_PROTO_PROTOC@)
+if (HPP_PROTO_PROTOC STREQUAL "find")
+    include(CMakeFindDependencyMacro)
     find_dependency(Protobuf)
+
+    if (NOT Protobuf_FOUND)
+        find_program(PROTOC_EXE protoc REQUIRED)
+        add_executable(protoc IMPORTED)
+        set_property(TARGET protoc PROPERTY
+                    IMPORTED_LOCATION ${PROTOC_EXE})
+        add_executable(protobuf::protoc ALIAS protoc)
+
+    endif()
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/hpp_proto-targets.cmake")

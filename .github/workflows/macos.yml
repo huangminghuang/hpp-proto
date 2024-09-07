@@ -7,10 +7,14 @@ on:
       - main
       - develop
       - dev/**
+    paths-ignore:
+        - '**.md'
   pull_request:
     branches:
       - main
       - develop
+    paths-ignore:
+        - '**.md'
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
@@ -19,6 +23,9 @@ env:
 jobs:
   build:
     runs-on: macos-latest
+    strategy:
+        matrix:
+          protoc: ["find"]
 
     steps:
       - uses: actions/checkout@v4
@@ -26,21 +33,21 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
+          key: ${{ github.workflow }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
-      - name: Install ninja and python
+      - name: Install ninja and protobuf
         shell: bash
-        run: brew install clang-format ninja python llvm 
+        run: brew install ninja protobuf
         
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.14
         with:
-          key: ${{ github.workflow }}
+          key: ${{ github.workflow }}-${{ matrix.protoc }}
 
       - name: configure
         shell: bash
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+          cmake -S . -B build -G Ninja -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: build

@@ -8,7 +8,7 @@ const boost::ut::suite map_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
 
-  auto map_unittest_descriptorset = descriptorset_from_file("map_unittest.bin");
+  auto map_unittest_descriptorset = read_file("unittest.desc.pb");
 
   "protobuf"_test = [] {
     protobuf_unittest::TestMap original;
@@ -32,6 +32,7 @@ const boost::ut::suite map_test = [] {
 
     auto original_json =
         gpb_based::proto_to_json(map_unittest_descriptorset, "protobuf_unittest.TestMap", {data.data(), data.size()});
+    expect(fatal(!original_json.empty()));
 
     expect(hpp::proto::write_json(original).value() == original_json);
 
