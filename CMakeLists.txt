@@ -14,7 +14,9 @@ option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
 
 option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
 
-set(HPP_PROTO_PROTOC "find" CACHE STRING "The path to protoc, or 'find' for locating using find_program, or 'compile' for compiling from source")
+set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
+set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS
+  "find" "compile")
 
 if(APPLE)
   set(CMAKE_CXX_VISIBILITY_PRESET "hidden")

@@ -1,17 +1,10 @@
 set(HPP_PROTO_PROTOC @HPP_PROTO_PROTOC@)
-if (NOT HPP_PROTO_PROTOC STREQUAL "compile")
-    if (HPP_PROTO_PROTOC STREQUAL "find")
-        include(CMakeFindDependencyMacro)
-        find_dependency(Protobuf)
-    endif()
+if (HPP_PROTO_PROTOC STREQUAL "find")
+    include(CMakeFindDependencyMacro)
+    find_dependency(Protobuf)
 
     if (NOT Protobuf_FOUND)
-        if (HPP_PROTO_PROTOC STREQUAL "find")
-            find_program(PROTOC_EXE protoc REQUIRED)
-        else()
-            set(PROTOC_EXE ${HPP_PROTO_PROTOC})
-        endif()
-
+        find_program(PROTOC_EXE protoc REQUIRED)
         add_executable(protoc IMPORTED)
         set_property(TARGET protoc PROPERTY
                     IMPORTED_LOCATION ${PROTOC_EXE})

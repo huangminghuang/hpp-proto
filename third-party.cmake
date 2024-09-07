@@ -17,40 +17,36 @@ target_compile_features(is_utf8 INTERFACE cxx_std_20)
 
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
-macro(define_protoc_import_target PROTOC_PATH)
-    execute_process(
-        COMMAND ${PROTOC_PATH} --version
-        OUTPUT_VARIABLE protoc_version_output
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    string(REGEX MATCH "[0-9]+(\\.[0-9]+)*" Protobuf_VERSION "${protoc_version_output}")
-    message(Protobuf_VERSION=${Protobuf_VERSION})
-    get_filename_component(PROTOC_BASE_DIR ${PROTOC_PATH} DIRECTORY)
-    get_filename_component(PROTOBUF_INCLUDE_DIR "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
-    if (EXISTS ${PROTOBUF_INCLUDE_DIR}/google/protobuf/any.proto)
-        set(Protobuf_INCLUDE_DIRS ${PROTOBUF_INCLUDE_DIR})
-    endif()
-
-    add_executable(protoc IMPORTED)
-    set_property(TARGET protoc PROPERTY
-        IMPORTED_LOCATION ${PROTOC_PATH})
-    add_executable(protobuf::protoc ALIAS protoc)
-endmacro()
-
-if(EXISTS ${HPP_PROTO_PROTOC})
-    define_protoc_import_target(${HPP_PROTO_PROTOC})
-elseif(HPP_PROTO_PROTOC STREQUAL "find")
+if(HPP_PROTO_PROTOC STREQUAL "find")
     find_package(Protobuf)
 
     if(NOT Protobuf_FOUND)
         find_program(PROTOC_PATH NAMES protoc)
-        if (PROTOC_PATH)
-            define_protoc_import_target(${HPP_PROTO_PROTOC})
+
+        if(PROTOC_PATH)
+            execute_process(
+                COMMAND "${PROTOC_PATH}" --version
+                OUTPUT_VARIABLE protoc_version_output
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
+            string(REGEX MATCH "[0-9]+(\\.[0-9]+)*" Protobuf_VERSION "${protoc_version_output}")
+            message(Protobuf_VERSION=${Protobuf_VERSION})
+            get_filename_component(PROTOC_BASE_DIR ${PROTOC_PATH} DIRECTORY)
+            get_filename_component(PROTOBUF_INCLUDE_DIR "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
+
+            if(EXISTS ${PROTOBUF_INCLUDE_DIR}/google/protobuf/any.proto)
+                set(Protobuf_INCLUDE_DIRS ${PROTOBUF_INCLUDE_DIR})
+            endif()
+
+            add_executable(protoc IMPORTED)
+            set_property(TARGET protoc PROPERTY
+                IMPORTED_LOCATION ${PROTOC_PATH})
+            add_executable(protobuf::protoc ALIAS protoc)
         else()
             message(FATAL_ERROR "Could not find 'protoc', you can\n"
-                                "  - make sure the 'protoc' is available in your PATH system variable, or\n"
-                                "  - use '-DHPP_PROTO_PROTOC=compile' during cmake configuration stage for compiling protoc from source, or\n"
-                                "  - use '-DHPP_PROTO_PROTOC=/path/to/protoc' during cmake configuration stage to specify the abosolute path of protoc.")
+                "  - make sure 'protoc' is available in your PATH system variable, or\n"
+                "  - use '-DHPP_PROTO_PROTOC=compile' for compiling protoc from source, or\n"
+                "  - use '-DCMAKE_PROGRAM_PATH=/path/bin' to specify the abosolute directory of protoc.")
         endif()
     endif()
 elseif(HPP_PROTO_PROTOC STREQUAL "compile")
@@ -72,7 +68,7 @@ elseif(HPP_PROTO_PROTOC STREQUAL "compile")
     add_library(protobuf::libprotoc ALIAS libprotoc)
     set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
 else()
-    message(FATAL_ERROR "HPP_PROTO_PROTOC must be set")
+    message(FATAL_ERROR "HPP_PROTO_PROTOC must be set to 'find' or 'compile'")
 endif()
 
 if(HPP_PROTO_TESTS)
