@@ -54,7 +54,7 @@ jobs:
       - name: configure
         shell: bash
         run: |
-          cmake -GNinja -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: build
         shell: bash
