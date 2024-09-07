@@ -39,7 +39,7 @@
 #include <hpp_proto/memory_resource_utils.hpp>
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 #include <intrin.h>
 #elif defined(__GNUC__) || defined(__clang__)
 #include <cpuid.h>
@@ -983,14 +983,14 @@ public:
 
   // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(_WIN32)
+      return _pext_u64(a, mask);
+#elif defined(__GNUC__) || defined(__clang__)
     // NOLINTBEGIN(cppcoreguidelines-init-variables,hicpp-no-assembler)
     uint64_t result;
     asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask));
     // NOLINTEND(cppcoreguidelines-init-variables,hicpp-no-assembler)
     return result;
-#elif defined(_MSC_VER)
-    return _pext_u64(a, mask);
 #endif
   }
   // NOLINTEND(bugprone-easily-swappable-parameters)
@@ -1640,7 +1640,7 @@ struct pb_serializer {
     // workaround for C++20 doesn't support static in constexpr function
     static bool has_bmi2() {
       auto check = [] {
-#if defined(_MSC_VER)
+#if defined(_WIN32)
         int cpuInfo[4];
         __cpuidex(cpuInfo, 7, 0);
         return (cpuInfo[1] & (1 << 8)) != 0; // Check BMI2 bit
