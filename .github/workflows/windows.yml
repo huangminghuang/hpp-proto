@@ -56,6 +56,12 @@ jobs:
         run: |
           cmake -GNinja -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v4
+        with:
+          name: build.ninja
+          path: build/build.ninja
+
       - name: build
         shell: bash
         run: cmake --build build --config Release -j4
