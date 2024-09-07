@@ -39,7 +39,7 @@
 #include <hpp_proto/memory_resource_utils.hpp>
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 #include <intrin.h>
 #elif defined(__GNUC__) || defined(__clang__)
 #include <cpuid.h>
@@ -958,7 +958,7 @@ public:
 
   static consteval uint64_t calc_word_mask() {
     uint64_t result = 0x80ULL;
-    for (int i = 0; i < mask_length - 1; ++i) {
+    for (unsigned i = 0; i < mask_length - 1; ++i) {
       result = (result << CHAR_BIT | 0x80ULL);
     }
     return result;
@@ -989,7 +989,7 @@ public:
     asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask));
     // NOLINTEND(cppcoreguidelines-init-variables,hicpp-no-assembler)
     return result;
-#elif defined(_MSC_VER)
+#else
     return _pext_u64(a, mask);
 #endif
   }
@@ -1640,7 +1640,7 @@ struct pb_serializer {
     // workaround for C++20 doesn't support static in constexpr function
     static bool has_bmi2() {
       auto check = [] {
-#if defined(_MSC_VER)
+#if defined(_WIN32)
         int cpuInfo[4];
         __cpuidex(cpuInfo, 7, 0);
         return (cpuInfo[1] & (1 << 8)) != 0; // Check BMI2 bit
