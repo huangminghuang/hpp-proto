@@ -958,7 +958,7 @@ public:
 
   static consteval uint64_t calc_word_mask() {
     uint64_t result = 0x80ULL;
-    for (int i = 0; i < mask_length - 1; ++i) {
+    for (unsigned i = 0; i < mask_length - 1; ++i) {
       result = (result << CHAR_BIT | 0x80ULL);
     }
     return result;
@@ -983,14 +983,14 @@ public:
 
   // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
-#if defined(_WIN32)
-    return _pext_u64(a, mask);
-#elif defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) || defined(__clang__)
     // NOLINTBEGIN(cppcoreguidelines-init-variables,hicpp-no-assembler)
     uint64_t result;
     asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask));
     // NOLINTEND(cppcoreguidelines-init-variables,hicpp-no-assembler)
     return result;
+#else
+    return _pext_u64(a, mask);
 #endif
   }
   // NOLINTEND(bugprone-easily-swappable-parameters)
