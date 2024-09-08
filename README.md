@@ -5,15 +5,15 @@ hpp-proto is a C++20-based tool that simplifies the use of Protocol Buffers in C
 ## Features
 * All Protocol Buffers message definitions are mapped to simple C++ aggregates based on standard C++ library.
 * Each generated C++ aggregate are associated with static C++ reflection data for protobuf encoding and decoding.
-* Each generated C++ aggregate also contains [glaze](https://github.com/stephenberry/glaze) compatible meta data for JSON serialization.
+* Each generated C++ aggregate also contains meta data for JSON serialization using slightly modified [glaze](https://github.com/stephenberry/glaze) library.
 * Only Protocol Buffers syntax 2 and 3 (except `service`) are supported, no edition support currently.
-* Support non-owning mode code generation 
-
+* Support non-owning mode code generation.
+* Support compile time serialization.
 
 ## Getting Started
 
 ### [optional] Install google protoc 
-hpp-proto requires google protoc for code generation. It can either use the existing  protoc installation on your system or automatically compiling protoc from source when cmake fails to find it. 
+hpp-proto requires google protoc for code generation. It can either use the existing  protoc installation on your system or automatically compiling protoc from source. 
 
 ### [optional] Install hpp-proto
 
@@ -22,6 +22,7 @@ hpp-proto can be directly installed locally then use cmake `find_package` to sol
 ```bash
 git clone https://github.com/huangminghuang/hpp-proto.git 
 cd hpp-proto
+# use installed protoc by default or specify '-DHPP_PROTO_PROTOC=compile' to compile protoc 
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/local -Bbuild -S .
 cmake --build build --target install
 ```
