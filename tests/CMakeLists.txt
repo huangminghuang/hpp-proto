@@ -41,7 +41,7 @@ else()
         TARGET unittest_proto3_proto_lib
         LANGUAGE hpp
         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-        ${PROTOC3_OPTIONAL_OPTION}
+        PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
         PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto"
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto"
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto")
@@ -64,7 +64,7 @@ else()
         LANGUAGE hpp
         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
         PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-        ${PROTOC3_OPTIONAL_OPTION}
+        PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
         PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto"
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto"
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto"
