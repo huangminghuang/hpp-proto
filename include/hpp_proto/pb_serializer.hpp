@@ -1428,8 +1428,10 @@ struct pb_serializer {
     } else if constexpr (concepts::contiguous_byte_range<type>) {
 #ifndef HPP_PROTO_NO_UTF8_VALIDATION
       if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
-        if (!is_utf8(item.data(), item.size())) {
-          return false;
+        if (!std::is_constant_evaluated()) {
+          if (!is_utf8(item.data(), item.size())) {
+            return false;
+          }
         }
       }
 #endif
@@ -2157,9 +2159,11 @@ struct pb_serializer {
       }
 #ifndef HPP_PROTO_NO_UTF8_VALIDATION
       if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
-        if (!is_utf8(item.data(), item.size())) {
-          return std::errc::bad_message;
-        }
+        // if (!std::is_constant_evaluated()) {
+        //   if (!is_utf8(item.data(), item.size())) {
+        //     return std::errc::bad_message;
+        //   }
+        // }
       }
 #endif
       return {};
