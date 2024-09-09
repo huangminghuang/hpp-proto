@@ -43,4 +43,8 @@ if(Protobuf_INCLUDE_DIRS)
         IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
         PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/../include)
     target_link_libraries(well_known_types INTERFACE hpp_proto::libhpp_proto)
+    target_include_directories(well_known_types INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../include>
+        $<INSTALL_INTERFACE:include>)
+    add_library(hpp_proto::well_known_types ALIAS well_known_types)
 endif()
