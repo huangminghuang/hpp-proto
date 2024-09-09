@@ -123,7 +123,7 @@ else()
         LANGUAGE hpp
         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
         PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
-    target_link_directories(map_unittest_proto_lib INTERFACE unittest_proto_lib)
+    target_link_libraries(map_unittest_proto_lib INTERFACE unittest_proto_lib)
 
     add_executable(map_test map_test.cpp)
     target_link_libraries(map_test PRIVATE map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)

@@ -280,38 +280,39 @@ public:
   constexpr void reset() noexcept { impl = 0x80; }
 };
 
-// NOLINTBEGIN(cppcoreguidelines-owning-memory)
 template <typename T>
 class heap_based_optional {
-  T *obj = nullptr;
+  std::unique_ptr<T> obj;
 
 public:
   using value_type = T;
   constexpr heap_based_optional() noexcept = default;
-  constexpr ~heap_based_optional() noexcept { delete obj; };
+  constexpr ~heap_based_optional() noexcept = default;
 
   constexpr heap_based_optional(std::nullopt_t /* unused */) noexcept {};
 
   constexpr heap_based_optional(const T &object) : obj(new T(object)) {}
-  constexpr heap_based_optional(heap_based_optional &&other) noexcept { std::swap(obj, other.obj); }
+  constexpr heap_based_optional(heap_based_optional &&other) noexcept : obj(std::move(other)) {}
   constexpr heap_based_optional(const heap_based_optional &other) : obj(other.obj ? new T(*other.obj) : nullptr) {}
 
   template <class... Args>
   constexpr explicit heap_based_optional(std::in_place_t, Args &&...args)
       : obj(new T{std::forward<Args &&>(args)...}) {}
 
+  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr heap_based_optional &operator=(heap_based_optional &&other) noexcept {
-    std::swap(obj, other.obj);
+    obj = std::move(other.obj);
     return *this;
   }
+  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
   constexpr heap_based_optional &operator=(const heap_based_optional &other) {
     heap_based_optional tmp(other);
-    std::swap(obj, tmp.obj);
+    obj = std::move(tmp.obj);
     return *this;
   }
 
-  [[nodiscard]] constexpr bool has_value() const noexcept { return obj; }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return static_cast<bool>(obj); }
   constexpr operator bool() const noexcept { return has_value(); }
 
   constexpr T &value() {
@@ -334,17 +335,12 @@ public:
   constexpr const T *operator->() const noexcept { return obj; }
 
   constexpr T &emplace() {
-    heap_based_optional tmp;
-    tmp.obj = new T;
-    std::swap(obj, tmp.obj);
+    obj = std::make_unique<T>();
     return *obj;
   }
 
   constexpr void swap(heap_based_optional &other) noexcept { std::swap(obj, other.obj); }
-  constexpr void reset() noexcept {
-    delete obj;
-    obj == nullptr;
-  }
+  constexpr void reset() noexcept { obj.reset(); }
 
   constexpr bool operator==(const T &rhs) const {
     if (has_value()) {
@@ -364,7 +360,6 @@ public:
 
   constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
 };
-// NOLINTEND(cppcoreguidelines-owning-memory)
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 template <std::size_t Len>
