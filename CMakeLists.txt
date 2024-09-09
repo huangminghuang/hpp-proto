@@ -127,7 +127,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     install(TARGETS protoc EXPORT hpp_proto-targets)
   endif()
 
-  install(TARGETS libhpp_proto EXPORT hpp_proto-targets)
+  install(TARGETS libhpp_proto well_known_types EXPORT hpp_proto-targets)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)

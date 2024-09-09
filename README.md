@@ -4,10 +4,11 @@ hpp-proto is a C++20-based tool that simplifies the use of Protocol Buffers in C
 
 ## Features
 * All Protocol Buffers message definitions are mapped to simple C++ aggregates based on standard C++ library.
+* Except the usage of [is_utf8](https://github.com/simdutf/is_utf8) library, all generated code and the core library are header only. 
 * Each generated C++ aggregate are associated with static C++ reflection data for protobuf encoding and decoding.
 * Each generated C++ aggregate also contains meta data for JSON serialization using slightly modified [glaze](https://github.com/stephenberry/glaze) library.
 * Only Protocol Buffers syntax 2 and 3 (except `service`) are supported, no edition support currently.
-* Support non-owning mode code generation.
+* Support non-owning mode code generation which maps string and repeated fields to std::string_view and std::span.
 * Support compile time serialization.
 
 ## Getting Started

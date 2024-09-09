@@ -5,7 +5,7 @@ project(hpp_proto_tutorial
         LANGUAGES CXX)
 
 if(PROJECT_IS_TOP_LEVEL)
-  find_package(hpp_proto CONFIG REQUIRED)
+  find_package(hpp_proto CONFIG REQUIRED)  
 endif()
 
 
