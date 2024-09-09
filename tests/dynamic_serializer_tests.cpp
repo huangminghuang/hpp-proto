@@ -30,7 +30,9 @@ const boost::ut::suite dynamic_serializer_test = [] {
         expect(fatal(ser->json_to_proto(message_name, *hpp_result, serialized).ok()));
         expect(eq(to_hex(data), to_hex(serialized)));
 
+        // NOLINTBEGIN(readability-implicit-bool-conversion)
         hpp_result = ser->proto_to_json<glz::opts{.prettify = true}>(message_name, data);
+        // NOLINTEND(readability-implicit-bool-conversion)
         expect(fatal(hpp_result.has_value()));
         expect(ser->json_to_proto(message_name, *hpp_result, serialized).ok());
         expect(eq(to_hex(data), to_hex(serialized)));

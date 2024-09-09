@@ -30,7 +30,7 @@ else()
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
 endif()
 
-if(CMAKE_GENERATOR MATCHES "Visual Studio")
+if(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")
   find_program(ccache_exe ccache)
 
   if(ccache_exe)
@@ -57,7 +57,7 @@ include(third-party.cmake)
 
 if(HPP_PROTO_ENABLE_SANITIZER)
   if(MSVC)
-    add_compile_options("/fsanitize=address" "/Zi")
+    add_compile_options("/fsanitize=address")
     add_link_options("/fsanitize=address")
   else()
     add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")

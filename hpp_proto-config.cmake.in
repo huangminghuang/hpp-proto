@@ -4,12 +4,13 @@ if (HPP_PROTO_PROTOC STREQUAL "find")
     find_dependency(Protobuf)
 
     if (NOT Protobuf_FOUND)
-        find_program(PROTOC_EXE protoc REQUIRED)
+        find_program(PROTOC_PATH protoc REQUIRED)
         add_executable(protoc IMPORTED)
         set_property(TARGET protoc PROPERTY
-                    IMPORTED_LOCATION ${PROTOC_EXE})
+                    IMPORTED_LOCATION ${PROTOC_PATH})
         add_executable(protobuf::protoc ALIAS protoc)
-
+        get_filename_component(PROTOC_BASE_DIR ${PROTOC_PATH} DIRECTORY)
+        get_filename_component(Protobuf_INCLUDE_DIRS "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
     endif()
 endif()
 

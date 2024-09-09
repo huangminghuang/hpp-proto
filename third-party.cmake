@@ -14,6 +14,10 @@ CPMAddPackage(
 )
 add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
 target_compile_features(is_utf8 INTERFACE cxx_std_20)
+get_target_property(IS_UTF8_COMPILER_OPTIONS is_utf8 COMPILE_OPTIONS)
+if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
+    message(FATAL_ERROR "is_utf8 is not compatible with address sanitizer")
+endif()
 
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
@@ -65,8 +69,6 @@ elseif(HPP_PROTO_PROTOC STREQUAL "compile")
         "EXCLUDE_FROM_ALL"
     )
     add_executable(protobuf::protoc ALIAS protoc)
-    add_library(protobuf::libprotobuf ALIAS libprotobuf)
-    add_library(protobuf::libprotoc ALIAS libprotoc)
     set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
 else()
     message(FATAL_ERROR "HPP_PROTO_PROTOC must be set to 'find' or 'compile'")
