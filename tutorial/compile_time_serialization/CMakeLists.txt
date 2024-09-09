@@ -4,5 +4,5 @@ protobuf_generate(TARGET addressbook_lite
     PROTOS addressbook_lite.proto
     LANGUAGE hpp
     PLUGIN_OPTIONS non_owning)
-add_executable(consteval_proto main.cpp)
-target_link_libraries(consteval_proto PRIVATE addressbook_lite)
+add_executable(compile_time_serialization compile_time_serialization.cpp)
+target_link_libraries(compile_time_serialization PRIVATE addressbook_lite)

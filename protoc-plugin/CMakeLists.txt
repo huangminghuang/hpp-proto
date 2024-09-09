@@ -23,25 +23,24 @@ if(Protobuf_INCLUDE_DIRS)
     )
 
     set(well_known_types_proto
-        google/protobuf/any.proto
-        google/protobuf/api.proto
-        google/protobuf/duration.proto
-        google/protobuf/empty.proto
-        google/protobuf/field_mask.proto
-        google/protobuf/source_context.proto
-        google/protobuf/struct.proto
-        google/protobuf/timestamp.proto
-        google/protobuf/type.proto
-        google/protobuf/wrappers.proto)
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/api.proto
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/duration.proto
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/empty.proto
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/field_mask.proto
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/source_context.proto
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/struct.proto
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/timestamp.proto
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/type.proto
+        ${Protobuf_INCLUDE_DIRS}/google/protobuf/wrappers.proto)
 
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../include)
 
-    add_custom_target(well_known_types ALL
-        COMMENT "processing ${well_known_types_proto}"
-        COMMAND protobuf::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_BINARY_DIR}/../include -I ${Protobuf_INCLUDE_DIRS}
-        ${well_known_types_proto}
-        DEPENDS protobuf::protoc protoc-gen-hpp
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        VERBATIM
-    )
+    add_library(well_known_types INTERFACE ${well_known_types_proto})
+    protobuf_generate(
+        TARGET well_known_types
+        LANGUAGE hpp
+        IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
+        PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/../include)
+    target_link_libraries(well_known_types INTERFACE hpp_proto::libhpp_proto)
 endif()

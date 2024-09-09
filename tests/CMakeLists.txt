@@ -123,6 +123,7 @@ else()
         LANGUAGE hpp
         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
         PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
+    target_link_directories(map_unittest_proto_lib INTERFACE unittest_proto_lib)
 
     add_executable(map_test map_test.cpp)
     target_link_libraries(map_test PRIVATE map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
@@ -140,6 +141,7 @@ else()
             TARGET any_test_lib
             LANGUAGE hpp
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${Protobuf_INCLUDE_DIRS}")
+        target_link_libraries(any_test_lib INTERFACE well_known_types)
 
         add_library(non_owning_any_test_lib INTERFACE)
         target_include_directories(non_owning_any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
@@ -160,6 +162,7 @@ else()
             PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning"
             PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
         )
+        target_link_libraries(non_owning_any_test_lib INTERFACE well_known_types)
 
         add_executable(any_test any_test.cpp)
         target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib non_owning_any_test_lib)
@@ -179,7 +182,7 @@ else()
 
         add_executable(well_known_types_tests well_known_types_tests.cpp)
         target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../include ${CMAKE_CURRENT_SOURCE_DIR}/../include)
-        target_link_libraries(well_known_types_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze)
+        target_link_libraries(well_known_types_tests PRIVATE well_known_types hpp_proto::libhpp_proto Boost::ut glaze::glaze)
         add_dependencies(well_known_types_tests well_known_types)
         add_test(NAME well_known_types_tests
             COMMAND well_known_types_tests
