@@ -17,9 +17,6 @@ inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buf
   std::copy(str.begin(), str.end(), buf);
   return {buf, str.size()};
 }
-namespace tutorial {
-bool operator==(const Person::NestedMessage &lhs, const Person::NestedMessage &rhs) { return lhs.bb == rhs.bb; }
-} // namespace tutorial
 
 int main() {
   using enum tutorial::Person::PhoneType;

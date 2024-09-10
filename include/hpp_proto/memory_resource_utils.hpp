@@ -57,8 +57,8 @@ template <typename T>
 concept is_auxiliary_context = memory_resource<T> || requires { typename T::auxiliary_context_type; };
 
 template <typename T>
-concept dynamic_sized_view =
-    std::same_as<T, std::span<typename T::element_type, std::dynamic_extent>> || std::same_as<T, std::string_view>;
+concept dynamic_sized_view = std::derived_from<T, std::span<typename T::element_type>> ||
+                             std::same_as<T, std::string_view>;
 
 } // namespace concepts
 
@@ -196,8 +196,8 @@ struct raw_data_iterator {
   }
 };
 
-/// The `arena_vector` class adapts an existing std::span or std::string_view, allowing the underlying
-/// memory to be allocated from a designated memory resource. This memory resource releases the allocated
+/// The `arena_vector` class adapts an existing hpp::proto::equality_comparable_span or std::string_view, allowing the
+/// underlying memory to be allocated from a designated memory resource. This memory resource releases the allocated
 /// memory only upon its destruction, similar to std::pmr::monotonic_buffer_resource.
 ///
 /// `arena_vector` will never deallocate its underlying memory in any circumstance; that is, `resize()` and
@@ -221,7 +221,7 @@ public:
 
   static_assert(std::is_trivially_destructible_v<value_type>);
   // static_assert(std::is_nothrow_default_constructible_v<value_type>);
-  static_assert(std::is_nothrow_copy_constructible_v<value_type>);
+  // static_assert(std::is_nothrow_copy_constructible_v<value_type>);
 
   constexpr MemoryResource &memory_resource() { return mr; }
 

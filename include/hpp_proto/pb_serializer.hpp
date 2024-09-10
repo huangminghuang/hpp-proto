@@ -173,6 +173,9 @@ concept optional = requires(Type optional) {
 };
 
 template <typename Type>
+concept optional_message_view = std::same_as<Type, ::hpp::proto::optional_message_view<typename Type::value_type>>;
+
+template <typename Type>
 concept oneof_type = concepts::variant<Type>;
 
 template <typename Type>
@@ -190,7 +193,7 @@ concept is_map_entry = requires {
 template <typename T>
 concept span = requires {
   typename T::element_type;
-  requires std::same_as<T, std::span<typename T::element_type>>;
+  requires std::derived_from<T, std::span<typename T::element_type>>;
 };
 
 template <typename T>
@@ -508,8 +511,6 @@ struct field_meta_base {
       return is_default_value<T, DefaultValue>(v);
     } else if constexpr (requires { v.has_value(); }) {
       return !v.has_value();
-    } else if constexpr (std::is_pointer_v<std::remove_cvref_t<T>>) {
-      return v == nullptr;
     } else if constexpr (requires {
                            typename T::element_type;
                            v.get();
@@ -609,7 +610,8 @@ struct repeated_extension_meta
   using extendee = Extendee;
   static constexpr bool non_owning = concepts::span<decltype(std::declval<typename extendee::extension_t>().fields)>;
   using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
-  using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
+  using get_result_type =
+      std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
   using set_value_type = std::span<const element_type>;
 
   template <typename T>
@@ -1843,7 +1845,7 @@ struct pb_serializer {
         auto &entry = fields.back().second;
         // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
         if (reinterpret_cast<const byte_type *>(field_archive.data()) == entry.data() + entry.size()) {
-          entry = std::span{entry.data(), entry.size() + field_len};
+          entry = std::span<const byte_type>{entry.data(), entry.size() + field_len};
           return {};
         }
         // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -1853,7 +1855,7 @@ struct pb_serializer {
           std::find_if(fields.begin(), fields.end(), [field_num](const auto &e) { return e.first == field_num; });
 
       if (itr == fields.end() && field_archive.in_avail() == field_archive.region_size()) [[likely]] {
-        std::span<const byte_type> field_span;
+        equality_comparable_span<const byte_type> field_span;
         if (auto result = field_archive.read_bytes(static_cast<uint32_t>(field_len), field_span); !result.ok())
             [[unlikely]] {
           return result;
@@ -2095,6 +2097,21 @@ struct pb_serializer {
       return {};
     } else if constexpr (std::is_same_v<type, boolean>) {
       return archive(item.value);
+    } else if constexpr (concepts::optional_message_view<type>) {
+      static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
+      using element_type = std::remove_cvref_t<decltype(*item)>;
+      void *buffer = context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
+      if (buffer == nullptr) [[unlikely]] {
+        return std::errc::not_enough_memory;
+      }
+      // NOLINTBEGIN(cppcoreguidelines-owning-memory)
+      auto loaded = new (buffer) element_type;
+      // NOLINTEND(cppcoreguidelines-owning-memory)
+      if (auto result = deserialize_field(meta, tag, *loaded, context, archive); !result.ok()) [[unlikely]] {
+        return result;
+      }
+      item = loaded;
+      return {};
     } else if constexpr (concepts::optional<type>) {
       if constexpr (requires { item.emplace(); }) {
         return deserialize_field(meta, tag, item.emplace(), context, archive);
@@ -2109,21 +2126,6 @@ struct pb_serializer {
         return result;
       }
       item.reset(loaded.release());
-      return {};
-    } else if constexpr (std::is_pointer_v<type>) {
-      static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
-      using element_type = std::remove_cvref_t<decltype(*item)>;
-      void *buffer = context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
-      if (buffer == nullptr) [[unlikely]] {
-        return std::errc::not_enough_memory;
-      }
-      // NOLINTBEGIN(cppcoreguidelines-owning-memory)
-      auto loaded = new (buffer) element_type;
-      // NOLINTEND(cppcoreguidelines-owning-memory)
-      if (auto result = deserialize_field(meta, tag, *loaded, context, archive); !result.ok()) [[unlikely]] {
-        return result;
-      }
-      item = loaded;
       return {};
     } else if constexpr (concepts::oneof_type<type>) {
       static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);

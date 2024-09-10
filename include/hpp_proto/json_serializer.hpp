@@ -140,6 +140,21 @@ constexpr decltype(auto) as_oneof_member_impl() noexcept {
 template <auto MemPtr, int Index>
 constexpr auto as_oneof_member = as_oneof_member_impl<MemPtr, Index>();
 
+template <typename T>
+struct optional_message_view_ref {
+  static constexpr auto glaze_reflect = false;
+  T &ref;
+};
+
+template <auto MemPtr>
+constexpr decltype(auto) as_optional_message_view_ref_impl() noexcept {
+  return
+      [](auto &&val) { return optional_message_view_ref<std::remove_reference_t<decltype(val.*MemPtr)>>{val.*MemPtr}; };
+}
+
+template <auto MemPtr>
+constexpr auto as_optional_message_view_ref = as_optional_message_view_ref_impl<MemPtr>();
+
 struct base64 {
   constexpr static std::size_t
   max_encode_size(hpp::proto::concepts::contiguous_byte_range auto const &source) noexcept {
@@ -477,10 +492,10 @@ struct from_json<hpp::proto::boolean> {
 };
 
 template <typename Type>
-struct from_json<std::span<Type>> {
+struct from_json<hpp::proto::equality_comparable_span<Type>> {
   template <auto Options>
-  GLZ_ALWAYS_INLINE static void op(std::span<Type> &value, hpp::proto::concepts::is_non_owning_context auto &&ctx,
-                                   auto &&it, auto &&end) {
+  GLZ_ALWAYS_INLINE static void op(hpp::proto::equality_comparable_span<Type> &value,
+                                   hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it, auto &&end) {
     auto v = hpp::proto::as_modifiable(ctx, value);
     if constexpr (hpp::proto::concepts::byte_type<Type>) {
       from_json<hpp::proto::use_base64>::template op<Options>(v, ctx, it, end);
@@ -614,9 +629,9 @@ struct from_json<hpp::proto::map_wrapper<T>> {
 };
 
 template <typename T>
-struct from_json<T *> {
+struct from_json<hpp::proto::optional_message_view_ref<T>> {
   template <auto Options>
-  static void op(auto &value, hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it, auto &&end) {
+  static void op(auto value, hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it, auto &&end) {
     if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
       if (bool(ctx.error)) {
@@ -624,13 +639,7 @@ struct from_json<T *> {
       }
     }
     static constexpr auto Opts = ws_handled_off<Options>();
-    using type = std::remove_const_t<T>;
-
-    if constexpr (!std::is_trivially_destructible_v<type>) {
-      if (value) {
-        value->~type();
-      }
-    }
+    using type = std::remove_const_t<typename T::value_type>;
 
     if (*it == 'n') {
       // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -640,17 +649,28 @@ struct from_json<T *> {
       if (bool(ctx.error)) {
         [[unlikely]] return;
       }
-      value = nullptr;
+      value.ref.reset();
     } else {
       void *addr = ctx.memory_resource().allocate(sizeof(type), alignof(type));
       // NOLINTBEGIN(cppcoreguidelines-owning-memory)
       type *obj = new (addr) type;
       // NOLINTEND(cppcoreguidelines-owning-memory)
       read<json>::op<Opts>(*obj, ctx, it, end);
-      value = obj;
+      value.ref = obj;
     }
   }
 };
+
+template <typename Type>
+struct to_json<hpp::proto::optional_message_view_ref<Type>> {
+  template <auto Opts, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto value, Args &&...args) noexcept {
+    if (value.ref.has_value()) {
+      to_json<std::decay_t<decltype(*value.ref)>>::template op<Opts>(*value.ref, std::forward<Args>(args)...);
+    }
+  }
+};
+
 } // namespace glz::detail
 
 namespace hpp::proto {

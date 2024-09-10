@@ -361,6 +361,89 @@ public:
   constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
 };
 
+template <typename T>
+class optional_message_view {
+  const T *obj = nullptr;
+
+public:
+  using value_type = T;
+  constexpr optional_message_view() noexcept = default;
+  constexpr ~optional_message_view() noexcept = default;
+
+  constexpr optional_message_view(std::nullptr_t /* unused */) noexcept {};
+
+  constexpr optional_message_view(const T *object) : obj(object) {}
+  constexpr optional_message_view(optional_message_view &&other) noexcept : obj(other.obj) {}
+  constexpr optional_message_view(const optional_message_view &other) noexcept : obj(other.obj) {}
+
+  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
+  constexpr optional_message_view &operator=(optional_message_view &&other) noexcept {
+    obj = other.obj;
+    return *this;
+  }
+  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
+
+  constexpr optional_message_view &operator=(const optional_message_view &other) noexcept {
+    obj = other.obj;
+    return *this;
+  }
+
+  constexpr optional_message_view &operator=(const T *other) noexcept {
+    obj = other;
+    return *this;
+  }
+
+  constexpr optional_message_view &operator=(std::nullptr_t /* unused */) noexcept {
+    obj = nullptr;
+    return *this;
+  }
+
+  [[nodiscard]] constexpr bool has_value() const noexcept { return static_cast<bool>(obj); }
+  constexpr operator bool() const noexcept { return has_value(); }
+
+  [[nodiscard]] constexpr const T &value() const {
+    if (!has_value()) {
+      throw std::bad_optional_access();
+    }
+    return *obj;
+  }
+
+  constexpr const T &operator*() const noexcept { return *obj; }
+
+  constexpr const T *operator->() const noexcept { return obj; }
+
+  constexpr void swap(optional_message_view &other) noexcept { std::swap(obj, other.obj); }
+  constexpr void reset() noexcept { obj = 0; }
+
+  constexpr bool operator==(const optional_message_view &rhs) const {
+    if (has_value() && rhs.has_value()) {
+      return *obj == *rhs.obj;
+    } else {
+      return has_value() == rhs.has_value();
+    }
+  }
+
+  constexpr bool operator==(std::nullptr_t /* unused */) const { return !has_value(); }
+};
+
+template <typename T>
+class equality_comparable_span : public std::span<T> {
+public:
+  using std::span<T>::span;
+  ~equality_comparable_span() noexcept = default;
+  constexpr equality_comparable_span(const equality_comparable_span &other) noexcept
+      : std::span<T>(other.data(), other.size()) {}
+  template <typename U>
+  constexpr equality_comparable_span &operator=(U &&other) noexcept {
+    static_cast<std::span<T> &>(*this) = std::forward<U>(other);
+    return *this;
+  }
+
+  friend constexpr bool operator==(const equality_comparable_span<T> &lhs, const equality_comparable_span<T> &rhs) {
+    return std::ranges::equal(lhs, rhs);
+  }
+};
+
 // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 template <std::size_t Len>
 struct compile_time_string {
@@ -393,10 +476,12 @@ struct bytes_literal {
   [[nodiscard]] constexpr const std::byte *end() const { return bytes.data() + size(); }
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-  constexpr operator std::span<const std::byte>() const { return std::span<const std::byte>{data(), size()}; }
+  constexpr operator equality_comparable_span<const std::byte>() const {
+    return equality_comparable_span<const std::byte>{data(), size()};
+  }
   explicit operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
 
-  friend constexpr bool operator==(const bytes_literal &lhs, const std::span<const std::byte> &rhs) {
+  friend constexpr bool operator==(const bytes_literal &lhs, const equality_comparable_span<const std::byte> &rhs) {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
   }
 };
@@ -437,7 +522,7 @@ struct string_literal {
 };
 
 using bytes = std::vector<std::byte>;
-using bytes_view = std::span<const std::byte>;
+using bytes_view = equality_comparable_span<const std::byte>;
 
 struct boolean {
   bool value = false;

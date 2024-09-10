@@ -8,10 +8,8 @@ template <typename T>
 constexpr auto non_owning = false;
 
 struct byte_span_example {
-  std::span<const std::byte> field;
-  bool operator==(const byte_span_example &other) const {
-    return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
-  }
+  hpp::proto::equality_comparable_span<const std::byte> field;
+  bool operator==(const byte_span_example &other) const = default;
 };
 constexpr auto message_type_url(const byte_span_example &) {
   return hpp::proto::string_literal<"type.googleapis.com/byte_span_example">{};
@@ -90,10 +88,8 @@ struct glz::meta<explicit_optional_uint64_example> {
 };
 
 struct uint32_span_example {
-  std::span<const uint32_t> field;
-  bool operator==(const uint32_span_example &other) const {
-    return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
-  }
+  hpp::proto::equality_comparable_span<const uint32_t> field;
+  bool operator==(const uint32_span_example &) const = default;
 };
 constexpr auto message_type_url(const uint32_span_example &) {
   return hpp::proto::string_literal<"type.googleapis.com/uint32_span_example">{};
@@ -110,7 +106,7 @@ struct glz::meta<uint32_span_example> {
 
 struct pair_vector_example {
   std::vector<std::pair<std::string, int32_t>> field;
-  bool operator==(const pair_vector_example &other) const = default;
+  bool operator==(const pair_vector_example &) const = default;
 };
 constexpr auto message_type_url(const pair_vector_example &) {
   return hpp::proto::string_literal<"type.googleapis.com/pair_vector_example">{};
@@ -123,10 +119,8 @@ struct glz::meta<pair_vector_example> {
 };
 
 struct pair_span_example {
-  std::span<const std::pair<std::string_view, int32_t>> field;
-  bool operator==(const pair_span_example &other) const {
-    return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
-  }
+  hpp::proto::equality_comparable_span<const std::pair<std::string_view, int32_t>> field;
+  bool operator==(const pair_span_example &) const = default;
 };
 constexpr auto message_type_url(const pair_span_example &) {
   return hpp::proto::string_literal<"type.googleapis.com/pair_span_example">{};
@@ -141,10 +135,8 @@ struct glz::meta<pair_span_example> {
 };
 
 struct object_span_example {
-  std::span<const optional_example> field;
-  bool operator==(const object_span_example &other) const {
-    return std::equal(field.begin(), field.end(), other.field.begin(), other.field.end());
-  }
+  hpp::proto::equality_comparable_span<const optional_example> field;
+  bool operator==(const object_span_example &) const = default;
 };
 constexpr auto message_type_url(const object_span_example &) {
   return hpp::proto::string_literal<"type.googleapis.com/object_span_example">{};
@@ -160,10 +152,8 @@ struct glz::meta<object_span_example> {
 };
 
 struct non_owning_nested_example {
-  const optional_example *nested = {};
-  bool operator==(const non_owning_nested_example &other) const {
-    return nested == other.nested || (nested != nullptr && other.nested != nullptr && *nested == *other.nested);
-  }
+  hpp::proto::optional_message_view<optional_example> nested;
+  bool operator==(const non_owning_nested_example &) const = default;
 };
 constexpr auto message_type_url(const non_owning_nested_example &) {
   return hpp::proto::string_literal<"type.googleapis.com/non_owning_nested_example">{};
@@ -175,7 +165,7 @@ constexpr auto non_owning<non_owning_nested_example> = true;
 template <>
 struct glz::meta<non_owning_nested_example> {
   using T = non_owning_nested_example;
-  static constexpr auto value = object("nested", &T::nested);
+  static constexpr auto value = object("nested", hpp::proto::as_optional_message_view_ref<&T::nested>);
 };
 
 struct oneof_example {
@@ -246,13 +236,7 @@ struct bytes_example {
   std::optional<Bytes> field1;
   hpp::proto::optional<Bytes, hpp::proto::string_literal<"test">{}> field2;
   Bytes field3;
-  bool operator==(const bytes_example &other) const {
-    auto equal_optional_range = [](const auto &lhs, const auto &rhs) {
-      return (lhs.has_value() == rhs.has_value()) && (!lhs.has_value() || (std::ranges::equal(*lhs, *rhs)));
-    };
-    return std::ranges::equal(field0, other.field0) && equal_optional_range(field1, other.field1) &&
-           equal_optional_range(field2, other.field2) && std::ranges::equal(field3, other.field3);
-  }
+  bool operator==(const bytes_example &) const = default;
 };
 
 template <typename T>
@@ -264,7 +248,7 @@ template <>
 constexpr auto non_owning<std::string_view> = true;
 
 template <typename T>
-constexpr auto non_owning<std::span<const T>> = true;
+constexpr auto non_owning<hpp::proto::equality_comparable_span<const T>> = true;
 
 template <typename Bytes>
 constexpr auto non_owning<bytes_example<Bytes>> = non_owning<Bytes>;
@@ -291,7 +275,7 @@ const ut::suite test_bytes = [] {
                                 .field2 = "light work"_bytes,
                                 .field3 = "light wor"_bytes},
            R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
-  } | std::tuple<std::vector<std::byte>, std::span<const std::byte>>{};
+  } | std::tuple<std::vector<std::byte>, hpp::proto::equality_comparable_span<const std::byte>>{};
 };
 
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };

@@ -19,17 +19,6 @@
             }
         },
         {
-            "name": "dev",
-            "inherits": "default",
-            "displayName": "Developer Mode",
-            "description": "Debug build and test against google protobuf implementation",
-            "binaryDir": "${sourceDir}/build/debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "HPP_PROTO_ENABLE_SANITIZER": true
-            }
-        },
-        {
             "name": "core-dev",
             "inherits": "default",
             "displayName": "Core Developer Mode",
@@ -38,6 +27,17 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "HPP_PROTO_PROTOC_PLUGIN": false,
+                "HPP_PROTO_ENABLE_SANITIZER": true
+            }
+        },
+        {
+            "name": "dev",
+            "inherits": "default",
+            "displayName": "Developer Mode",
+            "description": "Debug build and test against google protobuf implementation",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
                 "HPP_PROTO_ENABLE_SANITIZER": true
             }
         },

@@ -679,7 +679,7 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message, auto &&ctx) {
   expect(message->set_extension(protobuf_unittest::repeated_bool_extension(), repeated_bool_extension, ctx).ok());
   const static std::string_view repeated_string_extension[] = {"215", "315"};
   expect(message->set_extension(protobuf_unittest::repeated_string_extension(), repeated_string_extension, ctx).ok());
-  const static std::span<const std::byte> repeated_bytes_extension[] = {"216"_bytes_view, "316"_bytes_view};
+  const static std::array repeated_bytes_extension{"216"_bytes_view, "316"_bytes_view};
   expect(message->set_extension(protobuf_unittest::repeated_bytes_extension(), repeated_bytes_extension, ctx).ok());
 
   const static protobuf_unittest::RepeatedGroup_extension repeatedgroup[] = {{.a = 217}, {.a = 317}};

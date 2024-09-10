@@ -43,6 +43,7 @@ int main() {
 
   tutorial::Person person;
   expect(hpp::proto::unpack_any(new_message.any_value.value(), person, ctx).ok());
+  expect(person == alex);
 
   return 0;
 }
