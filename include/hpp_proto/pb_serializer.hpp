@@ -125,6 +125,9 @@ using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 namespace concepts {
 
 template <typename Type>
+concept is_enum = std::is_enum_v<Type> && !std::same_as<std::byte, Type> && !std::same_as<hpp::proto::boolean, Type>;
+
+template <typename Type>
 concept varint =
     requires { requires std::same_as<Type, hpp::proto::varint<typename Type::value_type, Type::encoding>>; };
 
@@ -610,8 +613,7 @@ struct repeated_extension_meta
   using extendee = Extendee;
   static constexpr bool non_owning = concepts::span<decltype(std::declval<typename extendee::extension_t>().fields)>;
   using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
-  using get_result_type =
-      std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
+  using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
   using set_value_type = std::span<const element_type>;
 
   template <typename T>
@@ -680,8 +682,7 @@ struct serialize_type {
   using convertible_type = const T &;
 };
 
-template <typename T>
-  requires std::is_enum_v<T>
+template <concepts::is_enum T>
 struct serialize_type<T> {
   using type = vint64_t;
   using read_type = vint64_t;
@@ -857,12 +858,9 @@ struct reverse_indices {
   constexpr static auto indices = get_indices(typename traits::meta_of<Type>::type{});
 
   consteval static auto build_lookup_table_indices() {
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    std::array<uint32_t, mask + 1> masked_number_occurrences;
-    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+    std::array<uint32_t, mask + 1> masked_number_occurrences = {};
 
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    masked_number_occurrences.fill(0U);
     for (auto num : numbers) {
       ++masked_number_occurrences[num & mask];
     }
@@ -878,9 +876,7 @@ struct reverse_indices {
     if constexpr (numbers.empty()) {
       return std::span<std::pair<uint32_t, uint32_t>>{};
     } else {
-      // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-      std::array<uint32_t, mask + 1> counts;
-      // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+      std::array<uint32_t, mask + 1> counts = {};
       std::copy(lookup_table_indices.begin(), lookup_table_indices.end() - 1, counts.begin());
 
       std::array<std::pair<uint32_t, uint32_t>, numbers.size()> result;
@@ -1081,51 +1077,42 @@ struct pb_serializer {
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
     std::span<byte_type> m_data;
 
-    // NOLINTBEGIN(readability-function-cognitive-complexity)
-    HPP_PROTO_INLINE constexpr void serialize(auto &&item) {
-      using type = std::remove_cvref_t<decltype(item)>;
-      if constexpr (concepts::byte_serializable<type>) {
-        if (std::is_constant_evaluated()) {
-          auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
-          if constexpr (endian_swapped) {
-            std::copy(value.rbegin(), value.rend(), m_data.begin());
-          } else {
-            std::copy(value.begin(), value.end(), m_data.begin());
-          }
-        } else {
-          if constexpr (endian_swapped && sizeof(type) != 1) {
-            // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-            std::reverse_copy(reinterpret_cast<const byte_type *>(&item),
-                              reinterpret_cast<const byte_type *>(&item) + sizeof(item), m_data.begin());
-            // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
-          } else {
-            std::memcpy(m_data.data(), &item, sizeof(item));
-          }
-        }
-        m_data = m_data.subspan(sizeof(item));
-      } else if constexpr (std::is_enum_v<type>) {
-        serialize(varint{static_cast<int64_t>(item)});
-      } else if constexpr (concepts::varint<type>) {
-        auto p = unchecked_pack_varint(item, m_data.data());
-        m_data = m_data.subspan(std::distance(m_data.data(), p));
-      } else if constexpr (std::ranges::contiguous_range<type> &&
-                           concepts::byte_serializable<typename type::value_type>) {
-        if constexpr (concepts::byte_serializable<typename type::value_type>) {
-          if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(typename type::value_type) == 1)) {
-            auto bytes_to_copy = item.size() * sizeof(typename type::value_type);
-            std::memcpy(m_data.data(), item.data(), bytes_to_copy);
-            m_data = m_data.subspan(bytes_to_copy);
-          } else {
-            for (auto x : item) {
-              this->serialize(x);
-            }
-          }
-        }
+
+    HPP_PROTO_INLINE constexpr void serialize(concepts::byte_serializable auto item) {
+      auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
+      if constexpr (endian_swapped && sizeof(item) != 1) {
+        std::copy(value.rbegin(), value.rend(), m_data.begin());
       } else {
-        static_assert(!sizeof(type));
+        std::copy(value.begin(), value.end(), m_data.begin());
+      }
+      m_data = m_data.subspan(sizeof(item));
+    }
+
+    HPP_PROTO_INLINE constexpr void serialize(concepts::varint auto item) {
+      auto p = unchecked_pack_varint(item, m_data.data());
+      m_data = m_data.subspan(std::distance(m_data.data(), p));
+    }
+
+    template <std::ranges::contiguous_range T>
+    HPP_PROTO_INLINE constexpr void serialize(const T &item) {
+      using type = std::remove_cvref_t<T>;
+      using value_type = typename type::value_type;
+      static_assert(concepts::byte_serializable<value_type>);
+      if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(value_type) == 1)) {
+        auto bytes_to_copy = item.size() * sizeof(value_type);
+        std::memcpy(m_data.data(), item.data(), bytes_to_copy);
+        m_data = m_data.subspan(bytes_to_copy);
+      } else {
+        for (auto x : item) {
+          this->serialize(x);
+        }
       }
     }
-    // NOLINTEND(readability-function-cognitive-complexity)
+
+    HPP_PROTO_INLINE constexpr void serialize(concepts::is_enum auto item) {
+      serialize(varint{static_cast<int64_t>(item)});
+    }
+
     template <typename... Args>
     HPP_PROTO_INLINE constexpr void operator()(Args &&...item) {
       (serialize(std::forward<Args>(item)), ...);
@@ -1423,7 +1410,7 @@ struct pb_serializer {
       for (const auto &f : item.fields) {
         archive(f.second);
       }
-    } else if constexpr (std::is_enum_v<type> && !std::same_as<type, std::byte>) {
+    } else if constexpr (concepts::is_enum<type>) {
       archive(make_tag<type>(meta), item);
     } else if constexpr (concepts::numeric<type>) {
       archive(make_tag<serialize_type>(meta), serialize_type{item});

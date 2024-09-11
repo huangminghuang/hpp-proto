@@ -383,10 +383,12 @@ public:
   }
   // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
+  // NOLINTBEGIN(bugprone-unhandled-self-assignment, cert-oop54-cpp)
   constexpr optional_message_view &operator=(const optional_message_view &other) noexcept {
     obj = other.obj;
     return *this;
   }
+  // NOLINTEND(bugprone-unhandled-self-assignment, cert-oop54-cpp)
 
   constexpr optional_message_view &operator=(const T *other) noexcept {
     obj = other;
@@ -426,16 +428,22 @@ public:
   constexpr bool operator==(std::nullptr_t /* unused */) const { return !has_value(); }
 };
 
+// NOLINTBEGIN(cppcoreguidelines-special-member-functions,hicpp-special-member-functions)
 template <typename T>
 class equality_comparable_span : public std::span<T> {
 public:
   using std::span<T>::span;
-  ~equality_comparable_span() noexcept = default;
   constexpr equality_comparable_span(const equality_comparable_span &other) noexcept
       : std::span<T>(other.data(), other.size()) {}
+
   template <typename U>
   constexpr equality_comparable_span &operator=(U &&other) noexcept {
     static_cast<std::span<T> &>(*this) = std::forward<U>(other);
+    return *this;
+  }
+
+  constexpr equality_comparable_span &operator=(const equality_comparable_span &other) noexcept {
+    static_cast<std::span<T> &>(*this) = std::forward<const std::span<T>&>(other);
     return *this;
   }
 
@@ -443,12 +451,12 @@ public:
     return std::ranges::equal(lhs, rhs);
   }
 };
+// NOLINTEND(cppcoreguidelines-special-member-functions,hicpp-special-member-functions)
 
-// NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 template <std::size_t Len>
 struct compile_time_string {
   using value_type = char;
-  char data_[Len];
+  char data_[Len] = {};
   [[nodiscard]] constexpr std::size_t size() const { return Len - 1; }
   constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(&init[0], Len, &data_[0]); }
   [[nodiscard]] constexpr const char *data() const { return &data_[0]; }
@@ -457,7 +465,7 @@ struct compile_time_string {
 template <std::size_t Len>
 struct compile_time_bytes {
   using value_type = char;
-  std::byte data_[Len];
+  std::byte data_[Len] = {};
   [[nodiscard]] constexpr std::size_t size() const { return Len - 1; }
   constexpr compile_time_bytes(const char (&init)[Len]) {
     std::transform(&init[0], &init[Len], &data_[0], [](char c) { return static_cast<std::byte>(c); });
@@ -485,7 +493,6 @@ struct bytes_literal {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
   }
 };
-// NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 
 namespace concepts {
 template <typename Type>

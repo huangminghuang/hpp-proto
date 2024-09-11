@@ -40,9 +40,11 @@ int main() {
   tutorial::AnyDemo new_message;
 
   expect(hpp::proto::read_proto(new_message, buffer, ctx).ok());
-
+  expect(new_message.any_value.has_value());
   tutorial::Person person;
+  // NOLINTBEGIN(bugprone-unchecked-optional-access)
   expect(hpp::proto::unpack_any(new_message.any_value.value(), person, ctx).ok());
+  // NOLINTEND(bugprone-unchecked-optional-access)
   expect(person == alex);
 
   return 0;

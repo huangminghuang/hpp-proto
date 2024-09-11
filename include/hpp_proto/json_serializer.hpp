@@ -140,11 +140,14 @@ constexpr decltype(auto) as_oneof_member_impl() noexcept {
 template <auto MemPtr, int Index>
 constexpr auto as_oneof_member = as_oneof_member_impl<MemPtr, Index>();
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
 template <typename T>
 struct optional_message_view_ref {
   static constexpr auto glaze_reflect = false;
   T &ref;
 };
+// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
+
 
 template <auto MemPtr>
 constexpr decltype(auto) as_optional_message_view_ref_impl() noexcept {
