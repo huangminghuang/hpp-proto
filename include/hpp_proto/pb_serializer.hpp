@@ -61,6 +61,20 @@ namespace hpp::proto {
 using glz::expected;
 using glz::unexpected;
 
+#if HPP_PROTO_NO_UTF8_VALIDATION
+constexpr bool is_string_and_not_utf8(const auto &str) { return false; }
+#else
+template <typename T>
+constexpr bool is_string_and_not_utf8(const T &str) {
+  if constexpr (std::same_as<T, std::string> || std::same_as<T, std::string_view>) {
+    if (!std::is_constant_evaluated()) {
+      return !::is_utf8(str.data(), str.size());
+    }
+  }
+  return false;
+}
+#endif
+
 // Always allocate memory for string and bytes fields when
 // deserializing non-owning messages.
 struct always_allocate_memory {
@@ -124,74 +138,78 @@ using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 
 namespace concepts {
 
-template <typename Type>
-concept is_enum = std::is_enum_v<Type> && !std::same_as<std::byte, Type> && !std::same_as<hpp::proto::boolean, Type>;
+template <typename T>
+concept is_enum = std::is_enum_v<T> && !std::same_as<std::byte, T> && !std::same_as<hpp::proto::boolean, T>;
 
-template <typename Type>
-concept varint =
-    requires { requires std::same_as<Type, hpp::proto::varint<typename Type::value_type, Type::encoding>>; };
+template <typename T>
+concept is_boolean = std::same_as<hpp::proto::boolean, T>;
 
-template <typename Type>
+template <typename T>
+concept varint = requires { requires std::same_as<T, hpp::proto::varint<typename T::value_type, T::encoding>>; };
+
+template <typename T>
 concept associative_container =
-    std::ranges::range<Type> && requires(Type container) { typename std::remove_cvref_t<Type>::key_type; };
+    std::ranges::range<T> && requires(T container) { typename std::remove_cvref_t<T>::key_type; };
 
-template <typename Type>
-concept tuple =
-    !std::ranges::range<Type> && requires(Type tuple) { sizeof(std::tuple_size<std::remove_cvref_t<Type>>); };
+template <typename T>
+concept tuple = !std::ranges::range<T> && requires(T tuple) { sizeof(std::tuple_size<std::remove_cvref_t<T>>); };
 
-template <typename Type>
-concept variant = requires(Type variant) {
+template <typename T>
+concept variant = requires(T variant) {
   variant.index();
   std::get_if<0>(&variant);
-  std::variant_size_v<std::remove_cvref_t<Type>>;
+  std::variant_size_v<std::remove_cvref_t<T>>;
 };
 
-template <typename Type>
+template <typename T>
 concept string =
-    std::same_as<std::remove_cvref_t<Type>, std::string> || std::same_as<std::remove_cvref_t<Type>, std::string_view>;
-
-template <typename Type>
-concept has_local_meta = concepts::tuple<typename Type::pb_meta>;
-
-template <typename Type>
-concept has_explicit_meta = concepts::tuple<decltype(pb_meta(std::declval<Type>()))>;
-
-template <typename Type>
-concept has_meta = has_local_meta<std::remove_cvref_t<Type>> || has_explicit_meta<Type>;
+    std::same_as<std::remove_cvref_t<T>, std::string> || std::same_as<std::remove_cvref_t<T>, std::string_view>;
 
 template <typename T>
-concept numeric =
-    std::is_arithmetic_v<T> || concepts::varint<T> || std::is_enum_v<T> || std::same_as<hpp::proto::boolean, T>;
+concept has_local_meta = concepts::tuple<typename T::pb_meta>;
 
 template <typename T>
-concept numeric_or_byte = numeric<T> || std::same_as<std::byte, T>;
+concept has_explicit_meta = concepts::tuple<decltype(pb_meta(std::declval<T>()))>;
 
-template <typename Type>
-concept optional = requires(Type optional) {
+template <typename T>
+concept has_meta = has_local_meta<std::remove_cvref_t<T>> || has_explicit_meta<T>;
+
+template <typename T>
+concept dereferenceable = requires(T item) { *item; };
+
+template <typename T>
+concept optional_message_view = std::same_as<T, ::hpp::proto::optional_message_view<typename T::value_type>>;
+
+template <typename T>
+concept optional = requires(T optional) {
   optional.value();
   optional.has_value();
   // optional.operator bool(); // this operator is deliberately removed to fit
   // our specialization for optional<bool> which removed this operation
   optional.operator*();
-};
+} && !optional_message_view<T>;
 
-template <typename Type>
-concept optional_message_view = std::same_as<Type, ::hpp::proto::optional_message_view<typename Type::value_type>>;
+template <typename T>
+concept oneof_type = concepts::variant<T>;
 
-template <typename Type>
-concept oneof_type = concepts::variant<Type>;
+template <typename T>
+concept arithmetic = std::is_arithmetic_v<T> || concepts::varint<T>;
 
-template <typename Type>
-concept scalar = numeric_or_byte<Type> || contiguous_byte_range<Type> || std::same_as<Type, boolean>;
+template <typename T>
+concept byte_serializable =
+    std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
 
-template <typename Type>
-concept pb_extension = requires(Type value) { typename Type::pb_extension; };
+template <typename T>
+concept pb_extension = requires(T value) { typename T::pb_extension; };
 
-template <typename Type>
+template <typename T>
 concept is_map_entry = requires {
-  typename Type::key_type;
-  typename Type::mapped_type;
+  typename T::key_type;
+  typename T::mapped_type;
 };
+
+template <typename T>
+concept is_pair = std::same_as<T, std::pair<typename T::first_type, typename T::second_type>>;
 
 template <typename T>
 concept span = requires {
@@ -203,39 +221,35 @@ template <typename T>
 concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
 
 template <typename T>
-concept byte_serializable =
-    std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
-
-template <typename T>
-concept is_size_cache = std::same_as<T, uint32_t *> || requires(T v) {
+concept is_size_cache_iterator = requires(T v) {
   // NOLINTBEGIN(bugprone-inc-dec-in-conditions)
   { v++ } -> std::same_as<T>;
   // NOLINTEND(bugprone-inc-dec-in-conditions)
-  *v = 0U;
+  *v;
 };
 
 template <typename T>
 concept non_owning_bytes = std::same_as<std::remove_cvref_t<T>, std::string_view> ||
                            (concepts::span<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
 
-template <typename Type>
-concept has_extension = has_meta<Type> && requires(Type value) {
+template <typename T>
+concept has_extension = has_meta<T> && requires(T value) {
   value.extensions;
-  typename decltype(Type::extensions)::pb_extension;
+  typename decltype(T::extensions)::pb_extension;
 };
 
-template <typename Type>
+template <typename T>
 concept unique_ptr = requires {
-  typename Type::element_type;
-  typename Type::deleter_type;
-  requires std::same_as<Type, std::unique_ptr<typename Type::element_type, typename Type::deleter_type>>;
+  typename T::element_type;
+  typename T::deleter_type;
+  requires std::same_as<T, std::unique_ptr<typename T::element_type, typename T::deleter_type>>;
 };
 
-template <typename Type>
-concept is_basic_in = requires { typename Type::is_basic_in; };
+template <typename T>
+concept is_basic_in = requires { typename T::is_basic_in; };
 
-template <typename Type>
-concept is_basic_out = requires { typename Type::is_basic_out; };
+template <typename T>
+concept is_basic_out = requires { typename T::is_basic_out; };
 
 template <typename Range>
 concept segmented_byte_range =
@@ -823,9 +837,7 @@ struct reverse_indices {
   constexpr static auto numbers = get_numbers(typename traits::meta_of<Type>::type{});
   constexpr static unsigned max_number = numbers.size() > 0 ? *std::max_element(numbers.begin(), numbers.end()) : 0;
 
-  // NOLINTBEGIN(hicpp-signed-bitwise)
-  constexpr static auto mask = (1U << std::bit_width(numbers.size())) - 1;
-  // NOLINTEND(hicpp-signed-bitwise)
+  constexpr static auto mask = (1U << static_cast<unsigned>(std::bit_width(numbers.size()))) - 1;
 
   template <std::size_t I, typename T>
     requires requires { T::number; }
@@ -1077,7 +1089,6 @@ struct pb_serializer {
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
     std::span<byte_type> m_data;
 
-
     HPP_PROTO_INLINE constexpr void serialize(concepts::byte_serializable auto item) {
       auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
       if constexpr (endian_swapped && sizeof(item) != 1) {
@@ -1136,66 +1147,71 @@ struct pb_serializer {
     if constexpr (std::tuple_size_v<meta_type> == 0) {
       return 0;
     } else {
-      return std::apply([&item](auto &&...meta) constexpr { return (cache_count(meta, meta.access(item)) + ...); },
-                        meta_type{});
+      return std::apply(
+          [&item](auto &&...meta) constexpr {
+            return ((meta.omit_value(meta.access(item)) ? 0 : cache_count(meta.access(item), meta)) + ...);
+          },
+          meta_type{});
     }
   }
 
   template <typename Meta>
-  HPP_PROTO_INLINE constexpr static std::size_t cache_count(Meta meta, auto const &item) {
+  HPP_PROTO_INLINE constexpr static std::size_t cache_count(concepts::oneof_type auto const &item, Meta) {
+    return oneof_cache_count<0, typename Meta::alternatives_meta>(item);
+  }
+
+  HPP_PROTO_INLINE constexpr static std::size_t cache_count(concepts::dereferenceable auto const &item, auto meta) {
+    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    return cache_count(*item, meta);
+    // NOLINTEND(bugprone-unchecked-optional-access)
+  }
+
+  HPP_PROTO_INLINE constexpr static std::size_t cache_count(concepts::has_meta auto const &item, auto meta) {
+    return cache_count(item) + (!meta.is_group);
+  }
+
+  template <typename Meta>
+  HPP_PROTO_INLINE constexpr static std::size_t cache_count(std::ranges::input_range auto const &item, Meta meta) {
     using type = std::remove_cvref_t<decltype(item)>;
+    using value_type = typename std::ranges::range_value_t<type>;
+    if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
+      return transform_accumulate(item, [](const auto &elem) constexpr { return cache_count(elem, Meta{}); });
+    } else {
+      using element_type =
+          std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
+                             value_type, typename Meta::type>;
 
-    if (meta.omit_value(item)) {
-      return 0;
-    }
-
-    using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
-
-    if constexpr (concepts::oneof_type<type>) {
-      return oneof_cache_count<0, typename Meta::alternatives_meta>(item);
-    } else if constexpr (requires { *item; }) {
-      // NOLINTBEGIN(bugprone-unchecked-optional-access)
-      return cache_count(meta, *item);
-      // NOLINTEND(bugprone-unchecked-optional-access)
-    } else if constexpr (concepts::has_meta<type>) {
-      return cache_count(item) + (!meta.is_group);
-    } else if constexpr (std::ranges::input_range<type>) {
-      if (item.empty()) {
+      if constexpr (std::is_enum_v<element_type> || concepts::varint<element_type>) {
+        return 1;
+      } else {
         return 0;
       }
-      using value_type = typename std::ranges::range_value_t<type>;
-      if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
-        return transform_accumulate(item, [](const auto &elem) constexpr { return cache_count(Meta{}, elem); });
-      } else {
-        using element_type =
-            std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
-                               value_type, typename Meta::type>;
-
-        if constexpr (std::is_enum_v<element_type> || concepts::varint<element_type>) {
-          return 1;
-        } else {
-          return 0;
-        }
-      }
-    } else if constexpr (concepts::is_map_entry<serialize_type>) {
-      using mapped_type = typename serialize_type::mapped_type;
-      if constexpr (concepts::has_meta<mapped_type>) {
-        auto r = cache_count(item.second) + 2;
-        return r;
-      } else {
-        return 1;
-      }
-    } else {
-      return 0;
     }
   }
+
+  template <typename Meta>
+  HPP_PROTO_INLINE constexpr static std::size_t cache_count(concepts::is_pair auto const &item, Meta) {
+    using type = std::remove_cvref_t<decltype(item)>;
+    using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
+
+    static_assert(concepts::is_map_entry<serialize_type>);
+    using mapped_type = typename serialize_type::mapped_type;
+    if constexpr (concepts::has_meta<mapped_type>) {
+      auto r = cache_count(item.second) + 2;
+      return r;
+    } else {
+      return 1;
+    }
+  }
+
+  HPP_PROTO_INLINE constexpr static std::size_t cache_count(auto const &, auto) { return 0; }
 
   template <std::size_t I, typename Meta>
   HPP_PROTO_INLINE constexpr static std::size_t oneof_cache_count(auto const &item) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return cache_count(typename std::tuple_element<I, Meta>::type{},
-                           std::get<I + 1>(std::forward<decltype(item)>(item)));
+        return cache_count(std::get<I + 1>(std::forward<decltype(item)>(item)),
+                           typename std::tuple_element<I, Meta>::type{});
       }
       return oneof_cache_count<I + 1, Meta>(std::forward<decltype(item)>(item));
     } else {
@@ -1222,118 +1238,140 @@ struct pb_serializer {
     return message_size(item, c);
   }
 
-  template <concepts::is_size_cache T>
-  HPP_PROTO_INLINE constexpr static std::size_t message_size(concepts::has_meta auto const &item, T &cache) {
+  template <concepts::is_size_cache_iterator T>
+  HPP_PROTO_INLINE constexpr static std::size_t message_size(concepts::has_meta auto const &item, T &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
     return std::apply(
-        [&item, &cache](auto &&...meta) constexpr {
+        [&item, &cache_itr](auto &&...meta) constexpr {
           std::size_t sum = 0;
-          [[maybe_unused]] auto sum_field_size = [&sum](auto &&...args) constexpr {
-            sum += field_size(std::forward<decltype(args)>(args)...);
+          [[maybe_unused]] auto sum_field_size = [&sum](auto const &field, auto meta,
+                                                        concepts::is_size_cache_iterator auto &cache_itr) constexpr {
+            sum += meta.omit_value(field) ? 0 : field_size(field, meta, cache_itr);
           };
           // we cannot directly use fold expression with '+' operator because it has undefined evaluation order.
-          (sum_field_size(meta, meta.access(item), cache), ...);
+          (sum_field_size(meta.access(item), meta, cache_itr), ...);
           return sum;
         },
         typename traits::meta_of<type>::type{});
   }
 
-  // NOLINTBEGIN(readability-function-cognitive-complexity)
   template <typename Meta>
-  HPP_PROTO_INLINE constexpr static std::size_t field_size(Meta meta, auto const &item,
-                                                           concepts::is_size_cache auto &cache) {
-    using type = std::remove_cvref_t<decltype(item)>;
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::oneof_type auto const &item, Meta,
+                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+    return oneof_size<0, typename Meta::alternatives_meta>(item, cache_itr);
+  }
 
-    if (meta.omit_value(item)) {
-      return 0;
-    }
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::pb_extension auto const &item, auto,
+                                                           concepts::is_size_cache_iterator auto &) {
+    return transform_accumulate(item.fields, [](const auto &e) constexpr { return e.second.size(); });
+  }
 
-    if constexpr (concepts::oneof_type<type>) {
-      return oneof_size<0, typename Meta::alternatives_meta>(item, cache);
-    } else if constexpr (concepts::pb_extension<type>) {
-      return transform_accumulate(item.fields, [](const auto &e) constexpr { return e.second.size(); });
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::is_enum auto item, auto meta,
+                                                           concepts::is_size_cache_iterator auto &) {
+    using type = decltype(item);
+    return varint_size(meta.number << 3U) + varint_size(static_cast<int64_t>(std::underlying_type_t<type>(item)));
+  }
+
+  template <typename Meta>
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::byte_serializable auto item, Meta meta,
+                                                           concepts::is_size_cache_iterator auto &) {
+    using type = decltype(item);
+    using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
+
+    constexpr std::size_t tag_size = varint_size(meta.number << 3U);
+    if constexpr (concepts::byte_serializable<serialize_type>) {
+      return tag_size + sizeof(serialize_type);
     } else {
-      using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
+      static_assert(concepts::varint<serialize_type>);
+      return tag_size + serialize_type(item).encode_size();
+    }
+  }
 
-      constexpr std::size_t tag_size = varint_size(meta.number << 3U);
-      if constexpr (std::is_enum_v<type> && !std::same_as<type, std::byte>) {
-        return tag_size + varint_size(static_cast<int64_t>(std::underlying_type_t<type>(item)));
-      } else if constexpr (concepts::byte_serializable<type>) {
-        if constexpr (concepts::byte_serializable<serialize_type>) {
-          return tag_size + sizeof(serialize_type);
-        } else {
-          static_assert(concepts::varint<serialize_type>);
-          return tag_size + serialize_type(item).encode_size();
-        }
-      } else if constexpr (concepts::varint<type>) {
-        return tag_size + item.encode_size();
-      } else if constexpr (concepts::contiguous_byte_range<type>) {
-        return tag_size + len_size(item.size());
-      } else if constexpr (requires { *item; }) {
-        // NOLINTBEGIN(bugprone-unchecked-optional-access)
-        return field_size(meta, *item, cache);
-        // NOLINTEND(bugprone-unchecked-optional-access)
-      } else if constexpr (concepts::has_meta<type>) {
-        if constexpr (!meta.is_group) {
-          decltype(auto) msg_size = *cache++;
-          auto s = static_cast<uint32_t>(message_size(item, cache));
-          msg_size = s;
-          return tag_size + len_size(s);
-        } else {
-          return 2 * tag_size + message_size(item, cache);
-        }
-      } else if constexpr (std::ranges::input_range<type>) {
-        if (item.empty()) {
-          return 0;
-        }
-        using value_type = typename std::ranges::range_value_t<type>;
-        if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
-          return transform_accumulate(item,
-                                      [&cache](const auto &elem) constexpr { return field_size(Meta{}, elem, cache); });
-        } else {
-          using element_type =
-              std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
-                                 value_type, typename Meta::type>;
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::varint auto item, auto meta,
+                                                           concepts::is_size_cache_iterator auto &) {
+    return varint_size(meta.number << 3U) + item.encode_size();
+  }
 
-          if constexpr (concepts::byte_serializable<element_type>) {
-            return tag_size + len_size(item.size() * sizeof(value_type));
-          } else {
-            auto s = transform_accumulate(item, [](auto elem) constexpr {
-              if constexpr (std::is_enum_v<element_type>) {
-                return varint_size(static_cast<int64_t>(elem));
-              } else {
-                static_assert(concepts::varint<element_type>);
-                return element_type(elem).encode_size();
-              }
-            });
-            decltype(auto) msg_size = *cache++;
-            msg_size = static_cast<uint32_t>(s);
-            return tag_size + len_size(s);
-          }
-        }
-      } else if constexpr (concepts::is_map_entry<serialize_type>) {
-        using value_type = typename serialize_type::read_only_type;
-        auto &[key, value] = item;
-        decltype(auto) msg_size = *cache++;
-        auto s = message_size(value_type{key, value}, cache);
-        msg_size = static_cast<uint32_t>(s);
-        return tag_size + len_size(s);
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::dereferenceable auto const &item, auto meta,
+                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    return field_size(*item, meta, cache_itr);
+    // NOLINTEND(bugprone-unchecked-optional-access)
+  }
+
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::has_meta auto const &item, auto meta,
+                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+    constexpr std::size_t tag_size = varint_size(meta.number << 3U);
+    if constexpr (!meta.is_group) {
+      decltype(auto) msg_size = *cache_itr++;
+      auto s = static_cast<uint32_t>(message_size(item, cache_itr));
+      msg_size = s;
+      return tag_size + len_size(s);
+    } else {
+      return 2 * tag_size + message_size(item, cache_itr);
+    }
+  }
+
+  template <typename Meta>
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::is_pair auto const &item, Meta meta,
+                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+    using type = std::remove_cvref_t<decltype(item)>;
+    using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
+    using value_type = typename serialize_type::read_only_type;
+
+    constexpr std::size_t tag_size = varint_size(meta.number << 3U);
+    auto &[key, value] = item;
+    decltype(auto) msg_size = *cache_itr++;
+    auto s = message_size(value_type{key, value}, cache_itr);
+    msg_size = static_cast<uint32_t>(s);
+    return tag_size + len_size(s);
+  }
+
+  template <typename Meta>
+  HPP_PROTO_INLINE constexpr static std::size_t field_size(std::ranges::input_range auto const &item, Meta meta,
+                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+    using type = std::remove_cvref_t<decltype(item)>;
+    constexpr std::size_t tag_size = varint_size(meta.number << 3U);
+    if constexpr (concepts::contiguous_byte_range<type>) {
+      return tag_size + len_size(item.size());
+    } else {
+      using value_type = typename std::ranges::range_value_t<type>;
+      if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
+        return transform_accumulate(
+            item, [&cache_itr](const auto &elem) constexpr { return field_size(elem, Meta{}, cache_itr); });
       } else {
-        static_assert(!sizeof(type));
-        return 0;
+        using element_type =
+            std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
+                               value_type, typename Meta::type>;
+
+        if constexpr (concepts::byte_serializable<element_type>) {
+          return tag_size + len_size(item.size() * sizeof(value_type));
+        } else {
+          auto s = transform_accumulate(item, [](auto elem) constexpr {
+            if constexpr (std::is_enum_v<element_type>) {
+              return varint_size(static_cast<int64_t>(elem));
+            } else {
+              static_assert(concepts::varint<element_type>);
+              return element_type(elem).encode_size();
+            }
+          });
+          decltype(auto) msg_size = *cache_itr++;
+          msg_size = static_cast<uint32_t>(s);
+          return tag_size + len_size(s);
+        }
       }
     }
   }
-  // NOLINTEND(readability-function-cognitive-complexity)
 
   template <std::size_t I, typename Meta>
-  HPP_PROTO_INLINE constexpr static std::size_t oneof_size(auto const &item, concepts::is_size_cache auto &cache) {
+  HPP_PROTO_INLINE constexpr static std::size_t oneof_size(auto const &item,
+                                                           concepts::is_size_cache_iterator auto &cache_itr) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return field_size(typename std::tuple_element<I, Meta>::type{},
-                          std::get<I + 1>(std::forward<decltype(item)>(item)), cache);
+        return field_size(std::get<I + 1>(std::forward<decltype(item)>(item)),
+                          typename std::tuple_element<I, Meta>::type{}, cache_itr);
       }
-      return oneof_size<I + 1, Meta>(std::forward<decltype(item)>(item), cache);
+      return oneof_size<I + 1, Meta>(std::forward<decltype(item)>(item), cache_itr);
     } else {
       return 0;
     }
@@ -1354,8 +1392,8 @@ struct pb_serializer {
       }
 
       basic_out archive{buffer};
-      auto *cache_data = cache.data();
-      if (!serialize(item, cache_data, archive)) {
+      auto cache_itr = cache.begin();
+      if (!serialize(item, cache_itr, archive)) {
         return std::errc::bad_message;
       }
       if constexpr (requires { buffer.subspan(0, 1); }) {
@@ -1383,121 +1421,153 @@ struct pb_serializer {
     }
   }
 
-  [[nodiscard]] constexpr static bool serialize(concepts::has_meta auto &&item, uint32_t *&cache, auto &archive) {
+  [[nodiscard]] constexpr static bool serialize(concepts::has_meta auto &&item,
+                                                concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using metas = typename traits::meta_of<type>::type;
-    return std::apply([&](auto... meta) { return (serialize_field(meta, meta.access(item), cache, archive) && ...); },
-                      metas{});
+    auto serialize_field_if_not_empty = [&](auto meta) {
+      return meta.omit_value(meta.access(item)) || serialize_field(meta.access(item), meta, cache_itr, archive);
+    };
+    return std::apply([&](auto... meta) { return (serialize_field_if_not_empty(meta) && ...); }, metas{});
   }
 
-  // NOLINTBEGIN(readability-function-cognitive-complexity,cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
   template <typename Meta>
-  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(Meta meta, auto &&item, uint32_t *&cache,
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::oneof_type auto const &item, Meta,
+                                                                       concepts::is_size_cache_iterator auto &cache_itr,
+                                                                       auto &archive) {
+    return serialize_oneof<0, typename Meta::alternatives_meta>(std::forward<decltype(item)>(item), cache_itr, archive);
+  }
+
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool
+  serialize_field(boolean item, auto meta, concepts::is_size_cache_iterator auto &, auto &archive) {
+    archive(make_tag<bool>(meta), item.value);
+    return true;
+  }
+
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::pb_extension auto const &item, auto,
+                                                                       concepts::is_size_cache_iterator auto &,
+                                                                       auto &archive) {
+    for (const auto &f : item.fields) {
+      archive(f.second);
+    }
+    return true;
+  }
+
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool
+  serialize_field(concepts::is_enum auto item, auto meta, concepts::is_size_cache_iterator auto &, auto &archive) {
+    archive(make_tag<decltype(item)>(meta), item);
+    return true;
+  }
+
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool
+  serialize_field(concepts::arithmetic auto item, auto meta, concepts::is_size_cache_iterator auto &, auto &archive) {
+    using serialize_type = typename traits::get_serialize_type<decltype(meta), decltype(item)>::type;
+    archive(make_tag<serialize_type>(meta), serialize_type{item});
+    return true;
+  }
+
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::contiguous_byte_range auto const &item,
+                                                                       auto meta,
+                                                                       concepts::is_size_cache_iterator auto &,
                                                                        auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
-    using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
-
-    if (meta.omit_value(item)) {
-      return true;
+    if (is_string_and_not_utf8(item)) {
+      return false;
     }
+    archive(make_tag<type>(meta), varint{item.size()}, item);
+    return true;
+  }
 
-    if constexpr (concepts::oneof_type<type>) {
-      return serialize_oneof<0, typename Meta::alternatives_meta>(std::forward<decltype(item)>(item), cache, archive);
-    } else if constexpr (std::is_same_v<type, boolean>) {
-      constexpr auto tag = make_tag<bool>(meta);
-      archive(tag, item.value);
-    } else if constexpr (concepts::pb_extension<type>) {
-      for (const auto &f : item.fields) {
-        archive(f.second);
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::dereferenceable auto &&item, auto meta,
+                                                                       concepts::is_size_cache_iterator auto &cache_itr,
+                                                                       auto &archive) {
+    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    return serialize_field(*item, meta, cache_itr, archive);
+    // NOLINTEND(bugprone-unchecked-optional-access)
+  }
+
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::has_meta auto &&item, auto meta,
+                                                                       concepts::is_size_cache_iterator auto &cache_itr,
+                                                                       auto &archive) {
+    if constexpr (!meta.is_group) {
+      archive(make_tag<decltype(item)>(meta), varint{*cache_itr++});
+      return serialize(std::forward<decltype(item)>(item), cache_itr, archive);
+    } else {
+      archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::sgroup)});
+      if (!serialize(std::forward<decltype(item)>(item), cache_itr, archive)) {
+        return false;
       }
-    } else if constexpr (concepts::is_enum<type>) {
-      archive(make_tag<type>(meta), item);
-    } else if constexpr (concepts::numeric<type>) {
-      archive(make_tag<serialize_type>(meta), serialize_type{item});
-    } else if constexpr (concepts::contiguous_byte_range<type>) {
-#ifndef HPP_PROTO_NO_UTF8_VALIDATION
-      if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
-        if (!std::is_constant_evaluated()) {
-          if (!is_utf8(item.data(), item.size())) {
+      archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::egroup)});
+    }
+    return true;
+  }
+
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(std::ranges::range auto &&item, auto meta,
+                                                                       concepts::is_size_cache_iterator auto &cache_itr,
+                                                                       auto &archive) {
+    using Meta = decltype(meta);
+    using type = std::remove_cvref_t<decltype(item)>;
+    using value_type = typename std::ranges::range_value_t<type>;
+    using element_type =
+        std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
+                           value_type, typename Meta::type>;
+
+    if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
+      for (const auto &element : item) {
+        if constexpr (std::same_as<element_type, std::remove_cvref_t<decltype(element)>> ||
+                      concepts::is_map_entry<typename Meta::type>) {
+          if (!serialize_field(element, meta, cache_itr, archive)) {
+            return false;
+          }
+        } else {
+          if (!serialize_field(static_cast<element_type>(element), meta, cache_itr, archive)) {
             return false;
           }
         }
       }
-#endif
-      archive(make_tag<type>(meta), varint{item.size()}, item);
-    } else if constexpr (requires { *item; }) {
-      // NOLINTBEGIN(bugprone-unchecked-optional-access)
-      return serialize_field(meta, *item, cache, archive);
-      // NOLINTEND(bugprone-unchecked-optional-access)
-    } else if constexpr (concepts::has_meta<type>) {
-      if constexpr (!meta.is_group) {
-        archive(make_tag<type>(meta), varint{*cache++});
-        return serialize(std::forward<decltype(item)>(item), cache, archive);
-      } else {
-        archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::sgroup)});
-        if (!serialize(std::forward<decltype(item)>(item), cache, archive)) {
-          return false;
-        }
-        archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::egroup)});
-      }
-    } else if constexpr (std::ranges::range<type>) {
-      if (item.empty()) {
-        return true;
-      }
-      using value_type = typename std::ranges::range_value_t<type>;
-      using element_type =
-          std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
-                             value_type, typename Meta::type>;
-
-      if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
-        for (const auto &element : item) {
-          if constexpr (std::same_as<element_type, std::remove_cvref_t<decltype(element)>> ||
-                        concepts::is_map_entry<typename Meta::type>) {
-            if (!serialize_field(meta, element, cache, archive)) {
-              return false;
-            }
-          } else {
-            if (!serialize_field(meta, static_cast<element_type>(element), cache, archive)) {
-              return false;
-            }
-          }
-        }
-      } else if constexpr (requires {
-                             requires std::is_arithmetic_v<element_type> ||
-                                          std::same_as<typename type::value_type, std::byte>;
-                           }) {
-        // packed fundamental types or bytes
-        archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)},
-                std::forward<decltype(item)>(item));
-      } else {
-        // packed varint or packed enum
-        archive(make_tag<type>(meta), varint{*cache++});
-        for (auto element : item) {
-          archive(element_type{element});
-        }
-      }
-    } else if constexpr (concepts::is_map_entry<typename Meta::type>) {
-      constexpr auto tag = make_tag<type>(meta);
-      auto &&[key, value] = item;
-      archive(tag, varint{*cache++});
-      using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
-      static_assert(concepts::has_meta<value_type>);
-      return serialize(value_type{key, value}, cache, archive);
+    } else if constexpr (requires {
+                           requires std::is_arithmetic_v<element_type> ||
+                                        std::same_as<typename type::value_type, std::byte>;
+                         }) {
+      // packed fundamental types or bytes
+      archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)},
+              std::forward<decltype(item)>(item));
     } else {
-      static_assert(!sizeof(type));
+      // packed varint or packed enum
+      archive(make_tag<type>(meta), varint{*cache_itr++});
+      for (auto element : item) {
+        archive(element_type{element});
+      }
     }
     return true;
   }
-  // NOLINTEND(readability-function-cognitive-complexity,cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
+  template <typename Meta>
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::is_pair auto const &item, Meta meta,
+                                                                       concepts::is_size_cache_iterator auto &cache_itr,
+                                                                       auto &archive) {
+    static_assert(concepts::is_map_entry<typename Meta::type>);
+    using type = std::remove_cvref_t<decltype(item)>;
+    constexpr auto tag = make_tag<type>(meta);
+    auto &&[key, value] = item;
+    archive(tag, varint{*cache_itr++});
+    using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
+    static_assert(concepts::has_meta<value_type>);
+    return serialize(value_type{key, value}, cache_itr, archive);
+  }
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   template <std::size_t I, concepts::tuple Meta>
-  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_oneof(auto &&item, uint32_t *&cache, auto &archive) {
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool
+  serialize_oneof(auto &&item, concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return serialize_field(typename std::tuple_element<I, Meta>::type{},
-                               std::get<I + 1>(std::forward<decltype(item)>(item)), cache, archive);
+        return serialize_field(std::get<I + 1>(std::forward<decltype(item)>(item)),
+                               typename std::tuple_element<I, Meta>::type{}, cache_itr, archive);
       }
-      return serialize_oneof<I + 1, Meta>(std::forward<decltype(item)>(item), cache, archive);
+      return serialize_oneof<I + 1, Meta>(std::forward<decltype(item)>(item), cache_itr, archive);
     }
     return true;
   }
@@ -1575,23 +1645,13 @@ struct pb_serializer {
     template <concepts::byte_serializable T>
     constexpr status deserialize(T &item) {
 
-      if (std::is_constant_evaluated()) {
-        std::array<std::remove_const_t<byte_type>, sizeof(item)> value = {};
-        if constexpr (endian_swapped) {
-          std::reverse_copy(current.begin, current.begin + sizeof(item), value.begin());
-        } else {
-          std::copy(current.begin, current.begin + sizeof(item), value.begin());
-        }
-        item = std::bit_cast<T>(value);
+      std::array<std::remove_const_t<byte_type>, sizeof(item)> value = {};
+      if constexpr (endian_swapped) {
+        std::reverse_copy(current.begin, current.begin + sizeof(item), value.begin());
       } else {
-        if constexpr (endian_swapped && sizeof(T) != 1) {
-          // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-          std::reverse_copy(current.begin, current.begin + sizeof(item), reinterpret_cast<const std::byte *>(&item));
-          // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
-        } else {
-          std::memcpy(&item, current.begin, sizeof(item));
-        }
+        std::copy(current.begin, current.begin + sizeof(item), value.begin());
       }
+      item = std::bit_cast<T>(value);
       current.begin += sizeof(item);
       return {};
     }
@@ -1830,12 +1890,10 @@ struct pb_serializer {
           field_archive.in_avail() == field_archive.region_size()) {
         // if the newly parsed has the same field number with previously parsed, just extends the content
         auto &entry = fields.back().second;
-        // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-        if (reinterpret_cast<const byte_type *>(field_archive.data()) == entry.data() + entry.size()) {
+        if (static_cast<const void *>(field_archive.data()) == entry.data() + entry.size()) {
           entry = std::span<const byte_type>{entry.data(), entry.size() + field_len};
           return {};
         }
-        // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
       }
 
       auto itr =
@@ -2018,10 +2076,10 @@ struct pb_serializer {
     const std::size_t new_size = item.size() + count;
 
     auto deserialize_element = [&](value_encode_type &element) {
-      if constexpr (concepts::scalar<value_encode_type>) {
-        return pb_serializer::deserialize_field(Meta{}, tag, element, context, archive);
-      } else {
+      if constexpr (concepts::has_meta<value_encode_type>) {
         return pb_serializer::deserialize_sized(element, context, archive);
+      } else {
+        return pb_serializer::deserialize_field(element, Meta{}, tag, context, archive);
       }
     };
 
@@ -2065,100 +2123,116 @@ struct pb_serializer {
     }
     return {};
   }
+  // NOLINTEND(readability-function-cognitive-complexity)
+
+  constexpr static status deserialize_field(boolean &item, auto, uint32_t, auto &,
+                                            concepts::is_basic_in auto &archive) {
+    return archive(item.value);
+  }
+
+  constexpr static status deserialize_field(concepts::is_enum auto &item, auto, uint32_t, auto &,
+                                            concepts::is_basic_in auto &archive) {
+    vint64_t value;
+    if (auto result = archive(value); !result.ok()) [[unlikely]] {
+      return result;
+    }
+    item = static_cast<std::remove_reference_t<decltype(item)>>(value.value);
+    return {};
+  }
+
+  constexpr static status deserialize_field(concepts::optional_message_view auto &item, auto meta, uint32_t tag,
+                                            auto &context, concepts::is_basic_in auto &archive) {
+    static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
+    using element_type = std::remove_cvref_t<decltype(*item)>;
+    void *buffer = context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
+    if (buffer == nullptr) [[unlikely]] {
+      return std::errc::not_enough_memory;
+    }
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
+    auto loaded = new (buffer) element_type;
+    // NOLINTEND(cppcoreguidelines-owning-memory)
+    if (auto result = deserialize_field(*loaded, meta, tag, context, archive); !result.ok()) [[unlikely]] {
+      return result;
+    }
+    item = loaded;
+    return {};
+  }
+
+  constexpr static status deserialize_field(concepts::optional auto &item, auto meta, uint32_t tag, auto &context,
+                                            concepts::is_basic_in auto &archive) {
+    if constexpr (requires { item.emplace(); }) {
+      return deserialize_field(item.emplace(), meta, tag, context, archive);
+    } else {
+      using type = std::remove_reference_t<decltype(item)>;
+      item = typename type::value_type{};
+      return deserialize_field(*item, meta, tag, context, archive);
+    }
+  }
+
+  constexpr static status deserialize_field(concepts::unique_ptr auto &item, auto meta, uint32_t tag, auto &context,
+                                            concepts::is_basic_in auto &archive) {
+    using element_type = std::remove_reference_t<decltype(*item)>;
+    auto loaded = std::make_unique<element_type>();
+    if (auto result = deserialize_field(*loaded, meta, tag, context, archive); !result.ok()) [[unlikely]] {
+      return result;
+    }
+    item.reset(loaded.release());
+    return {};
+  }
 
   template <typename Meta>
-  constexpr static status deserialize_field(Meta meta, uint32_t tag, auto &&item, auto &context,
+  constexpr static status deserialize_field(concepts::oneof_type auto &item, Meta, uint32_t tag, auto &context,
+                                            concepts::is_basic_in auto &archive) {
+    using type = std::remove_reference_t<decltype(item)>;
+    static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
+    return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, std::forward<decltype(item)>(item), context,
+                                                                  archive);
+  }
+
+  template <typename Meta>
+  constexpr static status deserialize_field(concepts::arithmetic auto &item, Meta meta, uint32_t tag, auto &context,
+                                            concepts::is_basic_in auto &archive) {
+    using type = std::remove_reference_t<decltype(item)>;
+    using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
+    if constexpr (!std::is_same_v<type, serialize_type>) {
+      serialize_type value;
+      if (auto result = deserialize_field(value, meta, tag, context, archive); !result.ok()) [[unlikely]] {
+        return result;
+      }
+      item = static_cast<type>(value);
+      return {};
+    } else {
+      return archive(item);
+    }
+  }
+
+  constexpr static status deserialize_field(concepts::has_meta auto &item, auto meta, uint32_t tag, auto &context,
+                                            concepts::is_basic_in auto &archive) {
+    if constexpr (!meta.is_group) {
+      return deserialize_sized(item, context, archive);
+    } else {
+      return deserialize_group(tag_number(tag), item, context, archive);
+    }
+  }
+
+  template <typename Meta>
+  constexpr static status deserialize_field(std::ranges::range auto &item, Meta meta, uint32_t tag, auto &context,
                                             concepts::is_basic_in auto &archive) {
 
     const uint32_t field_num = tag_number(tag);
-
     using type = std::remove_reference_t<decltype(item)>;
-    using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
-    if constexpr (std::is_enum_v<type>) {
-      vint64_t value;
-      if (auto result = archive(value); !result.ok()) [[unlikely]] {
+    if constexpr (concepts::contiguous_byte_range<type>) {
+      if (auto result = deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok()) {
         return result;
       }
-      item = static_cast<type>(value.value);
-      return {};
-    } else if constexpr (std::is_same_v<type, boolean>) {
-      return archive(item.value);
-    } else if constexpr (concepts::optional_message_view<type>) {
-      static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
-      using element_type = std::remove_cvref_t<decltype(*item)>;
-      void *buffer = context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
-      if (buffer == nullptr) [[unlikely]] {
-        return std::errc::not_enough_memory;
-      }
-      // NOLINTBEGIN(cppcoreguidelines-owning-memory)
-      auto loaded = new (buffer) element_type;
-      // NOLINTEND(cppcoreguidelines-owning-memory)
-      if (auto result = deserialize_field(meta, tag, *loaded, context, archive); !result.ok()) [[unlikely]] {
-        return result;
-      }
-      item = loaded;
-      return {};
-    } else if constexpr (concepts::optional<type>) {
-      if constexpr (requires { item.emplace(); }) {
-        return deserialize_field(meta, tag, item.emplace(), context, archive);
-      } else {
-        item = typename type::value_type{};
-        return deserialize_field(meta, tag, *item, context, archive);
-      }
-    } else if constexpr (concepts::unique_ptr<type>) {
-      using element_type = std::remove_reference_t<decltype(*item)>;
-      auto loaded = std::make_unique<element_type>();
-      if (auto result = deserialize_field(meta, tag, *loaded, context, archive); !result.ok()) [[unlikely]] {
-        return result;
-      }
-      item.reset(loaded.release());
-      return {};
-    } else if constexpr (concepts::oneof_type<type>) {
-      static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
-      return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, std::forward<decltype(item)>(item), context,
-                                                                    archive);
-    } else if constexpr (!std::is_same_v<type, serialize_type> && concepts::scalar<serialize_type> &&
-                         !std::ranges::range<type>) {
-      serialize_type value;
-      if (auto result = deserialize_field(meta, tag, value, context, archive); !result.ok()) [[unlikely]] {
-        return result;
-      }
-      if constexpr (std::is_arithmetic_v<type>) {
-        item = static_cast<type>(value);
-      } else {
-        item = std::move(value);
-      }
-      return {};
-    } else if constexpr (concepts::numeric_or_byte<type>) {
-      return archive(item);
-    } else if constexpr (concepts::has_meta<type>) {
-      if constexpr (!meta.is_group) {
-        return deserialize_sized(item, context, archive);
-      } else {
-        return deserialize_group(field_num, item, context, archive);
-      }
+      return is_string_and_not_utf8(item) ? std::errc::bad_message : std::errc{};
     } else if constexpr (meta.is_group) {
       // repeated group
       decltype(auto) v = as_modifiable(context, item);
       return deserialize_group(field_num, v.emplace_back(), context, archive);
-    } else if constexpr (concepts::contiguous_byte_range<type>) {
-      if (auto result = deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok()) {
-        return result;
-      }
-#ifndef HPP_PROTO_NO_UTF8_VALIDATION
-      if constexpr (std::same_as<type, std::string> || std::same_as<type, std::string_view>) {
-        // if (!std::is_constant_evaluated()) {
-        //   if (!is_utf8(item.data(), item.size())) {
-        //     return std::errc::bad_message;
-        //   }
-        // }
-      }
-#endif
-      return {};
     } else { // repeated non-group
-      using value_type = typename type::value_type;
-      if constexpr (concepts::numeric<value_type> && !meta.is_unpacked_repeated) {
+      if constexpr (!meta.is_unpacked_repeated) {
         if (tag_type(tag) != wire_type::length_delimited) {
           return deserialize_unpacked_repeated(meta, tag, std::forward<type>(item), context, archive);
         }
@@ -2168,7 +2242,6 @@ struct pb_serializer {
       }
     }
   }
-  // NOLINTEND(readability-function-cognitive-complexity)
 
   constexpr static status deserialize_group(uint32_t field_num, auto &&item, auto &context,
                                             concepts::is_basic_in auto &archive) {
@@ -2195,10 +2268,10 @@ struct pb_serializer {
       using meta = typename std::tuple_element<Index, Meta>::type;
       if (meta::number == tag_number(tag)) {
         if constexpr (requires { item.template emplace<Index + 1>(); }) {
-          return deserialize_field(meta{}, tag, item.template emplace<Index + 1>(), context, archive);
+          return deserialize_field(item.template emplace<Index + 1>(), meta{}, tag, context, archive);
         } else {
           item = std::variant_alternative_t<Index + 1, std::decay_t<decltype(item)>>{};
-          return deserialize_field(meta{}, tag, std::get<Index + 1>(item), context, archive);
+          return deserialize_field(std::get<Index + 1>(item), meta{}, tag, context, archive);
         }
       } else {
         return deserialize_oneof<Index + 1, Meta>(tag, std::forward<decltype(item)>(item), context, archive);
@@ -2209,11 +2282,6 @@ struct pb_serializer {
   }
 
   template <std::size_t Index>
-  // #if defined(__GNUC__)
-  //   __attribute__((always_inline))
-  // #elif defined(_MSC_VER)
-  //   __forceinline
-  // #endif
   constexpr static status deserialize_field_by_index(uint32_t tag, auto &item, auto &context,
                                                      concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
@@ -2222,7 +2290,7 @@ struct pb_serializer {
       // this is extension, not a regular field
       return {};
     } else {
-      return deserialize_field(Meta(), tag, Meta::access(item), context, archive);
+      return deserialize_field(Meta::access(item), Meta(), tag, context, archive);
     }
   }
 
@@ -2465,7 +2533,7 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
 
   if constexpr (ExtensionMeta::has_default_value) {
     return return_type(value_type(ExtensionMeta::default_value));
-  } else if constexpr (concepts::scalar<value_type>) {
+  } else if constexpr (!concepts::has_meta<value_type>) {
     return return_type{value_type{}};
   } else {
     return return_type{unexpected(std::errc::no_message)};

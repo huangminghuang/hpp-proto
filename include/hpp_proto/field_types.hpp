@@ -442,10 +442,12 @@ public:
     return *this;
   }
 
+  // NOLINTBEGIN(bugprone-unhandled-self-assignment, cert-oop54-cpp)
   constexpr equality_comparable_span &operator=(const equality_comparable_span &other) noexcept {
     static_cast<std::span<T> &>(*this) = std::forward<const std::span<T>&>(other);
     return *this;
   }
+  // NOLINTEND(bugprone-unhandled-self-assignment, cert-oop54-cpp)
 
   friend constexpr bool operator==(const equality_comparable_span<T> &lhs, const equality_comparable_span<T> &rhs) {
     return std::ranges::equal(lhs, rhs);
