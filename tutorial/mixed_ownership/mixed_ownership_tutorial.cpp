@@ -58,8 +58,8 @@ int main() {
     // NOLINTBEGIN(bugprone-unchecked-optional-access)
     expect(alex_nested_message->bb == 89);
     // NOLINTEND(bugprone-unchecked-optional-access)
-    hpp::proto::equality_comparable_span<const std::pair<std::string_view, tutorial::Person::NestedMessage>> map_string_nested_message =
-        alex.map_string_nested_message;
+    hpp::proto::equality_comparable_span<const std::pair<std::string_view, tutorial::Person::NestedMessage>>
+        map_string_nested_message = alex.map_string_nested_message;
     expect(map_string_nested_message.size() == 2);
     const std::variant<std::monostate, uint32_t, tutorial::Person::NestedMessage, std::string_view,
                        hpp::proto::bytes_view> &alex_oneof_field = alex.oneof_field;

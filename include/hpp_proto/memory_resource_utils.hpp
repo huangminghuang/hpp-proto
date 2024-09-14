@@ -57,8 +57,8 @@ template <typename T>
 concept is_auxiliary_context = memory_resource<T> || requires { typename T::auxiliary_context_type; };
 
 template <typename T>
-concept dynamic_sized_view = std::derived_from<T, std::span<typename T::element_type>> ||
-                             std::same_as<T, std::string_view>;
+concept dynamic_sized_view =
+    std::derived_from<T, std::span<typename T::element_type>> || std::same_as<T, std::string_view>;
 
 } // namespace concepts
 

@@ -506,7 +506,7 @@ auto pb_meta(const repeated_examples &)
 
 struct non_owning_repeated_examples {
   hpp::proto::equality_comparable_span<const example> examples;
-  bool operator==(const non_owning_repeated_examples &) const= default;
+  bool operator==(const non_owning_repeated_examples &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_examples &)
@@ -807,7 +807,8 @@ auto pb_meta(const byte_span_with_default &)
                                          hpp::proto::bytes_literal<"test">{}>>;
 
 struct byte_span_with_optional {
-  hpp::proto::optional<hpp::proto::equality_comparable_span<const std::byte>, hpp::proto::bytes_literal<"test">{}> value;
+  hpp::proto::optional<hpp::proto::equality_comparable_span<const std::byte>, hpp::proto::bytes_literal<"test">{}>
+      value;
   bool operator==(const byte_span_with_optional &) const = default;
 };
 
@@ -1144,7 +1145,8 @@ struct non_owning_extension_example {
   int32_t int_value = {};
   struct extension_t {
     using pb_extension = non_owning_extension_example;
-    hpp::proto::equality_comparable_span<std::pair<uint32_t, hpp::proto::equality_comparable_span<const std::byte>>> fields;
+    hpp::proto::equality_comparable_span<std::pair<uint32_t, hpp::proto::equality_comparable_span<const std::byte>>>
+        fields;
     bool operator==(const extension_t &) const = default;
   } extensions;
 

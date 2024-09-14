@@ -964,31 +964,31 @@ struct msg_code_generator : code_generator {
 
     if (!descriptor.proto.extension_range.empty()) {
       if (!non_owning_mode) {
-        fmt::format_to(
-            target,
-            "\n"
-            "{0}struct extension_t {{\n"
-            "{0}  using pb_extension = {1};\n"
-            "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
-            "{0}  bool operator==(const extension_t &other) const = default;\n"
-            "{0}}} extensions;\n\n"
-            "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
-            "{0}  return meta.read(extensions);\n"
-            "{0}}}\n"
-            "{0}template<typename Meta>\n"
-            "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
-            "{0}  return meta.write(extensions, std::move(value));\n"
-            "{0}}}\n"
-            "{0}template<typename Meta>\n"
-            "{0}requires Meta::is_repeated\n"
-            "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename "
-            "Meta::element_type> value) {{\n"
-            "{0}  return meta.write(extensions, std::span<const typename Meta::element_type>{{value.begin(), value.end()}});\n"
-            "{0}}}\n"
-            "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
-            "{0}  return meta.element_of(extensions);\n"
-            "{0}}}\n",
-            indent(), descriptor.cpp_name);
+        fmt::format_to(target,
+                       "\n"
+                       "{0}struct extension_t {{\n"
+                       "{0}  using pb_extension = {1};\n"
+                       "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
+                       "{0}  bool operator==(const extension_t &other) const = default;\n"
+                       "{0}}} extensions;\n\n"
+                       "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
+                       "{0}  return meta.read(extensions);\n"
+                       "{0}}}\n"
+                       "{0}template<typename Meta>\n"
+                       "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
+                       "{0}  return meta.write(extensions, std::move(value));\n"
+                       "{0}}}\n"
+                       "{0}template<typename Meta>\n"
+                       "{0}requires Meta::is_repeated\n"
+                       "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename "
+                       "Meta::element_type> value) {{\n"
+                       "{0}  return meta.write(extensions, std::span<const typename "
+                       "Meta::element_type>{{value.begin(), value.end()}});\n"
+                       "{0}}}\n"
+                       "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
+                       "{0}  return meta.element_of(extensions);\n"
+                       "{0}}}\n",
+                       indent(), descriptor.cpp_name);
 
       } else {
         fmt::format_to(

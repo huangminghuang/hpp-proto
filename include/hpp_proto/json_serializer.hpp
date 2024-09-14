@@ -148,7 +148,6 @@ struct optional_message_view_ref {
 };
 // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
-
 template <auto MemPtr>
 constexpr decltype(auto) as_optional_message_view_ref_impl() noexcept {
   return
