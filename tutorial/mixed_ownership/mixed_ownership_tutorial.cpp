@@ -41,14 +41,14 @@ int main() {
 
   {
     using namespace non_owning;
-    std::span<const tutorial::Person> people = new_address_book.people;
+    hpp::proto::equality_comparable_span<const tutorial::Person> people = new_address_book.people;
     expect(people.size() == 2);
     const tutorial::Person &alex = people[0];
     std::string_view alex_name = alex.name;
     expect(alex_name == "Alex");
     const int32_t &alex_id = alex.id;
     expect(alex_id == 1);
-    std::span<const tutorial::Person::PhoneNumber> alex_phones = alex.phones;
+    hpp::proto::equality_comparable_span<const tutorial::Person::PhoneNumber> alex_phones = alex.phones;
     expect(alex_phones[0].number == "19890604");
     using enum tutorial::Person::PhoneType;
     expect(alex_phones[0].type == PHONE_TYPE_MOBILE);
@@ -58,8 +58,8 @@ int main() {
     // NOLINTBEGIN(bugprone-unchecked-optional-access)
     expect(alex_nested_message->bb == 89);
     // NOLINTEND(bugprone-unchecked-optional-access)
-    std::span<const std::pair<std::string_view, tutorial::Person::NestedMessage>> map_string_nested_message =
-        alex.map_string_nested_message;
+    hpp::proto::equality_comparable_span<const std::pair<std::string_view, tutorial::Person::NestedMessage>>
+        map_string_nested_message = alex.map_string_nested_message;
     expect(map_string_nested_message.size() == 2);
     const std::variant<std::monostate, uint32_t, tutorial::Person::NestedMessage, std::string_view,
                        hpp::proto::bytes_view> &alex_oneof_field = alex.oneof_field;

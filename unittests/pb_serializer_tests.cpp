@@ -146,10 +146,8 @@ const ut::suite test_repeated_sint32 = [] {
 };
 
 struct non_owning_repeated_sint32 {
-  std::span<const int32_t> integers;
-  bool operator==(const non_owning_repeated_sint32 &other) const {
-    return std::ranges::equal(integers, other.integers);
-  }
+  hpp::proto::equality_comparable_span<const int32_t> integers;
+  bool operator==(const non_owning_repeated_sint32 &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_sint32 &)
@@ -157,10 +155,8 @@ auto pb_meta(const non_owning_repeated_sint32 &)
         hpp::proto::field_meta<1, &non_owning_repeated_sint32::integers, field_option::none, hpp::proto::vsint32_t>>;
 
 struct non_owning_repeated_sint32_unpacked {
-  std::span<const hpp::proto::vsint32_t> integers;
-  bool operator==(const non_owning_repeated_sint32_unpacked &other) const {
-    return std::ranges::equal(integers, other.integers);
-  }
+  hpp::proto::equality_comparable_span<const hpp::proto::vsint32_t> integers;
+  bool operator==(const non_owning_repeated_sint32_unpacked &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_sint32_unpacked &)
@@ -168,10 +164,8 @@ auto pb_meta(const non_owning_repeated_sint32_unpacked &)
         hpp::proto::field_meta<1, &non_owning_repeated_sint32_unpacked::integers, field_option::unpacked_repeated>>;
 
 struct non_owning_repeated_sint32_unpacked_explicit_type {
-  std::span<const int32_t> integers;
-  bool operator==(const non_owning_repeated_sint32_unpacked_explicit_type &other) const {
-    return std::ranges::equal(integers, other.integers);
-  }
+  hpp::proto::equality_comparable_span<const int32_t> integers;
+  bool operator==(const non_owning_repeated_sint32_unpacked_explicit_type &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_sint32_unpacked_explicit_type &)
@@ -225,11 +219,9 @@ const ut::suite test_non_owning_repeated_sint32 = [] {
 };
 
 struct non_owing_nested_example {
-  const example *nested; // field number == 1
+  hpp::proto::optional_message_view<example> nested; // field number == 1
 
-  constexpr bool operator==(const non_owing_nested_example &other) const {
-    return nested == other.nested || (nested != nullptr && other.nested != nullptr && *nested == *other.nested);
-  }
+  constexpr bool operator==(const non_owing_nested_example &) const = default;
 };
 
 auto pb_meta(const non_owing_nested_example &)
@@ -309,27 +301,23 @@ const ut::suite test_repeated_fixed = [] {
 };
 
 struct non_owning_repeated_fixed {
-  std::span<const uint64_t> integers;
-  bool operator==(const non_owning_repeated_fixed &other) const { return std::ranges::equal(integers, other.integers); }
+  hpp::proto::equality_comparable_span<const uint64_t> integers;
+  bool operator==(const non_owning_repeated_fixed &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_fixed &)
     -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed::integers, field_option::none>>;
 struct non_owning_repeated_fixed_explicit_type {
-  std::span<const uint64_t> integers;
-  bool operator==(const non_owning_repeated_fixed_explicit_type &other) const {
-    return std::ranges::equal(integers, other.integers);
-  }
+  hpp::proto::equality_comparable_span<const uint64_t> integers;
+  bool operator==(const non_owning_repeated_fixed_explicit_type &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_fixed_explicit_type &)
     -> std::tuple<
         hpp::proto::field_meta<1, &non_owning_repeated_fixed_explicit_type::integers, field_option::none, uint64_t>>;
 struct non_owning_repeated_fixed_unpacked {
-  std::span<const uint64_t> integers;
-  bool operator==(const non_owning_repeated_fixed_unpacked &other) const {
-    return std::ranges::equal(integers, other.integers);
-  }
+  hpp::proto::equality_comparable_span<const uint64_t> integers;
+  bool operator==(const non_owning_repeated_fixed_unpacked &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_fixed_unpacked &)
@@ -337,10 +325,8 @@ auto pb_meta(const non_owning_repeated_fixed_unpacked &)
         hpp::proto::field_meta<1, &non_owning_repeated_fixed_unpacked::integers, field_option::unpacked_repeated>>;
 
 struct non_owning_repeated_fixed_unpacked_explicit_type {
-  std::span<const uint64_t> integers;
-  bool operator==(const non_owning_repeated_fixed_unpacked_explicit_type &other) const {
-    return std::ranges::equal(integers, other.integers);
-  }
+  hpp::proto::equality_comparable_span<const uint64_t> integers;
+  bool operator==(const non_owning_repeated_fixed_unpacked_explicit_type &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_fixed_unpacked_explicit_type &)
@@ -416,18 +402,16 @@ const ut::suite test_repeated_bool = [] {
 };
 
 struct non_owning_repeated_bool {
-  std::span<const bool> booleans;
-  bool operator==(const non_owning_repeated_bool &other) const { return std::ranges::equal(booleans, other.booleans); }
+  hpp::proto::equality_comparable_span<const bool> booleans;
+  bool operator==(const non_owning_repeated_bool &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_bool &)
     -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_bool::booleans, field_option::none, bool>>;
 
 struct non_owning_repeated_bool_unpacked {
-  std::span<const bool> booleans;
-  bool operator==(const non_owning_repeated_bool_unpacked &other) const {
-    return std::ranges::equal(booleans, other.booleans);
-  }
+  hpp::proto::equality_comparable_span<const bool> booleans;
+  bool operator==(const non_owning_repeated_bool_unpacked &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_bool_unpacked &)
@@ -479,8 +463,8 @@ const ut::suite test_repeated_enums = [] {
 
 struct non_owning_repeated_enum {
   enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
-  std::span<const NestedEnum> values;
-  bool operator==(const non_owning_repeated_enum &other) const { return std::ranges::equal(values, other.values); }
+  hpp::proto::equality_comparable_span<const NestedEnum> values;
+  bool operator==(const non_owning_repeated_enum &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_enum &)
@@ -488,10 +472,8 @@ auto pb_meta(const non_owning_repeated_enum &)
 
 struct non_owning_repeated_enum_unpacked {
   enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
-  std::span<const NestedEnum> values;
-  bool operator==(const non_owning_repeated_enum_unpacked &other) const {
-    return std::ranges::equal(values, other.values);
-  }
+  hpp::proto::equality_comparable_span<const NestedEnum> values;
+  bool operator==(const non_owning_repeated_enum_unpacked &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_enum_unpacked &)
@@ -523,10 +505,8 @@ auto pb_meta(const repeated_examples &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_examples::examples, field_option::unpacked_repeated>>;
 
 struct non_owning_repeated_examples {
-  std::span<const example> examples;
-  bool operator==(const non_owning_repeated_examples &other) const {
-    return std::ranges::equal(examples, other.examples);
-  }
+  hpp::proto::equality_comparable_span<const example> examples;
+  bool operator==(const non_owning_repeated_examples &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_examples &)
@@ -605,8 +585,8 @@ auto pb_meta(const sequential_map_example &)
                                          hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
 
 struct non_owning_map_example {
-  std::span<const std::pair<int32_t, color_t>> dict;
-  bool operator==(const non_owning_map_example &other) const { return std::ranges::equal(dict, other.dict); }
+  hpp::proto::equality_comparable_span<const std::pair<int32_t, color_t>> dict;
+  bool operator==(const non_owning_map_example &) const = default;
 };
 
 auto pb_meta(const non_owning_map_example &)
@@ -802,24 +782,24 @@ const ut::suite test_bytes = [] {
 };
 
 struct byte_span_example {
-  std::span<const std::byte> value;
-  bool operator==(const byte_span_example &other) const { return std::ranges::equal(value, other.value); }
+  hpp::proto::equality_comparable_span<const std::byte> value;
+  bool operator==(const byte_span_example &) const = default;
 };
 
 auto pb_meta(const byte_span_example &)
     -> std::tuple<hpp::proto::field_meta<1, &byte_span_example::value, field_option::none>>;
 
 struct byte_span_explicit_presence {
-  std::span<const std::byte> value;
-  bool operator==(const byte_span_explicit_presence &other) const { return std::ranges::equal(value, other.value); }
+  hpp::proto::equality_comparable_span<const std::byte> value;
+  bool operator==(const byte_span_explicit_presence &) const = default;
 };
 
 auto pb_meta(const byte_span_explicit_presence &)
     -> std::tuple<hpp::proto::field_meta<1, &byte_span_explicit_presence::value, field_option::explicit_presence>>;
 
 struct byte_span_with_default {
-  std::span<const std::byte> value = "test"_bytes_view;
-  bool operator==(const byte_span_with_default &other) const { return std::ranges::equal(value, other.value); }
+  hpp::proto::equality_comparable_span<const std::byte> value = "test"_bytes_view;
+  bool operator==(const byte_span_with_default &) const = default;
 };
 
 auto pb_meta(const byte_span_with_default &)
@@ -827,11 +807,9 @@ auto pb_meta(const byte_span_with_default &)
                                          hpp::proto::bytes_literal<"test">{}>>;
 
 struct byte_span_with_optional {
-  hpp::proto::optional<std::span<const std::byte>, hpp::proto::bytes_literal<"test">{}> value;
-  bool operator==(const byte_span_with_optional &other) const {
-    return (!value.has_value() && !other.value.has_value()) ||
-           (value.has_value() && other.value.has_value() && std::ranges::equal(*value, *other.value));
-  }
+  hpp::proto::optional<hpp::proto::equality_comparable_span<const std::byte>, hpp::proto::bytes_literal<"test">{}>
+      value;
+  bool operator==(const byte_span_with_optional &) const = default;
 };
 
 auto pb_meta(const byte_span_with_optional &)
@@ -940,8 +918,8 @@ auto pb_meta(const repeated_strings_explicit_type &)
                                          std::string>>;
 
 struct non_owning_repeated_string {
-  std::span<std::string_view> values;
-  bool operator==(const non_owning_repeated_string &other) const { return std::ranges::equal(values, other.values); }
+  hpp::proto::equality_comparable_span<std::string_view> values;
+  bool operator==(const non_owning_repeated_string &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_string &)
@@ -1017,7 +995,7 @@ struct extension_example {
   struct extension_t {
     using pb_extension = extension_example;
     hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
+    bool operator==(const extension_t &) const = default;
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions); }
@@ -1035,7 +1013,7 @@ struct extension_example {
 
   [[nodiscard]] bool has_extension(auto meta) const { return meta.element_of(extensions); }
 
-  bool operator==(const extension_example &other) const = default;
+  bool operator==(const extension_example &) const = default;
 };
 
 auto pb_meta(const extension_example &)
@@ -1167,13 +1145,9 @@ struct non_owning_extension_example {
   int32_t int_value = {};
   struct extension_t {
     using pb_extension = non_owning_extension_example;
-    std::span<std::pair<uint32_t, std::span<const std::byte>>> fields;
-    bool operator==(const extension_t &other) const {
-      return std::equal(fields.begin(), fields.end(), other.fields.begin(), other.fields.end(),
-                        [](const auto &lhs, const auto &rhs) {
-                          return lhs.first == rhs.first && std::ranges::equal(lhs.second, rhs.second);
-                        });
-    }
+    hpp::proto::equality_comparable_span<std::pair<uint32_t, hpp::proto::equality_comparable_span<const std::byte>>>
+        fields;
+    bool operator==(const extension_t &) const = default;
   } extensions;
 
   [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions); }
@@ -1196,7 +1170,7 @@ struct non_owning_extension_example {
   }
 
   [[nodiscard]] bool has_extension(auto meta) const { return meta.element_of(extensions); }
-  bool operator==(const non_owning_extension_example &other) const = default;
+  bool operator==(const non_owning_extension_example &) const = default;
 };
 
 auto pb_meta(const non_owning_extension_example &)
@@ -1249,7 +1223,7 @@ const ut::suite test_non_owning_extensions = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;
 
-    std::array<std::pair<uint32_t, std::span<const std::byte>>, 6> fields_storage = {
+    std::array<std::pair<uint32_t, hpp::proto::equality_comparable_span<const std::byte>>, 6> fields_storage = {
         {{10U, "\x50\x01"_bytes_view},
          {11U, "\x5a\x04\x74\x65\x73\x74"_bytes_view},
          {15U, "\x7a\x03\x08\x96\x01"_bytes_view},
@@ -1348,7 +1322,7 @@ struct recursive_type1 {
   hpp::proto::heap_based_optional<recursive_type1> child;
   uint32_t payload = {};
 
-  bool operator==(const recursive_type1 &other) const = default;
+  bool operator==(const recursive_type1 &) const = default;
 };
 
 auto pb_meta(const recursive_type1 &)
@@ -1359,7 +1333,7 @@ struct recursive_type2 {
   std::vector<recursive_type2> children;
   int32_t payload = {};
 
-  bool operator==(const recursive_type2 &other) const = default;
+  bool operator==(const recursive_type2 &) const = default;
 };
 
 auto pb_meta(const recursive_type2 &)
@@ -1367,13 +1341,10 @@ auto pb_meta(const recursive_type2 &)
                   hpp::proto::field_meta<2, &recursive_type2::payload, field_option::none, hpp::proto::vint64_t>>;
 
 struct non_owning_recursive_type1 {
-  non_owning_recursive_type1 *child = nullptr;
+  hpp::proto::optional_message_view<non_owning_recursive_type1> child;
   uint32_t payload = {};
 
-  bool operator==(const non_owning_recursive_type1 &other) const {
-    return payload == other.payload &&
-           ((child == other.child) || (child != nullptr && other.child != nullptr && *child == *other.child));
-  }
+  bool operator==(const non_owning_recursive_type1 &) const = default;
 };
 
 auto pb_meta(const non_owning_recursive_type1 &)
@@ -1382,7 +1353,7 @@ auto pb_meta(const non_owning_recursive_type1 &)
         hpp::proto::field_meta<2, &non_owning_recursive_type1::payload, field_option::none, hpp::proto::vint64_t>>;
 
 struct non_owning_recursive_type2 {
-  std::span<non_owning_recursive_type2> children;
+  hpp::proto::equality_comparable_span<const non_owning_recursive_type2> children;
   int32_t payload = {};
 #ifdef _LIBCPP_VERSION
   // NOLINTBEGIN(cppcoreguidelines-special-member-functions)
@@ -1395,10 +1366,7 @@ struct non_owning_recursive_type2 {
   constexpr non_owning_recursive_type2 &operator=(const non_owning_recursive_type2 &other) noexcept = default;
   // NOLINTEND(cppcoreguidelines-special-member-functions)
 #endif
-  bool operator==(const non_owning_recursive_type2 &other) const {
-    return payload == other.payload &&
-           std::equal(children.begin(), children.end(), other.children.begin(), other.children.end());
-  }
+  bool operator==(const non_owning_recursive_type2 &) const = default;
 };
 
 auto pb_meta(const non_owning_recursive_type2 &)

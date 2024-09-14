@@ -796,15 +796,15 @@ struct msg_code_generator : code_generator {
     using enum gpb::FieldDescriptorProto::Label;
     using enum gpb::FieldDescriptorProto::Type;
     if (proto.label == LABEL_REPEATED) {
-      return non_owning_mode ? "std::span" : "std::vector";
+      return non_owning_mode ? "hpp::proto::equality_comparable_span" : "std::vector";
     }
-    if (descriptor.is_recursive) {
-      return non_owning_mode ? "*" : "hpp::proto::heap_based_optional";
-    }
-    if (descriptor.is_cpp_optional) {
-      if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
+    if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
+      if (descriptor.is_recursive) {
+        return non_owning_mode ? "hpp::proto::optional_message_view" : "hpp::proto::heap_based_optional";
+      } else if (descriptor.is_cpp_optional) {
         return "std::optional";
       }
+    } else if (descriptor.is_cpp_optional) {
       return "hpp::proto::optional";
     }
     return "";
@@ -822,8 +822,8 @@ struct msg_code_generator : code_generator {
         return fmt::format("{}<{},{}>", type, transform_if_bool(descriptor.map_fields[0]->cpp_field_type),
                            transform_if_bool(descriptor.map_fields[1]->cpp_field_type));
       } else {
-        return fmt::format("std::span<std::pair<{},{}>>", descriptor.map_fields[0]->cpp_field_type,
-                           descriptor.map_fields[1]->cpp_field_type);
+        return fmt::format("hpp::proto::equality_comparable_span<std::pair<{},{}>>",
+                           descriptor.map_fields[0]->cpp_field_type, descriptor.map_fields[1]->cpp_field_type);
       }
     }
 
@@ -834,10 +834,8 @@ struct msg_code_generator : code_generator {
     } else if (wrapper == "hpp::proto::optional" && !descriptor.default_value_template_arg.empty()) {
       return fmt::format("hpp::proto::optional<{},{}>", descriptor.cpp_field_type,
                          descriptor.default_value_template_arg);
-    } else if (wrapper == "*") {
-      return fmt::format("const {}*", descriptor.cpp_field_type);
-    } else if (wrapper == "std::span") {
-      return fmt::format("{}<const {}>", wrapper, descriptor.cpp_field_type);
+    } else if (wrapper == "hpp::proto::equality_comparable_span") {
+      return fmt::format("hpp::proto::equality_comparable_span<const {}>", descriptor.cpp_field_type);
     } else if (!wrapper.empty()) {
       return fmt::format("{}<{}>", wrapper, descriptor.cpp_field_type);
     }
@@ -984,7 +982,8 @@ struct msg_code_generator : code_generator {
                        "{0}requires Meta::is_repeated\n"
                        "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename "
                        "Meta::element_type> value) {{\n"
-                       "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}});\n"
+                       "{0}  return meta.write(extensions, std::span<const typename "
+                       "Meta::element_type>{{value.begin(), value.end()}});\n"
                        "{0}}}\n"
                        "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
                        "{0}  return meta.element_of(extensions);\n"
@@ -992,40 +991,42 @@ struct msg_code_generator : code_generator {
                        indent(), descriptor.cpp_name);
 
       } else {
-        fmt::format_to(target,
-                       "\n"
-                       "{0}struct extension_t {{\n"
-                       "{0}  using pb_extension = {1};\n"
-                       "{0}  std::span<std::pair<uint32_t, hpp::proto::bytes_view>> fields;\n"
-                       "{0}}} extensions;\n\n"
-                       "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_pb_context auto && "
-                       "...ctx) const {{\n"
-                       "{0}  static_assert(sizeof...(ctx) <= 1);\n"
-                       "{0}  return meta.read(extensions, ctx...);\n"
-                       "{0}}}\n"
-                       "{0}template<typename Meta>\n"
-                       "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value,\n"
-                       "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
-                       "{0}  return meta.write(extensions, std::move(value), ctx);\n"
-                       "{0}}}\n"
-                       "{0}template<typename Meta>\n"
-                       "{0}requires Meta::is_repeated\n"
-                       "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
-                       "{0}                                 std::initializer_list<typename Meta::element_type> value,\n"
-                       "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
-                       "{0}  return meta.write(extensions, std::span{{value.begin(), value.end()}}, ctx);\n"
-                       "{0}}}\n"
-                       "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
-                       "{0}  return meta.element_of(extensions);\n"
-                       "{0}}}\n",
-                       indent(), descriptor.cpp_name);
+        fmt::format_to(
+            target,
+            "\n"
+            "{0}struct extension_t {{\n"
+            "{0}  using pb_extension = {1};\n"
+            "{0}  hpp::proto::equality_comparable_span<std::pair<uint32_t, hpp::proto::bytes_view>> fields;\n"
+            "{0}  bool operator==(const extension_t&) const = default;\n"
+            "{0}}} extensions;\n\n"
+            "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_pb_context auto && "
+            "...ctx) const {{\n"
+            "{0}  static_assert(sizeof...(ctx) <= 1);\n"
+            "{0}  return meta.read(extensions, ctx...);\n"
+            "{0}}}\n"
+            "{0}template<typename Meta>\n"
+            "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value,\n"
+            "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
+            "{0}  return meta.write(extensions, std::move(value), ctx);\n"
+            "{0}}}\n"
+            "{0}template<typename Meta>\n"
+            "{0}requires Meta::is_repeated\n"
+            "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
+            "{0}                                 std::initializer_list<typename Meta::element_type> value,\n"
+            "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
+            "{0}  return meta.write(extensions, std::span<const typename Meta::element_type>{{value.begin(), "
+            "value.end()}}, ctx);\n"
+            "{0}}}\n"
+            "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
+            "{0}  return meta.element_of(extensions);\n"
+            "{0}}}\n",
+            indent(), descriptor.cpp_name);
       }
     }
 
-    if (!non_owning_mode) {
-      fmt::format_to(target, "\n{0}bool operator == (const {1}&) const = default;\n", indent(), descriptor.cpp_name);
+    fmt::format_to(target, "\n{0}bool operator == (const {1}&) const = default;\n", indent(), descriptor.cpp_name);
 
-    } else {
+    if (non_owning_mode) {
       bool need_explicit_constructors = false;
       for (auto *f : descriptor.fields) {
         if (f->is_recursive && f->proto.label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
@@ -1526,7 +1527,10 @@ struct glaze_meta_generator : code_generator {
     using enum google::protobuf::FieldDescriptorProto::Type;
     using enum google::protobuf::FieldDescriptorProto::Label;
 
-    if (descriptor.is_cpp_optional && descriptor.proto.type != TYPE_BOOL) {
+    if (non_owning_mode && descriptor.is_recursive) {
+      fmt::format_to(target, "    \"{}\", hpp::proto::as_optional_message_view_ref<&T::{}>,\n",
+                     descriptor.proto.json_name, descriptor.cpp_name);
+    } else if (descriptor.is_cpp_optional && descriptor.proto.type != TYPE_BOOL) {
       // we remove operator! from hpp::optional<bool> to make the interface less confusing; however, this
       // make it unfulfilling the optional concept in glaze library; therefor, we need to apply as_optional_ref
       // as a workaround.
