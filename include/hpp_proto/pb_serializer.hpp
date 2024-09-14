@@ -203,6 +203,9 @@ template <typename T>
 concept pb_extension = requires(T value) { typename T::pb_extension; };
 
 template <typename T>
+concept no_cached_size = is_enum<T> || byte_serializable<T> || concepts::varint<T> || pb_extension<T>;
+
+template <typename T>
 concept is_map_entry = requires {
   typename T::key_type;
   typename T::mapped_type;
@@ -1204,7 +1207,7 @@ struct pb_serializer {
     }
   }
 
-  HPP_PROTO_INLINE constexpr static std::size_t cache_count(auto const &, auto) { return 0; }
+  HPP_PROTO_INLINE constexpr static std::size_t cache_count(concepts::no_cached_size auto const &, auto) { return 0; }
 
   template <std::size_t I, typename Meta>
   HPP_PROTO_INLINE constexpr static std::size_t oneof_cache_count(auto const &item) {
