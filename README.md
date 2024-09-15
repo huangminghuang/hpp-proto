@@ -10,6 +10,46 @@ hpp-proto is a C++20-based tool that simplifies the use of Protocol Buffers in C
 * Only Protocol Buffers syntax 2 and 3 (except `service`) are supported, no edition support currently.
 * Support non-owning mode code generation which maps string and repeated fields to std::string_view and std::span.
 * Support compile time serialization.
+* Far smaller code size (less than 3% of the google counterparts in our test cases).
+* Faster execution time (20% to 55% faster than the google counterparts in our test cases).
+
+## Comparison with google protobuf C++ implementation
+### Runtime Performance 
+
+We measured the runtime performance with the [dataset](https://github.com/protocolbuffers/protobuf/tree/v3.6.0/benchmarks/datasets/google_message1) and the [benchmarks.proto](https://github.com/protocolbuffers/protobuf/blob/v3.6.0/benchmarks/benchmarks.proto) definition from google protobuf version 3.6.0. Three different cases are benchmarked: deserialization, set_message, and set_message plus serialization.  
+
+
+Below are results with Apple MacBook Pro, Model MK193LL/A, Chip Apple M1 Pro.
+| Name                      | deserialize | set_message | set_message + serialize |
+|---------------------------|-------------|-------------|-------------------------|
+| google                    | 463 ns      |  383 ns     | 500 ns                  |
+| google arena allocation   | 359 ns      |  258 ns     | 415 ns                  |
+| hpp_proto owning          | 291 ns      | 78.6 ns     | 284 ns                  |
+| hpp_proto non_owning      | 176 ms      | 8.39 ns     | 185 ns                  |
+
+
+Below are the result with Ubuntu 22.04, Intel Core i9-11950H @ 2.60GHz
+| Name                      | deserialize | set_message | set_message + serialize |
+|---------------------------|-------------|-------------|-------------------------|
+| google                    | 244 ns      |  116 ns     | 221 ns                  |
+| google arena allocation   | 251 ns      |  113 ns     | 226 ns                  |
+| hpp_proto owning          | 197 ns      | 31.7 ns     | 131 ns                  |
+| hpp_proto non_owning      | 168 ms      | 10.9 ns     | 121 ns                  |
+
+
+### Code Size
+We compare the code sizes for the equivalent programs (hpp_proto_decode_encoded, google_decode_encode and google_decode_encode_lite) for decoding and encoding the message defined in
+[benchmark_message_proto3.proto](benchmakrs/benchmark_message_proto3.proto) using hpp-proto and google protobuf implementation version 28.0. The `google_decode_encode` and `google_decode_encode_lite` program are statically linked with `libprotobuf` and `libprotobuf-lite` respectively.
+
+Below are the results for code size in bytes on
+ - Mac:  Apple M1 Mac with Apple clang version 15.0.0
+ - Ubuntu 22.04: x86-64 with gcc 12.3.0
+
+|  name                    |   Mac                   | Ubuntu 22.04    |
+|--------------------------|-------------------------|-----------------|
+| hpp_proto_decode_encoded |   114136                | 87152           | 
+| google_decode_encode     |  2686232                | 3396696         |
+| google_decode_encode_lite|  1139544                | 1474208         |
 
 ## Getting Started
 

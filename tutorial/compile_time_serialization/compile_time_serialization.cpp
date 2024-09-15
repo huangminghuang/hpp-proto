@@ -1,4 +1,4 @@
-#include "addressbook_lite.pb.hpp"
+#include "person.pb.hpp"
 
 template <hpp::proto::compile_time_string str>
 constexpr auto operator""_bytes_view() {
