@@ -209,7 +209,6 @@ void hpp_proto_set_message_owning(benchmark::State &state) {
 BENCHMARK(hpp_proto_set_message_owning<owning::benchmarks::proto2::GoogleMessage1>);
 BENCHMARK(hpp_proto_set_message_owning<owning::benchmarks::proto3::GoogleMessage1>);
 
-
 template <typename Message>
 void google_set_message_and_serialize(benchmark::State &state) {
   size_t total = 0;
@@ -245,7 +244,6 @@ void google_set_message_and_serialize_arena(benchmark::State &state) {
 BENCHMARK(google_set_message_and_serialize_arena<benchmarks::proto2::GoogleMessage1>);
 BENCHMARK(google_set_message_and_serialize_arena<benchmarks::proto3::GoogleMessage1>);
 
-
 template <typename Message>
 void hpp_proto_set_message_and_serialize_owning(benchmark::State &state) {
   size_t total = 0;
@@ -261,7 +259,6 @@ void hpp_proto_set_message_and_serialize_owning(benchmark::State &state) {
 }
 BENCHMARK(hpp_proto_set_message_and_serialize_owning<owning::benchmarks::proto2::GoogleMessage1>);
 BENCHMARK(hpp_proto_set_message_and_serialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
-
 
 template <typename Message>
 void hpp_proto_set_message_and_serialize_nonowning(benchmark::State &state) {
