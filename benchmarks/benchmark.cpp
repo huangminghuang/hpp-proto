@@ -109,11 +109,14 @@ std::span<char> get_data(non_owning::repeated_packed::TestMessage * /*unused*/) 
 template <typename Message>
 void google_deserialize(benchmark::State &state) {
   auto data = get_data((Message *)nullptr);
+  size_t total = 0;
   for (auto _ : state) {
     Message message;
     auto r = message.ParseFromArray(data.data(), static_cast<int>(data.size()));
+    total += data.size();
     benchmark::DoNotOptimize(r);
   }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
 }
 BENCHMARK(google_deserialize<benchmarks::proto2::GoogleMessage1>);
 BENCHMARK(google_deserialize<benchmarks::proto3::GoogleMessage1>);
@@ -121,90 +124,176 @@ BENCHMARK(google_deserialize<benchmarks::proto3::GoogleMessage1>);
 template <typename Message>
 void google_deserialize_arena(benchmark::State &state) {
   auto data = get_data((Message *)nullptr);
+  google::protobuf::Arena arena;
+  size_t total = 0;
   for (auto _ : state) {
-    google::protobuf::Arena arena;
+    arena.Reset();
     auto *message = google::protobuf::Arena::Create<Message>(&arena);
     auto r = message->ParseFromArray(data.data(), static_cast<int>(data.size()));
+    total += data.size();
     benchmark::DoNotOptimize(r);
   }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
 }
 
 BENCHMARK(google_deserialize_arena<benchmarks::proto2::GoogleMessage1>);
 BENCHMARK(google_deserialize_arena<benchmarks::proto3::GoogleMessage1>);
 
 template <typename Message>
-void hpp_deserialize_owning(benchmark::State &state) {
+void hpp_proto_deserialize_owning(benchmark::State &state) {
   auto data = get_data((Message *)nullptr);
+  size_t total = 0;
   for (auto _ : state) {
     Message message;
     auto r = hpp::proto::read_proto(message, data);
+    total += data.size();
     benchmark::DoNotOptimize(r);
   }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(hpp_deserialize_owning<owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_deserialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
-BENCHMARK(hpp_deserialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_deserialize_owning<owning::benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(hpp_proto_deserialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_deserialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
 
 template <typename Message>
-void hpp_deserialize_non_owning(benchmark::State &state) {
+void hpp_proto_deserialize_non_owning(benchmark::State &state) {
   auto data = get_data((Message *)nullptr);
 
   std::vector<char> buf(16 * 1024ULL);
-
+  size_t total = 0;
   for (auto _ : state) {
     std::pmr::monotonic_buffer_resource memory_resource(buf.data(), buf.size());
     Message message;
     auto r = hpp::proto::read_proto(message, data,
                                     hpp::proto::pb_context{memory_resource, hpp::proto::always_allocate_memory{}});
+    total += data.size();
     benchmark::DoNotOptimize(r);
   }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(hpp_deserialize_non_owning<non_owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_deserialize_non_owning<non_owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_deserialize_non_owning<non_owning::benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(hpp_proto_deserialize_non_owning<non_owning::benchmarks::proto3::GoogleMessage1>);
 
 template <typename Message>
-void google_serialize(benchmark::State &state) {
+void google_set_message(benchmark::State &state) {
+  for (auto _ : state) {
+    Message message;
+    set_message_google(message);
+    benchmark::DoNotOptimize(message);
+  }
+}
+BENCHMARK(google_set_message<benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(google_set_message<benchmarks::proto3::GoogleMessage1>);
+
+template <typename Message>
+void google_set_message_arena(benchmark::State &state) {
+  google::protobuf::Arena arena;
+  for (auto _ : state) {
+    arena.Reset();
+    auto *message = google::protobuf::Arena::Create<Message>(&arena);
+    set_message_google(*message);
+    benchmark::DoNotOptimize(message);
+  }
+}
+BENCHMARK(google_set_message_arena<benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(google_set_message_arena<benchmarks::proto3::GoogleMessage1>);
+
+template <typename Message>
+void hpp_proto_set_message_owning(benchmark::State &state) {
+  for (auto _ : state) {
+    Message message;
+    set_message_hpp(message);
+    benchmark::DoNotOptimize(message);
+  }
+}
+BENCHMARK(hpp_proto_set_message_owning<owning::benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_owning<owning::benchmarks::proto3::GoogleMessage1>);
+
+
+template <typename Message>
+void google_set_message_and_serialize(benchmark::State &state) {
+  size_t total = 0;
   for (auto _ : state) {
     Message message;
     set_message_google(message);
     std::string buffer;
     auto r = message.SerializeToString(&buffer);
+    total += buffer.size();
     benchmark::DoNotOptimize(r);
   }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(google_serialize<benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(google_serialize<benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(google_set_message_and_serialize<benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(google_set_message_and_serialize<benchmarks::proto3::GoogleMessage1>);
 
 template <typename Message>
-void hpp_serialize_owning(benchmark::State &state) {
+void google_set_message_and_serialize_arena(benchmark::State &state) {
+  google::protobuf::Arena arena;
+  size_t total = 0;
+  for (auto _ : state) {
+    arena.Reset();
+    auto *message = google::protobuf::Arena::Create<Message>(&arena);
+    set_message_google(*message);
+    std::string buffer;
+    auto r = message->SerializeToString(&buffer);
+    total += buffer.size();
+    benchmark::DoNotOptimize(r);
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
+}
+
+BENCHMARK(google_set_message_and_serialize_arena<benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(google_set_message_and_serialize_arena<benchmarks::proto3::GoogleMessage1>);
+
+
+template <typename Message>
+void hpp_proto_set_message_and_serialize_owning(benchmark::State &state) {
+  size_t total = 0;
   for (auto _ : state) {
     Message message;
     set_message_hpp(message);
     std::vector<char> buffer;
     auto r = hpp::proto::write_proto(message, buffer);
+    total += buffer.size();
     benchmark::DoNotOptimize(r);
   }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(hpp_serialize_owning<owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_serialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
-BENCHMARK(hpp_serialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_and_serialize_owning<owning::benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_and_serialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
+
 
 template <typename Message>
-void hpp_serialize_nonowning(benchmark::State &state) {
+void hpp_proto_set_message_and_serialize_nonowning(benchmark::State &state) {
+  size_t total = 0;
   for (auto _ : state) {
     Message message;
     set_message_hpp(message);
     std::vector<char> buffer;
     auto r = hpp::proto::write_proto(message, buffer);
+    total += buffer.size();
     benchmark::DoNotOptimize(r);
   }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(hpp_serialize_nonowning<non_owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_serialize_nonowning<non_owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<non_owning::benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<non_owning::benchmarks::proto3::GoogleMessage1>);
+
+template <typename Message>
+void hpp_proto_set_message_nonowning(benchmark::State &state) {
+  for (auto _ : state) {
+    Message message;
+    set_message_hpp(message);
+    benchmark::DoNotOptimize(message);
+  }
+}
+
+BENCHMARK(hpp_proto_set_message_nonowning<non_owning::benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_nonowning<non_owning::benchmarks::proto3::GoogleMessage1>);
 
 BENCHMARK(google_deserialize<repeated_packed::TestMessage>);
 BENCHMARK(google_deserialize_arena<repeated_packed::TestMessage>);
-BENCHMARK(hpp_deserialize_owning<owning::repeated_packed::TestMessage>);
-BENCHMARK(hpp_deserialize_non_owning<non_owning::repeated_packed::TestMessage>);
+BENCHMARK(hpp_proto_deserialize_owning<owning::repeated_packed::TestMessage>);
+BENCHMARK(hpp_proto_deserialize_non_owning<non_owning::repeated_packed::TestMessage>);
 
 BENCHMARK_MAIN();
