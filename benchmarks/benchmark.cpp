@@ -153,7 +153,6 @@ void hpp_proto_deserialize_owning(benchmark::State &state) {
 }
 BENCHMARK(hpp_proto_deserialize_owning<owning::benchmarks::proto2::GoogleMessage1>);
 BENCHMARK(hpp_proto_deserialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
-BENCHMARK(hpp_proto_deserialize_owning<owning::benchmarks::proto3::GoogleMessage1>);
 
 template <typename Message>
 void hpp_proto_deserialize_non_owning(benchmark::State &state) {
