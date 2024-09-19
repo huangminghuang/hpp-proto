@@ -415,7 +415,7 @@ public:
   constexpr const T *operator->() const noexcept { return obj; }
 
   constexpr void swap(optional_message_view &other) noexcept { std::swap(obj, other.obj); }
-  constexpr void reset() noexcept { obj = 0; }
+  constexpr void reset() noexcept { obj = nullptr; }
 
   constexpr bool operator==(const optional_message_view &rhs) const {
     if (has_value() && rhs.has_value()) {

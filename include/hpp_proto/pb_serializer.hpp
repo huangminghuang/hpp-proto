@@ -27,6 +27,7 @@
 #include <cassert>
 #include <climits>
 #include <concepts>
+#include <cstddef>
 #include <cstring>
 
 #include <map>
@@ -1241,19 +1242,27 @@ struct pb_serializer {
     return message_size(item, c);
   }
 
+  template <concepts::is_size_cache_iterator Itr>
+  struct field_size_accumulator {
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+    Itr &cache_itr;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
+    std::size_t sum = 0;
+    constexpr field_size_accumulator(Itr &itr) : cache_itr(itr) {}
+    constexpr void operator()(auto const &field, auto meta) {
+      sum += meta.omit_value(field) ? 0 : field_size(field, meta, cache_itr);
+    }
+  };
+
   template <concepts::is_size_cache_iterator T>
   HPP_PROTO_INLINE constexpr static std::size_t message_size(concepts::has_meta auto const &item, T &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
     return std::apply(
-        [&item, &cache_itr](auto &&...meta) constexpr {
-          std::size_t sum = 0;
-          [[maybe_unused]] auto sum_field_size = [&sum](auto const &field, auto meta,
-                                                        concepts::is_size_cache_iterator auto &cache_itr) constexpr {
-            sum += meta.omit_value(field) ? 0 : field_size(field, meta, cache_itr);
-          };
+        [&item, &cache_itr](auto &&...meta) {
           // we cannot directly use fold expression with '+' operator because it has undefined evaluation order.
-          (sum_field_size(meta.access(item), meta, cache_itr), ...);
-          return sum;
+          field_size_accumulator<T> accumulator(cache_itr);
+          (accumulator(meta.access(item), meta), ...);
+          return accumulator.sum;
         },
         typename traits::meta_of<type>::type{});
   }
@@ -2388,8 +2397,8 @@ struct pb_serializer {
   };
 
   template <typename Byte>
-  constexpr static ptrdiff_t setup_input_regions(concepts::segmented_byte_range auto &&source,
-                                                 input_buffer_region<Byte> *regions, Byte *patch_buffer) {
+  constexpr static std::ptrdiff_t setup_input_regions(concepts::segmented_byte_range auto &&source,
+                                                      input_buffer_region<Byte> *regions, Byte *patch_buffer) {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     bool is_first_segment = true;
     regions->effective_size = 0;
