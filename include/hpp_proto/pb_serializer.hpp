@@ -27,8 +27,8 @@
 #include <cassert>
 #include <climits>
 #include <concepts>
-#include <cstring>
 #include <cstddef>
+#include <cstring>
 
 #include <map>
 #include <memory>
@@ -1245,7 +1245,7 @@ struct pb_serializer {
   template <concepts::is_size_cache_iterator Itr>
   struct field_size_accumulator {
     // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
-    Itr& cache_itr;
+    Itr &cache_itr;
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     std::size_t sum = 0;
     constexpr void operator()(auto const &field, auto meta) {
@@ -1257,7 +1257,7 @@ struct pb_serializer {
   HPP_PROTO_INLINE constexpr static std::size_t message_size(concepts::has_meta auto const &item, T &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
     return std::apply(
-        [&item, &cache_itr](auto &&...meta) {   
+        [&item, &cache_itr](auto &&...meta) {
           // we cannot directly use fold expression with '+' operator because it has undefined evaluation order.
           field_size_accumulator accumulator(cache_itr);
           (accumulator(meta.access(item), meta), ...);
@@ -2397,7 +2397,7 @@ struct pb_serializer {
 
   template <typename Byte>
   constexpr static std::ptrdiff_t setup_input_regions(concepts::segmented_byte_range auto &&source,
-                                                 input_buffer_region<Byte> *regions, Byte *patch_buffer) {
+                                                      input_buffer_region<Byte> *regions, Byte *patch_buffer) {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     bool is_first_segment = true;
     regions->effective_size = 0;
