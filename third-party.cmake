@@ -45,7 +45,7 @@ if(HPP_PROTO_PROTOC STREQUAL "find")
                 message(Protobuf_INCLUDE_DIRS=${Protobuf_INCLUDE_DIRS})
             endif()
 
-            add_executable(protoc IMPORTED)
+            add_executable(protoc IMPORTED GLOBAL)
             set_property(TARGET protoc PROPERTY
                 IMPORTED_LOCATION ${PROTOC_PATH})
             add_executable(protobuf::protoc ALIAS protoc)
