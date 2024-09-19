@@ -2,8 +2,10 @@ include(cmake/CPM.cmake)
 
 CPMAddPackage(
     NAME glaze
-    GIT_TAG v2.9.5.mod
-    GITHUB_REPOSITORY huangminghuang/glaze
+    GIT_TAG v2.9.5
+    GITHUB_REPOSITORY stephenberry/glaze
+    PATCH_COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/glaze-2.9.5.patch
+    UPDATE_DISCONNECTED ON 
 )
 
 CPMAddPackage(
@@ -22,7 +24,9 @@ endif()
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
 if(HPP_PROTO_PROTOC STREQUAL "find")
-    find_package(Protobuf)
+    if (PROJECT_IS_TOP_LEVEL)
+        find_package(Protobuf)
+    endif()
 
     if(NOT Protobuf_FOUND)
         find_program(PROTOC_PATH NAMES protoc)

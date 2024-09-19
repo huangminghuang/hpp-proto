@@ -36,7 +36,7 @@ Below are the result with Ubuntu 22.04, Intel Core i9-11950H @ 2.60GHz
 | hpp_proto owning          | 197 ns      | 31.7 ns     | 131 ns                  |
 | hpp_proto non_owning      | 168 ms      | 10.9 ns     | 121 ns                  |
 
-
+[Benchmark code is available here](benchmarks/benchmark.cpp)
 ### Code Size
 We compare the code sizes for the equivalent programs (hpp_proto_decode_encoded, google_decode_encode and google_decode_encode_lite) for decoding and encoding the message defined in
 [benchmark_message_proto3.proto](benchmakrs/benchmark_message_proto3.proto) using hpp-proto and google protobuf implementation version 28.0. The `google_decode_encode` and `google_decode_encode_lite` program are statically linked with `libprotobuf` and `libprotobuf-lite` respectively.
