@@ -1248,6 +1248,7 @@ struct pb_serializer {
     Itr &cache_itr;
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     std::size_t sum = 0;
+    constexpr field_size_accumulator(Itr &itr) : cache_itr(itr) {}
     constexpr void operator()(auto const &field, auto meta) {
       sum += meta.omit_value(field) ? 0 : field_size(field, meta, cache_itr);
     }
