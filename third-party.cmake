@@ -2,10 +2,8 @@ include(cmake/CPM.cmake)
 
 CPMAddPackage(
     NAME glaze
-    GIT_TAG v2.9.5
-    GITHUB_REPOSITORY stephenberry/glaze
-    PATCH_COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/glaze-2.9.5.patch
-    UPDATE_DISCONNECTED ON 
+    GIT_TAG v2.9.5.mod
+    GITHUB_REPOSITORY huangminghuang/glaze
 )
 
 CPMAddPackage(

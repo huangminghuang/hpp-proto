@@ -1259,7 +1259,7 @@ struct pb_serializer {
     return std::apply(
         [&item, &cache_itr](auto &&...meta) {
           // we cannot directly use fold expression with '+' operator because it has undefined evaluation order.
-          field_size_accumulator accumulator(cache_itr);
+          field_size_accumulator<T> accumulator(cache_itr);
           (accumulator(meta.access(item), meta), ...);
           return accumulator.sum;
         },
