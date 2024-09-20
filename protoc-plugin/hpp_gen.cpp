@@ -483,6 +483,13 @@ struct hpp_addons {
     }
     void add_oneof(OneofD &o) { oneofs.push_back(&o); }
     void add_extension(FieldD &f) { extensions.push_back(&f); }
+
+    void set_file_parent(void *parent) {
+      file_parent = parent;
+      for (auto *submsg : messages) {
+        submsg->set_file_parent(parent);
+      }
+    }
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
@@ -508,7 +515,7 @@ struct hpp_addons {
     }
     void add_enum(EnumD &e) { enums.push_back(&e); }
     void add_message(MessageD &m) {
-      m.file_parent = this;
+      m.set_file_parent(this);
       messages.push_back(&m);
     }
     void add_extension(FieldD &f) { extensions.push_back(&f); }
@@ -731,14 +738,21 @@ struct msg_code_generator : code_generator {
           }
         }
 
-        auto itr = pool.message_map.find(dependent);
-        if (itr != pool.message_map.end()) {
-          itr->second->dependencies.insert(qualified_cpp_name(dependee));
+        auto find = [](const auto &m, const std::string &key) {
+          auto itr = m.find(key);
+          return (itr == m.end()) ? nullptr : itr->second;
+        };
+
+        auto *dependent_msg = find(pool.message_map, dependent);
+        auto *dependee_msg = find(pool.message_map, type_name);
+
+        if (dependent_msg != nullptr &&
+            (dependee_msg == nullptr || dependent_msg->file_parent == dependee_msg->file_parent)) {
+          dependent_msg->dependencies.insert(qualified_cpp_name(dependee));
         }
 
-        itr = pool.message_map.find(type_name);
-        if (itr != pool.message_map.end()) {
-          itr->second->used_by_fields.insert(&field);
+        if (dependee_msg != nullptr) {
+          dependee_msg->used_by_fields.insert(&field);
         }
 
         if (type == TYPE_ENUM && field.proto.label == gpb::FieldDescriptorProto::Label::LABEL_OPTIONAL &&
