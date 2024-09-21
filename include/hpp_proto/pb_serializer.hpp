@@ -1214,8 +1214,7 @@ struct pb_serializer {
   HPP_PROTO_INLINE constexpr static std::size_t oneof_cache_count(auto const &item) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return cache_count(std::get<I + 1>(item),
-                           typename std::tuple_element<I, Meta>::type{});
+        return cache_count(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{});
       }
       return oneof_cache_count<I + 1, Meta>(item);
     } else {
