@@ -1214,10 +1214,9 @@ struct pb_serializer {
   HPP_PROTO_INLINE constexpr static std::size_t oneof_cache_count(auto const &item) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return cache_count(std::get<I + 1>(std::forward<decltype(item)>(item)),
-                           typename std::tuple_element<I, Meta>::type{});
+        return cache_count(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{});
       }
-      return oneof_cache_count<I + 1, Meta>(std::forward<decltype(item)>(item));
+      return oneof_cache_count<I + 1, Meta>(item);
     } else {
       return 0;
     }
@@ -1248,7 +1247,7 @@ struct pb_serializer {
     Itr &cache_itr;
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     std::size_t sum = 0;
-    constexpr field_size_accumulator(Itr &itr) : cache_itr(itr) {}
+    explicit constexpr field_size_accumulator(Itr &itr) : cache_itr(itr) {}
     constexpr void operator()(auto const &field, auto meta) {
       sum += meta.omit_value(field) ? 0 : field_size(field, meta, cache_itr);
     }

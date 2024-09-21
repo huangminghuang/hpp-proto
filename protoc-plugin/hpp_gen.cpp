@@ -38,7 +38,6 @@
 namespace gpb = google::protobuf;
 // NOLINTBEGIN(cert-err58-cpp)
 const std::unordered_set<std::string_view> keywords = {
-    //
     "NULL",          "alignas",      "alignof",   "and",        "and_eq",
     "asm",           "auto",         "bitand",    "bitor",      "bool",
     "break",         "case",         "catch",     "char",       "class",
@@ -96,7 +95,7 @@ std::string qualified_cpp_name(std::string_view name) {
   return result;
 }
 
-constexpr size_t cpp_escaped_len(char c) {
+constexpr std::size_t cpp_escaped_len(char c) {
   /* clang-format off */
   constexpr unsigned char cpp_escaped_len_table[256] = {
       4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 4, 4, 2, 4, 4,  // \t, \n, \r
@@ -124,8 +123,8 @@ constexpr size_t cpp_escaped_len(char c) {
 // Calculates the length of the C-style escaped version of 'src'.
 // Assumes that non-printable characters are escaped using octal sequences,
 // and that UTF-8 bytes are not handled specially.
-inline size_t cpp_escaped_len(std::string_view src) {
-  size_t len = 0;
+inline std::size_t cpp_escaped_len(std::string_view src) {
+  std::size_t len = 0;
   for (const char c : src) {
     len += cpp_escaped_len(c);
   }
@@ -133,7 +132,7 @@ inline size_t cpp_escaped_len(std::string_view src) {
 }
 
 std::string cpp_escape(std::string_view src) {
-  const size_t escaped_len = cpp_escaped_len(src);
+  const std::size_t escaped_len = cpp_escaped_len(src);
   if (escaped_len == src.size()) {
     return {src.data(), src.size()};
   }
@@ -142,7 +141,7 @@ std::string cpp_escape(std::string_view src) {
   auto itr = std::back_inserter(result);
 
   for (const char c : src) {
-    const size_t char_len = cpp_escaped_len(c);
+    const std::size_t char_len = cpp_escaped_len(c);
     if (char_len == 1) {
       *itr++ = c;
     } else if (char_len == 2) {
@@ -282,27 +281,27 @@ struct hpp_addons {
         qualified_cpp_field_type = "float";
         break;
       case TYPE_INT64:
-        cpp_field_type = "int64_t";
-        qualified_cpp_field_type = "int64_t";
+        cpp_field_type = "std::int64_t";
+        qualified_cpp_field_type = "std::int64_t";
         cpp_meta_type = "hpp::proto::vint64_t";
         break;
       case TYPE_UINT64:
-        cpp_field_type = "uint64_t";
-        qualified_cpp_field_type = "uint64_t";
+        cpp_field_type = "std::uint64_t";
+        qualified_cpp_field_type = "std::uint64_t";
         cpp_meta_type = "hpp::proto::vuint64_t";
         break;
       case TYPE_INT32:
-        cpp_field_type = "int32_t";
-        qualified_cpp_field_type = "int32_t";
+        cpp_field_type = "std::int32_t";
+        qualified_cpp_field_type = "std::int32_t";
         cpp_meta_type = "hpp::proto::vint64_t";
         break;
       case TYPE_FIXED64:
-        cpp_field_type = "uint64_t";
-        qualified_cpp_field_type = "uint64_t";
+        cpp_field_type = "std::uint64_t";
+        qualified_cpp_field_type = "std::uint64_t";
         break;
       case TYPE_FIXED32:
-        cpp_field_type = "uint32_t";
-        qualified_cpp_field_type = "uint32_t";
+        cpp_field_type = "std::uint32_t";
+        qualified_cpp_field_type = "std::uint32_t";
         break;
       case TYPE_BOOL:
         cpp_field_type = "bool";
@@ -335,25 +334,25 @@ struct hpp_addons {
         qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_UINT32:
-        cpp_field_type = "uint32_t";
+        cpp_field_type = "std::uint32_t";
         qualified_cpp_field_type = cpp_field_type;
         cpp_meta_type = "hpp::proto::vuint32_t";
         break;
       case TYPE_SFIXED32:
-        cpp_field_type = "int32_t";
+        cpp_field_type = "std::int32_t";
         qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_SFIXED64:
-        cpp_field_type = "int64_t";
+        cpp_field_type = "std::int64_t";
         qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_SINT32:
-        cpp_field_type = "int32_t";
+        cpp_field_type = "std::int32_t";
         qualified_cpp_field_type = cpp_field_type;
         cpp_meta_type = "hpp::proto::vsint32_t";
         break;
       case TYPE_SINT64:
-        cpp_field_type = "int64_t";
+        cpp_field_type = "std::int64_t";
         qualified_cpp_field_type = cpp_field_type;
         cpp_meta_type = "hpp::proto::vsint64_t";
         break;
@@ -405,7 +404,7 @@ struct hpp_addons {
         } else {
           const std::string_view typename_view = cpp_field_type;
           std::string suffix;
-          if (typename_view[0] == 'u') {
+          if (typename_view[5] == 'u') {
             suffix = "U";
           }
 
@@ -716,6 +715,7 @@ struct msg_code_generator : code_generator {
   explicit msg_code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
       : code_generator(files), out_of_class_target(out_of_class_data) {}
 
+  // NOLINTBEGIN(readability-function-cognitive-complexity)
   static void resolve_message_dependencies(hpp_gen_descriptor_pool &pool) {
     for (auto &field : pool.fields) {
       using enum google::protobuf::FieldDescriptorProto::Type;
@@ -765,6 +765,7 @@ struct msg_code_generator : code_generator {
       }
     }
   }
+  // NOLINTEND(readability-function-cognitive-complexity)
 
   void process(file_descriptor_t &descriptor) {
     syntax = descriptor.syntax;
@@ -782,7 +783,7 @@ struct msg_code_generator : code_generator {
     if (!ns.empty()) {
       fmt::format_to(target,
                      "\nnamespace {} {{\n"
-                     "//NOLINTBEGIN(readability-redundant-member-init,performance-enum-size)\n\n",
+                     "//NOLINTBEGIN(performance-enum-size)\n\n",
                      ns);
     }
 
@@ -798,7 +799,7 @@ struct msg_code_generator : code_generator {
 
     if (!ns.empty()) {
       fmt::format_to(target,
-                     "// NOLINTEND(readability-redundant-member-init,performance-enum-size)\n"
+                     "// NOLINTEND(performance-enum-size)\n"
                      "}} // namespace {}\n"
                      "// clang-format on\n",
                      ns);
@@ -873,8 +874,10 @@ struct msg_code_generator : code_generator {
     set_presence_rule(descriptor);
     std::string attribute;
     std::string initializer = " = {}";
+    using enum gpb::FieldDescriptorProto::Type;
 
-    if (field_type_wrapper(descriptor).size() > 1) {
+    if (field_type_wrapper(descriptor).size() > 1 || descriptor.proto.type == TYPE_STRING ||
+        descriptor.proto.type == TYPE_BYTES) {
       initializer = "";
     } else if (!descriptor.default_value.empty()) {
       initializer = " = " + descriptor.default_value;
@@ -883,7 +886,7 @@ struct msg_code_generator : code_generator {
                    initializer);
   }
 
-  void process(oneof_descriptor_t &descriptor, int32_t number) {
+  void process(oneof_descriptor_t &descriptor, std::int32_t number) {
     if (number != descriptor.fields[0]->proto.number) {
       return;
     }
@@ -900,10 +903,16 @@ struct msg_code_generator : code_generator {
       }
       indent_num -= 2;
       fmt::format_to(target, "{}}};\n\n", indent());
+      fmt::format_to(target,
+                     "{}static constexpr std::array<std::uint32_t, {}> {}_oneof_numbers{{\n"
+                     "{}  0U",
+                     indent(), descriptor.fields.size() + 1, descriptor.cpp_name, indent());
 
       for (auto *f : descriptor.fields) {
+        fmt::format_to(target, ", {}U", f->proto.number);
         types += (", " + f->cpp_field_type);
       }
+      fmt::format_to(target, "}};\n");
       fmt::format_to(target, "{}std::variant<std::monostate{}> {};\n", indent(), types, descriptor.cpp_name);
     } else {
       auto *f = descriptor.fields[0];
@@ -1641,7 +1650,7 @@ struct desc_hpp_generator : code_generator {
     const auto *const ns = "hpp::proto::file_descriptors";
     fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
 
-    std::vector<uint8_t> buf;
+    std::vector<std::uint8_t> buf;
     (void)hpp::proto::write_proto(descriptor.proto, buf);
 
     fmt::format_to(target,
@@ -1747,7 +1756,7 @@ int main(int argc, const char **argv) {
   mark_map_entries(pool);
 
   gpb::compiler::CodeGeneratorResponse response;
-  response.supported_features = (uint64_t)gpb::compiler::CodeGeneratorResponse::Feature::FEATURE_PROTO3_OPTIONAL;
+  response.supported_features = (std::uint64_t)gpb::compiler::CodeGeneratorResponse::Feature::FEATURE_PROTO3_OPTIONAL;
 
   for (auto &f : pool.files) {
     f.resolve_dependencies(pool.file_map);
