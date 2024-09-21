@@ -444,7 +444,7 @@ public:
 
   // NOLINTBEGIN(bugprone-unhandled-self-assignment, cert-oop54-cpp)
   constexpr equality_comparable_span &operator=(const equality_comparable_span &other) noexcept {
-    static_cast<std::span<T> &>(*this) = std::forward<const std::span<T> &>(other);
+    static_cast<std::span<T> &>(*this) = std::span<T>(other);
     return *this;
   }
   // NOLINTEND(bugprone-unhandled-self-assignment, cert-oop54-cpp)
