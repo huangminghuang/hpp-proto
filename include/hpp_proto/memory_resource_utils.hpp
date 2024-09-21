@@ -272,15 +272,13 @@ public:
     capacity_ = 0;
   }
 
-  constexpr void assign_range(std::ranges::sized_range auto &&r) {
-    assign_range_with_size(std::forward<decltype(r)>(r), std::ranges::size(r));
-  }
+  constexpr void assign_range(const View &r) { assign_range_with_size(r, std::ranges::size(r)); }
 
-  constexpr void append_range(std::ranges::sized_range auto &&r) {
+  constexpr void append_range(const View &r) {
     auto old_size = view_.size();
     auto n = std::ranges::size(r);
     assign_range_with_size(view_, old_size + n);
-    std::ranges::uninitialized_copy(std::forward<decltype(r)>(r), std::span{data_ + old_size, n});
+    std::ranges::uninitialized_copy(r, std::span{data_ + old_size, n});
   }
 
   constexpr void reserve(std::size_t n) {
@@ -316,20 +314,15 @@ private:
   value_type *data_ = nullptr;
   std::size_t capacity_ = 0;
 
-  constexpr void assign_range_with_size(std::ranges::sized_range auto &&r, std::size_t n) {
+  constexpr void assign_range_with_size(const View &r, std::size_t n) {
     if (capacity_ < n) {
       auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
-      std::ranges::uninitialized_copy(std::forward<decltype(r)>(r), std::span{new_data, n});
+      std::ranges::uninitialized_copy(r, std::span{new_data, n});
       data_ = new_data;
-    } else {
-      if constexpr (std::same_as<std::remove_cvref_t<decltype(r)>, View>) {
-        if (view_.data() != r.data()) {
-          std::ranges::copy(std::forward<decltype(r)>(r), data_);
-        }
-      } else {
-        std::ranges::copy(std::forward<decltype(r)>(r), data_);
-      }
+    } else if (view_.data() != r.data()) {
+      std::ranges::copy(r, data_);
     }
+
     view_ = View{data_, n};
   }
 };

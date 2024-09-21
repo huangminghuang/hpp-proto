@@ -1379,10 +1379,9 @@ struct pb_serializer {
                                                            concepts::is_size_cache_iterator auto &cache_itr) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return field_size(std::get<I + 1>(std::forward<decltype(item)>(item)),
-                          typename std::tuple_element<I, Meta>::type{}, cache_itr);
+        return field_size(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{}, cache_itr);
       }
-      return oneof_size<I + 1, Meta>(std::forward<decltype(item)>(item), cache_itr);
+      return oneof_size<I + 1, Meta>(item, cache_itr);
     } else {
       return 0;
     }
@@ -1448,7 +1447,7 @@ struct pb_serializer {
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::oneof_type auto const &item, Meta,
                                                                        concepts::is_size_cache_iterator auto &cache_itr,
                                                                        auto &archive) {
-    return serialize_oneof<0, typename Meta::alternatives_meta>(std::forward<decltype(item)>(item), cache_itr, archive);
+    return serialize_oneof<0, typename Meta::alternatives_meta>(item, cache_itr, archive);
   }
 
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool
@@ -1499,15 +1498,15 @@ struct pb_serializer {
     // NOLINTEND(bugprone-unchecked-optional-access)
   }
 
-  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::has_meta auto &&item, auto meta,
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::has_meta auto const &item, auto meta,
                                                                        concepts::is_size_cache_iterator auto &cache_itr,
                                                                        auto &archive) {
     if constexpr (!meta.is_group) {
       archive(make_tag<decltype(item)>(meta), varint{*cache_itr++});
-      return serialize(std::forward<decltype(item)>(item), cache_itr, archive);
+      return serialize(item, cache_itr, archive);
     } else {
       archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::sgroup)});
-      if (!serialize(std::forward<decltype(item)>(item), cache_itr, archive)) {
+      if (!serialize(item, cache_itr, archive)) {
         return false;
       }
       archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::egroup)});
@@ -1515,7 +1514,7 @@ struct pb_serializer {
     return true;
   }
 
-  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(std::ranges::range auto &&item, auto meta,
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(std::ranges::range auto const &item, auto meta,
                                                                        concepts::is_size_cache_iterator auto &cache_itr,
                                                                        auto &archive) {
     using Meta = decltype(meta);
@@ -1543,8 +1542,7 @@ struct pb_serializer {
                                         std::same_as<typename type::value_type, std::byte>;
                          }) {
       // packed fundamental types or bytes
-      archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)},
-              std::forward<decltype(item)>(item));
+      archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)}, item);
     } else {
       // packed varint or packed enum
       archive(make_tag<type>(meta), varint{*cache_itr++});
@@ -1572,13 +1570,12 @@ struct pb_serializer {
 
   template <std::size_t I, concepts::tuple Meta>
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool
-  serialize_oneof(auto &&item, concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
+  serialize_oneof(auto const &item, concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return serialize_field(std::get<I + 1>(std::forward<decltype(item)>(item)),
-                               typename std::tuple_element<I, Meta>::type{}, cache_itr, archive);
+        return serialize_field(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{}, cache_itr, archive);
       }
-      return serialize_oneof<I + 1, Meta>(std::forward<decltype(item)>(item), cache_itr, archive);
+      return serialize_oneof<I + 1, Meta>(item, cache_itr, archive);
     }
     return true;
   }
@@ -2196,8 +2193,7 @@ struct pb_serializer {
                                             concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
     static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
-    return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, std::forward<decltype(item)>(item), context,
-                                                                  archive);
+    return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, item, context, archive);
   }
 
   template <typename Meta>
@@ -2234,7 +2230,7 @@ struct pb_serializer {
     using type = std::remove_reference_t<decltype(item)>;
 
     if constexpr (concepts::contiguous_byte_range<type>) {
-      if (auto result = deserialize_packed_repeated(meta, std::forward<type>(item), context, archive); !result.ok()) {
+      if (auto result = deserialize_packed_repeated(meta, item, context, archive); !result.ok()) {
         return result;
       }
       return is_string_and_not_utf8(item) ? std::errc::bad_message : std::errc{};
@@ -2245,11 +2241,11 @@ struct pb_serializer {
     } else { // repeated non-group
       if constexpr (!meta.is_unpacked_repeated) {
         if (tag_type(tag) != wire_type::length_delimited) {
-          return deserialize_unpacked_repeated(meta, tag, std::forward<type>(item), context, archive);
+          return deserialize_unpacked_repeated(meta, tag, item, context, archive);
         }
-        return deserialize_packed_repeated(meta, std::forward<type>(item), context, archive);
+        return deserialize_packed_repeated(meta, item, context, archive);
       } else {
-        return deserialize_unpacked_repeated(meta, tag, std::forward<type>(item), context, archive);
+        return deserialize_unpacked_repeated(meta, tag, item, context, archive);
       }
     }
   }
@@ -2616,7 +2612,7 @@ template <typename T, concepts::resizable_contiguous_byte_container Buffer>
 }
 
 template <typename T>
-constexpr static T read_proto(concepts::input_byte_range auto &&buffer) {
+constexpr static T read_proto(concepts::input_byte_range auto const &buffer) {
   T obj = {};
   if (auto result = pb_serializer::deserialize(obj, buffer, pb_context{}); !result.ok()) {
     throw std::system_error(std::make_error_code(result.ec));
@@ -2625,17 +2621,17 @@ constexpr static T read_proto(concepts::input_byte_range auto &&buffer) {
 }
 
 template <typename T, concepts::input_byte_range Buffer>
-[[nodiscard]] status read_proto(T &msg, Buffer &&buffer, concepts::is_pb_context auto &&...ctx) {
+[[nodiscard]] status read_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   msg = {};
-  return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), ctx...);
+  return pb_serializer::deserialize(msg, buffer, ctx...);
 }
 
 /// @brief  deserialize from the buffer and merge the content with the existing msg
 template <typename T, concepts::input_byte_range Buffer>
-[[nodiscard]] status merge_proto(T &msg, Buffer &&buffer, concepts::is_pb_context auto &&...ctx) {
+[[nodiscard]] status merge_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
-  return pb_serializer::deserialize(msg, std::forward<Buffer>(buffer), ctx...);
+  return pb_serializer::deserialize(msg, buffer, ctx...);
 }
 
 namespace concepts {
