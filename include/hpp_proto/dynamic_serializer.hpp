@@ -1544,9 +1544,7 @@ public:
   expected<std::string, hpp::proto::status>
   proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
     std::string result;
-    if (auto ec =
-            proto_to_json<Options>(message_name, pb_encoded_stream, result);
-        !ec.ok()) [[unlikely]] {
+    if (auto ec = proto_to_json<Options>(message_name, pb_encoded_stream, result); !ec.ok()) [[unlikely]] {
       return unexpected(ec);
     }
     return result;
@@ -1597,8 +1595,7 @@ public:
   [[nodiscard]] glz::expected<std::vector<std::byte>, hpp::proto::json_status>
   json_to_proto(std::string_view message_name, std::string_view json) const {
     std::vector<std::byte> result;
-    if (auto ec = json_to_proto<Opts>(message_name, json, result); !ec.ok())
-        [[unlikely]] {
+    if (auto ec = json_to_proto<Opts>(message_name, json, result); !ec.ok()) [[unlikely]] {
       return glz::unexpected(ec);
     }
     return result;
@@ -1610,12 +1607,10 @@ public:
   }
 
   template <auto Options, class End>
-  void from_json_any(hpp::proto::concepts::is_any auto &value, glz::is_context auto &ctx, auto &it,
-                     End &end) const {
+  void from_json_any(hpp::proto::concepts::is_any auto &value, glz::is_context auto &ctx, auto &it, End &end) const {
     json_to_pb_state state{*this};
     relocatable_out archive{value.value};
-    if (!state.template any_to_pb<Options, true>(value.type_url, it, end, archive).ok())
-        [[unlikely]] {
+    if (!state.template any_to_pb<Options, true>(value.type_url, it, end, archive).ok()) [[unlikely]] {
       ctx.error = glz::error_code::syntax_error;
     } else {
       ctx.error = state.context.error;

@@ -1379,8 +1379,7 @@ struct pb_serializer {
                                                            concepts::is_size_cache_iterator auto &cache_itr) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return field_size(std::get<I + 1>(item),
-                          typename std::tuple_element<I, Meta>::type{}, cache_itr);
+        return field_size(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{}, cache_itr);
       }
       return oneof_size<I + 1, Meta>(item, cache_itr);
     } else {
@@ -1543,8 +1542,7 @@ struct pb_serializer {
                                         std::same_as<typename type::value_type, std::byte>;
                          }) {
       // packed fundamental types or bytes
-      archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)},
-              item);
+      archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)}, item);
     } else {
       // packed varint or packed enum
       archive(make_tag<type>(meta), varint{*cache_itr++});
@@ -1575,8 +1573,7 @@ struct pb_serializer {
   serialize_oneof(auto const &item, concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return serialize_field(std::get<I + 1>(item),
-                               typename std::tuple_element<I, Meta>::type{}, cache_itr, archive);
+        return serialize_field(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{}, cache_itr, archive);
       }
       return serialize_oneof<I + 1, Meta>(item, cache_itr, archive);
     }
@@ -2196,8 +2193,7 @@ struct pb_serializer {
                                             concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
     static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
-    return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, item, context,
-                                                                  archive);
+    return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, item, context, archive);
   }
 
   template <typename Meta>
