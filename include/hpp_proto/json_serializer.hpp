@@ -218,7 +218,7 @@ struct base64 {
     return static_cast<int64_t>(ix);
   }
 
-  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &&value) {
+  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &value) {
     std::size_t n = source.size();
     if (n == 0) {
       value.resize(0);
@@ -300,7 +300,7 @@ using base64 = hpp::proto::base64;
 template <hpp::proto::concepts::has_codec T>
 struct to_json<T> {
   template <auto Opts, class B>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &b, auto &&ix) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto const &value, is_context auto &ctx, B &b, auto &ix) noexcept {
     using codec = typename hpp::proto::json_codec<T>::type;
     if constexpr (resizable<B>) {
       std::size_t const encoded_size = codec::max_encode_size(value);
@@ -345,9 +345,9 @@ struct to_json<hpp::proto::bytes> {
 template <hpp::proto::concepts::has_codec T>
 struct from_json<T> {
   template <auto Opts, class It, class End>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {
+  GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, It &it, End &end) {
     std::string_view encoded;
-    from_json<std::string_view>::op<Opts>(encoded, ctx, std::forward<It>(it), std::forward<End>(end));
+    from_json<std::string_view>::op<Opts>(encoded, ctx, it, end);
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
       return;
     }
@@ -371,7 +371,7 @@ struct from_json<hpp::proto::bytes> {
 template <typename Type, auto Default>
 struct to_json<hpp::proto::optional<Type, Default>> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto const &value, Args &&...args) noexcept {
     if (value.has_value()) {
       if constexpr (std::is_integral_v<Type> && sizeof(Type) > 4) {
         to_json<glz::quoted_t<const Type>>::template op<Opts>(glz::quoted_t<const Type>{*value},
@@ -386,7 +386,7 @@ struct to_json<hpp::proto::optional<Type, Default>> {
 template <typename Type, auto Default>
 struct from_json<hpp::proto::optional<Type, Default>> {
   template <auto Options, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &value, Args &&...args) noexcept {
     auto do_from_json = [](auto &&v, auto &&...args) noexcept {
       using type = std::remove_cvref_t<decltype(v)>;
       constexpr bool requires_quote = std::is_integral_v<type> && sizeof(type) > 4;
@@ -410,7 +410,7 @@ struct from_json<hpp::proto::optional<Type, Default>> {
 template <typename Type, auto Default>
 struct to_json<hpp::proto::optional_ref<Type, Default>> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto const &value, Args &&...args) noexcept {
     if constexpr (std::is_same_v<Type, uint64_t>) {
       static_assert(std::is_same_v<std::decay_t<decltype(*value)>,
                                    glz::detail::opts_wrapper_t<uint64_t, &glz::opts::quoted_num>>);
@@ -439,7 +439,7 @@ struct from_json<hpp::proto::optional_ref<Type, Default>> {
 template <typename Type>
 struct to_json<hpp::proto::heap_based_optional<Type>> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto const &value, Args &&...args) noexcept {
     to_json<Type>::template op<Opts>(*value, std::forward<Args>(args)...);
   }
 };
@@ -447,7 +447,7 @@ struct to_json<hpp::proto::heap_based_optional<Type>> {
 template <typename Type>
 struct from_json<hpp::proto::heap_based_optional<Type>> {
   template <auto Options, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &value, Args &&...args) noexcept {
     value.emplace();
     from_json<Type>::template op<Options>(*value, std::forward<Args>(args)...);
   }
@@ -456,7 +456,7 @@ struct from_json<hpp::proto::heap_based_optional<Type>> {
 template <typename Type, std::size_t Index>
 struct to_json<hpp::proto::oneof_wrapper<Type, Index>> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto const &value, Args &&...args) noexcept {
     auto v = std::get_if<Index>(value.value);
     write<json>::template op<Opts>(*v, std::forward<decltype(args)>(args)...);
   }
@@ -480,7 +480,7 @@ struct from_json<hpp::proto::oneof_wrapper<Type, Index>> {
 template <>
 struct to_json<hpp::proto::boolean> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto value, Args &&...args) noexcept {
     to_json<bool>::template op<Opts>(value.value, std::forward<Args>(args)...);
   }
 };
@@ -488,7 +488,7 @@ struct to_json<hpp::proto::boolean> {
 template <>
 struct from_json<hpp::proto::boolean> {
   template <auto Options, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &value, Args &&...args) noexcept {
     from_json<bool>::template op<Options>(value.value, std::forward<Args>(args)...);
   }
 };
@@ -497,7 +497,7 @@ template <typename Type>
 struct from_json<hpp::proto::equality_comparable_span<Type>> {
   template <auto Options>
   GLZ_ALWAYS_INLINE static void op(hpp::proto::equality_comparable_span<Type> &value,
-                                   hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it, auto &&end) {
+                                   hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
     auto v = hpp::proto::as_modifiable(ctx, value);
     if constexpr (hpp::proto::concepts::byte_type<Type>) {
       from_json<hpp::proto::use_base64>::template op<Options>(v, ctx, it, end);
@@ -511,7 +511,7 @@ struct from_json<hpp::proto::equality_comparable_span<Type>> {
 };
 
 template <auto Opts>
-[[nodiscard]] GLZ_ALWAYS_INLINE size_t number_of_map_elements(is_context auto &&ctx, auto it, auto &&end) noexcept {
+[[nodiscard]] GLZ_ALWAYS_INLINE size_t number_of_map_elements(is_context auto &ctx, auto it, auto &end) noexcept {
   skip_ws<Opts>(ctx, it, end);
   if (bool(ctx.error)) {
     [[unlikely]] return {};
@@ -571,7 +571,7 @@ template <auto Opts>
 template <typename T>
 struct from_json<hpp::proto::map_wrapper<T>> {
   template <auto Options>
-  static void op(auto &&v, is_context auto &&ctx, auto &&it, auto &&end) {
+  static void op(auto &v, is_context auto &ctx, auto &it, auto &end) {
     auto &value = v.value;
     if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
@@ -633,7 +633,7 @@ struct from_json<hpp::proto::map_wrapper<T>> {
 template <typename T>
 struct from_json<hpp::proto::optional_message_view_ref<T>> {
   template <auto Options>
-  static void op(auto value, hpp::proto::concepts::is_non_owning_context auto &&ctx, auto &&it, auto &&end) {
+  static void op(auto value, hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
     if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
       if (bool(ctx.error)) {
@@ -695,14 +695,14 @@ inline json_status read_json(auto &value, Buffer &&buffer, Context &&...ctx) {
 }
 
 template <auto Opts = glz::opts{}, class T, class Buffer>
-inline json_status write_json(T &&value, Buffer &&buffer, glz::is_context auto &&ctx) noexcept {
-  return {glz::write<Opts>(std::forward<T>(value), std::forward<Buffer>(buffer), ctx)};
+inline json_status write_json(T &&value, Buffer &buffer, glz::is_context auto &&ctx) noexcept {
+  return {glz::write<Opts>(std::forward<T>(value), buffer, ctx)};
 }
 
 template <auto Opts = glz::opts{}, class T, class Buffer>
-inline json_status write_json(T &&value, Buffer &&buffer) noexcept {
+inline json_status write_json(T &&value, Buffer &buffer) noexcept {
   json_context ctx{};
-  return write_json(std::forward<T>(value), std::forward<Buffer>(buffer), ctx);
+  return write_json(std::forward<T>(value), buffer, ctx);
 }
 
 template <auto Opts = glz::opts{}, class T>
