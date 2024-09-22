@@ -1541,7 +1541,7 @@ public:
 #else
   template <auto Options = glz::opts{}>
 #endif
-  expected<std::string, hpp::proto::status>
+  expected<std::string, std::errc>
   proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
     std::string result;
     if (auto ec = proto_to_json<Options>(message_name, pb_encoded_stream, result); !ec.ok()) [[unlikely]] {
@@ -1557,7 +1557,7 @@ public:
     return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream, buffer, indentation_level);
   }
 
-  expected<std::string, hpp::proto::status>
+  expected<std::string, std::errc>
   proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
     return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream);
   }

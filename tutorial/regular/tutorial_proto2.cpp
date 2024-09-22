@@ -22,14 +22,12 @@ int main() {
                                                  .email = "bob@email.com",
                                                  .phones = {{.number = "22222222", .type = PHONE_TYPE_HOME}}}}};
 
-  std::vector<std::byte> buffer;
+  
+  auto write_result = hpp::proto::write_proto(address_book);
+  expect(write_result.has_value());
 
-  expect(hpp::proto::write_proto(address_book, buffer).ok());
-
-  tutorial::AddressBook new_address_book;
-
-  expect(hpp::proto::read_proto(new_address_book, buffer).ok());
-  expect(address_book == new_address_book);
+  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(write_result.value());
+  expect(address_book == read_result.value());
 
   std::vector<tutorial::Person> &people = address_book.people;
   expect(people.size() == 2);
@@ -68,16 +66,10 @@ int main() {
   default_phone_type_value.reset();
   expect(!default_phone_type_value.has_value());
 
-  std::string json;
-
-  expect(hpp::proto::write_json(address_book, json).ok());
-
-  if (auto pe = hpp::proto::read_json(new_address_book, json); !pe.ok()) {
-    std::cerr << "read json error: " << pe.message(json) << "\n";
-    return 1;
-  }
-
-  expect(address_book == new_address_book);
-
+  auto write_json_result = hpp::proto::write_json(address_book);
+  expect(write_json_result.has_value());
+  auto read_json_result = hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value());
+  expect(address_book == read_json_result.value());
+  
   return 0;
 }

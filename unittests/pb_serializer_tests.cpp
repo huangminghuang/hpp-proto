@@ -13,7 +13,7 @@ using namespace std::string_view_literals;
 
 constexpr void constexpr_verify(auto buffer, auto object_fun) {
   static_assert(std::ranges::equal(buffer(), hpp::proto::write_proto(object_fun)));
-  static_assert(object_fun() == hpp::proto::read_proto<decltype(object_fun())>(buffer()));
+  static_assert(object_fun() == hpp::proto::read_proto<decltype(object_fun())>(buffer()).value());
 }
 
 struct example {

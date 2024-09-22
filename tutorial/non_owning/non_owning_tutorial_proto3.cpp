@@ -58,12 +58,12 @@ int main() {
 
   expect(hpp::proto::write_proto(address_book, buffer).ok());
 
-  tutorial::AddressBook new_address_book;
-  hpp::proto::pb_context pb_ctx{pool};
-  expect(hpp::proto::read_proto(new_address_book, buffer, pb_ctx).ok());
+  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(buffer, hpp::proto::pb_context{pool});
+  expect(read_result.has_value());
+  expect(address_book == read_result.value());
 
   {
-    std::span<const tutorial::Person> people = new_address_book.people;
+    std::span<const tutorial::Person> people = address_book.people;
     expect(people.size() == 2);
     const tutorial::Person &alex = people[0];
     std::string_view alex_name = alex.name;
@@ -90,14 +90,10 @@ int main() {
            "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
   }
 
-  std::string json;
-
-  expect(hpp::proto::write_json(address_book, json).ok());
-
-  if (auto pe = hpp::proto::read_json(new_address_book, json, hpp::proto::json_context{pool}); !pe.ok()) {
-    std::cerr << "read json error: " << pe.message(json) << "\n";
-    return 1;
-  }
+  auto write_json_result = hpp::proto::write_json(address_book);
+  expect(write_json_result.has_value());
+  auto read_json_result = hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value(), hpp::proto::json_context{pool});
+  expect(address_book == read_json_result.value());
 
   return 0;
 }

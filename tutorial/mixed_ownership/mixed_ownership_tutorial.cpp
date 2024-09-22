@@ -33,15 +33,14 @@ int main() {
   std::vector<std::byte> buffer;
   expect(hpp::proto::write_proto(address_book, buffer).ok());
 
-  non_owning::tutorial::AddressBook new_address_book;
   std::pmr::monotonic_buffer_resource pool;
 
-  hpp::proto::pb_context pb_ctx{pool};
-  expect(hpp::proto::read_proto(new_address_book, buffer, pb_ctx).ok());
+  auto read_result = hpp::proto::read_proto<non_owning::tutorial::AddressBook>(buffer, hpp::proto::pb_context{pool});
+  expect(read_result.has_value());
 
   {
     using namespace non_owning;
-    hpp::proto::equality_comparable_span<const tutorial::Person> people = new_address_book.people;
+    hpp::proto::equality_comparable_span<const tutorial::Person> people = read_result.value().people;
     expect(people.size() == 2);
     const tutorial::Person &alex = people[0];
     std::string_view alex_name = alex.name;
