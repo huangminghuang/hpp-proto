@@ -45,7 +45,7 @@ concept map_with_integral_64_bits_mapped_type =
     glz::detail::writable_map_t<T> && integral_64_bits<typename T::value_type::second_type>;
 
 template <typename T>
-concept jsonfy_need_quote = integral_64_bits<T> || map_with_integral_64_bits_mapped_type<T> || requires(T val) {
+concept jsonfy_need_quote = integral_64_bits<std::decay_t<T>> || map_with_integral_64_bits_mapped_type<std::decay_t<T>> || requires(T val) {
   val.size();
   requires integral_64_bits<typename T::value_type>;
 };
@@ -71,7 +71,7 @@ json_context(U &&...u) -> json_context<std::remove_cvref_t<U>...>;
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
   static constexpr auto glaze_reflect = false;
-  using value_type = T;
+  using value_type = std::decay_t<T>;
   T &val;
   operator bool() const { return !is_default_value<T, Default>(val); }
   template <typename U>
@@ -706,22 +706,22 @@ inline auto read_json(auto &&buffer, glz::is_context auto &&...ctx) -> glz::expe
 }
 
 template <auto Opts = glz::opts{}>
-inline json_status write_json(auto &&value, auto &buffer, glz::is_context auto &&ctx) noexcept {
-  return {glz::write<Opts>(std::forward<decltype(value)>(value), buffer, ctx)};
+inline json_status write_json(auto const &value, auto &buffer, glz::is_context auto &&ctx) noexcept {
+  return {glz::write<Opts>(value, buffer, ctx)};
 }
 
 template <auto Opts = glz::opts{}>
-inline json_status write_json(auto &&value, auto &buffer) noexcept {
+inline json_status write_json(auto const &value, auto &buffer) noexcept {
   json_context ctx{};
-  return write_json(std::forward<decltype(value)>(value), buffer, ctx);
+  return write_json(value, buffer, ctx);
 }
 
 template <auto Opts = glz::opts{}>
-inline auto write_json(auto &&value,
+inline auto write_json(auto const &value,
                        glz::is_context auto &&...ctx) noexcept -> glz::expected<std::string, json_status> {
   static_assert(sizeof...(ctx) <= 1);
   std::string buffer{};
-  auto ec = write_json<Opts>(std::forward<decltype(value)>(value), buffer, ctx...);
+  auto ec = write_json<Opts>(value, buffer, ctx...);
   if (!ec.ok()) {
     return glz::unexpected(ec);
   }
