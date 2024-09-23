@@ -1378,7 +1378,8 @@ const boost::ut::suite proto_test = [] {
         expect(eq(generated_json.value(), original_json));
 
         T msg;
-        expect(hpp::proto::read_json(msg, original_json, hpp::proto::json_context{mr}).ok());
+        hpp::proto::json_context jctx{mr};
+        expect(hpp::proto::read_json(msg, original_json, jctx).ok());
 
         TestUtil::ExpectAllSet(msg);
       } |

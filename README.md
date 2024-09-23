@@ -1,6 +1,6 @@
 # hpp-proto
 
-hpp-proto is a C++20-based tool that simplifies the use of Protocol Buffers in C++. The tool achieves this by generating C++ aggregate types from .proto files and providing a header only library to encode/decode Protobuf data using these types. It's worth noting that the generated aggregate types heavily use the C++ Standard Library containers such as std::vector and std::string, in contrast to the Google implementation, which makes them easier to use and integrate with existing C++ code bases. 
+Hpp-proto is a C++20-based implementation to simplify the use of Protocol Buffers in C++. It achieves this by generating C++ aggregate types from .proto files and providing a header only library to encode/decode Protobuf data using these types. It's worth noting that the generated aggregate types heavily use the C++ Standard Library containers such as std::vector and std::string, in contrast to the Google implementation, which makes them easier to use and integrate with existing C++ code bases. 
 
 ## Features
 * All Protocol Buffers message definitions are mapped to simple C++ aggregates based on standard C++ library.
@@ -53,7 +53,7 @@ Below are the results for code size in bytes on
 
 ## Getting Started
 
-### [optional] Install google protoc 
+### Install google protoc 
 hpp-proto requires google protoc for code generation. It can either use the existing  protoc installation on your system or automatically compiling protoc from source. 
 
 ### [optional] Install hpp-proto
@@ -243,8 +243,8 @@ int main() {
 
 ### JSON encoding/decoding APIs
 
-hpp-proto utilize (glaze)[https://github.com/stephenberry/glaze] for JSON encoding/decoding.
-However, to support the [canonical JSON encoding](https://protobuf.dev/programming-guides/proto3/#json) of protobuf messages; hpp-proto generates `*.glz.hpp` files to contain the template specializations necessary to meet the specification. The APIs for JSON encoding/decoding is similar to those of protobuf encoding/decoding.
+hpp-proto utilizes (glaze)[https://github.com/stephenberry/glaze] for JSON encoding/decoding.
+To support the [canonical JSON encoding](https://protobuf.dev/programming-guides/proto3/#json) of protobuf messages; hpp-proto generates `*.glz.hpp` files to contain the template specializations necessary to meet the specification. The APIs for JSON encoding/decoding is similar to those of protobuf encoding/decoding.
 
 ```cpp
 

@@ -37,15 +37,11 @@ int main() {
   std::pmr::vector<std::byte> buffer{&pool};
   expect(hpp::proto::write_proto(message, buffer).ok());
 
-  tutorial::AnyDemo new_message;
-
-  expect(hpp::proto::read_proto(new_message, buffer, ctx).ok());
-  expect(new_message.any_value.has_value());
-  tutorial::Person person;
-  // NOLINTBEGIN(bugprone-unchecked-optional-access)
-  expect(hpp::proto::unpack_any(new_message.any_value.value(), person, ctx).ok());
-  // NOLINTEND(bugprone-unchecked-optional-access)
-  expect(person == alex);
+  auto unpacked_result = hpp::proto::read_proto<tutorial::AnyDemo>(buffer, ctx).and_then([&ctx](auto &&msg) {
+    return hpp::proto::unpack_any<tutorial::Person>(msg.any_value.value(), ctx);
+  });
+  expect(unpacked_result.has_value());
+  expect(alex == unpacked_result.value());
 
   return 0;
 }

@@ -37,16 +37,14 @@ int main(int argc, const char **argv) {
   }
 
   std::string new_addressbook_json;
-  // NOLINTBEGIN(readability-implicit-bool-conversion)
-  auto jsonfy_result =
-      pretty_print ? ser->proto_to_json<glz::opts{.prettify = true}>(message_name, addressbook_pb, new_addressbook_json)
-                   : ser->proto_to_json(message_name, addressbook_pb, new_addressbook_json);
-  // NOLINTEND(readability-implicit-bool-conversion)
+  auto jsonfy_result = pretty_print
+                           ? ser->proto_to_json<glz::opts{.prettify = true}>(message_name, new_addressbook_json)
+                           : ser->proto_to_json(message_name, new_addressbook_json);
 
-  if (!jsonfy_result.ok()) {
+  if (!jsonfy_result.has_value()) {
     std::cerr << "unable to convert from protobuf to json\n";
     return 1;
   }
-  std::cout << new_addressbook_json << "\n";
+  std::cout << jsonfy_result.value() << "\n";
   return 0;
 }
