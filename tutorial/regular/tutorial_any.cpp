@@ -29,7 +29,7 @@ int main() {
 
   auto write_result = hpp::proto::write_proto(message);
   expect(write_result.has_value());
-  
+
   auto unpacked_result = hpp::proto::read_proto<tutorial::AnyDemo>(write_result.value()).and_then([](auto &&msg) {
     return hpp::proto::unpack_any<tutorial::Person>(msg.any_value.value());
   });

@@ -22,7 +22,6 @@ int main() {
                                                  .email = "bob@email.com",
                                                  .phones = {{.number = "22222222", .type = PHONE_TYPE_HOME}}}}};
 
-  
   auto write_result = hpp::proto::write_proto(address_book);
   expect(write_result.has_value());
 
@@ -70,6 +69,6 @@ int main() {
   expect(write_json_result.has_value());
   auto read_json_result = hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value());
   expect(address_book == read_json_result.value());
-  
+
   return 0;
 }

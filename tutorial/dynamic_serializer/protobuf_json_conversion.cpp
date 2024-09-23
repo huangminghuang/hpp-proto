@@ -37,9 +37,9 @@ int main(int argc, const char **argv) {
   }
 
   std::string new_addressbook_json;
-  auto jsonfy_result =
-      pretty_print ? ser->proto_to_json<glz::opts{.prettify = true}>(message_name, new_addressbook_json)
-                   : ser->proto_to_json(message_name, new_addressbook_json);
+  auto jsonfy_result = pretty_print
+                           ? ser->proto_to_json<glz::opts{.prettify = true}>(message_name, new_addressbook_json)
+                           : ser->proto_to_json(message_name, new_addressbook_json);
 
   if (!jsonfy_result.has_value()) {
     std::cerr << "unable to convert from protobuf to json\n";

@@ -2625,10 +2625,11 @@ template <concepts::has_meta T, concepts::resizable_contiguous_byte_container Bu
 }
 
 template <concepts::has_meta T>
-constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range auto const &buffer, concepts::is_pb_context auto &&...ctx) {
+constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range auto const &buffer,
+                                                   concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   T msg;
-  if (auto result = pb_serializer::deserialize(msg, buffer,ctx...); !result.ok()) {
+  if (auto result = pb_serializer::deserialize(msg, buffer, ctx...); !result.ok()) {
     return unexpected(result.ec);
   }
   return msg;
@@ -2661,13 +2662,15 @@ concept is_any = requires(T &obj) {
   return write_proto(msg, any.value);
 }
 
-[[nodiscard]] status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg, concepts::is_pb_context auto &&ctx) {
+[[nodiscard]] status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg,
+                              concepts::is_pb_context auto &&ctx) {
   any.type_url = message_type_url(msg);
   decltype(auto) v = as_modifiable(ctx, any.value);
   return write_proto(msg, v);
 }
 
-[[nodiscard]] status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg, concepts::is_pb_context auto &&...ctx) {
+[[nodiscard]] status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg,
+                                concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
     return read_proto(msg, any.value, ctx...);
