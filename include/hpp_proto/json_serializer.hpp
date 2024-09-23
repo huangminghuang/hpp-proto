@@ -45,10 +45,11 @@ concept map_with_integral_64_bits_mapped_type =
     glz::detail::writable_map_t<T> && integral_64_bits<typename T::value_type::second_type>;
 
 template <typename T>
-concept jsonfy_need_quote = integral_64_bits<std::decay_t<T>> || map_with_integral_64_bits_mapped_type<std::decay_t<T>> || requires(T val) {
-  val.size();
-  requires integral_64_bits<typename T::value_type>;
-};
+concept jsonfy_need_quote =
+    integral_64_bits<std::decay_t<T>> || map_with_integral_64_bits_mapped_type<std::decay_t<T>> || requires(T val) {
+      val.size();
+      requires integral_64_bits<typename T::value_type>;
+    };
 
 template <typename T>
 concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
