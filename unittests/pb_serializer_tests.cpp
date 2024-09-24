@@ -1352,11 +1352,11 @@ auto pb_meta(const non_owning_recursive_type1 &)
         hpp::proto::field_meta<1, &non_owning_recursive_type1::child>,
         hpp::proto::field_meta<2, &non_owning_recursive_type1::payload, field_option::none, hpp::proto::vint64_t>>;
 
+// NOLINTBEGIN(cppcoreguidelines-special-member-functions)
 struct non_owning_recursive_type2 {
   hpp::proto::equality_comparable_span<const non_owning_recursive_type2> children;
   int32_t payload = {};
 #ifdef _LIBCPP_VERSION
-  // NOLINTBEGIN(cppcoreguidelines-special-member-functions)
   constexpr non_owning_recursive_type2() noexcept = default;
   constexpr ~non_owning_recursive_type2() noexcept = default;
   constexpr non_owning_recursive_type2(const non_owning_recursive_type2 &other) noexcept
@@ -1364,10 +1364,10 @@ struct non_owning_recursive_type2 {
     // clang libc++ has trouble to copy the span when non_owning_recursive_type2 is not a complete type
   }
   constexpr non_owning_recursive_type2 &operator=(const non_owning_recursive_type2 &other) noexcept = default;
-  // NOLINTEND(cppcoreguidelines-special-member-functions)
 #endif
   bool operator==(const non_owning_recursive_type2 &) const = default;
 };
+// NOLINTEND(cppcoreguidelines-special-member-functions)
 
 auto pb_meta(const non_owning_recursive_type2 &)
     -> std::tuple<
