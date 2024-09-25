@@ -2662,15 +2662,14 @@ status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg) 
   return write_proto(msg, any.value);
 }
 
-status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg,
-                              concepts::is_pb_context auto &&ctx) {
+status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg, concepts::is_pb_context auto &&ctx) {
   any.type_url = message_type_url(msg);
   decltype(auto) v = as_modifiable(ctx, any.value);
   return write_proto(msg, v);
 }
 
 status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg,
-                                concepts::is_pb_context auto &&...ctx) {
+                  concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
     return read_proto(msg, any.value, ctx...);

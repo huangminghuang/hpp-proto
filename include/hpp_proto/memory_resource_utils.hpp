@@ -221,7 +221,6 @@ public:
 
   static_assert(std::is_trivially_destructible_v<value_type>);
 
-
   constexpr MemoryResource &memory_resource() { return mr; }
 
   constexpr arena_vector(View &view, MemoryResource &mr) : mr(mr), view_(view) {}
