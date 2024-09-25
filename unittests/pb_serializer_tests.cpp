@@ -1356,7 +1356,7 @@ auto pb_meta(const non_owning_recursive_type1 &)
 struct non_owning_recursive_type2 {
   hpp::proto::equality_comparable_span<const non_owning_recursive_type2> children;
   int32_t payload = {};
-#ifdef _LIBCPP_VERSION
+#ifdef __clang__
   constexpr non_owning_recursive_type2() noexcept = default;
   constexpr ~non_owning_recursive_type2() noexcept = default;
   constexpr non_owning_recursive_type2(const non_owning_recursive_type2 &other) noexcept
