@@ -26,7 +26,7 @@ std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_n
   return result;
 }
 
-void write_file(const std::string& filename, std::string_view data) {
+void write_file(const std::string &filename, std::string_view data) {
   std::ofstream file(filename, std::ios_base::binary);
   file.write(data.data(), static_cast<std::streamsize>(data.size()));
 }
