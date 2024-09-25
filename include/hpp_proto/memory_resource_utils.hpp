@@ -220,8 +220,7 @@ public:
   using const_iterator = const iterator;
 
   static_assert(std::is_trivially_destructible_v<value_type>);
-  static_assert(std::is_nothrow_default_constructible_v<value_type>);
-  // static_assert(std::is_nothrow_copy_constructible_v<value_type>);
+
 
   constexpr MemoryResource &memory_resource() { return mr; }
 
