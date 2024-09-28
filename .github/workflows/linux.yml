@@ -23,15 +23,16 @@
   jobs:
     build:
       strategy:
+        fail-fast: false
         matrix:
           os: [ubuntu-24.04]
           compiler: [gcc-12, gcc-13, gcc-14, clang-16, clang-17, clang-18]
           build_type: [Release, Debug]
           protoc: [find]
           include:
-            - sanitize: no
+            - sanitize: OFF
             - build_type: Debug
-              sanitize: yes
+              sanitize: ON
 
       runs-on: ubuntu-24.04
   
