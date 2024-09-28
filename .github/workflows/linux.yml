@@ -22,38 +22,62 @@
   
   jobs:
     build:
-      runs-on: ubuntu-latest
-  
       strategy:
         matrix:
-          gcc: [12]
-          protoc: ["compile"]
+          os: [ubuntu-24.04]
+          compiler: [gcc-12, clang-18]
+          build_type: [Release, Debug]
+          sanitize: [yes]
+          include:
+            - compiler: gcc-12
+              gcov_executable: gcov
+              protoc: compile
+
+            - compiler: llvm-18.1.1
+              gcov_executable: "llvm-cov gcov"
+              protoc: find
+      runs-on: ${{ matrix.os }}
   
       env:
-        CC: gcc-${{ matrix.gcc }}
-        CXX: g++-${{ matrix.gcc }}
-  
+        CC: ${{ matrix.compiler }}
       steps:
+        - name: set CXX environment variable
+          run: |
+            if [[ $CC == gcc-* ]]; then
+              CXX=${CC/gcc/g++}
+            elif [[ $CC == clang-* ]]; then
+              CXX=${CC/clang/clang++}
+            fi
+            echo "CXX=$CXX" >> "$GITHUB_ENV"
         - uses: actions/checkout@v4
   
         - uses: actions/cache@v4
           with:
             path: "**/cpm_modules"
-            key: ${{ github.workflow }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
+            key: ${{ matrix.os }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
   
         - name: ccache
           uses: hendrikmuhs/ccache-action@v1.2.14
           with:
-            key: ${{ github.workflow }}-${{ matrix.protoc }}
+            key: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-sanitize-${{ matrix.sanitize }}
+
+        - name: install protoc
+          if: matrix.protoc == 'find'
+          run: |
+            sudo apt install -y protobuf-compiler libprotobuf-dev
             
         - name: configure
-          run: cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          run: |
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \ 
+                  -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
+                  -HPP_PROTO_ENABLE_SANITIZER=${{ matrix.sanitize }} \
+                  -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
   
         - name: build
-          run: cmake --build build -j4
+          run: cmake --build build -j${{env.nproc}}
   
         - name: test
+          working-directory: ./build
           run: |
-            cd build
-            ctest --build-config Debug --output-on-failure
+            ctest --build-config ${{ matrix.build_type }} --output-on-failure
   
