@@ -57,7 +57,7 @@
 #endif
 
 extern "C" {
-  bool is_utf8(const char *src, size_t len);
+bool is_utf8(const char *src, size_t len);
 }
 
 namespace hpp::proto {
