@@ -25,29 +25,26 @@
       strategy:
         matrix:
           os: [ubuntu-24.04]
-          compiler: [gcc-12, clang-18]
+          compiler: [gcc-12, gcc-13, gcc-14, clang-16, clang-17, clang-18]
           build_type: [Release, Debug]
+          protoc: [find]
           sanitize: [yes]
-          include:
-            - protoc: find
-            - compiler: gcc-12
-              gcov_executable: gcov
-
-            - compiler: clang-18
-              gcov_executable: "llvm-cov gcov"
       runs-on: ubuntu-24.04
   
       env:
         CC: ${{ matrix.compiler }}
       steps:
-        - name: set CXX environment variable
+        - name: set environment variables
           run: |
             if [[ $CC == gcc-* ]]; then
               CXX=${CC/gcc/g++}
+              GCOV=gcov
             elif [[ $CC == clang-* ]]; then
               CXX=${CC/clang/clang++}
+              GCOV="llvm-cov gcov"
             fi
             echo "CXX=$CXX" >> "$GITHUB_ENV"
+            echo "GCOV=$GCOV" >> "$GITHUB_ENV"
         - uses: actions/checkout@v4
   
         - uses: actions/cache@v4
