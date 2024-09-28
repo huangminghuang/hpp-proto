@@ -1406,7 +1406,7 @@ struct pb_serializer {
       auto cache_itr = cache.begin();
       if (!serialize(item, cache_itr, archive)) {
         return std::errc::bad_message;
-      }    
+      }
       return {};
     };
 
