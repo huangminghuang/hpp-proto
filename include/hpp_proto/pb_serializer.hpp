@@ -56,7 +56,9 @@
 #define HPP_PROTO_INLINE inline
 #endif
 
-bool is_utf8(const char *src, size_t len);
+extern "C" {
+  bool is_utf8(const char *src, size_t len);
+}
 
 namespace hpp::proto {
 using glz::expected;
