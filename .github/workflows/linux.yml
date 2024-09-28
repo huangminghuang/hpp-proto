@@ -29,13 +29,12 @@
           build_type: [Release, Debug]
           sanitize: [yes]
           include:
+            - protoc: find
             - compiler: gcc-12
               gcov_executable: gcov
-              protoc: compile
 
-            - compiler: llvm-18.1.1
+            - compiler: clang-18
               gcov_executable: "llvm-cov gcov"
-              protoc: find
       runs-on: ubuntu-24.04
   
       env:
@@ -68,10 +67,7 @@
             
         - name: configure
           run: |
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \ 
-                  -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
-                  -HPP_PROTO_ENABLE_SANITIZER=${{ matrix.sanitize }} \
-                  -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DHPP_PROTO_ENABLE_SANITIZER=${{ matrix.sanitize }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
   
         - name: build
           run: cmake --build build -j${{env.nproc}}
