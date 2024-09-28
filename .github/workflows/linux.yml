@@ -57,6 +57,10 @@
           with:
             key: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-sanitize-${{ matrix.sanitize }}
 
+        - name: install ninja
+          run: |
+            sudo apt install -y ninja-build
+
         - name: install protoc
           if: matrix.protoc == 'find'
           run: |
@@ -64,7 +68,11 @@
             
         - name: configure
           run: |
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DHPP_PROTO_ENABLE_SANITIZER=${{ matrix.sanitize }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+                  -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
+                  -DHPP_PROTO_ENABLE_SANITIZER=${{ matrix.sanitize }} \
+                  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
   
         - name: build
           run: cmake --build build -j${{env.nproc}}
