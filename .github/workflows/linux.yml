@@ -36,7 +36,7 @@
             - compiler: llvm-18.1.1
               gcov_executable: "llvm-cov gcov"
               protoc: find
-      runs-on: ${{ matrix.os }}
+      runs-on: ubuntu-24.04
   
       env:
         CC: ${{ matrix.compiler }}
