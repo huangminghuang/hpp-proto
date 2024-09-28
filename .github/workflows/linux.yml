@@ -28,7 +28,11 @@
           compiler: [gcc-12, gcc-13, gcc-14, clang-16, clang-17, clang-18]
           build_type: [Release, Debug]
           protoc: [find]
-          sanitize: [yes]
+          include:
+            - sanitize: no
+            - build_type: Debug
+              sanitize: yes
+
       runs-on: ubuntu-24.04
   
       env:
@@ -55,7 +59,7 @@
         - name: ccache
           uses: hendrikmuhs/ccache-action@v1.2.14
           with:
-            key: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-sanitize-${{ matrix.sanitize }}
+            key: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
 
         - name: install ninja
           run: |
