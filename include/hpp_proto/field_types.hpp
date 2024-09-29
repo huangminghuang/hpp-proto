@@ -436,18 +436,15 @@ public:
   constexpr equality_comparable_span(const equality_comparable_span &other) noexcept
       : std::span<T>(other.data(), other.size()) {}
 
-  template <typename U>
-  constexpr equality_comparable_span &operator=(U &&other) noexcept {
-    static_cast<std::span<T> &>(*this) = std::forward<U>(other);
-    return *this;
-  }
+  constexpr equality_comparable_span &operator=(const equality_comparable_span &other) noexcept = default;
 
-  // NOLINTBEGIN(bugprone-unhandled-self-assignment, cert-oop54-cpp)
-  constexpr equality_comparable_span &operator=(const equality_comparable_span &other) noexcept {
-    static_cast<std::span<T> &>(*this) = std::span<T>(other);
+  // NOLINTBEGIN(cppcoreguidelines-c-copy-assignment-signature)
+  template <typename U>
+  constexpr equality_comparable_span &operator=(const std::span<U> &other) noexcept {
+    static_cast<std::span<T> &>(*this) = other;
     return *this;
   }
-  // NOLINTEND(bugprone-unhandled-self-assignment, cert-oop54-cpp)
+  // NOLINTEND(cppcoreguidelines-c-copy-assignment-signature)
 
   friend constexpr bool operator==(const equality_comparable_span<T> &lhs, const equality_comparable_span<T> &rhs) {
     return std::ranges::equal(lhs, rhs);

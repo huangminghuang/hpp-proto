@@ -1073,12 +1073,12 @@ struct msg_code_generator : code_generator {
         }
 
         fmt::format_to(target,
-                       "#ifdef _LIBCPP_VERSION\n"
+                       "#ifdef __clang__\n"
                        "{0}constexpr {1}() noexcept = default;\n"
                        "{0}constexpr {1}(const {1}& other) noexcept\n"
                        "{0}  : {2}{{}}\n"
                        "{0}constexpr {1}& operator=(const {1}& other) noexcept = default;\n"
-                       "#endif // _LIBCPP_VERSION\n",
+                       "#endif // __clang__\n",
                        indent(), descriptor.cpp_name, copy_constructor_init_list);
       }
     }

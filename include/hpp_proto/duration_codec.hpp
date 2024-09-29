@@ -7,7 +7,7 @@ namespace hpp::proto {
 struct duration_codec {
   constexpr static std::size_t max_encode_size(const auto &) noexcept { return 32; }
 
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-rvalue-reference-param-not-moved)
   static int64_t encode(auto const &value, auto &&b) noexcept {
     // NOLINTBEGIN(hicpp-signed-bitwise)
     auto has_same_sign = [](auto x, auto y) { return (x ^ y) >= 0; };
@@ -80,6 +80,6 @@ struct duration_codec {
     }
     return true;
   }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-rvalue-reference-param-not-moved)
 };
 } // namespace hpp::proto

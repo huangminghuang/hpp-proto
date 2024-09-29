@@ -35,7 +35,6 @@
 #include <numeric>
 #include <system_error>
 
-#include <execution>
 #include <glaze/util/expected.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
 
@@ -56,7 +55,9 @@
 #define HPP_PROTO_INLINE inline
 #endif
 
+extern "C" {
 bool is_utf8(const char *src, size_t len);
+}
 
 namespace hpp::proto {
 using glz::expected;
@@ -1406,9 +1407,6 @@ struct pb_serializer {
       if (!serialize(item, cache_itr, archive)) {
         return std::errc::bad_message;
       }
-      if constexpr (requires { buffer.subspan(0, 1); }) {
-        buffer = buffer.subspan(old_size, msg_sz);
-      }
       return {};
     };
 
@@ -2613,13 +2611,13 @@ expected<Buffer, std::errc> write_proto(concepts::has_meta auto const &msg) {
 }
 
 template <concepts::has_meta T, concepts::contiguous_output_byte_range Buffer>
-[[nodiscard]] status write_proto(T &&msg, Buffer &buffer) {
+status write_proto(T &&msg, Buffer &buffer) {
   return pb_serializer::serialize(std::forward<T>(msg), buffer);
 }
 
 /// @brief serialize a message to the end of the supplied buffer
 template <concepts::has_meta T, concepts::resizable_contiguous_byte_container Buffer>
-[[nodiscard]] status append_proto(T &&msg, Buffer &buffer) {
+status append_proto(T &&msg, Buffer &buffer) {
   constexpr bool overwrite_buffer = false;
   return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer);
 }
@@ -2636,7 +2634,7 @@ constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range au
 }
 
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
-[[nodiscard]] status read_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &&...ctx) {
+status read_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   msg = {};
   return pb_serializer::deserialize(msg, buffer, ctx...);
@@ -2644,7 +2642,7 @@ template <concepts::has_meta T, concepts::input_byte_range Buffer>
 
 /// @brief  deserialize from the buffer and merge the content with the existing msg
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
-[[nodiscard]] status merge_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &&...ctx) {
+status merge_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   return pb_serializer::deserialize(msg, buffer, ctx...);
 }
@@ -2657,20 +2655,19 @@ concept is_any = requires(T &obj) {
 };
 } // namespace concepts
 
-[[nodiscard]] status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg) {
+status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg) {
   any.type_url = message_type_url(msg);
   return write_proto(msg, any.value);
 }
 
-[[nodiscard]] status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg,
-                              concepts::is_pb_context auto &&ctx) {
+status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg, concepts::is_pb_context auto &&ctx) {
   any.type_url = message_type_url(msg);
   decltype(auto) v = as_modifiable(ctx, any.value);
   return write_proto(msg, v);
 }
 
-[[nodiscard]] status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg,
-                                concepts::is_pb_context auto &&...ctx) {
+status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg,
+                  concepts::is_pb_context auto &&...ctx) {
   static_assert(sizeof...(ctx) <= 1);
   if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
     return read_proto(msg, any.value, ctx...);

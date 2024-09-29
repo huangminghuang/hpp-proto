@@ -1618,7 +1618,8 @@ public:
   }
 
   template <auto Options>
-  void to_json_any(hpp::proto::concepts::is_any auto &&value, glz::is_context auto &&ctx, auto &b, auto &ix) const {
+  void to_json_any(hpp::proto::concepts::is_any auto const &value, glz::is_context auto &&ctx, auto &b,
+                   auto &ix) const {
     pb_to_json_state state(*this, b);
     state.ix = ix;
     if (!state.template any_to_json<Options>(value).ok()) [[unlikely]] {

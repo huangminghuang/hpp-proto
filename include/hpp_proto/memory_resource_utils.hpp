@@ -220,8 +220,6 @@ public:
   using const_iterator = const iterator;
 
   static_assert(std::is_trivially_destructible_v<value_type>);
-  // static_assert(std::is_nothrow_default_constructible_v<value_type>);
-  // static_assert(std::is_nothrow_copy_constructible_v<value_type>);
 
   constexpr MemoryResource &memory_resource() { return mr; }
 
@@ -335,7 +333,7 @@ arena_vector(View &view, Context &ctx)
 } // namespace detail
 
 constexpr auto as_modifiable(auto &&context, concepts::dynamic_sized_view auto &view) {
-  return detail::arena_vector{view, context};
+  return detail::arena_vector{view, std::forward<decltype(context)>(context)};
 }
 
 template <typename T>

@@ -1352,11 +1352,11 @@ auto pb_meta(const non_owning_recursive_type1 &)
         hpp::proto::field_meta<1, &non_owning_recursive_type1::child>,
         hpp::proto::field_meta<2, &non_owning_recursive_type1::payload, field_option::none, hpp::proto::vint64_t>>;
 
+// NOLINTBEGIN(cppcoreguidelines-special-member-functions)
 struct non_owning_recursive_type2 {
   hpp::proto::equality_comparable_span<const non_owning_recursive_type2> children;
   int32_t payload = {};
-#ifdef _LIBCPP_VERSION
-  // NOLINTBEGIN(cppcoreguidelines-special-member-functions)
+#ifdef __clang__
   constexpr non_owning_recursive_type2() noexcept = default;
   constexpr ~non_owning_recursive_type2() noexcept = default;
   constexpr non_owning_recursive_type2(const non_owning_recursive_type2 &other) noexcept
@@ -1364,10 +1364,10 @@ struct non_owning_recursive_type2 {
     // clang libc++ has trouble to copy the span when non_owning_recursive_type2 is not a complete type
   }
   constexpr non_owning_recursive_type2 &operator=(const non_owning_recursive_type2 &other) noexcept = default;
-  // NOLINTEND(cppcoreguidelines-special-member-functions)
 #endif
   bool operator==(const non_owning_recursive_type2 &) const = default;
 };
+// NOLINTEND(cppcoreguidelines-special-member-functions)
 
 auto pb_meta(const non_owning_recursive_type2 &)
     -> std::tuple<
@@ -1454,43 +1454,6 @@ struct monster {
                              hpp::proto::field_meta<10, &monster::boss>>;
 };
 
-const ut::suite test_monster = [] {
-  monster const m = {.pos = {1.0, 2.0, 3.0},
-                     .mana = 200,
-                     .hp = 1000,
-                     .name = "mushroom",
-                     .inventory = {1, 2, 3},
-                     .color = monster::blue,
-                     .weapons =
-                         {
-                             monster::weapon{.name = "sword", .damage = 55},
-                             monster::weapon{.name = "spear", .damage = 150},
-                         },
-                     .equipped =
-                         {
-                             monster::weapon{.name = "none", .damage = 15},
-                         },
-                     .path = {monster::vec3{2.0, 3.0, 4.0}, monster::vec3{5.0, 6.0, 7.0}},
-                     .boss = true};
-
-  std::vector<char> data;
-  ut::expect(hpp::proto::write_proto(m, data).ok());
-  monster m2;
-  ut::expect(ut::fatal(hpp::proto::read_proto(m2, data).ok()));
-
-  ut::expect(m.pos == m2.pos);
-  ut::expect(m.mana == m2.mana);
-  ut::expect(m.hp == m2.hp);
-  ut::expect(m.name == m2.name);
-  ut::expect(m.inventory == m2.inventory);
-  ut::expect(m.color == m2.color);
-  ut::expect(m.weapons == m2.weapons);
-  ut::expect(m.equipped == m2.equipped);
-  ut::expect(m.path == m2.path);
-  ut::expect(m.boss == m2.boss);
-  ut::expect(m == m2);
-};
-
 struct monster_with_optional {
   using enum color_t;
   using vec3 = monster::vec3;
@@ -1519,54 +1482,6 @@ struct monster_with_optional {
                  hpp::proto::field_meta<8, &monster_with_optional::equipped>,
                  hpp::proto::field_meta<9, &monster_with_optional::path, field_option::unpacked_repeated>,
                  hpp::proto::field_meta<10, &monster_with_optional::boss>>;
-};
-
-const ut::suite test_monster_with_optional = [] {
-  monster_with_optional m = {.pos = {1.0, 2.0, 3.0},
-                             .mana = 200,
-                             .hp = 1000,
-                             .name = "mushroom",
-                             .inventory = {1, 2, 3},
-                             .color = monster::blue,
-                             .weapons =
-                                 {
-                                     monster::weapon{.name = "sword", .damage = 55},
-                                     monster::weapon{.name = "spear", .damage = 150},
-                                 },
-                             .equipped =
-                                 {
-                                     monster::weapon{.name = "none", .damage = 15},
-                                 },
-                             .path = {monster::vec3{2.0, 3.0, 4.0}, monster::vec3{5.0, 6.0, 7.0}},
-                             .boss = true};
-
-  {
-    std::vector<char> data;
-    ut::expect(hpp::proto::write_proto(m, data).ok());
-    monster_with_optional m2;
-    ut::expect(hpp::proto::read_proto(m2, data).ok());
-
-    ut::expect(m.pos == m2.pos);
-    ut::expect(m.mana == m2.mana);
-    ut::expect(m.hp == m2.hp);
-    ut::expect(m.name == m2.name);
-    ut::expect(m.inventory == m2.inventory);
-    ut::expect(m.color == m2.color);
-    ut::expect(m.weapons == m2.weapons);
-    ut::expect(m.equipped == m2.equipped);
-    ut::expect(m.path == m2.path);
-    ut::expect(m.boss == m2.boss);
-    ut::expect(m == m2);
-  }
-
-  m.equipped.reset();
-  {
-    std::vector<char> data;
-    ut::expect(hpp::proto::write_proto(m, data).ok());
-    monster_with_optional m2;
-    ut::expect(hpp::proto::read_proto(m2, data).ok());
-    ut::expect(m == m2);
-  }
 };
 
 struct person {
@@ -1600,66 +1515,6 @@ struct address_book {
   using pb_meta = std::tuple<hpp::proto::field_meta<1, &address_book::people, field_option::unpacked_repeated>>;
 };
 
-const ut::suite test_person = [] {
-  constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
-                        "555-4321\x10\x01"sv;
-  static_assert(data.size() == 45);
-
-  person p;
-  ut::expect(hpp::proto::read_proto(p, data).ok());
-
-  using namespace std::literals::string_view_literals;
-  using namespace boost::ut;
-
-  ut::expect(p.name == "John Doe"sv);
-  ut::expect(that % p.id == 1234);
-  ut::expect(p.email == "jdoe@example.com"sv);
-  ut::expect(fatal((p.phones.size() == 1_u)));
-  ut::expect(p.phones[0].number == "555-4321"sv);
-  ut::expect(that % p.phones[0].type == person::home);
-
-  std::array<char, data.size()> new_data{};
-  ut::expect(hpp::proto::write_proto(p, new_data).ok());
-
-  ut::expect(std::ranges::equal(data, new_data));
-};
-
-const ut::suite test_address_book = [] {
-  constexpr auto data = "\n-\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
-                        "555-4321\x10\x01\n>\n\nJohn Doe "
-                        "2\x10\xd3\t\x1a\x11jdoe2@example.com\"\x0c\n\x08"
-                        "555-4322\x10\x01\"\x0c\n\x08"
-                        "555-4323\x10\x02"sv;
-
-  static_assert(data.size() == 111);
-
-  using namespace std::literals::string_view_literals;
-  using namespace boost::ut;
-
-  address_book b;
-  ut::expect(hpp::proto::read_proto(b, data).ok());
-
-  expect(b.people.size() == 2_u);
-  expect(b.people[0].name == "John Doe"sv);
-  expect(that % b.people[0].id == 1234);
-  expect(b.people[0].email == "jdoe@example.com"sv);
-  expect(fatal((b.people[0].phones.size() == 1U)));
-  expect(b.people[0].phones[0].number == "555-4321"sv);
-  expect(b.people[0].phones[0].type == person::home);
-  expect(b.people[1].name == "John Doe 2"sv);
-  expect(that % b.people[1].id == 1235);
-  expect(b.people[1].email == "jdoe2@example.com"sv);
-  expect(fatal((b.people[1].phones.size() == 2_u)));
-  expect(b.people[1].phones[0].number == "555-4322"sv);
-  expect(b.people[1].phones[0].type == person::home);
-  expect(b.people[1].phones[1].number == "555-4323"sv);
-  expect(b.people[1].phones[1].type == person::work);
-
-  std::array<char, data.size()> new_data{};
-  expect(hpp::proto::write_proto(b, new_data).ok());
-  expect(std::ranges::equal(data, new_data));
-};
-
 struct person_map {
   std::string name;  // = 1
   int32_t id = {};   // = 2
@@ -1680,92 +1535,231 @@ struct person_map {
                                                     hpp::proto::map_entry<std::string, phone_type>>>;
 };
 
-const ut::suite test_person_map = [] {
-  constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
-                        "555-4321\x10\x01"sv;
-  static_assert(data.size() == 45);
+const ut::suite composite_type = [] {
+  "monster"_test = [] {
+    monster const m = {.pos = {1.0, 2.0, 3.0},
+                       .mana = 200,
+                       .hp = 1000,
+                       .name = "mushroom",
+                       .inventory = {1, 2, 3},
+                       .color = monster::blue,
+                       .weapons =
+                           {
+                               monster::weapon{.name = "sword", .damage = 55},
+                               monster::weapon{.name = "spear", .damage = 150},
+                           },
+                       .equipped =
+                           {
+                               monster::weapon{.name = "none", .damage = 15},
+                           },
+                       .path = {monster::vec3{2.0, 3.0, 4.0}, monster::vec3{5.0, 6.0, 7.0}},
+                       .boss = true};
 
-  using namespace std::literals::string_view_literals;
-  using namespace boost::ut;
+    std::vector<char> data;
+    ut::expect(hpp::proto::write_proto(m, data).ok());
+    monster m2;
+    ut::expect(ut::fatal(hpp::proto::read_proto(m2, data).ok()));
 
-  person_map p;
-  expect(hpp::proto::read_proto(p, data).ok());
+    ut::expect(m.pos == m2.pos);
+    ut::expect(m.mana == m2.mana);
+    ut::expect(m.hp == m2.hp);
+    ut::expect(m.name == m2.name);
+    ut::expect(m.inventory == m2.inventory);
+    ut::expect(m.color == m2.color);
+    ut::expect(m.weapons == m2.weapons);
+    ut::expect(m.equipped == m2.equipped);
+    ut::expect(m.path == m2.path);
+    ut::expect(m.boss == m2.boss);
+    ut::expect(m == m2);
+  };
 
-  expect(p.name == "John Doe"sv);
-  expect(that % p.id == 1234);
-  expect(p.email == "jdoe@example.com"sv);
-  expect(fatal((p.phones.size() == 1_u)));
-  expect(fatal((p.phones.contains("555-4321"))));
-  expect(that % p.phones["555-4321"] == person_map::home);
+  "monster_with_optional"_test = [] {
+    monster_with_optional m = {.pos = {1.0, 2.0, 3.0},
+                               .mana = 200,
+                               .hp = 1000,
+                               .name = "mushroom",
+                               .inventory = {1, 2, 3},
+                               .color = monster::blue,
+                               .weapons =
+                                   {
+                                       monster::weapon{.name = "sword", .damage = 55},
+                                       monster::weapon{.name = "spear", .damage = 150},
+                                   },
+                               .equipped =
+                                   {
+                                       monster::weapon{.name = "none", .damage = 15},
+                                   },
+                               .path = {monster::vec3{2.0, 3.0, 4.0}, monster::vec3{5.0, 6.0, 7.0}},
+                               .boss = true};
 
-  std::array<char, data.size()> new_data{};
-  expect(hpp::proto::write_proto(p, new_data).ok());
+    {
+      std::vector<char> data;
+      ut::expect(hpp::proto::write_proto(m, data).ok());
+      std::cerr << "\n" << to_hex(data) << "\n";
 
-  expect(std::ranges::equal(data, new_data));
-};
+      monster_with_optional m2;
+      ut::expect(hpp::proto::read_proto(m2, data).ok());
 
-const ut::suite test_default_person_in_address_book = [] {
-  constexpr auto data = "\n\x00"sv;
+      ut::expect(m.pos == m2.pos);
+      ut::expect(m.mana == m2.mana);
+      ut::expect(m.hp == m2.hp);
+      ut::expect(m.name == m2.name);
+      ut::expect(m.inventory == m2.inventory);
+      ut::expect(m.color == m2.color);
+      ut::expect(m.weapons == m2.weapons);
+      ut::expect(m.equipped == m2.equipped);
+      ut::expect(m.path == m2.path);
+      ut::expect(ut::eq(m.boss, m2.boss));
+      ut::expect(m == m2);
+    }
 
-  using namespace std::literals::string_view_literals;
-  using namespace boost::ut;
+    m.equipped.reset();
+    {
+      std::vector<char> data;
+      ut::expect(hpp::proto::write_proto(m, data).ok());
+      monster_with_optional m2;
+      ut::expect(hpp::proto::read_proto(m2, data).ok());
+      ut::expect(m == m2);
+    }
+  };
 
-  address_book b;
-  expect(hpp::proto::read_proto(b, data).ok());
+  "person"_test = [] {
+    constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
+                          "555-4321\x10\x01"sv;
+    static_assert(data.size() == 45);
 
-  expect(b.people.size() == 1_u);
-  expect(b.people[0].name.empty());
-  expect(that % b.people[0].id == 0);
-  expect(b.people[0].email.empty());
-  expect(b.people[0].phones.empty());
+    person p;
+    ut::expect(hpp::proto::read_proto(p, data).ok());
 
-  std::array<char, "\x0a\x00"sv.size()> new_data{};
-  expect(hpp::proto::write_proto(b, new_data).ok());
+    using namespace std::literals::string_view_literals;
+    using namespace boost::ut;
 
-  expect(std::ranges::equal(new_data, "\x0a\x00"sv));
-};
+    ut::expect(p.name == "John Doe"sv);
+    ut::expect(that % p.id == 1234);
+    ut::expect(p.email == "jdoe@example.com"sv);
+    ut::expect(fatal((p.phones.size() == 1_u)));
+    ut::expect(p.phones[0].number == "555-4321"sv);
+    ut::expect(that % p.phones[0].type == person::home);
 
-const ut::suite test_empty_address_book = [] {
-  constexpr auto data = ""sv;
+    std::array<char, data.size()> new_data{};
+    ut::expect(hpp::proto::write_proto(p, new_data).ok());
 
-  using namespace boost::ut;
+    ut::expect(std::ranges::equal(data, new_data));
+  };
 
-  address_book b;
-  expect(hpp::proto::read_proto(b, data).ok());
+  "address_book"_test = [] {
+    constexpr auto data = "\n-\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
+                          "555-4321\x10\x01\n>\n\nJohn Doe "
+                          "2\x10\xd3\t\x1a\x11jdoe2@example.com\"\x0c\n\x08"
+                          "555-4322\x10\x01\"\x0c\n\x08"
+                          "555-4323\x10\x02"sv;
 
-  expect(b.people.size() == 0_u);
+    static_assert(data.size() == 111);
 
-  std::vector<char> new_data{};
-  expect(hpp::proto::write_proto(b, new_data).ok());
-  expect(new_data.empty());
-};
+    using namespace std::literals::string_view_literals;
+    using namespace boost::ut;
 
-const ut::suite test_empty_person = [] {
-  constexpr auto data = ""sv;
-  using namespace std::literals::string_view_literals;
-  using namespace boost::ut;
+    address_book b;
+    ut::expect(hpp::proto::read_proto(b, data).ok());
 
-  person p;
-  expect(hpp::proto::read_proto(p, data).ok());
+    expect(b.people.size() == 2_u);
+    expect(b.people[0].name == "John Doe"sv);
+    expect(that % b.people[0].id == 1234);
+    expect(b.people[0].email == "jdoe@example.com"sv);
+    expect(fatal((b.people[0].phones.size() == 1U)));
+    expect(b.people[0].phones[0].number == "555-4321"sv);
+    expect(b.people[0].phones[0].type == person::home);
+    expect(b.people[1].name == "John Doe 2"sv);
+    expect(that % b.people[1].id == 1235);
+    expect(b.people[1].email == "jdoe2@example.com"sv);
+    expect(fatal((b.people[1].phones.size() == 2_u)));
+    expect(b.people[1].phones[0].number == "555-4322"sv);
+    expect(b.people[1].phones[0].type == person::home);
+    expect(b.people[1].phones[1].number == "555-4323"sv);
+    expect(b.people[1].phones[1].type == person::work);
 
-  expect(p.name.empty());
-  expect(that % p.id == 0);
-  expect(p.email.empty());
-  expect(p.phones.empty());
+    std::array<char, data.size()> new_data{};
+    expect(hpp::proto::write_proto(b, new_data).ok());
+    expect(std::ranges::equal(data, new_data));
+  };
 
-  std::vector<char> new_data{};
-  expect(hpp::proto::write_proto(p, new_data).ok());
-  expect(new_data.empty());
-};
+  "person_map"_test = [] {
+    constexpr auto data = "\n\x08John Doe\x10\xd2\t\x1a\x10jdoe@example.com\"\x0c\n\x08"
+                          "555-4321\x10\x01"sv;
+    static_assert(data.size() == 45);
 
-const ut::suite test_write_to_non_resizable_buffer = [] {
-  using namespace boost::ut;
-  char buf[8];
-  std::span<char> s{buf};
-  expect(s.size() == 8);
-  example msg{150};
-  expect(hpp::proto::write_proto(msg, s).ok());
-  expect(std::ranges::equal("\x08\x96\x01"sv, s));
+    using namespace std::literals::string_view_literals;
+    using namespace boost::ut;
+
+    person_map p;
+    expect(hpp::proto::read_proto(p, data).ok());
+
+    expect(p.name == "John Doe"sv);
+    expect(that % p.id == 1234);
+    expect(p.email == "jdoe@example.com"sv);
+    expect(fatal((p.phones.size() == 1_u)));
+    expect(fatal((p.phones.contains("555-4321"))));
+    expect(that % p.phones["555-4321"] == person_map::home);
+
+    std::array<char, data.size()> new_data{};
+    expect(hpp::proto::write_proto(p, new_data).ok());
+
+    expect(std::ranges::equal(data, new_data));
+  };
+
+  "default_person_in_address_book"_test = [] {
+    constexpr auto data = "\n\x00"sv;
+
+    using namespace std::literals::string_view_literals;
+    using namespace boost::ut;
+
+    address_book b;
+    expect(hpp::proto::read_proto(b, data).ok());
+
+    expect(b.people.size() == 1_u);
+    expect(b.people[0].name.empty());
+    expect(that % b.people[0].id == 0);
+    expect(b.people[0].email.empty());
+    expect(b.people[0].phones.empty());
+
+    std::array<char, "\x0a\x00"sv.size()> new_data{};
+    expect(hpp::proto::write_proto(b, new_data).ok());
+
+    expect(std::ranges::equal(new_data, "\x0a\x00"sv));
+  };
+
+  "test_empty_address_book"_test = [] {
+    constexpr auto data = ""sv;
+
+    using namespace boost::ut;
+
+    address_book b;
+    expect(hpp::proto::read_proto(b, data).ok());
+
+    expect(b.people.size() == 0_u);
+
+    std::vector<char> new_data{};
+    expect(hpp::proto::write_proto(b, new_data).ok());
+    expect(new_data.empty());
+  };
+
+  "empty_person"_test = [] {
+    constexpr auto data = ""sv;
+    using namespace std::literals::string_view_literals;
+    using namespace boost::ut;
+
+    person p;
+    expect(hpp::proto::read_proto(p, data).ok());
+
+    expect(p.name.empty());
+    expect(that % p.id == 0);
+    expect(p.email.empty());
+    expect(p.phones.empty());
+
+    std::vector<char> new_data{};
+    expect(hpp::proto::write_proto(p, new_data).ok());
+    expect(new_data.empty());
+  };
 };
 
 int main() {
