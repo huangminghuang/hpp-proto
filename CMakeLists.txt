@@ -65,6 +65,8 @@ if(HPP_PROTO_ENABLE_SANITIZER)
   endif()
 endif()
 
+set(CMAKE_CXX_FLAGS_COVERAGE "--coverage -O0") 
+
 add_library(libhpp_proto INTERFACE)
 target_include_directories(libhpp_proto INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

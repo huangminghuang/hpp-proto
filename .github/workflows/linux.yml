@@ -33,6 +33,8 @@
             - sanitize: OFF
             - build_type: Debug
               sanitize: ON
+            - build_type: Coverage
+              compiler: gcc
 
       runs-on: ubuntu-24.04
   
@@ -41,15 +43,12 @@
       steps:
         - name: set environment variables
           run: |
-            if [[ $CC == gcc-* ]]; then
+            if [[ $CC == gcc* ]]; then
               CXX=${CC/gcc/g++}
-              GCOV=gcov
             elif [[ $CC == clang-* ]]; then
               CXX=${CC/clang/clang++}
-              GCOV="llvm-cov gcov"
             fi
             echo "CXX=$CXX" >> "$GITHUB_ENV"
-            echo "GCOV=$GCOV" >> "$GITHUB_ENV"
         - uses: actions/checkout@v4
   
         - uses: actions/cache@v4
@@ -86,4 +85,10 @@
           working-directory: ./build
           run: |
             ctest --build-config ${{ matrix.build_type }} --output-on-failure
-  
+
+        - name: Upload coverage to Codecov
+          uses: codecov/codecov-action@v4
+          if: matrix.build_type == 'Coverage'
+          with:
+            token: ${{ secrets.CODECOV_TOKEN }}
+            verbose: true

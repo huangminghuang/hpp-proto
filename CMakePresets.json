@@ -64,16 +64,16 @@
             }
         },
         {
-            "name": "system-protoc",
+            "name": "Coverage",
             "inherits": "default",
-            "displayName": "System protoc",
-            "description": "Optimized build with system protoc",
-            "binaryDir": "${sourceDir}/build/release",
+            "displayName": "Coverage",
+            "description": "Coverage Build",
+            "binaryDir": "${sourceDir}/build/coverage",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_BUILD_TYPE": "Coverage",
                 "HPP_PROTO_PROTOC": "find"
             }
-        }   
+        }
     ],
     "testPresets": [
         {
