@@ -1862,7 +1862,7 @@ struct pb_serializer {
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   constexpr static status skip_field(uint32_t tag, concepts::has_extension auto &item, auto &context,
-                           concepts::is_basic_in auto &archive) {
+                                     concepts::is_basic_in auto &archive) {
 
     auto field_archive = archive.unwind_tag(tag);
     if (auto result = do_skip_field(tag, archive); !result.ok()) [[unlikely]] {
