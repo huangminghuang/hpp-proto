@@ -606,7 +606,6 @@ inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message) {
 // manipulating extension fields instead of normal ones.
 
 inline void SetAll(protobuf_unittest::TestAllExtensions *message, auto &&ctx) {
-
   expect(message->set_extension(protobuf_unittest::optional_int32_extension(), 101, ctx).ok());
   expect(message->set_extension(protobuf_unittest::optional_int64_extension(), 102, ctx).ok());
   expect(message->set_extension(protobuf_unittest::optional_uint32_extension(), 103, ctx).ok());

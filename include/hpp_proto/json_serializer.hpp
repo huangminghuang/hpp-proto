@@ -167,7 +167,6 @@ struct base64 {
 
   // @returns The number bytes written to b, -1 for error
   constexpr static int64_t encode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &&b) noexcept {
-
     const auto n = source.size();
     using V = std::decay_t<decltype(b[0])>;
     constexpr char const base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -204,7 +203,6 @@ struct base64 {
     }
 
     if (i != n) {
-
       b[ix++] = static_cast<V>(base64_chars[((static_cast<unsigned>(source[i]) >> 2U) & 0x3FU)]);
       unsigned const next = (i + 1 < n) ? static_cast<unsigned>(source[i + 1]) : 0U;
       b[ix++] = static_cast<V>(base64_chars[(static_cast<unsigned>(source[i]) << 4U & 0x3FU) | ((next >> 4U) & 0x0FU)]);

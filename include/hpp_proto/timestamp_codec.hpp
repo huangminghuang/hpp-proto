@@ -70,7 +70,6 @@ struct timestamp_codec {
   }
 
   static bool decode(auto &&json, auto &&value) {
-
     if (json.size() < std::size("yyyy-mm-ddThh:mm:ss") || json.size() > std::size("yyyy-mm-ddThh:mm:ss.000000000") ||
         json.back() != 'Z') [[unlikely]] {
       return false;

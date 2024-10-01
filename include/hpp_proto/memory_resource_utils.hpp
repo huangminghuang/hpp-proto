@@ -291,7 +291,6 @@ public:
 
   template <typename ByteT>
   constexpr void append_raw_data(const ByteT *start_pos, std::size_t num_elements) {
-
     auto old_size = view_.size();
     std::size_t n = old_size + num_elements;
     assign_range_with_size(view_, n);

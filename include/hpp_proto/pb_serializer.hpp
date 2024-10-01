@@ -296,7 +296,6 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7), concepts::byte_type Byte>
 constexpr const Byte *shift_mix_parse_varint(const Byte *p, const Byte *end, int64_t &res1) {
-
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -519,7 +518,6 @@ struct accessor_type {
 
 template <uint32_t Number, uint8_t options, typename Type, auto DefaultValue>
 struct field_meta_base {
-
   constexpr static uint32_t number = Number;
   using type = Type;
 
@@ -582,7 +580,6 @@ struct [[nodiscard]] status {
 
 template <typename T>
 struct extension_meta_base {
-
   struct accessor_type {
     constexpr auto &operator()(auto &&item) const {
       auto &[e] = item;
@@ -818,7 +815,6 @@ constexpr std::array<T, M> operator<<(std::array<T, M> lhs, std::span<uint32_t>)
 
 template <concepts::has_meta Type>
 struct reverse_indices {
-
   template <typename T>
     requires requires { T::number; }
   constexpr static auto get_numbers(T meta) {
@@ -1440,7 +1436,6 @@ struct pb_serializer {
   }
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
   template <typename Meta>
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::oneof_type auto const &item, Meta,
                                                                        concepts::is_size_cache_iterator auto &cache_itr,
@@ -1650,7 +1645,6 @@ struct pb_serializer {
 
     template <concepts::byte_serializable T>
     constexpr status deserialize(T &item) {
-
       std::array<std::remove_const_t<byte_type>, sizeof(item)> value = {};
       if constexpr (endian_swapped) {
         std::reverse_copy(current.begin, current.begin + sizeof(item), value.begin());
@@ -1779,7 +1773,6 @@ struct pb_serializer {
           next_region, size_exclude_current};
     }
 
-    //////////////////
     template <concepts::non_owning_bytes T>
     constexpr status read_bytes(uint32_t length, T &item) {
       assert(in_avail() >= static_cast<int32_t>(length));
@@ -1794,7 +1787,6 @@ struct pb_serializer {
           input_buffer_region_base<Byte>{current.begin - tag_len, current.end, current.slope_begin}, next_region,
           size_exclude_current};
     }
-    //////////////////
 
     constexpr status operator()(auto &&...item) {
       status result;
@@ -1854,7 +1846,6 @@ struct pb_serializer {
             return result;
           }
         }
-
         return {};
       }
     }
@@ -1870,8 +1861,8 @@ struct pb_serializer {
   };
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-  static status skip_field(uint32_t tag, concepts::has_extension auto &item, auto &context,
-                           concepts::is_basic_in auto &archive) {
+  constexpr static status skip_field(uint32_t tag, concepts::has_extension auto &item, auto &context,
+                                     concepts::is_basic_in auto &archive) {
 
     auto field_archive = archive.unwind_tag(tag);
     if (auto result = do_skip_field(tag, archive); !result.ok()) [[unlikely]] {
@@ -1919,6 +1910,7 @@ struct pb_serializer {
       return field_archive.deserialize_packed(field_archive.in_avail(), v);
     }
   }
+
   constexpr static status skip_field(uint32_t tag, concepts::has_meta auto &, auto & /* unused */,
                                      concepts::is_basic_in auto &archive) {
     return do_skip_field(tag, archive);
@@ -2330,7 +2322,6 @@ struct pb_serializer {
 
   constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, auto &context,
                                                    concepts::is_basic_in auto &archive) {
-
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto mask = traits::reverse_indices<type>::mask;
     return deserialize_field_by_masked_num(tag, item, context, archive,
@@ -2339,7 +2330,6 @@ struct pb_serializer {
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_pb_context auto &context,
                                       concepts::is_basic_in auto &archive) {
-
     while (archive.in_avail() > 0) {
       auto tag = archive.read_tag();
 
@@ -2347,7 +2337,6 @@ struct pb_serializer {
         [[unlikely]] return result;
       }
     }
-
     return archive.in_avail() == 0 ? std::errc{} : std::errc::bad_message;
   }
 
@@ -2363,7 +2352,6 @@ struct pb_serializer {
     } else if (len == archive.in_avail()) {
       return deserialize(item, context, archive);
     }
-
     return std::errc::bad_message;
   }
 
@@ -2685,7 +2673,5 @@ expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is
   }
 }
 } // namespace hpp::proto
-
 #undef HPP_PROTO_INLINE
-
 #endif

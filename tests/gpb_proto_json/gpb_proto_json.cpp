@@ -9,7 +9,6 @@
 namespace gpb_based {
 namespace gpb = google::protobuf;
 std::string proto_to_json(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data) {
-
   const auto *message_descriptor = pool.FindMessageTypeByName(message_name);
   // NOLINTBEGIN(misc-const-correctness)
   gpb::DynamicMessageFactory factory(&pool);
