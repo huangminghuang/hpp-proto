@@ -11,7 +11,6 @@ using namespace std::string_view_literals;
 // We selectively set/check a few representative fields rather than all fields
 // as this test is only expected to cover the basics of lite support.
 inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
-
   m->optional_int32 = 100;
   m->optional_string = "asdf";
   m->optional_bytes = "jkl;"_bytes_view;

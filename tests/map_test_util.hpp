@@ -4,7 +4,6 @@
 #include <google/protobuf/map_unittest.pb.hpp>
 
 inline void SetMapFields(protobuf_unittest::TestMap *message) {
-
   // Add first element.
   message->map_int32_int32[0] = 0;
   message->map_int64_int64[0] = 0;

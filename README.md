@@ -1,4 +1,6 @@
-# hpp-proto
+# Hpp-proto
+![linux](https://github.com/github/docs/actions/workflows/linux.yml/badge.svg)![macos](https://github.com/github/docs/actions/workflows/macos.yml/badge.svg)![windows](https://github.com/github/docs/actions/workflows/windows.yml/badge.svg)
+[![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC)](https://codecov.io/github/huangminghuang/hpp-proto)
 
 Hpp-proto is a C++20-based implementation to simplify the use of Protocol Buffers in C++. It achieves this by generating C++ aggregate types from .proto files and providing a header only library to encode/decode Protobuf data using these types. It's worth noting that the generated aggregate types heavily use the C++ Standard Library containers such as std::vector and std::string, in contrast to the Google implementation, which makes them easier to use and integrate with existing C++ code bases. 
 

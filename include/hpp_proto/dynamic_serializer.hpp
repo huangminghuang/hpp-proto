@@ -150,7 +150,6 @@ class dynamic_serializer {
     template <typename MessageDescriptor, typename Pool>
     field_meta(MessageDescriptor *descriptor, const google::protobuf::FieldDescriptorProto &proto, const Pool &pool)
         : number(proto.number), name(proto.name), json_name(proto.json_name), type(proto.type) {
-
       if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE) {
         is_map_entry = pool.message_map.find(proto.type_name)->second->is_map_entry;
       }
@@ -562,7 +561,6 @@ class dynamic_serializer {
         auto field_wire_type = tag_type(tag);
 
         if (field_wire_type == wire_type::egroup && field_number == number) {
-
           if constexpr (Options.prettify) {
             context.indentation_level -= Options.indentation_width;
             glz::detail::dump<'\n'>(b, ix);
@@ -587,7 +585,6 @@ class dynamic_serializer {
 
     template <auto Options>
     status any_to_json(const auto &v) {
-
       auto msg_index = pb_meta.message_index_from_type_url(v.type_url);
       if (msg_index >= pb_meta.messages.size()) [[unlikely]] {
         return std::errc::no_message_available;
@@ -1168,7 +1165,6 @@ class dynamic_serializer {
       using namespace glz::detail;
       if constexpr (!has_opening_handled(Options)) {
         if constexpr (!has_ws_handled(Options)) {
-
           skip_ws<Options>(context, it, end);
           if (bool(context.error)) [[unlikely]] {
             return false;
@@ -1280,7 +1276,6 @@ class dynamic_serializer {
 
     template <auto Options>
     status message_to_pb(std::size_t msg_index, auto &it, auto &end, uint32_t map_entry_number, auto &archive) {
-
       if (msg_index == pb_meta.protobuf_duration_message_index) {
         return wellknown_with_codec_to_pb<Options, wellknown::Duration>(it, end, archive);
       } else if (msg_index == pb_meta.protobuf_timestamp_message_index) {

@@ -97,7 +97,6 @@ struct descriptor_pool {
   flat_map<std::string, enum_descriptor_t *> enum_map;
 
   explicit descriptor_pool(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
-
     const descriptor_counter counter(proto_files);
     files.reserve(counter.files);
     messages.reserve(counter.messages);
