@@ -1214,7 +1214,6 @@ struct hpp_meta_generator : code_generator {
     }
 
     if (descriptor.map_fields[0] != nullptr) {
-
       auto get_meta_type = [](const auto *field) {
         return field->cpp_meta_type == "void" ? field->qualified_cpp_field_type : field->cpp_meta_type;
       };
@@ -1269,7 +1268,6 @@ struct hpp_meta_generator : code_generator {
   // NOLINTEND(readability-function-cognitive-complexity)
 
   void process(oneof_descriptor_t &descriptor, const std::string &cpp_scope, const std::string & /* unused */) {
-
     if (descriptor.fields.size() > 1) {
       std::string types;
       std::string sep;

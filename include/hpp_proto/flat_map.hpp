@@ -330,6 +330,7 @@ class flat_map {
   static_assert(std::is_nothrow_swappable<KeyContainer>::value, "");
   static_assert(std::is_nothrow_swappable<MappedContainer>::value, "");
 #endif
+
 public:
   using key_type = Key;
   using mapped_type = Mapped;

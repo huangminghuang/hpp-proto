@@ -1713,7 +1713,6 @@ struct pb_serializer {
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
       if (!std::is_constant_evaluated() && has_bmi2()) {
-
         sfvint_parser<T, value_type> parser(item.data());
         if constexpr (!contiguous) {
           while (bytes_count > region_size()) {
@@ -1863,7 +1862,6 @@ struct pb_serializer {
 
   constexpr static status skip_field(uint32_t tag, concepts::has_extension auto &item, auto &context,
                                      concepts::is_basic_in auto &archive) {
-
     auto field_archive = archive.unwind_tag(tag);
     if (auto result = do_skip_field(tag, archive); !result.ok()) [[unlikely]] {
       return result;
@@ -1960,7 +1958,6 @@ struct pb_serializer {
   template <typename T>
   constexpr static std::optional<std::size_t> count_packed_elements(uint32_t length,
                                                                     concepts::is_basic_in auto &archive) {
-
     if constexpr (concepts::byte_serializable<T>) {
       return length / sizeof(T);
     } else if constexpr (std::is_enum_v<T> || concepts::varint<T>) {
@@ -2059,7 +2056,6 @@ struct pb_serializer {
   template <typename Meta>
   constexpr static status deserialize_unpacked_repeated(Meta, uint32_t tag, auto &&item, auto &context,
                                                         concepts::is_basic_in auto &archive) {
-
     using type = std::remove_reference_t<decltype(item)>;
     using value_type = typename type::value_type;
     using value_encode_type = typename get_value_encode_type<typename Meta::type, value_type>::type;
@@ -2215,7 +2211,6 @@ struct pb_serializer {
   template <typename Meta>
   constexpr static status deserialize_field(std::ranges::range auto &item, Meta meta, uint32_t tag, auto &context,
                                             concepts::is_basic_in auto &archive) {
-
     const uint32_t field_num = tag_number(tag);
     using type = std::remove_reference_t<decltype(item)>;
 
@@ -2242,7 +2237,6 @@ struct pb_serializer {
 
   constexpr static status deserialize_group(uint32_t field_num, auto &&item, auto &context,
                                             concepts::is_basic_in auto &archive) {
-
     while (archive.in_avail() > 0) {
       auto tag = archive.read_tag();
 
