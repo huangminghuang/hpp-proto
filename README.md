@@ -2,61 +2,92 @@
 ![linux](https://github.com/huangminghuang/hpp-proto/actions/workflows/linux.yml/badge.svg)![macos](https://github.com/huangminghuang/hpp-proto/actions/workflows/macos.yml/badge.svg)![windows](https://github.com/huangminghuang/hpp-proto/actions/workflows/windows.yml/badge.svg)
 [![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC)](https://codecov.io/github/huangminghuang/hpp-proto)
 
-Hpp-proto is a C++20-based implementation to simplify the use of Protocol Buffers in C++. It achieves this by generating C++ aggregate types from .proto files and providing a header only library to encode/decode Protobuf data using these types. It's worth noting that the generated aggregate types heavily use the C++ Standard Library containers such as std::vector and std::string, in contrast to the Google implementation, which makes them easier to use and integrate with existing C++ code bases. 
+Hpp-proto is a lightweight, high-performance Protocol Buffers implementation for C++20. It maps Protocol Buffers messages directly to simple C++ aggregates, using only C++ built-in or standard library types. Apart from UTF-8 validation, the serialization code for these mapped aggregates is entirely header-only, ensuring minimal dependencies and efficient performance.
 
-## Features
-* All Protocol Buffers message definitions are mapped to simple C++ aggregates based on standard C++ library.
-* Except the usage of [is_utf8](https://github.com/simdutf/is_utf8) library, all generated code and the core library are header only. 
-* Each generated C++ aggregate are associated with static C++ reflection data for protobuf encoding and decoding.
-* Each generated C++ aggregate also contains meta data for JSON serialization using slightly modified [glaze](https://github.com/stephenberry/glaze) library.
-* Only Protocol Buffers syntax 2 and 3 (except `service`) are supported, no edition support currently.
-* Support non-owning mode code generation which maps string and repeated fields to std::string_view and std::span.
-* Support compile time serialization.
-* Far smaller code size (less than 3% of the google counterparts in our test cases).
-* Faster execution time (20% to 55% faster than the google counterparts in our test cases).
+# Features
+
+* Significantly smaller code size compared to Google's implementation.
+* Faster performance than Google's implementation.
+* Maps all Protocol Buffers message definitions to simple C++ aggregates using standard C++ library types.
+* Aside from [UTF-8 validation](https://github.com/simdutf/is_utf8), all generated code and the core library are header-only.
+* Each generated C++ aggregate is associated with static C++ reflection data for efficient Protocol Buffers encoding and decoding.
+* Includes metadata for JSON serialization in each generated C++ aggregate, utilizing a slightly modified version of the [glaze](https://github.com/stephenberry/glaze) library.
+* Completely exception-free.
+* Supports non-owning mode code generation, mapping string and repeated fields to `std::string_view` and `std::span`.
+* Enables compile-time serialization.
+
+## Limitations
+
+* Supports only Protocol Buffers syntax 2 and 3 (excluding `service`), with no edition support.
+* Lacks runtime reflection support.
+* Unknown fields are discarded during deserialization.
 
 ## Comparison with google protobuf C++ implementation
+### System Configuration
+
+| Platform |      Mac         |            Linux                |
+|----------|------------------|---------------------------------|
+|    OS    |    MacOS 14.7    |         Ubuntu 22.04            |
+|   CPU    | M1 Pro/MK193LL/A |  Intel Core i9-11950H @ 2.60GHz |
+| Compiler | Apple clang 15.0 |           gcc 12.3.0            |
+
+Google protobuf version 28.2
+
 ### Runtime Performance 
 
 We measured the runtime performance with the [dataset](https://github.com/protocolbuffers/protobuf/tree/v3.6.0/benchmarks/datasets/google_message1) and the [benchmarks.proto](https://github.com/protocolbuffers/protobuf/blob/v3.6.0/benchmarks/benchmarks.proto) definition from google protobuf version 3.6.0. Three different cases are benchmarked: deserialization, set_message, and set_message plus serialization.  
 
+|                                  Mac operation CPU time                                                |
+|-----------|------------------------------|------------------------------|------------------------------|
+|           |      deserialize             |          set_message         |   set_message and serialize  |
+|-----------|-----------|------------------|-----------|------------------|-----------|------------------|
+|           |  regular  | arena/non_owning |  regular  | arena/non_owning |  regular  | arena/non_owning |
+|-----------|-----------|------------------|-----------|------------------|-----------|------------------|
+| google    |  475.0 ns |         366.0 ns |  382.0 ns |         268.0 ns |  509.0 ns |         426.0 ns |
+| hpp_proto |  283.0 ns |         170.0 ns |   81.0 ns |          8.38 ns |  285.0 ns |         182.0 ns |
+|-----------|-----------|------------------|-----------|------------------|-----------|------------------|
+| hpp_proto |           |                  |           |                  |           |                  |
+|  speedup  |   159.00% |          211.06% |   511.04% |         3067.93% |   243.94% |          232.69% |
 
-Below are results with Apple MacBook Pro, Model MK193LL/A, Chip Apple M1 Pro.
-| Name                      | deserialize | set_message | set_message + serialize |
-|---------------------------|-------------|-------------|-------------------------|
-| google                    | 463 ns      |  383 ns     | 500 ns                  |
-| google arena allocation   | 359 ns      |  258 ns     | 415 ns                  |
-| hpp_proto owning          | 291 ns      | 78.6 ns     | 284 ns                  |
-| hpp_proto non_owning      | 176 ms      | 8.39 ns     | 185 ns                  |
 
-
-Below are the result with Ubuntu 22.04, Intel Core i9-11950H @ 2.60GHz
-| Name                      | deserialize | set_message | set_message + serialize |
-|---------------------------|-------------|-------------|-------------------------|
-| google                    | 244 ns      |  116 ns     | 221 ns                  |
-| google arena allocation   | 251 ns      |  113 ns     | 226 ns                  |
-| hpp_proto owning          | 197 ns      | 31.7 ns     | 131 ns                  |
-| hpp_proto non_owning      | 168 ms      | 10.9 ns     | 121 ns                  |
+|                                  Linux operation CPU time                                              |
+|-----------|------------------------------|------------------------------|------------------------------|
+|           |      deserialize             |          set_message         |   set_message and serialize  |
+|-----------|-----------|------------------|-----------|------------------|-----------|------------------|
+|           |  regular  | arena/non_owning |  regular  | arena/non_owning |  regular  | arena/non_owning |
+|-----------|-----------|------------------|-----------|------------------|-----------|------------------|
+| google    |  443.0 ns |         255.0 ns |  120.0 ns |         114.0 ns |  247.0 ns |         242.0 ns |
+| hpp_proto |  198.0 ns |         160.0 ns |   34.6 ns |          11.3 ns |  142.0 ns |         122.0 ns |
+|-----------|-----------|------------------|-----------|------------------|-----------|------------------|
+| hpp_proto |           |                  |           |                  |           |                  |
+|  speedup  |   270.18% |          163.35% |   321.07% |         1018.33% |   167.14% |          195.24% |
 
 [Benchmark code is available here](benchmarks/benchmark.cpp)
 ### Code Size
-We compare the code sizes for the equivalent programs (hpp_proto_decode_encoded, google_decode_encode and google_decode_encode_lite) for decoding and encoding the message defined in
-[benchmark_message_proto3.proto](benchmakrs/benchmark_message_proto3.proto) using hpp-proto and google protobuf implementation version 28.0. The `google_decode_encode` and `google_decode_encode_lite` program are statically linked with `libprotobuf` and `libprotobuf-lite` respectively.
+We compare the code sizes for the equivalent programs [hpp_proto_decode_encoded](benchmakrs/hpp_proto_decode_encoded.cpp), [google_decode_encode](benchmakrs/google_decode_encode.cpp) and [google_decode_encode_lite](benchmakrs/google_decode_encode_lite.cpp) for decoding and encoding the message defined in
+[benchmark_message_proto3.proto](benchmakrs/benchmark_message_proto3.proto) using hpp-proto and google protobuf implementation version 28.2. The `google_decode_encode` and `google_decode_encode_lite` program are statically linked with `libprotobuf` and `libprotobuf-lite` respectively.
 
-Below are the results for code size in bytes on
- - Mac:  Apple M1 Mac with Apple clang version 15.0.0
- - Ubuntu 22.04: x86-64 with gcc 12.3.0
-
-|  name                    |   Mac                   | Ubuntu 22.04    |
-|--------------------------|-------------------------|-----------------|
-| hpp_proto_decode_encoded |   114136                | 87152           | 
-| google_decode_encode     |  2686232                | 3396696         |
-| google_decode_encode_lite|  1139544                | 1474208         |
+|                 Code size in bytes                |
+|-----------------------------|-----------|---------|
+|                             |   Mac     | Linux   |
+|-----------------------------|-----------|---------|
+| google_decode_encode        |  2624344  | 3410088 |
+| google_decode_encode_lite   |  1106408  | 1474208 |
+| hpp_proto_decode_encoded    |   114152  |   87144 | 
+|-----------------------------|-----------|---------|
+ 
+| Hpp-proto code size reduction ratio compared to  |
+|---------------------------|-----------|----------|
+|                           |    Mac    |  Linux   |
+|---------------------------|-----------|----------|
+| google_decode_encode      |  22.99:1  | 39.13:1  |
+| google_decode_encode_lite |   9.68:1  | 16.91:1  |       
 
 ## Getting Started
+This section provides a quick introduction to the basic usage of hpp-proto to help you get started with minimal setup. It covers the essential steps required to integrate hpp-proto into your project and begin working with Protocol Buffers. For more advanced usage scenarios, optimizations, and additional features, please refer to the detailed examples and guides in the tutorial directory of the repository.
 
 ### Install google protoc 
-hpp-proto requires google protoc for code generation. It can either use the existing  protoc installation on your system or automatically compiling protoc from source. 
+If you haven’t installed the `protoc` compiler, [download the package](https://protobuf.dev/downloads) and follow the instructions in the README.
 
 ### [optional] Install hpp-proto
 
@@ -104,7 +135,8 @@ message AddressBook {
 ### Code generation 
 
 ```bash
-    protoc -I=$SRC_DIR --plugin=protoc-gen-hpp=$HOME/local/bin/protoc-gen-hpp --hpp_out=$DST_DIR $SRC_DIR/addressbook.proto
+    export PATH=$PATH:/path/to/protoc-gen-hpp
+    protoc -I=$SRC_DIR --hpp_out=$DST_DIR $SRC_DIR/addressbook.proto
 ```
 
 This generates the following files in your specified destination directory:

@@ -60,7 +60,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "HPP_PROTO_BENCHMARKS": true,
-                "HPP_PROTO_PROTOC": "find"
+                "HPP_PROTO_PROTOC": "compile"
             }
         },
         {
