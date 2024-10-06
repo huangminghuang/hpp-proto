@@ -22,34 +22,64 @@ def parse_benchmark_output(output):
             lib_name, operation, mode, time_ns, cpu_ns, iterations = match.groups() 
             if mode != "regular":
                 mode = "arena/non_owning"
-            results[lib_name][operation][mode] = [float(cpu_ns), int(iterations)]
+            results[lib_name][operation][mode] = float(cpu_ns)
 
     return results
 
 def speedup(results, operation, mode):
-    google_iterations = results["google"][operation][mode][1]
-    hpp_proto_iterations = results["hpp_proto"][operation][mode][1]
-    return hpp_proto_iterations/google_iterations*100
+    google_time = results["google"][operation][mode]
+    hpp_proto_time = results["hpp_proto"][operation][mode]
+    return google_time/hpp_proto_time
 
 
 def generate_markdown_table(results):
-    header = (
-        "|           |      deserialize             |          set_message         |   set_message and serialize  |\n"
-        "|-----------|------------------------------|------------------------------|------------------------------|\n"
-        "|           |  regular  | arena/non_owning |  regular  | arena/non_owning |  regular  | arena/non_owning |\n"
-        "|-----------|-----------|------------------|-----------|------------------|-----------|------------------|\n"
-    )
-    
+    header = """<table><thead>
+  <tr>
+    <th colspan="7"> Operations CPU time</th>
+  </tr></thead>
+<tbody>
+  <tr>
+    <td></td>
+    <td colspan="2">deserialize</td>
+    <td colspan="2">set_message</td>
+    <td colspan="2">set_message and serialize</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td>regular</td>
+    <td>arena/non_owning</td>
+    <td>regular</td>
+    <td>arena/non_owning</td>
+    <td>regular</td>
+    <td>arena/non_owning</td>
+  </tr>
+"""    
     rows = []
     row = results["google"]
 
     for lib_name in ["google", "hpp_proto"]:
         row = results[lib_name]
-        rows.append(f"| {lib_name:9} | {row['deserialize']['regular'][0]:6} ns | {row['deserialize']['arena/non_owning'][0]:13} ns | {row['set_message']['regular'][0]:6} ns | { row['set_message']['arena/non_owning'][0]:13} ns | {row['set_message_and_serialize']['regular'][0]:6} ns | { row['set_message_and_serialize']['arena/non_owning'][0]:13} ns |")
+        rows.append(" <tr>\n"
+                    f"   <td>{lib_name} CPU time</td>\n"
+                    f"   <td><div align=\"right\">{row['deserialize']['regular']}&nbsp;ns</div></td>\n"
+                    f"   <td><div align=\"right\">{row['deserialize']['arena/non_owning']}&nbsp;ns</div></td>\n"
+                    f"   <td><div align=\"right\">{row['set_message']['regular']}&nbsp;ns</div></td>\n"
+                    f"   <td><div align=\"right\">{row['set_message']['arena/non_owning']}&nbsp;ns</div></td>\n"
+                    f"   <td><div align=\"right\">{row['set_message_and_serialize']['regular']}&nbsp;ns</div></td>\n"
+                    f"   <td><div align=\"right\">{row['set_message_and_serialize']['arena/non_owning']}&nbsp;ns</div></td>\n"
+                    " </tr>")
 
-    rows.append("|-----------|-----------|------------------|-----------|------------------|-----------|------------------|")
-    rows.append("| hpp_proto |           |                  |           |                  |           |                  |")
-    rows.append(f"|  speedup  | {speedup(results,'deserialize','regular'):8.2f}% | {speedup(results,'deserialize','arena/non_owning'):15.2f}% | {speedup(results,'set_message','regular'):8.2f}% | {speedup(results,'set_message','arena/non_owning'):15.2f}% | {speedup(results,'set_message_and_serialize','regular'):8.2f}% | {speedup(results,'set_message_and_serialize','arena/non_owning'):15.2f}% |")
+    rows.append(" <tr>\n"
+                f"   <td>hpp_proto speedup factor</td>\n"
+                f"   <td><div align=\"right\">{speedup(results,'deserialize','regular'):4.2f}</div></td>\n"
+                f"   <td><div align=\"right\">{speedup(results,'deserialize','arena/non_owning'):4.2f}</div></td>\n"
+                f"   <td><div align=\"right\">{speedup(results,'set_message','regular'):4.2f}</div></td>\n"
+                f"   <td><div align=\"right\">{speedup(results,'set_message','arena/non_owning'):4.2f}</div></td>\n"
+                f"   <td><div align=\"right\">{speedup(results,'set_message_and_serialize','regular'):4.2f}</div></td>\n"
+                f"   <td><div align=\"right\">{speedup(results,'set_message_and_serialize','arena/non_owning'):4.2f}</div></td>\n"
+                " </tr>\n"
+                "</tbody>\n"
+                "</table>\n")
 
     # Combine header and rows
     return header + "\n".join(rows)
