@@ -61,7 +61,7 @@ if(HPP_PROTO_PROTOC STREQUAL "find")
         endif()
     endif()
 elseif(HPP_PROTO_PROTOC STREQUAL "compile")
-    set(Protobuf_VERSION 28.0)
+    set(Protobuf_VERSION 28.2)
     CPMAddPackage(
         NAME protobuf
         VERSION ${Protobuf_VERSION}

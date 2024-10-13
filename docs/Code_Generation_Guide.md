@@ -48,13 +48,11 @@ protobuf_generate(
     PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
 ```
 
-
-
 ### Compiler Invocation from command line
-
+The compiler plugin `protoc-gen-hpp` is in your `$PATH` for the protocol compiler `protoc` to find it.
 
 ```
-protoc --plugin=<protoc-gen-hpp path> --hpp_out=[<plugin_options>:]<output_dir> [--proto_path=<dir>] <protobuf_files...>
+protoc --hpp_out=<output_dir> [--hpp_opt=<plugin_option>] [--proto_path=<dir>] <protobuf_files...>
 ```
 
 
@@ -70,7 +68,7 @@ In certain cases, you may want to use `hpp-proto` and the official google Protob
 
 For example, invoking the compiler as follows:
 ```
-protoc --proto_path=src --plugin=protoc-gen-hpp=$HOME/local/bin/protoc-gen-hpp --hpp_out root_namespace=baz:build/gen src/foo.proto
+protoc --proto_path=src --plugin=protoc-gen-hpp=$HOME/local/bin/protoc-gen-hpp --hpp_out build/gen  --hpp_opts=root_namespace=baz src/foo.proto
 ```
 All declarations in the file will reside in the `baz::foo::bar` namespace. 
 
