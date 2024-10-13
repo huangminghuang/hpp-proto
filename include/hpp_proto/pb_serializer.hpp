@@ -2667,4 +2667,3 @@ expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is
 }
 } // namespace hpp::proto
 #undef HPP_PROTO_INLINE
-
