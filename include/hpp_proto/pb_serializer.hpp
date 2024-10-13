@@ -20,8 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef HPP_PROTO_H
-#define HPP_PROTO_H
+#pragma once
 #include <array>
 #include <bit>
 #include <cassert>
@@ -2668,4 +2667,4 @@ expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is
 }
 } // namespace hpp::proto
 #undef HPP_PROTO_INLINE
-#endif
+
