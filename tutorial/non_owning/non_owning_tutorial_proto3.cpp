@@ -89,7 +89,8 @@ int main() {
            "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
   }
 
-  auto write_json_result = hpp::proto::write_json<glz::opts{}, std::pmr::string>(address_book, hpp::proto::json_context{pool});
+  auto write_json_result =
+      hpp::proto::write_json<glz::opts{}, std::pmr::string>(address_book, hpp::proto::json_context{pool});
   expect(write_json_result.has_value());
   auto read_json_result =
       hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value(), hpp::proto::json_context{pool});
