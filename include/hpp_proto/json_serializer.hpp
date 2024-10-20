@@ -737,11 +737,11 @@ inline json_status write_json(auto const &value, auto &buffer) noexcept {
   return write_json(value, buffer, ctx);
 }
 
-template <auto Opts = glz::opts{}>
+template <auto Opts = glz::opts{}, typename Buffer = std::string>
 inline auto write_json(auto const &value,
-                       glz::is_context auto &&...ctx) noexcept -> glz::expected<std::string, json_status> {
+                       glz::is_context auto &&...ctx) noexcept -> glz::expected<Buffer, json_status> {
   static_assert(sizeof...(ctx) <= 1);
-  std::string buffer{};
+  auto buffer = detail::make_buffer<Buffer>(ctx...);
   auto ec = write_json<Opts>(value, buffer, ctx...);
   if (!ec.ok()) {
     return glz::unexpected(ec);
