@@ -2581,8 +2581,8 @@ consteval auto write_proto(F make_object) {
 }
 
 template <concepts::contiguous_output_byte_range Buffer = std::vector<std::byte>>
-expected<Buffer, std::errc> write_proto(concepts::has_meta auto const &msg) {
-  Buffer buffer;
+expected<Buffer, std::errc> write_proto(concepts::has_meta auto const &msg, concepts::is_pb_context auto &&...ctx) {
+  auto buffer = detail::make_buffer<Buffer>(ctx...);
   auto r = pb_serializer::serialize(msg, buffer);
   if (auto result = pb_serializer::serialize(msg, buffer); !result.ok()) {
     return unexpected(r.ec);

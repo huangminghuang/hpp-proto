@@ -21,23 +21,23 @@ inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buf
 int main() {
   using enum tutorial::Person::PhoneType;
   using namespace std::string_view_literals;
-  using namespace std::string_literals;
 
   std::pmr::monotonic_buffer_resource pool;
   tutorial::AddressBook address_book;
+
+  std::pmr::vector<tutorial::Person::PhoneNumber> alex_phones{&pool};
+  alex_phones.push_back({.number = "19890604"sv, .type = PHONE_TYPE_MOBILE});
+
+  using PhoneNumberSpan = hpp::proto::equality_comparable_span<const tutorial::Person::PhoneNumber>;
 
   std::pmr::vector<tutorial::Person> people{&pool};
   people.resize(2);
   people[0].name = "Alex"sv;
   people[0].id = 1;
   people[0].email = "alex@email.com"sv;
-
-  std::pmr::vector<tutorial::Person::PhoneNumber> alex_phones{&pool};
-  alex_phones.resize(1);
-  alex_phones[0].number = "19890604"sv;
-  alex_phones[0].type = PHONE_TYPE_MOBILE;
   people[0].phones = alex_phones;
   people[0].nested_message = {{.bb = 89}};
+
   std::pmr::vector<std::pair<std::string_view, tutorial::Person::NestedMessage>> map_string_nested_message(
       {{"Tiananmen", {.bb = 89}}, {"Square", {.bb = 64}}}, &pool);
   people[0].map_string_nested_message = map_string_nested_message;
@@ -54,11 +54,10 @@ int main() {
 
   address_book.people = people;
 
-  std::pmr::vector<std::byte> buffer{&pool};
+  auto write_result = hpp::proto::write_proto<std::pmr::vector<std::byte>>(address_book, hpp::proto::pb_context{pool});
+  expect(write_result.has_value());
 
-  expect(hpp::proto::write_proto(address_book, buffer).ok());
-
-  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(buffer, hpp::proto::pb_context{pool});
+  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(write_result.value(), hpp::proto::pb_context{pool});
   expect(read_result.has_value());
   expect(address_book == read_result.value());
 
@@ -90,7 +89,8 @@ int main() {
            "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
   }
 
-  auto write_json_result = hpp::proto::write_json(address_book);
+  auto write_json_result =
+      hpp::proto::write_json<glz::opts{}, std::pmr::string>(address_book, hpp::proto::json_context{pool});
   expect(write_json_result.has_value());
   auto read_json_result =
       hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value(), hpp::proto::json_context{pool});

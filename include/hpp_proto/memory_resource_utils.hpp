@@ -161,12 +161,22 @@ auto &get_memory_resource(T &v) {
 template <typename T>
 using memory_resource_type = std::remove_reference_t<decltype(get_memory_resource(std::declval<T>))>;
 
-namespace concepts {
-template <typename T>
-concept context_with_memory_resource = requires(T &v) { get_memory_resource(v); };
-} // namespace concepts
-
 namespace detail {
+
+template <typename Buffer>
+Buffer make_buffer() {
+  return Buffer{};
+}
+
+template <typename Buffer>
+Buffer make_buffer(auto &&ctx) {
+  if constexpr (requires { Buffer(&ctx.get_memory_resource()); }) {
+    return Buffer(&ctx.get_memory_resource());
+  } else {
+    return Buffer{};
+  }
+}
+
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 template <typename T, typename ByteT>
 struct raw_data_iterator {
