@@ -734,7 +734,7 @@ inline json_status write_json(auto const &value, auto &buffer, glz::is_context a
 template <auto Opts = glz::opts{}>
 inline json_status write_json(auto const &value, auto &buffer) noexcept {
   json_context ctx{};
-  return write_json(value, buffer, ctx);
+  return write_json<Opts>(value, buffer, ctx);
 }
 
 template <auto Opts = glz::opts{}, typename Buffer = std::string>
