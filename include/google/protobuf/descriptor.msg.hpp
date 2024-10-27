@@ -11,7 +11,7 @@
 #include <hpp_proto/field_types.hpp>
 
 namespace google::protobuf {
-//NOLINTBEGIN(readability-redundant-member-init,performance-enum-size)
+//NOLINTBEGIN(performance-enum-size)
 
 enum class Edition {
   EDITION_UNKNOWN = 0,
@@ -30,19 +30,19 @@ enum class Edition {
 
 struct UninterpretedOption {
   struct NamePart {
-    std::string name_part = {};
+    std::string name_part;
     bool is_extension = {};
 
     bool operator == (const NamePart&) const = default;
   };
 
   std::vector<NamePart> name;
-  std::string identifier_value = {};
-  uint64_t positive_int_value = {};
-  int64_t negative_int_value = {};
+  std::string identifier_value;
+  std::uint64_t positive_int_value = {};
+  std::int64_t negative_int_value = {};
   double double_value = {};
-  hpp::proto::bytes string_value = {};
-  std::string aggregate_value = {};
+  hpp::proto::bytes string_value;
+  std::string aggregate_value;
 
   bool operator == (const UninterpretedOption&) const = default;
 };
@@ -108,7 +108,7 @@ struct FeatureSet {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -119,10 +119,10 @@ struct FeatureSet {
 
 struct SourceCodeInfo {
   struct Location {
-    std::vector<int32_t> path;
-    std::vector<int32_t> span;
-    std::string leading_comments = {};
-    std::string trailing_comments = {};
+    std::vector<std::int32_t> path;
+    std::vector<std::int32_t> span;
+    std::string leading_comments;
+    std::string trailing_comments;
     std::vector<std::string> leading_detached_comments;
 
     bool operator == (const Location&) const = default;
@@ -141,10 +141,10 @@ struct GeneratedCodeInfo {
       ALIAS = 2 
     };
 
-    std::vector<int32_t> path;
-    std::string source_file = {};
-    int32_t begin = {};
-    int32_t end = {};
+    std::vector<std::int32_t> path;
+    std::string source_file;
+    std::int32_t begin = {};
+    std::int32_t end = {};
     Semantic semantic = Semantic::NONE;
 
     bool operator == (const Annotation&) const = default;
@@ -199,7 +199,7 @@ struct MethodOptions {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -229,7 +229,7 @@ struct ServiceOptions {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -261,7 +261,7 @@ struct EnumOptions {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -290,7 +290,7 @@ struct OneofOptions {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -333,7 +333,7 @@ struct FieldOptions {
 
   struct EditionDefault {
     Edition edition = Edition::EDITION_UNKNOWN;
-    std::string value = {};
+    std::string value;
 
     bool operator == (const EditionDefault&) const = default;
   };
@@ -341,7 +341,7 @@ struct FieldOptions {
   struct FeatureSupport {
     Edition edition_introduced = Edition::EDITION_UNKNOWN;
     Edition edition_deprecated = Edition::EDITION_UNKNOWN;
-    std::string deprecation_warning = {};
+    std::string deprecation_warning;
     Edition edition_removed = Edition::EDITION_UNKNOWN;
 
     bool operator == (const FeatureSupport&) const = default;
@@ -378,7 +378,7 @@ struct FieldOptions {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -412,7 +412,7 @@ struct MessageOptions {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -428,25 +428,25 @@ struct FileOptions {
     LITE_RUNTIME = 3 
   };
 
-  std::string java_package = {};
-  std::string java_outer_classname = {};
+  std::string java_package;
+  std::string java_outer_classname;
   bool java_multiple_files = false;
   bool java_generate_equals_and_hash = {};
   bool java_string_check_utf8 = false;
   OptimizeMode optimize_for = OptimizeMode::SPEED;
-  std::string go_package = {};
+  std::string go_package;
   bool cc_generic_services = false;
   bool java_generic_services = false;
   bool py_generic_services = false;
   bool deprecated = false;
   bool cc_enable_arenas = true;
-  std::string objc_class_prefix = {};
-  std::string csharp_namespace = {};
-  std::string swift_prefix = {};
-  std::string php_class_prefix = {};
-  std::string php_namespace = {};
-  std::string php_metadata_namespace = {};
-  std::string ruby_package = {};
+  std::string objc_class_prefix;
+  std::string csharp_namespace;
+  std::string swift_prefix;
+  std::string php_class_prefix;
+  std::string php_namespace;
+  std::string php_metadata_namespace;
+  std::string ruby_package;
   std::optional<FeatureSet> features;
   std::vector<UninterpretedOption> uninterpreted_option;
 
@@ -466,7 +466,7 @@ struct FileOptions {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -476,9 +476,9 @@ struct FileOptions {
 };
 
 struct MethodDescriptorProto {
-  std::string name = {};
-  std::string input_type = {};
-  std::string output_type = {};
+  std::string name;
+  std::string input_type;
+  std::string output_type;
   std::optional<MethodOptions> options;
   bool client_streaming = false;
   bool server_streaming = false;
@@ -487,7 +487,7 @@ struct MethodDescriptorProto {
 };
 
 struct ServiceDescriptorProto {
-  std::string name = {};
+  std::string name;
   std::vector<MethodDescriptorProto> method;
   std::optional<ServiceOptions> options;
 
@@ -495,7 +495,7 @@ struct ServiceDescriptorProto {
 };
 
 struct OneofDescriptorProto {
-  std::string name = {};
+  std::string name;
   std::optional<OneofOptions> options;
 
   bool operator == (const OneofDescriptorProto&) const = default;
@@ -529,15 +529,15 @@ struct FieldDescriptorProto {
     LABEL_REQUIRED = 2 
   };
 
-  std::string name = {};
-  int32_t number = {};
+  std::string name;
+  std::int32_t number = {};
   Label label = Label::LABEL_OPTIONAL;
   Type type = Type::TYPE_DOUBLE;
-  std::string type_name = {};
-  std::string extendee = {};
-  std::string default_value = {};
-  hpp::proto::optional<int32_t> oneof_index;
-  std::string json_name = {};
+  std::string type_name;
+  std::string extendee;
+  std::string default_value;
+  hpp::proto::optional<std::int32_t> oneof_index;
+  std::string json_name;
   std::optional<FieldOptions> options;
   bool proto3_optional = {};
 
@@ -551,9 +551,9 @@ struct ExtensionRangeOptions {
   };
 
   struct Declaration {
-    int32_t number = {};
-    std::string full_name = {};
-    std::string type = {};
+    std::int32_t number = {};
+    std::string full_name;
+    std::string type;
     bool reserved = {};
     bool repeated = {};
 
@@ -581,7 +581,7 @@ struct ExtensionRangeOptions {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -613,7 +613,7 @@ struct EnumValueOptions {
   template<typename Meta>
   requires Meta::is_repeated
   [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
   }
   [[nodiscard]] bool has_extension(auto meta) const {
     return meta.element_of(extensions);
@@ -623,8 +623,8 @@ struct EnumValueOptions {
 };
 
 struct EnumValueDescriptorProto {
-  std::string name = {};
-  int32_t number = {};
+  std::string name;
+  std::int32_t number = {};
   std::optional<EnumValueOptions> options;
 
   bool operator == (const EnumValueDescriptorProto&) const = default;
@@ -632,13 +632,13 @@ struct EnumValueDescriptorProto {
 
 struct EnumDescriptorProto {
   struct EnumReservedRange {
-    int32_t start = {};
-    int32_t end = {};
+    std::int32_t start = {};
+    std::int32_t end = {};
 
     bool operator == (const EnumReservedRange&) const = default;
   };
 
-  std::string name = {};
+  std::string name;
   std::vector<EnumValueDescriptorProto> value;
   std::optional<EnumOptions> options;
   std::vector<EnumReservedRange> reserved_range;
@@ -649,21 +649,21 @@ struct EnumDescriptorProto {
 
 struct DescriptorProto {
   struct ExtensionRange {
-    int32_t start = {};
-    int32_t end = {};
+    std::int32_t start = {};
+    std::int32_t end = {};
     std::optional<ExtensionRangeOptions> options;
 
     bool operator == (const ExtensionRange&) const = default;
   };
 
   struct ReservedRange {
-    int32_t start = {};
-    int32_t end = {};
+    std::int32_t start = {};
+    std::int32_t end = {};
 
     bool operator == (const ReservedRange&) const = default;
   };
 
-  std::string name = {};
+  std::string name;
   std::vector<FieldDescriptorProto> field;
   std::vector<FieldDescriptorProto> extension;
   std::vector<DescriptorProto> nested_type;
@@ -678,18 +678,18 @@ struct DescriptorProto {
 };
 
 struct FileDescriptorProto {
-  std::string name = {};
-  std::string package = {};
+  std::string name;
+  std::string package;
   std::vector<std::string> dependency;
-  std::vector<int32_t> public_dependency;
-  std::vector<int32_t> weak_dependency;
+  std::vector<std::int32_t> public_dependency;
+  std::vector<std::int32_t> weak_dependency;
   std::vector<DescriptorProto> message_type;
   std::vector<EnumDescriptorProto> enum_type;
   std::vector<ServiceDescriptorProto> service;
   std::vector<FieldDescriptorProto> extension;
   std::optional<FileOptions> options;
   std::optional<SourceCodeInfo> source_code_info;
-  std::string syntax = {};
+  std::string syntax;
   Edition edition = Edition::EDITION_UNKNOWN;
 
   bool operator == (const FileDescriptorProto&) const = default;
@@ -701,28 +701,132 @@ struct FileDescriptorSet {
   bool operator == (const FileDescriptorSet&) const = default;
 };
 
+
+constexpr bool is_valid(Edition value){
+  int v = static_cast<int>(value);
+  constexpr std::array<int, 12> valid_values{0,1,2,900,998,999,1000,1001,99997,99998,99999,2147483647};
+  return std::ranges::any_of(valid_values, [v](int u){ return u==v; });
+}
+
 constexpr auto message_type_url(const UninterpretedOption::NamePart&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption.NamePart">{}; }
 constexpr auto message_type_url(const UninterpretedOption&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption">{}; }
+
+constexpr bool is_valid(FeatureSet::FieldPresence value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 3;
+}
+
+
+constexpr bool is_valid(FeatureSet::EnumType value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
+
+constexpr bool is_valid(FeatureSet::RepeatedFieldEncoding value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
+
+constexpr bool is_valid(FeatureSet::Utf8Validation value){
+  int v = static_cast<int>(value);
+  constexpr std::array<int, 3> valid_values{0,2,3};
+  return std::ranges::any_of(valid_values, [v](int u){ return u==v; });
+}
+
+
+constexpr bool is_valid(FeatureSet::MessageEncoding value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
+
+constexpr bool is_valid(FeatureSet::JsonFormat value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
 constexpr auto message_type_url(const FeatureSet&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSet">{}; }
 constexpr auto message_type_url(const SourceCodeInfo::Location&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo.Location">{}; }
 constexpr auto message_type_url(const SourceCodeInfo&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo">{}; }
+
+constexpr bool is_valid(GeneratedCodeInfo::Annotation::Semantic value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
 constexpr auto message_type_url(const GeneratedCodeInfo::Annotation&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo.Annotation">{}; }
 constexpr auto message_type_url(const GeneratedCodeInfo&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo">{}; }
 constexpr auto message_type_url(const FeatureSetDefaults::FeatureSetEditionDefault&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults.FeatureSetEditionDefault">{}; }
 constexpr auto message_type_url(const FeatureSetDefaults&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults">{}; }
+
+constexpr bool is_valid(MethodOptions::IdempotencyLevel value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
 constexpr auto message_type_url(const MethodOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.MethodOptions">{}; }
 constexpr auto message_type_url(const ServiceOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ServiceOptions">{}; }
 constexpr auto message_type_url(const EnumOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumOptions">{}; }
 constexpr auto message_type_url(const OneofOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.OneofOptions">{}; }
+
+constexpr bool is_valid(FieldOptions::CType value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
+
+constexpr bool is_valid(FieldOptions::JSType value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
+
+constexpr bool is_valid(FieldOptions::OptionRetention value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
+
+constexpr bool is_valid(FieldOptions::OptionTargetType value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 9;
+}
+
 constexpr auto message_type_url(const FieldOptions::EditionDefault&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.EditionDefault">{}; }
 constexpr auto message_type_url(const FieldOptions::FeatureSupport&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.FeatureSupport">{}; }
 constexpr auto message_type_url(const FieldOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions">{}; }
 constexpr auto message_type_url(const MessageOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.MessageOptions">{}; }
+
+constexpr bool is_valid(FileOptions::OptimizeMode value){
+  int v = static_cast<int>(value);
+  return v >= 1 && v <= 3;
+}
+
 constexpr auto message_type_url(const FileOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileOptions">{}; }
 constexpr auto message_type_url(const MethodDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.MethodDescriptorProto">{}; }
 constexpr auto message_type_url(const ServiceDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ServiceDescriptorProto">{}; }
 constexpr auto message_type_url(const OneofDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.OneofDescriptorProto">{}; }
+
+constexpr bool is_valid(FieldDescriptorProto::Type value){
+  int v = static_cast<int>(value);
+  return v >= 1 && v <= 18;
+}
+
+
+constexpr bool is_valid(FieldDescriptorProto::Label value){
+  int v = static_cast<int>(value);
+  return v >= 1 && v <= 3;
+}
+
 constexpr auto message_type_url(const FieldDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldDescriptorProto">{}; }
+
+constexpr bool is_valid(ExtensionRangeOptions::VerificationState value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 1;
+}
+
 constexpr auto message_type_url(const ExtensionRangeOptions::Declaration&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions.Declaration">{}; }
 constexpr auto message_type_url(const ExtensionRangeOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions">{}; }
 constexpr auto message_type_url(const EnumValueOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumValueOptions">{}; }
@@ -734,6 +838,6 @@ constexpr auto message_type_url(const DescriptorProto::ReservedRange&) { return 
 constexpr auto message_type_url(const DescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto">{}; }
 constexpr auto message_type_url(const FileDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorProto">{}; }
 constexpr auto message_type_url(const FileDescriptorSet&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorSet">{}; }
-// NOLINTEND(readability-redundant-member-init,performance-enum-size)
+// NOLINTEND(performance-enum-size)
 } // namespace google::protobuf
 // clang-format on

@@ -12,13 +12,13 @@
 #include "google/protobuf/descriptor.msg.hpp"
 
 namespace google::protobuf::compiler {
-//NOLINTBEGIN(readability-redundant-member-init,performance-enum-size)
+//NOLINTBEGIN(performance-enum-size)
 
 struct Version {
-  int32_t major = {};
-  int32_t minor = {};
-  int32_t patch = {};
-  std::string suffix = {};
+  std::int32_t major = {};
+  std::int32_t minor = {};
+  std::int32_t patch = {};
+  std::string suffix;
 
   bool operator == (const Version&) const = default;
 };
@@ -31,18 +31,18 @@ struct CodeGeneratorResponse {
   };
 
   struct File {
-    std::string name = {};
-    std::string insertion_point = {};
-    std::string content = {};
+    std::string name;
+    std::string insertion_point;
+    std::string content;
     std::optional<GeneratedCodeInfo> generated_code_info;
 
     bool operator == (const File&) const = default;
   };
 
-  std::string error = {};
-  uint64_t supported_features = {};
-  int32_t minimum_edition = {};
-  int32_t maximum_edition = {};
+  std::string error;
+  std::uint64_t supported_features = {};
+  std::int32_t minimum_edition = {};
+  std::int32_t maximum_edition = {};
   std::vector<File> file;
 
   bool operator == (const CodeGeneratorResponse&) const = default;
@@ -50,7 +50,7 @@ struct CodeGeneratorResponse {
 
 struct CodeGeneratorRequest {
   std::vector<std::string> file_to_generate;
-  std::string parameter = {};
+  std::string parameter;
   std::vector<FileDescriptorProto> proto_file;
   std::vector<FileDescriptorProto> source_file_descriptors;
   std::optional<Version> compiler_version;
@@ -59,9 +59,15 @@ struct CodeGeneratorRequest {
 };
 
 constexpr auto message_type_url(const Version&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.Version">{}; }
+
+constexpr bool is_valid(CodeGeneratorResponse::Feature value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
 constexpr auto message_type_url(const CodeGeneratorResponse::File&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse.File">{}; }
 constexpr auto message_type_url(const CodeGeneratorResponse&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse">{}; }
 constexpr auto message_type_url(const CodeGeneratorRequest&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest">{}; }
-// NOLINTEND(readability-redundant-member-init,performance-enum-size)
+// NOLINTEND(performance-enum-size)
 } // namespace google::protobuf::compiler
 // clang-format on

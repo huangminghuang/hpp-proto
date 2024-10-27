@@ -1,0 +1,17 @@
+syntax = "proto2";
+
+
+message TestMessage {
+  optional int32 field1 = 1;
+  optional int32 explicit_field = 2;
+  required int32 legacy_required = 3;
+
+  repeated int32 packed = 50 [packed = true];
+  repeated int32 expanded = 51;
+
+  optional group Delimited = 100 {
+    optional int32 field11 = 11;
+  };
+  optional TestMessage length_prefixed = 101;
+}
+ 

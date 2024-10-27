@@ -85,7 +85,7 @@ struct FieldMask {
 };
 
 auto pb_meta(const FieldMask &)
-    -> std::tuple<hpp::proto::field_meta<1, &FieldMask::paths, hpp::proto::field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &FieldMask::paths, hpp::proto::field_option::none>>;
 } // namespace wellknown
 
 template <>
@@ -147,7 +147,17 @@ struct proto_json_addons {
 };
 
 class dynamic_serializer {
-  enum encoding : uint8_t { none, unpacked_repeated, packed_repeated };
+
+  enum field_options : uint8_t {
+    explicit_presence = 1,
+    repeated = 2,
+    packed = 4,
+    group = 8,
+    utf8_validation = 16,
+    is_oneof = 32,
+    required = 64,
+    is_map_entry = 128
+  };
 
   struct enum_value_meta {
     int32_t number;
@@ -164,16 +174,20 @@ class dynamic_serializer {
     std::string name;
     std::string json_name;
     google::protobuf::FieldDescriptorProto::Type type = {};
-    encoding rule = encoding::none;
-    bool is_map_entry = false;
+    uint8_t options = 0;
+    std::string default_value;
 
     field_meta() = default;
 
-    template <typename MessageDescriptor, typename Pool>
-    field_meta(MessageDescriptor *descriptor, const google::protobuf::FieldDescriptorProto &proto, const Pool &pool)
-        : number(proto.number), name(proto.name), json_name(proto.json_name), type(proto.type) {
+    template <typename FieldDescriptor, typename Pool>
+    field_meta(FieldDescriptor *field_descriptor, const Pool &pool)
+        : number(field_descriptor->proto.number), name(field_descriptor->proto.name),
+          json_name(field_descriptor->proto.json_name), type(field_descriptor->proto.type),
+          default_value(field_descriptor->proto.default_value) {
+      auto &proto = field_descriptor->proto;
       if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE) {
-        is_map_entry = pool.message_map.find(proto.type_name)->second->is_map_entry;
+        if (pool.message_map.find(proto.type_name)->second->is_map_entry)
+          options |= field_options::is_map_entry;
       }
 
       using enum google::protobuf::FieldDescriptorProto::Type;
@@ -183,23 +197,35 @@ class dynamic_serializer {
         type_index = find_index(pool.enum_map.keys(), proto.type_name);
       }
 
-      if (proto.label == google::protobuf::FieldDescriptorProto::Label::LABEL_REPEATED) {
-        std::optional<bool> packed;
-        if (proto.options.has_value() && proto.options->packed.has_value()) {
-          packed = proto.options->packed.value();
-        }
-        bool const is_numeric = (proto.type != TYPE_MESSAGE && proto.type != TYPE_GROUP && proto.type != TYPE_STRING &&
-                                 proto.type != TYPE_BYTES);
-        if (!is_numeric ||
-            ((packed.has_value() && !packed.value()) || (descriptor->syntax == "proto2" && !packed.has_value()))) {
-          rule = dynamic_serializer::unpacked_repeated;
+      using enum google::protobuf::FieldDescriptorProto::Label;
+      if (proto.label == LABEL_REPEATED) {
+        if (field_descriptor->is_packed()) {
+          options |= field_options::repeated | field_options::packed;
         } else {
-          rule = dynamic_serializer::packed_repeated;
+          options |= (field_options::repeated);
         }
-      } else {
-        rule = dynamic_serializer::none;
+      }
+
+      if (field_descriptor->is_required()) {
+        options |= field_options::required;
+      }
+
+      if (field_descriptor->requires_utf8_validation()) {
+        options |= field_options::utf8_validation;
+      }
+
+      if (field_descriptor->is_delimited()) {
+        options |= field_options::group;
+      }
+
+      if (proto.oneof_index.has_value()) {
+        options |= field_options::is_oneof;
       }
     }
+
+    constexpr bool is_packed_repeated() const { return (options & field_options::packed) != 0; }
+    constexpr bool is_repeated() const { return (options & field_options::repeated) != 0; }
+    constexpr bool is_map_entry() const { return (options & field_options::is_map_entry) != 0; }
   };
 
   [[nodiscard]] std::size_t message_index(std::string_view name) const {
@@ -390,7 +416,7 @@ class dynamic_serializer {
           unpacked_repeated_positions[field_index]; // the end position of previous repeated element being decoded
       auto start_pos = ix;
       if (old_pos == 0) {
-        auto c = meta.is_map_entry ? '{' : '[';
+        auto c = meta.is_map_entry() ? '{' : '[';
         glz::detail::dump(c, b, ix);
       } else {
         glz::detail::dump<','>(b, ix);
@@ -423,7 +449,7 @@ class dynamic_serializer {
           glz::detail::dump<'\n'>(b, ix);
           glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
         }
-        auto c = meta.is_map_entry ? '}' : ']';
+        auto c = meta.is_map_entry() ? '}' : ']';
         glz::detail::dump(c, b, ix);
       }
       return {};
@@ -461,7 +487,7 @@ class dynamic_serializer {
         }
 
         auto new_archive = archive.split(length);
-        return message_to_json<Options>(meta.type_index, meta.is_map_entry, new_archive);
+        return message_to_json<Options>(meta.type_index, meta.is_map_entry(), new_archive);
       }
       case TYPE_BYTES:
         return field_type_to_json<Options, std::vector<std::byte>>(false, archive);
@@ -524,8 +550,7 @@ class dynamic_serializer {
         using enum google::protobuf::FieldDescriptorProto::Type;
         if (is_map_entry) {
           separator = ':';
-        } else if (field_m.rule == dynamic_serializer::encoding::none ||
-                   unpacked_repeated_positions[field_index] == 0) {
+        } else if (!field_m.is_repeated() || unpacked_repeated_positions[field_index] == 0) {
           // output the field name only when it's a non-repeated field or the beginning of repeated field
           const auto &field_name = field_m.json_name;
           glz::detail::write<glz::json>::op<Options>(field_name, context, b, ix);
@@ -536,13 +561,12 @@ class dynamic_serializer {
           separator = ',';
         }
 
-        if (field_m.rule == dynamic_serializer::encoding::none) {
+        if (!field_m.is_repeated()) {
           if (auto ec = field_to_json<Options>(field_m, is_map_entry && field_index == 0, archive); !ec.ok())
               [[unlikely]] {
             return ec;
           }
-        } else if (field_m.rule == dynamic_serializer::encoding::packed_repeated &&
-                   field_wire_type == wire_type::length_delimited) {
+        } else if (field_m.is_packed_repeated() && field_wire_type == wire_type::length_delimited) {
           if (auto ec = packed_repeated_to_json<Options>(field_m, archive); !ec.ok()) [[unlikely]] {
             return ec;
           }
@@ -899,7 +923,7 @@ class dynamic_serializer {
         }
       }
 
-      if (meta.rule == dynamic_serializer::encoding::packed_repeated) {
+      if (meta.is_packed_repeated()) {
         archive(value);
       } else {
         archive(make_tag<T>(meta), value);
@@ -1004,7 +1028,7 @@ class dynamic_serializer {
       case TYPE_MESSAGE: {
         archive(make_tag(meta.number, wire_type::length_delimited));
         return serialize_sized(archive, [this, &meta, &it, &end](auto &archive) {
-          return this->message_to_pb<Options>(meta.type_index, it, end, meta.is_map_entry, archive);
+          return this->message_to_pb<Options>(meta.type_index, it, end, meta.is_map_entry(), archive);
         });
       }
       case TYPE_BYTES:
@@ -1050,7 +1074,7 @@ class dynamic_serializer {
 
       for (const auto &m : enum_meta) {
         if (m.name == key) {
-          if (meta.rule == dynamic_serializer::encoding::packed_repeated) {
+          if (meta.is_packed_repeated()) {
             archive(varint{m.number});
           } else {
             archive(make_tag(meta.number, wire_type::varint), varint{m.number});
@@ -1101,7 +1125,7 @@ class dynamic_serializer {
         return {};
       };
 
-      if (meta.rule == dynamic_serializer::encoding::packed_repeated) {
+      if (meta.is_packed_repeated()) {
         archive(make_tag(meta.number, wire_type::length_delimited));
         if (auto ec = serialize_sized(archive, handle_elements); !ec.ok()) [[unlikely]] {
           return ec;
@@ -1168,7 +1192,7 @@ class dynamic_serializer {
         const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[pb_meta.protobuf_struct_message_index];
         return serialize_sized(archive, [&](auto &archive) {
           auto meta = msg_meta[0];
-          return this->message_to_pb<Options>(meta.type_index, it, end, meta.is_map_entry, archive);
+          return this->message_to_pb<Options>(meta.type_index, it, end, meta.is_map_entry(), archive);
         });
       }
       case '[': {
@@ -1366,9 +1390,9 @@ class dynamic_serializer {
             return std::errc::illegal_byte_sequence;
           }
           auto field_m = msg_meta[field_index];
-          if (field_m.rule == dynamic_serializer::none) {
+          if (!field_m.is_repeated()) {
             ec = field_to_pb<Opts>(field_m, it, end, archive);
-          } else if (field_m.is_map_entry) {
+          } else if (field_m.is_map_entry()) {
             ec = message_to_pb<Opts>(field_m.type_index, it, end, field_m.number, archive);
           } else {
             ec = repeated_to_pb<Opts>(field_m, it, end, archive);
@@ -1416,9 +1440,7 @@ public:
                      dynamic_serializer::message_meta m;
                      m.reserve(descriptor->fields.size());
                      std::transform(descriptor->fields.begin(), descriptor->fields.end(), std::back_inserter(m),
-                                    [descriptor, &pool](auto &f) {
-                                      return dynamic_serializer::field_meta{descriptor, f->proto, pool};
-                                    });
+                                    [&pool](auto &f) { return dynamic_serializer::field_meta{f, pool}; });
                      return m;
                    });
 

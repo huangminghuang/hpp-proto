@@ -35,31 +35,29 @@ int main() {
   expect(alex_name.has_value());
   expect(alex_name.value() == "Alex");
   expect(*alex_name == "Alex");
-  expect(alex_name.value_or_default() == "Alex");
+  expect(alex_name.value() == "Alex");
 
   hpp::proto::optional<int32_t> &alex_id = alex.id;
   expect(alex_id.has_value());
   expect(*alex_id == 1);
   expect(alex_id.value() == 1);
-  expect(alex_id.value_or_default() == 1);
+  expect(alex_id.value() == 1);
 
   std::vector<tutorial::Person::PhoneNumber> &alex_phones = alex.phones;
   hpp::proto::optional<std::string> &alex_phone_number = alex_phones[0].number;
   expect(alex_phone_number.has_value());
   expect(*alex_phone_number == "19890604");
   expect(alex_phone_number.value() == "19890604");
-  expect(alex_phone_number.value_or_default() == "19890604");
 
   hpp::proto::optional<tutorial::Person::PhoneType, PHONE_TYPE_HOME> &alex_phone_type = alex_phones[0].type;
   expect(alex_phone_type.has_value());
   expect(*alex_phone_type == PHONE_TYPE_MOBILE);
   expect(alex_phone_type.value() == PHONE_TYPE_MOBILE);
-  expect(alex_phone_type.value_or_default() == PHONE_TYPE_MOBILE);
 
   // default phone type value
   hpp::proto::optional<tutorial::Person::PhoneType, PHONE_TYPE_HOME> default_phone_type_value;
   expect(!default_phone_type_value.has_value());
-  expect(default_phone_type_value.value_or_default() == PHONE_TYPE_HOME);
+  expect(default_phone_type_value.value() == PHONE_TYPE_HOME);
   default_phone_type_value = PHONE_TYPE_MOBILE;
   expect(default_phone_type_value.has_value());
   default_phone_type_value.reset();

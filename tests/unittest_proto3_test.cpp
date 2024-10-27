@@ -2,12 +2,6 @@
 #include "test_util.hpp"
 #include "unittest_proto3_util.hpp"
 
-// static_assert(
-//     ensure_all_fields_field_option<proto3_unittest::TestPackedTypes, hpp::proto::field_option::none>());
-
-// static_assert(ensure_all_fields_field_option<proto3_unittest::TestUnpackedTypes,
-//                                               hpp::proto::field_option::unpacked_repeated>());
-
 // In this file we only test some basic functionalities of in proto3 and expect
 // the rest is fully tested in proto2 unittests because proto3 shares most code
 // with proto2.
@@ -16,7 +10,7 @@ const boost::ut::suite proto3_lite_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
 
-  auto unittest_proto3_descriptorset = read_file("unittest.desc.pb");
+  auto unittest_descriptorset = read_file("unittest.desc.pb");
 
   "protobuf"_test = [] {
     proto3_unittest::TestAllTypes original;
@@ -45,7 +39,7 @@ const boost::ut::suite proto3_lite_test = [] {
 
     auto r = glz::write_json(original);
     expect(r.has_value());
-    auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes",
+    auto original_json = gpb_based::proto_to_json(unittest_descriptorset, "proto3_unittest.TestUnpackedTypes",
                                                   {data.data(), data.size()});
     expect(fatal(!original_json.empty()));
     expect(eq(*r, original_json));
@@ -58,7 +52,7 @@ const boost::ut::suite proto3_lite_test = [] {
     std::vector<char> data;
     expect(hpp::proto::write_proto(original, data).ok());
 
-    auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
+    auto original_json = gpb_based::proto_to_json(unittest_descriptorset, "proto3_unittest.TestAllTypes",
                                                   {data.data(), data.size()});
     expect(fatal(!original_json.empty()));
     expect(hpp::proto::write_json(original).value() == original_json);

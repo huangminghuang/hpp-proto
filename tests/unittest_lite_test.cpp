@@ -1,10 +1,7 @@
 
 #include "gpb_proto_json/gpb_proto_json.hpp"
-#include "unittest_proto2_util.hpp"
+#include "unittest_lite_util.hpp"
 namespace ut = boost::ut;
-
-using TestRequired_meta = decltype(pb_meta(std::declval<protobuf_unittest::TestRequired>()));
-static_assert(std::tuple_element_t<0, TestRequired_meta>::is_explicit_presence);
 
 
 const ut::suite proto_test = [] {
@@ -32,9 +29,8 @@ const ut::suite proto_test = [] {
         TestUtil::ExpectAllSet(message2);
         TestUtil::ExpectAllSet(message3);
       } |
-      std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestAllExtensions,
-                 protobuf_unittest::TestUnpackedTypes, protobuf_unittest::TestPackedTypes,
-                 protobuf_unittest::TestPackedExtensions>{};
+      std::tuple<protobuf_unittest::TestAllTypesLite, protobuf_unittest::TestAllExtensionsLite,
+                 protobuf_unittest::TestPackedTypesLite, protobuf_unittest::TestPackedExtensionsLite>{};
 
   "interoperate_with_google_protobuf_parser"_test =
       [&]<class T> {
@@ -56,11 +52,10 @@ const ut::suite proto_test = [] {
 
         TestUtil::ExpectAllSet(msg);
       } |
-      std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestUnpackedTypes,
-                 protobuf_unittest::TestPackedTypes>{};
+      std::tuple<protobuf_unittest::TestAllTypesLite, 
+                 protobuf_unittest::TestPackedTypesLite>{};
 };
 
-// TODO: need a test case of TestOneof2
 
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

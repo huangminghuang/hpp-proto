@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <fstream>
 #include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/json_serializer.hpp>
 #include <ranges>
 #include <span>
 #include <string>
@@ -76,3 +77,13 @@ template <hpp::proto::compile_time_string str>
 constexpr auto operator""_bytes() {
   return static_cast<std::vector<std::byte>>(hpp::proto::bytes_literal<str>{});
 }
+
+// NOLINTBEGIN(cert-dcl58-cpp)
+namespace std {
+template <typename T>
+  requires requires { glz::meta<T>::value; }
+std::ostream &operator<<(std::ostream &os, const T &v) {
+  return os << hpp::proto::write_json(v).value();
+}
+} // namespace std
+// NOLINTEND(cert-dcl58-cpp)

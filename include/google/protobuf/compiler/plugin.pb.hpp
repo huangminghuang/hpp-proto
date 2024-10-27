@@ -22,10 +22,10 @@ auto pb_meta(const Version &) -> std::tuple<
   hpp::proto::field_meta<4, &Version::suffix, hpp::proto::field_option::none>>;
 
 auto pb_meta(const CodeGeneratorRequest &) -> std::tuple<
-  hpp::proto::field_meta<1, &CodeGeneratorRequest::file_to_generate, hpp::proto::field_option::unpacked_repeated>,
+  hpp::proto::field_meta<1, &CodeGeneratorRequest::file_to_generate, hpp::proto::field_option::none>,
   hpp::proto::field_meta<2, &CodeGeneratorRequest::parameter, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<15, &CodeGeneratorRequest::proto_file, hpp::proto::field_option::unpacked_repeated>,
-  hpp::proto::field_meta<17, &CodeGeneratorRequest::source_file_descriptors, hpp::proto::field_option::unpacked_repeated>,
+  hpp::proto::field_meta<15, &CodeGeneratorRequest::proto_file, hpp::proto::field_option::none>,
+  hpp::proto::field_meta<17, &CodeGeneratorRequest::source_file_descriptors, hpp::proto::field_option::none>,
   hpp::proto::field_meta<3, &CodeGeneratorRequest::compiler_version, hpp::proto::field_option::explicit_presence>>;
 
 auto pb_meta(const CodeGeneratorResponse &) -> std::tuple<
@@ -33,7 +33,7 @@ auto pb_meta(const CodeGeneratorResponse &) -> std::tuple<
   hpp::proto::field_meta<2, &CodeGeneratorResponse::supported_features, hpp::proto::field_option::none, hpp::proto::vuint64_t>,
   hpp::proto::field_meta<3, &CodeGeneratorResponse::minimum_edition, hpp::proto::field_option::none, hpp::proto::vint64_t>,
   hpp::proto::field_meta<4, &CodeGeneratorResponse::maximum_edition, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-  hpp::proto::field_meta<15, &CodeGeneratorResponse::file, hpp::proto::field_option::unpacked_repeated>>;
+  hpp::proto::field_meta<15, &CodeGeneratorResponse::file, hpp::proto::field_option::none>>;
 
 auto pb_meta(const CodeGeneratorResponse::File &) -> std::tuple<
   hpp::proto::field_meta<1, &CodeGeneratorResponse::File::name, hpp::proto::field_option::none>,

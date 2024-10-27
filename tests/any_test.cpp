@@ -76,7 +76,7 @@ const suite test_any = [] {
     proto3_unittest::ForeignMessage submessage{.c = 1234};
     expect(hpp::proto::pack_any(message.any_value.emplace(), submessage).ok());
 
-    std::string data;
+    std::vector<std::byte> data;
     expect(hpp::proto::write_proto(message, data).ok());
 
     auto ser = hpp::proto::dynamic_serializer::make(
@@ -91,7 +91,7 @@ const suite test_any = [] {
     expect(fatal(hpp_result.has_value()));
     expect(eq(expected_json, *hpp_result));
 
-    std::string serialized;
+    std::vector<std::byte> serialized;
     expect(ser->json_to_proto(message_name, expected_json, serialized).ok());
     expect(eq(data, serialized));
   };
