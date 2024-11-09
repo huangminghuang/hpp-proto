@@ -1,0 +1,60 @@
+name: Fetch_Content_Usage
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - dev/**
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - '**.md'
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: 1
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        gcc: [12]
+
+    env:
+      CC: gcc-${{ matrix.gcc }}
+      CXX: g++-${{ matrix.gcc }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: "**/cpm_modules"
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
+
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2.14
+        with:
+          key: ${{ github.workflow }}
+
+      - name: install protoc
+        run: |
+          sudo apt install -y protobuf-compiler libprotobuf-dev
+  
+      - name: configure
+        run: cmake -DHPP_PROTO_GIT_TAG=${{ github.head_ref || github.ref_name }} -S tutorial -B tutorial-build 
+
+      - name: build
+        run: cmake --build tutorial-build --config Release -j4
+
+      - name: test
+        run: |
+          cd tutorial-build
+          ctest --build-config Release --output-on-failure

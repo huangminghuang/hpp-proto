@@ -1,45 +1,96 @@
 ---
-name: Linux
+  name: Linux
+  
+  on:
+    push:
+      branches:
+        - main
+        - develop
+        - dev/**
+      paths-ignore:
+        - '**.md'
+    pull_request:
+      branches:
+        - main
+        - develop
+      paths-ignore:
+        - '**.md'
+  
+  env:
+    CTEST_OUTPUT_ON_FAILURE: 1
+    CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+  
+  jobs:
+    build:
+      strategy:
+        fail-fast: false
+        matrix:
+          os: [ubuntu-24.04]
+          compiler: [gcc-12, gcc-13, gcc-14, clang-16, clang-17, clang-18]
+          build_type: [Release, Debug]
+          protoc: [find]
+          include:
+            - sanitize: OFF
+            - build_type: Debug
+              sanitize: ON
+            - build_type: Coverage
+              compiler: gcc
+              protoc: compile
+              sanitize: OFF
 
-on:
-  push:
-    branches:
-      - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
+      runs-on: ubuntu-24.04
+  
+      env:
+        CC: ${{ matrix.compiler }}
+      steps:
+        - name: set environment variables
+          run: |
+            if [[ $CC == gcc* ]]; then
+              CXX=${CC/gcc/g++}
+            elif [[ $CC == clang-* ]]; then
+              CXX=${CC/clang/clang++}
+            fi
+            echo "CXX=$CXX" >> "$GITHUB_ENV"
+        - uses: actions/checkout@v4
+  
+        - uses: actions/cache@v4
+          with:
+            path: "**/cpm_modules"
+            key: ${{ matrix.os }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
+  
+        - name: ccache
+          uses: hendrikmuhs/ccache-action@v1.2.14
+          with:
+            key: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
 
-env:
-  CTEST_OUTPUT_ON_FAILURE: 1
-  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+        - name: install ninja
+          run: |
+            sudo apt install -y ninja-build
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+        - name: install protoc
+          if: matrix.protoc == 'find'
+          run: |
+            sudo apt install -y protobuf-compiler libprotobuf-dev
+            
+        - name: configure
+          run: |
+            cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+                  -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
+                  -DHPP_PROTO_ENABLE_SANITIZER=${{ matrix.sanitize }} \
+                  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+  
+        - name: build
+          run: cmake --build build -j${{env.nproc}}
+  
+        - name: test
+          working-directory: ./build
+          run: |
+            ctest --build-config ${{ matrix.build_type }} --output-on-failure
 
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/cache@v2
-        with:
-          path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.1
-        with:
-          key: ${{ github.workflow }}
-          
-      - name: configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-      - name: build
-        run: cmake --build build -j4
-
-      - name: test
-        run: |
-          cd build
-          ctest --build-config Debug --output-on-failure
+        - name: Upload coverage to Codecov
+          uses: codecov/codecov-action@v4
+          if: matrix.build_type == 'Coverage'
+          with:
+            token: ${{ secrets.CODECOV_TOKEN }}
+            verbose: true

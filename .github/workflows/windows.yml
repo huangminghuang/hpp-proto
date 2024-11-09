@@ -6,10 +6,15 @@ on:
     branches:
       - main
       - develop
+      - dev/**
+    paths-ignore:
+        - '**.md'
   pull_request:
     branches:
       - main
       - develop
+    paths-ignore:
+        - '**.md'
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
@@ -18,28 +23,45 @@ env:
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+        matrix:
+          protoc: ["find"]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
       - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.1
+        uses: hendrikmuhs/ccache-action@v1.2.14
         with:
           key: ${{ github.workflow }}
 
+      - name: Setup Ninja
+        uses: wirekang/setup-ninja@v1
+        with:
+          platform: win
+          tag: v1.12.1
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "28.x"
+
       - name: configure
+        shell: bash
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DHPP_PROTO_TEST_USE_PROTOBUF=OFF
 
       - name: build
+        shell: bash
         run: cmake --build build --config Release -j4
 
       - name: test
+        shell: bash
         run: |
           cd build
           ctest --build-config Release --output-on-failure

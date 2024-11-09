@@ -1,118 +1,162 @@
 cmake_minimum_required(VERSION 3.14)
-project(hpp_proto 
-        VERSION 0.1.0
-        LANGUAGES CXX)
+message("CMake Version: ${CMAKE_VERSION}")
+project(hpp_proto
+  VERSION 0.1.0
+  LANGUAGES CXX)
 
-include(cmake/CPM.cmake)
+set(CMAKE_CXX_STANDARD 20) # requires for compiling is_utf
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-if (APPLE)
-    set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
-    set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
+option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
+option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
+
+option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
+option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
+
+set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
+set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS
+  "find" "compile")
+
+if(APPLE)
+  set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
+  set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 endif()
 
-CPMAddPackage(gh:eyalz800/zpp_bits@4.4.19)
-CPMAddPackage(
-  NAME glaze
-  VERSION 1.4.1
-  GITHUB_REPOSITORY stephenberry/glaze
-  PATCH_COMMAND git diff --exit-code --quite && git checkout . && git apply ${CMAKE_CURRENT_SOURCE_DIR}/glaze.patch
-)
-
-set(EXPECTED_BUILD_TESTS OFF)
-CPMAddPackage(gh:TartanLlama/expected@1.1.0)
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED On)
-CPMAddPackage(
-  NAME protobuf
-  VERSION 24.2
-  GITHUB_REPOSITORY protocolbuffers/protobuf
-  OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
-          "protobuf_INSTALL OFF"
-          "protobuf_BUILD_TESTS OFF"
-          "protobuf_BUILD_PROTOBUF_BINARIES ON"
-          "protobuf_BUILD_PROTOC_BINARIES ON"
-          "EXCLUDE_FROM_ALL"
-)
-
-option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ON)
-option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" ON)
-option(HPP_ENABLE_CLANG_TIDY "Enable clang tidy" OFF)
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH CLANG_PATH)
+if(MSVC)
+  add_compile_options("/EHsc")
+else()
+  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
 endif()
 
-if (HPP_ENABLE_CLANG_TIDY)
-  find_program(CLANG_TIDY_EXE NAMES "clang-tidy" PATHS ${CLANG_PATH})
+if(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")
+  find_program(ccache_exe ccache)
 
-  if (CLANG_TIDY_EXE)
-    set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY_EXE} -extra-arg=-Wno-unknown-warning-option
-          -extra-arg=-Wno-ignored-optimization-argument
-          -extra-arg=-Wno-unused-command-line-argument
-          -p
-          -extra-arg=-std=c++${CMAKE_CXX_STANDARD})
+  if(ccache_exe)
+    file(COPY_FILE
+      ${ccache_exe} ${CMAKE_BINARY_DIR}/cl.exe
+      ONLY_IF_DIFFERENT)
 
-    configure_file(clang-tidy-disable-all-checks ${CMAKE_CURRENT_BINARY_DIR}/.deps/.clang-tidy)
+    # By default Visual Studio generators will use /Zi which is not compatible
+    # with ccache, so tell Visual Studio to use /Z7 instead.
+    message(STATUS "Setting MSVC debug information format to 'Embedded'")
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+
+    set(CMAKE_VS_GLOBALS
+      "CLToolExe=cl.exe"
+      "CLToolPath=${CMAKE_BINARY_DIR}"
+      "TrackFileAccess=false"
+      "UseMultiToolTask=true"
+      "DebugInformationFormat=OldStyle"
+    )
   endif()
-else()
-  set(CMAKE_CXX_CLANG_TIDY)
 endif()
 
+include(third-party.cmake)
 
-add_library(hpp_proto_libhpp_proto INTERFACE)
-target_include_directories(hpp_proto_libhpp_proto INTERFACE 
+if(HPP_PROTO_ENABLE_SANITIZER)
+  if(MSVC)
+    add_compile_options("/fsanitize=address")
+    add_link_options("/fsanitize=address")
+  else()
+    add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
+    add_link_options("-fsanitize=address,undefined")
+  endif()
+endif()
+
+set(CMAKE_CXX_FLAGS_COVERAGE "--coverage -O0") 
+
+add_library(libhpp_proto INTERFACE)
+target_include_directories(libhpp_proto INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${zpp_bits_SOURCE_DIR}>
-  $<BUILD_INTERFACE:${expected_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(hpp_proto_libhpp_proto INTERFACE cxx_std_20)
-if (MSVC)
-    # warning level 4
-    target_compile_options(hpp_proto_libhpp_proto INTERFACE /W4)
-else()
-    # additional warnings
-    target_compile_options(hpp_proto_libhpp_proto INTERFACE -Wall -Wextra -Wpedantic)
+target_compile_features(libhpp_proto INTERFACE cxx_std_20)
+target_link_libraries(libhpp_proto INTERFACE is_utf8)
+
+add_library(libhpp_proto_no_utf8_validation INTERFACE)
+target_include_directories(libhpp_proto_no_utf8_validation INTERFACE
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(libhpp_proto_no_utf8_validation INTERFACE cxx_std_20)
+target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_NO_UTF8_VALIDATION)
+
+add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
+add_library(hpp_proto::libhpp_proto_no_utf8_validation ALIAS libhpp_proto_no_utf8_validation)
+
+if(MSVC)
+  target_compile_options(libhpp_proto INTERFACE "/Zc:preprocessor")
+  target_compile_options(libhpp_proto_no_utf8_validation INTERFACE "/Zc:preprocessor")
 endif()
 
-add_library(hpp_proto::libhpp_proto ALIAS hpp_proto_libhpp_proto)
-
-add_subdirectory(protoc-plugin)
-if (HPP_PROTO_TESTS)
+if(HPP_PROTO_TESTS)
   enable_testing()
-  add_subdirectory(tests)
+  add_subdirectory(unittests)
+  include(CTest)
 endif()
 
-if (HPP_PROTO_BENCHMARKS)
-  add_subdirectory(benchmarks)
-endif()
+if(HPP_PROTO_PROTOC_PLUGIN)
+  include(cmake/protobuf_generate.cmake)
 
-write_basic_package_version_file(
+  add_subdirectory(protoc-plugin)
+
+  if(HPP_PROTO_TESTS)
+    add_subdirectory(tests)
+    add_subdirectory(tutorial)
+  endif()
+
+  if(HPP_PROTO_BENCHMARKS)
+    add_subdirectory(benchmarks)
+  endif()
+
+  write_basic_package_version_file(
     lib/cmake/hpp_proto/hpp_proto-config-version.cmake
     COMPATIBILITY AnyNewerVersion
-)
+  )
 
-# copy google proto files into include directory
-file(GLOB GOOGLE_PROTOFILES RELATIVE  "${protobuf_SOURCE_DIR}/src/google/protobuf" "${protobuf_SOURCE_DIR}/src/google/protobuf/*.proto")
-list(FILTER GOOGLE_PROTOFILES EXCLUDE REGEX ".*test.*")
-foreach(f ${GOOGLE_PROTOFILES})
-  configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/${f} include/google/protobuf/${f} COPYONLY)
-endforeach()
-configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/compiler/plugin.proto include/google/protobuf/compiler/plugin.proto COPYONLY)
+  if(HPP_PROTO_PROTOC STREQUAL "compile")
+    # copy google proto files into include directory
+    file(GLOB GOOGLE_PROTOFILES RELATIVE "${protobuf_SOURCE_DIR}/src/google/protobuf" "${protobuf_SOURCE_DIR}/src/google/protobuf/*.proto")
+    list(FILTER GOOGLE_PROTOFILES EXCLUDE REGEX ".*test.*")
+    list(APPEND GOOGLE_PROTOFILES "compiler/plugin.proto")
 
+    foreach(f ${GOOGLE_PROTOFILES})
+      configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/${f} include/google/protobuf/${f} COPYONLY)
+    endforeach()
 
-install(DIRECTORY include/ TYPE INCLUDE)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
-install(DIRECTORY ${expected_SOURCE_DIR}/include/ TYPE INCLUDE)
-install(FILES ${zpp_bits_SOURCE_DIR}/zpp_bits.h TYPE INCLUDE)
-install(TARGETS protoc hpp_proto_libhpp_proto EXPORT hpp_proto-targets)
-install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
+    install(TARGETS protoc EXPORT hpp_proto-targets)
+  endif()
 
-configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake COPYONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake" 
-              "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake" 
-              "${CMAKE_CURRENT_CURRENT_DIR}/cmake/add_hpp_proto_lib.cmake"
-        DESTINATION "lib/cmake/hpp_proto")
+  install(TARGETS libhpp_proto well_known_types EXPORT hpp_proto-targets)
 
-install(EXPORT hpp_proto-targets 
-        DESTINATION lib/cmake/hpp_proto)
-export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake)
+  install(DIRECTORY include/ TYPE INCLUDE)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
+  install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
+
+  configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate.cmake"
+    DESTINATION "lib/cmake/hpp_proto")
+
+  install(
+    FILES ${is_utf8_SOURCE_DIR}/include/is_utf8.h
+    TYPE INCLUDE
+  )
+
+  install(
+    TARGETS is_utf8
+    EXPORT hpp_proto-targets
+  )
+
+  install(EXPORT hpp_proto-targets
+    DESTINATION lib/cmake/hpp_proto
+    NAMESPACE hpp_proto::)
+  export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake
+    NAMESPACE hpp_proto::)
+endif(HPP_PROTO_PROTOC_PLUGIN)

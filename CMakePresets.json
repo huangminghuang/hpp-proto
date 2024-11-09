@@ -1,0 +1,90 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 23,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "default",
+            "displayName": "Default Config",
+            "description": "Default build using Ninja generator",
+            "generator": "Ninja",
+            "hidden": true,
+            "cacheVariables": {
+                "HPP_PROTO_PROTOC_PLUGIN": true,
+                "HPP_PROTO_TESTS": true,
+                "HPP_PROTO_PROTOC": "compile"
+            }
+        },
+        {
+            "name": "core-dev",
+            "inherits": "default",
+            "displayName": "Core Developer Mode",
+            "description": "Builds hpp-proto core library unit tests only",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "HPP_PROTO_PROTOC_PLUGIN": false,
+                "HPP_PROTO_ENABLE_SANITIZER": true
+            }
+        },
+        {
+            "name": "dev",
+            "inherits": "default",
+            "displayName": "Developer Mode",
+            "description": "Debug build and test against google protobuf implementation",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "HPP_PROTO_ENABLE_SANITIZER": true,
+                "HPP_PROTO_TEST_USE_PROTOBUF": true
+            }
+        },
+        {
+            "name": "release",
+            "inherits": "default",
+            "displayName": "Release",
+            "description": "Optimized build with tests",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "benchmark",
+            "inherits": "default",
+            "displayName": "Benchmark",
+            "description": "Optimized build with benchmark",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "HPP_PROTO_BENCHMARKS": true,
+                "HPP_PROTO_PROTOC": "compile"
+            }
+        },
+        {
+            "name": "Coverage",
+            "inherits": "default",
+            "displayName": "Coverage",
+            "description": "Coverage Build",
+            "binaryDir": "${sourceDir}/build/coverage",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Coverage",
+                "HPP_PROTO_PROTOC": "find"
+            }
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "all",
+            "displayName": "Automated Tests",
+            "configurePreset": "dev",
+            "output": {
+                "verbosity": "verbose",
+                "outputOnFailure": true
+            }
+        }
+    ]
+}
