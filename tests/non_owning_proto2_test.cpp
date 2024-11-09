@@ -1317,14 +1317,12 @@ inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message) {
 
 } // namespace TestUtil
 
-
 const std::size_t max_memory_resource_size = 1U << 20U;
 const boost::ut::suite proto_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   using namespace non_owning;
   auto unittest_descriptorset = read_file("unittest.desc.pb");
-
 
   "protobuf"_test =
       []<class T> {
@@ -1363,8 +1361,8 @@ const boost::ut::suite proto_test = [] {
         std::vector<char> data;
         expect(hpp::proto::write_proto(original, data).ok());
 
-        auto original_json = gpb_based::proto_to_json(unittest_descriptorset,
-                                                      hpp::proto::message_name(original), {data.data(), data.size()});
+        auto original_json = gpb_based::proto_to_json(unittest_descriptorset, hpp::proto::message_name(original),
+                                                      {data.data(), data.size()});
         expect(fatal(!original_json.empty()));
         auto generated_json = hpp::proto::write_json(original);
 

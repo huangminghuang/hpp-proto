@@ -44,9 +44,9 @@ auto options_with_default_features(const auto &proto, google::protobuf::FeatureS
 
   if (options.features.has_value()) {
     (void)merge_proto(default_features, write_proto(*options.features).value());
-  } 
+  }
   options.features = std::move(default_features);
-  
+
   return options;
 }
 } // namespace detail
@@ -73,7 +73,8 @@ struct descriptor_pool {
       using enum google::protobuf::FeatureSet::FieldPresence;
       if (proto.label == LABEL_OPTIONAL) {
         return (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE || proto.proto3_optional ||
-                proto.oneof_index.has_value() || options.features->field_presence == EXPLICIT || options.features->field_presence == FIELD_PRESENCE_UNKNOWN);
+                proto.oneof_index.has_value() || options.features->field_presence == EXPLICIT ||
+                options.features->field_presence == FIELD_PRESENCE_UNKNOWN);
       } else if (proto.label == LABEL_REQUIRED) {
         return false;
       } else if (proto.label == LABEL_REPEATED) {
@@ -120,9 +121,9 @@ struct descriptor_pool {
             return options.features->repeated_field_encoding ==
                    google::protobuf::FeatureSet::RepeatedFieldEncoding::PACKED;
           }
-        } 
+        }
       }
-      return false; 
+      return false;
     }
 
     bool requires_utf8_validation() const {
@@ -164,9 +165,7 @@ struct descriptor_pool {
       }
     }
 
-    bool is_closed() const {
-      return options.features->enum_type == google::protobuf::FeatureSet::EnumType::CLOSED;
-    }
+    bool is_closed() const { return options.features->enum_type == google::protobuf::FeatureSet::EnumType::CLOSED; }
   };
 
   struct message_descriptor_t : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t,
@@ -268,8 +267,8 @@ struct descriptor_pool {
       if (default_features.edition == current_edition) {
         if (current_edition <= google::protobuf::Edition::EDITION_PROTO3) {
           return default_features.fixed_features.value();
-        } 
-        
+        }
+
         auto features = default_features.overridable_features.value_or(google::protobuf::FeatureSet{});
         return merge_features(features, file.options);
       }

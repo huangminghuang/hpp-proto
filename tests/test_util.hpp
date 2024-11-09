@@ -3,8 +3,8 @@
 
 #include <algorithm>
 #include <fstream>
-#include <hpp_proto/pb_serializer.hpp>
 #include <hpp_proto/json_serializer.hpp>
+#include <hpp_proto/pb_serializer.hpp>
 #include <ranges>
 #include <span>
 #include <string>

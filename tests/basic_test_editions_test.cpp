@@ -35,7 +35,7 @@ void test_editions_test() {
 
   static_assert(!hpp::proto::concepts::optional<decltype(message.open_enum_field)>);
   static_assert(!std::tuple_element_t<5, meta_type>::closed_enum);
-  
+
   static_assert(std::ranges::range<decltype(message.unpacked_field)>);
   static_assert(!std::tuple_element_t<6, meta_type>::is_packed);
 
@@ -43,5 +43,4 @@ void test_editions_test() {
   static_assert(std::tuple_element_t<7, meta_type>::is_packed);
 }
 
-int main() {
-}
+int main() {}

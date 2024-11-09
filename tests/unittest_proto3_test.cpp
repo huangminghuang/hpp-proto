@@ -52,8 +52,8 @@ const boost::ut::suite proto3_lite_test = [] {
     std::vector<char> data;
     expect(hpp::proto::write_proto(original, data).ok());
 
-    auto original_json = gpb_based::proto_to_json(unittest_descriptorset, "proto3_unittest.TestAllTypes",
-                                                  {data.data(), data.size()});
+    auto original_json =
+        gpb_based::proto_to_json(unittest_descriptorset, "proto3_unittest.TestAllTypes", {data.data(), data.size()});
     expect(fatal(!original_json.empty()));
     expect(hpp::proto::write_json(original).value() == original_json);
 

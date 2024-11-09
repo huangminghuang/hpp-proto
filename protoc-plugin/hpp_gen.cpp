@@ -1272,7 +1272,7 @@ struct hpp_meta_generator : code_generator {
       if (!default_value.empty()) {
         fmt::format_to(std::back_inserter(type_and_default_value), ", {}", default_value);
       }
-    } 
+    }
 
     auto cpp_name = cpp_scope.empty() ? descriptor.cpp_name : cpp_scope + "::" + descriptor.cpp_name;
 
