@@ -43,4 +43,4 @@ void test_editions_test() {
   static_assert(std::tuple_element_t<7, meta_type>::is_packed);
 }
 
-int main() {}
+int main() { return 0;}

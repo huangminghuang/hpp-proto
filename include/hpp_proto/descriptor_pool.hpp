@@ -26,6 +26,18 @@
 #include <iostream>
 namespace hpp::proto {
 
+[[noreturn]] inline void unreachable() {
+#if __cpp_lib_unreachable
+  std::unreachable();
+#else
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+  __assume(false);
+#else                                        // GCC, Clang
+  __builtin_unreachable();
+#endif
+#endif
+}
+
 template <typename FlatMap>
 void reserve(FlatMap &m, std::size_t s) {
   typename FlatMap::key_container_type keys;
@@ -75,14 +87,13 @@ struct descriptor_pool {
         return (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE || proto.proto3_optional ||
                 proto.oneof_index.has_value() || options.features->field_presence == EXPLICIT ||
                 options.features->field_presence == FIELD_PRESENCE_UNKNOWN);
-      } else if (proto.label == LABEL_REQUIRED) {
-        return false;
       } else if (proto.label == LABEL_REPEATED) {
+        return false;
+      } else if (proto.label == LABEL_REQUIRED) {
         return false;
       }
 
-      return (options.features->field_presence == EXPLICIT || proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE ||
-              proto.oneof_index.has_value());
+      unreachable();
     }
 
     bool is_required() const {

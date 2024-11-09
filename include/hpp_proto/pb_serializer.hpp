@@ -427,7 +427,7 @@ constexpr const Byte *shift_mix_parse_varint(const Byte *p, const Byte *end, int
 }
 
 template <concepts::byte_type Byte>
-constexpr const Byte *unchecked_parse_bool(const Byte *p, bool &value) {
+constexpr const Byte *unchecked_parse_bool(const Byte *p, const Byte *end, bool &value) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   const auto next = [&p] { return static_cast<unsigned char>(*p++); };
@@ -467,7 +467,7 @@ constexpr const Byte *unchecked_parse_bool(const Byte *p, bool &value) {
                     // of the 10th byte.
                     byte = (byte - 0x80) | (next() & 0x81);
                     if (byte & 0x80) [[unlikely]] {
-                      return p;
+                      return end + 1;
                     }
                   }
                 }
@@ -1650,7 +1650,7 @@ struct pb_serializer {
         : current(cur), next_region(regions), size_exclude_current(size_exclude_current) {}
 
     constexpr status deserialize(bool &item) {
-      current.begin = unchecked_parse_bool(current.begin, item);
+      current.begin = unchecked_parse_bool(current.begin, current.end + 1, item);
       return {};
     }
 
