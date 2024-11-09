@@ -240,8 +240,8 @@ else()
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
             PROTOS "basic_test_editions.proto" "editions_test.proto")
 
-        add_executable(basic_test_editions_test basic_test_editions_test.cpp)
-        target_link_libraries(basic_test_editions_test PRIVATE editions_test_lib)
+        add_executable(editions_test basic_test_editions_test.cpp)
+        target_link_libraries(editions_test PRIVATE editions_test_lib)
 
 
         add_library(basic_test_proto2_lib INTERFACE)
