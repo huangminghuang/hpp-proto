@@ -743,7 +743,7 @@ struct msg_code_generator : code_generator {
           dependee = type_name.substr(pos + 1);
           auto dependee_pos = dependee.find('.');
           if (dependee_pos != std::string::npos) {
-            dependee = dependee.substr(0, dependee_pos);
+            dependee.resize(dependee_pos);
           } else if (type == TYPE_ENUM) {
             dependent = "";
           }
