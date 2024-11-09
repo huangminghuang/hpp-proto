@@ -1,0 +1,25 @@
+edition = "2023";
+
+package upb.test_2023;
+
+message EditionsMessage {
+  int32 plain_field = 1;
+  int32 implicit_presence_field = 2 [features.field_presence = IMPLICIT];
+  int32 required_field = 3 [features.field_presence = LEGACY_REQUIRED];
+  EditionsMessage delimited_field = 4 [features.message_encoding = DELIMITED];
+  ClosedEditionsEnum closed_enum_field = 5;
+  OpenEditionsEnum open_enum_field = 6 [features.field_presence = IMPLICIT];
+  repeated int32 unpacked_field = 7
+      [features.repeated_field_encoding = EXPANDED];
+  repeated int32 packed_field = 8;
+}
+
+enum ClosedEditionsEnum {
+  option features.enum_type = CLOSED;
+  ONE = 1;
+}
+
+enum OpenEditionsEnum {
+  UNSPECIFIED = 0;
+  OPEN_ONE = 1;
+}

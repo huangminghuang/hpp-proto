@@ -20,7 +20,9 @@ Compared to Google’s implementation, hpp-proto features a minimalistic design 
 
 ## Limitations
 * Lacks runtime reflection support.
-* Unknown fields are discarded during deserialization.
+* Lacks support for extra json print options like `always_print_fields_with_no_presence`, `always_print_enums_as_ints`,
+  `preserve_proto_field_names` or`unquote_int64_if_possible`.
+* Unknown fields are always discarded during deserialization.
 
 ## Comparison with google protobuf C++ implementation
 ### System Configuration

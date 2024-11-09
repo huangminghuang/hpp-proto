@@ -1,5 +1,7 @@
 edition = "2023";
 
+package editions_upb_test;
+
 option features.enum_type = CLOSED;
 option features.field_presence = IMPLICIT;
 

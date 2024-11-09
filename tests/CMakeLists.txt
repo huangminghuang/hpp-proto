@@ -228,17 +228,16 @@ else()
 
         set_property(TEST lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-        add_library(basic_test_editions_lib INTERFACE)
-        target_include_directories(basic_test_editions_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        add_library(editions_test_lib INTERFACE)
+        target_include_directories(editions_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
         protobuf_generate(
-            TARGET basic_test_editions_lib
+            TARGET editions_test_lib
             LANGUAGE hpp
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-            PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
-            PROTOS "basic_test_editions.proto")
+            PROTOS "basic_test_editions.proto" "editions_test.proto")
 
         add_executable(basic_test_editions_test basic_test_editions_test.cpp)
-        target_link_libraries(basic_test_editions_test PRIVATE basic_test_editions_lib)
+        target_link_libraries(basic_test_editions_test PRIVATE editions_test_lib)
 
 
         add_library(basic_test_proto2_lib INTERFACE)
