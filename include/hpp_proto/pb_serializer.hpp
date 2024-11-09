@@ -62,19 +62,19 @@ namespace hpp::proto {
 using glz::expected;
 using glz::unexpected;
 
+constexpr bool utf8_validation_failed(auto meta, const auto &str) {
 #if HPP_PROTO_NO_UTF8_VALIDATION
-constexpr bool is_string_and_not_utf8(const auto &str) { return false; }
+  (void)meta;
+  (void)str;
 #else
-template <typename T>
-constexpr bool is_string_and_not_utf8(const T &str) {
-  if constexpr (std::same_as<T, std::string> || std::same_as<T, std::string_view>) {
+  if constexpr (meta.validate_utf8) {
     if (!std::is_constant_evaluated()) {
       return !::is_utf8(str.data(), str.size());
     }
   }
+#endif
   return false;
 }
-#endif
 
 // Always allocate memory for string and bytes fields when
 // deserializing non-owning messages.
@@ -427,7 +427,7 @@ constexpr const Byte *shift_mix_parse_varint(const Byte *p, const Byte *end, int
 }
 
 template <concepts::byte_type Byte>
-constexpr const Byte *unchecked_parse_bool(const Byte *p, bool &value) {
+constexpr const Byte *unchecked_parse_bool(const Byte *p, const Byte *end, bool &value) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   const auto next = [&p] { return static_cast<unsigned char>(*p++); };
@@ -467,7 +467,7 @@ constexpr const Byte *unchecked_parse_bool(const Byte *p, bool &value) {
                     // of the 10th byte.
                     byte = (byte - 0x80) | (next() & 0x81);
                     if (byte & 0x80) [[unlikely]] {
-                      return p;
+                      return end + 1;
                     }
                   }
                 }
@@ -502,7 +502,14 @@ constexpr const Byte *unchecked_parse_varint(const Byte *p, const Byte *end, Var
 
 ///////////////////
 
-enum field_option : uint8_t { none = 0, explicit_presence = 1, unpacked_repeated = 2, group = 4 };
+enum field_option : uint8_t {
+  none = 0,
+  explicit_presence = 1,
+  is_packed = 2,
+  group = 4,
+  utf8_validation = 8,
+  closed_enum = 16
+};
 
 template <auto Accessor>
 struct accessor_type {
@@ -521,12 +528,14 @@ struct field_meta_base {
   using type = Type;
 
   constexpr static bool is_explicit_presence = static_cast<bool>(options & field_option::explicit_presence);
-  constexpr static bool is_unpacked_repeated = static_cast<bool>(options & field_option::unpacked_repeated);
+  constexpr static bool is_packed = static_cast<bool>(options & field_option::is_packed);
   constexpr static bool is_group = static_cast<bool>(options & field_option::group);
+  constexpr static bool validate_utf8 = static_cast<bool>(options & field_option::utf8_validation);
+  constexpr static bool closed_enum = static_cast<bool>(options & field_option::closed_enum);
 
   template <typename T>
   static constexpr bool omit_value(const T &v) {
-    if constexpr (options == field_option::none) {
+    if constexpr ((options & field_option::explicit_presence) == 0) {
       return is_default_value<T, DefaultValue>(v);
     } else if constexpr (requires { v.has_value(); }) {
       return !v.has_value();
@@ -718,7 +727,8 @@ struct serialize_type<bool> {
   using convertible_type = boolean;
 };
 
-template <typename KeyType, typename MappedType>
+template <typename KeyType, typename MappedType, int KeyOptions = field_option::none,
+          int MappedOptions = field_option::none>
 struct map_entry {
   using key_type = KeyType;
   using mapped_type = MappedType;
@@ -726,8 +736,8 @@ struct map_entry {
     typename serialize_type<KeyType>::type key = {};
     typename serialize_type<MappedType>::type value = {};
     constexpr static bool allow_inline_visit_members_lambda = true;
-    using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence>,
-                               field_meta<2, &mutable_type::value, field_option::explicit_presence>>;
+    using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence | KeyOptions>,
+                               field_meta<2, &mutable_type::value, field_option::explicit_presence | MappedOptions>>;
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -761,8 +771,8 @@ struct map_entry {
       constexpr const auto &operator()(const read_only_type &entry) const { return entry.value; }
     };
 
-    using pb_meta = std::tuple<field_meta<1, key_accessor{}, field_option::explicit_presence>,
-                               field_meta<2, value_accessor{}, field_option::explicit_presence>>;
+    using pb_meta = std::tuple<field_meta<1, key_accessor{}, field_option::explicit_presence | KeyOptions>,
+                               field_meta<2, value_accessor{}, field_option::explicit_presence | MappedOptions>>;
   };
 };
 
@@ -1174,7 +1184,7 @@ struct pb_serializer {
   HPP_PROTO_INLINE constexpr static std::size_t cache_count(std::ranges::input_range auto const &item, Meta meta) {
     using type = std::remove_cvref_t<decltype(item)>;
     using value_type = typename std::ranges::range_value_t<type>;
-    if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
+    if constexpr (concepts::has_meta<value_type> || !meta.is_packed || meta.is_group) {
       return transform_accumulate(item, [](const auto &elem) constexpr { return cache_count(elem, Meta{}); });
     } else {
       using element_type =
@@ -1343,7 +1353,7 @@ struct pb_serializer {
       return tag_size + len_size(item.size());
     } else {
       using value_type = typename std::ranges::range_value_t<type>;
-      if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
+      if constexpr (concepts::has_meta<value_type> || !meta.is_packed || meta.is_group) {
         return transform_accumulate(
             item, [&cache_itr](const auto &elem) constexpr { return field_size(elem, Meta{}, cache_itr); });
       } else {
@@ -1475,7 +1485,7 @@ struct pb_serializer {
                                                                        concepts::is_size_cache_iterator auto &,
                                                                        auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
-    if (is_string_and_not_utf8(item)) {
+    if (utf8_validation_failed(meta, item)) {
       return false;
     }
     archive(make_tag<type>(meta), varint{item.size()}, item);
@@ -1516,7 +1526,7 @@ struct pb_serializer {
         std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
                            value_type, typename Meta::type>;
 
-    if constexpr (concepts::has_meta<value_type> || meta.is_unpacked_repeated || meta.is_group) {
+    if constexpr (concepts::has_meta<value_type> || !meta.is_packed || meta.is_group) {
       for (const auto &element : item) {
         if constexpr (std::same_as<element_type, std::remove_cvref_t<decltype(element)>> ||
                       concepts::is_map_entry<typename Meta::type>) {
@@ -1553,6 +1563,8 @@ struct pb_serializer {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto tag = make_tag<type>(meta);
     auto &&[key, value] = item;
+    if (utf8_validation_failed(meta, key))
+      return false;
     archive(tag, varint{*cache_itr++});
     using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
     static_assert(concepts::has_meta<value_type>);
@@ -1638,7 +1650,7 @@ struct pb_serializer {
         : current(cur), next_region(regions), size_exclude_current(size_exclude_current) {}
 
     constexpr status deserialize(bool &item) {
-      current.begin = unchecked_parse_bool(current.begin, item);
+      current.begin = unchecked_parse_bool(current.begin, current.end + 1, item);
       return {};
     }
 
@@ -2053,7 +2065,7 @@ struct pb_serializer {
 
   // NOLINTBEGIN(readability-function-cognitive-complexity)
   template <typename Meta>
-  constexpr static status deserialize_unpacked_repeated(Meta, uint32_t tag, auto &&item, auto &context,
+  constexpr static status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&item, auto &context,
                                                         concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
     using value_type = typename type::value_type;
@@ -2078,6 +2090,8 @@ struct pb_serializer {
 
     if constexpr (concepts::flat_map<type>) {
       reserve(v, new_size);
+    } else if constexpr (meta.closed_enum) {
+      v.reserve(new_size);
     } else if constexpr (requires { v.resize(new_size); }) {
       v.resize(new_size);
     }
@@ -2096,7 +2110,7 @@ struct pb_serializer {
         } else { // pre-C++23 std::map
           v[std::move(val.first)] = std::move(val.second);
         }
-      } else if constexpr (std::same_as<value_encode_type, value_type>) {
+      } else if constexpr (std::same_as<value_encode_type, value_type> && !meta.closed_enum) {
         if (auto result = deserialize_element(v[i]); !result.ok()) [[unlikely]] {
           return result;
         }
@@ -2104,8 +2118,13 @@ struct pb_serializer {
         value_encode_type element;
         if (auto result = deserialize_element(element); !result.ok()) [[unlikely]] {
           return result;
+        } else if constexpr (meta.closed_enum) {
+          if (is_valid(element)) {
+            v.push_back(element);
+          }
+        } else {
+          v[i] = std::move(static_cast<value_type>(std::move(element)));
         }
-        v[i] = std::move(static_cast<value_type>(std::move(element)));
       }
 
       if (i < new_size - 1) {
@@ -2153,13 +2172,21 @@ struct pb_serializer {
 
   constexpr static status deserialize_field(concepts::optional auto &item, auto meta, uint32_t tag, auto &context,
                                             concepts::is_basic_in auto &archive) {
+    status result;
     if constexpr (requires { item.emplace(); }) {
-      return deserialize_field(item.emplace(), meta, tag, context, archive);
+      result = deserialize_field(item.emplace(), meta, tag, context, archive);
     } else {
       using type = std::remove_reference_t<decltype(item)>;
       item = typename type::value_type{};
-      return deserialize_field(*item, meta, tag, context, archive);
+      result = deserialize_field(*item, meta, tag, context, archive);
     }
+
+    if constexpr (meta.closed_enum) {
+      if (!is_valid(*item)) {
+        item.reset();
+      }
+    }
+    return result;
   }
 
   constexpr static status deserialize_field(concepts::unique_ptr auto &item, auto meta, uint32_t tag, auto &context,
@@ -2217,13 +2244,13 @@ struct pb_serializer {
       if (auto result = deserialize_packed_repeated(meta, item, context, archive); !result.ok()) {
         return result;
       }
-      return is_string_and_not_utf8(item) ? std::errc::bad_message : std::errc{};
+      return utf8_validation_failed(meta, item) ? std::errc::bad_message : std::errc{};
     } else if constexpr (meta.is_group) {
       // repeated group
       decltype(auto) v = as_modifiable(context, item);
       return deserialize_group(field_num, v.emplace_back(), context, archive);
     } else { // repeated non-group
-      if constexpr (!meta.is_unpacked_repeated) {
+      if constexpr (meta.is_packed) {
         if (tag_type(tag) != wire_type::length_delimited) {
           return deserialize_unpacked_repeated(meta, tag, item, context, archive);
         }

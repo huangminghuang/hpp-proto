@@ -35,7 +35,7 @@
               sanitize: ON
             - build_type: Coverage
               compiler: gcc
-              protoc: find
+              protoc: compile
               sanitize: OFF
 
       runs-on: ubuntu-24.04

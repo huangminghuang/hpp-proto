@@ -7,6 +7,55 @@ using hpp::proto::field_option;
 using namespace boost::ut::literals;
 using namespace std::string_view_literals;
 
+const ut::suite varint_decode_tests = [] {
+  using namespace boost::ut;
+  "unchecked_parse_bool"_test = [] {
+    bool value;
+    std::string_view data = "\x00"sv;
+    expect(hpp::proto::unchecked_parse_bool(data.data(), data.data() + data.size(), value) ==
+           data.data() + data.size());
+    expect(value == false);
+
+    data = "\x01"sv;
+    expect(hpp::proto::unchecked_parse_bool(data.data(), data.data() + data.size(), value) ==
+           data.data() + data.size());
+    expect(value == true);
+
+    // oversized bool
+    data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x01"sv;
+    expect(hpp::proto::unchecked_parse_bool(data.data(), data.data() + data.size(), value) ==
+           data.data() + data.size());
+    expect(value == true);
+
+    // unterminated bool
+    data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
+    expect(hpp::proto::unchecked_parse_bool(data.data(), data.data() + data.size(), value) ==
+           data.data() + data.size() + 1);
+  };
+
+  using vint64_t = hpp::proto::vint64_t;
+
+  "unchecked_parse_varint"_test =
+      [](int64_t arg) {
+        std::array<std::byte, 16> data;
+        auto end = hpp::proto::unchecked_pack_varint(hpp::proto::varint{arg}, data.data());
+
+        int64_t parsed_value;
+        ut::expect(hpp::proto::shift_mix_parse_varint<int64_t>(data.data(), data.data() + data.size(), parsed_value) ==
+                   end);
+      } |
+      std::vector<int64_t>{
+          127LL,           16383LL,           2097151LL,           268435455LL,           34359738367LL,
+          4398046511103LL, 562949953421311LL, 72057594037927935LL, 9223372036854775807LL, -1LL};
+
+  "unterminated_varint"_test = [] {
+    auto data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
+    auto end = data.data() + 16;
+    int64_t parsed_value;
+    ut::expect(hpp::proto::shift_mix_parse_varint<int64_t>(data.data(), end, parsed_value) == end + 1);
+  };
+};
+
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define carg(...) ([]() constexpr -> decltype(auto) { return __VA_ARGS__; })
 // NOLINTEND(cppcoreguidelines-macro-usage)
@@ -91,7 +140,8 @@ struct repeated_sint32 {
 };
 
 auto pb_meta(const repeated_sint32 &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32::integers, field_option::none, hpp::proto::vsint32_t>>;
+    -> std::tuple<
+        hpp::proto::field_meta<1, &repeated_sint32::integers, field_option::is_packed, hpp::proto::vsint32_t>>;
 
 struct repeated_sint32_unpacked {
   std::vector<hpp::proto::vsint32_t> integers;
@@ -99,7 +149,7 @@ struct repeated_sint32_unpacked {
 };
 
 auto pb_meta(const repeated_sint32_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32_unpacked::integers, field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32_unpacked::integers, field_option::none>>;
 
 struct repeated_sint32_unpacked_explicit_type {
   std::vector<int32_t> integers;
@@ -107,8 +157,8 @@ struct repeated_sint32_unpacked_explicit_type {
 };
 
 auto pb_meta(const repeated_sint32_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32_unpacked_explicit_type::integers,
-                                         field_option::unpacked_repeated, hpp::proto::vsint32_t>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32_unpacked_explicit_type::integers, field_option::none,
+                                         hpp::proto::vsint32_t>>;
 
 struct repeated_uint64 {
   std::vector<uint64_t> integers;
@@ -116,7 +166,8 @@ struct repeated_uint64 {
 };
 
 auto pb_meta(const repeated_uint64 &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_uint64::integers, field_option::none, hpp::proto::vuint64_t>>;
+    -> std::tuple<
+        hpp::proto::field_meta<1, &repeated_uint64::integers, field_option::is_packed, hpp::proto::vuint64_t>>;
 
 const ut::suite test_repeated_sint32 = [] {
   "repeated_sint32"_test = [] {
@@ -151,8 +202,8 @@ struct non_owning_repeated_sint32 {
 };
 
 auto pb_meta(const non_owning_repeated_sint32 &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_repeated_sint32::integers, field_option::none, hpp::proto::vsint32_t>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_sint32::integers, field_option::is_packed,
+                                         hpp::proto::vsint32_t>>;
 
 struct non_owning_repeated_sint32_unpacked {
   hpp::proto::equality_comparable_span<const hpp::proto::vsint32_t> integers;
@@ -160,8 +211,7 @@ struct non_owning_repeated_sint32_unpacked {
 };
 
 auto pb_meta(const non_owning_repeated_sint32_unpacked &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_repeated_sint32_unpacked::integers, field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_sint32_unpacked::integers, field_option::none>>;
 
 struct non_owning_repeated_sint32_unpacked_explicit_type {
   hpp::proto::equality_comparable_span<const int32_t> integers;
@@ -170,7 +220,7 @@ struct non_owning_repeated_sint32_unpacked_explicit_type {
 
 auto pb_meta(const non_owning_repeated_sint32_unpacked_explicit_type &)
     -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_sint32_unpacked_explicit_type::integers,
-                                         field_option::unpacked_repeated, hpp::proto::vsint32_t>>;
+                                         field_option::none, hpp::proto::vsint32_t>>;
 
 template <typename T>
 void verify_non_owning(auto encoded_data, const T &expected_value, std::size_t memory_size,
@@ -238,7 +288,7 @@ struct repeated_fixed {
 };
 
 auto pb_meta(const repeated_fixed &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed::integers, field_option::none>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed::integers, field_option::is_packed>>;
 
 struct repeated_fixed_explicit_type {
   std::vector<uint64_t> integers;
@@ -246,14 +296,15 @@ struct repeated_fixed_explicit_type {
 };
 
 auto pb_meta(const repeated_fixed_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed_explicit_type::integers, field_option::none, uint64_t>>;
+    -> std::tuple<
+        hpp::proto::field_meta<1, &repeated_fixed_explicit_type::integers, field_option::is_packed, uint64_t>>;
 struct repeated_fixed_unpacked {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed_unpacked &) const = default;
 };
 
 auto pb_meta(const repeated_fixed_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed_unpacked::integers, field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed_unpacked::integers, field_option::none>>;
 
 struct repeated_fixed_unpacked_explicit_type {
   std::vector<uint64_t> integers;
@@ -261,8 +312,8 @@ struct repeated_fixed_unpacked_explicit_type {
 };
 
 auto pb_meta(const repeated_fixed_unpacked_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed_unpacked_explicit_type::integers,
-                                         field_option::unpacked_repeated, uint64_t>>;
+    -> std::tuple<
+        hpp::proto::field_meta<1, &repeated_fixed_unpacked_explicit_type::integers, field_option::none, uint64_t>>;
 
 const ut::suite test_repeated_fixed = [] {
   "repeated_fixed"_test = [] {
@@ -306,23 +357,22 @@ struct non_owning_repeated_fixed {
 };
 
 auto pb_meta(const non_owning_repeated_fixed &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed::integers, field_option::none>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed::integers, field_option::is_packed>>;
 struct non_owning_repeated_fixed_explicit_type {
   hpp::proto::equality_comparable_span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_explicit_type &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_fixed_explicit_type &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_repeated_fixed_explicit_type::integers, field_option::none, uint64_t>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed_explicit_type::integers, field_option::is_packed,
+                                         uint64_t>>;
 struct non_owning_repeated_fixed_unpacked {
   hpp::proto::equality_comparable_span<const uint64_t> integers;
   bool operator==(const non_owning_repeated_fixed_unpacked &) const = default;
 };
 
 auto pb_meta(const non_owning_repeated_fixed_unpacked &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_repeated_fixed_unpacked::integers, field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed_unpacked::integers, field_option::none>>;
 
 struct non_owning_repeated_fixed_unpacked_explicit_type {
   hpp::proto::equality_comparable_span<const uint64_t> integers;
@@ -331,7 +381,7 @@ struct non_owning_repeated_fixed_unpacked_explicit_type {
 
 auto pb_meta(const non_owning_repeated_fixed_unpacked_explicit_type &)
     -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_fixed_unpacked_explicit_type::integers,
-                                         field_option::unpacked_repeated, uint64_t>>;
+                                         field_option::none, uint64_t>>;
 
 const ut::suite test_non_owning_repeated_fixed = [] {
   "non_owning_repeated_fixed"_test = [] {
@@ -383,7 +433,7 @@ struct repeated_bool {
 };
 
 auto pb_meta(const repeated_bool &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_bool::booleans, field_option::none, bool>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_bool::booleans, field_option::is_packed, bool>>;
 
 struct repeated_bool_unpacked {
   std::vector<hpp::proto::boolean> booleans;
@@ -391,7 +441,7 @@ struct repeated_bool_unpacked {
 };
 
 auto pb_meta(const repeated_bool_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_bool_unpacked::booleans, field_option::unpacked_repeated, bool>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_bool_unpacked::booleans, field_option::none, bool>>;
 
 const ut::suite test_repeated_bool = [] {
   "repeated_bool"_test = [] { verify("\x0a\x03\x01\x00\x01"sv, repeated_bool{{true, false, true}}); };
@@ -407,7 +457,7 @@ struct non_owning_repeated_bool {
 };
 
 auto pb_meta(const non_owning_repeated_bool &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_bool::booleans, field_option::none, bool>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_bool::booleans, field_option::is_packed, bool>>;
 
 struct non_owning_repeated_bool_unpacked {
   hpp::proto::equality_comparable_span<const bool> booleans;
@@ -415,8 +465,7 @@ struct non_owning_repeated_bool_unpacked {
 };
 
 auto pb_meta(const non_owning_repeated_bool_unpacked &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_repeated_bool_unpacked::booleans, field_option::unpacked_repeated, bool>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_bool_unpacked::booleans, field_option::none, bool>>;
 
 const ut::suite test_non_owning_repeated_bool = [] {
   "non_owning_repeated_bool"_test = [] {
@@ -437,7 +486,7 @@ struct repeated_enum {
 };
 
 auto pb_meta(const repeated_enum &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_enum::values, field_option::none>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_enum::values, field_option::is_packed>>;
 
 struct repeated_enum_unpacked {
   enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
@@ -446,9 +495,42 @@ struct repeated_enum_unpacked {
 };
 
 auto pb_meta(const repeated_enum_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_enum_unpacked::values, field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_enum_unpacked::values, field_option::none>>;
 
-const ut::suite test_repeated_enums = [] {
+struct closed_enum_message {
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3 };
+  std::vector<NestedEnum> repeated_values;
+  std::optional<NestedEnum> value;
+  bool operator==(const closed_enum_message &) const = default;
+};
+
+bool is_valid(closed_enum_message::NestedEnum v) {
+  return v >= closed_enum_message::NestedEnum::ZERO && v <= closed_enum_message::NestedEnum::BAZ;
+}
+
+auto pb_meta(const closed_enum_message &)
+    -> std::tuple<hpp::proto::field_meta<1, &closed_enum_message::repeated_values, field_option::closed_enum>,
+                  hpp::proto::field_meta<2, &closed_enum_message::value, field_option::closed_enum>>;
+
+struct non_owning_repeated_enum {
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  hpp::proto::equality_comparable_span<const NestedEnum> values;
+  bool operator==(const non_owning_repeated_enum &) const = default;
+};
+
+auto pb_meta(const non_owning_repeated_enum &)
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_enum::values, field_option::is_packed>>;
+
+struct non_owning_repeated_enum_unpacked {
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  hpp::proto::equality_comparable_span<const NestedEnum> values;
+  bool operator==(const non_owning_repeated_enum_unpacked &) const = default;
+};
+
+auto pb_meta(const non_owning_repeated_enum_unpacked &)
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_enum_unpacked::values, field_option::none>>;
+
+const ut::suite test_enums = [] {
   "repeated_enum"_test = [] {
     using enum repeated_enum::NestedEnum;
     verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv, repeated_enum{{FOO, BAR, BAZ, NEG}});
@@ -459,28 +541,7 @@ const ut::suite test_repeated_enums = [] {
     verify("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
            repeated_enum_unpacked{{FOO, BAR, BAZ, NEG}});
   };
-};
 
-struct non_owning_repeated_enum {
-  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
-  hpp::proto::equality_comparable_span<const NestedEnum> values;
-  bool operator==(const non_owning_repeated_enum &) const = default;
-};
-
-auto pb_meta(const non_owning_repeated_enum &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_enum::values, field_option::none>>;
-
-struct non_owning_repeated_enum_unpacked {
-  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
-  hpp::proto::equality_comparable_span<const NestedEnum> values;
-  bool operator==(const non_owning_repeated_enum_unpacked &) const = default;
-};
-
-auto pb_meta(const non_owning_repeated_enum_unpacked &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_repeated_enum_unpacked::values, field_option::unpacked_repeated>>;
-
-const ut::suite test_non_owning_repeated_enums = [] {
   "non_owning_repeated_enum"_test = [] {
     using enum non_owning_repeated_enum::NestedEnum;
     std::array<non_owning_repeated_enum::NestedEnum, 4> x{FOO, BAR, BAZ, NEG};
@@ -494,6 +555,22 @@ const ut::suite test_non_owning_repeated_enums = [] {
     verify_non_owning("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
                       non_owning_repeated_enum_unpacked{x}, 64);
   };
+
+  "close_enum_field"_test = [] {
+    using enum closed_enum_message::NestedEnum;
+    using namespace boost::ut;
+    closed_enum_message msg;
+    closed_enum_message::NestedEnum invalid_enum = static_cast<closed_enum_message::NestedEnum>(4);
+    msg.value = invalid_enum;
+    msg.repeated_values = {FOO, BAR, invalid_enum, BAZ};
+    std::vector<std::byte> buffer;
+    expect(hpp::proto::write_proto(msg, buffer).ok());
+
+    closed_enum_message new_msg;
+    expect(hpp::proto::read_proto(new_msg, buffer).ok());
+    // expect(!new_msg.value.has_value());
+    // expect(new_msg.repeated_values == std::vector<closed_enum_message::NestedEnum>{FOO, BAR, BAZ});
+  };
 };
 
 struct repeated_examples {
@@ -502,7 +579,7 @@ struct repeated_examples {
 };
 
 auto pb_meta(const repeated_examples &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_examples::examples, field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_examples::examples, field_option::none>>;
 
 struct non_owning_repeated_examples {
   hpp::proto::equality_comparable_span<const example> examples;
@@ -510,7 +587,7 @@ struct non_owning_repeated_examples {
 };
 
 auto pb_meta(const non_owning_repeated_examples &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_examples::examples, field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_examples::examples, field_option::none>>;
 
 const ut::suite test_repeated_example = [] {
   auto encoded = "\x0a\x02\x08\x01\x0a\x02\x08\x02\x0a\x02\x08\x03\x0a\x02\x08\x04\x0a\x0b\x08\xff\xff\xff\xff\xff\xff"
@@ -563,7 +640,7 @@ struct map_example {
 };
 
 auto pb_meta(const map_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &map_example::dict, field_option::unpacked_repeated,
+    -> std::tuple<hpp::proto::field_meta<1, &map_example::dict, field_option::none,
                                          hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
 
 struct flat_map_example {
@@ -572,7 +649,7 @@ struct flat_map_example {
 };
 
 auto pb_meta(const flat_map_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &flat_map_example::dict, field_option::unpacked_repeated,
+    -> std::tuple<hpp::proto::field_meta<1, &flat_map_example::dict, field_option::none,
                                          hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
 
 struct sequential_map_example {
@@ -581,7 +658,7 @@ struct sequential_map_example {
 };
 
 auto pb_meta(const sequential_map_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &sequential_map_example::dict, field_option::unpacked_repeated,
+    -> std::tuple<hpp::proto::field_meta<1, &sequential_map_example::dict, field_option::none,
                                          hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
 
 struct non_owning_map_example {
@@ -590,7 +667,7 @@ struct non_owning_map_example {
 };
 
 auto pb_meta(const non_owning_map_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_map_example::dict, field_option::unpacked_repeated,
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_map_example::dict, field_option::none,
                                          hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
 
 const ut::suite test_map_example = [] {
@@ -622,7 +699,7 @@ struct string_example {
 };
 
 auto pb_meta(const string_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &string_example::value, field_option::none>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_example::value, field_option::utf8_validation>>;
 
 struct string_with_default {
   std::string value = "test";
@@ -637,7 +714,8 @@ struct string_with_optional {
   bool operator==(const string_with_optional &) const = default;
 };
 auto pb_meta(const string_with_optional &)
-    -> std::tuple<hpp::proto::field_meta<1, &string_with_optional::value, field_option::explicit_presence>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_with_optional::value,
+                                         field_option::explicit_presence | field_option::utf8_validation>>;
 
 struct string_required {
   std::string value;
@@ -648,6 +726,7 @@ auto pb_meta(const string_required &)
     -> std::tuple<hpp::proto::field_meta<1, &string_required::value, field_option::explicit_presence>>;
 
 const ut::suite test_string_example = [] {
+  "empty_string"_test = [] { verify(""sv, string_example{}); };
   "string_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, string_example{.value = "test"}); };
 
   "string_with_default_empty"_test = [] { verify(""sv, string_with_default{}); };
@@ -660,7 +739,7 @@ const ut::suite test_string_example = [] {
 
   "optional_value_access"_test = [] {
     string_with_optional const v;
-    ut::expect(v.value.value_or_default() == "test");
+    ut::expect(v.value.value() == "test");
   };
 
   "string_required"_test = [] { verify("\x0a\x00"sv, string_required{}); };
@@ -720,7 +799,7 @@ const ut::suite test_string_view_example = [] {
 
   "optional_value_access"_test = [] {
     string_view_with_optional const v;
-    ut::expect(v.value.value_or_default() == "test");
+    ut::expect(v.value.value() == "test");
   };
 };
 
@@ -777,7 +856,7 @@ const ut::suite test_bytes = [] {
 
   "optional_value_access"_test = [] {
     bytes_with_optional const v;
-    ut::expect(v.value.value_or_default() == verified_value);
+    ut::expect(v.value.value() == verified_value);
   };
 };
 
@@ -837,7 +916,7 @@ struct repeated_int32 {
 };
 
 auto pb_meta(const repeated_int32 &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_int32::integers, field_option::none, hpp::proto::vint32_t>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_int32::integers, field_option::is_packed, hpp::proto::vint32_t>>;
 
 template <typename T>
 void verify_segmented_input(auto &encoded, const T &value, const std::vector<int> &sizes) {
@@ -906,7 +985,7 @@ struct repeated_strings {
 };
 
 auto pb_meta(const repeated_strings &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_strings::values, field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_strings::values, field_option::none>>;
 
 struct repeated_strings_explicit_type {
   std::vector<std::string> values;
@@ -914,8 +993,7 @@ struct repeated_strings_explicit_type {
 };
 
 auto pb_meta(const repeated_strings_explicit_type &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_strings_explicit_type::values, field_option::unpacked_repeated,
-                                         std::string>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_strings_explicit_type::values, field_option::none, std::string>>;
 
 struct non_owning_repeated_string {
   hpp::proto::equality_comparable_span<std::string_view> values;
@@ -923,7 +1001,7 @@ struct non_owning_repeated_string {
 };
 
 auto pb_meta(const non_owning_repeated_string &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_string::values, field_option::unpacked_repeated>>;
+    -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_string::values, field_option::none>>;
 
 using namespace std::literals;
 
@@ -1044,17 +1122,16 @@ constexpr auto example_ext() {
 }
 
 constexpr auto repeated_i32_ext() {
-  return hpp::proto::repeated_extension_meta<extension_example, 20, field_option::unpacked_repeated,
-                                             hpp::proto::vint64_t, int32_t>{};
+  return hpp::proto::repeated_extension_meta<extension_example, 20, field_option::none, hpp::proto::vint64_t,
+                                             int32_t>{};
 }
 
 constexpr auto repeated_string_ext() {
-  return hpp::proto::repeated_extension_meta<extension_example, 21, field_option::unpacked_repeated, void,
-                                             std::string>{};
+  return hpp::proto::repeated_extension_meta<extension_example, 21, field_option::none, void, std::string>{};
 }
 
 constexpr auto repeated_packed_i32_ext() {
-  return hpp::proto::repeated_extension_meta<extension_example, 22, field_option::none, hpp::proto::vint64_t,
+  return hpp::proto::repeated_extension_meta<extension_example, 22, field_option::is_packed, hpp::proto::vint64_t,
                                              int32_t>{};
 }
 
@@ -1204,18 +1281,18 @@ constexpr auto non_owning_example_ext() {
 }
 
 constexpr auto non_owning_repeated_i32_ext() {
-  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 20, field_option::unpacked_repeated,
-                                             hpp::proto::vint64_t, int32_t>{};
+  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 20, field_option::none, hpp::proto::vint64_t,
+                                             int32_t>{};
 }
 
 constexpr auto non_owning_repeated_string_ext() {
-  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 21, field_option::unpacked_repeated, void,
+  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 21, field_option::none, void,
                                              std::string_view>{};
 }
 
 constexpr auto non_owning_repeated_packed_i32_ext() {
-  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 22, field_option::none, hpp::proto::vint64_t,
-                                             int32_t>{};
+  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 22, field_option::is_packed,
+                                             hpp::proto::vint64_t, int32_t>{};
 }
 
 const ut::suite test_non_owning_extensions = [] {
@@ -1337,7 +1414,7 @@ struct recursive_type2 {
 };
 
 auto pb_meta(const recursive_type2 &)
-    -> std::tuple<hpp::proto::field_meta<1, &recursive_type2::children, field_option::unpacked_repeated>,
+    -> std::tuple<hpp::proto::field_meta<1, &recursive_type2::children, field_option::none>,
                   hpp::proto::field_meta<2, &recursive_type2::payload, field_option::none, hpp::proto::vint64_t>>;
 
 struct non_owning_recursive_type1 {
@@ -1371,7 +1448,7 @@ struct non_owning_recursive_type2 {
 
 auto pb_meta(const non_owning_recursive_type2 &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_recursive_type2::children, field_option::unpacked_repeated>,
+        hpp::proto::field_meta<1, &non_owning_recursive_type2::children, field_option::none>,
         hpp::proto::field_meta<2, &non_owning_recursive_type2::payload, field_option::none, hpp::proto::vint64_t>>;
 
 const ut::suite recursive_types = [] {
@@ -1444,14 +1521,14 @@ struct monster {
   bool boss = {};
 
   bool operator==(const monster &) const = default;
-  using pb_meta = std::tuple<hpp::proto::field_meta<1, &monster::pos>,
-                             hpp::proto::field_meta<2, &monster::mana, field_option::none, hpp::proto::vint64_t>,
-                             hpp::proto::field_meta<3, &monster::hp>, hpp::proto::field_meta<4, &monster::name>,
-                             hpp::proto::field_meta<5, &monster::inventory>, hpp::proto::field_meta<6, &monster::color>,
-                             hpp::proto::field_meta<7, &monster::weapons, field_option::unpacked_repeated>,
-                             hpp::proto::field_meta<8, &monster::equipped>,
-                             hpp::proto::field_meta<9, &monster::path, field_option::unpacked_repeated>,
-                             hpp::proto::field_meta<10, &monster::boss>>;
+  using pb_meta = std::tuple<
+      hpp::proto::field_meta<1, &monster::pos>,
+      hpp::proto::field_meta<2, &monster::mana, field_option::none, hpp::proto::vint64_t>,
+      hpp::proto::field_meta<3, &monster::hp>, hpp::proto::field_meta<4, &monster::name>,
+      hpp::proto::field_meta<5, &monster::inventory, field_option::is_packed>,
+      hpp::proto::field_meta<6, &monster::color>, hpp::proto::field_meta<7, &monster::weapons, field_option::none>,
+      hpp::proto::field_meta<8, &monster::equipped>, hpp::proto::field_meta<9, &monster::path, field_option::none>,
+      hpp::proto::field_meta<10, &monster::boss>>;
 };
 
 struct monster_with_optional {
@@ -1476,11 +1553,11 @@ struct monster_with_optional {
                  hpp::proto::field_meta<2, &monster_with_optional::mana, field_option::none, hpp::proto::vint64_t>,
                  hpp::proto::field_meta<3, &monster_with_optional::hp>,
                  hpp::proto::field_meta<4, &monster_with_optional::name>,
-                 hpp::proto::field_meta<5, &monster_with_optional::inventory>,
+                 hpp::proto::field_meta<5, &monster_with_optional::inventory, field_option::is_packed>,
                  hpp::proto::field_meta<6, &monster_with_optional::color>,
-                 hpp::proto::field_meta<7, &monster_with_optional::weapons, field_option::unpacked_repeated>,
+                 hpp::proto::field_meta<7, &monster_with_optional::weapons, field_option::none>,
                  hpp::proto::field_meta<8, &monster_with_optional::equipped>,
-                 hpp::proto::field_meta<9, &monster_with_optional::path, field_option::unpacked_repeated>,
+                 hpp::proto::field_meta<9, &monster_with_optional::path, field_option::none>,
                  hpp::proto::field_meta<10, &monster_with_optional::boss>>;
 };
 
@@ -1507,12 +1584,12 @@ struct person {
   using pb_meta = std::tuple<hpp::proto::field_meta<1, &person::name>,
                              hpp::proto::field_meta<2, &person::id, field_option::none, hpp::proto::vint64_t>,
                              hpp::proto::field_meta<3, &person::email>,
-                             hpp::proto::field_meta<4, &person::phones, field_option::unpacked_repeated>>;
+                             hpp::proto::field_meta<4, &person::phones, field_option::none>>;
 };
 
 struct address_book {
   std::vector<person> people; // = 1
-  using pb_meta = std::tuple<hpp::proto::field_meta<1, &address_book::people, field_option::unpacked_repeated>>;
+  using pb_meta = std::tuple<hpp::proto::field_meta<1, &address_book::people, field_option::none>>;
 };
 
 struct person_map {
@@ -1531,7 +1608,7 @@ struct person_map {
   using pb_meta = std::tuple<hpp::proto::field_meta<1, &person_map::name>,
                              hpp::proto::field_meta<2, &person_map::id, field_option::none, hpp::proto::vint64_t>,
                              hpp::proto::field_meta<3, &person_map::email>,
-                             hpp::proto::field_meta<4, &person_map::phones, field_option::unpacked_repeated,
+                             hpp::proto::field_meta<4, &person_map::phones, field_option::none,
                                                     hpp::proto::map_entry<std::string, phone_type>>>;
 };
 

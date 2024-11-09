@@ -23,7 +23,7 @@ protobuf_generate(
     - PLUGIN_OPTIONS: A comma-separated string forwarded to the protoc-gen-hpp plugin to customize code generation. Options include:
         * `root_namespace=`: Prepends a root namespace to the generated code, in addition to the package namespace.
         * `top_directory=`:  Prepends a directory to all import dependencies.
-        * `proto2_explicit_presence=`: For Proto2 only, makes optional fields implicitly present except for specified scopes. This option can be specified multiple times. For example: `proto2_explicit_presence=.pkg1.msg1.field1,proto2_explicit_presence=.pkg1.msg2` specifies the `field1` of `pkg1.msg1` and all fields of `pkg1.msg2` should adopt explicit presence (i.e. use std::optional)
+        * `proto2_explicit_presence=`: For Proto2 only, makes optional scalar fields implicitly present except for specified scopes. This option can be specified multiple times. For example: the option `proto2_explicit_presence=.pkg1.msg1.field1,proto2_explicit_presence=.pkg1.msg2` instructs the code generator that explicit presence is only applicable for the `field1` of `pkg1.msg1` and all fields of `pkg1.msg2`.
         * `non_owning`: Generates non-owning messages. 
 
 The compiler generates several header files for each .proto file, transforming the filename and extension as follows:
@@ -159,9 +159,7 @@ struct Foo {
 </p>
 </details>
 
-The `hpp::proto::optional<T, DefaultValue>` type adds a `value_or_default()` method, which returns the default value if the field is not present. The specialization for `hpp::proto::optional<bool>` deletes type conversion to `bool` to avoid ambiguity between a missing value and false.
-
-When explicit presence is required only for some fields, the `proto2_explicit_presence` option allows selective use of `hpp::proto::optional`.
+The `hpp::proto::optional<T, DefaultValue>` type has the same interface with `std::optional<T>` except the `value()` and `operator*()` member functions return the default value if the field is not present. Furthermore, the specialization for `hpp::proto::optional<bool>` deletes type conversion to `bool` to avoid ambiguity between a missing value and a false value.
 
 ### Optional Embedded Message Fields (proto2 and proto3)
 
@@ -233,8 +231,8 @@ message TestMap {
 }
 ```
 The compiler generates `hpp::proto::flat_map<key_type, mapped_type>` for regular mode and with `hpp::proto::equality_comparable_span<std::pair<key_type, mapped_type>>` for non-owning mode. In the non-owning mode,
-it is up to user to make sure there's no duplicated keys in the fields; the library does not enforce the no duplicated keys rule.  
-
+the library does not handle key deduplication during serialization or deserialization.  
+Given a deserialized message with duplicate map keys, users are responsible to make sure that only the last key seen should be treated as valid.
 
 <details open><summary> Regular Mode </summary>
 <p>

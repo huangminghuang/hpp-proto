@@ -9,6 +9,7 @@ static_assert(std::tuple_element_t<0, TestRequired_meta>::is_explicit_presence);
 const ut::suite proto_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
+  auto unittest_descriptorset = read_file("unittest.desc.pb");
 
   "protobuf"_test =
       []<class T> {
@@ -35,15 +36,15 @@ const ut::suite proto_test = [] {
                  protobuf_unittest::TestPackedExtensions>{};
 
   "interoperate_with_google_protobuf_parser"_test =
-      []<class T> {
+      [&]<class T> {
         T original;
 
         TestUtil::SetAll(&original);
 
         std::vector<char> data;
         expect(hpp::proto::write_proto(original, data).ok());
-        auto original_json = gpb_based::proto_to_json(unittest_proto2_descriptorset(),
-                                                      hpp::proto::message_name(original), {data.data(), data.size()});
+        auto original_json = gpb_based::proto_to_json(unittest_descriptorset, hpp::proto::message_name(original),
+                                                      {data.data(), data.size()});
         expect(fatal(!original_json.empty()));
         auto generated_json = hpp::proto::write_json(original);
 

@@ -13,20 +13,36 @@ else()
         set(PROTOC3_OPTIONAL_OPTION --experimental_allow_proto3_optional)
     endif()
 
-    if((TARGET protobuf::libprotoc) AND("${Protobuf_VERSION}" VERSION_GREATER_EQUAL "22.0"))
-        set(use_libprotobuf ON)
+    if (HPP_PROTO_TEST_USE_PROTOBUF)
+        if((TARGET protobuf::libprotoc) AND("${Protobuf_VERSION}" VERSION_GREATER_EQUAL "22.0"))
+            set(use_libprotobuf ON)
+        else()
+            message(WARNING "libprotobuf 22.0 and above is required to generate test data")
+        endif()
+    endif()
+
+    set(edition_support OFF)
+
+    if(("${Protobuf_VERSION}" VERSION_GREATER_EQUAL "28.0"))
+        set(edition_support ON)
     endif()
 
     add_subdirectory(gpb_proto_json)
+
+    set(unittest_desc_pb_sources google/protobuf/unittest.proto
+        google/protobuf/unittest_proto3.proto
+        google/protobuf/map_unittest.proto)
+
+    if(edition_support)
+        list(APPEND unittest_desc_pb_sources google/protobuf/unittest_lite.proto)
+    endif()
 
     add_custom_command(
         COMMENT "Generating unittest.desc.pb"
         OUTPUT unittest.desc.pb
         COMMAND protobuf::protoc
         ARGS -I "${CMAKE_CURRENT_SOURCE_DIR}" ${PROTOC3_OPTIONAL_OPTION} --include_imports --descriptor_set_out=unittest.desc.pb
-        google/protobuf/unittest.proto
-        google/protobuf/unittest_proto3.proto
-        google/protobuf/map_unittest.proto
+        ${unittest_desc_pb_sources}
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     )
 
@@ -194,4 +210,54 @@ else()
 
     add_executable(proto3_decode proto3_decode.cpp)
     target_link_libraries(proto3_decode PRIVATE unittest_proto3_proto_lib)
+
+    if(edition_support)
+        add_library(unittest_lite_proto_lib INTERFACE)
+        target_include_directories(unittest_lite_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(
+            TARGET unittest_lite_proto_lib
+            LANGUAGE hpp
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+            PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
+            PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_lite.proto"
+            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_lite.proto"
+            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public_lite.proto")
+
+        add_executable(lite_test unittest_lite_test.cpp)
+        target_link_libraries(lite_test PRIVATE unittest_lite_proto_lib Boost::ut glaze::glaze gpb_proto_json)
+
+        add_test(NAME lite_test
+            COMMAND lite_test
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+        set_property(TEST lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+
+        add_library(editions_test_lib INTERFACE)
+        target_include_directories(editions_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(
+            TARGET editions_test_lib
+            LANGUAGE hpp
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+            PROTOS "basic_test_editions.proto" "editions_test.proto")
+
+        add_executable(editions_test basic_test_editions_test.cpp)
+        target_link_libraries(editions_test PRIVATE editions_test_lib)
+
+
+        add_library(basic_test_proto2_lib INTERFACE)
+        target_include_directories(basic_test_proto2_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(
+            TARGET basic_test_proto2_lib
+            LANGUAGE hpp
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field"
+            PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/basic_test_proto2.proto")
+
+        add_executable(basic_test_proto2 basic_test_proto2.cpp)
+        target_link_libraries(basic_test_proto2 PRIVATE basic_test_proto2_lib)
+
+        add_test(NAME editions_test
+            COMMAND editions_test
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    endif()
 endif()

@@ -94,6 +94,7 @@ json_context(U &&...u) -> json_context<std::remove_cvref_t<U>...>;
 template <typename T, auto Default = std::monostate{}>
 struct optional_ref {
   static constexpr auto glaze_reflect = false;
+  static constexpr bool has_default_value = true;
   using value_type = std::decay_t<T>;
   T &val;
   operator bool() const { return !is_default_value<T, Default>(val); }
@@ -734,7 +735,7 @@ inline json_status write_json(auto const &value, auto &buffer, glz::is_context a
 template <auto Opts = glz::opts{}>
 inline json_status write_json(auto const &value, auto &buffer) noexcept {
   json_context ctx{};
-  return write_json(value, buffer, ctx);
+  return write_json<Opts>(value, buffer, ctx);
 }
 
 template <auto Opts = glz::opts{}, typename Buffer = std::string>

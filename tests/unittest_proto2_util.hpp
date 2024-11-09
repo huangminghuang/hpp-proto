@@ -4,16 +4,6 @@
 #include <google/protobuf/unittest.glz.hpp>
 #include <google/protobuf/unittest.pb.hpp>
 
-// NOLINTBEGIN(cert-dcl58-cpp)
-namespace std {
-template <typename T>
-  requires requires { glz::meta<T>::value; }
-std::ostream &operator<<(std::ostream &os, const T &v) {
-  return os << hpp::proto::write_json(v).value();
-}
-} // namespace std
-// NOLINTEND(cert-dcl58-cpp)
-
 namespace TestUtil {
 using namespace std::literals::string_literals;
 using namespace boost::ut;
@@ -387,11 +377,11 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message) {
   expect(!message.optional_lazy_message.has_value());
 
   expect(!message.optional_nested_enum.has_value());
-  expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO == message.optional_nested_enum.value_or_default());
+  expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO == message.optional_nested_enum.value());
   expect(!message.optional_foreign_enum.has_value());
-  expect(protobuf_unittest::ForeignEnum::FOREIGN_FOO == message.optional_foreign_enum.value_or_default());
+  expect(protobuf_unittest::ForeignEnum::FOREIGN_FOO == message.optional_foreign_enum.value());
   expect(!message.optional_import_enum.has_value());
-  expect(protobuf_unittest_import::ImportEnum::IMPORT_FOO == message.optional_import_enum.value_or_default());
+  expect(protobuf_unittest_import::ImportEnum::IMPORT_FOO == message.optional_import_enum.value());
 
   expect(!message.optional_string_piece.has_value());
   expect(!message.optional_cord.has_value());
@@ -426,28 +416,28 @@ inline void ExpectClear(const protobuf_unittest::TestAllTypes &message) {
   expect(eq(0, message.repeated_cord.size()));
 
   // Fields with defaults have their default values (duh).
-  expect(eq(41, message.default_int32.value_or_default()));
-  expect(eq(42, message.default_int64.value_or_default()));
-  expect(eq(43, message.default_uint32.value_or_default()));
-  expect(eq(44, message.default_uint64.value_or_default()));
-  expect(eq(-45, message.default_sint32.value_or_default()));
-  expect(eq(46, message.default_sint64.value_or_default()));
-  expect(eq(47, message.default_fixed32.value_or_default()));
-  expect(eq(48, message.default_fixed64.value_or_default()));
-  expect(eq(49, message.default_sfixed32.value_or_default()));
-  expect(eq(-50, message.default_sfixed64.value_or_default()));
-  expect(eq(51.5, message.default_float.value_or_default()));
-  expect(eq(52e3, message.default_double.value_or_default()));
-  expect(message.default_bool.value_or_default());
-  expect(eq("hello"s, message.default_string.value_or_default()));
-  expect(eq("world"_bytes, message.default_bytes.value_or_default()));
+  expect(eq(41, message.default_int32.value()));
+  expect(eq(42, message.default_int64.value()));
+  expect(eq(43, message.default_uint32.value()));
+  expect(eq(44, message.default_uint64.value()));
+  expect(eq(-45, message.default_sint32.value()));
+  expect(eq(46, message.default_sint64.value()));
+  expect(eq(47, message.default_fixed32.value()));
+  expect(eq(48, message.default_fixed64.value()));
+  expect(eq(49, message.default_sfixed32.value()));
+  expect(eq(-50, message.default_sfixed64.value()));
+  expect(eq(51.5, message.default_float.value()));
+  expect(eq(52e3, message.default_double.value()));
+  expect(message.default_bool.value());
+  expect(eq("hello"s, message.default_string.value()));
+  expect(eq("world"_bytes, message.default_bytes.value()));
 
   expect(!message.default_nested_enum.has_value());
-  expect(protobuf_unittest::TestAllTypes::NestedEnum::BAR == message.default_nested_enum.value_or_default());
+  expect(protobuf_unittest::TestAllTypes::NestedEnum::BAR == message.default_nested_enum.value());
   expect(!message.default_foreign_enum.has_value());
-  expect(protobuf_unittest::ForeignEnum::FOREIGN_BAR == message.default_foreign_enum.value_or_default());
+  expect(protobuf_unittest::ForeignEnum::FOREIGN_BAR == message.default_foreign_enum.value());
   expect(!message.default_import_enum.has_value());
-  expect(protobuf_unittest_import::ImportEnum::IMPORT_BAR == message.default_import_enum.value_or_default());
+  expect(protobuf_unittest_import::ImportEnum::IMPORT_BAR == message.default_import_enum.value());
 
   expect(std::holds_alternative<std::monostate>(message.oneof_field));
 }
@@ -1352,13 +1342,3 @@ inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message) {
 }
 
 } // namespace TestUtil
-
-inline std::string unittest_proto2_descriptorset() {
-  std::ifstream in("unittest.desc.pb", std::ios::in | std::ios::binary);
-  std::string contents;
-  in.seekg(0, std::ios::end);
-  contents.resize(in.tellg());
-  in.seekg(0, std::ios::beg);
-  in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
-  return contents;
-}

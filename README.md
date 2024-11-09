@@ -6,23 +6,23 @@ Hpp-proto is a lightweight, high-performance Protocol Buffers implementation for
 
 Compared to Google’s implementation, hpp-proto features a minimalistic design that significantly reduces code size while delivering superior performance in our benchmarks when runtime reflection is not required. This makes hpp-proto an ideal choice for performance-critical, resource-constrained environments where minimizing binary size is a priority.
 # Features
-
-* Significantly smaller code size compared to Google's implementation.
-* Faster performance than Google's implementation.
+* Supports Protocol Buffers syntax 2 and 3 (excluding `service`) and [editions](https://protobuf.dev/editions/overview/).
+* Supports the serialization of [ProtoJSON format](https://protobuf.dev/programming-guides/json/), utilizing a slightly modified version of the [glaze](https://github.com/stephenberry/glaze) library.
+* Significantly smaller code size compared to Google's C++ implementation.
+* Faster performance than Google's C++ implementation.
 * Maps all Protocol Buffers message definitions to simple C++ aggregates using standard C++ library types.
 * Aside from [UTF-8 validation](https://github.com/simdutf/is_utf8), all generated code and the core library are header-only.
 * Each generated C++ aggregate is associated with static C++ reflection data for efficient Protocol Buffers encoding and decoding.
-* Includes metadata for JSON serialization in each generated C++ aggregate, utilizing a slightly modified version of the [glaze](https://github.com/stephenberry/glaze) library.
 * All generated message types are equality-comparable, making them useful in unit testing.
 * Completely exception-free.
 * Supports non-owning mode code generation, mapping string and repeated fields to `std::string_view` and `hpp::proto::equality_comparable_span` which derives from `std::span` and adds the equality comparator.
 * Enables compile-time serialization.
 
 ## Limitations
-
-* Supports only Protocol Buffers syntax 2 and 3 (excluding `service`), with no edition support.
 * Lacks runtime reflection support.
-* Unknown fields are discarded during deserialization.
+* Lacks support for extra json print options like `always_print_fields_with_no_presence`, `always_print_enums_as_ints`,
+  `preserve_proto_field_names` or`unquote_int64_if_possible`.
+* Unknown fields are always discarded during deserialization.
 
 ## Comparison with google protobuf C++ implementation
 ### System Configuration

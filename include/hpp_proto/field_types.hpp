@@ -81,46 +81,69 @@ static constexpr auto unwrap(T v) {
 // NOLINTBEGIN(hicpp-explicit-conversions)
 template <typename T, auto Default = std::monostate{}>
 class optional {
-  std::optional<T> impl;
+public:
+  static constexpr bool has_default_value = true;
+  constexpr static T default_value() {
+    if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
+      return T{};
+    } else if constexpr (std::is_fundamental_v<T> || std::is_enum_v<T>) {
+      return unwrap(Default);
+    } else {
+      static_assert(sizeof(typename T::value_type) == 1);
+      return T{(const typename T::value_type *)Default.data(),
+               (const typename T::value_type *)Default.data() + Default.size()};
+    }
+  }
+
+private:
+  T _value = default_value();
+  bool _present = false;
 
 public:
   using value_type = T;
 
   constexpr optional() noexcept = default;
   constexpr ~optional() noexcept = default;
-  constexpr optional(std::nullopt_t /* unused */) noexcept : impl(std::nullopt) {}
+  constexpr optional(std::nullopt_t /* unused */) noexcept {}
 
-  constexpr optional(optional &&) = default;
+  constexpr optional(optional &&other) = default;
   constexpr optional(const optional &) = default;
 
   template <class U>
-  constexpr optional(const optional<U> &other) : impl(other.impl) {}
+  constexpr optional(const optional<U> &other) : _value(other._value), _present(other.present) {}
 
-  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
   template <class U>
-  constexpr optional(optional<U> &&other) : impl(std::move(other.impl)) {}
-  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
+  constexpr optional(optional<U> &&other) : _value(std::move(other)._value), _present(other.present) {}
 
-  constexpr optional(const std::optional<T> &other) : impl(other) {}
-  constexpr optional(std::optional<T> &&other) : impl(std::move(other)) {}
+  constexpr optional(const std::optional<T> &other)
+      : _value(other.value_or(default_value())), _present(other.has_value()) {}
+
+  constexpr optional(std::optional<T> &&other) : _present(other.has_value()) {
+    _value = std::move(other).value_or(default_value());
+  }
+
   template <class U>
-  constexpr optional(const std::optional<U> &other) : impl(other) {}
+  constexpr optional(const std::optional<U> &other)
+      : _value(other.value_or(default_value())), _present(other.has_value()) {}
+
   template <class U>
-  constexpr optional(std::optional<U> &&other) : impl(std::move(other)) {}
+  constexpr optional(std::optional<U> &&other) : _present(other.has_value()) {
+    _value = std::move(other).value_or(default_value());
+  }
 
   template <class... Args>
-  constexpr explicit optional(std::in_place_t, Args &&...args) : impl(std::in_place, std::forward<Args>(args)...) {}
+  constexpr explicit optional(std::in_place_t, Args &&...args) : _value(std::forward<Args>(args)...), _present(true) {}
 
   template <class U, class... Args>
   constexpr explicit optional(std::in_place_t, std::initializer_list<U> list, Args &&...args)
-      : impl(std::in_place, list, std::forward<Args>(args)...) {}
+      : _value(list, std::forward<Args>(args)...), _present(true) {}
 
   template <typename U>
     requires std::convertible_to<U, T>
-  constexpr optional(U &&value) : impl(std::forward<U>(value)) {}
+  constexpr optional(U &&value) : _value(std::forward<U>(value)), _present(true) {}
 
   constexpr optional &operator=(std::nullopt_t /* unused */) noexcept {
-    impl = std::nullopt;
+    this->reset();
     return *this;
   }
 
@@ -128,9 +151,8 @@ public:
     requires std::convertible_to<U, T>
   constexpr optional &operator=(U &&value) {
     static_assert(!std::is_pointer_v<T>);
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-    impl = static_cast<T>(std::forward<U>(value));
-    // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    _value = static_cast<T>(std::forward<U>(value));
+    _present = true;
     return *this;
   }
 
@@ -140,78 +162,158 @@ public:
   template <class U>
     requires std::convertible_to<U, T>
   constexpr optional &operator=(const optional<U> &other) {
-    impl = other.imp;
+    _value = *other;
+    _present = other.has_value();
     return *this;
   }
 
-  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
   template <class U>
   constexpr optional &operator=(optional<U> &&other) {
-    impl = std::move(other.imp);
-    return *this;
-  }
-  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
-
-  constexpr optional &operator=(const std::optional<T> &v) {
-    impl = v;
+    _value = std::move(other)._value;
+    _present = other.has_value();
     return *this;
   }
 
-  constexpr optional &operator=(std::optional<T> &&v) {
-    impl = std::move(v);
+  constexpr optional &operator=(const std::optional<T> &other) {
+    _value = other.value_or(default_value());
+    _present = other.has_value();
     return *this;
   }
 
-  [[nodiscard]] constexpr bool has_value() const noexcept { return impl.has_value(); }
-  [[nodiscard]] constexpr operator bool() const noexcept { return has_value(); }
+  constexpr optional &operator=(std::optional<T> &&other) {
+    _value = std::move(other).value_or(default_value());
+    _present = other.has_value();
+    return *this;
+  }
 
-  // NOLINTBEGIN(bugprone-unchecked-optional-access)
-  [[nodiscard]] constexpr T &value() & { return impl.value(); }
-  [[nodiscard]] constexpr const T &value() const & { return impl.value(); }
-  [[nodiscard]] constexpr T &&value() && { return std::move(impl.value()); }
-  [[nodiscard]] constexpr const T &&value() const && { return std::move(impl.value()); }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return _present; }
+  [[nodiscard]] constexpr operator bool() const noexcept { return _present; }
+
+  [[nodiscard]] constexpr T &value() & { return _value; }
+  [[nodiscard]] constexpr const T &value() const & { return _value; }
+  [[nodiscard]] constexpr T &&value() && { return std::move(_value); }
+  [[nodiscard]] constexpr const T &&value() const && { return static_cast<const T &&>(_value); }
 
   template <class U>
   constexpr T value_or(U &&default_value) const & {
-    return impl.value_or(static_cast<T>(std::forward<U>(default_value)));
+    return has_value() ? _value : static_cast<T>(std::forward<U>(default_value));
   }
   template <class U>
   constexpr T value_or(U &&default_value) && {
-    return impl.value_or(std::forward<U>(default_value));
+    return has_value() ? std::move(_value) : static_cast<T>(std::forward<U>(default_value));
   }
 
-  constexpr T *operator->() noexcept { return impl.operator->(); }
-  constexpr const T *operator->() const noexcept { return impl.operator->(); }
+  constexpr T *operator->() noexcept { return &_value; }
+  constexpr const T *operator->() const noexcept { return &_value; }
 
-  constexpr T &operator*() & noexcept { return *impl; }
-  constexpr const T &operator*() const & noexcept { return *impl; }
-  // NOLINTEND(bugprone-unchecked-optional-access)
+  constexpr T &operator*() & noexcept { return value(); }
+  constexpr const T &operator*() const & noexcept { return value(); }
 
-  constexpr T &&operator*() && noexcept { return *impl; }
-  constexpr const T &&operator*() const && noexcept { return *impl; }
+  constexpr T &&operator*() && noexcept { return value(); }
+  constexpr const T &&operator*() const && noexcept { return value(); }
 
   template <typename... Args>
   constexpr T &emplace(Args &&...args) {
-    return impl.emplace(std::forward<Args>(args)...);
+    _value = T{std::forward<Args>(args)...};
+    _present = true;
+    return _value;
   }
-  constexpr void swap(optional &other) noexcept { impl.swap(other.impl); }
-  constexpr void reset() noexcept { impl.reset(); }
 
-  [[nodiscard]] constexpr T value_or_default() const {
-    if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
-      return this->value_or(T{});
-    } else if constexpr (requires { T{Default.data(), Default.size()}; }) {
-      return this->value_or(T{Default.data(), Default.size()});
-    } else if constexpr (requires {
-                           requires sizeof(typename T::value_type) == sizeof(typename decltype(Default)::value_type);
-                           T{(const typename T::value_type *)Default.data(),
-                             (const typename T::value_type *)Default.data() + Default.size()};
-                         }) {
-      return this->value_or(T{(const typename T::value_type *)Default.data(),
-                              (const typename T::value_type *)Default.data() + Default.size()});
+  constexpr void swap(optional &other) noexcept {
+    using std::swap;
+    swap(_value, other._value);
+    swap(_present, other._present);
+  }
+
+  constexpr void reset() noexcept {
+    _value = default_value();
+    _present = false;
+  }
+
+  template <class F>
+  constexpr auto and_then(F &&f) & {
+    if (has_value()) {
+      return std::invoke(std::forward<F>(f), _value);
     } else {
-      return this->value_or(unwrap(Default));
+      return std::remove_cvref_t<std::invoke_result_t<F, T &>>{};
     }
+  }
+
+  template <class F>
+  constexpr auto and_then(F &&f) const & {
+    if (has_value()) {
+      return std::invoke(std::forward<F>(f), _value);
+    } else {
+      return std::remove_cvref_t<std::invoke_result_t<F, const T &>>{};
+    }
+  }
+
+  template <class F>
+  constexpr auto and_then(F &&f) && {
+    if (has_value()) {
+      return std::invoke(std::forward<F>(f), std::move(_value));
+    } else {
+      return std::remove_cvref_t<std::invoke_result_t<F, const T>>{};
+    }
+  }
+
+  template <class F>
+  constexpr auto and_then(F &&f) const && {
+    if (has_value()) {
+      return std::invoke(std::forward<F>(f), std::move(_value));
+    } else {
+      return std::remove_cvref_t<std::invoke_result_t<F, const T>>{};
+    }
+  }
+
+  template <class F>
+  constexpr auto transform(F &&f) & {
+    using U = std::remove_cv_t<std::invoke_result_t<F, T &>>;
+    if (has_value()) {
+      return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
+    } else {
+      return std::optional<U>{};
+    }
+  }
+
+  template <class F>
+  constexpr auto transform(F &&f) const & {
+    using U = std::remove_cv_t<std::invoke_result_t<F, const T &>>;
+    if (has_value()) {
+      return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
+    } else {
+      return std::optional<U>{};
+    }
+  }
+
+  template <class F>
+  constexpr auto transform(F &&f) && {
+    using U = std::remove_cv_t<std::invoke_result_t<F, T>>;
+    if (has_value()) {
+      return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
+    } else {
+      return std::optional<U>{};
+    }
+  }
+
+  template <class F>
+  constexpr auto transform(F &&f) const && {
+    using U = std::remove_cv_t<std::invoke_result_t<F, const T>>;
+    if (has_value()) {
+      return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
+    } else {
+      return std::optional<U>{};
+    }
+  }
+
+  template <class F>
+  constexpr optional or_else(F &&f) const & {
+    return has_value() ? _value : std::forward<F>(f)();
+  }
+
+  template <class F>
+  constexpr optional or_else(F &&f) && {
+    return has_value() ? std::move(_value) : std::forward<F>(f)();
   }
 
   constexpr bool operator==(const optional &other) const = default;
@@ -220,11 +322,17 @@ public:
 // remove the implicit conversions for optional<bool> because those are very error-prone to use.
 template <auto Default>
 class optional<bool, Default> {
-  uint8_t impl = 0x80; // use 0x80 to denote empty state
   static constexpr bool as_bool(bool v) { return v; }
   static constexpr bool as_bool(std::monostate) { return false; }
-  static constexpr bool default_value = as_bool(Default);
-  bool &deref() { return *std::bit_cast<bool *>(&impl); }
+
+public:
+  static constexpr bool has_default_value = true;
+  static constexpr bool default_value() { return as_bool(Default); }
+
+private:
+  static constexpr uint8_t default_state = 0x80 | uint8_t(default_value()); // use 0x80 to denote empty state
+  bool &deref() { return reinterpret_cast<bool &>(impl); }
+  uint8_t impl = default_state;
 
 public:
   using value_type = bool;
@@ -236,18 +344,11 @@ public:
   constexpr optional &operator=(const optional &) noexcept = default;
   constexpr optional &operator=(optional &&) noexcept = default;
 
-  [[nodiscard]] constexpr bool has_value() const noexcept { return impl != 0x80; }
-  constexpr bool operator*() const noexcept {
-    assert(has_value());
-    return impl != 0;
-  }
-  bool &operator*() noexcept {
-    assert(has_value());
-    return deref();
-  }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return (impl & 0x80) == 0; }
+  constexpr bool operator*() const noexcept { return value(); }
 
   bool &emplace() noexcept {
-    impl = uint8_t(default_value);
+    impl = uint8_t(default_value());
     return deref();
   }
 
@@ -256,19 +357,7 @@ public:
     return deref();
   }
 
-  [[nodiscard]] constexpr bool value() const {
-    if (!has_value()) {
-      throw std::bad_optional_access{};
-    }
-    return impl != 0;
-  }
-
-  [[nodiscard]] constexpr bool value_or_default() const noexcept {
-    if (has_value()) {
-      return impl != 0;
-    }
-    return default_value;
-  }
+  [[nodiscard]] constexpr bool value() const { return static_cast<bool>(impl & 0x01); }
 
   constexpr optional &operator=(bool v) noexcept {
     impl = uint8_t(v);
@@ -277,7 +366,26 @@ public:
   constexpr bool operator==(const optional &other) const = default;
 
   constexpr void swap(optional &other) noexcept { std::swap(impl, other.impl); }
-  constexpr void reset() noexcept { impl = 0x80; }
+  constexpr void reset() noexcept { impl = default_state; }
+
+  template <class F>
+  constexpr auto and_then(F &&f) const {
+    if (has_value()) {
+      return std::invoke(std::forward<F>(f), value());
+    } else {
+      return std::remove_cvref_t<std::invoke_result_t<F, bool>>{};
+    }
+  }
+
+  template <class F>
+  constexpr auto transform(F &&f) const {
+    using U = std::remove_cv_t<std::invoke_result_t<F, bool>>;
+    if (has_value()) {
+      return std::optional<U>{std::invoke(std::forward<F>(f), value())};
+    } else {
+      return std::optional<U>{};
+    }
+  }
 };
 
 template <typename T>
