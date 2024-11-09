@@ -439,8 +439,8 @@ public:
   constexpr T &operator*() noexcept { return *obj; }
   constexpr const T &operator*() const noexcept { return *obj; }
 
-  constexpr T *operator->() noexcept { return obj; }
-  constexpr const T *operator->() const noexcept { return obj; }
+  constexpr T *operator->() noexcept { return *obj; }
+  constexpr const T *operator->() const noexcept { return *obj; }
 
   constexpr T &emplace() {
     obj = std::make_unique<T>();

@@ -51,7 +51,7 @@ std::string proto_to_json(std::string_view filedescriptorset_stream, const char 
 #else
 namespace gpb_based {
 
-std::string read_file(std::string filename) {
+std::string read_file(const std::string& filename) {
   std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
   std::string contents;
   in.seekg(0, std::ios::end);
