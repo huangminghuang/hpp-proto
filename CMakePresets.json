@@ -38,7 +38,8 @@
             "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "HPP_PROTO_ENABLE_SANITIZER": true
+                "HPP_PROTO_ENABLE_SANITIZER": true,
+                "HPP_PROTO_TEST_USE_PROTOBUF": true
             }
         },
         {

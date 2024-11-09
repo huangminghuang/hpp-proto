@@ -14,7 +14,7 @@ option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
 
 option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
-option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" ON)
+option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
 set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
 set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS
