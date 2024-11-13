@@ -578,7 +578,7 @@ if (!hpp::proto::write_json(address_book, json).ok()) {
 }
 
 // alternatively, use the overload returning an expected object
-auto write_result = hpp::proto::write_json<glz::opts{}, std::pmr::string>(address_book, hpp::proto::json_context{pool});
+auto write_result = hpp::proto::write_json<std::pmr::string>(address_book, hpp::proto::json_context{pool});
 assert(write_result.value() == json);
 
 tutorial::AddressBook new_book;

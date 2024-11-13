@@ -1542,18 +1542,10 @@ public:
     return result_t{dynamic_serializer{fileset}};
   }
 
-#if defined(_MSC_VER) && (_MSC_VER < 1938)
-#define TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED
-#endif
-
-#if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
-  template <auto Options>
-#else
-  template <auto Options = glz::opts{}>
-#endif
   hpp::proto::status proto_to_json(std::string_view message_name,
-                                   concepts::contiguous_byte_range auto const &pb_encoded_stream, auto &buffer,
-                                   uint32_t indentation_level = 0) const {
+                                   concepts::contiguous_byte_range auto const &pb_encoded_stream,
+                                   concepts::resizable_contiguous_byte_container auto &buffer,
+                                   concepts::glz_opts_t auto opts) const {
     using buffer_type = std::decay_t<decltype(buffer)>;
     auto const id = message_index(message_name);
     if (id == messages.size()) [[unlikely]] {
@@ -1566,43 +1558,39 @@ public:
     auto archive = strm.archive();
 
     pb_to_json_state<buffer_type> state{*this, buffer};
-    state.context.indentation_level = indentation_level;
+    state.context.indentation_level = 0;
     const bool is_map_entry = false;
-    if (auto ec = state.template message_to_json<Options>(id, is_map_entry, archive); !ec.ok()) [[unlikely]] {
+    constexpr auto opts_value = decltype(opts)::glz_opts_value;
+    if (auto ec = state.template message_to_json<opts_value>(id, is_map_entry, archive); !ec.ok()) [[unlikely]] {
       return ec;
     }
     buffer.resize(state.ix);
     return {};
   }
 
-#if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
-  template <auto Options>
-#else
-  template <auto Options = glz::opts{}>
-#endif
+  hpp::proto::status proto_to_json(std::string_view message_name,
+                                   concepts::contiguous_byte_range auto const &pb_encoded_stream,
+                                   concepts::resizable_contiguous_byte_container auto &buffer) const {
+    return proto_to_json(message_name, pb_encoded_stream, buffer, glz_opts_t<glz::opts{}>{});
+  }
+
   expected<std::string, std::errc> proto_to_json(std::string_view message_name,
-                                                 concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
+                                                 concepts::contiguous_byte_range auto const &pb_encoded_stream,
+                                                 concepts::glz_opts_t auto opts) const {
     std::string result;
-    if (auto ec = proto_to_json<Options>(message_name, pb_encoded_stream, result); !ec.ok()) [[unlikely]] {
+    if (auto ec = proto_to_json(message_name, pb_encoded_stream, result, opts); !ec.ok()) [[unlikely]] {
       return unexpected(ec);
     }
     return result;
   }
 
-#if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
-  hpp::proto::status proto_to_json(std::string_view message_name,
-                                   concepts::contiguous_byte_range auto const &pb_encoded_stream, auto &&buffer,
-                                   uint32_t indentation_level = 0) const {
-    return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream, buffer, indentation_level);
-  }
-
   expected<std::string, std::errc> proto_to_json(std::string_view message_name,
                                                  concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
-    return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream);
+
+    return proto_to_json(message_name, pb_encoded_stream, glz_opts_t<glz::opts{}>{});
   }
-#endif
+
   // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-  template <auto Opts>
   hpp::proto::json_status json_to_proto(std::string_view message_name, std::string_view json_view,
                                         concepts::contiguous_byte_range auto &buffer) const {
     auto const id = message_index(message_name);
@@ -1615,7 +1603,7 @@ public:
     const char *end = it + json_view.size();
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     relocatable_out archive{buffer};
-    if (auto ec = state.template message_to_pb<Opts>(id, it, end, 0, archive); !ec.ok()) [[unlikely]] {
+    if (auto ec = state.template message_to_pb<glz::opts{}>(id, it, end, 0, archive); !ec.ok()) [[unlikely]] {
       auto location = std::distance<const char *>(json_view.data(), it);
       return json_status{
           {.ec = (state.context.error == glz::error_code::none ? glz::error_code::syntax_error : state.context.error),
@@ -1625,24 +1613,13 @@ public:
   }
   // NOLINTEND(bugprone-easily-swappable-parameters)
 
-  hpp::proto::json_status json_to_proto(std::string_view message_name, std::string_view json_view,
-                                        concepts::contiguous_byte_range auto &buffer) const {
-    return json_to_proto<glz::opts{}>(message_name, json_view, buffer);
-  }
-
-  template <auto Opts>
   [[nodiscard]] glz::expected<std::vector<std::byte>, hpp::proto::json_status>
   json_to_proto(std::string_view message_name, std::string_view json) const {
     std::vector<std::byte> result;
-    if (auto ec = json_to_proto<Opts>(message_name, json, result); !ec.ok()) [[unlikely]] {
+    if (auto ec = json_to_proto(message_name, json, result); !ec.ok()) [[unlikely]] {
       return glz::unexpected(ec);
     }
     return result;
-  }
-
-  [[nodiscard]] glz::expected<std::vector<std::byte>, hpp::proto::json_status>
-  json_to_proto(std::string_view message_name, std::string_view json) const {
-    return json_to_proto<glz::opts{}>(message_name, json);
   }
 
   template <auto Options, class End>

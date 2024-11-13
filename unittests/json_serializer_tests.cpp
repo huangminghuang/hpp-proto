@@ -326,6 +326,20 @@ const ut::suite test_explicit_optional_uint64 = [] {
 
 const ut::suite test_oneof = [] { verify<oneof_example>(oneof_example{.value = "abc"}, R"({"string_field":"abc"})"); };
 
+const ut::suite test_indent_level = [] {
+  using namespace boost::ut;
+  using namespace boost::ut::literals;
+  using namespace std::string_literals;
+  "indent_level"_test = [] {
+    optional_example  msg{.field2 = 123U, .field3 = 456};
+    auto json = hpp::proto::write_json(msg, hpp::proto::json_context{hpp::proto::indent_level<3>}).value(); 
+    expect(eq(json, R"({
+   "field2": "123",
+   "field3": 456
+})"s));
+  };
+};
+
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
