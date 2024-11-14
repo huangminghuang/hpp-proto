@@ -375,7 +375,7 @@ struct from_json<T> {
     }
 
     using codec = typename hpp::proto::json_codec<T>::type;
-    if (!codec::decode(encoded, hpp::proto::as_modifiable(ctx, value))) {
+    if (!codec::decode(encoded, hpp::proto::detail::as_modifiable(ctx, value))) {
       ctx.error = error_code::syntax_error;
       return;
     }
@@ -520,7 +520,7 @@ struct from_json<hpp::proto::equality_comparable_span<Type>> {
   template <auto Options>
   GLZ_ALWAYS_INLINE static void op(hpp::proto::equality_comparable_span<Type> &value,
                                    hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
-    auto v = hpp::proto::as_modifiable(ctx, value);
+    auto v = hpp::proto::detail::as_modifiable(ctx, value);
     if constexpr (hpp::proto::concepts::byte_type<Type>) {
       from_json<hpp::proto::use_base64>::template op<Options>(v, ctx, it, end);
     } else if constexpr (pair_t<std::remove_cvref_t<Type>>) {
@@ -701,38 +701,36 @@ namespace hpp::proto {
 
 template <glz::opts options>
 struct glz_opts_t {
-    using auxiliary_context_type = glz_opts_t<options>;
-    static constexpr glz::opts glz_opts_value = options;
+  using option_type = glz_opts_t<options>;
+  static constexpr glz::opts glz_opts_value = options;
 };
 
 namespace concepts {
-  template <typename T>
-  concept glz_opts_t = requires {
-    requires std::same_as<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>;
-  };
-}
+template <typename T>
+concept glz_opts_t = requires { requires std::same_as<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
+} // namespace concepts
 
 namespace detail {
-  template <typename Context>
-  constexpr glz::opts get_glz_opts_impl() {
-    if constexpr (requires { std::decay_t<Context>::glz_opts_value;}){
-      return std::decay_t<Context>::glz_opts_value;
-    } else {
-      return glz::opts{};
-    }
-  }
-
-  template <typename ...Context>
-  constexpr glz::opts get_glz_opts() {
-    if constexpr (sizeof...(Context)) {
-        return get_glz_opts_impl<Context...>();
-    }
+template <typename Context>
+constexpr glz::opts get_glz_opts_impl() {
+  if constexpr (requires { std::decay_t<Context>::glz_opts_value; }) {
+    return std::decay_t<Context>::glz_opts_value;
+  } else {
     return glz::opts{};
   }
 }
 
-template <uint8_t width=3>
-constexpr auto indent_level = glz_opts_t<glz::opts{.prettify=(width>0), .indentation_width=width}>{};
+template <typename... Context>
+constexpr glz::opts get_glz_opts() {
+  if constexpr (sizeof...(Context)) {
+    return get_glz_opts_impl<Context...>();
+  }
+  return glz::opts{};
+}
+} // namespace detail
+
+template <uint8_t width = 3>
+constexpr auto indent_level = glz_opts_t<glz::opts{.prettify = (width > 0), .indentation_width = width}>{};
 
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
@@ -740,21 +738,24 @@ struct [[nodiscard]] json_status final {
   [[nodiscard]] std::string message(const auto &buffer) const { return glz::format_error(ctx, buffer); }
 };
 
-inline json_status read_json(glz::read_json_supported auto &value, auto &&buffer, glz::is_context auto &&...ctx) {
-  static_assert(sizeof...(ctx) <= 1);
+inline json_status read_json(glz::read_json_supported auto &value, concepts::contiguous_byte_range auto &&buffer,
+                             concepts::is_option_type auto &&...option) {
+  json_context ctx{std::forward<decltype(option)>(option)...};
   using buffer_type = std::remove_cvref_t<decltype(buffer)>;
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<decltype(buffer)> ||
-                    ((concepts::has_memory_resource<decltype(ctx)> || ...)),
+                    ((concepts::has_memory_resource<decltype(option)> || ...)),
                 "temporary buffer cannot be used for non-owning object parsing");
   value = {};
-  constexpr auto opts = detail::get_glz_opts<decltype(ctx)...>();
-  return {glz::read<opts>(value, std::forward<decltype(buffer)>(buffer), std::forward<decltype(ctx)>(ctx)...)};
+  constexpr auto opts = detail::get_glz_opts<decltype(option)...>();
+  return {glz::read<opts>(value, std::forward<decltype(buffer)>(buffer), ctx)};
 }
 
 template <glz::read_json_supported T>
-inline auto read_json(auto &&buffer, glz::is_context auto &&...ctx) -> glz::expected<T, json_status> {
+inline auto read_json(concepts::contiguous_byte_range auto &&buffer, concepts::is_option_type auto &&...option)
+    -> glz::expected<T, json_status> {
   T value;
-  if (auto result = read_json(value, std::forward<decltype(buffer)>(buffer), std::forward<decltype(ctx)>(ctx)...);
+  if (auto result =
+          read_json(value, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);
       !result.ok()) {
     return glz::unexpected(result);
   } else {
@@ -762,22 +763,20 @@ inline auto read_json(auto &&buffer, glz::is_context auto &&...ctx) -> glz::expe
   }
 }
 
-inline json_status write_json(auto const &value, auto &buffer, glz::is_context auto &&ctx) noexcept {
-  constexpr auto opts = detail::get_glz_opts<decltype(ctx)>();
-  return {glz::write<opts>(value, buffer, ctx)};
+inline json_status write_json(glz::write_json_supported auto const &value,
+                              concepts::contiguous_byte_range auto &buffer,
+                              concepts::is_option_type auto &&...option) noexcept {
+  constexpr auto opts = detail::get_glz_opts<decltype(option)...>();
+  json_context ctx{std::forward<decltype(option)>(option)...};
+  return {glz::write<opts>(value, detail::as_modifiable(ctx, buffer), ctx)};
 }
 
-inline json_status write_json(auto const &value, auto &buffer) noexcept {
-  json_context ctx{};
-  return write_json(value, buffer, ctx);
-}
-
-template <typename Buffer = std::string>
-inline auto write_json(auto const &value,
-                       glz::is_context auto &&...ctx) noexcept -> glz::expected<Buffer, json_status> {
-  static_assert(sizeof...(ctx) <= 1);
-  auto buffer = detail::make_buffer<Buffer>(ctx...);
-  auto ec = write_json(value, buffer, ctx...);
+template <concepts::contiguous_byte_range Buffer = std::string>
+inline auto write_json(glz::write_json_supported auto const &value,
+                       concepts::is_option_type auto &&...option) noexcept
+    -> glz::expected<Buffer, json_status> {
+  Buffer buffer;
+  auto ec = write_json(value, buffer, std::forward<decltype(option)>(option)...);
   if (!ec.ok()) {
     return glz::unexpected(ec);
   }

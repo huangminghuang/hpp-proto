@@ -35,7 +35,7 @@ int main() {
 
   std::pmr::monotonic_buffer_resource pool;
 
-  auto read_result = hpp::proto::read_proto<non_owning::tutorial::AddressBook>(buffer, hpp::proto::pb_context{pool});
+  auto read_result = hpp::proto::read_proto<non_owning::tutorial::AddressBook>(buffer, pool);
   expect(read_result.has_value());
 
   {

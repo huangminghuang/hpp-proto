@@ -1413,7 +1413,7 @@ class dynamic_serializer {
   };
   // NOLINTEND(readability-function-cognitive-complexity)
 public:
-  using auxiliary_context_type = std::reference_wrapper<dynamic_serializer>;
+  using option_type = std::reference_wrapper<dynamic_serializer>;
   explicit dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
     descriptor_pool<proto_json_addons> pool(set.file);
 

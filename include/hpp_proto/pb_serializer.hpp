@@ -79,7 +79,7 @@ constexpr bool utf8_validation_failed(auto meta, const auto &str) {
 // Always allocate memory for string and bytes fields when
 // deserializing non-owning messages.
 struct always_allocate_memory {
-  using auxiliary_context_type = always_allocate_memory;
+  using option_type = always_allocate_memory;
 };
 
 /////////////////////////////////////////////////////
@@ -167,13 +167,13 @@ concept string =
     std::same_as<std::remove_cvref_t<T>, std::string> || std::same_as<std::remove_cvref_t<T>, std::string_view>;
 
 template <typename T>
-concept has_local_meta = concepts::tuple<typename T::pb_meta>;
+concept has_local_meta = concepts::tuple<typename std::decay_t<T>::pb_meta>;
 
 template <typename T>
 concept has_explicit_meta = concepts::tuple<decltype(pb_meta(std::declval<T>()))>;
 
 template <typename T>
-concept has_meta = has_local_meta<std::remove_cvref_t<T>> || has_explicit_meta<T>;
+concept has_meta = has_local_meta<T> || has_explicit_meta<T>;
 
 template <typename T>
 concept dereferenceable = requires(T item) { *item; };
@@ -522,20 +522,20 @@ struct accessor_type {
   }
 };
 
-template <uint32_t Number, uint8_t options, typename Type, auto DefaultValue>
+template <uint32_t Number, uint8_t FieldOptions, typename Type, auto DefaultValue>
 struct field_meta_base {
   constexpr static uint32_t number = Number;
   using type = Type;
 
-  constexpr static bool is_explicit_presence = static_cast<bool>(options & field_option::explicit_presence);
-  constexpr static bool is_packed = static_cast<bool>(options & field_option::is_packed);
-  constexpr static bool is_group = static_cast<bool>(options & field_option::group);
-  constexpr static bool validate_utf8 = static_cast<bool>(options & field_option::utf8_validation);
-  constexpr static bool closed_enum = static_cast<bool>(options & field_option::closed_enum);
+  constexpr static bool is_explicit_presence = static_cast<bool>(FieldOptions & field_option::explicit_presence);
+  constexpr static bool is_packed = static_cast<bool>(FieldOptions & field_option::is_packed);
+  constexpr static bool is_group = static_cast<bool>(FieldOptions & field_option::group);
+  constexpr static bool validate_utf8 = static_cast<bool>(FieldOptions & field_option::utf8_validation);
+  constexpr static bool closed_enum = static_cast<bool>(FieldOptions & field_option::closed_enum);
 
   template <typename T>
   static constexpr bool omit_value(const T &v) {
-    if constexpr ((options & field_option::explicit_presence) == 0) {
+    if constexpr ((FieldOptions & field_option::explicit_presence) == 0) {
       return is_default_value<T, DefaultValue>(v);
     } else if constexpr (requires { v.has_value(); }) {
       return !v.has_value();
@@ -550,9 +550,9 @@ struct field_meta_base {
   }
 };
 
-template <uint32_t Number, auto Accessor, int options = field_option::none, typename Type = void,
+template <uint32_t Number, auto Accessor, int FieldOptions = field_option::none, typename Type = void,
           auto DefaultValue = std::monostate{}>
-struct field_meta : field_meta_base<Number, options, Type, DefaultValue> {
+struct field_meta : field_meta_base<Number, FieldOptions, Type, DefaultValue> {
   constexpr static auto access = accessor_type<Accessor>{};
 };
 
@@ -601,9 +601,8 @@ struct extension_meta_base {
     static_assert(std::same_as<typename std::remove_cvref_t<decltype(extensions)>::pb_extension, typename T::extendee>);
   }
 
-  static auto read(const concepts::pb_extension auto &extensions, concepts::is_pb_context auto &&...ctx);
-  static status write(concepts::pb_extension auto &extensions, auto &&value);
-  static status write(concepts::pb_extension auto &extensions, auto &&value, concepts::is_pb_context auto &&ctx);
+  static auto read(const concepts::pb_extension auto &extensions, concepts::is_option_type auto &&...option);
+  static status write(concepts::pb_extension auto &extensions, auto &&value, concepts::is_option_type auto &&...option);
   static bool element_of(const concepts::pb_extension auto &extensions) {
     check(extensions);
     if constexpr (requires { extensions.fields.count(T::number); }) {
@@ -615,10 +614,11 @@ struct extension_meta_base {
   }
 };
 
-template <typename Extendee, uint32_t Number, int options, typename Type, typename ValueType,
+template <typename Extendee, uint32_t Number, int FieldOptions, typename Type, typename ValueType,
           auto DefaultValue = std::monostate{}>
-struct extension_meta : field_meta_base<Number, options, Type, DefaultValue>,
-                        extension_meta_base<extension_meta<Extendee, Number, options, Type, ValueType, DefaultValue>> {
+struct extension_meta
+    : field_meta_base<Number, FieldOptions, Type, DefaultValue>,
+      extension_meta_base<extension_meta<Extendee, Number, FieldOptions, Type, ValueType, DefaultValue>> {
   constexpr static auto default_value = unwrap(DefaultValue);
   constexpr static bool has_default_value = !std::same_as<std::remove_const_t<decltype(DefaultValue)>, std::monostate>;
   static constexpr bool is_repeated = false;
@@ -628,10 +628,10 @@ struct extension_meta : field_meta_base<Number, options, Type, DefaultValue>,
   using set_value_type = ValueType;
 };
 
-template <typename Extendee, uint32_t Number, int options, typename Type, typename ValueType>
+template <typename Extendee, uint32_t Number, int FieldOptions, typename Type, typename ValueType>
 struct repeated_extension_meta
-    : field_meta_base<Number, options, Type, std::monostate{}>,
-      extension_meta_base<repeated_extension_meta<Extendee, Number, options, Type, ValueType>> {
+    : field_meta_base<Number, FieldOptions, Type, std::monostate{}>,
+      extension_meta_base<repeated_extension_meta<Extendee, Number, FieldOptions, Type, ValueType>> {
   constexpr static bool has_default_value = false;
   static constexpr bool is_repeated = true;
   using extendee = Extendee;
@@ -1911,11 +1911,11 @@ struct pb_serializer {
             [[unlikely]] {
           return result;
         }
-        as_modifiable(context, fields).push_back({field_num, field_span});
+        detail::as_modifiable(context, fields).push_back({field_num, field_span});
         return {};
       }
       // the extension with the same field number exists, append the content to the previously parsed.
-      decltype(auto) v = as_modifiable(context, itr->second);
+      decltype(auto) v = detail::as_modifiable(context, itr->second);
       return field_archive.deserialize_packed(field_archive.in_avail(), v);
     }
   }
@@ -2022,12 +2022,12 @@ struct pb_serializer {
         }
         return std::errc::bad_message;
       } else {
-        decltype(auto) v = as_modifiable(context, item);
+        decltype(auto) v = detail::as_modifiable(context, item);
         v.resize(byte_count);
         return archive(v);
       }
     } else {
-      decltype(auto) v = as_modifiable(context, item);
+      decltype(auto) v = detail::as_modifiable(context, item);
 
       if constexpr (requires { v.resize(1); }) {
         // packed repeated vector,
@@ -2071,7 +2071,7 @@ struct pb_serializer {
     using value_type = typename type::value_type;
     using value_encode_type = typename get_value_encode_type<typename Meta::type, value_type>::type;
 
-    decltype(auto) v = as_modifiable(context, item);
+    decltype(auto) v = detail::as_modifiable(context, item);
 
     std::size_t count = 0;
     if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
@@ -2247,7 +2247,7 @@ struct pb_serializer {
       return utf8_validation_failed(meta, item) ? std::errc::bad_message : std::errc{};
     } else if constexpr (meta.is_group) {
       // repeated group
-      decltype(auto) v = as_modifiable(context, item);
+      decltype(auto) v = detail::as_modifiable(context, item);
       return deserialize_group(field_num, v.emplace_back(), context, archive);
     } else { // repeated non-group
       if constexpr (meta.is_packed) {
@@ -2522,7 +2522,7 @@ struct serialize_wrapper_type {
 
 template <typename ExtensionMeta>
 inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extension auto &extensions,
-                                                     concepts::is_pb_context auto &&...ctx) {
+                                                     concepts::is_option_type auto &&...option) {
   check(extensions);
   decltype(extensions.fields.begin()) itr;
 
@@ -2538,7 +2538,8 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
 
   serialize_wrapper_type<value_type, ExtensionMeta> wrapper;
   if (itr != extensions.fields.end()) {
-    if (auto result = pb_serializer::deserialize(wrapper, itr->second, ctx...); !result.ok()) [[unlikely]] {
+    pb_context ctx{std::forward<decltype(option)>(option)...};
+    if (auto result = pb_serializer::deserialize(wrapper, itr->second, ctx); !result.ok()) [[unlikely]] {
       return return_type{unexpected(result)};
     }
     return return_type{wrapper.value};
@@ -2554,28 +2555,13 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
 }
 
 template <typename ExtensionMeta>
-inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions, auto &&value) {
-  check(extensions);
-
-  serialize_wrapper_type<decltype(value), ExtensionMeta> wrapper{std::forward<decltype(value)>(value)};
-  typename decltype(extensions.fields)::mapped_type data;
-
-  if (auto result = pb_serializer::serialize(wrapper, data); !result.ok()) [[unlikely]] {
-    return result;
-  }
-  if (data.size()) {
-    extensions.fields[ExtensionMeta::number] = std::move(data);
-  }
-  return {};
-}
-
-template <typename ExtensionMeta>
 inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions, auto &&value,
-                                                        concepts::is_pb_context auto &&ctx) {
+                                                        concepts::is_option_type auto &&...option) {
   check(extensions);
 
-  std::span<std::byte> buf;
-  auto data = as_modifiable(ctx, buf);
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  typename decltype(extensions.fields)::value_type::second_type buf;
+  auto data = detail::as_modifiable(ctx, buf);
 
   serialize_wrapper_type<decltype(value), ExtensionMeta> wrapper{std::forward<decltype(value)>(value)};
 
@@ -2584,9 +2570,13 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
   }
 
   if (data.size()) {
-    using fields_mapped_type = std::remove_cvref_t<decltype(extensions.fields)>::value_type::second_type;
-    auto fields = as_modifiable(ctx, extensions.fields);
-    fields.emplace_back(ExtensionMeta::number, fields_mapped_type{data.data(), data.size()});
+    if constexpr (concepts::associative_container<std::decay_t<decltype(extensions.fields)>>) {
+      extensions.fields[ExtensionMeta::number] = std::move(data);
+    } else {
+      using fields_mapped_type = std::remove_cvref_t<decltype(extensions.fields)>::value_type::second_type;
+      auto fields = detail::as_modifiable(ctx, extensions.fields);
+      fields.emplace_back(ExtensionMeta::number, fields_mapped_type{data.data(), data.size()});
+    }
   }
   return {};
 }
@@ -2607,52 +2597,50 @@ consteval auto write_proto(F make_object) {
   }
 }
 
-template <concepts::contiguous_output_byte_range Buffer = std::vector<std::byte>>
-expected<Buffer, std::errc> write_proto(concepts::has_meta auto const &msg, concepts::is_pb_context auto &&...ctx) {
-  auto buffer = detail::make_buffer<Buffer>(ctx...);
-  auto r = pb_serializer::serialize(msg, buffer);
-  if (auto result = pb_serializer::serialize(msg, buffer); !result.ok()) {
-    return unexpected(r.ec);
+template <concepts::has_meta T, concepts::contiguous_byte_range Buffer>
+status write_proto(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...option) {
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  decltype(auto) v = detail::as_modifiable(ctx, buffer);
+  return pb_serializer::serialize(std::forward<T>(msg), v);
+}
+
+template <concepts::contiguous_byte_range Buffer = std::vector<std::byte>>
+expected<Buffer, std::errc> write_proto(concepts::has_meta auto const &msg, concepts::is_option_type auto &&...option) {
+  Buffer buffer;
+  if (auto result = write_proto(msg, buffer, std::forward<decltype(option)>(option)...); !result.ok()) {
+    return unexpected(result.ec);
   } else {
     return buffer;
   }
 }
 
-template <concepts::has_meta T, concepts::contiguous_output_byte_range Buffer>
-status write_proto(T &&msg, Buffer &buffer) {
-  return pb_serializer::serialize(std::forward<T>(msg), buffer);
-}
-
 /// @brief serialize a message to the end of the supplied buffer
-template <concepts::has_meta T, concepts::resizable_contiguous_byte_container Buffer>
-status append_proto(T &&msg, Buffer &buffer) {
+template <concepts::has_meta T>
+status append_proto(T &&msg, concepts::resizable_contiguous_byte_container auto &buffer) {
   constexpr bool overwrite_buffer = false;
   return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer);
 }
 
 template <concepts::has_meta T>
 constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range auto const &buffer,
-                                                   concepts::is_pb_context auto &&...ctx) {
-  static_assert(sizeof...(ctx) <= 1);
+                                                   concepts::is_option_type auto &&...option) {
   T msg;
-  if (auto result = pb_serializer::deserialize(msg, buffer, ctx...); !result.ok()) {
+  if (auto result = pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...}); !result.ok()) {
     return unexpected(result.ec);
   }
   return msg;
 }
 
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
-status read_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &&...ctx) {
-  static_assert(sizeof...(ctx) <= 1);
+status read_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
   msg = {};
-  return pb_serializer::deserialize(msg, buffer, ctx...);
+  return pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
 }
 
 /// @brief  deserialize from the buffer and merge the content with the existing msg
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
-status merge_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &&...ctx) {
-  static_assert(sizeof...(ctx) <= 1);
-  return pb_serializer::deserialize(msg, buffer, ctx...);
+status merge_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
+  return pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
 }
 
 namespace concepts {
@@ -2668,25 +2656,25 @@ status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg) 
   return write_proto(msg, any.value);
 }
 
-status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg, concepts::is_pb_context auto &&ctx) {
+status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg, concepts::is_option_type auto &&...option) {
   any.type_url = message_type_url(msg);
-  decltype(auto) v = as_modifiable(ctx, any.value);
+  auto ctx = pb_context{std::forward<decltype(option)>(option)...};
+  decltype(auto) v = detail::as_modifiable(ctx, any.value);
   return write_proto(msg, v);
 }
 
 status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg,
-                  concepts::is_pb_context auto &&...ctx) {
-  static_assert(sizeof...(ctx) <= 1);
+                  concepts::is_option_type auto &&...option) {
   if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
-    return read_proto(msg, any.value, ctx...);
+    return read_proto(msg, any.value, std::forward<decltype(option)>(option)...);
   }
   return std::errc::invalid_argument;
 }
 
 template <concepts::has_meta T>
-expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is_pb_context auto &&...ctx) {
+expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is_option_type auto &&...option) {
   T msg;
-  if (auto result = unpack_any(any, msg, ctx...); !result.ok()) {
+  if (auto result = unpack_any(any, msg, std::forward<decltype(option)>(option)...); !result.ok()) {
     return unexpected(result.ec);
   } else {
     return msg;

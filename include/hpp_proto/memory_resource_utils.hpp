@@ -49,7 +49,6 @@ concept memory_resource = !std::copyable<T> && requires(T &object) {
 
 template <typename T>
 concept has_memory_resource = requires(T &object) {
-  object.memory_resource();
   requires memory_resource<std::remove_cvref_t<decltype(object.memory_resource())>>;
 };
 
@@ -76,7 +75,7 @@ template <typename T>
 concept is_pb_context = requires { typename std::remove_cvref_t<T>::is_pb_context; };
 
 template <typename T>
-concept is_auxiliary_context = memory_resource<T> || requires { typename T::auxiliary_context_type; };
+concept is_option_type = memory_resource<std::decay_t<T>> || requires { typename std::decay_t<T>::option_type; };
 
 template <typename T>
 concept dynamic_sized_view =
@@ -86,7 +85,7 @@ concept dynamic_sized_view =
 
 template <typename T>
 struct pb_context_base {
-  using type = typename T::auxiliary_context_type;
+  using type = typename T::option_type;
 };
 
 template <concepts::memory_resource T>
@@ -100,7 +99,7 @@ struct pb_context : pb_context_base<T>::type... {
   template <typename... U>
   constexpr explicit pb_context(U &&...ctx) : pb_context_base<T>::type(std::forward<U>(ctx))... {}
 
-  template <concepts::is_auxiliary_context U>
+  template <concepts::is_option_type U>
   [[nodiscard]] constexpr auto &get() const {
     if constexpr (std::copyable<U>) {
       return static_cast<const U &>(*this);
@@ -163,19 +162,7 @@ using memory_resource_type = std::remove_reference_t<decltype(get_memory_resourc
 
 namespace detail {
 
-template <typename Buffer>
-Buffer make_buffer() {
-  return Buffer{};
-}
 
-template <typename Buffer>
-Buffer make_buffer(auto &&ctx) {
-  if constexpr (requires { Buffer(&ctx.get_memory_resource()); }) {
-    return Buffer(&ctx.get_memory_resource());
-  } else {
-    return Buffer{};
-  }
-}
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 template <typename T, typename ByteT>
@@ -361,9 +348,8 @@ template <concepts::dynamic_sized_view View, concepts::has_memory_resource Conte
 arena_vector(View &view, Context &ctx)
     -> arena_vector<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
 
-} // namespace detail
 
-constexpr auto as_modifiable(auto &&context, concepts::dynamic_sized_view auto &view) {
+constexpr auto as_modifiable(concepts::is_pb_context auto &&context, concepts::dynamic_sized_view auto &view) {
   return detail::arena_vector{view, std::forward<decltype(context)>(context)};
 }
 
@@ -373,4 +359,5 @@ constexpr T &as_modifiable(auto && /* unused */, T &view) {
   return view;
 }
 
+} // namespace detail
 } // namespace hpp::proto

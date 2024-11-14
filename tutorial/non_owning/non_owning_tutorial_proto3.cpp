@@ -54,10 +54,10 @@ int main() {
 
   address_book.people = people;
 
-  auto write_result = hpp::proto::write_proto<std::pmr::vector<std::byte>>(address_book, hpp::proto::pb_context{pool});
+  auto write_result = hpp::proto::write_proto<std::span<const std::byte>>(address_book, pool);
   expect(write_result.has_value());
 
-  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(write_result.value(), hpp::proto::pb_context{pool});
+  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(write_result.value(), pool);
   expect(read_result.has_value());
   expect(address_book == read_result.value());
 
@@ -90,10 +90,10 @@ int main() {
   }
 
   auto write_json_result =
-      hpp::proto::write_json<std::pmr::string>(address_book, hpp::proto::json_context{pool});
+      hpp::proto::write_json<std::pmr::string>(address_book, pool);
   expect(write_json_result.has_value());
   auto read_json_result =
-      hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value(), hpp::proto::json_context{pool});
+      hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value(), pool);
   expect(address_book == read_json_result.value());
 
   return 0;

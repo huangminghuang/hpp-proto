@@ -223,7 +223,7 @@ void verify(const T &msg, std::string_view json, const source_location &from_loc
     expect(msg == msg2);
   } else {
     monotonic_buffer_resource mr{1024};
-    expect(fatal((hpp::proto::read_json(msg2, json, hpp::proto::json_context{mr}).ok()))) << from_line_number;
+    expect(fatal((hpp::proto::read_json(msg2, json, mr).ok()))) << from_line_number;
     expect(msg == msg2);
   }
 }
@@ -332,7 +332,7 @@ const ut::suite test_indent_level = [] {
   using namespace std::string_literals;
   "indent_level"_test = [] {
     optional_example  msg{.field2 = 123U, .field3 = 456};
-    auto json = hpp::proto::write_json(msg, hpp::proto::json_context{hpp::proto::indent_level<3>}).value(); 
+    auto json = hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value(); 
     expect(eq(json, R"({
    "field2": "123",
    "field3": 456

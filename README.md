@@ -491,28 +491,28 @@ int main() {
   tutorial::AddressBook address_book;
   address_book.people = people;
 
-  std::pmr::vector<std::byte> buffer{&pool};
+  std::span<const std::byte> buffer_view;
 
-  if (!hpp::proto::write_proto(address_book, buffer).ok()) {
+  if (!hpp::proto::write_proto(address_book, buffer_view, pool).ok()) {
     std::cerr << "protobuf serialization failed\n";
     return 1;
   }
 
   // alternatively, use the overload returning an expected object
-  hpp::proto::expected<std::pmr::vector<std::byte>, std::errc> write_result 
-    = hpp::proto::write_proto<std::pmr::vector<std::byte>>(address_book);
+  hpp::proto::expected<std::span<const std::byte>, std::errc> write_result 
+    = hpp::proto::write_proto<std::span<const std::byte>>(address_book, pool);
   assert(write_result.value() == buffer);
 
   tutorial::AddressBook new_address_book;
 
-  if (!hpp::proto::read_proto(new_address_book, buffer, hpp::proto::pb_context{pool}).ok()) {
+  if (!hpp::proto::read_proto(new_address_book, buffer, pool).ok()) {
     std::cerr << "protobuf deserialization failed\n";
     return 1;
   }
 
   // alternatively, use the overload returning an expected object
   hpp::proto::expected<tutorial::AddressBook, std::errc> read_result 
-    = hpp::proto::read_proto<tutorial::AddressBook>(buffer, hpp::proto::pb_context{pool});
+    = hpp::proto::read_proto<tutorial::AddressBook>(buffer, pool);
   assert(read_result.value() == new_address_book);
 
   return 0;
@@ -578,17 +578,17 @@ if (!hpp::proto::write_json(address_book, json).ok()) {
 }
 
 // alternatively, use the overload returning an expected object
-auto write_result = hpp::proto::write_json<std::pmr::string>(address_book, hpp::proto::json_context{pool});
+auto write_result = hpp::proto::write_json<std::pmr::string>(address_book, pool);
 assert(write_result.value() == json);
 
 tutorial::AddressBook new_book;
-if (auto e = hpp::proto::read_json(new_book, json, hpp::proto::json_context{pool}); !e.ok()) {
+if (auto e = hpp::proto::read_json(new_book, json, pool); !e.ok()) {
     std::cerr << "read json error: " << e.message(json) << "\n";
     return 1;
 }
 
 // alternatively, use the overload returning an expected object
-auto read_result = hpp::proto::read_json<tutorial::AddressBook>(json, hpp::proto::json_context{pool});
+auto read_result = hpp::proto::read_json<tutorial::AddressBook>(json, pool);
 assert(read_result.value() == new_address_book);
 ```
 </p>

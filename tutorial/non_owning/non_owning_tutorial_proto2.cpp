@@ -53,7 +53,7 @@ int main() {
 
   expect(hpp::proto::write_proto(address_book, buffer).ok());
 
-  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(buffer, hpp::proto::pb_context{pool});
+  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(buffer, pool);
   expect(read_result.has_value());
   expect(address_book == read_result.value());
 
@@ -75,7 +75,7 @@ int main() {
   auto write_json_result = hpp::proto::write_json(address_book);
   expect(write_json_result.has_value());
   auto read_json_result =
-      hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value(), hpp::proto::json_context{pool});
+      hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value(), pool);
   expect(address_book == read_json_result.value());
 
   return 0;

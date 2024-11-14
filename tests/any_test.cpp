@@ -34,20 +34,19 @@ const suite test_any = [] {
     using namespace std::string_view_literals;
 
     monotonic_buffer_resource mr{1024};
-    hpp::proto::pb_context ctx{mr};
 
     non_owning::protobuf_unittest::TestAny message;
     std::array<std::string_view, 2> paths{"/usr/share"sv, "/usr/local/share"sv};
     non_owning::google::protobuf::FieldMask fm{.paths = paths};
-    expect(hpp::proto::pack_any(message.any_value.emplace(), fm, ctx).ok());
+    expect(hpp::proto::pack_any(message.any_value.emplace(), fm, mr).ok());
 
     std::vector<char> buf;
     expect(hpp::proto::write_proto(message, buf).ok());
 
     non_owning::protobuf_unittest::TestAny message2;
-    expect(hpp::proto::read_proto(message2, buf, ctx).ok());
+    expect(hpp::proto::read_proto(message2, buf, mr).ok());
     non_owning::google::protobuf::FieldMask fm2;
-    expect(hpp::proto::unpack_any(message2.any_value.value(), fm2, ctx).ok());
+    expect(hpp::proto::unpack_any(message2.any_value.value(), fm2, mr).ok());
     expect(std::ranges::equal(paths, fm2.paths));
   };
 
@@ -63,11 +62,11 @@ const suite test_any = [] {
     const std::string_view expected_json =
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/local/share"}})";
     std::string buf;
-    expect(hpp::proto::write_json(message, buf, hpp::proto::json_context{*ser}).ok());
+    expect(hpp::proto::write_json(message, buf, *ser).ok());
     expect(eq(buf, expected_json));
 
     protobuf_unittest::TestAny message2;
-    expect(hpp::proto::read_json(message2, expected_json, hpp::proto::json_context{*ser}).ok());
+    expect(hpp::proto::read_json(message2, expected_json, *ser).ok());
     expect(message == message2);
   };
 

@@ -148,7 +148,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     std::vector<std::byte> data;
 
     expect(hpp::proto::write_proto(original, data).ok());
-    expect(hpp::proto::read_proto(msg, data, hpp::proto::pb_context{mr}).ok());
+    expect(hpp::proto::read_proto(msg, data, mr).ok());
 
     ExpectAllFieldsSet(msg);
   };
@@ -162,7 +162,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     monotonic_buffer_resource mr{4096};
     std::vector<char> data;
     expect(hpp::proto::write_proto(original, data).ok());
-    expect(hpp::proto::read_proto(msg, data, hpp::proto::pb_context{mr}).ok());
+    expect(hpp::proto::read_proto(msg, data, mr).ok());
 
     ExpectUnpackedFieldsSet(msg);
 
@@ -189,7 +189,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     expect(hpp::proto::write_json(original).value() == original_json);
 
     proto3_unittest::TestAllTypes msg;
-    expect(hpp::proto::read_json(msg, original_json, hpp::proto::json_context{mr}).ok());
+    expect(hpp::proto::read_json(msg, original_json, mr).ok());
 
     ExpectAllFieldsSet(msg);
   };
