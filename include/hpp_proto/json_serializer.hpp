@@ -740,13 +740,16 @@ struct [[nodiscard]] json_status final {
 
 inline json_status read_json(glz::read_json_supported auto &value, concepts::contiguous_byte_range auto &&buffer,
                              concepts::is_option_type auto &&...option) {
-  json_context ctx{std::forward<decltype(option)>(option)...};
   using buffer_type = std::remove_cvref_t<decltype(buffer)>;
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<decltype(buffer)> ||
                     ((concepts::has_memory_resource<decltype(option)> || ...)),
                 "temporary buffer cannot be used for non-owning object parsing");
   value = {};
   constexpr auto opts = detail::get_glz_opts<decltype(option)...>();
+  json_context ctx{std::forward<decltype(option)>(option)...};
+  using context_type = std::decay_t<decltype(ctx)>;
+  static_assert(!concepts::strict_allocation_context<context_type>,
+                "read_json() does not support strictly_alloc_from yet!");
   return {glz::read<opts>(value, std::forward<decltype(buffer)>(buffer), ctx)};
 }
 
@@ -754,8 +757,7 @@ template <glz::read_json_supported T>
 inline auto read_json(concepts::contiguous_byte_range auto &&buffer, concepts::is_option_type auto &&...option)
     -> glz::expected<T, json_status> {
   T value;
-  if (auto result =
-          read_json(value, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);
+  if (auto result = read_json(value, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);
       !result.ok()) {
     return glz::unexpected(result);
   } else {
@@ -763,8 +765,7 @@ inline auto read_json(concepts::contiguous_byte_range auto &&buffer, concepts::i
   }
 }
 
-inline json_status write_json(glz::write_json_supported auto const &value,
-                              concepts::contiguous_byte_range auto &buffer,
+inline json_status write_json(glz::write_json_supported auto const &value, concepts::contiguous_byte_range auto &buffer,
                               concepts::is_option_type auto &&...option) noexcept {
   constexpr auto opts = detail::get_glz_opts<decltype(option)...>();
   json_context ctx{std::forward<decltype(option)>(option)...};
@@ -772,8 +773,7 @@ inline json_status write_json(glz::write_json_supported auto const &value,
 }
 
 template <concepts::contiguous_byte_range Buffer = std::string>
-inline auto write_json(glz::write_json_supported auto const &value,
-                       concepts::is_option_type auto &&...option) noexcept
+inline auto write_json(glz::write_json_supported auto const &value, concepts::is_option_type auto &&...option) noexcept
     -> glz::expected<Buffer, json_status> {
   Buffer buffer;
   auto ec = write_json(value, buffer, std::forward<decltype(option)>(option)...);

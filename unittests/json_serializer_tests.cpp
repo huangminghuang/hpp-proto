@@ -223,7 +223,7 @@ void verify(const T &msg, std::string_view json, const source_location &from_loc
     expect(msg == msg2);
   } else {
     monotonic_buffer_resource mr{1024};
-    expect(fatal((hpp::proto::read_json(msg2, json, mr).ok()))) << from_line_number;
+    expect(fatal((hpp::proto::read_json(msg2, json, hpp::proto::alloc_from{mr}).ok()))) << from_line_number;
     expect(msg == msg2);
   }
 }

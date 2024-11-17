@@ -223,7 +223,7 @@ void verify_non_owning(auto encoded_data, const T &expected_value, std::size_t m
   std::remove_cvref_t<T> value;
 
   monotonic_buffer_resource mr{memory_size};
-  ut::expect(hpp::proto::read_proto(value, encoded_data, mr, hpp::proto::always_allocate_memory{}).ok());
+  ut::expect(hpp::proto::read_proto(value, encoded_data, hpp::proto::strictly_alloc_from{mr}).ok());
   ut::expect(value == expected_value);
 
   if (mode == decode_only) {
@@ -1300,7 +1300,7 @@ const ut::suite test_non_owning_extensions = [] {
     non_owning_extension_example value;
 
     monotonic_buffer_resource mr{1024};
-    ut::expect(hpp::proto::read_proto(value, encoded_data, mr).ok());
+    ut::expect(hpp::proto::read_proto(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value == expected_value);
 
     ut::expect(value.has_extension(non_owning_i32_ext()));
@@ -1315,7 +1315,7 @@ const ut::suite test_non_owning_extensions = [] {
       ut::expect(v.value() == 1);
     }
     {
-      auto v = value.get_extension(non_owning_string_ext(), mr);
+      auto v = value.get_extension(non_owning_string_ext(), hpp::proto::alloc_from{mr});
       ut::expect(v.has_value());
       ut::expect(v.value() == "test");
     }
@@ -1325,18 +1325,18 @@ const ut::suite test_non_owning_extensions = [] {
       ut::expect(v.value() == example{.i = 150});
     }
     {
-      auto v = value.get_extension(non_owning_repeated_i32_ext(), mr);
+      auto v = value.get_extension(non_owning_repeated_i32_ext(), hpp::proto::alloc_from{mr});
       ut::expect(v.has_value());
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<uint32_t>{1, 2}));
     }
     {
-      auto v = value.get_extension(non_owning_repeated_string_ext(), mr);
+      auto v = value.get_extension(non_owning_repeated_string_ext(), hpp::proto::alloc_from{mr});
       ut::expect(v.has_value());
       using namespace std::literals;
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<std::string_view>{"abc"sv, "def"sv}));
     }
     {
-      auto v = value.get_extension(non_owning_repeated_packed_i32_ext(), mr);
+      auto v = value.get_extension(non_owning_repeated_packed_i32_ext(), hpp::proto::alloc_from{mr});
       ut::expect(v.has_value());
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<uint32_t>{1, 2, 3}));
     }
@@ -1349,32 +1349,32 @@ const ut::suite test_non_owning_extensions = [] {
   "set_non_owning_extension"_test = [] {
     monotonic_buffer_resource mr{1024};
     non_owning_extension_example value;
-    ut::expect(value.set_extension(non_owning_i32_ext(), 1, mr).ok());
+    ut::expect(value.set_extension(non_owning_i32_ext(), 1, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 10);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x50\x01"_bytes));
 
-    ut::expect(value.set_extension(non_owning_string_ext(), "test", mr).ok());
+    ut::expect(value.set_extension(non_owning_string_ext(), "test", hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 11);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x5a\x04\x74\x65\x73\x74"_bytes));
 
-    ut::expect(value.set_extension(non_owning_i32_defaulted_ext(), 10, mr).ok());
+    ut::expect(value.set_extension(non_owning_i32_defaulted_ext(), 10, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first != 13);
 
-    ut::expect(value.set_extension(non_owning_example_ext(), {.i = 150}, mr).ok());
+    ut::expect(value.set_extension(non_owning_example_ext(), {.i = 150}, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 15);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x7a\x03\x08\x96\x01"_bytes));
 
-    ut::expect(value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, mr).ok());
+    ut::expect(value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 20);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\xa0\x01\x01\xa0\x01\x02"_bytes));
 
     using namespace std::literals;
-    ut::expect(value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, mr).ok());
+    ut::expect(value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 21);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
-    ut::expect(value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, mr).ok());
+    ut::expect(value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 22);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };

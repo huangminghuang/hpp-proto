@@ -43,14 +43,13 @@ constexpr bool contains(R &&r, const T &value) {
 namespace hpp::proto {
 namespace concepts {
 template <typename T>
-concept memory_resource = !std::copyable<T> && requires(T &object) {
+concept memory_resource = !std::copyable<T> && std::destructible<T> && requires(T &object) {
   { object.allocate(8, 8) } -> std::same_as<void *>;
 };
 
 template <typename T>
-concept has_memory_resource = requires(T &object) {
-  requires memory_resource<std::remove_cvref_t<decltype(object.memory_resource())>>;
-};
+concept has_memory_resource =
+    requires(T &object) { requires memory_resource<std::remove_cvref_t<decltype(object.memory_resource())>>; };
 
 template <typename T>
 concept resizable = requires {
@@ -72,75 +71,55 @@ template <typename T>
 concept resizable_contiguous_byte_container = contiguous_byte_range<T> && resizable<T>;
 
 template <typename T>
-concept is_pb_context = requires { typename std::remove_cvref_t<T>::is_pb_context; };
+concept is_pb_context = requires { typename std::decay_t<T>::is_pb_context; };
 
 template <typename T>
-concept is_option_type = memory_resource<std::decay_t<T>> || requires { typename std::decay_t<T>::option_type; };
+concept is_option_type = requires { typename std::decay_t<T>::option_type; };
 
 template <typename T>
 concept dynamic_sized_view =
     std::derived_from<T, std::span<typename T::element_type>> || std::same_as<T, std::string_view>;
 
+template <typename T>
+concept strict_allocation_context = is_pb_context<T> && requires { requires T::always_allocate == true; };
 } // namespace concepts
 
-template <typename T>
-struct pb_context_base {
-  using type = typename T::option_type;
+template <concepts::memory_resource T, bool Strict = false>
+class alloc_from {
+  T *mr;
+
+public:
+  using option_type = alloc_from<T>;
+  constexpr static auto always_allocate = Strict;
+  explicit alloc_from(T &m) : mr(&m) {}
+  ~alloc_from() = default;
+  alloc_from(const alloc_from &other) = default;
+  alloc_from &operator=(const alloc_from &&) = default;
+  T &memory_resource() const { return *mr; }
 };
 
+// Always allocate memory for string and bytes fields when
+// deserializing non-owning messages.
 template <concepts::memory_resource T>
-struct pb_context_base<T> {
-  using type = std::reference_wrapper<T>;
+class strictly_alloc_from : public alloc_from<T, true> {
+public:
+  using option_type = strictly_alloc_from<T>;
+  explicit strictly_alloc_from(T &m) : alloc_from<T, true>(m) {}
 };
 
-template <typename... T>
-struct pb_context : pb_context_base<T>::type... {
+template <concepts::is_option_type... T>
+struct pb_context : T::option_type... {
   using is_pb_context = void;
   template <typename... U>
-  constexpr explicit pb_context(U &&...ctx) : pb_context_base<T>::type(std::forward<U>(ctx))... {}
+  constexpr explicit pb_context(U &&...ctx) : T::option_type(std::forward<U>(ctx))... {}
 
   template <concepts::is_option_type U>
   [[nodiscard]] constexpr auto &get() const {
-    if constexpr (std::copyable<U>) {
+    if constexpr (std::derived_from<pb_context,U>) {
       return static_cast<const U &>(*this);
     } else {
       return static_cast<const std::reference_wrapper<U> &>(*this).get();
     }
-  }
-
-  template <typename U, typename... Rest>
-  [[nodiscard]] auto &get_memory_resource() const {
-    if constexpr (concepts::memory_resource<U>) {
-      return this->template get<U>();
-    } else {
-      return this->get_memory_resource<Rest...>();
-    }
-  }
-
-  template <typename U, typename... Rest>
-  constexpr static bool has_memory_resource_impl() {
-    if constexpr (concepts::memory_resource<U>) {
-      return true;
-    } else if constexpr (sizeof...(Rest) > 0) {
-      return has_memory_resource_impl<Rest...>();
-    } else {
-      return false;
-    }
-  }
-
-  template <typename... U>
-  constexpr static bool has_memory_resource() {
-    if constexpr (sizeof...(U) > 0) {
-      return has_memory_resource_impl<U...>();
-    } else {
-      return false;
-    }
-  }
-
-  [[nodiscard]] auto &memory_resource() const
-    requires(has_memory_resource<T...>())
-  {
-    return get_memory_resource<T...>();
   }
 };
 
@@ -157,12 +136,7 @@ auto &get_memory_resource(T &v) {
   return v.memory_resource();
 }
 
-template <typename T>
-using memory_resource_type = std::remove_reference_t<decltype(get_memory_resource(std::declval<T>))>;
-
 namespace detail {
-
-
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 template <typename T, typename ByteT>
@@ -347,7 +321,6 @@ private:
 template <concepts::dynamic_sized_view View, concepts::has_memory_resource Context>
 arena_vector(View &view, Context &ctx)
     -> arena_vector<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
-
 
 constexpr auto as_modifiable(concepts::is_pb_context auto &&context, concepts::dynamic_sized_view auto &view) {
   return detail::arena_vector{view, std::forward<decltype(context)>(context)};

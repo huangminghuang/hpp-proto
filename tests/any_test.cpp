@@ -38,15 +38,15 @@ const suite test_any = [] {
     non_owning::protobuf_unittest::TestAny message;
     std::array<std::string_view, 2> paths{"/usr/share"sv, "/usr/local/share"sv};
     non_owning::google::protobuf::FieldMask fm{.paths = paths};
-    expect(hpp::proto::pack_any(message.any_value.emplace(), fm, mr).ok());
+    expect(hpp::proto::pack_any(message.any_value.emplace(), fm, hpp::proto::alloc_from{mr}).ok());
 
     std::vector<char> buf;
     expect(hpp::proto::write_proto(message, buf).ok());
 
     non_owning::protobuf_unittest::TestAny message2;
-    expect(hpp::proto::read_proto(message2, buf, mr).ok());
+    expect(hpp::proto::read_proto(message2, buf, hpp::proto::alloc_from{mr}).ok());
     non_owning::google::protobuf::FieldMask fm2;
-    expect(hpp::proto::unpack_any(message2.any_value.value(), fm2, mr).ok());
+    expect(hpp::proto::unpack_any(message2.any_value.value(), fm2, hpp::proto::alloc_from{mr}).ok());
     expect(std::ranges::equal(paths, fm2.paths));
   };
 

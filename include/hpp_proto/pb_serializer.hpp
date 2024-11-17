@@ -76,12 +76,6 @@ constexpr bool utf8_validation_failed(auto meta, const auto &str) {
   return false;
 }
 
-// Always allocate memory for string and bytes fields when
-// deserializing non-owning messages.
-struct always_allocate_memory {
-  using option_type = always_allocate_memory;
-};
-
 /////////////////////////////////////////////////////
 
 enum class varint_encoding : uint8_t {
@@ -2013,7 +2007,7 @@ struct pb_serializer {
     }
 
     if constexpr (concepts::byte_type<value_type> && concepts::not_resizable<type> &&
-                  !std::is_base_of_v<always_allocate_memory, Context>) {
+                  !concepts::strict_allocation_context<Context>) {
       static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
       // handling string_view or span of byte
       if constexpr (std::remove_cvref_t<decltype(archive)>::contiguous) {
