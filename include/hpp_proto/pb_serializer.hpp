@@ -2619,7 +2619,8 @@ template <concepts::has_meta T>
 constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range auto const &buffer,
                                                    concepts::is_option_type auto &&...option) {
   T msg;
-  if (auto result = pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...}); !result.ok()) {
+  if (auto result = pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
+      !result.ok()) {
     return unexpected(result.ec);
   }
   return msg;
@@ -2650,7 +2651,8 @@ status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg) 
   return write_proto(msg, any.value);
 }
 
-status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg, concepts::is_option_type auto &&...option) {
+status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg,
+                concepts::is_option_type auto &&...option) {
   any.type_url = message_type_url(msg);
   auto ctx = pb_context{std::forward<decltype(option)>(option)...};
   decltype(auto) v = detail::as_modifiable(ctx, any.value);

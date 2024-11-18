@@ -163,8 +163,7 @@ void hpp_proto_deserialize_nonowning(benchmark::State &state) {
   for (auto _ : state) {
     std::pmr::monotonic_buffer_resource memory_resource(buf.data(), buf.size());
     Message message;
-    auto r = hpp::proto::read_proto(message, data,
-                                    hpp::proto::strictly_alloc_from{memory_resource});
+    auto r = hpp::proto::read_proto(message, data, hpp::proto::strictly_alloc_from{memory_resource});
     total += data.size();
     benchmark::DoNotOptimize(r);
   }

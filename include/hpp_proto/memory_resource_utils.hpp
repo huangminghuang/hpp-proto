@@ -115,7 +115,7 @@ struct pb_context : T::option_type... {
 
   template <concepts::is_option_type U>
   [[nodiscard]] constexpr auto &get() const {
-    if constexpr (std::derived_from<pb_context,U>) {
+    if constexpr (std::derived_from<pb_context, U>) {
       return static_cast<const U &>(*this);
     } else {
       return static_cast<const std::reference_wrapper<U> &>(*this).get();

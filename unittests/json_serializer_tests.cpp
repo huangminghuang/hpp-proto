@@ -331,8 +331,8 @@ const ut::suite test_indent_level = [] {
   using namespace boost::ut::literals;
   using namespace std::string_literals;
   "indent_level"_test = [] {
-    optional_example  msg{.field2 = 123U, .field3 = 456};
-    auto json = hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value(); 
+    optional_example msg{.field2 = 123U, .field3 = 456};
+    auto json = hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value();
     expect(eq(json, R"({
    "field2": "123",
    "field3": 456
