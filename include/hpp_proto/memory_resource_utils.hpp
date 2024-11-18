@@ -94,7 +94,7 @@ public:
   explicit alloc_from(T &m) : mr(&m) {}
   ~alloc_from() = default;
   alloc_from(const alloc_from &other) = default;
-  alloc_from &operator=(const alloc_from &&) = default;
+  alloc_from &operator=(const alloc_from &) = default;
   T &memory_resource() const { return *mr; }
 };
 
@@ -107,7 +107,7 @@ public:
   explicit strictly_alloc_from(T &m) : alloc_from<T, true>(m) {}
 };
 
-template <concepts::is_option_type... T>
+template <typename... T>
 struct pb_context : T::option_type... {
   using is_pb_context = void;
   template <typename... U>
