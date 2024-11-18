@@ -35,14 +35,11 @@ const boost::ut::suite dynamic_serializer_test = [] {
     expect(fatal(hpp_result.has_value()));
     expect(ser->json_to_proto(message_name, *hpp_result, serialized).ok());
     expect(eq(to_hex(data), to_hex(serialized)));
-  } | std::vector<std::string>{"proto3_unittest.TestAllTypes",
-                               "proto3_unittest.TestUnpackedTypes",
-                               "protobuf_unittest.TestAllTypes",
-                               "protobuf_unittest.TestMap",
+  } | std::vector<std::string>{"proto3_unittest.TestAllTypes",       "proto3_unittest.TestUnpackedTypes",
+                               "protobuf_unittest.TestAllTypes",     "protobuf_unittest.TestMap",
                                "protobuf_unittest.TestPackedTypes",
 #ifdef EDITION_SUPPORT
-                               "protobuf_unittest.TestAllTypesLite",
-                               "protobuf_unittest.TestPackedTypesLite",
+                               "protobuf_unittest.TestAllTypesLite", "protobuf_unittest.TestPackedTypesLite",
 #endif
                                "protobuf_unittest.TestUnpackedTypes"};
 };
