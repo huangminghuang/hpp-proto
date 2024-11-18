@@ -215,6 +215,7 @@ class dynamic_serializer {
       }
 
       if (field_descriptor->is_delimited()) {
+        type = TYPE_GROUP;
         options |= field_options::group;
       }
 

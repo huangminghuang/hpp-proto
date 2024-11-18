@@ -188,6 +188,9 @@ else()
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
         add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
+        if (edition_support)
+            target_compile_definitions(dynamic_serializer_tests PRIVATE EDITION_SUPPORT)
+        endif()
         target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
 
         add_test(NAME dynamic_serializer_tests
