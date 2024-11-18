@@ -931,18 +931,16 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(eq(119, message.get_extension(protobuf_unittest::optional_foreign_message_extension()).value().c.value()));
   expect(eq(120, message.get_extension(protobuf_unittest::optional_import_message_extension()).value().d.value()));
 
-  expect(protobuf_unittest::TestAllTypes::NestedEnum::BAZ ==
-         message.get_extension(protobuf_unittest::optional_nested_enum_extension()).value());
-  expect(protobuf_unittest::ForeignEnum::FOREIGN_BAZ ==
-         message.get_extension(protobuf_unittest::optional_foreign_enum_extension()).value());
-  expect(protobuf_unittest_import::ImportEnum::IMPORT_BAZ ==
-         message.get_extension(protobuf_unittest::optional_import_enum_extension()).value());
+  using enum protobuf_unittest::TestAllTypes::NestedEnum;
+  expect(BAZ == message.get_extension(protobuf_unittest::optional_nested_enum_extension()).value());
+  using enum protobuf_unittest::ForeignEnum;
+  expect(FOREIGN_BAZ == message.get_extension(protobuf_unittest::optional_foreign_enum_extension()).value());
+  using enum protobuf_unittest_import::ImportEnum;
+  expect(IMPORT_BAZ == message.get_extension(protobuf_unittest::optional_import_enum_extension()).value());
 
-  expect(eq(
-      "124"sv,
-      message.get_extension(protobuf_unittest::optional_string_piece_extension(), hpp::proto::alloc_from{mr}).value()));
-  expect(eq("125"sv,
-            message.get_extension(protobuf_unittest::optional_cord_extension(), hpp::proto::alloc_from{mr}).value()));
+  auto opt = hpp::proto::alloc_from{mr};
+  expect(eq("124"sv, message.get_extension(protobuf_unittest::optional_string_piece_extension(), opt).value()));
+  expect(eq("125"sv, message.get_extension(protobuf_unittest::optional_cord_extension(), opt).value()));
   expect(
       eq(126, message.get_extension(protobuf_unittest::optional_public_import_message_extension()).value().e.value()));
   expect(eq(127, message.get_extension(protobuf_unittest::optional_lazy_message_extension()).value().bb.value()));
@@ -1091,12 +1089,12 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
       "416"_bytes,
       message.get_extension(protobuf_unittest::default_bytes_extension(), hpp::proto::alloc_from{mr}).value()));
 
-  expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO ==
-         message.get_extension(protobuf_unittest::default_nested_enum_extension()).value());
-  expect(protobuf_unittest::ForeignEnum::FOREIGN_FOO ==
-         message.get_extension(protobuf_unittest::default_foreign_enum_extension()).value());
-  expect(protobuf_unittest_import::ImportEnum::IMPORT_FOO ==
-         message.get_extension(protobuf_unittest::default_import_enum_extension()).value());
+  using enum protobuf_unittest::TestAllTypes::NestedEnum;
+  expect(FOO == message.get_extension(protobuf_unittest::default_nested_enum_extension()).value());
+  using enum protobuf_unittest::ForeignEnum;
+  expect(FOREIGN_FOO == message.get_extension(protobuf_unittest::default_foreign_enum_extension()).value());
+  using enum protobuf_unittest_import::ImportEnum;
+  expect(IMPORT_FOO == message.get_extension(protobuf_unittest::default_import_enum_extension()).value());
 
   expect(eq(
       "424"sv,
@@ -1189,18 +1187,16 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(!message.get_extension(protobuf_unittest::optional_lazy_message_extension()).has_value());
 
   // Enums without defaults are set to the first value in the enum.
-  expect(protobuf_unittest::TestAllTypes::NestedEnum::FOO ==
-         message.get_extension(protobuf_unittest::optional_nested_enum_extension()).value());
-  expect(protobuf_unittest::ForeignEnum::FOREIGN_FOO ==
-         message.get_extension(protobuf_unittest::optional_foreign_enum_extension()).value());
-  expect(protobuf_unittest_import::ImportEnum::IMPORT_FOO ==
-         message.get_extension(protobuf_unittest::optional_import_enum_extension()).value());
+  using enum protobuf_unittest::TestAllTypes::NestedEnum;
+  expect(FOO == message.get_extension(protobuf_unittest::optional_nested_enum_extension()).value());
+  using enum protobuf_unittest::ForeignEnum;
+  expect(FOREIGN_FOO == message.get_extension(protobuf_unittest::optional_foreign_enum_extension()).value());
+  using enum protobuf_unittest_import::ImportEnum;
+  expect(IMPORT_FOO == message.get_extension(protobuf_unittest::optional_import_enum_extension()).value());
 
-  expect(eq(
-      ""sv,
-      message.get_extension(protobuf_unittest::optional_string_piece_extension(), hpp::proto::alloc_from{mr}).value()));
-  expect(eq(""sv,
-            message.get_extension(protobuf_unittest::optional_cord_extension(), hpp::proto::alloc_from{mr}).value()));
+  auto opt = hpp::proto::alloc_from{mr};
+  expect(eq(""sv, message.get_extension(protobuf_unittest::optional_string_piece_extension(), opt).value()));
+  expect(eq(""sv, message.get_extension(protobuf_unittest::optional_cord_extension(), opt).value()));
 
   // Repeated fields are empty.
   expect(!message.has_extension(protobuf_unittest::repeated_int32_extension()));
@@ -1269,24 +1265,19 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(eq(51.5, message.get_extension(protobuf_unittest::default_float_extension()).value()));
   expect(eq(52e3, message.get_extension(protobuf_unittest::default_double_extension()).value()));
   expect(message.get_extension(protobuf_unittest::default_bool_extension()).value());
-  expect(eq("hello"sv,
-            message.get_extension(protobuf_unittest::default_string_extension(), hpp::proto::alloc_from{mr}).value()));
-  expect(std::ranges::equal(
-      "world"_bytes,
-      message.get_extension(protobuf_unittest::default_bytes_extension(), hpp::proto::alloc_from{mr}).value()));
+  expect(eq("hello"sv, message.get_extension(protobuf_unittest::default_string_extension(), opt).value()));
+  expect(std::ranges::equal("world"_bytes,
+                            message.get_extension(protobuf_unittest::default_bytes_extension(), opt).value()));
 
-  expect(protobuf_unittest::TestAllTypes::NestedEnum::BAR ==
-         message.get_extension(protobuf_unittest::default_nested_enum_extension()).value());
-  expect(protobuf_unittest::ForeignEnum::FOREIGN_BAR ==
-         message.get_extension(protobuf_unittest::default_foreign_enum_extension()).value());
-  expect(protobuf_unittest_import::ImportEnum::IMPORT_BAR ==
-         message.get_extension(protobuf_unittest::default_import_enum_extension()).value());
+  using enum protobuf_unittest::TestAllTypes::NestedEnum;
+  expect(BAR == message.get_extension(protobuf_unittest::default_nested_enum_extension()).value());
+  using enum protobuf_unittest::ForeignEnum;
+  expect(FOREIGN_BAR == message.get_extension(protobuf_unittest::default_foreign_enum_extension()).value());
+  using enum protobuf_unittest_import::ImportEnum;
+  expect(IMPORT_BAR == message.get_extension(protobuf_unittest::default_import_enum_extension()).value());
 
-  expect(eq(
-      "abc"sv,
-      message.get_extension(protobuf_unittest::default_string_piece_extension(), hpp::proto::alloc_from{mr}).value()));
-  expect(eq("123"sv,
-            message.get_extension(protobuf_unittest::default_cord_extension(), hpp::proto::alloc_from{mr}).value()));
+  expect(eq("abc"sv, message.get_extension(protobuf_unittest::default_string_piece_extension(), opt).value()));
+  expect(eq("123"sv, message.get_extension(protobuf_unittest::default_cord_extension(), opt).value()));
 
   expect(!message.has_extension(protobuf_unittest::oneof_uint32_extension()));
   expect(!message.has_extension(protobuf_unittest::oneof_nested_message_extension()));

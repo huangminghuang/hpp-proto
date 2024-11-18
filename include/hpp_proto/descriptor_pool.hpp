@@ -247,7 +247,7 @@ struct descriptor_pool {
   flat_map<std::string, file_descriptor_t *> file_map;
   flat_map<std::string, message_descriptor_t *> message_map;
   flat_map<std::string, enum_descriptor_t *> enum_map;
-  google::protobuf::Edition current_edition;
+  google::protobuf::Edition current_edition = {};
 
   google::protobuf::FeatureSet merge_features(google::protobuf::FeatureSet features, const auto &options) {
     if (options.has_value() && current_edition > google::protobuf::Edition::EDITION_PROTO3) {

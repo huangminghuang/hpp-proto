@@ -1737,10 +1737,17 @@ int main(int argc, const char **argv) {
     std::copy(std::istreambuf_iterator<char>(strm), std::istreambuf_iterator<char>(), std::back_inserter(request_data));
   };
 
+  using namespace std::string_view_literals;
+
+  if (args.size() == 3 &&  "--input"sv == args[1]) {
+    std::ifstream request_file(args[2], std::ios_base::binary);
+    read_file(request_file);
+  } else {
 #ifdef _WIN32
-  _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdin), _O_BINARY);
 #endif
-  read_file(std::cin);
+    read_file(std::cin);
+  }
 
   gpb::compiler::CodeGeneratorRequest request;
 

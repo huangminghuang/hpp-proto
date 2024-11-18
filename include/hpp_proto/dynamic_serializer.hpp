@@ -1587,7 +1587,6 @@ public:
 
   expected<std::string, std::errc> proto_to_json(std::string_view message_name,
                                                  concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
-
     return proto_to_json(message_name, pb_encoded_stream, glz_opts_t<glz::opts{}>{});
   }
 
