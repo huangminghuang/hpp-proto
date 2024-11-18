@@ -1089,11 +1089,8 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
       "416"_bytes,
       message.get_extension(protobuf_unittest::default_bytes_extension(), hpp::proto::alloc_from{mr}).value()));
 
-  using enum protobuf_unittest::TestAllTypes::NestedEnum;
   expect(FOO == message.get_extension(protobuf_unittest::default_nested_enum_extension()).value());
-  using enum protobuf_unittest::ForeignEnum;
   expect(FOREIGN_FOO == message.get_extension(protobuf_unittest::default_foreign_enum_extension()).value());
-  using enum protobuf_unittest_import::ImportEnum;
   expect(IMPORT_FOO == message.get_extension(protobuf_unittest::default_import_enum_extension()).value());
 
   expect(eq(
@@ -1269,11 +1266,8 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(std::ranges::equal("world"_bytes,
                             message.get_extension(protobuf_unittest::default_bytes_extension(), opt).value()));
 
-  using enum protobuf_unittest::TestAllTypes::NestedEnum;
   expect(BAR == message.get_extension(protobuf_unittest::default_nested_enum_extension()).value());
-  using enum protobuf_unittest::ForeignEnum;
   expect(FOREIGN_BAR == message.get_extension(protobuf_unittest::default_foreign_enum_extension()).value());
-  using enum protobuf_unittest_import::ImportEnum;
   expect(IMPORT_BAR == message.get_extension(protobuf_unittest::default_import_enum_extension()).value());
 
   expect(eq("abc"sv, message.get_extension(protobuf_unittest::default_string_piece_extension(), opt).value()));
