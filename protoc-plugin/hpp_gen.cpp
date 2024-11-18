@@ -1739,7 +1739,7 @@ int main(int argc, const char **argv) {
 
   using namespace std::string_view_literals;
 
-  if (args.size() == 3 &&  "--input"sv == args[1]) {
+  if (args.size() == 3 && "--input"sv == args[1]) {
     std::ifstream request_file(args[2], std::ios_base::binary);
     read_file(request_file);
   } else {
