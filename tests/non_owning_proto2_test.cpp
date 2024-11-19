@@ -84,8 +84,7 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypes *message) {
 
 // -------------------------------------------------------------------
 
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #endif
 
@@ -1107,9 +1106,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(std::ranges::equal("604"_bytes_view,
                             message.get_extension(protobuf_unittest::oneof_bytes_extension(), opt).value()));
 }
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+
 // -------------------------------------------------------------------
 
 inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
