@@ -29,17 +29,6 @@
 #include <span>
 #include <string_view>
 
-#if !defined(__cpp_lib_ranges_contains)
-// NOLINTBEGIN(cert-dcl58-cpp)
-namespace std::ranges {
-template <std::ranges::input_range R, class T>
-constexpr bool contains(R &&r, const T &value) {
-  return std::find(std::begin(std::forward<R>(r)), std::end(std::forward<R>(r)), value) != std::end(std::forward<R>(r));
-}
-} // namespace std::ranges
-// NOLINTEND(cert-dcl58-cpp)
-#endif
-
 namespace hpp::proto {
 namespace concepts {
 template <typename T>
@@ -97,7 +86,7 @@ public:
   alloc_from(alloc_from &&other) = default;
   alloc_from &operator=(const alloc_from &) = default;
   alloc_from &operator=(alloc_from &&) = default;
-  T &memory_resource() const { return *mr; }
+  [[nodiscard]] T &memory_resource() const { return *mr; }
 };
 
 // Always allocate memory for string and bytes fields when

@@ -673,7 +673,7 @@ constexpr auto make_tag(uint32_t number, wire_type type) {
 }
 
 template <typename Type, typename Meta>
-constexpr auto make_tag(Meta meta) {
+constexpr auto make_tag(const Meta& meta) {
   return make_tag(meta.number, tag_type<Type>());
 }
 

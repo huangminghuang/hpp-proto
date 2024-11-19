@@ -31,8 +31,8 @@ Checks: "*,
         -misc-no-recursion,
         -clang-analyzer-optin.performance.Padding,
         -modernize-raw-string-literal,
-        -boost-*,
-        bugprone-crtp-constructor-accessibility
+        -bugprone-crtp-constructor-accessibility,
+        -boost-*     
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'

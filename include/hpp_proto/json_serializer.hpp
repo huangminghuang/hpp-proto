@@ -100,7 +100,9 @@ struct optional_ref {
   operator bool() const { return !is_default_value<T, Default>(val); }
   template <typename U>
   static U &deref(U &v) {
+    // NOLINTBEGIN(bugprone-return-const-ref-from-parameter)
     return v;
+    // NOLINTEND(bugprone-return-const-ref-from-parameter)
   }
 
   template <concepts::jsonfy_need_quote U>
@@ -730,7 +732,7 @@ constexpr glz::opts get_glz_opts() {
 } // namespace detail
 
 template <uint8_t width = 3>
-constexpr auto indent_level = glz_opts_t<glz::opts{.prettify = (width > 0), .indentation_width = width}>{};
+constexpr auto indent_level = glz_opts_t<glz::opts{.prettify = static_cast<uint8_t>(width > 0), .indentation_width = width}>{};
 
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
