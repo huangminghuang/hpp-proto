@@ -10,22 +10,22 @@ using namespace std::string_view_literals;
 const ut::suite varint_decode_tests = [] {
   using namespace boost::ut;
   "unchecked_parse_bool"_test = [] {
-    bool value;
+    bool value = true;
     std::string_view data = "\x00"sv;
     expect(hpp::proto::unchecked_parse_bool(data.data(), data.data() + data.size(), value) ==
            data.data() + data.size());
-    expect(value == false);
+    expect(!value);
 
     data = "\x01"sv;
     expect(hpp::proto::unchecked_parse_bool(data.data(), data.data() + data.size(), value) ==
            data.data() + data.size());
-    expect(value == true);
+    expect(value);
 
     // oversized bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x01"sv;
     expect(hpp::proto::unchecked_parse_bool(data.data(), data.data() + data.size(), value) ==
            data.data() + data.size());
-    expect(value == true);
+    expect(value);
 
     // unterminated bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
@@ -37,10 +37,10 @@ const ut::suite varint_decode_tests = [] {
 
   "unchecked_parse_varint"_test =
       [](int64_t arg) {
-        std::array<std::byte, 16> data;
+        std::array<std::byte, 16> data = {};
         auto end = hpp::proto::unchecked_pack_varint(hpp::proto::varint{arg}, data.data());
 
-        int64_t parsed_value;
+        int64_t parsed_value = 0;
         ut::expect(hpp::proto::shift_mix_parse_varint<int64_t>(data.data(), data.data() + data.size(), parsed_value) ==
                    end);
       } |
@@ -741,6 +741,11 @@ const ut::suite test_string_example = [] {
   };
 
   "string_required"_test = [] { verify("\x0a\x00"sv, string_required{}); };
+
+  "invalid_utf8"_test = [] {
+    string_example v{.value = "\xC0\xDF"};
+    ut::expect(!hpp::proto::write_proto(v).has_value());
+  };
 };
 
 struct string_view_example {

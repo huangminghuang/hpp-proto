@@ -224,9 +224,9 @@ class dynamic_serializer {
       }
     }
 
-    constexpr bool is_packed_repeated() const { return (options & field_options::packed) != 0; }
-    constexpr bool is_repeated() const { return (options & field_options::repeated) != 0; }
-    constexpr bool is_map_entry() const { return (options & field_options::is_map_entry) != 0; }
+    [[nodiscard]] constexpr bool is_packed_repeated() const { return (options & field_options::packed) != 0; }
+    [[nodiscard]] constexpr bool is_repeated() const { return (options & field_options::repeated) != 0; }
+    [[nodiscard]] constexpr bool is_map_entry() const { return (options & field_options::is_map_entry) != 0; }
   };
 
   [[nodiscard]] std::size_t message_index(std::string_view name) const {

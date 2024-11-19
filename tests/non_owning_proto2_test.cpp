@@ -1093,11 +1093,8 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(FOREIGN_FOO == message.get_extension(protobuf_unittest::default_foreign_enum_extension()).value());
   expect(IMPORT_FOO == message.get_extension(protobuf_unittest::default_import_enum_extension()).value());
 
-  expect(eq(
-      "424"sv,
-      message.get_extension(protobuf_unittest::default_string_piece_extension(), hpp::proto::alloc_from{mr}).value()));
-  expect(eq("425"sv,
-            message.get_extension(protobuf_unittest::default_cord_extension(), hpp::proto::alloc_from{mr}).value()));
+  expect(eq("424"sv, message.get_extension(protobuf_unittest::default_string_piece_extension(), opt).value()));
+  expect(eq("425"sv, message.get_extension(protobuf_unittest::default_cord_extension(), opt).value()));
 
   expect(message.has_extension(protobuf_unittest::oneof_uint32_extension()));
   expect(message.get_extension(protobuf_unittest::oneof_nested_message_extension())->bb);
@@ -1106,11 +1103,9 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
 
   expect(eq(601, message.get_extension(protobuf_unittest::oneof_uint32_extension()).value()));
   expect(eq(602, message.get_extension(protobuf_unittest::oneof_nested_message_extension())->bb.value()));
-  expect(eq("603"sv,
-            message.get_extension(protobuf_unittest::oneof_string_extension(), hpp::proto::alloc_from{mr}).value()));
-  expect(std::ranges::equal(
-      "604"_bytes_view,
-      message.get_extension(protobuf_unittest::oneof_bytes_extension(), hpp::proto::alloc_from{mr}).value()));
+  expect(eq("603"sv, message.get_extension(protobuf_unittest::oneof_string_extension(), opt).value()));
+  expect(std::ranges::equal("604"_bytes_view,
+                            message.get_extension(protobuf_unittest::oneof_bytes_extension(), opt).value()));
 }
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop

@@ -81,7 +81,7 @@ concept dynamic_sized_view =
     std::derived_from<T, std::span<typename T::element_type>> || std::same_as<T, std::string_view>;
 
 template <typename T>
-concept strict_allocation_context = is_pb_context<T> && requires { requires T::always_allocate == true; };
+concept strict_allocation_context = is_pb_context<T> && requires { requires T::always_allocate; };
 } // namespace concepts
 
 template <concepts::memory_resource T, bool Strict = false>
@@ -94,7 +94,9 @@ public:
   explicit alloc_from(T &m) : mr(&m) {}
   ~alloc_from() = default;
   alloc_from(const alloc_from &other) = default;
+  alloc_from(alloc_from &&other) = default;
   alloc_from &operator=(const alloc_from &) = default;
+  alloc_from &operator=(alloc_from &&) = default;
   T &memory_resource() const { return *mr; }
 };
 
@@ -289,7 +291,7 @@ public:
     assign_range_with_size(view_, n);
     if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
       using input_it = raw_data_iterator<value_type, ByteT>;
-      std::uninitialized_copy(input_it{start_pos}, input_it{start_pos + num_elements * sizeof(value_type)},
+      std::uninitialized_copy(input_it{start_pos}, input_it{start_pos + (num_elements * sizeof(value_type))},
                               data_ + old_size);
     } else {
       std::memcpy(data_ + old_size, start_pos, num_elements * sizeof(value_type));

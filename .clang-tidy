@@ -30,7 +30,9 @@ Checks: "*,
         -readability-named-parameter,
         -misc-no-recursion,
         -clang-analyzer-optin.performance.Padding,
-        -modernize-raw-string-literal
+        -modernize-raw-string-literal,
+        -boost-*,
+        bugprone-crtp-constructor-accessibility
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'

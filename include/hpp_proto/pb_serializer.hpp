@@ -721,8 +721,8 @@ struct serialize_type<bool> {
   using convertible_type = boolean;
 };
 
-template <typename KeyType, typename MappedType, int KeyOptions = field_option::none,
-          int MappedOptions = field_option::none>
+template <typename KeyType, typename MappedType, unsigned int KeyOptions = field_option::none,
+          unsigned int MappedOptions = field_option::none>
 struct map_entry {
   using key_type = KeyType;
   using mapped_type = MappedType;
@@ -1319,7 +1319,7 @@ struct pb_serializer {
       msg_size = s;
       return tag_size + len_size(s);
     } else {
-      return 2 * tag_size + message_size(item, cache_itr);
+      return (2 * tag_size) + message_size(item, cache_itr);
     }
   }
 
@@ -1557,8 +1557,9 @@ struct pb_serializer {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto tag = make_tag<type>(meta);
     auto &&[key, value] = item;
-    if (utf8_validation_failed(meta, key))
+    if (utf8_validation_failed(meta, key)) {
       return false;
+    }
     archive(tag, varint{*cache_itr++});
     using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
     static_assert(concepts::has_meta<value_type>);
@@ -1619,7 +1620,7 @@ struct pb_serializer {
       } else if (std::is_constant_evaluated() ||
                  (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
         using input_it = detail::raw_data_iterator<value_type, ByteT>;
-        container.insert(container.end(), input_it{start_pos}, input_it{start_pos + num_elements * sizeof(value_type)});
+        container.insert(container.end(), input_it{start_pos}, input_it{start_pos + (num_elements * sizeof(value_type))});
       } else {
         auto n = container.size();
         container.resize(n + num_elements);

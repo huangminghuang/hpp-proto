@@ -119,7 +119,9 @@ public:
       : _value(other.value_or(default_value())), _present(other.has_value()) {}
 
   constexpr optional(std::optional<T> &&other) : _present(other.has_value()) {
+    // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
     _value = std::move(other).value_or(default_value());
+    // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
   }
 
   template <class U>
@@ -128,7 +130,9 @@ public:
 
   template <class U>
   constexpr optional(std::optional<U> &&other) : _present(other.has_value()) {
+    // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
     _value = std::move(other).value_or(default_value());
+    // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
   }
 
   template <class... Args>
@@ -330,8 +334,12 @@ public:
   static constexpr bool default_value() { return as_bool(Default); }
 
 private:
-  static constexpr uint8_t default_state = 0x80 | uint8_t(default_value()); // use 0x80 to denote empty state
-  bool &deref() { return reinterpret_cast<bool &>(impl); }
+  static constexpr uint8_t default_state = 0x80U | uint8_t(default_value()); // use 0x80 to denote empty state
+  bool &deref() { 
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<bool &>(impl); 
+    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+  }
   uint8_t impl = default_state;
 
 public:
@@ -344,7 +352,7 @@ public:
   constexpr optional &operator=(const optional &) noexcept = default;
   constexpr optional &operator=(optional &&) noexcept = default;
 
-  [[nodiscard]] constexpr bool has_value() const noexcept { return (impl & 0x80) == 0; }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return (impl & 0x80U) == 0; }
   constexpr bool operator*() const noexcept { return value(); }
 
   bool &emplace() noexcept {
@@ -357,7 +365,7 @@ public:
     return deref();
   }
 
-  [[nodiscard]] constexpr bool value() const { return static_cast<bool>(impl & 0x01); }
+  [[nodiscard]] constexpr bool value() const { return static_cast<bool>(impl & 0x01U); }
 
   constexpr optional &operator=(bool v) noexcept {
     impl = uint8_t(v);
@@ -492,10 +500,7 @@ public:
   // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
   // NOLINTBEGIN(bugprone-unhandled-self-assignment, cert-oop54-cpp)
-  constexpr optional_message_view &operator=(const optional_message_view &other) noexcept {
-    obj = other.obj;
-    return *this;
-  }
+  constexpr optional_message_view &operator=(const optional_message_view &other) noexcept = default;
   // NOLINTEND(bugprone-unhandled-self-assignment, cert-oop54-cpp)
 
   constexpr optional_message_view &operator=(const T *other) noexcept {
