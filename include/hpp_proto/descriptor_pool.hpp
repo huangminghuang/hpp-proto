@@ -62,7 +62,7 @@ auto options_with_default_features(const auto &proto, google::protobuf::FeatureS
   return options;
 }
 } // namespace detail
-// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members, bugprone-unchecked-optional-access)
 template <typename AddOns>
 struct descriptor_pool {
   struct field_descriptor_t : AddOns::template field_descriptor<field_descriptor_t> {
@@ -374,5 +374,5 @@ struct descriptor_pool {
     }
   }
 };
-// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
+// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members, bugprone-unchecked-optional-access)
 } // namespace hpp::proto
