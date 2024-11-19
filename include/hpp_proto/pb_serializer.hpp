@@ -1620,7 +1620,8 @@ struct pb_serializer {
       } else if (std::is_constant_evaluated() ||
                  (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
         using input_it = detail::raw_data_iterator<value_type, ByteT>;
-        container.insert(container.end(), input_it{start_pos}, input_it{start_pos + (num_elements * sizeof(value_type))});
+        container.insert(container.end(), input_it{start_pos},
+                         input_it{start_pos + (num_elements * sizeof(value_type))});
       } else {
         auto n = container.size();
         container.resize(n + num_elements);

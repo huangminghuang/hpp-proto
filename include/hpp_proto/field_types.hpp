@@ -335,9 +335,9 @@ public:
 
 private:
   static constexpr uint8_t default_state = 0x80U | uint8_t(default_value()); // use 0x80 to denote empty state
-  bool &deref() { 
+  bool &deref() {
     // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-    return reinterpret_cast<bool &>(impl); 
+    return reinterpret_cast<bool &>(impl);
     // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
   }
   uint8_t impl = default_state;

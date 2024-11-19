@@ -89,7 +89,7 @@ struct descriptor_pool {
                 options.features->field_presence == FIELD_PRESENCE_UNKNOWN);
       } else if (proto.label == LABEL_REPEATED || proto.label == LABEL_REQUIRED) {
         return false;
-      } 
+      }
 
       unreachable();
     }
@@ -174,7 +174,9 @@ struct descriptor_pool {
       }
     }
 
-    [[nodiscard]] bool is_closed() const { return options.features.value().enum_type == google::protobuf::FeatureSet::EnumType::CLOSED; }
+    [[nodiscard]] bool is_closed() const {
+      return options.features.value().enum_type == google::protobuf::FeatureSet::EnumType::CLOSED;
+    }
   };
 
   struct message_descriptor_t : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t,
