@@ -333,6 +333,5 @@ constexpr T &as_modifiable(const auto & /* unused */, T &view) {
 }
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-
 } // namespace detail
 } // namespace hpp::proto

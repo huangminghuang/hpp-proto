@@ -764,7 +764,7 @@ inline json_status read_json(glz::read_json_supported auto &value, concepts::con
 }
 
 template <glz::read_json_supported T>
-inline auto read_json(concepts::contiguous_byte_range auto const&buffer,
+inline auto read_json(concepts::contiguous_byte_range auto const &buffer,
                       concepts::is_option_type auto &&...option) -> glz::expected<T, json_status> {
   T value;
   if (auto result = read_json(value, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);

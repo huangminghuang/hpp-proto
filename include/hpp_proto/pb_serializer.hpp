@@ -995,7 +995,7 @@ public:
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
 #if defined(__GNUC__) || defined(__clang__)
-    uint64_t result; // NOLINT(cppcoreguidelines-init-variables)
+    uint64_t result;                                           // NOLINT(cppcoreguidelines-init-variables)
     asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask)); // NOLINT(hicpp-no-assembler)
     return result;
 #else

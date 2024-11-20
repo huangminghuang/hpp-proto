@@ -888,7 +888,7 @@ class dynamic_serializer {
         buffer.resize(2 * (buffer.size() + sz));
       }
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      auto out_span = std::span{buffer.data() + position, remaining_size()}; 
+      auto out_span = std::span{buffer.data() + position, remaining_size()};
       pb_serializer::basic_out archive{out_span};
       (serialize(std::forward<Item>(item), archive), ...);
       position += sz;

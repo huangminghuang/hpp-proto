@@ -80,7 +80,7 @@ static constexpr auto unwrap(T v) {
 
 // NOLINTBEGIN(hicpp-explicit-conversions)
 template <typename T, auto Default = std::monostate{}>
-requires requires {  !std::is_pointer_v<T>;  }
+  requires requires { !std::is_pointer_v<T>; }
 class optional { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
   static constexpr bool has_default_value = true;
@@ -160,7 +160,7 @@ public:
   constexpr optional &operator=(U &&value) {
     // array to pointer decay is impossible because T cannot be a pointer type
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-    _value = static_cast<T>(std::forward<U>(value)); 
+    _value = static_cast<T>(std::forward<U>(value));
     _present = true;
     return *this;
   }
