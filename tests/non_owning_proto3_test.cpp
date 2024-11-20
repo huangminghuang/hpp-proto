@@ -144,7 +144,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
 
     proto3_unittest::TestAllTypes msg;
 
-    monotonic_buffer_resource mr{4096};
+    std::pmr::monotonic_buffer_resource mr;
     std::vector<std::byte> data;
 
     expect(hpp::proto::write_proto(original, data).ok());
@@ -159,7 +159,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
 
     proto3_unittest::TestUnpackedTypes msg;
 
-    monotonic_buffer_resource mr{4096};
+    std::pmr::monotonic_buffer_resource mr;
     std::vector<char> data;
     expect(hpp::proto::write_proto(original, data).ok());
     expect(hpp::proto::read_proto(msg, data, hpp::proto::alloc_from{mr}).ok());
@@ -179,7 +179,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     proto3_unittest::TestAllTypes original;
     SetAllFields(&original);
 
-    monotonic_buffer_resource mr{4096};
+    std::pmr::monotonic_buffer_resource mr;
     std::vector<char> data;
     expect(hpp::proto::write_proto(original, data).ok());
 

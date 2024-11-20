@@ -904,7 +904,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(message.has_extension(protobuf_unittest::optional_string_piece_extension()));
   expect(message.has_extension(protobuf_unittest::optional_cord_extension()));
 
-  monotonic_buffer_resource mr(8192);
+  std::pmr::monotonic_buffer_resource mr;
 
   expect(eq(101, message.get_extension(protobuf_unittest::optional_int32_extension()).value()));
   expect(eq(102, message.get_extension(protobuf_unittest::optional_int64_extension()).value()));
@@ -1114,7 +1114,7 @@ inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
   expect(hpp::proto::write_proto(message, data).ok());
   expect(eq(0, data.size()));
 
-  monotonic_buffer_resource mr(16);
+  std::pmr::monotonic_buffer_resource mr;
 
   //.blah.has_value() should initially be false for all optional fields.
   expect(!message.has_extension(protobuf_unittest::optional_int32_extension()));
@@ -1327,7 +1327,7 @@ inline void SetAll(protobuf_unittest::TestPackedExtensions *message, auto &&mr) 
 // -------------------------------------------------------------------
 
 inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message) {
-  monotonic_buffer_resource mr(8192);
+  std::pmr::monotonic_buffer_resource mr;
   expect(std::ranges::equal(
       message.get_extension(protobuf_unittest::packed_int32_extension(), hpp::proto::alloc_from{mr}).value(),
       std::vector<int32_t>{601, 701}));
@@ -1377,7 +1377,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message)
 // -------------------------------------------------------------------
 
 inline void ExpectAllSet(const protobuf_unittest::TestUnpackedExtensions &message) {
-  monotonic_buffer_resource mr(8192);
+  std::pmr::monotonic_buffer_resource mr;
   expect(std::ranges::equal(
       message.get_extension(protobuf_unittest::unpacked_int32_extension(), hpp::proto::alloc_from{mr}).value(),
       std::vector<int32_t>{601, 701}));
@@ -1473,7 +1473,6 @@ inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message) {
 
 } // namespace TestUtil
 
-const std::size_t max_memory_resource_size = 1U << 20U;
 const boost::ut::suite proto_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
@@ -1485,7 +1484,7 @@ const boost::ut::suite proto_test = [] {
         T message;
         T message2;
         T message3;
-        monotonic_buffer_resource mr{max_memory_resource_size};
+        std::pmr::monotonic_buffer_resource mr;
 
         if constexpr (requires { TestUtil::ExpectClear(message); }) {
           TestUtil::ExpectClear(message);
@@ -1508,7 +1507,7 @@ const boost::ut::suite proto_test = [] {
   "interoperate_with_google_protobuf_parser"_test =
       [&]<class T> {
         T original;
-        monotonic_buffer_resource mr{max_memory_resource_size};
+        std::pmr::monotonic_buffer_resource mr;
 
         TestUtil::SetAll(&original, hpp::proto::alloc_from{mr});
 

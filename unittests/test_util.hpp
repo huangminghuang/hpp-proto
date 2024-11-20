@@ -42,31 +42,6 @@ inline std::ostream &operator<<(std::ostream &os, const std::vector<std::byte> &
 
 inline std::ostream &operator<<(std::ostream &os, std::span<const std::byte> bytes) { return os << to_hex(bytes); }
 
-struct monotonic_buffer_resource {
-  std::size_t size;
-  std::unique_ptr<char[]> mem;
-  void *cur = nullptr;
-  explicit monotonic_buffer_resource(std::size_t sz) : size(sz), mem(new char[sz]), cur(mem.get()) {}
-  monotonic_buffer_resource(const monotonic_buffer_resource &) = delete;
-  monotonic_buffer_resource(monotonic_buffer_resource &&) = delete;
-
-  monotonic_buffer_resource &operator=(const monotonic_buffer_resource &) = delete;
-  monotonic_buffer_resource &operator=(monotonic_buffer_resource &&) = delete;
-
-  ~monotonic_buffer_resource() = default;
-  void *allocate(std::size_t n, std::size_t alignment) {
-    if (std::align(alignment, n, cur, size) != nullptr) {
-      size -= n;
-      auto *result = cur;
-      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      cur = static_cast<char *>(cur) + n;
-      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      return result;
-    }
-    throw std::bad_alloc{};
-  }
-};
-
 template <hpp::proto::compile_time_string str>
 constexpr auto operator""_bytes_view() {
   return static_cast<hpp::proto::bytes_view>(hpp::proto::bytes_literal<str>{});

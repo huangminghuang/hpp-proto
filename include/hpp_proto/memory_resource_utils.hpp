@@ -72,6 +72,10 @@ concept dynamic_sized_view =
 
 template <typename T>
 concept strict_allocation_context = is_pb_context<T> && requires { requires T::always_allocate; };
+
+template <typename T>
+concept byte_serializable =
+    std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
 } // namespace concepts
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 template <concepts::memory_resource T, bool Strict = false>
@@ -131,57 +135,62 @@ auto &get_memory_resource(T &v) {
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 namespace detail {
+template <concepts::byte_serializable T, std::ranges::contiguous_range Range>
+class reinterpret_view_t : public std::ranges::view_interface<reinterpret_view_t<T, Range>> {
+  using base_value_type = std::ranges::range_value_t<Range>;
+  using base_type = std::span<const base_value_type>;
+  static constexpr auto chunk_size = sizeof(T);
+  base_type base;
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-template <typename T, typename ByteT>
-struct raw_data_iterator {
-  const ByteT *base;
+public:
+  class iterator {
+    const base_value_type *current;
 
-  using iterator_category = std::random_access_iterator_tag;
-  using difference_type = std::size_t;
-  using value_type = T;
-  using reference = value_type &;
-  using pointer = value_type *;
+  public:
+    using iterator_category = std::input_iterator_tag;
+    using difference_type = std::size_t;
+    using value_type = T;
+    using reference = value_type &;
+    using pointer = value_type *;
 
-  // NOLINTBEGIN(bugprone-sizeof-expression)
-  constexpr std::size_t operator-(raw_data_iterator other) const { return (this->base - other.base) / sizeof(T); }
-  // NOLINTEND(bugprone-sizeof-expression)
+    constexpr explicit iterator(const base_value_type *cur = nullptr) : current(cur) {}
+    constexpr ~iterator() = default;
+    constexpr iterator(const iterator &) = default;
+    constexpr iterator(iterator &&) = default;
+    constexpr iterator &operator=(const iterator &) = default;
+    constexpr iterator &operator=(iterator &&) = default;
+    constexpr bool operator==(const iterator &) const = default;
 
-  constexpr bool operator==(raw_data_iterator other) { return other.base == this->base; }
-  constexpr bool operator!=(raw_data_iterator s) { return !(*this == s); }
-
-  constexpr raw_data_iterator &operator++() {
-    this->base += sizeof(T);
-    return *this;
-  }
-
-  constexpr raw_data_iterator &operator+=(std::size_t n) {
-    this->base += (n * sizeof(T));
-    return *this;
-  }
-
-  constexpr raw_data_iterator &operator--() {
-    this->base -= sizeof(T);
-    return *this;
-  }
-
-  constexpr raw_data_iterator &operator-=(std::size_t n) {
-    this->base -= (n * sizeof(T));
-    return *this;
-  }
-
-  constexpr T operator*() const {
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    std::array<ByteT, sizeof(T)> v;
-    if (std::endian::little == std::endian::native) {
-      std::copy(base, base + sizeof(T), v.data());
-    } else {
-      std::reverse_copy(base, base + sizeof(T), v.data());
+    constexpr iterator &operator++() {
+      current += chunk_size; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      return *this;
     }
-    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    return std::bit_cast<T>(v);
+    constexpr void operator++(int) const { ++*this; }
+
+    constexpr value_type operator*() const {
+      std::array<base_value_type, chunk_size> v; // NOLINT(hicpp-member-init)
+      auto source = std::span{current, chunk_size};
+      if (std::endian::little == std::endian::native) {
+        std::ranges::copy(source, v.data());
+      } else {
+        std::ranges::reverse_copy(source, v.data());
+      }
+      return std::bit_cast<T>(v);
+    }
+  };
+
+  constexpr explicit reinterpret_view_t(const Range &input_range) : base(input_range.data(), input_range.size()) {
+    assert((input_range.size() % chunk_size) == 0);
   }
+
+  [[nodiscard]] constexpr iterator begin() const { return iterator{base.data()}; }
+  [[nodiscard]] constexpr iterator end() const { return iterator{base.data() + base.size()}; }
 };
+
+template <typename T, concepts::contiguous_byte_range Bytes>
+auto reinterpret_view(const Bytes &input_range) {
+  return reinterpret_view_t<T, Bytes>{input_range};
+}
 
 /// The `arena_vector` class adapts an existing hpp::proto::equality_comparable_span or std::string_view, allowing the
 /// underlying memory to be allocated from a designated memory resource. This memory resource releases the allocated
@@ -193,7 +202,7 @@ struct raw_data_iterator {
 ///
 /// @tparam View
 /// @tparam MemoryResource
-
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 template <concepts::dynamic_sized_view View, concepts::memory_resource MemoryResource>
 class arena_vector {
 public:
@@ -282,15 +291,15 @@ public:
   template <typename ByteT>
   constexpr void append_raw_data(const ByteT *start_pos, std::size_t num_elements) {
     auto old_size = view_.size();
-    std::size_t n = old_size + num_elements;
-    assign_range_with_size(view_, n);
+    assign_range_with_size(view_, old_size + num_elements);
+    auto source = std::span{start_pos, num_elements * sizeof(value_type)};
+    auto destination = std::span{data_ + old_size, num_elements};
     // NOLINTNEXTLINE(bugprone-branch-clone)
     if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
-      using input_it = raw_data_iterator<value_type, ByteT>;
-      std::uninitialized_copy(input_it{start_pos}, input_it{start_pos + (num_elements * sizeof(value_type))},
-                              data_ + old_size);
+      auto source_view = reinterpret_view<value_type>(source);
+      std::uninitialized_copy(source_view.begin(), source_view.end(), destination.begin());
     } else {
-      std::memcpy(data_ + old_size, start_pos, num_elements * sizeof(value_type));
+      std::memcpy(destination.data(), source.data(), source.size());
     }
   }
 
@@ -308,6 +317,7 @@ private:
       auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       std::ranges::uninitialized_copy(r, std::span{new_data, n});
       data_ = new_data;
+      capacity_ = n;
     } else if (view_.data() != r.data()) {
       std::ranges::copy(r, data_);
     }

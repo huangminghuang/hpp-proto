@@ -33,7 +33,7 @@ const suite test_any = [] {
   "non_owning_any"_test = [] {
     using namespace std::string_view_literals;
 
-    monotonic_buffer_resource mr{1024};
+    std::pmr::monotonic_buffer_resource mr;
 
     non_owning::protobuf_unittest::TestAny message;
     std::array<std::string_view, 2> paths{"/usr/share"sv, "/usr/local/share"sv};

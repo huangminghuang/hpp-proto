@@ -191,10 +191,6 @@ template <typename T>
 concept arithmetic = std::is_arithmetic_v<T> || concepts::varint<T>;
 
 template <typename T>
-concept byte_serializable =
-    std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
-
-template <typename T>
 concept pb_extension = requires(T value) { typename T::pb_extension; };
 
 template <typename T>
@@ -995,7 +991,7 @@ public:
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
 #if defined(__GNUC__) || defined(__clang__)
-    uint64_t result;                                           // NOLINT(cppcoreguidelines-init-variables)
+    uint64_t result; // NOLINT(cppcoreguidelines-init-variables)
     asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask)); // NOLINT(hicpp-no-assembler)
     return result;
 #else
@@ -1608,9 +1604,8 @@ struct pb_serializer {
         container.append_raw_data(start_pos, num_elements);
       } else if (std::is_constant_evaluated() ||
                  (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
-        using input_it = detail::raw_data_iterator<value_type, ByteT>;
-        container.insert(container.end(), input_it{start_pos},
-                         input_it{start_pos + (num_elements * sizeof(value_type))});
+        auto input_range = detail::reinterpret_view<value_type>(std::span{start_pos, num_elements * sizeof(value_type)});
+        container.insert(container.end(), input_range.begin(), input_range.end());
       } else {
         auto n = container.size();
         container.resize(n + num_elements);

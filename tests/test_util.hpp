@@ -23,9 +23,8 @@ inline std::string read_file(const std::string &filename) {
 std::array<char, 2> to_hex(hpp::proto::concepts::byte_type auto c) {
   static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
   const auto uc = static_cast<unsigned char>(c);
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return {qmap[uc >> 4U], qmap[uc & 0x0FU]};
-  // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
 }
 
 std::string to_hex(hpp::proto::concepts::contiguous_byte_range auto const &data) {
@@ -42,31 +41,6 @@ std::string to_hex(hpp::proto::concepts::contiguous_byte_range auto const &data)
 inline std::ostream &operator<<(std::ostream &os, const std::vector<std::byte> &bytes) { return os << to_hex(bytes); }
 
 inline std::ostream &operator<<(std::ostream &os, std::span<const std::byte> bytes) { return os << to_hex(bytes); }
-
-struct monotonic_buffer_resource {
-  std::size_t size;
-  std::unique_ptr<char[]> mem;
-  void *cur = nullptr;
-  explicit monotonic_buffer_resource(std::size_t sz) : size(sz), mem(new char[sz]), cur(mem.get()) {}
-  monotonic_buffer_resource(const monotonic_buffer_resource &) = delete;
-  monotonic_buffer_resource(monotonic_buffer_resource &&) = delete;
-
-  monotonic_buffer_resource &operator=(const monotonic_buffer_resource &) = delete;
-  monotonic_buffer_resource &operator=(monotonic_buffer_resource &&) = delete;
-
-  ~monotonic_buffer_resource() = default;
-  void *allocate(std::size_t n, std::size_t alignment) {
-    if (std::align(alignment, n, cur, size) != nullptr) {
-      size -= n;
-      auto *result = cur;
-      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      cur = static_cast<char *>(cur) + n;
-      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      return result;
-    }
-    throw std::bad_alloc{};
-  }
-};
 
 template <hpp::proto::compile_time_string str>
 constexpr auto operator""_bytes_view() {
