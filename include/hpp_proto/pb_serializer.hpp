@@ -991,7 +991,7 @@ public:
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
 #if defined(__GNUC__) || defined(__clang__)
-    uint64_t result; // NOLINT(cppcoreguidelines-init-variables)
+    uint64_t result;                                           // NOLINT(cppcoreguidelines-init-variables)
     asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask)); // NOLINT(hicpp-no-assembler)
     return result;
 #else
@@ -1604,7 +1604,8 @@ struct pb_serializer {
         container.append_raw_data(start_pos, num_elements);
       } else if (std::is_constant_evaluated() ||
                  (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
-        auto input_range = detail::reinterpret_view<value_type>(std::span{start_pos, num_elements * sizeof(value_type)});
+        auto input_range =
+            detail::reinterpret_view<value_type>(std::span{start_pos, num_elements * sizeof(value_type)});
         container.insert(container.end(), input_range.begin(), input_range.end());
       } else {
         auto n = container.size();
