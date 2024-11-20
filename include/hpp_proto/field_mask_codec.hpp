@@ -32,6 +32,7 @@ struct field_mask_codec {
                                                       [](auto &p) { return p.size(); });
   }
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-not-moved)
   static int64_t encode(auto const &value, auto &&b) noexcept {
     if (value.paths.empty()) {
       return 0;
@@ -46,6 +47,7 @@ struct field_mask_codec {
     return cur - buf;
   }
 
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   static bool decode(auto const &json, auto &value) {
     if (json.empty()) {
       return true;

@@ -58,6 +58,7 @@ struct map_wrapper {
   // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename T>
 concept integral_64_bits = std::same_as<std::decay_t<T>, uint64_t> || std::same_as<std::decay_t<T>, int64_t>;
@@ -79,7 +80,7 @@ concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
 };
 
 } // namespace concepts
-
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 template <typename... AuxContext>
 struct json_context : glz::context, pb_context<AuxContext...> {
   const char *error_message_name = nullptr;
@@ -191,6 +192,7 @@ struct base64 {
   }
 
   // @returns The number bytes written to b, -1 for error
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-not-moved)
   constexpr static int64_t encode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &&b) noexcept {
     const auto n = source.size();
     using V = std::decay_t<decltype(b[0])>;
@@ -301,11 +303,12 @@ struct base64 {
 template <typename T>
 struct json_codec;
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename T>
 concept has_codec = requires { typename json_codec<T>::type; };
 } // namespace concepts
-
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 struct use_base64 {
   constexpr static bool glaze_reflect = false;
 };
@@ -324,6 +327,7 @@ using base64 = hpp::proto::base64;
 template <hpp::proto::concepts::has_codec T>
 struct to_json<T> {
   template <auto Opts, class B>
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto const &value, is_context auto &ctx, B &b, auto &ix) noexcept {
     using codec = typename hpp::proto::json_codec<T>::type;
     if constexpr (resizable<B>) {
@@ -369,6 +373,7 @@ struct to_json<hpp::proto::bytes> {
 template <hpp::proto::concepts::has_codec T>
 struct from_json<T> {
   template <auto Opts, class It, class End>
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, It &it, End &end) {
     std::string_view encoded;
     from_json<std::string_view>::op<Opts>(encoded, ctx, it, end);
@@ -707,11 +712,12 @@ struct glz_opts_t {
   static constexpr glz::opts glz_opts_value = options;
 };
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename T>
 concept glz_opts_t = requires { requires std::same_as<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
 } // namespace concepts
-
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 namespace detail {
 template <typename Context>
 constexpr glz::opts get_glz_opts_impl() {
@@ -741,7 +747,8 @@ struct [[nodiscard]] json_status final {
   [[nodiscard]] std::string message(const auto &buffer) const { return glz::format_error(ctx, buffer); }
 };
 
-inline json_status read_json(glz::read_json_supported auto &value, concepts::contiguous_byte_range auto &&buffer,
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+inline json_status read_json(glz::read_json_supported auto &value, concepts::contiguous_byte_range auto const &buffer,
                              concepts::is_option_type auto &&...option) {
   using buffer_type = std::remove_cvref_t<decltype(buffer)>;
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<decltype(buffer)> ||
@@ -757,7 +764,7 @@ inline json_status read_json(glz::read_json_supported auto &value, concepts::con
 }
 
 template <glz::read_json_supported T>
-inline auto read_json(concepts::contiguous_byte_range auto &&buffer,
+inline auto read_json(concepts::contiguous_byte_range auto const&buffer,
                       concepts::is_option_type auto &&...option) -> glz::expected<T, json_status> {
   T value;
   if (auto result = read_json(value, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);

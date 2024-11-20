@@ -75,7 +75,16 @@
         "libprotobuf",
         "DHPP",
         "alloc",
-        "errc"
+        "errc",
+        "NOLINTNEXTLINE",
+        "MSVC",
+        "PROTOS",
+        "ints",
+        "nullptr",
+        "bigobj",
+        "libprotoc",
+        "ASAN",
+        "libhpp"
     ],
     // flagWords - list of words to be always considered incorrect
     // This is useful for offensive words and common spelling errors.

@@ -85,7 +85,7 @@ enum class varint_encoding : uint8_t {
 
 template <varint_encoding Encoding = varint_encoding::normal>
 constexpr auto varint_size(auto value) {
-  // NOLINTBEGIN(hicpp-signed-bitwise)
+  // NOLINTBEGIN(hicpp-signed-bitwise, bugprone-branch-clone)
   if constexpr (Encoding == varint_encoding::zig_zag) {
     return varint_size(std::make_unsigned_t<decltype(value)>((value << 1) ^ (value >> (sizeof(value) * CHAR_BIT - 1))));
   } else {
@@ -93,7 +93,7 @@ constexpr auto varint_size(auto value) {
             (CHAR_BIT - 2)) /
            (CHAR_BIT - 1);
   }
-  // NOLINTEND(hicpp-signed-bitwise)
+  // NOLINTEND(hicpp-signed-bitwise, bugprone-branch-clone)
 }
 template <std::integral Type, varint_encoding Encoding = varint_encoding::normal>
 struct varint {
@@ -130,7 +130,7 @@ using vsint64_t = varint<int64_t, varint_encoding::zig_zag>;
 using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 
 ////////////////////////////////////////////////////
-
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 
 template <typename T>
@@ -220,9 +220,8 @@ concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
 
 template <typename T>
 concept is_size_cache_iterator = requires(T v) {
-  // NOLINTBEGIN(bugprone-inc-dec-in-conditions)
+  // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
   { v++ } -> std::same_as<T>;
-  // NOLINTEND(bugprone-inc-dec-in-conditions)
   *v;
 };
 
@@ -257,6 +256,7 @@ template <typename Range>
 concept input_byte_range = segmented_byte_range<Range> || contiguous_byte_range<Range>;
 
 } // namespace concepts
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 ////////////////////
 
@@ -265,9 +265,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
   auto value = std::make_unsigned_t<typename VarintType::encode_type>(item.value);
 
   if constexpr (varint_encoding::zig_zag == decltype(item)::encoding) {
-    // NOLINTBEGIN(hicpp-signed-bitwise)
+    // NOLINTNEXTLINE(hicpp-signed-bitwise)
     value = (value << 1U) ^ (item.value >> (sizeof(value) * CHAR_BIT - 1));
-    // NOLINTEND(hicpp-signed-bitwise)
   }
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -479,14 +478,11 @@ constexpr const Byte *unchecked_parse_bool(const Byte *p, const Byte *end, bool 
 
 template <concepts::byte_type Byte, concepts::varint VarintType>
 constexpr const Byte *unchecked_parse_varint(const Byte *p, const Byte *end, VarintType &item) {
-  // NOLINTBEGIN(cppcoreguidelines-init-variables)
-  int64_t res;
-  // NOLINTEND(cppcoreguidelines-init-variables)
+  int64_t res; // NOLINT(cppcoreguidelines-init-variables)
   if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
     p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
-    // NOLINTBEGIN(hicpp-signed-bitwise)
+    // NOLINTNEXTLINE(hicpp-signed-bitwise)
     item = static_cast<typename VarintType::value_type>((static_cast<uint64_t>(res) >> 1) ^ -(res & 0x1));
-    // NOLINTEND(hicpp-signed-bitwise)
   } else {
     p = shift_mix_parse_varint<typename VarintType::value_type>(p, end, res);
     item = static_cast<typename VarintType::value_type>(res);
@@ -507,7 +503,7 @@ enum field_option : uint8_t {
 
 template <auto Accessor>
 struct accessor_type {
-  constexpr auto &operator()(auto &&item) const {
+  constexpr auto &operator()(auto &&item) const { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
     if constexpr (std::is_member_pointer_v<decltype(Accessor)>) {
       return item.*Accessor;
     } else {
@@ -583,7 +579,7 @@ struct [[nodiscard]] status {
 template <typename T>
 struct extension_meta_base {
   struct accessor_type {
-    constexpr auto &operator()(auto &&item) const {
+    constexpr auto &operator()(auto &item) const {
       auto &[e] = item;
       return e;
     }
@@ -753,7 +749,8 @@ struct map_entry {
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     constexpr static bool allow_inline_visit_members_lambda = true;
 
-    constexpr read_only_type(auto &&k, auto &&v)
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    constexpr read_only_type(auto &k, auto &v)
         : key((typename serialize_type<KeyType>::convertible_type)k),
           value((typename serialize_type<MappedType>::convertible_type)v) {}
 
@@ -793,7 +790,7 @@ template <typename Meta, typename Type>
 struct get_serialize_type;
 
 template <typename Meta, typename Type>
-  requires requires { typename Meta::type; }
+  requires requires { typename Meta::type; } // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 struct get_serialize_type<Meta, Type> {
   using type = std::conditional_t<std::is_same_v<typename Meta::type, void>, Type, typename Meta::type>;
 };
@@ -851,9 +848,8 @@ struct reverse_indices {
 
   template <std::size_t I, concepts::is_oneof_field_meta Meta>
   constexpr static auto index(Meta) {
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     std::array<std::size_t, std::tuple_size_v<typename Meta::alternatives_meta>> result;
-    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     std::fill(result.begin(), result.end(), I);
     return result;
   }
@@ -932,6 +928,7 @@ template <typename T>
 using constexpr_vector = std::vector<T>;
 #else
 template <typename T>
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class constexpr_vector {
   T *data_;
   std::size_t sz;
@@ -995,19 +992,16 @@ public:
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic,hicpp-signed-bitwise)
   }
 
-  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   static uint64_t pext_u64(uint64_t a, uint64_t mask) {
 #if defined(__GNUC__) || defined(__clang__)
-    // NOLINTBEGIN(cppcoreguidelines-init-variables,hicpp-no-assembler)
-    uint64_t result;
-    asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask));
-    // NOLINTEND(cppcoreguidelines-init-variables,hicpp-no-assembler)
+    uint64_t result; // NOLINT(cppcoreguidelines-init-variables)
+    asm("pext %2, %1, %0" : "=r"(result) : "r"(a), "r"(mask)); // NOLINT(hicpp-no-assembler)
     return result;
 #else
     return _pext_u64(a, mask);
 #endif
   }
-  // NOLINTEND(bugprone-easily-swappable-parameters)
 
   template <uint64_t SignBits, unsigned I>
   void output(uint64_t word, uint64_t &extract_mask) {
@@ -1085,8 +1079,10 @@ public:
 };
 #endif
 
+// NOLINTBEGIN(bugprone-easily-swappable-parameters)
 struct pb_serializer {
   template <typename Byte>
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   struct basic_out {
     using byte_type = Byte;
     using is_basic_out = void;
@@ -1095,6 +1091,7 @@ struct pb_serializer {
 
     HPP_PROTO_INLINE constexpr void serialize(concepts::byte_serializable auto item) {
       auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
+      // NOLINTNEXTLINE(bugprone-branch-clone)
       if constexpr (endian_swapped && sizeof(item) != 1) {
         std::copy(value.rbegin(), value.rend(), m_data.begin());
       } else {
@@ -1129,6 +1126,7 @@ struct pb_serializer {
     }
 
     template <typename... Args>
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     HPP_PROTO_INLINE constexpr void operator()(Args &&...item) {
       (serialize(std::forward<Args>(item)), ...);
     }
@@ -1165,9 +1163,8 @@ struct pb_serializer {
   }
 
   HPP_PROTO_INLINE constexpr static std::size_t cache_count(concepts::dereferenceable auto const &item, auto meta) {
-    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return cache_count(*item, meta);
-    // NOLINTEND(bugprone-unchecked-optional-access)
   }
 
   HPP_PROTO_INLINE constexpr static std::size_t cache_count(concepts::has_meta auto const &item, auto meta) {
@@ -1229,23 +1226,21 @@ struct pb_serializer {
       };
       uint32_t storage = 0;
       constexpr null_assignable operator*() const { return null_assignable{}; }
-      // NOLINTBEGIN(cert-dcl21-cpp)
+      // NOLINTNEXTLINE(cert-dcl21-cpp)
       constexpr null_size_cache operator++(int) const { return *this; }
-      // NOLINTEND(cert-dcl21-cpp)
     } cache;
     return message_size(item, cache);
   }
 
-  constexpr static std::size_t message_size(concepts::has_meta auto &&item, std::span<uint32_t> cache) {
+  constexpr static std::size_t message_size(concepts::has_meta auto const &item, std::span<uint32_t> cache) {
     uint32_t *c = cache.data();
     return message_size(item, c);
   }
 
   template <concepts::is_size_cache_iterator Itr>
   struct field_size_accumulator {
-    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     Itr &cache_itr;
-    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     std::size_t sum = 0;
     explicit constexpr field_size_accumulator(Itr &itr) : cache_itr(itr) {}
     constexpr void operator()(auto const &field, auto meta) {
@@ -1305,9 +1300,8 @@ struct pb_serializer {
 
   HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::dereferenceable auto const &item, auto meta,
                                                            concepts::is_size_cache_iterator auto &cache_itr) {
-    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return field_size(*item, meta, cache_itr);
-    // NOLINTEND(bugprone-unchecked-optional-access)
   }
 
   HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::has_meta auto const &item, auto meta,
@@ -1428,7 +1422,7 @@ struct pb_serializer {
     }
   }
 
-  [[nodiscard]] constexpr static bool serialize(concepts::has_meta auto &&item,
+  [[nodiscard]] constexpr static bool serialize(concepts::has_meta auto const &item,
                                                 concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using metas = typename traits::meta_of<type>::type;
@@ -1479,19 +1473,19 @@ struct pb_serializer {
                                                                        concepts::is_size_cache_iterator auto &,
                                                                        auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
-    if (utf8_validation_failed(meta, item)) {
-      return false;
+    if (!utf8_validation_failed(meta, item)) {
+      archive(make_tag<type>(meta), varint{item.size()}, item);
+      return true;
     }
-    archive(make_tag<type>(meta), varint{item.size()}, item);
-    return true;
+    return false;
   }
 
-  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::dereferenceable auto &&item, auto meta,
+  [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::dereferenceable auto const &item,
+                                                                       auto meta,
                                                                        concepts::is_size_cache_iterator auto &cache_itr,
                                                                        auto &archive) {
-    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return serialize_field(*item, meta, cache_itr, archive);
-    // NOLINTEND(bugprone-unchecked-optional-access)
   }
 
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::has_meta auto const &item, auto meta,
@@ -1522,15 +1516,10 @@ struct pb_serializer {
 
     if constexpr (concepts::has_meta<value_type> || !meta.is_packed || meta.is_group) {
       for (const auto &element : item) {
-        if constexpr (std::same_as<element_type, std::remove_cvref_t<decltype(element)>> ||
-                      concepts::is_map_entry<typename Meta::type>) {
-          if (!serialize_field(element, meta, cache_itr, archive)) {
-            return false;
-          }
-        } else {
-          if (!serialize_field(static_cast<element_type>(element), meta, cache_itr, archive)) {
-            return false;
-          }
+        using serialize_element_type =
+            std::conditional_t<concepts::is_map_entry<typename Meta::type>, decltype(element), element_type>;
+        if (!serialize_field(static_cast<serialize_element_type>(element), meta, cache_itr, archive)) {
+          return false;
         }
       }
     } else if constexpr (requires {
@@ -1713,7 +1702,6 @@ struct pb_serializer {
     }
 #endif // x64
 
-    // NOLINTBEGIN(bugprone-easily-swappable-parameters)
     template <concepts::varint T, typename Item>
     constexpr status deserialize_packed_varint(uint32_t bytes_count, std::size_t size, Item &item) {
       using value_type = typename Item::value_type;
@@ -1747,7 +1735,6 @@ struct pb_serializer {
       }
       return {};
     }
-    // NOLINTEND(bugprone-easily-swappable-parameters)
 
     constexpr status skip_varint() {
       current.begin = std::find_if(current.begin, current.end, [](auto v) { return static_cast<int8_t>(v) >= 0; }) + 1;
@@ -1858,9 +1845,7 @@ struct pb_serializer {
 
     constexpr uint32_t read_tag() {
       maybe_advance_region();
-      // NOLINTBEGIN(cppcoreguidelines-init-variables)
-      int64_t res;
-      // NOLINTEND(cppcoreguidelines-init-variables)
+      int64_t res; // NOLINT(cppcoreguidelines-init-variables)
       current.begin = shift_mix_parse_varint<uint32_t, 4>(current.begin, current.end, res);
       return static_cast<uint32_t>(res);
     }
@@ -2153,12 +2138,7 @@ struct pb_serializer {
     static_assert(concepts::has_memory_resource<decltype(context)>, "memory resource is required");
     using element_type = std::remove_cvref_t<decltype(*item)>;
     void *buffer = context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
-    if (buffer == nullptr) [[unlikely]] {
-      return std::errc::not_enough_memory;
-    }
-    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
-    auto loaded = new (buffer) element_type;
-    // NOLINTEND(cppcoreguidelines-owning-memory)
+    auto loaded = new (buffer) element_type; // NOLINT(cppcoreguidelines-owning-memory)
     if (auto result = deserialize_field(*loaded, meta, tag, context, archive); !result.ok()) [[unlikely]] {
       return result;
     }
@@ -2467,15 +2447,15 @@ struct pb_serializer {
 
   template <typename Byte>
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_pb_context auto &&context,
-                                      concepts::segmented_byte_range auto &&buffer, input_buffer_region<Byte> *regions,
-                                      Byte *patch_buffer) {
+                                      concepts::segmented_byte_range auto const &buffer,
+                                      input_buffer_region<Byte> *regions, Byte *patch_buffer) {
     auto total_size = setup_input_regions(buffer, regions, patch_buffer);
     constexpr bool is_contiguous = false;
     auto archive = basic_in<Byte, is_contiguous>(regions, total_size - regions->effective_size);
     return deserialize(item, context, archive);
   }
 
-  constexpr static status deserialize(concepts::has_meta auto &item, concepts::segmented_byte_range auto &&buffer,
+  constexpr static status deserialize(concepts::has_meta auto &item, concepts::segmented_byte_range auto const &buffer,
                                       concepts::is_pb_context auto &&context) {
     const auto num_segments = std::size(buffer);
     const auto num_regions = num_segments * 2;
@@ -2507,12 +2487,12 @@ struct pb_serializer {
     }
   }
 };
+// NOLINTEND(bugprone-easily-swappable-parameters)
 
 template <typename FieldType, typename MetaType>
 struct serialize_wrapper_type {
-  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   FieldType value = {};
-  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
   using pb_meta = std::tuple<MetaType>;
 };
 
@@ -2543,7 +2523,7 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
 
   if constexpr (ExtensionMeta::has_default_value) {
     return return_type(value_type(ExtensionMeta::default_value));
-  } else if constexpr (!concepts::has_meta<value_type>) {
+  } else if constexpr (!concepts::has_meta<value_type>) { // NOLINT(bugprone-branch-clone)
     return return_type{value_type{}};
   } else {
     return return_type{unexpected(std::errc::no_message)};
@@ -2577,6 +2557,7 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
   return {};
 }
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 template <typename F>
   requires std::regular_invocable<F>
 consteval auto write_proto(F make_object) {
@@ -2620,7 +2601,7 @@ status append_proto(T &&msg, concepts::resizable_contiguous_byte_container auto 
 template <concepts::has_meta T>
 constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range auto const &buffer,
                                                    concepts::is_option_type auto &&...option) {
-  T msg;
+  T msg; // NOLINT(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   if (auto result = pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
       !result.ok()) {
     return unexpected(result.ec);
@@ -2679,4 +2660,5 @@ expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is
   }
 }
 } // namespace hpp::proto
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 #undef HPP_PROTO_INLINE

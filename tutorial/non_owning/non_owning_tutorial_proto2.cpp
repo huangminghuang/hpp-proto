@@ -14,7 +14,7 @@ inline void expect(bool condition, const std::source_location location = std::so
 
 inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buffer_resource *mbr) {
   char *buf = static_cast<char *>(mbr->allocate(str.size(), 1));
-  std::copy(str.begin(), str.end(), buf);
+  std::ranges::copy(str, buf);
   return {buf, str.size()};
 }
 

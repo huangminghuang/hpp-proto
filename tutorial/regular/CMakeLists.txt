@@ -1,5 +1,5 @@
 add_library(addressbook_proto3 INTERFACE)
-target_include_directories(addressbook_proto3 INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(addressbook_proto3 SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate(TARGET addressbook_proto3
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/.. # # required when the proto file is not in ${CMAKE_CURRENT_SOURCE_DIR}
     PROTOS ../addressbook_proto3.proto
@@ -13,7 +13,7 @@ add_test(NAME regular_tutorial_proto3
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(addressbook_proto2 INTERFACE)
-target_include_directories(addressbook_proto2 INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(addressbook_proto2 SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate(TARGET addressbook_proto2
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/.. # # required when the proto file is not in ${CMAKE_CURRENT_SOURCE_DIR}
     PROTOS ../addressbook_proto2.proto

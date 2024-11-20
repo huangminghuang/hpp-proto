@@ -287,6 +287,7 @@ struct descriptor_pool {
     throw std::runtime_error(std::string{"unsupported edition used by "} + file.name);
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   explicit descriptor_pool(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
     const descriptor_counter counter(proto_files);
     files.reserve(counter.files);

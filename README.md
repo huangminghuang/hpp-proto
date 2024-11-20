@@ -463,7 +463,9 @@ In non-owning mode, variable-length fields in messages are mapped to lightweight
 - `write_proto()`: No difference between regular and non-owning modes.
 - `read_proto()`: Requires an option object containing a memory resource for managing allocations.
 
-The memory resource must have an `allocate()` member function equivalent to [std::pmr::memory_resource::allocate](https://en.cppreference.com/w/cpp/memory/memory_resource/allocate) and release all memory upon destruction. For most use cases, [std::pmr::monotonic_buffer_resource](https://en.cppreference.com/w/cpp/memory/monotonic_buffer_resource) is recommended.
+The memory resource must have an `allocate()` member function equivalent to [std::pmr::memory_resource::allocate](https://en.cppreference.com/w/cpp/memory/memory_resource/allocate), ensuring it returns at least the requested amount of memory and *never* indicates an error by returning `nullptr`. Errors should only be communicated through exceptions. 
+Additionally, all allocated memory must be properly released when the memory resource is destroyed. 
+For most use cases, [std::pmr::monotonic_buffer_resource](https://en.cppreference.com/w/cpp/memory/monotonic_buffer_resource) is recommended.
 
 
 #### Providing Memory Resource to `read_proto()`

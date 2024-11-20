@@ -46,6 +46,7 @@ constexpr bool contains(const R &r, const T &value) {
   return std::find(std::begin(r), std::end(r), value) != std::end(r);
 }
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename T>
 concept input_bytes_range =
@@ -55,6 +56,7 @@ template <typename T>
 concept file_descriptor_pb_array =
     std::ranges::input_range<T> && std::same_as<typename std::ranges::range_value_t<T>, file_descriptor_pb>;
 } // namespace concepts
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 namespace wellknown {
 struct Any {
@@ -84,6 +86,7 @@ auto pb_meta(const Timestamp &)
     -> std::tuple<hpp::proto::field_meta<1, &Timestamp::seconds, hpp::proto::field_option::none, hpp::proto::vint64_t>,
                   hpp::proto::field_meta<2, &Timestamp::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
 
+// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 struct FieldMask {
   constexpr static bool glaze_reflect = false;
   std::vector<std::string> paths;
@@ -129,6 +132,7 @@ struct proto_json_addons {
     std::string syntax;
     bool is_map_entry = false;
     std::vector<FieldD *> fields;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     explicit message_descriptor(const google::protobuf::DescriptorProto &proto)
         : is_map_entry(proto.options.has_value() && proto.options->map_entry) {
       fields.reserve(proto.field.size() + proto.extension.size());
@@ -335,7 +339,7 @@ class dynamic_serializer {
 
     template <auto Options, typename T>
     status field_type_to_json(bool quote_required, concepts::is_basic_in auto &archive) {
-      T value;
+      T value{};
       if constexpr (concepts::contiguous_byte_range<T>) {
         vint64_t len;
         if (auto ec = archive(len); !ec.ok()) [[unlikely]] {
@@ -883,9 +887,8 @@ class dynamic_serializer {
       if (remaining_size() < sz) {
         buffer.resize(2 * (buffer.size() + sz));
       }
-      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      auto out_span = std::span{buffer.data() + position, remaining_size()};
-      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      auto out_span = std::span{buffer.data() + position, remaining_size()}; 
       pb_serializer::basic_out archive{out_span};
       (serialize(std::forward<Item>(item), archive), ...);
       position += sz;

@@ -19,6 +19,7 @@ Checks: "*,
         -misc-confusable-identifiers,
         -misc-include-cleaner,
         -cert-err58-cpp,
+        -cert-dcl58-cpp,
         -cppcoreguidelines-avoid-magic-numbers,
         -readability-magic-numbers,
         -cppcoreguidelines-avoid-c-arrays,
@@ -27,15 +28,18 @@ Checks: "*,
         -misc-const-correctness,
         -hicpp-named-parameter,
         -hicpp-no-array-decay,
+        -hicpp-special-member-functions,
         -readability-named-parameter,
         -misc-no-recursion,
         -clang-analyzer-optin.performance.Padding,
         -modernize-raw-string-literal,
         -bugprone-crtp-constructor-accessibility,
+        -misc-use-internal-linkage,
+        -modernize-use-designated-initializers,
         -boost-*     
 "
 WarningsAsErrors: ''
-HeaderFilterRegex: '.*'
+HeaderFilterRegex: '\.hpp$'
 FormatStyle:     none
 
 CheckOptions:
@@ -49,3 +53,5 @@ ExtraArgs:
   - -Wno-ignored-optimization-argument
   - -Wno-unused-command-line-argument
   - -extra-arg=-std=c++20
+
+ExcludeHeaderFilterRegex: '\.(msg|pb|glz|desc)\.hpp$'

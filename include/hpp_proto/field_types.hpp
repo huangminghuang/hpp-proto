@@ -80,7 +80,8 @@ static constexpr auto unwrap(T v) {
 
 // NOLINTBEGIN(hicpp-explicit-conversions)
 template <typename T, auto Default = std::monostate{}>
-class optional {
+requires requires {  !std::is_pointer_v<T>;  }
+class optional { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
   static constexpr bool has_default_value = true;
   constexpr static T default_value() {
@@ -90,8 +91,9 @@ public:
       return unwrap(Default);
     } else {
       static_assert(sizeof(typename T::value_type) == 1);
-      return T{(const typename T::value_type *)Default.data(),
-               (const typename T::value_type *)Default.data() + Default.size()};
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      auto data = reinterpret_cast<const typename T::value_type *>(Default.data());
+      return T{data, data + Default.size()}; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
   }
 
@@ -113,15 +115,16 @@ public:
   constexpr optional(const optional<U> &other) : _value(other._value), _present(other.present) {}
 
   template <class U>
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr optional(optional<U> &&other) : _value(std::move(other)._value), _present(other.present) {}
 
   constexpr optional(const std::optional<T> &other)
       : _value(other.value_or(default_value())), _present(other.has_value()) {}
 
   constexpr optional(std::optional<T> &&other) : _present(other.has_value()) {
-    // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
+    // using member initializer could cause use after move problem
+    // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
     _value = std::move(other).value_or(default_value());
-    // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
   }
 
   template <class U>
@@ -130,9 +133,9 @@ public:
 
   template <class U>
   constexpr optional(std::optional<U> &&other) : _present(other.has_value()) {
-    // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
+    // using member initializer could cause use after move problem
+    // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
     _value = std::move(other).value_or(default_value());
-    // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
   }
 
   template <class... Args>
@@ -143,8 +146,9 @@ public:
       : _value(list, std::forward<Args>(args)...), _present(true) {}
 
   template <typename U>
-    requires std::convertible_to<U, T>
-  constexpr optional(U &&value) : _value(std::forward<U>(value)), _present(true) {}
+    requires std::convertible_to<U, T> // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+  constexpr optional(U &&value)
+      : _value(std::forward<U>(value)), _present(true) {} // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
   constexpr optional &operator=(std::nullopt_t /* unused */) noexcept {
     this->reset();
@@ -154,8 +158,9 @@ public:
   template <typename U>
     requires std::convertible_to<U, T>
   constexpr optional &operator=(U &&value) {
-    static_assert(!std::is_pointer_v<T>);
-    _value = static_cast<T>(std::forward<U>(value));
+    // array to pointer decay is impossible because T cannot be a pointer type
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    _value = static_cast<T>(std::forward<U>(value)); 
     _present = true;
     return *this;
   }
@@ -336,9 +341,8 @@ public:
 private:
   static constexpr uint8_t default_state = 0x80U | uint8_t(default_value()); // use 0x80 to denote empty state
   bool &deref() {
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<bool &>(impl);
-    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
   }
   uint8_t impl = default_state;
 
@@ -396,6 +400,7 @@ public:
   }
 };
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 template <typename T>
 class heap_based_optional {
   std::unique_ptr<T> obj;
@@ -412,15 +417,15 @@ public:
   constexpr heap_based_optional(const heap_based_optional &other) : obj(other.obj ? new T(*other.obj) : nullptr) {}
 
   template <class... Args>
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
   constexpr explicit heap_based_optional(std::in_place_t, Args &&...args)
       : obj(new T{std::forward<Args &&>(args)...}) {}
 
-  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr heap_based_optional &operator=(heap_based_optional &&other) noexcept {
     obj = std::move(other.obj);
     return *this;
   }
-  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
   constexpr heap_based_optional &operator=(const heap_based_optional &other) {
     heap_based_optional tmp(other);
@@ -467,16 +472,17 @@ public:
   }
 
   constexpr bool operator==(const heap_based_optional &rhs) const {
-    if (has_value() && rhs.has_value()) {
-      return *obj == *rhs.obj;
-    } else {
-      return has_value() == rhs.has_value();
+    if (has_value() != rhs.has_value()) {
+      return false;
     }
+    return has_value() && *obj == *rhs.obj;
   }
 
   constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
 };
 
+// NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+/// Used for recursive non-owning message types
 template <typename T>
 class optional_message_view {
   const T *obj = nullptr;
@@ -492,16 +498,14 @@ public:
   constexpr optional_message_view(optional_message_view &&other) noexcept : obj(other.obj) {}
   constexpr optional_message_view(const optional_message_view &other) noexcept : obj(other.obj) {}
 
-  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr optional_message_view &operator=(optional_message_view &&other) noexcept {
     obj = other.obj;
     return *this;
   }
-  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
-  // NOLINTBEGIN(bugprone-unhandled-self-assignment, cert-oop54-cpp)
+  // NOLINTNEXTLINE(bugprone-unhandled-self-assignment, cert-oop54-cpp)
   constexpr optional_message_view &operator=(const optional_message_view &other) noexcept = default;
-  // NOLINTEND(bugprone-unhandled-self-assignment, cert-oop54-cpp)
 
   constexpr optional_message_view &operator=(const T *other) noexcept {
     obj = other;
@@ -546,6 +550,9 @@ template <typename T>
 class equality_comparable_span : public std::span<T> {
 public:
   using std::span<T>::span;
+  // clang has trouble to compile if these special member functions using `= default`,
+  // when used in the recursive context.
+  // NOLINTNEXTLINE(hicpp-use-equals-default,modernize-use-equals-default)
   constexpr equality_comparable_span(const equality_comparable_span &other) noexcept
       : std::span<T>(other.data(), other.size()) {}
 
@@ -606,6 +613,7 @@ struct bytes_literal {
   }
 };
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename Type>
 concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<std::remove_cv_t<Type>, unsigned char> ||
@@ -618,6 +626,7 @@ concept flat_map = requires {
   requires std::same_as<Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type>>;
 };
 }; // namespace concepts
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 template <compile_time_string cts>
 struct string_literal {
@@ -673,9 +682,8 @@ constexpr bool is_default_value(const T &val) {
 inline const char *message_name(auto &&v)
   requires requires { message_type_url(v); }
 {
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   return message_type_url(v).c_str() + std::size("type.googleapis.com");
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 template <concepts::flat_map T>
