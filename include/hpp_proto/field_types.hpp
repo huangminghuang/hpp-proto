@@ -472,10 +472,11 @@ public:
   }
 
   constexpr bool operator==(const heap_based_optional &rhs) const {
-    if (has_value() != rhs.has_value()) {
-      return false;
+    if (has_value()) {
+      return rhs.has_value() && *obj == *rhs.obj;
+    } else {
+      return !rhs.has_value();
     }
-    return has_value() && *obj == *rhs.obj;
   }
 
   constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
