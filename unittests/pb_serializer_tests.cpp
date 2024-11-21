@@ -946,11 +946,9 @@ void verify_segmented_input(auto &encoded, const T &value, const std::vector<int
   std::vector<std::span<char>> segments;
   segments.resize(sizes.size());
   char *b = encoded.data();
-  assert(sizes.size() > 0);
   for (unsigned i = 0; i < sizes.size(); ++i) {
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     char *e = b + sizes[i];
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     segments[i] = {b, e};
     b = e;
   }

@@ -39,7 +39,7 @@ Checks: "*,
         -boost-*     
 "
 WarningsAsErrors: ''
-HeaderFilterRegex: '\.hpp$'
+HeaderFilterRegex: '.*'
 FormatStyle:     none
 
 CheckOptions:
@@ -54,4 +54,3 @@ ExtraArgs:
   - -Wno-unused-command-line-argument
   - -extra-arg=-std=c++20
 
-ExcludeHeaderFilterRegex: '\.(msg|pb|glz|desc)\.hpp$'

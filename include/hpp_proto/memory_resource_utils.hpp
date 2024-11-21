@@ -30,7 +30,6 @@
 #include <string_view>
 
 namespace hpp::proto {
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename T>
 concept memory_resource = !std::copyable<T> && std::destructible<T> && requires(T &object) {
@@ -77,7 +76,7 @@ template <typename T>
 concept byte_serializable =
     std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
 } // namespace concepts
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+
 template <concepts::memory_resource T, bool Strict = false>
 class alloc_from {
   T *mr;
@@ -122,7 +121,6 @@ struct pb_context : T::option_type... {
 template <typename... U>
 pb_context(U &&...u) -> pb_context<std::remove_cvref_t<U>...>;
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 template <concepts::memory_resource T>
 T &get_memory_resource(T &v) {
   return v;
@@ -132,7 +130,6 @@ template <concepts::has_memory_resource T>
 auto &get_memory_resource(T &v) {
   return v.memory_resource();
 }
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 namespace detail {
 template <concepts::byte_serializable T, std::ranges::contiguous_range Range>
@@ -168,7 +165,7 @@ public:
     constexpr void operator++(int) const { ++*this; }
 
     constexpr value_type operator*() const {
-      std::array<base_value_type, chunk_size> v; // NOLINT(hicpp-member-init)
+      std::array<base_value_type, chunk_size> v; // NOLINT(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
       auto source = std::span{current, chunk_size};
       if (std::endian::little == std::endian::native) {
         std::ranges::copy(source, v.data());
@@ -178,7 +175,6 @@ public:
       return std::bit_cast<T>(v);
     }
   };
-
   constexpr explicit reinterpret_view_t(const Range &input_range) : base(input_range.data(), input_range.size()) {
     assert((input_range.size() % chunk_size) == 0);
   }
@@ -255,9 +251,8 @@ public:
   constexpr void push_back(const value_type &v) { emplace_back(v); }
 
   template <class... Args>
-  // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
   constexpr reference emplace_back(Args &&...args) {
-    std::size_t n = size(); // NOLINT(cppcoreguidelines-init-variables)
+    std::size_t n = size(); 
     assign_range_with_size(view_, n + 1);
     std::construct_at(data_ + n, std::forward<Args>(args)...);
     return data_[size() - 1];
@@ -294,7 +289,6 @@ public:
     assign_range_with_size(view_, old_size + num_elements);
     auto source = std::span{start_pos, num_elements * sizeof(value_type)};
     auto destination = std::span{data_ + old_size, num_elements};
-    // NOLINTNEXTLINE(bugprone-branch-clone)
     if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
       auto source_view = reinterpret_view<value_type>(source);
       std::uninitialized_copy(source_view.begin(), source_view.end(), destination.begin());
@@ -335,13 +329,11 @@ constexpr auto as_modifiable(concepts::is_pb_context auto &&context, concepts::d
   return detail::arena_vector{view, std::forward<decltype(context)>(context)};
 }
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 template <typename T>
   requires(!concepts::dynamic_sized_view<T>)
 constexpr T &as_modifiable(const auto & /* unused */, T &view) {
   return view;
 }
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 } // namespace detail
 } // namespace hpp::proto

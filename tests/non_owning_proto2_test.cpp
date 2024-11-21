@@ -4,6 +4,11 @@
 #include <non_owning/google/protobuf/unittest.glz.hpp>
 #include <non_owning/google/protobuf/unittest.pb.hpp>
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
+
 template <typename T>
   requires requires { glz::meta<T>::value; }
 std::ostream &operator<<(std::ostream &os, const T &v) {
@@ -1472,6 +1477,7 @@ inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message) {
 }
 
 } // namespace TestUtil
+// NOLINTEND(clang-diagnostic-missing-designated-field-initializers)
 
 const boost::ut::suite proto_test = [] {
   using namespace boost::ut;

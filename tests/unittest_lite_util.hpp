@@ -7,7 +7,7 @@
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #endif
-
+// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
 namespace TestUtil {
 using namespace std::literals::string_literals;
 using namespace boost::ut;
@@ -950,6 +950,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensionsLite &message
   expect(eq("603"s, message.get_extension(protobuf_unittest::oneof_string_extension_lite()).value()));
   expect(eq("604"_bytes, message.get_extension(protobuf_unittest::oneof_bytes_extension_lite()).value()));
 }
+// NOLINTEND(clang-diagnostic-missing-designated-field-initializers)
 
 // -------------------------------------------------------------------
 

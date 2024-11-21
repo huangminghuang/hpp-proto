@@ -115,7 +115,6 @@ public:
   constexpr optional(const optional<U> &other) : _value(other._value), _present(other.present) {}
 
   template <class U>
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr optional(optional<U> &&other) : _value(std::move(other)._value), _present(other.present) {}
 
   constexpr optional(const std::optional<T> &other)
@@ -146,7 +145,7 @@ public:
       : _value(list, std::forward<Args>(args)...), _present(true) {}
 
   template <typename U>
-    requires std::convertible_to<U, T> // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+    requires std::convertible_to<U, T> 
   constexpr optional(U &&value)
       : _value(std::forward<U>(value)), _present(true) {} // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
@@ -158,9 +157,7 @@ public:
   template <typename U>
     requires std::convertible_to<U, T>
   constexpr optional &operator=(U &&value) {
-    // array to pointer decay is impossible because T cannot be a pointer type
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-    _value = static_cast<T>(std::forward<U>(value));
+    _value = static_cast<T>(std::forward<U>(value)); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     _present = true;
     return *this;
   }
@@ -505,7 +502,6 @@ public:
     return *this;
   }
 
-  // NOLINTNEXTLINE(bugprone-unhandled-self-assignment, cert-oop54-cpp)
   constexpr optional_message_view &operator=(const optional_message_view &other) noexcept = default;
 
   constexpr optional_message_view &operator=(const T *other) noexcept {
@@ -600,9 +596,8 @@ struct bytes_literal {
   [[nodiscard]] constexpr size_t size() const { return bytes.size(); }
   [[nodiscard]] constexpr const std::byte *data() const { return bytes.data(); }
   [[nodiscard]] constexpr const std::byte *begin() const { return bytes.data(); }
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr const std::byte *end() const { return bytes.data() + size(); }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   constexpr operator equality_comparable_span<const std::byte>() const {
     return equality_comparable_span<const std::byte>{data(), size()};
@@ -614,7 +609,6 @@ struct bytes_literal {
   }
 };
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename Type>
 concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<std::remove_cv_t<Type>, unsigned char> ||
@@ -627,7 +621,6 @@ concept flat_map = requires {
   requires std::same_as<Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type>>;
 };
 }; // namespace concepts
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 template <compile_time_string cts>
 struct string_literal {

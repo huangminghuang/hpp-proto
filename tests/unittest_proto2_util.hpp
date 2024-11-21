@@ -4,6 +4,11 @@
 #include <google/protobuf/unittest.glz.hpp>
 #include <google/protobuf/unittest.pb.hpp>
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
+
 namespace TestUtil {
 using namespace std::literals::string_literals;
 using namespace boost::ut;
@@ -1339,3 +1344,4 @@ inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message) {
 }
 
 } // namespace TestUtil
+// NOLINTEND(clang-diagnostic-missing-designated-field-initializers)

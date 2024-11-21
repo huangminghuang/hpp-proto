@@ -46,7 +46,6 @@ constexpr bool contains(const R &r, const T &value) {
   return std::find(std::begin(r), std::end(r), value) != std::end(r);
 }
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename T>
 concept input_bytes_range =
@@ -56,7 +55,6 @@ template <typename T>
 concept file_descriptor_pb_array =
     std::ranges::input_range<T> && std::same_as<typename std::ranges::range_value_t<T>, file_descriptor_pb>;
 } // namespace concepts
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 namespace wellknown {
 struct Any {
@@ -86,7 +84,6 @@ auto pb_meta(const Timestamp &)
     -> std::tuple<hpp::proto::field_meta<1, &Timestamp::seconds, hpp::proto::field_option::none, hpp::proto::vint64_t>,
                   hpp::proto::field_meta<2, &Timestamp::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
 
-// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 struct FieldMask {
   constexpr static bool glaze_reflect = false;
   std::vector<std::string> paths;
@@ -841,9 +838,8 @@ class dynamic_serializer {
 
   template <typename Buffer>
   struct relocatable_out {
-    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     Buffer &buffer;
-    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     std::size_t position = 0;
 
     explicit relocatable_out(Buffer &buffer) : buffer(buffer) {}
@@ -896,9 +892,8 @@ class dynamic_serializer {
   };
 
   struct json_to_pb_state {
-    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const dynamic_serializer &pb_meta;
-    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     glz::context context = {};
 
     explicit json_to_pb_state(const dynamic_serializer &meta) : pb_meta(meta) {}
@@ -1362,9 +1357,7 @@ class dynamic_serializer {
       bool first = !has_opening_handled(Options);
       while (true) {
         if (*it == '}') [[unlikely]] {
-          // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-          ++it;
-          // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+          ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
           return {};
         } else if (first) {
           [[unlikely]] first = false;
@@ -1540,11 +1533,10 @@ public:
     fileset.file.resize(size);
 
     for (std::size_t i = 0; i < size; ++i) {
-      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
       if (auto ec = read_proto(fileset.file[i], tmp[i].value); !ec.ok()) [[unlikely]] {
         return result_t{glz::unexpected(ec)};
       }
-      // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
     }
 
     return result_t{dynamic_serializer{fileset}};
@@ -1606,14 +1598,12 @@ public:
     }
     json_to_pb_state state{*this};
     const char *it = json_view.data();
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const char *end = it + json_view.size();
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     relocatable_out archive{buffer};
     if (auto ec = state.template message_to_pb<glz::opts{}>(id, it, end, 0, archive); !ec.ok()) [[unlikely]] {
-      // NOLINTBEGIN(bugprone-suspicious-stringview-data-usage)
+      // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
       auto location = std::distance<const char *>(json_view.data(), it);
-      // NOLINTEND(bugprone-suspicious-stringview-data-usage)
       return json_status{.ctx = {.ec = (state.context.error == glz::error_code::none ? glz::error_code::syntax_error
                                                                                      : state.context.error),
                                  .location = static_cast<size_t>(location)}};

@@ -39,9 +39,8 @@ template <typename T, std::size_t Index>
 struct oneof_wrapper {
   static constexpr auto glaze_reflect = false;
   T *value;
-  // NOLINTBEGIN(hicpp-explicit-conversions)
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator bool() const { return value->index() == Index; }
-  // NOLINTEND(hicpp-explicit-conversions)
   auto &operator*() const { return std::get<Index>(*value); }
 };
 
@@ -53,12 +52,10 @@ constexpr oneof_wrapper<T, Index> wrap_oneof(T &v) {
 template <typename T>
 struct map_wrapper {
   static constexpr auto glaze_reflect = false;
-  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   T &value;
-  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename T>
 concept integral_64_bits = std::same_as<std::decay_t<T>, uint64_t> || std::same_as<std::decay_t<T>, int64_t>;
@@ -80,7 +77,6 @@ concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
 };
 
 } // namespace concepts
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 template <typename... AuxContext>
 struct json_context : glz::context, pb_context<AuxContext...> {
   const char *error_message_name = nullptr;
@@ -101,9 +97,8 @@ struct optional_ref {
   operator bool() const { return !is_default_value<T, Default>(val); }
   template <typename U>
   static U &deref(U &v) {
-    // NOLINTBEGIN(bugprone-return-const-ref-from-parameter)
+    // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
     return v;
-    // NOLINTEND(bugprone-return-const-ref-from-parameter)
   }
 
   template <concepts::jsonfy_need_quote U>
@@ -167,13 +162,11 @@ constexpr decltype(auto) as_oneof_member_impl() noexcept {
 template <auto MemPtr, int Index>
 constexpr auto as_oneof_member = as_oneof_member_impl<MemPtr, Index>();
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
 template <typename T>
 struct optional_message_view_ref {
   static constexpr auto glaze_reflect = false;
-  T &ref;
+  T &ref; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
-// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
 template <auto MemPtr>
 constexpr decltype(auto) as_optional_message_view_ref_impl() noexcept {
@@ -303,12 +296,10 @@ struct base64 {
 template <typename T>
 struct json_codec;
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename T>
 concept has_codec = requires { typename json_codec<T>::type; };
 } // namespace concepts
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 struct use_base64 {
   constexpr static bool glaze_reflect = false;
 };
@@ -673,9 +664,7 @@ struct from_json<hpp::proto::optional_message_view_ref<T>> {
     using type = std::remove_const_t<typename T::value_type>;
 
     if (*it == 'n') {
-      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      ++it;
-      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       match<"ull", Opts>(ctx, it, end);
       if (bool(ctx.error)) {
         [[unlikely]] return;
@@ -683,9 +672,8 @@ struct from_json<hpp::proto::optional_message_view_ref<T>> {
       value.ref.reset();
     } else {
       void *addr = ctx.memory_resource().allocate(sizeof(type), alignof(type));
-      // NOLINTBEGIN(cppcoreguidelines-owning-memory)
+      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
       type *obj = new (addr) type;
-      // NOLINTEND(cppcoreguidelines-owning-memory)
       read<json>::op<Opts>(*obj, ctx, it, end);
       value.ref = obj;
     }
@@ -712,12 +700,10 @@ struct glz_opts_t {
   static constexpr glz::opts glz_opts_value = options;
 };
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 template <typename T>
 concept glz_opts_t = requires { requires std::same_as<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
 } // namespace concepts
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 namespace detail {
 template <typename Context>
 constexpr glz::opts get_glz_opts_impl() {
