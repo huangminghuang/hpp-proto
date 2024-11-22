@@ -283,17 +283,16 @@ public:
     }
   }
 
-  template <typename ByteT>
-  constexpr void append_raw_data(const ByteT *start_pos, std::size_t num_elements) {
+  constexpr void append_raw_data(concepts::contiguous_byte_range auto const& data) {
     auto old_size = view_.size();
+    auto num_elements = data.size()/sizeof(value_type);
     assign_range_with_size(view_, old_size + num_elements);
-    auto source = std::span{start_pos, num_elements * sizeof(value_type)};
     auto destination = std::span{data_ + old_size, num_elements};
     if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
-      auto source_view = reinterpret_view<value_type>(source);
+      auto source_view = reinterpret_view<value_type>(data);
       std::uninitialized_copy(source_view.begin(), source_view.end(), destination.begin());
     } else {
-      std::memcpy(destination.data(), source.data(), source.size());
+      std::memcpy(destination.data(), data.data(), data.size());
     }
   }
 
