@@ -1045,7 +1045,8 @@ public:
   auto parse_partial(concepts::contiguous_byte_range auto const &r) -> decltype(std::ranges::cdata(r)) {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     auto begin = std::ranges::cdata(r);
-    auto end = std::ranges::cdata(r) + std::ranges::size(r) + (std::ranges::size(r) % mask_length);
+    auto end = std::ranges::cend(r);
+    end -= ((end - begin) % mask_length);
     for (; begin < end; begin += mask_length) {
       uint64_t word = 0;
       memcpy(&word, begin, sizeof(word));
@@ -1056,7 +1057,6 @@ public:
     return begin;
   }
 
-  template <concepts::byte_type Byte>
   auto parse(concepts::contiguous_byte_range auto const &r) -> decltype(std::ranges::cdata(r)) {
     auto begin = parse_partial(r);
     auto end = std::ranges::cend(r);
@@ -1074,7 +1074,6 @@ public:
         shift_bits = 0;
       }
     }
-
     return end;
   }
 };
@@ -1757,8 +1756,8 @@ struct pb_serializer {
             maybe_advance_region();
           }
         }
-        auto data = current.subspan(0, bytes_count);
-        data.consume([&parser](auto r) { return parser.parse_partial(r); });
+        auto data = current.consume(bytes_count);
+        data.consume([&parser](auto r) { return parser.parse(r); });
         if (data.size() != 0 || parser.has_error) [[unlikely]] {
           return std::errc::bad_message;
         }
