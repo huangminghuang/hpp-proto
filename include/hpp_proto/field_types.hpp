@@ -145,7 +145,7 @@ public:
       : _value(list, std::forward<Args>(args)...), _present(true) {}
 
   template <typename U>
-    requires std::convertible_to<U, T> 
+    requires std::convertible_to<U, T>
   constexpr optional(U &&value)
       : _value(std::forward<U>(value)), _present(true) {} // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 

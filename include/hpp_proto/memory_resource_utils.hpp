@@ -252,7 +252,7 @@ public:
 
   template <class... Args>
   constexpr reference emplace_back(Args &&...args) {
-    std::size_t n = size(); 
+    std::size_t n = size();
     assign_range_with_size(view_, n + 1);
     std::construct_at(data_ + n, std::forward<Args>(args)...);
     return data_[size() - 1];
@@ -283,9 +283,9 @@ public:
     }
   }
 
-  constexpr void append_raw_data(concepts::contiguous_byte_range auto const& data) {
+  constexpr void append_raw_data(concepts::contiguous_byte_range auto const &data) {
     auto old_size = view_.size();
-    auto num_elements = data.size()/sizeof(value_type);
+    auto num_elements = data.size() / sizeof(value_type);
     assign_range_with_size(view_, old_size + num_elements);
     auto destination = std::span{data_ + old_size, num_elements};
     if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
