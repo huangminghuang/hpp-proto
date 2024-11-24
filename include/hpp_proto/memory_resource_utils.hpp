@@ -133,7 +133,7 @@ auto &get_memory_resource(T &v) {
 
 namespace detail {
 template <concepts::byte_serializable T, std::ranges::contiguous_range Range>
-class reinterpret_view_t : public std::ranges::view_interface<reinterpret_view_t<T, Range>> {
+class bit_cast_view_t : public std::ranges::view_interface<bit_cast_view_t<T, Range>> {
   using base_value_type = std::ranges::range_value_t<Range>;
   using base_type = std::span<const base_value_type>;
   static constexpr auto chunk_size = sizeof(T);
@@ -175,7 +175,7 @@ public:
       return std::bit_cast<T>(v);
     }
   };
-  constexpr explicit reinterpret_view_t(const Range &input_range) : base(input_range.data(), input_range.size()) {
+  constexpr explicit bit_cast_view_t(const Range &input_range) : base(input_range.data(), input_range.size()) {
     assert((input_range.size() % chunk_size) == 0);
   }
 
@@ -184,8 +184,8 @@ public:
 };
 
 template <typename T, concepts::contiguous_byte_range Bytes>
-auto reinterpret_view(const Bytes &input_range) {
-  return reinterpret_view_t<T, Bytes>{input_range};
+auto bit_cast_view(const Bytes &input_range) {
+  return bit_cast_view_t<T, Bytes>{input_range};
 }
 
 /// The `arena_vector` class adapts an existing hpp::proto::equality_comparable_span or std::string_view, allowing the
@@ -289,7 +289,7 @@ public:
     assign_range_with_size(view_, old_size + num_elements);
     auto destination = std::span{data_ + old_size, num_elements};
     if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
-      auto source_view = reinterpret_view<value_type>(data);
+      auto source_view = bit_cast_view<value_type>(data);
       std::uninitialized_copy(source_view.begin(), source_view.end(), destination.begin());
     } else {
       std::memcpy(destination.data(), data.data(), data.size());

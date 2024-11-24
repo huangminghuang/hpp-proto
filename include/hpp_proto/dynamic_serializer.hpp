@@ -657,8 +657,7 @@ class dynamic_serializer {
       }
 
       pb_context pb_ctx;
-      pb_serializer::contiguous_input_stream strm(v.value, pb_ctx);
-      auto value_archive = strm.archive();
+      pb_serializer::contiguous_input_archive value_archive(v.value, pb_ctx);
       const bool is_wellknown = pb_meta.is_wellknown_message(msg_index);
       if (is_wellknown) {
         glz::detail::dump<"\"value\":">(b, ix);
@@ -1554,8 +1553,7 @@ public:
     buffer.resize(pb_encoded_stream.size() * 2);
 
     pb_context pb_ctx;
-    pb_serializer::contiguous_input_stream strm(pb_encoded_stream, pb_ctx);
-    auto archive = strm.archive();
+    pb_serializer::contiguous_input_archive archive(pb_encoded_stream, pb_ctx);
 
     pb_to_json_state<buffer_type> state{*this, buffer};
     state.context.indentation_level = 0;

@@ -8,9 +8,9 @@ using hpp::proto::field_option;
 using namespace boost::ut::literals;
 using namespace std::string_view_literals;
 
-const ut::suite reinterpret_view_test = [] {
+const ut::suite bit_cast_view_test = [] {
   using namespace boost::ut;
-  "reinterpret_view"_test = [] {
+  "bit_cast_view"_test = [] {
     constexpr auto data_size = 10;
     std::vector<int> data(data_size);
     constexpr auto chunk_size = sizeof(int);
@@ -19,7 +19,7 @@ const ut::suite reinterpret_view_test = [] {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     std::span<const char> input_range{reinterpret_cast<const char *>(data.data()), data.size() * chunk_size};
     int i = 0;
-    for (auto v : hpp::proto::detail::reinterpret_view<int>(input_range)) {
+    for (auto v : hpp::proto::detail::bit_cast_view<int>(input_range)) {
       ut::expect(v == i);
       ++i;
     }
@@ -67,6 +67,7 @@ const ut::suite varint_decode_tests = [] {
     auto data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
     const auto *end = data.data() + data.size();
     int64_t parsed_value; // NOLINT(cppcoreguidelines-init-variables)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     ut::expect(hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value) == end + 1);
   };
 };

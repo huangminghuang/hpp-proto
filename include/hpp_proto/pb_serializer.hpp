@@ -283,8 +283,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
-                                      int64_t &res1) -> decltype(std::ranges::cdata(input)) {
+constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input, int64_t &res1)
+    -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -417,8 +417,8 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
   return done2();
 }
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    bool &value) -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, bool &value)
+    -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -1573,20 +1573,23 @@ struct pb_serializer {
     const T *_begin = nullptr;
     const T *_end = nullptr;
 
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     constexpr input_span() = default;
     constexpr input_span(const T *b, const T *e) : _begin(b), _end(e) {}
+    constexpr input_span(const T *b, std::size_t n) : _begin(b), _end(b + n) {}
     [[nodiscard]] constexpr const T *data() const { return _begin; }
     [[nodiscard]] constexpr std::size_t size() const { return _end - _begin; }
+    [[nodiscard]] constexpr bool empty() const { return _begin == _end; }
 
     [[nodiscard]] constexpr const T *begin() const { return _begin; }
     [[nodiscard]] constexpr const T *end() const { return _end; }
 
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    constexpr input_span<T> subspan(std::size_t offset, std::size_t count) const {
+    constexpr const T &next() { return *_begin++; }
+    [[nodiscard]] constexpr input_span<T> subspan(std::size_t offset, std::size_t count) const {
       return {_begin + offset, _begin + offset + count};
     }
 
-    constexpr std::pair<input_span<T>, input_span<T>> split(std::size_t n) const {
+    [[nodiscard]] constexpr std::pair<input_span<T>, input_span<T>> split(std::size_t n) const {
       return std::make_pair(input_span<T>{_begin, _begin + n}, input_span<T>{_begin + n, _end});
     }
 
@@ -1606,6 +1609,9 @@ struct pb_serializer {
       _begin = std::forward<Fun>(fun)(*this);
     }
   };
+
+  constexpr static std::size_t slope_size = 16;
+  constexpr static std::size_t patch_buffer_size = 2 * slope_size;
 
   template <typename Byte>
   struct input_buffer_region_base : input_span<Byte> {
@@ -1627,20 +1633,25 @@ struct pb_serializer {
   struct basic_in {
     using byte_type = Byte;
     input_buffer_region_base<Byte> current;
-    const input_buffer_region<Byte> *next_region;
+    input_span<input_buffer_region<Byte>> rest;
     ptrdiff_t size_exclude_current = 0; // the remaining size excluding those in current
 
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
 
+    constexpr void set_current_region(const input_buffer_region<Byte> &next_region) {
+      current._begin = next_region._begin;
+      current._end = next_region._end;
+      current._slope_begin = next_region._slope_begin;
+      size_exclude_current -= (next_region._effective_size);
+    }
+
     constexpr void maybe_advance_region() {
       std::ptrdiff_t offset = 0;
-      while ((offset = current.slope_distance()) >= 0 && current.has_next_region()) {
+      while ((offset = current.slope_distance()) >= 0 && !rest.empty()) {
         auto len = in_avail();
-        current = static_cast<input_buffer_region_base<Byte>>(*next_region);
+        set_current_region(rest.next());
         current.consume(offset);
         current.restrict_size(len);
-        size_exclude_current -= (next_region->_effective_size);
-        ++next_region;
       }
     }
 
@@ -1651,11 +1662,11 @@ struct pb_serializer {
         container.append_raw_data(data);
       } else if (std::is_constant_evaluated() ||
                  (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
-        auto input_range = detail::reinterpret_view<value_type>(data);
+        auto input_range = detail::bit_cast_view<value_type>(data);
         container.insert(container.end(), input_range.begin(), input_range.end());
       } else {
         auto n = container.size();
-        container.resize(n + data.size() / sizeof(value_type));
+        container.resize(n + (data.size() / sizeof(value_type)));
         std::memcpy(container.data() + n, data.data(), data.size());
       }
     }
@@ -1667,14 +1678,58 @@ struct pb_serializer {
     [[nodiscard]] constexpr ptrdiff_t in_avail() const { return region_size() + size_exclude_current; }
     [[nodiscard]] constexpr const byte_type *data() const { return current.data(); }
 
-    // NOLINTBEGIN(cppcoreguidelines-slicing)
-    constexpr explicit basic_in(const input_buffer_region<Byte> *regions, ptrdiff_t size_exclude_first_region)
-        : current(*regions), next_region(++regions), size_exclude_current(size_exclude_first_region) {}
-    // NOLINTEND(cppcoreguidelines-slicing)
-
-    constexpr basic_in(input_buffer_region_base<Byte> cur, const input_buffer_region<Byte> *regions,
+    constexpr basic_in(input_buffer_region_base<Byte> cur, const input_span<input_buffer_region<Byte>> &rest,
                        ptrdiff_t size_exclude_current)
-        : current(cur), next_region(regions), size_exclude_current(size_exclude_current) {}
+        : current(cur), rest(rest), size_exclude_current(size_exclude_current) {}
+
+    constexpr basic_in(concepts::segmented_byte_range auto &&source, std::span<input_buffer_region<Byte>> regions,
+                       std::span<Byte> patch_buffer_cache) {
+      // pre (std::size(source) > 0 && regions.size() == std::size(source) * 2)
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      Byte *patch_buffer = patch_buffer_cache.data();
+      std::size_t region_index = 0;
+      bool first_segment = true;
+      for (auto &segment : source) {
+        const auto segment_size = std::ranges::size(segment);
+        size_exclude_current += segment_size;
+        if (segment_size <= slope_size) {
+          auto &seg_region = regions[region_index];
+          if (first_segment) {
+            seg_region._begin = patch_buffer;
+            seg_region._effective_size = 0;
+          }
+          patch_buffer = std::copy(std::begin(segment), std::end(segment), patch_buffer);
+          seg_region._effective_size += segment_size;
+          seg_region._slope_begin = patch_buffer;
+        } else {
+          if (!first_segment) {
+            patch_buffer = std::copy_n(std::begin(segment), slope_size, patch_buffer);
+            regions[region_index]._end = patch_buffer;
+            ++region_index;
+          }
+          auto &seg_region = regions[region_index];
+          seg_region._begin = std::ranges::data(segment);
+          seg_region._end = seg_region._begin + segment_size;
+          seg_region._slope_begin = seg_region._end - slope_size;
+          seg_region._effective_size = segment_size;
+
+          auto &patch_region = regions[++region_index];
+          patch_region._begin = patch_buffer;
+          patch_buffer = std::copy(seg_region._slope_begin, seg_region._end, patch_buffer);
+          patch_region._slope_begin = patch_buffer;
+          patch_region._effective_size = 0;
+        }
+        first_segment = false;
+      }
+      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      regions[region_index++]._end = patch_buffer;
+      std::fill_n(patch_buffer, slope_size, Byte{0});
+      // post (std::distance(patch_buffer_cache.data(), patch_buffer) >= 0 )
+      rest = input_span{regions.data(), region_index};
+      set_current_region(rest.next());
+    }
+
+    [[nodiscard]] basic_in copy() const { return *this; }
 
     constexpr status deserialize(bool &item) {
       current.consume([&item](auto r) { return unchecked_parse_bool(r, item); });
@@ -1801,8 +1856,7 @@ struct pb_serializer {
     constexpr auto split(ptrdiff_t length) {
       assert(in_avail() >= length);
       return basic_in<byte_type, contiguous>{
-          input_buffer_region_base<Byte>{current.consume(length), current._slope_begin}, next_region,
-          size_exclude_current};
+          input_buffer_region_base<Byte>{current.consume(length), current._slope_begin}, rest, size_exclude_current};
     }
 
     template <concepts::non_owning_bytes T>
@@ -1827,7 +1881,7 @@ struct pb_serializer {
     }
 
     constexpr std::size_t count_number_of_varints_in_region(std::size_t n) {
-      auto [data, remaining] = current.subspan(0, n).split(n - n % 8);
+      auto [data, remaining] = current.subspan(0, n).split(n - (n % 8));
 
       std::size_t result = 0;
       auto popcount = [](uint64_t v) -> int {
@@ -1999,19 +2053,20 @@ struct pb_serializer {
   }
 
   constexpr static status count_unpacked_elements(uint32_t input_tag, std::size_t &count,
-                                                  concepts::is_basic_in auto archive) {
+                                                  concepts::is_basic_in auto &archive) {
     // NOLINTBEGIN(cppcoreguidelines-avoid-do-while)
+    auto new_archive = archive.copy();
     do {
-      if (auto result = do_skip_field(input_tag, archive); !result.ok()) {
+      if (auto result = do_skip_field(input_tag, new_archive); !result.ok()) {
         return result;
       }
 
       ++count;
 
-      if (archive.in_avail() == 0) {
+      if (new_archive.in_avail() == 0) {
         return {};
       }
-    } while (archive.read_tag() == input_tag);
+    } while (new_archive.read_tag() == input_tag);
     // NOLINTEND(cppcoreguidelines-avoid-do-while)
     return {};
   }
@@ -2390,95 +2445,41 @@ struct pb_serializer {
     return std::errc::bad_message;
   }
 
-  constexpr static std::size_t slope_size = 16;
-  constexpr static std::size_t patch_buffer_size = 2 * slope_size;
-
   template <typename Context, typename Byte>
-  struct patch_buffer_type {
-    std::array<Byte, patch_buffer_size> buffer = {Byte{0}};
-    constexpr explicit patch_buffer_type(Context &) {}
-    constexpr auto to_span() { return std::span{buffer.data(), patch_buffer_size}; }
+  struct contiguous_input_archive_base {
+    std::array<Byte, patch_buffer_size> patch_buffer;
+    std::array<input_buffer_region<Byte>, 2> regions = {};
+    constexpr explicit contiguous_input_archive_base(Context &) {}
   };
 
   // when memory resource is used, the patch buffer must come from it because
   // the decoded string or bytes may refer to the memory in patch buffer
   template <concepts::has_memory_resource Context, typename Byte>
-  struct patch_buffer_type<Context, Byte> {
-    Byte *buffer;
-    constexpr explicit patch_buffer_type(Context &context)
-        : buffer(static_cast<Byte *>(context.memory_resource().allocate(patch_buffer_size, 1))) {
-      memset(buffer, 0, patch_buffer_size);
-    }
-    constexpr auto to_span() { return std::span{buffer, patch_buffer_size}; }
+  struct contiguous_input_archive_base<Context, Byte> {
+    std::span<Byte> patch_buffer;
+    std::array<input_buffer_region<Byte>, 2> regions = {};
+    constexpr explicit contiguous_input_archive_base(Context &context)
+        : patch_buffer(static_cast<Byte *>(context.memory_resource().allocate(patch_buffer_size, 1)),
+                       patch_buffer_size) {}
   };
 
-  template <typename Byte>
-  constexpr static std::ptrdiff_t setup_input_regions(concepts::segmented_byte_range auto &&source,
-                                                      std::span<input_buffer_region<Byte>> regions,
-                                                      std::span<Byte> patch_buffer_cache) {
-    // pre (std::size(source) > 0 && regions.size() == std::size(source) * 2)
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    Byte *patch_buffer = patch_buffer_cache.data();
-    ptrdiff_t total_size = 0;
-    int region_index = 0;
-    bool first_segment = true;
-    for (auto &segment : source) {
-      const auto segment_size = std::ranges::size(segment);
-      total_size += segment_size;
-      if (segment_size <= slope_size) {
-        auto &seg_region = regions[region_index];
-        if (first_segment) {
-          seg_region._begin = patch_buffer;
-          seg_region._effective_size = 0;
-        }
-        patch_buffer = std::copy(std::begin(segment), std::end(segment), patch_buffer);
-        seg_region._effective_size += segment_size;
-        seg_region._slope_begin = patch_buffer;
-      } else {
-        if (!first_segment) {
-          patch_buffer = std::copy_n(std::begin(segment), slope_size, patch_buffer);
-          regions[region_index]._end = patch_buffer;
-          ++region_index;
-        }
-        auto &seg_region = regions[region_index];
-        seg_region._begin = std::ranges::data(segment);
-        seg_region._end = seg_region._begin + segment_size;
-        seg_region._slope_begin = seg_region._end - slope_size;
-        seg_region._effective_size = segment_size;
+  template <concepts::is_pb_context Context, typename Byte>
+  struct contiguous_input_archive : contiguous_input_archive_base<Context, Byte>, basic_in<Byte, true> {
 
-        auto &patch_region = regions[++region_index];
-        patch_region._begin = patch_buffer;
-        patch_buffer = std::copy(seg_region._slope_begin, seg_region._end, patch_buffer);
-        patch_region._slope_begin = patch_buffer;
-        patch_region._effective_size = 0;
-      }
-      first_segment = false;
-    }
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    regions[region_index]._end = patch_buffer;
-    std::fill_n(patch_buffer, slope_size, Byte{0});
-    // post (std::distance(patch_buffer_cache.data(), patch_buffer) >= 0 )
-    return total_size;
-  }
+    constexpr contiguous_input_archive(const auto &buffer, Context &context) noexcept
+        : contiguous_input_archive_base<Context, Byte>(context),
+          basic_in<Byte, true>(std::span{&buffer, 1}, this->regions, this->patch_buffer) {}
+
+    constexpr ~contiguous_input_archive() noexcept = default;
+    contiguous_input_archive(const contiguous_input_archive &) = delete;
+    contiguous_input_archive(contiguous_input_archive &&) = delete;
+    contiguous_input_archive &operator=(const contiguous_input_archive &) = delete;
+    contiguous_input_archive &operator=(contiguous_input_archive &&) = delete;
+  };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  struct contiguous_input_stream {
-    using byte_type = std::remove_const_t<std::ranges::range_value_t<Buffer>>;
-    patch_buffer_type<Context, byte_type> patch_buffer;
-    std::array<input_buffer_region<byte_type>, 2> regions;
-
-    constexpr contiguous_input_stream(Buffer &buffer, Context &context) noexcept : patch_buffer(context) {
-      setup_input_regions<byte_type>(std::span{&buffer, 1}, regions, patch_buffer.to_span());
-    }
-
-    constexpr auto archive() { return basic_in<byte_type, true>(this->regions.data(), 0); }
-
-    constexpr ~contiguous_input_stream() noexcept = default;
-    contiguous_input_stream(const contiguous_input_stream &) = delete;
-    contiguous_input_stream(contiguous_input_stream &&) = delete;
-    contiguous_input_stream &operator=(const contiguous_input_stream &) = delete;
-    contiguous_input_stream &operator=(contiguous_input_stream &&) = delete;
-  };
+  contiguous_input_archive(const Buffer &, Context &)
+      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer) {
     pb_context ctx;
@@ -2487,8 +2488,7 @@ struct pb_serializer {
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer,
                                       concepts::is_pb_context auto &&context) {
-    contiguous_input_stream strm{buffer, context};
-    auto archive = strm.archive();
+    contiguous_input_archive archive{buffer, context};
     return deserialize(item, context, archive);
   }
 
@@ -2497,9 +2497,8 @@ struct pb_serializer {
                                       concepts::segmented_byte_range auto const &buffer,
                                       std::span<input_buffer_region<Byte>> regions,
                                       std::span<Byte> patch_buffer_cache) {
-    auto total_size = setup_input_regions(buffer, regions, patch_buffer_cache);
     constexpr bool is_contiguous = false;
-    auto archive = basic_in<Byte, is_contiguous>(regions.data(), total_size - regions[0]._effective_size);
+    auto archive = basic_in<Byte, is_contiguous>(buffer, regions, patch_buffer_cache);
     return deserialize(item, context, archive);
   }
 
