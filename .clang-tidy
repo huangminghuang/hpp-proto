@@ -36,6 +36,7 @@ Checks: "*,
         -bugprone-crtp-constructor-accessibility,
         -misc-use-internal-linkage,
         -modernize-use-designated-initializers,
+        -readability-avoid-unconditional-preprocessor-if,
         -boost-*     
 "
 WarningsAsErrors: ''
