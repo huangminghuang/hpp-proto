@@ -64,8 +64,8 @@ using glz::unexpected;
 
 constexpr bool utf8_validation_failed(auto meta, const auto &str) {
 #if HPP_PROTO_NO_UTF8_VALIDATION
-  (void)meta;
-  (void)str;
+  [[maybe_unused]] meta;
+  ([[maybe_unused]] str;
 #else
   if constexpr (meta.validate_utf8) {
     if (!std::is_constant_evaluated()) {
@@ -283,8 +283,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
-                                      int64_t &res1) -> decltype(std::ranges::cdata(input)) {
+constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input, int64_t &res1)
+    -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -417,8 +417,8 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
   return done2();
 }
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    bool &value) -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, bool &value)
+    -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -1091,7 +1091,6 @@ struct pb_serializer {
 
     HPP_PROTO_INLINE constexpr void serialize(concepts::byte_serializable auto item) {
       auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
-      // NOLINTNEXTLINE(bugprone-branch-clone)
       if constexpr (endian_swapped && sizeof(item) != 1) {
         std::copy(value.rbegin(), value.rend(), m_data.begin());
       } else {
@@ -1381,8 +1380,9 @@ struct pb_serializer {
     }
   }
 
-  template <bool overwrite_buffer = true, std::size_t MAX_CACHE_COUNT = 128, concepts::contiguous_byte_range Buffer>
-  constexpr static status serialize(concepts::has_meta auto const &item, Buffer &buffer) {
+  template <bool overwrite_buffer = true, concepts::contiguous_byte_range Buffer>
+  constexpr static status serialize(concepts::has_meta auto const &item, Buffer &buffer,
+                                    [[maybe_unused]] concepts::is_pb_context auto &context) {
     std::size_t n = cache_count(item);
 
     auto do_serialize = [&item, &buffer](std::span<uint32_t> cache) constexpr -> status {
@@ -1403,9 +1403,24 @@ struct pb_serializer {
       return {};
     };
 
-    if (std::is_constant_evaluated() || n > MAX_CACHE_COUNT) {
-      constexpr_vector<uint32_t> cache(n);
-      return do_serialize(cache);
+    using context_type = decltype(context);
+    constexpr std::size_t max_stack_cache_count = [] {
+      if constexpr (requires { context_type::max_size_cache_on_stack; }) {
+        return context_type::max_size_cache_on_stack;
+      } else {
+        return hpp::proto::max_size_cache_on_stack<>.max_size_cache_on_stack;
+      }
+    }() / sizeof(uint32_t);
+
+    if (std::is_constant_evaluated() || n > max_stack_cache_count) {
+      if constexpr (concepts::has_memory_resource<decltype(context)>) {
+        auto cache = std::span{
+            static_cast<uint32_t *>(context.memory_resource().allocate(n * sizeof(uint32_t), sizeof(uint32_t))), n};
+        return do_serialize(cache);
+      } else {
+        constexpr_vector<uint32_t> cache(n);
+        return do_serialize(cache);
+      }
     } else if (n > 0) {
 #if defined(_MSC_VER)
       auto *cache = static_cast<uint32_t *>(_alloca(n * sizeof(uint32_t)));
@@ -1413,7 +1428,7 @@ struct pb_serializer {
       auto *cache =
           static_cast<uint32_t *>(__builtin_alloca_with_align(n * sizeof(uint32_t), CHAR_BIT * sizeof(uint32_t)));
 #else
-      uint32_t cache[MAX_CACHE_COUNT];
+      uint32_t cache[max_stack_cache_count];
 #endif
       return do_serialize({cache, n});
     } else {
@@ -1628,6 +1643,15 @@ struct pb_serializer {
     std::size_t _effective_size = 0;
   };
 
+  ///
+  /// We adopt the same optimization technique as
+  /// [EpsCopyInputStream](https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/parse_context.h)
+  /// for protobuf deserialization. Input buffers are structured into a sequence of overlapping regions, where
+  /// each consecutive region overlaps by slope_size bytes. For a sequence of input buffers (b_1, b_2, ..., b_n), patch
+  /// buffers are inserted between chunks to create a new sequence (b_1, p_1, b_2, p_2, ..., b_n, p_n). Each patch
+  /// buffer p_i contains the last slope_size bytes of b_i and the first slope_size bytes of b_{i+1}.
+  ///
+
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   template <typename Byte, bool Contiguous>
   struct basic_in {
@@ -1722,10 +1746,12 @@ struct pb_serializer {
         first_segment = false;
       }
       // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      regions[region_index++]._end = patch_buffer;
+      regions[region_index]._end = patch_buffer;
+      // setting the _slop_begin passed the _end ensure the slope_distance()
+      // of the last region always greater than zero and thus not to advance the region.
+      regions[region_index]._slope_begin = patch_buffer + slope_size;
       std::fill_n(patch_buffer, slope_size, Byte{0});
-      // post (std::distance(patch_buffer_cache.data(), patch_buffer) >= 0 )
-      rest = input_span{regions.data(), region_index};
+      rest = input_span{regions.data(), region_index+1};
       set_current_region(rest.next());
     }
 
@@ -1797,7 +1823,7 @@ struct pb_serializer {
 #endif // x64
 
     template <concepts::varint T, typename Item>
-    constexpr status deserialize_packed_varint(uint32_t bytes_count, std::size_t size, Item &item) {
+    constexpr status deserialize_packed_varint([[maybe_unused]] uint32_t bytes_count, std::size_t size, Item &item) {
       using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
@@ -1819,7 +1845,6 @@ struct pb_serializer {
         return {};
       }
 #endif
-      (void)bytes_count; // avoid unused parameter warning
       for (unsigned i = 0; i < size; ++i) {
         T underlying;
         if (auto result = this->deserialize(underlying); !result.ok()) [[unlikely]] {
@@ -2478,8 +2503,8 @@ struct pb_serializer {
   };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  contiguous_input_archive(const Buffer &,
-                           Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+  contiguous_input_archive(const Buffer &, Context &)
+      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer) {
     pb_context ctx;
@@ -2590,7 +2615,7 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
 
   serialize_wrapper_type<decltype(value), ExtensionMeta> wrapper{std::forward<decltype(value)>(value)};
 
-  if (auto result = pb_serializer::serialize(wrapper, data); !result.ok()) [[unlikely]] {
+  if (auto result = pb_serializer::serialize(wrapper, data, ctx); !result.ok()) [[unlikely]] {
     return result;
   }
 
@@ -2615,8 +2640,9 @@ consteval auto write_proto(F make_object) {
   if constexpr (sz == 0) {
     return std::span<std::byte>{};
   } else {
+    pb_context ctx;
     std::array<std::byte, sz> buffer = {};
-    if (auto result = pb_serializer::serialize(obj, buffer); !result.ok()) {
+    if (auto result = pb_serializer::serialize(obj, buffer, ctx); !result.ok()) {
       throw std::system_error(std::make_error_code(result.ec));
     }
     return buffer;
@@ -2627,7 +2653,7 @@ template <concepts::has_meta T, concepts::contiguous_byte_range Buffer>
 status write_proto(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...option) {
   pb_context ctx{std::forward<decltype(option)>(option)...};
   decltype(auto) v = detail::as_modifiable(ctx, buffer);
-  return pb_serializer::serialize(std::forward<T>(msg), v);
+  return pb_serializer::serialize(std::forward<T>(msg), v, ctx);
 }
 
 template <concepts::contiguous_byte_range Buffer = std::vector<std::byte>>
@@ -2644,7 +2670,8 @@ expected<Buffer, std::errc> write_proto(concepts::has_meta auto const &msg, conc
 template <concepts::has_meta T>
 status append_proto(T &&msg, concepts::resizable_contiguous_byte_container auto &buffer) {
   constexpr bool overwrite_buffer = false;
-  return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer);
+  pb_context ctx;
+  return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer, ctx);
 }
 
 template <concepts::has_meta T>

@@ -102,6 +102,21 @@ public:
   explicit strictly_alloc_from(T &m) : alloc_from<T, true>(m) {}
 };
 
+template <uint32_t n>
+struct max_size_cache_on_stack_t {
+  using option_type = max_size_cache_on_stack_t<n>;
+  static constexpr auto max_size_cache_on_stack = n;
+};
+
+/// @brief max size in bytes which can be used for allocating size cache on stack
+///
+/// @details To accelerate Protobuf serialization, a size cache is utilized to store the serialized byte count of
+/// variable-length fields before the fields’ content is serialized. If the total size of the size cache required is
+/// less than or equal to max_size_cache_on_stack, the cache is allocated directly on the stack. Otherwise, it is
+/// allocated on the heap.
+template <uint32_t n = 1024>
+constexpr auto max_size_cache_on_stack = max_size_cache_on_stack_t<n>{};
+
 template <typename... T>
 struct pb_context : T::option_type... {
   using is_pb_context = void;
