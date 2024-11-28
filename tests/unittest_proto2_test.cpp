@@ -35,6 +35,7 @@ const ut::suite proto_test = [] {
                  protobuf_unittest::TestUnpackedTypes, protobuf_unittest::TestPackedTypes,
                  protobuf_unittest::TestPackedExtensions>{};
 
+#if !defined(HPP_PROTO_DISABLE_GLAZE)
   "interoperate_with_google_protobuf_parser"_test =
       [&]<class T> {
         T original;
@@ -57,6 +58,7 @@ const ut::suite proto_test = [] {
       } |
       std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestUnpackedTypes,
                  protobuf_unittest::TestPackedTypes>{};
+#endif
 };
 
 // TODO: need a test case of TestOneof2

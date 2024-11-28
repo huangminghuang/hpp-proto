@@ -397,7 +397,7 @@ struct hpp_addons {
         } else {
           const std::string_view typename_view = cpp_field_type;
           std::string suffix;
-          if (typename_view[5] == 'u') {
+          if (typename_view.size() > 6 && typename_view[5] == 'u') {
             suffix = "U";
           }
 
@@ -1736,6 +1736,7 @@ int main(int argc, const char **argv) {
 #endif
 
   using namespace std::string_view_literals;
+  std::filesystem::path cur_dir = std::filesystem::current_path();
 
   if (args.size() == 2) {
     read_file(std::ifstream(args[1], std::ios_base::binary));
