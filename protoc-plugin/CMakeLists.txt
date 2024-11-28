@@ -7,6 +7,7 @@ install(TARGETS protoc-gen-hpp EXPORT hpp_proto-targets)
 
 if(MSVC)
     target_compile_definitions(protoc-gen-hpp PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(protoc-gen-hpp PRIVATE /bigobj)
 endif()
 
 if(Protobuf_INCLUDE_DIRS)
