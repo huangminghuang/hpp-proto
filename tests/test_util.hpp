@@ -52,14 +52,14 @@ constexpr auto operator""_bytes() {
   return static_cast<std::vector<std::byte>>(hpp::proto::bytes_literal<str>{});
 }
 
- // NOLINTBEGIN(cert-dcl58-cpp)
- namespace std {
- template <typename T>
+// NOLINTBEGIN(cert-dcl58-cpp)
+namespace std {
+template <typename T>
   requires requires { glz::meta<T>::value; }
- std::ostream &operator<<(std::ostream &os, const T &v) {
+std::ostream &operator<<(std::ostream &os, const T &v) {
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   return os << hpp::proto::write_json(v).value();
-#else 
+#else
   return os;
 #endif
 }
