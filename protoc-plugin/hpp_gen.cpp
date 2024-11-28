@@ -1736,7 +1736,6 @@ int main(int argc, const char **argv) {
 #endif
 
   using namespace std::string_view_literals;
-  std::filesystem::path cur_dir = std::filesystem::current_path();
 
   if (args.size() == 2) {
     read_file(std::ifstream(args[1], std::ios_base::binary));
