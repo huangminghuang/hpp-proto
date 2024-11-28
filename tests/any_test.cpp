@@ -50,7 +50,7 @@ const suite test_any = [] {
     expect(std::ranges::equal(paths, fm2.paths));
   };
 
- #if !defined(HPP_PROTO_DISABLE_GLAZE)
+#if !defined(HPP_PROTO_DISABLE_GLAZE)
   "any_json_wellknown"_test = [] {
     protobuf_unittest::TestAny message;
     google::protobuf::FieldMask fm{.paths = {"/usr/share", "/usr/local/share"}};
@@ -95,7 +95,7 @@ const suite test_any = [] {
     expect(ser->json_to_proto(message_name, expected_json, serialized).ok());
     expect(eq(data, serialized));
   };
- #endif
+#endif
 };
 
 int main() {

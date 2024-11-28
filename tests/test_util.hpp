@@ -53,10 +53,10 @@ constexpr auto operator""_bytes() {
 }
 
 // NOLINTBEGIN(cert-dcl58-cpp)
-//namespace std {
-//template <typename T>
+// namespace std {
+// template <typename T>
 //  requires requires { glz::meta<T>::value; }
-//std::ostream &operator<<(std::ostream &os, const T &v) {
+// std::ostream &operator<<(std::ostream &os, const T &v) {
 //  return os << hpp::proto::write_json(v).value();
 //}
 //} // namespace std
