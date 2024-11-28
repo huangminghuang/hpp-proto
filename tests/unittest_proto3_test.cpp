@@ -37,14 +37,17 @@ const boost::ut::suite proto3_lite_test = [] {
 
     ExpectUnpackedFieldsSet(msg);
 
+#if !defined(HPP_PROTO_DISABLE_GLAZE)
     auto r = glz::write_json(original);
     expect(r.has_value());
     auto original_json = gpb_based::proto_to_json(unittest_descriptorset, "proto3_unittest.TestUnpackedTypes",
                                                   {data.data(), data.size()});
     expect(fatal(!original_json.empty()));
     expect(eq(*r, original_json));
+#endif
   };
 
+#if !defined(HPP_PROTO_DISABLE_GLAZE)
   "glaze"_test = [&] {
     proto3_unittest::TestAllTypes original;
     SetAllFields(&original);
@@ -62,6 +65,7 @@ const boost::ut::suite proto3_lite_test = [] {
 
     ExpectAllFieldsSet(msg);
   };
+#endif
 };
 
 int main() {

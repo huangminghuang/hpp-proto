@@ -403,7 +403,7 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
 
   if (last() & 0x80) [[likely]] {
     // If the continue bit is set, it is an unterminated varint.
-    return &*input.end() + 1;
+    return std::ranges::cdata(input) + std::ranges::size(input) + 1;
   }
 
   // A zero value of the first bit of the 10th byte represents an
@@ -459,7 +459,7 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
                     // of the 10th byte.
                     byte = (byte - 0x80) | (next() & 0x81);
                     if (byte & 0x80) [[unlikely]] {
-                      return &*input.end() + 1;
+                      return std::ranges::cdata(input) + std::ranges::size(input) + 1;
                     }
                   }
                 }

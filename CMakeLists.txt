@@ -27,6 +27,7 @@ endif()
 
 if(MSVC)
   add_compile_options("/EHsc")
+  add_compile_definitions(BOOST_UT_DISABLE_MODULE)
   set(HPP_PROTO_DISABLE_GLAZE ON)
 else()
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
