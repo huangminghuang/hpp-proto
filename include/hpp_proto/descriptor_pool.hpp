@@ -62,7 +62,7 @@ auto options_with_default_features(const auto &proto, google::protobuf::FeatureS
   return options;
 }
 } // namespace detail
-// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members, bugprone-unchecked-optional-access)
 template <typename AddOns>
 struct descriptor_pool {
   struct field_descriptor_t : AddOns::template field_descriptor<field_descriptor_t> {
@@ -72,14 +72,14 @@ struct descriptor_pool {
     field_descriptor_t(const google::protobuf::FieldDescriptorProto &proto, const std::string &parent_name,
                        const auto &inherited_options)
         : AddOns::template field_descriptor<field_descriptor_t>(proto, parent_name), proto(proto),
-          options(detail::options_with_default_features(proto, *inherited_options.features)) {
+          options(detail::options_with_default_features(proto, inherited_options.features.value())) {
       if constexpr (requires { this->merge_options(options, proto.options); }) {
         this->merge_options(options, proto.options);
       }
     }
 
     // return true if it is an optional explicit presence field
-    bool has_presence() const {
+    [[nodiscard]] bool has_presence() const {
       using enum google::protobuf::FieldDescriptorProto::Type;
       using enum google::protobuf::FieldDescriptorProto::Label;
       using enum google::protobuf::FeatureSet::FieldPresence;
@@ -87,21 +87,19 @@ struct descriptor_pool {
         return (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE || proto.proto3_optional ||
                 proto.oneof_index.has_value() || options.features->field_presence == EXPLICIT ||
                 options.features->field_presence == FIELD_PRESENCE_UNKNOWN);
-      } else if (proto.label == LABEL_REPEATED) {
-        return false;
-      } else if (proto.label == LABEL_REQUIRED) {
+      } else if (proto.label == LABEL_REPEATED || proto.label == LABEL_REQUIRED) {
         return false;
       }
 
       unreachable();
     }
 
-    bool is_required() const {
+    [[nodiscard]] bool is_required() const {
       return proto.label == google::protobuf::FieldDescriptorProto::Label::LABEL_REQUIRED ||
              options.features->field_presence == google::protobuf::FeatureSet::FieldPresence::LEGACY_REQUIRED;
     }
 
-    bool repeated_expanded() const {
+    [[nodiscard]] bool repeated_expanded() const {
       using enum google::protobuf::FieldDescriptorProto::Type;
       using enum google::protobuf::FieldDescriptorProto::Label;
       auto type = proto.type;
@@ -120,7 +118,7 @@ struct descriptor_pool {
       return false;
     }
 
-    bool is_packed() const {
+    [[nodiscard]] bool is_packed() const {
       using enum google::protobuf::FieldDescriptorProto::Type;
       using enum google::protobuf::FieldDescriptorProto::Label;
       auto type = proto.type;
@@ -137,15 +135,15 @@ struct descriptor_pool {
       return false;
     }
 
-    bool requires_utf8_validation() const {
+    [[nodiscard]] bool requires_utf8_validation() const {
       return proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_STRING &&
-             options.features->utf8_validation == google::protobuf::FeatureSet::Utf8Validation::VERIFY;
+             options.features.value().utf8_validation == google::protobuf::FeatureSet::Utf8Validation::VERIFY;
     }
 
-    bool is_delimited() const {
+    [[nodiscard]] bool is_delimited() const {
       return proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_GROUP ||
              (proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE &&
-              options.features->message_encoding == google::protobuf::FeatureSet::MessageEncoding::DELIMITED);
+              options.features.value().message_encoding == google::protobuf::FeatureSet::MessageEncoding::DELIMITED);
     }
   };
 
@@ -156,7 +154,7 @@ struct descriptor_pool {
     explicit oneof_descriptor_t(const google::protobuf::OneofDescriptorProto &proto,
                                 const google::protobuf::MessageOptions &inherited_options)
         : AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t>(proto), proto(proto),
-          options(detail::options_with_default_features(proto, *inherited_options.features)) {
+          options(detail::options_with_default_features(proto, inherited_options.features.value())) {
 
       if constexpr (requires { this->merge_options(options, proto.options); }) {
         this->merge_options(options, proto.options);
@@ -170,13 +168,15 @@ struct descriptor_pool {
     google::protobuf::EnumOptions options;
     explicit enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto, const auto &inherited_options)
         : AddOns::template enum_descriptor<enum_descriptor_t>(proto), proto(proto),
-          options(detail::options_with_default_features(proto, *inherited_options.features)) {
+          options(detail::options_with_default_features(proto, inherited_options.features.value())) {
       if constexpr (requires { this->merge_options(options, proto.options); }) {
         this->merge_options(options, proto.options);
       }
     }
 
-    bool is_closed() const { return options.features->enum_type == google::protobuf::FeatureSet::EnumType::CLOSED; }
+    [[nodiscard]] bool is_closed() const {
+      return options.features.value().enum_type == google::protobuf::FeatureSet::EnumType::CLOSED;
+    }
   };
 
   struct message_descriptor_t : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t,
@@ -188,7 +188,7 @@ struct descriptor_pool {
     explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto, const auto &inherited_options)
         : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t, oneof_descriptor_t,
                                               field_descriptor_t>(proto),
-          proto(proto), options(detail::options_with_default_features(proto, *inherited_options.features)) {
+          proto(proto), options(detail::options_with_default_features(proto, inherited_options.features.value())) {
       if constexpr (requires { this->merge_options(options, proto.options); }) {
         this->merge_options(options, proto.options);
       }
@@ -247,7 +247,7 @@ struct descriptor_pool {
   flat_map<std::string, file_descriptor_t *> file_map;
   flat_map<std::string, message_descriptor_t *> message_map;
   flat_map<std::string, enum_descriptor_t *> enum_map;
-  google::protobuf::Edition current_edition;
+  google::protobuf::Edition current_edition = {};
 
   google::protobuf::FeatureSet merge_features(google::protobuf::FeatureSet features, const auto &options) {
     if (options.has_value() && current_edition > google::protobuf::Edition::EDITION_PROTO3) {
@@ -287,6 +287,7 @@ struct descriptor_pool {
     throw std::runtime_error(std::string{"unsupported edition used by "} + file.name);
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   explicit descriptor_pool(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
     const descriptor_counter counter(proto_files);
     files.reserve(counter.files);
@@ -374,5 +375,5 @@ struct descriptor_pool {
     }
   }
 };
-// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
+// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members, bugprone-unchecked-optional-access)
 } // namespace hpp::proto

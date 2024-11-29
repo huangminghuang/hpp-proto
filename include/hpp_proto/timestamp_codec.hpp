@@ -42,10 +42,9 @@ struct timestamp_codec {
     } else if constexpr (Len == 4) {
       buf = glz::to_chars_u64_len_4(buf, uint32_t(val));
     } else if constexpr (Len == 2) {
-      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
       assert(val < 100);
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
       std::memcpy(buf, &glz::char_table[val * 2], 2);
-      // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
       buf += 2;
     }
     *buf++ = sep;
@@ -100,9 +99,8 @@ struct timestamp_codec {
     const char *cur = json.data();
     const char *end = json.data() + json.size() - 1;
 
-    // NOLINTBEGIN(readability-isolate-declaration,cppcoreguidelines-init-variables)
+    // NOLINTNEXTLINE(readability-isolate-declaration,cppcoreguidelines-init-variables)
     int32_t yy, mm, dd, hh, mn, ss;
-    // NOLINTEND(readability-isolate-declaration,cppcoreguidelines-init-variables)
 
     // NOLINTBEGIN(bugprone-easily-swappable-parameters)
     auto parse_digits_with_separator = [&cur](int32_t &v, std::size_t sz, char separator) {
@@ -140,9 +138,8 @@ struct timestamp_codec {
     }
 
     static int pow10[9] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
     value.nanos *= pow10[9 - nanos_digits.size()];
-    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
     return true;
   }
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)

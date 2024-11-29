@@ -80,7 +80,8 @@ static constexpr auto unwrap(T v) {
 
 // NOLINTBEGIN(hicpp-explicit-conversions)
 template <typename T, auto Default = std::monostate{}>
-class optional {
+  requires requires { !std::is_pointer_v<T>; }
+class optional { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
   static constexpr bool has_default_value = true;
   constexpr static T default_value() {
@@ -90,8 +91,9 @@ public:
       return unwrap(Default);
     } else {
       static_assert(sizeof(typename T::value_type) == 1);
-      return T{(const typename T::value_type *)Default.data(),
-               (const typename T::value_type *)Default.data() + Default.size()};
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      auto data = reinterpret_cast<const typename T::value_type *>(Default.data());
+      return T{data, data + Default.size()}; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
   }
 
@@ -119,6 +121,8 @@ public:
       : _value(other.value_or(default_value())), _present(other.has_value()) {}
 
   constexpr optional(std::optional<T> &&other) : _present(other.has_value()) {
+    // using member initializer could cause use after move problem
+    // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
     _value = std::move(other).value_or(default_value());
   }
 
@@ -128,6 +132,8 @@ public:
 
   template <class U>
   constexpr optional(std::optional<U> &&other) : _present(other.has_value()) {
+    // using member initializer could cause use after move problem
+    // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
     _value = std::move(other).value_or(default_value());
   }
 
@@ -140,7 +146,8 @@ public:
 
   template <typename U>
     requires std::convertible_to<U, T>
-  constexpr optional(U &&value) : _value(std::forward<U>(value)), _present(true) {}
+  constexpr optional(U &&value)
+      : _value(std::forward<U>(value)), _present(true) {} // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
   constexpr optional &operator=(std::nullopt_t /* unused */) noexcept {
     this->reset();
@@ -150,8 +157,7 @@ public:
   template <typename U>
     requires std::convertible_to<U, T>
   constexpr optional &operator=(U &&value) {
-    static_assert(!std::is_pointer_v<T>);
-    _value = static_cast<T>(std::forward<U>(value));
+    _value = static_cast<T>(std::forward<U>(value)); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     _present = true;
     return *this;
   }
@@ -330,8 +336,11 @@ public:
   static constexpr bool default_value() { return as_bool(Default); }
 
 private:
-  static constexpr uint8_t default_state = 0x80 | uint8_t(default_value()); // use 0x80 to denote empty state
-  bool &deref() { return reinterpret_cast<bool &>(impl); }
+  static constexpr uint8_t default_state = 0x80U | uint8_t(default_value()); // use 0x80 to denote empty state
+  bool &deref() {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<bool &>(impl);
+  }
   uint8_t impl = default_state;
 
 public:
@@ -344,7 +353,7 @@ public:
   constexpr optional &operator=(const optional &) noexcept = default;
   constexpr optional &operator=(optional &&) noexcept = default;
 
-  [[nodiscard]] constexpr bool has_value() const noexcept { return (impl & 0x80) == 0; }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return (impl & 0x80U) == 0; }
   constexpr bool operator*() const noexcept { return value(); }
 
   bool &emplace() noexcept {
@@ -357,7 +366,7 @@ public:
     return deref();
   }
 
-  [[nodiscard]] constexpr bool value() const { return static_cast<bool>(impl & 0x01); }
+  [[nodiscard]] constexpr bool value() const { return static_cast<bool>(impl & 0x01U); }
 
   constexpr optional &operator=(bool v) noexcept {
     impl = uint8_t(v);
@@ -388,6 +397,7 @@ public:
   }
 };
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 template <typename T>
 class heap_based_optional {
   std::unique_ptr<T> obj;
@@ -404,15 +414,15 @@ public:
   constexpr heap_based_optional(const heap_based_optional &other) : obj(other.obj ? new T(*other.obj) : nullptr) {}
 
   template <class... Args>
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
   constexpr explicit heap_based_optional(std::in_place_t, Args &&...args)
       : obj(new T{std::forward<Args &&>(args)...}) {}
 
-  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr heap_based_optional &operator=(heap_based_optional &&other) noexcept {
     obj = std::move(other.obj);
     return *this;
   }
-  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
   constexpr heap_based_optional &operator=(const heap_based_optional &other) {
     heap_based_optional tmp(other);
@@ -459,16 +469,18 @@ public:
   }
 
   constexpr bool operator==(const heap_based_optional &rhs) const {
-    if (has_value() && rhs.has_value()) {
-      return *obj == *rhs.obj;
+    if (has_value()) {
+      return rhs.has_value() && *obj == *rhs.obj;
     } else {
-      return has_value() == rhs.has_value();
+      return !rhs.has_value();
     }
   }
 
   constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
 };
 
+// NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+/// Used for recursive non-owning message types
 template <typename T>
 class optional_message_view {
   const T *obj = nullptr;
@@ -484,19 +496,13 @@ public:
   constexpr optional_message_view(optional_message_view &&other) noexcept : obj(other.obj) {}
   constexpr optional_message_view(const optional_message_view &other) noexcept : obj(other.obj) {}
 
-  // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr optional_message_view &operator=(optional_message_view &&other) noexcept {
     obj = other.obj;
     return *this;
   }
-  // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
-  // NOLINTBEGIN(bugprone-unhandled-self-assignment, cert-oop54-cpp)
-  constexpr optional_message_view &operator=(const optional_message_view &other) noexcept {
-    obj = other.obj;
-    return *this;
-  }
-  // NOLINTEND(bugprone-unhandled-self-assignment, cert-oop54-cpp)
+  constexpr optional_message_view &operator=(const optional_message_view &other) noexcept = default;
 
   constexpr optional_message_view &operator=(const T *other) noexcept {
     obj = other;
@@ -541,6 +547,9 @@ template <typename T>
 class equality_comparable_span : public std::span<T> {
 public:
   using std::span<T>::span;
+  // clang has trouble to compile if these special member functions using `= default`,
+  // when used in the recursive context.
+  // NOLINTNEXTLINE(hicpp-use-equals-default,modernize-use-equals-default)
   constexpr equality_comparable_span(const equality_comparable_span &other) noexcept
       : std::span<T>(other.data(), other.size()) {}
 
@@ -587,9 +596,8 @@ struct bytes_literal {
   [[nodiscard]] constexpr size_t size() const { return bytes.size(); }
   [[nodiscard]] constexpr const std::byte *data() const { return bytes.data(); }
   [[nodiscard]] constexpr const std::byte *begin() const { return bytes.data(); }
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr const std::byte *end() const { return bytes.data() + size(); }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   constexpr operator equality_comparable_span<const std::byte>() const {
     return equality_comparable_span<const std::byte>{data(), size()};
@@ -668,9 +676,8 @@ constexpr bool is_default_value(const T &val) {
 inline const char *message_name(auto &&v)
   requires requires { message_type_url(v); }
 {
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   return message_type_url(v).c_str() + std::size("type.googleapis.com");
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 template <concepts::flat_map T>

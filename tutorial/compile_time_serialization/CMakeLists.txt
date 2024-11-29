@@ -1,5 +1,5 @@
 add_library(person INTERFACE)
-target_include_directories(person INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(person SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate(TARGET person
     PROTOS person.proto
     LANGUAGE hpp

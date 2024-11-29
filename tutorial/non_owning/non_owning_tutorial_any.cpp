@@ -29,17 +29,17 @@ int main() {
                         .oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"sv};
 
   std::pmr::monotonic_buffer_resource pool;
-  hpp::proto::pb_context ctx{pool};
 
   tutorial::AnyDemo message;
-  expect(hpp::proto::pack_any(message.any_value.emplace(), alex, ctx).ok());
+  expect(hpp::proto::pack_any(message.any_value.emplace(), alex, hpp::proto::alloc_from{pool}).ok());
 
   std::pmr::vector<std::byte> buffer{&pool};
   expect(hpp::proto::write_proto(message, buffer).ok());
 
-  auto unpacked_result = hpp::proto::read_proto<tutorial::AnyDemo>(buffer, ctx).and_then([&ctx](auto &&msg) {
-    return hpp::proto::unpack_any<tutorial::Person>(msg.any_value.value(), ctx);
-  });
+  auto unpacked_result =
+      hpp::proto::read_proto<tutorial::AnyDemo>(buffer, hpp::proto::alloc_from{pool}).and_then([&pool](auto &&msg) {
+        return hpp::proto::unpack_any<tutorial::Person>(msg.any_value.value(), hpp::proto::alloc_from{pool});
+      });
   expect(unpacked_result.has_value());
   expect(alex == unpacked_result.value());
 

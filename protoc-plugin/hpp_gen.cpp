@@ -61,12 +61,14 @@ const std::unordered_set<std::string_view> keywords = {
 // NOLINTEND(cert-err58-cpp)
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+namespace {
 std::filesystem::path plugin_name;
 std::string plugin_parameters;
 std::vector<std::string> proto2_explicit_presences;
 std::string root_namespace;
 std::string top_directory;
 bool non_owning_mode = false;
+
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 std::string resolve_keyword(std::string_view name) {
@@ -180,9 +182,9 @@ std::string cpp_escape(std::string_view src) {
     } else {
       *itr++ = '\\';
       // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-      *itr++ = static_cast<char>('0' + static_cast<unsigned char>(c) / 64);
-      *itr++ = static_cast<char>('0' + (static_cast<unsigned char>(c) % 64) / 8);
-      *itr++ = static_cast<char>('0' + static_cast<unsigned char>(c) % 8);
+      *itr++ = static_cast<char>('0' + (static_cast<unsigned char>(c) / 64));
+      *itr++ = static_cast<char>('0' + ((static_cast<unsigned char>(c) % 64) / 8));
+      *itr++ = static_cast<char>('0' + (static_cast<unsigned char>(c) % 8));
       // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     }
   }
@@ -198,7 +200,7 @@ std::string basename(const std::string &name) {
 }
 
 std::size_t shared_scope_position(std::string_view s1, std::string_view s2) {
-  std::size_t pos = std::mismatch(s1.begin(), s1.end(), s2.begin(), s2.end()).first - s1.begin();
+  std::size_t pos = std::ranges::mismatch(s1, s2).in1 - s1.begin();
   if (pos == s1.size() && pos == s2.size()) {
     return pos;
   }
@@ -215,15 +217,6 @@ std::size_t shared_scope_position(std::string_view s1, std::string_view s2) {
     }
   }
   return std::string_view::npos;
-}
-
-std::size_t replace_all(std::string &inout, std::string_view what, std::string_view with) {
-  std::size_t count{};
-  for (std::string::size_type pos{}; inout.npos != (pos = inout.find(what.data(), pos, what.length()));
-       pos += with.length(), ++count) {
-    inout.replace(pos, what.length(), with.data(), with.length());
-  }
-  return count;
 }
 
 std::array<char, 4> to_hex_literal(hpp::proto::concepts::byte_type auto c) {
@@ -244,7 +237,7 @@ std::string to_hex_literal(hpp::proto::concepts::contiguous_byte_range auto cons
   }
   return result;
 }
-
+} // namespace
 struct hpp_addons {
   template <typename Derived>
   struct field_descriptor {
@@ -404,7 +397,7 @@ struct hpp_addons {
         } else {
           const std::string_view typename_view = cpp_field_type;
           std::string suffix;
-          if (typename_view[5] == 'u') {
+          if (typename_view.size() > 6 && typename_view[5] == 'u') {
             suffix = "U";
           }
 
@@ -547,8 +540,9 @@ struct hpp_addons {
           auto &names = dep->get_dependency_names();
           std::copy(names.begin(), names.end(), it);
         }
-        std::sort(dependency_names.begin(), dependency_names.end());
-        dependency_names.erase(std::unique(dependency_names.begin(), dependency_names.end()), dependency_names.end());
+        std::ranges::sort(dependency_names);
+        auto to_erase = std::ranges::unique(dependency_names.begin(), dependency_names.end());
+        dependency_names.erase(to_erase.begin(), to_erase.end());
         dependency_names.push_back(cpp_name);
       }
       return dependency_names;
@@ -613,7 +607,7 @@ struct code_generator {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
         auto *message = message_parent_of(f);
-        if (std::find(unresolved.begin(), unresolved.end(), message) != unresolved.end()) {
+        if (std::ranges::find(unresolved, message) != unresolved.end()) {
           used_by_messages[message] |= (f->proto.label != gpb::FieldDescriptorProto::Label::LABEL_REPEATED);
           f->is_recursive = true;
         }
@@ -632,7 +626,7 @@ struct code_generator {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
         auto *message = message_parent_of(f);
-        if (std::find(unresolved.begin(), unresolved.end(), message) != unresolved.end() || message->is_map_entry) {
+        if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry) {
           used_by_messages[message] |= !(message->is_map_entry);
           f->is_recursive = true;
         }
@@ -677,26 +671,25 @@ struct code_generator {
     while (!unresolved_messages.empty()) {
       for (auto &pm : std::ranges::reverse_view{unresolved_messages}) {
         auto &deps = pm->dependencies;
-        if (std::includes(resolved_message_names.begin(), resolved_message_names.end(), deps.begin(), deps.end())) {
+        if (std::ranges::includes(resolved_message_names, deps)) {
           resolved_messages.push_back(pm);
           resolved_message_names.insert(pm->cpp_name);
           pm = nullptr;
         }
       }
 
-      auto null_end = std::remove(unresolved_messages.begin(), unresolved_messages.end(), nullptr);
-      if (null_end != unresolved_messages.end()) {
-        unresolved_messages.erase(null_end, unresolved_messages.end());
+      auto to_remove = std::ranges::remove(unresolved_messages.begin(), unresolved_messages.end(), nullptr);
+      if (!to_remove.empty()) {
+        unresolved_messages.erase(to_remove.begin(), to_remove.end());
       } else {
         message_descriptor_t *to_be_resolved = resolve_container_dependency_cycle(unresolved_messages);
         if (to_be_resolved != nullptr) {
           resolved_messages.push_back(to_be_resolved);
-          unresolved_messages.erase(std::remove(unresolved_messages.begin(), unresolved_messages.end(), to_be_resolved),
-                                    unresolved_messages.end());
+          auto to_remove = std::ranges::remove(unresolved_messages, to_be_resolved);
+          unresolved_messages.erase(to_remove.begin(), to_remove.end());
           resolved_message_names.insert(to_be_resolved->cpp_name);
         } else {
-          std::sort(unresolved_messages.begin(), unresolved_messages.end(),
-                    [](auto lhs, auto rhs) { return lhs->cpp_name < rhs->cpp_name; });
+          std::ranges::sort(unresolved_messages, [](auto lhs, auto rhs) { return lhs->cpp_name < rhs->cpp_name; });
           auto *x = *(unresolved_messages.rbegin());
           resolve_dependency_cycle(*x);
         }
@@ -807,7 +800,7 @@ struct msg_code_generator : code_generator {
       process(*m, "", descriptor.proto.package);
     }
 
-    std::copy(out_of_class_data.begin(), out_of_class_data.end(), target);
+    std::ranges::copy(out_of_class_data, target);
 
     if (!ns.empty()) {
       fmt::format_to(target,
@@ -879,8 +872,8 @@ struct msg_code_generator : code_generator {
             ? descriptor.has_presence()
             : (descriptor.proto.label == LABEL_OPTIONAL &&
                (descriptor.proto.type == TYPE_MESSAGE || descriptor.proto.type == TYPE_GROUP ||
-                std::any_of(proto2_explicit_presences.begin(), proto2_explicit_presences.end(),
-                            [&qualified_name](const auto &s) { return qualified_name.starts_with(s); })));
+                std::ranges::any_of(proto2_explicit_presences,
+                                    [&qualified_name](const auto &s) { return qualified_name.starts_with(s); })));
   }
 
   void process(field_descriptor_t &descriptor) {
@@ -1060,23 +1053,22 @@ struct msg_code_generator : code_generator {
             "{0}  hpp::proto::equality_comparable_span<std::pair<uint32_t, hpp::proto::bytes_view>> fields;\n"
             "{0}  bool operator==(const extension_t&) const = default;\n"
             "{0}}} extensions;\n\n"
-            "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_pb_context auto && "
-            "...ctx) const {{\n"
-            "{0}  static_assert(sizeof...(ctx) <= 1);\n"
-            "{0}  return meta.read(extensions, ctx...);\n"
+            "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && "
+            "...option) const {{\n"
+            "{0}  return meta.read(extensions, std::forward<decltype(option)>(option)...);\n"
             "{0}}}\n"
             "{0}template<typename Meta>\n"
             "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value,\n"
-            "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
-            "{0}  return meta.write(extensions, std::move(value), ctx);\n"
+            "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
+            "{0}  return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);\n"
             "{0}}}\n"
             "{0}template<typename Meta>\n"
             "{0}requires Meta::is_repeated\n"
             "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
             "{0}                                 std::initializer_list<typename Meta::element_type> value,\n"
-            "{0}                                 hpp::proto::concepts::is_pb_context auto &&ctx) {{\n"
+            "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
             "{0}  return meta.write(extensions, std::span<const typename Meta::element_type>{{value.begin(), "
-            "value.end()}}, ctx);\n"
+            "value.end()}}, std::forward<decltype(option)>(option)...);\n"
             "{0}}}\n"
             "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
             "{0}  return meta.element_of(extensions);\n"
@@ -1225,19 +1217,19 @@ struct hpp_meta_generator : code_generator {
     std::vector<std::string_view> options;
     using enum gpb::FieldDescriptorProto::Label;
     if (descriptor.is_cpp_optional || descriptor.is_required()) {
-      options.push_back("hpp::proto::field_option::explicit_presence");
+      options.emplace_back("hpp::proto::field_option::explicit_presence");
     } else if (descriptor.is_packed()) {
-      options.push_back("hpp::proto::field_option::is_packed");
+      options.emplace_back("hpp::proto::field_option::is_packed");
     }
 
     if (descriptor.is_delimited()) {
-      options.push_back("hpp::proto::field_option::group");
+      options.emplace_back("hpp::proto::field_option::group");
     } else if (descriptor.requires_utf8_validation()) {
-      options.push_back("hpp::proto::field_option::utf8_validation");
+      options.emplace_back("hpp::proto::field_option::utf8_validation");
     } else if (descriptor.is_closed_enum) {
-      options.push_back("hpp::proto::field_option::closed_enum");
+      options.emplace_back("hpp::proto::field_option::closed_enum");
     } else if (options.empty()) {
-      options.push_back("hpp::proto::field_option::none");
+      options.emplace_back("hpp::proto::field_option::none");
     }
     return options;
   }
@@ -1706,6 +1698,7 @@ struct desc_hpp_generator : code_generator {
                    ns);
   }
 };
+namespace {
 
 void mark_map_entries(hpp_gen_descriptor_pool &pool) {
   for (auto &f : pool.fields) {
@@ -1728,7 +1721,7 @@ void split(std::string_view str, char deliminator, auto &&callback) {
     pos = next_pos + (next_pos == str.end() ? 0 : 1);
   }
 }
-
+} // namespace
 int main(int argc, const char **argv) {
   std::span<const char *> args{argv, static_cast<std::size_t>(argc)};
   plugin_name = args[0];
@@ -1741,7 +1734,14 @@ int main(int argc, const char **argv) {
 #ifdef _WIN32
   _setmode(_fileno(stdin), _O_BINARY);
 #endif
-  read_file(std::cin);
+
+  using namespace std::string_view_literals;
+
+  if (args.size() == 2) {
+    read_file(std::ifstream(args[1], std::ios_base::binary));
+  } else {
+    read_file(std::cin);
+  }
 
   gpb::compiler::CodeGeneratorRequest request;
 
@@ -1770,7 +1770,7 @@ int main(int argc, const char **argv) {
       proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "export_request") {
       std::ofstream out{std::string(opt_value), std::ios::binary};
-      std::copy(request_data.begin(), request_data.end(), std::ostreambuf_iterator<char>(out));
+      std::ranges::copy(request_data, std::ostreambuf_iterator<char>(out));
     }
   });
 
@@ -1828,7 +1828,7 @@ int main(int argc, const char **argv) {
 #ifdef _WIN32
   _setmode(_fileno(stdout), _O_BINARY);
 #endif
-  std::copy(data.begin(), data.end(), std::ostreambuf_iterator<char>(std::cout));
+  std::ranges::copy(data, std::ostreambuf_iterator<char>(std::cout));
 
   return 0;
 }

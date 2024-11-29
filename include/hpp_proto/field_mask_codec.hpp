@@ -32,6 +32,7 @@ struct field_mask_codec {
                                                       [](auto &p) { return p.size(); });
   }
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   static int64_t encode(auto const &value, auto &&b) noexcept {
     if (value.paths.empty()) {
       return 0;
@@ -46,6 +47,7 @@ struct field_mask_codec {
     return cur - buf;
   }
 
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   static bool decode(auto const &json, auto &value) {
     if (json.empty()) {
       return true;
@@ -56,7 +58,7 @@ struct field_mask_codec {
     auto cur = json.begin();
     for (auto &p : value.paths) {
       auto comma_pos = std::find_if(cur, json.end(), is_comma);
-      auto &path = hpp::proto::as_modifiable(value, p);
+      auto &path = hpp::proto::detail::as_modifiable(value, p);
       path.assign(cur, comma_pos);
 #if defined(_MSC_VER)
       if (comma_pos != json.end())

@@ -68,5 +68,10 @@ int main() {
   auto read_json_result = hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value());
   expect(address_book == read_json_result.value());
 
+  // pretty print json, with indent level 3
+  write_json_result = hpp::proto::write_json(address_book, hpp::proto::indent_level<3>);
+  expect(write_json_result.has_value());
+  std::cout << write_json_result.value() << "\n";
+
   return 0;
 }

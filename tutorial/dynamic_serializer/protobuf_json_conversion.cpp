@@ -37,7 +37,7 @@ int main(int argc, const char **argv) {
 
   std::string new_addressbook_json;
   auto jsonfy_result = pretty_print
-                           ? ser->proto_to_json<glz::opts{.prettify = true}>(message_name, new_addressbook_json)
+                           ? ser->proto_to_json(message_name, new_addressbook_json, hpp::proto::indent_level<3>)
                            : ser->proto_to_json(message_name, new_addressbook_json);
 
   if (!jsonfy_result.has_value()) {

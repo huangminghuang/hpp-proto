@@ -52,7 +52,7 @@ else()
         DEPENDS unittest.desc.pb)
 
     add_library(unittest_proto3_proto_lib INTERFACE)
-    target_include_directories(unittest_proto3_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+    target_include_directories(unittest_proto3_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
     protobuf_generate(
         TARGET unittest_proto3_proto_lib
         LANGUAGE hpp
@@ -74,7 +74,7 @@ else()
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/non_owning")
 
     add_library(non_owning_unittest_proto3_proto_lib INTERFACE)
-    target_include_directories(non_owning_unittest_proto3_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+    target_include_directories(non_owning_unittest_proto3_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
     protobuf_generate(
         TARGET non_owning_unittest_proto3_proto_lib
         LANGUAGE hpp
@@ -88,7 +88,7 @@ else()
 
     add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
     target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib gpb_proto_json)
-    target_include_directories(non_owning_proto3_test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+    target_include_directories(non_owning_proto3_test SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME non_owning_proto3_test
         COMMAND non_owning_proto3_test
@@ -97,7 +97,7 @@ else()
     set_property(TEST non_owning_proto3_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
     add_library(non_owning_unittest_proto2_proto_lib INTERFACE)
-    target_include_directories(non_owning_unittest_proto2_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+    target_include_directories(non_owning_unittest_proto2_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
     protobuf_generate(
         TARGET non_owning_unittest_proto2_proto_lib
         LANGUAGE hpp
@@ -108,7 +108,6 @@ else()
 
     add_executable(non_owning_proto2_test non_owning_proto2_test.cpp)
     target_link_libraries(non_owning_proto2_test Boost::ut glaze::glaze non_owning_unittest_proto2_proto_lib gpb_proto_json)
-    target_include_directories(non_owning_proto2_test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     add_test(NAME non_owning_proto2_test
         COMMAND non_owning_proto2_test
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -116,7 +115,7 @@ else()
     set_property(TEST non_owning_proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
     add_library(unittest_proto_lib INTERFACE)
-    target_include_directories(unittest_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+    target_include_directories(unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
     protobuf_generate(
         TARGET unittest_proto_lib
         LANGUAGE hpp
@@ -133,7 +132,7 @@ else()
     set_property(TEST proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
     add_library(map_unittest_proto_lib INTERFACE)
-    target_include_directories(map_unittest_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+    target_include_directories(map_unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
     protobuf_generate(
         TARGET map_unittest_proto_lib
         LANGUAGE hpp
@@ -152,7 +151,7 @@ else()
 
     if(Protobuf_INCLUDE_DIRS)
         add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
-        target_include_directories(any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
+        target_include_directories(any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
         protobuf_generate(
             TARGET any_test_lib
             LANGUAGE hpp
@@ -160,7 +159,7 @@ else()
         target_link_libraries(any_test_lib INTERFACE well_known_types)
 
         add_library(non_owning_any_test_lib INTERFACE)
-        target_include_directories(non_owning_any_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        target_include_directories(non_owning_any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
         protobuf_generate(
             TARGET non_owning_any_test_lib
             LANGUAGE hpp
@@ -188,6 +187,9 @@ else()
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
         add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
+        if (edition_support)
+            target_compile_definitions(dynamic_serializer_tests PRIVATE EDITION_SUPPORT)
+        endif()
         target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
 
         add_test(NAME dynamic_serializer_tests
@@ -197,7 +199,7 @@ else()
         set_property(TEST dynamic_serializer_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
         add_executable(well_known_types_tests well_known_types_tests.cpp)
-        target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../include ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+        target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
         target_link_libraries(well_known_types_tests PRIVATE well_known_types hpp_proto::libhpp_proto Boost::ut glaze::glaze)
         add_dependencies(well_known_types_tests well_known_types)
         add_test(NAME well_known_types_tests
@@ -213,7 +215,7 @@ else()
 
     if(edition_support)
         add_library(unittest_lite_proto_lib INTERFACE)
-        target_include_directories(unittest_lite_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        target_include_directories(unittest_lite_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
         protobuf_generate(
             TARGET unittest_lite_proto_lib
             LANGUAGE hpp
@@ -233,7 +235,7 @@ else()
         set_property(TEST lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
         add_library(editions_test_lib INTERFACE)
-        target_include_directories(editions_test_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        target_include_directories(editions_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
         protobuf_generate(
             TARGET editions_test_lib
             LANGUAGE hpp
@@ -245,7 +247,7 @@ else()
 
 
         add_library(basic_test_proto2_lib INTERFACE)
-        target_include_directories(basic_test_proto2_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        target_include_directories(basic_test_proto2_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
         protobuf_generate(
             TARGET basic_test_proto2_lib
             LANGUAGE hpp

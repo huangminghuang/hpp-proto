@@ -29,29 +29,16 @@
 #include <span>
 #include <string_view>
 
-#if !defined(__cpp_lib_ranges_contains)
-// NOLINTBEGIN(cert-dcl58-cpp)
-namespace std::ranges {
-template <std::ranges::input_range R, class T>
-constexpr bool contains(R &&r, const T &value) {
-  return std::find(std::begin(std::forward<R>(r)), std::end(std::forward<R>(r)), value) != std::end(std::forward<R>(r));
-}
-} // namespace std::ranges
-// NOLINTEND(cert-dcl58-cpp)
-#endif
-
 namespace hpp::proto {
 namespace concepts {
 template <typename T>
-concept memory_resource = !std::copyable<T> && requires(T &object) {
+concept memory_resource = !std::copyable<T> && std::destructible<T> && requires(T &object) {
   { object.allocate(8, 8) } -> std::same_as<void *>;
 };
 
 template <typename T>
-concept has_memory_resource = requires(T &object) {
-  object.memory_resource();
-  requires memory_resource<std::remove_cvref_t<decltype(object.memory_resource())>>;
-};
+concept has_memory_resource =
+    requires(T &object) { requires memory_resource<std::remove_cvref_t<decltype(object.memory_resource())>>; };
 
 template <typename T>
 concept resizable = requires {
@@ -73,75 +60,76 @@ template <typename T>
 concept resizable_contiguous_byte_container = contiguous_byte_range<T> && resizable<T>;
 
 template <typename T>
-concept is_pb_context = requires { typename std::remove_cvref_t<T>::is_pb_context; };
+concept is_pb_context = requires { typename std::decay_t<T>::is_pb_context; };
 
 template <typename T>
-concept is_auxiliary_context = memory_resource<T> || requires { typename T::auxiliary_context_type; };
+concept is_option_type = requires { typename std::decay_t<T>::option_type; };
 
 template <typename T>
 concept dynamic_sized_view =
     std::derived_from<T, std::span<typename T::element_type>> || std::same_as<T, std::string_view>;
 
-} // namespace concepts
+template <typename T>
+concept strict_allocation_context = is_pb_context<T> && requires { requires T::always_allocate; };
 
 template <typename T>
-struct pb_context_base {
-  using type = typename T::auxiliary_context_type;
+concept byte_serializable =
+    std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
+} // namespace concepts
+
+template <concepts::memory_resource T, bool Strict = false>
+class alloc_from {
+  T *mr;
+
+public:
+  using option_type = alloc_from<T>;
+  constexpr static auto always_allocate = Strict;
+  explicit alloc_from(T &m) : mr(&m) {} // NOLINT(hicpp-member-init)
+  ~alloc_from() = default;
+  alloc_from(const alloc_from &other) = default;
+  alloc_from(alloc_from &&other) = default;
+  alloc_from &operator=(const alloc_from &) = default;
+  alloc_from &operator=(alloc_from &&) = default;
+  [[nodiscard]] T &memory_resource() const { return *mr; }
 };
 
+// Always allocate memory for string and bytes fields when
+// deserializing non-owning messages.
 template <concepts::memory_resource T>
-struct pb_context_base<T> {
-  using type = std::reference_wrapper<T>;
+class strictly_alloc_from : public alloc_from<T, true> {
+public:
+  using option_type = strictly_alloc_from<T>;
+  explicit strictly_alloc_from(T &m) : alloc_from<T, true>(m) {}
 };
+
+template <uint32_t n>
+struct max_size_cache_on_stack_t {
+  using option_type = max_size_cache_on_stack_t<n>;
+  static constexpr auto max_size_cache_on_stack = n;
+};
+
+/// @brief max size in bytes which can be used for allocating size cache on stack
+///
+/// @details To accelerate Protobuf serialization, a size cache is utilized to store the serialized byte count of
+/// variable-length fields before the fields’ content is serialized. If the total size of the size cache required is
+/// less than or equal to max_size_cache_on_stack, the cache is allocated directly on the stack. Otherwise, it is
+/// allocated on the heap.
+template <uint32_t n = 1024>
+constexpr auto max_size_cache_on_stack = max_size_cache_on_stack_t<n>{};
 
 template <typename... T>
-struct pb_context : pb_context_base<T>::type... {
+struct pb_context : T::option_type... {
   using is_pb_context = void;
   template <typename... U>
-  constexpr explicit pb_context(U &&...ctx) : pb_context_base<T>::type(std::forward<U>(ctx))... {}
+  constexpr explicit pb_context(U &&...ctx) : T::option_type(std::forward<U>(ctx))... {}
 
-  template <concepts::is_auxiliary_context U>
+  template <concepts::is_option_type U>
   [[nodiscard]] constexpr auto &get() const {
-    if constexpr (std::copyable<U>) {
+    if constexpr (std::derived_from<pb_context, U>) {
       return static_cast<const U &>(*this);
     } else {
       return static_cast<const std::reference_wrapper<U> &>(*this).get();
     }
-  }
-
-  template <typename U, typename... Rest>
-  [[nodiscard]] auto &get_memory_resource() const {
-    if constexpr (concepts::memory_resource<U>) {
-      return this->template get<U>();
-    } else {
-      return this->get_memory_resource<Rest...>();
-    }
-  }
-
-  template <typename U, typename... Rest>
-  constexpr static bool has_memory_resource_impl() {
-    if constexpr (concepts::memory_resource<U>) {
-      return true;
-    } else if constexpr (sizeof...(Rest) > 0) {
-      return has_memory_resource_impl<Rest...>();
-    } else {
-      return false;
-    }
-  }
-
-  template <typename... U>
-  constexpr static bool has_memory_resource() {
-    if constexpr (sizeof...(U) > 0) {
-      return has_memory_resource_impl<U...>();
-    } else {
-      return false;
-    }
-  }
-
-  [[nodiscard]] auto &memory_resource() const
-    requires(has_memory_resource<T...>())
-  {
-    return get_memory_resource<T...>();
   }
 };
 
@@ -158,75 +146,62 @@ auto &get_memory_resource(T &v) {
   return v.memory_resource();
 }
 
-template <typename T>
-using memory_resource_type = std::remove_reference_t<decltype(get_memory_resource(std::declval<T>))>;
-
 namespace detail {
+template <concepts::byte_serializable T, std::ranges::contiguous_range Range>
+class bit_cast_view_t : public std::ranges::view_interface<bit_cast_view_t<T, Range>> {
+  using base_value_type = std::ranges::range_value_t<Range>;
+  using base_type = std::span<const base_value_type>;
+  static constexpr auto chunk_size = sizeof(T);
+  base_type base;
 
-template <typename Buffer>
-Buffer make_buffer() {
-  return Buffer{};
-}
+public:
+  class iterator {
+    const base_value_type *current;
 
-template <typename Buffer>
-Buffer make_buffer(auto &&ctx) {
-  if constexpr (requires { Buffer(&ctx.get_memory_resource()); }) {
-    return Buffer(&ctx.get_memory_resource());
-  } else {
-    return Buffer{};
-  }
-}
+  public:
+    using iterator_category = std::input_iterator_tag;
+    using difference_type = std::size_t;
+    using value_type = T;
+    using reference = value_type &;
+    using pointer = value_type *;
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-template <typename T, typename ByteT>
-struct raw_data_iterator {
-  const ByteT *base;
+    constexpr explicit iterator(const base_value_type *cur = nullptr) : current(cur) {}
+    constexpr ~iterator() = default;
+    constexpr iterator(const iterator &) = default;
+    constexpr iterator(iterator &&) = default;
+    constexpr iterator &operator=(const iterator &) = default;
+    constexpr iterator &operator=(iterator &&) = default;
+    constexpr bool operator==(const iterator &) const = default;
 
-  using iterator_category = std::random_access_iterator_tag;
-  using difference_type = std::size_t;
-  using value_type = T;
-  using reference = value_type &;
-  using pointer = value_type *;
-
-  // NOLINTBEGIN(bugprone-sizeof-expression)
-  constexpr std::size_t operator-(raw_data_iterator other) const { return (this->base - other.base) / sizeof(T); }
-  // NOLINTEND(bugprone-sizeof-expression)
-
-  constexpr bool operator==(raw_data_iterator other) { return other.base == this->base; }
-  constexpr bool operator!=(raw_data_iterator s) { return !(*this == s); }
-
-  constexpr raw_data_iterator &operator++() {
-    this->base += sizeof(T);
-    return *this;
-  }
-
-  constexpr raw_data_iterator &operator+=(std::size_t n) {
-    this->base += (n * sizeof(T));
-    return *this;
-  }
-
-  constexpr raw_data_iterator &operator--() {
-    this->base -= sizeof(T);
-    return *this;
-  }
-
-  constexpr raw_data_iterator &operator-=(std::size_t n) {
-    this->base -= (n * sizeof(T));
-    return *this;
-  }
-
-  constexpr T operator*() const {
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    std::array<ByteT, sizeof(T)> v;
-    if (std::endian::little == std::endian::native) {
-      std::copy(base, base + sizeof(T), v.data());
-    } else {
-      std::reverse_copy(base, base + sizeof(T), v.data());
+    constexpr iterator &operator++() {
+      current += chunk_size; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      return *this;
     }
-    // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    return std::bit_cast<T>(v);
+    constexpr void operator++(int) const { ++*this; }
+
+    constexpr value_type operator*() const {
+      std::array<base_value_type, chunk_size> v; // NOLINT(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+      auto source = std::span{current, chunk_size};
+      if (std::endian::little == std::endian::native) {
+        std::ranges::copy(source, v.data());
+      } else {
+        std::ranges::reverse_copy(source, v.data());
+      }
+      return std::bit_cast<T>(v);
+    }
+  };
+  constexpr explicit bit_cast_view_t(const Range &input_range) : base(input_range.data(), input_range.size()) {
+    assert((input_range.size() % chunk_size) == 0);
   }
+
+  [[nodiscard]] constexpr iterator begin() const { return iterator{base.data()}; }
+  [[nodiscard]] constexpr iterator end() const { return iterator{base.data() + base.size()}; }
 };
+
+template <typename T, concepts::contiguous_byte_range Bytes>
+auto bit_cast_view(const Bytes &input_range) {
+  return bit_cast_view_t<T, Bytes>{input_range};
+}
 
 /// The `arena_vector` class adapts an existing hpp::proto::equality_comparable_span or std::string_view, allowing the
 /// underlying memory to be allocated from a designated memory resource. This memory resource releases the allocated
@@ -238,7 +213,7 @@ struct raw_data_iterator {
 ///
 /// @tparam View
 /// @tparam MemoryResource
-
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 template <concepts::dynamic_sized_view View, concepts::memory_resource MemoryResource>
 class arena_vector {
 public:
@@ -255,9 +230,11 @@ public:
 
   constexpr MemoryResource &memory_resource() { return mr; }
 
+  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   constexpr arena_vector(View &view, MemoryResource &mr) : mr(mr), view_(view) {}
   constexpr arena_vector(View &view, concepts::has_memory_resource auto &ctx)
       : mr(ctx.memory_resource()), view_(view) {}
+  // NOLINTEND(bugprone-easily-swappable-parameters)
 
   constexpr void resize(std::size_t n) {
     if (capacity_ < n) {
@@ -321,17 +298,16 @@ public:
     }
   }
 
-  template <typename ByteT>
-  constexpr void append_raw_data(const ByteT *start_pos, std::size_t num_elements) {
+  constexpr void append_raw_data(concepts::contiguous_byte_range auto const &data) {
     auto old_size = view_.size();
-    std::size_t n = old_size + num_elements;
-    assign_range_with_size(view_, n);
+    auto num_elements = data.size() / sizeof(value_type);
+    assign_range_with_size(view_, old_size + num_elements);
+    auto destination = std::span{data_ + old_size, num_elements};
     if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
-      using input_it = raw_data_iterator<value_type, ByteT>;
-      std::uninitialized_copy(input_it{start_pos}, input_it{start_pos + num_elements * sizeof(value_type)},
-                              data_ + old_size);
+      auto source_view = bit_cast_view<value_type>(data);
+      std::uninitialized_copy(source_view.begin(), source_view.end(), destination.begin());
     } else {
-      std::memcpy(data_ + old_size, start_pos, num_elements * sizeof(value_type));
+      std::memcpy(destination.data(), data.data(), data.size());
     }
   }
 
@@ -343,11 +319,13 @@ private:
   value_type *data_ = nullptr;
   std::size_t capacity_ = 0;
 
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   constexpr void assign_range_with_size(const View &r, std::size_t n) {
     if (capacity_ < n) {
       auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       std::ranges::uninitialized_copy(r, std::span{new_data, n});
       data_ = new_data;
+      capacity_ = n;
     } else if (view_.data() != r.data()) {
       std::ranges::copy(r, data_);
     }
@@ -361,16 +339,15 @@ template <concepts::dynamic_sized_view View, concepts::has_memory_resource Conte
 arena_vector(View &view, Context &ctx)
     -> arena_vector<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
 
-} // namespace detail
-
-constexpr auto as_modifiable(auto &&context, concepts::dynamic_sized_view auto &view) {
+constexpr auto as_modifiable(concepts::is_pb_context auto &&context, concepts::dynamic_sized_view auto &view) {
   return detail::arena_vector{view, std::forward<decltype(context)>(context)};
 }
 
 template <typename T>
   requires(!concepts::dynamic_sized_view<T>)
-constexpr T &as_modifiable(auto && /* unused */, T &view) {
+constexpr T &as_modifiable(const auto & /* unused */, T &view) {
   return view;
 }
 
+} // namespace detail
 } // namespace hpp::proto

@@ -14,6 +14,8 @@
 #include "owning/packed_repeated_message.pb.hpp"
 #include "packed_repeated_message.pb.h"
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+
 inline void set_message_google(auto &message) {
   message.set_field1("");
   message.set_field2(8);
@@ -83,7 +85,7 @@ std::span<char> get_packed_repeated_data() {
 
   if (data.empty()) {
     std::random_device rd;
-    std::mt19937 engine(rd());
+    std::mt19937 engine(rd()); // NOLINT(cppcoreguidelines-narrowing-conversions,bugprone-narrowing-conversions)
 
     std::uniform_int_distribution<unsigned long long> dis(0, max_value);
 
@@ -163,8 +165,7 @@ void hpp_proto_deserialize_nonowning(benchmark::State &state) {
   for (auto _ : state) {
     std::pmr::monotonic_buffer_resource memory_resource(buf.data(), buf.size());
     Message message;
-    auto r = hpp::proto::read_proto(message, data,
-                                    hpp::proto::pb_context{memory_resource, hpp::proto::always_allocate_memory{}});
+    auto r = hpp::proto::read_proto(message, data, hpp::proto::strictly_alloc_from{memory_resource});
     total += data.size();
     benchmark::DoNotOptimize(r);
   }
@@ -293,3 +294,4 @@ BENCHMARK(hpp_proto_deserialize_regular<owning::repeated_packed::TestMessage>);
 BENCHMARK(hpp_proto_deserialize_nonowning<non_owning::repeated_packed::TestMessage>);
 
 BENCHMARK_MAIN();
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)

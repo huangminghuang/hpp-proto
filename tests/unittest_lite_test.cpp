@@ -31,6 +31,7 @@ const ut::suite proto_test = [] {
       std::tuple<protobuf_unittest::TestAllTypesLite, protobuf_unittest::TestAllExtensionsLite,
                  protobuf_unittest::TestPackedTypesLite, protobuf_unittest::TestPackedExtensionsLite>{};
 
+#if !defined(HPP_PROTO_DISABLE_GLAZE)
   "interoperate_with_google_protobuf_parser"_test = [&]<class T> {
     T original;
 
@@ -50,6 +51,7 @@ const ut::suite proto_test = [] {
 
     TestUtil::ExpectAllSet(msg);
   } | std::tuple<protobuf_unittest::TestAllTypesLite, protobuf_unittest::TestPackedTypesLite>{};
+#endif
 };
 
 int main() {

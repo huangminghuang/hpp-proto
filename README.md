@@ -2,11 +2,11 @@
 ![linux](https://github.com/huangminghuang/hpp-proto/actions/workflows/linux.yml/badge.svg)![macos](https://github.com/huangminghuang/hpp-proto/actions/workflows/macos.yml/badge.svg)![windows](https://github.com/huangminghuang/hpp-proto/actions/workflows/windows.yml/badge.svg)
 [![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC)](https://codecov.io/github/huangminghuang/hpp-proto)[![Codacy Badge](https://app.codacy.com/project/badge/Grade/c629f1cf7a7c45b3b3640362da4ac95a)](https://app.codacy.com/gh/huangminghuang/hpp-proto/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-Hpp-proto is a lightweight, high-performance Protocol Buffers implementation for C++20. It maps Protocol Buffers messages directly to simple C++ aggregates, using only C++ built-in or standard library types. Apart from UTF-8 validation, the serialization code for these mapped aggregates is entirely header-only, ensuring minimal dependencies and efficient performance.
+Hpp-proto is a lightweight, high-performance Protocol Buffers implementation in C++20. It maps Protocol Buffers messages directly to simple C++ aggregates, using only C++ built-in or standard library types. Apart from UTF-8 validation, the serialization code for these mapped aggregates is entirely header-only, ensuring minimal dependencies and efficient performance.
 
-Compared to Google’s implementation, hpp-proto features a minimalistic design that significantly reduces code size while delivering superior performance in our benchmarks when runtime reflection is not required. This makes hpp-proto an ideal choice for performance-critical, resource-constrained environments where minimizing binary size is a priority.
+Compared to Google’s implementation, hpp-proto adopts a minimalistic design that greatly reduces code size while offering superior performance in benchmarks where runtime reflection is unnecessary. Additionally, hpp-proto supports a non-owning mode, mapping all variable-length fields to lightweight types such as std::string_view or equality_comparable_span. This mode allows users to customize memory management during deserialization, further enhancing efficiency. These features make hpp-proto an excellent choice for performance-critical, real-time, or resource-constrained environments.
 # Features
-* Supports Protocol Buffers syntax 2 and 3 (excluding `service`) and [editions](https://protobuf.dev/editions/overview/).
+* Supports Protocol Buffers syntax 2 and 3 and [editions](https://protobuf.dev/editions/overview/).
 * Supports the serialization of [ProtoJSON format](https://protobuf.dev/programming-guides/json/), utilizing a slightly modified version of the [glaze](https://github.com/stephenberry/glaze) library.
 * Significantly smaller code size compared to Google's C++ implementation.
 * Faster performance than Google's C++ implementation.
@@ -309,7 +309,7 @@ target_link_libraries(tutorial_proto PRIVATE addressbook_lib)
 
 ## The hpp-proto API
 
-The mapping from proto messages to their C++ counterparts is straight forward, as shown in the following generated code. 
+The mapping from proto messages to their C++ message types is straight forward, as shown in the following generated code. 
 Notice that the `*.msg.hpp` only contains the minimum message definitions and avoid the inclusion of headers related to the protobuf/JSON 
 encoding/decoding facilities. This makes those generated structures easier to be used as basic vocabulary types among modules without incurring unnecessary dependencies. 
 
@@ -408,127 +408,113 @@ namespace tutorial {
 ```
 </p>
 </details>
-
 ### Protobuf encoding/decoding APIs
 
-The hpp-proto library provides convenient functions for encoding and decoding Protobuf messages in C++. The core functions are:
+The hpp-proto library provides an efficient and convenient interface for encoding and decoding Protobuf messages in C++. The two core functions are:
 
--	write_proto: Used to serialize a C++ structure into a Protobuf message format, typically stored in a binary buffer (e.g., std::vector<std::byte>).
--	read_proto: Used to deserialize a Protobuf-encoded binary buffer back into the corresponding C++ structure.
+-	`write_proto()`: Serializes a generated C++ message object into the binary Protobuf format.
+-	`read_proto()`: Deserializes a binary Protobuf-encoded buffer back into the corresponding C++ message object.
 
-These APIs allow you to serialize and deserialize data efficiently, with overloads that return either a success/error status or an expected object (containing the result or an error). Below is the demonstration of how to use these functions in regular and non-owning modes.
+These APIs offer flexible usage with overloads for returning either a status or an std::expected object (containing the result or an error). Below are demonstrations of their usage in both regular and non-owning modes.
 
-</details>
-<details><summary> Regular Mode </summary>
+<details> <summary>Regular mode APIs</summary>
 <p>
 
 ```cpp
-#include "addressbook.pb.hpp"
+#include <addressbook.pb.hpp> // Include "*.pb.hpp" for Protobuf APIs
 
-int main() {
-  using enum tutorial::Person::PhoneType;
-  tutorial::AddressBook address_book{
-      .people = {{.name = "Alex",
-                 .id = 1,
-                 .email = "alex@email.com",
-                 .phones = {{.number = "1111111", 
-                             .type = MOBILE}}},
-                 {.name = "Bob",
-                  .id = 2,
-                  .email = "bob@email.com",
-                  .phones = {{.number = "22222222", 
-                              .type = HOME}}} }};
+// ....
+tutorial::Person in_msg, out_msg;
+msg1.name = "john";
 
-  std::vector<std::byte> buffer;
-
-  if (!hpp::proto::write_proto(address_book, buffer).ok()) {
-    std::cerr << "protobuf serialization failed\n";
-    return 1;
-  }
-
-  // alternatively, use the overload returning an expected object
-  hpp::proto::expected<std::vector<std::byte>, std::errc> write_result 
-    = hpp::proto::write_proto(address_book);
-  assert(write_result.value() == buffer);
-
-  tutorial::AddressBook new_address_book;
-
-  if (!hpp::proto::read_proto(new_address_book, buffer).ok()) {
-    std::cerr << "protobuf deserialization failed\n";
-    return 1;
-  }
-
-  // alternatively, use the overload returning an expected object
-  hpp::proto::expected<tutorial::AddressBook, std::errc> read_result 
-    = hpp::proto::read_proto<tutorial::AddressBook>(buffer);
-  assert(read_result.value() == new_address_book);
-  return 0;
+std::string out_buffer;
+using namespace hpp::proto;
+// Serialize using the status return API
+if (!write_proto(in_msg, out_buffer).ok()) {
+  // Handle error
 }
+assert(out_buffer == "\x0a\x04john");
+
+// Serialize using the expected return API
+expected<std::string, std::errc> write_result = write_proto<std::string>(in_msg);
+assert(write_result.value() == "\x0a\x04john");
+
+std::string_view in_buffer = "\x0a\x04john";
+// Deserialize using the status return API
+if (!read_proto(out_msg, in_buffer).ok()) {
+  // Handle error
+}
+assert(out_msg.name == "john");
+
+// Deserialize using the expected return API
+expected<Person, std::errc> read_result = read_proto<Person>(in_msg);
+assert(read_result.value().name == "john");
+
 ```
 </p>
 </details>
-
-<details><summary> Non-owning Mode </summary>
+<details> <summary>Non-owning mode APIs</summary>
 <p>
 
+In non-owning mode, variable-length fields in messages are mapped to lightweight types such as `std::string_view` or `equality_comparable_span`. Instead of copying values, non-owning messages provide views to the original data, requiring careful lifetime management of referenced memory to avoid invalid access.
+
+#### Key Differences in Non-Owning Mode
+
+- `write_proto()`: No difference between regular and non-owning modes.
+- `read_proto()`: Requires an option object containing a memory resource for managing allocations.
+
+The memory resource must have an `allocate()` member function equivalent to [std::pmr::memory_resource::allocate](https://en.cppreference.com/w/cpp/memory/memory_resource/allocate), ensuring it returns at least the requested amount of memory and *never* indicates an error by returning `nullptr`. Errors should only be communicated through exceptions. 
+Additionally, all allocated memory must be properly released when the memory resource is destroyed. 
+For most use cases, [std::pmr::monotonic_buffer_resource](https://en.cppreference.com/w/cpp/memory/monotonic_buffer_resource) is recommended.
+
+
+#### Providing Memory Resource to `read_proto()`
+
+Two option objects allow you to specify memory resources for `read_proto()`:
+-	`alloc_from`: Permits the deserialized value to reference memory within the input buffer.
+-	`strictly_alloc_from`: Ensures that all memory used by the deserialized value is allocated from the provided memory resource.
+
+Below is an example demonstrating the differences between these two options:
+
 ```cpp
-#include "addressbook.pb.hpp"
-#include <memory_resource>
+#include <addressbook.pb.hpp> // Include "*.pb.hpp" for Protobuf APIs
 
-int main() {
-  using enum tutorial::Person::PhoneType;
-  using namespace std::string_view_literals;
-  std::pmr::monotonic_buffer_resource pool;
-  std::pmr::vector<tutorial::Person::PhoneNumber> alex_phones{&pool};
-  alex_phones.push_back({.number = "1111111"sv, .type = MOBILE});
-  std::pmr::vector<tutorial::Person> people{&pool};
-  people.reserve(2);
-  people.emplace_back("Alex"sv, 1, "alex@email.com"sv, alex_phones);
-  std::pmr::vector<tutorial::Person::PhoneNumber> bob_phones{&pool};
-  bob_phones.push_back({.number = "22222222"sv, .type = HOME});
-  people.emplace_back("Bob"sv, 2, "bob@email.com"sv, bob_phones);
+// ....
+std::string_view in_buffer = "\x0a\x04john";
+std::array<char, 16> arena;
+std::pmr::monotonic_buffer_resource pool{arena.data(), arena.size()};
 
-  tutorial::AddressBook address_book;
-  address_book.people = people;
-
-  std::pmr::vector<std::byte> buffer{&pool};
-
-  if (!hpp::proto::write_proto(address_book, buffer).ok()) {
-    std::cerr << "protobuf serialization failed\n";
-    return 1;
-  }
-
-  // alternatively, use the overload returning an expected object
-  hpp::proto::expected<std::pmr::vector<std::byte>, std::errc> write_result 
-    = hpp::proto::write_proto<std::pmr::vector<std::byte>>(address_book);
-  assert(write_result.value() == buffer);
-
-  tutorial::AddressBook new_address_book;
-
-  if (!hpp::proto::read_proto(new_address_book, buffer, hpp::proto::pb_context{pool}).ok()) {
-    std::cerr << "protobuf deserialization failed\n";
-    return 1;
-  }
-
-  // alternatively, use the overload returning an expected object
-  hpp::proto::expected<tutorial::AddressBook, std::errc> read_result 
-    = hpp::proto::read_proto<tutorial::AddressBook>(buffer, hpp::proto::pb_context{pool});
-  assert(read_result.value() == new_address_book);
-
-  return 0;
+tutorial::Person out_msg;
+using namespace hpp::proto;
+// Deserialization using alloc_from
+if (!read_proto(out_msg, in_buffer, alloc_from{pool}).ok()) {
+  // Handle error
 }
+assert(out_msg.name == "john");
+// out_msg.name references in_buffer
+assert(out_msg.name.data() == in_buffer.data() + 2);
+
+// Deserialize using strictly_alloc_from
+if(!read_proto(out_msg, in_buffer, strictly_alloc_from{pool}).ok()) {
+  // Handle error
+}
+assert(out_msg.name == "john");
+// out_msg.name now references arena
+assert(out_msg.name.data() == arena.data());
 ```
 </p>
 </details>
 
 ### JSON encoding/decoding APIs
 
-The hpp-proto library also supports encoding and decoding Protobuf messages to and from [canonical JSON encoding](https://protobuf.dev/programming-guides/proto3/#json) using the modified (glaze)[https://github.com/stephenberry/glaze] library. This ensures compatibility with the canonical JSON encoding of Protobuf messages. The key functions are:
+The hpp-proto library also supports encoding and decoding the C++ message objects to and from [canonical JSON encoding](https://protobuf.dev/programming-guides/proto3/#json) using the modified (glaze)[https://github.com/stephenberry/glaze] library. This ensures compatibility with the canonical JSON encoding of Protobuf messages. The key functions are:
 
--	`write_json`: Used to serialize a C++ structure into a JSON string.
--	`read_json`: Used to deserialize a JSON string back into the corresponding C++ structure.
+-	`write_json()`: Serialize  a C++ message object into a JSON string.
+-	`read_json()`: Deserialize a JSON string back into the corresponding C++ message object.
 
-Similar to Protobuf, the JSON APIs provide overloads that return either a success/error status or an expected object. Below is a demonstration of how to use these functions for encoding and decoding in regular and non-owning modes.
+Similar to Protobuf APIs, the JSON APIs provide overloads that return either a status or an expected object.
+In addition, `write_json()` can take an additional `indent` object for pretty printing. 
+Below is a demonstration of how to use these functions for encoding and decoding in regular and non-owning modes.
 
 </details>
 <details><summary> Regular Mode </summary>
@@ -536,29 +522,36 @@ Similar to Protobuf, the JSON APIs provide overloads that return either a succes
 
 ```cpp
 
-#include "addressbook.glz.hpp"
+#include "addressbook.glz.hpp" // Include the "*.glz.hpp" for JSON APIs
 
 // ....
-std::string json;
-
-if (!hpp::proto::write_json(address_book, json).ok()) {
-    std::cerr << "write json error\n";
-    return 1;
+std::string out_json;
+tutorial::Person in_msg;
+in_msg.name = "john";
+using namespace hpp::proto;
+// Serialize using the status return API
+if (!write_json(in_msg, out_json).ok()) {
+    // Handle error
 }
 
-// alternatively, use the overload returning an expected object
-auto write_result = hpp::proto::write_json(address_book);
-assert(write_result.value() == json);
+// Serialize using the expected return API
+auto write_result = write_json(in_msg);
+assert(write_result.value() == out_json);
 
-tutorial::AddressBook new_book;
-if (auto e = hpp::proto::read_json(new_book, json); !e.ok()) {
-    std::cerr << "read json error: " << e.message(json) << "\n";
-    return 1;
+// Pretty printing with 3 spaces indent
+if (!write_json(in_msg, out_json, indent<3>{}).ok()) {
+    // Handle error
 }
 
-// alternatively, use the overload returning an expected object
-auto read_result = hpp::proto::read_json<tutorial::AddressBook>(json);
-assert(read_result.value() == new_address_book);
+tutorial::Person out_msg;
+// Deserialize using the status return API
+if (!read_json(out_msg, json).ok()) {
+    // Handle error
+}
+
+// Deserialize using the expected return API
+auto read_result = read_json<tutorial::Person>(json);
+assert(read_result.value() == out_msg);
 ```
 </p>
 </details>
@@ -567,29 +560,20 @@ assert(read_result.value() == new_address_book);
 
 ```cpp
 
-#include "addressbook.glz.hpp"
+#include "addressbook.glz.hpp" // Include the "*.glz.hpp" for JSON APIs
 
 // ....
-std::pmr::string json{&pool};
+std::pmr::monotonic_buffer_resource pool;
 
-if (!hpp::proto::write_json(address_book, json).ok()) {
-    std::cerr << "write json error\n";
-    return 1;
+std::string in_json = R"({"name":"john"})";
+tutorial::Person out_person;
+if (!read_json(out_person, in_json, alloc_from{pool}).ok()) {
+    // Handle error
 }
 
 // alternatively, use the overload returning an expected object
-auto write_result = hpp::proto::write_json<glz::opts{}, std::pmr::string>(address_book, hpp::proto::json_context{pool});
-assert(write_result.value() == json);
-
-tutorial::AddressBook new_book;
-if (auto e = hpp::proto::read_json(new_book, json, hpp::proto::json_context{pool}); !e.ok()) {
-    std::cerr << "read json error: " << e.message(json) << "\n";
-    return 1;
-}
-
-// alternatively, use the overload returning an expected object
-auto read_result = hpp::proto::read_json<tutorial::AddressBook>(json, hpp::proto::json_context{pool});
-assert(read_result.value() == new_address_book);
+auto read_result = read_json<tutorial::Person>(in_json, alloc_from{pool});
+assert(read_result.value() == out_person);
 ```
 </p>
 </details>

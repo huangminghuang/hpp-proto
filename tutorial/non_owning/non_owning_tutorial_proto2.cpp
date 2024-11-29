@@ -14,7 +14,7 @@ inline void expect(bool condition, const std::source_location location = std::so
 
 inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buffer_resource *mbr) {
   char *buf = static_cast<char *>(mbr->allocate(str.size(), 1));
-  std::copy(str.begin(), str.end(), buf);
+  std::ranges::copy(str, buf);
   return {buf, str.size()};
 }
 
@@ -53,7 +53,7 @@ int main() {
 
   expect(hpp::proto::write_proto(address_book, buffer).ok());
 
-  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(buffer, hpp::proto::pb_context{pool});
+  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(buffer, hpp::proto::alloc_from{pool});
   expect(read_result.has_value());
   expect(address_book == read_result.value());
 
@@ -75,7 +75,7 @@ int main() {
   auto write_json_result = hpp::proto::write_json(address_book);
   expect(write_json_result.has_value());
   auto read_json_result =
-      hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value(), hpp::proto::json_context{pool});
+      hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value(), hpp::proto::alloc_from{pool});
   expect(address_book == read_json_result.value());
 
   return 0;

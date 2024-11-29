@@ -4,6 +4,11 @@
 #include <google/protobuf/unittest.glz.hpp>
 #include <google/protobuf/unittest.pb.hpp>
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
+
 namespace TestUtil {
 using namespace std::literals::string_literals;
 using namespace boost::ut;
@@ -696,8 +701,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestUnpackedTypes &message) {
 //
 // All this code is exactly equivalent to the above code except that it's
 // manipulating extension fields instead of normal ones.
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #endif
 
@@ -1041,9 +1045,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(eq("603"s, message.get_extension(protobuf_unittest::oneof_string_extension()).value()));
   expect(eq("604"_bytes, message.get_extension(protobuf_unittest::oneof_bytes_extension()).value()));
 }
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+
 // -------------------------------------------------------------------
 
 inline void ExpectClear(const protobuf_unittest::TestAllExtensions &message) {
@@ -1342,3 +1344,4 @@ inline void ExpectOneofClear(const protobuf_unittest::TestOneof2 &message) {
 }
 
 } // namespace TestUtil
+// NOLINTEND(clang-diagnostic-missing-designated-field-initializers)

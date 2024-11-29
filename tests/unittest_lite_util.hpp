@@ -4,6 +4,10 @@
 #include <google/protobuf/unittest_lite.glz.hpp>
 #include <google/protobuf/unittest_lite.pb.hpp>
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
 namespace TestUtil {
 using namespace std::literals::string_literals;
 using namespace boost::ut;
@@ -606,10 +610,6 @@ inline void ExpectAllSet(const protobuf_unittest::TestPackedTypesLite &message) 
 //
 // All this code is exactly equivalent to the above code except that it's
 // manipulating extension fields instead of normal ones.
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#endif
 
 inline void SetAll(protobuf_unittest::TestAllExtensionsLite *message) {
   expect(message->set_extension(protobuf_unittest::optional_int32_extension_lite(), 101).ok());
@@ -950,9 +950,8 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensionsLite &message
   expect(eq("603"s, message.get_extension(protobuf_unittest::oneof_string_extension_lite()).value()));
   expect(eq("604"_bytes, message.get_extension(protobuf_unittest::oneof_bytes_extension_lite()).value()));
 }
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+// NOLINTEND(clang-diagnostic-missing-designated-field-initializers)
+
 // -------------------------------------------------------------------
 
 inline void ExpectClear(const protobuf_unittest::TestAllExtensionsLite &message) {

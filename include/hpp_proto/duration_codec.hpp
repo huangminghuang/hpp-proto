@@ -55,12 +55,13 @@ struct duration_codec {
     return ix;
   }
 
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   static bool decode(auto const &json, auto &value) {
     if (json.empty() || json.front() == ' ' || json.back() != 's') {
       return false;
     }
     const char *beg = std::data(json);
-    const char *end = beg + std::size(json) - 1;
+    const char *end = beg + std::size(json) - 1; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     char *it = nullptr;
 
     value.seconds = std::strtoll(beg, &it, 10);
@@ -77,7 +78,7 @@ struct duration_codec {
       return false;
     }
 
-    ++it;
+    ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
     if ((end - it) > 9 || *it < '0' || *it > '9') [[unlikely]] {
       return false;
@@ -92,7 +93,7 @@ struct duration_codec {
       char nanos_buf[10] = "000000000";
       std::copy(const_cast<const char *>(it), end, std::begin(nanos_buf));
       value.nanos = std::strtoul(&nanos_buf[0], &it, 10);
-      if (it != std::end(nanos_buf) - 1) {
+      if (it != std::end(nanos_buf) - 1) { // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         return false;
       }
     }

@@ -144,11 +144,11 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
 
     proto3_unittest::TestAllTypes msg;
 
-    monotonic_buffer_resource mr{4096};
+    std::pmr::monotonic_buffer_resource mr;
     std::vector<std::byte> data;
 
     expect(hpp::proto::write_proto(original, data).ok());
-    expect(hpp::proto::read_proto(msg, data, hpp::proto::pb_context{mr}).ok());
+    expect(hpp::proto::read_proto(msg, data, hpp::proto::alloc_from{mr}).ok());
 
     ExpectAllFieldsSet(msg);
   };
@@ -159,13 +159,14 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
 
     proto3_unittest::TestUnpackedTypes msg;
 
-    monotonic_buffer_resource mr{4096};
+    std::pmr::monotonic_buffer_resource mr;
     std::vector<char> data;
     expect(hpp::proto::write_proto(original, data).ok());
-    expect(hpp::proto::read_proto(msg, data, hpp::proto::pb_context{mr}).ok());
+    expect(hpp::proto::read_proto(msg, data, hpp::proto::alloc_from{mr}).ok());
 
     ExpectUnpackedFieldsSet(msg);
 
+#if !defined(HPP_PROTO_DISABLE_GLAZE)
     auto r = glz::write_json(original);
     expect(r.has_value());
     auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes",
@@ -173,13 +174,15 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
 
     expect(fatal(!original_json.empty()));
     expect(eq(*r, original_json));
+#endif
   };
 
+#if !defined(HPP_PROTO_DISABLE_GLAZE)
   "glaze"_test = [&] {
     proto3_unittest::TestAllTypes original;
     SetAllFields(&original);
 
-    monotonic_buffer_resource mr{4096};
+    std::pmr::monotonic_buffer_resource mr;
     std::vector<char> data;
     expect(hpp::proto::write_proto(original, data).ok());
 
@@ -189,10 +192,11 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     expect(hpp::proto::write_json(original).value() == original_json);
 
     proto3_unittest::TestAllTypes msg;
-    expect(hpp::proto::read_json(msg, original_json, hpp::proto::json_context{mr}).ok());
+    expect(hpp::proto::read_json(msg, original_json, hpp::proto::alloc_from{mr}).ok());
 
     ExpectAllFieldsSet(msg);
   };
+#endif
 };
 
 int main() {

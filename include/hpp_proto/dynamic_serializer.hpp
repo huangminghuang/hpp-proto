@@ -41,6 +41,11 @@ struct file_descriptor_pb {
   constexpr bool operator<(const file_descriptor_pb &other) const { return value < other.value; };
 };
 
+template <std::ranges::input_range R, class T>
+constexpr bool contains(const R &r, const T &value) {
+  return std::find(std::begin(r), std::end(r), value) != std::end(r);
+}
+
 namespace concepts {
 template <typename T>
 concept input_bytes_range =
@@ -124,6 +129,7 @@ struct proto_json_addons {
     std::string syntax;
     bool is_map_entry = false;
     std::vector<FieldD *> fields;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     explicit message_descriptor(const google::protobuf::DescriptorProto &proto)
         : is_map_entry(proto.options.has_value() && proto.options->map_entry) {
       fields.reserve(proto.field.size() + proto.extension.size());
@@ -165,7 +171,7 @@ class dynamic_serializer {
   };
 
   static uint32_t find_index(const std::vector<std::string> &m, std::string_view key) {
-    return static_cast<uint32_t>(std::lower_bound(m.begin(), m.end(), key) - m.begin());
+    return static_cast<uint32_t>(std::ranges::lower_bound(m, key) - m.begin());
   }
 
   struct field_meta {
@@ -186,8 +192,9 @@ class dynamic_serializer {
           default_value(field_descriptor->proto.default_value) {
       auto &proto = field_descriptor->proto;
       if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE) {
-        if (pool.message_map.find(proto.type_name)->second->is_map_entry)
+        if (pool.message_map.find(proto.type_name)->second->is_map_entry) {
           options |= field_options::is_map_entry;
+        }
       }
 
       using enum google::protobuf::FieldDescriptorProto::Type;
@@ -200,7 +207,7 @@ class dynamic_serializer {
       using enum google::protobuf::FieldDescriptorProto::Label;
       if (proto.label == LABEL_REPEATED) {
         if (field_descriptor->is_packed()) {
-          options |= field_options::repeated | field_options::packed;
+          options |= uint8_t(field_options::repeated | field_options::packed);
         } else {
           options |= (field_options::repeated);
         }
@@ -215,6 +222,7 @@ class dynamic_serializer {
       }
 
       if (field_descriptor->is_delimited()) {
+        type = TYPE_GROUP;
         options |= field_options::group;
       }
 
@@ -223,13 +231,13 @@ class dynamic_serializer {
       }
     }
 
-    constexpr bool is_packed_repeated() const { return (options & field_options::packed) != 0; }
-    constexpr bool is_repeated() const { return (options & field_options::repeated) != 0; }
-    constexpr bool is_map_entry() const { return (options & field_options::is_map_entry) != 0; }
+    [[nodiscard]] constexpr bool is_packed_repeated() const { return (options & field_options::packed) != 0; }
+    [[nodiscard]] constexpr bool is_repeated() const { return (options & field_options::repeated) != 0; }
+    [[nodiscard]] constexpr bool is_map_entry() const { return (options & field_options::is_map_entry) != 0; }
   };
 
   [[nodiscard]] std::size_t message_index(std::string_view name) const {
-    auto it = std::lower_bound(message_names.begin(), message_names.end(), name);
+    auto it = std::ranges::lower_bound(message_names, name);
     if (it == message_names.end() || *it != name) {
       return message_names.size();
     }
@@ -263,7 +271,7 @@ class dynamic_serializer {
   [[nodiscard]] bool is_wellknown_message(std::size_t msg_index) const {
     return msg_index == protobuf_duration_message_index || msg_index == protobuf_timestamp_message_index ||
            msg_index == protobuf_field_mask_message_index || msg_index == protobuf_list_value_message_index ||
-           std::ranges::contains(protobuf_wrapper_type_message_indices, msg_index);
+           contains(protobuf_wrapper_type_message_indices, msg_index);
   }
 
   // NOLINTBEGIN(readability-function-cognitive-complexity)
@@ -328,7 +336,7 @@ class dynamic_serializer {
 
     template <auto Options, typename T>
     status field_type_to_json(bool quote_required, concepts::is_basic_in auto &archive) {
-      T value;
+      T value{};
       if constexpr (concepts::contiguous_byte_range<T>) {
         vint64_t len;
         if (auto ec = archive(len); !ec.ok()) [[unlikely]] {
@@ -649,8 +657,7 @@ class dynamic_serializer {
       }
 
       pb_context pb_ctx;
-      pb_serializer::contiguous_input_stream strm(v.value, pb_ctx);
-      auto value_archive = strm.archive();
+      pb_serializer::contiguous_input_archive value_archive(v.value, pb_ctx);
       const bool is_wellknown = pb_meta.is_wellknown_message(msg_index);
       if (is_wellknown) {
         glz::detail::dump<"\"value\":">(b, ix);
@@ -678,8 +685,7 @@ class dynamic_serializer {
     template <auto Options, typename T>
     status wellknown_with_codec_to_json(concepts::is_basic_in auto &archive) {
       T v;
-      pb_context ctx;
-      if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]] {
+      if (auto ec = pb_serializer::deserialize(v, archive); !ec.ok()) [[unlikely]] {
         return ec;
       }
 
@@ -751,7 +757,7 @@ class dynamic_serializer {
         return wellknown_with_codec_to_json<Options, wellknown::FieldMask>(archive);
       } else if (msg_index == pb_meta.protobuf_list_value_message_index) {
         return list_value_to_json<Options>(msg_meta, archive);
-      } else if (std::ranges::contains(pb_meta.protobuf_wrapper_type_message_indices, msg_index)) {
+      } else if (contains(pb_meta.protobuf_wrapper_type_message_indices, msg_index)) {
         return wrapper_type_to_json<Options>(msg_meta, archive);
       }
 
@@ -776,8 +782,7 @@ class dynamic_serializer {
 
       if (msg_index == pb_meta.protobuf_any_message_index) {
         wellknown::Any v;
-        pb_context ctx;
-        if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]] {
+        if (auto ec = pb_serializer::deserialize(v, archive); !ec.ok()) [[unlikely]] {
           return ec;
         }
         if (auto ec = any_to_json<opts>(v); !ec.ok()) [[unlikely]] {
@@ -830,9 +835,8 @@ class dynamic_serializer {
 
   template <typename Buffer>
   struct relocatable_out {
-    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     Buffer &buffer;
-    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     std::size_t position = 0;
 
     explicit relocatable_out(Buffer &buffer) : buffer(buffer) {}
@@ -872,24 +876,25 @@ class dynamic_serializer {
 
     template <typename... Item>
     void operator()(Item &&...item) {
-      std::size_t sz = (size_for(std::forward<Item>(item)) + ...);
+      std::size_t sz = (size_for(item) + ...);
       if (remaining_size() < sz) {
         buffer.resize(2 * (buffer.size() + sz));
       }
-      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       auto out_span = std::span{buffer.data() + position, remaining_size()};
-      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      pb_serializer::basic_out archive{out_span};
+      pb_context context{};
+      pb_serializer::basic_out archive{out_span, context};
       (serialize(std::forward<Item>(item), archive), ...);
       position += sz;
     }
   };
 
   struct json_to_pb_state {
-    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const dynamic_serializer &pb_meta;
-    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     glz::context context = {};
+
+    explicit json_to_pb_state(const dynamic_serializer &meta) : pb_meta(meta) {}
 
     template <typename T>
     static T &get_underlying_value(T &v) {
@@ -1333,7 +1338,7 @@ class dynamic_serializer {
       } else if (msg_index == pb_meta.protobuf_any_message_index) {
         std::string_view type_url;
         return any_to_pb<Options>(type_url, it, end, archive);
-      } else if (std::ranges::contains(pb_meta.protobuf_wrapper_type_message_indices, msg_index)) {
+      } else if (contains(pb_meta.protobuf_wrapper_type_message_indices, msg_index)) {
         const auto &meta = pb_meta.messages[msg_index][0];
         return this->field_to_pb<Options>(meta, it, end, archive);
       }
@@ -1350,9 +1355,7 @@ class dynamic_serializer {
       bool first = !has_opening_handled(Options);
       while (true) {
         if (*it == '}') [[unlikely]] {
-          // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-          ++it;
-          // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+          ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
           return {};
         } else if (first) {
           [[unlikely]] first = false;
@@ -1413,42 +1416,39 @@ class dynamic_serializer {
   };
   // NOLINTEND(readability-function-cognitive-complexity)
 public:
-  using auxiliary_context_type = std::reference_wrapper<dynamic_serializer>;
+  using option_type = std::reference_wrapper<dynamic_serializer>;
   explicit dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
     descriptor_pool<proto_json_addons> pool(set.file);
 
     if (pool.enum_map.size() != 1 || pool.enum_map.begin()->first != ".google.protobuf.NullValue") {
       enums.reserve(pool.enums.size());
       const auto &enum_descriptors = pool.enum_map.values();
-      std::transform(enum_descriptors.begin(), enum_descriptors.end(), std::back_inserter(enums),
-                     [](const auto descriptor) {
-                       dynamic_serializer::enum_meta m;
-                       const auto values = descriptor->proto.value;
-                       m.reserve(values.size());
-                       std::transform(values.begin(), values.end(), std::back_inserter(m),
-                                      [](auto &v) { return dynamic_serializer::enum_value_meta{v.number, v.name}; });
-                       return m;
-                     });
+      std::ranges::transform(enum_descriptors, std::back_inserter(enums), [](const auto descriptor) {
+        dynamic_serializer::enum_meta m;
+        const auto values = descriptor->proto.value;
+        m.reserve(values.size());
+        std::transform(values.begin(), values.end(), std::back_inserter(m),
+                       [](auto &v) { return dynamic_serializer::enum_value_meta{v.number, v.name}; });
+        return m;
+      });
     } else {
       enums.emplace_back();
     }
 
     messages.reserve(pool.messages.size());
     const auto &message_descriptors = pool.message_map.values();
-    std::transform(message_descriptors.begin(), message_descriptors.end(), std::back_inserter(messages),
-                   [&pool](const auto descriptor) {
-                     dynamic_serializer::message_meta m;
-                     m.reserve(descriptor->fields.size());
-                     std::transform(descriptor->fields.begin(), descriptor->fields.end(), std::back_inserter(m),
-                                    [&pool](auto &f) { return dynamic_serializer::field_meta{f, pool}; });
-                     return m;
-                   });
+    std::ranges::transform(message_descriptors, std::back_inserter(messages), [&pool](const auto descriptor) {
+      dynamic_serializer::message_meta m;
+      m.reserve(descriptor->fields.size());
+      std::ranges::transform(descriptor->fields, std::back_inserter(m),
+                             [&pool](auto &f) { return dynamic_serializer::field_meta{f, pool}; });
+      return m;
+    });
 
     const auto names = pool.message_map.keys();
     message_names.reserve(names.size());
     // remove the leading "." for the message name
-    std::transform(names.begin(), names.end(), std::back_inserter(message_names),
-                   [](const auto &name) { return name.substr(1); });
+    std::ranges::transform(names, std::back_inserter(message_names), [](const auto &name) { return name.substr(1); });
 
     protobuf_any_message_index = message_index("google.protobuf.Any");
     protobuf_timestamp_message_index = message_index("google.protobuf.Timestamp");
@@ -1464,15 +1464,14 @@ public:
         "google.protobuf.BoolValue",   "google.protobuf.StringValue", "google.protobuf.BytesValue"};
 
     protobuf_wrapper_type_message_indices.resize(well_known_wrapper_types.size());
-    std::transform(std::begin(well_known_wrapper_types), std::end(well_known_wrapper_types),
-                   protobuf_wrapper_type_message_indices.begin(), [this](const char *n) { return message_index(n); });
-    std::sort(protobuf_wrapper_type_message_indices.begin(), protobuf_wrapper_type_message_indices.end());
+    std::ranges::transform(well_known_wrapper_types, protobuf_wrapper_type_message_indices.begin(),
+                           [this](const char *n) { return message_index(n); });
+    std::ranges::sort(protobuf_wrapper_type_message_indices);
 
     // erase the invalid indices in protobuf_wrapper_type_message_indices
-    protobuf_wrapper_type_message_indices.erase(
-        std::remove_if(protobuf_wrapper_type_message_indices.begin(), protobuf_wrapper_type_message_indices.end(),
-                       [max_index = messages.size()](auto i) { return i >= max_index; }),
-        protobuf_wrapper_type_message_indices.end());
+    auto to_remove = std::ranges::remove_if(protobuf_wrapper_type_message_indices,
+                                            [max_index = messages.size()](auto i) { return i >= max_index; });
+    protobuf_wrapper_type_message_indices.erase(to_remove.begin(), to_remove.end());
   }
 
   static auto make(concepts::contiguous_byte_range auto const &stream) {
@@ -1532,28 +1531,19 @@ public:
     fileset.file.resize(size);
 
     for (std::size_t i = 0; i < size; ++i) {
-      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
       if (auto ec = read_proto(fileset.file[i], tmp[i].value); !ec.ok()) [[unlikely]] {
         return result_t{glz::unexpected(ec)};
       }
-      // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
     }
 
     return result_t{dynamic_serializer{fileset}};
   }
 
-#if defined(_MSC_VER) && (_MSC_VER < 1938)
-#define TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED
-#endif
-
-#if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
-  template <auto Options>
-#else
-  template <auto Options = glz::opts{}>
-#endif
   hpp::proto::status proto_to_json(std::string_view message_name,
-                                   concepts::contiguous_byte_range auto const &pb_encoded_stream, auto &buffer,
-                                   uint32_t indentation_level = 0) const {
+                                   concepts::contiguous_byte_range auto const &pb_encoded_stream,
+                                   concepts::resizable_contiguous_byte_container auto &buffer,
+                                   concepts::glz_opts_t auto opts) const {
     using buffer_type = std::decay_t<decltype(buffer)>;
     auto const id = message_index(message_name);
     if (id == messages.size()) [[unlikely]] {
@@ -1562,87 +1552,70 @@ public:
     buffer.resize(pb_encoded_stream.size() * 2);
 
     pb_context pb_ctx;
-    pb_serializer::contiguous_input_stream strm(pb_encoded_stream, pb_ctx);
-    auto archive = strm.archive();
+    pb_serializer::contiguous_input_archive archive(pb_encoded_stream, pb_ctx);
 
     pb_to_json_state<buffer_type> state{*this, buffer};
-    state.context.indentation_level = indentation_level;
+    state.context.indentation_level = 0;
     const bool is_map_entry = false;
-    if (auto ec = state.template message_to_json<Options>(id, is_map_entry, archive); !ec.ok()) [[unlikely]] {
+    constexpr auto opts_value = decltype(opts)::glz_opts_value;
+    if (auto ec = state.template message_to_json<opts_value>(id, is_map_entry, archive); !ec.ok()) [[unlikely]] {
       return ec;
     }
     buffer.resize(state.ix);
     return {};
   }
 
-#if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
-  template <auto Options>
-#else
-  template <auto Options = glz::opts{}>
-#endif
-  expected<std::string, std::errc> proto_to_json(std::string_view message_name,
-                                                 concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
+  hpp::proto::status proto_to_json(std::string_view message_name,
+                                   concepts::contiguous_byte_range auto const &pb_encoded_stream,
+                                   concepts::resizable_contiguous_byte_container auto &buffer) const {
+    return proto_to_json(message_name, pb_encoded_stream, buffer, glz_opts_t<glz::opts{}>{});
+  }
+
+  [[nodiscard]] expected<std::string, std::errc>
+  proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto const &pb_encoded_stream,
+                concepts::glz_opts_t auto opts) const {
     std::string result;
-    if (auto ec = proto_to_json<Options>(message_name, pb_encoded_stream, result); !ec.ok()) [[unlikely]] {
+    if (auto ec = proto_to_json(message_name, pb_encoded_stream, result, opts); !ec.ok()) [[unlikely]] {
       return unexpected(ec);
     }
     return result;
   }
 
-#if defined(TEMPLATE_AUTO_DEFAULT_NOT_SUPPORTED)
-  hpp::proto::status proto_to_json(std::string_view message_name,
-                                   concepts::contiguous_byte_range auto const &pb_encoded_stream, auto &&buffer,
-                                   uint32_t indentation_level = 0) const {
-    return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream, buffer, indentation_level);
+  [[nodiscard]] expected<std::string, std::errc>
+  proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
+    return proto_to_json(message_name, pb_encoded_stream, glz_opts_t<glz::opts{}>{});
   }
 
-  expected<std::string, std::errc> proto_to_json(std::string_view message_name,
-                                                 concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
-    return proto_to_json<glz::opts{}>(message_name, pb_encoded_stream);
-  }
-#endif
   // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-  template <auto Opts>
   hpp::proto::json_status json_to_proto(std::string_view message_name, std::string_view json_view,
                                         concepts::contiguous_byte_range auto &buffer) const {
     auto const id = message_index(message_name);
     if (id == messages.size()) [[unlikely]] {
-      return json_status{{glz::error_code::unknown_key}};
+      return json_status{.ctx = {.ec = glz::error_code::unknown_key}};
     }
     json_to_pb_state state{*this};
     const char *it = json_view.data();
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const char *end = it + json_view.size();
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     relocatable_out archive{buffer};
-    if (auto ec = state.template message_to_pb<Opts>(id, it, end, 0, archive); !ec.ok()) [[unlikely]] {
+    if (auto ec = state.template message_to_pb<glz::opts{}>(id, it, end, 0, archive); !ec.ok()) [[unlikely]] {
+      // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
       auto location = std::distance<const char *>(json_view.data(), it);
-      return json_status{
-          {.ec = (state.context.error == glz::error_code::none ? glz::error_code::syntax_error : state.context.error),
-           .location = static_cast<size_t>(location)}};
+      return json_status{.ctx = {.ec = (state.context.error == glz::error_code::none ? glz::error_code::syntax_error
+                                                                                     : state.context.error),
+                                 .location = static_cast<size_t>(location)}};
     }
     return {};
   }
   // NOLINTEND(bugprone-easily-swappable-parameters)
 
-  hpp::proto::json_status json_to_proto(std::string_view message_name, std::string_view json_view,
-                                        concepts::contiguous_byte_range auto &buffer) const {
-    return json_to_proto<glz::opts{}>(message_name, json_view, buffer);
-  }
-
-  template <auto Opts>
   [[nodiscard]] glz::expected<std::vector<std::byte>, hpp::proto::json_status>
   json_to_proto(std::string_view message_name, std::string_view json) const {
     std::vector<std::byte> result;
-    if (auto ec = json_to_proto<Opts>(message_name, json, result); !ec.ok()) [[unlikely]] {
+    if (auto ec = json_to_proto(message_name, json, result); !ec.ok()) [[unlikely]] {
       return glz::unexpected(ec);
     }
     return result;
-  }
-
-  [[nodiscard]] glz::expected<std::vector<std::byte>, hpp::proto::json_status>
-  json_to_proto(std::string_view message_name, std::string_view json) const {
-    return json_to_proto<glz::opts{}>(message_name, json);
   }
 
   template <auto Options, class End>
