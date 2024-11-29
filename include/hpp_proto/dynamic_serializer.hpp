@@ -685,8 +685,7 @@ class dynamic_serializer {
     template <auto Options, typename T>
     status wellknown_with_codec_to_json(concepts::is_basic_in auto &archive) {
       T v;
-      pb_context ctx;
-      if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]] {
+      if (auto ec = pb_serializer::deserialize(v, archive); !ec.ok()) [[unlikely]] {
         return ec;
       }
 
@@ -783,8 +782,7 @@ class dynamic_serializer {
 
       if (msg_index == pb_meta.protobuf_any_message_index) {
         wellknown::Any v;
-        pb_context ctx;
-        if (auto ec = pb_serializer::deserialize(v, ctx, archive); !ec.ok()) [[unlikely]] {
+        if (auto ec = pb_serializer::deserialize(v, archive); !ec.ok()) [[unlikely]] {
           return ec;
         }
         if (auto ec = any_to_json<opts>(v); !ec.ok()) [[unlikely]] {
@@ -884,7 +882,8 @@ class dynamic_serializer {
       }
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       auto out_span = std::span{buffer.data() + position, remaining_size()};
-      pb_serializer::basic_out archive{out_span};
+      pb_context context{};
+      pb_serializer::basic_out archive{out_span, context};
       (serialize(std::forward<Item>(item), archive), ...);
       position += sz;
     }
