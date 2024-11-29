@@ -1380,6 +1380,12 @@ struct pb_serializer {
     }
   }
 
+  #if defined(_WIN32)
+  struct freea {
+    void operator()(void *p) { _freea(p); }
+  };
+  #endif
+
   template <bool overwrite_buffer = true, concepts::contiguous_byte_range Buffer>
   constexpr static status serialize(concepts::has_meta auto const &item, Buffer &buffer,
                                     [[maybe_unused]] concepts::is_pb_context auto &context) {
@@ -1422,8 +1428,9 @@ struct pb_serializer {
         return do_serialize(cache);
       }
     } else if (n > 0) {
-#if defined(_MSC_VER)
-      auto *cache = static_cast<uint32_t *>(_alloca(n * sizeof(uint32_t)));
+#if defined(_WIN32)
+      std::unique_ptr<uint32_t, freea> ptr{static_cast<uint32_t *>(_malloca(n * sizeof(uint32_t)))};
+      auto *cache = ptr.get();
 #elif defined(__GNUC__)
       auto *cache =
           static_cast<uint32_t *>(__builtin_alloca_with_align(n * sizeof(uint32_t), CHAR_BIT * sizeof(uint32_t)));
@@ -2552,10 +2559,18 @@ struct pb_serializer {
         return deserialize(item, context, buffer, std::span{regions.data(), regions.size()},
                            std::span{patch_buffer.data(), patch_buffer.size()});
       } else {
+#if defined(_WIN32)
+        std::unique_ptr<byte_type, freea> patch_buffer_ptr{static_cast<byte_type *>(_malloca(patch_buffer_bytes_count))};
+        auto patch_buffer = std::span{patch_buffer_ptr.get(), patch_buffer_bytes_count};
+        std::unique_ptr<input_buffer_region<byte_type>, freea> regions_ptr{
+            static_cast<input_buffer_region<byte_type> *>(_malloca(regions_bytes_count))};
+        auto regions = std::span{regions_ptr.get(), num_regions};
+#else
         auto patch_buffer =
             std::span{static_cast<byte_type *>(alloca(patch_buffer_bytes_count)), patch_buffer_bytes_count};
         auto regions =
             std::span{static_cast<input_buffer_region<byte_type> *>(alloca(regions_bytes_count)), num_regions};
+#endif
         return deserialize(item, context, buffer, regions, patch_buffer);
       }
     }
