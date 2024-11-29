@@ -1380,11 +1380,11 @@ struct pb_serializer {
     }
   }
 
-  #if defined(_WIN32)
+#if defined(_WIN32)
   struct freea {
     void operator()(void *p) { _freea(p); }
   };
-  #endif
+#endif
 
   template <bool overwrite_buffer = true, concepts::contiguous_byte_range Buffer>
   constexpr static status serialize(concepts::has_meta auto const &item, Buffer &buffer,
@@ -2560,7 +2560,8 @@ struct pb_serializer {
                            std::span{patch_buffer.data(), patch_buffer.size()});
       } else {
 #if defined(_WIN32)
-        std::unique_ptr<byte_type, freea> patch_buffer_ptr{static_cast<byte_type *>(_malloca(patch_buffer_bytes_count))};
+        std::unique_ptr<byte_type, freea> patch_buffer_ptr{
+            static_cast<byte_type *>(_malloca(patch_buffer_bytes_count))};
         auto patch_buffer = std::span{patch_buffer_ptr.get(), patch_buffer_bytes_count};
         std::unique_ptr<input_buffer_region<byte_type>, freea> regions_ptr{
             static_cast<input_buffer_region<byte_type> *>(_malloca(regions_bytes_count))};
