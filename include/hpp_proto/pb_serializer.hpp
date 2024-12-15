@@ -36,6 +36,7 @@
 
 #include <glaze/util/expected.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
+#include <mph>
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
 #if defined(_WIN32)
@@ -869,7 +870,7 @@ struct reverse_indices {
 
   constexpr static auto indices = get_indices(typename traits::meta_of<Type>::type{});
 
-  consteval static auto build_lookup_table_indices() {
+  consteval static auto build_masked_lookup_table_indices() {
     std::array<uint32_t, mask + 1> masked_number_occurrences = {};
 
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
@@ -883,8 +884,8 @@ struct reverse_indices {
     return table_indices;
   }
 
-  consteval static auto build_lookup_table() {
-    constexpr auto lookup_table_indices = build_lookup_table_indices();
+  consteval static auto build_masked_lookup_table() {
+    constexpr auto lookup_table_indices = build_masked_lookup_table_indices();
     if constexpr (numbers.empty()) {
       return std::span<std::pair<uint32_t, uint32_t>>{};
     } else {
@@ -905,8 +906,8 @@ struct reverse_indices {
 
   template <uint32_t masked_number>
   consteval static auto lookup_table_for_masked_number() {
-    constexpr auto lookup_table_indices = build_lookup_table_indices();
-    constexpr auto lookup_table = build_lookup_table();
+    constexpr auto lookup_table_indices = build_masked_lookup_table_indices();
+    constexpr auto lookup_table = build_masked_lookup_table();
     constexpr auto size = lookup_table_indices[masked_number + 1] - lookup_table_indices[masked_number];
     if constexpr (size > 0) {
       std::array<std::pair<uint32_t, uint32_t>, size> result;
@@ -917,6 +918,16 @@ struct reverse_indices {
       return std::span<std::pair<uint32_t, uint32_t>>{};
     }
   }
+
+  consteval static auto build_simple_lookup_table() {
+    std::array<std::pair<uint32_t, uint32_t>, numbers.size()> result;
+    for (uint32_t i = 0; i < result.size(); ++i) {
+      result[i] = {numbers[i], indices[i]};
+    }
+    return result;
+  }
+
+  static constexpr auto simple_lookup_table = build_simple_lookup_table();
 };
 
 template <typename Type>
@@ -2410,6 +2421,8 @@ struct pb_serializer {
     }
   }
 
+#if 0
+
   template <uint32_t MaskedNum, uint32_t I = 0>
   constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item,
                                                           concepts::is_basic_in auto &archive) {
@@ -2443,6 +2456,30 @@ struct pb_serializer {
     constexpr auto mask = traits::reverse_indices<type>::mask;
     return deserialize_field_by_masked_num(tag, item, archive, std::make_integer_sequence<uint32_t, mask + 1>());
   }
+
+#else
+  template <uint32_t... Index>
+  constexpr static status deserialize_field_by_index(uint32_t tag, auto &item, concepts::is_basic_in auto &archive,
+                                                     std::integer_sequence<uint32_t, Index...>) {
+    using type = std::remove_cvref_t<decltype(item)>;
+    status r;
+    auto index_by_number = mph::find<traits::reverse_indices<type>::simple_lookup_table>(tag_number(tag));
+    if (index_by_number) {
+      (void)(((*index_by_number == Index) &&
+              (r = deserialize_field_by_index<Index>(tag, item, archive), true)) ||
+             ...);
+      return r;
+    } else {
+      return skip_field(tag, item, archive);
+    }
+  }
+
+  constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
+    using type = std::remove_cvref_t<decltype(item)>;
+    constexpr uint32_t num_fields = std::tuple_size<typename traits::meta_of<type>::type>::value;
+    return deserialize_field_by_index(tag, item, archive, std::make_integer_sequence<uint32_t, num_fields>());
+  }
+#endif
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_basic_in auto &archive) {
     while (archive.in_avail() > 0) {
