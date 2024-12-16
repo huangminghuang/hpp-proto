@@ -1627,10 +1627,8 @@ struct pb_serializer {
     void restrict_size(std::size_t n) { _end = std::min(_begin + n, _end); }
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-    template <typename Fun>
-      requires std::invocable<Fun, input_span<T>>
-    constexpr void consume(Fun &&fun) {
-      _begin = std::forward<Fun>(fun)(*this);
+    constexpr void advance_to(const value_type * new_pos) {
+      _begin = new_pos;
     }
   };
 
@@ -1769,7 +1767,7 @@ struct pb_serializer {
     [[nodiscard]] basic_in copy() const { return *this; }
 
     constexpr status deserialize(bool &item) {
-      current.consume([&item](auto r) { return unchecked_parse_bool(r, item); });
+      current.advance_to(unchecked_parse_bool(current, item));
       return {};
     }
 
@@ -1793,7 +1791,7 @@ struct pb_serializer {
 
     template <concepts::varint T>
     constexpr status deserialize(T &item) {
-      current.consume([&item](auto r) { return unchecked_parse_varint(r, item); });
+      current.advance_to(unchecked_parse_varint(current, item));
       return {};
     }
 
@@ -1843,13 +1841,13 @@ struct pb_serializer {
         if constexpr (!contiguous) {
           while (bytes_count > region_size()) {
             auto saved_begin = current.begin();
-            current.consume([&parser](auto r) { return parser.parse_partial(r); });
+            current.advance_to(parser.parse_partial(current));
             bytes_count -= static_cast<uint32_t>(current.begin() - saved_begin);
             maybe_advance_region();
           }
         }
         auto data = current.consume(bytes_count);
-        data.consume([&parser](auto r) { return parser.parse(r); });
+        data.advance_to(parser.parse(data));
         if (data.size() != 0 || parser.has_error) [[unlikely]] {
           return std::errc::bad_message;
         }
@@ -1867,9 +1865,7 @@ struct pb_serializer {
     }
 
     constexpr status skip_varint() {
-      current.consume([](auto r) {
-        return std::find_if(r.begin(), r.end(), [](auto v) { return static_cast<int8_t>(v) >= 0; }) + 1;
-      });
+      current.advance_to( std::find_if(current.begin(), current.end(), [](auto v) { return static_cast<int8_t>(v) >= 0; }) + 1);
       return {};
     }
 
@@ -1976,7 +1972,7 @@ struct pb_serializer {
     constexpr uint32_t read_tag() {
       maybe_advance_region();
       int64_t res; // NOLINT(cppcoreguidelines-init-variables)
-      current.consume([&res](auto r) { return shift_mix_parse_varint<uint32_t, 4>(r, res); });
+      current.advance_to(shift_mix_parse_varint<uint32_t, 4>(current, res));
       return static_cast<uint32_t>(res);
     }
   };
