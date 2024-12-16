@@ -1638,9 +1638,7 @@ struct pb_serializer {
     void restrict_size(std::size_t n) { _end = std::min(_begin + n, _end); }
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-    constexpr void advance_to(const value_type * new_pos) {
-      _begin = new_pos;
-    }
+    constexpr void advance_to(const value_type *new_pos) { _begin = new_pos; }
   };
 
   constexpr static std::size_t slope_size = 16;
@@ -1876,7 +1874,8 @@ struct pb_serializer {
     }
 
     constexpr status skip_varint() {
-      current.advance_to( std::find_if(current.begin(), current.end(), [](auto v) { return static_cast<int8_t>(v) >= 0; }) + 1);
+      current.advance_to(
+          std::find_if(current.begin(), current.end(), [](auto v) { return static_cast<int8_t>(v) >= 0; }) + 1);
       return {};
     }
 
@@ -2465,9 +2464,7 @@ struct pb_serializer {
     status r;
     auto index_by_number = mph::find<traits::reverse_indices<type>::simple_lookup_table>(tag_number(tag));
     if (index_by_number) {
-      (void)(((*index_by_number == Index) &&
-              (r = deserialize_field_by_index<Index>(tag, item, archive), true)) ||
-             ...);
+      (void)(((*index_by_number == Index) && (r = deserialize_field_by_index<Index>(tag, item, archive), true)) || ...);
       return r;
     } else {
       return skip_field(tag, item, archive);
