@@ -36,7 +36,11 @@
 
 #include <glaze/util/expected.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
-#include <mph>
+
+#if __has_include(<experimental/simd>) && !defined(_LIBCPP_VERSION)
+#include <experimental/simd>
+#define HPP_PROTO_USE_MPH
+#endif
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
 #if defined(_WIN32)
@@ -284,8 +288,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
-                                      int64_t &res1) -> decltype(std::ranges::cdata(input)) {
+constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input, int64_t &res1)
+    -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -418,8 +422,8 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
   return done2();
 }
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    bool &value) -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, bool &value)
+    -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -815,7 +819,7 @@ constexpr std::array<T, M> operator<<(std::array<T, M> lhs, std::span<uint32_t>)
 }
 
 template <concepts::has_meta Type>
-struct reverse_indices {
+struct field_dispatcher {
   template <typename T>
     requires requires { T::number; }
   constexpr static auto get_numbers(T meta) {
@@ -835,11 +839,6 @@ struct reverse_indices {
   constexpr static auto get_numbers(Meta /* unused */) {
     return std::apply([](auto... elem) { return (... << get_numbers(elem)); }, typename Meta::alternatives_meta{});
   }
-
-  constexpr static auto numbers = get_numbers(typename traits::meta_of<Type>::type{});
-  constexpr static unsigned max_number = numbers.size() > 0 ? *std::max_element(numbers.begin(), numbers.end()) : 0;
-
-  constexpr static auto mask = (1U << static_cast<unsigned>(std::bit_width(numbers.size()))) - 1;
 
   template <std::size_t I, typename T>
     requires requires { T::number; }
@@ -868,13 +867,37 @@ struct reverse_indices {
                       metas);
   }
 
+  // the number of fields in a message
+  constexpr static auto number_of_fields = std::tuple_size<typename traits::meta_of<Type>::type>::value;
+
+  // field_numbers is an array of field numbers in the order of the fields declared in the respective protobuf message.
+  // Notice that members of oneof fields will be included; therefore field_numbers.size() > number_of_fields when there
+  // are oneof fields in the respective protobuf message.
+  constexpr static auto field_numbers = get_numbers(typename traits::meta_of<Type>::type{});
+
+  // the field indices corresponding to field_numbers. For example, given the following message definition
+  //
+  //  message SampleMessage {
+  //    int32 id = 1;
+  //    oneof test_oneof {
+  //      string name = 4;
+  //      SubMessage sub_message = 9;
+  //    }
+  //    bytes data = 20;
+  //  }
+  //
+  //  number_of_fields will be 3.
+  //  field_numbers will be { 1, 4, 9, 20}
+  //  indices will be       { 0, 1, 1,  2}
   constexpr static auto indices = get_indices(typename traits::meta_of<Type>::type{});
 
+#if !defined(HPP_PROTO_USE_MPH)
+  constexpr static auto mask = (1U << static_cast<unsigned>(std::bit_width(field_numbers.size()))) - 1;
   consteval static auto build_masked_lookup_table_indices() {
     std::array<uint32_t, mask + 1> masked_number_occurrences = {};
 
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    for (auto num : numbers) {
+    for (auto num : field_numbers) {
       ++masked_number_occurrences[num & mask];
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
@@ -886,16 +909,16 @@ struct reverse_indices {
 
   consteval static auto build_masked_lookup_table() {
     constexpr auto lookup_table_indices = build_masked_lookup_table_indices();
-    if constexpr (numbers.empty()) {
+    if constexpr (field_numbers.empty()) {
       return std::span<std::pair<uint32_t, uint32_t>>{};
     } else {
       std::array<uint32_t, mask + 1> counts = {};
       std::copy(lookup_table_indices.begin(), lookup_table_indices.end() - 1, counts.begin());
 
-      std::array<std::pair<uint32_t, uint32_t>, numbers.size()> result;
+      std::array<std::pair<uint32_t, uint32_t>, field_numbers.size()> result;
       // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-      for (uint32_t i = 0; i < numbers.size(); ++i) {
-        auto num = numbers[i];
+      for (uint32_t i = 0; i < field_numbers.size(); ++i) {
+        auto num = field_numbers[i];
         auto masked_num = num & mask;
         result[counts[masked_num]++] = {num, static_cast<uint32_t>(indices[i])};
       }
@@ -919,15 +942,75 @@ struct reverse_indices {
     }
   }
 
-  consteval static auto build_simple_lookup_table() {
-    std::array<std::pair<uint32_t, uint32_t>, numbers.size()> result;
-    for (uint32_t i = 0; i < result.size(); ++i) {
-      result[i] = {numbers[i], indices[i]};
+  template <auto MaskedNum, uint32_t I = 0>
+  constexpr std::uint32_t index_by_field_number(std::uint32_t field_number) {
+    constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
+    if constexpr (table.empty() || I >= table.size()) {
+      return number_of_fields;
+    } else {
+      if (field_number == table[I].first) {
+        return table[I].second;
+      } else {
+        return index_by_field_number<MaskedNum, I + 1>(field_number);
+      }
     }
+  }
+
+  template <auto MaskedNum, std::uint32_t I>
+  constexpr static auto dispatch_by_masked_num(std::uint32_t field_number, auto &&f) {
+    constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
+    if constexpr (table.empty() || I >= table.size()) {
+      return f(std::integral_constant<std::uint32_t, number_of_fields>());
+    } else {
+      if (field_number == table[I].first) {
+        return f(std::integral_constant<std::uint32_t, table[I].second>());
+      } else {
+        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
+      }
+    }
+  }
+
+  template <uint32_t... MaskNum>
+  constexpr static status dispatch_by_mask_num(std::uint32_t field_number, auto &&f,
+                                               std::integer_sequence<uint32_t, MaskNum...>) {
+
+    status r;
+    (void)((((field_number & mask) == MaskNum) &&
+            (r = dispatch_by_masked_num<MaskNum, 0>(field_number, std::forward<decltype(f)>(f)), true)) ||
+           ...);
+    return r;
+  }
+
+  constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
+    return dispatch_by_mask_num(field_number, std::forward<decltype(f)>(f),
+                                std::make_integer_sequence<uint32_t, mask + 1>());
+  }
+#else
+  consteval static auto build_simple_lookup_table() {
+    std::array<std::pair<uint32_t, uint32_t>, field_numbers.size() + 1> result;
+    for (uint32_t i = 0; i < field_numbers.size(); ++i) {
+      result[i] = {field_numbers[i], indices[i]};
+    }
+    result[field_numbers.size()] = {0, indices[field_numbers.size() - 1] + 1};
     return result;
   }
 
   static constexpr auto simple_lookup_table = build_simple_lookup_table();
+
+  template <std::uint32_t... I>
+  constexpr static auto dispatch_by_indices(std::uint32_t field_number, auto &&f,
+                                            std::integer_sequence<uint32_t, I...>) {
+    status r;
+    auto index_by_number = mph::lookup<simple_lookup_table>(field_number);
+    (void)(((index_by_number == I) && (r = f(std::integral_constant<std::uint32_t, I>()), true)) || ...);
+    return r;
+  }
+
+  constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
+    return dispatch_by_indices(field_number, std::forward<decltype(f)>(f),
+                               std::make_integer_sequence<uint32_t, number_of_fields.size()>());
+  }
+#endif
 };
 
 template <typename Type>
@@ -2408,75 +2491,25 @@ struct pb_serializer {
     }
   }
 
-  template <std::size_t Index>
-  constexpr static status deserialize_field_by_index(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
+  template <std::uint32_t Index>
+  constexpr static status deserialize_field_by_index(std::integral_constant<std::uint32_t, Index>, uint32_t tag,
+                                                     auto &item, concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
-    using Meta = typename traits::field_meta_of<type, Index>::type;
-    if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
-      // this is extension, not a regular field
-      return {};
-    } else {
-      return deserialize_field(Meta::access(item), Meta(), tag, archive);
-    }
-  }
-
-#if 0
-
-  template <uint32_t MaskedNum, uint32_t I = 0>
-  constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item,
-                                                          concepts::is_basic_in auto &archive) {
-    using type = std::remove_cvref_t<decltype(item)>;
-    constexpr auto table = traits::reverse_indices<type>::template lookup_table_for_masked_number<MaskedNum>();
-    if constexpr (table.empty() || I >= table.size()) {
-      return skip_field(tag, item, archive);
-    } else {
-      if (tag_number(tag) == table[I].first) {
-        return deserialize_field_by_index<table[I].second>(tag, item, archive);
-      } else [[unlikely]] {
-        return deserialize_field_by_masked_num<MaskedNum, I + 1>(tag, item, archive);
-      }
-    }
-  }
-
-  template <uint32_t... MaskNum>
-  constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, concepts::is_basic_in auto &archive,
-                                                          std::integer_sequence<uint32_t, MaskNum...>) {
-    using type = std::remove_cvref_t<decltype(item)>;
-    constexpr auto mask = traits::reverse_indices<type>::mask;
-    status r;
-    (void)((((tag_number(tag) & mask) == MaskNum) &&
-            (r = deserialize_field_by_masked_num<MaskNum>(tag, item, archive), true)) ||
-           ...);
-    return r;
-  }
-
-  constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
-    using type = std::remove_cvref_t<decltype(item)>;
-    constexpr auto mask = traits::reverse_indices<type>::mask;
-    return deserialize_field_by_masked_num(tag, item, archive, std::make_integer_sequence<uint32_t, mask + 1>());
-  }
-
-#else
-  template <uint32_t... Index>
-  constexpr static status deserialize_field_by_index(uint32_t tag, auto &item, concepts::is_basic_in auto &archive,
-                                                     std::integer_sequence<uint32_t, Index...>) {
-    using type = std::remove_cvref_t<decltype(item)>;
-    status r;
-    auto index_by_number = mph::find<traits::reverse_indices<type>::simple_lookup_table>(tag_number(tag));
-    if (index_by_number) {
-      (void)(((*index_by_number == Index) && (r = deserialize_field_by_index<Index>(tag, item, archive), true)) || ...);
-      return r;
-    } else {
-      return skip_field(tag, item, archive);
-    }
-  }
-
-  constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
-    using type = std::remove_cvref_t<decltype(item)>;
     constexpr uint32_t num_fields = std::tuple_size<typename traits::meta_of<type>::type>::value;
-    return deserialize_field_by_index(tag, item, archive, std::make_integer_sequence<uint32_t, num_fields>());
+    if constexpr (Index < num_fields) {
+      using Meta = typename traits::field_meta_of<type, Index>::type;
+      return deserialize_field(Meta::access(item), Meta(), tag, archive);
+    } else {
+      return skip_field(tag, item, archive);
+    }
   }
-#endif
+
+  constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
+    using type = std::remove_cvref_t<decltype(item)>;
+    using dispatcher_t = traits::field_dispatcher<type>;
+    return dispatcher_t::dispatch(tag_number(tag),
+                                  [&](auto index) { return deserialize_field_by_index(index, tag, item, archive); });
+  }
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_basic_in auto &archive) {
     while (archive.in_avail() > 0) {
@@ -2537,8 +2570,8 @@ struct pb_serializer {
   };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  contiguous_input_archive(const Buffer &,
-                           Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+  contiguous_input_archive(const Buffer &, Context &)
+      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer) {
     pb_context ctx;
