@@ -38,7 +38,7 @@
 #include <hpp_proto/memory_resource_utils.hpp>
 
 #if __has_include(<experimental/simd>) && !defined(_LIBCPP_VERSION)
-#include <experimental/simd>
+#include <mph>
 #define HPP_PROTO_USE_MPH
 #endif
 
@@ -813,20 +813,15 @@ constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N>
   return result;
 }
 
-template <typename T, std::size_t M>
-constexpr std::array<T, M> operator<<(std::array<T, M> lhs, std::span<uint32_t>) {
-  return lhs;
-}
-
 template <concepts::has_meta Type>
 struct field_dispatcher {
   template <typename T>
     requires requires { T::number; }
   constexpr static auto get_numbers(T meta) {
     if constexpr (meta.number != UINT32_MAX) {
-      return std::array<uint32_t, 1>{meta.number};
+      return std::array<std::uint32_t, 1>{meta.number};
     } else {
-      return std::span<uint32_t>{};
+      return std::array<std::uint32_t, 0>{};
     }
   }
 
@@ -842,8 +837,12 @@ struct field_dispatcher {
 
   template <std::size_t I, typename T>
     requires requires { T::number; }
-  constexpr static auto index(T) {
-    return std::array{I};
+  constexpr static auto index(T meta) {
+    if constexpr (meta.number != UINT32_MAX) {
+      return std::array{I};
+    } else {
+      return std::array<std::size_t, 0>{};
+    }
   }
 
   template <std::size_t I, concepts::is_oneof_field_meta Meta>
@@ -867,9 +866,6 @@ struct field_dispatcher {
                       metas);
   }
 
-  // the number of fields in a message
-  constexpr static auto number_of_fields = std::tuple_size<typename traits::meta_of<Type>::type>::value;
-
   // field_numbers is an array of field numbers in the order of the fields declared in the respective protobuf message.
   // Notice that members of oneof fields will be included; therefore field_numbers.size() > number_of_fields when there
   // are oneof fields in the respective protobuf message.
@@ -890,11 +886,13 @@ struct field_dispatcher {
   //  field_numbers will be { 1, 4, 9, 20}
   //  indices will be       { 0, 1, 1,  2}
   constexpr static auto indices = get_indices(typename traits::meta_of<Type>::type{});
+  // the number of fields in a message
+  constexpr static auto number_of_fields = indices.size() ? indices.back() + 1 : 0;
 
 #if !defined(HPP_PROTO_USE_MPH)
   constexpr static auto mask = (1U << static_cast<unsigned>(std::bit_width(field_numbers.size()))) - 1;
   consteval static auto build_masked_lookup_table_indices() {
-    std::array<uint32_t, mask + 1> masked_number_occurrences = {};
+    std::array<std::uint32_t, mask + 1> masked_number_occurrences = {};
 
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     for (auto num : field_numbers) {
@@ -902,7 +900,7 @@ struct field_dispatcher {
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
 
-    std::array<uint32_t, mask + 2> table_indices = {0};
+    std::array<std::uint32_t, mask + 2> table_indices = {0};
     std::partial_sum(masked_number_occurrences.begin(), masked_number_occurrences.end(), table_indices.begin() + 1);
     return table_indices;
   }
@@ -910,12 +908,12 @@ struct field_dispatcher {
   consteval static auto build_masked_lookup_table() {
     constexpr auto lookup_table_indices = build_masked_lookup_table_indices();
     if constexpr (field_numbers.empty()) {
-      return std::span<std::pair<uint32_t, uint32_t>>{};
+      return std::span<std::pair<std::uint32_t, std::uint32_t>>{};
     } else {
-      std::array<uint32_t, mask + 1> counts = {};
+      std::array<std::uint32_t, mask + 1> counts = {};
       std::copy(lookup_table_indices.begin(), lookup_table_indices.end() - 1, counts.begin());
 
-      std::array<std::pair<uint32_t, uint32_t>, field_numbers.size()> result;
+      std::array<std::pair<std::uint32_t, std::uint32_t>, field_numbers.size()> result;
       // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
       for (uint32_t i = 0; i < field_numbers.size(); ++i) {
         auto num = field_numbers[i];
@@ -927,18 +925,18 @@ struct field_dispatcher {
     }
   }
 
-  template <uint32_t masked_number>
+  template <std::uint32_t masked_number>
   consteval static auto lookup_table_for_masked_number() {
     constexpr auto lookup_table_indices = build_masked_lookup_table_indices();
     constexpr auto lookup_table = build_masked_lookup_table();
     constexpr auto size = lookup_table_indices[masked_number + 1] - lookup_table_indices[masked_number];
     if constexpr (size > 0) {
-      std::array<std::pair<uint32_t, uint32_t>, size> result;
+      std::array<std::pair<std::uint32_t, std::uint32_t>, size> result;
       std::copy(lookup_table.begin() + lookup_table_indices[masked_number],
                 lookup_table.begin() + lookup_table_indices[masked_number + 1], result.begin());
       return result;
     } else {
-      return std::span<std::pair<uint32_t, uint32_t>>{};
+      return std::span<std::pair<std::uint32_t, std::uint32_t>>{};
     }
   }
 
@@ -946,7 +944,7 @@ struct field_dispatcher {
   constexpr std::uint32_t index_by_field_number(std::uint32_t field_number) {
     constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
     if constexpr (table.empty() || I >= table.size()) {
-      return number_of_fields;
+      return UINT32_MAX;
     } else {
       if (field_number == table[I].first) {
         return table[I].second;
@@ -960,7 +958,7 @@ struct field_dispatcher {
   constexpr static auto dispatch_by_masked_num(std::uint32_t field_number, auto &&f) {
     constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
     if constexpr (table.empty() || I >= table.size()) {
-      return f(std::integral_constant<std::uint32_t, number_of_fields>());
+      return f(std::integral_constant<std::uint32_t, UINT32_MAX>());
     } else {
       if (field_number == table[I].first) {
         return f(std::integral_constant<std::uint32_t, table[I].second>());
@@ -972,7 +970,7 @@ struct field_dispatcher {
 
   template <uint32_t... MaskNum>
   constexpr static status dispatch_by_mask_num(std::uint32_t field_number, auto &&f,
-                                               std::integer_sequence<uint32_t, MaskNum...>) {
+                                               std::integer_sequence<std::uint32_t, MaskNum...>) {
 
     status r;
     (void)((((field_number & mask) == MaskNum) &&
@@ -983,15 +981,14 @@ struct field_dispatcher {
 
   constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
     return dispatch_by_mask_num(field_number, std::forward<decltype(f)>(f),
-                                std::make_integer_sequence<uint32_t, mask + 1>());
+                                std::make_integer_sequence<std::uint32_t, mask + 1>());
   }
 #else
   consteval static auto build_simple_lookup_table() {
-    std::array<std::pair<uint32_t, uint32_t>, field_numbers.size() + 1> result;
-    for (uint32_t i = 0; i < field_numbers.size(); ++i) {
+    std::array<std::pair<std::uint32_t, std::uint32_t>, field_numbers.size()> result;
+    for (auto i = 0U; i < result.size(); ++i) {
       result[i] = {field_numbers[i], indices[i]};
     }
-    result[field_numbers.size()] = {0, indices[field_numbers.size() - 1] + 1};
     return result;
   }
 
@@ -1000,15 +997,19 @@ struct field_dispatcher {
   template <std::uint32_t... I>
   constexpr static auto dispatch_by_indices(std::uint32_t field_number, auto &&f,
                                             std::integer_sequence<uint32_t, I...>) {
-    status r;
-    auto index_by_number = mph::lookup<simple_lookup_table>(field_number);
-    (void)(((index_by_number == I) && (r = f(std::integral_constant<std::uint32_t, I>()), true)) || ...);
-    return r;
+    auto index_by_number = mph::find<simple_lookup_table>(field_number);
+    if (index_by_number) {
+      status r;
+      (void)(((*index_by_number == I) && (r = f(std::integral_constant<std::uint32_t, I>()), true)) || ...);
+      return r;
+    } else {
+      return f(std::integral_constant<std::uint32_t, UINT32_MAX>());
+    }
   }
 
   constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
     return dispatch_by_indices(field_number, std::forward<decltype(f)>(f),
-                               std::make_integer_sequence<uint32_t, number_of_fields.size()>());
+                               std::make_integer_sequence<uint32_t, number_of_fields>());
   }
 #endif
 };
@@ -2495,8 +2496,7 @@ struct pb_serializer {
   constexpr static status deserialize_field_by_index(std::integral_constant<std::uint32_t, Index>, uint32_t tag,
                                                      auto &item, concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
-    constexpr uint32_t num_fields = std::tuple_size<typename traits::meta_of<type>::type>::value;
-    if constexpr (Index < num_fields) {
+    if constexpr (Index != UINT32_MAX) {
       using Meta = typename traits::field_meta_of<type, Index>::type;
       return deserialize_field(Meta::access(item), Meta(), tag, archive);
     } else {

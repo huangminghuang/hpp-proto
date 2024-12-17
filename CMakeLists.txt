@@ -11,9 +11,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
-option(HPP_PROTO_BENCHMARKS "Enable buidling benchmarks" OFF)
+option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 
-option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavor sanitizer" OFF)
+option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavior sanitizer" OFF)
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
 set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
@@ -34,6 +34,12 @@ if(MSVC)
   endif()
 else()
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
+endif()
+
+if (HPP_PROTO_BENCHMARKS)
+  if (NOT MSVC) 
+    add_compile_options("-march=native")
+  endif()
 endif()
 
 if(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")
