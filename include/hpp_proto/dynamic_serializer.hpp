@@ -284,10 +284,10 @@ class dynamic_serializer {
 
     pb_to_json_state(const dynamic_serializer &meta, Buffer &buffer) : pb_meta(meta), b(buffer) {}
     ~pb_to_json_state() = default;
-    pb_to_json_state(const pb_to_json_state&) = delete;
-    pb_to_json_state(pb_to_json_state&&) = delete;
-    pb_to_json_state& operator=(const pb_to_json_state&) = delete;
-    pb_to_json_state& operator=(pb_to_json_state&&) = delete;
+    pb_to_json_state(const pb_to_json_state &) = delete;
+    pb_to_json_state(pb_to_json_state &&) = delete;
+    pb_to_json_state &operator=(const pb_to_json_state &) = delete;
+    pb_to_json_state &operator=(pb_to_json_state &&) = delete;
 
     bool circular_find(uint32_t &field_index, uint32_t number, const dynamic_serializer::message_meta &msg_meta) {
       for (uint32_t i = field_index; i < msg_meta.size() + field_index; ++i) {
@@ -897,10 +897,10 @@ class dynamic_serializer {
 
     explicit json_to_pb_state(const dynamic_serializer &meta) : pb_meta(meta) {}
     ~json_to_pb_state() = default;
-    json_to_pb_state(const json_to_pb_state&)= delete;
-    json_to_pb_state(json_to_pb_state&&) = delete;
-    json_to_pb_state& operator=(const json_to_pb_state&)= delete;
-    json_to_pb_state& operator=(json_to_pb_state&&) = delete;
+    json_to_pb_state(const json_to_pb_state &) = delete;
+    json_to_pb_state(json_to_pb_state &&) = delete;
+    json_to_pb_state &operator=(const json_to_pb_state &) = delete;
+    json_to_pb_state &operator=(json_to_pb_state &&) = delete;
 
     template <typename T>
     static T &get_underlying_value(T &v) {

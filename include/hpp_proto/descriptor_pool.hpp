@@ -68,7 +68,7 @@ struct descriptor_pool {
   struct field_descriptor_t : AddOns::template field_descriptor<field_descriptor_t> {
     using pool_type = descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const google::protobuf::FieldDescriptorProto &proto; 
+    const google::protobuf::FieldDescriptorProto &proto;
     google::protobuf::FieldOptions options;
     field_descriptor_t(const google::protobuf::FieldDescriptorProto &proto, const std::string &parent_name,
                        const auto &inherited_options)
@@ -325,8 +325,8 @@ struct descriptor_pool {
   constexpr ~descriptor_pool() = default;
   descriptor_pool(const descriptor_pool &) = delete;
   descriptor_pool(descriptor_pool &&) = delete;
-  descriptor_pool& operator=(const descriptor_pool &) = delete;
-  descriptor_pool& operator=(descriptor_pool &&) = delete;
+  descriptor_pool &operator=(const descriptor_pool &) = delete;
+  descriptor_pool &operator=(descriptor_pool &&) = delete;
 
   void build(file_descriptor_t &descriptor) {
     file_map.try_emplace(descriptor.proto.name, &descriptor);

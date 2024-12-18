@@ -274,8 +274,7 @@ public:
   }
 
   template <class F>
-  constexpr auto transform(
-      F &&f) & {
+  constexpr auto transform(F &&f) & {
     using U = std::remove_cv_t<std::invoke_result_t<F, T &>>;
     if (has_value()) {
       return std::optional<U>{std::invoke(std::forward<F>(f), _value)};

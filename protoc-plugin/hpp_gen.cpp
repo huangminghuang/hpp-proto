@@ -580,8 +580,8 @@ struct code_generator {
   ~code_generator() = default;
   code_generator(const code_generator &) = delete;
   code_generator(code_generator &&) = delete;
-  code_generator& operator=(const code_generator &) = delete;
-  code_generator& operator=(code_generator &&) = delete;
+  code_generator &operator=(const code_generator &) = delete;
+  code_generator &operator=(code_generator &&) = delete;
 
   [[nodiscard]] std::string_view indent() const {
     const int init_max_indent_spaces = 128;

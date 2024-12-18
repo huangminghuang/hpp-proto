@@ -234,10 +234,10 @@ public:
   constexpr arena_vector(View &view, concepts::has_memory_resource auto &ctx)
       : mr(ctx.memory_resource()), view_(view) {}
   constexpr ~arena_vector() = default;
-  arena_vector(const arena_vector&) = delete;
-  arena_vector(arena_vector&&) = delete;
-  arena_vector& operator=(const arena_vector&) = delete;
-  arena_vector& operator=(arena_vector&&) = delete;
+  arena_vector(const arena_vector &) = delete;
+  arena_vector(arena_vector &&) = delete;
+  arena_vector &operator=(const arena_vector &) = delete;
+  arena_vector &operator=(arena_vector &&) = delete;
 
   constexpr void resize(std::size_t n) {
     if (capacity_ < n) {
