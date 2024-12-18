@@ -946,7 +946,8 @@ void verify_segmented_input(auto &encoded, const T &value, const std::vector<int
     b = e;
   }
   T decoded;
-  ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, hpp::proto::pb_context{}).ok());
+  hpp::proto::pb_context ctx{};
+  ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, ctx).ok());
   ut::expect(value == decoded);
 };
 

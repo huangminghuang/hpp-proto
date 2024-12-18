@@ -115,7 +115,8 @@ public:
   constexpr optional(const optional<U> &other) : _value(other._value), _present(other.present) {}
 
   template <class U>
-  constexpr optional(optional<U> &&other) : _value(std::move(other)._value), _present(other.present) {}
+  constexpr optional(optional<U> &&other) // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+      : _value(std::move(other)._value), _present(other.present) {}
 
   constexpr optional(const std::optional<T> &other)
       : _value(other.value_or(default_value())), _present(other.has_value()) {}
@@ -174,7 +175,7 @@ public:
   }
 
   template <class U>
-  constexpr optional &operator=(optional<U> &&other) {
+  constexpr optional &operator=(optional<U> &&other) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
     _value = std::move(other)._value;
     _present = other.has_value();
     return *this;
@@ -273,9 +274,10 @@ public:
   }
 
   template <class F>
-  constexpr auto transform(F &&f) & {
+  constexpr auto transform(
+      F &&f) & { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
     using U = std::remove_cv_t<std::invoke_result_t<F, T &>>;
-    if (has_value()) {
+    if (has_value()) { // NOLINT(bugprone-branch-clone)
       return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
     } else {
       return std::optional<U>{};
@@ -283,9 +285,10 @@ public:
   }
 
   template <class F>
-  constexpr auto transform(F &&f) const & {
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
+  constexpr auto transform(F &&f) const & { 
     using U = std::remove_cv_t<std::invoke_result_t<F, const T &>>;
-    if (has_value()) {
+    if (has_value()) { // NOLINT(bugprone-branch-clone)
       return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
     } else {
       return std::optional<U>{};
@@ -293,9 +296,10 @@ public:
   }
 
   template <class F>
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
   constexpr auto transform(F &&f) && {
     using U = std::remove_cv_t<std::invoke_result_t<F, T>>;
-    if (has_value()) {
+    if (has_value()) { // NOLINT(bugprone-branch-clone)
       return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
     } else {
       return std::optional<U>{};
@@ -303,9 +307,10 @@ public:
   }
 
   template <class F>
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
   constexpr auto transform(F &&f) const && {
     using U = std::remove_cv_t<std::invoke_result_t<F, const T>>;
-    if (has_value()) {
+    if (has_value()) { // NOLINT(bugprone-branch-clone)
       return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
     } else {
       return std::optional<U>{};

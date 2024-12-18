@@ -905,6 +905,7 @@ struct field_dispatcher {
     return table_indices;
   }
 
+  // the masked_lookup_table is an array of field_number, field_index pairs sorted by (field_number & mask)
   consteval static auto build_masked_lookup_table() {
     constexpr auto lookup_table_indices = build_masked_lookup_table_indices();
     if constexpr (field_numbers.empty()) {
@@ -925,43 +926,19 @@ struct field_dispatcher {
     }
   }
 
-  template <std::uint32_t masked_number>
-  consteval static auto lookup_table_for_masked_number() {
-    constexpr auto lookup_table_indices = build_masked_lookup_table_indices();
-    constexpr auto lookup_table = build_masked_lookup_table();
-    constexpr auto size = lookup_table_indices[masked_number + 1] - lookup_table_indices[masked_number];
-    if constexpr (size > 0) {
-      std::array<std::pair<std::uint32_t, std::uint32_t>, size> result;
-      std::copy(lookup_table.begin() + lookup_table_indices[masked_number],
-                lookup_table.begin() + lookup_table_indices[masked_number + 1], result.begin());
-      return result;
-    } else {
-      return std::span<std::pair<std::uint32_t, std::uint32_t>>{};
-    }
-  }
-
-  template <auto MaskedNum, uint32_t I = 0>
-  constexpr std::uint32_t index_by_field_number(std::uint32_t field_number) {
-    constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
-    if constexpr (table.empty() || I >= table.size()) {
-      return UINT32_MAX;
-    } else {
-      if (field_number == table[I].first) {
-        return table[I].second;
-      } else {
-        return index_by_field_number<MaskedNum, I + 1>(field_number);
-      }
-    }
-  }
+  constexpr static auto lookup_table_indices = build_masked_lookup_table_indices();
+  constexpr static auto lookup_table = build_masked_lookup_table();
 
   template <auto MaskedNum, std::uint32_t I>
   constexpr static auto dispatch_by_masked_num(std::uint32_t field_number, auto &&f) {
-    constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
-    if constexpr (table.empty() || I >= table.size()) {
+    constexpr auto begin_id = lookup_table_indices[MaskedNum] + I;
+    constexpr auto end_id = lookup_table_indices[MaskedNum + 1];
+    constexpr auto table = std::span{lookup_table.begin() + begin_id, end_id-begin_id};
+    if constexpr (table.empty()) {
       return f(std::integral_constant<std::uint32_t, UINT32_MAX>());
     } else {
-      if (field_number == table[I].first) {
-        return f(std::integral_constant<std::uint32_t, table[I].second>());
+      if (field_number == table.front().first) {
+        return f(std::integral_constant<std::uint32_t, table.front().second>());
       } else {
         return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
       }
@@ -969,9 +946,8 @@ struct field_dispatcher {
   }
 
   template <uint32_t... MaskNum>
-  constexpr static status dispatch_by_mask_num(std::uint32_t field_number, auto &&f,
-                                               std::integer_sequence<std::uint32_t, MaskNum...>) {
-
+  constexpr static status dispatch(std::uint32_t field_number, auto &&f,
+                                   std::integer_sequence<std::uint32_t, MaskNum...>) {
     status r;
     (void)((((field_number & mask) == MaskNum) &&
             (r = dispatch_by_masked_num<MaskNum, 0>(field_number, std::forward<decltype(f)>(f)), true)) ||
@@ -980,8 +956,7 @@ struct field_dispatcher {
   }
 
   constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
-    return dispatch_by_mask_num(field_number, std::forward<decltype(f)>(f),
-                                std::make_integer_sequence<std::uint32_t, mask + 1>());
+    return dispatch(field_number, std::forward<decltype(f)>(f), std::make_integer_sequence<std::uint32_t, mask + 1>());
   }
 #else
   consteval static auto build_simple_lookup_table() {
@@ -1161,7 +1136,7 @@ public:
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
       pt_val |= ((word & 0x7fULL) << shift_bits);
       has_error |= (shift_bits >= max_effective_bits);
-      if (word & 0x80ULL) {
+      if ((word & 0x80ULL) != 0) {
         shift_bits += (CHAR_BIT - 1);
       } else {
         output(pt_val);
@@ -1183,7 +1158,7 @@ struct pb_serializer {
     using is_basic_out = void;
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
     std::span<byte_type> _data;
-    Context &_context;
+    Context &_context; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 
     HPP_PROTO_INLINE constexpr void serialize(concepts::byte_serializable auto item) {
       auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
@@ -1759,7 +1734,7 @@ struct pb_serializer {
     input_buffer_region_base<Byte> current;
     input_span<input_buffer_region<Byte>> rest;
     ptrdiff_t size_exclude_current = 0; // the remaining size excluding those in current
-    Context &context;
+    Context &context; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
 
@@ -1807,7 +1782,7 @@ struct pb_serializer {
                        ptrdiff_t size_exclude_current, Context &ctx)
         : current(cur), rest(rest), size_exclude_current(size_exclude_current), context(ctx) {}
 
-    constexpr basic_in(concepts::segmented_byte_range auto &&source, std::span<input_buffer_region<Byte>> regions,
+    constexpr basic_in(concepts::segmented_byte_range auto const &source, std::span<input_buffer_region<Byte>> regions,
                        std::span<Byte> patch_buffer_cache, Context &ctx)
         : context(ctx) {
       // pre (std::size(source) > 0 && regions.size() == std::size(source) * 2)
@@ -2573,19 +2548,19 @@ struct pb_serializer {
   contiguous_input_archive(const Buffer &,
                            Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
-  constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer) {
+  constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto const &buffer) {
     pb_context ctx;
     return deserialize(item, buffer, ctx);
   }
 
-  constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer,
-                                      concepts::is_pb_context auto &&context) {
+  constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto const &buffer,
+                                      concepts::is_pb_context auto &context) {
     contiguous_input_archive archive{buffer, context};
     return deserialize(item, archive);
   }
 
   template <typename Byte>
-  constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_pb_context auto &&context,
+  constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_pb_context auto &context,
                                       concepts::segmented_byte_range auto const &buffer,
                                       std::span<input_buffer_region<Byte>> regions,
                                       std::span<Byte> patch_buffer_cache) {
@@ -2596,7 +2571,7 @@ struct pb_serializer {
   }
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::segmented_byte_range auto const &buffer,
-                                      concepts::is_pb_context auto &&context) {
+                                      concepts::is_pb_context auto &context) {
     const auto num_segments = std::size(buffer);
     const auto num_regions = num_segments * 2;
     const auto patch_buffer_bytes_count = num_segments * patch_buffer_size;
@@ -2755,7 +2730,8 @@ template <concepts::has_meta T>
 constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range auto const &buffer,
                                                    concepts::is_option_type auto &&...option) {
   T msg; // NOLINT(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-  if (auto result = pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  if (auto result = pb_serializer::deserialize(msg, buffer, ctx);
       !result.ok()) {
     return unexpected(result.ec);
   }
@@ -2765,13 +2741,15 @@ constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range au
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status read_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
   msg = {};
-  return pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  return pb_serializer::deserialize(msg, buffer, ctx);
 }
 
 /// @brief  deserialize from the buffer and merge the content with the existing msg
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status merge_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
-  return pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  return pb_serializer::deserialize(msg, buffer, ctx);
 }
 
 namespace concepts {

@@ -339,6 +339,7 @@ template <concepts::dynamic_sized_view View, concepts::has_memory_resource Conte
 arena_vector(View &view, Context &ctx)
     -> arena_vector<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
 
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 constexpr auto as_modifiable(concepts::is_pb_context auto &&context, concepts::dynamic_sized_view auto &view) {
   return detail::arena_vector{view, std::forward<decltype(context)>(context)};
 }
