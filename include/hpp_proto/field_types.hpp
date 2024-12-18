@@ -275,9 +275,9 @@ public:
 
   template <class F>
   constexpr auto transform(
-      F &&f) & { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
+      F &&f) & {
     using U = std::remove_cv_t<std::invoke_result_t<F, T &>>;
-    if (has_value()) { // NOLINT(bugprone-branch-clone)
+    if (has_value()) {
       return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
     } else {
       return std::optional<U>{};
@@ -285,10 +285,9 @@ public:
   }
 
   template <class F>
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
   constexpr auto transform(F &&f) const & {
     using U = std::remove_cv_t<std::invoke_result_t<F, const T &>>;
-    if (has_value()) { // NOLINT(bugprone-branch-clone)
+    if (has_value()) {
       return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
     } else {
       return std::optional<U>{};
@@ -296,10 +295,9 @@ public:
   }
 
   template <class F>
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
   constexpr auto transform(F &&f) && {
     using U = std::remove_cv_t<std::invoke_result_t<F, T>>;
-    if (has_value()) { // NOLINT(bugprone-branch-clone)
+    if (has_value()) {
       return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
     } else {
       return std::optional<U>{};
@@ -307,10 +305,9 @@ public:
   }
 
   template <class F>
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
   constexpr auto transform(F &&f) const && {
     using U = std::remove_cv_t<std::invoke_result_t<F, const T>>;
-    if (has_value()) { // NOLINT(bugprone-branch-clone)
+    if (has_value()) {
       return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
     } else {
       return std::optional<U>{};
@@ -402,7 +399,6 @@ public:
   }
 };
 
-// NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 template <typename T>
 class heap_based_optional {
   std::unique_ptr<T> obj;
@@ -419,11 +415,9 @@ public:
   constexpr heap_based_optional(const heap_based_optional &other) : obj(other.obj ? new T(*other.obj) : nullptr) {}
 
   template <class... Args>
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
   constexpr explicit heap_based_optional(std::in_place_t, Args &&...args)
       : obj(new T{std::forward<Args &&>(args)...}) {}
 
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr heap_based_optional &operator=(heap_based_optional &&other) noexcept {
     obj = std::move(other.obj);
     return *this;
@@ -484,7 +478,6 @@ public:
   constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
 };
 
-// NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 /// Used for recursive non-owning message types
 template <typename T>
 class optional_message_view {

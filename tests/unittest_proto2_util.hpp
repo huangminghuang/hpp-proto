@@ -920,36 +920,35 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
 
   // -----------------------------------------------------------------
 
-  expect(
-      eq(message.get_extension(protobuf_unittest::repeated_int32_extension()).value(), std::vector<int32_t>{201, 301}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::repeated_int64_extension()).value(), std::vector<int64_t>{202, 302}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_uint32_extension()).value(),
-            std::vector<uint32_t>{203, 303}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_uint64_extension()).value(),
-            std::vector<uint64_t>{204, 304}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_sint32_extension()).value(),
-            std::vector<int32_t>{205, 305}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_sint64_extension()).value(),
-            std::vector<int64_t>{206, 306}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_fixed32_extension()).value(),
-            std::vector<uint32_t>{207, 307}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_fixed64_extension()).value(),
-            std::vector<uint64_t>{208, 308}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_sfixed32_extension()).value(),
-            std::vector<int32_t>{209, 309}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_sfixed64_extension()).value(),
-            std::vector<int64_t>{210, 310}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::repeated_float_extension()).value(), std::vector<float>{211, 311}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::repeated_double_extension()).value(), std::vector<double>{212, 312}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_bool_extension()).value(),
-            std::vector<hpp::proto::boolean>{true, false}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_string_extension()).value(),
-            std::vector<std::string>{"215", "315"}));
-  expect(eq(message.get_extension(protobuf_unittest::repeated_bytes_extension()).value(),
-            std::vector{"216"_bytes, "316"_bytes}));
+  expect(message.get_extension(protobuf_unittest::repeated_int32_extension()).value() ==
+         std::vector<int32_t>{201, 301});
+  expect(message.get_extension(protobuf_unittest::repeated_int64_extension()).value() ==
+         std::vector<int64_t>{202, 302});
+  expect(message.get_extension(protobuf_unittest::repeated_uint32_extension()).value() ==
+         std::vector<uint32_t>{203, 303});
+  expect(message.get_extension(protobuf_unittest::repeated_uint64_extension()).value() ==
+         std::vector<uint64_t>{204, 304});
+  expect(message.get_extension(protobuf_unittest::repeated_sint32_extension()).value() ==
+         std::vector<int32_t>{205, 305});
+  expect(message.get_extension(protobuf_unittest::repeated_sint64_extension()).value() ==
+         std::vector<int64_t>{206, 306});
+  expect(message.get_extension(protobuf_unittest::repeated_fixed32_extension()).value() ==
+         std::vector<uint32_t>{207, 307});
+  expect(message.get_extension(protobuf_unittest::repeated_fixed64_extension()).value() ==
+         std::vector<uint64_t>{208, 308});
+  expect(message.get_extension(protobuf_unittest::repeated_sfixed32_extension()).value() ==
+         std::vector<int32_t>{209, 309});
+  expect(message.get_extension(protobuf_unittest::repeated_sfixed64_extension()).value() ==
+         std::vector<int64_t>{210, 310});
+  expect(message.get_extension(protobuf_unittest::repeated_float_extension()).value() == std::vector<float>{211, 311});
+  expect(message.get_extension(protobuf_unittest::repeated_double_extension()).value() ==
+         std::vector<double>{212, 312});
+  expect(message.get_extension(protobuf_unittest::repeated_bool_extension()).value() ==
+         std::vector<hpp::proto::boolean>{true, false});
+  expect(message.get_extension(protobuf_unittest::repeated_string_extension()).value() ==
+         std::vector<std::string>{"215", "315"});
+  expect(message.get_extension(protobuf_unittest::repeated_bytes_extension()).value() ==
+         std::vector{"216"_bytes, "316"_bytes});
 
   expect(message.get_extension(protobuf_unittest::repeatedgroup_extension()).value() ==
          std::vector<protobuf_unittest::RepeatedGroup_extension>{{.a = 217}, {.a = 317}});
@@ -978,11 +977,11 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
          std::vector<protobuf_unittest_import::ImportEnum>{protobuf_unittest_import::ImportEnum::IMPORT_BAR,
                                                            protobuf_unittest_import::ImportEnum::IMPORT_BAZ});
 
-  expect(eq(message.get_extension(protobuf_unittest::repeated_string_piece_extension()).value(),
-            std::vector<std::string>{"224", "324"}));
+  expect(message.get_extension(protobuf_unittest::repeated_string_piece_extension()).value() ==
+         std::vector<std::string>{"224", "324"});
 
-  expect(eq(message.get_extension(protobuf_unittest::repeated_cord_extension()).value(),
-            std::vector<std::string>{"225", "325"}));
+  expect(message.get_extension(protobuf_unittest::repeated_cord_extension()).value() ==
+         std::vector<std::string>{"225", "325"});
 
   // -----------------------------------------------------------------
 
@@ -1230,31 +1229,26 @@ inline void SetAll(protobuf_unittest::TestPackedExtensions *message) {
 // -------------------------------------------------------------------
 
 inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message) {
-  expect(
-      eq(message.get_extension(protobuf_unittest::packed_int32_extension()).value(), std::vector<int32_t>{601, 701}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::packed_int64_extension()).value(), std::vector<int64_t>{602, 702}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::packed_uint32_extension()).value(), std::vector<uint32_t>{603, 703}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::packed_uint64_extension()).value(), std::vector<uint64_t>{604, 704}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::packed_sint32_extension()).value(), std::vector<int32_t>{605, 705}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::packed_sint64_extension()).value(), std::vector<int64_t>{606, 706}));
-  expect(eq(message.get_extension(protobuf_unittest::packed_fixed32_extension()).value(),
-            std::vector<uint32_t>{607, 707}));
-  expect(eq(message.get_extension(protobuf_unittest::packed_fixed64_extension()).value(),
-            std::vector<uint64_t>{608, 708}));
-  expect(eq(message.get_extension(protobuf_unittest::packed_sfixed32_extension()).value(),
-            std::vector<int32_t>{609, 709}));
-  expect(eq(message.get_extension(protobuf_unittest::packed_sfixed64_extension()).value(),
-            std::vector<int64_t>{610, 710}));
-  expect(eq(message.get_extension(protobuf_unittest::packed_float_extension()).value(), std::vector<float>{611, 711}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::packed_double_extension()).value(), std::vector<double>{612, 712}));
-  expect(eq(message.get_extension(protobuf_unittest::packed_bool_extension()).value(),
-            std::vector<hpp::proto::boolean>{true, false}));
+  expect(message.get_extension(protobuf_unittest::packed_int32_extension()).value() == std::vector<int32_t>{601, 701});
+  expect(message.get_extension(protobuf_unittest::packed_int64_extension()).value() == std::vector<int64_t>{602, 702});
+  expect(message.get_extension(protobuf_unittest::packed_uint32_extension()).value() ==
+         std::vector<uint32_t>{603, 703});
+  expect(message.get_extension(protobuf_unittest::packed_uint64_extension()).value() ==
+         std::vector<uint64_t>{604, 704});
+  expect(message.get_extension(protobuf_unittest::packed_sint32_extension()).value() == std::vector<int32_t>{605, 705});
+  expect(message.get_extension(protobuf_unittest::packed_sint64_extension()).value() == std::vector<int64_t>{606, 706});
+  expect(message.get_extension(protobuf_unittest::packed_fixed32_extension()).value() ==
+         std::vector<uint32_t>{607, 707});
+  expect(message.get_extension(protobuf_unittest::packed_fixed64_extension()).value() ==
+         std::vector<uint64_t>{608, 708});
+  expect(message.get_extension(protobuf_unittest::packed_sfixed32_extension()).value() ==
+         std::vector<int32_t>{609, 709});
+  expect(message.get_extension(protobuf_unittest::packed_sfixed64_extension()).value() ==
+         std::vector<int64_t>{610, 710});
+  expect(message.get_extension(protobuf_unittest::packed_float_extension()).value() == std::vector<float>{611, 711});
+  expect(message.get_extension(protobuf_unittest::packed_double_extension()).value() == std::vector<double>{612, 712});
+  expect(message.get_extension(protobuf_unittest::packed_bool_extension()).value() ==
+         std::vector<hpp::proto::boolean>{true, false});
 
   expect(message.get_extension(protobuf_unittest::packed_enum_extension()).value() ==
          std::vector<protobuf_unittest::ForeignEnum>{protobuf_unittest::ForeignEnum::FOREIGN_BAR,
@@ -1264,32 +1258,31 @@ inline void ExpectAllSet(const protobuf_unittest::TestPackedExtensions &message)
 // -------------------------------------------------------------------
 
 inline void ExpectAllSet(const protobuf_unittest::TestUnpackedExtensions &message) {
-  expect(
-      eq(message.get_extension(protobuf_unittest::unpacked_int32_extension()).value(), std::vector<int32_t>{601, 701}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::unpacked_int64_extension()).value(), std::vector<int64_t>{602, 702}));
-  expect(eq(message.get_extension(protobuf_unittest::unpacked_uint32_extension()).value(),
-            std::vector<uint32_t>{603, 703}));
-  expect(eq(message.get_extension(protobuf_unittest::unpacked_uint64_extension()).value(),
-            std::vector<uint64_t>{604, 704}));
-  expect(eq(message.get_extension(protobuf_unittest::unpacked_sint32_extension()).value(),
-            std::vector<int32_t>{605, 705}));
-  expect(eq(message.get_extension(protobuf_unittest::unpacked_sint64_extension()).value(),
-            std::vector<int64_t>{606, 706}));
-  expect(eq(message.get_extension(protobuf_unittest::unpacked_fixed32_extension()).value(),
-            std::vector<uint32_t>{607, 707}));
-  expect(eq(message.get_extension(protobuf_unittest::unpacked_fixed64_extension()).value(),
-            std::vector<uint64_t>{608, 708}));
-  expect(eq(message.get_extension(protobuf_unittest::unpacked_sfixed32_extension()).value(),
-            std::vector<int32_t>{609, 709}));
-  expect(eq(message.get_extension(protobuf_unittest::unpacked_sfixed64_extension()).value(),
-            std::vector<int64_t>{610, 710}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::unpacked_float_extension()).value(), std::vector<float>{611, 711}));
-  expect(
-      eq(message.get_extension(protobuf_unittest::unpacked_double_extension()).value(), std::vector<double>{612, 712}));
-  expect(eq(message.get_extension(protobuf_unittest::unpacked_bool_extension()).value(),
-            std::vector<hpp::proto::boolean>{true, false}));
+  expect(message.get_extension(protobuf_unittest::unpacked_int32_extension()).value() ==
+         std::vector<int32_t>{601, 701});
+  expect(message.get_extension(protobuf_unittest::unpacked_int64_extension()).value() ==
+         std::vector<int64_t>{602, 702});
+  expect(message.get_extension(protobuf_unittest::unpacked_uint32_extension()).value() ==
+         std::vector<uint32_t>{603, 703});
+  expect(message.get_extension(protobuf_unittest::unpacked_uint64_extension()).value() ==
+         std::vector<uint64_t>{604, 704});
+  expect(message.get_extension(protobuf_unittest::unpacked_sint32_extension()).value() ==
+         std::vector<int32_t>{605, 705});
+  expect(message.get_extension(protobuf_unittest::unpacked_sint64_extension()).value() ==
+         std::vector<int64_t>{606, 706});
+  expect(message.get_extension(protobuf_unittest::unpacked_fixed32_extension()).value() ==
+         std::vector<uint32_t>{607, 707});
+  expect(message.get_extension(protobuf_unittest::unpacked_fixed64_extension()).value() ==
+         std::vector<uint64_t>{608, 708});
+  expect(message.get_extension(protobuf_unittest::unpacked_sfixed32_extension()).value() ==
+         std::vector<int32_t>{609, 709});
+  expect(message.get_extension(protobuf_unittest::unpacked_sfixed64_extension()).value() ==
+         std::vector<int64_t>{610, 710});
+  expect(message.get_extension(protobuf_unittest::unpacked_float_extension()).value() == std::vector<float>{611, 711});
+  expect(message.get_extension(protobuf_unittest::unpacked_double_extension()).value() ==
+         std::vector<double>{612, 712});
+  expect(message.get_extension(protobuf_unittest::unpacked_bool_extension()).value() ==
+         std::vector<hpp::proto::boolean>{true, false});
 
   expect(message.get_extension(protobuf_unittest::unpacked_enum_extension()).value() ==
          std::vector<protobuf_unittest::ForeignEnum>{protobuf_unittest::ForeignEnum::FOREIGN_BAR,

@@ -90,8 +90,9 @@ endif()
 if(HPP_PROTO_TESTS)
     CPMAddPackage(
         NAME ut
-        GITHUB_REPOSITORY boost-ext/ut
-        VERSION 2.0.1
+        GITHUB_REPOSITORY huangminghuang/ut
+        # VERSION 2.1.1
+        GIT_TAG clang-tidy-fix
         DOWNLOAD_ONLY ON
     )
     add_library(Boost::ut INTERFACE IMPORTED)

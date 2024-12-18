@@ -86,19 +86,19 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
 inline void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message) {
   namespace ut = boost::ut;
 
-  ut::expect(ut::eq(std::vector{601, 701}, message.repeated_int32));
-  ut::expect(ut::eq(std::vector<int64_t>{602LL, 702LL}, message.repeated_int64));
-  ut::expect(ut::eq(std::vector{603U, 703U}, message.repeated_uint32));
-  ut::expect(ut::eq(std::vector<uint64_t>{604ULL, 704ULL}, message.repeated_uint64));
-  ut::expect(ut::eq(std::vector{605, 705}, message.repeated_sint32));
-  ut::expect(ut::eq(std::vector<int64_t>{606LL, 706LL}, message.repeated_sint64));
-  ut::expect(ut::eq(std::vector{607U, 707U}, message.repeated_fixed32));
-  ut::expect(ut::eq(std::vector<uint64_t>{608ULL, 708ULL}, message.repeated_fixed64));
-  ut::expect(ut::eq(std::vector{609, 709}, message.repeated_sfixed32));
-  ut::expect(ut::eq(std::vector<int64_t>{610LL, 710LL}, message.repeated_sfixed64));
-  ut::expect(ut::eq(std::vector{611.F, 711.F}, message.repeated_float));
-  ut::expect(ut::eq(std::vector{612., 712.}, message.repeated_double));
-  ut::expect(ut::eq(std::vector<hpp::proto::boolean>{true, false}, message.repeated_bool));
+  ut::expect(std::vector<std::int32_t>{601, 701} == message.repeated_int32);
+  ut::expect(std::vector<int64_t>{602LL, 702LL} == message.repeated_int64);
+  ut::expect(std::vector{603U, 703U} == message.repeated_uint32);
+  ut::expect(std::vector<uint64_t>{604ULL, 704ULL} == message.repeated_uint64);
+  ut::expect(std::vector{605, 705} == message.repeated_sint32);
+  ut::expect(std::vector<int64_t>{606LL, 706LL} == message.repeated_sint64);
+  ut::expect(std::vector{607U, 707U} == message.repeated_fixed32);
+  ut::expect(std::vector<uint64_t>{608ULL, 708ULL} == message.repeated_fixed64);
+  ut::expect(std::vector{609, 709} == message.repeated_sfixed32);
+  ut::expect(std::vector<int64_t>{610LL, 710LL} == message.repeated_sfixed64);
+  ut::expect(std::vector{611.F, 711.F} == message.repeated_float);
+  ut::expect(std::vector{612., 712.} == message.repeated_double);
+  ut::expect(std::vector<hpp::proto::boolean>{true, false} == message.repeated_bool);
   ut::expect(std::vector{proto3_unittest::TestAllTypes::NestedEnum::BAR,
                          proto3_unittest::TestAllTypes::NestedEnum::BAZ} == message.repeated_nested_enum);
 }
