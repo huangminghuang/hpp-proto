@@ -933,7 +933,7 @@ struct field_dispatcher {
   constexpr static auto dispatch_by_masked_num(std::uint32_t field_number, auto &&f) {
     constexpr auto begin_id = lookup_table_indices[MaskedNum] + I;
     constexpr auto end_id = lookup_table_indices[MaskedNum + 1];
-    constexpr auto table = std::span{lookup_table.begin() + begin_id, end_id-begin_id};
+    constexpr auto table = std::span{lookup_table.begin() + begin_id, end_id - begin_id};
     if constexpr (table.empty()) {
       return f(std::integral_constant<std::uint32_t, UINT32_MAX>());
     } else {
@@ -1734,7 +1734,7 @@ struct pb_serializer {
     input_buffer_region_base<Byte> current;
     input_span<input_buffer_region<Byte>> rest;
     ptrdiff_t size_exclude_current = 0; // the remaining size excluding those in current
-    Context &context; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    Context &context;                   // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
 
@@ -2548,7 +2548,8 @@ struct pb_serializer {
   contiguous_input_archive(const Buffer &,
                            Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
-  constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto const &buffer) {
+  constexpr static status deserialize(concepts::has_meta auto &item,
+                                      concepts::contiguous_byte_range auto const &buffer) {
     pb_context ctx;
     return deserialize(item, buffer, ctx);
   }
@@ -2731,8 +2732,7 @@ constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range au
                                                    concepts::is_option_type auto &&...option) {
   T msg; // NOLINT(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   pb_context ctx{std::forward<decltype(option)>(option)...};
-  if (auto result = pb_serializer::deserialize(msg, buffer, ctx);
-      !result.ok()) {
+  if (auto result = pb_serializer::deserialize(msg, buffer, ctx); !result.ok()) {
     return unexpected(result.ec);
   }
   return msg;

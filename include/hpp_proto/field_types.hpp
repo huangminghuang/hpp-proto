@@ -286,7 +286,7 @@ public:
 
   template <class F>
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
-  constexpr auto transform(F &&f) const & { 
+  constexpr auto transform(F &&f) const & {
     using U = std::remove_cv_t<std::invoke_result_t<F, const T &>>;
     if (has_value()) { // NOLINT(bugprone-branch-clone)
       return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
