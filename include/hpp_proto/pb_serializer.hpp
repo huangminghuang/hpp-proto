@@ -37,10 +37,10 @@
 #include <glaze/util/expected.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
 
-#if __has_include(<experimental/simd>) && !defined(_LIBCPP_VERSION)
-#include <mph>
-#define HPP_PROTO_USE_MPH
-#endif
+// #if __has_include(<experimental/simd>) && !defined(_LIBCPP_VERSION)
+// #include <mph>
+// #define HPP_PROTO_USE_MPH
+// #endif
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
 #if defined(_WIN32)
@@ -955,40 +955,30 @@ struct field_dispatcher {
   constexpr static auto lookup_table_offsets = build_masked_lookup_table_offsets();
   constexpr static auto lookup_table = build_masked_lookup_table();
 
-  template <std::size_t... Offset>
-  constexpr static std::optional<status> dispatch_by_table_offsets(std::uint32_t field_number, auto &f,
-                                                                   std::index_sequence<Offset...>) {
-    std::optional<status> r;
-    auto by_table_offset = [&](auto offset) -> std::optional<status> {
-      constexpr auto table_entry = lookup_table[decltype(offset)::value];
-      if (table_entry.first == field_number) {
-        return f(make_integral_constant<table_entry.second>());
+  template <auto MaskedNum, std::uint32_t I>
+  constexpr static auto dispatch_by_masked_num(std::uint32_t field_number, auto &&f) {
+    constexpr auto begin_id = lookup_table_offsets[MaskedNum] + I;
+    constexpr auto end_id = lookup_table_offsets[MaskedNum + 1];
+    constexpr auto table = std::span{lookup_table.begin() + begin_id, end_id - begin_id};
+    if constexpr (table.empty()) {
+      return f(make_integral_constant<UINT32_MAX>());
+    } else {
+      if (field_number == table.front().first) {
+        return f(make_integral_constant<table.front().second>());
       } else {
-        return {};
+        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
       }
-    };
-
-    (void)((r = by_table_offset(make_integral_constant<Offset>())) || ...);
-    return r;
+    }
   }
 
-  template <uint32_t... MaskedNum>
+  template <uint32_t... MaskNum>
   constexpr static status dispatch(std::uint32_t field_number, auto &&f,
-                                   std::integer_sequence<std::uint32_t, MaskedNum...>) {
-
-    auto table_offsets = [](auto constant_masked_num) {
-      constexpr auto masked_num = decltype(constant_masked_num)::value;
-      constexpr auto num_indices = lookup_table_offsets[masked_num + 1] - lookup_table_offsets[masked_num];
-      return offset_sequence_t<lookup_table_offsets[masked_num], std::make_index_sequence<num_indices>>();
-    };
-
-    std::optional<status> r;
-    (void)((((field_number & mask) == MaskedNum) &&
-            (r = dispatch_by_table_offsets(field_number, f, table_offsets(make_integral_constant<MaskedNum>())),
-             true)) ||
+                                   std::integer_sequence<std::uint32_t, MaskNum...>) {
+    status r;
+    (void)((((field_number & mask) == MaskNum) &&
+            (r = dispatch_by_masked_num<MaskNum, 0>(field_number, std::forward<decltype(f)>(f)), true)) ||
            ...);
-
-    return r.has_value() ? *r : f(make_integral_constant<UINT32_MAX>());
+    return r;
   }
 
   constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
