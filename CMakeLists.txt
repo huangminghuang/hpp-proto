@@ -88,8 +88,7 @@ target_include_directories(libhpp_proto INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_include_directories(libhpp_proto SYSTEM INTERFACE
-  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${mph_SOURCE_DIR}>)
+  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>)
 target_compile_features(libhpp_proto INTERFACE cxx_std_20)
 target_link_libraries(libhpp_proto INTERFACE is_utf8)
 

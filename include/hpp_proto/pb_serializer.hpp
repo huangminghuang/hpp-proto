@@ -811,16 +811,6 @@ constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N>
   return result;
 }
 
-template <std::size_t N, typename Seq>
-struct offset_sequence;
-
-template <std::size_t N, std::size_t... Ints>
-struct offset_sequence<N, std::index_sequence<Ints...>> {
-  using type = std::index_sequence<Ints + N...>;
-};
-template <std::size_t N, typename Seq>
-using offset_sequence_t = typename offset_sequence<N, Seq>::type;
-
 template <auto Num>
 constexpr auto make_integral_constant() {
   return std::integral_constant<decltype(Num), Num>();
