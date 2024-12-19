@@ -284,8 +284,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
-                                      int64_t &res1) -> decltype(std::ranges::cdata(input)) {
+constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input, int64_t &res1)
+    -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -418,8 +418,8 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
   return done2();
 }
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    bool &value) -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, bool &value)
+    -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -811,6 +811,21 @@ constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N>
   return result;
 }
 
+template <std::size_t N, typename Seq>
+struct offset_sequence;
+
+template <std::size_t N, std::size_t... Ints>
+struct offset_sequence<N, std::index_sequence<Ints...>> {
+  using type = std::index_sequence<Ints + N...>;
+};
+template <std::size_t N, typename Seq>
+using offset_sequence_t = typename offset_sequence<N, Seq>::type;
+
+template <auto Num>
+constexpr auto make_integral_constant() {
+  return std::integral_constant<decltype(Num), Num>();
+}
+
 template <concepts::has_meta Type>
 struct field_dispatcher {
   template <typename T>
@@ -882,14 +897,29 @@ struct field_dispatcher {
   //
   //  number_of_fields will be 3.
   //  field_numbers will be { 1, 4, 9, 20}
-  //  indices will be       { 0, 1, 1,  2}
-  constexpr static auto indices = get_indices(typename traits::meta_of<Type>::type{});
+  //  field_indices will be { 0, 1, 1,  2}
+  //
+  constexpr static auto field_indices = get_indices(typename traits::meta_of<Type>::type{});
   // the number of fields in a message
-  constexpr static auto number_of_fields = indices.size() ? indices.back() + 1 : 0;
+  constexpr static auto number_of_fields = field_indices.size() ? field_indices.back() + 1 : 0;
 
 #if !defined(HPP_PROTO_USE_MPH)
+  // During protobuf deserialization, it is necessary to find the field index associated with a given field number. To
+  // achieve efficient lookup, a two-level lookup table is created and indexed by "masked numbers". The "masked number"
+  // is computed by performing a bitwise OR operation between the field number and a mask. This mask is determined by
+  // finding the smallest power of 2 that is greater than the number of fields and then subtracting 1. For instance,
+  // given the field numbers in SampleMessage as {1, 4, 9, 20}, the resulting masked numbers would be {1, 0, 1, 0}.
+  //
+  // Following this, a masked_lookup_table is constructed, consisting of pairs of field numbers and their corresponding
+  // field indices, sorted based on the masked numbers. For SampleMessage, the masked_lookup_table would appear as
+  // {{1, 0}, {9, 1}, {4, 1}, {20, 2}}.
+  //
+  // Additionally, the masked_lookup_table_offsets are created as an array that points to
+  // the indices of the masked_lookup_table, indexed by the "masked numbers". In the SampleMessage example, the
+  // masked_lookup_table_offsets would be {0, 2, 4, 4, 4}.
+
   constexpr static auto mask = (1U << static_cast<unsigned>(std::bit_width(field_numbers.size()))) - 1;
-  consteval static auto build_masked_lookup_table_indices() {
+  consteval static auto build_masked_lookup_table_offsets() {
     std::array<std::uint32_t, mask + 1> masked_number_occurrences = {};
 
     for (auto num : field_numbers) {
@@ -897,59 +927,68 @@ struct field_dispatcher {
       ++masked_number_occurrences[num & mask];
     }
 
-    std::array<std::uint32_t, mask + 2> table_indices = {0};
-    std::partial_sum(masked_number_occurrences.begin(), masked_number_occurrences.end(), table_indices.begin() + 1);
-    return table_indices;
+    std::array<std::uint32_t, mask + 2> table_offsets = {0};
+    std::partial_sum(masked_number_occurrences.begin(), masked_number_occurrences.end(), table_offsets.begin() + 1);
+    return table_offsets;
   }
 
   // the masked_lookup_table is an array of field_number, field_index pairs sorted by (field_number & mask)
   consteval static auto build_masked_lookup_table() {
-    constexpr auto lookup_table_indices = build_masked_lookup_table_indices();
     if constexpr (field_numbers.empty()) {
       return std::span<std::pair<std::uint32_t, std::uint32_t>>{};
     } else {
       std::array<std::uint32_t, mask + 1> counts = {};
-      std::copy(lookup_table_indices.begin(), lookup_table_indices.end() - 1, counts.begin());
+      std::copy(lookup_table_offsets.begin(), lookup_table_offsets.end() - 1, counts.begin());
 
       std::array<std::pair<std::uint32_t, std::uint32_t>, field_numbers.size()> result;
       // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
       for (uint32_t i = 0; i < field_numbers.size(); ++i) {
         auto num = field_numbers[i];
         auto masked_num = num & mask;
-        result[counts[masked_num]++] = {num, static_cast<uint32_t>(indices[i])};
+        result[counts[masked_num]++] = {num, static_cast<uint32_t>(field_indices[i])};
       }
       // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
       return result;
     }
   }
 
-  constexpr static auto lookup_table_indices = build_masked_lookup_table_indices();
+  constexpr static auto lookup_table_offsets = build_masked_lookup_table_offsets();
   constexpr static auto lookup_table = build_masked_lookup_table();
 
-  template <auto MaskedNum, std::uint32_t I>
-  constexpr static auto dispatch_by_masked_num(std::uint32_t field_number, auto &&f) {
-    constexpr auto begin_id = lookup_table_indices[MaskedNum] + I;
-    constexpr auto end_id = lookup_table_indices[MaskedNum + 1];
-    constexpr auto table = std::span{lookup_table.begin() + begin_id, end_id - begin_id};
-    if constexpr (table.empty()) {
-      return f(std::integral_constant<std::uint32_t, UINT32_MAX>());
-    } else {
-      if (field_number == table.front().first) {
-        return f(std::integral_constant<std::uint32_t, table.front().second>());
+  template <std::size_t... Offset>
+  constexpr static std::optional<status> dispatch_by_table_offsets(std::uint32_t field_number, auto &f,
+                                                                   std::index_sequence<Offset...>) {
+    std::optional<status> r;
+    auto by_table_offset = [&](auto offset) -> std::optional<status> {
+      constexpr auto table_entry = lookup_table[decltype(offset)::value];
+      if (table_entry.first == field_number) {
+        return f(make_integral_constant<table_entry.second>());
       } else {
-        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
+        return {};
       }
-    }
+    };
+
+    (void)((r = by_table_offset(make_integral_constant<Offset>())) || ...);
+    return r;
   }
 
-  template <uint32_t... MaskNum>
+  template <uint32_t... MaskedNum>
   constexpr static status dispatch(std::uint32_t field_number, auto &&f,
-                                   std::integer_sequence<std::uint32_t, MaskNum...>) {
-    status r;
-    (void)((((field_number & mask) == MaskNum) &&
-            (r = dispatch_by_masked_num<MaskNum, 0>(field_number, std::forward<decltype(f)>(f)), true)) ||
+                                   std::integer_sequence<std::uint32_t, MaskedNum...>) {
+
+    auto table_offsets = [](auto constant_masked_num) {
+      constexpr auto masked_num = decltype(constant_masked_num)::value;
+      constexpr auto num_indices = lookup_table_offsets[masked_num + 1] - lookup_table_offsets[masked_num];
+      return offset_sequence_t<lookup_table_offsets[masked_num], std::make_index_sequence<num_indices>>();
+    };
+
+    std::optional<status> r;
+    (void)((((field_number & mask) == MaskedNum) &&
+            (r = dispatch_by_table_offsets(field_number, f, table_offsets(make_integral_constant<MaskedNum>())),
+             true)) ||
            ...);
-    return r;
+
+    return r.has_value() ? *r : f(make_integral_constant<UINT32_MAX>());
   }
 
   constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
@@ -959,7 +998,7 @@ struct field_dispatcher {
   consteval static auto build_simple_lookup_table() {
     std::array<std::pair<std::uint32_t, std::uint32_t>, field_numbers.size()> result;
     for (auto i = 0U; i < result.size(); ++i) {
-      result[i] = {field_numbers[i], indices[i]};
+      result[i] = {field_numbers[i], field_indices[i]};
     }
     return result;
   }
@@ -972,10 +1011,10 @@ struct field_dispatcher {
     auto index_by_number = mph::find<simple_lookup_table>(field_number);
     if (index_by_number) {
       status r;
-      (void)(((*index_by_number == I) && (r = f(std::integral_constant<std::uint32_t, I>()), true)) || ...);
+      (void)(((*index_by_number == I) && (r = f(make_integral_constant<I>()), true)) || ...);
       return r;
     } else {
-      return f(std::integral_constant<std::uint32_t, UINT32_MAX>());
+      return f(make_integral_constant<UINT32_MAX>());
     }
   }
 
@@ -2546,8 +2585,8 @@ struct pb_serializer {
   };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  contiguous_input_archive(const Buffer &,
-                           Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+  contiguous_input_archive(const Buffer &, Context &)
+      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item,
                                       concepts::contiguous_byte_range auto const &buffer) {
