@@ -880,9 +880,10 @@ struct reverse_indices {
     std::partial_sum(masked_number_occurrences.begin(), masked_number_occurrences.end(), table_indices.begin() + 1);
     return table_indices;
   }
+  constexpr static auto lookup_table_indices = build_lookup_table_indices();
 
   consteval static auto build_lookup_table() {
-    constexpr auto lookup_table_indices = build_lookup_table_indices();
+    
     if constexpr (numbers.empty()) {
       return std::span<std::pair<uint32_t, uint32_t>>{};
     } else {
@@ -900,11 +901,10 @@ struct reverse_indices {
       return result;
     }
   }
+  constexpr static auto lookup_table = build_lookup_table();
 
   template <uint32_t masked_number>
   consteval static auto lookup_table_for_masked_number() {
-    constexpr auto lookup_table_indices = build_lookup_table_indices();
-    constexpr auto lookup_table = build_lookup_table();
     constexpr auto size = lookup_table_indices[masked_number + 1] - lookup_table_indices[masked_number];
     if constexpr (size > 0) {
       std::array<std::pair<uint32_t, uint32_t>, size> result;
@@ -916,9 +916,6 @@ struct reverse_indices {
     }
   }
 };
-
-template <typename Type>
-inline constexpr auto number_of_members = std::tuple_size_v<typename meta_of<Type>::type>;
 } // namespace traits
 
 #if defined(__cpp_lib_constexpr_vector)
