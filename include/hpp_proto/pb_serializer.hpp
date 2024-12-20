@@ -949,12 +949,12 @@ struct field_dispatcher {
   constexpr static auto dispatch_by_masked_num(std::uint32_t field_number, auto &&f) {
     constexpr auto begin_id = lookup_table_offsets[MaskedNum] + I;
     constexpr auto end_id = lookup_table_offsets[MaskedNum + 1];
-    constexpr auto table = std::span{lookup_table.begin() + begin_id, end_id - begin_id};
-    if constexpr (table.empty()) {
+    if constexpr (begin_id == end_id) {
       return f(make_integral_constant<UINT32_MAX>());
     } else {
-      if (field_number == table.front().first) {
-        return f(make_integral_constant<table.front().second>());
+      constexpr auto entry = lookup_table[begin_id];
+      if (field_number == entry.first) {
+        return f(make_integral_constant<entry.second>());
       } else {
         return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
       }
