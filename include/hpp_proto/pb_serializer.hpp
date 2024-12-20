@@ -85,15 +85,14 @@ enum class varint_encoding : uint8_t {
 
 template <varint_encoding Encoding = varint_encoding::normal>
 constexpr auto varint_size(auto value) {
-  // NOLINTBEGIN(hicpp-signed-bitwise, bugprone-branch-clone)
   if constexpr (Encoding == varint_encoding::zig_zag) {
+    // NOLINTNEXTLINE(hicpp-signed-bitwise)
     return varint_size(std::make_unsigned_t<decltype(value)>((value << 1) ^ (value >> (sizeof(value) * CHAR_BIT - 1))));
   } else {
     return ((sizeof(value) * CHAR_BIT) - std::countl_zero(std::make_unsigned_t<decltype(value)>(value) | 1U) +
             (CHAR_BIT - 2)) /
            (CHAR_BIT - 1);
   }
-  // NOLINTEND(hicpp-signed-bitwise, bugprone-branch-clone)
 }
 template <std::integral Type, varint_encoding Encoding = varint_encoding::normal>
 struct varint {
@@ -130,7 +129,6 @@ using vsint64_t = varint<int64_t, varint_encoding::zig_zag>;
 using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 
 ////////////////////////////////////////////////////
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace concepts {
 
 template <typename T>
@@ -216,7 +214,6 @@ concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
 
 template <typename T>
 concept is_size_cache_iterator = requires(T v) {
-  // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
   { v++ } -> std::same_as<T>;
   *v;
 };
@@ -252,7 +249,6 @@ template <typename Range>
 concept input_byte_range = segmented_byte_range<Range> || contiguous_byte_range<Range>;
 
 } // namespace concepts
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 ////////////////////
 
@@ -503,9 +499,9 @@ enum field_option : uint8_t {
 
 template <auto Accessor>
 struct accessor_type {
-  constexpr auto &operator()(auto &&item) const { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+  constexpr auto &operator()(auto &&item) const {
     if constexpr (std::is_member_pointer_v<decltype(Accessor)>) {
-      return item.*Accessor;
+      return std::forward<decltype(item)>(item).*Accessor;
     } else {
       return Accessor(std::forward<decltype(item)>(item));
     }
@@ -743,16 +739,19 @@ struct map_entry {
   };
 
   struct read_only_type {
-    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     typename serialize_type<KeyType>::read_type key;
     typename serialize_type<MappedType>::read_type value;
-    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     constexpr static bool allow_inline_visit_members_lambda = true;
 
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     constexpr read_only_type(auto &k, auto &v)
         : key((typename serialize_type<KeyType>::convertible_type)k),
           value((typename serialize_type<MappedType>::convertible_type)v) {}
+    ~read_only_type() = default;
+    read_only_type(const read_only_type &) = delete;
+    read_only_type(read_only_type &&) = delete;
+    read_only_type &operator=(const read_only_type &) = delete;
+    read_only_type &operator=(read_only_type &&) = delete;
 
     struct key_accessor {
       constexpr const auto &operator()(const read_only_type &entry) const { return entry.key; }
@@ -790,7 +789,7 @@ template <typename Meta, typename Type>
 struct get_serialize_type;
 
 template <typename Meta, typename Type>
-  requires requires { typename Meta::type; } // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+  requires requires { typename Meta::type; }
 struct get_serialize_type<Meta, Type> {
   using type = std::conditional_t<std::is_same_v<typename Meta::type, void>, Type, typename Meta::type>;
 };
@@ -800,9 +799,8 @@ using get_map_entry = typename Meta::type;
 
 template <typename T, std::size_t M, std::size_t N>
 constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N> rhs) {
-  // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::array<T, M + N> result;
-  // NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::copy(lhs.begin(), lhs.end(), result.begin());
   std::copy(rhs.begin(), rhs.end(), result.begin() + M);
   return result;
@@ -986,10 +984,10 @@ public:
   }
 
   HPP_PROTO_INLINE void output(uint64_t v) {
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic,hicpp-signed-bitwise)
+    // NOLINTNEXTLINE(hicpp-signed-bitwise)
     auto r = (varint_encoding::zig_zag == T::encoding) ? (v >> 1U) ^ -static_cast<int64_t>(v & 1U) : v;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     *res++ = static_cast<Result>(r);
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic,hicpp-signed-bitwise)
   }
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -1066,7 +1064,7 @@ public:
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
       pt_val |= ((word & 0x7fULL) << shift_bits);
       has_error |= (shift_bits >= max_effective_bits);
-      if (word & 0x80ULL) {
+      if ((word & 0x80ULL) != 0) {
         shift_bits += (CHAR_BIT - 1);
       } else {
         output(pt_val);
@@ -1082,13 +1080,19 @@ public:
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 struct pb_serializer {
   template <typename Byte, typename Context>
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   struct basic_out {
     using byte_type = Byte;
     using is_basic_out = void;
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
     std::span<byte_type> _data;
     Context &_context;
+
+    constexpr basic_out(std::span<byte_type> data, Context &context) : _data(data), _context(context) {}
+    constexpr ~basic_out() = default;
+    basic_out(const basic_out &) = delete;
+    basic_out(basic_out &&) = delete;
+    basic_out &operator=(const basic_out &) = delete;
+    basic_out &operator=(basic_out &&) = delete;
 
     HPP_PROTO_INLINE constexpr void serialize(concepts::byte_serializable auto item) {
       auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
@@ -1126,7 +1130,6 @@ struct pb_serializer {
     }
 
     template <typename... Args>
-    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
     HPP_PROTO_INLINE constexpr void operator()(Args &&...item) {
       (serialize(std::forward<Args>(item)), ...);
     }
@@ -1224,9 +1227,7 @@ struct pb_serializer {
       struct null_assignable {
         constexpr null_assignable &operator=(uint32_t) { return *this; }
       };
-      uint32_t storage = 0;
       constexpr null_assignable operator*() const { return null_assignable{}; }
-      // NOLINTNEXTLINE(cert-dcl21-cpp)
       constexpr null_size_cache operator++(int) const { return *this; }
     } cache;
     return message_size(item, cache);
@@ -1239,13 +1240,17 @@ struct pb_serializer {
 
   template <concepts::is_size_cache_iterator Itr>
   struct field_size_accumulator {
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     Itr &cache_itr;
     std::size_t sum = 0;
     explicit constexpr field_size_accumulator(Itr &itr) : cache_itr(itr) {}
     constexpr void operator()(auto const &field, auto meta) {
       sum += meta.omit_value(field) ? 0 : field_size(field, meta, cache_itr);
     }
+    constexpr ~field_size_accumulator() = default;
+    field_size_accumulator(const field_size_accumulator &) = delete;
+    field_size_accumulator(field_size_accumulator &&) = delete;
+    field_size_accumulator &operator=(const field_size_accumulator &) = delete;
+    field_size_accumulator &operator=(field_size_accumulator &&) = delete;
   };
 
   template <concepts::is_size_cache_iterator T>
@@ -1455,7 +1460,6 @@ struct pb_serializer {
     return std::apply([&](auto... meta) { return (serialize_field_if_not_empty(meta) && ...); }, metas{});
   }
 
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   template <typename Meta>
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::oneof_type auto const &item, Meta,
                                                                        concepts::is_size_cache_iterator auto &cache_itr,
@@ -1577,7 +1581,6 @@ struct pb_serializer {
     static_assert(concepts::has_meta<value_type>);
     return serialize(value_type{key, value}, cache_itr, archive);
   }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   template <std::size_t I, concepts::tuple Meta>
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool
@@ -1664,7 +1667,7 @@ struct pb_serializer {
     input_buffer_region_base<Byte> current;
     input_span<input_buffer_region<Byte>> rest;
     ptrdiff_t size_exclude_current = 0; // the remaining size excluding those in current
-    Context &context;
+    Context &context;                   // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 
     constexpr static bool endian_swapped = std::endian::little != std::endian::native;
 
@@ -1712,7 +1715,7 @@ struct pb_serializer {
                        ptrdiff_t size_exclude_current, Context &ctx)
         : current(cur), rest(rest), size_exclude_current(size_exclude_current), context(ctx) {}
 
-    constexpr basic_in(concepts::segmented_byte_range auto &&source, std::span<input_buffer_region<Byte>> regions,
+    constexpr basic_in(concepts::segmented_byte_range auto const &source, std::span<input_buffer_region<Byte>> regions,
                        std::span<Byte> patch_buffer_cache, Context &ctx)
         : context(ctx) {
       // pre (std::size(source) > 0 && regions.size() == std::size(source) * 2)
@@ -1979,15 +1982,15 @@ struct pb_serializer {
 
   constexpr static status skip_field(uint32_t tag, concepts::has_extension auto &item,
                                      concepts::is_basic_in auto &archive) {
-    auto unwinded_archive = archive.unwind_tag(tag);
+    auto unwound_archive = archive.unwind_tag(tag);
     if (auto result = do_skip_field(tag, archive); !result.ok()) [[unlikely]] {
       return result;
     }
     using fields_type = std::remove_cvref_t<decltype(item.extensions.fields)>;
     using bytes_type = typename fields_type::value_type::second_type;
     using byte_type = std::remove_const_t<typename bytes_type::value_type>;
-    std::size_t field_len = unwinded_archive.in_avail() - archive.in_avail();
-    auto field_archive = unwinded_archive.split(field_len);
+    std::size_t field_len = unwound_archive.in_avail() - archive.in_avail();
+    auto field_archive = unwound_archive.split(field_len);
 
     const uint32_t field_num = tag_number(tag);
 
@@ -2085,8 +2088,8 @@ struct pb_serializer {
 
   constexpr static status count_unpacked_elements(uint32_t input_tag, std::size_t &count,
                                                   concepts::is_basic_in auto &archive) {
-    // NOLINTBEGIN(cppcoreguidelines-avoid-do-while)
     auto new_archive = archive.copy();
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
     do {
       if (auto result = do_skip_field(input_tag, new_archive); !result.ok()) {
         return result;
@@ -2098,7 +2101,6 @@ struct pb_serializer {
         return {};
       }
     } while (new_archive.read_tag() == input_tag);
-    // NOLINTEND(cppcoreguidelines-avoid-do-while)
     return {};
   }
 
@@ -2505,19 +2507,20 @@ struct pb_serializer {
   contiguous_input_archive(const Buffer &,
                            Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
-  constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer) {
+  constexpr static status deserialize(concepts::has_meta auto &item,
+                                      concepts::contiguous_byte_range auto const &buffer) {
     pb_context ctx;
     return deserialize(item, buffer, ctx);
   }
 
-  constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto &&buffer,
-                                      concepts::is_pb_context auto &&context) {
+  constexpr static status deserialize(concepts::has_meta auto &item, concepts::contiguous_byte_range auto const &buffer,
+                                      concepts::is_pb_context auto &context) {
     contiguous_input_archive archive{buffer, context};
     return deserialize(item, archive);
   }
 
   template <typename Byte>
-  constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_pb_context auto &&context,
+  constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_pb_context auto &context,
                                       concepts::segmented_byte_range auto const &buffer,
                                       std::span<input_buffer_region<Byte>> regions,
                                       std::span<Byte> patch_buffer_cache) {
@@ -2528,7 +2531,7 @@ struct pb_serializer {
   }
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::segmented_byte_range auto const &buffer,
-                                      concepts::is_pb_context auto &&context) {
+                                      concepts::is_pb_context auto &context) {
     const auto num_segments = std::size(buffer);
     const auto num_regions = num_segments * 2;
     const auto patch_buffer_bytes_count = num_segments * patch_buffer_size;
@@ -2574,9 +2577,15 @@ struct pb_serializer {
 
 template <typename FieldType, typename MetaType>
 struct serialize_wrapper_type {
-  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   FieldType value = {};
   using pb_meta = std::tuple<MetaType>;
+  constexpr serialize_wrapper_type() = default;
+  explicit constexpr serialize_wrapper_type(FieldType v) : value(v) {}
+  constexpr ~serialize_wrapper_type() = default;
+  serialize_wrapper_type(const serialize_wrapper_type &) = delete;
+  serialize_wrapper_type(serialize_wrapper_type &&) = delete;
+  serialize_wrapper_type &operator=(const serialize_wrapper_type &) = delete;
+  serialize_wrapper_type &operator=(serialize_wrapper_type &&) = delete;
 };
 
 template <typename ExtensionMeta>
@@ -2606,7 +2615,7 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
 
   if constexpr (ExtensionMeta::has_default_value) {
     return return_type(value_type(ExtensionMeta::default_value));
-  } else if constexpr (!concepts::has_meta<value_type>) { // NOLINT(bugprone-branch-clone)
+  } else if constexpr (!concepts::has_meta<value_type>) {
     return return_type{value_type{}};
   } else {
     return return_type{unexpected(std::errc::no_message)};
@@ -2621,8 +2630,9 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
   pb_context ctx{std::forward<decltype(option)>(option)...};
   typename decltype(extensions.fields)::value_type::second_type buf;
   auto data = detail::as_modifiable(ctx, buf);
+  using value_type = std::decay_t<decltype(value)>;
 
-  serialize_wrapper_type<decltype(value), ExtensionMeta> wrapper{std::forward<decltype(value)>(value)};
+  serialize_wrapper_type<const value_type &, ExtensionMeta> wrapper{value};
 
   if (auto result = pb_serializer::serialize(wrapper, data, ctx); !result.ok()) [[unlikely]] {
     return result;
@@ -2640,7 +2650,6 @@ inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension a
   return {};
 }
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 template <typename F>
   requires std::regular_invocable<F>
 consteval auto write_proto(F make_object) {
@@ -2686,9 +2695,9 @@ status append_proto(T &&msg, concepts::resizable_contiguous_byte_container auto 
 template <concepts::has_meta T>
 constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range auto const &buffer,
                                                    concepts::is_option_type auto &&...option) {
-  T msg; // NOLINT(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-  if (auto result = pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
-      !result.ok()) {
+  T msg{};
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  if (auto result = pb_serializer::deserialize(msg, buffer, ctx); !result.ok()) {
     return unexpected(result.ec);
   }
   return msg;
@@ -2697,13 +2706,15 @@ constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range au
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status read_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
   msg = {};
-  return pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  return pb_serializer::deserialize(msg, buffer, ctx);
 }
 
 /// @brief  deserialize from the buffer and merge the content with the existing msg
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status merge_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
-  return pb_serializer::deserialize(msg, buffer, pb_context{std::forward<decltype(option)>(option)...});
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  return pb_serializer::deserialize(msg, buffer, ctx);
 }
 
 namespace concepts {
@@ -2745,5 +2756,4 @@ expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is
   }
 }
 } // namespace hpp::proto
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 #undef HPP_PROTO_INLINE
