@@ -31,9 +31,8 @@ struct duration_codec {
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-rvalue-reference-param-not-moved)
   static int64_t encode(auto const &value, auto &&b) noexcept {
-    // NOLINTBEGIN(hicpp-signed-bitwise)
+    // NOLINTNEXTLINE(hicpp-signed-bitwise)
     auto has_same_sign = [](auto x, auto y) { return (x ^ y) >= 0; };
-    // NOLINTEND(hicpp-signed-bitwise)
     if (value.nanos > 999999999 || !has_same_sign(value.seconds, value.nanos)) [[unlikely]] {
       return -1;
     }

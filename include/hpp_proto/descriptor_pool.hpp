@@ -62,11 +62,12 @@ auto options_with_default_features(const auto &proto, google::protobuf::FeatureS
   return options;
 }
 } // namespace detail
-// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members, bugprone-unchecked-optional-access)
+// NOLINTBEGIN(bugprone-unchecked-optional-access)
 template <typename AddOns>
 struct descriptor_pool {
   struct field_descriptor_t : AddOns::template field_descriptor<field_descriptor_t> {
     using pool_type = descriptor_pool;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::FieldDescriptorProto &proto;
     google::protobuf::FieldOptions options;
     field_descriptor_t(const google::protobuf::FieldDescriptorProto &proto, const std::string &parent_name,
@@ -149,6 +150,7 @@ struct descriptor_pool {
 
   struct oneof_descriptor_t : AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::OneofDescriptorProto &proto;
     google::protobuf::OneofOptions options;
     explicit oneof_descriptor_t(const google::protobuf::OneofDescriptorProto &proto,
@@ -164,6 +166,7 @@ struct descriptor_pool {
 
   struct enum_descriptor_t : AddOns::template enum_descriptor<enum_descriptor_t> {
     using pool_type = descriptor_pool;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::EnumDescriptorProto &proto;
     google::protobuf::EnumOptions options;
     explicit enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto, const auto &inherited_options)
@@ -182,6 +185,7 @@ struct descriptor_pool {
   struct message_descriptor_t : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t,
                                                                     oneof_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::DescriptorProto &proto;
     google::protobuf::MessageOptions options;
 
@@ -198,6 +202,7 @@ struct descriptor_pool {
   struct file_descriptor_t : AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t,
                                                               enum_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::FileDescriptorProto &proto;
     google::protobuf::FileOptions options;
     explicit file_descriptor_t(const google::protobuf::FileDescriptorProto &proto,
@@ -317,6 +322,12 @@ struct descriptor_pool {
     assert(messages.size() == counter.messages);
   }
 
+  constexpr ~descriptor_pool() = default;
+  descriptor_pool(const descriptor_pool &) = delete;
+  descriptor_pool(descriptor_pool &&) = delete;
+  descriptor_pool &operator=(const descriptor_pool &) = delete;
+  descriptor_pool &operator=(descriptor_pool &&) = delete;
+
   void build(file_descriptor_t &descriptor) {
     file_map.try_emplace(descriptor.proto.name, &descriptor);
     const std::string package = descriptor.proto.package;
@@ -375,5 +386,5 @@ struct descriptor_pool {
     }
   }
 };
-// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members, bugprone-unchecked-optional-access)
+// NOLINTEND(bugprone-unchecked-optional-access)
 } // namespace hpp::proto

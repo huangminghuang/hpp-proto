@@ -559,9 +559,7 @@ const static std::map<std::string, std::string> well_known_codecs = {{"google.pr
 
 struct code_generator {
   std::size_t indent_num = 0;
-  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
   gpb::compiler::CodeGeneratorResponse::File &file;
-  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
   std::back_insert_iterator<std::string> target;
 
   using message_descriptor_t = hpp_gen_descriptor_pool::message_descriptor_t;
@@ -578,6 +576,12 @@ struct code_generator {
 
   explicit code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
       : file(files.emplace_back()), target(file.content) {}
+
+  ~code_generator() = default;
+  code_generator(const code_generator &) = delete;
+  code_generator(code_generator &&) = delete;
+  code_generator &operator=(const code_generator &) = delete;
+  code_generator &operator=(code_generator &&) = delete;
 
   [[nodiscard]] std::string_view indent() const {
     const int init_max_indent_spaces = 128;

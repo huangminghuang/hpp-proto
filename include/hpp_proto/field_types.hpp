@@ -115,7 +115,8 @@ public:
   constexpr optional(const optional<U> &other) : _value(other._value), _present(other.present) {}
 
   template <class U>
-  constexpr optional(optional<U> &&other) : _value(std::move(other)._value), _present(other.present) {}
+  constexpr optional(optional<U> &&other) // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+      : _value(std::move(other)._value), _present(other.present) {}
 
   constexpr optional(const std::optional<T> &other)
       : _value(other.value_or(default_value())), _present(other.has_value()) {}
@@ -174,7 +175,7 @@ public:
   }
 
   template <class U>
-  constexpr optional &operator=(optional<U> &&other) {
+  constexpr optional &operator=(optional<U> &&other) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
     _value = std::move(other)._value;
     _present = other.has_value();
     return *this;
@@ -397,7 +398,6 @@ public:
   }
 };
 
-// NOLINTBEGIN(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 template <typename T>
 class heap_based_optional {
   std::unique_ptr<T> obj;
@@ -414,11 +414,9 @@ public:
   constexpr heap_based_optional(const heap_based_optional &other) : obj(other.obj ? new T(*other.obj) : nullptr) {}
 
   template <class... Args>
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,cppcoreguidelines-missing-std-forward)
   constexpr explicit heap_based_optional(std::in_place_t, Args &&...args)
       : obj(new T{std::forward<Args &&>(args)...}) {}
 
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr heap_based_optional &operator=(heap_based_optional &&other) noexcept {
     obj = std::move(other.obj);
     return *this;
@@ -479,7 +477,6 @@ public:
   constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
 };
 
-// NOLINTEND(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 /// Used for recursive non-owning message types
 template <typename T>
 class optional_message_view {
