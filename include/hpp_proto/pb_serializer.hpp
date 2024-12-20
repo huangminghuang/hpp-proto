@@ -883,7 +883,7 @@ struct reverse_indices {
   constexpr static auto lookup_table_indices = build_lookup_table_indices();
 
   consteval static auto build_lookup_table() {
-    
+
     if constexpr (numbers.empty()) {
       return std::span<std::pair<uint32_t, uint32_t>>{};
     } else {
