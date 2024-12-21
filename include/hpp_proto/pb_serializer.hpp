@@ -2447,30 +2447,13 @@ struct pb_serializer {
 
   template <std::uint32_t Index>
   constexpr static status deserialize_field_by_index(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
-    if constexpr (Index == UINT32_MAX) {
-      return skip_field(tag, item, archive);
-    } else {
+    if constexpr (Index != UINT32_MAX) {
       using type = std::remove_reference_t<decltype(item)>;
       using Meta = typename traits::field_meta_of<type, Index>::type;
       return deserialize_field(Meta::access(item), Meta(), tag, archive);
+    } else {
+      return skip_field(tag, item, archive);
     }
-  }
-
-  template <uint32_t... MaskedNum>
-  constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, concepts::is_basic_in auto &archive,
-                                                          std::integer_sequence<uint32_t, MaskedNum...>) {
-    using type = std::remove_cvref_t<decltype(item)>;
-    using dispatch_t = traits::reverse_indices<type>;
-    constexpr auto mask = dispatch_t::mask;
-    auto field_num = tag_number(tag);
-    status r;
-    (void)((((field_num & mask) == MaskedNum) &&
-            (r = dispatch_t::template dispatch_by_masked_num<MaskedNum, 0>(
-                 field_num,
-                 [&](auto index) { return deserialize_field_by_index<decltype(index)::value>(tag, item, archive); }),
-             true)) ||
-           ...);
-    return r;
   }
 
   constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
