@@ -817,9 +817,9 @@ struct reverse_indices {
     requires requires { T::number; }
   constexpr static auto get_numbers(T meta) {
     if constexpr (meta.number != UINT32_MAX) {
-      return std::array<uint32_t, 1>{meta.number};
+      return std::array<std::uint32_t, 1>{meta.number};
     } else {
-      return std::span<uint32_t>{};
+      return std::array<std::uint32_t, 0>{};
     }
   }
 
