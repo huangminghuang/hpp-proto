@@ -2391,42 +2391,41 @@ struct pb_serializer {
     }
   }
 
-  template <std::size_t Index>
+  template <std::uint32_t Index>
   constexpr static status deserialize_field_by_index(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
-    using type = std::remove_reference_t<decltype(item)>;
-    using Meta = typename traits::field_meta_of<type, Index>::type;
-    if constexpr (requires { requires Meta::number == UINT32_MAX; }) {
-      // this is extension, not a regular field
-      return {};
+    if constexpr (Index == UINT32_MAX) {
+      return skip_field(tag, item, archive);
     } else {
+      using type = std::remove_reference_t<decltype(item)>;
+      using Meta = typename traits::field_meta_of<type, Index>::type;   
       return deserialize_field(Meta::access(item), Meta(), tag, archive);
     }
   }
 
-  template <uint32_t MaskedNum, uint32_t I = 0>
-  constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item,
-                                                          concepts::is_basic_in auto &archive) {
-    using type = std::remove_cvref_t<decltype(item)>;
-    constexpr auto table = traits::reverse_indices<type>::template lookup_table_for_masked_number<MaskedNum>();
+  template <typename Trait, uint32_t MaskedNum, uint32_t I = 0>
+  constexpr static status deserialize_field_by_masked_num(uint32_t field_number, auto&& fun) {
+    constexpr auto table = Trait::template lookup_table_for_masked_number<MaskedNum>();
     if constexpr (table.empty() || I >= table.size()) {
-      return skip_field(tag, item, archive);
+      return fun( std::integral_constant<uint32_t, UINT32_MAX>{} );
     } else {
-      if (tag_number(tag) == table[I].first) {
-        return deserialize_field_by_index<table[I].second>(tag, item, archive);
+      if (field_number == table[I].first) {
+        return fun( std::integral_constant<uint32_t, table[I].second>{} );
       } else [[unlikely]] {
-        return deserialize_field_by_masked_num<MaskedNum, I + 1>(tag, item, archive);
+        return deserialize_field_by_masked_num<Trait, MaskedNum, I + 1>(field_number, fun);
       }
     }
   }
 
-  template <uint32_t... MaskNum>
+  template <uint32_t... MaskedNum>
   constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, concepts::is_basic_in auto &archive,
-                                                          std::integer_sequence<uint32_t, MaskNum...>) {
+                                                          std::integer_sequence<uint32_t,  MaskedNum...>) {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto mask = traits::reverse_indices<type>::mask;
     status r;
-    (void)((((tag_number(tag) & mask) == MaskNum) &&
-            (r = deserialize_field_by_masked_num<MaskNum>(tag, item, archive), true)) ||
+    (void)((((tag_number(tag) & mask) == MaskedNum) &&
+            (r = deserialize_field_by_masked_num<traits::reverse_indices<type>, MaskedNum, 0>(tag_number(tag), [&](auto index){
+              return deserialize_field_by_index<decltype(index)::value>(tag, item, archive);
+            }), true)) ||
            ...);
     return r;
   }
