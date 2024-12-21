@@ -501,7 +501,7 @@ template <auto Accessor>
 struct accessor_type {
   constexpr auto &operator()(auto &&item) const {
     if constexpr (std::is_member_pointer_v<decltype(Accessor)>) {
-      return std::forward<decltype(item)>(item).*Accessor;
+      return item.*Accessor;
     } else {
       return Accessor(std::forward<decltype(item)>(item));
     }
