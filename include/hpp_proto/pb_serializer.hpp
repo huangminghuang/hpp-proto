@@ -835,8 +835,12 @@ struct reverse_indices {
 
   template <std::size_t I, typename T>
     requires requires { T::number; }
-  constexpr static auto index(T) {
-    return std::array{I};
+  constexpr static auto index(T meta) {
+    if constexpr (meta.number != UINT32_MAX) {
+      return std::array{I};
+    } else {
+      return std::array<std::size_t, 0>{};
+    }
   }
 
   template <std::size_t I, concepts::is_oneof_field_meta Meta>
@@ -949,15 +953,15 @@ struct reverse_indices {
   }
 
   template <uint32_t MaskedNum, uint32_t I = 0>
-  constexpr static status dispatch_by_masked_num(uint32_t field_number, auto &&fun) {
+  constexpr static status dispatch_by_masked_num(uint32_t field_number, auto &&f) {
     constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
     if constexpr (table.empty() || I >= table.size()) {
-      return fun(std::integral_constant<uint32_t, UINT32_MAX>{});
+      return f(make_integral_constant<UINT32_MAX>());
     } else {
       if (field_number == table[I].first) {
-        return fun(std::integral_constant<uint32_t, table[I].second>{});
+        return f(make_integral_constant<table[I].second>());
       } else [[unlikely]] {
-        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, fun);
+        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
       }
     }
   }
