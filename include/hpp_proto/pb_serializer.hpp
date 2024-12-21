@@ -962,17 +962,18 @@ struct reverse_indices {
     }
   }
 
-  template <uint32_t... MaskedNum>
-  constexpr static status dispatch_impl(std::uint32_t field_num, auto &&fun,
-                                        std::integer_sequence<uint32_t, MaskedNum...>) {
+  template <uint32_t... MaskNum>
+  constexpr static status dispatch(std::uint32_t field_number, auto &&f,
+                                   std::integer_sequence<std::uint32_t, MaskNum...>) {
     status r;
-    (void)((((field_num & mask) == MaskedNum) && (r = dispatch_by_masked_num<MaskedNum, 0>(field_num, fun), true)) ||
+    (void)((((field_number & mask) == MaskNum) &&
+            (r = dispatch_by_masked_num<MaskNum, 0>(field_number, std::forward<decltype(f)>(f)), true)) ||
            ...);
     return r;
   }
 
-  constexpr static status dispatch(std::uint32_t field_num, auto &&fun) {
-    return dispatch_impl(field_num, fun, std::make_integer_sequence<uint32_t, mask + 1>());
+  constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
+    return dispatch(field_number, std::forward<decltype(f)>(f), std::make_integer_sequence<std::uint32_t, mask + 1>());
   }
 };
 } // namespace traits
