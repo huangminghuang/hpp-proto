@@ -2397,19 +2397,19 @@ struct pb_serializer {
       return skip_field(tag, item, archive);
     } else {
       using type = std::remove_reference_t<decltype(item)>;
-      using Meta = typename traits::field_meta_of<type, Index>::type;   
+      using Meta = typename traits::field_meta_of<type, Index>::type;
       return deserialize_field(Meta::access(item), Meta(), tag, archive);
     }
   }
 
   template <typename Trait, uint32_t MaskedNum, uint32_t I = 0>
-  constexpr static status deserialize_field_by_masked_num(uint32_t field_number, auto&& fun) {
+  constexpr static status deserialize_field_by_masked_num(uint32_t field_number, auto &&fun) {
     constexpr auto table = Trait::template lookup_table_for_masked_number<MaskedNum>();
     if constexpr (table.empty() || I >= table.size()) {
-      return fun( std::integral_constant<uint32_t, UINT32_MAX>{} );
+      return fun(std::integral_constant<uint32_t, UINT32_MAX>{});
     } else {
       if (field_number == table[I].first) {
-        return fun( std::integral_constant<uint32_t, table[I].second>{} );
+        return fun(std::integral_constant<uint32_t, table[I].second>{});
       } else [[unlikely]] {
         return deserialize_field_by_masked_num<Trait, MaskedNum, I + 1>(field_number, fun);
       }
@@ -2418,14 +2418,15 @@ struct pb_serializer {
 
   template <uint32_t... MaskedNum>
   constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, concepts::is_basic_in auto &archive,
-                                                          std::integer_sequence<uint32_t,  MaskedNum...>) {
+                                                          std::integer_sequence<uint32_t, MaskedNum...>) {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto mask = traits::reverse_indices<type>::mask;
     status r;
     (void)((((tag_number(tag) & mask) == MaskedNum) &&
-            (r = deserialize_field_by_masked_num<traits::reverse_indices<type>, MaskedNum, 0>(tag_number(tag), [&](auto index){
-              return deserialize_field_by_index<decltype(index)::value>(tag, item, archive);
-            }), true)) ||
+            (r = deserialize_field_by_masked_num<traits::reverse_indices<type>, MaskedNum, 0>(
+                 tag_number(tag),
+                 [&](auto index) { return deserialize_field_by_index<decltype(index)::value>(tag, item, archive); }),
+             true)) ||
            ...);
     return r;
   }
