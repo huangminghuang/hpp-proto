@@ -911,17 +911,16 @@ struct reverse_indices {
     std::partial_sum(masked_number_occurrences.begin(), masked_number_occurrences.end(), table_offsets.begin() + 1);
     return table_offsets;
   }
-  constexpr static auto lookup_table_indices = build_masked_lookup_table_offsets();
 
-  consteval static auto build_lookup_table() {
-
+  // the masked_lookup_table is an array of field_number, field_index pairs sorted by (field_number & mask)
+  consteval static auto build_masked_lookup_table() {
     if constexpr (field_numbers.empty()) {
-      return std::span<std::pair<uint32_t, uint32_t>>{};
+      return std::span<std::pair<std::uint32_t, std::uint32_t>>{};
     } else {
-      std::array<uint32_t, mask + 1> counts = {};
-      std::copy(lookup_table_indices.begin(), lookup_table_indices.end() - 1, counts.begin());
+      std::array<std::uint32_t, mask + 1> counts = {};
+      std::copy(lookup_table_offsets.begin(), lookup_table_offsets.end() - 1, counts.begin());
 
-      std::array<std::pair<uint32_t, uint32_t>, field_numbers.size()> result;
+      std::array<std::pair<std::uint32_t, std::uint32_t>, field_numbers.size()> result;
       // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
       for (uint32_t i = 0; i < field_numbers.size(); ++i) {
         auto num = field_numbers[i];
@@ -932,15 +931,17 @@ struct reverse_indices {
       return result;
     }
   }
-  constexpr static auto lookup_table = build_lookup_table();
+
+  constexpr static auto lookup_table_offsets = build_masked_lookup_table_offsets();
+  constexpr static auto lookup_table = build_masked_lookup_table();
 
   template <uint32_t masked_number>
   consteval static auto lookup_table_for_masked_number() {
-    constexpr auto size = lookup_table_indices[masked_number + 1] - lookup_table_indices[masked_number];
+    constexpr auto size = lookup_table_offsets[masked_number + 1] - lookup_table_offsets[masked_number];
     if constexpr (size > 0) {
       std::array<std::pair<uint32_t, uint32_t>, size> result;
-      std::copy(lookup_table.begin() + lookup_table_indices[masked_number],
-                lookup_table.begin() + lookup_table_indices[masked_number + 1], result.begin());
+      std::copy(lookup_table.begin() + lookup_table_offsets[masked_number],
+                lookup_table.begin() + lookup_table_offsets[masked_number + 1], result.begin());
       return result;
     } else {
       return std::array<std::pair<uint32_t, uint32_t>, 0>{};
