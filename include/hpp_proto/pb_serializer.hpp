@@ -935,27 +935,16 @@ struct reverse_indices {
   constexpr static auto lookup_table_offsets = build_masked_lookup_table_offsets();
   constexpr static auto lookup_table = build_masked_lookup_table();
 
-  template <uint32_t masked_number>
-  consteval static auto lookup_table_for_masked_number() {
-    constexpr auto size = lookup_table_offsets[masked_number + 1] - lookup_table_offsets[masked_number];
-    if constexpr (size > 0) {
-      std::array<std::pair<uint32_t, uint32_t>, size> result;
-      std::copy(lookup_table.begin() + lookup_table_offsets[masked_number],
-                lookup_table.begin() + lookup_table_offsets[masked_number + 1], result.begin());
-      return result;
-    } else {
-      return std::array<std::pair<uint32_t, uint32_t>, 0>{};
-    }
-  }
-
-  template <uint32_t MaskedNum, uint32_t I = 0>
-  constexpr static status dispatch_by_masked_num(uint32_t field_number, auto &&f) {
-    constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
-    if constexpr (table.empty() || I >= table.size()) {
+  template <auto MaskedNum, std::uint32_t I>
+  constexpr static auto dispatch_by_masked_num(std::uint32_t field_number, auto &&f) {
+    constexpr auto begin_id = lookup_table_offsets[MaskedNum] + I;
+    constexpr auto end_id = lookup_table_offsets[MaskedNum + 1];
+    if constexpr (begin_id == end_id) {
       return f(make_integral_constant<UINT32_MAX>());
     } else {
-      if (field_number == table[I].first) {
-        return f(make_integral_constant<table[I].second>());
+      constexpr auto entry = lookup_table[begin_id];
+      if (field_number == entry.first) {
+        return f(make_integral_constant<entry.second>());
       } else [[unlikely]] {
         return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
       }
