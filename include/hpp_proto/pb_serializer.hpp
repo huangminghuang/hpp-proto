@@ -806,6 +806,11 @@ constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N>
   return result;
 }
 
+template <auto Num>
+constexpr auto make_integral_constant() {
+  return std::integral_constant<decltype(Num), Num>();
+}
+
 template <concepts::has_meta Type>
 struct reverse_indices {
   template <typename T>
@@ -827,11 +832,6 @@ struct reverse_indices {
   constexpr static auto get_numbers(Meta /* unused */) {
     return std::apply([](auto... elem) { return (... << get_numbers(elem)); }, typename Meta::alternatives_meta{});
   }
-
-  constexpr static auto numbers = get_numbers(typename traits::meta_of<Type>::type{});
-  constexpr static unsigned max_number = numbers.size() > 0 ? *std::max_element(numbers.begin(), numbers.end()) : 0;
-
-  constexpr static auto mask = (1U << static_cast<unsigned>(std::bit_width(numbers.size()))) - 1;
 
   template <std::size_t I, typename T>
     requires requires { T::number; }
@@ -860,37 +860,73 @@ struct reverse_indices {
                       metas);
   }
 
-  constexpr static auto indices = get_indices(typename traits::meta_of<Type>::type{});
+  // field_numbers is an array of field numbers in the order of the fields declared in the respective protobuf message.
+  // Notice that members of oneof fields will be included; therefore field_numbers.size() > number_of_fields when there
+  // are oneof fields in the respective protobuf message.
+  constexpr static auto field_numbers = get_numbers(typename traits::meta_of<Type>::type{});
 
-  consteval static auto build_lookup_table_indices() {
-    std::array<uint32_t, mask + 1> masked_number_occurrences = {};
+  // the field indices corresponding to field_numbers. For example, given the following message definition
+  //
+  //  message SampleMessage {
+  //    int32 id = 1;
+  //    oneof test_oneof {
+  //      string name = 4;
+  //      SubMessage sub_message = 9;
+  //    }
+  //    bytes data = 20;
+  //  }
+  //
+  //  number_of_fields will be 3.
+  //  field_numbers will be { 1, 4, 9, 20}
+  //  field_indices will be { 0, 1, 1,  2}
+  //
+  constexpr static auto field_indices = get_indices(typename traits::meta_of<Type>::type{});
+  // the number of fields in a message
+  constexpr static auto number_of_fields = field_indices.size() ? field_indices.back() + 1 : 0;
 
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    for (auto num : numbers) {
+  // During protobuf deserialization, it is necessary to find the field index associated with a given field number. To
+  // achieve efficient lookup, a two-level lookup table is created and indexed by "masked numbers". The "masked number"
+  // is computed by performing a bitwise OR operation between the field number and a mask. This mask is determined by
+  // finding the smallest power of 2 that is greater than the number of fields and then subtracting 1. For instance,
+  // given the field numbers in SampleMessage as {1, 4, 9, 20}, the resulting masked numbers would be {1, 0, 1, 0}.
+  //
+  // Following this, a masked_lookup_table is constructed, consisting of pairs of field numbers and their corresponding
+  // field indices, sorted based on the masked numbers. For SampleMessage, the masked_lookup_table would appear as
+  // {{1, 0}, {9, 1}, {4, 1}, {20, 2}}.
+  //
+  // Additionally, the masked_lookup_table_offsets are created as an array that points to
+  // the indices of the masked_lookup_table, indexed by the "masked numbers". In the SampleMessage example, the
+  // masked_lookup_table_offsets would be {0, 2, 4, 4, 4}.
+
+  constexpr static auto mask = (1U << static_cast<unsigned>(std::bit_width(field_numbers.size()))) - 1;
+  consteval static auto build_masked_lookup_table_offsets() {
+    std::array<std::uint32_t, mask + 1> masked_number_occurrences = {};
+
+    for (auto num : field_numbers) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
       ++masked_number_occurrences[num & mask];
     }
-    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
 
-    std::array<uint32_t, mask + 2> table_indices = {0};
-    std::partial_sum(masked_number_occurrences.begin(), masked_number_occurrences.end(), table_indices.begin() + 1);
-    return table_indices;
+    std::array<std::uint32_t, mask + 2> table_offsets = {0};
+    std::partial_sum(masked_number_occurrences.begin(), masked_number_occurrences.end(), table_offsets.begin() + 1);
+    return table_offsets;
   }
-  constexpr static auto lookup_table_indices = build_lookup_table_indices();
+  constexpr static auto lookup_table_indices = build_masked_lookup_table_offsets();
 
   consteval static auto build_lookup_table() {
 
-    if constexpr (numbers.empty()) {
+    if constexpr (field_numbers.empty()) {
       return std::span<std::pair<uint32_t, uint32_t>>{};
     } else {
       std::array<uint32_t, mask + 1> counts = {};
       std::copy(lookup_table_indices.begin(), lookup_table_indices.end() - 1, counts.begin());
 
-      std::array<std::pair<uint32_t, uint32_t>, numbers.size()> result;
+      std::array<std::pair<uint32_t, uint32_t>, field_numbers.size()> result;
       // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-      for (uint32_t i = 0; i < numbers.size(); ++i) {
-        auto num = numbers[i];
+      for (uint32_t i = 0; i < field_numbers.size(); ++i) {
+        auto num = field_numbers[i];
         auto masked_num = num & mask;
-        result[counts[masked_num]++] = {num, static_cast<uint32_t>(indices[i])};
+        result[counts[masked_num]++] = {num, static_cast<uint32_t>(field_indices[i])};
       }
       // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
       return result;
