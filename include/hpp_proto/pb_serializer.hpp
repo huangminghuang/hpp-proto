@@ -806,20 +806,15 @@ constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N>
   return result;
 }
 
-template <typename T, std::size_t M>
-constexpr std::array<T, M> operator<<(std::array<T, M> lhs, std::span<uint32_t>) {
-  return lhs;
-}
-
 template <concepts::has_meta Type>
 struct reverse_indices {
   template <typename T>
     requires requires { T::number; }
   constexpr static auto get_numbers(T meta) {
     if constexpr (meta.number != UINT32_MAX) {
-      return std::array<uint32_t, 1>{meta.number};
+      return std::array<std::uint32_t, 1>{meta.number};
     } else {
-      return std::span<uint32_t>{};
+      return std::array<std::uint32_t, 0>{};
     }
   }
 
@@ -912,7 +907,7 @@ struct reverse_indices {
                 lookup_table.begin() + lookup_table_indices[masked_number + 1], result.begin());
       return result;
     } else {
-      return std::span<std::pair<uint32_t, uint32_t>>{};
+      return std::array<std::pair<uint32_t, uint32_t>, 0>{};
     }
   }
 };
