@@ -279,8 +279,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
-                                      int64_t &res1) -> decltype(std::ranges::cdata(input)) {
+constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input, int64_t &res1)
+    -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -413,8 +413,8 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
   return done2();
 }
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    bool &value) -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, bool &value)
+    -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -908,6 +908,20 @@ struct reverse_indices {
       return result;
     } else {
       return std::array<std::pair<uint32_t, uint32_t>, 0>{};
+    }
+  }
+
+  template <uint32_t MaskedNum, uint32_t I = 0>
+  constexpr static status dispatch_by_masked_num(uint32_t field_number, auto &&fun) {
+    constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
+    if constexpr (table.empty() || I >= table.size()) {
+      return fun(std::integral_constant<uint32_t, UINT32_MAX>{});
+    } else {
+      if (field_number == table[I].first) {
+        return fun(std::integral_constant<uint32_t, table[I].second>{});
+      } else [[unlikely]] {
+        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, fun);
+      }
     }
   }
 };
@@ -2402,29 +2416,17 @@ struct pb_serializer {
     }
   }
 
-  template <typename Trait, uint32_t MaskedNum, uint32_t I = 0>
-  constexpr static status deserialize_field_by_masked_num(uint32_t field_number, auto &&fun) {
-    constexpr auto table = Trait::template lookup_table_for_masked_number<MaskedNum>();
-    if constexpr (table.empty() || I >= table.size()) {
-      return fun(std::integral_constant<uint32_t, UINT32_MAX>{});
-    } else {
-      if (field_number == table[I].first) {
-        return fun(std::integral_constant<uint32_t, table[I].second>{});
-      } else [[unlikely]] {
-        return deserialize_field_by_masked_num<Trait, MaskedNum, I + 1>(field_number, fun);
-      }
-    }
-  }
-
   template <uint32_t... MaskedNum>
   constexpr static status deserialize_field_by_masked_num(uint32_t tag, auto &item, concepts::is_basic_in auto &archive,
                                                           std::integer_sequence<uint32_t, MaskedNum...>) {
     using type = std::remove_cvref_t<decltype(item)>;
-    constexpr auto mask = traits::reverse_indices<type>::mask;
+    using dispatch_t = traits::reverse_indices<type>;
+    constexpr auto mask = dispatch_t::mask;
+    auto field_num = tag_number(tag);
     status r;
-    (void)((((tag_number(tag) & mask) == MaskedNum) &&
-            (r = deserialize_field_by_masked_num<traits::reverse_indices<type>, MaskedNum, 0>(
-                 tag_number(tag),
+    (void)((((field_num & mask) == MaskedNum) &&
+            (r = dispatch_t::template dispatch_by_masked_num<MaskedNum, 0>(
+                 field_num,
                  [&](auto index) { return deserialize_field_by_index<decltype(index)::value>(tag, item, archive); }),
              true)) ||
            ...);
@@ -2496,8 +2498,8 @@ struct pb_serializer {
   };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  contiguous_input_archive(const Buffer &,
-                           Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+  contiguous_input_archive(const Buffer &, Context &)
+      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item,
                                       concepts::contiguous_byte_range auto const &buffer) {
