@@ -957,7 +957,7 @@ struct reverse_indices {
       if (field_number == table[I].first) {
         return f(std::integral_constant<uint32_t, table[I].second>{});
       } else [[unlikely]] {
-        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, f);
+        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
       }
     }
   }
