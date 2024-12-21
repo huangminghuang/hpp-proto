@@ -926,7 +926,8 @@ struct reverse_indices {
   }
 
   template <uint32_t... MaskedNum>
-  constexpr static status dispatch_impl(std::uint32_t field_num, auto &&fun, std::integer_sequence<uint32_t, MaskedNum...>) {
+  constexpr static status dispatch_impl(std::uint32_t field_num, auto &&fun,
+                                        std::integer_sequence<uint32_t, MaskedNum...>) {
     status r;
     (void)((((field_num & mask) == MaskedNum) && (r = dispatch_by_masked_num<MaskedNum, 0>(field_num, fun), true)) ||
            ...);
@@ -2448,9 +2449,9 @@ struct pb_serializer {
   constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using dispatcher_t = traits::reverse_indices<type>;
-    return dispatcher_t::dispatch(
-        tag_number(tag),
-        [&](auto index) { return deserialize_field_by_index<decltype(index)::value>(tag, item, archive); });
+    return dispatcher_t::dispatch(tag_number(tag), [&](auto index) {
+      return deserialize_field_by_index<decltype(index)::value>(tag, item, archive);
+    });
   }
 
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_basic_in auto &archive) {
