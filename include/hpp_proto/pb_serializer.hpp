@@ -949,15 +949,15 @@ struct reverse_indices {
   }
 
   template <uint32_t MaskedNum, uint32_t I = 0>
-  constexpr static status dispatch_by_masked_num(uint32_t field_number, auto &&fun) {
+  constexpr static status dispatch_by_masked_num(uint32_t field_number, auto &&f) {
     constexpr auto table = lookup_table_for_masked_number<MaskedNum>();
     if constexpr (table.empty() || I >= table.size()) {
-      return fun(std::integral_constant<uint32_t, UINT32_MAX>{});
+      return f(std::integral_constant<uint32_t, UINT32_MAX>{});
     } else {
       if (field_number == table[I].first) {
-        return fun(std::integral_constant<uint32_t, table[I].second>{});
+        return f(std::integral_constant<uint32_t, table[I].second>{});
       } else [[unlikely]] {
-        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, fun);
+        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, f);
       }
     }
   }
