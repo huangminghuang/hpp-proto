@@ -29,6 +29,7 @@ if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
 endif()
 
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+CPMAddPackage("gh:qlibs/mph#v5.0.3")
 
 if(HPP_PROTO_PROTOC STREQUAL "find")
     if (PROJECT_IS_TOP_LEVEL)

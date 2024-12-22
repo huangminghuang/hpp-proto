@@ -37,6 +37,11 @@
 #include <glaze/util/expected.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
 
+#if __has_include(<experimental/simd>) && !defined(_LIBCPP_VERSION)
+#include <mph>
+#define HPP_PROTO_USE_MPH
+#endif
+
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
 #if defined(_WIN32)
 #include <intrin.h>
@@ -965,7 +970,95 @@ struct reverse_indices {
     return dispatch(field_number, std::forward<decltype(f)>(f), std::make_integer_sequence<std::uint32_t, mask + 1>());
   }
 };
+
+template <concepts::has_meta Type>
+struct reverse_indices2 {
+  template <std::uint32_t MaskedNum = 0>
+  constexpr static status dispatch2(std::uint32_t field_number, auto &&f) {
+    constexpr auto mask = reverse_indices<Type>::mask;
+    if constexpr (MaskedNum <= mask) {
+      if ((field_number & mask) == MaskedNum) {
+        return reverse_indices<Type>::template dispatch_by_masked_num<MaskedNum, 0>(field_number, std::forward<decltype(f)>(f));
+      } else {
+        return dispatch2<MaskedNum + 1>(field_number, std::forward<decltype(f)>(f));
+      }
+    } else {
+      return {};
+    }
+  }
+
+  constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
+    return dispatch2(field_number, std::forward<decltype(f)>(f));
+  }
+};
+
+#if defined(HPP_PROTO_USE_MPH)
+template <concepts::has_meta Type>
+struct reverse_indices_mph {
+  consteval static auto build_simple_lookup_table() {
+    std::array<std::pair<std::uint32_t, std::uint32_t>, reverse_indices<Type>::field_numbers.size()> result;
+    for (auto i = 0U; i < result.size(); ++i) {
+      result[i] = {reverse_indices<Type>::field_numbers[i], reverse_indices<Type>::field_indices[i]};
+    }
+    return result;
+  }
+
+  static constexpr auto simple_lookup_table = build_simple_lookup_table();
+
+  template <std::uint32_t... I>
+  constexpr static auto dispatch_by_indices(std::uint32_t field_number, auto &&f,
+                                            std::integer_sequence<uint32_t, I...>) {
+    auto index_by_number = mph::find<simple_lookup_table>(field_number);
+    if (index_by_number) {
+      status r;
+      (void)(((*index_by_number == I) && (r = f(make_integral_constant<I>()), true)) || ...);
+      return r;
+    } else {
+      return f(make_integral_constant<UINT32_MAX>());
+    }
+  }
+
+  constexpr static auto dispatch(std::uint32_t field_number, auto &&f) {
+    constexpr auto number_of_fields = simple_lookup_table.size() ? simple_lookup_table.back().second + 1 : 0;
+    return dispatch_by_indices(field_number, std::forward<decltype(f)>(f),
+                               std::make_integer_sequence<uint32_t, number_of_fields>());
+  }
+
+};
+#endif
+
 } // namespace traits
+
+struct dispatcher1 {
+  using option_type = dispatcher1;
+  template <typename T>
+  using dispatcher_type = traits::reverse_indices<T>;
+};
+
+struct dispatcher2 {
+  using option_type = dispatcher2;
+  template <typename T>
+  using dispatcher_type = traits::reverse_indices2<T>;
+};
+
+#if defined(HPP_PROTO_USE_MPH)
+struct dispatcher_mph {
+  using option_type = dispatcher_mph;
+  template <typename T>
+  using dispatcher_type = traits::reverse_indices_mph<T>;
+};
+#endif
+
+template <typename Context, typename T>
+struct get_dispatcher {
+  using type = traits::reverse_indices<T>;
+};
+
+template <typename Context, typename T>
+  requires requires { std::decay_t<Context>::template dispatcher_type<T>; }
+struct get_dispatcher<Context, T> {
+  using type = typename Context::template dispatcher_type<T>;
+};
 
 #if defined(__cpp_lib_constexpr_vector)
 template <typename T>
@@ -2458,7 +2551,7 @@ struct pb_serializer {
 
   constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
-    using dispatcher_t = traits::reverse_indices<type>;
+    using dispatcher_t = typename get_dispatcher<decltype(archive.context), type>::type;
     return dispatcher_t::dispatch(tag_number(tag), [&](auto index) {
       return deserialize_field_by_index<decltype(index)::value>(tag, item, archive);
     });
