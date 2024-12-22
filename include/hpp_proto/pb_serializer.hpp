@@ -978,7 +978,8 @@ struct reverse_indices2 {
     constexpr auto mask = reverse_indices<Type>::mask;
     if constexpr (MaskedNum <= mask) {
       if ((field_number & mask) == MaskedNum) {
-        return reverse_indices<Type>::template dispatch_by_masked_num<MaskedNum, 0>(field_number, std::forward<decltype(f)>(f));
+        return reverse_indices<Type>::template dispatch_by_masked_num<MaskedNum, 0>(field_number,
+                                                                                    std::forward<decltype(f)>(f));
       } else {
         return dispatch2<MaskedNum + 1>(field_number, std::forward<decltype(f)>(f));
       }
@@ -1023,7 +1024,6 @@ struct reverse_indices_mph {
     return dispatch_by_indices(field_number, std::forward<decltype(f)>(f),
                                std::make_integer_sequence<uint32_t, number_of_fields>());
   }
-
 };
 #endif
 
