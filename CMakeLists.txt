@@ -59,7 +59,7 @@ if(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER_LAUNCHER STREQ
   endif()
 endif()
 
-include(third-party.cmake)
+include(third-parties.cmake)
 
 if(HPP_PROTO_ENABLE_SANITIZER)
   if(MSVC)

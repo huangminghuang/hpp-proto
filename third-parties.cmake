@@ -31,9 +31,7 @@ endif()
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
 
 if(HPP_PROTO_PROTOC STREQUAL "find")
-    if (PROJECT_IS_TOP_LEVEL)
-        find_package(Protobuf)
-    endif()
+    find_package(Protobuf)
 
     if(NOT Protobuf_FOUND)
         find_program(PROTOC_PATH NAMES protoc)
@@ -62,7 +60,7 @@ if(HPP_PROTO_PROTOC STREQUAL "find")
             message(FATAL_ERROR "Could not find 'protoc', you can\n"
                 "  - make sure 'protoc' is available in your PATH system variable, or\n"
                 "  - use '-DHPP_PROTO_PROTOC=compile' for compiling protoc from source, or\n"
-                "  - use '-DCMAKE_PROGRAM_PATH=/path/bin' to specify the abosolute directory of protoc.")
+                "  - use '-DCMAKE_PROGRAM_PATH=/path/bin' to specify the absolute directory of protoc.")
         endif()
     endif()
 elseif(HPP_PROTO_PROTOC STREQUAL "compile")
