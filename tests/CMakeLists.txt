@@ -13,7 +13,7 @@ else()
         set(PROTOC3_OPTIONAL_OPTION --experimental_allow_proto3_optional)
     endif()
 
-    if (HPP_PROTO_TEST_USE_PROTOBUF)
+    if(HPP_PROTO_TEST_USE_PROTOBUF)
         if((TARGET protobuf::libprotoc) AND("${Protobuf_VERSION}" VERSION_GREATER_EQUAL "22.0"))
             set(use_libprotobuf ON)
         else()
@@ -51,16 +51,15 @@ else()
     add_custom_target(unittest.desc.pb.target ALL
         DEPENDS unittest.desc.pb)
 
-    add_library(unittest_proto3_proto_lib INTERFACE)
-    target_include_directories(unittest_proto3_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-    protobuf_generate(
-        TARGET unittest_proto3_proto_lib
-        LANGUAGE hpp
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-        PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
-        PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto"
+    add_library(unittest_proto3_proto_lib INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto"
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto"
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto")
+    target_include_directories(unittest_proto3_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+    protobuf_generate_hpp(
+        TARGET unittest_proto3_proto_lib
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+        PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION})
 
     add_executable(proto3_test unittest_proto3_test.cpp)
     target_link_libraries(proto3_test PRIVATE unittest_proto3_proto_lib Boost::ut glaze::glaze gpb_proto_json)
@@ -73,17 +72,17 @@ else()
 
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/non_owning")
 
-    add_library(non_owning_unittest_proto3_proto_lib INTERFACE)
+    add_library(non_owning_unittest_proto3_proto_lib INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto"
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto"
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto")
+
     target_include_directories(non_owning_unittest_proto3_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-    protobuf_generate(
+    protobuf_generate_hpp(
         TARGET non_owning_unittest_proto3_proto_lib
-        LANGUAGE hpp
         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
         PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
         PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
-        PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto"
-        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto"
-        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto"
         PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning")
 
     add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
@@ -96,14 +95,13 @@ else()
 
     set_property(TEST non_owning_proto3_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-    add_library(non_owning_unittest_proto2_proto_lib INTERFACE)
+    add_library(non_owning_unittest_proto2_proto_lib INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
     target_include_directories(non_owning_unittest_proto2_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-    protobuf_generate(
+    protobuf_generate_hpp(
         TARGET non_owning_unittest_proto2_proto_lib
-        LANGUAGE hpp
         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
         PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-        PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto"
         PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning")
 
     add_executable(non_owning_proto2_test non_owning_proto2_test.cpp)
@@ -114,13 +112,11 @@ else()
 
     set_property(TEST non_owning_proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-    add_library(unittest_proto_lib INTERFACE)
+    add_library(unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
     target_include_directories(unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-    protobuf_generate(
+    protobuf_generate_hpp(
         TARGET unittest_proto_lib
-        LANGUAGE hpp
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-        PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
 
     add_executable(proto2_test unittest_proto2_test.cpp)
     target_link_libraries(proto2_test PRIVATE unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
@@ -131,13 +127,11 @@ else()
 
     set_property(TEST proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-    add_library(map_unittest_proto_lib INTERFACE)
+    add_library(map_unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
     target_include_directories(map_unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-    protobuf_generate(
+    protobuf_generate_hpp(
         TARGET map_unittest_proto_lib
-        LANGUAGE hpp
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-        PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(map_unittest_proto_lib INTERFACE unittest_proto_lib)
 
     add_executable(map_test map_test.cpp)
@@ -152,31 +146,23 @@ else()
     if(Protobuf_INCLUDE_DIRS)
         add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
         target_include_directories(any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
-        protobuf_generate(
+        protobuf_generate_hpp(
             TARGET any_test_lib
-            LANGUAGE hpp
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${Protobuf_INCLUDE_DIRS}")
         target_link_libraries(any_test_lib INTERFACE well_known_types)
 
-        add_library(non_owning_any_test_lib INTERFACE)
-        target_include_directories(non_owning_any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-        protobuf_generate(
-            TARGET non_owning_any_test_lib
-            LANGUAGE hpp
-            IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
-            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-            PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning"
-            PROTOS "${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto"
+        add_library(non_owning_any_test_lib INTERFACE
+            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
+            "${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto"
             "${Protobuf_INCLUDE_DIRS}/google/protobuf/field_mask.proto")
 
-        protobuf_generate(
+        target_include_directories(non_owning_any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate_hpp(
             TARGET non_owning_any_test_lib
-            LANGUAGE hpp
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${Protobuf_INCLUDE_DIRS}"
             PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-            PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning"
-            PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
-        )
+            PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning")
+
         target_link_libraries(non_owning_any_test_lib INTERFACE well_known_types)
 
         add_executable(any_test any_test.cpp)
@@ -187,9 +173,11 @@ else()
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
         add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
-        if (edition_support)
+
+        if(edition_support)
             target_compile_definitions(dynamic_serializer_tests PRIVATE EDITION_SUPPORT)
         endif()
+
         target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
 
         add_test(NAME dynamic_serializer_tests
@@ -214,16 +202,15 @@ else()
     target_link_libraries(proto3_decode PRIVATE unittest_proto3_proto_lib)
 
     if(edition_support)
-        add_library(unittest_lite_proto_lib INTERFACE)
-        target_include_directories(unittest_lite_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-        protobuf_generate(
-            TARGET unittest_lite_proto_lib
-            LANGUAGE hpp
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-            PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
-            PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_lite.proto"
+        add_library(unittest_lite_proto_lib INTERFACE
+            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_lite.proto"
             "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_lite.proto"
             "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public_lite.proto")
+        target_include_directories(unittest_lite_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate_hpp(
+            TARGET unittest_lite_proto_lib
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+            PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION})
 
         add_executable(lite_test unittest_lite_test.cpp)
         target_link_libraries(lite_test PRIVATE unittest_lite_proto_lib Boost::ut glaze::glaze gpb_proto_json)
@@ -234,26 +221,21 @@ else()
 
         set_property(TEST lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
-        add_library(editions_test_lib INTERFACE)
+        add_library(editions_test_lib INTERFACE "basic_test_editions.proto" "editions_test.proto")
         target_include_directories(editions_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-        protobuf_generate(
+        protobuf_generate_hpp(
             TARGET editions_test_lib
-            LANGUAGE hpp
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-            PROTOS "basic_test_editions.proto" "editions_test.proto")
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
 
         add_executable(editions_test basic_test_editions_test.cpp)
         target_link_libraries(editions_test PRIVATE editions_test_lib)
 
-
-        add_library(basic_test_proto2_lib INTERFACE)
+        add_library(basic_test_proto2_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/basic_test_proto2.proto")
         target_include_directories(basic_test_proto2_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-        protobuf_generate(
+        protobuf_generate_hpp(
             TARGET basic_test_proto2_lib
-            LANGUAGE hpp
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field"
-            PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/basic_test_proto2.proto")
+            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field")
 
         add_executable(basic_test_proto2 basic_test_proto2.cpp)
         target_link_libraries(basic_test_proto2 PRIVATE basic_test_proto2_lib)

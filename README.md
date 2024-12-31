@@ -261,8 +261,7 @@ find_package(hpp_proto CONFIG REQUIRED)
 
 add_library(addressbook_lib INTERFACE addressbook.proto)
 target_include_directories(addressbook_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate(TARGET addressbook_lib
-                  LANGUAGE hpp
+protobuf_generate_hpp(TARGET addressbook_lib
 # uncomment the next line for non-owning mode                 
 #                 PLUGIN_OPTIONS non_owning 
 )
@@ -295,10 +294,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(hpp_proto)
 add_library(addressbook_lib INTERFACE addressbook.proto)
 target_include_directories(addressbook_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate(TARGET addressbook_lib
-                  LANGUAGE hpp
+protobuf_generate_hpp(TARGET addressbook_lib
 # uncomment the next line for non-owning mode  
-#                 PLUGIN_OPTIONS non_owning 
+#                     PLUGIN_OPTIONS non_owning 
 )
 
 add_executable(tutorial_proto addressbook.cpp)
