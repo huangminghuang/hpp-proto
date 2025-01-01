@@ -151,10 +151,19 @@ else()
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${Protobuf_INCLUDE_DIRS}")
         target_link_libraries(any_test_lib INTERFACE well_known_types)
 
-        add_library(non_owning_any_test_lib INTERFACE
-            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
+        add_library(non_owning_any_lib INTERFACE
             "${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto"
             "${Protobuf_INCLUDE_DIRS}/google/protobuf/field_mask.proto")
+
+        target_include_directories(non_owning_any_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate_hpp(
+            TARGET non_owning_any_lib
+            IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
+            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
+            PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning")
+
+        add_library(non_owning_any_test_lib INTERFACE
+            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto")
 
         target_include_directories(non_owning_any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
         protobuf_generate_hpp(
@@ -163,7 +172,7 @@ else()
             PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
             PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning")
 
-        target_link_libraries(non_owning_any_test_lib INTERFACE well_known_types)
+        target_link_libraries(non_owning_any_test_lib INTERFACE non_owning_any_lib well_known_types)
 
         add_executable(any_test any_test.cpp)
         target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib non_owning_any_test_lib)
