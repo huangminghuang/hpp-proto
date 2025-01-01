@@ -1,4 +1,5 @@
 add_library(regular_addressbook INTERFACE)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/regular)
 target_include_directories(regular_addressbook SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET regular_addressbook
@@ -8,6 +9,7 @@ protobuf_generate_hpp(
     PLUGIN_OPTIONS root_namespace=regular,top_directory=regular)
 
 add_library(non_owning_addressbook INTERFACE)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/non_owning)
 target_include_directories(non_owning_addressbook SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET non_owning_addressbook
