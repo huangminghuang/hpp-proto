@@ -67,14 +67,10 @@ struct single_shot_slice_memory_resource {
       grpc_slice_unref(slice_);
     }
   }
-  single_shot_slice_memory_resource(const single_shot_slice_memory_resource &) =
-      delete;
-  single_shot_slice_memory_resource(single_shot_slice_memory_resource &&) =
-      delete;
-  single_shot_slice_memory_resource &
-  operator=(const single_shot_slice_memory_resource &) = delete;
-  single_shot_slice_memory_resource &
-  operator=(single_shot_slice_memory_resource &&) = delete;
+  single_shot_slice_memory_resource(const single_shot_slice_memory_resource &) = delete;
+  single_shot_slice_memory_resource(single_shot_slice_memory_resource &&) = delete;
+  single_shot_slice_memory_resource &operator=(const single_shot_slice_memory_resource &) = delete;
+  single_shot_slice_memory_resource &operator=(single_shot_slice_memory_resource &&) = delete;
 
   void *allocate(std::size_t size, std::size_t) {
     assert(slice_.refcount == 0);
@@ -92,27 +88,23 @@ template <hpp::proto::concepts::has_meta T>
 ::grpc::Status write(const T &message, ::grpc::ByteBuffer &buffer) {
   single_shot_slice_memory_resource pool;
   std::span<const std::byte> buf;
-  if (hpp::proto::write_proto(message, buf, hpp::proto::alloc_from{pool}).ok())
-      [[likely]] {
+  if (hpp::proto::write_proto(message, buf, hpp::proto::alloc_from{pool}).ok()) [[likely]] {
     buffer = pool.finalize();
     return ::grpc::Status::OK;
   }
 
-  return ::grpc::Status(::grpc::StatusCode::INTERNAL,
-                        "Failed to serialize message");
+  return ::grpc::Status(::grpc::StatusCode::INTERNAL, "Failed to serialize message");
 }
 
 template <hpp::proto::concepts::has_meta T>
 ::grpc::Status read(T &message, const ::grpc::ByteBuffer &buffer,
                     hpp::proto::concepts::is_option_type auto &&...option) {
-  auto c_buffer =
-      grpc::internal::CallOpRecvMessage<byte_buffer_access>()(buffer);
+  auto c_buffer = grpc::internal::CallOpRecvMessage<byte_buffer_access>()(buffer);
   byte_buffer_adaptor buffers(c_buffer);
   if (hpp::proto::read_proto(message, buffers, option...).ok()) [[likely]] {
     return ::grpc::Status::OK;
   }
-  return ::grpc::Status(::grpc::StatusCode::INTERNAL,
-                        "Failed to deserialize message");
+  return ::grpc::Status(::grpc::StatusCode::INTERNAL, "Failed to deserialize message");
 }
 
 } // namespace hpp::proto::grpc_support
