@@ -825,7 +825,11 @@ struct reverse_indices {
 
   template <typename... T>
   constexpr static auto get_numbers(std::tuple<T...> metas) {
-    return std::apply([](auto... elem) { return (... << get_numbers(elem)); }, metas);
+    if constexpr (sizeof...(T) > 0) {
+      return std::apply([](auto... elem) { return (... << get_numbers(elem)); }, metas);
+    } else {
+      return std::array<std::uint32_t, 0>{};
+    }
   }
 
   template <concepts::is_oneof_field_meta Meta>
