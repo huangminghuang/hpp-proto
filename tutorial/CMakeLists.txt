@@ -34,3 +34,7 @@ add_subdirectory(non_owning)
 add_subdirectory(mixed_ownership)
 add_subdirectory(compile_time_serialization)
 add_subdirectory(dynamic_serializer)
+
+if (NOT HPP_PROTO_PROTOC STREQUAL "compile")
+  add_subdirectory(grpc)
+endif()

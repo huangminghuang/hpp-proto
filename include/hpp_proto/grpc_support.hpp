@@ -20,6 +20,7 @@ public:
 
 namespace hpp::proto::grpc_support {
 
+namespace detail {
 class byte_buffer_adaptor {
   using storage_t = std::vector<std::span<const uint8_t>>;
   storage_t slices_;
@@ -83,10 +84,10 @@ struct single_shot_slice_memory_resource {
     return ::grpc::ByteBuffer(&slice, 1);
   }
 };
+} // namespace detail
 
-template <hpp::proto::concepts::has_meta T>
-::grpc::Status write(const T &message, ::grpc::ByteBuffer &buffer) {
-  single_shot_slice_memory_resource pool;
+::grpc::Status write_proto(hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer) {
+  detail::single_shot_slice_memory_resource pool;
   std::span<const std::byte> buf;
   if (hpp::proto::write_proto(message, buf, hpp::proto::alloc_from{pool}).ok()) [[likely]] {
     buffer = pool.finalize();
@@ -96,11 +97,10 @@ template <hpp::proto::concepts::has_meta T>
   return ::grpc::Status(::grpc::StatusCode::INTERNAL, "Failed to serialize message");
 }
 
-template <hpp::proto::concepts::has_meta T>
-::grpc::Status read(T &message, const ::grpc::ByteBuffer &buffer,
-                    hpp::proto::concepts::is_option_type auto &&...option) {
+::grpc::Status read_proto(hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
+                          hpp::proto::concepts::is_option_type auto &&...option) {
   auto c_buffer = grpc::internal::CallOpRecvMessage<byte_buffer_access>()(buffer);
-  byte_buffer_adaptor buffers(c_buffer);
+  detail::byte_buffer_adaptor buffers(c_buffer);
   if (hpp::proto::read_proto(message, buffers, option...).ok()) [[likely]] {
     return ::grpc::Status::OK;
   }
