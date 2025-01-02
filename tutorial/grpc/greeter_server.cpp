@@ -130,7 +130,7 @@ public:
 class GreeterServiceImpl {
   struct SayHelloStreamReplyWriter {
     std::string name;
-    std::atomic<int> count{10};  
+    std::atomic<int> count{10};
 
     void operator()(auto &reactor) {
       int n = count--;
@@ -162,7 +162,8 @@ public:
     });
 
     service.add_reactor_factory([&] {
-      return new ServerUnaryCallReactor<helloworld::Greeter::Shutdown, GreeterServiceImpl>(this, &GreeterServiceImpl::Shutdown);
+      return new ServerUnaryCallReactor<helloworld::Greeter::Shutdown, GreeterServiceImpl>(
+          this, &GreeterServiceImpl::Shutdown);
     });
   }
   grpc::Status SayHello(const helloworld::HelloRequest &request, helloworld::HelloReply &reply) {
