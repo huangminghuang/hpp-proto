@@ -17,10 +17,12 @@ protobuf_generate_hpp(TARGET hpp_non_owning_benchmark_messages_lib
 add_library(google_benchmark_messages_lib OBJECT ${proto_files})
 protobuf_generate(TARGET google_benchmark_messages_lib
     LANGUAGE cpp)
+target_link_libraries(google_benchmark_messages_lib PUBLIC protobuf::libprotobuf)
 
 add_library(google_benchmark_messages_lite_lib OBJECT benchmark_messages_proto3_lite.proto)
 protobuf_generate(TARGET google_benchmark_messages_lite_lib
     LANGUAGE cpp)
+target_link_libraries(google_benchmark_messages_lite_lib PUBLIC protobuf::libprotobuf-lite)
 
 add_executable(proto_bench benchmark.cpp)
 
