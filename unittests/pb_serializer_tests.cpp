@@ -80,6 +80,12 @@ constexpr void constexpr_verify(auto buffer, auto object_fun) {
   static_assert(object_fun() == hpp::proto::read_proto<decltype(object_fun())>(buffer()).value());
 }
 
+struct empty {
+  bool operator == (const empty&) const = default;
+};
+
+auto pb_meta(const empty &) -> std::tuple<>;
+
 struct example {
   int32_t i = 0; // field number == 1
 
@@ -1855,6 +1861,7 @@ const ut::suite composite_type = [] {
 
 int main() {
 #if !defined(_MSC_VER) || (defined(__clang_major__) && (__clang_major__ > 14))
+  constexpr_verify(carg(""_bytes_view), carg(empty{}));
   constexpr_verify(carg("\x08\x96\x01"_bytes_view), carg(example{150}));
   constexpr_verify(carg("\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view), carg(example{-1}));
   constexpr_verify(carg(""_bytes_view), carg(example{}));
