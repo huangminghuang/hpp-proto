@@ -81,7 +81,7 @@ constexpr void constexpr_verify(auto buffer, auto object_fun) {
 }
 
 struct empty {
-  bool operator == (const empty&) const = default;
+  bool operator==(const empty &) const = default;
 };
 
 auto pb_meta(const empty &) -> std::tuple<>;
