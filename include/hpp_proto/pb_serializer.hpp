@@ -1097,7 +1097,7 @@ public:
     end -= ((end - begin) % mask_length);
     for (; begin < end; begin += mask_length) {
       uint64_t word = 0;
-      memcpy(&word, begin, sizeof(word));
+      std::memcpy(&word, begin, sizeof(word));
       auto mval = pext_u64(word, word_mask);
       parse_word(mval, word, std::make_index_sequence<1U << mask_length>());
     }
@@ -1110,7 +1110,7 @@ public:
     auto end = std::ranges::cend(r);
     ptrdiff_t bytes_left = end - begin;
     uint64_t word = 0;
-    memcpy(&word, begin, bytes_left);
+    std::memcpy(&word, begin, bytes_left);
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
       pt_val |= ((word & 0x7fULL) << shift_bits);
       has_error |= (shift_bits >= max_effective_bits);
@@ -1987,7 +1987,7 @@ struct pb_serializer {
       while (data.size()) {
         uint64_t v = 0;
         auto bytes = data.consume(sizeof(v));
-        memcpy(&v, bytes.data(), bytes.size());
+        std::memcpy(&v, bytes.data(), bytes.size());
         result += popcount(~v & 0x8080808080808080ULL);
       }
 

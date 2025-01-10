@@ -201,7 +201,7 @@ struct base64 {
       for (i = 0; i <= n - 3; i += 3) {
         uint32_t x = 0;
 
-        memcpy(&x, &source[i], 3);
+        std::memcpy(&x, &source[i], 3);
 
         if constexpr (std::endian::native == std::endian::little) {
           b[ix++] = static_cast<V>(base64_chars[(x >> 2U) & 0x3FU]);
