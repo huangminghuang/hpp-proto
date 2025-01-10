@@ -958,7 +958,6 @@ void verify_segmented_input(auto &encoded, const T &value, const std::vector<int
 };
 
 const ut::suite test_segmented_byte_range = [] {
-
   "empty_with_segmented_input"_test = [] {
     empty value;
     std::vector<std::span<char>> segments;
