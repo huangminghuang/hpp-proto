@@ -27,13 +27,13 @@ Compared to Google’s implementation, hpp-proto adopts a minimalistic design th
 ## Comparison with google protobuf C++ implementation
 ### System Configuration
 
-| Platform |      Mac         |            Linux                |
-|----------|------------------|---------------------------------|
-|    OS    |    MacOS 14.7    |         Ubuntu 22.04            |
-|   CPU    | M1 Pro/MK193LL/A |  Intel Core i9-11950H @ 2.60GHz |
-| Compiler | Apple clang 15.0 |           gcc 12.3.0            |
+| Platform |      Mac           |            Linux                |
+|----------|--------------------|---------------------------------|
+|    OS    |    MacOS 14.7      |         Ubuntu 22.04            |
+|   CPU    | M1 Pro/MK193LL/A   |  Intel Core i9-11950H @ 2.60GHz |
+| Compiler | Apple clang 16.0.0 |           gcc 12.3.0            |
 
-Google protobuf version 28.2
+Google protobuf version 28.3
 
 ### Runtime Performance 
 
@@ -111,30 +111,30 @@ We measured the runtime performance using the dataset and the benchmarks.proto d
   </tr>
  <tr>
    <td>google CPU time</td>
-   <td><div align="right">443.0&nbsp;ns</div></td>
-   <td><div align="right">255.0&nbsp;ns</div></td>
-   <td><div align="right">120.0&nbsp;ns</div></td>
+   <td><div align="right">250.0&nbsp;ns</div></td>
+   <td><div align="right">257.0&nbsp;ns</div></td>
    <td><div align="right">114.0&nbsp;ns</div></td>
-   <td><div align="right">247.0&nbsp;ns</div></td>
-   <td><div align="right">242.0&nbsp;ns</div></td>
+   <td><div align="right">108.0&nbsp;ns</div></td>
+   <td><div align="right">225.0&nbsp;ns</div></td>
+   <td><div align="right">229.0&nbsp;ns</div></td>
  </tr>
  <tr>
    <td>hpp_proto CPU time</td>
    <td><div align="right">198.0&nbsp;ns</div></td>
-   <td><div align="right">160.0&nbsp;ns</div></td>
-   <td><div align="right">34.6&nbsp;ns</div></td>
-   <td><div align="right">11.3&nbsp;ns</div></td>
    <td><div align="right">142.0&nbsp;ns</div></td>
-   <td><div align="right">122.0&nbsp;ns</div></td>
+   <td><div align="right">34.6&nbsp;ns</div></td>
+   <td><div align="right">10.9&nbsp;ns</div></td>
+   <td><div align="right">146.0&nbsp;ns</div></td>
+   <td><div align="right">116.0&nbsp;ns</div></td>
  </tr>
  <tr>
    <td>hpp_proto speedup factor</td>
-   <td><div align="right">2.23</div></td>
-   <td><div align="right">1.59</div></td>
-   <td><div align="right">3.47</div></td>
-   <td><div align="right">10.08</div></td>
-   <td><div align="right">1.73</div></td>
-   <td><div align="right">1.98</div></td>
+   <td><div align="right">1.26</div></td>
+   <td><div align="right">1.81</div></td>
+   <td><div align="right">3.29</div></td>
+   <td><div align="right">9.91</div></td>
+   <td><div align="right">1.54</div></td>
+   <td><div align="right">1.97</div></td>
  </tr>
 </tbody>
 </table>
@@ -171,13 +171,13 @@ We compared the code sizes of three equivalent programs: [hpp_proto_decode_encod
   </tr>
   <tr>
     <td> hpp_proto_decode_encoded </td>
-    <td><div align="right">114152</div></td>
-    <td><div align="right">87144</div></td>
+    <td><div align="right">121208</div></td>
+    <td><div align="right">92520</div></td>
   </tr>
 </tbody>
 </table>
  
-The comparison highlights a significant reduction in code size when using hpp-proto compared to Google’s Protocol Buffers implementations. On macOS, hpp-proto offers a 22.99x reduction in size compared to google_decode_encode and a 9.68x reduction compared to google_decode_encode_lite. The reduction is even more pronounced on Linux, where hpp-proto reduces the code size by 39.13x compared to google_decode_encode and by 16.91x compared to google_decode_encode_lite.
+The comparison highlights a significant reduction in code size when using hpp-proto compared to Google’s Protocol Buffers implementations. On macOS, hpp-proto offers a 21.65x reduction in size compared to google_decode_encode and a 9.13x reduction compared to google_decode_encode_lite. The reduction is even more pronounced on Linux, where hpp-proto reduces the code size by 36.86x compared to google_decode_encode and by 15.93x compared to google_decode_encode_lite.
 
 
 ## Getting Started
