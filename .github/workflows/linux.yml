@@ -70,7 +70,7 @@
         - name: install protoc
           if: matrix.protoc == 'find'
           run: |
-            sudo apt install -y protobuf-compiler libprotobuf-dev libgrpc++-dev
+            sudo apt install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
             
         - name: configure
           run: |
