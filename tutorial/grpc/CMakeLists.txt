@@ -27,5 +27,6 @@ if(gRPC_FOUND)
         add_test(NAME greeter_test
             COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/greeter_test.sh
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+        set_tests_properties(greeter_test PROPERTIES TIMEOUT 30) 
     endif()
 endif()

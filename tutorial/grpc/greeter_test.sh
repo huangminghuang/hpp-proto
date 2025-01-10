@@ -10,14 +10,11 @@ server_pid=$!
 # Get the client's exit code
 client_exit_code=$?
 
-# Kill the server unconditionally
-kill $server_pid
-
 # Wait for the server to finish
 wait $server_pid
 server_exit_code=$?
 
-# Check if both client and server exited with 0
+# Check if the server exited with 0
 if [[ $client_exit_code -eq 0 && $server_exit_code -eq 0  ]]; then
   exit 0
 else
