@@ -47,7 +47,7 @@ jobs:
 
       - name: install protoc
         run: |
-          sudo apt install -y protobuf-compiler libprotobuf-dev
+          sudo apt install -y protobuf-compiler libprotobuf-dev libgrpc++-dev
 
       - name: build and install library
         run: |

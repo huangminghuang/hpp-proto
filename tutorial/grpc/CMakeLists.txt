@@ -1,5 +1,4 @@
-# find_package(Protobuf CONFIG) # REQUIRED for find_package(gRPC) to work
-find_package(gRPC CONFIG 1.66)
+find_package(gRPC CONFIG 1.51)
 
 if(gRPC_FOUND)
     add_library(helloworld INTERFACE)
@@ -22,4 +21,11 @@ if(gRPC_FOUND)
 
     target_link_libraries(greeter_server PRIVATE
         helloworld)
+
+    find_program(BASH_PATH bash)
+    if(BASH_PATH)
+        add_test(NAME greeter_test
+            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/greeter_test.sh
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    endif()
 endif()
