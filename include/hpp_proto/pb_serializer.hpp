@@ -1805,14 +1805,16 @@ struct pb_serializer {
         }
         first_segment = false;
       }
-      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      regions[region_index]._end = patch_buffer;
-      // setting the _slop_begin passed the _end ensure the slope_distance()
-      // of the last region always greater than zero and thus not to advance the region.
-      regions[region_index]._slope_begin = patch_buffer + slope_size;
-      std::fill_n(patch_buffer, slope_size, Byte{0});
-      rest = input_span{regions.data(), region_index + 1};
-      set_current_region(rest.next());
+      if (!regions.empty()) {
+        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        regions[region_index]._end = patch_buffer;
+        // setting the _slop_begin passed the _end ensure the slope_distance()
+        // of the last region always greater than zero and thus not to advance the region.
+        regions[region_index]._slope_begin = patch_buffer + slope_size;
+        std::fill_n(patch_buffer, slope_size, Byte{0});
+        rest = input_span{regions.data(), region_index + 1};
+        set_current_region(rest.next());
+      }
     }
 
     [[nodiscard]] basic_in copy() const { return *this; }

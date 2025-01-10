@@ -958,6 +958,14 @@ void verify_segmented_input(auto &encoded, const T &value, const std::vector<int
 };
 
 const ut::suite test_segmented_byte_range = [] {
+
+  "empty_with_segmented_input"_test = [] {
+    empty value;
+    std::vector<std::span<char>> segments;
+    hpp::proto::pb_context ctx{};
+    ut::expect(hpp::proto::pb_serializer::deserialize(value, segments, ctx).ok());
+  };
+
   "bytes_with_segmented_input"_test = [] {
     bytes_example value;
     value.value.resize(128);
