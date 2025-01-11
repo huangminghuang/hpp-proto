@@ -1,11 +1,28 @@
 #!/bin/bash
 
+# Function to find an available port (cross-platform)
+find_available_port() {
+  local port=50051  # Starting port number
+  while true; do
+    if lsof -i :$port > /dev/null 2>&1; then
+      ((port++))
+    else
+      echo $port
+      break
+    fi
+  done
+}
+
+# Find an available port
+port=$(find_available_port)
+echo "Using port: $port"
+
 # Start the greeter_server in the background
-./greeter_server &
+./greeter_server localhost:$port &
 server_pid=$!
 
 # Run the greeter_client
-./greeter_client
+./greeter_client localhost:$port
 
 # Get the client's exit code
 client_exit_code=$?
