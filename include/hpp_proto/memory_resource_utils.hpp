@@ -84,7 +84,7 @@ class alloc_from {
 public:
   using option_type = alloc_from<T>;
   constexpr static auto always_allocate = Strict;
-  explicit alloc_from(T &m) : mr(&m) {} // NOLINT(hicpp-member-init)
+  explicit alloc_from(T &m) : mr(&m) {}
   ~alloc_from() = default;
   alloc_from(const alloc_from &other) = default;
   alloc_from(alloc_from &&other) = default;
@@ -230,11 +230,14 @@ public:
 
   constexpr MemoryResource &memory_resource() { return mr; }
 
-  // NOLINTBEGIN(bugprone-easily-swappable-parameters)
   constexpr arena_vector(View &view, MemoryResource &mr) : mr(mr), view_(view) {}
   constexpr arena_vector(View &view, concepts::has_memory_resource auto &ctx)
       : mr(ctx.memory_resource()), view_(view) {}
-  // NOLINTEND(bugprone-easily-swappable-parameters)
+  constexpr ~arena_vector() = default;
+  arena_vector(const arena_vector &) = delete;
+  arena_vector(arena_vector &&) = delete;
+  arena_vector &operator=(const arena_vector &) = delete;
+  arena_vector &operator=(arena_vector &&) = delete;
 
   constexpr void resize(std::size_t n) {
     if (capacity_ < n) {
@@ -312,14 +315,11 @@ public:
   }
 
 private:
-  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
   MemoryResource &mr;
   View &view_;
-  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
   value_type *data_ = nullptr;
   std::size_t capacity_ = 0;
 
-  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   constexpr void assign_range_with_size(const View &r, std::size_t n) {
     if (capacity_ < n) {
       auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
@@ -339,8 +339,8 @@ template <concepts::dynamic_sized_view View, concepts::has_memory_resource Conte
 arena_vector(View &view, Context &ctx)
     -> arena_vector<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
 
-constexpr auto as_modifiable(concepts::is_pb_context auto &&context, concepts::dynamic_sized_view auto &view) {
-  return detail::arena_vector{view, std::forward<decltype(context)>(context)};
+constexpr auto as_modifiable(concepts::is_pb_context auto &context, concepts::dynamic_sized_view auto &view) {
+  return detail::arena_vector{view, context};
 }
 
 template <typename T>

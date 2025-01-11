@@ -38,12 +38,10 @@ if(Protobuf_INCLUDE_DIRS)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../include)
 
     add_library(well_known_types INTERFACE ${well_known_types_proto})
-    protobuf_generate(
+    protobuf_generate_hpp(
         TARGET well_known_types
-        LANGUAGE hpp
         IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
         PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/../include)
-    target_link_libraries(well_known_types INTERFACE hpp_proto::libhpp_proto)
     target_include_directories(well_known_types INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../include>
         $<INSTALL_INTERFACE:include>)

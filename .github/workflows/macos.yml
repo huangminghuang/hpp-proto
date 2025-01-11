@@ -35,9 +35,9 @@ jobs:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
-      - name: Install ninja and protobuf
+      - name: Install ninja and protobuf 
         shell: bash
-        run: brew install ninja protobuf
+        run: brew install ninja protobuf grpc
         
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.14

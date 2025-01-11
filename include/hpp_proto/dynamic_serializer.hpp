@@ -277,14 +277,17 @@ class dynamic_serializer {
   // NOLINTBEGIN(readability-function-cognitive-complexity)
   template <typename Buffer>
   struct pb_to_json_state {
-    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     const dynamic_serializer &pb_meta;
     Buffer &b;
-    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     glz::context context;
     std::size_t ix = 0;
 
     pb_to_json_state(const dynamic_serializer &meta, Buffer &buffer) : pb_meta(meta), b(buffer) {}
+    ~pb_to_json_state() = default;
+    pb_to_json_state(const pb_to_json_state &) = delete;
+    pb_to_json_state(pb_to_json_state &&) = delete;
+    pb_to_json_state &operator=(const pb_to_json_state &) = delete;
+    pb_to_json_state &operator=(pb_to_json_state &&) = delete;
 
     bool circular_find(uint32_t &field_index, uint32_t number, const dynamic_serializer::message_meta &msg_meta) {
       for (uint32_t i = field_index; i < msg_meta.size() + field_index; ++i) {
@@ -835,7 +838,6 @@ class dynamic_serializer {
 
   template <typename Buffer>
   struct relocatable_out {
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     Buffer &buffer;
     std::size_t position = 0;
 
@@ -890,11 +892,15 @@ class dynamic_serializer {
   };
 
   struct json_to_pb_state {
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const dynamic_serializer &pb_meta;
     glz::context context = {};
 
     explicit json_to_pb_state(const dynamic_serializer &meta) : pb_meta(meta) {}
+    ~json_to_pb_state() = default;
+    json_to_pb_state(const json_to_pb_state &) = delete;
+    json_to_pb_state(json_to_pb_state &&) = delete;
+    json_to_pb_state &operator=(const json_to_pb_state &) = delete;
+    json_to_pb_state &operator=(json_to_pb_state &&) = delete;
 
     template <typename T>
     static T &get_underlying_value(T &v) {

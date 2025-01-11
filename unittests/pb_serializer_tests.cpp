@@ -80,6 +80,12 @@ constexpr void constexpr_verify(auto buffer, auto object_fun) {
   static_assert(object_fun() == hpp::proto::read_proto<decltype(object_fun())>(buffer()).value());
 }
 
+struct empty {
+  bool operator==(const empty &) const = default;
+};
+
+auto pb_meta(const empty &) -> std::tuple<>;
+
 struct example {
   int32_t i = 0; // field number == 1
 
@@ -946,11 +952,19 @@ void verify_segmented_input(auto &encoded, const T &value, const std::vector<int
     b = e;
   }
   T decoded;
-  ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, hpp::proto::pb_context{}).ok());
+  hpp::proto::pb_context ctx{};
+  ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, ctx).ok());
   ut::expect(value == decoded);
 };
 
 const ut::suite test_segmented_byte_range = [] {
+  "empty_with_segmented_input"_test = [] {
+    empty value;
+    std::vector<std::span<char>> segments;
+    hpp::proto::pb_context ctx{};
+    ut::expect(hpp::proto::pb_serializer::deserialize(value, segments, ctx).ok());
+  };
+
   "bytes_with_segmented_input"_test = [] {
     bytes_example value;
     value.value.resize(128);
@@ -1854,6 +1868,7 @@ const ut::suite composite_type = [] {
 
 int main() {
 #if !defined(_MSC_VER) || (defined(__clang_major__) && (__clang_major__ > 14))
+  constexpr_verify(carg(""_bytes_view), carg(empty{}));
   constexpr_verify(carg("\x08\x96\x01"_bytes_view), carg(example{150}));
   constexpr_verify(carg("\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view), carg(example{-1}));
   constexpr_verify(carg(""_bytes_view), carg(example{}));

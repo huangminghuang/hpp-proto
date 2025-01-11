@@ -20,8 +20,8 @@ if(PROJECT_IS_TOP_LEVEL)
 
     ## Due to the variable scope issue, the following is the most reliable way to get Protobuf_INCLUDE_DIRS properly set
     ## when using FetchContent to declare hpp-proto as dependency.  
-    get_target_property(PROTOC_LCOATION protobuf::protoc IMPORTED_LOCATION)
-    get_filename_component(PROTOC_BASE_DIR ${PROTOC_LCOATION} DIRECTORY)
+    get_target_property(PROTOC_LOCATION protobuf::protoc IMPORTED_LOCATION)
+    get_filename_component(PROTOC_BASE_DIR ${PROTOC_LOCATION} DIRECTORY)
     get_filename_component(Protobuf_INCLUDE_DIRS "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
 
   else()
@@ -34,3 +34,7 @@ add_subdirectory(non_owning)
 add_subdirectory(mixed_ownership)
 add_subdirectory(compile_time_serialization)
 add_subdirectory(dynamic_serializer)
+
+if (NOT HPP_PROTO_PROTOC STREQUAL "compile")
+  add_subdirectory(grpc)
+endif()

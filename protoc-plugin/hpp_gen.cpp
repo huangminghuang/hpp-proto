@@ -559,9 +559,7 @@ const static std::map<std::string, std::string> well_known_codecs = {{"google.pr
 
 struct code_generator {
   std::size_t indent_num = 0;
-  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
   gpb::compiler::CodeGeneratorResponse::File &file;
-  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
   std::back_insert_iterator<std::string> target;
 
   using message_descriptor_t = hpp_gen_descriptor_pool::message_descriptor_t;
@@ -578,6 +576,12 @@ struct code_generator {
 
   explicit code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
       : file(files.emplace_back()), target(file.content) {}
+
+  ~code_generator() = default;
+  code_generator(const code_generator &) = delete;
+  code_generator(code_generator &&) = delete;
+  code_generator &operator=(const code_generator &) = delete;
+  code_generator &operator=(code_generator &&) = delete;
 
   [[nodiscard]] std::string_view indent() const {
     const int init_max_indent_spaces = 128;
@@ -1698,6 +1702,67 @@ struct desc_hpp_generator : code_generator {
                    ns);
   }
 };
+
+struct service_generator : code_generator {
+  using code_generator::code_generator;
+
+  void process(file_descriptor_t &descriptor) {
+    if (descriptor.proto.service.empty()) {
+      return;
+    }
+
+    auto path = descriptor.proto.name;
+    gen_file_header(path);
+    file.name = path.substr(0, path.size() - 5) + "service.hpp";
+
+    for (const auto &d : descriptor.proto.dependency) {
+      fmt::format_to(target, "#include \"{}.pb.hpp\"\n", basename(d));
+    }
+
+    fmt::format_to(target,
+                   "#include \"{}.pb.hpp\"\n"
+                   "#include <hpp_proto/grpc_support.hpp>\n\n",
+                   basename(descriptor.proto.name));
+
+    auto package = descriptor.proto.package;
+    auto ns = root_namespace + qualified_cpp_name(package);
+
+    if (!ns.empty()) {
+      fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
+    }
+
+    for (const auto &s : descriptor.proto.service) {
+      if (s.method.empty()) {
+        continue;
+      }
+
+      fmt::format_to(target, "struct {} {{\n", s.name);
+      auto qualified_service_name = ns.empty() ? s.name : ns + "." + s.name;
+      std::string methods;
+      for (const auto &m : s.method) {
+        methods += fmt::format("{},", m.name);
+        fmt::format_to(target,
+                       "  struct {} {{\n"
+                       "    constexpr static const char* method_name = \"{}/{}\";\n"
+                       "    constexpr static bool client_streaming = {};\n"
+                       "    constexpr static bool server_streaming = {};\n"
+                       "    using request = {};\n"
+                       "    using response = {};\n"
+                       "  }};\n",
+                       m.name, qualified_service_name, m.name, m.client_streaming, m.server_streaming,
+                       qualified_cpp_name(m.input_type), qualified_cpp_name(m.output_type));
+      }
+
+      methods.pop_back();
+      fmt::format_to(target,
+                     "  using _methods = std::tuple<{}>;\n"
+                     "}};\n\n",
+                     methods);
+    }
+
+    fmt::format_to(target, "}} // namespace {}\n", ns);
+  }
+};
 namespace {
 
 void mark_map_entries(hpp_gen_descriptor_pool &pool) {
@@ -1817,6 +1882,9 @@ int main(int argc, const char **argv) {
       desc_hpp_generator desc_hpp_code(response.file);
       desc_hpp_code.process(descriptor);
     }
+
+    service_generator service_code(response.file);
+    service_code.process(descriptor);
   }
 
   std::vector<char> data;
