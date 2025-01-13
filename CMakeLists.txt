@@ -86,23 +86,10 @@ target_include_directories(libhpp_proto SYSTEM INTERFACE
 target_compile_features(libhpp_proto INTERFACE cxx_std_20)
 target_link_libraries(libhpp_proto INTERFACE is_utf8)
 
-add_library(libhpp_proto_no_utf8_validation INTERFACE)
-target_include_directories(libhpp_proto_no_utf8_validation INTERFACE
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-target_include_directories(libhpp_proto_no_utf8_validation SYSTEM INTERFACE
-  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>)
-target_compile_features(libhpp_proto_no_utf8_validation INTERFACE cxx_std_20)
-target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_NO_UTF8_VALIDATION)
-
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
-add_library(hpp_proto::libhpp_proto_no_utf8_validation ALIAS libhpp_proto_no_utf8_validation)
 
 if(MSVC)
   target_compile_options(libhpp_proto INTERFACE "/Zc:preprocessor")
-  target_compile_options(libhpp_proto_no_utf8_validation INTERFACE "/Zc:preprocessor")
 endif()
 
 if(HPP_PROTO_TESTS)
