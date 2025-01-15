@@ -10,7 +10,7 @@ const boost::ut::suite proto3_lite_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
 
-  auto unittest_descriptorset = read_file("unittest.desc.pb");
+  auto unittest_descriptorset = read_file("unittest.desc.binpb");
 
   "protobuf"_test = [] {
     proto3_unittest::TestAllTypes original;

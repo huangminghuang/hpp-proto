@@ -1485,7 +1485,7 @@ const boost::ut::suite proto_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   using namespace non_owning;
-  auto unittest_descriptorset = read_file("unittest.desc.pb");
+  auto unittest_descriptorset = read_file("unittest.desc.binpb");
 
   "protobuf"_test =
       []<class T> {

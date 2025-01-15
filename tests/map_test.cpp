@@ -8,7 +8,7 @@ const boost::ut::suite map_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
 
-  auto map_unittest_descriptorset = read_file("unittest.desc.pb");
+  auto map_unittest_descriptorset = read_file("unittest.desc.binpb");
 
   "protobuf"_test = [] {
     protobuf_unittest::TestMap original;

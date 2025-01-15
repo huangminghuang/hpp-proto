@@ -11,9 +11,9 @@ const boost::ut::suite dynamic_serializer_test = [] {
     using namespace boost::ut::literals;
 
     using namespace std::string_literals;
-    std::string data = read_file("data/"s + message_name + ".pb");
+    std::string data = read_file("data/"s + message_name + ".binpb");
 
-    auto descriptors = read_file("unittest.desc.pb");
+    auto descriptors = read_file("unittest.desc.binpb");
     auto ser = hpp::proto::dynamic_serializer::make(descriptors);
     expect(fatal(ser.has_value()));
 

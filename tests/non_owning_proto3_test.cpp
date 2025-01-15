@@ -136,7 +136,7 @@ void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message) {
 const boost::ut::suite non_owning_proto3_lite_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
-  auto unittest_proto3_descriptorset = read_file("unittest.desc.pb");
+  auto unittest_proto3_descriptorset = read_file("unittest.desc.binpb");
 
   "protobuf"_test = [] {
     proto3_unittest::TestAllTypes original;

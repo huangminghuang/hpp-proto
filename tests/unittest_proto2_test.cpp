@@ -9,7 +9,7 @@ static_assert(std::tuple_element_t<0, TestRequired_meta>::is_explicit_presence);
 const ut::suite proto_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
-  auto unittest_descriptorset = read_file("unittest.desc.pb");
+  auto unittest_descriptorset = read_file("unittest.desc.binpb");
 
   "protobuf"_test =
       []<class T> {
