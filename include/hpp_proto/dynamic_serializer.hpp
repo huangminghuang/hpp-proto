@@ -644,7 +644,7 @@ class dynamic_serializer {
     status any_to_json(const auto &v) {
       auto msg_index = pb_meta.message_index_from_type_url(v.type_url);
       if (msg_index >= pb_meta.messages.size()) [[unlikely]] {
-        return std::errc::no_message_available;
+        return std::errc::no_message;
       }
 
       glz::detail::dump<"\"@type\":">(b, ix);
@@ -1299,7 +1299,7 @@ class dynamic_serializer {
         }
         auto msg_index = pb_meta.message_index_from_type_url(type_url);
         if (msg_index >= pb_meta.messages.size()) [[unlikely]] {
-          return std::errc::no_message_available;
+          return std::errc::no_message;
         }
 
         if constexpr (!any_value_only) {
