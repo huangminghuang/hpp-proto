@@ -1,6 +1,6 @@
 find_package(gRPC CONFIG 1.51)
 
-if(gRPC_FOUND)
+if(gRPC_FOUND AND NOT HPP_PROTO_ENABLE_SANITIZER)
     add_library(helloworld INTERFACE)
 
     protobuf_generate_hpp(TARGET helloworld
