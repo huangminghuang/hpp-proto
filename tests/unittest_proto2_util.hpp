@@ -724,7 +724,7 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message) {
 
   expect(message->set_extension(protobuf_unittest::optionalgroup_extension(), {.a = 117}).ok());
   expect(message->set_extension(protobuf_unittest::optional_nested_message_extension(), {.bb = 118}).ok());
-  expect(message->set_extension(protobuf_unittest::optional_foreign_message_extension(), {.c = 119, .d={}}).ok());
+  expect(message->set_extension(protobuf_unittest::optional_foreign_message_extension(), {.c = 119, .d = {}}).ok());
   expect(message->set_extension(protobuf_unittest::optional_import_message_extension(), {.d = 120}).ok());
 
   expect(message
@@ -767,8 +767,10 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message) {
   expect(message->set_extension(protobuf_unittest::repeatedgroup_extension(), {{.a = 217}, {.a = 317}}).ok());
   expect(
       message->set_extension(protobuf_unittest::repeated_nested_message_extension(), {{.bb = 218}, {.bb = 318}}).ok());
-  expect(
-      message->set_extension(protobuf_unittest::repeated_foreign_message_extension(), {{.c = 219, .d={}}, {.c = 319, .d={}}}).ok());
+  expect(message
+             ->set_extension(protobuf_unittest::repeated_foreign_message_extension(),
+                             {{.c = 219, .d = {}}, {.c = 319, .d = {}}})
+             .ok());
   expect(message->set_extension(protobuf_unittest::repeated_import_message_extension(), {{.d = 220}, {.d = 320}}).ok());
   expect(message->set_extension(protobuf_unittest::repeated_lazy_message_extension(), {{.bb = 227}, {.bb = 327}}).ok());
 
@@ -958,7 +960,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
          std::vector<protobuf_unittest::TestAllTypes::NestedMessage>{{.bb = 218}, {.bb = 318}});
 
   expect(message.get_extension(protobuf_unittest::repeated_foreign_message_extension()).value() ==
-         std::vector<protobuf_unittest::ForeignMessage>{{.c = 219, .d={}}, {.c = 319, .d={}}});
+         std::vector<protobuf_unittest::ForeignMessage>{{.c = 219, .d = {}}, {.c = 319, .d = {}}});
 
   expect(message.get_extension(protobuf_unittest::repeated_import_message_extension()).value() ==
          std::vector<protobuf_unittest_import::ImportMessage>{{.d = 220}, {.d = 320}});

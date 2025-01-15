@@ -686,7 +686,7 @@ inline void SetAll(protobuf_unittest::TestAllExtensionsLite *message) {
              .ok());
   expect(message
              ->set_extension(protobuf_unittest::repeated_lazy_message_extension_lite(),
-                             {{.bb = 227, .cc={}, .dd={}}, {.bb = 327, .cc = {}, .dd = {}}})
+                             {{.bb = 227, .cc = {}, .dd = {}}, {.bb = 327, .cc = {}, .dd = {}}})
              .ok());
 
   expect(message
@@ -748,7 +748,9 @@ inline void SetAll(protobuf_unittest::TestAllExtensionsLite *message) {
 
 inline void SetOneofFields(protobuf_unittest::TestAllExtensionsLite *message) {
   expect(message->set_extension(protobuf_unittest::oneof_uint32_extension_lite(), 601).ok());
-  expect(message->set_extension(protobuf_unittest::oneof_nested_message_extension_lite(), {.bb = 602, .cc={}, .dd={}}).ok());
+  expect(
+      message->set_extension(protobuf_unittest::oneof_nested_message_extension_lite(), {.bb = 602, .cc = {}, .dd = {}})
+          .ok());
   expect(message->set_extension(protobuf_unittest::oneof_string_extension_lite(), "603").ok());
   expect(message->set_extension(protobuf_unittest::oneof_bytes_extension_lite(), "604"_bytes).ok());
 }
@@ -867,7 +869,8 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensionsLite &message
          std::vector<protobuf_unittest::RepeatedGroup_extension_lite>{{.a = 217}, {.a = 317}});
 
   expect(message.get_extension(protobuf_unittest::repeated_nested_message_extension_lite()).value() ==
-         std::vector<protobuf_unittest::TestAllTypesLite::NestedMessage>{{.bb = 218, .cc = {}, .dd={}}, {.bb = 318, .cc = {}, .dd={}}});
+         std::vector<protobuf_unittest::TestAllTypesLite::NestedMessage>{{.bb = 218, .cc = {}, .dd = {}},
+                                                                         {.bb = 318, .cc = {}, .dd = {}}});
 
   expect(message.get_extension(protobuf_unittest::repeated_foreign_message_extension_lite()).value() ==
          std::vector<protobuf_unittest::ForeignMessageLite>{{.c = 219}, {.c = 319}});
@@ -876,7 +879,8 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensionsLite &message
          std::vector<protobuf_unittest_import::ImportMessageLite>{{.d = 220}, {.d = 320}});
 
   expect(message.get_extension(protobuf_unittest::repeated_lazy_message_extension_lite()).value() ==
-         std::vector<protobuf_unittest::TestAllTypesLite::NestedMessage>{{.bb = 227, .cc = {}, .dd={}}, {.bb = 327, .cc = {}, .dd={}}});
+         std::vector<protobuf_unittest::TestAllTypesLite::NestedMessage>{{.bb = 227, .cc = {}, .dd = {}},
+                                                                         {.bb = 327, .cc = {}, .dd = {}}});
 
   expect(
       message.get_extension(protobuf_unittest::repeated_nested_enum_extension_lite()).value() ==
