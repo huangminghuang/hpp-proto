@@ -1101,7 +1101,7 @@ public:
       uint64_t word = 0;
       std::memcpy(&word, begin, mask_length);
       auto mval = pext_u64(word, word_mask);
-      if (!parse_word(mval, word, std::make_index_sequence<1U << mask_length>())){
+      if (!parse_word(mval, word, std::make_index_sequence<1U << mask_length>())) {
         return nullptr;
       }
     }
