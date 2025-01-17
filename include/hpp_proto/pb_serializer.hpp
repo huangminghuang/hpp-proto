@@ -1003,7 +1003,6 @@ class sfvint_parser {
   uint64_t pt_val = 0;
 
 public:
-  bool has_error = false;
   explicit sfvint_parser(Result *data) : res(data) {}
 
   static consteval int calc_shift_bits(unsigned sign_bits) {
@@ -1066,12 +1065,14 @@ public:
   }
 
   template <uint64_t SignBits>
-  HPP_PROTO_INLINE void fixed_masked_parse(uint64_t word) {
+  HPP_PROTO_INLINE bool fixed_masked_parse(uint64_t word) {
     uint64_t extract_mask = calc_extract_mask(SignBits);
     if constexpr (std::countr_one(SignBits) < mask_length) {
+      if (shift_bits > max_effective_bits) {
+        return false;
+      }
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
       constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
-      has_error |= ((bytes_processed * 7 + shift_bits) > max_effective_bits);
       extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);
       output<SignBits, bytes_processed>(word, extract_mask);
       pt_val = 0;
@@ -1083,11 +1084,12 @@ public:
     }
 
     shift_bits += calc_shift_bits(SignBits);
+    return true;
   }
 
   template <std::size_t... I>
-  HPP_PROTO_INLINE void parse_word(uint64_t masked_bits, uint64_t word, std::index_sequence<I...>) {
-    (void)((masked_bits == I && (fixed_masked_parse<I>(word), true)) || ...);
+  HPP_PROTO_INLINE bool parse_word(uint64_t masked_bits, uint64_t word, std::index_sequence<I...>) {
+    return ((masked_bits == I && fixed_masked_parse<I>(word)) || ...);
   }
 
   auto parse_partial(concepts::contiguous_byte_range auto const &r) -> decltype(std::ranges::cdata(r)) {
@@ -1097,23 +1099,32 @@ public:
     end -= ((end - begin) % mask_length);
     for (; begin < end; begin += mask_length) {
       uint64_t word = 0;
-      std::memcpy(&word, begin, sizeof(word));
+      std::memcpy(&word, begin, mask_length);
       auto mval = pext_u64(word, word_mask);
-      parse_word(mval, word, std::make_index_sequence<1U << mask_length>());
+      if (!parse_word(mval, word, std::make_index_sequence<1U << mask_length>())){
+        return nullptr;
+      }
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return begin;
   }
 
   auto parse(concepts::contiguous_byte_range auto const &r) -> decltype(std::ranges::cdata(r)) {
-    auto begin = parse_partial(r);
     auto end = std::ranges::cend(r);
+    if (std::ranges::size(r) > 0 && std::bit_cast<int8_t>(*(end - 1)) < 0) {
+      return nullptr;
+    }
+    auto begin = parse_partial(r);
+    if (begin == nullptr || shift_bits >= std::min<int>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT)) {
+      return nullptr;
+    }
+
     ptrdiff_t bytes_left = end - begin;
     uint64_t word = 0;
     std::memcpy(&word, begin, bytes_left);
+
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
       pt_val |= ((word & 0x7fULL) << shift_bits);
-      has_error |= (shift_bits >= max_effective_bits);
       if ((word & 0x80ULL) != 0) {
         shift_bits += (CHAR_BIT - 1);
       } else {
@@ -1933,15 +1944,19 @@ struct pb_serializer {
         if constexpr (!contiguous) {
           while (bytes_count > region_size()) {
             auto saved_begin = current.begin();
-            current.advance_to(parser.parse_partial(current));
+            auto p = parser.parse_partial(current);
+            if (p == nullptr) [[unlikely]] {
+              return std::errc::bad_message;
+            }
+            current.advance_to(p);
             bytes_count -= static_cast<uint32_t>(current.begin() - saved_begin);
             maybe_advance_region();
           }
         }
-        auto data = current.consume(bytes_count);
-        data.advance_to(parser.parse(data));
-        if (data.size() != 0 || parser.has_error) [[unlikely]] {
-          return std::errc::bad_message;
+        if (bytes_count > 0) {
+          if (parser.parse(current.consume(bytes_count)) == nullptr) [[unlikely]] {
+            return std::errc::bad_message;
+          }
         }
         return {};
       }
@@ -1973,9 +1988,7 @@ struct pb_serializer {
           if (auto result = parse_varints_in_region(data, it); !result.ok()) [[unlikely]] {
             return result;
           }
-          if (bytes_count > 0) {
-            maybe_advance_region();
-          }
+          maybe_advance_region();
         }
       }
 
