@@ -37,7 +37,7 @@ struct timestamp_codec {
     if constexpr (Len == 9) {
       const int hi = val / 100000000;
       assert(hi < 10);
-      *buf++ = '0' + static_cast<uint8_t>(hi);
+      *buf++ = static_cast<char>('0' + static_cast<uint8_t>(hi));
       buf = glz::to_chars_u64_len_8(buf, uint32_t(val % 100000000));
     } else if constexpr (Len == 4) {
       buf = glz::to_chars_u64_len_4(buf, uint32_t(val));

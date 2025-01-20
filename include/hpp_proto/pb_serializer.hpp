@@ -258,8 +258,7 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
   auto value = std::make_unsigned_t<typename VarintType::encode_type>(item.value);
 
   if constexpr (varint_encoding::zig_zag == decltype(item)::encoding) {
-    // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    value = (value << 1U) ^ (value >> (sizeof(value) * CHAR_BIT - 1U));
+    value = (value << 1U) ^ static_cast<decltype(value)>(item.value >> (sizeof(value) * CHAR_BIT - 1U));
   }
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
