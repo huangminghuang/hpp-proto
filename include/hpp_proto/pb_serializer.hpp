@@ -1698,10 +1698,10 @@ struct pb_serializer {
   constexpr static std::size_t patch_buffer_size = 2 * slope_size;
 
   template <typename Byte>
-  struct input_buffer_region_base : input_span<Byte> {
+  struct input_buffer_region : input_span<Byte> {
     const Byte *_slope_begin = nullptr;
-    constexpr input_buffer_region_base() = default;
-    constexpr input_buffer_region_base(input_span<Byte> range, const Byte *s)
+    constexpr input_buffer_region() = default;
+    constexpr input_buffer_region(input_span<Byte> range, const Byte *s)
         : input_span<Byte>{range}, _slope_begin(s) {}
 
     [[nodiscard]] constexpr std::ptrdiff_t slope_distance() const { return this->_begin - _slope_begin; }
@@ -1725,11 +1725,7 @@ struct pb_serializer {
       }
     }
   };
-  template <typename Byte>
-  struct input_buffer_region : input_buffer_region_base<Byte> {
-    [[nodiscard]] constexpr std::ptrdiff_t effective_size() const { return this->slope_begin - this->_begin; }
-  };
-
+  
   ///
   /// We adopt the same optimization technique as
   /// [EpsCopyInputStream](https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/parse_context.h)
@@ -1743,7 +1739,7 @@ struct pb_serializer {
   template <typename Byte, typename Context, bool Contiguous>
   struct basic_in {
     using byte_type = Byte;
-    input_buffer_region_base<Byte> current;
+    input_buffer_region<Byte> current;
     input_span<input_buffer_region<Byte>> rest;
     ptrdiff_t size_exclude_current = 0; // the remaining size excluding those in current
     Context &context;                   // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
@@ -1798,7 +1794,7 @@ struct pb_serializer {
     }
     [[nodiscard]] constexpr const byte_type *data() const { return current.data(); }
 
-    constexpr basic_in(input_buffer_region_base<Byte> cur, const input_span<input_buffer_region<Byte>> &rest,
+    constexpr basic_in(input_buffer_region<Byte> cur, const input_span<input_buffer_region<Byte>> &rest,
                        ptrdiff_t size_exclude_current, Context &ctx)
         : current(cur), rest(rest), size_exclude_current(size_exclude_current), context(ctx) {}
 
@@ -1991,7 +1987,7 @@ struct pb_serializer {
 
     constexpr status skip_varint() {
       // varint must terminated in 10 bytes
-      auto last = current.begin() + 10;
+      auto last = std::min(current.begin() + 10, current.end());
       const auto *pos = std::find_if(current.begin(), last, [](auto v) { return static_cast<int8_t>(v) >= 0; });
       if (pos == last) [[unlikely]] {
         return std::errc::bad_message;
@@ -2038,7 +2034,7 @@ struct pb_serializer {
       }
 
       return basic_in<byte_type, Context, contiguous>{
-          input_buffer_region_base<Byte>{current.consume(length), current._slope_begin}, rest, new_size_exclude_current,
+          input_buffer_region<Byte>{current.consume(length), current._slope_begin}, rest, new_size_exclude_current,
           context};
     }
 
@@ -2097,9 +2093,12 @@ struct pb_serializer {
 
     // Given the fact that the next n bytes are all variable length integers,
     // find the number of integers in the range.
-    constexpr std::optional<std::size_t> number_of_varints(uint32_t num_bytes) {
-      if (region_size() >= static_cast<int64_t>(num_bytes)) [[likely]] {
-        if (num_bytes > 0 && std::bit_cast<int8_t>(current[num_bytes - 1]) < 0) [[unlikely]] {
+    constexpr std::optional<std::size_t> number_of_varints(std::uint32_t bytes_count) {
+      std::ptrdiff_t num_bytes = bytes_count;
+      if (num_bytes == 0) {
+        return 0;
+      } else if (region_size() >= num_bytes) [[likely]] {
+        if (std::bit_cast<int8_t>(current[num_bytes - 1]) < 0) [[unlikely]] {
           // if the last element is unterminated, just return empty to indicate error
           return {};
         }
@@ -2131,9 +2130,11 @@ struct pb_serializer {
     constexpr uint32_t read_tag() {
       maybe_advance_region();
       int64_t res; // NOLINT(cppcoreguidelines-init-variables)
-      auto p = shift_mix_parse_varint<uint32_t, 4>(current, res);
-      current.advance_to(p);
-      return static_cast<uint32_t>(p != nullptr ? res : 0);
+      if (auto p = shift_mix_parse_varint<uint32_t, 4>(current, res); p!= nullptr){
+        current.advance_to(p);
+        return res;
+      }
+      return 0;
     }
   };
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
