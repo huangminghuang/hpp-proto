@@ -33,7 +33,7 @@ if(MSVC)
     set(HPP_PROTO_DISABLE_GLAZE ON)
   endif()
 else()
-  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
+  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra" "-Werror=sign-conversion")
 endif()
 
 if(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")

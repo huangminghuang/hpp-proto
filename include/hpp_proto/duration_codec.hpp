@@ -40,7 +40,7 @@ struct duration_codec {
     assert(b.size() >= max_encode_size(value));
 
     auto *buf = std::data(b);
-    auto ix = std::distance(buf, glz::to_chars(buf, value.seconds));
+    std::size_t ix = static_cast<std::size_t>(std::distance(buf, glz::to_chars(buf, value.seconds)));
 
     if (value.nanos != 0) {
       int32_t nanos = std::abs(value.nanos);
@@ -51,7 +51,7 @@ struct duration_codec {
       ix += 8;
     }
     glz::detail::dump_unchecked<'s'>(b, ix);
-    return ix;
+    return static_cast<int64_t>(ix);
   }
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)

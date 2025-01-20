@@ -119,9 +119,11 @@ struct timestamp_codec {
     }
 
     using namespace std::chrono;
-    value.seconds = (sys_days(year_month_day(year(yy), month(mm), day(dd))) + hours(hh) + minutes(mn) + seconds(ss))
-                        .time_since_epoch()
-                        .count();
+    value.seconds =
+        (sys_days(year_month_day(year(yy), month(static_cast<unsigned>(mm)), day(static_cast<unsigned>(dd)))) +
+         hours(hh) + minutes(mn) + seconds(ss))
+            .time_since_epoch()
+            .count();
 
     if (cur == end) {
       return true;

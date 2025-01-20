@@ -340,7 +340,7 @@ struct to_json<T> {
       }
       return;
     }
-    ix += bytes_written;
+    ix += static_cast<std::size_t>(bytes_written);
     dump_unchecked<'"'>(b, ix);
   }
 };

@@ -187,7 +187,7 @@ class dynamic_serializer {
 
     template <typename FieldDescriptor, typename Pool>
     field_meta(FieldDescriptor *field_descriptor, const Pool &pool)
-        : number(field_descriptor->proto.number), name(field_descriptor->proto.name),
+        : number(static_cast<uint32_t>(field_descriptor->proto.number)), name(field_descriptor->proto.name),
           json_name(field_descriptor->proto.json_name), type(field_descriptor->proto.type),
           default_value(field_descriptor->proto.default_value) {
       auto &proto = field_descriptor->proto;
@@ -241,7 +241,7 @@ class dynamic_serializer {
     if (it == message_names.end() || *it != name) {
       return message_names.size();
     }
-    return it - message_names.begin();
+    return static_cast<std::size_t>(it - message_names.begin());
   }
 
   [[nodiscard]] std::size_t message_index_from_type_url(std::string_view type_url) const {
@@ -380,12 +380,12 @@ class dynamic_serializer {
         glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
 
-      vint64_t length = 0;
+      vuint32_t length = 0;
       if (auto ec = archive(length); !ec.ok()) [[unlikely]] {
         return ec;
       }
 
-      if (archive.in_avail() < length) {
+      if (archive.in_avail() < static_cast<std::ptrdiff_t>(length)) {
         [[unlikely]] return std::errc::bad_message;
       }
 
@@ -445,7 +445,7 @@ class dynamic_serializer {
       if (old_pos != 0) {
         auto it = b.begin();
         // move the newly decoded element to the end of previous element
-        std::rotate(it + old_pos, it + start_pos, it + ix);
+        std::rotate(it + static_cast<std::ptrdiff_t>(old_pos), it + static_cast<std::ptrdiff_t>(start_pos), it + static_cast<std::ptrdiff_t>(ix));
         unpacked_repeated_positions[field_index] = old_pos + (ix - start_pos);
       } else {
         unpacked_repeated_positions[field_index] = ix;
@@ -492,8 +492,8 @@ class dynamic_serializer {
       case TYPE_GROUP:
         return group_to_json<Options>(meta.type_index, meta.number, archive);
       case TYPE_MESSAGE: {
-        vint64_t length = 0;
-        if (!archive(length).ok() || archive.in_avail() < length) [[unlikely]] {
+        vuint32_t length = 0;
+        if (!archive(length).ok() || archive.in_avail() < static_cast<std::ptrdiff_t>(length)) [[unlikely]] {
           return std::errc::bad_message;
         }
 
@@ -1531,7 +1531,7 @@ public:
 
     std::sort(tmp.begin(), it);
     auto last = std::unique(tmp.begin(), tmp.end());
-    std::size_t size = last - tmp.begin();
+    std::size_t size = static_cast<std::size_t>(last - tmp.begin());
 
     google::protobuf::FileDescriptorSet fileset;
     fileset.file.resize(size);

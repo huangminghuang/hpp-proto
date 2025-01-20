@@ -200,7 +200,7 @@ std::string basename(const std::string &name) {
 }
 
 std::size_t shared_scope_position(std::string_view s1, std::string_view s2) {
-  std::size_t pos = std::ranges::mismatch(s1, s2).in1 - s1.begin();
+  std::size_t pos = static_cast<std::size_t>(std::ranges::mismatch(s1, s2).in1 - s1.begin());
   if (pos == s1.size() && pos == s2.size()) {
     return pos;
   }
@@ -230,7 +230,7 @@ std::array<char, 4> to_hex_literal(hpp::proto::concepts::byte_type auto c) {
 std::string to_hex_literal(hpp::proto::concepts::contiguous_byte_range auto const &data) {
   std::string result;
   result.resize(data.size() * 4);
-  int index = 0;
+  std::size_t index = 0;
   for (auto b : data) {
     std::ranges::copy(to_hex_literal(b), &result[index]);
     index += 4;
@@ -478,7 +478,7 @@ struct hpp_addons {
       f.parent = this;
       fields.push_back(&f);
       if (f.proto.oneof_index.has_value()) {
-        oneofs[*f.proto.oneof_index]->fields.push_back(&f);
+        oneofs[static_cast<std::size_t>(*f.proto.oneof_index)]->fields.push_back(&f);
       }
     }
     void add_enum(EnumD &e) { enums.push_back(&e); }
@@ -1011,7 +1011,7 @@ struct msg_code_generator : code_generator {
       if (!f->proto.oneof_index.has_value()) {
         process(*f);
       } else {
-        auto index = *f->proto.oneof_index;
+        std::size_t index = static_cast<std::size_t>(*f->proto.oneof_index);
         process(*(descriptor.oneofs[index]), f->proto.number);
       }
     }
@@ -1188,7 +1188,7 @@ struct hpp_meta_generator : code_generator {
       if (!f->proto.oneof_index.has_value()) {
         process(*f, qualified_cpp_name, 0UL);
       } else {
-        auto index = *f->proto.oneof_index;
+        std::size_t index = static_cast<std::size_t>(*f->proto.oneof_index);
         auto &oneof = *(descriptor.oneofs[index]);
         if (oneof.fields[0]->proto.number == f->proto.number) {
           process(oneof, qualified_cpp_name, pb_name);
@@ -1546,7 +1546,7 @@ struct glaze_meta_generator : code_generator {
         if (!f->proto.oneof_index.has_value()) {
           process(*f);
         } else {
-          auto index = *f->proto.oneof_index;
+          std::size_t index = static_cast<std::size_t>(*f->proto.oneof_index);
           auto &oneof = *(descriptor.oneofs[index]);
           if (oneof.fields[0]->proto.number == f->proto.number) {
             process(oneof);

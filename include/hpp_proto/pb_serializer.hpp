@@ -89,7 +89,7 @@ constexpr auto varint_size(auto value) {
     // NOLINTNEXTLINE(hicpp-signed-bitwise)
     return varint_size(std::make_unsigned_t<decltype(value)>((value << 1) ^ (value >> (sizeof(value) * CHAR_BIT - 1))));
   } else {
-    return ((sizeof(value) * CHAR_BIT) - std::countl_zero(std::make_unsigned_t<decltype(value)>(value) | 1U) +
+    return ((sizeof(value) * CHAR_BIT) - static_cast<unsigned>(std::countl_zero(std::make_unsigned_t<decltype(value)>(value) | 1U)) +
             (CHAR_BIT - 2)) /
            (CHAR_BIT - 1);
   }
@@ -258,7 +258,7 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 
   if constexpr (varint_encoding::zig_zag == decltype(item)::encoding) {
     // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    value = (value << 1U) ^ (item.value >> (sizeof(value) * CHAR_BIT - 1));
+    value = (value << 1U) ^ (value >> (sizeof(value) * CHAR_BIT - 1U));
   }
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -1167,7 +1167,7 @@ struct pb_serializer {
 
     HPP_PROTO_INLINE constexpr void serialize(concepts::varint auto item) {
       auto p = unchecked_pack_varint(item, _data.data());
-      _data = _data.subspan(std::distance(_data.data(), p));
+      _data = _data.subspan(static_cast<std::size_t>(std::distance(_data.data(), p)));
     }
 
     template <std::ranges::contiguous_range T>
@@ -1666,7 +1666,7 @@ struct pb_serializer {
     constexpr input_span(const value_type *b, const value_type *e) : _begin(b), _end(e) {}
     constexpr input_span(const value_type *b, std::size_t n) : _begin(b), _end(b + n) {}
     [[nodiscard]] constexpr const value_type *data() const { return _begin; }
-    [[nodiscard]] constexpr std::size_t size() const { return _end - _begin; }
+    [[nodiscard]] constexpr std::size_t size() const { return static_cast<std::size_t>(_end - _begin); }
     [[nodiscard]] constexpr bool empty() const { return _begin == _end; }
 
     [[nodiscard]] constexpr const value_type *begin() const { return _begin; }
@@ -1760,7 +1760,7 @@ struct pb_serializer {
       std::ptrdiff_t offset = 0;
       while ((offset = current.slope_distance()) > 0 && !rest.empty()) {
         set_current_region(rest.next());
-        current.consume(offset);
+        current.consume(static_cast<std::size_t>(offset));
       }
     }
 
@@ -1783,7 +1783,7 @@ struct pb_serializer {
   public:
     using is_basic_in = void;
     constexpr static bool contiguous = Contiguous;
-    [[nodiscard]] constexpr ptrdiff_t region_size() const { return current.size(); }
+    [[nodiscard]] constexpr ptrdiff_t region_size() const { return current._end-current._begin; }
     [[nodiscard]] constexpr ptrdiff_t in_avail() const {
       if constexpr (contiguous) {
         return region_size();
@@ -1886,13 +1886,14 @@ struct pb_serializer {
     template <typename T>
     constexpr status deserialize_packed(std::ptrdiff_t n, T &item) {
       using value_type = typename T::value_type;
-      if (in_avail() < static_cast<std::ptrdiff_t>(n * sizeof(value_type))) [[unlikely]] {
+      std::size_t nbytes = static_cast<std::size_t>(n) * sizeof(value_type);
+      if (in_avail() < static_cast<std::ptrdiff_t>(nbytes)) [[unlikely]] {
         return std::errc::bad_message;
       }
 
-      item.reserve(n);
+      item.reserve(static_cast<std::size_t>(n));
       if constexpr (contiguous) {
-        append_raw_data(item, current.consume(n * sizeof(value_type)));
+        append_raw_data(item, current.consume(nbytes));
       } else {
         while (n > 0) {
           maybe_advance_region();
@@ -2014,9 +2015,9 @@ struct pb_serializer {
     // split the object at the specified length;
     // return the first half and set the current
     // object as the second half.
-    constexpr auto split(ptrdiff_t length) {
-      assert(in_avail() >= length);
-      auto new_slope_distance = current.slope_distance() + length;
+    constexpr auto split(std::size_t length) {
+      assert(in_avail() >= static_cast<std::ptrdiff_t>(length));
+      auto new_slope_distance = current.slope_distance() + static_cast<std::ptrdiff_t>(length);
       std::ptrdiff_t new_size_exclude_current = 0;
       if constexpr (contiguous) {
         if (new_slope_distance > 0) {
@@ -2079,13 +2080,13 @@ struct pb_serializer {
         uint64_t v = 0;
         auto bytes = data.consume(sizeof(v));
         std::memcpy(&v, bytes.data(), sizeof(v));
-        result += popcount(~v & 0x8080808080808080ULL);
+        result += static_cast<std::size_t>(popcount(~v & 0x8080808080808080ULL));
       }
 
       if (remaining.size()) {
         uint64_t v = UINT64_MAX;
         std::memcpy(&v, remaining.data(), remaining.size());
-        result += popcount(~v & 0x8080808080808080ULL);
+        result += static_cast<std::size_t>(popcount(~v & 0x8080808080808080ULL));
       }
       return result;
     }
@@ -2097,11 +2098,11 @@ struct pb_serializer {
       if (num_bytes == 0) {
         return 0;
       } else if (region_size() >= num_bytes) [[likely]] {
-        if (std::bit_cast<int8_t>(current[num_bytes - 1]) < 0) [[unlikely]] {
+        if (std::bit_cast<int8_t>(current[bytes_count - 1]) < 0) [[unlikely]] {
           // if the last element is unterminated, just return empty to indicate error
           return {};
         }
-        return count_number_of_varints_in_region(num_bytes);
+        return count_number_of_varints_in_region(bytes_count);
       } else if (num_bytes <= in_avail()) {
         if constexpr (!contiguous) {
           basic_in archive(*this);
@@ -2148,7 +2149,7 @@ struct pb_serializer {
     using fields_type = std::remove_cvref_t<decltype(item.extensions.fields)>;
     using bytes_type = typename fields_type::value_type::second_type;
     using byte_type = std::remove_const_t<typename bytes_type::value_type>;
-    std::size_t field_len = unwound_archive.in_avail() - archive.in_avail();
+    std::size_t field_len = static_cast<std::size_t>(unwound_archive.in_avail() - archive.in_avail());
     auto field_archive = unwound_archive.split(field_len);
 
     const uint32_t field_num = tag_number(tag);
@@ -2311,7 +2312,7 @@ struct pb_serializer {
 
         if constexpr (concepts::byte_serializable<encode_type>) {
           v.resize(0);
-          return archive.deserialize_packed(size, v);
+          return archive.deserialize_packed(static_cast<std::ptrdiff_t>(size), v);
         } else if constexpr (std::is_enum_v<encode_type>) {
           return archive.template deserialize_packed_varint<vint64_t>(byte_count, size, v);
         } else {
@@ -2548,7 +2549,7 @@ struct pb_serializer {
   }
 
   template <std::size_t Index, concepts::tuple Meta>
-  constexpr static status deserialize_oneof(int32_t tag, auto &&item, concepts::is_basic_in auto &archive) {
+  constexpr static status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic_in auto &archive) {
     if constexpr (Index < std::tuple_size_v<Meta>) {
       using meta = typename std::tuple_element<Index, Meta>::type;
       if (meta::number == tag_number(tag)) {
