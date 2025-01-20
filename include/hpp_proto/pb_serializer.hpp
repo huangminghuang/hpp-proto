@@ -1045,8 +1045,9 @@ public:
   }
 
   HPP_PROTO_INLINE void output(uint64_t v) {
-    // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    auto r = (varint_encoding::zig_zag == T::encoding) ? (v >> 1U) ^ -static_cast<int64_t>(v & 1U) : v;
+    auto r = (varint_encoding::zig_zag == T::encoding)
+                 ? (v >> 1U) ^ static_cast<uint64_t>(-static_cast<int64_t>(v & 1U))
+                 : v;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     *res++ = static_cast<Result>(r);
   }

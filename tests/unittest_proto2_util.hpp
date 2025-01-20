@@ -207,7 +207,7 @@ inline void ModifyRepeatedFields(protobuf_unittest::TestAllTypes *message) {
 
 // ------------------------------------------------------------------
 inline void SetOneofFields(protobuf_unittest::TestAllTypes *message) {
-  message->oneof_field = 601U;
+  message->oneof_field.emplace<1>(601U);
   using enum protobuf_unittest::TestAllTypes::oneof_field_oneof_case;
   message->oneof_field.emplace<static_cast<int>(oneof_nested_message)>(
       protobuf_unittest::TestAllTypes::NestedMessage{.bb = 602});
