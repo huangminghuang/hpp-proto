@@ -723,14 +723,14 @@ struct map_entry {
     typename serialize_type<KeyType>::type key = {};
     typename serialize_type<MappedType>::type value = {};
     constexpr static bool allow_inline_visit_members_lambda = true;
-#if defined(__GNUC__) 
+#if defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
     using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence | KeyOptions>,
                                field_meta<2, &mutable_type::value, field_option::explicit_presence | MappedOptions>>;
-#if defined(__GNUC__) 
-#pragma GCC diagnostic pop 
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
 #endif
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -767,14 +767,14 @@ struct map_entry {
     struct value_accessor {
       constexpr const auto &operator()(const read_only_type &entry) const { return entry.value; }
     };
-#if defined(__GNUC__) 
+#if defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
     using pb_meta = std::tuple<field_meta<1, key_accessor{}, field_option::explicit_presence | KeyOptions>,
                                field_meta<2, value_accessor{}, field_option::explicit_presence | MappedOptions>>;
-#if defined(__GNUC__) 
-#pragma GCC diagnostic pop 
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
 #endif
   };
 };
@@ -1938,7 +1938,8 @@ struct pb_serializer {
 #endif // x64
 
     template <concepts::varint T, typename Item>
-    constexpr status deserialize_packed_varint([[maybe_unused]] std::uint32_t bytes_count, std::size_t size, Item &item) {
+    constexpr status deserialize_packed_varint([[maybe_unused]] std::uint32_t bytes_count, std::size_t size,
+                                               Item &item) {
       using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
