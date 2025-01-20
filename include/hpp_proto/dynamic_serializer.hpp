@@ -445,7 +445,8 @@ class dynamic_serializer {
       if (old_pos != 0) {
         auto it = b.begin();
         // move the newly decoded element to the end of previous element
-        std::rotate(it + static_cast<std::ptrdiff_t>(old_pos), it + static_cast<std::ptrdiff_t>(start_pos), it + static_cast<std::ptrdiff_t>(ix));
+        std::rotate(it + static_cast<std::ptrdiff_t>(old_pos), it + static_cast<std::ptrdiff_t>(start_pos),
+                    it + static_cast<std::ptrdiff_t>(ix));
         unpacked_repeated_positions[field_index] = old_pos + (ix - start_pos);
       } else {
         unpacked_repeated_positions[field_index] = ix;

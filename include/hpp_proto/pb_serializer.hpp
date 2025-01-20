@@ -89,7 +89,8 @@ constexpr auto varint_size(auto value) {
     // NOLINTNEXTLINE(hicpp-signed-bitwise)
     return varint_size(std::make_unsigned_t<decltype(value)>((value << 1) ^ (value >> (sizeof(value) * CHAR_BIT - 1))));
   } else {
-    return ((sizeof(value) * CHAR_BIT) - static_cast<unsigned>(std::countl_zero(std::make_unsigned_t<decltype(value)>(value) | 1U)) +
+    return ((sizeof(value) * CHAR_BIT) -
+            static_cast<unsigned>(std::countl_zero(std::make_unsigned_t<decltype(value)>(value) | 1U)) +
             (CHAR_BIT - 2)) /
            (CHAR_BIT - 1);
   }
@@ -1783,7 +1784,7 @@ struct pb_serializer {
   public:
     using is_basic_in = void;
     constexpr static bool contiguous = Contiguous;
-    [[nodiscard]] constexpr ptrdiff_t region_size() const { return current._end-current._begin; }
+    [[nodiscard]] constexpr ptrdiff_t region_size() const { return current._end - current._begin; }
     [[nodiscard]] constexpr ptrdiff_t in_avail() const {
       if constexpr (contiguous) {
         return region_size();
