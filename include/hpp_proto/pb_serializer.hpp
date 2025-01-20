@@ -2126,12 +2126,12 @@ struct pb_serializer {
       return {};
     }
 
-    constexpr uint32_t read_tag() {
+    constexpr std::uint32_t read_tag() {
       maybe_advance_region();
-      int64_t res; // NOLINT(cppcoreguidelines-init-variables)
-      if (auto p = shift_mix_parse_varint<uint32_t, 4>(current, res); p != nullptr) {
+      std::int64_t res; // NOLINT(cppcoreguidelines-init-variables)
+      if (auto p = shift_mix_parse_varint<std::uint32_t, 4>(current, res); p != nullptr) {
         current.advance_to(p);
-        return res;
+        return static_cast<std::uint32_t>(res);
       }
       return 0;
     }
