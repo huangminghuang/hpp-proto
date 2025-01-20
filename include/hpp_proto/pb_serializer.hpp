@@ -1115,7 +1115,7 @@ public:
       return nullptr;
     }
     auto begin = parse_partial(r);
-    if (begin == nullptr || shift_bits >= std::min<int>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT)) {
+    if (begin == nullptr || shift_bits >= std::min<unsigned>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT)) {
       return nullptr;
     }
 
