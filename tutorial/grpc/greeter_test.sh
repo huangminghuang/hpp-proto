@@ -20,7 +20,7 @@ echo "Using port: $port"
 # Start the greeter_server in the background
 ./greeter_server localhost:$port &
 server_pid=$!
-
+sleep 1
 # Run the greeter_client
 ./greeter_client localhost:$port
 

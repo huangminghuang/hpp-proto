@@ -723,9 +723,15 @@ struct map_entry {
     typename serialize_type<KeyType>::type key = {};
     typename serialize_type<MappedType>::type value = {};
     constexpr static bool allow_inline_visit_members_lambda = true;
+#if defined(__GNUC__) 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif
     using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence | KeyOptions>,
                                field_meta<2, &mutable_type::value, field_option::explicit_presence | MappedOptions>>;
-
+#if defined(__GNUC__) 
+#pragma GCC diagnostic pop 
+#endif
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4244)
@@ -761,9 +767,15 @@ struct map_entry {
     struct value_accessor {
       constexpr const auto &operator()(const read_only_type &entry) const { return entry.value; }
     };
-
+#if defined(__GNUC__) 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif
     using pb_meta = std::tuple<field_meta<1, key_accessor{}, field_option::explicit_presence | KeyOptions>,
                                field_meta<2, value_accessor{}, field_option::explicit_presence | MappedOptions>>;
+#if defined(__GNUC__) 
+#pragma GCC diagnostic pop 
+#endif
   };
 };
 
@@ -1006,9 +1018,9 @@ class sfvint_parser {
 public:
   explicit sfvint_parser(Result *data) : res(data) {}
 
-  static consteval int calc_shift_bits(unsigned sign_bits) {
+  static consteval unsigned calc_shift_bits(unsigned sign_bits) {
     unsigned mask = 1U << (mask_length - 1);
-    int result = 0;
+    unsigned result = 0;
     for (; mask != 0 && static_cast<bool>(sign_bits & mask); mask >>= 1U) {
       result += 1;
     }
@@ -1120,9 +1132,9 @@ public:
       return nullptr;
     }
 
-    ptrdiff_t bytes_left = end - begin;
+    std::ptrdiff_t bytes_left = end - begin;
     uint64_t word = 0;
-    std::memcpy(&word, begin, bytes_left);
+    std::memcpy(&word, begin, static_cast<std::size_t>(bytes_left));
 
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
       pt_val |= ((word & 0x7fULL) << shift_bits);
@@ -1811,7 +1823,7 @@ struct pb_serializer {
         if (!first_segment && segment_size == 0) {
           continue;
         }
-        size_exclude_current += segment_size;
+        size_exclude_current += static_cast<std::ptrdiff_t>(segment_size);
         if (segment_size <= slope_size) {
           auto &seg_region = regions[region_index];
           if (first_segment) {
@@ -1926,7 +1938,7 @@ struct pb_serializer {
 #endif // x64
 
     template <concepts::varint T, typename Item>
-    constexpr status deserialize_packed_varint([[maybe_unused]] uint32_t bytes_count, std::size_t size, Item &item) {
+    constexpr status deserialize_packed_varint([[maybe_unused]] std::uint32_t bytes_count, std::size_t size, Item &item) {
       using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
@@ -1940,7 +1952,7 @@ struct pb_serializer {
               return std::errc::bad_message;
             }
             current.advance_to(p);
-            bytes_count -= static_cast<uint32_t>(current.begin() - saved_begin);
+            bytes_count -= static_cast<std::uint32_t>(current.begin() - saved_begin);
             maybe_advance_region();
           }
         }
@@ -1976,7 +1988,7 @@ struct pb_serializer {
           if (data.empty()) [[unlikely]] {
             return std::errc::bad_message;
           }
-          bytes_count -= data.size();
+          bytes_count -= static_cast<std::uint32_t>(data.size());
           if (auto result = parse_varints_in_region(data, it); !result.ok()) [[unlikely]] {
             return result;
           }
