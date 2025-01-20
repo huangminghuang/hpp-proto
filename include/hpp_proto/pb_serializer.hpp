@@ -1701,8 +1701,7 @@ struct pb_serializer {
   struct input_buffer_region : input_span<Byte> {
     const Byte *_slope_begin = nullptr;
     constexpr input_buffer_region() = default;
-    constexpr input_buffer_region(input_span<Byte> range, const Byte *s)
-        : input_span<Byte>{range}, _slope_begin(s) {}
+    constexpr input_buffer_region(input_span<Byte> range, const Byte *s) : input_span<Byte>{range}, _slope_begin(s) {}
 
     [[nodiscard]] constexpr std::ptrdiff_t slope_distance() const { return this->_begin - _slope_begin; }
     [[nodiscard]] constexpr bool has_next_region() const { return this->_end > _slope_begin; }
@@ -1725,7 +1724,7 @@ struct pb_serializer {
       }
     }
   };
-  
+
   ///
   /// We adopt the same optimization technique as
   /// [EpsCopyInputStream](https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/parse_context.h)
@@ -2130,7 +2129,7 @@ struct pb_serializer {
     constexpr uint32_t read_tag() {
       maybe_advance_region();
       int64_t res; // NOLINT(cppcoreguidelines-init-variables)
-      if (auto p = shift_mix_parse_varint<uint32_t, 4>(current, res); p!= nullptr){
+      if (auto p = shift_mix_parse_varint<uint32_t, 4>(current, res); p != nullptr) {
         current.advance_to(p);
         return res;
       }
