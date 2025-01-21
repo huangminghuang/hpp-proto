@@ -257,7 +257,7 @@ template <concepts::varint VarintType, concepts::byte_type Byte>
 constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
   auto value = std::make_unsigned_t<typename VarintType::encode_type>(item.value);
   if constexpr (varint_encoding::zig_zag == decltype(item)::encoding) {
-    //NOLINTNEXTLINE(hicpp-signed-bitwise)
+    // NOLINTNEXTLINE(hicpp-signed-bitwise)
     value = (value << 1U) ^ static_cast<decltype(value)>(item.value >> (sizeof(value) * CHAR_BIT - 1U));
   }
 
@@ -2001,7 +2001,7 @@ struct pb_serializer {
 
     constexpr status skip_varint() {
       // varint must terminated in 10 bytes
-      const auto* last = std::min(current.begin() + 10, current.end());
+      const auto *last = std::min(current.begin() + 10, current.end());
       const auto *pos = std::find_if(current.begin(), last, [](auto v) { return static_cast<int8_t>(v) >= 0; });
       if (pos == last) [[unlikely]] {
         return std::errc::bad_message;
