@@ -1064,7 +1064,7 @@ auto pb_meta(const non_owning_repeated_string &)
 using namespace std::literals;
 
 const ut::suite test_repeated_strings = [] {
-  "invaliad_repeated_strings"_test = [] {
+  "invalid_repeated_strings"_test = [] {
     repeated_strings value;
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\x61\x62"sv).ok());
   };

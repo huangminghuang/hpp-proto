@@ -256,8 +256,8 @@ concept input_byte_range = segmented_byte_range<Range> || contiguous_byte_range<
 template <concepts::varint VarintType, concepts::byte_type Byte>
 constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
   auto value = std::make_unsigned_t<typename VarintType::encode_type>(item.value);
-
   if constexpr (varint_encoding::zig_zag == decltype(item)::encoding) {
+    //NOLINTNEXTLINE(hicpp-signed-bitwise)
     value = (value << 1U) ^ static_cast<decltype(value)>(item.value >> (sizeof(value) * CHAR_BIT - 1U));
   }
 
@@ -2001,7 +2001,7 @@ struct pb_serializer {
 
     constexpr status skip_varint() {
       // varint must terminated in 10 bytes
-      auto last = std::min(current.begin() + 10, current.end());
+      const auto* last = std::min(current.begin() + 10, current.end());
       const auto *pos = std::find_if(current.begin(), last, [](auto v) { return static_cast<int8_t>(v) >= 0; });
       if (pos == last) [[unlikely]] {
         return std::errc::bad_message;
@@ -2163,7 +2163,7 @@ struct pb_serializer {
     using fields_type = std::remove_cvref_t<decltype(item.extensions.fields)>;
     using bytes_type = typename fields_type::value_type::second_type;
     using byte_type = std::remove_const_t<typename bytes_type::value_type>;
-    std::size_t field_len = static_cast<std::size_t>(unwound_archive.in_avail() - archive.in_avail());
+    auto field_len = static_cast<std::size_t>(unwound_archive.in_avail() - archive.in_avail());
     auto field_archive = unwound_archive.split(field_len);
 
     const uint32_t field_num = tag_number(tag);
