@@ -1,13 +1,12 @@
+#include <fstream>
 #include <fuzzer/FuzzedDataProvider.h>
 #include <hpp_proto/dynamic_serializer.hpp>
-#include <fstream>
 
 using namespace std::string_view_literals;
 
 std::array messages_names = {"proto3_unittest.TestAllTypes"sv,      "proto3_unittest.TestUnpackedTypes"sv,
                              "protobuf_unittest.TestAllTypes"sv,    "protobuf_unittest.TestMap"sv,
                              "protobuf_unittest.TestPackedTypes"sv, "protobuf_unittest.TestUnpackedTypes"sv};
-
 
 inline std::string read_file(const std::string &filename) {
   std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
@@ -20,11 +19,11 @@ inline std::string read_file(const std::string &filename) {
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-    auto descriptors = read_file("../tests/unittest.desc.binpb");
-    auto ser = hpp::proto::dynamic_serializer::make(descriptors);
+  auto descriptors = read_file("../tests/unittest.desc.binpb");
+  auto ser = hpp::proto::dynamic_serializer::make(descriptors);
 
-    FuzzedDataProvider fdp(data, size);
-    auto message_name = messages_names[fdp.ConsumeIntegralInRange<unsigned>(0, messages_names.size() - 1)];
-    auto status = ser->proto_to_json(message_name, fdp.ConsumeRemainingBytes<char>());
-    return status.has_value() ? 0 : 1;
+  FuzzedDataProvider fdp(data, size);
+  auto message_name = messages_names[fdp.ConsumeIntegralInRange<unsigned>(0, messages_names.size() - 1)];
+  auto status = ser->proto_to_json(message_name, fdp.ConsumeRemainingBytes<char>());
+  return status.has_value() ? 0 : 1;
 }

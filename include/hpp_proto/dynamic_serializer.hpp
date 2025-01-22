@@ -301,7 +301,7 @@ class dynamic_serializer {
     }
 
     status skip_field(uint32_t number, wire_type field_wire_type, concepts::is_basic_in auto &archive) {
-      
+
       switch (field_wire_type) {
       case wire_type::varint: {
         vuint64_t length = 0;

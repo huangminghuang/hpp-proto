@@ -2,7 +2,6 @@
 #include <fuzzer/FuzzedDataProvider.h>
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
 
-
 inline std::string read_file(const char *filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
   std::string contents;
