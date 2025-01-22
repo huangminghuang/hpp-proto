@@ -279,8 +279,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
-                                      int64_t &res1) -> decltype(std::ranges::cdata(input)) {
+constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input, int64_t &res1)
+    -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -413,8 +413,8 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
   return done2();
 }
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    bool &value) -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, bool &value)
+    -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -1761,12 +1761,12 @@ struct pb_serializer {
     constexpr void set_current_region(const input_buffer_region<Byte> &next_region) {
       current._begin = next_region._begin;
       current._end = next_region._end;
-      current._slope_begin = next_region._slope_begin;
       size_exclude_current += (next_region.slope_distance());
       if (size_exclude_current < 0) {
         current._end += size_exclude_current;
         size_exclude_current = 0;
       }
+      current._slope_begin = std::min(next_region._slope_begin, current._end);
     }
 
     constexpr void maybe_advance_region() {
@@ -1910,7 +1910,7 @@ struct pb_serializer {
       } else {
         while (n > 0) {
           maybe_advance_region();
-          auto k = std::min<std::size_t>(n, region_size() / sizeof(value_type));
+          auto k = std::min<std::ptrdiff_t>(n, region_size() / sizeof(value_type));
           append_raw_data(item, current.consume(k * sizeof(value_type)));
           n -= k;
         }
@@ -2037,6 +2037,10 @@ struct pb_serializer {
         if (new_slope_distance > 0) {
           new_size_exclude_current = new_slope_distance;
         }
+        auto new_slope_begin = std::min(current._begin + length, current._slope_begin);
+        return basic_in<byte_type, Context, contiguous>{
+            input_buffer_region<Byte>{current.consume(length), new_slope_begin}, rest, new_size_exclude_current,
+            context};
       } else {
         if (new_slope_distance > 0) {
           if (new_slope_distance <= static_cast<std::ptrdiff_t>(slope_size)) {
@@ -2045,16 +2049,18 @@ struct pb_serializer {
             new_size_exclude_current = size_exclude_current - new_slope_distance;
           }
         }
+        auto new_begin = current._begin;
+        auto new_end = std::min(current._end, current._begin + length);
+        auto new_slope_begin = std::min(new_end, current._slope_begin);
+        current.consume(length);
+        auto new_region = input_buffer_region<Byte>{{new_begin, new_end}, new_slope_begin};
+        return basic_in<byte_type, Context, contiguous>{new_region, rest, new_size_exclude_current, context};
       }
-
-      return basic_in<byte_type, Context, contiguous>{
-          input_buffer_region<Byte>{current.consume(length), current._slope_begin}, rest, new_size_exclude_current,
-          context};
     }
 
     template <concepts::non_owning_bytes T>
     constexpr status read_bytes(uint32_t length, T &item) {
-      assert(in_avail() >= static_cast<int32_t>(length));
+      assert(region_size() >= static_cast<int32_t>(length));
       auto data = current.consume(length);
       item = T{(const typename T::value_type *)data.data(), length};
       return {};
@@ -2304,7 +2310,7 @@ struct pb_serializer {
       static_assert(concepts::has_memory_resource<context_t>, "memory resource is required");
       // handling string_view or span of byte
       if constexpr (std::remove_cvref_t<decltype(archive)>::contiguous) {
-        if (archive.in_avail() >= byte_count) {
+        if (archive.region_size() >= byte_count) {
           return archive.read_bytes(byte_count, item);
         }
         return std::errc::bad_message;
@@ -2664,8 +2670,8 @@ struct pb_serializer {
   };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  contiguous_input_archive(const Buffer &,
-                           Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+  contiguous_input_archive(const Buffer &, Context &)
+      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item,
                                       concepts::contiguous_byte_range auto const &buffer) {

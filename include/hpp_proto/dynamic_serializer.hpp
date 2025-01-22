@@ -301,15 +301,19 @@ class dynamic_serializer {
     }
 
     status skip_field(uint32_t number, wire_type field_wire_type, concepts::is_basic_in auto &archive) {
-      vuint64_t length = 0;
+      
       switch (field_wire_type) {
-      case wire_type::varint:
+      case wire_type::varint: {
+        vuint64_t length = 0;
         return archive(length);
-      case wire_type::length_delimited:
-        if (auto ec = archive(length); !ec.ok()) [[unlikely]] {
+      }
+      case wire_type::length_delimited: {
+        vuint32_t len;
+        if (auto ec = archive(len); !ec.ok()) [[unlikely]] {
           return ec;
         }
-        return archive.skip(length);
+        return archive.skip(len);
+      }
       case wire_type::fixed_64:
         return archive.skip(8);
       case wire_type::sgroup:
@@ -324,6 +328,9 @@ class dynamic_serializer {
     status skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
       while (archive.in_avail() > 0) {
         auto tag = archive.read_tag();
+        if (tag == 0) [[unlikely]] {
+          return std::errc::bad_message;
+        }
         uint32_t const next_field_num = tag_number(tag);
         wire_type const next_type = proto::tag_type(tag);
 
@@ -341,7 +348,7 @@ class dynamic_serializer {
     status field_type_to_json(bool quote_required, concepts::is_basic_in auto &archive) {
       T value{};
       if constexpr (concepts::contiguous_byte_range<T>) {
-        vint64_t len;
+        vuint32_t len;
         if (auto ec = archive(len); !ec.ok()) [[unlikely]] {
           return ec;
         }
@@ -615,6 +622,9 @@ class dynamic_serializer {
 
       while (archive.in_avail() > 0) {
         auto tag = archive.read_tag();
+        if (tag == 0) [[unlikely]] {
+          return std::errc::bad_message;
+        }
         auto number = tag_number(tag);
         auto field_wire_type = tag_type(tag);
 
@@ -795,6 +805,9 @@ class dynamic_serializer {
       } else {
         while (archive.in_avail() > 0) {
           auto tag = archive.read_tag();
+          if (tag == 0) [[unlikely]] {
+            return std::errc::bad_message;
+          }
           auto number = tag_number(tag);
           auto field_wire_type = tag_type(tag);
           if (msg_index == pb_meta.protobuf_struct_message_index) {
