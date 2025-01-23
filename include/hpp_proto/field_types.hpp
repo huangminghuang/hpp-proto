@@ -567,19 +567,21 @@ public:
   constexpr equality_comparable_span &operator=(equality_comparable_span &&other) noexcept = default;
 
   constexpr equality_comparable_span(T *data, std::size_t size) noexcept : _data(data), _size(size) {}
-  template <std::ranges::contiguous_range R>
-    requires std::same_as<std::remove_cvref_t<std::ranges::range_value_t<R>>, std::remove_const_t<T>>
-  // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
+  constexpr equality_comparable_span(std::span<T> other) noexcept : _data(other.data()), _size(other.size()) {}
+
+  template <typename R>
+    requires std::convertible_to<R, std::span<T>>
   constexpr equality_comparable_span(R &&other) noexcept
-      : _data(std::ranges::data(other)), _size(std::ranges::size(other)) {}
+      : equality_comparable_span(std::span<T>(std::forward<R>(other))) {}
 
   template <std::contiguous_iterator It>
+    requires std::assignable_from<T *, decltype(&(*std::declval<It>()))>
   constexpr equality_comparable_span(It first, std::size_t size) noexcept : _data(&(*first)), _size(size) {}
 
   template <std::contiguous_iterator It, class End>
-    requires std::sentinel_for<End, It>
+    requires std::constructible_from<std::span<T>, It, End>
   constexpr equality_comparable_span(It first, End last) noexcept
-      : _data(&(*first)), _size(static_cast<std::size_t>(std::distance(first, last))) {}
+      : equality_comparable_span(std::span<T>(first, last)) {}
 
   operator std::span<T>() const noexcept { return std::span<T>(_data, _size); }
 
@@ -587,10 +589,16 @@ public:
   [[nodiscard]] constexpr size_type size() const noexcept { return _size; }
   [[nodiscard]] constexpr size_type size_bytes() const noexcept { return _size * sizeof(T); }
 
-  template <typename U>
-  constexpr equality_comparable_span &operator=(std::span<U> other) noexcept {
+  constexpr equality_comparable_span &operator=(std::span<element_type> other) noexcept {
     _data = other.data();
     _size = other.size();
+    return *this;
+  }
+
+  template <typename R>
+    requires std::convertible_to<R, std::span<T>>
+  constexpr equality_comparable_span &operator=(R &&other) noexcept {
+    operator=(std::span<T>(std::forward<R>(other)));
     return *this;
   }
 
