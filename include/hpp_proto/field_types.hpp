@@ -568,7 +568,7 @@ public:
 
   constexpr equality_comparable_span(T *data, std::size_t size) noexcept : _data(data), _size(size) {}
   template <std::ranges::contiguous_range R>
-  requires std::same_as<std::remove_cvref_t<std::ranges::range_value_t<R>>, std::remove_const_t<T>>
+    requires std::same_as<std::remove_cvref_t<std::ranges::range_value_t<R>>, std::remove_const_t<T>>
   // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
   constexpr equality_comparable_span(R &&other) noexcept
       : _data(std::ranges::data(other)), _size(std::ranges::size(other)) {}
