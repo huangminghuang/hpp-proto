@@ -13,6 +13,11 @@ inline std::string read_file(const char *filename) {
 }
 
 int main(int argc, const char **argv) {
+  if (argc != 2) {
+    return 1;
+  }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   std::string data = read_file(argv[1]);
-  return LLVMFuzzerTestOneInput((const uint8_t *)data.data(), data.size());
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  return LLVMFuzzerTestOneInput(reinterpret_cast<const uint8_t *>(data.data()), data.size());
 }

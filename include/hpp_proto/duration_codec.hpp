@@ -40,7 +40,7 @@ struct duration_codec {
     assert(b.size() >= max_encode_size(value));
 
     auto *buf = std::data(b);
-    std::size_t ix = static_cast<std::size_t>(std::distance(buf, glz::to_chars(buf, value.seconds)));
+    auto ix = static_cast<std::size_t>(std::distance(buf, glz::to_chars(buf, value.seconds)));
 
     if (value.nanos != 0) {
       int32_t nanos = std::abs(value.nanos);

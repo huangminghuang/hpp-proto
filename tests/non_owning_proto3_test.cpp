@@ -43,7 +43,7 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
 
   m->oneof_field = 1U;
   m->oneof_field = proto3_unittest::TestAllTypes::NestedMessage{.bb = 50};
-  m->oneof_field = "test"; // only this one remains set
+  m->oneof_field = "test"sv; // only this one remains set
 }
 
 inline void SetUnpackedFields(proto3_unittest::TestUnpackedTypes *message) {

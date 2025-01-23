@@ -41,7 +41,7 @@ int main() {
   std::pmr::vector<std::pair<std::string_view, tutorial::Person::NestedMessage>> map_string_nested_message(
       {{"Tiananmen", {.bb = 89}}, {"Square", {.bb = 64}}}, &pool);
   people[0].map_string_nested_message = map_string_nested_message;
-  people[0].oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre";
+  people[0].oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"sv;
 
   people[1].name = string_dup("bob", &pool);
 

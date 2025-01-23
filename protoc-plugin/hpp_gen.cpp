@@ -1011,7 +1011,7 @@ struct msg_code_generator : code_generator {
       if (!f->proto.oneof_index.has_value()) {
         process(*f);
       } else {
-        std::size_t index = static_cast<std::size_t>(*f->proto.oneof_index);
+        auto index = static_cast<std::size_t>(*f->proto.oneof_index);
         process(*(descriptor.oneofs[index]), f->proto.number);
       }
     }
@@ -1188,7 +1188,7 @@ struct hpp_meta_generator : code_generator {
       if (!f->proto.oneof_index.has_value()) {
         process(*f, qualified_cpp_name, 0UL);
       } else {
-        std::size_t index = static_cast<std::size_t>(*f->proto.oneof_index);
+        auto index = static_cast<std::size_t>(*f->proto.oneof_index);
         auto &oneof = *(descriptor.oneofs[index]);
         if (oneof.fields[0]->proto.number == f->proto.number) {
           process(oneof, qualified_cpp_name, pb_name);
@@ -1546,7 +1546,7 @@ struct glaze_meta_generator : code_generator {
         if (!f->proto.oneof_index.has_value()) {
           process(*f);
         } else {
-          std::size_t index = static_cast<std::size_t>(*f->proto.oneof_index);
+          auto index = static_cast<std::size_t>(*f->proto.oneof_index);
           auto &oneof = *(descriptor.oneofs[index]);
           if (oneof.fields[0]->proto.number == f->proto.number) {
             process(oneof);

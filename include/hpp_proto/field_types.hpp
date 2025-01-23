@@ -539,32 +539,93 @@ public:
   constexpr bool operator==(std::nullptr_t /* unused */) const { return !has_value(); }
 };
 
-// NOLINTBEGIN(cppcoreguidelines-special-member-functions,hicpp-special-member-functions)
+// std::span<T> requires T to be a complete type, which is not suitable for recursive types.
 template <typename T>
-class equality_comparable_span : public std::span<T> {
+class equality_comparable_span {
+  T *_data = nullptr;
+  std::size_t _size = 0;
+
 public:
-  using std::span<T>::span;
-  // clang has trouble to compile if these special member functions using `= default`,
-  // when used in the recursive context.
-  // NOLINTNEXTLINE(hicpp-use-equals-default,modernize-use-equals-default)
-  constexpr equality_comparable_span(const equality_comparable_span &other) noexcept
-      : std::span<T>(other.data(), other.size()) {}
+  using element_type = T;
+  using value_type = std::remove_cv_t<T>;
+  using size_type = std::size_t;
+  using difference_type = std::ptrdiff_t;
+  using pointer = T *;
+  using const_pointer = const T *;
+  using reference = T &;
+  using const_reference = const T &;
+  using iterator = T *;
+  using const_iterator = const T *;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
+  constexpr equality_comparable_span() noexcept = default;
+  constexpr ~equality_comparable_span() noexcept = default;
+  constexpr equality_comparable_span(const equality_comparable_span &other) noexcept = default;
+  constexpr equality_comparable_span(equality_comparable_span &&other) noexcept = default;
   constexpr equality_comparable_span &operator=(const equality_comparable_span &other) noexcept = default;
+  constexpr equality_comparable_span &operator=(equality_comparable_span &&other) noexcept = default;
 
-  // NOLINTBEGIN(cppcoreguidelines-c-copy-assignment-signature)
+  constexpr equality_comparable_span(T *data, std::size_t size) noexcept : _data(data), _size(size) {}
+  template <std::ranges::contiguous_range R>
+  // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
+  constexpr equality_comparable_span(R &&other) noexcept
+      : _data(std::ranges::data(other)), _size(std::ranges::size(other)) {}
+
+  template <std::contiguous_iterator It>
+  constexpr equality_comparable_span(It first, std::size_t size) noexcept : _data(&(*first)), _size(size) {}
+
+  template <std::contiguous_iterator It, class End>
+    requires std::sentinel_for<End, It>
+  constexpr equality_comparable_span(It first, End last) noexcept
+      : _data(&(*first)), _size(static_cast<std::size_t>(std::distance(first, last))) {}
+
+  operator std::span<T>() const noexcept { return std::span<T>(_data, _size); }
+
+  [[nodiscard]] constexpr T *data() const noexcept { return _data; }
+  [[nodiscard]] constexpr size_type size() const noexcept { return _size; }
+  [[nodiscard]] constexpr size_type size_bytes() const noexcept { return _size * sizeof(T); }
+
   template <typename U>
-  constexpr equality_comparable_span &operator=(const std::span<U> &other) noexcept {
-    static_cast<std::span<T> &>(*this) = other;
+  constexpr equality_comparable_span &operator=(std::span<U> other) noexcept {
+    _data = other.data();
+    _size = other.size();
     return *this;
   }
-  // NOLINTEND(cppcoreguidelines-c-copy-assignment-signature)
+
+  [[nodiscard]] constexpr iterator begin() const noexcept { return _data; }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  [[nodiscard]] constexpr iterator end() const noexcept { return _data + _size; }
+  [[nodiscard]] constexpr const_iterator cbegin() const noexcept { return _data; }
+  [[nodiscard]] constexpr const_iterator cend() const noexcept { return _data + _size; }
+  [[nodiscard]] constexpr reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
+  [[nodiscard]] constexpr reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
+  [[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cend()); }
+  [[nodiscard]] constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cbegin()); }
+
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  [[nodiscard]] constexpr reference operator[](std::size_t idx) const noexcept { return _data[idx]; }
+  [[nodiscard]] constexpr reference front() const noexcept { return *_data; }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  [[nodiscard]] constexpr reference back() const noexcept { return *(_data + _size - 1); }
+
+  [[nodiscard]] constexpr bool empty() const noexcept { return _size == 0; }
+
+  [[nodiscard]] constexpr equality_comparable_span<element_type> first(size_type count) const {
+    return {data(), count};
+  }
+  [[nodiscard]] constexpr equality_comparable_span<element_type> last(size_type count) const {
+    return {(data() + size() - count), count};
+  }
+
+  [[nodiscard]] constexpr equality_comparable_span<element_type> subspan(size_type offset) const {
+    return {data() + offset, size() - offset};
+  }
 
   friend constexpr bool operator==(const equality_comparable_span<T> &lhs, const equality_comparable_span<T> &rhs) {
     return std::ranges::equal(lhs, rhs);
   }
 };
-// NOLINTEND(cppcoreguidelines-special-member-functions,hicpp-special-member-functions)
 
 template <std::size_t Len>
 struct compile_time_string {

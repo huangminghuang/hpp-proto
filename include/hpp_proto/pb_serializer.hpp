@@ -207,7 +207,7 @@ concept is_pair = std::same_as<T, std::pair<typename T::first_type, typename T::
 template <typename T>
 concept span = requires {
   typename T::element_type;
-  requires std::derived_from<T, std::span<typename T::element_type>>;
+  requires std::derived_from<T, std::span<typename T::element_type>> || std::same_as<T, std::string_view>;
 };
 
 template <typename T>
@@ -221,7 +221,7 @@ concept is_size_cache_iterator = requires(T v) {
 
 template <typename T>
 concept non_owning_bytes = std::same_as<std::remove_cvref_t<T>, std::string_view> ||
-                           (concepts::span<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
+                           (concepts::dynamic_sized_view<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
 
 template <typename T>
 concept has_extension = has_meta<T> && requires(T value) {
@@ -621,7 +621,7 @@ struct repeated_extension_meta
   constexpr static bool has_default_value = false;
   static constexpr bool is_repeated = true;
   using extendee = Extendee;
-  static constexpr bool non_owning = concepts::span<decltype(std::declval<typename extendee::extension_t>().fields)>;
+  static constexpr bool non_owning = concepts::dynamic_sized_view<decltype(std::declval<typename extendee::extension_t>().fields)>;
   using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
   using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
   using set_value_type = std::span<const element_type>;
@@ -2037,7 +2037,7 @@ struct pb_serializer {
         if (new_slope_distance > 0) {
           new_size_exclude_current = new_slope_distance;
         }
-        auto new_slope_begin = std::min(current._begin + length, current._slope_begin);
+        const auto* new_slope_begin = std::min(current._begin + length, current._slope_begin);
         return basic_in<byte_type, Context, contiguous>{
             input_buffer_region<Byte>{current.consume(length), new_slope_begin}, rest, new_size_exclude_current,
             context};
@@ -2178,13 +2178,14 @@ struct pb_serializer {
       auto &value = item.extensions.fields[field_num];
       return field_archive.deserialize_packed(field_archive.in_avail(), value);
     } else {
-      static_assert(concepts::span<fields_type>);
+      static_assert(concepts::dynamic_sized_view<fields_type>);
       auto &fields = item.extensions.fields;
 
       if (!fields.empty() && fields.back().first == field_num &&
           field_archive.in_avail() == field_archive.region_size()) {
         // if the newly parsed has the same field number with previously parsed, just extends the content
         auto &entry = fields.back().second;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         if (static_cast<const void *>(field_archive.data()) == entry.data() + entry.size()) {
           entry = std::span<const byte_type>{entry.data(), entry.size() + field_len};
           return {};

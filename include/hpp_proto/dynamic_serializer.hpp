@@ -1545,7 +1545,7 @@ public:
 
     std::sort(tmp.begin(), it);
     auto last = std::unique(tmp.begin(), tmp.end());
-    std::size_t size = static_cast<std::size_t>(last - tmp.begin());
+    auto size = static_cast<std::size_t>(last - tmp.begin());
 
     google::protobuf::FileDescriptorSet fileset;
     fileset.file.resize(size);
