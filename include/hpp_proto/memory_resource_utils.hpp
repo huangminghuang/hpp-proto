@@ -66,8 +66,9 @@ template <typename T>
 concept is_option_type = requires { typename std::decay_t<T>::option_type; };
 
 template <typename T>
-concept dynamic_sized_view =
-    std::derived_from<T, std::span<typename T::element_type>> || std::same_as<T, hpp::proto::equality_comparable_span<typename T::element_type>> || std::same_as<T, std::string_view>;
+concept dynamic_sized_view = std::derived_from<T, std::span<typename T::element_type>> ||
+                             std::same_as<T, hpp::proto::equality_comparable_span<typename T::element_type>> ||
+                             std::same_as<T, std::string_view>;
 
 template <typename T>
 concept strict_allocation_context = is_pb_context<T> && requires { requires T::always_allocate; };

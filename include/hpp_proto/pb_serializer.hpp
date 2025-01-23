@@ -220,8 +220,9 @@ concept is_size_cache_iterator = requires(T v) {
 };
 
 template <typename T>
-concept non_owning_bytes = std::same_as<std::remove_cvref_t<T>, std::string_view> ||
-                           (concepts::dynamic_sized_view<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
+concept non_owning_bytes =
+    std::same_as<std::remove_cvref_t<T>, std::string_view> ||
+    (concepts::dynamic_sized_view<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
 
 template <typename T>
 concept has_extension = has_meta<T> && requires(T value) {
@@ -621,7 +622,8 @@ struct repeated_extension_meta
   constexpr static bool has_default_value = false;
   static constexpr bool is_repeated = true;
   using extendee = Extendee;
-  static constexpr bool non_owning = concepts::dynamic_sized_view<decltype(std::declval<typename extendee::extension_t>().fields)>;
+  static constexpr bool non_owning =
+      concepts::dynamic_sized_view<decltype(std::declval<typename extendee::extension_t>().fields)>;
   using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
   using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
   using set_value_type = std::span<const element_type>;
@@ -2037,7 +2039,7 @@ struct pb_serializer {
         if (new_slope_distance > 0) {
           new_size_exclude_current = new_slope_distance;
         }
-        const auto* new_slope_begin = std::min(current._begin + length, current._slope_begin);
+        const auto *new_slope_begin = std::min(current._begin + length, current._slope_begin);
         return basic_in<byte_type, Context, contiguous>{
             input_buffer_region<Byte>{current.consume(length), new_slope_begin}, rest, new_size_exclude_current,
             context};
