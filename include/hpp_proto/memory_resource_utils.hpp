@@ -243,9 +243,12 @@ public:
   constexpr void resize(std::size_t n) {
     if (capacity_ < n) {
       data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
-      assert(data_ != nullptr);
-      std::uninitialized_copy(view_.begin(), view_.end(), data_);
-      std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
+      if (view_.size() < n) [[likely]]{
+        std::uninitialized_copy(view_.begin(), view_.end(), data_);
+        std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
+      } else {
+        std::uninitialized_copy(view_.begin(), view_.begin() + static_cast<std::ptrdiff_t>(n), data_);
+      }
       capacity_ = n;
     } else if (n > view_.size()) {
       std::uninitialized_default_construct(data_ + view_.size(), data_ + n);

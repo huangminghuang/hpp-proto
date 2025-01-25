@@ -539,7 +539,8 @@ public:
   constexpr bool operator==(std::nullptr_t /* unused */) const { return !has_value(); }
 };
 
-// std::span<T> requires T to be a complete type, which is not suitable for recursive types.
+/// equality_comparable_span<T> provides a span-like interface that is equality comparable and can be used when T is a
+/// recursive type.
 template <typename T>
 class equality_comparable_span {
   T *_data = nullptr;
@@ -570,9 +571,11 @@ public:
   constexpr equality_comparable_span(std::span<T> other) noexcept : _data(other.data()), _size(other.size()) {}
 
   template <typename R>
-    requires std::convertible_to<R, std::span<T>>
-  constexpr equality_comparable_span(R &&other) noexcept
-      : equality_comparable_span(std::span<T>(std::forward<R>(other))) {}
+    requires requires(R &r) {
+      { std::ranges::data(r) } -> std::convertible_to<const T *>;
+    }
+  constexpr equality_comparable_span(R &other) noexcept
+      : equality_comparable_span(std::ranges::data(other), std::ranges::size(other)) {}
 
   template <std::contiguous_iterator It>
     requires std::assignable_from<T *, decltype(&(*std::declval<It>()))>
@@ -596,9 +599,11 @@ public:
   }
 
   template <typename R>
-    requires std::convertible_to<R, std::span<T>>
-  constexpr equality_comparable_span &operator=(R &&other) noexcept {
-    operator=(std::span<T>(std::forward<R>(other)));
+    requires requires(R &r) {
+      { std::ranges::data(r) } -> std::convertible_to<const T *>;
+    }
+  constexpr equality_comparable_span &operator=(R &other) noexcept {
+    operator=(std::span<T>(other));
     return *this;
   }
 
@@ -614,6 +619,13 @@ public:
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr reference operator[](std::size_t idx) const noexcept { return _data[idx]; }
+  [[nodiscard]] constexpr reference at(std::size_t idx) const  { 
+    if (idx >= _size) {
+      throw std::out_of_range("equality_comparable_span::at");
+    }
+    return _data[idx]; 
+  }
+
   [[nodiscard]] constexpr reference front() const noexcept { return *_data; }
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr reference back() const noexcept { return *(_data + _size - 1); }
