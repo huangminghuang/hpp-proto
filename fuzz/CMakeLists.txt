@@ -2,10 +2,11 @@
 function(add_fuzz_target target source)
   add_executable(${target} ${source})
   target_link_libraries(${target} PRIVATE hpp_proto::libhpp_proto ${ARGN})
-  target_compile_options(${target} PRIVATE -fsanitize=fuzzer,address,undefined)
+  target_compile_options(${target} PRIVATE -fsanitize=fuzzer,address,undefined -fsanitize=undefined -fno-sanitize-recover=all)
   target_link_options(${target} PRIVATE -fsanitize=fuzzer,address,undefined)
 
   add_executable(${target}_debug_case ${source} fuzz_case_main.cpp)
+  target_compile_options(${target}_debug_case PRIVATE -fsanitize=undefined -fno-sanitize-recover=all)
   target_link_libraries(${target}_debug_case PRIVATE hpp_proto::libhpp_proto ${ARGN})
 endfunction()
 

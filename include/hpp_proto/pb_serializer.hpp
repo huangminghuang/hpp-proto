@@ -133,7 +133,7 @@ using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 namespace concepts {
 
 template <typename T>
-concept is_enum = std::is_enum_v<T> && !std::same_as<std::byte, T> && !std::same_as<hpp::proto::boolean, T>;
+concept is_enum = std::is_enum_v<T> && !std::same_as<std::byte, T>;
 
 template <typename T>
 concept is_boolean = std::same_as<hpp::proto::boolean, T>;
@@ -214,6 +214,9 @@ template <typename T>
 concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
 
 template <typename T>
+concept byte_deserializable = (std::is_arithmetic_v<T> && !std::same_as<T, bool>) || std::same_as<std::byte, T>;
+
+template <typename T>
 concept is_size_cache_iterator = requires(T v) {
   { v++ } -> std::same_as<T>;
   *v;
@@ -280,8 +283,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
-                                      int64_t &res1) -> decltype(std::ranges::cdata(input)) {
+constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input, int64_t &res1)
+    -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -414,8 +417,8 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
   return done2();
 }
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    bool &value) -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, bool &value)
+    -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -471,6 +474,11 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
   return p;
 }
 // NOLINTEND
+
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, boolean &value)
+    -> decltype(std::ranges::cdata(input)) {
+  return unchecked_parse_bool(input, value.value);
+}
 
 template <concepts::varint VarintType>
 constexpr auto unchecked_parse_varint(concepts::contiguous_byte_range auto const &input, VarintType &item) {
@@ -646,8 +654,7 @@ enum class wire_type : uint8_t {
 template <typename Type>
 constexpr auto tag_type() {
   using type = std::remove_cvref_t<Type>;
-  if constexpr (concepts::varint<type> || (std::is_enum_v<type> && !std::same_as<type, std::byte>) ||
-                std::same_as<type, bool>) {
+  if constexpr (concepts::varint<type> || concepts::is_enum<type> || std::same_as<type, bool>) {
     return wire_type::varint;
   } else if constexpr (std::is_integral_v<type> || std::is_floating_point_v<type>) {
     if constexpr (sizeof(type) == 4) {
@@ -1434,7 +1441,7 @@ struct pb_serializer {
           return tag_size + len_size(item.size() * sizeof(value_type));
         } else {
           auto s = transform_accumulate(item, [](auto elem) constexpr {
-            if constexpr (std::is_enum_v<element_type>) {
+            if constexpr (concepts::is_enum<element_type>) {
               return varint_size(static_cast<int64_t>(elem));
             } else {
               static_assert(concepts::varint<element_type>);
@@ -1625,10 +1632,7 @@ struct pb_serializer {
           return false;
         }
       }
-    } else if constexpr (requires {
-                           requires std::is_arithmetic_v<element_type> ||
-                                        std::same_as<typename type::value_type, std::byte>;
-                         }) {
+    } else if constexpr (concepts::byte_serializable<element_type>) {
       // packed fundamental types or bytes
       archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)}, item);
     } else {
@@ -1871,7 +1875,15 @@ struct pb_serializer {
       return std::errc::bad_message;
     }
 
-    template <concepts::byte_serializable T>
+    constexpr status deserialize(boolean &item) {
+      if (auto p = unchecked_parse_bool(current, item.value); p != nullptr) [[likely]] {
+        current.advance_to(p);
+        return {};
+      }
+      return std::errc::bad_message;
+    }
+
+    template <concepts::byte_deserializable T>
     constexpr status deserialize(T &item) {
       std::array<std::remove_const_t<byte_type>, sizeof(item)> value = {};
       if constexpr (endian_swapped) {
@@ -1884,7 +1896,7 @@ struct pb_serializer {
     }
 
     template <typename T>
-      requires std::is_enum_v<T> && (sizeof(T) > 1)
+      requires concepts::is_enum<T> && (sizeof(T) > 1)
     constexpr status deserialize(T &item) {
       return deserialize(varint{static_cast<int64_t>(item)});
     }
@@ -1938,6 +1950,42 @@ struct pb_serializer {
       return result;
     }
 #endif // x64
+    template <typename Item>
+    constexpr status deserialize_packed_boolean(std::uint32_t bytes_count, std::size_t size, Item &item) {
+      item.resize(size);
+      if constexpr (contiguous) {
+        for (auto &v : item) {
+          if (auto r = deserialize(v); !r.ok()) [[unlikely]] {
+            return r;
+          }
+        }
+      } else {
+        auto parse_booleans_in_region = [](auto &current, auto &&it) -> status {
+          while (current.size()) {
+            auto p = unchecked_parse_bool(current, *it);
+            if (p == nullptr) [[unlikely]] {
+              return std::errc::bad_message;
+            }
+            current.advance_to(p);
+            ++it;
+          }
+          return std::errc{};
+        };
+        auto it = item.begin();
+        while (bytes_count > 0) {
+          maybe_advance_region();
+          auto data = current.consume_packed_varints(bytes_count);
+          if (data.empty()) [[unlikely]] {
+            return std::errc::bad_message;
+          }
+          bytes_count -= static_cast<std::uint32_t>(data.size());
+          if (auto result = parse_booleans_in_region(data, it); !result.ok()) [[unlikely]] {
+            return result;
+          }
+        }
+      }
+      return {};
+    }
 
     template <concepts::varint T, typename Item>
     constexpr status deserialize_packed_varint([[maybe_unused]] std::uint32_t bytes_count, std::size_t size,
@@ -2265,9 +2313,10 @@ struct pb_serializer {
   template <typename T>
   constexpr static std::optional<std::size_t> count_packed_elements(uint32_t length,
                                                                     concepts::is_basic_in auto &archive) {
-    if constexpr (concepts::byte_serializable<T>) {
+    if constexpr (concepts::byte_deserializable<T>) {
       return length / sizeof(T);
-    } else if constexpr (std::is_enum_v<T> || concepts::varint<T>) {
+    } else if constexpr (std::same_as<T, bool> || std::same_as<T, boolean> || concepts::is_enum<T> ||
+                         concepts::varint<T>) {
       return archive.number_of_varints(length);
     } else {
       static_assert(!sizeof(T));
@@ -2332,11 +2381,12 @@ struct pb_serializer {
           return std::errc::bad_message;
         }
         std::size_t size = *n;
-
-        if constexpr (concepts::byte_serializable<encode_type>) {
+        if constexpr (std::same_as<encode_type, boolean> || std::same_as<encode_type, bool>) {
+          return archive.deserialize_packed_boolean(byte_count, size, v);
+        } else if constexpr (concepts::byte_deserializable<encode_type>) {
           v.resize(0);
           return archive.deserialize_packed(static_cast<std::ptrdiff_t>(size), v);
-        } else if constexpr (std::is_enum_v<encode_type>) {
+        } else if constexpr (concepts::is_enum<encode_type>) {
           return archive.template deserialize_packed_varint<vint64_t>(byte_count, size, v);
         } else {
           static_assert(concepts::varint<encode_type>);
@@ -2414,7 +2464,8 @@ struct pb_serializer {
         value_encode_type element;
         if (auto result = deserialize_element(element); !result.ok()) [[unlikely]] {
           return result;
-        } else if constexpr (meta.closed_enum) {
+        }
+        if constexpr (meta.closed_enum) {
           if (is_valid(element)) {
             v.push_back(element);
           }
@@ -2673,8 +2724,8 @@ struct pb_serializer {
   };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  contiguous_input_archive(const Buffer &,
-                           Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+  contiguous_input_archive(const Buffer &, Context &)
+      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item,
                                       concepts::contiguous_byte_range auto const &buffer) {

@@ -854,6 +854,7 @@ struct msg_code_generator : code_generator {
     auto wrapper = field_type_wrapper(descriptor);
 
     if (wrapper == "std::vector" && descriptor.cpp_field_type == "bool") {
+      descriptor.cpp_meta_type = "hpp::proto::boolean";
       return fmt::format("std::vector<hpp::proto::boolean>");
     } else if (wrapper == "hpp::proto::optional" && !descriptor.default_value_template_arg.empty()) {
       return fmt::format("hpp::proto::optional<{},{}>", descriptor.cpp_field_type,
