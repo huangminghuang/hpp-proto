@@ -619,11 +619,11 @@ public:
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr reference operator[](std::size_t idx) const noexcept { return _data[idx]; }
-  [[nodiscard]] constexpr reference at(std::size_t idx) const  { 
+  [[nodiscard]] constexpr reference at(std::size_t idx) const {
     if (idx >= _size) {
       throw std::out_of_range("equality_comparable_span::at");
     }
-    return _data[idx]; 
+    return _data[idx];
   }
 
   [[nodiscard]] constexpr reference front() const noexcept { return *_data; }

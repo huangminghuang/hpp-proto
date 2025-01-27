@@ -283,8 +283,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input, int64_t &res1)
-    -> decltype(std::ranges::cdata(input)) {
+constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
+                                      int64_t &res1) -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -403,7 +403,7 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
 
   if (last() & 0x80) [[likely]] {
     // If the continue bit is set, it is an unterminated varint.
-    return std::ranges::cdata(input) + std::ranges::size(input) +1;
+    return std::ranges::cdata(input) + std::ranges::size(input) + 1;
   }
 
   // A zero value of the first bit of the 10th byte represents an
@@ -417,8 +417,8 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
   return done2();
 }
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, bool &value)
-    -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
+                                    bool &value) -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -459,7 +459,7 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
                     // of the 10th byte.
                     byte = (byte - 0x80) | (next() & 0x81);
                     if (byte & 0x80) [[unlikely]] {
-                      return std::ranges::cdata(input) + std::ranges::size(input) +1;
+                      return std::ranges::cdata(input) + std::ranges::size(input) + 1;
                     }
                   }
                 }
@@ -475,8 +475,8 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
 }
 // NOLINTEND
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, boolean &value)
-    -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
+                                    boolean &value) -> decltype(std::ranges::cdata(input)) {
   return unchecked_parse_bool(input, value.value);
 }
 
@@ -1875,9 +1875,7 @@ struct pb_serializer {
       return std::errc::bad_message;
     }
 
-    constexpr status deserialize(boolean &item) {
-      return deserialize(item.value);
-    }
+    constexpr status deserialize(boolean &item) { return deserialize(item.value); }
 
     template <concepts::byte_deserializable T>
     constexpr status deserialize(T &item) {
@@ -2720,8 +2718,8 @@ struct pb_serializer {
   };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  contiguous_input_archive(const Buffer &, Context &)
-      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+  contiguous_input_archive(const Buffer &,
+                           Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item,
                                       concepts::contiguous_byte_range auto const &buffer) {
