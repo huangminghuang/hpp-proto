@@ -399,6 +399,7 @@ class dynamic_serializer {
       auto new_archive = archive.split(length);
 
       for (int n = 0; new_archive.in_avail() > 0; ++n) {
+        new_archive.maybe_advance_region();
         if (n > 0) {
           glz::detail::dump<','>(b, ix);
           if constexpr (Options.prettify) {
@@ -1569,7 +1570,7 @@ public:
     if (id == messages.size()) [[unlikely]] {
       return std::errc::invalid_argument;
     }
-    buffer.resize(pb_encoded_stream.size() * 2);
+    buffer.resize(pb_encoded_stream.size() * 8);
 
     pb_context pb_ctx;
     pb_serializer::contiguous_input_archive archive(pb_encoded_stream, pb_ctx);
