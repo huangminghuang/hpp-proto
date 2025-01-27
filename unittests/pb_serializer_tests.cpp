@@ -45,7 +45,7 @@ const ut::suite varint_decode_tests = [] {
 
     // unterminated bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
-    expect(hpp::proto::unchecked_parse_bool(data, value) == nullptr);
+    expect(hpp::proto::unchecked_parse_bool(data, value) > (data.data() + data.size()));
   };
 
   using vint64_t = hpp::proto::vint64_t;
@@ -67,7 +67,7 @@ const ut::suite varint_decode_tests = [] {
     auto data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
     int64_t parsed_value; // NOLINT(cppcoreguidelines-init-variables)
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    ut::expect(hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value) == nullptr);
+    ut::expect(hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value) > (data.data() + data.size()));
   };
 };
 

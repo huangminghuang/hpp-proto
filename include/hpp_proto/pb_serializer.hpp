@@ -279,7 +279,7 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/varint_shuffle.h
 //
 // It requires the input to be at least 10 valid bytes. If it is an unterminated varint,
-// the function return `nullptr`; otherwise, the function returns the
+// the function return `std::ranges::cdata(input) + std::ranges::size(input) +1`; otherwise, the function returns the
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
@@ -403,7 +403,7 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
 
   if (last() & 0x80) [[likely]] {
     // If the continue bit is set, it is an unterminated varint.
-    return nullptr;
+    return std::ranges::cdata(input) + std::ranges::size(input) +1;
   }
 
   // A zero value of the first bit of the 10th byte represents an
@@ -459,7 +459,7 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
                     // of the 10th byte.
                     byte = (byte - 0x80) | (next() & 0x81);
                     if (byte & 0x80) [[unlikely]] {
-                      return nullptr;
+                      return std::ranges::cdata(input) + std::ranges::size(input) +1;
                     }
                   }
                 }
@@ -1868,7 +1868,7 @@ struct pb_serializer {
     [[nodiscard]] basic_in copy() const { return *this; }
 
     constexpr status deserialize(bool &item) {
-      if (auto p = unchecked_parse_bool(current, item); p != nullptr) [[likely]] {
+      if (auto p = unchecked_parse_bool(current, item); p <= current._end) [[likely]] {
         current.advance_to(p);
         return {};
       }
@@ -1876,11 +1876,7 @@ struct pb_serializer {
     }
 
     constexpr status deserialize(boolean &item) {
-      if (auto p = unchecked_parse_bool(current, item.value); p != nullptr) [[likely]] {
-        current.advance_to(p);
-        return {};
-      }
-      return std::errc::bad_message;
+      return deserialize(item.value);
     }
 
     template <concepts::byte_deserializable T>
@@ -1903,7 +1899,7 @@ struct pb_serializer {
 
     template <concepts::varint T>
     constexpr status deserialize(T &item) {
-      if (auto p = unchecked_parse_varint(current, item); p != nullptr) [[likely]] {
+      if (auto p = unchecked_parse_varint(current, item); p <= current._end) [[likely]] {
         current.advance_to(p);
         return {};
       }
@@ -1963,7 +1959,7 @@ struct pb_serializer {
         auto parse_booleans_in_region = [](auto &current, auto &&it) -> status {
           while (current.size()) {
             auto p = unchecked_parse_bool(current, *it);
-            if (p == nullptr) [[unlikely]] {
+            if (p > current._end) [[unlikely]] {
               return std::errc::bad_message;
             }
             current.advance_to(p);
@@ -2019,7 +2015,7 @@ struct pb_serializer {
         while (current.size()) {
           T underlying;
           auto p = unchecked_parse_varint(current, underlying);
-          if (p == nullptr) [[unlikely]] {
+          if (p > current._end) [[unlikely]] {
             return std::errc::bad_message;
           }
           current.advance_to(p);
@@ -2200,7 +2196,7 @@ struct pb_serializer {
     constexpr std::uint32_t read_tag() {
       maybe_advance_region();
       std::int64_t res; // NOLINT(cppcoreguidelines-init-variables)
-      if (auto p = shift_mix_parse_varint<std::uint32_t, 4>(current, res); p != nullptr) {
+      if (auto p = shift_mix_parse_varint<std::uint32_t, 4>(current, res); p <= current._end) {
         current.advance_to(p);
         return static_cast<std::uint32_t>(res);
       }
