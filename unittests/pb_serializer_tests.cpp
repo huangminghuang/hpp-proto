@@ -193,6 +193,9 @@ const ut::suite test_repeated_sint32 = [] {
   "invalid_repeated_sint32"_test = [] {
     repeated_sint32 value;
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\xa8\x96\xb1"sv).ok());
+    ut::expect(
+        !hpp::proto::read_proto(value, "\x0a\x10\x08\x16\x21\x30\x40\x50\x60\x70\x80\x90\xa1\xb2\xc3\xd4\xe5\xf6"sv)
+             .ok());
   };
 
   "repeated_sint32"_test = [] {
@@ -993,6 +996,11 @@ void verify_segmented_input(auto &encoded, const T &value, const std::vector<int
   ut::expect(value == decoded);
 };
 
+auto split(auto &data, int pos) {
+  return std::array<std::vector<char>, 2>{std::vector<char>{data.begin(), data.begin() + pos},
+                                          std::vector<char>{data.begin() + pos, data.end()}};
+};
+
 const ut::suite test_segmented_byte_range = [] {
   "empty_with_segmented_input"_test = [] {
     empty value;
@@ -1028,12 +1036,7 @@ const ut::suite test_segmented_byte_range = [] {
     verify_segmented_input(encoded, value, {90, 10, 70});
   };
 
-  auto split = [](auto &data, int pos) {
-    return std::array<std::vector<char>, 2>{std::vector<char>{data.begin(), data.begin() + pos},
-                                            std::vector<char>{data.begin() + pos, data.end()}};
-  };
-
-  "invalid_packed_int32_with_segmented_input"_test = [&] {
+  "invalid_packed_int32_with_segmented_input"_test = [] {
     repeated_int32 value;
     value.integers.resize(10);
     std::ranges::fill(value.integers, -1);
@@ -1060,12 +1063,18 @@ const ut::suite test_segmented_byte_range = [] {
     verify_segmented_input(encoded, value, {s, 10, len - 10 - s});
   };
 
-  "packed_overlong_bool_with_segmented_input"_test = [&] {
+  "packed_overlong_bool_with_segmented_input"_test = [] {
     repeated_bool value;
-    auto encoded = "\x0a\x10\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x01"sv;
-    ut::expect(hpp::proto::read_proto(value, split(encoded, 17)).ok());
-    auto expected_value = repeated_bool{{false, true, true, true, true, true, true, true, true, true, true, true}};
+    auto encoded = "\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x01"sv;
+    ut::expect(hpp::proto::read_proto(value, split(encoded, 18)).ok());
+    auto expected_value = repeated_bool{{true, true, false, true, true, true, true, true, true, true, true, true, true, true}};
     ut::expect(value == expected_value);
+  };
+
+  "invalid_packed_bool_with_segmented_input"_test = [] {
+    repeated_bool value;
+    auto encoded = "\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x81"sv;
+    ut::expect(!hpp::proto::read_proto(value, split(encoded, 18)).ok());
   };
 };
 
