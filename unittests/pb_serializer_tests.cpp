@@ -1067,7 +1067,8 @@ const ut::suite test_segmented_byte_range = [] {
     repeated_bool value;
     auto encoded = "\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x01"sv;
     ut::expect(hpp::proto::read_proto(value, split(encoded, 18)).ok());
-    auto expected_value = repeated_bool{{true, true, false, true, true, true, true, true, true, true, true, true, true, true}};
+    auto expected_value =
+        repeated_bool{{true, true, false, true, true, true, true, true, true, true, true, true, true, true}};
     ut::expect(value == expected_value);
   };
 

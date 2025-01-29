@@ -1948,7 +1948,7 @@ struct pb_serializer {
     constexpr status deserialize_packed_boolean(std::uint32_t bytes_count, std::size_t size, Item &item) {
       item.resize(size);
       if constexpr (contiguous) {
-        if (std::bit_cast<std::uint8_t>(current[bytes_count-1]) < 0) {
+        if (std::bit_cast<std::uint8_t>(current[bytes_count - 1]) < 0) {
           return std::errc::bad_message;
         }
         for (auto &v : item) {
