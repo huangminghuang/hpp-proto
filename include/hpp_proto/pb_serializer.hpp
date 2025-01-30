@@ -1133,9 +1133,7 @@ public:
 
   auto parse(concepts::contiguous_byte_range auto const &r) -> decltype(std::ranges::cdata(r)) {
     auto end = std::ranges::cend(r);
-    if (std::ranges::size(r) > 0 && std::bit_cast<int8_t>(*(end - 1)) < 0) {
-      return nullptr;
-    }
+
     auto begin = parse_partial(r);
     if (begin == nullptr || shift_bits >= std::min<unsigned>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT)) {
       return nullptr;

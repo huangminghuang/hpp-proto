@@ -196,6 +196,12 @@ const ut::suite test_repeated_sint32 = [] {
     ut::expect(
         !hpp::proto::read_proto(value, "\x0a\x10\x08\x16\x21\x30\x40\x50\x60\x70\x80\x90\xa1\xb2\xc3\xd4\xe5\xf6"sv)
              .ok());
+    // zero length
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x00\xa8\x96\x01"sv).ok());
+    // encoded size longer than available data
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x04\xa8\x96\x01"sv).ok());
+    // invalid tag
+    ut::expect(!hpp::proto::read_proto(value, "\x8a\x84\xa8\x96\x81\x0a\x84\xa8\x96\x01"sv).ok());
   };
 
   "repeated_sint32"_test = [] {
@@ -491,6 +497,11 @@ const ut::suite test_repeated_bool = [] {
     repeated_bool_unpacked value;
     ut::expect(hpp::proto::read_proto(value, "\x08\x01\x08\x00\x08\x01\x08\x81\x00"sv).ok());
     ut::expect(value == repeated_bool_unpacked{{true, false, true, true}});
+  };
+
+  "invalid_repeated_bool"_test = [] {
+    repeated_bool value;
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\x01\x00\x01\x81"sv).ok());
   };
 };
 
@@ -1952,6 +1963,7 @@ int main() {
   constexpr_verify(carg("\x0a\x03\x08\x96\x01"_bytes_view), carg(nested_example{.nested = example{150}}));
   constexpr_verify(carg("\x08\x00"_bytes_view), carg(example_explicit_presence{.i = 0}));
   constexpr_verify(carg(""_bytes_view), carg(example_default_type{}));
+  // constexpr_verify(carg("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_view), carg(repeated_sint32{{0, 1, 2, 3, 4, -1, -2, -3, -4}}));
 #endif
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
