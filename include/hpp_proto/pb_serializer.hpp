@@ -2350,6 +2350,9 @@ struct pb_serializer {
     if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
       return result;
     }
+    if (byte_count == 0){
+      return {};
+    }
 
     using context_t = std::decay_t<decltype(archive.context)>;
     if constexpr (concepts::byte_type<value_type> && concepts::not_resizable<type> &&
