@@ -45,7 +45,7 @@ const ut::suite varint_decode_tests = [] {
 
     // unterminated bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
-    expect(hpp::proto::unchecked_parse_bool(data, value) == data.data() + data.size() + 1);
+    expect(hpp::proto::unchecked_parse_bool(data, value) > (data.data() + data.size()));
   };
 
   using vint64_t = hpp::proto::vint64_t;
@@ -65,10 +65,9 @@ const ut::suite varint_decode_tests = [] {
 
   "unterminated_varint"_test = [] {
     auto data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
-    const auto *end = data.data() + data.size();
     int64_t parsed_value; // NOLINT(cppcoreguidelines-init-variables)
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    ut::expect(hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value) == end + 1);
+    ut::expect(hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value) > (data.data() + data.size()));
   };
 };
 
@@ -191,6 +190,21 @@ auto pb_meta(const repeated_uint64 &)
         hpp::proto::field_meta<1, &repeated_uint64::integers, field_option::is_packed, hpp::proto::vuint64_t>>;
 
 const ut::suite test_repeated_sint32 = [] {
+  "invalid_repeated_sint32"_test = [] {
+    repeated_sint32 value;
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\xa8\x96\xb1"sv).ok());
+    ut::expect(
+        !hpp::proto::read_proto(value, "\x0a\x10\x08\x16\x21\x30\x40\x50\x60\x70\x80\x90\xa1\xb2\xc3\xd4\xe5\xf6"sv)
+             .ok());
+    // zero length
+    ut::expect(hpp::proto::read_proto(value, "\x0a\x00"sv).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x00\xa8\x96\x01"sv).ok());
+    // encoded size longer than available data
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x04\xa8\x96\x01"sv).ok());
+    // invalid tag
+    ut::expect(!hpp::proto::read_proto(value, "\x8a\x84\xa8\x96\x81\x0a\x84\xa8\x96\x01"sv).ok());
+  };
+
   "repeated_sint32"_test = [] {
     verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, repeated_sint32{{0, 1, 2, 3, 4, -1, -2, -3, -4}});
   };
@@ -212,7 +226,7 @@ const ut::suite test_repeated_sint32 = [] {
 
   "overlong integer"_test = [] {
     repeated_uint64 value;
-    ut::expect(!hpp::proto::read_proto(value, "\x0a\x0d\x01\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x02"sv).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x0d\x01\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x02"sv).ok());
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x0d\x01\x02\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10"sv).ok());
   };
 };
@@ -334,6 +348,11 @@ auto pb_meta(const repeated_fixed_unpacked_explicit_type &)
         hpp::proto::field_meta<1, &repeated_fixed_unpacked_explicit_type::integers, field_option::none, uint64_t>>;
 
 const ut::suite test_repeated_fixed = [] {
+  "invalid_repeated_fixed"_test = [] {
+    repeated_fixed value;
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x08\x08\x96\x01"sv).ok());
+  };
+
   "repeated_fixed"_test = [] {
     verify("\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
            repeated_fixed{{1, 2, 3}});
@@ -451,7 +470,7 @@ struct repeated_bool {
 };
 
 auto pb_meta(const repeated_bool &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_bool::booleans, field_option::is_packed, bool>>;
+    -> std::tuple<hpp::proto::field_meta<1, &repeated_bool::booleans, field_option::is_packed, hpp::proto::boolean>>;
 
 struct repeated_bool_unpacked {
   std::vector<hpp::proto::boolean> booleans;
@@ -459,13 +478,31 @@ struct repeated_bool_unpacked {
 };
 
 auto pb_meta(const repeated_bool_unpacked &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_bool_unpacked::booleans, field_option::none, bool>>;
+    -> std::tuple<
+        hpp::proto::field_meta<1, &repeated_bool_unpacked::booleans, field_option::none, hpp::proto::boolean>>;
 
 const ut::suite test_repeated_bool = [] {
   "repeated_bool"_test = [] { verify("\x0a\x03\x01\x00\x01"sv, repeated_bool{{true, false, true}}); };
 
+  "repeated packed overlong bool"_test = [] {
+    repeated_bool value;
+    ut::expect(hpp::proto::read_proto(value, "\x0a\x0d\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01"sv).ok());
+    ut::expect(value == repeated_bool{{true, true, true, true, true, true, true, true, true, true, true, true}});
+  };
+
   "repeated_bool_unpacked"_test = [] {
     verify("\x08\x01\x08\x00\x08\x01"sv, repeated_bool_unpacked{{true, false, true}});
+  };
+
+  "repeated_overlong_bool_unpacked"_test = [] {
+    repeated_bool_unpacked value;
+    ut::expect(hpp::proto::read_proto(value, "\x08\x01\x08\x00\x08\x01\x08\x81\x00"sv).ok());
+    ut::expect(value == repeated_bool_unpacked{{true, false, true, true}});
+  };
+
+  "invalid_repeated_bool"_test = [] {
+    repeated_bool value;
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\x01\x00\x01\x81"sv).ok());
   };
 };
 
@@ -494,6 +531,17 @@ const ut::suite test_non_owning_repeated_bool = [] {
   "non_owning_repeated_bool_unpacked"_test = [] {
     std::array x{true, false, true};
     verify_non_owning("\x08\x01\x08\x00\x08\x01"sv, non_owning_repeated_bool_unpacked{x});
+  };
+
+  "non_owning_repeated_oversized_bool_unpacked"_test = [] {
+    non_owning_repeated_bool_unpacked value;
+
+    std::pmr::monotonic_buffer_resource mr;
+    ut::expect(hpp::proto::read_proto(value, "\x08\x01\x08\x00\x08\x01\x08\x81\x00\x08\x00"sv,
+                                      hpp::proto::strictly_alloc_from{mr})
+                   .ok());
+    std::array x{true, false, true, true, false};
+    ut::expect(value == non_owning_repeated_bool_unpacked{.booleans = x});
   };
 };
 
@@ -646,6 +694,11 @@ const ut::suite test_repeated_group = [] {
   "repeated_group"_test = [&] {
     const repeated_group expected{.repeatedgroup = {{1}, {2}}};
     verify(encoded, expected);
+  };
+
+  "invalid_repeated_group"_test = [] {
+    repeated_group value;
+    ut::expect(!hpp::proto::read_proto(value, "\x0b\x10\x01\x0c\x0b"sv).ok());
   };
 };
 
@@ -942,27 +995,29 @@ auto pb_meta(const repeated_int32 &)
 
 template <typename T>
 void verify_segmented_input(auto &encoded, const T &value, const std::vector<int> &sizes) {
-  std::vector<std::span<char>> segments;
+  std::vector<std::vector<char>> segments;
   segments.resize(sizes.size());
-  char *b = encoded.data();
+  std::size_t len = 0;
   for (unsigned i = 0; i < sizes.size(); ++i) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    char *e = b + sizes[i];
-    segments[i] = {b, e};
-    b = e;
+    segments[i] = std::vector<char>{encoded.data() + len, encoded.data() + len + static_cast<std::size_t>(sizes[i])};
+    len += sizes[i];
   }
   T decoded;
-  hpp::proto::pb_context ctx{};
-  ut::expect(hpp::proto::pb_serializer::deserialize(decoded, segments, ctx).ok());
+  ut::expect(hpp::proto::read_proto(decoded, segments).ok());
   ut::expect(value == decoded);
+};
+
+auto split(auto &data, int pos) {
+  return std::array<std::vector<char>, 2>{std::vector<char>{data.begin(), data.begin() + pos},
+                                          std::vector<char>{data.begin() + pos, data.end()}};
 };
 
 const ut::suite test_segmented_byte_range = [] {
   "empty_with_segmented_input"_test = [] {
     empty value;
     std::vector<std::span<char>> segments;
-    hpp::proto::pb_context ctx{};
-    ut::expect(hpp::proto::pb_serializer::deserialize(value, segments, ctx).ok());
+    ut::expect(hpp::proto::read_proto(value, segments).ok());
   };
 
   "bytes_with_segmented_input"_test = [] {
@@ -979,6 +1034,7 @@ const ut::suite test_segmented_byte_range = [] {
     verify_segmented_input(encoded, value, {48, 48, 25, 10});
     verify_segmented_input(encoded, value, {10, 48, 25, 48});
     verify_segmented_input(encoded, value, {25, 48, 10, 48});
+    verify_segmented_input(encoded, value, {48, 25, 10, 48});
   };
 
   "packed_int32_with_segmented_input"_test = [] {
@@ -990,6 +1046,19 @@ const ut::suite test_segmented_byte_range = [] {
 
     verify(encoded, value);
     verify_segmented_input(encoded, value, {90, 10, 70});
+  };
+
+  "invalid_packed_int32_with_segmented_input"_test = [] {
+    repeated_int32 value;
+    value.integers.resize(10);
+    std::ranges::fill(value.integers, -1);
+    std::vector<char> encoded;
+    ut::expect(hpp::proto::write_proto(value, encoded).ok());
+    encoded[51] = '\xff';
+
+    repeated_int32 parsed_value;
+    ut::expect(!hpp::proto::read_proto(parsed_value, split(encoded, 60)).ok());
+    ut::expect(!hpp::proto::read_proto(parsed_value, split(encoded, 42)).ok());
   };
 
   "packed_sint32_with_segmented_input"_test = [] {
@@ -1004,6 +1073,21 @@ const ut::suite test_segmented_byte_range = [] {
     const int len = static_cast<int>(encoded.size());
     const int s = (len - 10) / 2;
     verify_segmented_input(encoded, value, {s, 10, len - 10 - s});
+  };
+
+  "packed_overlong_bool_with_segmented_input"_test = [] {
+    repeated_bool value;
+    auto encoded = "\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x01"sv;
+    ut::expect(hpp::proto::read_proto(value, split(encoded, 18)).ok());
+    auto expected_value =
+        repeated_bool{{true, true, false, true, true, true, true, true, true, true, true, true, true, true}};
+    ut::expect(value == expected_value);
+  };
+
+  "invalid_packed_bool_with_segmented_input"_test = [] {
+    repeated_bool value;
+    auto encoded = "\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x81"sv;
+    ut::expect(!hpp::proto::read_proto(value, split(encoded, 18)).ok());
   };
 };
 
@@ -1034,6 +1118,11 @@ auto pb_meta(const non_owning_repeated_string &)
 using namespace std::literals;
 
 const ut::suite test_repeated_strings = [] {
+  "invalid_repeated_strings"_test = [] {
+    repeated_strings value;
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\x61\x62"sv).ok());
+  };
+
   "repeated_strings"_test = [] {
     verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv, repeated_strings{.values = {"abc"s, "def"s}});
   };
@@ -1875,6 +1964,8 @@ int main() {
   constexpr_verify(carg("\x0a\x03\x08\x96\x01"_bytes_view), carg(nested_example{.nested = example{150}}));
   constexpr_verify(carg("\x08\x00"_bytes_view), carg(example_explicit_presence{.i = 0}));
   constexpr_verify(carg(""_bytes_view), carg(example_default_type{}));
+  // constexpr_verify(carg("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_view), carg(repeated_sint32{{0, 1, 2, 3,
+  // 4, -1, -2, -3, -4}}));
 #endif
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);

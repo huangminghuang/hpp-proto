@@ -34,7 +34,7 @@
             - build_type: Debug
               sanitize: ON
             - build_type: Coverage
-              compiler: gcc
+              compiler: clang-18
               protoc: compile
               sanitize: OFF
 
@@ -89,7 +89,7 @@
             ctest --build-config ${{ matrix.build_type }} --output-on-failure
 
         - name: Upload coverage to Codecov
-          uses: codecov/codecov-action@v4
+          uses: codecov/codecov-action@v5
           if: matrix.build_type == 'Coverage'
           with:
             token: ${{ secrets.CODECOV_TOKEN }}

@@ -266,14 +266,22 @@ const ut::suite test_bytes = [] {
   using namespace boost::ut::literals;
   using namespace boost::ut;
 
-  "bytes"_test = []<class Bytes> {
-    verify(bytes_example<Bytes>{}, R"({"field0":""})");
-    verify(bytes_example<Bytes>{.field0 = "foo"_bytes,
-                                .field1 = "light work."_bytes,
-                                .field2 = "light work"_bytes,
-                                .field3 = "light wor"_bytes},
+  "bytes"_test = [] {
+    verify(bytes_example<std::vector<std::byte>>{}, R"({"field0":""})");
+    verify(bytes_example<std::vector<std::byte>>{.field0 = "foo"_bytes,
+                                                 .field1 = "light work."_bytes,
+                                                 .field2 = "light work"_bytes,
+                                                 .field3 = "light wor"_bytes},
            R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
-  } | std::tuple<std::vector<std::byte>, hpp::proto::equality_comparable_span<const std::byte>>{};
+  };
+  "non_ownning_bytes"_test = [] {
+    verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{}, R"({"field0":""})");
+    verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{.field0 = "foo"_bytes_view,
+                                                                                .field1 = "light work."_bytes_view,
+                                                                                .field2 = "light work"_bytes_view,
+                                                                                .field3 = "light wor"_bytes_view},
+           R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
+  };
 };
 
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };

@@ -89,7 +89,8 @@ constexpr auto varint_size(auto value) {
     // NOLINTNEXTLINE(hicpp-signed-bitwise)
     return varint_size(std::make_unsigned_t<decltype(value)>((value << 1) ^ (value >> (sizeof(value) * CHAR_BIT - 1))));
   } else {
-    return ((sizeof(value) * CHAR_BIT) - std::countl_zero(std::make_unsigned_t<decltype(value)>(value) | 1U) +
+    return ((sizeof(value) * CHAR_BIT) -
+            static_cast<unsigned>(std::countl_zero(std::make_unsigned_t<decltype(value)>(value) | 1U)) +
             (CHAR_BIT - 2)) /
            (CHAR_BIT - 1);
   }
@@ -132,7 +133,7 @@ using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 namespace concepts {
 
 template <typename T>
-concept is_enum = std::is_enum_v<T> && !std::same_as<std::byte, T> && !std::same_as<hpp::proto::boolean, T>;
+concept is_enum = std::is_enum_v<T> && !std::same_as<std::byte, T>;
 
 template <typename T>
 concept is_boolean = std::same_as<hpp::proto::boolean, T>;
@@ -206,11 +207,14 @@ concept is_pair = std::same_as<T, std::pair<typename T::first_type, typename T::
 template <typename T>
 concept span = requires {
   typename T::element_type;
-  requires std::derived_from<T, std::span<typename T::element_type>>;
+  requires std::derived_from<T, std::span<typename T::element_type>> || std::same_as<T, std::string_view>;
 };
 
 template <typename T>
 concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
+
+template <typename T>
+concept byte_deserializable = (std::is_arithmetic_v<T> && !std::same_as<T, bool>) || std::same_as<std::byte, T>;
 
 template <typename T>
 concept is_size_cache_iterator = requires(T v) {
@@ -219,8 +223,9 @@ concept is_size_cache_iterator = requires(T v) {
 };
 
 template <typename T>
-concept non_owning_bytes = std::same_as<std::remove_cvref_t<T>, std::string_view> ||
-                           (concepts::span<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
+concept non_owning_bytes =
+    std::same_as<std::remove_cvref_t<T>, std::string_view> ||
+    (concepts::dynamic_sized_view<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
 
 template <typename T>
 concept has_extension = has_meta<T> && requires(T value) {
@@ -255,10 +260,9 @@ concept input_byte_range = segmented_byte_range<Range> || contiguous_byte_range<
 template <concepts::varint VarintType, concepts::byte_type Byte>
 constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
   auto value = std::make_unsigned_t<typename VarintType::encode_type>(item.value);
-
   if constexpr (varint_encoding::zig_zag == decltype(item)::encoding) {
     // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    value = (value << 1U) ^ (item.value >> (sizeof(value) * CHAR_BIT - 1));
+    value = (value << 1U) ^ static_cast<decltype(value)>(item.value >> (sizeof(value) * CHAR_BIT - 1U));
   }
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -471,6 +475,11 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
 }
 // NOLINTEND
 
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
+                                    boolean &value) -> decltype(std::ranges::cdata(input)) {
+  return unchecked_parse_bool(input, value.value);
+}
+
 template <concepts::varint VarintType>
 constexpr auto unchecked_parse_varint(concepts::contiguous_byte_range auto const &input, VarintType &item) {
   int64_t res; // NOLINT(cppcoreguidelines-init-variables)
@@ -621,7 +630,8 @@ struct repeated_extension_meta
   constexpr static bool has_default_value = false;
   static constexpr bool is_repeated = true;
   using extendee = Extendee;
-  static constexpr bool non_owning = concepts::span<decltype(std::declval<typename extendee::extension_t>().fields)>;
+  static constexpr bool non_owning =
+      concepts::dynamic_sized_view<decltype(std::declval<typename extendee::extension_t>().fields)>;
   using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
   using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
   using set_value_type = std::span<const element_type>;
@@ -644,8 +654,7 @@ enum class wire_type : uint8_t {
 template <typename Type>
 constexpr auto tag_type() {
   using type = std::remove_cvref_t<Type>;
-  if constexpr (concepts::varint<type> || (std::is_enum_v<type> && !std::same_as<type, std::byte>) ||
-                std::same_as<type, bool>) {
+  if constexpr (concepts::varint<type> || concepts::is_enum<type> || std::same_as<type, bool>) {
     return wire_type::varint;
   } else if constexpr (std::is_integral_v<type> || std::is_floating_point_v<type>) {
     if constexpr (sizeof(type) == 4) {
@@ -722,9 +731,15 @@ struct map_entry {
     typename serialize_type<KeyType>::type key = {};
     typename serialize_type<MappedType>::type value = {};
     constexpr static bool allow_inline_visit_members_lambda = true;
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif
     using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence | KeyOptions>,
                                field_meta<2, &mutable_type::value, field_option::explicit_presence | MappedOptions>>;
-
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4244)
@@ -760,9 +775,15 @@ struct map_entry {
     struct value_accessor {
       constexpr const auto &operator()(const read_only_type &entry) const { return entry.value; }
     };
-
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif
     using pb_meta = std::tuple<field_meta<1, key_accessor{}, field_option::explicit_presence | KeyOptions>,
                                field_meta<2, value_accessor{}, field_option::explicit_presence | MappedOptions>>;
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
   };
 };
 
@@ -1003,12 +1024,11 @@ class sfvint_parser {
   uint64_t pt_val = 0;
 
 public:
-  bool has_error = false;
   explicit sfvint_parser(Result *data) : res(data) {}
 
-  static consteval int calc_shift_bits(unsigned sign_bits) {
+  static consteval unsigned calc_shift_bits(unsigned sign_bits) {
     unsigned mask = 1U << (mask_length - 1);
-    int result = 0;
+    unsigned result = 0;
     for (; mask != 0 && static_cast<bool>(sign_bits & mask); mask >>= 1U) {
       result += 1;
     }
@@ -1034,8 +1054,9 @@ public:
   }
 
   HPP_PROTO_INLINE void output(uint64_t v) {
-    // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    auto r = (varint_encoding::zig_zag == T::encoding) ? (v >> 1U) ^ -static_cast<int64_t>(v & 1U) : v;
+    auto r = (varint_encoding::zig_zag == T::encoding)
+                 ? (v >> 1U) ^ static_cast<uint64_t>(-static_cast<int64_t>(v & 1U))
+                 : v;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     *res++ = static_cast<Result>(r);
   }
@@ -1066,12 +1087,14 @@ public:
   }
 
   template <uint64_t SignBits>
-  HPP_PROTO_INLINE void fixed_masked_parse(uint64_t word) {
+  HPP_PROTO_INLINE bool fixed_masked_parse(uint64_t word) {
     uint64_t extract_mask = calc_extract_mask(SignBits);
     if constexpr (std::countr_one(SignBits) < mask_length) {
+      if (shift_bits > max_effective_bits) {
+        return false;
+      }
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
       constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
-      has_error |= ((bytes_processed * 7 + shift_bits) > max_effective_bits);
       extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);
       output<SignBits, bytes_processed>(word, extract_mask);
       pt_val = 0;
@@ -1083,11 +1106,12 @@ public:
     }
 
     shift_bits += calc_shift_bits(SignBits);
+    return true;
   }
 
   template <std::size_t... I>
-  HPP_PROTO_INLINE void parse_word(uint64_t masked_bits, uint64_t word, std::index_sequence<I...>) {
-    (void)((masked_bits == I && (fixed_masked_parse<I>(word), true)) || ...);
+  HPP_PROTO_INLINE bool parse_word(uint64_t masked_bits, uint64_t word, std::index_sequence<I...>) {
+    return ((masked_bits == I && fixed_masked_parse<I>(word)) || ...);
   }
 
   auto parse_partial(concepts::contiguous_byte_range auto const &r) -> decltype(std::ranges::cdata(r)) {
@@ -1097,23 +1121,30 @@ public:
     end -= ((end - begin) % mask_length);
     for (; begin < end; begin += mask_length) {
       uint64_t word = 0;
-      std::memcpy(&word, begin, sizeof(word));
+      std::memcpy(&word, begin, mask_length);
       auto mval = pext_u64(word, word_mask);
-      parse_word(mval, word, std::make_index_sequence<1U << mask_length>());
+      if (!parse_word(mval, word, std::make_index_sequence<1U << mask_length>())) {
+        return nullptr;
+      }
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return begin;
   }
 
   auto parse(concepts::contiguous_byte_range auto const &r) -> decltype(std::ranges::cdata(r)) {
-    auto begin = parse_partial(r);
     auto end = std::ranges::cend(r);
-    ptrdiff_t bytes_left = end - begin;
+
+    auto begin = parse_partial(r);
+    if (begin == nullptr || shift_bits >= std::min<unsigned>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT)) {
+      return nullptr;
+    }
+
+    std::ptrdiff_t bytes_left = end - begin;
     uint64_t word = 0;
-    std::memcpy(&word, begin, bytes_left);
+    std::memcpy(&word, begin, static_cast<std::size_t>(bytes_left));
+
     for (; bytes_left > 0; --bytes_left, word >>= CHAR_BIT) {
       pt_val |= ((word & 0x7fULL) << shift_bits);
-      has_error |= (shift_bits >= max_effective_bits);
       if ((word & 0x80ULL) != 0) {
         shift_bits += (CHAR_BIT - 1);
       } else {
@@ -1156,7 +1187,7 @@ struct pb_serializer {
 
     HPP_PROTO_INLINE constexpr void serialize(concepts::varint auto item) {
       auto p = unchecked_pack_varint(item, _data.data());
-      _data = _data.subspan(std::distance(_data.data(), p));
+      _data = _data.subspan(static_cast<std::size_t>(std::distance(_data.data(), p)));
     }
 
     template <std::ranges::contiguous_range T>
@@ -1408,7 +1439,7 @@ struct pb_serializer {
           return tag_size + len_size(item.size() * sizeof(value_type));
         } else {
           auto s = transform_accumulate(item, [](auto elem) constexpr {
-            if constexpr (std::is_enum_v<element_type>) {
+            if constexpr (concepts::is_enum<element_type>) {
               return varint_size(static_cast<int64_t>(elem));
             } else {
               static_assert(concepts::varint<element_type>);
@@ -1599,10 +1630,7 @@ struct pb_serializer {
           return false;
         }
       }
-    } else if constexpr (requires {
-                           requires std::is_arithmetic_v<element_type> ||
-                                        std::same_as<typename type::value_type, std::byte>;
-                         }) {
+    } else if constexpr (concepts::byte_serializable<element_type>) {
       // packed fundamental types or bytes
       archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)}, item);
     } else {
@@ -1655,12 +1683,13 @@ struct pb_serializer {
     constexpr input_span(const value_type *b, const value_type *e) : _begin(b), _end(e) {}
     constexpr input_span(const value_type *b, std::size_t n) : _begin(b), _end(b + n) {}
     [[nodiscard]] constexpr const value_type *data() const { return _begin; }
-    [[nodiscard]] constexpr std::size_t size() const { return _end - _begin; }
+    [[nodiscard]] constexpr std::size_t size() const { return static_cast<std::size_t>(_end - _begin); }
     [[nodiscard]] constexpr bool empty() const { return _begin == _end; }
 
     [[nodiscard]] constexpr const value_type *begin() const { return _begin; }
     [[nodiscard]] constexpr const value_type *end() const { return _end; }
 
+    constexpr const value_type &operator[](std::size_t n) const { return *(_begin + n); }
     constexpr const value_type &next() { return *_begin++; }
     [[nodiscard]] constexpr input_span<T> subspan(std::size_t offset, std::size_t count) const {
       return {_begin + offset, _begin + offset + count};
@@ -1677,7 +1706,6 @@ struct pb_serializer {
     }
 
     void revert(std::size_t n) { _begin -= n; }
-    void restrict_size(std::size_t n) { _end = std::min(_begin + n, _end); }
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
     constexpr void advance_to(const value_type *new_pos) { _begin = new_pos; }
@@ -1687,18 +1715,31 @@ struct pb_serializer {
   constexpr static std::size_t patch_buffer_size = 2 * slope_size;
 
   template <typename Byte>
-  struct input_buffer_region_base : input_span<Byte> {
+  struct input_buffer_region : input_span<Byte> {
     const Byte *_slope_begin = nullptr;
-    constexpr input_buffer_region_base() = default;
-    constexpr input_buffer_region_base(input_span<Byte> range, const Byte *s)
-        : input_span<Byte>{range}, _slope_begin(s) {}
+    constexpr input_buffer_region() = default;
+    constexpr input_buffer_region(input_span<Byte> range, const Byte *s) : input_span<Byte>{range}, _slope_begin(s) {}
 
     [[nodiscard]] constexpr std::ptrdiff_t slope_distance() const { return this->_begin - _slope_begin; }
     [[nodiscard]] constexpr bool has_next_region() const { return this->_end > _slope_begin; }
-  };
-  template <typename Byte>
-  struct input_buffer_region : input_buffer_region_base<Byte> {
-    std::size_t _effective_size = 0;
+
+    constexpr input_span<Byte> consume_packed_varints(std::size_t max_size) {
+      if (this->size() >= max_size) {
+        return this->consume(max_size);
+      } else if (has_next_region()) {
+        // find the last position where a varint terminated in the slope area. If the position is not found,
+        // we have at least a non-terminated varint, just return a empty range to indicate error.
+        auto slope_area = std::span{_slope_begin, this->_end};
+        auto it = std::ranges::find_if(slope_area | std::views::reverse,
+                                       [](auto v) { return std::bit_cast<std::int8_t>(v) > 0; });
+        if (it == slope_area.rend()) {
+          return {};
+        }
+        return this->consume(this->size() - std::distance(slope_area.rbegin(), it));
+      } else {
+        return {};
+      }
+    }
   };
 
   ///
@@ -1714,7 +1755,7 @@ struct pb_serializer {
   template <typename Byte, typename Context, bool Contiguous>
   struct basic_in {
     using byte_type = Byte;
-    input_buffer_region_base<Byte> current;
+    input_buffer_region<Byte> current;
     input_span<input_buffer_region<Byte>> rest;
     ptrdiff_t size_exclude_current = 0; // the remaining size excluding those in current
     Context &context;                   // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
@@ -1724,17 +1765,19 @@ struct pb_serializer {
     constexpr void set_current_region(const input_buffer_region<Byte> &next_region) {
       current._begin = next_region._begin;
       current._end = next_region._end;
-      current._slope_begin = next_region._slope_begin;
-      size_exclude_current -= (next_region._effective_size);
+      size_exclude_current += (next_region.slope_distance());
+      if (size_exclude_current < 0) {
+        current._end += size_exclude_current;
+        size_exclude_current = 0;
+      }
+      current._slope_begin = std::min(next_region._slope_begin, current._end);
     }
 
     constexpr void maybe_advance_region() {
       std::ptrdiff_t offset = 0;
-      while ((offset = current.slope_distance()) >= 0 && !rest.empty()) {
-        auto len = in_avail();
+      while ((offset = current.slope_distance()) > 0 && !rest.empty()) {
         set_current_region(rest.next());
-        current.consume(offset);
-        current.restrict_size(len);
+        current.consume(static_cast<std::size_t>(offset));
       }
     }
 
@@ -1757,11 +1800,17 @@ struct pb_serializer {
   public:
     using is_basic_in = void;
     constexpr static bool contiguous = Contiguous;
-    [[nodiscard]] constexpr ptrdiff_t region_size() const { return current.size(); }
-    [[nodiscard]] constexpr ptrdiff_t in_avail() const { return region_size() + size_exclude_current; }
+    [[nodiscard]] constexpr ptrdiff_t region_size() const { return current._end - current._begin; }
+    [[nodiscard]] constexpr ptrdiff_t in_avail() const {
+      if constexpr (contiguous) {
+        return region_size();
+      } else {
+        return size_exclude_current - current.slope_distance();
+      }
+    }
     [[nodiscard]] constexpr const byte_type *data() const { return current.data(); }
 
-    constexpr basic_in(input_buffer_region_base<Byte> cur, const input_span<input_buffer_region<Byte>> &rest,
+    constexpr basic_in(input_buffer_region<Byte> cur, const input_span<input_buffer_region<Byte>> &rest,
                        ptrdiff_t size_exclude_current, Context &ctx)
         : current(cur), rest(rest), size_exclude_current(size_exclude_current), context(ctx) {}
 
@@ -1775,15 +1824,16 @@ struct pb_serializer {
       bool first_segment = true;
       for (auto &segment : source) {
         const auto segment_size = std::ranges::size(segment);
-        size_exclude_current += segment_size;
+        if (!first_segment && segment_size == 0) {
+          continue;
+        }
+        size_exclude_current += static_cast<std::ptrdiff_t>(segment_size);
         if (segment_size <= slope_size) {
           auto &seg_region = regions[region_index];
           if (first_segment) {
             seg_region._begin = patch_buffer;
-            seg_region._effective_size = 0;
           }
           patch_buffer = std::copy(std::begin(segment), std::end(segment), patch_buffer);
-          seg_region._effective_size += segment_size;
           seg_region._slope_begin = patch_buffer;
         } else {
           if (!first_segment) {
@@ -1795,22 +1845,18 @@ struct pb_serializer {
           seg_region._begin = std::ranges::data(segment);
           seg_region._end = seg_region._begin + segment_size;
           seg_region._slope_begin = seg_region._end - slope_size;
-          seg_region._effective_size = segment_size;
 
           auto &patch_region = regions[++region_index];
           patch_region._begin = patch_buffer;
           patch_buffer = std::copy(seg_region._slope_begin, seg_region._end, patch_buffer);
           patch_region._slope_begin = patch_buffer;
-          patch_region._effective_size = 0;
         }
         first_segment = false;
       }
       if (!regions.empty()) {
         // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         regions[region_index]._end = patch_buffer;
-        // setting the _slop_begin passed the _end ensure the slope_distance()
-        // of the last region always greater than zero and thus not to advance the region.
-        regions[region_index]._slope_begin = patch_buffer + slope_size;
+        regions[region_index]._slope_begin = patch_buffer;
         std::fill_n(patch_buffer, slope_size, Byte{0});
         rest = input_span{regions.data(), region_index + 1};
         set_current_region(rest.next());
@@ -1820,11 +1866,16 @@ struct pb_serializer {
     [[nodiscard]] basic_in copy() const { return *this; }
 
     constexpr status deserialize(bool &item) {
-      current.advance_to(unchecked_parse_bool(current, item));
-      return {};
+      if (auto p = unchecked_parse_bool(current, item); p <= current._end) [[likely]] {
+        current.advance_to(p);
+        return {};
+      }
+      return std::errc::bad_message;
     }
 
-    template <concepts::byte_serializable T>
+    constexpr status deserialize(boolean &item) { return deserialize(item.value); }
+
+    template <concepts::byte_deserializable T>
     constexpr status deserialize(T &item) {
       std::array<std::remove_const_t<byte_type>, sizeof(item)> value = {};
       if constexpr (endian_swapped) {
@@ -1837,27 +1888,35 @@ struct pb_serializer {
     }
 
     template <typename T>
-      requires std::is_enum_v<T> && (sizeof(T) > 1)
+      requires concepts::is_enum<T> && (sizeof(T) > 1)
     constexpr status deserialize(T &item) {
       return deserialize(varint{static_cast<int64_t>(item)});
     }
 
     template <concepts::varint T>
     constexpr status deserialize(T &item) {
-      current.advance_to(unchecked_parse_varint(current, item));
-      return {};
+      if (auto p = unchecked_parse_varint(current, item); p <= current._end) [[likely]] {
+        current.advance_to(p);
+        return {};
+      }
+      return std::errc::bad_message;
     }
 
     template <typename T>
-    constexpr status deserialize_packed(std::size_t n, T &item) {
+    constexpr status deserialize_packed(std::ptrdiff_t n, T &item) {
       using value_type = typename T::value_type;
-      item.reserve(n);
+      std::size_t nbytes = static_cast<std::size_t>(n) * sizeof(value_type);
+      if (in_avail() < static_cast<std::ptrdiff_t>(nbytes)) [[unlikely]] {
+        return std::errc::bad_message;
+      }
+
+      item.reserve(static_cast<std::size_t>(n));
       if constexpr (contiguous) {
-        append_raw_data(item, current.consume(n * sizeof(value_type)));
+        append_raw_data(item, current.consume(nbytes));
       } else {
-        while (n) {
+        while (n > 0) {
           maybe_advance_region();
-          auto k = std::min<std::size_t>(n, region_size() / sizeof(value_type));
+          auto k = std::min<std::ptrdiff_t>(n, region_size() / sizeof(value_type));
           append_raw_data(item, current.consume(k * sizeof(value_type)));
           n -= k;
         }
@@ -1883,9 +1942,49 @@ struct pb_serializer {
       return result;
     }
 #endif // x64
+    template <typename Item>
+    constexpr status deserialize_packed_boolean(std::uint32_t bytes_count, std::size_t size, Item &item) {
+      item.resize(size);
+      if constexpr (contiguous) {
+        if (std::bit_cast<std::uint8_t>(current[bytes_count - 1]) < 0) {
+          return std::errc::bad_message;
+        }
+        for (auto &v : item) {
+          if (auto r = deserialize(v); !r.ok()) [[unlikely]] {
+            return r;
+          }
+        }
+      } else {
+        auto parse_booleans_in_region = [](auto &current, auto &&it) -> status {
+          while (current.size()) {
+            auto p = unchecked_parse_bool(current, *it);
+            if (p > current._end) [[unlikely]] {
+              return std::errc::bad_message;
+            }
+            current.advance_to(p);
+            ++it;
+          }
+          return std::errc{};
+        };
+        auto it = item.begin();
+        while (bytes_count > 0) {
+          maybe_advance_region();
+          auto data = current.consume_packed_varints(bytes_count);
+          if (data.empty()) [[unlikely]] {
+            return std::errc::bad_message;
+          }
+          bytes_count -= static_cast<std::uint32_t>(data.size());
+          if (auto result = parse_booleans_in_region(data, it); !result.ok()) [[unlikely]] {
+            return result;
+          }
+        }
+      }
+      return {};
+    }
 
     template <concepts::varint T, typename Item>
-    constexpr status deserialize_packed_varint([[maybe_unused]] uint32_t bytes_count, std::size_t size, Item &item) {
+    constexpr status deserialize_packed_varint([[maybe_unused]] std::uint32_t bytes_count, std::size_t size,
+                                               Item &item) {
       using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
@@ -1894,32 +1993,65 @@ struct pb_serializer {
         if constexpr (!contiguous) {
           while (bytes_count > region_size()) {
             auto saved_begin = current.begin();
-            current.advance_to(parser.parse_partial(current));
-            bytes_count -= static_cast<uint32_t>(current.begin() - saved_begin);
+            auto p = parser.parse_partial(current);
+            if (p == nullptr) [[unlikely]] {
+              return std::errc::bad_message;
+            }
+            current.advance_to(p);
+            bytes_count -= static_cast<std::uint32_t>(current.begin() - saved_begin);
             maybe_advance_region();
           }
         }
-        auto data = current.consume(bytes_count);
-        data.advance_to(parser.parse(data));
-        if (data.size() != 0 || parser.has_error) [[unlikely]] {
-          return std::errc::bad_message;
+        if (bytes_count > 0) {
+          if (parser.parse(current.consume(bytes_count)) == nullptr) [[unlikely]] {
+            return std::errc::bad_message;
+          }
         }
         return {};
       }
 #endif
-      for (unsigned i = 0; i < size; ++i) {
-        T underlying;
-        if (auto result = this->deserialize(underlying); !result.ok()) [[unlikely]] {
-          return result;
+      auto parse_varints_in_region = [](auto current, auto &&it) -> status {
+        while (current.size()) {
+          T underlying;
+          auto p = unchecked_parse_varint(current, underlying);
+          if (p > current._end) [[unlikely]] {
+            return std::errc::bad_message;
+          }
+          current.advance_to(p);
+          *it = static_cast<value_type>(underlying.value);
+          ++it;
         }
-        item[i] = static_cast<value_type>(underlying.value);
+        return std::errc{};
+      };
+
+      if constexpr (contiguous) {
+        return parse_varints_in_region(current.consume(bytes_count), item.begin());
+      } else {
+        auto it = item.begin();
+        while (bytes_count > 0) {
+          maybe_advance_region();
+          auto data = current.consume_packed_varints(bytes_count);
+          if (data.empty()) [[unlikely]] {
+            return std::errc::bad_message;
+          }
+          bytes_count -= static_cast<std::uint32_t>(data.size());
+          if (auto result = parse_varints_in_region(data, it); !result.ok()) [[unlikely]] {
+            return result;
+          }
+        }
       }
+
       return {};
     }
 
     constexpr status skip_varint() {
-      current.advance_to(
-          std::find_if(current.begin(), current.end(), [](auto v) { return static_cast<int8_t>(v) >= 0; }) + 1);
+      // varint must terminated in 10 bytes
+      const auto *last = std::min(current.begin() + 10, current.end());
+      const auto *pos = std::find_if(current.begin(), last, [](auto v) { return static_cast<int8_t>(v) >= 0; });
+      if (pos == last) [[unlikely]] {
+        return std::errc::bad_message;
+      }
+      current.advance_to(pos + 1);
       return {};
     }
 
@@ -1932,6 +2064,9 @@ struct pb_serializer {
     }
 
     constexpr status skip(std::size_t length) {
+      if (in_avail() < static_cast<int64_t>(length)) [[unlikely]] {
+        return std::errc::bad_message;
+      }
       current.consume(length);
       return {};
     }
@@ -1939,16 +2074,38 @@ struct pb_serializer {
     // split the object at the specified length;
     // return the first half and set the current
     // object as the second half.
-    constexpr auto split(ptrdiff_t length) {
-      assert(in_avail() >= length);
-      return basic_in<byte_type, Context, contiguous>{
-          input_buffer_region_base<Byte>{current.consume(length), current._slope_begin}, rest, size_exclude_current,
-          context};
+    constexpr auto split(std::size_t length) {
+      assert(in_avail() >= static_cast<std::ptrdiff_t>(length));
+      auto new_slope_distance = current.slope_distance() + static_cast<std::ptrdiff_t>(length);
+      std::ptrdiff_t new_size_exclude_current = 0;
+      if constexpr (contiguous) {
+        if (new_slope_distance > 0) {
+          new_size_exclude_current = new_slope_distance;
+        }
+        const auto *new_slope_begin = std::min(current._begin + length, current._slope_begin);
+        return basic_in<byte_type, Context, contiguous>{
+            input_buffer_region<Byte>{current.consume(length), new_slope_begin}, rest, new_size_exclude_current,
+            context};
+      } else {
+        if (new_slope_distance > 0) {
+          if (new_slope_distance <= static_cast<std::ptrdiff_t>(slope_size)) {
+            new_size_exclude_current = new_slope_distance;
+          } else {
+            new_size_exclude_current = size_exclude_current - new_slope_distance;
+          }
+        }
+        auto new_begin = current._begin;
+        auto new_end = std::min(current._end, current._begin + length);
+        auto new_slope_begin = std::min(new_end, current._slope_begin);
+        current.consume(length);
+        auto new_region = input_buffer_region<Byte>{{new_begin, new_end}, new_slope_begin};
+        return basic_in<byte_type, Context, contiguous>{new_region, rest, new_size_exclude_current, context};
+      }
     }
 
     template <concepts::non_owning_bytes T>
     constexpr status read_bytes(uint32_t length, T &item) {
-      assert(in_avail() >= static_cast<int32_t>(length));
+      assert(region_size() >= static_cast<int32_t>(length));
       auto data = current.consume(length);
       item = T{(const typename T::value_type *)data.data(), length};
       return {};
@@ -1987,53 +2144,69 @@ struct pb_serializer {
       while (data.size()) {
         uint64_t v = 0;
         auto bytes = data.consume(sizeof(v));
-        std::memcpy(&v, bytes.data(), bytes.size());
-        result += popcount(~v & 0x8080808080808080ULL);
+        std::memcpy(&v, bytes.data(), sizeof(v));
+        result += static_cast<std::size_t>(popcount(~v & 0x8080808080808080ULL));
       }
 
       if (remaining.size()) {
         uint64_t v = UINT64_MAX;
         std::memcpy(&v, remaining.data(), remaining.size());
-        result += popcount(~v & 0x8080808080808080ULL);
+        result += static_cast<std::size_t>(popcount(~v & 0x8080808080808080ULL));
       }
       return result;
     }
 
     // Given the fact that the next n bytes are all variable length integers,
     // find the number of integers in the range.
-    constexpr std::optional<std::size_t> number_of_varints(uint32_t num_bytes) {
-      if (in_avail() >= static_cast<int32_t>(num_bytes)) [[likely]] {
-        return count_number_of_varints_in_region(num_bytes);
-      } else {
+    constexpr std::optional<std::size_t> number_of_varints(std::uint32_t bytes_count) {
+      std::ptrdiff_t num_bytes = bytes_count;
+      if (num_bytes == 0) {
+        return 0;
+      } else if (region_size() >= num_bytes) [[likely]] {
+        if (std::bit_cast<int8_t>(current[bytes_count - 1]) < 0) [[unlikely]] {
+          // if the last element is unterminated, just return empty to indicate error
+          return {};
+        }
+        return count_number_of_varints_in_region(bytes_count);
+      } else if (num_bytes <= in_avail()) {
         if constexpr (!contiguous) {
           basic_in archive(*this);
           std::size_t result = 0;
           while (num_bytes > 0 && in_avail() > 0) {
             archive.maybe_advance_region();
-            auto n = std::min<ptrdiff_t>(num_bytes, archive.region_size());
-            result += count_number_of_varints_in_region(n);
-            archive.current.consume(n);
-            num_bytes -= static_cast<uint32_t>(n);
-          }
-          if (num_bytes == 0) [[likely]] {
-            return result;
+            if (num_bytes > archive.region_size()) {
+              auto n = archive.region_size();
+              result += archive.count_number_of_varints_in_region(n);
+              archive.current.consume(n);
+              num_bytes -= static_cast<uint32_t>(n);
+            } else {
+              if (std::bit_cast<int8_t>(archive.current[num_bytes - 1]) < 0) [[unlikely]] {
+                // if the last element is unterminated, just return empty to indicate error
+                return {};
+              }
+              return result + archive.count_number_of_varints_in_region(num_bytes);
+            }
           }
         }
-        return {};
       }
+      return {};
     }
 
-    constexpr uint32_t read_tag() {
+    constexpr std::uint32_t read_tag() {
       maybe_advance_region();
-      int64_t res; // NOLINT(cppcoreguidelines-init-variables)
-      current.advance_to(shift_mix_parse_varint<uint32_t, 4>(current, res));
-      return static_cast<uint32_t>(res);
+      std::int64_t res; // NOLINT(cppcoreguidelines-init-variables)
+      if (auto p = shift_mix_parse_varint<std::uint32_t, 4>(current, res); p <= current._end) {
+        current.advance_to(p);
+        return static_cast<std::uint32_t>(res);
+      }
+      return 0;
     }
   };
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   constexpr static status skip_field(uint32_t tag, concepts::has_extension auto &item,
                                      concepts::is_basic_in auto &archive) {
+
     auto unwound_archive = archive.unwind_tag(tag);
     if (auto result = do_skip_field(tag, archive); !result.ok()) [[unlikely]] {
       return result;
@@ -2041,7 +2214,7 @@ struct pb_serializer {
     using fields_type = std::remove_cvref_t<decltype(item.extensions.fields)>;
     using bytes_type = typename fields_type::value_type::second_type;
     using byte_type = std::remove_const_t<typename bytes_type::value_type>;
-    std::size_t field_len = unwound_archive.in_avail() - archive.in_avail();
+    auto field_len = static_cast<std::size_t>(unwound_archive.in_avail() - archive.in_avail());
     auto field_archive = unwound_archive.split(field_len);
 
     const uint32_t field_num = tag_number(tag);
@@ -2050,13 +2223,14 @@ struct pb_serializer {
       auto &value = item.extensions.fields[field_num];
       return field_archive.deserialize_packed(field_archive.in_avail(), value);
     } else {
-      static_assert(concepts::span<fields_type>);
+      static_assert(concepts::dynamic_sized_view<fields_type>);
       auto &fields = item.extensions.fields;
 
       if (!fields.empty() && fields.back().first == field_num &&
           field_archive.in_avail() == field_archive.region_size()) {
         // if the newly parsed has the same field number with previously parsed, just extends the content
         auto &entry = fields.back().second;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         if (static_cast<const void *>(field_archive.data()) == entry.data() + entry.size()) {
           entry = std::span<const byte_type>{entry.data(), entry.size() + field_len};
           return {};
@@ -2105,12 +2279,17 @@ struct pb_serializer {
   constexpr static status do_skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
     while (archive.in_avail() > 0) {
       auto tag = archive.read_tag();
+      if (tag == 0) {
+        return std::errc::bad_message;
+      }
 
       const uint32_t next_field_num = tag_number(tag);
       const wire_type next_type = proto::tag_type(tag);
 
       if (next_type == wire_type::egroup && field_num == next_field_num) {
         return {};
+      } else if (archive.in_avail() <= 0) [[unlikely]] {
+        return std::errc::bad_message;
       } else if (auto result = do_skip_field(tag, archive); !result.ok()) {
         return result;
       }
@@ -2129,9 +2308,10 @@ struct pb_serializer {
   template <typename T>
   constexpr static std::optional<std::size_t> count_packed_elements(uint32_t length,
                                                                     concepts::is_basic_in auto &archive) {
-    if constexpr (concepts::byte_serializable<T>) {
+    if constexpr (concepts::byte_deserializable<T>) {
       return length / sizeof(T);
-    } else if constexpr (std::is_enum_v<T> || concepts::varint<T>) {
+    } else if constexpr (std::same_as<T, bool> || std::same_as<T, boolean> || concepts::is_enum<T> ||
+                         concepts::varint<T>) {
       return archive.number_of_varints(length);
     } else {
       static_assert(!sizeof(T));
@@ -2170,6 +2350,9 @@ struct pb_serializer {
     if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
       return result;
     }
+    if (byte_count == 0) {
+      return {};
+    }
 
     using context_t = std::decay_t<decltype(archive.context)>;
     if constexpr (concepts::byte_type<value_type> && concepts::not_resizable<type> &&
@@ -2177,7 +2360,7 @@ struct pb_serializer {
       static_assert(concepts::has_memory_resource<context_t>, "memory resource is required");
       // handling string_view or span of byte
       if constexpr (std::remove_cvref_t<decltype(archive)>::contiguous) {
-        if (archive.in_avail() >= byte_count) {
+        if (archive.region_size() >= byte_count) {
           return archive.read_bytes(byte_count, item);
         }
         return std::errc::bad_message;
@@ -2196,11 +2379,12 @@ struct pb_serializer {
           return std::errc::bad_message;
         }
         std::size_t size = *n;
-
-        if constexpr (concepts::byte_serializable<encode_type>) {
+        if constexpr (std::same_as<encode_type, boolean> || std::same_as<encode_type, bool>) {
+          return archive.deserialize_packed_boolean(byte_count, size, v);
+        } else if constexpr (concepts::byte_deserializable<encode_type>) {
           v.resize(0);
-          return archive.deserialize_packed(size, v);
-        } else if constexpr (std::is_enum_v<encode_type>) {
+          return archive.deserialize_packed(static_cast<std::ptrdiff_t>(size), v);
+        } else if constexpr (concepts::is_enum<encode_type>) {
           return archive.template deserialize_packed_varint<vint64_t>(byte_count, size, v);
         } else {
           static_assert(concepts::varint<encode_type>);
@@ -2278,7 +2462,8 @@ struct pb_serializer {
         value_encode_type element;
         if (auto result = deserialize_element(element); !result.ok()) [[unlikely]] {
           return result;
-        } else if constexpr (meta.closed_enum) {
+        }
+        if constexpr (meta.closed_enum) {
           if (is_valid(element)) {
             v.push_back(element);
           }
@@ -2419,6 +2604,9 @@ struct pb_serializer {
   constexpr static status deserialize_group(uint32_t field_num, auto &&item, concepts::is_basic_in auto &archive) {
     while (archive.in_avail() > 0) {
       auto tag = archive.read_tag();
+      if (tag == 0) {
+        return std::errc::bad_message;
+      }
 
       if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag)) {
         return {};
@@ -2433,7 +2621,7 @@ struct pb_serializer {
   }
 
   template <std::size_t Index, concepts::tuple Meta>
-  constexpr static status deserialize_oneof(int32_t tag, auto &&item, concepts::is_basic_in auto &archive) {
+  constexpr static status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic_in auto &archive) {
     if constexpr (Index < std::tuple_size_v<Meta>) {
       using meta = typename std::tuple_element<Index, Meta>::type;
       if (meta::number == tag_number(tag)) {
@@ -2457,8 +2645,10 @@ struct pb_serializer {
       using type = std::remove_reference_t<decltype(item)>;
       using Meta = typename traits::field_meta_of<type, Index>::type;
       return deserialize_field(Meta::access(item), Meta(), tag, archive);
-    } else {
+    } else if (archive.in_avail() > 0) {
       return skip_field(tag, item, archive);
+    } else {
+      return std::errc::bad_message;
     }
   }
 
@@ -2473,6 +2663,9 @@ struct pb_serializer {
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_basic_in auto &archive) {
     while (archive.in_avail() > 0) {
       auto tag = archive.read_tag();
+      if (tag == 0) {
+        return std::errc::bad_message;
+      }
 
       if (auto result = deserialize_field_by_tag(tag, item, archive); !result.ok()) {
         [[unlikely]] return result;
@@ -2483,7 +2676,7 @@ struct pb_serializer {
 
   constexpr static status deserialize_sized(auto &&item, concepts::is_basic_in auto &archive) {
     vuint32_t len;
-    if (auto result = archive(len); !result.ok()) [[unlikely]] {
+    if (auto result = archive(len); !result.ok() || len == 0) [[unlikely]] {
       return result;
     }
 

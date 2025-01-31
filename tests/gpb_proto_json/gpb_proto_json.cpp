@@ -55,7 +55,7 @@ std::string read_file(const std::string &filename) {
   std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
   std::string contents;
   in.seekg(0, std::ios::end);
-  contents.resize(in.tellg());
+  contents.resize(static_cast<std::string::size_type>(in.tellg()));
   in.seekg(0, std::ios::beg);
   in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
   return contents;

@@ -66,8 +66,9 @@ template <typename T>
 concept is_option_type = requires { typename std::decay_t<T>::option_type; };
 
 template <typename T>
-concept dynamic_sized_view =
-    std::derived_from<T, std::span<typename T::element_type>> || std::same_as<T, std::string_view>;
+concept dynamic_sized_view = std::derived_from<T, std::span<typename T::element_type>> ||
+                             std::same_as<T, hpp::proto::equality_comparable_span<typename T::element_type>> ||
+                             std::same_as<T, std::string_view>;
 
 template <typename T>
 concept strict_allocation_context = is_pb_context<T> && requires { requires T::always_allocate; };
@@ -242,9 +243,12 @@ public:
   constexpr void resize(std::size_t n) {
     if (capacity_ < n) {
       data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
-      assert(data_ != nullptr);
-      std::uninitialized_copy(view_.begin(), view_.end(), data_);
-      std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
+      if (view_.size() < n) [[likely]] {
+        std::uninitialized_copy(view_.begin(), view_.end(), data_);
+        std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
+      } else {
+        std::uninitialized_copy(view_.begin(), view_.begin() + static_cast<std::ptrdiff_t>(n), data_);
+      }
       capacity_ = n;
     } else if (n > view_.size()) {
       std::uninitialized_default_construct(data_ + view_.size(), data_ + n);

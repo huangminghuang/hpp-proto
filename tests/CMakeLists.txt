@@ -143,6 +143,15 @@ else()
 
     set_property(TEST map_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
+    add_library(non_owning_map_unittest_proto_lib INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
+    target_include_directories(non_owning_map_unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+    protobuf_generate_hpp(
+        TARGET non_owning_map_unittest_proto_lib
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+        PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
+        PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning")
+
     if(Protobuf_INCLUDE_DIRS)
         add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
         target_include_directories(any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)

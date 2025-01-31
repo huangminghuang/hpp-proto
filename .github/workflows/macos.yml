@@ -25,6 +25,7 @@ jobs:
     runs-on: macos-latest
     strategy:
         matrix:
+          build_type: [Release, Debug, Coverage]
           protoc: ["find"]
 
     steps:
@@ -47,14 +48,20 @@ jobs:
       - name: configure
         shell: bash
         run: |
-          cmake -S . -B build -G Ninja -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Debug \
+          cmake -S . -B build -G Ninja -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: build
         run: cmake --build build
 
       - name: test
-        shell: bash
+        working-directory: ./build
         run: |
-          cd build
-          ctest --build-config Debug --output-on-failure
+          ctest --build-config ${{ matrix.build_type }} --output-on-failure
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        if: matrix.build_type == 'Coverage'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
