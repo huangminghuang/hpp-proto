@@ -2350,7 +2350,7 @@ struct pb_serializer {
     if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
       return result;
     }
-    if (byte_count == 0){
+    if (byte_count == 0) {
       return {};
     }
 
