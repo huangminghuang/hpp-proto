@@ -1156,6 +1156,24 @@ public:
     return end;
   }
 };
+
+template <bool v>
+struct enable_sfvint_parser_t {
+  using option_type = enable_sfvint_parser_t<v>;
+  static constexpr auto enable_sfvint_parser = v;
+};
+
+template <bool v>
+constexpr auto enable_sfvint_parser = enable_sfvint_parser_t<v>{};
+
+template <concepts::is_pb_context Context>
+constexpr bool sfvint_parser_allowed(Context) {
+  if constexpr (requires { Context::enable_sfvint_parser; }) {
+    return Context::enable_sfvint_parser;
+  } else {
+    return true;
+  }
+}
 #endif
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
@@ -1988,26 +2006,28 @@ struct pb_serializer {
       using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
-      if (!std::is_constant_evaluated() && has_bmi2()) {
-        sfvint_parser<T, value_type> parser(item.data());
-        if constexpr (!contiguous) {
-          while (bytes_count > region_size()) {
-            auto saved_begin = current.begin();
-            auto p = parser.parse_partial(current);
-            if (p == nullptr) [[unlikely]] {
+      if constexpr (sfvint_parser_allowed(context)) {
+        if (!std::is_constant_evaluated() && has_bmi2()) {
+          sfvint_parser<T, value_type> parser(item.data());
+          if constexpr (!contiguous) {
+            while (bytes_count > region_size()) {
+              auto saved_begin = current.begin();
+              auto p = parser.parse_partial(current);
+              if (p == nullptr) [[unlikely]] {
+                return std::errc::bad_message;
+              }
+              current.advance_to(p);
+              bytes_count -= static_cast<std::uint32_t>(current.begin() - saved_begin);
+              maybe_advance_region();
+            }
+          }
+          if (bytes_count > 0) {
+            if (parser.parse(current.consume(bytes_count)) == nullptr) [[unlikely]] {
               return std::errc::bad_message;
             }
-            current.advance_to(p);
-            bytes_count -= static_cast<std::uint32_t>(current.begin() - saved_begin);
-            maybe_advance_region();
           }
+          return {};
         }
-        if (bytes_count > 0) {
-          if (parser.parse(current.consume(bytes_count)) == nullptr) [[unlikely]] {
-            return std::errc::bad_message;
-          }
-        }
-        return {};
       }
 #endif
       auto parse_varints_in_region = [](auto current, auto &&it) -> status {
