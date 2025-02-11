@@ -1,5 +1,8 @@
 #include <fstream>
 #include <fuzzer/FuzzedDataProvider.h>
+#include <google/protobuf/map_unittest.desc.hpp>
+#include <google/protobuf/unittest.desc.hpp>
+#include <google/protobuf/unittest_proto3.desc.hpp>
 #include <hpp_proto/dynamic_serializer.hpp>
 
 using namespace std::string_view_literals;
@@ -8,19 +11,11 @@ const std::array messages_names = {"proto3_unittest.TestAllTypes"sv,      "proto
                                    "protobuf_unittest.TestAllTypes"sv,    "protobuf_unittest.TestMap"sv,
                                    "protobuf_unittest.TestPackedTypes"sv, "protobuf_unittest.TestUnpackedTypes"sv};
 
-inline std::string read_file(const std::string &filename) {
-  std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
-  std::string contents;
-  in.seekg(0, std::ios::end);
-  contents.resize(static_cast<std::string::size_type>(in.tellg()));
-  in.seekg(0, std::ios::beg);
-  in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
-  return contents;
-}
-
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  auto descriptors = read_file("../tests/unittest.desc.binpb");
-  auto ser = hpp::proto::dynamic_serializer::make(descriptors);
+  auto ser = hpp::proto::dynamic_serializer::make(
+      hpp::proto::file_descriptors::desc_set_google_protobuf_unittest_proto3_proto(),
+      hpp::proto::file_descriptors::desc_set_google_protobuf_unittest_proto(),
+      hpp::proto::file_descriptors::desc_set_google_protobuf_map_unittest_proto());
 
   FuzzedDataProvider fdp(data, size);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)

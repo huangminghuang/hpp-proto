@@ -38,17 +38,23 @@ hpp::proto::status deserialize_data(FuzzedDataProvider &provider, uint32_t choic
     std::pmr::monotonic_buffer_resource mr;
     typename std::tuple_element<FirstIndex, messages_t>::type message;
     if (to_split) {
+#if defined(__x86_64__) || defined(_M_AMD64) // x64
       if (use_sfvint_parser) {
         return hpp::proto::read_proto(message, split_input(provider), hpp::proto::strictly_alloc_from{mr},
                                       hpp::proto::enable_sfvint_parser<true>);
-      } else {
+      } else
+#endif
+      {
         return hpp::proto::read_proto(message, split_input(provider), hpp::proto::strictly_alloc_from{mr});
       }
     } else {
+#if defined(__x86_64__) || defined(_M_AMD64) // x64
       if (use_sfvint_parser) {
         return hpp::proto::read_proto(message, provider.ConsumeRemainingBytes<char>(),
                                       hpp::proto::strictly_alloc_from{mr}, hpp::proto::enable_sfvint_parser<true>);
-      } else {
+      } else
+#endif
+      {
         return hpp::proto::read_proto(message, provider.ConsumeRemainingBytes<char>(),
                                       hpp::proto::strictly_alloc_from{mr});
       }
