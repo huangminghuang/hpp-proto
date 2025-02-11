@@ -34,13 +34,24 @@ hpp::proto::status deserialize_data(FuzzedDataProvider &provider, uint32_t choic
   auto message_index = choice % std::tuple_size_v<messages_t>;
   auto deserialize_message = [&] {
     bool to_split = choice / std::tuple_size_v<messages_t>;
+    bool use_sfvint_parser = choice / std::tuple_size_v<messages_t> / 2;
     std::pmr::monotonic_buffer_resource mr;
     typename std::tuple_element<FirstIndex, messages_t>::type message;
     if (to_split) {
-      return hpp::proto::read_proto(message, split_input(provider), hpp::proto::strictly_alloc_from{mr});
+      if (use_sfvint_parser) {
+        return hpp::proto::read_proto(message, split_input(provider), hpp::proto::strictly_alloc_from{mr},
+                                      hpp::proto::enable_sfvint_parser<true>);
+      } else {
+        return hpp::proto::read_proto(message, split_input(provider), hpp::proto::strictly_alloc_from{mr});
+      }
     } else {
-      return hpp::proto::read_proto(message, provider.ConsumeRemainingBytes<char>(),
-                                    hpp::proto::strictly_alloc_from{mr});
+      if (use_sfvint_parser) {
+        return hpp::proto::read_proto(message, provider.ConsumeRemainingBytes<char>(),
+                                      hpp::proto::strictly_alloc_from{mr}, hpp::proto::enable_sfvint_parser<true>);
+      } else {
+        return hpp::proto::read_proto(message, provider.ConsumeRemainingBytes<char>(),
+                                      hpp::proto::strictly_alloc_from{mr});
+      }
     }
   };
 

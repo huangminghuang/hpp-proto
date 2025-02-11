@@ -1167,7 +1167,7 @@ template <bool v>
 constexpr auto enable_sfvint_parser = enable_sfvint_parser_t<v>{};
 
 template <concepts::is_pb_context Context>
-constexpr bool sfvint_parser_allowed(Context) {
+constexpr bool sfvint_parser_allowed() {
   if constexpr (requires { Context::enable_sfvint_parser; }) {
     return Context::enable_sfvint_parser;
   } else {
@@ -2006,7 +2006,7 @@ struct pb_serializer {
       using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
-      if constexpr (sfvint_parser_allowed(context)) {
+      if constexpr (sfvint_parser_allowed<Context>()) {
         if (!std::is_constant_evaluated() && has_bmi2()) {
           sfvint_parser<T, value_type> parser(item.data());
           if constexpr (!contiguous) {
