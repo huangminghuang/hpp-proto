@@ -13,7 +13,7 @@ option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 
-option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavior sanitizer" OFF)
+option(HPP_PROTO_ENABLE_SANITIZERS "The sanitizer to enable" OFF)
 option(HPP_PROTO_BUILD_FUZZ "Build fuzz target" OFF)
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
@@ -63,13 +63,13 @@ endif()
 
 include(third-parties.cmake)
 
-if(HPP_PROTO_ENABLE_SANITIZER)
+if(HPP_PROTO_ENABLE_SANITIZERS)
   if(MSVC)
     # add_compile_options("/fsanitize=address")
     # add_link_options("/fsanitize=address")
   else()
-    add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
-    add_link_options("-fsanitize=address,undefined")
+    add_compile_options("-fsanitize=${HPP_PROTO_ENABLE_SANITIZERS}" "-fno-omit-frame-pointer")
+    add_link_options("-fsanitize=${HPP_PROTO_ENABLE_SANITIZERS}")
   endif()
 endif()
 

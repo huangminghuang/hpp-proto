@@ -27,7 +27,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "HPP_PROTO_PROTOC_PLUGIN": false,
-                "HPP_PROTO_ENABLE_SANITIZER": true
+                "HPP_PROTO_ENABLE_SANITIZERS": "address,undefined"
             }
         },
         {
@@ -38,8 +38,18 @@
             "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "HPP_PROTO_ENABLE_SANITIZER": true,
+                "HPP_PROTO_ENABLE_SANITIZERS": "address,undefined",
                 "HPP_PROTO_TEST_USE_PROTOBUF": true
+            }
+        },
+        {
+            "name": "dev-msan",
+            "inherits": "default",
+            "displayName": "Memory Sanitizer Mode",
+            "binaryDir": "${sourceDir}/build/msan",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "HPP_PROTO_ENABLE_SANITIZERS": "memory"
             }
         },
         {
