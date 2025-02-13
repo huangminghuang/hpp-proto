@@ -26,13 +26,13 @@
         fail-fast: false
         matrix:
           os: [ubuntu-24.04]
-          compiler: [gcc-12, gcc-13, gcc-14, clang-16, clang-17, clang-18]
+          compiler: [gcc-12, gcc-14, clang-16, clang-18]
           build_type: [Release, Debug]
           protoc: [find]
           include:
             - sanitize: OFF
             - build_type: Debug
-              sanitize: ON
+              sanitize: "address,undefined"
             - build_type: Coverage
               compiler: clang-18
               protoc: compile
@@ -76,7 +76,7 @@
           run: |
             cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
                   -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
-                  -DHPP_PROTO_ENABLE_SANITIZER=${{ matrix.sanitize }} \
+                  -DHPP_PROTO_ENABLE_SANITIZERS=${{ matrix.sanitize }} \
                   -DCMAKE_C_COMPILER_LAUNCHER=ccache \
                   -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
   

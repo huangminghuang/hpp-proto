@@ -1090,9 +1090,6 @@ public:
   HPP_PROTO_INLINE bool fixed_masked_parse(uint64_t word) {
     uint64_t extract_mask = calc_extract_mask(SignBits);
     if constexpr (std::countr_one(SignBits) < mask_length) {
-      if (shift_bits > max_effective_bits) {
-        return false;
-      }
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
       constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
       extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);
@@ -1106,7 +1103,7 @@ public:
     }
 
     shift_bits += calc_shift_bits(SignBits);
-    return true;
+    return shift_bits < std::min<unsigned>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT);
   }
 
   template <std::size_t... I>
@@ -1135,7 +1132,7 @@ public:
     auto end = std::ranges::cend(r);
 
     auto begin = parse_partial(r);
-    if (begin == nullptr || shift_bits >= std::min<unsigned>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT)) {
+    if (begin == nullptr) [[unlikely]] {
       return nullptr;
     }
 
@@ -1147,6 +1144,9 @@ public:
       pt_val |= ((word & 0x7fULL) << shift_bits);
       if ((word & 0x80ULL) != 0) {
         shift_bits += (CHAR_BIT - 1);
+        if (shift_bits >= std::min<unsigned>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT)) [[unlikely]] {
+          return nullptr;
+        }
       } else {
         output(pt_val);
         pt_val = 0;
@@ -1156,6 +1156,24 @@ public:
     return end;
   }
 };
+
+template <bool v>
+struct enable_sfvint_parser_t {
+  using option_type = enable_sfvint_parser_t<v>;
+  static constexpr auto enable_sfvint_parser = v;
+};
+
+template <bool v>
+constexpr auto enable_sfvint_parser = enable_sfvint_parser_t<v>{};
+
+template <concepts::is_pb_context Context>
+constexpr bool sfvint_parser_allowed() {
+  if constexpr (requires { Context::enable_sfvint_parser; }) {
+    return Context::enable_sfvint_parser;
+  } else {
+    return true;
+  }
+}
 #endif
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
@@ -1988,26 +2006,28 @@ struct pb_serializer {
       using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
-      if (!std::is_constant_evaluated() && has_bmi2()) {
-        sfvint_parser<T, value_type> parser(item.data());
-        if constexpr (!contiguous) {
-          while (bytes_count > region_size()) {
-            auto saved_begin = current.begin();
-            auto p = parser.parse_partial(current);
-            if (p == nullptr) [[unlikely]] {
+      if constexpr (sfvint_parser_allowed<Context>()) {
+        if (!std::is_constant_evaluated() && has_bmi2()) {
+          sfvint_parser<T, value_type> parser(item.data());
+          if constexpr (!contiguous) {
+            while (bytes_count > region_size()) {
+              auto saved_begin = current.begin();
+              auto p = parser.parse_partial(current);
+              if (p == nullptr) [[unlikely]] {
+                return std::errc::bad_message;
+              }
+              current.advance_to(p);
+              bytes_count -= static_cast<std::uint32_t>(current.begin() - saved_begin);
+              maybe_advance_region();
+            }
+          }
+          if (bytes_count > 0) {
+            if (parser.parse(current.consume(bytes_count)) == nullptr) [[unlikely]] {
               return std::errc::bad_message;
             }
-            current.advance_to(p);
-            bytes_count -= static_cast<std::uint32_t>(current.begin() - saved_begin);
-            maybe_advance_region();
           }
+          return {};
         }
-        if (bytes_count > 0) {
-          if (parser.parse(current.consume(bytes_count)) == nullptr) [[unlikely]] {
-            return std::errc::bad_message;
-          }
-        }
-        return {};
       }
 #endif
       auto parse_varints_in_region = [](auto current, auto &&it) -> status {
@@ -2309,7 +2329,11 @@ struct pb_serializer {
   constexpr static std::optional<std::size_t> count_packed_elements(uint32_t length,
                                                                     concepts::is_basic_in auto &archive) {
     if constexpr (concepts::byte_deserializable<T>) {
-      return length / sizeof(T);
+      if (length % sizeof(T) == 0) [[likely]] {
+        return length / sizeof(T);
+      } else {
+        return {};
+      }
     } else if constexpr (std::same_as<T, bool> || std::same_as<T, boolean> || concepts::is_enum<T> ||
                          concepts::varint<T>) {
       return archive.number_of_varints(length);
