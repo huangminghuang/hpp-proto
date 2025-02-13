@@ -201,11 +201,11 @@ const ut::suite test_repeated_sint32 = [] {
     // overlong element in the middle
     ut::expect(
         !hpp::proto::read_proto(value, "\x0a\x10\x08\xF6\xF1\xF0\xF0\xF0\xF0\xF0\x80\x90\xa1\xb2\xc3\xd4\xe5\x06"sv)
-             .ok()); 
+             .ok());
     // overlong element in the middle
     ut::expect(
         !hpp::proto::read_proto(value, "\x0a\x11\x08\x16\x21\x30\x40\x50\x80\xF0\x80\x90\xa1\xb2\xc3\xd4\xe5\x85\x06"sv)
-             .ok());         
+             .ok());
     // zero length
     ut::expect(hpp::proto::read_proto(value, "\x0a\x00"sv).ok());
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x00\xa8\x96\x01"sv).ok());
