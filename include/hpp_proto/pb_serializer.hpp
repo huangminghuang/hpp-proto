@@ -1090,9 +1090,6 @@ public:
   HPP_PROTO_INLINE bool fixed_masked_parse(uint64_t word) {
     uint64_t extract_mask = calc_extract_mask(SignBits);
     if constexpr (std::countr_one(SignBits) < mask_length) {
-      if (shift_bits > max_effective_bits) {
-        return false;
-      }
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
       constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
       extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);
@@ -1106,7 +1103,7 @@ public:
     }
 
     shift_bits += calc_shift_bits(SignBits);
-    return true;
+    return shift_bits < std::min<unsigned>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT);
   }
 
   template <std::size_t... I>
@@ -1135,7 +1132,7 @@ public:
     auto end = std::ranges::cend(r);
 
     auto begin = parse_partial(r);
-    if (begin == nullptr || shift_bits >= std::min<unsigned>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT)) {
+    if (begin == nullptr) [[unlikely]] {
       return nullptr;
     }
 
@@ -1147,6 +1144,9 @@ public:
       pt_val |= ((word & 0x7fULL) << shift_bits);
       if ((word & 0x80ULL) != 0) {
         shift_bits += (CHAR_BIT - 1);
+        if (shift_bits >= std::min<unsigned>(max_effective_bits, sizeof(uint64_t) * CHAR_BIT)) [[unlikely]] {
+          return nullptr;
+        }
       } else {
         output(pt_val);
         pt_val = 0;
@@ -2329,7 +2329,11 @@ struct pb_serializer {
   constexpr static std::optional<std::size_t> count_packed_elements(uint32_t length,
                                                                     concepts::is_basic_in auto &archive) {
     if constexpr (concepts::byte_deserializable<T>) {
-      return length / sizeof(T);
+      if (length % sizeof(T) == 0) [[likely]] {
+        return length / sizeof(T);
+      } else {
+        return {};
+      }
     } else if constexpr (std::same_as<T, bool> || std::same_as<T, boolean> || concepts::is_enum<T> ||
                          concepts::varint<T>) {
       return archive.number_of_varints(length);
