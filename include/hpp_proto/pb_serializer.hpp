@@ -475,8 +475,8 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
 }
 // NOLINTEND
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    boolean &value) -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, boolean &value)
+    -> decltype(std::ranges::cdata(input)) {
   return unchecked_parse_bool(input, value.value);
 }
 
@@ -654,7 +654,8 @@ enum class wire_type : uint8_t {
 template <typename Type>
 constexpr auto tag_type() {
   using type = std::remove_cvref_t<Type>;
-  if constexpr (concepts::varint<type> || concepts::is_enum<type> || std::same_as<type, bool>) {
+  if constexpr (concepts::varint<type> || concepts::is_enum<type> || std::same_as<type, bool> ||
+                std::same_as<type, boolean>) {
     return wire_type::varint;
   } else if constexpr (std::is_integral_v<type> || std::is_floating_point_v<type>) {
     if constexpr (sizeof(type) == 4) {
@@ -1665,16 +1666,12 @@ struct pb_serializer {
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::is_pair auto const &item, Meta meta,
                                                                        concepts::is_size_cache_iterator auto &cache_itr,
                                                                        auto &archive) {
-    static_assert(concepts::is_map_entry<typename Meta::type>);
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto tag = make_tag<type>(meta);
-    auto &&[key, value] = item;
-    if (utf8_validation_failed(meta, key)) {
-      return false;
-    }
     archive(tag, varint{*cache_itr++});
     using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
     static_assert(concepts::has_meta<value_type>);
+    auto &&[key, value] = item;
     return serialize(value_type{key, value}, cache_itr, archive);
   }
 
@@ -2180,9 +2177,7 @@ struct pb_serializer {
     // find the number of integers in the range.
     constexpr std::optional<std::size_t> number_of_varints(std::uint32_t bytes_count) {
       std::ptrdiff_t num_bytes = bytes_count;
-      if (num_bytes == 0) {
-        return 0;
-      } else if (region_size() >= num_bytes) [[likely]] {
+      if (region_size() >= num_bytes) [[likely]] {
         if (std::bit_cast<int8_t>(current[bytes_count - 1]) < 0) [[unlikely]] {
           // if the last element is unterminated, just return empty to indicate error
           return {};
@@ -2422,12 +2417,12 @@ struct pb_serializer {
   }
 
   template <typename MetaType, typename ValueType>
-  struct get_value_encode_type {
+  struct deserialize_element_type {
     using type = ValueType;
   };
 
   template <concepts::is_map_entry MetaType, typename ValueType>
-  struct get_value_encode_type<MetaType, ValueType> {
+  struct deserialize_element_type<MetaType, ValueType> {
     using type = typename MetaType::mutable_type;
   };
 
@@ -2437,9 +2432,12 @@ struct pb_serializer {
                                                         concepts::is_basic_in auto &archive) {
     using type = std::remove_reference_t<decltype(item)>;
     using value_type = typename type::value_type;
-    using value_encode_type = typename get_value_encode_type<typename Meta::type, value_type>::type;
 
     decltype(auto) v = detail::as_modifiable(archive.context, item);
+    if (tag_type(tag) !=
+        tag_type<std::conditional_t<std::is_same_v<typename Meta::type, void>, value_type, typename Meta::type>>()) {
+      return std::errc::bad_message;
+    }
 
     std::size_t count = 0;
     if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
@@ -2447,9 +2445,9 @@ struct pb_serializer {
     }
     auto old_size = item.size();
     const std::size_t new_size = item.size() + count;
-
-    auto deserialize_element = [&](value_encode_type &element) {
-      if constexpr (concepts::has_meta<value_encode_type>) {
+    using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
+    auto deserialize_element = [&](element_type &element) {
+      if constexpr (concepts::has_meta<element_type>) {
         return pb_serializer::deserialize_sized(element, archive);
       } else {
         return pb_serializer::deserialize_field(element, Meta{}, tag, archive);
@@ -2466,7 +2464,7 @@ struct pb_serializer {
 
     for (auto i = old_size; i < new_size; ++i) {
       if constexpr (concepts::associative_container<type>) {
-        value_encode_type element;
+        element_type element;
 
         if (auto result = deserialize_element(element); !result.ok()) {
           return result;
@@ -2478,12 +2476,12 @@ struct pb_serializer {
         } else { // pre-C++23 std::map
           v[std::move(val.first)] = std::move(val.second);
         }
-      } else if constexpr (std::same_as<value_encode_type, value_type> && !meta.closed_enum) {
+      } else if constexpr (std::same_as<element_type, value_type> && !meta.closed_enum) {
         if (auto result = deserialize_element(v[i]); !result.ok()) [[unlikely]] {
           return result;
         }
       } else {
-        value_encode_type element;
+        element_type element;
         if (auto result = deserialize_element(element); !result.ok()) [[unlikely]] {
           return result;
         }
@@ -2497,9 +2495,9 @@ struct pb_serializer {
       }
 
       if (i < new_size - 1) {
-        if (auto result = skip_tag(tag, archive); !result.ok()) [[unlikely]] {
-          return result;
-        }
+        // no error handling here, because  `count_unpacked_elements()` already checked the tag
+        archive.maybe_advance_region();
+        (void)archive.read_tag();
       }
     }
     return {};
@@ -2746,8 +2744,8 @@ struct pb_serializer {
   };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  contiguous_input_archive(const Buffer &,
-                           Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+  contiguous_input_archive(const Buffer &, Context &)
+      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item,
                                       concepts::contiguous_byte_range auto const &buffer) {
