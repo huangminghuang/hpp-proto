@@ -475,8 +475,8 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
 }
 // NOLINTEND
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, boolean &value)
-    -> decltype(std::ranges::cdata(input)) {
+constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
+                                    boolean &value) -> decltype(std::ranges::cdata(input)) {
   return unchecked_parse_bool(input, value.value);
 }
 
@@ -2744,8 +2744,8 @@ struct pb_serializer {
   };
 
   template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-  contiguous_input_archive(const Buffer &, Context &)
-      -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+  contiguous_input_archive(const Buffer &,
+                           Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
   constexpr static status deserialize(concepts::has_meta auto &item,
                                       concepts::contiguous_byte_range auto const &buffer) {
