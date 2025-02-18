@@ -1,0 +1,11 @@
+#/bin/bash
+
+EXECUTABLES=$(find . -type f -perm +111 -print | grep -v CMakeFiles)
+
+for exec in $EXECUTABLES; do 
+    OBJECTS="$OBJECTS -object $exec"
+done 
+
+PATH=$(${CMAKE_CXX_COMPILER} -print-search-dirs | grep programs | sed 's/[^=]*=//')
+llvm-profdata merge -sparse  -o hpp-proto.profdata coverage/*.profraw
+llvm-cov export -format lcov -instr-profile=hpp-proto.profdata -ignore-filename-regex="(msg|glz|pb|desc)\.hpp" -ignore-filename-regex="(tests|tutorial|unittests)/\.*" $OBJECTS > lcov.info

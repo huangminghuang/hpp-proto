@@ -64,11 +64,7 @@ else()
     add_executable(proto3_test unittest_proto3_test.cpp)
     target_link_libraries(proto3_test PRIVATE unittest_proto3_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
-    add_test(NAME proto3_test
-        COMMAND proto3_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    set_property(TEST proto3_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+    add_hpp_proto_test(proto3_test)
 
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/non_owning")
 
@@ -89,11 +85,7 @@ else()
     target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib gpb_proto_json)
     target_include_directories(non_owning_proto3_test SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-    add_test(NAME non_owning_proto3_test
-        COMMAND non_owning_proto3_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    set_property(TEST non_owning_proto3_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+    add_hpp_proto_test(non_owning_proto3_test)
 
     add_library(non_owning_unittest_proto2_proto_lib INTERFACE
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
@@ -106,11 +98,7 @@ else()
 
     add_executable(non_owning_proto2_test non_owning_proto2_test.cpp)
     target_link_libraries(non_owning_proto2_test Boost::ut glaze::glaze non_owning_unittest_proto2_proto_lib gpb_proto_json)
-    add_test(NAME non_owning_proto2_test
-        COMMAND non_owning_proto2_test
-        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-
-    set_property(TEST non_owning_proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+    add_hpp_proto_test(non_owning_proto2_test)
 
     add_library(unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
     target_include_directories(unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
@@ -121,11 +109,7 @@ else()
     add_executable(proto2_test unittest_proto2_test.cpp)
     target_link_libraries(proto2_test PRIVATE unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
-    add_test(NAME proto2_test
-        COMMAND proto2_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    set_property(TEST proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+    add_hpp_proto_test(proto2_test)
 
     add_library(map_unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
     target_include_directories(map_unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
@@ -137,11 +121,7 @@ else()
     add_executable(map_test map_test.cpp)
     target_link_libraries(map_test PRIVATE map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
-    add_test(NAME map_test
-        COMMAND map_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    set_property(TEST map_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+    add_hpp_proto_test(map_test)
 
     add_library(non_owning_map_unittest_proto_lib INTERFACE
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
@@ -185,10 +165,7 @@ else()
 
         add_executable(any_test any_test.cpp)
         target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib non_owning_any_test_lib)
-
-        add_test(NAME any_test
-            COMMAND any_test
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+        add_hpp_proto_test(any_test)
 
         add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
 
@@ -197,12 +174,7 @@ else()
         endif()
 
         target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
-
-        add_test(NAME dynamic_serializer_tests
-            COMMAND dynamic_serializer_tests
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-        set_property(TEST dynamic_serializer_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+        add_hpp_proto_test(dynamic_serializer_tests)
 
         add_executable(dynamic_serializer_coverage_tests dynamic_serializer_coverage_tests.cpp)
         target_link_libraries(dynamic_serializer_coverage_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze unittest_proto3_proto_lib)
@@ -212,10 +184,7 @@ else()
         target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
         target_link_libraries(well_known_types_tests PRIVATE well_known_types hpp_proto::libhpp_proto Boost::ut glaze::glaze)
         add_dependencies(well_known_types_tests well_known_types)
-        add_test(NAME well_known_types_tests
-            COMMAND well_known_types_tests
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-        set_property(TEST well_known_types_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+        add_hpp_proto_test(well_known_types_tests)
     else()
         message(WARNING "No proto file for well known types are found, all tests involves well known types are skipped.")
     endif(Protobuf_INCLUDE_DIRS)
@@ -237,11 +206,7 @@ else()
         add_executable(lite_test unittest_lite_test.cpp)
         target_link_libraries(lite_test PRIVATE unittest_lite_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
-        add_test(NAME lite_test
-            COMMAND lite_test
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-        set_property(TEST lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+        add_hpp_proto_test(lite_test)
 
         add_library(editions_test_lib INTERFACE "basic_test_editions.proto" "editions_test.proto")
         target_include_directories(editions_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
@@ -262,8 +227,6 @@ else()
         add_executable(basic_test_proto2 basic_test_proto2.cpp)
         target_link_libraries(basic_test_proto2 PRIVATE basic_test_proto2_lib)
 
-        add_test(NAME editions_test
-            COMMAND editions_test
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+        add_hpp_proto_test(editions_test)
     endif()
 endif()

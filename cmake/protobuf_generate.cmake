@@ -1,6 +1,5 @@
 
-if(NOT COMMAND protobuf_generate)
-  function(protobuf_generate)
+  function(__protobuf_generate)
     include(CMakeParseArguments)
 
     set(_options APPEND_PATH)
@@ -161,8 +160,8 @@ if(NOT COMMAND protobuf_generate)
 
       add_custom_command(
         OUTPUT ${_generated_srcs}
-        COMMAND protobuf::protoc
-        ARGS ${protobuf_generate_PROTOC_OPTIONS} --${protobuf_generate_LANGUAGE}_out ${_plugin_options}:${protobuf_generate_PROTOC_OUT_DIR} ${_plugin} ${_protobuf_include_path} ${_abs_file}
+        COMMAND ${CMAKE_COMMAND} -E env "${HPP_PROTO_TEST_ENVIRONMENT}" $<TARGET_FILE:protobuf::protoc>
+                ${protobuf_generallve_PROTOC_OPTIONS} --${protobuf_generate_LANGUAGE}_out ${_plugin_options}:${protobuf_generate_PROTOC_OUT_DIR} ${_plugin} ${_protobuf_include_path} ${_abs_file}
         DEPENDS ${_abs_file} protobuf::protoc ${protobuf_generate_DEPENDENCIES}
         COMMENT ${_comment}
         VERBATIM)
@@ -178,10 +177,9 @@ if(NOT COMMAND protobuf_generate)
       target_sources(${protobuf_generate_TARGET} PRIVATE ${_generated_srcs_all})
     endif()
   endfunction()
-endif()  
 
 function(protobuf_generate_hpp)
-  protobuf_generate(${ARGN} 
+  __protobuf_generate(${ARGN} 
                     LANGUAGE hpp
                     GENERATE_EXTENSIONS .msg.hpp .pb.hpp .glz.hpp .desc.hpp
                     PLUGIN protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp>

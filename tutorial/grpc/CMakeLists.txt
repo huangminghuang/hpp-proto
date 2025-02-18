@@ -28,6 +28,6 @@ if(gRPC_FOUND AND NOT HPP_PROTO_ENABLE_SANITIZERS)
         add_test(NAME greeter_test
             COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/greeter_test.sh
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-        set_tests_properties(greeter_test PROPERTIES TIMEOUT 30) 
+        set_tests_properties(greeter_test PROPERTIES TIMEOUT 30 ENVIRONMENT "${HPP_PROTO_TEST_ENVIRONMENT}") 
     endif()
 endif()
