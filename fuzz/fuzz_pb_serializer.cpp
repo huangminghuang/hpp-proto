@@ -50,13 +50,12 @@ hpp::proto::status deserialize_data(FuzzedDataProvider &provider, uint32_t choic
     } else {
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
       if (use_sfvint_parser) {
-        return hpp::proto::read_proto(message, provider.ConsumeRemainingBytes<char>(),
-                                      hpp::proto::alloc_from{mr}, hpp::proto::enable_sfvint_parser<true>);
+        return hpp::proto::read_proto(message, provider.ConsumeRemainingBytes<char>(), hpp::proto::alloc_from{mr},
+                                      hpp::proto::enable_sfvint_parser<true>);
       } else
 #endif
       {
-        return hpp::proto::read_proto(message, provider.ConsumeRemainingBytes<char>(),
-                                      hpp::proto::alloc_from{mr});
+        return hpp::proto::read_proto(message, provider.ConsumeRemainingBytes<char>(), hpp::proto::alloc_from{mr});
       }
     }
   };

@@ -584,9 +584,9 @@ const ut::suite test_non_owning_repeated_bool = [] {
     non_owning_repeated_bool_unpacked value;
 
     std::pmr::monotonic_buffer_resource mr;
-    ut::expect(hpp::proto::read_proto(value, "\x08\x01\x08\x00\x08\x01\x08\x81\x00\x08\x00"sv,
-                                      hpp::proto::alloc_from{mr})
-                   .ok());
+    ut::expect(
+        hpp::proto::read_proto(value, "\x08\x01\x08\x00\x08\x01\x08\x81\x00\x08\x00"sv, hpp::proto::alloc_from{mr})
+            .ok());
     std::array x{true, false, true, true, false};
     ut::expect(value == non_owning_repeated_bool_unpacked{.booleans = x});
   };
@@ -1206,13 +1206,13 @@ const ut::suite test_segmented_byte_range = [] {
                 "\x1b\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00\x1c"s,
                 18))
             .ok());
-  ut::expect(
+    ut::expect(
         !hpp::proto::read_proto(
-            value,
-            split(
-                "\x1b\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00"s,
-                18))
-            .ok());      
+             value,
+             split(
+                 "\x1b\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00"s,
+                 18))
+             .ok());
   };
 };
 
@@ -1502,9 +1502,10 @@ struct non_owning_extension_example {
   bool operator==(const non_owning_extension_example &) const = default;
 };
 
-auto pb_meta(const non_owning_extension_example &) -> std::tuple<
-    hpp::proto::field_meta<1, &non_owning_extension_example::int_value, field_option::none, hpp::proto::vint64_t>,
-    hpp::proto::field_meta<UINT32_MAX, &non_owning_extension_example::extensions>>;
+auto pb_meta(const non_owning_extension_example &)
+    -> std::tuple<
+        hpp::proto::field_meta<1, &non_owning_extension_example::int_value, field_option::none, hpp::proto::vint64_t>,
+        hpp::proto::field_meta<UINT32_MAX, &non_owning_extension_example::extensions>>;
 
 constexpr auto non_owning_i32_ext() {
   return hpp::proto::extension_meta<non_owning_extension_example, 10, field_option::explicit_presence,
