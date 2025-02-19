@@ -226,6 +226,8 @@ const ut::suite test_repeated_sint32 = [] {
     ut::expect(hpp::proto::read_proto(value, "\x0a\x00"sv).ok());
     // invalid length
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv).ok());
+    // skip invalid length
+    ut::expect(!hpp::proto::read_proto(value, "\x1a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv).ok());
 
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x00\xa8\x96\x01"sv).ok());
     // encoded size longer than available data
@@ -299,7 +301,7 @@ void verify_non_owning(auto encoded_data, const T &expected_value, test_mode mod
   std::remove_cvref_t<T> value;
 
   std::pmr::monotonic_buffer_resource mr;
-  ut::expect(hpp::proto::read_proto(value, encoded_data, hpp::proto::strictly_alloc_from{mr}).ok());
+  ut::expect(hpp::proto::read_proto(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
   ut::expect(value == expected_value);
 
   if (mode == decode_only) {
@@ -545,7 +547,9 @@ const ut::suite test_repeated_bool = [] {
 
   "invalid_repeated_bool"_test = [] {
     repeated_bool value;
-    ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\x01\x00\x01\x81"sv).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\x01\x00\x81"sv).ok());
+    ut::expect(
+        !hpp::proto::read_proto(value, "\x0a\x0e\x01\x80\x81\x80\x81\x80\x81\x80\x81\x80\x81\x80\x81\x00"sv).ok());
   };
 };
 
@@ -581,7 +585,7 @@ const ut::suite test_non_owning_repeated_bool = [] {
 
     std::pmr::monotonic_buffer_resource mr;
     ut::expect(hpp::proto::read_proto(value, "\x08\x01\x08\x00\x08\x01\x08\x81\x00\x08\x00"sv,
-                                      hpp::proto::strictly_alloc_from{mr})
+                                      hpp::proto::alloc_from{mr})
                    .ok());
     std::array x{true, false, true, true, false};
     ut::expect(value == non_owning_repeated_bool_unpacked{.booleans = x});
@@ -902,7 +906,7 @@ struct string_view_example {
 };
 
 auto pb_meta(const string_view_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &string_view_example::value, field_option::none>>;
+    -> std::tuple<hpp::proto::field_meta<1, &string_view_example::value, field_option::utf8_validation>>;
 
 struct string_view_explicit_presence {
   std::string_view value;
@@ -951,6 +955,13 @@ const ut::suite test_string_view_example = [] {
   "optional_value_access"_test = [] {
     string_view_with_optional const v;
     ut::expect(v.value.value() == "test");
+  };
+
+  "string_view_invalid_utf8"_test = [] {
+    string_view_example v;
+    auto invalid_utf8_data = "\x0a\x02\xc0\xdf"sv;
+    std::pmr::monotonic_buffer_resource mr;
+    ut::expect(!hpp::proto::read_proto(v, invalid_utf8_data, hpp::proto::alloc_from{mr}).ok());
   };
 };
 
@@ -1084,7 +1095,7 @@ void verify_segmented_input(auto &encoded, const T &value, const std::vector<int
   ut::expect(value == decoded);
 };
 
-auto split(auto &data, int pos) {
+auto split(auto data, int pos) {
   return std::array<std::vector<char>, 2>{std::vector<char>{data.begin(), data.begin() + pos},
                                           std::vector<char>{data.begin() + pos, data.end()}};
 };
@@ -1127,15 +1138,19 @@ const ut::suite test_segmented_byte_range = [] {
 
   "invalid_packed_int32_with_segmented_input"_test = [] {
     repeated_int32 value;
-    value.integers.resize(10);
-    std::ranges::fill(value.integers, -1);
-    std::vector<char> encoded;
-    ut::expect(hpp::proto::write_proto(value, encoded).ok());
-    encoded[51] = '\xff';
 
-    repeated_int32 parsed_value;
-    ut::expect(!hpp::proto::read_proto(parsed_value, split(encoded, 60)).ok());
-    ut::expect(!hpp::proto::read_proto(parsed_value, split(encoded, 42)).ok());
+    using namespace std::string_literals;
+    // invalid int32 in the middle
+    ut::expect(
+        !hpp::proto::read_proto(
+             value, split("\x0a\x13\x01\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x01\x01\x01\x81\x81\x81\x00"s, 18))
+             .ok());
+
+    // no valid int32 in slope area
+    ut::expect(
+        !hpp::proto::read_proto(
+             value, split("\x0a\x13\x81\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x00"s, 18))
+             .ok());
   };
 
   "packed_sint32_with_segmented_input"_test = [] {
@@ -1163,8 +1178,41 @@ const ut::suite test_segmented_byte_range = [] {
 
   "invalid_packed_bool_with_segmented_input"_test = [] {
     repeated_bool value;
-    auto encoded = "\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x81"sv;
-    ut::expect(!hpp::proto::read_proto(value, split(encoded, 18)).ok());
+    using namespace std::string_literals;
+    // non-terminated packed bool
+    ut::expect(
+        !hpp::proto::read_proto(
+             value, split("\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x81"s, 18))
+             .ok());
+    // invalid bool in the middle
+    ut::expect(
+        !hpp::proto::read_proto(
+             value, split("\x0a\x13\x01\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x01\x01\x01\x81\x81\x81\x00"s, 18))
+             .ok());
+    // no valid bool in slope area
+    ut::expect(
+        !hpp::proto::read_proto(
+             value, split("\x0a\x13\x81\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x00"s, 18))
+             .ok());
+  };
+
+  "skip_group"_test = [] {
+    repeated_bool value;
+    using namespace std::string_literals;
+    ut::expect(
+        hpp::proto::read_proto(
+            value,
+            split(
+                "\x1b\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00\x1c"s,
+                18))
+            .ok());
+  ut::expect(
+        !hpp::proto::read_proto(
+            value,
+            split(
+                "\x1b\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00"s,
+                18))
+            .ok());      
   };
 };
 
@@ -1454,10 +1502,9 @@ struct non_owning_extension_example {
   bool operator==(const non_owning_extension_example &) const = default;
 };
 
-auto pb_meta(const non_owning_extension_example &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_extension_example::int_value, field_option::none, hpp::proto::vint64_t>,
-        hpp::proto::field_meta<UINT32_MAX, &non_owning_extension_example::extensions>>;
+auto pb_meta(const non_owning_extension_example &) -> std::tuple<
+    hpp::proto::field_meta<1, &non_owning_extension_example::int_value, field_option::none, hpp::proto::vint64_t>,
+    hpp::proto::field_meta<UINT32_MAX, &non_owning_extension_example::extensions>>;
 
 constexpr auto non_owning_i32_ext() {
   return hpp::proto::extension_meta<non_owning_extension_example, 10, field_option::explicit_presence,

@@ -468,40 +468,8 @@ For most use cases, [std::pmr::monotonic_buffer_resource](https://en.cppreferenc
 
 #### Providing Memory Resource to `read_proto()`
 
-Two option objects allow you to specify memory resources for `read_proto()`:
--	`alloc_from`: Permits the deserialized value to reference memory within the input buffer.
--	`strictly_alloc_from`: Ensures that all memory used by the deserialized value is allocated from the provided memory resource.
-
-Below is an example demonstrating the differences between these two options:
-
-```cpp
-#include <addressbook.pb.hpp> // Include "*.pb.hpp" for Protobuf APIs
-
-// ....
-std::string_view in_buffer = "\x0a\x04john";
-std::array<char, 16> arena;
-std::pmr::monotonic_buffer_resource pool{arena.data(), arena.size()};
-
-tutorial::Person out_msg;
-using namespace hpp::proto;
-// Deserialization using alloc_from
-if (!read_proto(out_msg, in_buffer, alloc_from{pool}).ok()) {
-  // Handle error
-}
-assert(out_msg.name == "john");
-// out_msg.name references in_buffer
-assert(out_msg.name.data() == in_buffer.data() + 2);
-
-// Deserialize using strictly_alloc_from
-if(!read_proto(out_msg, in_buffer, strictly_alloc_from{pool}).ok()) {
-  // Handle error
-}
-assert(out_msg.name == "john");
-// out_msg.name now references arena
-assert(out_msg.name.data() == arena.data());
-```
-</p>
-</details>
+The option object allows you to specify memory resources for `read_proto()`:
+-	`alloc_from`: All memory used by the deserialized value is allocated from the provided memory resource.
 
 ### JSON encoding/decoding APIs
 

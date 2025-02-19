@@ -71,20 +71,16 @@ concept dynamic_sized_view = std::derived_from<T, std::span<typename T::element_
                              std::same_as<T, std::string_view>;
 
 template <typename T>
-concept strict_allocation_context = is_pb_context<T> && requires { requires T::always_allocate; };
-
-template <typename T>
 concept byte_serializable =
     std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
 } // namespace concepts
 
-template <concepts::memory_resource T, bool Strict = false>
+template <concepts::memory_resource T>
 class alloc_from {
   T *mr;
 
 public:
   using option_type = alloc_from<T>;
-  constexpr static auto always_allocate = Strict;
   explicit alloc_from(T &m) : mr(&m) {}
   ~alloc_from() = default;
   alloc_from(const alloc_from &other) = default;
@@ -92,15 +88,6 @@ public:
   alloc_from &operator=(const alloc_from &) = default;
   alloc_from &operator=(alloc_from &&) = default;
   [[nodiscard]] T &memory_resource() const { return *mr; }
-};
-
-// Always allocate memory for string and bytes fields when
-// deserializing non-owning messages.
-template <concepts::memory_resource T>
-class strictly_alloc_from : public alloc_from<T, true> {
-public:
-  using option_type = strictly_alloc_from<T>;
-  explicit strictly_alloc_from(T &m) : alloc_from<T, true>(m) {}
 };
 
 template <uint32_t n>

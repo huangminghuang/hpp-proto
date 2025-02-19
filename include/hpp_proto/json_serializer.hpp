@@ -743,9 +743,6 @@ inline json_status read_json(glz::read_json_supported auto &value, concepts::con
   value = {};
   constexpr auto opts = detail::get_glz_opts<decltype(option)...>();
   json_context ctx{std::forward<decltype(option)>(option)...};
-  using context_type = std::decay_t<decltype(ctx)>;
-  static_assert(!concepts::strict_allocation_context<context_type>,
-                "read_json() does not support strictly_alloc_from yet!");
   return {glz::read<opts>(value, std::forward<decltype(buffer)>(buffer), ctx)};
 }
 
