@@ -28,6 +28,8 @@ const suite test_any = [] {
     google::protobuf::FieldMask fm2;
     expect(hpp::proto::unpack_any(message2.any_value.value(), fm2).ok());
     expect(fm == fm2);
+
+    expect(!hpp::proto::unpack_any<proto3_unittest::ForeignMessage>(message2.any_value.value()).has_value());
   };
 
   "non_owning_any"_test = [] {

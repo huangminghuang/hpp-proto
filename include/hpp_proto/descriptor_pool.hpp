@@ -26,18 +26,6 @@
 #include <iostream>
 namespace hpp::proto {
 
-[[noreturn]] inline void unreachable() {
-#if __cpp_lib_unreachable
-  std::unreachable();
-#else
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-  __assume(false);
-#else                                        // GCC, Clang
-  __builtin_unreachable();
-#endif
-#endif
-}
-
 template <typename FlatMap>
 void reserve(FlatMap &m, std::size_t s) {
   typename FlatMap::key_container_type keys;

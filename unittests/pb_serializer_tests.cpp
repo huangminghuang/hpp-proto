@@ -592,6 +592,15 @@ const ut::suite test_non_owning_repeated_bool = [] {
   };
 };
 
+struct enum_message {
+  enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
+  NestedEnum value;
+  bool operator==(const enum_message &) const = default;
+};
+
+auto pb_meta(const enum_message &)
+    -> std::tuple<hpp::proto::field_meta<1, &enum_message::value, field_option::none>>;
+
 struct repeated_enum {
   enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
   std::vector<NestedEnum> values;
@@ -644,6 +653,17 @@ auto pb_meta(const non_owning_repeated_enum_unpacked &)
     -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_enum_unpacked::values, field_option::none>>;
 
 const ut::suite test_enums = [] {
+
+  "enum_message"_test = [] {
+    using enum enum_message::NestedEnum;
+    verify("\x08\x01"sv, enum_message{.value=FOO});
+  };
+
+  "invalid_enum_message"_test = [] {
+    enum_message value;
+    ut::expect(!hpp::proto::read_proto(value, "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
+  };
+
   "repeated_enum"_test = [] {
     using enum repeated_enum::NestedEnum;
     verify("\x0a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv, repeated_enum{{FOO, BAR, BAZ, NEG}});
@@ -751,8 +771,13 @@ const ut::suite test_repeated_group = [] {
   "invalid_repeated_group"_test = [] {
     repeated_group value;
     ut::expect(!hpp::proto::read_proto(value, "\x0b\x10\x01\x0c\x0b"sv).ok());
+    // invalid tag
     ut::expect(!hpp::proto::read_proto(value, "\x1f\x10\x01\x0c\x0b"sv).ok());
-    // skip group with zero tag
+    // group with zero tag field
+    ut::expect(!hpp::proto::read_proto(value, "\x0b\x00\x01\x1c"sv).ok());
+    // group with incomplete field
+    ut::expect(!hpp::proto::read_proto(value, "\x0b\x10"sv).ok());
+    // skip group with zero tag field
     ut::expect(!hpp::proto::read_proto(value, "\x1b\x00\x01\x1c"sv).ok());
     // skip group with incomplete field
     ut::expect(!hpp::proto::read_proto(value, "\x1b\x10"sv).ok());
@@ -841,6 +866,19 @@ const ut::suite test_map_example = [] {
     string_key_map_example value{.dict = {{"\xc0\xdf", color_t::red}}};
     ut::expect(!hpp::proto::write_proto(value).has_value());
   };
+
+  "invalid_map_entry"_test = [] {
+    map_example value;
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x04\x08\x01\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
+  };
+
+  "invalid_non_owning_map_entry"_test = [] {
+    non_owning_map_example value;
+    std::pmr::monotonic_buffer_resource mr;
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x04\x08\x01\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv,
+                                       hpp::proto::alloc_from(mr))
+                    .ok());
+  };
 };
 
 struct string_example {
@@ -897,6 +935,11 @@ const ut::suite test_string_example = [] {
   "invalid_utf8"_test = [] {
     string_example v{.value = "\xC0\xDF"};
     ut::expect(!hpp::proto::write_proto(v).has_value());
+  };
+
+  "invalid_string_length"_test = [] {
+    string_example v;
+    ut::expect(!hpp::proto::read_proto(v, "\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x74\x65"sv).ok());
   };
 };
 
@@ -1123,6 +1166,7 @@ const ut::suite test_segmented_byte_range = [] {
     verify_segmented_input(encoded, value, {10, 48, 25, 48});
     verify_segmented_input(encoded, value, {25, 48, 10, 48});
     verify_segmented_input(encoded, value, {48, 25, 10, 48});
+    verify_segmented_input(encoded, value, {10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 31});
   };
 
   "packed_int32_with_segmented_input"_test = [] {
@@ -1350,7 +1394,7 @@ constexpr auto i32_ext() {
 }
 
 constexpr auto string_ext() {
-  return hpp::proto::extension_meta<extension_example, 11, field_option::explicit_presence, std::string, std::string>{};
+  return hpp::proto::extension_meta<extension_example, 11, field_option::explicit_presence | field_option::utf8_validation, std::string, std::string>{};
 }
 
 constexpr auto i32_defaulted_ext() {
@@ -1466,6 +1510,19 @@ const ut::suite test_extensions = [] {
   "invalid_extension"_test = [] {
     extension_example value;
     ut::expect(!hpp::proto::read_proto(value, "\x08\x96\x01\x50\x81\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv).ok());
+  };
+
+  "read_invalid_extension"_test = [] {
+    extension_example value{
+        .int_value = 150,
+        .extensions = {.fields = {{15U, "\x7a\x03\x08\x96\x81"_bytes}}}};
+    auto v = value.get_extension(example_ext());
+    ut::expect(!v.has_value());
+  };
+
+  "write_invalid_extension"_test = [] {
+    extension_example value;
+    ut::expect(!value.set_extension(string_ext(), "\xc0\xcd").ok());
   };
 };
 
@@ -1728,6 +1785,12 @@ const ut::suite recursive_types = [] {
     verify_non_owning("\x0a\x02\x10\x02\x10\x01"sv, value);
   };
 
+  "invalid_non_owning_recursive_type1"_test = [] {
+    non_owning_recursive_type1 value;
+    std::pmr::monotonic_buffer_resource mr;
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x0c\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x10\x01"sv, hpp::proto::alloc_from{mr}).ok());
+  };
+
   "non_owning_recursive_type2"_test = [] {
     non_owning_recursive_type2 child[1];
     child[0].payload = 2;
@@ -1948,6 +2011,10 @@ const ut::suite composite_type = [] {
       ut::expect(hpp::proto::read_proto(m2, data).ok());
       ut::expect(m == m2);
     }
+  };
+
+  "invalid_nested_message"_test = [] {
+    ut::expect(!hpp::proto::read_proto<monster_with_optional>("\x42\x07\x0a\x04\x73\x65\x73\x74"sv).has_value());
   };
 
   "person"_test = [] {

@@ -1170,6 +1170,18 @@ constexpr bool sfvint_parser_allowed() {
 }
 #endif
 
+[[noreturn]] inline void unreachable() {
+#if __cpp_lib_unreachable
+  std::unreachable();
+#else
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+  __assume(false);
+#else                                        // GCC, Clang
+  __builtin_unreachable();
+#endif
+#endif
+}
+
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 struct pb_serializer {
   template <typename Byte, typename Context>
@@ -2612,6 +2624,7 @@ struct pb_serializer {
         return deserialize_oneof<Index + 1, Meta>(tag, std::forward<decltype(item)>(item), archive);
       }
     } else {
+      unreachable();
       return {};
     }
   }
