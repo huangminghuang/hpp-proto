@@ -13,7 +13,8 @@ option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 
-option(HPP_PROTO_ENABLE_SANITIZER "Enable address and undefined behavior sanitizer" OFF)
+option(HPP_PROTO_ENABLE_SANITIZERS "The sanitizer to enable" OFF)
+option(HPP_PROTO_BUILD_FUZZ "Build fuzz target" OFF)
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
 set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
@@ -28,12 +29,13 @@ endif()
 if(MSVC)
   message(" compiler version ${CMAKE_CXX_COMPILER_VERSION}")
   add_compile_options("/EHsc")
-  if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.42 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.43)
+
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.42 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.43)
     message(WARNING "MSVC 19.42 has known bug to compile glaze, disable all JSON support")
     set(HPP_PROTO_DISABLE_GLAZE ON)
   endif()
 else()
-  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra")
+  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra" "-Werror=sign-conversion")
 endif()
 
 if(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")
@@ -61,18 +63,19 @@ endif()
 
 include(third-parties.cmake)
 
-if(HPP_PROTO_ENABLE_SANITIZER)
+if(HPP_PROTO_ENABLE_SANITIZERS)
   if(MSVC)
     # add_compile_options("/fsanitize=address")
     # add_link_options("/fsanitize=address")
   else()
-    add_compile_options("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
-    add_link_options("-fsanitize=address,undefined")
+    add_compile_options("-fsanitize=${HPP_PROTO_ENABLE_SANITIZERS}" "-fno-omit-frame-pointer")
+    add_link_options("-fsanitize=${HPP_PROTO_ENABLE_SANITIZERS}")
   endif()
 endif()
 
-set(CMAKE_CXX_FLAGS_COVERAGE "--coverage -O0") 
-if (HPP_PROTO_DISABLE_GLAZE)
+set(CMAKE_CXX_FLAGS_COVERAGE "-g -O0 --coverage -fprofile-arcs -ftest-coverage")
+
+if(HPP_PROTO_DISABLE_GLAZE)
   add_compile_definitions(BOOST_UT_DISABLE_MODULE HPP_PROTO_DISABLE_GLAZE)
 endif()
 
@@ -86,23 +89,10 @@ target_include_directories(libhpp_proto SYSTEM INTERFACE
 target_compile_features(libhpp_proto INTERFACE cxx_std_20)
 target_link_libraries(libhpp_proto INTERFACE is_utf8)
 
-add_library(libhpp_proto_no_utf8_validation INTERFACE)
-target_include_directories(libhpp_proto_no_utf8_validation INTERFACE
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-target_include_directories(libhpp_proto_no_utf8_validation SYSTEM INTERFACE
-  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>)
-target_compile_features(libhpp_proto_no_utf8_validation INTERFACE cxx_std_20)
-target_compile_definitions(libhpp_proto_no_utf8_validation INTERFACE HPP_PROTO_NO_UTF8_VALIDATION)
-
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
-add_library(hpp_proto::libhpp_proto_no_utf8_validation ALIAS libhpp_proto_no_utf8_validation)
 
 if(MSVC)
   target_compile_options(libhpp_proto INTERFACE "/Zc:preprocessor")
-  target_compile_options(libhpp_proto_no_utf8_validation INTERFACE "/Zc:preprocessor")
 endif()
 
 if(HPP_PROTO_TESTS)
@@ -119,6 +109,9 @@ if(HPP_PROTO_PROTOC_PLUGIN)
   if(HPP_PROTO_TESTS)
     add_subdirectory(tests)
     add_subdirectory(tutorial)
+    if (HPP_PROTO_BUILD_FUZZ AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+      add_subdirectory(fuzz)
+    endif()
   endif()
 
   if(HPP_PROTO_BENCHMARKS)

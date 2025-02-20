@@ -72,11 +72,11 @@ inline void SetOptionalFields(protobuf_unittest::TestAllTypesLite *message) {
   message->optional_bytes = "116"_bytes;
 
   message->optionalgroup = protobuf_unittest::TestAllTypesLite::OptionalGroup{.a = 117};
-  message->optional_nested_message = protobuf_unittest::TestAllTypesLite::NestedMessage{.bb = 118};
+  message->optional_nested_message = protobuf_unittest::TestAllTypesLite::NestedMessage{.bb = 118, .cc = {}, .dd = {}};
   message->optional_foreign_message.emplace().c = 119;
   message->optional_import_message.emplace().d = 120;
   message->optional_public_import_message.emplace().e = 126;
-  message->optional_lazy_message = protobuf_unittest::TestAllTypesLite::NestedMessage{.bb = 127};
+  message->optional_lazy_message = protobuf_unittest::TestAllTypesLite::NestedMessage{.bb = 127, .cc = {}, .dd = {}};
 
   message->optional_nested_enum = protobuf_unittest::TestAllTypesLite::NestedEnum::BAZ;
   message->optional_foreign_enum = protobuf_unittest::ForeignEnumLite::FOREIGN_LITE_BAZ;
@@ -198,10 +198,10 @@ inline void ModifyRepeatedFields(protobuf_unittest::TestAllTypesLite *message) {
 
 // ------------------------------------------------------------------
 inline void SetOneofFields(protobuf_unittest::TestAllTypesLite *message) {
-  message->oneof_field = 601U;
+  message->oneof_field.emplace<std::uint32_t>(601U);
   using enum protobuf_unittest::TestAllTypesLite::oneof_field_oneof_case;
   message->oneof_field.emplace<static_cast<int>(oneof_nested_message)>(
-      protobuf_unittest::TestAllTypesLite::NestedMessage{.bb = 602});
+      protobuf_unittest::TestAllTypesLite::NestedMessage{.bb = 602, .cc = {}, .dd = {}});
   message->oneof_field.emplace<static_cast<int>(oneof_string)>("603");
   message->oneof_field = "604"_bytes;
 }
@@ -629,7 +629,10 @@ inline void SetAll(protobuf_unittest::TestAllExtensionsLite *message) {
   expect(message->set_extension(protobuf_unittest::optional_bytes_extension_lite(), "116"_bytes).ok());
 
   expect(message->set_extension(protobuf_unittest::optionalgroup_extension_lite(), {.a = 117}).ok());
-  expect(message->set_extension(protobuf_unittest::optional_nested_message_extension_lite(), {.bb = 118}).ok());
+  expect(
+      message
+          ->set_extension(protobuf_unittest::optional_nested_message_extension_lite(), {.bb = 118, .cc = {}, .dd = {}})
+          .ok());
   expect(message->set_extension(protobuf_unittest::optional_foreign_message_extension_lite(), {.c = 119}).ok());
   expect(message->set_extension(protobuf_unittest::optional_import_message_extension_lite(), {.d = 120}).ok());
 
@@ -650,7 +653,9 @@ inline void SetAll(protobuf_unittest::TestAllExtensionsLite *message) {
   expect(message->set_extension(protobuf_unittest::optional_cord_extension_lite(), "125").ok());
 
   expect(message->set_extension(protobuf_unittest::optional_public_import_message_extension_lite(), {.e = 126}).ok());
-  expect(message->set_extension(protobuf_unittest::optional_lazy_message_extension_lite(), {.bb = 127}).ok());
+  expect(
+      message->set_extension(protobuf_unittest::optional_lazy_message_extension_lite(), {.bb = 127, .cc = {}, .dd = {}})
+          .ok());
 
   // -----------------------------------------------------------------
 
@@ -671,13 +676,17 @@ inline void SetAll(protobuf_unittest::TestAllExtensionsLite *message) {
   expect(message->set_extension(protobuf_unittest::repeated_bytes_extension_lite(), {"216"_bytes, "316"_bytes}).ok());
 
   expect(message->set_extension(protobuf_unittest::repeatedgroup_extension_lite(), {{.a = 217}, {.a = 317}}).ok());
-  expect(message->set_extension(protobuf_unittest::repeated_nested_message_extension_lite(), {{.bb = 218}, {.bb = 318}})
+  expect(message
+             ->set_extension(protobuf_unittest::repeated_nested_message_extension_lite(),
+                             {{.bb = 218, .cc = {}, .dd{}}, {.bb = 318, .cc = {}, .dd = {}}})
              .ok());
   expect(message->set_extension(protobuf_unittest::repeated_foreign_message_extension_lite(), {{.c = 219}, {.c = 319}})
              .ok());
   expect(message->set_extension(protobuf_unittest::repeated_import_message_extension_lite(), {{.d = 220}, {.d = 320}})
              .ok());
-  expect(message->set_extension(protobuf_unittest::repeated_lazy_message_extension_lite(), {{.bb = 227}, {.bb = 327}})
+  expect(message
+             ->set_extension(protobuf_unittest::repeated_lazy_message_extension_lite(),
+                             {{.bb = 227, .cc = {}, .dd = {}}, {.bb = 327, .cc = {}, .dd = {}}})
              .ok());
 
   expect(message
@@ -739,7 +748,9 @@ inline void SetAll(protobuf_unittest::TestAllExtensionsLite *message) {
 
 inline void SetOneofFields(protobuf_unittest::TestAllExtensionsLite *message) {
   expect(message->set_extension(protobuf_unittest::oneof_uint32_extension_lite(), 601).ok());
-  expect(message->set_extension(protobuf_unittest::oneof_nested_message_extension_lite(), {.bb = 602}).ok());
+  expect(
+      message->set_extension(protobuf_unittest::oneof_nested_message_extension_lite(), {.bb = 602, .cc = {}, .dd = {}})
+          .ok());
   expect(message->set_extension(protobuf_unittest::oneof_string_extension_lite(), "603").ok());
   expect(message->set_extension(protobuf_unittest::oneof_bytes_extension_lite(), "604"_bytes).ok());
 }
@@ -858,7 +869,8 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensionsLite &message
          std::vector<protobuf_unittest::RepeatedGroup_extension_lite>{{.a = 217}, {.a = 317}});
 
   expect(message.get_extension(protobuf_unittest::repeated_nested_message_extension_lite()).value() ==
-         std::vector<protobuf_unittest::TestAllTypesLite::NestedMessage>{{.bb = 218}, {.bb = 318}});
+         std::vector<protobuf_unittest::TestAllTypesLite::NestedMessage>{{.bb = 218, .cc = {}, .dd = {}},
+                                                                         {.bb = 318, .cc = {}, .dd = {}}});
 
   expect(message.get_extension(protobuf_unittest::repeated_foreign_message_extension_lite()).value() ==
          std::vector<protobuf_unittest::ForeignMessageLite>{{.c = 219}, {.c = 319}});
@@ -867,7 +879,8 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensionsLite &message
          std::vector<protobuf_unittest_import::ImportMessageLite>{{.d = 220}, {.d = 320}});
 
   expect(message.get_extension(protobuf_unittest::repeated_lazy_message_extension_lite()).value() ==
-         std::vector<protobuf_unittest::TestAllTypesLite::NestedMessage>{{.bb = 227}, {.bb = 327}});
+         std::vector<protobuf_unittest::TestAllTypesLite::NestedMessage>{{.bb = 227, .cc = {}, .dd = {}},
+                                                                         {.bb = 327, .cc = {}, .dd = {}}});
 
   expect(
       message.get_extension(protobuf_unittest::repeated_nested_enum_extension_lite()).value() ==

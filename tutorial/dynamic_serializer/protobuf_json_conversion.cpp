@@ -14,7 +14,7 @@ inline std::string read_file(const std::string &filename) {
 int main(int argc, const char **argv) {
   auto args = std::span<const char *>{argv, static_cast<std::size_t>(argc)};
 
-  auto descriptors = read_file("addressbook_proto3.desc.pb");
+  auto descriptors = read_file("addressbook_proto3.desc.binpb");
 
   auto ser = hpp::proto::dynamic_serializer::make(descriptors);
   if (!ser.has_value()) {

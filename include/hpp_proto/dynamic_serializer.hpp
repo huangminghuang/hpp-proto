@@ -187,7 +187,7 @@ class dynamic_serializer {
 
     template <typename FieldDescriptor, typename Pool>
     field_meta(FieldDescriptor *field_descriptor, const Pool &pool)
-        : number(field_descriptor->proto.number), name(field_descriptor->proto.name),
+        : number(static_cast<uint32_t>(field_descriptor->proto.number)), name(field_descriptor->proto.name),
           json_name(field_descriptor->proto.json_name), type(field_descriptor->proto.type),
           default_value(field_descriptor->proto.default_value) {
       auto &proto = field_descriptor->proto;
@@ -241,7 +241,7 @@ class dynamic_serializer {
     if (it == message_names.end() || *it != name) {
       return message_names.size();
     }
-    return it - message_names.begin();
+    return static_cast<std::size_t>(it - message_names.begin());
   }
 
   [[nodiscard]] std::size_t message_index_from_type_url(std::string_view type_url) const {
@@ -301,15 +301,19 @@ class dynamic_serializer {
     }
 
     status skip_field(uint32_t number, wire_type field_wire_type, concepts::is_basic_in auto &archive) {
-      vuint64_t length = 0;
+
       switch (field_wire_type) {
-      case wire_type::varint:
+      case wire_type::varint: {
+        vuint64_t length = 0;
         return archive(length);
-      case wire_type::length_delimited:
-        if (auto ec = archive(length); !ec.ok()) [[unlikely]] {
+      }
+      case wire_type::length_delimited: {
+        vuint32_t len;
+        if (auto ec = archive(len); !ec.ok()) [[unlikely]] {
           return ec;
         }
-        return archive.skip(length);
+        return archive.skip(len);
+      }
       case wire_type::fixed_64:
         return archive.skip(8);
       case wire_type::sgroup:
@@ -324,6 +328,9 @@ class dynamic_serializer {
     status skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
       while (archive.in_avail() > 0) {
         auto tag = archive.read_tag();
+        if (tag == 0) [[unlikely]] {
+          return std::errc::bad_message;
+        }
         uint32_t const next_field_num = tag_number(tag);
         wire_type const next_type = proto::tag_type(tag);
 
@@ -341,7 +348,7 @@ class dynamic_serializer {
     status field_type_to_json(bool quote_required, concepts::is_basic_in auto &archive) {
       T value{};
       if constexpr (concepts::contiguous_byte_range<T>) {
-        vint64_t len;
+        vuint32_t len;
         if (auto ec = archive(len); !ec.ok()) [[unlikely]] {
           return ec;
         }
@@ -380,18 +387,19 @@ class dynamic_serializer {
         glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
 
-      vint64_t length = 0;
+      vuint32_t length = 0;
       if (auto ec = archive(length); !ec.ok()) [[unlikely]] {
         return ec;
       }
 
-      if (archive.in_avail() < length) {
+      if (archive.in_avail() < static_cast<std::ptrdiff_t>(length)) {
         [[unlikely]] return std::errc::bad_message;
       }
 
       auto new_archive = archive.split(length);
 
       for (int n = 0; new_archive.in_avail() > 0; ++n) {
+        new_archive.maybe_advance_region();
         if (n > 0) {
           glz::detail::dump<','>(b, ix);
           if constexpr (Options.prettify) {
@@ -445,7 +453,8 @@ class dynamic_serializer {
       if (old_pos != 0) {
         auto it = b.begin();
         // move the newly decoded element to the end of previous element
-        std::rotate(it + old_pos, it + start_pos, it + ix);
+        std::rotate(it + static_cast<std::ptrdiff_t>(old_pos), it + static_cast<std::ptrdiff_t>(start_pos),
+                    it + static_cast<std::ptrdiff_t>(ix));
         unpacked_repeated_positions[field_index] = old_pos + (ix - start_pos);
       } else {
         unpacked_repeated_positions[field_index] = ix;
@@ -492,8 +501,8 @@ class dynamic_serializer {
       case TYPE_GROUP:
         return group_to_json<Options>(meta.type_index, meta.number, archive);
       case TYPE_MESSAGE: {
-        vint64_t length = 0;
-        if (!archive(length).ok() || archive.in_avail() < length) [[unlikely]] {
+        vuint32_t length = 0;
+        if (!archive(length).ok() || archive.in_avail() < static_cast<std::ptrdiff_t>(length)) [[unlikely]] {
           return std::errc::bad_message;
         }
 
@@ -614,6 +623,9 @@ class dynamic_serializer {
 
       while (archive.in_avail() > 0) {
         auto tag = archive.read_tag();
+        if (tag == 0) [[unlikely]] {
+          return std::errc::bad_message;
+        }
         auto number = tag_number(tag);
         auto field_wire_type = tag_type(tag);
 
@@ -644,7 +656,7 @@ class dynamic_serializer {
     status any_to_json(const auto &v) {
       auto msg_index = pb_meta.message_index_from_type_url(v.type_url);
       if (msg_index >= pb_meta.messages.size()) [[unlikely]] {
-        return std::errc::no_message_available;
+        return std::errc::no_message;
       }
 
       glz::detail::dump<"\"@type\":">(b, ix);
@@ -794,6 +806,9 @@ class dynamic_serializer {
       } else {
         while (archive.in_avail() > 0) {
           auto tag = archive.read_tag();
+          if (tag == 0) [[unlikely]] {
+            return std::errc::bad_message;
+          }
           auto number = tag_number(tag);
           auto field_wire_type = tag_type(tag);
           if (msg_index == pb_meta.protobuf_struct_message_index) {
@@ -1299,7 +1314,7 @@ class dynamic_serializer {
         }
         auto msg_index = pb_meta.message_index_from_type_url(type_url);
         if (msg_index >= pb_meta.messages.size()) [[unlikely]] {
-          return std::errc::no_message_available;
+          return std::errc::no_message;
         }
 
         if constexpr (!any_value_only) {
@@ -1531,7 +1546,7 @@ public:
 
     std::sort(tmp.begin(), it);
     auto last = std::unique(tmp.begin(), tmp.end());
-    std::size_t size = last - tmp.begin();
+    auto size = static_cast<std::size_t>(last - tmp.begin());
 
     google::protobuf::FileDescriptorSet fileset;
     fileset.file.resize(size);
@@ -1555,7 +1570,7 @@ public:
     if (id == messages.size()) [[unlikely]] {
       return std::errc::invalid_argument;
     }
-    buffer.resize(pb_encoded_stream.size() * 2);
+    buffer.resize(pb_encoded_stream.size() * 8);
 
     pb_context pb_ctx;
     pb_serializer::contiguous_input_archive archive(pb_encoded_stream, pb_ctx);

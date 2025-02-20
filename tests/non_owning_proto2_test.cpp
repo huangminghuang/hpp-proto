@@ -132,7 +132,8 @@ inline void SetRepeatedFields(protobuf_unittest::TestAllTypes *message) {
   const static protobuf_unittest::TestAllTypes::NestedMessage repeated_nested_message[] = {{.bb = 218}, {.bb = 318}};
   message->repeated_nested_message = repeated_nested_message;
 
-  const static protobuf_unittest::ForeignMessage repeated_foreign_message[] = {{.c = 219}, {.c = 319}};
+  const static protobuf_unittest::ForeignMessage repeated_foreign_message[] = {{.c = 219, .d = {}},
+                                                                               {.c = 319, .d = {}}};
   message->repeated_foreign_message = repeated_foreign_message;
   const static non_owning::protobuf_unittest_import::ImportMessage repeated_import_message[] = {{.d = 220}, {.d = 320}};
   message->repeated_import_message = repeated_import_message;
@@ -176,7 +177,7 @@ inline void SetDefaultFields(protobuf_unittest::TestAllTypes *message) {
 
 // ------------------------------------------------------------------
 inline void SetOneofFields(protobuf_unittest::TestAllTypes *message) {
-  message->oneof_field = 601U;
+  message->oneof_field.emplace<1>(601U);
   using enum protobuf_unittest::TestAllTypes::oneof_field_oneof_case;
   message->oneof_field.emplace<static_cast<int>(oneof_nested_message)>(
       protobuf_unittest::TestAllTypes::NestedMessage{.bb = 602});
@@ -639,7 +640,7 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message, auto &&mr) {
                              hpp::proto::alloc_from{mr})
              .ok());
   expect(message
-             ->set_extension(protobuf_unittest::optional_foreign_message_extension(), {.c = 119},
+             ->set_extension(protobuf_unittest::optional_foreign_message_extension(), {.c = 119, .d = {}},
                              hpp::proto::alloc_from{mr})
              .ok());
   expect(message
@@ -760,7 +761,8 @@ inline void SetAll(protobuf_unittest::TestAllExtensions *message, auto &&mr) {
              ->set_extension(protobuf_unittest::repeated_nested_message_extension(), repeated_nested_message_extension,
                              hpp::proto::alloc_from{mr})
              .ok());
-  const static protobuf_unittest::ForeignMessage repeated_foreign_message_extension[] = {{.c = 219}, {.c = 319}};
+  const static protobuf_unittest::ForeignMessage repeated_foreign_message_extension[] = {{.c = 219, .d = {}},
+                                                                                         {.c = 319, .d = {}}};
   expect(message
              ->set_extension(protobuf_unittest::repeated_foreign_message_extension(),
                              repeated_foreign_message_extension, hpp::proto::alloc_from{mr})
@@ -1013,7 +1015,7 @@ inline void ExpectAllSet(const protobuf_unittest::TestAllExtensions &message) {
   expect(std::ranges::equal(
       message.get_extension(protobuf_unittest::repeated_foreign_message_extension(), hpp::proto::alloc_from{mr})
           .value(),
-      std::vector<protobuf_unittest::ForeignMessage>{{.c = 219}, {.c = 319}},
+      std::vector<protobuf_unittest::ForeignMessage>{{.c = 219, .d = {}}, {.c = 319, .d = {}}},
       [](auto x, auto y) { return x.c == y.c; }));
 
   expect(std::ranges::equal(
@@ -1483,7 +1485,7 @@ const boost::ut::suite proto_test = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   using namespace non_owning;
-  auto unittest_descriptorset = read_file("unittest.desc.pb");
+  auto unittest_descriptorset = read_file("unittest.desc.binpb");
 
   "protobuf"_test =
       []<class T> {

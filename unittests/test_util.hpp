@@ -44,7 +44,8 @@ inline std::ostream &operator<<(std::ostream &os, std::span<const std::byte> byt
 
 template <hpp::proto::compile_time_string str>
 constexpr auto operator""_bytes_view() {
-  return static_cast<hpp::proto::bytes_view>(hpp::proto::bytes_literal<str>{});
+  hpp::proto::bytes_literal<str> data;
+  return hpp::proto::bytes_view{data.data(), data.size()};
 }
 
 template <hpp::proto::compile_time_string str>

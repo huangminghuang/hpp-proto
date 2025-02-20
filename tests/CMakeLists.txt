@@ -38,18 +38,18 @@ else()
     endif()
 
     add_custom_command(
-        COMMENT "Generating unittest.desc.pb"
-        OUTPUT unittest.desc.pb
+        COMMENT "Generating unittest.desc.binpb"
+        OUTPUT unittest.desc.binpb
         COMMAND protobuf::protoc
-        ARGS -I "${CMAKE_CURRENT_SOURCE_DIR}" ${PROTOC3_OPTIONAL_OPTION} --include_imports --descriptor_set_out=unittest.desc.pb
+        ARGS -I "${CMAKE_CURRENT_SOURCE_DIR}" ${PROTOC3_OPTIONAL_OPTION} --include_imports --descriptor_set_out=unittest.desc.binpb
         ${unittest_desc_pb_sources}
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     )
 
     add_subdirectory(data)
 
-    add_custom_target(unittest.desc.pb.target ALL
-        DEPENDS unittest.desc.pb)
+    add_custom_target(unittest.desc.binpb.target ALL
+        DEPENDS unittest.desc.binpb)
 
     add_library(unittest_proto3_proto_lib INTERFACE
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto"
@@ -142,6 +142,15 @@ else()
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     set_property(TEST map_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+
+    add_library(non_owning_map_unittest_proto_lib INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
+    target_include_directories(non_owning_map_unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+    protobuf_generate_hpp(
+        TARGET non_owning_map_unittest_proto_lib
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+        PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
+        PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning")
 
     if(Protobuf_INCLUDE_DIRS)
         add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)

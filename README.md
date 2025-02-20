@@ -33,7 +33,7 @@ Compared to Google’s implementation, hpp-proto adopts a minimalistic design th
 |   CPU    | M1 Pro/MK193LL/A   |  Intel Core i9-11950H @ 2.60GHz |
 | Compiler | Apple clang 16.0.0 |           gcc 12.3.0            |
 
-Google protobuf version 28.3
+Google protobuf version 29.3
 
 ### Runtime Performance 
 
@@ -61,30 +61,30 @@ We measured the runtime performance using the dataset and the benchmarks.proto d
   </tr>
  <tr>
    <td>google CPU time</td>
-   <td><div align="right">475.0&nbsp;ns</div></td>
-   <td><div align="right">366.0&nbsp;ns</div></td>
-   <td><div align="right">382.0&nbsp;ns</div></td>
-   <td><div align="right">268.0&nbsp;ns</div></td>
-   <td><div align="right">509.0&nbsp;ns</div></td>
-   <td><div align="right">426.0&nbsp;ns</div></td>
+   <td><div align="right">470.0&nbsp;ns</div></td>
+   <td><div align="right">346.0&nbsp;ns</div></td>
+   <td><div align="right">376.0&nbsp;ns</div></td>
+   <td><div align="right">262.0&nbsp;ns</div></td>
+   <td><div align="right">506.0&nbsp;ns</div></td>
+   <td><div align="right">400.0&nbsp;ns</div></td>
  </tr>
  <tr>
    <td>hpp_proto CPU time</td>
-   <td><div align="right">283.0&nbsp;ns</div></td>
-   <td><div align="right">170.0&nbsp;ns</div></td>
-   <td><div align="right">81.0&nbsp;ns</div></td>
-   <td><div align="right">8.38&nbsp;ns</div></td>
-   <td><div align="right">285.0&nbsp;ns</div></td>
-   <td><div align="right">182.0&nbsp;ns</div></td>
+   <td><div align="right">286.0&nbsp;ns</div></td>
+   <td><div align="right">175.0&nbsp;ns</div></td>
+   <td><div align="right">76.3&nbsp;ns</div></td>
+   <td><div align="right">8.4&nbsp;ns</div></td>
+   <td><div align="right">290.0&nbsp;ns</div></td>
+   <td><div align="right">179.0&nbsp;ns</div></td>
  </tr>
  <tr>
    <td>hpp_proto speedup factor</td>
-   <td><div align="right">1.67</div></td>
-   <td><div align="right">2.15</div></td>
-   <td><div align="right">4.71</div></td>
-   <td><div align="right">31.98</div></td>
-   <td><div align="right">1.78</div></td>
-   <td><div align="right">2.34</div></td>
+   <td><div align="right">1.64</div></td>
+   <td><div align="right">1.98</div></td>
+   <td><div align="right">4.93</div></td>
+   <td><div align="right">31.19</div></td>
+   <td><div align="right">1.74</div></td>
+   <td><div align="right">2.23</div></td>
  </tr>
 </tbody>
 </table>
@@ -111,30 +111,30 @@ We measured the runtime performance using the dataset and the benchmarks.proto d
   </tr>
  <tr>
    <td>google CPU time</td>
-   <td><div align="right">250.0&nbsp;ns</div></td>
-   <td><div align="right">257.0&nbsp;ns</div></td>
-   <td><div align="right">114.0&nbsp;ns</div></td>
-   <td><div align="right">108.0&nbsp;ns</div></td>
-   <td><div align="right">225.0&nbsp;ns</div></td>
-   <td><div align="right">229.0&nbsp;ns</div></td>
+   <td><div align="right">261.0&nbsp;ns</div></td>
+   <td><div align="right">268.0&nbsp;ns</div></td>
+   <td><div align="right">113.0&nbsp;ns</div></td>
+   <td><div align="right">106.0&nbsp;ns</div></td>
+   <td><div align="right">227.0&nbsp;ns</div></td>
+   <td><div align="right">232.0&nbsp;ns</div></td>
  </tr>
  <tr>
    <td>hpp_proto CPU time</td>
-   <td><div align="right">198.0&nbsp;ns</div></td>
-   <td><div align="right">142.0&nbsp;ns</div></td>
-   <td><div align="right">34.6&nbsp;ns</div></td>
-   <td><div align="right">10.9&nbsp;ns</div></td>
-   <td><div align="right">146.0&nbsp;ns</div></td>
-   <td><div align="right">116.0&nbsp;ns</div></td>
+   <td><div align="right">200.0&nbsp;ns</div></td>
+   <td><div align="right">155.0&nbsp;ns</div></td>
+   <td><div align="right">33.0&nbsp;ns</div></td>
+   <td><div align="right">10.7&nbsp;ns</div></td>
+   <td><div align="right">137.0&nbsp;ns</div></td>
+   <td><div align="right">113.0&nbsp;ns</div></td>
  </tr>
  <tr>
    <td>hpp_proto speedup factor</td>
-   <td><div align="right">1.26</div></td>
-   <td><div align="right">1.81</div></td>
-   <td><div align="right">3.29</div></td>
+   <td><div align="right">1.30</div></td>
+   <td><div align="right">1.73</div></td>
+   <td><div align="right">3.42</div></td>
    <td><div align="right">9.91</div></td>
-   <td><div align="right">1.54</div></td>
-   <td><div align="right">1.97</div></td>
+   <td><div align="right">1.66</div></td>
+   <td><div align="right">2.05</div></td>
  </tr>
 </tbody>
 </table>
@@ -161,23 +161,23 @@ We compared the code sizes of three equivalent programs: [hpp_proto_decode_encod
   </tr>
   <tr>
     <td> google_decode_encode </td>
-    <td><div align="right">2624344</div></td>
-    <td><div align="right">3410088</div></td>
+    <td><div align="right">2683720</div></td>
+    <td><div align="right">3467520</div></td>
   </tr>
   <tr>
     <td> google_decode_encode_lite </td>
-    <td><div align="right">1106408</div></td>
-    <td><div align="right">1474208</div></td>
+    <td><div align="right">1128296</div></td>
+    <td><div align="right">1505200</div></td>
   </tr>
   <tr>
     <td> hpp_proto_decode_encoded </td>
-    <td><div align="right">121208</div></td>
-    <td><div align="right">92520</div></td>
+    <td><div align="right">121272</div></td>
+    <td><div align="right">96840</div></td>
   </tr>
 </tbody>
 </table>
  
-The comparison highlights a significant reduction in code size when using hpp-proto compared to Google’s Protocol Buffers implementations. On macOS, hpp-proto offers a 21.65x reduction in size compared to google_decode_encode and a 9.13x reduction compared to google_decode_encode_lite. The reduction is even more pronounced on Linux, where hpp-proto reduces the code size by 36.86x compared to google_decode_encode and by 15.93x compared to google_decode_encode_lite.
+The comparison highlights a significant reduction in code size when using hpp-proto compared to Google’s Protocol Buffers implementations. On macOS, hpp-proto offers a 22.13x reduction in size compared to google_decode_encode and a 9.30x reduction compared to google_decode_encode_lite. The reduction is even more pronounced on Linux, where hpp-proto reduces the code size by 35.81x compared to google_decode_encode and by 15.54x compared to google_decode_encode_lite.
 
 
 ## Getting Started
@@ -468,40 +468,8 @@ For most use cases, [std::pmr::monotonic_buffer_resource](https://en.cppreferenc
 
 #### Providing Memory Resource to `read_proto()`
 
-Two option objects allow you to specify memory resources for `read_proto()`:
--	`alloc_from`: Permits the deserialized value to reference memory within the input buffer.
--	`strictly_alloc_from`: Ensures that all memory used by the deserialized value is allocated from the provided memory resource.
-
-Below is an example demonstrating the differences between these two options:
-
-```cpp
-#include <addressbook.pb.hpp> // Include "*.pb.hpp" for Protobuf APIs
-
-// ....
-std::string_view in_buffer = "\x0a\x04john";
-std::array<char, 16> arena;
-std::pmr::monotonic_buffer_resource pool{arena.data(), arena.size()};
-
-tutorial::Person out_msg;
-using namespace hpp::proto;
-// Deserialization using alloc_from
-if (!read_proto(out_msg, in_buffer, alloc_from{pool}).ok()) {
-  // Handle error
-}
-assert(out_msg.name == "john");
-// out_msg.name references in_buffer
-assert(out_msg.name.data() == in_buffer.data() + 2);
-
-// Deserialize using strictly_alloc_from
-if(!read_proto(out_msg, in_buffer, strictly_alloc_from{pool}).ok()) {
-  // Handle error
-}
-assert(out_msg.name == "john");
-// out_msg.name now references arena
-assert(out_msg.name.data() == arena.data());
-```
-</p>
-</details>
+The option object allows you to specify memory resources for `read_proto()`:
+-	`alloc_from`: All memory used by the deserialized value is allocated from the provided memory resource.
 
 ### JSON encoding/decoding APIs
 

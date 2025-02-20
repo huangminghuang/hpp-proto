@@ -42,7 +42,7 @@ std::string proto_to_json(std::string_view filedescriptorset_stream, const char 
   const gpb::DescriptorPool pool(&database);
   auto json = proto_to_json(pool, message_name, data);
   using namespace std::string_literals;
-  write_file("data/"s + std::string(message_name) + ".pb", data);
+  write_file("data/"s + std::string(message_name) + ".binpb", data);
   write_file("data/"s + std::string(message_name) + ".json", json);
   return json;
 }
@@ -55,7 +55,7 @@ std::string read_file(const std::string &filename) {
   std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
   std::string contents;
   in.seekg(0, std::ios::end);
-  contents.resize(in.tellg());
+  contents.resize(static_cast<std::string::size_type>(in.tellg()));
   in.seekg(0, std::ios::beg);
   in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
   return contents;
@@ -63,7 +63,7 @@ std::string read_file(const std::string &filename) {
 
 std::string proto_to_json(std::string_view /* unused */, const char *message_name, std::string_view data) {
   using namespace std::string_literals;
-  auto pb_data = read_file("data/"s + message_name + ".pb");
+  auto pb_data = read_file("data/"s + message_name + ".binpb");
   if (data == pb_data) {
     return read_file("data/"s + message_name + ".json");
   }

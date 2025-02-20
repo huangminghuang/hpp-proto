@@ -111,16 +111,16 @@ using qualifies_as_input_iterator = std::integral_constant<bool, !std::is_integr
 template <class... Its>
 void swap_together(size_t i, size_t j, Its... its) {
   using std::swap;
-  int dummy[] = {0, (std::iter_swap(its + i, its + j), 0)...};
+  int dummy[] = {0, (std::iter_swap(its + static_cast<std::ptrdiff_t>(i), its + static_cast<std::ptrdiff_t>(j)), 0)...};
   (void)dummy;
 }
 
 template <class Predicate, class Head, class... Rest>
 size_t partition_together(Predicate &pred, size_t left, size_t right, Head head, const Rest... rest) {
   while (left < right) {
-    while (left != right && pred(*(head + left)))
+    while (left != right && pred(*(head + static_cast<std::ptrdiff_t>(left))))
       ++left;
-    while (left != right && !pred(*(head + (right - 1))))
+    while (left != right && !pred(*(head + static_cast<std::ptrdiff_t>(right - 1))))
       --right;
     if (left + 1 < right) {
       flatmap_detail::swap_together(left, right - 1, head, rest...);
@@ -139,7 +139,7 @@ void sort_together(Compare &less, size_t left, size_t right, Head head, Rest... 
     if (pivot_idx != right - 1) {
       flatmap_detail::swap_together(pivot_idx, right - 1, head, rest...);
     }
-    const auto &pivot_elt = *(head + (right - 1));
+    const auto &pivot_elt = *(head + static_cast<std::ptrdiff_t>(right - 1));
     auto less_than_pivot = [&](const auto &x) -> bool { return less(x, pivot_elt); };
     size_t correct_pivot_idx = flatmap_detail::partition_together(less_than_pivot, left, right - 1, head, rest...);
     if (correct_pivot_idx != right - 1) {
@@ -148,7 +148,7 @@ void sort_together(Compare &less, size_t left, size_t right, Head head, Rest... 
     flatmap_detail::sort_together(less, left, correct_pivot_idx, head, rest...);
     flatmap_detail::sort_together(less, correct_pivot_idx + 1, right, head, rest...);
   } else if (right - left == 2) {
-    if (less(*(head + left), *(head + (left + 1)))) {
+    if (less(*(head + static_cast<std::ptrdiff_t>(left)), *(head + static_cast<std::ptrdiff_t>(left + 1)))) {
       // nothing to do
     } else {
       flatmap_detail::swap_together(left, left + 1, head, rest...);

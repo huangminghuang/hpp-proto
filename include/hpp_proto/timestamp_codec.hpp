@@ -37,7 +37,7 @@ struct timestamp_codec {
     if constexpr (Len == 9) {
       const int hi = val / 100000000;
       assert(hi < 10);
-      *buf++ = '0' + static_cast<uint8_t>(hi);
+      *buf++ = static_cast<char>('0' + static_cast<uint8_t>(hi));
       buf = glz::to_chars_u64_len_8(buf, uint32_t(val % 100000000));
     } else if constexpr (Len == 4) {
       buf = glz::to_chars_u64_len_4(buf, uint32_t(val));
@@ -119,9 +119,11 @@ struct timestamp_codec {
     }
 
     using namespace std::chrono;
-    value.seconds = (sys_days(year_month_day(year(yy), month(mm), day(dd))) + hours(hh) + minutes(mn) + seconds(ss))
-                        .time_since_epoch()
-                        .count();
+    value.seconds =
+        (sys_days(year_month_day(year(yy), month(static_cast<unsigned>(mm)), day(static_cast<unsigned>(dd)))) +
+         hours(hh) + minutes(mn) + seconds(ss))
+            .time_since_epoch()
+            .count();
 
     if (cur == end) {
       return true;

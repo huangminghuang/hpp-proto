@@ -54,7 +54,7 @@ struct field_mask_codec {
     }
     auto is_comma = [](auto c) { return c == ','; };
     auto num_commas = std::count_if(json.begin(), json.end(), is_comma);
-    value.paths.resize(num_commas + 1);
+    value.paths.resize(static_cast<std::size_t>(num_commas + 1));
     auto cur = json.begin();
     for (auto &p : value.paths) {
       auto comma_pos = std::find_if(cur, json.end(), is_comma);
