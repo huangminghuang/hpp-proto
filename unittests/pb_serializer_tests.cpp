@@ -598,8 +598,7 @@ struct enum_message {
   bool operator==(const enum_message &) const = default;
 };
 
-auto pb_meta(const enum_message &)
-    -> std::tuple<hpp::proto::field_meta<1, &enum_message::value, field_option::none>>;
+auto pb_meta(const enum_message &) -> std::tuple<hpp::proto::field_meta<1, &enum_message::value, field_option::none>>;
 
 struct repeated_enum {
   enum class NestedEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
@@ -653,10 +652,9 @@ auto pb_meta(const non_owning_repeated_enum_unpacked &)
     -> std::tuple<hpp::proto::field_meta<1, &non_owning_repeated_enum_unpacked::values, field_option::none>>;
 
 const ut::suite test_enums = [] {
-
   "enum_message"_test = [] {
     using enum enum_message::NestedEnum;
-    verify("\x08\x01"sv, enum_message{.value=FOO});
+    verify("\x08\x01"sv, enum_message{.value = FOO});
   };
 
   "invalid_enum_message"_test = [] {
@@ -1394,7 +1392,9 @@ constexpr auto i32_ext() {
 }
 
 constexpr auto string_ext() {
-  return hpp::proto::extension_meta<extension_example, 11, field_option::explicit_presence | field_option::utf8_validation, std::string, std::string>{};
+  return hpp::proto::extension_meta<extension_example, 11,
+                                    field_option::explicit_presence | field_option::utf8_validation, std::string,
+                                    std::string>{};
 }
 
 constexpr auto i32_defaulted_ext() {
@@ -1513,9 +1513,7 @@ const ut::suite test_extensions = [] {
   };
 
   "read_invalid_extension"_test = [] {
-    extension_example value{
-        .int_value = 150,
-        .extensions = {.fields = {{15U, "\x7a\x03\x08\x96\x81"_bytes}}}};
+    extension_example value{.int_value = 150, .extensions = {.fields = {{15U, "\x7a\x03\x08\x96\x81"_bytes}}}};
     auto v = value.get_extension(example_ext());
     ut::expect(!v.has_value());
   };
@@ -1788,7 +1786,9 @@ const ut::suite recursive_types = [] {
   "invalid_non_owning_recursive_type1"_test = [] {
     non_owning_recursive_type1 value;
     std::pmr::monotonic_buffer_resource mr;
-    ut::expect(!hpp::proto::read_proto(value, "\x0a\x0c\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x10\x01"sv, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x0c\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x10\x01"sv,
+                                       hpp::proto::alloc_from{mr})
+                    .ok());
   };
 
   "non_owning_recursive_type2"_test = [] {
