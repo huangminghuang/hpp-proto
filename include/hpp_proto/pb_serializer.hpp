@@ -420,7 +420,7 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
   if (byte == 0 || byte == 1) [[likely]] {
     // This is the code path almost always taken,
     // so we take care to make it very efficient.
-    if (sizeof(byte) == sizeof(value)) {
+    if constexpr (sizeof(byte) == sizeof(value)) {
       std::memcpy(&value, &byte, 1);
     } else {
       // The C++ standard does not specify that a `bool` takes only one byte
