@@ -204,6 +204,10 @@ else()
 
         set_property(TEST dynamic_serializer_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
+        add_executable(dynamic_serializer_coverage_tests dynamic_serializer_coverage_tests.cpp)
+        target_link_libraries(dynamic_serializer_coverage_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze unittest_proto3_proto_lib)
+        add_hpp_proto_test(dynamic_serializer_coverage_tests)
+
         add_executable(well_known_types_tests well_known_types_tests.cpp)
         target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
         target_link_libraries(well_known_types_tests PRIVATE well_known_types hpp_proto::libhpp_proto Boost::ut glaze::glaze)

@@ -705,10 +705,12 @@ template <typename T>
 concept glz_opts_t = requires { requires std::same_as<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
 } // namespace concepts
 namespace detail {
-template <typename Context>
+template <typename Context, typename ...Rest>
 constexpr glz::opts get_glz_opts_impl() {
   if constexpr (requires { std::decay_t<Context>::glz_opts_value; }) {
     return std::decay_t<Context>::glz_opts_value;
+  } else if constexpr (sizeof...(Rest)) {
+    return get_glz_opts_impl<Rest...>();
   } else {
     return glz::opts{};
   }

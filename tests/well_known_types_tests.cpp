@@ -74,7 +74,22 @@ const ut::suite test_timestamp = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").ok());
 
   ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+
+  "timestamp_second_overlong"_test = [&ser] {
+    std::string json_buf;
+    using namespace std::string_view_literals;
+    expect(!ser->proto_to_json("google.protobuf.Timestamp", "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf).ok());
+  };
+
+  "timestamp_nano_too_large"_test = [&ser] {
+    std::string json_buf;
+    using namespace std::string_view_literals;
+    std::string pb_data;
+    expect(hpp::proto::write_proto(timestamp_t{.seconds = 1000, .nanos = 1000000000}, pb_data).ok());
+    expect(!ser->proto_to_json("google.protobuf.Timestamp", pb_data, json_buf).ok());
+  };
 };
+    
 
 const ut::suite test_duration = [] {
   using duration_t = google::protobuf::Duration;
