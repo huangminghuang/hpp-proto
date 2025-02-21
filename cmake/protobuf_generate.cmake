@@ -158,9 +158,13 @@
         add_executable(protobuf::protoc ALIAS hpp_proto::protoc)
       endif()
 
+      if (HPP_PROTO_TEST_ENVIRONMENT)
+        set(_set_env ${CMAKE_COMMAND} -E env "${HPP_PROTO_TEST_ENVIRONMENT}")
+      endif()
+
       add_custom_command(
         OUTPUT ${_generated_srcs}
-        COMMAND ${CMAKE_COMMAND} -E env "${HPP_PROTO_TEST_ENVIRONMENT}" $<TARGET_FILE:protobuf::protoc>
+        COMMAND ${_set_env} $<TARGET_FILE:protobuf::protoc>
                 ${protobuf_generallve_PROTOC_OPTIONS} --${protobuf_generate_LANGUAGE}_out ${_plugin_options}:${protobuf_generate_PROTOC_OUT_DIR} ${_plugin} ${_protobuf_include_path} ${_abs_file}
         DEPENDS ${_abs_file} protobuf::protoc ${protobuf_generate_DEPENDENCIES}
         COMMENT ${_comment}

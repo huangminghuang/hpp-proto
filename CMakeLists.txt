@@ -77,7 +77,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Coverage" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang
   set(CMAKE_CXX_FLAGS_COVERAGE "-fprofile-instr-generate -fcoverage-mapping")
   set(CMAKE_EXE_LINKER_FLAGS_COVERAGE "-fprofile-instr-generate")
   set(HPP_PROTO_TEST_ENVIRONMENT "LLVM_PROFILE_FILE=${CMAKE_BINARY_DIR}/coverage/%m.profraw")
-  configure_file(gen_lcov_info.sh.in gen_lcov_info.sh)
+  configure_file(gen_lcov_info.sh.in gen_lcov_info.sh @ONLY)
+  file(CHMOD ${CMAKE_CURRENT_BINARY_DIR}/gen_lcov_info.sh PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ)
 endif()
 
 if(HPP_PROTO_DISABLE_GLAZE)

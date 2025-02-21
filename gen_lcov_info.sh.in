@@ -1,11 +1,18 @@
-#/bin/bash
+#!/bin/bash
 
-EXECUTABLES=$(find . -type f -perm +111 -print | grep -v CMakeFiles)
+if find --version >/dev/null 2>&1; then
+    PERM_FLAG="-executable"
+else
+    PERM_FLAG="-perm +111"
+fi
+
+EXECUTABLES=$(find . -type f $PERM_FLAG -print | grep -v CMakeFiles | grep -v gen_lcov_info.sh)
 
 for exec in $EXECUTABLES; do 
     OBJECTS="$OBJECTS -object $exec"
-done 
+done
 
-PATH=$(${CMAKE_CXX_COMPILER} -print-search-dirs | grep programs | sed 's/[^=]*=//')
+
+PATH=$(@CMAKE_CXX_COMPILER@ -print-search-dirs | grep programs | sed 's/[^=]*=//')
 llvm-profdata merge -sparse  -o hpp-proto.profdata coverage/*.profraw
 llvm-cov export -format lcov -instr-profile=hpp-proto.profdata -ignore-filename-regex="(msg|glz|pb|desc)\.hpp" -ignore-filename-regex="(tests|tutorial|unittests)/\.*" $OBJECTS > lcov.info
