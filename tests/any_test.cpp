@@ -134,6 +134,8 @@ const suite test_any = [] {
       "\x65\x73\x73\x61\x67\x65\x12\x03\x08\xd2\x89\x80\x80\x80\x80\x80\x80\x80\x90\10";
 
     expect(!ser->proto_to_json("protobuf_unittest.TestAny", data).has_value());
+    using namespace std::string_view_literals;
+    expect(!ser->proto_to_json("protobuf_unittest.TestAny", "\x12\x04\x0a\x02\xc0\xcd"sv).has_value());
   };
 #endif
 };

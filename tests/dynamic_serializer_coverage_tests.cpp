@@ -83,9 +83,10 @@ const boost::ut::suite dynamic_serializer_coverage_test = [] {
   };
 
   "skip_unknown_fields"_test = [&ser] {
-      expect(ser->proto_to_json("proto3_unittest.TestPackedTypes", "\x0a\x05\x92\x01\x02\x08\x01"sv).has_value());
-      // skip invalid length
-      expect(!ser->proto_to_json("proto3_unittest.TestPackedTypes", "\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv).has_value());
+    expect(ser->proto_to_json("proto3_unittest.TestPackedTypes", "\x0a\x05\x92\x01\x02\x08\x01"sv).has_value());
+    // skip invalid length
+    expect(!ser->proto_to_json("proto3_unittest.TestPackedTypes", "\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv)
+                .has_value());
   };
 
   "group_error_handling"_test = [&ser] {
@@ -96,15 +97,34 @@ const boost::ut::suite dynamic_serializer_coverage_test = [] {
     }
 
     // invalid tag
-    expect(!ser->proto_to_json("protobuf_unittest.TestAllTypes", "\x83\x01\x00\x01\x01\x84\x01"sv)
-                .has_value());
+    expect(!ser->proto_to_json("protobuf_unittest.TestAllTypes", "\x83\x01\x00\x01\x01\x84\x01"sv).has_value());
 
     // invalid nested field
-    expect(!ser->proto_to_json("protobuf_unittest.TestAllTypes", "\x83\x01\x88\x01\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x09\x84\x01"sv)
+    expect(!ser->proto_to_json("protobuf_unittest.TestAllTypes",
+                               "\x83\x01\x88\x01\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x09\x84\x01"sv)
                 .has_value());
 
     // no end tag
     expect(!ser->proto_to_json("protobuf_unittest.TestAllTypes", "\x83\x01\x88\x01\x01"sv).has_value());
+  };
+
+  "message_error_handling"_test = [&] {
+    // invalid message name
+    expect(!ser->proto_to_json("protobuf_unittest.UnknownMessage", "\x3d\x08\x01\x00\x00"sv).has_value());
+    // invalid tag
+    expect(!ser->proto_to_json("protobuf_unittest.TestAllTypes", "\x00\x08\x01"sv).has_value());
+    // message too short
+    expect(!ser->proto_to_json("protobuf_unittest.TestAllTypes", "\x3d\x08\x01"sv).has_value());
+  };
+
+  "json_to_proto_error_handling"_test = [&ser] {
+    expect(ser->json_to_proto("protobuf_unittest.TestAllTypes", R"({"optionalInt32":1})"sv).has_value());
+    // invalid value
+    expect(!ser->json_to_proto("protobuf_unittest.TestAllTypes", R"({"optionalInt32":{}})"sv).has_value());
+    // invalid field
+    expect(!ser->json_to_proto("protobuf_unittest.TestAllTypes", R"({"unknown":1})"sv).has_value());
+    // invalid message
+    expect(!ser->json_to_proto("protobuf_unittest.UnknownMessage", R"({"unknown":1})"sv).has_value());
   };
 };
 

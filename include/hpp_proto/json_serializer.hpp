@@ -533,8 +533,8 @@ struct from_json<hpp::proto::equality_comparable_span<Type>> {
 template <auto Opts>
 [[nodiscard]] GLZ_ALWAYS_INLINE size_t number_of_map_elements(is_context auto &ctx, auto it, auto &end) noexcept {
   skip_ws<Opts>(ctx, it, end);
-  if (bool(ctx.error)) {
-    [[unlikely]] return {};
+  if (bool(ctx.error)) [[unlikely]] {
+    return {};
   }
 
   if (*it == '}') [[unlikely]] {
@@ -550,27 +550,27 @@ template <auto Opts>
     }
     case '/': {
       skip_comment(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return {};
+      if (bool(ctx.error)) [[unlikely]] {
+        return {};
       }
       break;
     }
     case '{':
       skip_until_closed<Opts, '{', '}'>(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return {};
+      if (bool(ctx.error)) [[unlikely]] {
+        return {};
       }
       break;
     case '[':
       skip_until_closed<Opts, '[', ']'>(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return {};
+      if (bool(ctx.error)) [[unlikely]] {
+        return {};
       }
       break;
     case '"': {
       skip_string<Opts>(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return {};
+      if (bool(ctx.error)) [[unlikely]] {
+        return {};
       }
       break;
     }
@@ -595,19 +595,19 @@ struct from_json<hpp::proto::map_wrapper<T>> {
     auto &value = v.value;
     if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return;
+      if (bool(ctx.error)) [[unlikely]] {
+        return;
       }
     }
     static constexpr auto Opts = ws_handled_off<Options>();
 
     match<'{'>(ctx, it, end);
-    if (bool(ctx.error)) {
-      [[unlikely]] return;
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
     }
     const auto n = number_of_map_elements<Opts>(ctx, it, end);
-    if (bool(ctx.error)) {
-      [[unlikely]] return;
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
     }
     value.resize(n);
     size_t i = 0;
@@ -618,26 +618,26 @@ struct from_json<hpp::proto::map_wrapper<T>> {
       } else {
         read<json>::op<Opts>(x.first, ctx, it, end);
       }
-      if (bool(ctx.error)) {
-        [[unlikely]] return;
+      if (bool(ctx.error)) [[unlikely]] {
+        return;
       }
 
       skip_ws<Opts>(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return;
+      if (bool(ctx.error)) [[unlikely]] {
+        return;
       }
       match<':'>(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return;
+      if (bool(ctx.error)) [[unlikely]] {
+        return;
       }
       skip_ws<Opts>(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return;
+      if (bool(ctx.error)) [[unlikely]] {
+        return;
       }
 
       read<json>::op<ws_handled<Opts>()>(x.second, ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return;
+      if (bool(ctx.error)) [[unlikely]] {
+        return;
       }
 
       skip_ws<Opts>(ctx, it, end);
@@ -656,8 +656,8 @@ struct from_json<hpp::proto::optional_message_view_ref<T>> {
   static void op(auto value, hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
     if constexpr (!has_ws_handled(Options)) {
       skip_ws<Options>(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return;
+      if (bool(ctx.error)) [[unlikely]] {
+        return;
       }
     }
     static constexpr auto Opts = ws_handled_off<Options>();
@@ -666,8 +666,8 @@ struct from_json<hpp::proto::optional_message_view_ref<T>> {
     if (*it == 'n') {
       ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       match<"ull", Opts>(ctx, it, end);
-      if (bool(ctx.error)) {
-        [[unlikely]] return;
+      if (bool(ctx.error)) [[unlikely]] {
+        return;
       }
       value.ref.reset();
     } else {
@@ -705,7 +705,7 @@ template <typename T>
 concept glz_opts_t = requires { requires std::same_as<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
 } // namespace concepts
 namespace detail {
-template <typename Context, typename ...Rest>
+template <typename Context, typename... Rest>
 constexpr glz::opts get_glz_opts_impl() {
   if constexpr (requires { std::decay_t<Context>::glz_opts_value; }) {
     return std::decay_t<Context>::glz_opts_value;

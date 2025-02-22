@@ -61,8 +61,9 @@ struct Any {
   std::string type_url;
   std::vector<std::byte> value;
 };
-auto pb_meta(const Any &) -> std::tuple<hpp::proto::field_meta<1, &Any::type_url, hpp::proto::field_option::none>,
-                                        hpp::proto::field_meta<2, &Any::value, hpp::proto::field_option::none>>;
+auto pb_meta(const Any &)
+    -> std::tuple<hpp::proto::field_meta<1, &Any::type_url, hpp::proto::field_option::utf8_validation>,
+                  hpp::proto::field_meta<2, &Any::value, hpp::proto::field_option::none>>;
 
 struct Duration {
   constexpr static bool glaze_reflect = false;
@@ -907,20 +908,20 @@ class dynamic_serializer {
       T value;
       if (quoted) {
         glz::detail::match<'"'>(context, it, end);
-        if (bool(context.error)) {
-          [[unlikely]] return std::errc::bad_message;
+        if (bool(context.error)) [[unlikely]] {
+          return std::errc::bad_message;
         }
       }
 
       glz::detail::read<glz::json>::op<glz::ws_handled<Options>()>(get_underlying_value(value), context, it, end);
-      if (bool(context.error)) {
-        [[unlikely]] return std::errc::bad_message;
+      if (bool(context.error)) [[unlikely]] {
+        return std::errc::bad_message;
       }
 
       if (quoted) {
         glz::detail::match<'"'>(context, it, end);
-        if (bool(context.error)) {
-          [[unlikely]] return std::errc::bad_message;
+        if (bool(context.error)) [[unlikely]] {
+          return std::errc::bad_message;
         }
       }
 
@@ -937,8 +938,8 @@ class dynamic_serializer {
       T value;
       glz::detail::read<glz::json>::op<glz::ws_handled<glz::opts{}>()>(get_underlying_value(value), context, key.data(),
                                                                        key.data() + key.size());
-      if (bool(context.error)) {
-        [[unlikely]] return std::errc::bad_message;
+      if (bool(context.error)) [[unlikely]] {
+        return std::errc::bad_message;
       }
 
       archive(make_tag(1, tag_type<T>()), value);
