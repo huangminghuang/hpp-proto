@@ -1534,7 +1534,52 @@ struct glaze_meta_generator : code_generator {
           "}};\n"
           "}} // namespace glz::detail\n",
           qualified_name);
-
+    } else if (descriptor.pb_name == "google.protobuf.Struct") {
+      fmt::format_to(
+          target,
+          "namespace glz::detail {{\n"
+          "\n"
+          "template <>\n"
+          "struct to_json<google::protobuf::Struct> {{\n"
+          "  template <auto Opts>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
+          "    using fields_t = std::remove_cvref_t<decltype(value.fields)>;\n"
+          "    to_json<fields_t>::template op<Opts>(value.fields, ctx, b, ix);\n"
+          "  }}\n"
+          "}};\n"
+          "\n"
+          "template <>\n"
+          "struct from_json<google::protobuf::Struct> {{\n"
+          "  template <auto Options>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
+          "    using fields_t = std::remove_cvref_t<decltype(value.fields)>;\n"
+          "    from_json<fields_t>::template op<Options>(value.fields, ctx, it, end);\n"
+          "  }}\n"
+          "}};\n"
+          "}} // namespace glz::detail\n");
+    } else if (descriptor.pb_name == "google.protobuf.ListValue") {
+      fmt::format_to(
+          target,
+          "namespace glz::detail {{\n"
+          "\n"
+          "template <>\n"
+          "struct to_json<google::protobuf::ListValue> {{\n"
+          "  template <auto Opts>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
+          "    using values_t = std::remove_cvref_t<decltype(value.values)>;\n"
+          "    to_json<values_t>::template op<Opts>(value.values, ctx, b, ix);\n"
+          "  }}\n"
+          "}};\n"
+          "\n"
+          "template <>\n"
+          "struct from_json<google::protobuf::ListValue> {{\n"
+          "  template <auto Options>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
+          "    using values_t = std::remove_cvref_t<decltype(value.values)>;\n"
+          "    from_json<values_t>::template op<Options>(value.values, ctx, it, end);\n"
+          "  }}\n"
+          "}};\n"
+          "}} // namespace glz::detail\n");
     } else {
       fmt::format_to(target,
                      "template <>\n"
