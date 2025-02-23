@@ -107,6 +107,11 @@ if(HPP_PROTO_PROTOC_PLUGIN)
   add_subdirectory(protoc-plugin)
 
   if(HPP_PROTO_TESTS)
+    function(add_hpp_proto_test name)
+      add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+      set_property(TEST ${name} PROPERTY ENVIRONMENT "${HPP_PROTO_TEST_ENVIRONMENT}")
+    endfunction(add_hpp_proto_test)
+
     add_subdirectory(tests)
     add_subdirectory(tutorial)
     if (HPP_PROTO_BUILD_FUZZ AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
