@@ -71,7 +71,7 @@ const suite test_any = [] {
     protobuf_unittest::TestAny message2;
     expect(hpp::proto::read_json(message2, expected_json, *ser).ok());
     expect(message == message2);
-  
+
     expect(hpp::proto::write_json(message, buf, *ser, hpp::proto::indent_level<3>).ok());
     using namespace std::string_literals;
     expect(eq(buf, R"({
@@ -106,7 +106,7 @@ const suite test_any = [] {
 
     hpp_result = ser->proto_to_json(message_name, data, hpp::proto::indent_level<3>);
     expect(fatal(hpp_result.has_value()));
-    const char* expected_json_indented = R"({
+    const char *expected_json_indented = R"({
    "anyValue": {
       "@type": "type.googleapis.com/proto3_unittest.ForeignMessage",
       "c": 1234
@@ -129,9 +129,9 @@ const suite test_any = [] {
         hpp::proto::file_descriptors::desc_set_google_protobuf_any_test_proto());
 
     std::string_view data =
-      "\x12\x39\x0a\x32\x74\x79\x70\x65\x2e\x67\x6f\x6f\x67\x6c\x65\x61\x70\x69\x73\x2e\x63\x6f\x6d\x2f"
-      "\x70\x72\x6f\x74\x6f\x33\x5f\x75\x6e\x69\x74\x74\x65\x73\x74\x2e\x46\x6f\x72\x65\x69\x67\x6e\x4d"
-      "\x65\x73\x73\x61\x67\x65\x12\x03\x08\xd2\x89\x80\x80\x80\x80\x80\x80\x80\x90\10";
+        "\x12\x39\x0a\x32\x74\x79\x70\x65\x2e\x67\x6f\x6f\x67\x6c\x65\x61\x70\x69\x73\x2e\x63\x6f\x6d\x2f"
+        "\x70\x72\x6f\x74\x6f\x33\x5f\x75\x6e\x69\x74\x74\x65\x73\x74\x2e\x46\x6f\x72\x65\x69\x67\x6e\x4d"
+        "\x65\x73\x73\x61\x67\x65\x12\x03\x08\xd2\x89\x80\x80\x80\x80\x80\x80\x80\x90\10";
 
     expect(!ser->proto_to_json("protobuf_unittest.TestAny", data).has_value());
     using namespace std::string_view_literals;
