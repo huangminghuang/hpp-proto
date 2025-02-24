@@ -297,6 +297,7 @@ namespace tutorial {
 ```
 </p>
 </details>
+
 ### Protobuf encoding/decoding APIs
 
 The hpp-proto library provides an efficient and convenient interface for encoding and decoding Protobuf messages in C++. The two core functions are:
@@ -306,7 +307,8 @@ The hpp-proto library provides an efficient and convenient interface for encodin
 
 These APIs offer flexible usage with overloads for returning either a status or an std::expected object (containing the result or an error). Below are demonstrations of their usage in both regular and non-owning modes.
 
-<details> <summary>Regular mode APIs</summary>
+<details> 
+<summary>Regular mode APIs</summary>
 <p>
 
 ```cpp
@@ -344,7 +346,6 @@ assert(read_result.value().name == "john");
 </details>
 <details> <summary>Non-owning mode APIs</summary>
 <p>
-
 In non-owning mode, variable-length fields in messages are mapped to lightweight types such as `std::string_view` or `equality_comparable_span`. Instead of copying values, non-owning messages provide views to the original data, requiring careful lifetime management of referenced memory to avoid invalid access.
 
 #### Key Differences in Non-Owning Mode
@@ -361,9 +362,11 @@ For most use cases, [std::pmr::monotonic_buffer_resource](https://en.cppreferenc
 
 The option object allows you to specify memory resources for `read_proto()`:
 -	`alloc_from`: All memory used by the deserialized value is allocated from the provided memory resource.
+</p>
+</details>
+
 
 ### JSON encoding/decoding APIs
-
 The hpp-proto library also supports encoding and decoding the C++ message objects to and from [canonical JSON encoding](https://protobuf.dev/programming-guides/proto3/#json) using the modified (glaze)[https://github.com/stephenberry/glaze] library. This ensures compatibility with the canonical JSON encoding of Protobuf messages. The key functions are:
 
 -	`write_json()`: Serialize  a C++ message object into a JSON string.
@@ -373,7 +376,6 @@ Similar to Protobuf APIs, the JSON APIs provide overloads that return either a s
 In addition, `write_json()` can take an additional `indent` object for pretty printing. 
 Below is a demonstration of how to use these functions for encoding and decoding in regular and non-owning modes.
 
-</details>
 <details><summary> Regular Mode </summary>
 <p>
 
