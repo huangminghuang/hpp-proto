@@ -1810,7 +1810,7 @@ struct pb_serializer {
                  (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
         auto input_range = detail::bit_cast_view<value_type>(data);
         container.insert(container.end(), input_range.begin(), input_range.end());
-      } else {
+      } else if (!data.empty()) {
         auto n = container.size();
         container.resize(n + (data.size() / sizeof(value_type)));
         std::memcpy(container.data() + n, data.data(), data.size());
