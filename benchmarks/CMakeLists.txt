@@ -45,3 +45,39 @@ target_include_directories(google_decode_encode PUBLIC ${CMAKE_CURRENT_BINARY_DI
 add_executable(google_decode_encode_lite google_decode_encode_lite.cpp)
 target_link_libraries(google_decode_encode_lite google_benchmark_messages_lite_lib)
 target_include_directories(google_decode_encode_lite PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+    set(SYSTEM_NAME "Mac")
+else()
+    set(SYSTEM_NAME ${CMAKE_SYSTEM_NAME})
+endif()
+
+
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/bench.result
+    COMMAND proto_bench > ${CMAKE_CURRENT_BINARY_DIR}/bench.result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS proto_bench
+)
+
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.json
+            ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.png
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/process_proto_bench_output.py --platform ${SYSTEM_NAME} --json --chart ${CMAKE_CURRENT_BINARY_DIR}/bench.result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bench.result process_proto_bench_output.py
+)
+
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_sizes.json
+           ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_sizes.png
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/gen_sizes.py --platform ${SYSTEM_NAME} ${CMAKE_CURRENT_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDS gen_sizes.py hpp_proto_decode_encode google_decode_encode google_decode_encode_lite
+)
+
+add_custom_target(report
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.json
+            ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.png
+            ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_sizes.json
+            ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_sizes.png)

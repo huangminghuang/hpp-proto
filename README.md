@@ -29,7 +29,7 @@ Compared to Google’s implementation, hpp-proto adopts a minimalistic design th
 
 | Platform |      Mac           |            Linux                |
 |----------|--------------------|---------------------------------|
-|    OS    |    MacOS 14.7      |         Ubuntu 22.04            |
+|    OS    |    MacOS 15.3.1    |         Ubuntu 22.04            |
 |   CPU    | M1 Pro/MK193LL/A   |  Intel Core i9-11950H @ 2.60GHz |
 | Compiler | Apple clang 16.0.0 |           gcc 12.3.0            |
 
@@ -39,104 +39,15 @@ Google protobuf version 29.3
 
 We measured the runtime performance using the dataset and the benchmarks.proto definition from Google Protocol Buffers version 3.6.0. The benchmarks focus on three core operations: deserialization, setting a message (set_message), and setting a message combined with serialization (set_message and serialize). The performance was evaluated on two implementations: Google Protocol Buffers and hpp-proto, with regular and arena/non-owning modes being tested for each operation. 
 
-<table><thead>
+<table>
   <tr>
-    <th colspan="7"> Operations CPU time on Mac </th>
-  </tr></thead>
-<tbody>
-  <tr>
-    <td></td>
-    <td colspan="2">deserialize</td>
-    <td colspan="2">set_message</td>
-    <td colspan="2">set_message and serialize</td>
+    <td>
+      <a href="benchmarks/Mac_bench.json"><img src="benchmarks/Mac_bench.png" alt="Mac Benchmark" width="400"></a>
+    </td>
+    <td>
+      <a href="benchmarks/Linux_bench.json"><img src="benchmarks/Linux_bench.png" alt="Linux Benchmark" width="400"></a>
+    </td>
   </tr>
-  <tr>
-    <td></td>
-    <td>regular</td>
-    <td>arena/non_owning</td>
-    <td>regular</td>
-    <td>arena/non_owning</td>
-    <td>regular</td>
-    <td>arena/non_owning</td>
-  </tr>
- <tr>
-   <td>google CPU time</td>
-   <td><div align="right">470.0&nbsp;ns</div></td>
-   <td><div align="right">346.0&nbsp;ns</div></td>
-   <td><div align="right">376.0&nbsp;ns</div></td>
-   <td><div align="right">262.0&nbsp;ns</div></td>
-   <td><div align="right">506.0&nbsp;ns</div></td>
-   <td><div align="right">400.0&nbsp;ns</div></td>
- </tr>
- <tr>
-   <td>hpp_proto CPU time</td>
-   <td><div align="right">286.0&nbsp;ns</div></td>
-   <td><div align="right">175.0&nbsp;ns</div></td>
-   <td><div align="right">76.3&nbsp;ns</div></td>
-   <td><div align="right">8.4&nbsp;ns</div></td>
-   <td><div align="right">290.0&nbsp;ns</div></td>
-   <td><div align="right">179.0&nbsp;ns</div></td>
- </tr>
- <tr>
-   <td>hpp_proto speedup factor</td>
-   <td><div align="right">1.64</div></td>
-   <td><div align="right">1.98</div></td>
-   <td><div align="right">4.93</div></td>
-   <td><div align="right">31.19</div></td>
-   <td><div align="right">1.74</div></td>
-   <td><div align="right">2.23</div></td>
- </tr>
-</tbody>
-</table>
-
-<table><thead>
-  <tr>
-    <th colspan="7"> Operations CPU time on Linux </th>
-  </tr></thead>
-<tbody>
-  <tr>
-    <td></td>
-    <td colspan="2">deserialize</td>
-    <td colspan="2">set_message</td>
-    <td colspan="2">set_message and serialize</td>
-  </tr>
-  <tr>
-    <td></td>
-    <td>regular</td>
-    <td>arena/non_owning</td>
-    <td>regular</td>
-    <td>arena/non_owning</td>
-    <td>regular</td>
-    <td>arena/non_owning</td>
-  </tr>
- <tr>
-   <td>google CPU time</td>
-   <td><div align="right">261.0&nbsp;ns</div></td>
-   <td><div align="right">268.0&nbsp;ns</div></td>
-   <td><div align="right">113.0&nbsp;ns</div></td>
-   <td><div align="right">106.0&nbsp;ns</div></td>
-   <td><div align="right">227.0&nbsp;ns</div></td>
-   <td><div align="right">232.0&nbsp;ns</div></td>
- </tr>
- <tr>
-   <td>hpp_proto CPU time</td>
-   <td><div align="right">200.0&nbsp;ns</div></td>
-   <td><div align="right">155.0&nbsp;ns</div></td>
-   <td><div align="right">33.0&nbsp;ns</div></td>
-   <td><div align="right">10.7&nbsp;ns</div></td>
-   <td><div align="right">137.0&nbsp;ns</div></td>
-   <td><div align="right">113.0&nbsp;ns</div></td>
- </tr>
- <tr>
-   <td>hpp_proto speedup factor</td>
-   <td><div align="right">1.30</div></td>
-   <td><div align="right">1.73</div></td>
-   <td><div align="right">3.42</div></td>
-   <td><div align="right">9.91</div></td>
-   <td><div align="right">1.66</div></td>
-   <td><div align="right">2.05</div></td>
- </tr>
-</tbody>
 </table>
 
 The performance benchmarks clearly demonstrate the overall efficiency of the hpp_proto library compared to Google’s implementation across deserialization, setting a message, and setting a message with serialization operations. However, for the serialization operation alone, Google’s implementation may be faster than hpp-proto. This comes at the expense of the set_message operation, where hpp_proto significantly outperforms Google’s implementation.
@@ -149,36 +60,16 @@ It’s important to note that in real-world applications, setting a message is a
 We compared the code sizes of three equivalent programs: [hpp_proto_decode_encode](benchmarks/hpp_proto_decode_encode.cpp), [google_decode_encode](benchmarks/google_decode_encode.cpp) and [google_decode_encode_lite](benchmarks/google_decode_encode_lite.cpp). These programs are responsible for decoding and encoding messages defined in [benchmarks.proto](https://github.com/protocolbuffers/protobuf/blob/v3.6.0/benchmarks/benchmarks.proto), using the hpp-proto and Google Protocol Buffers implementations. The google_decode_encode program is statically linked with libprotobuf, while google_decode_encode_lite is linked with libprotobuf-lite.
 
 <table>
-<thead>
   <tr>
-    <th colspan="3"> Code size in bytes </th>
-  </tr></thead>
-<tbody>
-  <tr>
-    <td> </td>
-    <td> Mac </td>
-    <td> Linux </td>
+    <td>
+      <a href="benchmarks/Mac_sizes.json"><img src="benchmarks/Mac_sizes.png" alt="Mac Size Comparison" width="400"></a>
+    </td>
+    <td>
+      <a href="benchmarks/Linux_sizes.json"><img src="benchmarks/Linux_sizes.png" alt="Linux Size Comparison" width="400"></a>
+    </td>
   </tr>
-  <tr>
-    <td> google_decode_encode </td>
-    <td><div align="right">2683720</div></td>
-    <td><div align="right">3467520</div></td>
-  </tr>
-  <tr>
-    <td> google_decode_encode_lite </td>
-    <td><div align="right">1128296</div></td>
-    <td><div align="right">1505200</div></td>
-  </tr>
-  <tr>
-    <td> hpp_proto_decode_encoded </td>
-    <td><div align="right">121272</div></td>
-    <td><div align="right">96840</div></td>
-  </tr>
-</tbody>
 </table>
  
-The comparison highlights a significant reduction in code size when using hpp-proto compared to Google’s Protocol Buffers implementations. On macOS, hpp-proto offers a 22.13x reduction in size compared to google_decode_encode and a 9.30x reduction compared to google_decode_encode_lite. The reduction is even more pronounced on Linux, where hpp-proto reduces the code size by 35.81x compared to google_decode_encode and by 15.54x compared to google_decode_encode_lite.
-
 
 ## Getting Started
 This section provides a quick introduction to the basic usage of hpp-proto to help you get started with minimal setup. It covers the essential steps required to integrate hpp-proto into your project and begin working with Protocol Buffers. For more advanced usage scenarios, optimizations, and additional features, please refer to the detailed examples in the [tutorial](tutorial) directory and [code generation guide](docs/Code_Generation_Guide.md) of the repository.
