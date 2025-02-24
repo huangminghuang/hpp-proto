@@ -26,16 +26,21 @@
 namespace ut = boost::ut;
 using source_location = boost::ut::reflection::source_location;
 using namespace ut;
+using namespace std::string_view_literals;
+using namespace std::string_literals;
 
 template <typename T>
-void verify(const T &msg, std::string_view json, const hpp::proto::dynamic_serializer &ser,
-            const source_location &from_loc = source_location::current()) {
-  std::string from_line_number = std::string("from ") + from_loc.file_name() + ":" + std::to_string(from_loc.line());
-  expect(eq(json, hpp::proto::write_json(msg).value())) << from_line_number;
+void verify(const hpp::proto::dynamic_serializer &ser, const T &msg, std::string_view json,
+            std::string_view pretty_json = "") {
+  expect(eq(json, hpp::proto::write_json(msg).value()));
+
+  if (!pretty_json.empty()) {
+    expect(eq(pretty_json, hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value()));
+  }
 
   T msg2;
 
-  expect(fatal((hpp::proto::read_json(msg2, json).ok()))) << from_line_number;
+  expect(fatal((hpp::proto::read_json(msg2, json).ok())));
   expect(msg == msg2);
 
   if constexpr (requires { hpp::proto::message_name(msg); }) {
@@ -43,14 +48,20 @@ void verify(const T &msg, std::string_view json, const hpp::proto::dynamic_seria
 
     hpp::proto::bytes pb;
     auto ec = hpp::proto::write_proto(msg, pb);
-    expect(ec.ok()) << from_line_number;
+    expect(ec.ok());
 
     std::string json_buf;
-    expect(ser.proto_to_json(message_name, pb, json_buf).ok()) << from_line_number;
-    expect(json_buf == json) << from_line_number;
+    expect(ser.proto_to_json(message_name, pb, json_buf).ok());
+    expect(json_buf == json);
+
+    if (!pretty_json.empty()) {
+      expect(ser.proto_to_json(message_name, pb, json_buf, hpp::proto::indent_level<3>).ok());
+      expect(eq(json_buf, pretty_json));
+    }
+
     hpp::proto::bytes pb_buf;
-    expect(ser.json_to_proto(message_name, json, pb_buf).ok()) << from_line_number;
-    expect(std::ranges::equal(pb_buf, pb)) << from_line_number;
+    expect(ser.json_to_proto(message_name, json, pb_buf).ok());
+    expect(std::ranges::equal(pb_buf, pb));
   }
 }
 
@@ -61,8 +72,8 @@ const ut::suite test_timestamp = [] {
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_timestamp_proto());
   expect(fatal((ser.has_value())));
 
-  verify<timestamp_t>(timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")", *ser);
-  verify<timestamp_t>(timestamp_t{.seconds = 1000, .nanos = 20}, R"("1970-01-01T00:16:40.000000020Z")", *ser);
+  verify<timestamp_t>(*ser, timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
+  verify<timestamp_t>(*ser, timestamp_t{.seconds = 1000, .nanos = 20}, R"("1970-01-01T00:16:40.000000020Z")");
 
   timestamp_t msg;
   ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2Z")").ok());
@@ -74,6 +85,21 @@ const ut::suite test_timestamp = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").ok());
 
   ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+
+  "timestamp_second_overlong"_test = [&ser] {
+    std::string json_buf;
+    using namespace std::string_view_literals;
+    expect(!ser->proto_to_json("google.protobuf.Timestamp",
+                               "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
+                .ok());
+  };
+
+  "timestamp_nano_too_large"_test = [&ser] {
+    std::string json_buf;
+    std::string pb_data;
+    expect(hpp::proto::write_proto(timestamp_t{.seconds = 1000, .nanos = 1000000000}, pb_data).ok());
+    expect(!ser->proto_to_json("google.protobuf.Timestamp", pb_data, json_buf).ok());
+  };
 };
 
 const ut::suite test_duration = [] {
@@ -82,9 +108,9 @@ const ut::suite test_duration = [] {
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_duration_proto());
   expect(fatal((ser.has_value())));
 
-  verify<duration_t>(duration_t{.seconds = 1000}, R"("1000s")", *ser);
-  verify<duration_t>(duration_t{.seconds = 1000, .nanos = 20}, R"("1000.000000020s")", *ser);
-  verify<duration_t>(duration_t{.seconds = -1000, .nanos = -20}, R"("-1000.000000020s")", *ser);
+  verify<duration_t>(*ser, duration_t{.seconds = 1000}, R"("1000s")");
+  verify<duration_t>(*ser, duration_t{.seconds = 1000, .nanos = 20}, R"("1000.000000020s")");
+  verify<duration_t>(*ser, duration_t{.seconds = -1000, .nanos = -20}, R"("-1000.000000020s")");
 
   duration_t msg;
   ut::expect(hpp::proto::read_json(msg, R"("1000.2s")").ok());
@@ -108,34 +134,37 @@ const ut::suite test_field_mask = [] {
   expect(fatal((ser.has_value())));
 
   using namespace google::protobuf;
-  verify<FieldMask>(FieldMask{}, R"("")", *ser);
-  verify<FieldMask>(FieldMask{.paths = {"abc", "def"}}, R"("abc,def")", *ser);
+  verify<FieldMask>(*ser, FieldMask{}, R"("")");
+  verify<FieldMask>(*ser, FieldMask{.paths = {"abc", "def"}}, R"("abc,def")");
 };
 
 const ut::suite test_wrapper = [] {
   auto ser =
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_wrappers_proto());
   expect(fatal((ser.has_value())));
+  "wrapper"_test = [&ser] {
+    using namespace google::protobuf;
+    verify<Int64Value>(*ser, Int64Value{1000}, R"("1000")");
 
-  using namespace google::protobuf;
-  verify<Int64Value>(Int64Value{1000}, R"("1000")", *ser);
+    std::string json_buf;
+    using namespace std::string_view_literals;
+    // wrong tag
+    expect(!ser->proto_to_json("google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
+    // wrong value
+    expect(!ser->proto_to_json("google.protobuf.Int64Value", "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv,
+                               json_buf)
+                .ok());
+    // skip unknown field
+    expect(ser->proto_to_json("google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
+    expect(json_buf.empty());
+  };
 };
 
 const ut::suite test_empty = [] {
   using namespace google::protobuf;
   auto ser = hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_empty_proto());
   expect(fatal((ser.has_value())));
-
-  verify<Empty>(Empty{}, "{}", *ser);
-};
-
-const ut::suite test_null_value = [] {
-  using namespace google::protobuf;
-  auto ser =
-      hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_struct_proto());
-  expect(fatal((ser.has_value())));
-
-  verify<NullValue>(NullValue{}, "null", *ser);
+  verify<Empty>(*ser, Empty{}, "{}");
 };
 
 #if !defined(_MSC_VER) || (_MSC_VER > 1937)
@@ -147,14 +176,51 @@ const ut::suite test_value = [] {
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_struct_proto());
   expect(fatal((ser.has_value())));
 
-  verify<Value>(Value{.kind = NullValue{}}, "null", *ser);
-  verify<Value>(Value{.kind = true}, "true", *ser);
-  verify<Value>(Value{.kind = false}, "false", *ser);
-  verify<Value>(Value{.kind = 1.0}, "1", *ser);
-  verify<Value>(Value{.kind = "abc"}, R"("abc")", *ser);
-  verify<Value>(Value{.kind = ListValue{{Value{.kind = true}, Value{.kind = 1.0}}}}, "[true,1]", *ser);
-  verify<Value>(Value{.kind = Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}}}},
-                R"({"f1":true,"f2":1})", *ser);
+  "value"_test = [&ser] {
+    verify<Value>(*ser, Value{.kind = NullValue{}}, "null");
+    verify<Value>(*ser, Value{.kind = true}, "true");
+    verify<Value>(*ser, Value{.kind = false}, "false");
+    verify<Value>(*ser, Value{.kind = 1.0}, "1");
+    verify<Value>(*ser, Value{.kind = "abc"}, R"("abc")");
+    verify<Value>(*ser, Value{.kind = ListValue{{Value{.kind = true}, Value{.kind = 1.0}}}}, "[true,1]");
+    verify<Value>(*ser, Value{.kind = Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}}}},
+                  R"({"f1":true,"f2":1})");
+  };
+
+  "struct"_test = [&ser] {
+    verify<Struct>(*ser, Struct{}, "{}");
+    verify<Struct>(
+        *ser,
+        Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}, {"f3", Value{.kind = NullValue{}}}}},
+        R"({"f1":true,"f2":1,"f3":null})", R"({
+   "f1": true,
+   "f2": 1,
+   "f3": null
+})");
+
+    std::string json_buf;
+    // field name is not a valid utf8 string
+    expect(!ser->proto_to_json("google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv, json_buf).ok());
+    // skip unknown field
+    expect(ser->proto_to_json("google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
+  };
+
+  "list"_test = [&ser] {
+    verify<ListValue>(*ser, ListValue{}, "[]");
+    verify<ListValue>(*ser, ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}, "[true,1]",
+                      "[\n   true,\n   1\n]");
+
+    std::string json_buf;
+
+    // list element is not a valid utf8 string
+    expect(!ser->proto_to_json("google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
+    // skip unknown element
+    expect(ser->proto_to_json("google.protobuf.ListValue", "\x0a\x02\x38\x01"sv, json_buf).ok());
+    expect(eq(json_buf, "[]"s));
+
+    // skip unknown field
+    expect(ser->proto_to_json("google.protobuf.ListValue", "\x10\x01"sv, json_buf).ok());
+  };
 };
 
 #endif

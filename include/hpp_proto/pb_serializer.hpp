@@ -1810,7 +1810,7 @@ struct pb_serializer {
                  (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
         auto input_range = detail::bit_cast_view<value_type>(data);
         container.insert(container.end(), input_range.begin(), input_range.end());
-      } else {
+      } else if (!data.empty()) {
         auto n = container.size();
         container.resize(n + (data.size() / sizeof(value_type)));
         std::memcpy(container.data() + n, data.data(), data.size());
@@ -2277,6 +2277,9 @@ struct pb_serializer {
   }
 
   constexpr static status do_skip_field(uint32_t tag, concepts::is_basic_in auto &archive) {
+    if (tag == 0) [[unlikely]] {
+      return std::errc::bad_message;
+    }
     switch (proto::tag_type(tag)) {
     case wire_type::varint:
       return archive.skip_varint();
@@ -2296,9 +2299,6 @@ struct pb_serializer {
   constexpr static status do_skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
     while (archive.in_avail() > 0) {
       auto tag = archive.read_tag();
-      if (tag == 0) {
-        return std::errc::bad_message;
-      }
 
       const uint32_t next_field_num = tag_number(tag);
       const wire_type next_type = proto::tag_type(tag);
@@ -2594,10 +2594,6 @@ struct pb_serializer {
   constexpr static status deserialize_group(uint32_t field_num, auto &&item, concepts::is_basic_in auto &archive) {
     while (archive.in_avail() > 0) {
       auto tag = archive.read_tag();
-      if (tag == 0) {
-        return std::errc::bad_message;
-      }
-
       if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag)) {
         return {};
       }
@@ -2645,6 +2641,9 @@ struct pb_serializer {
   constexpr static status deserialize_field_by_tag(uint32_t tag, auto &item, concepts::is_basic_in auto &archive) {
     using type = std::remove_cvref_t<decltype(item)>;
     using dispatcher_t = traits::reverse_indices<type>;
+    if (tag == 0) {
+      return std::errc::bad_message;
+    }
     return dispatcher_t::dispatch(tag_number(tag), [&](auto index) {
       return deserialize_field_by_index<decltype(index)::value>(tag, item, archive);
     });
@@ -2653,10 +2652,6 @@ struct pb_serializer {
   constexpr static status deserialize(concepts::has_meta auto &item, concepts::is_basic_in auto &archive) {
     while (archive.in_avail() > 0) {
       auto tag = archive.read_tag();
-      if (tag == 0) {
-        return std::errc::bad_message;
-      }
-
       if (auto result = deserialize_field_by_tag(tag, item, archive); !result.ok()) {
         [[unlikely]] return result;
       }

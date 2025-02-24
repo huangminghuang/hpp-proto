@@ -228,7 +228,7 @@ public:
   arena_vector &operator=(arena_vector &&) = delete;
 
   constexpr void resize(std::size_t n) {
-    if (capacity_ < n) {
+    if (capacity_ < n) [[likely]] {
       data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       if (view_.size() < n) [[likely]] {
         std::uninitialized_copy(view_.begin(), view_.end(), data_);

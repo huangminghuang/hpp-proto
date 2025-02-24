@@ -1,0 +1,30 @@
+{
+    "google protobuf": {
+        "deserialize": {
+            "regular": 470.0,
+            "arena/non_owning": 352.0
+        },
+        "set_message": {
+            "regular": 375.0,
+            "arena/non_owning": 264.0
+        },
+        "set_message_and_serialize": {
+            "regular": 509.0,
+            "arena/non_owning": 402.0
+        }
+    },
+    "hpp-proto": {
+        "deserialize": {
+            "regular": 292.0,
+            "arena/non_owning": 179.0
+        },
+        "set_message": {
+            "regular": 79.2,
+            "arena/non_owning": 8.41
+        },
+        "set_message_and_serialize": {
+            "regular": 280.0,
+            "arena/non_owning": 184.0
+        }
+    }
+}
