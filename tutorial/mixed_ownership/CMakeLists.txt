@@ -21,6 +21,4 @@ protobuf_generate_hpp(
 add_executable(mixed_ownership_tutorial mixed_ownership_tutorial.cpp)
 target_link_libraries(mixed_ownership_tutorial PRIVATE regular_addressbook non_owning_addressbook)
 
-add_test(NAME mixed_ownership_tutorial
-    COMMAND mixed_ownership_tutorial
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_hpp_proto_test(mixed_ownership_tutorial)

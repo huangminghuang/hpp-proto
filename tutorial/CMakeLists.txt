@@ -27,6 +27,10 @@ if(PROJECT_IS_TOP_LEVEL)
   else()
     find_package(hpp_proto CONFIG REQUIRED)
   endif()
+
+  function(add_hpp_proto_test name)
+    add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  endfunction(add_hpp_proto_test)
 endif()
 
 add_subdirectory(regular)
