@@ -79,6 +79,18 @@ if(CMAKE_BUILD_TYPE STREQUAL "Coverage" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang
   set(HPP_PROTO_TEST_ENVIRONMENT "LLVM_PROFILE_FILE=${CMAKE_BINARY_DIR}/coverage/%m.profraw")
   configure_file(gen_lcov_info.sh.in gen_lcov_info.sh @ONLY)
   file(CHMOD ${CMAKE_CURRENT_BINARY_DIR}/gen_lcov_info.sh PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ)
+  set(HPP_PROTO_TEST ON)
+
+  add_custom_command(
+    COMMAND ${CMAKE_CTEST_COMMAND}
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/gen_lcov_info.sh
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lcov.info
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS gen_lcov_info.sh.in
+  )
+
+  add_custom_target(lcov
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/lcov.info)
 endif()
 
 if(HPP_PROTO_DISABLE_GLAZE)

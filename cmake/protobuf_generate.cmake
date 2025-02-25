@@ -182,6 +182,13 @@
     endif()
   endfunction()
 
+if(NOT COMMAND protobuf_generate)
+  function(protobuf_generate)
+    __protobuf_generate(${ARGN})
+  endfunction()
+endif()
+
+
 function(protobuf_generate_hpp)
   __protobuf_generate(${ARGN} 
                     LANGUAGE hpp
