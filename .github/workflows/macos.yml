@@ -25,7 +25,7 @@ jobs:
     runs-on: macos-latest
     strategy:
         matrix:
-          build_type: [Release, Debug, Coverage]
+          build_type: [Release, Coverage]
           protoc: ["find"]
 
     steps:
@@ -55,9 +55,16 @@ jobs:
         run: cmake --build build
 
       - name: test
+        if: matrix.build_type != 'Coverage'
         working-directory: ./build
         run: |
           ctest --build-config ${{ matrix.build_type }} --output-on-failure
+
+      - name: Coverage
+        if: matrix.build_type == 'Coverage'
+        working-directory: ./build
+        run: |
+          ninja lcov
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
