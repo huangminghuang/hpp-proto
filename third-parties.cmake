@@ -79,6 +79,10 @@ elseif(HPP_PROTO_PROTOC STREQUAL "compile")
         "EXCLUDE_FROM_ALL"
         ${system_package}
     )
+    set_target_properties(protoc
+        PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
     add_executable(protobuf::protoc ALIAS protoc)
     set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
 else()

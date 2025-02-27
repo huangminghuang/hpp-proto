@@ -31,7 +31,7 @@ target_include_directories(any_demo INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(any_demo INTERFACE hpp_proto::well_known_types)
 protobuf_generate_hpp(
     TARGET any_demo
-    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/.. ${Protobuf_INCLUDE_DIRS})
+    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 add_executable(tutorial_any tutorial_any.cpp)
 target_link_libraries(tutorial_any PRIVATE any_demo addressbook_proto3)

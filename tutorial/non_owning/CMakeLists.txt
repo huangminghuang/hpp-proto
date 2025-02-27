@@ -40,7 +40,7 @@ target_include_directories(non_owning_any_demo INTERFACE ${CMAKE_CURRENT_BINARY_
 target_link_libraries(non_owning_any_demo INTERFACE non_owning_any)
 protobuf_generate_hpp(
     TARGET non_owning_any_demo
-    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/.. ${Protobuf_INCLUDE_DIRS}
+    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
     PROTOS ../any_demo.proto
     PLUGIN_OPTIONS non_owning)
     

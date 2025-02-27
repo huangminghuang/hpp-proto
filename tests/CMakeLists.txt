@@ -157,7 +157,7 @@ else()
         target_include_directories(any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
         protobuf_generate_hpp(
             TARGET any_test_lib
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${Protobuf_INCLUDE_DIRS}")
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
         target_link_libraries(any_test_lib INTERFACE well_known_types)
 
         add_library(non_owning_any_lib INTERFACE
@@ -177,7 +177,7 @@ else()
         target_include_directories(non_owning_any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
         protobuf_generate_hpp(
             TARGET non_owning_any_test_lib
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${Protobuf_INCLUDE_DIRS}"
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
             PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
             PLUGIN_OPTIONS "non_owning,root_namespace=non_owning,top_directory=non_owning")
 
