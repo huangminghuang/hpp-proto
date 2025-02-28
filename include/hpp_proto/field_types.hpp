@@ -36,6 +36,7 @@
 #include <vector>
 namespace hpp::proto {
 using stdext::flat_map;
+using stdext::sorted_unique;
 }
 
 namespace hpp::proto {

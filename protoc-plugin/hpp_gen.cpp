@@ -239,6 +239,21 @@ std::string to_hex_literal(hpp::proto::concepts::contiguous_byte_range auto cons
 }
 } // namespace
 struct hpp_addons {
+
+  static google::protobuf::FileOptions::extension_t default_file_options_extensions() {
+    google::protobuf::FileOptions::extension_t extensions;
+    return extensions;
+  }
+
+  static void adapt_option_extensions([[maybe_unused]] google::protobuf::MessageOptions::extension_t &extensions,
+                                      [[maybe_unused]] const google::protobuf::FileOptions::extension_t &inherited) {}
+
+  static void adapt_option_extensions([[maybe_unused]] google::protobuf::FieldOptions::extension_t &extensions,
+                                      [[maybe_unused]] const google::protobuf::FileOptions::extension_t &inherited) {}
+
+  static void adapt_option_extensions([[maybe_unused]] google::protobuf::FieldOptions::extension_t &extensions,
+                                      [[maybe_unused]] const google::protobuf::MessageOptions::extension_t &inherited) {
+  }
   template <typename Derived>
   struct field_descriptor {
     std::string cpp_name;
