@@ -624,7 +624,7 @@ public:
     if (idx >= _size) {
       throw std::out_of_range("equality_comparable_span::at");
     }
-    return _data[idx];
+    return _data[idx]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   }
 
   [[nodiscard]] constexpr reference front() const noexcept { return *_data; }
