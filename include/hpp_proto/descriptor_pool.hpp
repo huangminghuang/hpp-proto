@@ -64,6 +64,10 @@ struct descriptor_pool {
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
       }
+
+      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+        base_type::on_descriptor_created(proto, options);
+      }
     }
 
     // return true if it is an optional explicit presence field
@@ -150,6 +154,9 @@ struct descriptor_pool {
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
       }
+      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+        base_type::on_descriptor_created(proto, options);
+      }
     }
   };
 
@@ -166,6 +173,9 @@ struct descriptor_pool {
         google::protobuf::EnumOptions::extension_t extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
+      }
+      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+        base_type::on_descriptor_created(proto, options);
       }
     }
 
@@ -197,6 +207,9 @@ struct descriptor_pool {
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
       }
+      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+        base_type::on_descriptor_created(proto, options);
+      }
     }
   };
 
@@ -215,6 +228,9 @@ struct descriptor_pool {
       if constexpr (requires { AddOns::default_file_options_extensions(); }) {
         auto extensions = AddOns::default_file_options_extensions();
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
+      }
+      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+        base_type::on_descriptor_created(proto, options);
       }
     }
   };

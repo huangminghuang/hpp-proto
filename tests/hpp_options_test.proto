@@ -1,0 +1,18 @@
+syntax = "proto3";
+import "hpp_proto/hpp_options.proto";
+
+option (hpp.proto.hpp_file_opts).non_owning = true;
+
+message Msg1 {
+  string f1_non_owning = 1;
+}
+
+message Msg2 {
+  string f1 = 1 [(hpp.proto.hpp_field_opts).non_owning = false];
+}
+
+message Msg3 {
+  option (hpp.proto.hpp_message_opts).non_owning = false;
+  string f1 = 1;
+  string f2_non_owning = 2 [(hpp.proto.hpp_field_opts).non_owning = true];;
+}

@@ -20,8 +20,8 @@ protobuf_generate_hpp(
     - PROTOC_OUT_DIR: Output directory for generated source files. Defaults to CMAKE_CURRENT_BINARY_DIR.
     - PROTOS: List of proto schema files. If omitted, then every source file ending in proto of TARGET will be used.
     - PLUGIN_OPTIONS: A comma-separated string forwarded to the protoc-gen-hpp plugin to customize code generation. Options include:
-        * `root_namespace=`: Prepends a root namespace to the generated code, in addition to the package namespace.
-        * `top_directory=`:  Prepends a directory to all import dependencies.
+        * `namespace_prefix=`: Specifies a namespace prefix to be added to the generated C++ code, in addition to the package namespace.
+        * `directory_prefix=`:  Prepends a directory to all import dependencies.
         * `proto2_explicit_presence=`: For Proto2 only, makes optional scalar fields implicitly present except for specified scopes. This option can be specified multiple times. For example: the option `proto2_explicit_presence=.pkg1.msg1.field1,proto2_explicit_presence=.pkg1.msg2` instructs the code generator that explicit presence is only applicable for the `field1` of `pkg1.msg1` and all fields of `pkg1.msg2`.
         * `non_owning`: Generates non-owning messages. 
 
@@ -37,9 +37,9 @@ target_include_directories(non_owning_unittest_proto3_proto_lib INTERFACE ${CMAK
 protobuf_generate_hpp(
     TARGET non_owning_unittest_proto3_proto_lib
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-    PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/non_owning
+    PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}
     PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto
-    PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
+    PLUGIN_OPTIONS non_owning,namespace_prefix=non_owning,directory_prefix=non_owning)
 ```
 
 ### Compiler Invocation from command line
@@ -58,10 +58,10 @@ package foo.bar;
 ```
 All declarations in the file will reside in the `foo::bar` namespace.
 
-If you need to use both `hpp-proto` and the official Google Protobuf library in the same program, you can use the root_namespace option to customize the top-level namespace in the generated files. For example:
+If you need to use both `hpp-proto` and the official Google Protobuf library in the same program, you can use the namespace_prefix option to customize the top-level namespace in the generated files. For example:
 
 ```
-protoc --proto_path=src --hpp_out build/gen  --hpp_opt=root_namespace=baz src/foo.proto
+protoc --proto_path=src --hpp_out build/gen  --hpp_opt=namespace_prefix=baz src/foo.proto
 ```
 This command will place all declarations in the `baz::foo::bar` namespace.
 

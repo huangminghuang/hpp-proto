@@ -1,0 +1,27 @@
+import "google/protobuf/descriptor.proto";
+package hpp.proto;
+
+message FileOptions {
+    optional bool non_owning = 1;
+    optional string namespace_prefix = 2;
+}
+
+message MessageOptions {
+    optional bool non_owning = 1;
+}
+
+message FieldOptions {
+    optional bool non_owning = 1;
+}
+
+extend google.protobuf.FileOptions {
+    optional FileOptions hpp_file_opts = 60001;
+}
+
+extend google.protobuf.MessageOptions {
+    optional MessageOptions hpp_message_opts = 60001;
+}
+
+extend google.protobuf.FieldOptions {
+    optional FieldOptions hpp_field_opts = 60001;
+}

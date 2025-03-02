@@ -6,13 +6,13 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/owning)
 add_library(hpp_owning_benchmark_messages_lib INTERFACE ${proto_files})
 protobuf_generate_hpp(TARGET hpp_owning_benchmark_messages_lib
     PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/owning
-    PLUGIN_OPTIONS "root_namespace=owning")
+    PLUGIN_OPTIONS "namespace_prefix=owning")
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/non_owning)
 add_library(hpp_non_owning_benchmark_messages_lib INTERFACE ${proto_files})
 protobuf_generate_hpp(TARGET hpp_non_owning_benchmark_messages_lib
     PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/non_owning
-    PLUGIN_OPTIONS "non_owning,root_namespace=non_owning")
+    PLUGIN_OPTIONS "non_owning,namespace_prefix=non_owning")
 
 add_library(google_benchmark_messages_lib OBJECT ${proto_files})
 protobuf_generate(TARGET google_benchmark_messages_lib
