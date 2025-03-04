@@ -188,7 +188,7 @@ function(protobuf_generate_hpp)
                     DEPENDENCIES hpp_proto::protoc-gen-hpp)
 
   include(CMakeParseArguments)
-  cmake_parse_arguments(protobuf_generate_hpp "" "TARGET" "" "${ARGN}")
+  cmake_parse_arguments(protobuf_generate_hpp "" "TARGET;PLUGIN_OPTIONS;PROTOC_OUT_DIR" "" "${ARGN}")
   if (protobuf_generate_hpp_TARGET) 
     get_target_property(_target_type ${protobuf_generate_hpp_TARGET} TYPE)
 
@@ -199,5 +199,13 @@ function(protobuf_generate_hpp)
     endif()
 
     target_link_libraries(${protobuf_generate_hpp_TARGET} ${_scope} hpp_proto::libhpp_proto)
+  endif()
+
+  if (protobuf_generate_hpp_PLUGIN_OPTIONS MATCHES "directory_prefix=([^,]+)")
+    set(_dir_prefix "${CMAKE_MATCH_1}")
+    get_filename_component(_abs_output_dir "${protobuf_generate_hpp_PROTOC_OUT_DIR}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    if (NOT "${_abs_output_dir}" MATCHES "${_dir_prefix}$")
+      message(FATAL_ERROR "the value of PROTOC_OUT_DIR, i.e. ${_abs_output_dir}, does not ends with the directory_prefix parameter, i.e. ${_dir_prefix}")
+    endif()
   endif()
 endfunction()
