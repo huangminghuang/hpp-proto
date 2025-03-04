@@ -169,6 +169,7 @@ public:
 
   template <typename U>
     requires (std::convertible_to<U, T> && !concepts::optional<U>)
+  // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
   constexpr optional &operator=(U &&value) {
     _value = static_cast<T>(std::forward<U>(value)); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     _present = true;
@@ -614,6 +615,7 @@ public:
     requires requires(R &r) {
       { std::ranges::data(r) } -> std::convertible_to<const T *>;
     }
+  // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature)
   constexpr equality_comparable_span &operator=(R &other) noexcept {
     operator=(std::span<T>(other));
     return *this;

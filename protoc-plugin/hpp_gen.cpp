@@ -186,7 +186,8 @@ std::string cpp_escape(std::string_view src) {
   return result;
 }
 
-std::string basename(const std::string &name, const std::string& directory_prefix = "") {
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+std::string basename(const std::string &name, const std::string &directory_prefix = "") {
   std::string result = name.substr(0, name.find_last_of('.'));
   if (!directory_prefix.empty()) {
     result = directory_prefix + "/" + result;
@@ -297,7 +298,7 @@ struct hpp_addons {
     std::string default_value_template_arg;
     std::string_view qualified_parent_name;
     void *parent = nullptr;
-    void* extendee = nullptr;
+    void *extendee = nullptr;
     Derived *map_fields[2] = {nullptr, nullptr};
     bool is_recursive = false;
     bool is_cpp_optional = false;
@@ -395,7 +396,7 @@ struct hpp_addons {
       }
     }
 
-    void set_user_cpp_type(const std::string& namespace_prefix, const google::protobuf::FieldDescriptorProto &proto) {
+    void set_user_cpp_type(const std::string &namespace_prefix, const google::protobuf::FieldDescriptorProto &proto) {
       if (!proto.type_name.empty()) {
         auto pos = shared_scope_position(qualified_parent_name, proto.type_name);
 
@@ -446,7 +447,8 @@ struct hpp_addons {
       }
     }
 
-    void set_enum_default_value(const std::string& namespace_prefix, const google::protobuf::FieldDescriptorProto &proto) {
+    void set_enum_default_value(const std::string &namespace_prefix,
+                                const google::protobuf::FieldDescriptorProto &proto) {
       default_value = fmt::format("{}::{}", cpp_field_type, proto.default_value);
       default_value_template_arg =
           fmt::format("{}::{}", qualified_cpp_name(namespace_prefix, proto.type_name), proto.default_value);
@@ -891,24 +893,24 @@ struct msg_code_generator : code_generator {
         }
 
         if (type == TYPE_MESSAGE || type == TYPE_GROUP) {
-            field.set_user_cpp_type(namespace_prefix, field.proto);          
+          field.set_user_cpp_type(namespace_prefix, field.proto);
         } else {
           auto *enum_d = pool.find_type(pool.enum_map, type_name);
           if (enum_d != nullptr) {
             namespace_prefix = namespace_prefix_of(*enum_d);
-            field.set_user_cpp_type(namespace_prefix, field.proto); 
+            field.set_user_cpp_type(namespace_prefix, field.proto);
             field.is_closed_enum = enum_d->is_closed();
 
             if (!field.proto.default_value.empty()) {
-              field.set_enum_default_value(namespace_prefix, field.proto);  
-            } else if (field.proto.label == gpb::FieldDescriptorProto::Label::LABEL_OPTIONAL){
+              field.set_enum_default_value(namespace_prefix, field.proto);
+            } else if (field.proto.label == gpb::FieldDescriptorProto::Label::LABEL_OPTIONAL) {
               std::string proto_default_value = resolve_keyword(enum_d->proto.value[0].name);
               field.default_value = fmt::format("{}::{}", field.cpp_field_type, proto_default_value);
               field.default_value_template_arg =
-              fmt::format("{}::{}", qualified_cpp_name(namespace_prefix, type_name), proto_default_value);
+                  fmt::format("{}::{}", qualified_cpp_name(namespace_prefix, type_name), proto_default_value);
             }
           }
-        } 
+        }
       }
       if (!field.proto.extendee.empty()) {
         field.extendee = pool.find_type(pool.message_map, field.proto.extendee);
@@ -1442,16 +1444,16 @@ struct hpp_meta_generator : code_generator {
     }
 
     using enum gpb::FieldDescriptorProto::Label;
-    auto namespace_prefix = msg_code_generator::namespace_prefix_of(*static_cast<message_descriptor_t*>(descriptor.extendee));
+    auto namespace_prefix =
+        msg_code_generator::namespace_prefix_of(*static_cast<message_descriptor_t *>(descriptor.extendee));
 
     fmt::format_to(target,
                    "{0}constexpr auto {1}() {{\n"
                    "{0}  return hpp::proto::{2}extension_meta<{3}, {4}, "
                    "{5}{6}>{{}};\n"
                    "{0}}}\n\n",
-                   indent(), cpp_name, extension_prefix,
-                   qualified_cpp_name(namespace_prefix, proto.extendee), proto.number,
-                   fmt::join(meta_options(descriptor), " | "), type_and_default_value);
+                   indent(), cpp_name, extension_prefix, qualified_cpp_name(namespace_prefix, proto.extendee),
+                   proto.number, fmt::join(meta_options(descriptor), " | "), type_and_default_value);
   }
   // NOLINTEND(readability-function-cognitive-complexity)
 

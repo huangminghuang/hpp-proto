@@ -2428,12 +2428,18 @@ struct pb_serializer {
       }
     };
 
-    if constexpr (concepts::flat_map<type>) {
-      reserve(v, new_size);
-    } else if constexpr (meta.closed_enum) {
-      v.reserve(new_size);
-    } else if constexpr (requires { v.resize(new_size); }) {
-      v.resize(new_size);
+    if constexpr (concepts::associative_container<type>) {
+      if constexpr (concepts::flat_map<type>) {
+        reserve(v, new_size);
+      } else if constexpr (requires { v.reserve(new_size); }) {
+        v.reserve(new_size);
+      }
+    } else {
+      if constexpr (meta.closed_enum) {
+        v.reserve(new_size);
+      } else if constexpr (requires { v.resize(new_size); }) {
+        v.resize(new_size);
+      }
     }
 
     for (auto i = old_size; i < new_size; ++i) {
@@ -2507,9 +2513,8 @@ struct pb_serializer {
   }
 
   template <concepts::optional T>
-  requires (!concepts::optional_message_view<T>)
-  constexpr static status deserialize_field(T &item, auto meta, uint32_t tag,
-                                            concepts::is_basic_in auto &archive) {
+    requires(!concepts::optional_message_view<T>)
+  constexpr static status deserialize_field(T &item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive) {
     status result;
     if constexpr (requires { item.emplace(); }) {
       result = deserialize_field(item.emplace(), meta, tag, archive);
@@ -2954,7 +2959,7 @@ struct message_merger {
   static constexpr void perform(T &dest, U &&source) {
     return std::apply(
         [&dest, &source](auto &&...meta) {
-          // NOLINTNEXTLINE(bugprone-use-after-move)
+          // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
           (perform(meta, meta.access(dest), meta.access(std::forward<U>(source))), ...);
         },
         typename traits::meta_of<T>::type{});
@@ -3050,7 +3055,11 @@ struct message_merger {
   static constexpr void insert_or_replace(T &dest, T &&source) {
     source.swap(dest);
     if constexpr (requires { dest.insert(sorted_unique, source.begin(), source.end()); }) {
+      // flat_map
       dest.insert(sorted_unique, source.begin(), source.end());
+    } else if constexpr (requires { dest.merge(source); }) {
+      // std::map, std::unordered_map
+      dest.merge(source);
     } else {
       dest.insert(source.begin(), source.end());
     }
@@ -3069,6 +3078,10 @@ struct message_merger {
   }
 };
 
+/// @brief Merge the fields from the `source` message into `dest` message.
+/// @details Singular fields will be overwritten, if specified in from, except for embedded messages which will be
+/// merged. Repeated fields will be concatenated. The `source` message must be of the same type as `dest` message (i.e. the
+/// exact same class).
 template <concepts::has_meta T, typename U>
   requires std::same_as<T, std::decay_t<U>>
 constexpr void merge(T &dest, U &&source) {
