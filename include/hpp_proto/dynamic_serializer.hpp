@@ -1485,9 +1485,11 @@ public:
     using result_t = glz::expected<dynamic_serializer, hpp::proto::status>;
     google::protobuf::FileDescriptorSet fileset;
     for (const auto &stream : stream_range) {
-      if (auto ec = merge_proto(fileset, stream); !ec.ok()) [[unlikely]] {
+      google::protobuf::FileDescriptorSet tmp;
+      if (auto ec = read_proto(tmp, stream); !ec.ok()) [[unlikely]] {
         return result_t{glz::unexpected(ec)};
       }
+      fileset.file.insert(fileset.file.end(), tmp.file.begin(), tmp.file.end());
     }
     // double check if we have duplicated files
     std::unordered_map<std::string, google::protobuf::FileDescriptorProto *> file_map;

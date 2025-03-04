@@ -175,19 +175,13 @@ template <typename T>
 concept optional_message_view = std::same_as<T, ::hpp::proto::optional_message_view<typename T::value_type>>;
 
 template <typename T>
-concept optional = requires(T optional) {
-  optional.value();
-  optional.has_value();
-  // optional.operator bool(); // this operator is deliberately removed to fit
-  // our specialization for optional<bool> which removed this operation
-  optional.operator*();
-} && !optional_message_view<T>;
-
-template <typename T>
 concept oneof_type = concepts::variant<T>;
 
 template <typename T>
 concept arithmetic = std::is_arithmetic_v<T> || concepts::varint<T>;
+
+template <typename T>
+concept singular = arithmetic<T> || is_enum<T> || string<T> || resizable_contiguous_byte_container<T>;
 
 template <typename T>
 concept pb_extension = requires(T value) { typename T::pb_extension; };
@@ -501,9 +495,9 @@ enum field_option : uint8_t {
 
 template <auto Accessor>
 struct accessor_type {
-  constexpr auto &operator()(auto &&item) const {
+  constexpr decltype(auto) operator()(auto &&item) const {
     if constexpr (std::is_member_pointer_v<decltype(Accessor)>) {
-      return item.*Accessor;
+      return std::forward<decltype(item)>(item).*Accessor;
     } else {
       return Accessor(std::forward<decltype(item)>(item));
     }
@@ -547,6 +541,7 @@ struct field_meta : field_meta_base<Number, FieldOptions, Type, DefaultValue> {
 template <auto Accessor, typename... AlternativeMeta>
 struct oneof_field_meta {
   constexpr static auto access = accessor_type<Accessor>{};
+  constexpr static bool is_explicit_presence = true;
   using alternatives_meta = std::tuple<AlternativeMeta...>;
   using type = void;
   template <typename T>
@@ -2511,13 +2506,15 @@ struct pb_serializer {
     return {};
   }
 
-  constexpr static status deserialize_field(concepts::optional auto &item, auto meta, uint32_t tag,
+  template <concepts::optional T>
+  requires (!concepts::optional_message_view<T>)
+  constexpr static status deserialize_field(T &item, auto meta, uint32_t tag,
                                             concepts::is_basic_in auto &archive) {
     status result;
     if constexpr (requires { item.emplace(); }) {
       result = deserialize_field(item.emplace(), meta, tag, archive);
     } else {
-      using type = std::remove_reference_t<decltype(item)>;
+      using type = std::remove_reference_t<T>;
       item = typename type::value_type{};
       result = deserialize_field(*item, meta, tag, archive);
     }
@@ -2912,13 +2909,6 @@ status read_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&
   return pb_serializer::deserialize(msg, buffer, ctx);
 }
 
-/// @brief  deserialize from the buffer and merge the content with the existing msg
-template <concepts::has_meta T, concepts::input_byte_range Buffer>
-status merge_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
-  pb_context ctx{std::forward<decltype(option)>(option)...};
-  return pb_serializer::deserialize(msg, buffer, ctx);
-}
-
 namespace concepts {
 template <typename T>
 concept is_any = requires(T &obj) {
@@ -2957,5 +2947,133 @@ expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is
     return msg;
   }
 }
+
+struct message_merger {
+  template <concepts::has_meta T, typename U>
+    requires std::same_as<T, std::decay_t<U>>
+  static constexpr void perform(T &dest, U &&source) {
+    return std::apply(
+        [&dest, &source](auto &&...meta) {
+          // NOLINTNEXTLINE(bugprone-use-after-move)
+          (perform(meta, meta.access(dest), meta.access(std::forward<U>(source))), ...);
+        },
+        typename traits::meta_of<T>::type{});
+  }
+
+  template <typename Meta, typename T, typename U>
+    requires std::same_as<T, std::decay_t<U>>
+  static void perform(Meta meta, T &dest, U &&source) {
+    if constexpr (concepts::variant<T>) {
+      if (source.index() > 0) {
+        if (dest.index() == source.index()) {
+          using alt_meta = typename Meta::alternatives_meta;
+          perform(alt_meta(), dest, std::forward<U>(source), std::make_index_sequence<std::tuple_size_v<alt_meta>>());
+        } else {
+          dest = std::forward<U>(source);
+        }
+      }
+    } else if constexpr (meta.is_explicit_presence || !concepts::singular<T>) {
+      perform(dest, std::forward<U>(source));
+    } else {
+      if (!meta.omit_value(source)) {
+        dest = std::forward<U>(source);
+      }
+    }
+  }
+
+  template <typename Meta, concepts::variant T, typename U, std::size_t FirstIndex, std::size_t... Indices>
+    requires std::same_as<T, std::decay_t<U>>
+  static void perform(Meta meta, T &dest, U &&source, std::index_sequence<FirstIndex, Indices...>) {
+    if (dest.index() == FirstIndex + 1) {
+      perform(std::get<FirstIndex>(meta), std::get<FirstIndex + 1>(dest),
+              std::get<FirstIndex + 1>(std::forward<U>(source)));
+    } else {
+      perform(meta, dest, std::forward<U>(source), std::index_sequence<Indices...>());
+    }
+  }
+
+  template <typename Meta, concepts::variant T>
+  static void perform(Meta, T &, const T &, std::index_sequence<>) {}
+
+  template <concepts::optional T, typename U>
+    requires std::same_as<T, std::decay_t<U>>
+  static constexpr void perform(T &dest, U &&source) {
+    if constexpr (concepts::has_meta<typename T::value_type>) {
+      if (source.has_value()) {
+        if (!dest.has_value()) {
+          perform(dest.emplace(), *std::forward<U>(source));
+        } else {
+          perform(*dest, *std::forward<U>(source));
+        }
+      }
+    } else {
+      if (source.has_value()) {
+        dest = std::forward<U>(source);
+      }
+    }
+  }
+
+  template <typename T>
+    requires(!concepts::byte_type<T>)
+  static constexpr void perform(std::vector<T> &dest, const std::vector<T> &source) {
+    dest.insert(dest.end(), source.begin(), source.end());
+  }
+
+  template <concepts::associative_container T, typename U>
+    requires std::same_as<T, std::decay_t<U>>
+  static constexpr void perform(T &dest, U &&source) {
+    if (!source.empty()) {
+      if (dest.empty()) {
+        dest = std::forward<U>(source);
+      } else {
+        insert_or_replace(dest, std::forward<U>(source));
+      }
+    }
+  }
+
+  template <typename T>
+    requires requires { typename T::mapped_type; }
+  static constexpr void insert_or_replace(T &dest, const T &source) {
+    T tmp;
+    tmp.swap(dest);
+    dest = source;
+    if constexpr (requires { dest.insert(sorted_unique, source.begin(), source.end()); }) {
+      dest.insert(sorted_unique, tmp.begin(), tmp.end());
+    } else {
+      dest.insert(tmp.begin(), tmp.end());
+    }
+  }
+
+  template <typename T>
+    requires requires { typename T::mapped_type; }
+  // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
+  static constexpr void insert_or_replace(T &dest, T &&source) {
+    source.swap(dest);
+    if constexpr (requires { dest.insert(sorted_unique, source.begin(), source.end()); }) {
+      dest.insert(sorted_unique, source.begin(), source.end());
+    } else {
+      dest.insert(source.begin(), source.end());
+    }
+  }
+
+  template <concepts::pb_extension T, typename U>
+    requires std::same_as<T, std::decay_t<U>>
+  static constexpr void perform(T &dest, U &&source) {
+    perform(dest.fields, std::forward<U>(source).fields);
+  }
+
+  template <concepts::singular T, typename U>
+    requires std::same_as<T, std::decay_t<U>>
+  static constexpr void perform(T &dest, U &&source) {
+    dest = std::forward<U>(source);
+  }
+};
+
+template <concepts::has_meta T, typename U>
+  requires std::same_as<T, std::decay_t<U>>
+constexpr void merge(T &dest, U &&source) {
+  message_merger::perform(dest, std::forward<U>(source));
+}
+
 } // namespace hpp::proto
 #undef HPP_PROTO_INLINE

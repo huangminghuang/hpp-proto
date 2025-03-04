@@ -658,7 +658,7 @@ const ut::suite test_enums = [] {
   };
 
   "invalid_enum_message"_test = [] {
-    enum_message value;
+    enum_message value={};
     ut::expect(!hpp::proto::read_proto(value, "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
   };
 
@@ -1290,7 +1290,7 @@ const ut::suite test_repeated_strings = [] {
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\x61\x62"sv).ok());
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x02\xc0\xdf"sv).ok());
 
-    value.values.push_back("\xc0\xdf");
+    value.values.emplace_back("\xc0\xdf");
     ut::expect(!hpp::proto::write_proto(value).has_value());
   };
 

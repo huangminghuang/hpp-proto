@@ -42,8 +42,7 @@ struct descriptor_pool {
     if (options.has_value()) {
       const auto &overriding_features = options->features;
       if (overriding_features.has_value()) {
-        auto overriding_bytes = hpp::proto::write_proto(*overriding_features).value();
-        (void)hpp::proto::merge_proto(features, overriding_bytes).ok();
+        hpp::proto::merge(features, *options->features);
       }
     }
     return features;
