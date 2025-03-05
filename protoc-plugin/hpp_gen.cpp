@@ -2055,7 +2055,7 @@ int main(int argc, const char **argv) {
       hpp_addons::non_owning_mode = true;
     } else if (opt_key == "string_keyed_map") {
       hpp_addons::string_keyed_map.emplace(opt_value);
-    } else if (opt_key == "numeric_keyed_map"){
+    } else if (opt_key == "numeric_keyed_map") {
       hpp_addons::numeric_keyed_map.emplace(opt_value);
     } else if (opt_key == "proto2_explicit_presence") {
       code_generator::proto2_explicit_presences.emplace_back(opt_value);

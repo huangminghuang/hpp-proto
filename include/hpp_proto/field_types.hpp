@@ -37,7 +37,7 @@
 namespace hpp::proto {
 using stdext::flat_map;
 using stdext::sorted_unique;
-}
+} // namespace hpp::proto
 
 namespace hpp::proto {
 
@@ -80,7 +80,7 @@ static constexpr auto unwrap(T v) {
 }
 
 namespace concepts {
-  template <typename T>
+template <typename T>
 concept optional = requires(T optional) {
   optional.value();
   optional.has_value();
@@ -88,7 +88,7 @@ concept optional = requires(T optional) {
   // our specialization for optional<bool> which removed this operation
   optional.operator*();
 };
-}
+} // namespace concepts
 
 // NOLINTBEGIN(hicpp-explicit-conversions)
 template <typename T, auto Default = std::monostate{}>
@@ -158,7 +158,7 @@ public:
       : _value(list, std::forward<Args>(args)...), _present(true) {}
 
   template <typename U>
-    requires (std::convertible_to<U, T> && !concepts::optional<U>)
+    requires(std::convertible_to<U, T> && !concepts::optional<U>)
   constexpr optional(U &&value)
       : _value(std::forward<U>(value)), _present(true) {} // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
@@ -168,7 +168,7 @@ public:
   }
 
   template <typename U>
-    requires (std::convertible_to<U, T> && !concepts::optional<U>)
+    requires(std::convertible_to<U, T> && !concepts::optional<U>)
   // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
   constexpr optional &operator=(U &&value) {
     _value = static_cast<T>(std::forward<U>(value)); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)

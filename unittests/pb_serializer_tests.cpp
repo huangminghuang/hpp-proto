@@ -890,7 +890,7 @@ const ut::suite test_map_example = [] {
     // double check if the encoded value is correct
     string_key_map_example another;
     ut::expect(hpp::proto::read_proto(another, buffer).ok());
-    value = unordered_map_example{.dict {another.dict.begin(), another.dict.end()}};
+    value = unordered_map_example{.dict{another.dict.begin(), another.dict.end()}};
     ut::expect(value == msg);
   };
 

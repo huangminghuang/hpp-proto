@@ -3080,8 +3080,8 @@ struct message_merger {
 
 /// @brief Merge the fields from the `source` message into `dest` message.
 /// @details Singular fields will be overwritten, if specified in from, except for embedded messages which will be
-/// merged. Repeated fields will be concatenated. The `source` message must be of the same type as `dest` message (i.e. the
-/// exact same class).
+/// merged. Repeated fields will be concatenated. The `source` message must be of the same type as `dest` message (i.e.
+/// the exact same class).
 template <concepts::has_meta T, typename U>
   requires std::same_as<T, std::decay_t<U>>
 constexpr void merge(T &dest, U &&source) {

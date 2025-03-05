@@ -58,13 +58,13 @@ struct descriptor_pool {
         : base_type(proto, parent_name), proto(proto),
           options(proto.options.value_or(google::protobuf::FieldOptions{})) {
       options.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions);}) {
+      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
         google::protobuf::FieldOptions::extension_t extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
       }
 
-      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
         base_type::on_descriptor_created(proto, options);
       }
     }
@@ -148,12 +148,12 @@ struct descriptor_pool {
                                 const google::protobuf::MessageOptions &inherited_options)
         : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::OneofOptions{})) {
       options.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions);}) {
+      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
         google::protobuf::OneofOptions::extension_t extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
       }
-      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
         base_type::on_descriptor_created(proto, options);
       }
     }
@@ -168,12 +168,12 @@ struct descriptor_pool {
     explicit enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto, const auto &inherited_options)
         : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::EnumOptions{})) {
       options.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions);}) {
+      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
         google::protobuf::EnumOptions::extension_t extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
       }
-      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
         base_type::on_descriptor_created(proto, options);
       }
     }
@@ -192,21 +192,24 @@ struct descriptor_pool {
     const google::protobuf::DescriptorProto &proto;
     google::protobuf::MessageOptions options;
 
-    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto, const google::protobuf::MessageOptions &inherited_options)
+    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto,
+                                  const google::protobuf::MessageOptions &inherited_options)
         : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::MessageOptions{})) {
       options.features = merge_features(inherited_options.features.value(), proto.options);
-      options.extensions.fields.insert(hpp::proto::sorted_unique, inherited_options.extensions.fields.begin(), inherited_options.extensions.fields.end());
+      options.extensions.fields.insert(hpp::proto::sorted_unique, inherited_options.extensions.fields.begin(),
+                                       inherited_options.extensions.fields.end());
     }
 
-    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto, const google::protobuf::FileOptions &inherited_options)
+    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto,
+                                  const google::protobuf::FileOptions &inherited_options)
         : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::MessageOptions{})) {
       options.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions);}) {
+      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
         google::protobuf::MessageOptions::extension_t extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
       }
-      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
         base_type::on_descriptor_created(proto, options);
       }
     }
@@ -228,7 +231,7 @@ struct descriptor_pool {
         auto extensions = AddOns::default_file_options_extensions();
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
       }
-      if constexpr (requires { base_type::on_descriptor_created(proto, options);}) {
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
         base_type::on_descriptor_created(proto, options);
       }
     }

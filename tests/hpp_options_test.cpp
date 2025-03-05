@@ -1,6 +1,6 @@
-#include <unordered_map>
-#include <map>
 #include "hpp_options_test.msg.hpp"
+#include <map>
+#include <unordered_map>
 
 int main() {
   Msg1 msg1;
