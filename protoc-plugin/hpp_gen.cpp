@@ -1465,7 +1465,6 @@ struct hpp_meta_generator : code_generator {
       type_and_default_value += ", " + descriptor.default_value_template_arg;
     }
 
-    using enum gpb::FieldDescriptorProto::Label;
     auto namespace_prefix =
         msg_code_generator::namespace_prefix_of(*static_cast<message_descriptor_t *>(descriptor.extendee));
 

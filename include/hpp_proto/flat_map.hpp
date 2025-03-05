@@ -35,6 +35,7 @@
 #include <iterator>
 #include <stddef.h>
 #include <vector>
+#include <stdexcept>
 // NOLINTBEGIN
 namespace stdext {
 

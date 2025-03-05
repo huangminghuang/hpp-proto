@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <functional>
 #include <hpp_proto/flat_map.hpp>
 #include <optional>
@@ -350,7 +351,7 @@ public:
   static constexpr bool default_value() { return as_bool(Default); }
 
 private:
-  static constexpr uint8_t default_state = 0x80U | uint8_t(default_value()); // use 0x80 to denote empty state
+  static constexpr std::uint8_t default_state = 0x80U | std::uint8_t(default_value()); // use 0x80 to denote empty state
   bool &deref() {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<bool &>(impl);
@@ -361,7 +362,7 @@ public:
   using value_type = bool;
   constexpr optional() noexcept = default;
   constexpr ~optional() noexcept = default;
-  constexpr optional(bool v) noexcept : impl(uint8_t(v)) {};
+  constexpr optional(bool v) noexcept : impl(std::uint8_t(v)) {};
   constexpr optional(const optional &) noexcept = default;
   constexpr optional(optional &&) noexcept = default;
   constexpr optional &operator=(const optional &) noexcept = default;
@@ -371,19 +372,19 @@ public:
   constexpr bool operator*() const noexcept { return value(); }
 
   bool &emplace() noexcept {
-    impl = uint8_t(default_value());
+    impl = std::uint8_t(default_value());
     return deref();
   }
 
   bool &emplace(bool v) noexcept {
-    impl = uint8_t(v);
+    impl = std::uint8_t(v);
     return deref();
   }
 
   [[nodiscard]] constexpr bool value() const { return static_cast<bool>(impl & 0x01U); }
 
   constexpr optional &operator=(bool v) noexcept {
-    impl = uint8_t(v);
+    impl = std::uint8_t(v);
     return *this;
   }
   constexpr bool operator==(const optional &other) const = default;
