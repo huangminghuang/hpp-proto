@@ -4,7 +4,6 @@
 #include "hpp_options_test.msg.hpp"
 // clang-format on
 
-
 int main() {
   Msg1 msg1;
   Msg2 msg2;
