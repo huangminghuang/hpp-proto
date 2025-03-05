@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <functional>
 #include <hpp_proto/flat_map.hpp>
+#include <memory>
 #include <optional>
 #include <ranges>
 #include <span>
