@@ -1,6 +1,9 @@
-#include "hpp_options_test.msg.hpp"
+// clang-format off
 #include <map>
 #include <unordered_map>
+#include "hpp_options_test.msg.hpp"
+// clang-format on
+
 
 int main() {
   Msg1 msg1;
