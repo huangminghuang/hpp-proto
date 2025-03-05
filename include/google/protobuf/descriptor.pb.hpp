@@ -3,7 +3,7 @@
 // NO CHECKED-IN PROTOBUF GENCODE
 // generation command line:
 //    protoc --plugin=protoc-gen-hpp=/path/to/protoc-gen-hpp
-//           --hpp_out proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed:${out_dir}
+//           --hpp_out proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed,export_request=descriptor.request.binpb:${out_dir}
 //           google/protobuf/descriptor.proto
 
 #pragma once
@@ -15,7 +15,8 @@
 namespace google::protobuf {
 
 auto pb_meta(const FileDescriptorSet &) -> std::tuple<
-  hpp::proto::field_meta<1, &FileDescriptorSet::file, hpp::proto::field_option::none>>;
+  hpp::proto::field_meta<1, &FileDescriptorSet::file, hpp::proto::field_option::none>,
+  hpp::proto::field_meta<UINT32_MAX, &FileDescriptorSet::extensions>>;
 
 auto pb_meta(const FileDescriptorProto &) -> std::tuple<
   hpp::proto::field_meta<1, &FileDescriptorProto::name, hpp::proto::field_option::none>,
@@ -57,7 +58,7 @@ auto pb_meta(const ExtensionRangeOptions &) -> std::tuple<
   hpp::proto::field_meta<999, &ExtensionRangeOptions::uninterpreted_option, hpp::proto::field_option::none>,
   hpp::proto::field_meta<2, &ExtensionRangeOptions::declaration, hpp::proto::field_option::none>,
   hpp::proto::field_meta<50, &ExtensionRangeOptions::features, hpp::proto::field_option::explicit_presence>,
-  hpp::proto::field_meta<3, &ExtensionRangeOptions::verification, hpp::proto::field_option::none, void, ::google::protobuf::ExtensionRangeOptions::VerificationState::UNVERIFIED>,
+  hpp::proto::field_meta<3, &ExtensionRangeOptions::verification, hpp::proto::field_option::closed_enum, void, ::google::protobuf::ExtensionRangeOptions::VerificationState::UNVERIFIED>,
   hpp::proto::field_meta<UINT32_MAX, &ExtensionRangeOptions::extensions>>;
 
 auto pb_meta(const ExtensionRangeOptions::Declaration &) -> std::tuple<
@@ -119,7 +120,7 @@ auto pb_meta(const FileOptions &) -> std::tuple<
   hpp::proto::field_meta<10, &FileOptions::java_multiple_files, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<20, &FileOptions::java_generate_equals_and_hash, hpp::proto::field_option::none, bool>,
   hpp::proto::field_meta<27, &FileOptions::java_string_check_utf8, hpp::proto::field_option::none, bool, false>,
-  hpp::proto::field_meta<9, &FileOptions::optimize_for, hpp::proto::field_option::none, void, ::google::protobuf::FileOptions::OptimizeMode::SPEED>,
+  hpp::proto::field_meta<9, &FileOptions::optimize_for, hpp::proto::field_option::closed_enum, void, ::google::protobuf::FileOptions::OptimizeMode::SPEED>,
   hpp::proto::field_meta<11, &FileOptions::go_package, hpp::proto::field_option::none>,
   hpp::proto::field_meta<16, &FileOptions::cc_generic_services, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<17, &FileOptions::java_generic_services, hpp::proto::field_option::none, bool, false>,
@@ -148,16 +149,16 @@ auto pb_meta(const MessageOptions &) -> std::tuple<
   hpp::proto::field_meta<UINT32_MAX, &MessageOptions::extensions>>;
 
 auto pb_meta(const FieldOptions &) -> std::tuple<
-  hpp::proto::field_meta<1, &FieldOptions::ctype, hpp::proto::field_option::none, void, ::google::protobuf::FieldOptions::CType::STRING>,
+  hpp::proto::field_meta<1, &FieldOptions::ctype, hpp::proto::field_option::closed_enum, void, ::google::protobuf::FieldOptions::CType::STRING>,
   hpp::proto::field_meta<2, &FieldOptions::packed, hpp::proto::field_option::explicit_presence, bool>,
-  hpp::proto::field_meta<6, &FieldOptions::jstype, hpp::proto::field_option::none, void, ::google::protobuf::FieldOptions::JSType::JS_NORMAL>,
+  hpp::proto::field_meta<6, &FieldOptions::jstype, hpp::proto::field_option::closed_enum, void, ::google::protobuf::FieldOptions::JSType::JS_NORMAL>,
   hpp::proto::field_meta<5, &FieldOptions::lazy, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<15, &FieldOptions::unverified_lazy, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<3, &FieldOptions::deprecated, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<10, &FieldOptions::weak, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<16, &FieldOptions::debug_redact, hpp::proto::field_option::none, bool, false>,
   hpp::proto::field_meta<17, &FieldOptions::retention, hpp::proto::field_option::closed_enum, void, ::google::protobuf::FieldOptions::OptionRetention::RETENTION_UNKNOWN>,
-  hpp::proto::field_meta<19, &FieldOptions::targets, hpp::proto::field_option::none>,
+  hpp::proto::field_meta<19, &FieldOptions::targets, hpp::proto::field_option::closed_enum>,
   hpp::proto::field_meta<20, &FieldOptions::edition_defaults, hpp::proto::field_option::none>,
   hpp::proto::field_meta<21, &FieldOptions::features, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<22, &FieldOptions::feature_support, hpp::proto::field_option::explicit_presence>,
@@ -203,7 +204,7 @@ auto pb_meta(const ServiceOptions &) -> std::tuple<
 
 auto pb_meta(const MethodOptions &) -> std::tuple<
   hpp::proto::field_meta<33, &MethodOptions::deprecated, hpp::proto::field_option::none, bool, false>,
-  hpp::proto::field_meta<34, &MethodOptions::idempotency_level, hpp::proto::field_option::none, void, ::google::protobuf::MethodOptions::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>,
+  hpp::proto::field_meta<34, &MethodOptions::idempotency_level, hpp::proto::field_option::closed_enum, void, ::google::protobuf::MethodOptions::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>,
   hpp::proto::field_meta<35, &MethodOptions::features, hpp::proto::field_option::explicit_presence>,
   hpp::proto::field_meta<999, &MethodOptions::uninterpreted_option, hpp::proto::field_option::none>,
   hpp::proto::field_meta<UINT32_MAX, &MethodOptions::extensions>>;
@@ -241,7 +242,8 @@ auto pb_meta(const FeatureSetDefaults::FeatureSetEditionDefault &) -> std::tuple
   hpp::proto::field_meta<5, &FeatureSetDefaults::FeatureSetEditionDefault::fixed_features, hpp::proto::field_option::explicit_presence>>;
 
 auto pb_meta(const SourceCodeInfo &) -> std::tuple<
-  hpp::proto::field_meta<1, &SourceCodeInfo::location, hpp::proto::field_option::none>>;
+  hpp::proto::field_meta<1, &SourceCodeInfo::location, hpp::proto::field_option::none>,
+  hpp::proto::field_meta<UINT32_MAX, &SourceCodeInfo::extensions>>;
 
 auto pb_meta(const SourceCodeInfo::Location &) -> std::tuple<
   hpp::proto::field_meta<1, &SourceCodeInfo::Location::path, hpp::proto::field_option::is_packed, hpp::proto::vint64_t>,

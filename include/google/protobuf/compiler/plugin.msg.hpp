@@ -3,13 +3,15 @@
 // NO CHECKED-IN PROTOBUF GENCODE
 // generation command line:
 //    protoc --plugin=protoc-gen-hpp=/path/to/protoc-gen-hpp
-//           --hpp_out proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed:${out_dir}
+//           --hpp_out proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed,export_request=descriptor.request.binpb:${out_dir}
 //           google/protobuf/compiler/plugin.proto
 
 #pragma once
 
 #include <hpp_proto/field_types.hpp>
 #include "google/protobuf/descriptor.msg.hpp"
+// @@protoc_insertion_point(includes)
+
 
 namespace google::protobuf::compiler {
 //NOLINTBEGIN(performance-enum-size)

@@ -17,21 +17,27 @@ struct glz::meta<hpp::proto::FileOptions> {
   using T = hpp::proto::FileOptions;
   static constexpr auto value = object(
     "nonOwning", hpp::proto::as_optional_ref<&T::non_owning>,
-    "namespacePrefix", &T::namespace_prefix);
+    "namespacePrefix", &T::namespace_prefix,
+    "stringKeyedMap", &T::string_keyed_map,
+    "numericKeyedMap", &T::numeric_keyed_map);
 };
 
 template <>
 struct glz::meta<hpp::proto::MessageOptions> {
   using T = hpp::proto::MessageOptions;
   static constexpr auto value = object(
-    "nonOwning", hpp::proto::as_optional_ref<&T::non_owning>);
+    "nonOwning", hpp::proto::as_optional_ref<&T::non_owning>,
+    "stringKeyedMap", &T::string_keyed_map,
+    "numericKeyedMap", &T::numeric_keyed_map);
 };
 
 template <>
 struct glz::meta<hpp::proto::FieldOptions> {
   using T = hpp::proto::FieldOptions;
   static constexpr auto value = object(
-    "nonOwning", hpp::proto::as_optional_ref<&T::non_owning>);
+    "nonOwning", hpp::proto::as_optional_ref<&T::non_owning>,
+    "stringKeyedMap", &T::string_keyed_map,
+    "numericKeyedMap", &T::numeric_keyed_map);
 };
 
 // clang-format on

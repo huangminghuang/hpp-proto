@@ -615,7 +615,7 @@ public:
     requires requires(R &r) {
       { std::ranges::data(r) } -> std::convertible_to<const T *>;
     }
-  // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature)
+  // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
   constexpr equality_comparable_span &operator=(R &other) noexcept {
     operator=(std::span<T>(other));
     return *this;

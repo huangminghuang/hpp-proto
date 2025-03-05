@@ -236,13 +236,17 @@ std::string to_hex_literal(hpp::proto::concepts::contiguous_byte_range auto cons
 } // namespace
 struct hpp_addons {
   static bool non_owning_mode;
-  static std::string namespace_prefix;
+  static hpp::proto::optional<std::string> namespace_prefix;
+  static hpp::proto::optional<std::string> string_keyed_map;
+  static hpp::proto::optional<std::string> numeric_keyed_map;
 
   static google::protobuf::FileOptions::extension_t default_file_options_extensions() {
     google::protobuf::FileOptions::extension_t extensions;
     if (!hpp::proto::hpp_file_opts()
-             .write(extensions,
-                    hpp::proto::FileOptions{.non_owning = non_owning_mode, .namespace_prefix = namespace_prefix})
+             .write(extensions, hpp::proto::FileOptions{.non_owning = non_owning_mode,
+                                                        .namespace_prefix = namespace_prefix,
+                                                        .string_keyed_map = string_keyed_map,
+                                                        .numeric_keyed_map = numeric_keyed_map})
              .ok()) {
       std::cerr << "Failed to set default file options extensions\n";
       exit(1);
@@ -255,7 +259,9 @@ struct hpp_addons {
     auto opts = hpp::proto::hpp_file_opts().read(inherited);
     if (opts.has_value()) {
       if (!hpp::proto::hpp_message_opts()
-               .write(extensions, hpp::proto::MessageOptions{.non_owning = opts->non_owning})
+               .write(extensions, hpp::proto::MessageOptions{.non_owning = opts->non_owning,
+                                                             .string_keyed_map = opts->string_keyed_map,
+                                                             .numeric_keyed_map = opts->numeric_keyed_map})
                .ok()) {
         std::cerr << "Failed to write message options extensions\n";
         exit(1);
@@ -268,7 +274,9 @@ struct hpp_addons {
     auto opts = hpp::proto::hpp_file_opts().read(inherited);
     if (opts.has_value()) {
       if (!hpp::proto::hpp_field_opts()
-               .write(extensions, hpp::proto::FieldOptions{.non_owning = opts->non_owning})
+               .write(extensions, hpp::proto::FieldOptions{.non_owning = opts->non_owning,
+                                                           .string_keyed_map = opts->string_keyed_map,
+                                                           .numeric_keyed_map = opts->numeric_keyed_map})
                .ok()) {
         std::cerr << "Failed to write field options extensions\n";
         exit(1);
@@ -281,7 +289,9 @@ struct hpp_addons {
     auto opts = hpp::proto::hpp_message_opts().read(inherited);
     if (opts.has_value()) {
       if (!hpp::proto::hpp_field_opts()
-               .write(extensions, hpp::proto::FieldOptions{.non_owning = opts->non_owning})
+               .write(extensions, hpp::proto::FieldOptions{.non_owning = opts->non_owning,
+                                                           .string_keyed_map = opts->string_keyed_map,
+                                                           .numeric_keyed_map = opts->numeric_keyed_map})
                .ok()) {
         std::cerr << "Failed to write field options extensions\n";
         exit(1);
@@ -364,7 +374,6 @@ struct hpp_addons {
       case TYPE_GROUP:
       case TYPE_MESSAGE:
       case TYPE_ENUM:
-        // set_user_cpp_type(proto);
         break;
       case TYPE_BYTES:
         cpp_field_type = non_owning ? "hpp::proto::bytes_view" : "hpp::proto::bytes";
@@ -657,7 +666,9 @@ struct hpp_addons {
 };
 
 bool hpp_addons::non_owning_mode = false;
-std::string hpp_addons::namespace_prefix;
+hpp::proto::optional<std::string> hpp_addons::namespace_prefix;
+hpp::proto::optional<std::string> hpp_addons::string_keyed_map;
+hpp::proto::optional<std::string> hpp_addons::numeric_keyed_map;
 using hpp_gen_descriptor_pool = hpp::proto::descriptor_pool<hpp_addons>;
 
 const static std::map<std::string, std::string> well_known_codecs = {{"google.protobuf.Duration", "duration_codec"},
@@ -930,6 +941,7 @@ struct msg_code_generator : code_generator {
     for (const auto &d : dependencies(descriptor)) {
       fmt::format_to(target, "#include \"{}.msg.hpp\"\n", basename(d, directory_prefix));
     }
+    fmt::format_to(target, "// @@protoc_insertion_point(includes)\n\n");
 
     const auto &ns = descriptor.cpp_namespace;
     if (!ns.empty()) {
@@ -977,14 +989,24 @@ struct msg_code_generator : code_generator {
     return "";
   }
 
+  static std::string get_map_container_name(const field_descriptor_t &descriptor) {
+    auto opts = descriptor.options.get_extension(hpp::proto::hpp_field_opts()).value_or(hpp::proto::FieldOptions{});
+    using enum gpb::FieldDescriptorProto::Type;
+    if (descriptor.map_fields[0]->proto.type == TYPE_STRING) {
+      return opts.string_keyed_map.value_or("hpp::proto::flat_map");
+    } else {
+      return opts.numeric_keyed_map.value_or("hpp::proto::flat_map");
+    }
+  }
+
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.map_fields[0] != nullptr) {
       if (!descriptor.non_owning) {
-        const char *type = "hpp::proto::flat_map";
-        // when using flat_map with bool, it would lead std::vector<bool> as one of its members; which is not what we
-        // need.
-        auto transform_if_bool = [](const std::string &name) {
-          return (name == "bool") ? std::string{"hpp::proto::boolean"} : name;
+        std::string type = get_map_container_name(descriptor);
+        auto transform_if_bool = [&type](const std::string &name) {
+          // when using flat_map with bool, it would make std::vector<bool> as one of its members; which is not what we
+          // want.
+          return (type == "hpp::proto::flat_map" && name == "bool") ? std::string{"hpp::proto::boolean"} : name;
         };
         return fmt::format("{}<{},{}>", type, transform_if_bool(descriptor.map_fields[0]->cpp_field_type),
                            transform_if_bool(descriptor.map_fields[1]->cpp_field_type));
@@ -2025,12 +2047,16 @@ int main(int argc, const char **argv) {
     if (opt_key == "directory_prefix") {
       code_generator::directory_prefix = opt_value;
     } else if (opt_key == "namespace_prefix") {
-      hpp_addons::namespace_prefix = opt_value;
-      if (!hpp_addons::namespace_prefix.ends_with("::")) {
-        hpp_addons::namespace_prefix += "::";
+      hpp_addons::namespace_prefix.emplace(opt_value);
+      if (!hpp_addons::namespace_prefix->ends_with("::")) {
+        *hpp_addons::namespace_prefix += "::";
       }
     } else if (opt_key == "non_owning") {
       hpp_addons::non_owning_mode = true;
+    } else if (opt_key == "string_keyed_map") {
+      hpp_addons::string_keyed_map.emplace(opt_value);
+    } else if (opt_key == "numeric_keyed_map"){
+      hpp_addons::numeric_keyed_map.emplace(opt_value);
     } else if (opt_key == "proto2_explicit_presence") {
       code_generator::proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "export_request") {

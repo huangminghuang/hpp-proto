@@ -16,14 +16,16 @@ protobuf_generate_hpp(
     [PLUGIN_OPTIONS <plugin_options>])
 ```
 
-    - IMPORT_DIRS: Specifies common parent directories for schema files.
-    - PROTOC_OUT_DIR: Output directory for generated source files. Defaults to CMAKE_CURRENT_BINARY_DIR.
-    - PROTOS: List of proto schema files. If omitted, then every source file ending in proto of TARGET will be used.
-    - PLUGIN_OPTIONS: A comma-separated string forwarded to the protoc-gen-hpp plugin to customize code generation. Options include:
-        * `namespace_prefix=`: Specifies a namespace prefix to be added to the generated C++ code, in addition to the package namespace.
-        * `directory_prefix=`:  Prepends a directory to all import dependencies.
-        * `proto2_explicit_presence=`: For Proto2 only, makes optional scalar fields implicitly present except for specified scopes. This option can be specified multiple times. For example: the option `proto2_explicit_presence=.pkg1.msg1.field1,proto2_explicit_presence=.pkg1.msg2` instructs the code generator that explicit presence is only applicable for the `field1` of `pkg1.msg1` and all fields of `pkg1.msg2`.
-        * `non_owning`: Generates non-owning messages. 
+  - IMPORT_DIRS: Specifies common parent directories for schema files.
+  - PROTOC_OUT_DIR: Output directory for generated source files. Defaults to CMAKE_CURRENT_BINARY_DIR.
+  - PROTOS: List of proto schema files. If omitted, then every source file ending in proto of TARGET will be used.
+  - <a id="plugin-options">PLUGIN_OPTIONS</a>: A comma-separated string forwarded to the protoc-gen-hpp plugin to customize code generation. Options include:
+      * `namespace_prefix=`: Specifies a namespace prefix to be added to the generated C++ code, in addition to the package namespace.
+      * `directory_prefix=`:  Prepends a directory to included non-system dependencies.
+      * `proto2_explicit_presence=`: For Proto2 only, makes optional scalar fields implicitly present except for specified scopes. This option can be specified multiple times. For example: the option `proto2_explicit_presence=.pkg1.msg1.field1,proto2_explicit_presence=.pkg1.msg2` instructs the code generator that explicit presence is only applicable for the `field1` of `pkg1.msg1` and all fields of `pkg1.msg2`.
+      * `non_owning`: Generates non-owning messages. 
+      * `string_keyed_map`: Uses an alternative type template such as 'std::unordered_map' for generated string keyed map; only works for __regular mode__ map fields.
+      * `numeric_keyed_map`: Uses an alternative type template such as 'std::map' for generated numeric keyed map; only works for __regular mode__ map fields.
 
 The compiler generates several header files for each .proto file, transforming the filename and extension as follows:
 
@@ -64,6 +66,10 @@ If you need to use both `hpp-proto` and the official Google Protobuf library in 
 protoc --proto_path=src --hpp_out build/gen  --hpp_opt=namespace_prefix=baz src/foo.proto
 ```
 This command will place all declarations in the `baz::foo::bar` namespace.
+
+## Non-owning mode only for specific files, messages or fields.
+
+In addition to using the [protoc plugin option](#plugin-options) to enable __non-owning mode__ globally, the `hpp_options` extension can be used to apply __non-owning mode__ selectively to specific files, messages, or fields. The file [hpp_options_test.proto](hpp_options_test.proto) provides an example of how to mix __regular__ and __non-owning mode__ code generation within a single proto file.
 
 ## Messages
 
@@ -190,7 +196,6 @@ message TestOneof {
     int32 foo_int = 1;
     string foo_string = 2;
     NestedMessage foo_message = 3;
-    NestedMessage foo_lazy_message = 4 [lazy = true];
   }
   message NestedMessage {
     double required_double = 1;
@@ -210,11 +215,10 @@ struct TestOneof {
   enum foo_oneof_case : int {
     foo_int = 1,
     foo_string = 2,
-    foo_message = 3,
-    foo_lazy_message = 4
+    foo_message = 3
   };
 
-  std::variant<std::monostate, int32_t, std::string, NestedMessage, NestedMessage> foo;
+  std::variant<std::monostate, int32_t, std::string, NestedMessage> foo;
 
   bool operator == (const TestOneof&) const = default;
 };
@@ -224,13 +228,18 @@ struct TestOneof {
 ### Map fields
 For `map` fields:
 ```proto
+import "hpp_proto/hpp_options.proto";
+
 message TestMap {
   map<int32, int32> map1 = 1;
+  map<string, int32> map2 = 2 [(hpp.proto.hpp_field_opts).string_keyed_map = 'std::unordered_map'];
+  map<int32, int32> map3 = 3 [(hpp.proto.hpp_field_opts).numeric_keyed_map = 'std::map'];;
 }
 ```
-The compiler generates `hpp::proto::flat_map<key_type, mapped_type>` for regular mode and with `hpp::proto::equality_comparable_span<std::pair<key_type, mapped_type>>` for non-owning mode. In the non-owning mode,
-the library does not handle key deduplication during serialization or deserialization.  
-Given a deserialized message with duplicate map keys, users are responsible to make sure that only the last key seen should be treated as valid.
+
+By default, in __regular mode__, the compiler generates `hpp::proto::flat_map<key_type, mapped_type>` for map fields. Alternatively, a template class conforming to the `std::map interface` can be used by specifying either `string_keyed_map` or `numeric_keyed_map` in the [protoc plugin options](#plugin-options) globally, or by annotating a specific file, message, or field with the hpp_options extension.
+
+In __non-owning mode__, the compiler always generates `hpp::proto::equality_comparable_span<std::pair<key_type, mapped_type>>` for map fields. Additionally, the library does not handle key deduplication during serialization or deserialization. If a deserialized message contains duplicate map keys, users must ensure that only the last occurrence of each key is considered valid.
 
 <details open><summary> Regular Mode </summary>
 <p>
@@ -238,6 +247,8 @@ Given a deserialized message with duplicate map keys, users are responsible to m
 ```cpp
 struct TestMap {
   hpp::proto::flat_map<int32_t,int32_t> map1;
+  std::unordered_map<std::string, int32_t> map2;
+  std::map<int32_t, int32_t> map3;
   bool operator == (const TestMap&) const = default;
 };
 ```
@@ -249,6 +260,8 @@ struct TestMap {
 ```cpp
 struct TestMap {
   hpp::proto::equality_comparable_span<std::pair<int32_t,int32_t>> map1;
+  hpp::proto::equality_comparable_span<std::pair<std::string,int32_t>> map2;
+  hpp::proto::equality_comparable_span<std::pair<int32_t,int32_t>> map3;
   bool operator == (const TestMap&) const = default;
 };
 ```

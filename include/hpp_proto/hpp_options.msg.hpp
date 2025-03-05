@@ -10,6 +10,8 @@
 
 #include <hpp_proto/field_types.hpp>
 #include "google/protobuf/descriptor.msg.hpp"
+// @@protoc_insertion_point(includes)
+
 
 namespace hpp::proto {
 //NOLINTBEGIN(performance-enum-size)
@@ -17,18 +19,24 @@ namespace hpp::proto {
 struct FileOptions {
   hpp::proto::optional<bool> non_owning;
   hpp::proto::optional<std::string> namespace_prefix;
+  hpp::proto::optional<std::string> string_keyed_map;
+  hpp::proto::optional<std::string> numeric_keyed_map;
 
   bool operator == (const FileOptions&) const = default;
 };
 
 struct MessageOptions {
   hpp::proto::optional<bool> non_owning;
+  hpp::proto::optional<std::string> string_keyed_map;
+  hpp::proto::optional<std::string> numeric_keyed_map;
 
   bool operator == (const MessageOptions&) const = default;
 };
 
 struct FieldOptions {
   hpp::proto::optional<bool> non_owning;
+  hpp::proto::optional<std::string> string_keyed_map;
+  hpp::proto::optional<std::string> numeric_keyed_map;
 
   bool operator == (const FieldOptions&) const = default;
 };
