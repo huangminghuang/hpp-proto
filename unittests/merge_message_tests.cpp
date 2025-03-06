@@ -79,65 +79,11 @@ auto pb_meta(const TestMessage &)
             hpp::proto::field_meta<113, 3, hpp::proto::field_option::explicit_presence>,
             hpp::proto::field_meta<114, 4, hpp::proto::field_option::explicit_presence>>>;
 
-TestMessage get_source() {
-  TestMessage source;
-  // Optional fields
-  source.optional_int32 = 1; // only source
-  source.optional_int64 = 2; // both source and dest
-  source.optional_bytes = "abc"_bytes;
-
-  // Optional fields with defaults
-  source.default_int32 = 13; // only source
-  source.default_int64 = 14; // both source and dest
-
-  // Nested message field
-  source.optional_foreign_message.emplace(ForeignMessage{.c = 1, .d = 0, .e = "uvw"_bytes});
-
-  // Repeated fields
-  source.repeated_int32.assign({5, 6});     // only source
-  source.repeated_int64.assign({7LL, 8LL}); // both source and dest
-
-  // Map fields
-
-  source.map_int32_int32[2] = 12; // both source and dest
-  source.map_int32_int32[3] = 13; // only source
-  return source;
-}
-
-TestMessage get_dest() {
-  TestMessage dest;
-
-  // Optional fields
-  dest.optional_int64 = 3;
-  dest.optional_uint32 = 4; // only dest
-  dest.optional_bytes = "def"_bytes;
-
-  // Optional fields with defaults
-  dest.default_int64 = 15;
-  dest.default_uint32 = 16; // only dest
-
-  // Nested message field
-  dest.optional_foreign_message.emplace(ForeignMessage{.c = 0, .d = 2, .e = "xyz"_bytes});
-
-  // Repeated fields
-  dest.repeated_int64.assign({9LL, 10LL});
-  dest.repeated_uint32.assign({11U, 12U}); // only dest
-
-  // Map fields
-  dest.map_int32_int32[1] = 1; // only dest
-  dest.map_int32_int32[2] = 2; // both source and dest
-
-  return dest;
-}
-
 const boost::ut::suite merge_test_suite = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
 
   "merge"_test = [] {
-    TestMessage source = get_source();
-    TestMessage dest = get_dest();
-
     auto verify_merge = [](const TestMessage &dest) {
       // Optional fields: source overwrites dest if source is specified
       expect(eq(1, dest.optional_int32.value()));  // only source: use source
@@ -163,22 +109,105 @@ const boost::ut::suite merge_test_suite = [] {
       expect(std::vector<int64_t>{9LL, 10LL, 7LL, 8LL} == dest.repeated_int64);
       expect(std::vector<uint32_t>{11U, 12U} == dest.repeated_uint32);
       expect(dest.repeated_uint64.empty());
-
-      // Map fields
-      expect(hpp::proto::flat_map<int32_t, int32_t>{{1, 1}, {2, 12}, {3, 13}} == dest.map_int32_int32);
     };
 
-    hpp::proto::merge(dest, source);
-    verify_merge(dest);
+    TestMessage dest;
+    TestMessage source;
 
-    dest = get_dest();
-    hpp::proto::merge(dest, std::move(source));
-    verify_merge(dest);
+    // Optional fields
+    source.optional_int32 = 1; // only source
+    source.optional_int64 = 2; // both source and dest
+    source.optional_bytes = "abc"_bytes;
+
+    // Optional fields with defaults
+    source.default_int32 = 13; // only source
+    source.default_int64 = 14; // both source and dest
+
+    // Nested message field
+    source.optional_foreign_message.emplace(ForeignMessage{.c = 1, .d = 0, .e = "uvw"_bytes});
+
+    // Repeated fields
+    source.repeated_int32.assign({5, 6});     // only source
+    source.repeated_int64.assign({7LL, 8LL}); // both source and dest
+
+    // Optional fields
+    dest.optional_int64 = 3;
+    dest.optional_uint32 = 4; // only dest
+    dest.optional_bytes = "def"_bytes;
+
+    // Optional fields with defaults
+    dest.default_int64 = 15;
+    dest.default_uint32 = 16; // only dest
+
+    // Nested message field
+    dest.optional_foreign_message.emplace(ForeignMessage{.c = 0, .d = 2, .e = "xyz"_bytes});
+
+    // Repeated fields
+    dest.repeated_int64.assign({9LL, 10LL});
+    dest.repeated_uint32.assign({11U, 12U}); // only dest
+
+    should("merge const reference") = [=]() mutable {
+      hpp::proto::merge(dest, source);
+      verify_merge(dest);
+    };
+
+    should("merge rvalue reference") = [=]() mutable {
+      hpp::proto::merge(dest, std::move(source));
+      verify_merge(dest);
+    };
+  };
+
+  "map_merge"_test = [] {
+    {
+      // only source
+      TestMessage dest;
+      TestMessage source;
+      source.map_int32_int32 = {{1, 1}, {2, 2}};
+
+      should("merge const reference") = [=]() mutable {
+        hpp::proto::merge(dest, source);
+        expect(hpp::proto::flat_map<int32_t, int32_t>{{1, 1}, {2, 2}} == dest.map_int32_int32);
+      };
+      should("merge rvalue reference") = [=]() mutable {
+        hpp::proto::merge(dest, std::move(source));
+        expect(hpp::proto::flat_map<int32_t, int32_t>{{1, 1}, {2, 2}} == dest.map_int32_int32);
+      };
+    }
+    {
+      // only dest
+      TestMessage dest;
+      TestMessage source;
+      dest.map_int32_int32 = {{1, 1}, {2, 2}};
+
+      should("merge const reference") = [=]() mutable {
+        hpp::proto::merge(dest, source);
+        expect(hpp::proto::flat_map<int32_t, int32_t>{{1, 1}, {2, 2}} == dest.map_int32_int32);
+      };
+      should("merge rvalue reference") = [=]() mutable {
+        hpp::proto::merge(dest, std::move(source));
+        expect(hpp::proto::flat_map<int32_t, int32_t>{{1, 1}, {2, 2}} == dest.map_int32_int32);
+      };
+    }
+    {
+      // both dest and source
+      TestMessage dest;
+      TestMessage source;
+      dest.map_int32_int32 = {{1, 1}, {2, 2}};
+      source.map_int32_int32 = {{2, 12}, {3, 13}};
+      should("merge const reference") = [=]() mutable {
+        hpp::proto::merge(dest, source);
+        expect(hpp::proto::flat_map<int32_t, int32_t>{{1, 1}, {2, 12}, {3, 13}} == dest.map_int32_int32);
+      };
+      should("merge rvalue reference") = [=]() mutable {
+        hpp::proto::merge(dest, std::move(source));
+        expect(hpp::proto::flat_map<int32_t, int32_t>{{1, 1}, {2, 12}, {3, 13}} == dest.map_int32_int32);
+      };
+    }
   };
 
   "oneof_merge"_test = [] {
     using namespace std::string_literals;
-    {
+    { // only source
       TestMessage dest;
       TestMessage source;
       source.oneof_field = 1U;
@@ -187,7 +216,7 @@ const boost::ut::suite merge_test_suite = [] {
       expect(fatal(eq(dest.oneof_field.index(), TestMessage::oneof_uint32)));
       expect(eq(1U, std::get<uint32_t>(dest.oneof_field)));
     }
-    {
+    { // only dest
       TestMessage dest;
       TestMessage source;
       dest.oneof_field = 1U;
@@ -196,7 +225,7 @@ const boost::ut::suite merge_test_suite = [] {
       expect(fatal(eq(dest.oneof_field.index(), TestMessage::oneof_uint32)));
       expect(eq(1U, std::get<uint32_t>(dest.oneof_field)));
     }
-    {
+    { // both source and dest, different types
       TestMessage dest;
       TestMessage source;
       dest.oneof_field = 1U;
@@ -205,7 +234,7 @@ const boost::ut::suite merge_test_suite = [] {
       expect(fatal(eq(dest.oneof_field.index(), TestMessage::oneof_string)));
       expect(eq("abc"s, std::get<std::string>(dest.oneof_field)));
     }
-    {
+    { // both source and dest, same types
       TestMessage dest;
       TestMessage source;
       dest.oneof_field.emplace<TestMessage::oneof_foreign_message>().c = 1;
