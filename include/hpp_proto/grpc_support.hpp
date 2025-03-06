@@ -12,17 +12,17 @@ namespace grpc::internal {
 template <>
 class CallOpRecvMessage<hpp::proto::grpc_support::byte_buffer_access> {
 public:
-  static void convert_slices(std::vector<std::span<const uint8_t>>& dest, const ::grpc::ByteBuffer& buffer) {
+  static void convert_slices(std::vector<std::span<const uint8_t>> &dest, const ::grpc::ByteBuffer &buffer) {
     grpc_byte_buffer_reader reader;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-    auto* c_buffer = const_cast<::grpc::ByteBuffer &>(buffer).c_buffer();
+    auto *c_buffer = const_cast<::grpc::ByteBuffer &>(buffer).c_buffer();
     grpc_byte_buffer_reader_init(&reader, c_buffer);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
     dest.reserve(c_buffer->data.raw.slice_buffer.count);
 
     grpc_slice *slice = nullptr;
     while (grpc_byte_buffer_reader_peek(&reader, &slice) != 0) {
-      auto* start_ptr = GRPC_SLICE_START_PTR(*slice);
+      auto *start_ptr = GRPC_SLICE_START_PTR(*slice);
       auto len = GRPC_SLICE_LENGTH(*slice);
       dest.emplace_back(start_ptr, len);
     }
@@ -49,7 +49,7 @@ public:
   using iterator = storage_t::iterator;
   using const_iterator = storage_t::const_iterator;
 
-  explicit byte_buffer_adaptor(const ::grpc::ByteBuffer& buffer) {
+  explicit byte_buffer_adaptor(const ::grpc::ByteBuffer &buffer) {
     grpc::internal::CallOpRecvMessage<byte_buffer_access>::convert_slices(slices_, buffer);
   }
 
@@ -82,7 +82,7 @@ struct single_shot_slice_memory_resource {
     return GRPC_SLICE_START_PTR(slice_);
   }
 
-  [[nodiscard]]  ::grpc::ByteBuffer finalize() const {
+  [[nodiscard]] ::grpc::ByteBuffer finalize() const {
     ::grpc::Slice slice(slice_, ::grpc::Slice::STEAL_REF);
     return {&slice, 1};
   }
@@ -102,7 +102,7 @@ struct single_shot_slice_memory_resource {
 
 ::grpc::Status read_proto(hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
                           hpp::proto::concepts::is_option_type auto &&...option) {
-  
+
   detail::byte_buffer_adaptor buffers(buffer);
   if (hpp::proto::read_proto(message, buffers, option...).ok()) [[likely]] {
     return ::grpc::Status::OK;

@@ -114,7 +114,7 @@ private:
 
 class GreeterClient {
 public:
-  explicit GreeterClient(const std::shared_ptr<::grpc::Channel>& channel) : stub_(new ::grpc::GenericStub(channel)) {}
+  explicit GreeterClient(const std::shared_ptr<::grpc::Channel> &channel) : stub_(new ::grpc::GenericStub(channel)) {}
 
   // Assembles the client's payload, sends it and prints the response back
   // from the server.

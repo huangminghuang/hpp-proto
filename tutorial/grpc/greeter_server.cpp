@@ -170,7 +170,7 @@ public:
           this, &GreeterServiceImpl::Shutdown);
     });
   }
-  
+
   // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
   grpc::Status SayHello(const helloworld::HelloRequest &request, helloworld::HelloReply &reply) {
     if (request.name.empty()) {
@@ -190,7 +190,7 @@ public:
     }
   }
 
-  grpc::Status Shutdown(const google::protobuf::Empty &/*request*/, google::protobuf::Empty &/*reply*/) {
+  grpc::Status Shutdown(const google::protobuf::Empty & /*request*/, google::protobuf::Empty & /*reply*/) {
     std::unique_lock<std::mutex> lock(mu_);
     done_ = true;
     shutdown_cv_.notify_all();
