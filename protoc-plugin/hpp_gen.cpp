@@ -84,13 +84,18 @@ std::string resolve_keyword(std::string_view name) {
 /// @param name The name to be qualified, using '.' as a separator.
 /// @return A string representing the fully qualified C++ name.
 ///
-std::string qualified_cpp_name(const std::string &namespace_prefix, std::string_view name) {
+std::string make_qualified_cpp_name(const std::string &namespace_prefix, std::string_view name) {
   std::string result;
   std::size_t i = 0;
   std::size_t j = 0;
   while ((j = name.find('.', i)) != std::string_view::npos) {
-    if (j == 0 && !namespace_prefix.empty()) {
-      result += namespace_prefix;
+    if (j == 0) {
+      if (!namespace_prefix.empty()) {
+        result += namespace_prefix;
+        if (!namespace_prefix.ends_with("::")) {
+          result += "::";
+        }
+      }
     } else if (i == j) {
       result += "::";
     } else {
