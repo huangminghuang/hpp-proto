@@ -3,6 +3,11 @@ add_compile_options(${HPP_PROTO_COMPILE_OPTIONS})
 add_executable(protoc-gen-hpp hpp_gen.cpp)
 add_executable(hpp_proto::protoc-gen-hpp ALIAS protoc-gen-hpp)
 target_link_libraries(protoc-gen-hpp PRIVATE hpp_proto::libhpp_proto fmt::fmt)
+
+set_target_properties(protoc-gen-hpp
+    PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/../bin"
+)
 install(TARGETS protoc-gen-hpp EXPORT hpp_proto-targets)
 
 if(MSVC)
@@ -14,14 +19,31 @@ if(Protobuf_INCLUDE_DIRS)
     set(proto_files google/protobuf/descriptor.proto
         google/protobuf/compiler/plugin.proto)
 
-    add_custom_target(gpb_descriptor
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/../include/google/protobuf/descriptor.desc.hpp
         COMMENT "processing ${proto_files}"
         COMMAND protobuf::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include -I ${Protobuf_INCLUDE_DIRS}
         --hpp_opt=proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed ${proto_files}
-        DEPENDS protobuf::protoc protoc-gen-hpp
+        DEPENDS protobuf::protoc
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         VERBATIM
     )
+
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/../include/hpp_proto/hpp_options.desc.hpp
+        COMMENT "processing hpp_proto/hpp_options.pb"
+        COMMAND protobuf::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include -I ${CMAKE_CURRENT_SOURCE_DIR}/../include
+                ${CMAKE_CURRENT_SOURCE_DIR}/../include/hpp_proto/hpp_options.proto
+        DEPENDS protobuf::protoc ${CMAKE_CURRENT_SOURCE_DIR}/../include/hpp_proto/hpp_options.proto
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        VERBATIM
+    )
+
+    add_custom_target(gpb_descriptor
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../include/google/protobuf/descriptor.desc.hpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/../include/hpp_proto/hpp_options.desc.hpp
+    )
+    
 
     set(well_known_types_proto
         ${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto

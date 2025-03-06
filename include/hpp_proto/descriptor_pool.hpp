@@ -35,35 +35,37 @@ void reserve(FlatMap &m, std::size_t s) {
   m.replace(std::move(keys), std::move(values));
 }
 
-namespace detail {
-auto options_with_default_features(const auto &proto, google::protobuf::FeatureSet default_features) {
-  typename std::decay_t<decltype(proto.options)>::value_type options;
-  if (proto.options.has_value()) {
-    options = *proto.options;
-  }
-
-  if (options.features.has_value()) {
-    (void)merge_proto(default_features, write_proto(*options.features).value());
-  }
-  options.features = std::move(default_features);
-
-  return options;
-}
-} // namespace detail
 // NOLINTBEGIN(bugprone-unchecked-optional-access)
 template <typename AddOns>
 struct descriptor_pool {
+  static google::protobuf::FeatureSet merge_features(google::protobuf::FeatureSet features, const auto &options) {
+    if (options.has_value()) {
+      const auto &overriding_features = options->features;
+      if (overriding_features.has_value()) {
+        hpp::proto::merge(features, *options->features);
+      }
+    }
+    return features;
+  }
   struct field_descriptor_t : AddOns::template field_descriptor<field_descriptor_t> {
     using pool_type = descriptor_pool;
+    using base_type = AddOns::template field_descriptor<field_descriptor_t>;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::FieldDescriptorProto &proto;
     google::protobuf::FieldOptions options;
     field_descriptor_t(const google::protobuf::FieldDescriptorProto &proto, const std::string &parent_name,
                        const auto &inherited_options)
-        : AddOns::template field_descriptor<field_descriptor_t>(proto, parent_name), proto(proto),
-          options(detail::options_with_default_features(proto, inherited_options.features.value())) {
-      if constexpr (requires { this->merge_options(options, proto.options); }) {
-        this->merge_options(options, proto.options);
+        : base_type(proto, parent_name), proto(proto),
+          options(proto.options.value_or(google::protobuf::FieldOptions{})) {
+      options.features = merge_features(inherited_options.features.value(), proto.options);
+      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
+        google::protobuf::FieldOptions::extension_t extensions;
+        AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
+        options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
+      }
+
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
+        base_type::on_descriptor_created(proto, options);
       }
     }
 
@@ -138,30 +140,41 @@ struct descriptor_pool {
 
   struct oneof_descriptor_t : AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
+    using base_type = AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t>;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::OneofDescriptorProto &proto;
     google::protobuf::OneofOptions options;
     explicit oneof_descriptor_t(const google::protobuf::OneofDescriptorProto &proto,
                                 const google::protobuf::MessageOptions &inherited_options)
-        : AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t>(proto), proto(proto),
-          options(detail::options_with_default_features(proto, inherited_options.features.value())) {
-
-      if constexpr (requires { this->merge_options(options, proto.options); }) {
-        this->merge_options(options, proto.options);
+        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::OneofOptions{})) {
+      options.features = merge_features(inherited_options.features.value(), proto.options);
+      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
+        google::protobuf::OneofOptions::extension_t extensions;
+        AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
+        options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
+      }
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
+        base_type::on_descriptor_created(proto, options);
       }
     }
   };
 
   struct enum_descriptor_t : AddOns::template enum_descriptor<enum_descriptor_t> {
     using pool_type = descriptor_pool;
+    using base_type = AddOns::template enum_descriptor<enum_descriptor_t>;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::EnumDescriptorProto &proto;
     google::protobuf::EnumOptions options;
     explicit enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto, const auto &inherited_options)
-        : AddOns::template enum_descriptor<enum_descriptor_t>(proto), proto(proto),
-          options(detail::options_with_default_features(proto, inherited_options.features.value())) {
-      if constexpr (requires { this->merge_options(options, proto.options); }) {
-        this->merge_options(options, proto.options);
+        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::EnumOptions{})) {
+      options.features = merge_features(inherited_options.features.value(), proto.options);
+      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
+        google::protobuf::EnumOptions::extension_t extensions;
+        AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
+        options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
+      }
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
+        base_type::on_descriptor_created(proto, options);
       }
     }
 
@@ -173,16 +186,31 @@ struct descriptor_pool {
   struct message_descriptor_t : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t,
                                                                     oneof_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
+    using base_type = AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t, oneof_descriptor_t,
+                                                          field_descriptor_t>;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::DescriptorProto &proto;
     google::protobuf::MessageOptions options;
 
-    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto, const auto &inherited_options)
-        : AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t, oneof_descriptor_t,
-                                              field_descriptor_t>(proto),
-          proto(proto), options(detail::options_with_default_features(proto, inherited_options.features.value())) {
-      if constexpr (requires { this->merge_options(options, proto.options); }) {
-        this->merge_options(options, proto.options);
+    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto,
+                                  const google::protobuf::MessageOptions &inherited_options)
+        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::MessageOptions{})) {
+      options.features = merge_features(inherited_options.features.value(), proto.options);
+      options.extensions.fields.insert(hpp::proto::sorted_unique, inherited_options.extensions.fields.begin(),
+                                       inherited_options.extensions.fields.end());
+    }
+
+    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto,
+                                  const google::protobuf::FileOptions &inherited_options)
+        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::MessageOptions{})) {
+      options.features = merge_features(inherited_options.features.value(), proto.options);
+      if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
+        google::protobuf::MessageOptions::extension_t extensions;
+        AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
+        options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
+      }
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
+        base_type::on_descriptor_created(proto, options);
       }
     }
   };
@@ -190,16 +218,21 @@ struct descriptor_pool {
   struct file_descriptor_t : AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t,
                                                               enum_descriptor_t, field_descriptor_t> {
     using pool_type = descriptor_pool;
+    using base_type = AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t, enum_descriptor_t,
+                                                       field_descriptor_t>;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::FileDescriptorProto &proto;
     google::protobuf::FileOptions options;
     explicit file_descriptor_t(const google::protobuf::FileDescriptorProto &proto,
                                const google::protobuf::FeatureSet &default_features)
-        : AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t, enum_descriptor_t,
-                                           field_descriptor_t>(proto),
-          proto(proto), options(detail::options_with_default_features(proto, default_features)) {
-      if constexpr (requires { this->merge_options(options, proto.options); }) {
-        this->merge_options(options, proto.options);
+        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::FileOptions{})) {
+      options.features = merge_features(default_features, proto.options);
+      if constexpr (requires { AddOns::default_file_options_extensions(); }) {
+        auto extensions = AddOns::default_file_options_extensions();
+        options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
+      }
+      if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
+        base_type::on_descriptor_created(proto, options);
       }
     }
   };
@@ -241,17 +274,6 @@ struct descriptor_pool {
   flat_map<std::string, message_descriptor_t *> message_map;
   flat_map<std::string, enum_descriptor_t *> enum_map;
   google::protobuf::Edition current_edition = {};
-
-  google::protobuf::FeatureSet merge_features(google::protobuf::FeatureSet features, const auto &options) {
-    if (options.has_value() && current_edition > google::protobuf::Edition::EDITION_PROTO3) {
-      const auto &overriding_features = options->features;
-      if (overriding_features.has_value()) {
-        auto overriding_bytes = hpp::proto::write_proto(*overriding_features).value();
-        (void)hpp::proto::merge_proto(features, overriding_bytes).ok();
-      }
-    }
-    return features;
-  }
 
   google::protobuf::FeatureSet select_features(const google::protobuf::FileDescriptorProto &file) {
     using namespace std::string_view_literals;

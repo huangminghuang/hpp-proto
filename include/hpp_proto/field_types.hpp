@@ -23,9 +23,12 @@
 #pragma once
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
+#include <cstdint>
 #include <functional>
 #include <hpp_proto/flat_map.hpp>
+#include <memory>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -36,7 +39,8 @@
 #include <vector>
 namespace hpp::proto {
 using stdext::flat_map;
-}
+using stdext::sorted_unique;
+} // namespace hpp::proto
 
 namespace hpp::proto {
 
@@ -77,6 +81,17 @@ template <typename T>
 static constexpr auto unwrap(T v) {
   return v;
 }
+
+namespace concepts {
+template <typename T>
+concept optional = requires(T optional) {
+  optional.value();
+  optional.has_value();
+  // optional.operator bool(); // this operator is deliberately removed to fit
+  // our specialization for optional<bool> which removed this operation
+  optional.operator*();
+};
+} // namespace concepts
 
 // NOLINTBEGIN(hicpp-explicit-conversions)
 template <typename T, auto Default = std::monostate{}>
@@ -146,7 +161,7 @@ public:
       : _value(list, std::forward<Args>(args)...), _present(true) {}
 
   template <typename U>
-    requires std::convertible_to<U, T>
+    requires(std::convertible_to<U, T> && !concepts::optional<U>)
   constexpr optional(U &&value)
       : _value(std::forward<U>(value)), _present(true) {} // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
@@ -156,7 +171,8 @@ public:
   }
 
   template <typename U>
-    requires std::convertible_to<U, T>
+    requires(std::convertible_to<U, T> && !concepts::optional<U>)
+  // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
   constexpr optional &operator=(U &&value) {
     _value = static_cast<T>(std::forward<U>(value)); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     _present = true;
@@ -176,8 +192,8 @@ public:
 
   template <class U>
   constexpr optional &operator=(optional<U> &&other) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
-    _value = std::move(other)._value;
     _present = other.has_value();
+    _value = std::move(other)._value;
     return *this;
   }
 
@@ -188,8 +204,8 @@ public:
   }
 
   constexpr optional &operator=(std::optional<T> &&other) {
-    _value = std::move(other).value_or(default_value());
     _present = other.has_value();
+    _value = std::move(other).value_or(default_value());
     return *this;
   }
 
@@ -337,7 +353,7 @@ public:
   static constexpr bool default_value() { return as_bool(Default); }
 
 private:
-  static constexpr uint8_t default_state = 0x80U | uint8_t(default_value()); // use 0x80 to denote empty state
+  static constexpr std::uint8_t default_state = 0x80U | std::uint8_t(default_value()); // use 0x80 to denote empty state
   bool &deref() {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<bool &>(impl);
@@ -348,7 +364,7 @@ public:
   using value_type = bool;
   constexpr optional() noexcept = default;
   constexpr ~optional() noexcept = default;
-  constexpr optional(bool v) noexcept : impl(uint8_t(v)) {};
+  constexpr optional(bool v) noexcept : impl(std::uint8_t(v)) {};
   constexpr optional(const optional &) noexcept = default;
   constexpr optional(optional &&) noexcept = default;
   constexpr optional &operator=(const optional &) noexcept = default;
@@ -358,19 +374,19 @@ public:
   constexpr bool operator*() const noexcept { return value(); }
 
   bool &emplace() noexcept {
-    impl = uint8_t(default_value());
+    impl = std::uint8_t(default_value());
     return deref();
   }
 
   bool &emplace(bool v) noexcept {
-    impl = uint8_t(v);
+    impl = std::uint8_t(v);
     return deref();
   }
 
   [[nodiscard]] constexpr bool value() const { return static_cast<bool>(impl & 0x01U); }
 
   constexpr optional &operator=(bool v) noexcept {
-    impl = uint8_t(v);
+    impl = std::uint8_t(v);
     return *this;
   }
   constexpr bool operator==(const optional &other) const = default;
@@ -602,6 +618,7 @@ public:
     requires requires(R &r) {
       { std::ranges::data(r) } -> std::convertible_to<const T *>;
     }
+  // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
   constexpr equality_comparable_span &operator=(R &other) noexcept {
     operator=(std::span<T>(other));
     return *this;
@@ -623,7 +640,7 @@ public:
     if (idx >= _size) {
       throw std::out_of_range("equality_comparable_span::at");
     }
-    return _data[idx];
+    return _data[idx]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   }
 
   [[nodiscard]] constexpr reference front() const noexcept { return *_data; }

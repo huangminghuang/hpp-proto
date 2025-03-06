@@ -2,6 +2,7 @@
 #include <boost/ut.hpp>
 #include <hpp_proto/pb_serializer.hpp>
 #include <numeric>
+#include <unordered_map>
 
 namespace ut = boost::ut;
 using hpp::proto::field_option;
@@ -658,7 +659,7 @@ const ut::suite test_enums = [] {
   };
 
   "invalid_enum_message"_test = [] {
-    enum_message value;
+    enum_message value = {};
     ut::expect(!hpp::proto::read_proto(value, "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
   };
 
@@ -833,6 +834,17 @@ auto pb_meta(const string_key_map_example &)
                                hpp::proto::map_entry<std::string, color_t, hpp::proto::field_option::utf8_validation,
                                                      hpp::proto::field_option::none>>>;
 
+struct unordered_map_example {
+  std::unordered_map<std::string, color_t> dict;
+  bool operator==(const unordered_map_example &) const = default;
+};
+
+auto pb_meta(const unordered_map_example &)
+    -> std::tuple<
+        hpp::proto::field_meta<1, &unordered_map_example::dict, field_option::none,
+                               hpp::proto::map_entry<std::string, color_t, hpp::proto::field_option::utf8_validation,
+                                                     hpp::proto::field_option::none>>>;
+
 const ut::suite test_map_example = [] {
   auto encoded = "\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"sv;
 
@@ -863,6 +875,23 @@ const ut::suite test_map_example = [] {
         expected);
     string_key_map_example value{.dict = {{"\xc0\xdf", color_t::red}}};
     ut::expect(!hpp::proto::write_proto(value).has_value());
+  };
+
+  "unordered_key_map_example"_test = [&] {
+    unordered_map_example const msg{
+        .dict = {{"red", color_t::red}, {"blue", color_t::blue}, {"green", color_t::green}}};
+    std::vector<std::byte> buffer;
+    ut::expect(hpp::proto::write_proto(msg, buffer).ok());
+
+    unordered_map_example value;
+    ut::expect(hpp::proto::read_proto(value, buffer).ok());
+    ut::expect(value == msg);
+
+    // double check if the encoded value is correct
+    string_key_map_example another;
+    ut::expect(hpp::proto::read_proto(another, buffer).ok());
+    value = unordered_map_example{.dict{another.dict.begin(), another.dict.end()}};
+    ut::expect(value == msg);
   };
 
   "invalid_map_entry"_test = [] {
@@ -1290,7 +1319,7 @@ const ut::suite test_repeated_strings = [] {
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x03\x61\x62"sv).ok());
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x02\xc0\xdf"sv).ok());
 
-    value.values.push_back("\xc0\xdf");
+    value.values.emplace_back("\xc0\xdf");
     ut::expect(!hpp::proto::write_proto(value).has_value());
   };
 

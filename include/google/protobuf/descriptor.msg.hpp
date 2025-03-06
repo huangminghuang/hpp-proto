@@ -9,6 +9,8 @@
 #pragma once
 
 #include <hpp_proto/field_types.hpp>
+// @@protoc_insertion_point(includes)
+
 
 namespace google::protobuf {
 //NOLINTBEGIN(performance-enum-size)
@@ -129,6 +131,28 @@ struct SourceCodeInfo {
   };
 
   std::vector<Location> location;
+
+  struct extension_t {
+    using pb_extension = SourceCodeInfo;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    bool operator==(const extension_t &other) const = default;
+  } extensions;
+
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions);
+  }
+  template<typename Meta>
+  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::move(value));
+  }
+  template<typename Meta>
+  requires Meta::is_repeated
+  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
+  }
+  [[nodiscard]] bool has_extension(auto meta) const {
+    return meta.element_of(extensions);
+  }
 
   bool operator == (const SourceCodeInfo&) const = default;
 };
@@ -697,6 +721,28 @@ struct FileDescriptorProto {
 
 struct FileDescriptorSet {
   std::vector<FileDescriptorProto> file;
+
+  struct extension_t {
+    using pb_extension = FileDescriptorSet;
+    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    bool operator==(const extension_t &other) const = default;
+  } extensions;
+
+  [[nodiscard]] auto get_extension(auto meta) const {
+    return meta.read(extensions);
+  }
+  template<typename Meta>
+  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
+    return meta.write(extensions, std::move(value));
+  }
+  template<typename Meta>
+  requires Meta::is_repeated
+  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
+  }
+  [[nodiscard]] bool has_extension(auto meta) const {
+    return meta.element_of(extensions);
+  }
 
   bool operator == (const FileDescriptorSet&) const = default;
 };

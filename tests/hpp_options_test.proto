@@ -1,0 +1,26 @@
+syntax = "proto3";
+import "hpp_proto/hpp_options.proto";
+
+option (hpp.proto.hpp_file_opts).non_owning = true;
+
+message Msg1 {
+  string f1_non_owning = 1;
+  map<string, int32> string_field_map_field = 3;
+  map<int32, int32> int32_field_map_field = 4;
+}
+
+message Msg2 {
+  string f1 = 1 [(hpp.proto.hpp_field_opts).non_owning = false];
+  map<string, int32> string_field_map_field = 3;
+  map<int32, int32> int32_field_map_field = 4;
+}
+
+message Msg3 {
+  option (hpp.proto.hpp_message_opts) = { non_owning: false,
+                                          string_keyed_map: 'std::unordered_map',
+                                          numeric_keyed_map: 'std::map'};
+  string f1 = 1;
+  string f2_non_owning = 2 [(hpp.proto.hpp_field_opts).non_owning = true];
+  map<string, int32> string_keyed_map_field = 3;
+  map<int32, int32> int32_keyed_map_field = 4;
+}

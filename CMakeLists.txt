@@ -102,7 +102,7 @@ if(HPP_PROTO_TESTS)
 endif()
 
 if(HPP_PROTO_PROTOC_PLUGIN)
-  include(cmake/protobuf_generate.cmake)
+  include(cmake/protobuf_generate_hpp.cmake)
 
   add_subdirectory(protoc-plugin)
 
@@ -150,7 +150,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
   configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake"
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate_hpp.cmake"
     DESTINATION "lib/cmake/hpp_proto")
 
   install(

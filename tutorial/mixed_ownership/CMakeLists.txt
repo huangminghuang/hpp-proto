@@ -6,7 +6,7 @@ protobuf_generate_hpp(
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/.. # # required when the proto file is not in ${CMAKE_CURRENT_SOURCE_DIR}
     PROTOS ../addressbook_proto3.proto
     PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/regular
-    PLUGIN_OPTIONS root_namespace=regular,top_directory=regular)
+    PLUGIN_OPTIONS namespace_prefix=regular,directory_prefix=regular)
 
 add_library(non_owning_addressbook INTERFACE)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/non_owning)
@@ -16,7 +16,7 @@ protobuf_generate_hpp(
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/.. # # required when the proto file is not in ${CMAKE_CURRENT_SOURCE_DIR}
     PROTOS ../addressbook_proto3.proto
     PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/non_owning
-    PLUGIN_OPTIONS non_owning,root_namespace=non_owning,top_directory=non_owning)
+    PLUGIN_OPTIONS non_owning,namespace_prefix=non_owning,directory_prefix=non_owning)
 
 add_executable(mixed_ownership_tutorial mixed_ownership_tutorial.cpp)
 target_link_libraries(mixed_ownership_tutorial PRIVATE regular_addressbook non_owning_addressbook)

@@ -10,6 +10,12 @@ add_test(NAME pb_serializer_tests
     COMMAND pb_serializer_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+add_executable(merge_message_tests merge_message_tests.cpp)
+target_link_libraries(merge_message_tests PRIVATE hpp_proto::libhpp_proto Boost::ut)
+add_test(NAME merge_message_tests
+    COMMAND merge_message_tests
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
 if (NOT HPP_PROTO_DISABLE_GLAZE)
 add_executable(json_serializer_tests json_serializer_tests.cpp)
 target_link_libraries(json_serializer_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze)

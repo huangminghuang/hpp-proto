@@ -10,6 +10,8 @@
 
 #include <hpp_proto/field_types.hpp>
 #include "google/protobuf/descriptor.msg.hpp"
+// @@protoc_insertion_point(includes)
+
 
 namespace google::protobuf::compiler {
 //NOLINTBEGIN(performance-enum-size)
