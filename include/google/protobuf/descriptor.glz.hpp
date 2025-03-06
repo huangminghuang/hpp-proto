@@ -3,7 +3,7 @@
 // NO CHECKED-IN PROTOBUF GENCODE
 // generation command line:
 //    protoc --plugin=protoc-gen-hpp=/path/to/protoc-gen-hpp
-//           --hpp_out proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed,export_request=descriptor.request.binpb:${out_dir}
+//           --hpp_out proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed:${out_dir}
 //           google/protobuf/descriptor.proto
 
 #pragma once

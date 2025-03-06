@@ -23,7 +23,7 @@ if(Protobuf_INCLUDE_DIRS)
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/../include/google/protobuf/descriptor.desc.hpp
         COMMENT "processing ${proto_files}"
         COMMAND protobuf::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include -I ${Protobuf_INCLUDE_DIRS}
-        --hpp_opt=proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed,export_request=descriptor.request.binpb ${proto_files}
+        --hpp_opt=proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed ${proto_files}
         DEPENDS protobuf::protoc
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         VERBATIM

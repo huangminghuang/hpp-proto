@@ -73,6 +73,17 @@ std::string resolve_keyword(std::string_view name) {
   return std::string(name);
 }
 
+///
+/// Constructs a fully qualified C++ name from a given protobuf name
+/// ,replacing '.' with '::' to adhere to C++ naming
+/// conventions. The namespace prefix is prepended only when the name 
+/// is started with a dot(.).  Each segment of the name is processed
+/// to resolve any C++ keywords.
+///
+/// @param namespace_prefix The namespace prefix to prepend to the name when name is staring with dot.
+/// @param name The name to be qualified, using '.' as a separator.
+/// @return A string representing the fully qualified C++ name.
+///
 std::string qualified_cpp_name(const std::string &namespace_prefix, std::string_view name) {
   std::string result;
   std::size_t i = 0;
@@ -410,13 +421,13 @@ struct hpp_addons {
         auto pos = shared_scope_position(qualified_parent_name, proto.type_name);
 
         is_recursive = (pos == proto.type_name.size());
-        qualified_cpp_field_type = qualified_cpp_name(namespace_prefix, proto.type_name);
+        qualified_cpp_field_type = make_qualified_cpp_name(namespace_prefix, proto.type_name);
         if (pos == 0) {
           cpp_field_type = qualified_cpp_field_type;
         } else if (is_recursive) {
           cpp_field_type = resolve_keyword(proto.type_name.substr(proto.type_name.find_last_of('.') + 1));
         } else {
-          cpp_field_type = qualified_cpp_name(namespace_prefix, proto.type_name.substr(pos + 1));
+          cpp_field_type = make_qualified_cpp_name(namespace_prefix, proto.type_name.substr(pos + 1));
         }
       }
     }
@@ -460,7 +471,7 @@ struct hpp_addons {
                                 const google::protobuf::FieldDescriptorProto &proto) {
       default_value = fmt::format("{}::{}", cpp_field_type, proto.default_value);
       default_value_template_arg =
-          fmt::format("{}::{}", qualified_cpp_name(namespace_prefix, proto.type_name), proto.default_value);
+          fmt::format("{}::{}", make_qualified_cpp_name(namespace_prefix, proto.type_name), proto.default_value);
     }
 
     void set_integer_default_value(const google::protobuf::FieldDescriptorProto &proto) {
@@ -623,7 +634,7 @@ struct hpp_addons {
     void on_descriptor_created(const gpb::FileDescriptorProto &proto, const gpb::FileOptions &options) {
       auto file_opts = options.get_extension(hpp::proto::hpp_file_opts()).value_or(hpp::proto::FileOptions{});
       namespace_prefix = file_opts.namespace_prefix.value();
-      cpp_namespace = namespace_prefix + qualified_cpp_name(namespace_prefix, proto.package);
+      cpp_namespace = make_qualified_cpp_name(namespace_prefix, "." + proto.package);
       std::replace_if(cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
       cpp_name = resolve_keyword(cpp_name);
     }
@@ -895,7 +906,7 @@ struct msg_code_generator : code_generator {
         if (dependent_msg != nullptr &&
             (dependee_msg == nullptr || dependent_msg->file_parent == dependee_msg->file_parent)) {
           namespace_prefix = namespace_prefix_of(*dependent_msg);
-          dependent_msg->dependencies.insert(qualified_cpp_name(namespace_prefix, dependee));
+          dependent_msg->dependencies.insert(make_qualified_cpp_name(namespace_prefix, dependee));
         }
 
         if (dependee_msg != nullptr) {
@@ -918,7 +929,7 @@ struct msg_code_generator : code_generator {
               std::string proto_default_value = resolve_keyword(enum_d->proto.value[0].name);
               field.default_value = fmt::format("{}::{}", field.cpp_field_type, proto_default_value);
               field.default_value_template_arg =
-                  fmt::format("{}::{}", qualified_cpp_name(namespace_prefix, type_name), proto_default_value);
+                  fmt::format("{}::{}", make_qualified_cpp_name(namespace_prefix, type_name), proto_default_value);
             }
           }
         }
@@ -1317,10 +1328,10 @@ struct hpp_meta_generator : code_generator {
     fmt::format_to(target, "\n");
 
     auto package = descriptor.proto.package;
-    auto ns = qualified_cpp_name(descriptor.namespace_prefix, package);
+    auto ns = make_qualified_cpp_name(descriptor.namespace_prefix, "." + package);
 
     if (!ns.empty()) {
-      fmt::format_to(target, "\nnamespace {} {{\n\n", descriptor.namespace_prefix + ns);
+      fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
     }
 
     for (auto *m : descriptor.messages) {
@@ -1332,7 +1343,7 @@ struct hpp_meta_generator : code_generator {
     }
 
     if (!ns.empty()) {
-      fmt::format_to(target, "}} // namespace {}\n", descriptor.namespace_prefix + ns);
+      fmt::format_to(target, "}} // namespace {}\n", ns);
     }
 
     fmt::format_to(target, "// clang-format on\n");
@@ -1473,7 +1484,7 @@ struct hpp_meta_generator : code_generator {
                    "{0}  return hpp::proto::{2}extension_meta<{3}, {4}, "
                    "{5}{6}>{{}};\n"
                    "{0}}}\n\n",
-                   indent(), cpp_name, extension_prefix, qualified_cpp_name(namespace_prefix, proto.extendee),
+                   indent(), cpp_name, extension_prefix, make_qualified_cpp_name(namespace_prefix, proto.extendee),
                    proto.number, fmt::join(meta_options(descriptor), " | "), type_and_default_value);
   }
   // NOLINTEND(readability-function-cognitive-complexity)
@@ -1556,7 +1567,7 @@ struct glaze_meta_generator : code_generator {
     }
 
     auto package = descriptor.proto.package;
-    auto ns = descriptor.namespace_prefix + qualified_cpp_name(descriptor.namespace_prefix, package);
+    auto ns = make_qualified_cpp_name(descriptor.namespace_prefix, "." + package);
 
     for (auto *m : descriptor.messages) {
       process(*m, ns);
@@ -1945,7 +1956,7 @@ struct service_generator : code_generator {
                    basename(descriptor.proto.name, directory_prefix));
 
     auto package = descriptor.proto.package;
-    auto ns = descriptor.namespace_prefix + qualified_cpp_name(descriptor.namespace_prefix, package);
+    auto ns = make_qualified_cpp_name(descriptor.namespace_prefix, "." + package);
 
     if (!ns.empty()) {
       fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
@@ -1970,8 +1981,8 @@ struct service_generator : code_generator {
                        "    using response = {};\n"
                        "  }};\n",
                        m.name, qualified_service_name, m.name, m.client_streaming, m.server_streaming,
-                       qualified_cpp_name(descriptor.namespace_prefix, m.input_type),
-                       qualified_cpp_name(descriptor.namespace_prefix, m.output_type));
+                       make_qualified_cpp_name(descriptor.namespace_prefix, m.input_type),
+                       make_qualified_cpp_name(descriptor.namespace_prefix, m.output_type));
       }
 
       methods.pop_back();
@@ -2046,16 +2057,13 @@ int main(int argc, const char **argv) {
     if (opt_key == "directory_prefix") {
       code_generator::directory_prefix = opt_value;
     } else if (opt_key == "namespace_prefix") {
-      hpp_addons::namespace_prefix.emplace(opt_value);
-      if (!hpp_addons::namespace_prefix->ends_with("::")) {
-        *hpp_addons::namespace_prefix += "::";
-      }
+      hpp_addons::namespace_prefix = make_qualified_cpp_name("", opt_value);
     } else if (opt_key == "non_owning") {
       hpp_addons::non_owning_mode = true;
     } else if (opt_key == "string_keyed_map") {
-      hpp_addons::string_keyed_map.emplace(opt_value);
+      hpp_addons::string_keyed_map = make_qualified_cpp_name("", opt_value);
     } else if (opt_key == "numeric_keyed_map") {
-      hpp_addons::numeric_keyed_map.emplace(opt_value);
+      hpp_addons::numeric_keyed_map = make_qualified_cpp_name("", opt_value);
     } else if (opt_key == "proto2_explicit_presence") {
       code_generator::proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "export_request") {

@@ -1,4 +1,8 @@
+// clang-format off
+#include <unordered_map>
+#include <map>
 #include "basic_test_proto2.pb.hpp"
+// clang-format on
 int main() {
   TestMessage message;
   using meta_type = decltype(pb_meta(message));
@@ -17,4 +21,7 @@ int main() {
 
   static_assert(hpp::proto::concepts::optional<decltype(message.length_prefixed)>);
   static_assert(!std::tuple_element_t<6, meta_type>::is_group);
+
+  static_assert(std::same_as<decltype(message.string_keyed_map), std::unordered_map<std::string, std::int32_t>>);
+  static_assert(std::same_as<decltype(message.int32_keyed_map), std::map<std::int32_t, std::int32_t>>);
 }

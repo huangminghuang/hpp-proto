@@ -83,7 +83,7 @@ else()
         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
         PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
         PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
-        PLUGIN_OPTIONS "non_owning,namespace_prefix=non_owning,directory_prefix=non_owning,export_request=non_owning_unittest_proto3.request.binpb")
+        PLUGIN_OPTIONS "non_owning,namespace_prefix=non_owning,directory_prefix=non_owning")
 
     add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
     target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib gpb_proto_json)
@@ -267,7 +267,7 @@ else()
         protobuf_generate_hpp(
             TARGET basic_test_proto2_lib
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field")
+            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,numeric_keyed_map=std.map,string_keyed_map=std.unordered_map")
 
         add_executable(basic_test_proto2 basic_test_proto2.cpp)
         target_link_libraries(basic_test_proto2 PRIVATE basic_test_proto2_lib)

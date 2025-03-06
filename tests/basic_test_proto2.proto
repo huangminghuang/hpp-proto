@@ -13,5 +13,7 @@ message TestMessage {
     optional int32 field11 = 11;
   };
   optional TestMessage length_prefixed = 101;
+  map<int32, int32> int32_keyed_map = 102;
+  map<string, int32> string_keyed_map = 103;
 }
  

@@ -20,12 +20,12 @@ protobuf_generate_hpp(
   - PROTOC_OUT_DIR: Output directory for generated source files. Defaults to CMAKE_CURRENT_BINARY_DIR.
   - PROTOS: List of proto schema files. If omitted, then every source file ending in proto of TARGET will be used.
   - <a id="plugin-options">PLUGIN_OPTIONS</a>: A comma-separated string forwarded to the protoc-gen-hpp plugin to customize code generation. Options include:
-      * `namespace_prefix=`: Specifies a namespace prefix to be added to the generated C++ code, in addition to the package namespace.
+      * `namespace_prefix=`: Specifies a namespace prefix to be added to the generated C++ code in addition to the package namespace. If the specified prefix contains multiple components, they should be separated by a __dot (.)__ instead of double colons (::).
       * `directory_prefix=`:  Prepends a directory to included non-system dependencies.
       * `proto2_explicit_presence=`: For Proto2 only, makes optional scalar fields implicitly present except for specified scopes. This option can be specified multiple times. For example: the option `proto2_explicit_presence=.pkg1.msg1.field1,proto2_explicit_presence=.pkg1.msg2` instructs the code generator that explicit presence is only applicable for the `field1` of `pkg1.msg1` and all fields of `pkg1.msg2`.
       * `non_owning`: Generates non-owning messages. 
-      * `string_keyed_map`: Uses an alternative type template such as 'std::unordered_map' for generated string keyed map; only works for __regular mode__ map fields.
-      * `numeric_keyed_map`: Uses an alternative type template such as 'std::map' for generated numeric keyed map; only works for __regular mode__ map fields.
+      * `string_keyed_map`: Uses an alternative type template, such as `std.unordered_map`, for generated string-keyed maps. Note: The namespace should be separated by a __dot (.)__ instead of double colons (::) due to the protoc option parsing mechanism. This option applies only to __regular mode__ map fields.
+      * `numeric_keyed_map`: Uses an alternative type template, such as 'std.map', for generated numeric keyed map. Note: The namespace should be separated by a __dot(.)__ instead of double colons (::) due to protoc option parsing mechanism. This option applies only to __regular mode__ map fields.
 
 The compiler generates several header files for each .proto file, transforming the filename and extension as follows:
 
