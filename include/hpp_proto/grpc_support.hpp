@@ -12,8 +12,21 @@ namespace grpc::internal {
 template <>
 class CallOpRecvMessage<hpp::proto::grpc_support::byte_buffer_access> {
 public:
-  grpc_byte_buffer *operator()(const ::grpc::ByteBuffer &buffer) const {
-    return const_cast<::grpc::ByteBuffer &>(buffer).c_buffer();
+  static void convert_slices(std::vector<std::span<const uint8_t>>& dest, const ::grpc::ByteBuffer& buffer) {
+    grpc_byte_buffer_reader reader;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    auto* c_buffer = const_cast<::grpc::ByteBuffer &>(buffer).c_buffer();
+    grpc_byte_buffer_reader_init(&reader, c_buffer);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+    dest.reserve(c_buffer->data.raw.slice_buffer.count);
+
+    grpc_slice *slice = nullptr;
+    while (grpc_byte_buffer_reader_peek(&reader, &slice) != 0) {
+      auto* start_ptr = GRPC_SLICE_START_PTR(*slice);
+      auto len = GRPC_SLICE_LENGTH(*slice);
+      dest.emplace_back(start_ptr, len);
+    }
+    grpc_byte_buffer_reader_destroy(&reader);
   }
 };
 } // namespace grpc::internal
@@ -36,35 +49,25 @@ public:
   using iterator = storage_t::iterator;
   using const_iterator = storage_t::const_iterator;
 
-  byte_buffer_adaptor(grpc_byte_buffer *buffer) {
-    grpc_byte_buffer_reader reader;
-    grpc_byte_buffer_reader_init(&reader, buffer);
-    slices_.reserve(buffer->data.raw.slice_buffer.count);
-
-    grpc_slice *slice;
-    while (grpc_byte_buffer_reader_peek(&reader, &slice)) {
-      auto start_ptr = GRPC_SLICE_START_PTR(*slice);
-      auto len = GRPC_SLICE_LENGTH(*slice);
-      slices_.emplace_back(start_ptr, len);
-    }
-    grpc_byte_buffer_reader_destroy(&reader);
+  explicit byte_buffer_adaptor(const ::grpc::ByteBuffer& buffer) {
+    grpc::internal::CallOpRecvMessage<byte_buffer_access>::convert_slices(slices_, buffer);
   }
 
-  size_type size() const { return slices_.size(); }
+  [[nodiscard]] size_type size() const { return slices_.size(); }
 
-  const_pointer data() const { return slices_.data(); }
+  [[nodiscard]] const_pointer data() const { return slices_.data(); }
 
-  const_iterator cbegin() const { return slices_.cbegin(); }
-  const_iterator cend() const { return slices_.cend(); }
-  const_iterator begin() const { return slices_.begin(); }
-  const_iterator end() const { return slices_.end(); }
+  [[nodiscard]] const_iterator cbegin() const { return slices_.cbegin(); }
+  [[nodiscard]] const_iterator cend() const { return slices_.cend(); }
+  [[nodiscard]] const_iterator begin() const { return slices_.begin(); }
+  [[nodiscard]] const_iterator end() const { return slices_.end(); }
 };
 
 struct single_shot_slice_memory_resource {
   grpc_slice slice_{};
-  single_shot_slice_memory_resource() {}
+  single_shot_slice_memory_resource() = default;
   ~single_shot_slice_memory_resource() {
-    if (slice_.refcount) {
+    if (slice_.refcount != nullptr) {
       grpc_slice_unref(slice_);
     }
   }
@@ -74,14 +77,14 @@ struct single_shot_slice_memory_resource {
   single_shot_slice_memory_resource &operator=(single_shot_slice_memory_resource &&) = delete;
 
   void *allocate(std::size_t size, std::size_t) {
-    assert(slice_.refcount == 0);
+    assert(slice_.refcount == nullptr);
     slice_ = grpc_slice_malloc(size);
     return GRPC_SLICE_START_PTR(slice_);
   }
 
-  ::grpc::ByteBuffer finalize() {
+  [[nodiscard]]  ::grpc::ByteBuffer finalize() const {
     ::grpc::Slice slice(slice_, ::grpc::Slice::STEAL_REF);
-    return ::grpc::ByteBuffer(&slice, 1);
+    return {&slice, 1};
   }
 };
 } // namespace detail
@@ -94,17 +97,17 @@ struct single_shot_slice_memory_resource {
     return ::grpc::Status::OK;
   }
 
-  return ::grpc::Status(::grpc::StatusCode::INTERNAL, "Failed to serialize message");
+  return {::grpc::StatusCode::INTERNAL, "Failed to serialize message"};
 }
 
 ::grpc::Status read_proto(hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
                           hpp::proto::concepts::is_option_type auto &&...option) {
-  auto c_buffer = grpc::internal::CallOpRecvMessage<byte_buffer_access>()(buffer);
-  detail::byte_buffer_adaptor buffers(c_buffer);
+  
+  detail::byte_buffer_adaptor buffers(buffer);
   if (hpp::proto::read_proto(message, buffers, option...).ok()) [[likely]] {
     return ::grpc::Status::OK;
   }
-  return ::grpc::Status(::grpc::StatusCode::INTERNAL, "Failed to deserialize message");
+  return {::grpc::StatusCode::INTERNAL, "Failed to deserialize message"};
 }
 
 } // namespace hpp::proto::grpc_support

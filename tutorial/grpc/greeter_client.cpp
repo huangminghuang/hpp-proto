@@ -34,6 +34,7 @@ template <typename Method>
                     cv.notify_one();
                   });
   std::unique_lock<std::mutex> lock(mu);
+  // NOLINTNEXTLINE(bugprone-infinite-loop)
   while (!done) {
     cv.wait(lock);
   }
@@ -50,7 +51,7 @@ class ServerStreamingClientReactor : public ::grpc::ClientBidiReactor<grpc::Byte
 public:
   ServerStreamingClientReactor(Method, ::grpc::GenericStub *stub, ::grpc::ClientContext &context,
                                const typename Method::request &req, OnResponseCallback &&on_response)
-      : context_(context), on_response_(on_response) {
+      : context_(context), on_response_(std::move(on_response)) {
     if (auto status = hpp::proto::grpc_support::write_proto(req, req_buf_); !status.ok()) {
       result_ = status;
       return;
@@ -72,6 +73,7 @@ public:
     std::unique_lock lock(mu_);
 
     cv_.wait(lock, [&] { return result_.has_value(); });
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return *result_;
   }
 
@@ -100,6 +102,7 @@ public:
   }
 
 private:
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   ::grpc::ClientContext &context_;
   std::mutex mu_;
   std::condition_variable cv_;
@@ -111,7 +114,7 @@ private:
 
 class GreeterClient {
 public:
-  GreeterClient(std::shared_ptr<::grpc::Channel> channel) : stub_(new ::grpc::GenericStub(channel)) {}
+  explicit GreeterClient(const std::shared_ptr<::grpc::Channel>& channel) : stub_(new ::grpc::GenericStub(channel)) {}
 
   // Assembles the client's payload, sends it and prints the response back
   // from the server.
@@ -138,7 +141,7 @@ public:
     ::grpc::ClientContext context;
     ServerStreamingClientReactor reactor(helloworld::Greeter::SayHelloStreamReply{}, stub_.get(), context, req,
                                          [](helloworld::HelloReply &reply) {
-                                           std::cout << "Received reply: " << reply.message << std::endl;
+                                           std::cout << "Received reply: " << reply.message << "\n";
                                            sleep(1);
                                          });
     reactor.Start();
@@ -167,11 +170,13 @@ private:
 };
 
 int main(int argc, char **argv) {
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const char *endpoint = (argc == 2) ? argv[1] : "localhost:50051";
   if (argc > 2) {
     std::cerr << "Usage: " << argv[0] << " <hostname:port>\n";
     return 1;
   }
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   GreeterClient greeter(grpc::CreateChannel(endpoint, grpc::InsecureChannelCredentials()));
   greeter.SayHello("World");

@@ -1008,10 +1008,11 @@ struct msg_code_generator : code_generator {
   static std::string get_map_container_name(const field_descriptor_t &descriptor) {
     auto opts = descriptor.options.get_extension(hpp::proto::hpp_field_opts()).value_or(hpp::proto::FieldOptions{});
     using enum gpb::FieldDescriptorProto::Type;
+    using namespace std::string_literals;
     if (descriptor.map_fields[0]->proto.type == TYPE_STRING) {
-      return opts.string_keyed_map.value_or("hpp::proto::flat_map");
+      return opts.string_keyed_map.value_or("hpp::proto::flat_map"s);
     } else {
-      return opts.numeric_keyed_map.value_or("hpp::proto::flat_map");
+      return opts.numeric_keyed_map.value_or("hpp::proto::flat_map"s);
     }
   }
 

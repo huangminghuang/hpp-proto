@@ -30,8 +30,9 @@ using namespace std::string_view_literals;
 using namespace std::string_literals;
 
 template <typename T>
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void verify(const hpp::proto::dynamic_serializer &ser, const T &msg, std::string_view json,
-            std::string_view pretty_json = "") {
+            std::string_view pretty_json = ""sv) {
   expect(eq(json, hpp::proto::write_json(msg).value()));
 
   if (!pretty_json.empty()) {

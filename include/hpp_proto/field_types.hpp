@@ -218,11 +218,11 @@ public:
   [[nodiscard]] constexpr const T &&value() const && { return static_cast<const T &&>(_value); }
 
   template <class U>
-  constexpr T value_or(U &&default_value) const & {
+  [[nodiscard]] constexpr T value_or(U &&default_value) const & {
     return has_value() ? _value : static_cast<T>(std::forward<U>(default_value));
   }
   template <class U>
-  constexpr T value_or(U &&default_value) && {
+  [[nodiscard]] constexpr T value_or(U &&default_value) && {
     return has_value() ? std::move(_value) : static_cast<T>(std::forward<U>(default_value));
   }
 

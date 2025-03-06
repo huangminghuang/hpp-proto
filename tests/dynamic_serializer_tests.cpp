@@ -49,7 +49,8 @@ const boost::ut::suite dynamic_serializer_skip_test = [] {
   expect(fatal(ser.has_value()));
   std::string data = read_file("data/proto3_unittest.TestAllTypes.binpb");
 
-  std::array<char, 2> sbytes, ebytes;
+  std::array<char, 2> sbytes{};
+  std::array<char, 2> ebytes{};
   hpp::proto::unchecked_pack_varint(hpp::proto::make_tag(200, hpp::proto::wire_type::sgroup), sbytes.data());
   hpp::proto::unchecked_pack_varint(hpp::proto::make_tag(200, hpp::proto::wire_type::egroup), ebytes.data());
   std::ranges::copy(sbytes, std::inserter(data, data.begin()));
