@@ -76,7 +76,7 @@ std::string resolve_keyword(std::string_view name) {
 ///
 /// Constructs a fully qualified C++ name from a given protobuf name
 /// ,replacing '.' with '::' to adhere to C++ naming
-/// conventions. The namespace prefix is prepended only when the name 
+/// conventions. The namespace prefix is prepended only when the name
 /// is started with a dot(.).  Each segment of the name is processed
 /// to resolve any C++ keywords.
 ///
