@@ -35,7 +35,7 @@
               sanitize: "address,undefined"
             - build_type: Coverage
               compiler: clang-18
-              protoc: compile
+              protoc: find
               sanitize: OFF
               extra_cmake_configure_flags: -DCMAKE_CXX_CLANG_TIDY=clang-tidy-18
 
