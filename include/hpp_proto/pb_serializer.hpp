@@ -2035,6 +2035,7 @@ struct pb_serializer {
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
       if constexpr (sfvint_parser_allowed<Context>()) {
         if (!std::is_constant_evaluated() && has_bmi2()) {
+          using value_type = typename Item::value_type;
           sfvint_parser<T, value_type> parser(item.data());
           if constexpr (!contiguous) {
             while (bytes_count > region_size()) {
