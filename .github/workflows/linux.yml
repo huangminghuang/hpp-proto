@@ -37,7 +37,7 @@
               compiler: clang-18
               protoc: find
               sanitize: OFF
-              extra_cmake_configure_flags: "-DCMAKE_CXX_CLANG_TIDY=clang-tidy-18;-warnings-as-errors=*"
+              extra_cmake_configure_flags: "-DCMAKE_CXX_CLANG_TIDY=clang-tidy-18\;-warnings-as-errors=*"
 
       runs-on: ubuntu-24.04
   
