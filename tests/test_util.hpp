@@ -38,10 +38,6 @@ std::string to_hex(hpp::proto::concepts::contiguous_byte_range auto const &data)
   return result;
 }
 
-inline std::ostream &operator<<(std::ostream &os, const std::vector<std::byte> &bytes) { return os << to_hex(bytes); }
-
-inline std::ostream &operator<<(std::ostream &os, std::span<const std::byte> bytes) { return os << to_hex(bytes); }
-
 template <hpp::proto::compile_time_string str>
 constexpr auto operator""_bytes_view() {
   hpp::proto::bytes_literal<str> data;
@@ -55,14 +51,27 @@ constexpr auto operator""_bytes() {
 
 // NOLINTBEGIN(cert-dcl58-cpp)
 namespace std {
-template <typename T>
-  requires requires { glz::meta<T>::value; }
-std::ostream &operator<<(std::ostream &os, const T &v) {
+template <glz::detail::glaze_t T>
+inline std::ostream &operator<<(ostream &os, const T &v) {
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   return os << hpp::proto::write_json(v).value();
 #else
   return os;
 #endif
 }
+
+inline std::ostream &operator<<(std::ostream &os, const vector<byte> &bytes) { return os << to_hex(bytes); }
+inline std::ostream &operator<<(std::ostream &os, span<const byte> bytes) { return os << to_hex(bytes); }
+
+template <typename T>
+inline std::ostream &operator<<(ostream &os, const vector<T> &c) {
+  os << '[';
+  if (!c.empty()) {
+    std::for_each(c.begin(), c.end(), [&os](const T &v) { os << ", " << v; });
+  }
+  os << ']';
+  return os;
+}
+
 } // namespace std
 // NOLINTEND(cert-dcl58-cpp)

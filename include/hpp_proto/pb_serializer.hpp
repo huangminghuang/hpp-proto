@@ -2031,7 +2031,6 @@ struct pb_serializer {
     template <concepts::varint T, typename Item>
     constexpr status deserialize_packed_varint([[maybe_unused]] std::uint32_t bytes_count, std::size_t size,
                                                Item &item) {
-      using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
       if constexpr (sfvint_parser_allowed<Context>()) {

@@ -68,7 +68,6 @@ else()
         COMMAND proto3_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-    set_property(TEST proto3_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/non_owning")
 
@@ -93,8 +92,6 @@ else()
         COMMAND non_owning_proto3_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-    set_property(TEST non_owning_proto3_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
-
     add_library(non_owning_unittest_proto2_proto_lib INTERFACE
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
     target_include_directories(non_owning_unittest_proto2_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
@@ -110,8 +107,6 @@ else()
         COMMAND non_owning_proto2_test
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
-    set_property(TEST non_owning_proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
-
     add_library(unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
     target_include_directories(unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
     protobuf_generate_hpp(
@@ -124,8 +119,6 @@ else()
     add_test(NAME proto2_test
         COMMAND proto2_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    set_property(TEST proto2_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
     add_library(map_unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
     target_include_directories(map_unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
@@ -140,8 +133,6 @@ else()
     add_test(NAME map_test
         COMMAND map_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    set_property(TEST map_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
     add_library(non_owning_map_unittest_proto_lib INTERFACE
         "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
@@ -202,8 +193,6 @@ else()
             COMMAND dynamic_serializer_tests
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-        set_property(TEST dynamic_serializer_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
-
         add_executable(dynamic_serializer_coverage_tests dynamic_serializer_coverage_tests.cpp)
         target_link_libraries(dynamic_serializer_coverage_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze unittest_proto3_proto_lib)
         add_hpp_proto_test(dynamic_serializer_coverage_tests)
@@ -215,7 +204,6 @@ else()
         add_test(NAME well_known_types_tests
             COMMAND well_known_types_tests
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-        set_property(TEST well_known_types_tests PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
     else()
         message(WARNING "No proto file for well known types are found, all tests involves well known types are skipped.")
     endif(Protobuf_INCLUDE_DIRS)
@@ -250,8 +238,6 @@ else()
         add_test(NAME lite_test
             COMMAND lite_test
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-        set_property(TEST lite_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
 
         add_library(editions_test_lib INTERFACE "basic_test_editions.proto" "editions_test.proto")
         target_include_directories(editions_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
