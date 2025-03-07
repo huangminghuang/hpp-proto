@@ -1328,6 +1328,7 @@ struct pb_serializer {
         constexpr null_assignable &operator=(uint32_t) { return *this; }
       };
       constexpr null_assignable operator*() const { return null_assignable{}; }
+      // NOLINTNEXTLINE(cert-dcl21-cpp)
       constexpr null_size_cache operator++(int) const { return *this; }
     } cache;
     return message_size(item, cache);
@@ -1994,14 +1995,47 @@ struct pb_serializer {
       return {};
     }
 
+    template <concepts::varint T>
+    constexpr status parse_packed_varints_in_a_region(auto current, auto &&it) {
+      using value_type = std::decay_t<decltype(*it)>;
+      while (current.size()) {
+        T underlying;
+        auto p = unchecked_parse_varint(current, underlying);
+        if (p > current._end) [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        current.advance_to(p);
+        *it = static_cast<value_type>(underlying.value);
+        ++it;
+      }
+      return std::errc{};
+    };
+
+    template <concepts::varint T>
+    constexpr status parse_packed_varints_in_regions(std::uint32_t bytes_count, auto &item) {
+      auto it = item.begin();
+      while (bytes_count > 0) {
+        maybe_advance_region();
+        auto data = current.consume_packed_varints(bytes_count);
+        if (data.empty()) [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        bytes_count -= static_cast<std::uint32_t>(data.size());
+        if (auto result = parse_packed_varints_in_a_region<T>(data, it); !result.ok()) [[unlikely]] {
+          return result;
+        }
+      }
+      return {};
+    }
+
     template <concepts::varint T, typename Item>
     constexpr status deserialize_packed_varint([[maybe_unused]] std::uint32_t bytes_count, std::size_t size,
                                                Item &item) {
-      using value_type = typename Item::value_type;
       item.resize(size);
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
       if constexpr (sfvint_parser_allowed<Context>()) {
         if (!std::is_constant_evaluated() && has_bmi2()) {
+          using value_type = typename Item::value_type;
           sfvint_parser<T, value_type> parser(item.data());
           if constexpr (!contiguous) {
             while (bytes_count > region_size()) {
@@ -2024,38 +2058,12 @@ struct pb_serializer {
         }
       }
 #endif
-      auto parse_varints_in_region = [](auto current, auto &&it) -> status {
-        while (current.size()) {
-          T underlying;
-          auto p = unchecked_parse_varint(current, underlying);
-          if (p > current._end) [[unlikely]] {
-            return std::errc::bad_message;
-          }
-          current.advance_to(p);
-          *it = static_cast<value_type>(underlying.value);
-          ++it;
-        }
-        return std::errc{};
-      };
 
       if constexpr (contiguous) {
-        return parse_varints_in_region(current.consume(bytes_count), item.begin());
+        return parse_packed_varints_in_a_region<T>(current.consume(bytes_count), item.begin());
       } else {
-        auto it = item.begin();
-        while (bytes_count > 0) {
-          maybe_advance_region();
-          auto data = current.consume_packed_varints(bytes_count);
-          if (data.empty()) [[unlikely]] {
-            return std::errc::bad_message;
-          }
-          bytes_count -= static_cast<std::uint32_t>(data.size());
-          if (auto result = parse_varints_in_region(data, it); !result.ok()) [[unlikely]] {
-            return result;
-          }
-        }
+        return parse_packed_varints_in_regions<T>(bytes_count, item);
       }
-
-      return {};
     }
 
     constexpr status skip_varint() {

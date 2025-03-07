@@ -29,6 +29,8 @@ if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
 endif()
 
 CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+set_target_properties(is_utf8 fmt PROPERTIES CXX_CLANG_TIDY "")
+
 
 if(HPP_PROTO_PROTOC STREQUAL "find")
     find_package(Protobuf CONFIG)
@@ -93,7 +95,7 @@ if(HPP_PROTO_TESTS)
     CPMAddPackage(
         NAME ut
         GITHUB_REPOSITORY boost-ext/ut
-        VERSION 2.0.1
+        VERSION 2.3.0
         DOWNLOAD_ONLY ON
     )
     add_library(Boost::ut INTERFACE IMPORTED)

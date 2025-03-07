@@ -137,11 +137,11 @@ class GreeterServiceImpl {
       int n = count--;
       if (n == 0) {
         reactor.Finish(grpc::Status::OK);
-        std::cout << "SayHelloStreamReply Finished" << std::endl;
+        std::cout << "SayHelloStreamReply Finished\n";
       } else {
         helloworld::HelloReply reply;
         reply.message = "Hello " + name + " " + std::to_string(n);
-        std::cout << "SayHelloStreamReply Sending reply: " << reply.message << std::endl;
+        std::cout << "SayHelloStreamReply Sending reply: " << reply.message << "\n";
         reactor.Write(reply);
       }
     }
@@ -152,40 +152,45 @@ class GreeterServiceImpl {
   bool done_ = false;
 
 public:
-  GreeterServiceImpl(GenericService &service) {
+  explicit GreeterServiceImpl(GenericService &service) {
     service.add_reactor_factory([&] {
+      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
       return new ServerUnaryCallReactor<helloworld::Greeter::SayHello, GreeterServiceImpl>{
           this, &GreeterServiceImpl::SayHello};
     });
     service.add_reactor_factory([&] {
+      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
       return new ServerStreamReactor<helloworld::Greeter::SayHelloStreamReply, GreeterServiceImpl,
                                      SayHelloStreamReplyWriter>(this, &GreeterServiceImpl::SayHelloStreamReply);
     });
 
     service.add_reactor_factory([&] {
+      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
       return new ServerUnaryCallReactor<helloworld::Greeter::Shutdown, GreeterServiceImpl>(
           this, &GreeterServiceImpl::Shutdown);
     });
   }
+
+  // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
   grpc::Status SayHello(const helloworld::HelloRequest &request, helloworld::HelloReply &reply) {
-    if (request.name == "") {
-      return grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "name is not specified");
+    if (request.name.empty()) {
+      return {::grpc::StatusCode::INVALID_ARGUMENT, "name is not specified"};
     }
     reply.message = "Hello " + request.name;
     return grpc::Status::OK;
   }
 
   void SayHelloStreamReply(const helloworld::HelloRequest &request, SayHelloStreamReplyWriter &writer, auto &reactor) {
-    if (request.name == "") {
+    if (request.name.empty()) {
       reactor.Finish(grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "name is not specified"));
     } else {
-      std::cout << "SayHelloStreamReply Started" << std::endl;
+      std::cout << "SayHelloStreamReply Started\n";
       writer.name = request.name;
       writer(reactor);
     }
   }
 
-  grpc::Status Shutdown(const google::protobuf::Empty &request, google::protobuf::Empty &reply) {
+  grpc::Status Shutdown(const google::protobuf::Empty & /*request*/, google::protobuf::Empty & /*reply*/) {
     std::unique_lock<std::mutex> lock(mu_);
     done_ = true;
     shutdown_cv_.notify_all();
@@ -210,21 +215,23 @@ void RunServer(const char *server_address) {
   builder.RegisterCallbackGenericService(&service);
   // Finally assemble the server.
   std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
-  std::cout << "Server listening on " << server_address << std::endl;
+  std::cout << "Server listening on " << server_address << "\n";
 
   greeter_service.wait();
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.
-  std::cout << "Server shutting down" << std::endl;
+  std::cout << "Server shutting down\n";
   server->Shutdown();
 }
 
 int main(int argc, char **argv) {
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const char *endpoint = (argc == 2) ? argv[1] : "localhost:50051";
   if (argc > 2) {
     std::cerr << "Usage: " << argv[0] << " <hostname:port>\n";
     return 1;
   }
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   RunServer(endpoint);
   return 0;
 }

@@ -35,8 +35,9 @@
               sanitize: "address,undefined"
             - build_type: Coverage
               compiler: clang-18
-              protoc: compile
+              protoc: find
               sanitize: OFF
+              extra_cmake_configure_flags: "-DCMAKE_CXX_CLANG_TIDY=clang-tidy-18\\;-warnings-as-errors=*"
 
       runs-on: ubuntu-24.04
   
@@ -78,7 +79,8 @@
                   -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
                   -DHPP_PROTO_ENABLE_SANITIZERS=${{ matrix.sanitize }} \
                   -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-                  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+                  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                  ${{ matrix.extra_cmake_configure_flags }}
   
         - name: build
           run: cmake --build build -j${{env.nproc}}
