@@ -15,12 +15,14 @@ Compared to Google’s implementation, hpp-proto adopts a minimalistic design th
 * Each generated C++ aggregate is associated with static C++ reflection data for efficient Protocol Buffers encoding and decoding.
 * All generated message types are equality-comparable, making them useful in unit testing.
 * Completely exception-free.
-* Supports non-owning mode code generation, mapping string and repeated fields to `std::string_view` and `hpp::proto::equality_comparable_span` which derives from `std::span` and adds the equality comparator.
+* Supports non-owning mode code generation, mapping string and repeated fields to `std::string_view` and `hpp::proto::equality_comparable_span` which derives from `std::span` and adds the equality comparator. 
+Non-owning mode can be enabled globally via [protoc plugin options](docs/Code_Generation_Guide.md##plugin-options) 
+or selectively using [protobuf extensions](docs/Code_Generation_Guide.md#non-owning-mode-only-for-specific-files-messages-or-fields).
 * Enables compile-time serialization.
 
 ## Limitations
 * Lacks runtime reflection support.
-* Lacks support for extra json print options like `always_print_fields_with_no_presence`, `always_print_enums_as_ints`,
+* Lacks support for extra json print options in the google C++ protobuf implementation like `always_print_fields_with_no_presence`, `always_print_enums_as_ints`,
   `preserve_proto_field_names` or`unquote_int64_if_possible`.
 * Unknown fields are always discarded during deserialization.
 
@@ -340,7 +342,6 @@ assert(out_msg.name == "john");
 // Deserialize using the expected return API
 expected<Person, std::errc> read_result = read_proto<Person>(in_msg);
 assert(read_result.value().name == "john");
-
 ```
 </p>
 </details>
@@ -362,6 +363,38 @@ For most use cases, [std::pmr::monotonic_buffer_resource](https://en.cppreferenc
 
 The option object allows you to specify memory resources for `read_proto()`:
 -	`alloc_from`: All memory used by the deserialized value is allocated from the provided memory resource.
+
+```cpp
+#include <addressbook.pb.hpp> // Include "*.pb.hpp" for Protobuf APIs
+
+// ....
+tutorial::Person in_msg, out_msg;
+msg1.name = "john";
+
+std::string out_buffer;
+using namespace hpp::proto;
+// Serialize using the status return API
+if (!write_proto(in_msg, out_buffer).ok()) {
+  // Handle error
+}
+assert(out_buffer == "\x0a\x04john");
+
+// Serialize using the expected return API
+expected<std::string, std::errc> write_result = write_proto<std::string>(in_msg);
+assert(write_result.value() == "\x0a\x04john");
+
+std::pmr::monotonic_buffer_resource pool;
+std::string_view in_buffer = "\x0a\x04john";
+// Deserialize using the status return API
+if (!read_proto(out_msg, in_buffer, alloc_from{pool}).ok()) {
+  // Handle error
+}
+assert(out_msg.name == "john");
+
+// Deserialize using the expected return API
+expected<Person, std::errc> read_result = read_proto<Person>(in_msg, alloc_from{pool});
+assert(read_result.value().name == "john");
+```
 </p>
 </details>
 
