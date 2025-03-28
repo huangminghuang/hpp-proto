@@ -100,6 +100,15 @@ struct single_shot_slice_memory_resource {
   return {::grpc::StatusCode::INTERNAL, "Failed to serialize message"};
 }
 
+std::optional<::grpc::ByteBuffer> write_proto(hpp::proto::concepts::has_meta auto const &message) {
+  detail::single_shot_slice_memory_resource pool;
+  std::span<const std::byte> buf;
+  if (hpp::proto::write_proto(message, buf, hpp::proto::alloc_from{pool}).ok()) [[likely]] {
+    return pool.finalize();
+  }
+  return {};
+}
+
 ::grpc::Status read_proto(hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
                           hpp::proto::concepts::is_option_type auto &&...option) {
 

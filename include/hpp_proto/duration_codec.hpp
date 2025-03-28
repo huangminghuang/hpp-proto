@@ -44,13 +44,13 @@ struct duration_codec {
 
     if (value.nanos != 0) {
       int32_t nanos = std::abs(value.nanos);
-      glz::detail::dump_unchecked<'.'>(b, ix);
+      glz::dump<'.'>(b, ix);
       const auto hi = nanos / 100000000;
       b[ix++] = '0' + hi;
       glz::to_chars_u64_len_8(&b[ix], uint32_t(nanos % 100000000));
       ix += 8;
     }
-    glz::detail::dump_unchecked<'s'>(b, ix);
+    glz::dump<'s'>(b, ix);
     return static_cast<int64_t>(ix);
   }
 

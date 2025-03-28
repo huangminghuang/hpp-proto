@@ -86,7 +86,7 @@ target_include_directories(libhpp_proto INTERFACE
   $<INSTALL_INTERFACE:include>)
 target_include_directories(libhpp_proto SYSTEM INTERFACE
   $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>)
-target_compile_features(libhpp_proto INTERFACE cxx_std_20)
+target_compile_features(libhpp_proto INTERFACE cxx_std_23)
 target_link_libraries(libhpp_proto INTERFACE is_utf8)
 
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)

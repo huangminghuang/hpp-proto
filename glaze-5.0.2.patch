@@ -1,17 +1,26 @@
+diff --git a/.gitignore b/.gitignore
+index 0fa1c03a..8611f6e6 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -48,3 +48,4 @@ Thumbs.db
+ 
+ # Allow mock test data
+ !tests/mock_json_test/json/*.json
++.qodo
 diff --git a/include/glaze/core/context.hpp b/include/glaze/core/context.hpp
-index 4b3b9eef..de2691bd 100644
+index 2405fbdf..d9ed4fdb 100644
 --- a/include/glaze/core/context.hpp
 +++ b/include/glaze/core/context.hpp
-@@ -79,7 +79,7 @@ namespace glz
+@@ -102,7 +102,7 @@ namespace glz
  
     // Runtime context for configuration
     // We do not template the context on iterators so that it can be easily shared across buffer implementations
 -   struct context final
 +   struct context
     {
-       // INTERNAL USE
-       uint32_t indentation_level{};
-@@ -89,5 +89,5 @@ namespace glz
+       error_code error{};
+       std::string_view custom_error_message;
+@@ -117,5 +117,5 @@ namespace glz
     };
  
     template <class T>

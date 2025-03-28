@@ -331,26 +331,26 @@ class dynamic_serializer {
         }
       }
       if (quote_required) {
-        glz::detail::dump<'"'>(b, ix);
+        glz::dump<'"'>(b, ix);
       }
       if constexpr (concepts::varint<T>) {
-        glz::detail::write<glz::json>::op<Options>(value.value, context, b, ix);
+        glz::serialize<glz::JSON>::op<Options>(value.value, context, b, ix);
       } else {
-        glz::detail::write<glz::json>::op<Options>(value, context, b, ix);
+        glz::serialize<glz::JSON>::op<Options>(value, context, b, ix);
       }
       if (quote_required) {
-        glz::detail::dump<'"'>(b, ix);
+        glz::dump<'"'>(b, ix);
       }
       return {};
     }
 
     template <auto Options>
     status packed_repeated_to_json(const dynamic_serializer::field_meta &meta, concepts::is_basic_in auto &archive) {
-      glz::detail::dump<'['>(b, ix);
+      glz::dump<'['>(b, ix);
       if constexpr (Options.prettify) {
         context.indentation_level += Options.indentation_width;
-        glz::detail::dump<'\n'>(b, ix);
-        glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+        glz::dump<'\n'>(b, ix);
+        glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
 
       vuint32_t length = 0;
@@ -367,10 +367,10 @@ class dynamic_serializer {
       for (int n = 0; new_archive.in_avail() > 0; ++n) {
         new_archive.maybe_advance_region();
         if (n > 0) {
-          glz::detail::dump<','>(b, ix);
+          glz::dump<','>(b, ix);
           if constexpr (Options.prettify) {
-            glz::detail::dump<'\n'>(b, ix);
-            glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+            glz::dump<'\n'>(b, ix);
+            glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
           }
         }
         const bool is_map_key = false;
@@ -381,11 +381,11 @@ class dynamic_serializer {
 
       if constexpr (Options.prettify) {
         context.indentation_level -= Options.indentation_width;
-        glz::detail::dump<'\n'>(b, ix);
-        glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+        glz::dump<'\n'>(b, ix);
+        glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
 
-      glz::detail::dump<']'>(b, ix);
+      glz::dump<']'>(b, ix);
       return {};
     }
 
@@ -398,14 +398,14 @@ class dynamic_serializer {
       auto start_pos = ix;
       if (old_pos == 0) {
         auto c = meta.is_map_entry() ? '{' : '[';
-        glz::detail::dump(c, b, ix);
+        glz::dump(c, b, ix);
       } else {
-        glz::detail::dump<','>(b, ix);
+        glz::dump<','>(b, ix);
       }
       if constexpr (Options.prettify) {
         context.indentation_level += Options.indentation_width;
-        glz::detail::dump<'\n'>(b, ix);
-        glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+        glz::dump<'\n'>(b, ix);
+        glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
       const bool is_map_key = false;
       if (auto ec = field_to_json<Options>(meta, is_map_key, archive); !ec.ok()) [[unlikely]] {
@@ -428,11 +428,11 @@ class dynamic_serializer {
 
       if (old_pos == 0) {
         if constexpr (Options.prettify) {
-          glz::detail::dump<'\n'>(b, ix);
-          glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+          glz::dump<'\n'>(b, ix);
+          glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
         }
         auto c = meta.is_map_entry() ? '}' : ']';
-        glz::detail::dump(c, b, ix);
+        glz::dump(c, b, ix);
       }
       return {};
     }
@@ -500,14 +500,14 @@ class dynamic_serializer {
       }
       if (meta.values.empty() && value == 0) {
         // should be google.protobuf.NullValue
-        glz::detail::dump<"null">(b, ix);
+        glz::dump<"null">(b, ix);
         return {};
       } else {
         for (const auto &m : meta.values) {
           if (m.number == value) {
-            glz::detail::dump<'"'>(b, ix);
-            glz::detail::dump(m.name, b, ix);
-            glz::detail::dump<'"'>(b, ix);
+            glz::dump<'"'>(b, ix);
+            glz::dump(m.name, b, ix);
+            glz::dump<'"'>(b, ix);
             return {};
           }
         }
@@ -515,7 +515,7 @@ class dynamic_serializer {
       if (meta.is_closed) {
         return std::errc::bad_message;
       }
-      glz::detail::write<glz::json>::op<Options>(value.value, context, b, ix);
+      glz::serialize<glz::JSON>::op<Options>(value.value, context, b, ix);
       return {};
     }
 
@@ -527,13 +527,13 @@ class dynamic_serializer {
         const auto &field_m = msg_meta[field_index];
         if (separator && unpacked_repeated_positions[field_index] == 0) {
           // not the first field in a message, output the separator
-          glz::detail::dump(separator, b, ix);
+          glz::dump(separator, b, ix);
           if (Options.prettify) {
             if (separator == ',') {
-              glz::detail::dump<'\n'>(b, ix);
-              glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+              glz::dump<'\n'>(b, ix);
+              glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
             } else {
-              glz::detail::dump<' '>(b, ix);
+              glz::dump<' '>(b, ix);
             }
           }
         }
@@ -544,10 +544,10 @@ class dynamic_serializer {
         } else if (!field_m.is_repeated() || unpacked_repeated_positions[field_index] == 0) {
           // output the field name only when it's a non-repeated field or the beginning of repeated field
           const auto &field_name = field_m.json_name;
-          glz::detail::write<glz::json>::op<Options>(field_name, context, b, ix);
-          glz::detail::dump<':'>(b, ix);
+          glz::serialize<glz::JSON>::op<Options>(field_name, context, b, ix);
+          glz::dump<':'>(b, ix);
           if constexpr (Options.prettify) {
-            glz::detail::dump<' '>(b, ix);
+            glz::dump<' '>(b, ix);
           }
           separator = ',';
         }
@@ -581,11 +581,11 @@ class dynamic_serializer {
     template <auto Options>
     status group_to_json(uint32_t msg_index, uint32_t field_number, concepts::is_basic_in auto &archive) {
       const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[msg_index];
-      glz::detail::dump<'{'>(b, ix);
+      glz::dump<'{'>(b, ix);
       if constexpr (Options.prettify) {
         context.indentation_level += Options.indentation_width;
-        glz::detail::dump<'\n'>(b, ix);
-        glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+        glz::dump<'\n'>(b, ix);
+        glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
       std::vector<uint64_t> unpacked_repeated_positions(msg_meta.size());
 
@@ -603,10 +603,10 @@ class dynamic_serializer {
         if (field_wire_type == wire_type::egroup && field_number == number) {
           if constexpr (Options.prettify) {
             context.indentation_level -= Options.indentation_width;
-            glz::detail::dump<'\n'>(b, ix);
-            glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+            glz::dump<'\n'>(b, ix);
+            glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
           }
-          glz::detail::dump<'}'>(b, ix);
+          glz::dump<'}'>(b, ix);
 
           return {};
         }
@@ -630,25 +630,25 @@ class dynamic_serializer {
         return std::errc::no_message;
       }
 
-      glz::detail::dump<"\"@type\":">(b, ix);
+      glz::dump<"\"@type\":">(b, ix);
       if constexpr (Options.prettify) {
-        glz::detail::dump<' '>(b, ix);
+        glz::dump<' '>(b, ix);
       }
 
-      glz::detail::write<glz::json>::op<Options>(v.type_url, context, b, ix);
-      glz::detail::dump<','>(b, ix);
+      glz::serialize<glz::JSON>::op<Options>(v.type_url, context, b, ix);
+      glz::dump<','>(b, ix);
       if (Options.prettify) {
-        glz::detail::dump<'\n'>(b, ix);
-        glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+        glz::dump<'\n'>(b, ix);
+        glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
       }
 
       pb_context pb_ctx;
       pb_serializer::contiguous_input_archive value_archive(v.value, pb_ctx);
       const bool is_wellknown = pb_meta.is_wellknown_message(msg_index);
       if (is_wellknown) {
-        glz::detail::dump<"\"value\":">(b, ix);
+        glz::dump<"\"value\":">(b, ix);
         if constexpr (Options.prettify) {
-          glz::detail::dump<' '>(b, ix);
+          glz::dump<' '>(b, ix);
         }
 
         if (auto ec = message_to_json<Options>(msg_index, false, value_archive); !ec.ok()) [[unlikely]] {
@@ -657,10 +657,10 @@ class dynamic_serializer {
 
         if constexpr (Options.prettify) {
           context.indentation_level -= Options.indentation_width;
-          glz::detail::dump<'\n'>(b, ix);
-          glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+          glz::dump<'\n'>(b, ix);
+          glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
         }
-        glz::detail::dump<'}'>(b, ix);
+        glz::dump<'}'>(b, ix);
         return {};
       } else {
         constexpr auto opts = glz::opening_handled<Options>();
@@ -675,7 +675,7 @@ class dynamic_serializer {
         return ec;
       }
 
-      glz::detail::write<glz::json>::op<Options>(v, context, b, ix);
+      glz::serialize<glz::JSON>::op<Options>(v, context, b, ix);
       if (static_cast<bool>(context.error)) [[unlikely]] {
         return std::errc::bad_message;
       }
@@ -685,7 +685,7 @@ class dynamic_serializer {
     template <auto Options>
     status list_value_to_json(const dynamic_serializer::message_meta &msg_meta, concepts::is_basic_in auto &archive) {
       if (archive.in_avail() == 0) {
-        glz::detail::dump<"[]">(b, ix);
+        glz::dump<"[]">(b, ix);
         return {};
       }
       std::vector<uint64_t> unpacked_repeated_positions(msg_meta.size());
@@ -709,10 +709,10 @@ class dynamic_serializer {
       if (tag_number(tag) == 1) [[likely]] {
         if (separator) {
           // not the first field in a message, output the separator
-          glz::detail::dump<','>(b, ix);
+          glz::dump<','>(b, ix);
           if (Options.prettify) {
-            glz::detail::dump<'\n'>(b, ix);
-            glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+            glz::dump<'\n'>(b, ix);
+            glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
           }
         }
 
@@ -757,11 +757,11 @@ class dynamic_serializer {
           !has_opening_handled(Options) && !is_map_entry && msg_index != pb_meta.protobuf_value_message_index;
 
       if (dump_brace) {
-        glz::detail::dump<'{'>(b, ix);
+        glz::dump<'{'>(b, ix);
         if constexpr (Options.prettify) {
           context.indentation_level += Options.indentation_width;
-          glz::detail::dump<'\n'>(b, ix);
-          glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+          glz::dump<'\n'>(b, ix);
+          glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
         }
       }
 
@@ -815,10 +815,10 @@ class dynamic_serializer {
       if (dump_brace) {
         if constexpr (Options.prettify) {
           context.indentation_level -= Options.indentation_width;
-          glz::detail::dump<'\n'>(b, ix);
-          glz::detail::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
+          glz::dump<'\n'>(b, ix);
+          glz::dumpn<Options.indentation_char>(context.indentation_level, b, ix);
         }
-        glz::detail::dump<'}'>(b, ix);
+        glz::dump<'}'>(b, ix);
       }
       return {};
     }
@@ -907,20 +907,18 @@ class dynamic_serializer {
     status type_to_pb(const dynamic_serializer::field_meta &meta, auto &it, auto &end, auto &archive) {
       T value;
       if (quoted) {
-        glz::detail::match<'"'>(context, it, end);
-        if (bool(context.error)) [[unlikely]] {
+        if (glz::match<'"'>(context, it)) [[unlikely]] {
           return std::errc::bad_message;
         }
       }
 
-      glz::detail::read<glz::json>::op<glz::ws_handled<Options>()>(get_underlying_value(value), context, it, end);
+      glz::parse<glz::JSON>::op<glz::ws_handled<Options>()>(get_underlying_value(value), context, it, end);
       if (bool(context.error)) [[unlikely]] {
         return std::errc::bad_message;
       }
 
       if (quoted) {
-        glz::detail::match<'"'>(context, it, end);
-        if (bool(context.error)) [[unlikely]] {
+        if (glz::match<'"'>(context, it)) [[unlikely]] {
           return std::errc::bad_message;
         }
       }
@@ -936,7 +934,7 @@ class dynamic_serializer {
     template <typename T>
     status map_key_to_pb(std::string_view key, auto &archive) {
       T value;
-      glz::detail::read<glz::json>::op<glz::ws_handled<glz::opts{}>()>(get_underlying_value(value), context, key.data(),
+      glz::parse<glz::JSON>::op<glz::ws_handled<glz::opts{}>()>(get_underlying_value(value), context, key.data(),
                                                                        key.data() + key.size());
       if (bool(context.error)) [[unlikely]] {
         return std::errc::bad_message;
@@ -1053,20 +1051,19 @@ class dynamic_serializer {
     status enum_to_pb(const dynamic_serializer::field_meta &meta, auto &it, auto &end, auto &archive) {
       const auto &enum_meta = pb_meta.enums[meta.type_index];
       if constexpr (!has_ws_handled(Opts)) {
-        glz::detail::skip_ws<Opts>(context, it, end);
-        if (bool(context.error)) [[unlikely]] {
+        if (glz::skip_ws<Opts>(context, it, end)) [[unlikely]] {
           return std::errc::bad_message;
         }
       }
 
       if (enum_meta.values.empty()) {
         // this is google.protobuf.NullValue
-        glz::detail::match<"null", Opts>(context, it, end);
+        glz::match<"null", Opts>(context, it, end);
         archive(make_tag(meta.number, wire_type::varint), varint{0});
         return {};
       }
 
-      const auto key = glz::detail::parse_key(context, it, end);
+      const auto key = glz::parse_key(context, it, end);
       if (bool(context.error)) [[unlikely]] {
         return std::errc::bad_message;
       }
@@ -1089,19 +1086,19 @@ class dynamic_serializer {
     template <auto Options>
     status repeated_to_pb(const dynamic_serializer::field_meta &meta, auto &it, auto &end, auto &archive) {
       if constexpr (!has_ws_handled(Options)) {
-        glz::detail::skip_ws<Options>(context, it, end);
-        if (bool(context.error)) [[unlikely]] {
+        if (glz::skip_ws<Options>(context, it, end)) [[unlikely]] {
           return std::errc::bad_message;
         }
       }
       static constexpr auto Opts = glz::ws_handled_off<Options>();
 
-      glz::detail::match<'['>(context, it, end);
-      glz::detail::skip_ws<Options>(context, it, end);
-      if (bool(context.error)) [[unlikely]] {
+      if (glz::match<'['>(context, it))[[unlikely]] {
         return std::errc::bad_message;
       }
-      const auto n = glz::detail::number_of_array_elements<Opts>(context, it, end);
+      if (glz::skip_ws<Options>(context, it, end)) [[unlikely]] {
+        return std::errc::bad_message;
+      }
+      const auto n = glz::number_of_array_elements<Opts>(context, it, end);
       if (bool(context.error)) [[unlikely]] {
         return std::errc::bad_message;
       }
@@ -1112,13 +1109,13 @@ class dynamic_serializer {
           if (auto ec = field_to_pb<Opts>(meta, it, end, archive); !ec.ok()) [[unlikely]] {
             return ec;
           }
-          glz::detail::skip_ws<Opts>(context, it, end);
-          if (i < n - 1) {
-            glz::detail::match<','>(context, it, end);
-            glz::detail::skip_ws<Opts>(context, it, end);
-          }
-          if (bool(context.error)) [[unlikely]] {
+          if (glz::skip_ws<Opts>(context, it, end)) [[unlikely]] {
             return std::errc::bad_message;
+          }
+          if (i < n - 1) {
+            if (glz::match<','>(context, it) || glz::skip_ws<Opts>(context, it, end)) {  
+              return std::errc::bad_message;
+            }
           }
         }
         return {};
@@ -1134,7 +1131,9 @@ class dynamic_serializer {
         }
       }
 
-      glz::detail::match<']'>(context, it, end);
+      if (glz::match<']'>(context, it)) [[unlikely]] {
+        return std::errc::bad_message;
+      }
       return {};
     }
 
@@ -1153,7 +1152,7 @@ class dynamic_serializer {
     template <auto Options, typename T>
     status wellknown_with_codec_to_pb(auto &it, auto &end, auto &archive) {
       T value;
-      glz::detail::read<glz::json>::op<Options>(value, context, it, end);
+      glz::parse<glz::JSON>::op<Options>(value, context, it, end);
 
       if (bool(context.error)) [[unlikely]] {
         return std::errc::bad_message;
@@ -1168,8 +1167,7 @@ class dynamic_serializer {
     template <auto Options>
     status value_to_pb(const dynamic_serializer::message_meta &meta, auto &it, auto &end, auto &archive) {
       if constexpr (!has_ws_handled(Options)) {
-        glz::detail::skip_ws<Options>(context, it, end);
-        if (bool(context.error)) [[unlikely]] {
+        if (glz::skip_ws<Options>(context, it, end)) [[unlikely]] {
           return std::errc::bad_message;
         }
       }
@@ -1204,23 +1202,20 @@ class dynamic_serializer {
 
     template <auto Options>
     bool parse_opening(auto &it, auto &end) {
-      using namespace glz::detail;
+      using namespace glz;
       if constexpr (!has_opening_handled(Options)) {
         if constexpr (!has_ws_handled(Options)) {
-          skip_ws<Options>(context, it, end);
-          if (bool(context.error)) [[unlikely]] {
+          if (skip_ws<Options>(context, it, end)) [[unlikely]] {
             return false;
           }
         }
 
-        match<'{'>(context, it, end);
-        if (bool(context.error)) [[unlikely]] {
+        if (match<'{'>(context, it)) [[unlikely]] {
           return false;
         }
       }
 
-      skip_ws<Options>(context, it, end);
-      if (bool(context.error)) [[unlikely]] {
+      if (skip_ws<Options>(context, it, end)) [[unlikely]] {
         return false;
       }
       return true;
@@ -1228,17 +1223,14 @@ class dynamic_serializer {
 
     template <auto Options>
     bool parse_colon(auto &it, auto &end) {
-      using namespace glz::detail;
-      skip_ws<Options>(context, it, end);
-      if (bool(context.error)) [[unlikely]] {
+      using namespace glz;
+      if (skip_ws<Options>(context, it, end)) [[unlikely]] {
         return false;
       }
-      match<':'>(context, it, end);
-      if (bool(context.error)) [[unlikely]] {
+      if (match<':'>(context, it)) [[unlikely]] {
         return false;
       }
-      skip_ws<Options>(context, it, end);
-      if (bool(context.error)) [[unlikely]] {
+      if (skip_ws<Options>(context, it, end)) [[unlikely]] {
         return false;
       }
       return true;
@@ -1246,7 +1238,7 @@ class dynamic_serializer {
 
     template <auto Options>
     std::string_view parse_key(auto &it, auto &end) {
-      const auto key = glz::detail::parse_key(context, it, end);
+      const auto key = glz::parse_key(context, it, end);
       if (bool(context.error) || !parse_colon<Options>(it, end)) [[unlikely]] {
         return {};
       }
@@ -1277,8 +1269,8 @@ class dynamic_serializer {
 
       if (key == "@type") {
         constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Options>()>();
-        using namespace glz::detail;
-        from_json<std::string_view>::op<Opts>(type_url, context, it, end);
+        using namespace glz;
+        from<JSON, std::string_view>::op<Opts>(type_url, context, it, end);
         if (bool(context.error)) [[unlikely]] {
           return std::errc::bad_message;
         }
@@ -1295,12 +1287,10 @@ class dynamic_serializer {
         if (!pb_meta.is_wellknown_message(msg_index)) {
           return any_value_to_pb<glz::opening_handled<Opts>(), !any_value_only>(msg_index, it, end, archive);
         } else {
-          match<','>(context, it, end);
-          if (bool(context.error)) [[unlikely]] {
+          if (match<','>(context, it)) [[unlikely]] {
             return std::errc::bad_message;
           }
-          skip_ws<Opts>(context, it, end);
-          if (bool(context.error)) [[unlikely]] {
+          if (skip_ws<Opts>(context, it, end)) [[unlikely]] {
             return std::errc::bad_message;
           }
           match<"\"value\"", Opts>(context, it, end);
@@ -1338,7 +1328,7 @@ class dynamic_serializer {
         return this->field_to_pb<Options>(meta, it, end, archive);
       }
 
-      using namespace glz::detail;
+      using namespace glz;
       if (!parse_opening<Options>(it, end)) [[unlikely]] {
         return std::errc::bad_message;
       }
@@ -1355,12 +1345,10 @@ class dynamic_serializer {
         } else if (first) [[unlikely]] {
           first = false;
         } else [[likely]] {
-          match<','>(context, it, end);
-          if (bool(context.error)) [[unlikely]] {
+          if (match<','>(context, it)) [[unlikely]] {
             return std::errc::bad_message;
           }
-          skip_ws<Opts>(context, it, end);
-          if (bool(context.error)) [[unlikely]] {
+          if (skip_ws<Opts>(context, it, end)) [[unlikely]] {
             return std::errc::bad_message;
           }
         }
@@ -1400,8 +1388,7 @@ class dynamic_serializer {
           return ec;
         }
 
-        skip_ws<Opts>(context, it, end);
-        if (bool(context.error)) [[unlikely]] {
+        if (skip_ws<Opts>(context, it, end)) [[unlikely]] {
           return std::errc::bad_message;
         }
       }
@@ -1470,24 +1457,23 @@ public:
   }
 
   static auto make(concepts::contiguous_byte_range auto const &stream) {
-    // workaround for glz::expected requires its template parameters to be complete types
-    using result_t = glz::expected<dynamic_serializer, hpp::proto::status>;
+    using result_t = std::expected<dynamic_serializer, hpp::proto::status>;
     google::protobuf::FileDescriptorSet fileset;
     if (auto ec = read_proto(fileset, stream); !ec.ok()) [[unlikely]] {
-      return result_t{glz::unexpected(ec)};
+      return result_t{std::unexpected(ec)};
     }
 
     return result_t{dynamic_serializer{fileset}};
   }
 
   static auto make(concepts::input_bytes_range auto const &stream_range) {
-    // workaround for glz::expected requires its template parameters to be complete types
-    using result_t = glz::expected<dynamic_serializer, hpp::proto::status>;
+    // workaround for std::expected requires its template parameters to be complete types
+    using result_t = std::expected<dynamic_serializer, hpp::proto::status>;
     google::protobuf::FileDescriptorSet fileset;
     for (const auto &stream : stream_range) {
       google::protobuf::FileDescriptorSet tmp;
       if (auto ec = read_proto(tmp, stream); !ec.ok()) [[unlikely]] {
-        return result_t{glz::unexpected(ec)};
+        return result_t{std::unexpected(ec)};
       }
       fileset.file.insert(fileset.file.end(), tmp.file.begin(), tmp.file.end());
     }
@@ -1500,7 +1486,7 @@ public:
       if (!inserted) {
         if (*map_itr->second != *itr) [[unlikely]] {
           // in this case, we have two files with identical names but different content
-          return glz::unexpected(std::errc::invalid_argument);
+          return std::unexpected(std::errc::invalid_argument);
         } else {
           std::rotate(itr, itr + 1, last);
           --last;
@@ -1513,8 +1499,8 @@ public:
   }
 
   static auto make(concepts::file_descriptor_pb_array auto const &...args) {
-    // workaround for glz::expected requires its template parameters to be complete types
-    using result_t = glz::expected<dynamic_serializer, hpp::proto::status>;
+    // workaround for std::expected requires its template parameters to be complete types
+    using result_t = std::expected<dynamic_serializer, hpp::proto::status>;
     constexpr auto s = (std::tuple_size_v<std::remove_cvref_t<decltype(args)>> + ...);
     std::array<file_descriptor_pb, s> tmp;
     auto it = tmp.begin();
@@ -1530,7 +1516,7 @@ public:
     for (std::size_t i = 0; i < size; ++i) {
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
       if (auto ec = read_proto(fileset.file[i], tmp[i].value); !ec.ok()) [[unlikely]] {
-        return result_t{glz::unexpected(ec)};
+        return result_t{std::unexpected(ec)};
       }
     }
 
@@ -1606,11 +1592,11 @@ public:
   }
   // NOLINTEND(bugprone-easily-swappable-parameters)
 
-  [[nodiscard]] glz::expected<std::vector<std::byte>, hpp::proto::json_status>
+  [[nodiscard]] std::expected<std::vector<std::byte>, hpp::proto::json_status>
   json_to_proto(std::string_view message_name, std::string_view json) const {
     std::vector<std::byte> result;
     if (auto ec = json_to_proto(message_name, json, result); !ec.ok()) [[unlikely]] {
-      return glz::unexpected(ec);
+      return std::unexpected(ec);
     }
     return result;
   }

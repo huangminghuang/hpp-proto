@@ -51,7 +51,7 @@ constexpr auto operator""_bytes() {
 
 // NOLINTBEGIN(cert-dcl58-cpp)
 namespace std {
-template <glz::detail::glaze_t T>
+template <glz::glaze_t T>
 inline std::ostream &operator<<(ostream &os, const T &v) {
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   return os << hpp::proto::write_json(v).value();
