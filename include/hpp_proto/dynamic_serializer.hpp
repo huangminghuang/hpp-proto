@@ -935,7 +935,7 @@ class dynamic_serializer {
     status map_key_to_pb(std::string_view key, auto &archive) {
       T value;
       glz::parse<glz::JSON>::op<glz::ws_handled<glz::opts{}>()>(get_underlying_value(value), context, key.data(),
-                                                                       key.data() + key.size());
+                                                                key.data() + key.size());
       if (bool(context.error)) [[unlikely]] {
         return std::errc::bad_message;
       }
@@ -1092,7 +1092,7 @@ class dynamic_serializer {
       }
       static constexpr auto Opts = glz::ws_handled_off<Options>();
 
-      if (glz::match<'['>(context, it))[[unlikely]] {
+      if (glz::match<'['>(context, it)) [[unlikely]] {
         return std::errc::bad_message;
       }
       if (glz::skip_ws<Options>(context, it, end)) [[unlikely]] {
@@ -1113,7 +1113,7 @@ class dynamic_serializer {
             return std::errc::bad_message;
           }
           if (i < n - 1) {
-            if (glz::match<','>(context, it) || glz::skip_ws<Opts>(context, it, end)) {  
+            if (glz::match<','>(context, it) || glz::skip_ws<Opts>(context, it, end)) {
               return std::errc::bad_message;
             }
           }

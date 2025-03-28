@@ -395,7 +395,7 @@ struct to<JSON, hpp::proto::optional<Type, Default>> {
     if (value.has_value()) {
       if constexpr (std::is_integral_v<Type> && sizeof(Type) > 4) {
         to<JSON, glz::quoted_t<const Type>>::template op<Opts>(glz::quoted_t<const Type>{*value},
-                                                              std::forward<Args>(args)...);
+                                                               std::forward<Args>(args)...);
       } else {
         to<JSON, Type>::template op<Opts>(*value, std::forward<Args>(args)...);
       }
@@ -432,8 +432,8 @@ struct to<JSON, hpp::proto::optional_ref<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     if constexpr (std::is_same_v<Type, uint64_t>) {
-      static_assert(std::is_same_v<std::decay_t<decltype(*value)>,
-                                   glz::opts_wrapper_t<const uint64_t, &glz::opts::quoted_num>>);
+      static_assert(
+          std::is_same_v<std::decay_t<decltype(*value)>, glz::opts_wrapper_t<const uint64_t, &glz::opts::quoted_num>>);
     }
     if (bool(value)) {
       to<JSON, std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
@@ -738,7 +738,8 @@ struct [[nodiscard]] json_status final {
 };
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-inline json_status read_json(concepts::read_json_supported auto &value, concepts::contiguous_byte_range auto const &buffer,
+inline json_status read_json(concepts::read_json_supported auto &value,
+                             concepts::contiguous_byte_range auto const &buffer,
                              concepts::is_option_type auto &&...option) {
   using buffer_type = std::remove_cvref_t<decltype(buffer)>;
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<decltype(buffer)> ||
@@ -762,7 +763,8 @@ inline auto read_json(concepts::contiguous_byte_range auto const &buffer,
   }
 }
 
-inline json_status write_json(concepts::write_json_supported auto const &value, concepts::contiguous_byte_range auto &buffer,
+inline json_status write_json(concepts::write_json_supported auto const &value,
+                              concepts::contiguous_byte_range auto &buffer,
                               concepts::is_option_type auto &&...option) noexcept {
   constexpr auto opts = detail::get_glz_opts<decltype(option)...>();
   json_context ctx{std::forward<decltype(option)>(option)...};

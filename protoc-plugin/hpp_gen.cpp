@@ -1873,25 +1873,26 @@ struct glaze_meta_generator : code_generator {
       indent_num -= 4;
       fmt::format_to(target, "}};\n\n", indent());
     } else {
-      fmt::format_to(target,
-                     "namespace glz {{\n"
-                     "template <>\n"
-                     "struct to<JSON, {0}> {{\n"
-                     "  template <auto Opts>\n"
-                     "  GLZ_ALWAYS_INLINE static void op(auto &&, auto&& ...args) {{\n"
-                     "    serialize<JSON>::template op<Opts>(std::monostate{{}}, std::forward<decltype(args)>(args)...);\n"
-                     "  }}\n"
-                     "}};\n\n"
-                     "template <>\n"
-                     "struct from<JSON, {0}> {{\n"
-                     "  template <auto Opts>\n"
-                     "  GLZ_ALWAYS_INLINE static void op(auto &value, auto&& ...args) {{\n"
-                     "    parse<JSON>::template op<Opts>(std::monostate{{}}, std::forward<decltype(args)>(args)...);\n"
-                     "    value = {0}::NULL_VALUE;\n"
-                     "  }}\n"
-                     "}};\n"
-                     "}}\n\n",
-                     qualified_name);
+      fmt::format_to(
+          target,
+          "namespace glz {{\n"
+          "template <>\n"
+          "struct to<JSON, {0}> {{\n"
+          "  template <auto Opts>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&, auto&& ...args) {{\n"
+          "    serialize<JSON>::template op<Opts>(std::monostate{{}}, std::forward<decltype(args)>(args)...);\n"
+          "  }}\n"
+          "}};\n\n"
+          "template <>\n"
+          "struct from<JSON, {0}> {{\n"
+          "  template <auto Opts>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &value, auto&& ...args) {{\n"
+          "    parse<JSON>::template op<Opts>(std::monostate{{}}, std::forward<decltype(args)>(args)...);\n"
+          "    value = {0}::NULL_VALUE;\n"
+          "  }}\n"
+          "}};\n"
+          "}}\n\n",
+          qualified_name);
     }
   }
 };
