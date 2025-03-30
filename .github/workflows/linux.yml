@@ -50,6 +50,8 @@
               CXX=${CC/gcc/g++}
             elif [[ $CC == clang-* ]]; then
               CXX=${CC/clang/clang++}
+              sudo apt-get update
+              sudo apt-get install -y libc++-dev libc++abi-dev
               echo 'CXXFLAGS="-stdlib=libc++' >> "$GITHUB_ENV"
             fi
             echo "CXX=$CXX" >> "$GITHUB_ENV"
