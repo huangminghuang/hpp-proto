@@ -36,10 +36,10 @@ int main() {
   std::pmr::vector<std::byte> buffer{&pool};
   expect(hpp::proto::write_proto(message, buffer).ok());
 
+  auto any_demo = hpp::proto::read_proto<tutorial::AnyDemo>(buffer, hpp::proto::alloc_from{pool});
+  expect(any_demo.has_value());
   auto unpacked_result =
-      hpp::proto::read_proto<tutorial::AnyDemo>(buffer, hpp::proto::alloc_from{pool}).and_then([&pool](auto &&msg) {
-        return hpp::proto::unpack_any<tutorial::Person>(msg.any_value.value(), hpp::proto::alloc_from{pool});
-      });
+      hpp::proto::unpack_any<tutorial::Person>(any_demo.value().any_value.value(), hpp::proto::alloc_from{pool});
   expect(unpacked_result.has_value());
   expect(alex == unpacked_result.value());
 

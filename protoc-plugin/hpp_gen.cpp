@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <fstream>
 #include <google/protobuf/compiler/plugin.pb.hpp>
 #include <hpp_proto/descriptor_pool.hpp>

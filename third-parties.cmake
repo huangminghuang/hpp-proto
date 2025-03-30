@@ -28,7 +28,7 @@ if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
     message(FATAL_ERROR "is_utf8 is not compatible with address sanitizer")
 endif()
 
-CPMAddPackage("gh:fmtlib/fmt#10.1.0")
+CPMAddPackage("gh:fmtlib/fmt#11.1.4")
 set_target_properties(is_utf8 fmt PROPERTIES CXX_CLANG_TIDY "")
 
 
