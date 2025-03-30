@@ -35,7 +35,6 @@
 #include <system_error>
 #include <utility>
 
-
 #include <glaze/util/expected.hpp>
 
 #include <hpp_proto/memory_resource_utils.hpp>

@@ -728,8 +728,7 @@ constexpr glz::opts get_glz_opts() {
 } // namespace detail
 
 template <uint8_t width = 3>
-constexpr auto indent_level =
-    glz_opts_t<glz::opts{.prettify = (width > 0), .indentation_width = width}>{};
+constexpr auto indent_level = glz_opts_t<glz::opts{.prettify = (width > 0), .indentation_width = width}>{};
 
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
