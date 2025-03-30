@@ -33,6 +33,7 @@
 #include <memory>
 #include <numeric>
 #include <system_error>
+#include <utility>
 
 #include <expected>
 #include <hpp_proto/memory_resource_utils.hpp>

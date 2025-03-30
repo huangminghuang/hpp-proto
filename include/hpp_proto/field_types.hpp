@@ -27,7 +27,11 @@
 #include <cassert>
 #include <cstdint>
 #include <functional>
+#if defined(__cpp_lib_flat_map)
+#include <flat_map>
+#else
 #include <hpp_proto/flat_map.hpp>
+#endif
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -38,8 +42,13 @@
 #include <variant>
 #include <vector>
 namespace hpp::proto {
+#if defined(__cpp_lib_flat_map)
+using std::flat_map;
+using std::sorted_unique;
+#else
 using stdext::flat_map;
 using stdext::sorted_unique;
+#endif
 } // namespace hpp::proto
 
 namespace hpp::proto {
