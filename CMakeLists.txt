@@ -73,7 +73,7 @@ if(HPP_PROTO_ENABLE_SANITIZERS)
   endif()
 endif()
 
-set(CMAKE_CXX_FLAGS_COVERAGE "-g -O0 --coverage -fprofile-arcs -ftest-coverage")
+set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} -g -O0 --coverage -fprofile-arcs -ftest-coverage")
 
 if(HPP_PROTO_DISABLE_GLAZE)
   add_compile_definitions(BOOST_UT_DISABLE_MODULE HPP_PROTO_DISABLE_GLAZE)

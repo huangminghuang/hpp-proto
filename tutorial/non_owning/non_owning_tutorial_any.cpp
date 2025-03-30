@@ -38,7 +38,9 @@ int main() {
 
   auto any_demo = hpp::proto::read_proto<tutorial::AnyDemo>(buffer, hpp::proto::alloc_from{pool});
   expect(any_demo.has_value());
+
   auto unpacked_result =
+      // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
       hpp::proto::unpack_any<tutorial::Person>(any_demo.value().any_value.value(), hpp::proto::alloc_from{pool});
   expect(unpacked_result.has_value());
   expect(alex == unpacked_result.value());

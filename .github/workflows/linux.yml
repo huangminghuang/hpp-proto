@@ -50,7 +50,7 @@
               CXX=${CC/gcc/g++}
             elif [[ $CC == clang-* ]]; then
               CXX=${CC/clang/clang++}
-              CXXFLAGS="-stdlib=libc++"
+              echo 'CXXFLAGS="-stdlib=libc++' >> "$GITHUB_ENV"
             fi
             echo "CXX=$CXX" >> "$GITHUB_ENV"
         - uses: actions/checkout@v4
