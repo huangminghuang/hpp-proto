@@ -1080,7 +1080,7 @@ public:
   template <uint64_t SignBits>
   HPP_PROTO_INLINE bool fixed_masked_parse(uint64_t word) {
     uint64_t extract_mask = calc_extract_mask(SignBits);
-    if constexpr (std::countr_one(SignBits) < mask_length) {
+    if constexpr (std::cmp_less(std::countr_one(SignBits), mask_length)) {
       output((pext_u64(word, extract_mask) << shift_bits) | pt_val);
       constexpr unsigned bytes_processed = std::countr_one(SignBits) + 1;
       extract_mask = 0x7fULL << (CHAR_BIT * bytes_processed);

@@ -734,6 +734,7 @@ struct string_literal {
   [[nodiscard]] constexpr const char *data() const { return str.data(); }
   [[nodiscard]] constexpr const char *c_str() const { return str.data(); }
   [[nodiscard]] constexpr const char *begin() const { return str.data(); }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr const char *end() const { return str.data() + size(); }
 
   explicit operator std::string() const { return std::string{data()}; }

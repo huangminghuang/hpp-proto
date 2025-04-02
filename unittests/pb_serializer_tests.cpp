@@ -15,6 +15,7 @@ const ut::suite bit_cast_view_test = [] {
     constexpr auto data_size = 10;
     std::vector<int> data(data_size);
     constexpr auto chunk_size = sizeof(int);
+    // NOLINTNEXTLINE(modernize-use-ranges)
     std::iota(data.begin(), data.end(), 0);
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -1199,6 +1200,7 @@ const ut::suite test_segmented_byte_range = [] {
   "packed_int32_with_segmented_input"_test = [] {
     repeated_int32 value;
     value.integers.resize(32);
+    // NOLINTNEXTLINE(modernize-use-ranges)
     std::iota(value.integers.begin(), value.integers.end(), -15);
     std::vector<char> encoded;
     ut::expect(hpp::proto::write_proto(value, encoded).ok());
@@ -1521,7 +1523,7 @@ const ut::suite test_extensions = [] {
     ut::expect(value.extensions.fields[11] == "\x5a\x04\x74\x65\x73\x74"_bytes);
 
     ut::expect(value.set_extension(i32_defaulted_ext(), 10).ok());
-    ut::expect(value.extensions.fields.count(13) == 0);
+    ut::expect(value.extensions.fields.contains(13));
 
     ut::expect(value.set_extension(example_ext(), {.i = 150}).ok());
     ut::expect(value.extensions.fields[15] == "\x7a\x03\x08\x96\x01"_bytes);
