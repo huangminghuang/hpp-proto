@@ -1523,7 +1523,7 @@ const ut::suite test_extensions = [] {
     ut::expect(value.extensions.fields[11] == "\x5a\x04\x74\x65\x73\x74"_bytes);
 
     ut::expect(value.set_extension(i32_defaulted_ext(), 10).ok());
-    ut::expect(value.extensions.fields.contains(13));
+    ut::expect(!value.extensions.fields.contains(13));
 
     ut::expect(value.set_extension(example_ext(), {.i = 150}).ok());
     ut::expect(value.extensions.fields[15] == "\x7a\x03\x08\x96\x01"_bytes);
