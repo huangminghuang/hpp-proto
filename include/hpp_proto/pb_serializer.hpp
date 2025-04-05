@@ -1106,7 +1106,7 @@ public:
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     auto begin = std::ranges::cdata(r);
     auto end = std::ranges::cend(r);
-    end -= ((end - begin) % mask_length);
+    end -= (std::ranges::size(r) % mask_length);
     for (; begin < end; begin += mask_length) {
       uint64_t word = 0;
       std::memcpy(&word, begin, mask_length);
@@ -1921,14 +1921,14 @@ struct pb_serializer {
     }
 
     template <typename T>
-    constexpr status deserialize_packed(std::ptrdiff_t n, T &item) {
+    constexpr status deserialize_packed(std::size_t n, T &item) {
       using value_type = typename T::value_type;
-      std::size_t nbytes = static_cast<std::size_t>(n) * sizeof(value_type);
-      if (in_avail() < static_cast<std::ptrdiff_t>(nbytes)) [[unlikely]] {
+      std::size_t nbytes = n * sizeof(value_type);
+      if (std::cmp_less(in_avail(), nbytes)) [[unlikely]] {
         return std::errc::bad_message;
       }
 
-      item.reserve(static_cast<std::size_t>(n));
+      item.reserve(n);
       if constexpr (contiguous) {
         append_raw_data(item, current.consume(nbytes));
       } else {
@@ -2088,7 +2088,7 @@ struct pb_serializer {
     }
 
     constexpr status skip(std::size_t length) {
-      if (in_avail() < static_cast<int64_t>(length)) [[unlikely]] {
+      if (std::cmp_less(in_avail(), length)) [[unlikely]] {
         return std::errc::bad_message;
       }
       current.consume(length);
@@ -2099,7 +2099,7 @@ struct pb_serializer {
     // return the first half and set the current
     // object as the second half.
     constexpr auto split(std::size_t length) {
-      assert(in_avail() >= static_cast<std::ptrdiff_t>(length));
+      assert(std::cmp_greater_equal(in_avail(), length));
       auto new_slope_distance = current.slope_distance() + static_cast<std::ptrdiff_t>(length);
       std::ptrdiff_t new_size_exclude_current = 0;
       if constexpr (contiguous) {
@@ -2112,7 +2112,7 @@ struct pb_serializer {
             context};
       } else {
         if (new_slope_distance > 0) {
-          if (new_slope_distance <= static_cast<std::ptrdiff_t>(slope_size)) {
+          if (std::cmp_less_equal(new_slope_distance, slope_size)) {
             new_size_exclude_current = new_slope_distance;
           } else {
             new_size_exclude_current = size_exclude_current - new_slope_distance;
@@ -2129,7 +2129,7 @@ struct pb_serializer {
 
     template <concepts::non_owning_bytes T>
     constexpr status read_bytes(uint32_t length, T &item) {
-      assert(region_size() >= static_cast<int32_t>(length));
+      assert(std::cmp_greater_equal(region_size(), length));
       auto data = current.consume(length);
       item = T{(const typename T::value_type *)data.data(), length};
       return {};
@@ -2243,7 +2243,7 @@ struct pb_serializer {
 
     if constexpr (concepts::associative_container<fields_type>) {
       auto &value = item.extensions.fields[field_num];
-      return field_archive.deserialize_packed(field_archive.in_avail(), value);
+      return field_archive.deserialize_packed(field_len, value);
     } else {
       static_assert(concepts::dynamic_sized_view<fields_type>);
       auto &fields = item.extensions.fields;
@@ -2273,7 +2273,7 @@ struct pb_serializer {
       }
       // the extension with the same field number exists, append the content to the previously parsed.
       decltype(auto) v = detail::as_modifiable(field_archive.context, itr->second);
-      return field_archive.deserialize_packed(field_archive.in_avail(), v);
+      return field_archive.deserialize_packed(field_len, v);
     }
   }
 
@@ -2386,7 +2386,7 @@ struct pb_serializer {
         return archive.deserialize_packed_boolean(byte_count, size, v);
       } else if constexpr (concepts::byte_deserializable<encode_type>) {
         v.resize(0);
-        return archive.deserialize_packed(static_cast<std::ptrdiff_t>(size), v);
+        return archive.deserialize_packed(size, v);
       } else if constexpr (concepts::is_enum<encode_type>) {
         return archive.template deserialize_packed_varint<vint64_t>(byte_count, size, v);
       } else {

@@ -358,7 +358,7 @@ class dynamic_serializer {
         return ec;
       }
 
-      if (archive.in_avail() < static_cast<std::ptrdiff_t>(length)) {
+      if (std::cmp_less(archive.in_avail(), length)) {
         [[unlikely]] return std::errc::bad_message;
       }
 
@@ -466,7 +466,7 @@ class dynamic_serializer {
         return group_to_json<Options>(meta.type_index, meta.number, archive);
       case TYPE_MESSAGE: {
         vuint32_t length = 0;
-        if (!archive(length).ok() || archive.in_avail() < static_cast<std::ptrdiff_t>(length)) [[unlikely]] {
+        if (!archive(length).ok() || std::cmp_less(archive.in_avail(), length)) [[unlikely]] {
           return std::errc::bad_message;
         }
 
