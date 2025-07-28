@@ -23,6 +23,7 @@
 #pragma once
 #include <system_error>
 #include <unordered_map>
+#include <utility>
 
 #include <hpp_proto/descriptor_pool.hpp>
 #include <hpp_proto/duration_codec.hpp>
@@ -358,7 +359,7 @@ class dynamic_serializer {
         return ec;
       }
 
-      if (std::cmp_less(archive.in_avail(), length)) {
+      if (std::cmp_less(archive.in_avail(), length.value)) {
         [[unlikely]] return std::errc::bad_message;
       }
 
@@ -466,7 +467,7 @@ class dynamic_serializer {
         return group_to_json<Options>(meta.type_index, meta.number, archive);
       case TYPE_MESSAGE: {
         vuint32_t length = 0;
-        if (!archive(length).ok() || std::cmp_less(archive.in_avail(), length)) [[unlikely]] {
+        if (!archive(length).ok() || std::cmp_less(archive.in_avail(), length.value)) [[unlikely]] {
           return std::errc::bad_message;
         }
 
