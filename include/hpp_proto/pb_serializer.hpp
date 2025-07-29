@@ -34,8 +34,7 @@
 #include <numeric>
 #include <system_error>
 #include <utility>
-
-#include <glaze/util/expected.hpp>
+#include <expected>
 
 #include <hpp_proto/memory_resource_utils.hpp>
 
@@ -61,8 +60,8 @@ bool is_utf8(const char *src, size_t len);
 }
 
 namespace hpp::proto {
-using glz::expected;
-using glz::unexpected;
+using std::expected;
+using std::unexpected;
 
 constexpr bool utf8_validation_failed(auto meta, const auto &str) {
 #if HPP_PROTO_NO_UTF8_VALIDATION
