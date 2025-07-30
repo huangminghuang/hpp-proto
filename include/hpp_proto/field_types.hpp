@@ -302,9 +302,9 @@ public:
   constexpr auto transform(F &&f) & {
     using U = std::remove_cv_t<std::invoke_result_t<F, T &>>;
     if (has_value()) {
-      return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
+      return optional<U>{std::invoke(std::forward<F>(f), _value)};
     } else {
-      return std::optional<U>{};
+      return optional<U>{};
     }
   }
 
@@ -312,9 +312,9 @@ public:
   constexpr auto transform(F &&f) const & {
     using U = std::remove_cv_t<std::invoke_result_t<F, const T &>>;
     if (has_value()) {
-      return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
+      return optional<U>{std::invoke(std::forward<F>(f), _value)};
     } else {
-      return std::optional<U>{};
+      return optional<U>{};
     }
   }
 
@@ -322,9 +322,9 @@ public:
   constexpr auto transform(F &&f) && {
     using U = std::remove_cv_t<std::invoke_result_t<F, T>>;
     if (has_value()) {
-      return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
+      return optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
     } else {
-      return std::optional<U>{};
+      return optional<U>{};
     }
   }
 
@@ -332,9 +332,9 @@ public:
   constexpr auto transform(F &&f) const && {
     using U = std::remove_cv_t<std::invoke_result_t<F, const T>>;
     if (has_value()) {
-      return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
+      return optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
     } else {
-      return std::optional<U>{};
+      return optional<U>{};
     }
   }
 
@@ -788,10 +788,12 @@ inline const char *message_name(auto &&v)
 
 template <concepts::flat_map T>
 constexpr static void reserve(T &mut, std::size_t size) {
-  typename T::key_container_type keys;
-  typename T::mapped_container_type values;
-  keys.reserve(size);
-  values.reserve(size);
-  mut.replace(std::move(keys), std::move(values));
+  if (size > mut.keys().capacity() || size > mut.values().capacity()) {  
+    typename T::key_container_type keys(mut.keys().begin(), mut.keys().end());
+    typename T::mapped_container_type values(mut.values().begin(), mut.values().end());
+    keys.reserve(size);
+    values.reserve(size);
+    mut.replace(std::move(keys), std::move(values));
+  }
 }
 } // namespace hpp::proto
