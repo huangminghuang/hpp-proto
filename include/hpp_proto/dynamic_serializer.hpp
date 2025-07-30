@@ -479,7 +479,7 @@ class dynamic_serializer {
 
         auto new_archive = archive.split(length);
         return message_to_json<Options>(std::get<const message_meta *>(meta.type_info), meta.is_map_entry(),
-                                     new_archive);
+                                        new_archive);
       }
       case TYPE_BYTES:
         return field_type_to_json<Options, std::vector<std::byte>>(false, archive, [](const auto &) { return true; });
@@ -1034,7 +1034,7 @@ class dynamic_serializer {
       case TYPE_MESSAGE: {
         return serialize_sized(meta.number, archive, [this, &meta, &it, &end](auto &archive) {
           return this->message_to_pb<Options>(std::get<const message_meta *>(meta.type_info), it, end,
-                                            meta.is_map_entry(), archive);
+                                              meta.is_map_entry(), archive);
         });
       }
       case TYPE_BYTES:
@@ -1197,7 +1197,7 @@ class dynamic_serializer {
         return serialize_sized(meta->fields[kind_struct].number, archive, [&](auto &archive) {
           auto meta = msg_meta.fields[0];
           return this->message_to_pb<Options>(std::get<const message_meta *>(meta.type_info), it, end,
-                                            meta.is_map_entry(), archive);
+                                              meta.is_map_entry(), archive);
         });
       }
       case '[': {

@@ -788,7 +788,7 @@ inline const char *message_name(auto &&v)
 
 template <concepts::flat_map T>
 constexpr static void reserve(T &mut, std::size_t size) {
-  if (size > mut.keys().capacity() || size > mut.values().capacity()) {  
+  if (size > mut.keys().capacity() || size > mut.values().capacity()) {
     typename T::key_container_type keys(mut.keys().begin(), mut.keys().end());
     typename T::mapped_container_type values(mut.values().begin(), mut.values().end());
     keys.reserve(size);
