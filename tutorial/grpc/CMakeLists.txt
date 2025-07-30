@@ -1,8 +1,31 @@
 find_package(gRPC CONFIG 1.51)
 
 if(gRPC_FOUND AND NOT HPP_PROTO_ENABLE_SANITIZERS)
-    message("Found gRPC ${gRPC_VERSION} at ${gRPC_DIR}")
-## when sanitizer is enable, we can't use gRPC unless the gRPC library is built with sanitizer.
+    if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+        include(CheckCXXSymbolExists)
+
+        # Check for libc++
+        check_cxx_symbol_exists(_LIBCPP_VERSION "<version>" LIBCPP_FOUND)
+        if(LIBCPP_FOUND)
+            get_target_property(LIBGRPC_PATH gRPC::grpc++ LOCATION)
+            execute_process(
+                COMMAND ldd "${LIBGRPC_PATH}"
+                OUTPUT_VARIABLE LDD_OUTPUT
+                RESULT_VARIABLE LDD_RESULT
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
+            if(LDD_RESULT EQUAL 0)
+                string(FIND LDD_OUTPUT "libc++" LIBCXX_FOUND)
+                if(LIBCXX_FOUND EQUAL -1)
+                    message(WARNING "gRPC library is not built with libc++. Skipping grpc example.")
+                endif()
+            else()
+                message(FATAL_ERROR "Failed to run ldd on gRPC library: ${LDD_OUTPUT}")
+            endif()
+        endif()
+    endif()
+
+    # # when sanitizer is enable, we can't use gRPC unless the gRPC library is built with sanitizer.
     add_library(helloworld INTERFACE)
 
     protobuf_generate_hpp(TARGET helloworld
@@ -25,10 +48,11 @@ if(gRPC_FOUND AND NOT HPP_PROTO_ENABLE_SANITIZERS)
         helloworld)
 
     find_program(BASH_PATH bash)
+
     if(BASH_PATH)
         add_test(NAME greeter_test
             COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/greeter_test.sh
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-        set_tests_properties(greeter_test PROPERTIES TIMEOUT 30) 
+        set_tests_properties(greeter_test PROPERTIES TIMEOUT 30)
     endif()
 endif()
