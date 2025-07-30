@@ -1,6 +1,7 @@
 find_package(gRPC CONFIG 1.51)
 
 if(gRPC_FOUND AND NOT HPP_PROTO_ENABLE_SANITIZERS)
+    message("Found gRPC ${gRPC_VERSION} at ${gRPC_DIR}")
 ## when sanitizer is enable, we can't use gRPC unless the gRPC library is built with sanitizer.
     add_library(helloworld INTERFACE)
 
