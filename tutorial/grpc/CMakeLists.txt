@@ -1,12 +1,20 @@
 find_package(gRPC CONFIG 1.51)
 
 if(gRPC_FOUND AND NOT HPP_PROTO_ENABLE_SANITIZERS)
-    if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-        include(CheckCXXSymbolExists)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        include(CheckCXXSourceCompiles)
 
         # Check for libc++
-        check_cxx_symbol_exists(_LIBCPP_VERSION "<version>" LIBCPP_FOUND)
-        if(LIBCPP_FOUND)
+        check_cxx_source_compiles("
+            #include <string>
+            #ifdef _LIBCPP_VERSION
+            int main() { return 0; }
+            #else
+            #error Not libc++
+            #endif
+            " HAS_LIBCXX)
+
+        if(HAS_LIBCXX)
             get_target_property(LIBGRPC_PATH gRPC::grpc++ LOCATION)
             execute_process(
                 COMMAND ldd "${LIBGRPC_PATH}"
@@ -18,6 +26,7 @@ if(gRPC_FOUND AND NOT HPP_PROTO_ENABLE_SANITIZERS)
                 string(FIND LDD_OUTPUT "libc++" LIBCXX_FOUND)
                 if(LIBCXX_FOUND EQUAL -1)
                     message(WARNING "gRPC library is not built with libc++. Skipping grpc example.")
+                    return()
                 endif()
             else()
                 message(FATAL_ERROR "Failed to run ldd on gRPC library: ${LDD_OUTPUT}")
