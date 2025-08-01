@@ -12,7 +12,7 @@ set(CMAKE_REQUIRED_LIBRARIES gRPC::grpc++)
 check_cxx_source_compiles("
       #include <grpcpp/grpcpp.h>
       int main() {
-        grpc::ChannelArguments args;
+        grpc::CreateChannel(\"127.0.0.0:1234\", grpc::InsecureChannelCredentials());
         return 0;
       }
     " GRPC_COMPILES)
