@@ -110,6 +110,7 @@ const ut::suite test_duration = [] {
   expect(fatal((ser.has_value())));
 
   verify<duration_t>(*ser, duration_t{.seconds = 1000}, R"("1000s")");
+  verify<duration_t>(*ser, duration_t{.seconds = -1000, .nanos = 0}, R"("-1000s")");
   verify<duration_t>(*ser, duration_t{.seconds = 1000, .nanos = 20}, R"("1000.000000020s")");
   verify<duration_t>(*ser, duration_t{.seconds = -1000, .nanos = -20}, R"("-1000.000000020s")");
 
@@ -121,7 +122,12 @@ const ut::suite test_duration = [] {
   ut::expect(msg == duration_t{.seconds = -1000, .nanos = -200000000});
 
   ut::expect(!hpp::proto::read_json(msg, R"("1000")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1000.s")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("1000.2xs")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("abcs")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("-1.s")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"(" 1s")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1s ")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("-1000.-10000000s")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("-1000. 10000000s")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("1000.0000000000000000s")").ok());

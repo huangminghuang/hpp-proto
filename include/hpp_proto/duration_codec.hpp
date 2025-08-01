@@ -32,7 +32,7 @@ struct duration_codec {
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-rvalue-reference-param-not-moved)
   static int64_t encode(auto const &value, auto &&b) noexcept {
     // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    auto has_same_sign = [](auto x, auto y) { return (x ^ y) >= 0; };
+    auto has_same_sign = [](auto x, auto y) { return y == 0 || (x ^ y) >= 0; };
     if (value.nanos > 999999999 || !has_same_sign(value.seconds, value.nanos)) [[unlikely]] {
       return -1;
     }
@@ -56,48 +56,46 @@ struct duration_codec {
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   static bool decode(auto const &json, auto &value) {
-    if (json.empty() || json.front() == ' ' || json.back() != 's') {
+    std::string_view s = json;
+    if (s.empty() || s.back() != 's') {
       return false;
     }
-    const char *beg = std::data(json);
-    const char *end = beg + std::size(json) - 1; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    char *it = nullptr;
+    s.remove_suffix(1); // Remove the 's'
 
-    value.seconds = std::strtoll(beg, &it, 10);
-    if (it == beg) [[unlikely]] {
+    bool is_negative = false;
+    if (s.starts_with('-')) {
+      is_negative = true;
+      s.remove_prefix(1);
+    }
+
+    auto from_chars = [](std::string_view s, auto &value) noexcept {
+      auto r = std::from_chars(s.data(), s.data() + s.size(), value);
+      return r.ptr == s.data() + s.size() && r.ec == std::errc();
+    };
+
+    auto point_pos = s.find('.');
+    if (!from_chars(s.substr(0, point_pos), value.seconds)) {
       return false;
     }
 
-    if (it == end) {
+    if (point_pos == std::string_view::npos) {
       value.nanos = 0;
-      return true;
-    }
-
-    if (*it != '.') {
-      return false;
-    }
-
-    ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
-    if ((end - it) > 9 || *it < '0' || *it > '9') [[unlikely]] {
-      return false;
-    }
-
-    if ((end - it) == 9) [[likely]] {
-      value.nanos = std::strtoul(it, &it, 10);
-      if (it != end) {
-        return false;
-      }
     } else {
-      char nanos_buf[10] = "000000000";
-      std::copy(const_cast<const char *>(it), end, std::begin(nanos_buf));
-      value.nanos = std::strtoul(&nanos_buf[0], &it, 10);
-      if (it != std::end(nanos_buf) - 1) { // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      std::string_view nanos_str = s.substr(point_pos + 1);
+      if (nanos_str.starts_with('-') || nanos_str.length() > 9) {
         return false;
+      }
+      if (!from_chars(nanos_str, value.nanos)) {
+        return false;
+      }
+      // Scale nanos to 9 digits
+      for (size_t i = nanos_str.length(); i < 9; ++i) {
+        value.nanos *= 10;
       }
     }
 
-    if (value.seconds < 0) {
+    if (is_negative) {
+      value.seconds = -value.seconds;
       value.nanos = -value.nanos;
     }
     return true;
