@@ -206,6 +206,22 @@ const ut::suite test_base64 = [] {
   verify("foob", "Zm9vYg==");
   verify("fooba", "Zm9vYmE=");
   verify("foobar", "Zm9vYmFy");
+
+  using namespace boost::ut;
+
+  "invalid_decode"_test = [] {
+    using namespace boost::ut;
+    using namespace std::literals::string_view_literals;
+    std::string result;
+    // The decoder should reject invalid base64 strings.
+    // 1. Invalid characters
+    expect(!hpp::proto::base64::decode("bGlnaHQgd29yay4-"sv, result));
+    // 2. Padding in the middle
+    expect(!hpp::proto::base64::decode("Zg==YWJj"sv, result));
+    // 3. Incorrect padding
+    expect(!hpp::proto::base64::decode("Zm9vYg="sv, result)); // "foob" is "Zm9vYg=="
+    expect(!hpp::proto::base64::decode("Zm9vYmE=="sv, result)); // "fooba" is "Zm9vYmE="
+  };
 };
 
 using source_location = boost::ut::reflection::source_location;

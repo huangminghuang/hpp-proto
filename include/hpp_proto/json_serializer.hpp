@@ -197,16 +197,43 @@ struct base64 {
     std::size_t ix = 0;
 
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    if (n >= 3) {
-      for (i = 0; i <= n - 3; i += 3) {
-        uint32_t x = 0;
+    // Unroll loop to process 24 bytes at a time for performance
+    if (n >= 24) {
+      for (i = 0; i <= n - 24; i += 24) {
+        // Process 8 chunks of 3 bytes
+        for (std::size_t j = 0; j < 8U; ++j) {
+            uint32_t x = 0;
+            std::memcpy(&x, &source[i + j * 3], 3);
 
+            if constexpr (std::endian::native == std::endian::little) {
+              b[ix++] = static_cast<V>(base64_chars[(x >> 2U) & 0x3FU]);
+              b[ix++] = static_cast<V>(base64_chars[((x << 4U) & 0x30U) | ((x >> 12U) & 0x0FU)]);
+              b[ix++] = static_cast<V>(base64_chars[((x >> 6U) & 0x3CU) | ((x >> 22U) & 0x3FU)]);
+              b[ix++] = static_cast<V>(base64_chars[(x >> 16U) & 0x3FU]);
+            } else {
+              x >>= 8U;
+              b[ix + 3] = static_cast<V>(base64_chars[x & 0x3FU]);
+              x >>= 6U;
+              b[ix + 2] = static_cast<V>(base64_chars[x & 0x3FU]);
+              x >>= 6U;
+              b[ix + 1] = static_cast<V>(base64_chars[x & 0x3FU]);
+              x >>= 6U;
+              b[ix] = static_cast<V>(base64_chars[x & 0x3FU]);
+              ix += 4;
+            }
+        }
+      }
+    }
+
+    // Process remaining chunks of 3 bytes
+    for (; i + 2 < n; i += 3) {
+        uint32_t x = 0;
         std::memcpy(&x, &source[i], 3);
 
         if constexpr (std::endian::native == std::endian::little) {
           b[ix++] = static_cast<V>(base64_chars[(x >> 2U) & 0x3FU]);
           b[ix++] = static_cast<V>(base64_chars[((x << 4U) & 0x30U) | ((x >> 12U) & 0x0FU)]);
-          b[ix++] = static_cast<V>(base64_chars[((x >> 6U) & 0x3CU) | (x >> 22U)]);
+          b[ix++] = static_cast<V>(base64_chars[((x >> 6U) & 0x3CU) | ((x >> 22U) & 0x3FU)]);
           b[ix++] = static_cast<V>(base64_chars[(x >> 16U) & 0x3FU]);
         } else {
           x >>= 8U;
@@ -219,19 +246,22 @@ struct base64 {
           b[ix] = static_cast<V>(base64_chars[x & 0x3FU]);
           ix += 4;
         }
-      }
     }
 
-    if (i != n) {
-      b[ix++] = static_cast<V>(base64_chars[((static_cast<unsigned>(source[i]) >> 2U) & 0x3FU)]);
-      unsigned const next = (i + 1 < n) ? static_cast<unsigned>(source[i + 1]) : 0U;
-      b[ix++] = static_cast<V>(base64_chars[(static_cast<unsigned>(source[i]) << 4U & 0x3FU) | ((next >> 4U) & 0x0FU)]);
-      if (i + 1 < n) {
-        b[ix++] = static_cast<V>(base64_chars[(next << 2U & 0x3FU)]);
-      } else {
-        b[ix++] = static_cast<V>('=');
-      }
-      b[ix++] = static_cast<V>('=');
+    // Handle remaining bytes
+    if (i < n) {
+        uint8_t b1 = static_cast<uint8_t>(source[i]);
+        b[ix++] = static_cast<V>(base64_chars[b1 >> 2]);
+        if (i + 1 < n) { // 2 bytes left
+            uint8_t b2 = static_cast<uint8_t>(source[i+1]);
+            b[ix++] = static_cast<V>(base64_chars[((b1 & 0x03) << 4) | (b2 >> 4)]);
+            b[ix++] = static_cast<V>(base64_chars[(b2 & 0x0f) << 2]);
+            b[ix++] = '=';
+        } else { // 1 byte left
+            b[ix++] = static_cast<V>(base64_chars[(b1 & 0x03) << 4]);
+            b[ix++] = '=';
+            b[ix++] = '=';
+        }
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
     return static_cast<int64_t>(ix);
@@ -266,30 +296,45 @@ struct base64 {
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64};
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64};
     auto start = source.begin();
 
     size_t j = 0;
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     while (start != source.end()) {
-      uint32_t const a = decode_table[static_cast<uint8_t>(*start++)];
-      uint32_t const b = decode_table[static_cast<uint8_t>(*start++)];
-      uint32_t const c = decode_table[static_cast<uint8_t>(*start++)];
-      uint32_t const d = decode_table[static_cast<uint8_t>(*start++)];
-      uint32_t const triple = (a << 3U * 6) + (b << 2U * 6) + (c << 1U * 6) + (d << 0U * 6);
+      uint8_t ch_a = static_cast<uint8_t>(*start++);
+      uint8_t ch_b = static_cast<uint8_t>(*start++);
+      uint8_t ch_c = static_cast<uint8_t>(*start++);
+      uint8_t ch_d = static_cast<uint8_t>(*start++);
+
+      uint32_t const a = decode_table[ch_a];
+      uint32_t const b = decode_table[ch_b];
+      uint32_t const c = decode_table[ch_c];
+      uint32_t const d = decode_table[ch_d];
+
+      if ((a | b | c | d) >= 64) {
+          // Invalid character found. It might be padding.
+          if (ch_d == '=' && ch_c == '=') { // XY==
+              if (start != source.end()) return false; // padding must be at the end
+              if (c != 64 || d != 64) return false; // should not happen with '='
+          } else if (ch_d == '=') { // XYZ=
+              if (start != source.end()) return false;
+              if (d != 64) return false;
+          } else {
+              return false; // Not a valid padding sequence or invalid char
+          }
+      }
+
+      uint32_t const triple = (a << 18) + (b << 12) + (c << 6) + d;
 
       using byte = std::ranges::range_value_t<decltype(value)>;
 
-      value[j++] = static_cast<byte>((triple >> 2U * 8) & 0xFFU);
-      if (j < value.size()) {
-        value[j++] = static_cast<byte>((triple >> 1U * 8) & 0xFFU);
-      }
-      if (j < value.size()) {
-        value[j++] = static_cast<byte>((triple >> 0U * 8) & 0xFFU);
-      }
+      if (j < len) value[j++] = static_cast<byte>((triple >> 16) & 0xFF);
+      if (j < len) value[j++] = static_cast<byte>((triple >> 8) & 0xFF);
+      if (j < len) value[j++] = static_cast<byte>((triple >> 0) & 0xFF);
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
-    return true;
+    return j == len;
   }
 };
 
