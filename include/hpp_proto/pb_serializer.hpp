@@ -1960,37 +1960,14 @@ struct pb_serializer {
     }
 #endif // x64
     template <typename Item>
-    constexpr status deserialize_packed_boolean(std::uint32_t bytes_count, std::size_t size, Item &item) {
+    constexpr status deserialize_packed_boolean(std::size_t size, Item &item) {
       item.resize(size);
-      if constexpr (contiguous) {
-        for (auto &v : item) {
-          if (auto r = deserialize(v); !r.ok()) [[unlikely]] {
-            return r;
-          }
-        }
-      } else {
-        auto parse_booleans_in_region = [](auto &current, auto &&it) -> status {
-          while (current.size()) {
-            auto p = unchecked_parse_bool(current, *it);
-            if (p > current._end) [[unlikely]] {
-              return std::errc::bad_message;
-            }
-            current.advance_to(p);
-            ++it;
-          }
-          return std::errc{};
-        };
-        auto it = item.begin();
-        while (bytes_count > 0) {
+      for (auto &v : item) {
+        if constexpr (!contiguous) {
           maybe_advance_region();
-          auto data = current.consume_packed_varints(bytes_count);
-          if (data.empty()) [[unlikely]] {
-            return std::errc::bad_message;
-          }
-          bytes_count -= static_cast<std::uint32_t>(data.size());
-          if (auto result = parse_booleans_in_region(data, it); !result.ok()) [[unlikely]] {
-            return result;
-          }
+        }
+        if (auto r = deserialize(v); !r.ok()) [[unlikely]] {
+          return r;
         }
       }
       return {};
@@ -2382,7 +2359,7 @@ struct pb_serializer {
       }
       std::size_t size = *n;
       if constexpr (std::same_as<encode_type, boolean> || std::same_as<encode_type, bool>) {
-        return archive.deserialize_packed_boolean(byte_count, size, v);
+        return archive.deserialize_packed_boolean(size, v);
       } else if constexpr (concepts::byte_deserializable<encode_type>) {
         v.resize(0);
         return archive.deserialize_packed(size, v);
