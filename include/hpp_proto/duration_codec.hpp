@@ -68,13 +68,13 @@ struct duration_codec {
       s.remove_prefix(1);
     }
 
-    auto from_chars = [](std::string_view s, auto &value) noexcept {
+    auto from_str_view = [](std::string_view s, auto &value) noexcept {
       auto r = std::from_chars(s.data(), s.data() + s.size(), value);
       return r.ptr == s.data() + s.size() && r.ec == std::errc();
     };
 
     auto point_pos = s.find('.');
-    if (!from_chars(s.substr(0, point_pos), value.seconds)) {
+    if (!from_str_view(s.substr(0, point_pos), value.seconds)) {
       return false;
     }
 
@@ -85,7 +85,7 @@ struct duration_codec {
       if (nanos_str.starts_with('-') || nanos_str.length() > 9) {
         return false;
       }
-      if (!from_chars(nanos_str, value.nanos)) {
+      if (!from_str_view(nanos_str, value.nanos)) {
         return false;
       }
       // Scale nanos to 9 digits

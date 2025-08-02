@@ -45,6 +45,7 @@ struct timestamp_codec {
       assert(val < 100);
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
       std::memcpy(buf, &glz::char_table[val * 2], 2);
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-pinter-arithmetic)
       buf += 2;
     }
     *buf++ = sep;
@@ -56,11 +57,9 @@ struct timestamp_codec {
       return -1;
     }
     using namespace std::chrono;
-    const auto seconds_in_a_day = seconds(24h).count();
-
-    hh_mm_ss hms{seconds(value.seconds % seconds_in_a_day) + (value.seconds < 0 ? 24h : 0h)};
-    year_month_day ymd{time_point<system_clock, days>(days(value.seconds / seconds_in_a_day)) -
-                       (value.seconds < 0 ? days(1) : days(0))};
+    auto tp = sys_seconds{seconds(value.seconds)};
+    auto ymd = year_month_day{floor<days>(tp)};
+    auto hms = hh_mm_ss{floor<seconds>(tp) - floor<days>(tp)};
 
     char *buf = static_cast<char *>(std::data(b));
     buf = fixed_len_to_chars<4, '-'>(buf, (int)ymd.year());
@@ -78,44 +77,39 @@ struct timestamp_codec {
     return buf - static_cast<char *>(std::data(b));
   }
 
-  // returns number of digits parsed
-  static bool parse_decimal(int32_t &v, std::string_view str) {
-    v = 0;
-    for (char digit : str) {
-      if (digit < '0' || digit > '9') [[unlikely]] {
-        return false;
-      }
-      v = (v * 10) + (digit - '0');
-    }
-    return true;
-  }
-
   static bool decode(auto &&json, auto &&value) {
-    if (json.size() < std::size("yyyy-mm-ddThh:mm:ss") || json.size() > std::size("yyyy-mm-ddThh:mm:ss.000000000") ||
-        json.back() != 'Z') [[unlikely]] {
-      return false;
+    std::string_view sv = json;
+    if (sv.empty() || sv.back() != 'Z')[[unlikely]] {
+        return false;
     }
+    sv.remove_suffix(1); // Remove 'Z'
 
-    const char *cur = json.data();
-    const char *end = json.data() + json.size() - 1;
+    const char* ptr = sv.data();
+    const char* end = ptr + sv.size();
 
     // NOLINTNEXTLINE(readability-isolate-declaration,cppcoreguidelines-init-variables)
     int32_t yy, mm, dd, hh, mn, ss;
 
     // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-    auto parse_digits_with_separator = [&cur](int32_t &v, std::size_t sz, char separator) {
-      if (!parse_decimal(v, std::string_view{cur, sz})) [[unlikely]] {
-        return false;
-      }
-      cur += sz;
-      return separator == '\0' || *cur++ == separator;
+    auto parse_with_separator = [&](int32_t& val, size_t width, char sep) -> bool {
+        if (ptr + width > end) return false;
+        auto res = std::from_chars(ptr, ptr + width, val);
+        if (res.ec != std::errc{} || res.ptr != ptr + width) return false;
+        ptr += width;
+        if (sep != '\0') {
+            if (ptr >= end || *ptr != sep) return false;
+            ptr++;
+        }
+        return true;
     };
-    // NOLINTEND(bugprone-easily-swappable-parameters)
 
-    if (!parse_digits_with_separator(yy, 4, '-') || !parse_digits_with_separator(mm, 2, '-') ||
-        !parse_digits_with_separator(dd, 2, 'T') || !parse_digits_with_separator(hh, 2, ':') ||
-        !parse_digits_with_separator(mn, 2, ':') || !parse_digits_with_separator(ss, 2, '\0')) [[unlikely]] {
-      return false;
+    if (!parse_with_separator(yy, 4, '-') || 
+        !parse_with_separator(mm, 2, '-') ||
+        !parse_with_separator(dd, 2, 'T') ||
+        !parse_with_separator(hh, 2, ':') ||
+        !parse_with_separator(mn, 2, ':') ||
+        !parse_with_separator(ss, 2, '\0')) [[unlikely]]{
+        return false;
     }
 
     using namespace std::chrono;
@@ -125,23 +119,34 @@ struct timestamp_codec {
             .time_since_epoch()
             .count();
 
-    if (cur == end) {
+    if (ptr == end) {
+      value.nanos = 0;
       return true;
     }
 
-    if (*cur++ != '.') [[unlikely]] {
+    if (*ptr++ != '.') [[unlikely]]{
       return false;
     }
 
-    std::string_view nanos_digits{cur, static_cast<std::size_t>(end - cur)};
-
-    if (nanos_digits.size() > 9 || !parse_decimal(value.nanos, nanos_digits)) [[unlikely]] {
+    std::string_view nanos_sv{ptr, static_cast<std::size_t>(end - ptr)};
+    if (nanos_sv.empty() || nanos_sv.length() > 9) [[unlikely]] {
       return false;
     }
 
-    static int pow10[9] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-    value.nanos *= pow10[9 - nanos_digits.size()];
+    auto from_str_view = [](std::string_view s, auto &value) noexcept {
+      auto r = std::from_chars(s.data(), s.data() + s.size(), value);
+      return r.ptr == s.data() + s.size() && r.ec == std::errc();
+    };
+
+    if (!from_str_view(nanos_sv, value.nanos)) [[unlikely]]{
+        return false;
+    }
+
+    // Scale nanos to 9 digits
+    for (size_t i = nanos_sv.length(); i < 9; ++i) {
+        value.nanos *= 10;
+    }
+
     return true;
   }
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
