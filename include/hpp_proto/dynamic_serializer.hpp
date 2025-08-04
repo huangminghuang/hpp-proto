@@ -1474,9 +1474,10 @@ public:
     std::ranges::sort(protobuf_wrapper_type_message_indices);
 
     // erase the invalid indices in protobuf_wrapper_type_message_indices
-    auto to_remove = std::ranges::remove_if(protobuf_wrapper_type_message_indices,
-                                            [max_index = messages.size()](auto i) { return i >= max_index; });
-    protobuf_wrapper_type_message_indices.erase(to_remove.begin(), to_remove.end());
+    auto first_invalid = std::lower_bound(protobuf_wrapper_type_message_indices.begin(), 
+                                          protobuf_wrapper_type_message_indices.end(), 
+                                          messages.size());
+    protobuf_wrapper_type_message_indices.erase(first_invalid, protobuf_wrapper_type_message_indices.end());
   }
 
   static auto make(concepts::contiguous_byte_range auto const &stream) {
