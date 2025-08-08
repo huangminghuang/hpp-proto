@@ -27,7 +27,8 @@
 namespace hpp::proto {
 
 template <typename FlatMap>
-void reserve(FlatMap &m, std::size_t s) {
+void initial_reserve(FlatMap &m, std::size_t s) {
+  assert(m.empty());
   typename FlatMap::key_container_type keys;
   typename FlatMap::mapped_container_type values;
   keys.reserve(s);
@@ -90,40 +91,25 @@ struct descriptor_pool {
              options.features->field_presence == google::protobuf::FeatureSet::FieldPresence::LEGACY_REQUIRED;
     }
 
-    [[nodiscard]] bool repeated_expanded() const {
-      using enum google::protobuf::FieldDescriptorProto::Type;
-      using enum google::protobuf::FieldDescriptorProto::Label;
-      auto type = proto.type;
-      if (proto.label == LABEL_REPEATED) {
-        if (type != TYPE_MESSAGE && type != TYPE_STRING && type != TYPE_BYTES && type != TYPE_GROUP) {
-          if (proto.options.has_value() && proto.options->packed.has_value()) {
-            return !proto.options->packed.value();
-          } else {
-            return options.features->repeated_field_encoding ==
-                   google::protobuf::FeatureSet::RepeatedFieldEncoding::EXPANDED;
-          }
-        } else {
-          return true;
-        }
-      }
-      return false;
-    }
-
     [[nodiscard]] bool is_packed() const {
       using enum google::protobuf::FieldDescriptorProto::Type;
       using enum google::protobuf::FieldDescriptorProto::Label;
-      auto type = proto.type;
-      if (proto.label == LABEL_REPEATED) {
-        if (type != TYPE_MESSAGE && type != TYPE_STRING && type != TYPE_BYTES && type != TYPE_GROUP) {
-          if (proto.options.has_value() && proto.options->packed.has_value()) {
-            return proto.options->packed.value();
-          } else {
-            return options.features->repeated_field_encoding ==
-                   google::protobuf::FeatureSet::RepeatedFieldEncoding::PACKED;
-          }
-        }
+      if (proto.label != LABEL_REPEATED) {
+        return false;
       }
-      return false;
+      auto type = proto.type;
+      if (type == TYPE_MESSAGE || type == TYPE_STRING || type == TYPE_BYTES || type == TYPE_GROUP) {
+        return false;
+      }
+      if (proto.options.has_value() && proto.options->packed.has_value()) {
+        return proto.options->packed.value();
+      }
+      return options.features->repeated_field_encoding == google::protobuf::FeatureSet::RepeatedFieldEncoding::PACKED;
+    }
+
+    [[nodiscard]] bool repeated_expanded() const {
+      using enum google::protobuf::FieldDescriptorProto::Label;
+      return proto.label == LABEL_REPEATED && !is_packed();
     }
 
     [[nodiscard]] bool requires_utf8_validation() const {
@@ -244,23 +230,29 @@ struct descriptor_pool {
     std::size_t oneofs = 0;
     std::size_t enums = 0;
 
-    explicit descriptor_counter(const std::vector<google::protobuf::FileDescriptorProto> &proto_files)
-        : files(proto_files.size()) {
+    explicit descriptor_counter(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
       for (const auto &f : proto_files) {
-        count(f.message_type);
-        enums += f.enum_type.size();
-        fields += f.extension.size();
+        count_file(f);
       }
     }
 
-    void count(const std::vector<google::protobuf::DescriptorProto> &proto_messages) {
-      messages += proto_messages.size();
-      for (const auto &m : proto_messages) {
-        count(m.nested_type);
-        enums += m.enum_type.size();
-        fields += m.field.size() + m.extension.size();
-        oneofs += m.oneof_decl.size();
+    void count_file(const google::protobuf::FileDescriptorProto &file) {
+      files++;
+      for (const auto &m : file.message_type) {
+        count_message(m);
       }
+      enums += file.enum_type.size();
+      fields += file.extension.size();
+    }
+
+    void count_message(const google::protobuf::DescriptorProto &message) {
+      messages++;
+      for (const auto &m : message.nested_type) {
+        count_message(m);
+      }
+      enums += message.enum_type.size();
+      fields += message.field.size() + message.extension.size();
+      oneofs += message.oneof_decl.size();
     }
   };
 
@@ -310,9 +302,9 @@ struct descriptor_pool {
     enums.reserve(counter.enums);
     oneofs.reserve(counter.oneofs);
     fields.reserve(counter.fields);
-    reserve(file_map, counter.files);
-    reserve(message_map, counter.messages);
-    reserve(enum_map, counter.enums);
+    initial_reserve(file_map, counter.files);
+    initial_reserve(message_map, counter.messages);
+    initial_reserve(enum_map, counter.enums);
 
     for (const auto &proto : proto_files) {
       if (!proto.name.empty() && file_map.count(proto.name) == 0) {
