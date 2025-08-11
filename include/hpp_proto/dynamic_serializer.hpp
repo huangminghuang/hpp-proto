@@ -1474,9 +1474,8 @@ public:
     std::ranges::sort(protobuf_wrapper_type_message_indices);
 
     // erase the invalid indices in protobuf_wrapper_type_message_indices
-    auto first_invalid = std::lower_bound(protobuf_wrapper_type_message_indices.begin(), 
-                                          protobuf_wrapper_type_message_indices.end(), 
-                                          messages.size());
+    auto first_invalid = std::lower_bound(protobuf_wrapper_type_message_indices.begin(),
+                                          protobuf_wrapper_type_message_indices.end(), messages.size());
     protobuf_wrapper_type_message_indices.erase(first_invalid, protobuf_wrapper_type_message_indices.end());
   }
 

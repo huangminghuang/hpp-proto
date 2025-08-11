@@ -219,7 +219,7 @@ const ut::suite test_base64 = [] {
     // 2. Padding in the middle
     expect(!hpp::proto::base64::decode("Zg==YWJj"sv, result));
     // 3. Incorrect padding
-    expect(!hpp::proto::base64::decode("Zm9vYg="sv, result)); // "foob" is "Zm9vYg=="
+    expect(!hpp::proto::base64::decode("Zm9vYg="sv, result));   // "foob" is "Zm9vYg=="
     expect(!hpp::proto::base64::decode("Zm9vYmE=="sv, result)); // "fooba" is "Zm9vYmE="
   };
 };

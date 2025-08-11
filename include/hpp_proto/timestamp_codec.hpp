@@ -79,37 +79,37 @@ struct timestamp_codec {
 
   static bool decode(auto &&json, auto &&value) {
     std::string_view sv = json;
-    if (sv.empty() || sv.back() != 'Z')[[unlikely]] {
-        return false;
+    if (sv.empty() || sv.back() != 'Z') [[unlikely]] {
+      return false;
     }
     sv.remove_suffix(1); // Remove 'Z'
 
-    const char* ptr = sv.data();
-    const char* end = ptr + sv.size();
+    const char *ptr = sv.data();
+    const char *end = ptr + sv.size();
 
     // NOLINTNEXTLINE(readability-isolate-declaration,cppcoreguidelines-init-variables)
     int32_t yy, mm, dd, hh, mn, ss;
 
     // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-    auto parse_with_separator = [&](int32_t& val, size_t width, char sep) -> bool {
-        if (ptr + width > end) return false;
-        auto res = std::from_chars(ptr, ptr + width, val);
-        if (res.ec != std::errc{} || res.ptr != ptr + width) return false;
-        ptr += width;
-        if (sep != '\0') {
-            if (ptr >= end || *ptr != sep) return false;
-            ptr++;
-        }
-        return true;
+    auto parse_with_separator = [&](int32_t &val, size_t width, char sep) -> bool {
+      if (ptr + width > end)
+        return false;
+      auto res = std::from_chars(ptr, ptr + width, val);
+      if (res.ec != std::errc{} || res.ptr != ptr + width)
+        return false;
+      ptr += width;
+      if (sep != '\0') {
+        if (ptr >= end || *ptr != sep)
+          return false;
+        ptr++;
+      }
+      return true;
     };
 
-    if (!parse_with_separator(yy, 4, '-') || 
-        !parse_with_separator(mm, 2, '-') ||
-        !parse_with_separator(dd, 2, 'T') ||
-        !parse_with_separator(hh, 2, ':') ||
-        !parse_with_separator(mn, 2, ':') ||
-        !parse_with_separator(ss, 2, '\0')) [[unlikely]]{
-        return false;
+    if (!parse_with_separator(yy, 4, '-') || !parse_with_separator(mm, 2, '-') || !parse_with_separator(dd, 2, 'T') ||
+        !parse_with_separator(hh, 2, ':') || !parse_with_separator(mn, 2, ':') || !parse_with_separator(ss, 2, '\0'))
+        [[unlikely]] {
+      return false;
     }
 
     using namespace std::chrono;
@@ -124,7 +124,7 @@ struct timestamp_codec {
       return true;
     }
 
-    if (*ptr++ != '.') [[unlikely]]{
+    if (*ptr++ != '.') [[unlikely]] {
       return false;
     }
 
@@ -138,13 +138,13 @@ struct timestamp_codec {
       return r.ptr == s.data() + s.size() && r.ec == std::errc();
     };
 
-    if (!from_str_view(nanos_sv, value.nanos)) [[unlikely]]{
-        return false;
+    if (!from_str_view(nanos_sv, value.nanos)) [[unlikely]] {
+      return false;
     }
 
     // Scale nanos to 9 digits
     for (size_t i = nanos_sv.length(); i < 9; ++i) {
-        value.nanos *= 10;
+      value.nanos *= 10;
     }
 
     return true;

@@ -40,7 +40,7 @@ struct field_mask_codec {
     auto *buf = std::data(std::forward<decltype(b)>(b));
     char *cur = buf;
     cur = std::copy(std::begin(value.paths[0]), std::end(value.paths[0]), cur);
-    auto rest = std::span{ value.paths.data() + 1, value.paths.size() - 1 };
+    auto rest = std::span{value.paths.data() + 1, value.paths.size() - 1};
     for (auto &p : rest) {
       *cur++ = ',';
       cur = std::copy(std::begin(p), std::end(p), cur);
