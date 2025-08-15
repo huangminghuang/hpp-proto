@@ -129,28 +129,23 @@ struct proto_json_addons {
 
   template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
   struct message_descriptor {
-    std::string syntax;
-    bool is_map_entry = false;
     std::vector<FieldD *> fields;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    explicit message_descriptor(const google::protobuf::DescriptorProto &proto)
-        : is_map_entry(proto.options.has_value() && proto.options->map_entry) {
+    explicit message_descriptor(const google::protobuf::DescriptorProto &proto) {
       fields.reserve(proto.field.size() + proto.extension.size());
     }
     void add_field(FieldD &f) { fields.push_back(&f); }
     void add_enum(EnumD &) {}
-    void add_message(MessageD &m) { m.syntax = syntax; }
+    void add_message(MessageD &) {}
     void add_oneof(OneofD &) {}
     void add_extension(FieldD &f) { fields.push_back(&f); }
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
   struct file_descriptor {
-    std::string syntax;
-    explicit file_descriptor(const google::protobuf::FileDescriptorProto &proto)
-        : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax) {}
+    explicit file_descriptor(const google::protobuf::FileDescriptorProto &) {}
     void add_enum(EnumD &) {}
-    void add_message(MessageD &m) { m.syntax = syntax; }
+    void add_message(MessageD &) {}
     void add_extension(FieldD &) {}
   };
 };
@@ -198,14 +193,14 @@ class dynamic_serializer {
           default_value(field_descriptor->proto.default_value) {
       auto &proto = field_descriptor->proto;
       if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE) {
-        if (pool.message_map.find(proto.type_name)->second->is_map_entry) {
+        if (pool.message_map.find(proto.type_name.substr(1))->second->is_map_entry()) {
           options |= field_options::is_map_entry;
         }
       }
 
       using enum google::protobuf::FieldDescriptorProto::Type;
       if (proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP) {
-        type_index = find_index(pool.message_map.keys(), proto.type_name);
+        type_index = find_index(pool.message_map.keys(), proto.type_name.substr(1));
       } else if (proto.type == TYPE_ENUM) {
         type_index = find_index(pool.enum_map.keys(), proto.type_name);
       }
@@ -1413,10 +1408,10 @@ public:
   explicit dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
     descriptor_pool<proto_json_addons> pool(set.file);
 
-    if (pool.enum_map.size() != 1 || pool.enum_map.begin()->first != ".google.protobuf.NullValue") {
+    if (pool.enum_map.size() != 1 || pool.enum_map.begin()->first != "google.protobuf.NullValue") {
       enums.reserve(pool.enums.size());
-      const auto &enum_descriptors = pool.enum_map.values();
-      std::ranges::transform(enum_descriptors, std::back_inserter(enums), [](const auto descriptor) {
+      std::ranges::transform(pool.enum_map, std::back_inserter(enums), [](const auto &entry) {
+        auto* descriptor = entry.second;
         dynamic_serializer::enum_meta m;
         m.is_closed = descriptor->is_closed();
         const auto values = descriptor->proto.value;
@@ -1430,8 +1425,8 @@ public:
     }
 
     messages.reserve(pool.messages.size());
-    const auto &message_descriptors = pool.message_map.values();
-    std::ranges::transform(message_descriptors, std::back_inserter(messages), [&pool](const auto descriptor) {
+    std::ranges::transform(pool.message_map, std::back_inserter(messages), [&pool](const auto &entry) {
+      auto* descriptor = entry.second;
       dynamic_serializer::message_meta m;
       m.fields.reserve(descriptor->fields.size());
       std::ranges::transform(descriptor->fields, std::back_inserter(m.fields),
@@ -1450,10 +1445,8 @@ public:
       }
     }
 
-    const auto names = pool.message_map.keys();
-    message_names.reserve(names.size());
-    // remove the leading "." for the message name
-    std::ranges::transform(names, std::back_inserter(message_names), [](const auto &name) { return name.substr(1); });
+    std::ranges::transform(pool.message_map, std::back_inserter(message_names),
+                           [](const auto &entry) { return entry.first; });
 
     protobuf_any_message_index = message_index("google.protobuf.Any");
     protobuf_timestamp_message_index = message_index("google.protobuf.Timestamp");

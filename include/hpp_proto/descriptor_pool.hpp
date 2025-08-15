@@ -36,6 +36,13 @@ void initial_reserve(FlatMap &m, std::size_t s) {
   m.replace(std::move(keys), std::move(values));
 }
 
+struct string_view_comp {
+  using is_transparent = void;
+  bool operator()(const std::string &lhs, const std::string &rhs) const { return lhs < rhs; }
+  bool operator()(const std::string_view &lhs, const std::string &rhs) const { return lhs.compare(rhs) < 0; }
+  bool operator()(const std::string &lhs, const std::string_view &rhs) const { return lhs.compare(rhs) < 0; }
+};
+
 // NOLINTBEGIN(bugprone-unchecked-optional-access)
 template <typename AddOns>
 struct descriptor_pool {
@@ -48,16 +55,34 @@ struct descriptor_pool {
     }
     return features;
   }
+
+  enum field_option_mask_t : uint8_t {
+    MASK_EXPLICIT_PRESENCE = 1,
+    MASK_REPEATED = 2,
+    MASK_PACKED = 4,
+    MASK_UTF8_VALIDATION = 8,
+    MASK_DELIMITED = 16,
+    MASK_REQUIRED = 32,
+    MASK_MAP_ENTRY = 64
+  };
+
+  struct message_descriptor_t;
+  struct enum_descriptor_t;
+  struct file_descriptor_t;
   struct field_descriptor_t : AddOns::template field_descriptor<field_descriptor_t> {
     using pool_type = descriptor_pool;
     using base_type = AddOns::template field_descriptor<field_descriptor_t>;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::FieldDescriptorProto &proto;
     google::protobuf::FieldOptions options;
+    message_descriptor_t *parent_message = nullptr;
+    void *type_descriptor = nullptr;
+    message_descriptor_t *extendee_descriptor = nullptr;
+    uint8_t field_option_bitset = 0;
     field_descriptor_t(const google::protobuf::FieldDescriptorProto &proto, const std::string &parent_name,
-                       const auto &inherited_options)
+                       message_descriptor_t *parent, const auto &inherited_options)
         : base_type(proto, parent_name), proto(proto),
-          options(proto.options.value_or(google::protobuf::FieldOptions{})) {
+          options(proto.options.value_or(google::protobuf::FieldOptions{})), parent_message(parent) {
       options.features = merge_features(inherited_options.features.value(), proto.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
         google::protobuf::FieldOptions::extension_t extensions;
@@ -65,63 +90,94 @@ struct descriptor_pool {
         options.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(), extensions.fields.end());
       }
 
+      setup_presence();
+      setup_repeated();
+      setup_utf8_validation();
+      setup_delimited();
+      setup_required();
+
       if constexpr (requires { base_type::on_descriptor_created(proto, options); }) {
         base_type::on_descriptor_created(proto, options);
       }
     }
 
-    // return true if it is an optional explicit presence field
-    [[nodiscard]] bool has_presence() const {
+    [[nodiscard]] message_descriptor_t *message_field_type_descriptor() const {
+      assert(proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE ||
+             proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_GROUP);
+      return static_cast<message_descriptor_t *>(type_descriptor);
+    }
+
+    [[nodiscard]] enum_descriptor_t *enum_field_type_descriptor() const {
+      assert(proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_ENUM);
+      return static_cast<enum_descriptor_t *>(type_descriptor);
+    }
+
+    void setup_presence() {
       using enum google::protobuf::FieldDescriptorProto::Type;
       using enum google::protobuf::FieldDescriptorProto::Label;
       using enum google::protobuf::FeatureSet::FieldPresence;
       if (proto.label == LABEL_OPTIONAL) {
-        return (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE || proto.proto3_optional ||
-                proto.oneof_index.has_value() || options.features->field_presence == EXPLICIT ||
-                options.features->field_presence == FIELD_PRESENCE_UNKNOWN);
-      } else if (proto.label == LABEL_REPEATED || proto.label == LABEL_REQUIRED) {
-        return false;
+        if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE || proto.proto3_optional ||
+            proto.oneof_index.has_value() || options.features->field_presence == EXPLICIT ||
+            options.features->field_presence == FIELD_PRESENCE_UNKNOWN) {
+          field_option_bitset |= MASK_EXPLICIT_PRESENCE;
+        }
       }
-
-      unreachable();
     }
 
-    [[nodiscard]] bool is_required() const {
-      return proto.label == google::protobuf::FieldDescriptorProto::Label::LABEL_REQUIRED ||
-             options.features->field_presence == google::protobuf::FeatureSet::FieldPresence::LEGACY_REQUIRED;
-    }
-
-    [[nodiscard]] bool is_packed() const {
+    void setup_repeated() {
       using enum google::protobuf::FieldDescriptorProto::Type;
       using enum google::protobuf::FieldDescriptorProto::Label;
       if (proto.label != LABEL_REPEATED) {
-        return false;
+        return;
       }
+      field_option_bitset |= MASK_REPEATED;
+
       auto type = proto.type;
       if (type == TYPE_MESSAGE || type == TYPE_STRING || type == TYPE_BYTES || type == TYPE_GROUP) {
-        return false;
+        return;
       }
-      if (proto.options.has_value() && proto.options->packed.has_value()) {
-        return proto.options->packed.value();
+      if (proto.options.has_value() && proto.options->packed.has_value() && proto.options->packed.value()) {
+        field_option_bitset |= MASK_PACKED;
+        return;
       }
-      return options.features->repeated_field_encoding == google::protobuf::FeatureSet::RepeatedFieldEncoding::PACKED;
+      if (options.features->repeated_field_encoding == google::protobuf::FeatureSet::RepeatedFieldEncoding::PACKED) {
+        field_option_bitset |= MASK_PACKED;
+      }
+    }
+
+    void setup_utf8_validation() {
+      if (proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_STRING &&
+          options.features.value().utf8_validation == google::protobuf::FeatureSet::Utf8Validation::VERIFY) {
+        field_option_bitset |= MASK_UTF8_VALIDATION;
+      }
+    }
+
+    void setup_delimited() {
+      if (proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_GROUP ||
+          (proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE &&
+           options.features.value().message_encoding == google::protobuf::FeatureSet::MessageEncoding::DELIMITED)) {
+        field_option_bitset |= MASK_DELIMITED;
+      }
+    }
+
+    void setup_required() {
+      if (proto.label == google::protobuf::FieldDescriptorProto::Label::LABEL_REQUIRED ||
+          options.features->field_presence == google::protobuf::FeatureSet::FieldPresence::LEGACY_REQUIRED) {
+        field_option_bitset |= MASK_REQUIRED;
+      }
     }
 
     [[nodiscard]] bool repeated_expanded() const {
-      using enum google::protobuf::FieldDescriptorProto::Label;
-      return proto.label == LABEL_REPEATED && !is_packed();
+      return (field_option_bitset & MASK_PACKED & MASK_REPEATED) == MASK_REPEATED;
     }
-
-    [[nodiscard]] bool requires_utf8_validation() const {
-      return proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_STRING &&
-             options.features.value().utf8_validation == google::protobuf::FeatureSet::Utf8Validation::VERIFY;
-    }
-
-    [[nodiscard]] bool is_delimited() const {
-      return proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_GROUP ||
-             (proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE &&
-              options.features.value().message_encoding == google::protobuf::FeatureSet::MessageEncoding::DELIMITED);
-    }
+    [[nodiscard]] bool is_packed() const { return (field_option_bitset & MASK_PACKED) != 0; }
+    [[nodiscard]] constexpr bool is_repeated() const { return (field_option_bitset & MASK_REPEATED) != 0; }
+    [[nodiscard]] bool requires_utf8_validation() const { return (field_option_bitset & MASK_UTF8_VALIDATION) != 0; }
+    [[nodiscard]] bool is_delimited() const { return (field_option_bitset & MASK_DELIMITED) != 0; }
+    [[nodiscard]] bool is_map_entry() const { return (field_option_bitset & MASK_MAP_ENTRY) != 0; }
+    [[nodiscard]] bool explicit_presence() const { return (field_option_bitset & MASK_EXPLICIT_PRESENCE) != 0; }
+    [[nodiscard]] bool is_required() const { return (field_option_bitset & MASK_REQUIRED) != 0; }
   };
 
   struct oneof_descriptor_t : AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t> {
@@ -151,8 +207,11 @@ struct descriptor_pool {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::EnumDescriptorProto &proto;
     google::protobuf::EnumOptions options;
-    explicit enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto, const auto &inherited_options)
-        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::EnumOptions{})) {
+    file_descriptor_t *parent_file;
+    explicit enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto, const auto &inherited_options,
+                               file_descriptor_t *parent_file)
+        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::EnumOptions{})),
+          parent_file(parent_file) {
       options.features = merge_features(inherited_options.features.value(), proto.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
         google::protobuf::EnumOptions::extension_t extensions;
@@ -177,18 +236,23 @@ struct descriptor_pool {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::DescriptorProto &proto;
     google::protobuf::MessageOptions options;
+    file_descriptor_t *parent_file;
+    message_descriptor_t *parent_message;
 
-    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto,
-                                  const google::protobuf::MessageOptions &inherited_options)
-        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::MessageOptions{})) {
+    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto, const auto &inherited_options,
+                                  file_descriptor_t *parent_file, message_descriptor_t *parent_message)
+        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::MessageOptions{})),
+          parent_file(parent_file), parent_message(parent_message) {
+      setup_options(inherited_options);
+    }
+
+    void setup_options(const google::protobuf::MessageOptions &inherited_options) {
       options.features = merge_features(inherited_options.features.value(), proto.options);
       options.extensions.fields.insert(hpp::proto::sorted_unique, inherited_options.extensions.fields.begin(),
                                        inherited_options.extensions.fields.end());
     }
 
-    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto,
-                                  const google::protobuf::FileOptions &inherited_options)
-        : base_type(proto), proto(proto), options(proto.options.value_or(google::protobuf::MessageOptions{})) {
+    void setup_options(const google::protobuf::FileOptions &inherited_options) {
       options.features = merge_features(inherited_options.features.value(), proto.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options.extensions, inherited_options.extensions); }) {
         google::protobuf::MessageOptions::extension_t extensions;
@@ -199,6 +263,8 @@ struct descriptor_pool {
         base_type::on_descriptor_created(proto, options);
       }
     }
+
+    bool is_map_entry() const { return proto.options.has_value() && proto.options->map_entry; }
   };
 
   struct file_descriptor_t : AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t,
@@ -262,9 +328,9 @@ struct descriptor_pool {
   std::vector<oneof_descriptor_t> oneofs;
   std::vector<field_descriptor_t> fields;
 
-  flat_map<std::string, file_descriptor_t *> file_map;
-  flat_map<std::string, message_descriptor_t *> message_map;
-  flat_map<std::string, enum_descriptor_t *> enum_map;
+  flat_map<std::string, file_descriptor_t *, string_view_comp> file_map;
+  flat_map<std::string, message_descriptor_t *, string_view_comp> message_map;
+  flat_map<std::string, enum_descriptor_t *, string_view_comp> enum_map;
   google::protobuf::Edition current_edition = {};
 
   google::protobuf::FeatureSet select_features(const google::protobuf::FileDescriptorProto &file) {
@@ -321,6 +387,25 @@ struct descriptor_pool {
       build_extensions(*f, f->proto.package);
     }
 
+    for (auto &f : fields) {
+      using enum google::protobuf::FieldDescriptorProto::Type;
+      if (f.proto.type == TYPE_MESSAGE || f.proto.type == TYPE_GROUP) {
+        auto desc = find_type(message_map, f.proto.type_name.substr(1));
+        if (desc) {
+          f.type_descriptor = desc;
+          if (desc->is_map_entry()) {
+            f.field_option_bitset |= MASK_MAP_ENTRY;
+          }
+        }
+      } else if (f.proto.type == TYPE_ENUM) {
+        f.type_descriptor = find_type(enum_map, f.proto.type_name.substr(1));
+      }
+
+      if (!f.proto.extendee.empty()) {
+        f.extendee_descriptor = find_type(message_map, f.proto.extendee.substr(1));
+      }
+    }
+
     assert(messages.size() == counter.messages);
   }
 
@@ -330,20 +415,36 @@ struct descriptor_pool {
   descriptor_pool &operator=(const descriptor_pool &) = delete;
   descriptor_pool &operator=(descriptor_pool &&) = delete;
 
+  const message_descriptor_t *message_by_name(std::string_view name) const {
+    auto itr = message_map.find(name);
+    return itr == message_map.end() ? nullptr : itr->second;
+  }
+
+  const message_descriptor_t *enum_by_name(std::string_view name) const {
+    auto itr = enum_map.find(name);
+    return itr == enum_map.end() ? nullptr : itr->second;
+  }
+
+  const file_descriptor_t *file_by_name(std::string_view name) const {
+    auto itr = file_map.find(name);
+    return itr == file_map.end() ? nullptr : itr->second;
+  }
+
   void build(file_descriptor_t &descriptor) {
     file_map.try_emplace(descriptor.proto.name, &descriptor);
     const std::string package = descriptor.proto.package;
     for (auto &proto : descriptor.proto.message_type) {
-      std::string const name = !package.empty() ? "." + package + "." + proto.name : "." + proto.name;
-      auto &message = messages.emplace_back(proto, descriptor.options);
-      build(message, name);
+      std::string const scope = !package.empty() ? package + "." + proto.name : proto.name;
+      auto &message =
+          messages.emplace_back(proto, descriptor.options, &descriptor, static_cast<message_descriptor_t *>(nullptr));
+      build(message, scope);
       descriptor.add_message(message);
     }
 
     for (auto &proto : descriptor.proto.enum_type) {
-      const std::string name = !package.empty() ? "." + package + "." + proto.name : proto.name;
-      auto &e = enums.emplace_back(proto, descriptor.options);
-      enum_map.try_emplace(name, &e);
+      const std::string scope = !package.empty() ? package + "." + proto.name : proto.name;
+      auto &e = enums.emplace_back(proto, descriptor.options, &descriptor);
+      enum_map.try_emplace(scope, &e);
       descriptor.add_enum(e);
     }
   }
@@ -351,16 +452,16 @@ struct descriptor_pool {
   void build(message_descriptor_t &descriptor, const std::string &scope) {
     message_map.try_emplace(scope, &descriptor);
     for (auto &proto : descriptor.proto.nested_type) {
-      const std::string name = scope + "." + proto.name;
-      auto &message = messages.emplace_back(proto, descriptor.options);
-      build(message, name);
+      const std::string new_scope = scope.empty() ? proto.name : scope + "." + proto.name;
+      auto &message = messages.emplace_back(proto, descriptor.options, descriptor.parent_file, &descriptor);
+      build(message, new_scope);
       descriptor.add_message(message);
     }
 
     for (auto &proto : descriptor.proto.enum_type) {
-      const std::string name = scope + "." + proto.name;
-      auto &e = enums.emplace_back(proto, descriptor.options);
-      enum_map.try_emplace(name, &e);
+      const std::string new_scope = scope.empty() ? proto.name : scope + "." + proto.name;
+      auto &e = enums.emplace_back(proto, descriptor.options, descriptor.parent_file);
+      enum_map.try_emplace(new_scope, &e);
       descriptor.add_enum(e);
     }
 
@@ -378,13 +479,17 @@ struct descriptor_pool {
 
   void build_fields(message_descriptor_t &descriptor, const std::string &qualified_name) {
     for (auto &proto : descriptor.proto.field) {
-      descriptor.add_field(fields.emplace_back(proto, qualified_name, descriptor.options));
+      descriptor.add_field(fields.emplace_back(proto, qualified_name, &descriptor, descriptor.options));
     }
   };
 
   void build_extensions(auto &parent, const std::string &scope) {
     for (auto &proto : parent.proto.extension) {
-      parent.add_extension(fields.emplace_back(proto, scope, parent.options));
+      message_descriptor_t *msg_desc = nullptr;
+      if constexpr (std::same_as<decltype(&parent), message_descriptor_t *>) {
+        msg_desc = &parent;
+      }
+      parent.add_extension(fields.emplace_back(proto, scope, msg_desc, parent.options));
     }
   }
 };

@@ -307,8 +307,6 @@ struct hpp_addons {
     std::string default_value;
     std::string default_value_template_arg;
     std::string_view qualified_parent_name;
-    void *parent = nullptr;
-    void *extendee = nullptr;
     Derived *map_fields[2] = {nullptr, nullptr};
     bool is_recursive = false;
     bool is_cpp_optional = false;
@@ -407,16 +405,17 @@ struct hpp_addons {
 
     void set_user_cpp_type(const std::string &namespace_prefix, const google::protobuf::FieldDescriptorProto &proto) {
       if (!proto.type_name.empty()) {
-        auto pos = shared_scope_position(qualified_parent_name, proto.type_name);
+        auto type_name = proto.type_name.substr(1); // remove leading "."
+        auto pos = shared_scope_position(qualified_parent_name, type_name);
 
-        is_recursive = (pos == proto.type_name.size());
+        is_recursive = (pos == type_name.size());
         qualified_cpp_field_type = make_qualified_cpp_name(namespace_prefix, proto.type_name);
         if (pos == 0) {
           cpp_field_type = qualified_cpp_field_type;
         } else if (is_recursive) {
           cpp_field_type = resolve_keyword(proto.type_name.substr(proto.type_name.find_last_of('.') + 1));
         } else {
-          cpp_field_type = make_qualified_cpp_name(namespace_prefix, proto.type_name.substr(pos + 1));
+          cpp_field_type = make_qualified_cpp_name(namespace_prefix, proto.type_name.substr(pos + 2));
         }
       }
     }
@@ -511,7 +510,6 @@ struct hpp_addons {
     std::string cpp_name;
     int32_t min_value = 0, max_value = 0;
     std::vector<int> sorted_values;
-    void *file_parent = nullptr;
     bool continuous = true;
 
     explicit enum_descriptor(const gpb::EnumDescriptorProto &proto) : cpp_name(resolve_keyword(proto.name)) {
@@ -526,8 +524,6 @@ struct hpp_addons {
       }
     }
     void on_descriptor_created(const gpb::EnumDescriptorProto &, const gpb::EnumOptions &) {}
-
-    void set_file_parent(void *parent) { file_parent = parent; }
   };
 
   template <typename OneofD, typename FieldD>
@@ -552,16 +548,12 @@ struct hpp_addons {
     std::string cpp_name;
     std::set<std::string> dependencies;
     std::set<FieldD *> used_by_fields;
-    MessageD *message_parent = nullptr;
-    void *file_parent = nullptr;
     std::set<std::string> forward_declarations;
     bool has_recursive_map_field = false;
-    bool is_map_entry;
     bool non_owning = false;
 
     explicit message_descriptor(const gpb::DescriptorProto &proto)
-        : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)),
-          is_map_entry(proto.options.has_value() && proto.options->map_entry) {
+        : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)) {
       fields.reserve(proto.field.size());
       messages.reserve(proto.nested_type.size());
       enums.reserve(proto.enum_type.size());
@@ -575,7 +567,6 @@ struct hpp_addons {
     }
 
     void add_field(FieldD &f) {
-      f.parent = this;
       fields.push_back(&f);
       if (f.proto.oneof_index.has_value()) {
         oneofs[static_cast<std::size_t>(*f.proto.oneof_index)]->fields.push_back(&f);
@@ -583,21 +574,10 @@ struct hpp_addons {
     }
     void add_enum(EnumD &e) { enums.push_back(&e); }
     void add_message(MessageD &m) {
-      m.message_parent = static_cast<MessageD *>(this);
       messages.push_back(&m);
     }
     void add_oneof(OneofD &o) { oneofs.push_back(&o); }
     void add_extension(FieldD &f) { extensions.push_back(&f); }
-
-    void set_file_parent(void *parent) {
-      file_parent = parent;
-      for (auto *submsg : messages) {
-        submsg->set_file_parent(parent);
-      }
-      for (auto *subenum : enums) {
-        subenum->set_file_parent(parent);
-      }
-    }
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
@@ -629,17 +609,15 @@ struct hpp_addons {
     }
 
     void add_enum(EnumD &e) {
-      e.set_file_parent(this);
       enums.push_back(&e);
     }
 
     void add_message(MessageD &m) {
-      m.set_file_parent(this);
       messages.push_back(&m);
     }
     void add_extension(FieldD &f) { extensions.push_back(&f); }
 
-    void resolve_dependencies(const hpp::proto::flat_map<std::string, FileD *> &map) {
+    void resolve_dependencies(const auto &map) {
       auto &self = static_cast<FileD &>(*this);
       dependencies.resize(self.proto.dependency.size());
       std::transform(self.proto.dependency.begin(), self.proto.dependency.end(), dependencies.begin(),
@@ -690,11 +668,9 @@ struct code_generator {
   using field_descriptor_t = hpp_gen_descriptor_pool::field_descriptor_t;
   using file_descriptor_t = hpp_gen_descriptor_pool::file_descriptor_t;
 
-  static message_descriptor_t *message_parent_of(field_descriptor_t *f) {
-    return static_cast<message_descriptor_t *>(f->parent);
-  }
+  static message_descriptor_t *parent_message_of(field_descriptor_t *f) { return f->parent_message; }
 
-  static message_descriptor_t *message_parent_of(message_descriptor_t *m) { return m->message_parent; }
+  static message_descriptor_t *parent_message_of(message_descriptor_t *m) { return m->parent_message; }
 
   explicit code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
       : file(files.emplace_back()), target(file.content) {}
@@ -732,7 +708,7 @@ struct code_generator {
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto *message = message_parent_of(f);
+        auto *message = parent_message_of(f);
         if (std::ranges::find(unresolved, message) != unresolved.end()) {
           used_by_messages[message] |= (f->proto.label != gpb::FieldDescriptorProto::Label::LABEL_REPEATED);
           f->is_recursive = true;
@@ -740,7 +716,7 @@ struct code_generator {
       }
 
       for (auto [m, no_non_repeated_usage] : used_by_messages) {
-        if (!no_non_repeated_usage && !m->is_map_entry) {
+        if (!no_non_repeated_usage && !m->is_map_entry()) {
           m->dependencies.erase(depended->cpp_name);
           m->forward_declarations.insert(depended->cpp_name);
           return m;
@@ -751,19 +727,19 @@ struct code_generator {
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto *message = message_parent_of(f);
-        if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry) {
-          used_by_messages[message] |= !(message->is_map_entry);
+        auto *message = parent_message_of(f);
+        if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry()) {
+          used_by_messages[message] |= !(message->is_map_entry());
           f->is_recursive = true;
         }
       }
 
       for (auto [m, no_non_map_usage] : used_by_messages) {
         if (!no_non_map_usage) {
-          m->message_parent->has_recursive_map_field = true;
-          m->message_parent->dependencies.erase(depended->cpp_name);
-          m->message_parent->forward_declarations.insert(depended->cpp_name);
-          return m->message_parent;
+          m->parent_message->has_recursive_map_field = true;
+          m->parent_message->dependencies.erase(depended->cpp_name);
+          m->parent_message->forward_declarations.insert(depended->cpp_name);
+          return m->parent_message;
         }
       }
     }
@@ -856,7 +832,80 @@ struct msg_code_generator : code_generator {
       : code_generator(files), out_of_class_target(out_of_class_data) {}
 
   static std::string namespace_prefix_of(const auto &d) {
-    return static_cast<const file_descriptor_t *>(d.file_parent)->namespace_prefix;
+    return d.parent_file->namespace_prefix;
+  }
+
+  static std::string_view common_ancestor(std::string_view name1, std::string_view name2) {
+    auto pos = shared_scope_position(name1, name2);
+    if (pos > 0) {
+      if (pos == name1.size())
+        return name1.substr(0, name1.find_last_of('.', pos));
+    }
+    return "";
+  }
+
+  /**
+   * @brief Resolves the dependency of a field within a message descriptor pool.
+   *
+   * This function analyzes the relationship between a field and its parent message,
+   * determining if the field refers to another message or enum type within the same
+   * protobuf scope. If a dependency is found, it updates the dependent message's
+   * descriptor to include the qualified name of the dependee type.
+   *
+   * @param pool The descriptor pool containing all message and enum descriptors.
+   * @param field The field descriptor to resolve dependencies for.
+   *
+   * The function works by:
+   * - Identifying the common ancestor scope between the field's parent message and its type.
+   * - Extracting the top-level dependent and dependee names relative to the common ancestor.
+   * - Locating the dependent message descriptor in the pool.
+   * - If the dependent and dependee are in the same file scope, it adds the dependee's
+   *   qualified C++ name to the dependent message's set of dependencies.
+   */
+  static void resolve_field_dependency(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {
+    using enum google::protobuf::FieldDescriptorProto::Type;
+    auto type = field.proto.type;
+    if (field.parent_message) {
+      auto field_type_name = field.proto.type_name.substr(1);
+      auto field_message_name = field.qualified_parent_name;
+      auto common_ancestor_pos = shared_scope_position(field_message_name, field_type_name);
+
+      std::string dependent; // dependent is the full qualified top level message name of the field descended from the
+                             // common ancestor
+      std::string dependee;  // dependee is the top level type name of the field descended from the common ancestor,
+                             // relative to the common ancestor
+      // if the common_ancestor exists and it is not the field message itself
+      if (common_ancestor_pos > 0 && common_ancestor_pos < field_message_name.size() &&
+          common_ancestor_pos != field_type_name.size()) {
+        auto dependent_pos = field_message_name.find_first_of('.', common_ancestor_pos + 1);
+        dependent = field_message_name.substr(0, dependent_pos);
+        dependee = field_type_name.substr(common_ancestor_pos + 1);
+        auto dependee_pos = dependee.find('.');
+        if (dependee_pos != std::string::npos) {
+          dependee.resize(dependee_pos);
+        } else if (type == TYPE_ENUM) {
+          dependent = "";
+        }
+      }
+
+      auto find = [](const auto &m, std::string_view key) {
+        auto itr = m.find(std::string(key));
+        return (itr == m.end()) ? nullptr : itr->second;
+      };
+
+      auto *dependent_msg = find(pool.message_map, dependent);
+      message_descriptor_t *dependee_msg =
+          type == TYPE_ENUM ? nullptr : field.message_field_type_descriptor();
+
+      std::string namespace_prefix;
+
+      if (dependent_msg != nullptr &&
+          (dependee_msg == nullptr || dependent_msg->parent_file == dependee_msg->parent_file)) {
+
+        namespace_prefix = namespace_prefix_of(*dependent_msg);
+        dependent_msg->dependencies.insert(make_qualified_cpp_name(namespace_prefix, dependee));
+      }
+    }
   }
 
   // NOLINTBEGIN(readability-function-cognitive-complexity)
@@ -864,51 +913,18 @@ struct msg_code_generator : code_generator {
     for (auto &field : pool.fields) {
       using enum google::protobuf::FieldDescriptorProto::Type;
       auto type = field.proto.type;
-      if ((type == TYPE_MESSAGE || type == TYPE_GROUP || type == TYPE_ENUM) && !field.proto.type_name.empty()) {
-        auto type_name = field.proto.type_name;
-        auto message_name = field.qualified_parent_name;
-        auto pos = shared_scope_position(message_name, type_name);
-        std::string dependent;
-        std::string dependee;
-        if (pos > 0 && pos < message_name.size() && pos != type_name.size()) {
-          auto dependent_pos = message_name.find_first_of('.', pos + 1);
-          dependent = message_name.substr(0, dependent_pos);
-          dependee = type_name.substr(pos + 1);
-          auto dependee_pos = dependee.find('.');
-          if (dependee_pos != std::string::npos) {
-            dependee.resize(dependee_pos);
-          } else if (type == TYPE_ENUM) {
-            dependent = "";
-          }
-        }
-
-        auto find = [](const auto &m, const std::string &key) {
-          auto itr = m.find(key);
-          return (itr == m.end()) ? nullptr : itr->second;
-        };
-
-        auto *dependent_msg = find(pool.message_map, dependent);
-        auto *dependee_msg = find(pool.message_map, type_name);
-
-        std::string namespace_prefix;
-
-        if (dependent_msg != nullptr &&
-            (dependee_msg == nullptr || dependent_msg->file_parent == dependee_msg->file_parent)) {
-          namespace_prefix = namespace_prefix_of(*dependent_msg);
-          dependent_msg->dependencies.insert(make_qualified_cpp_name(namespace_prefix, dependee));
-        }
-
-        if (dependee_msg != nullptr) {
-          namespace_prefix = namespace_prefix_of(*dependee_msg);
-          dependee_msg->used_by_fields.insert(&field);
-        }
+      if (field.type_descriptor) {
+        resolve_field_dependency(pool, field);
 
         if (type == TYPE_MESSAGE || type == TYPE_GROUP) {
+          auto *field_type_msg = field.message_field_type_descriptor();
+          auto namespace_prefix = namespace_prefix_of(*field_type_msg);
+          field_type_msg->used_by_fields.insert(&field);
           field.set_user_cpp_type(namespace_prefix, field.proto);
         } else {
-          auto *enum_d = pool.find_type(pool.enum_map, type_name);
+          auto *enum_d = field.enum_field_type_descriptor();
           if (enum_d != nullptr) {
-            namespace_prefix = namespace_prefix_of(*enum_d);
+            auto namespace_prefix = namespace_prefix_of(*enum_d);
             field.set_user_cpp_type(namespace_prefix, field.proto);
             field.is_closed_enum = enum_d->is_closed();
 
@@ -917,14 +933,11 @@ struct msg_code_generator : code_generator {
             } else if (field.proto.label == gpb::FieldDescriptorProto::Label::LABEL_OPTIONAL) {
               std::string proto_default_value = resolve_keyword(enum_d->proto.value[0].name);
               field.default_value = fmt::format("{}::{}", field.cpp_field_type, proto_default_value);
-              field.default_value_template_arg =
-                  fmt::format("{}::{}", make_qualified_cpp_name(namespace_prefix, type_name), proto_default_value);
+              field.default_value_template_arg = fmt::format(
+                  "{}::{}", make_qualified_cpp_name(namespace_prefix, field.proto.type_name), proto_default_value);
             }
           }
         }
-      }
-      if (!field.proto.extendee.empty()) {
-        field.extendee = pool.find_type(pool.message_map, field.proto.extendee);
       }
     }
   }
@@ -1040,11 +1053,14 @@ struct msg_code_generator : code_generator {
 
     descriptor.is_cpp_optional =
         (syntax != "proto2" || proto2_explicit_presences.empty())
-            ? descriptor.has_presence()
+            ? descriptor.explicit_presence()
             : (descriptor.proto.label == LABEL_OPTIONAL &&
                (descriptor.proto.type == TYPE_MESSAGE || descriptor.proto.type == TYPE_GROUP ||
-                std::ranges::any_of(proto2_explicit_presences,
-                                    [&qualified_name](const auto &s) { return qualified_name.starts_with(s); })));
+                std::ranges::any_of(proto2_explicit_presences, [&qualified_name](const auto &s) {
+                  return qualified_name.starts_with(std::string_view{s}.substr(1));
+                })));
+
+    
   }
 
   void process(field_descriptor_t &descriptor) {
@@ -1139,7 +1155,7 @@ struct msg_code_generator : code_generator {
 
   // NOLINTBEGIN(misc-no-recursion,readability-function-cognitive-complexity)
   void process(message_descriptor_t &descriptor, const std::string &cpp_scope, const std::string &pb_scope) {
-    if (descriptor.is_map_entry) {
+    if (descriptor.is_map_entry()) {
       return;
     }
 
@@ -1380,7 +1396,7 @@ struct hpp_meta_generator : code_generator {
     }
 
     for (auto *m : descriptor.messages) {
-      if (!m->is_map_entry) {
+      if (!m->is_map_entry()) {
         process(*m, qualified_cpp_name, pb_name);
       }
     }
@@ -1443,7 +1459,7 @@ struct hpp_meta_generator : code_generator {
 
     std::string access = (oneof_index == 0) ? "&" + cpp_name : std::to_string(oneof_index);
 
-    if (descriptor.extendee == nullptr) {
+    if (descriptor.extendee_descriptor == nullptr) {
       fmt::format_to(target, "{}hpp::proto::field_meta<{}, {}, {}{}>,\n", indent(), proto.number, access,
                      fmt::join(options, " | "), type_and_default_value);
     } else {
@@ -1467,7 +1483,7 @@ struct hpp_meta_generator : code_generator {
     }
 
     auto namespace_prefix =
-        msg_code_generator::namespace_prefix_of(*static_cast<message_descriptor_t *>(descriptor.extendee));
+        msg_code_generator::namespace_prefix_of(*static_cast<message_descriptor_t *>(descriptor.extendee_descriptor));
 
     fmt::format_to(target,
                    "{0}constexpr auto {1}() {{\n"
@@ -1782,7 +1798,7 @@ struct glaze_meta_generator : code_generator {
       fmt::format_to(target, ");\n}};\n\n");
 
       for (auto *m : descriptor.messages) {
-        if (!m->is_map_entry) {
+        if (!m->is_map_entry()) {
           process(*m, qualified_name);
         }
       }
@@ -1991,9 +2007,9 @@ namespace {
 void mark_map_entries(hpp_gen_descriptor_pool &pool) {
   for (auto &f : pool.fields) {
     using enum google::protobuf::FieldDescriptorProto::Type;
-    if (!f.proto.type_name.empty() && (f.proto.type) == TYPE_MESSAGE) {
-      auto *m = pool.message_map[f.proto.type_name];
-      if (m->is_map_entry) {
+    if (f.proto.type == TYPE_MESSAGE) {
+      auto *m = static_cast<hpp_gen_descriptor_pool::message_descriptor_t *>(f.type_descriptor);
+      if (m->is_map_entry()) {
         f.map_fields[0] = m->fields[0];
         f.map_fields[1] = m->fields[1];
       }
