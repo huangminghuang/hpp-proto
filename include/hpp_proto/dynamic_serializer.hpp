@@ -65,7 +65,7 @@ struct Any {
 };
 auto pb_meta(const Any &)
     -> std::tuple<hpp::proto::field_meta<1, &Any::type_url, hpp::proto::field_option::utf8_validation>,
-                  hpp::proto::field_meta<2, &Any::value, hpp::proto::field_option::none>>;
+                  hpp::proto::field_meta<2, &Any::value, hpp::proto::field_option::none>>; 
 
 struct Duration {
   constexpr static bool glaze_reflect = false;
@@ -75,7 +75,7 @@ struct Duration {
 
 auto pb_meta(const Duration &)
     -> std::tuple<hpp::proto::field_meta<1, &Duration::seconds, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-                  hpp::proto::field_meta<2, &Duration::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>;
+                  hpp::proto::field_meta<2, &Duration::nanos, hpp::proto::field_option::none, hpp::proto::vint64_t>>; 
 
 struct Timestamp {
   constexpr static bool glaze_reflect = false;
@@ -188,21 +188,21 @@ class dynamic_serializer {
 
     template <typename FieldDescriptor, typename Pool>
     field_meta(FieldDescriptor *field_descriptor, const Pool &pool)
-        : number(static_cast<uint32_t>(field_descriptor->proto.number)), name(field_descriptor->proto.name),
-          json_name(field_descriptor->proto.json_name), type(field_descriptor->proto.type),
-          default_value(field_descriptor->proto.default_value) {
-      auto &proto = field_descriptor->proto;
+        : number(static_cast<uint32_t>(field_descriptor->proto().number)), name(field_descriptor->proto().name),
+          json_name(field_descriptor->proto().json_name), type(field_descriptor->proto().type),
+          default_value(field_descriptor->proto().default_value) {
+      const auto &proto = field_descriptor->proto();
       if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE) {
-        if (pool.message_map.find(proto.type_name.substr(1))->second->is_map_entry()) {
+        if (pool.message_map().find(proto.type_name.substr(1))->second->is_map_entry()) {
           options |= field_options::is_map_entry;
         }
       }
 
       using enum google::protobuf::FieldDescriptorProto::Type;
       if (proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP) {
-        type_index = find_index(pool.message_map.keys(), proto.type_name.substr(1));
+        type_index = find_index(pool.message_map().keys(), proto.type_name.substr(1));
       } else if (proto.type == TYPE_ENUM) {
-        type_index = find_index(pool.enum_map.keys(), proto.type_name);
+        type_index = find_index(pool.enum_map().keys(), proto.type_name.substr(1));
       }
 
       using enum google::protobuf::FieldDescriptorProto::Label;
@@ -614,7 +614,7 @@ class dynamic_serializer {
 
         const bool is_map_key = false;
         if (auto ec = field_to_json<Options>(*msg_meta, number, field_wire_type, unpacked_repeated_positions,
-                                             field_index, separator, is_map_key, archive);
+                                             field_index, separator, is_map_key, archive); 
             !ec.ok()) [[unlikely]] {
           return ec;
         }
@@ -647,7 +647,7 @@ class dynamic_serializer {
       pb_serializer::contiguous_input_archive value_archive(v.value, pb_ctx);
       const bool is_wellknown = pb_meta.is_wellknown_message(msg_index);
       if (is_wellknown) {
-        glz::dump<"\"value\":">(b, ix);
+        glz::dump<R"("value":)">(b, ix);
         if constexpr (Options.prettify) {
           glz::dump<' '>(b, ix);
         }
@@ -1018,7 +1018,7 @@ class dynamic_serializer {
       case TYPE_GROUP: {
         archive(make_tag(meta.number, wire_type::sgroup));
 
-        if (auto ec = message_to_pb<Options>(std::get<const message_meta *>(meta.type_info), it, end, 0, archive);
+        if (auto ec = message_to_pb<Options>(std::get<const message_meta *>(meta.type_info), it, end, 0, archive); 
             !ec.ok()) [[unlikely]] {
           return ec;
         }
@@ -1408,13 +1408,13 @@ public:
   explicit dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
     descriptor_pool<proto_json_addons> pool(set.file);
 
-    if (pool.enum_map.size() != 1 || pool.enum_map.begin()->first != "google.protobuf.NullValue") {
-      enums.reserve(pool.enums.size());
-      std::ranges::transform(pool.enum_map, std::back_inserter(enums), [](const auto &entry) {
+    if (pool.enum_map().size() != 1 || pool.enum_map().begin()->first != "google.protobuf.NullValue") {
+      enums.reserve(pool.enums().size());
+      std::ranges::transform(pool.enum_map(), std::back_inserter(enums), [](const auto &entry) {
         auto* descriptor = entry.second;
         dynamic_serializer::enum_meta m;
         m.is_closed = descriptor->is_closed();
-        const auto values = descriptor->proto.value;
+        const auto values = descriptor->proto().value;
         m.values.reserve(values.size());
         std::transform(values.begin(), values.end(), std::back_inserter(m.values),
                        [](auto &v) { return dynamic_serializer::enum_value_meta{v.number, v.name}; });
@@ -1424,8 +1424,8 @@ public:
       enums.emplace_back();
     }
 
-    messages.reserve(pool.messages.size());
-    std::ranges::transform(pool.message_map, std::back_inserter(messages), [&pool](const auto &entry) {
+    messages.reserve(pool.messages().size());
+    std::ranges::transform(pool.message_map(), std::back_inserter(messages), [&pool](const auto &entry) {
       auto* descriptor = entry.second;
       dynamic_serializer::message_meta m;
       m.fields.reserve(descriptor->fields.size());
@@ -1445,7 +1445,7 @@ public:
       }
     }
 
-    std::ranges::transform(pool.message_map, std::back_inserter(message_names),
+    std::ranges::transform(pool.message_map(), std::back_inserter(message_names),
                            [](const auto &entry) { return entry.first; });
 
     protobuf_any_message_index = message_index("google.protobuf.Any");
@@ -1583,7 +1583,7 @@ public:
 
   [[nodiscard]] expected<std::string, std::errc>
   proto_to_json(std::string_view message_name, concepts::contiguous_byte_range auto const &pb_encoded_stream) const {
-    return proto_to_json(message_name, pb_encoded_stream, glz_opts_t<glz::opts{}>{});
+    return proto_to_json(message_name, pb_encoded_stream, glz_opts_t<glz::opts{}>( ));
   }
 
   // NOLINTBEGIN(bugprone-easily-swappable-parameters)

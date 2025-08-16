@@ -48,7 +48,7 @@ struct reflection_addons {
     void set_kind_and_default_value() {
       using enum google::protobuf::FieldDescriptorProto::Type;
       using namespace std::string_literals;
-      const auto &proto = static_cast<Derived *>(this)->proto;
+      const auto &proto = static_cast<Derived *>(this)->proto();
       const auto &default_value_opt = proto.default_value;
       switch (proto.type) {
       case TYPE_MESSAGE:
@@ -117,7 +117,7 @@ struct reflection_addons {
     explicit enum_descriptor(const google::protobuf::EnumDescriptorProto &) {}
 
     const int *value_of(const std::string_view name) const {
-      const auto &proto = static_cast<const EnumD *>(this)->proto;
+      const auto &proto = static_cast<const EnumD *>(this)->proto();
       for (const auto &ev : proto.value) {
         if (ev.name == name) {
           return &ev.number;
@@ -127,7 +127,7 @@ struct reflection_addons {
     }
 
     const char *name_of(int32_t value) const {
-      const auto &proto = static_cast<const EnumD *>(this)->proto;
+      const auto &proto = static_cast<const EnumD *>(this)->proto();
       for (const auto &ev : proto.value) {
         if (ev.number == value) {
           return ev.name.c_str();
@@ -158,8 +158,8 @@ struct reflection_addons {
       oneofs.reserve(proto.oneof_decl.size());
     }
     void add_field(FieldD &f) {
-      if (f.proto.oneof_index.has_value()) {
-        auto &oneof_descriptor = *oneofs[static_cast<std::size_t>(f.proto.oneof_index.value())];
+      if (f.proto().oneof_index.has_value()) {
+        auto &oneof_descriptor = *oneofs[static_cast<std::size_t>(f.proto().oneof_index.value())];
         oneof_descriptor.fields.push_back(&f);
 
         FieldD *prev_field = nullptr;
@@ -167,7 +167,7 @@ struct reflection_addons {
           prev_field = fields.back();
         }
 
-        if (f.proto.oneof_index != prev_field->proto.oneof_index) {
+        if (f.proto().oneof_index != prev_field->proto().oneof_index) {
           f.storage_slot = num_slots++;
         } else {
           f.storage_slot = num_slots - 1;
@@ -901,7 +901,7 @@ public:
 
   std::optional<field_cref> field_cref_by_name(std::string_view name) const {
     auto it =
-        std::ranges::find_if(descriptor_.fields, [&name](const auto &field) { return field->proto.name == name; });
+        std::ranges::find_if(descriptor_.fields, [&name](const auto &field) { return field->proto().name == name; });
     if (it != descriptor_.fields.end()) {
       return field_cref_for(**it);
     }
@@ -910,7 +910,7 @@ public:
 
   std::optional<field_cref> field_cref_by_number(int32_t number) const {
     auto it =
-        std::ranges::find_if(descriptor_.fields, [number](const auto &field) { return field->proto.number == number; });
+        std::ranges::find_if(descriptor_.fields, [number](const auto &field) { return field->proto().number == number; });
     if (it != descriptor_.fields.end()) {
       return field_cref_for(**it);
     }
@@ -980,7 +980,7 @@ public:
 
   std::optional<field_cref> field_mref_by_name(std::string_view name) const {
     auto it =
-        std::ranges::find_if(descriptor_.fields, [&name](const auto &field) { return field->proto.name == name; });
+        std::ranges::find_if(descriptor_.fields, [&name](const auto &field) { return field->proto().name == name; });
     if (it != descriptor_.fields.end()) {
       return field_mref_for(**it);
     }
@@ -989,7 +989,7 @@ public:
 
   std::optional<field_cref> field_mref_by_number(int32_t number) const {
     auto it =
-        std::ranges::find_if(descriptor_.fields, [number](const auto &field) { return field->proto.number == number; });
+        std::ranges::find_if(descriptor_.fields, [number](const auto &field) { return field->proto().number == number; });
     if (it != descriptor_.fields.end()) {
       return field_mref_for(**it);
     }
@@ -1002,7 +1002,7 @@ public:
       if (desc->oneof_ordinal) {
         if (desc->oneof_ordinal == storage.of_oneof.ordinal_ ||
             (desc->oneof_ordinal == 1 && storage.of_oneof.ordinal_ == 0)) {
-          auto *oneof_desc = descriptor_.oneofs[desc->proto.oneof_index];
+          auto *oneof_desc = descriptor_.oneofs[desc->proto().oneof_index];
           unary_function(oneof_field_mref{*oneof_desc, storage, memory_resource_});
           return;
         }
@@ -1329,10 +1329,10 @@ inline auto field_mref::visit(auto &&visitor) {
 }
 
 class dynamic_serializer {
-  descriptor_pool_t pool;
+  descriptor_pool_t pool_;
 
 public:
-  explicit dynamic_serializer(const google::protobuf::FileDescriptorSet &set) : pool(set.file) {}
+  explicit dynamic_serializer(const google::protobuf::FileDescriptorSet &set) : pool_(set.file) {}
 
   message_value_mref create_message(std::string_view name, std::pmr::monotonic_buffer_resource &memory_resource);
 };
