@@ -533,12 +533,6 @@ struct hpp_addons {
 
   template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
   struct message_descriptor {
-    std::vector<FieldD *> fields;
-    std::vector<EnumD *> enums;
-    std::vector<MessageD *> messages;
-    std::vector<OneofD *> oneofs;
-    std::vector<FieldD *> extensions;
-
     std::string pb_name;
     std::string cpp_name;
     std::set<std::string> dependencies;
@@ -549,38 +543,16 @@ struct hpp_addons {
 
     explicit message_descriptor(const gpb::DescriptorProto &proto)
         : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)) {
-      fields.reserve(proto.field.size());
-      messages.reserve(proto.nested_type.size());
-      enums.reserve(proto.enum_type.size());
-      oneofs.reserve(proto.oneof_decl.size());
-      extensions.reserve(proto.extension.size());
     }
 
     void on_options_resolved(const gpb::DescriptorProto &, const gpb::MessageOptions &options) {
       auto opts = options.get_extension(hpp::proto::hpp_message_opts()).value_or(hpp::proto::MessageOptions{});
       non_owning = opts.non_owning.value();
     }
-
-    void add_field(FieldD &f) {
-      fields.push_back(&f);
-      if (f.proto().oneof_index.has_value()) {
-        oneofs[static_cast<std::size_t>(*f.proto().oneof_index)]->fields.push_back(&f);
-      }
-    }
-    void add_enum(EnumD &e) { enums.push_back(&e); }
-    void add_message(MessageD &m) {
-      messages.push_back(&m);
-    }
-    void add_oneof(OneofD &o) { oneofs.push_back(&o); }
-    void add_extension(FieldD &f) { extensions.push_back(&f); }
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
   struct file_descriptor {
-    std::vector<MessageD *> messages;
-    std::vector<EnumD *> enums;
-    std::vector<FieldD *> extensions;
-    std::vector<FileD *> dependencies;
     std::vector<std::string> dependency_names;
 
     std::string syntax;
@@ -590,9 +562,6 @@ struct hpp_addons {
 
     explicit file_descriptor(const gpb::FileDescriptorProto &proto)
         : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax), cpp_name(proto.name) {
-      messages.reserve(proto.message_type.size());
-      enums.reserve(proto.enum_type.size());
-      extensions.reserve(proto.extension.size());
     }
 
     void on_options_resolved(const gpb::FileDescriptorProto &proto, const gpb::FileOptions &options) {
@@ -603,28 +572,13 @@ struct hpp_addons {
       cpp_name = resolve_keyword(cpp_name);
     }
 
-    void add_enum(EnumD &e) {
-      enums.push_back(&e);
-    }
-
-    void add_message(MessageD &m) {
-      messages.push_back(&m);
-    }
-    void add_extension(FieldD &f) { extensions.push_back(&f); }
-
-    void resolve_dependencies(auto &pool) {
-      auto &self = static_cast<FileD &>(*this);
-      dependencies.resize(self.proto().dependency.size());
-      std::transform(self.proto().dependency.begin(), self.proto().dependency.end(), dependencies.begin(),
-                     [&pool](auto &dep) { return pool.file_by_name(dep); });
-    }
-
     // NOLINTBEGIN(misc-no-recursion)
     const std::vector<std::string> &get_dependency_names() {
       if (dependency_names.empty()) {
         auto it = std::back_inserter(dependency_names);
-        for (auto *dep : dependencies) {
-          auto &names = dep->get_dependency_names();
+        auto &self = static_cast<FileD &>(*this);
+        for (auto &dep : self.dependencies()) {
+          auto &names = dep.get_dependency_names();
           std::copy(names.begin(), names.end(), it);
         }
         std::ranges::sort(dependency_names);
@@ -665,7 +619,6 @@ struct code_generator {
 
   static message_descriptor_t *parent_message_of(auto *desc) { return desc->parent_message(); }
 
-
   explicit code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
       : file(files.emplace_back()), target(file.content) {}
 
@@ -686,13 +639,13 @@ struct code_generator {
 
   // NOLINTBEGIN(misc-no-recursion)
   static void mark_field_recursive(message_descriptor_t &descriptor, const std::string &dep) {
-    for (auto *f : descriptor.fields) {
-      if (f->cpp_field_type == dep) {
-        f->is_recursive = true;
+    for (auto &f : descriptor.fields()) {
+      if (f.cpp_field_type == dep) {
+        f.is_recursive = true;
       }
     }
-    for (auto *m : descriptor.messages) {
-      mark_field_recursive(*m, dep);
+    for (auto &m : descriptor.messages()) {
+      mark_field_recursive(m, dep);
     }
   }
   // NOLINTEND(misc-no-recursion)
@@ -748,19 +701,19 @@ struct code_generator {
     mark_field_recursive(descriptor, dep);
   }
 
-  static std::vector<message_descriptor_t *> order_messages(std::vector<message_descriptor_t *> &messages) {
+  static std::vector<message_descriptor_t *> order_messages(auto messages_view) {
     std::vector<message_descriptor_t *> resolved_messages;
     std::vector<message_descriptor_t *> unresolved_messages;
-    resolved_messages.reserve(messages.size());
-    unresolved_messages.reserve(messages.size());
+    resolved_messages.reserve(messages_view.size());
+    unresolved_messages.reserve(messages_view.size());
     std::set<std::string> resolved_message_names;
 
-    for (auto *m : messages) {
-      if (m->dependencies.empty()) {
-        resolved_messages.push_back(m);
-        resolved_message_names.insert(m->cpp_name);
+    for (auto &m : messages_view) {
+      if (m.dependencies.empty()) {
+        resolved_messages.push_back(&m);
+        resolved_message_names.insert(m.cpp_name);
       } else {
-        unresolved_messages.push_back(m);
+        unresolved_messages.push_back(&m);
       }
     }
 
@@ -825,9 +778,7 @@ struct msg_code_generator : code_generator {
   explicit msg_code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
       : code_generator(files), out_of_class_target(out_of_class_data) {}
 
-  static std::string namespace_prefix_of(const auto &d) {
-    return d.parent_file()->namespace_prefix;
-  }
+  static std::string namespace_prefix_of(const auto &d) { return d.parent_file()->namespace_prefix; }
 
   static std::string_view common_ancestor(std::string_view name1, std::string_view name2) {
     auto pos = shared_scope_position(name1, name2);
@@ -883,8 +834,7 @@ struct msg_code_generator : code_generator {
       }
 
       auto *dependent_msg = pool.message_by_name(dependent);
-      message_descriptor_t *dependee_msg =
-          type == TYPE_ENUM ? nullptr : field.message_field_type_descriptor();
+      message_descriptor_t *dependee_msg = type == TYPE_ENUM ? nullptr : field.message_field_type_descriptor();
 
       std::string namespace_prefix;
 
@@ -953,11 +903,11 @@ struct msg_code_generator : code_generator {
                      ns);
     }
 
-    for (auto *e : descriptor.enums) {
-      process(*e, "");
+    for (auto &e : descriptor.enums()) {
+      process(e, "");
     }
 
-    for (auto *m : order_messages(descriptor.messages)) {
+    for (auto *m : order_messages(descriptor.messages())) {
       process(*m, "", descriptor.proto().package);
     }
 
@@ -996,7 +946,7 @@ struct msg_code_generator : code_generator {
     using enum gpb::FieldDescriptorProto::Type;
     using namespace std::string_literals;
     auto type_desc = descriptor.message_field_type_descriptor();
-    if (type_desc->fields[0]->proto().type == TYPE_STRING) {
+    if (type_desc->fields().front().proto().type == TYPE_STRING) {
       return opts.string_keyed_map.value_or("hpp::proto::flat_map"s);
     } else {
       return opts.numeric_keyed_map.value_or("hpp::proto::flat_map"s);
@@ -1005,7 +955,7 @@ struct msg_code_generator : code_generator {
 
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.is_map_entry()) {
-      auto* type_desc = descriptor.message_field_type_descriptor();
+      auto *type_desc = descriptor.message_field_type_descriptor();
       if (!descriptor.non_owning) {
         std::string type = get_map_container_name(descriptor);
         auto transform_if_bool = [&type](const std::string &name) {
@@ -1013,11 +963,11 @@ struct msg_code_generator : code_generator {
           // want.
           return (type == "hpp::proto::flat_map" && name == "bool") ? std::string{"hpp::proto::boolean"} : name;
         };
-        return fmt::format("{}<{},{}>", type, transform_if_bool(type_desc->fields[0]->cpp_field_type),
-                           transform_if_bool(type_desc->fields[1]->cpp_field_type));
+        return fmt::format("{}<{},{}>", type, transform_if_bool(type_desc->fields().front().cpp_field_type),
+                           transform_if_bool(type_desc->fields()[1].cpp_field_type));
       } else {
         return fmt::format("hpp::proto::equality_comparable_span<std::pair<{},{}>>",
-                           type_desc->fields[0]->cpp_field_type, type_desc->fields[1]->cpp_field_type);
+                           type_desc->fields().front().cpp_field_type, type_desc->fields()[1].cpp_field_type);
       }
     }
 
@@ -1050,8 +1000,6 @@ struct msg_code_generator : code_generator {
                 std::ranges::any_of(proto2_explicit_presences, [&qualified_name](const auto &s) {
                   return qualified_name.starts_with(std::string_view{s}.substr(1));
                 })));
-
-    
   }
 
   void process(field_descriptor_t &descriptor) {
@@ -1071,38 +1019,39 @@ struct msg_code_generator : code_generator {
   }
 
   void process(oneof_descriptor_t &descriptor, std::int32_t number) {
-    if (number != descriptor.fields[0]->proto().number) {
+    auto fields = descriptor.fields();
+    if (number != fields[0].proto().number) {
       return;
     }
 
-    if (descriptor.fields.size() > 1) {
+    if (fields.size() > 1) {
       std::string types;
 
       fmt::format_to(target, "{}enum {}_oneof_case : int {{\n", indent(), descriptor.cpp_name);
       indent_num += 2;
       std::size_t index = 1;
-      for (auto *f : descriptor.fields) {
-        const char *sep = (index != descriptor.fields.size()) ? "," : "";
-        fmt::format_to(target, "{}{} = {}{}\n", indent(), f->cpp_name, index++, sep);
+      for (auto &f : fields) {
+        const char *sep = (index != fields.size()) ? "," : "";
+        fmt::format_to(target, "{}{} = {}{}\n", indent(), f.cpp_name, index++, sep);
       }
       indent_num -= 2;
       fmt::format_to(target, "{}}};\n\n", indent());
       fmt::format_to(target,
                      "{}static constexpr std::array<std::uint32_t, {}> {}_oneof_numbers{{\n"
                      "{}  0U",
-                     indent(), descriptor.fields.size() + 1, descriptor.cpp_name, indent());
+                     indent(), fields.size() + 1, descriptor.cpp_name, indent());
 
-      for (auto *f : descriptor.fields) {
-        fmt::format_to(target, ", {}U", f->proto().number);
-        types += (", " + f->cpp_field_type);
+      for (auto &f : fields) {
+        fmt::format_to(target, ", {}U", f.proto().number);
+        types += (", " + f.cpp_field_type);
       }
       fmt::format_to(target, "}};\n");
       fmt::format_to(target, "{}std::variant<std::monostate{}> {};\n", indent(), types, descriptor.cpp_name);
     } else {
-      auto *f = descriptor.fields[0];
+      auto &f = fields[0];
       std::string attribute;
 
-      fmt::format_to(target, "{}{}std::optional<{}> {};\n", indent(), attribute, f->cpp_field_type, f->cpp_name);
+      fmt::format_to(target, "{}{}std::optional<{}> {};\n", indent(), attribute, f.cpp_field_type, f.cpp_name);
     }
   }
 
@@ -1172,26 +1121,26 @@ struct msg_code_generator : code_generator {
       fmt::format_to(target, "{}constexpr static bool glaze_reflect = false;\n", indent());
     }
 
-    for (auto &e : descriptor.enums) {
-      process(*e, qualified_cpp_name);
+    for (auto &e : descriptor.enums()) {
+      process(e, qualified_cpp_name);
     }
 
-    for (auto *m : order_messages(descriptor.messages)) {
+    for (auto *m : order_messages(descriptor.messages())) {
       process(*m, qualified_cpp_name, descriptor.pb_name);
     }
 
-    for (auto *f : descriptor.fields) {
-      set_presence_rule(*f);
-      if (!f->proto().oneof_index.has_value()) {
-        process(*f);
+    for (auto &f : descriptor.fields()) {
+      set_presence_rule(f);
+      if (!f.proto().oneof_index.has_value()) {
+        process(f);
       } else {
-        auto index = static_cast<std::size_t>(*f->proto().oneof_index);
-        process(*(descriptor.oneofs[index]), f->proto().number);
+        auto index = *f.proto().oneof_index;
+        process(descriptor.oneofs()[index], f.proto().number);
       }
     }
 
-    for (auto *f : descriptor.extensions) {
-      fmt::format_to(target, "\n{}static constexpr auto {}();\n", indent(), f->cpp_name);
+    for (auto &f : descriptor.extensions()) {
+      fmt::format_to(target, "\n{}static constexpr auto {}();\n", indent(), f.cpp_name);
     }
 
     if (!descriptor.proto().extension_range.empty()) {
@@ -1259,8 +1208,8 @@ struct msg_code_generator : code_generator {
 
     if (descriptor.non_owning) {
       bool need_explicit_constructors = false;
-      for (auto *f : descriptor.fields) {
-        if (f->is_recursive && f->proto().label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
+      for (auto &f : descriptor.fields()) {
+        if (f.is_recursive && f.proto().label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
           need_explicit_constructors = true;
         }
       }
@@ -1268,14 +1217,14 @@ struct msg_code_generator : code_generator {
       if (need_explicit_constructors) {
         std::string copy_constructor_init_list;
         int i = 0;
-        for (auto *f : descriptor.fields) {
+        for (auto &f : descriptor.fields()) {
           if (i > 0) {
             copy_constructor_init_list += ",";
           }
-          if (f->is_recursive && f->proto().label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
-            copy_constructor_init_list += fmt::format("{0}(other.{0}.data(), other.{0}.size())", f->cpp_name);
+          if (f.is_recursive && f.proto().label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
+            copy_constructor_init_list += fmt::format("{0}(other.{0}.data(), other.{0}.size())", f.cpp_name);
           } else {
-            copy_constructor_init_list += fmt::format("{0}(other.{0})", f->cpp_name);
+            copy_constructor_init_list += fmt::format("{0}(other.{0})", f.cpp_name);
           }
           ++i;
         }
@@ -1331,12 +1280,12 @@ struct hpp_meta_generator : code_generator {
       fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
     }
 
-    for (auto *m : descriptor.messages) {
-      process(*m, "", package);
+    for (auto &m : descriptor.messages()) {
+      process(m, "", package);
     }
 
-    for (auto *f : descriptor.extensions) {
-      process(*f, "", 0UL);
+    for (auto &f : descriptor.extensions()) {
+      process(f, "", 0UL);
     }
 
     if (!ns.empty()) {
@@ -1360,13 +1309,13 @@ struct hpp_meta_generator : code_generator {
     fmt::format_to(target, "auto pb_meta(const {} &) -> std::tuple<\n", qualified_cpp_name);
     indent_num += 2;
 
-    for (auto *f : descriptor.fields) {
-      if (!f->proto().oneof_index.has_value()) {
-        process(*f, qualified_cpp_name, 0UL);
+    for (auto &f : descriptor.fields()) {
+      if (!f.proto().oneof_index.has_value()) {
+        process(f, qualified_cpp_name, 0UL);
       } else {
-        auto index = static_cast<std::size_t>(*f->proto().oneof_index);
-        auto &oneof = *(descriptor.oneofs[index]);
-        if (oneof.fields[0]->proto().number == f->proto().number) {
+        auto index = *f.proto().oneof_index;
+        auto &oneof = descriptor.oneofs()[index];
+        if (oneof.fields()[0].proto().number == f.proto().number) {
           process(oneof, qualified_cpp_name, pb_name);
         }
       }
@@ -1374,7 +1323,7 @@ struct hpp_meta_generator : code_generator {
 
     if (!descriptor.proto().extension_range.empty()) {
       fmt::format_to(target, "{}hpp::proto::field_meta<UINT32_MAX, &{}::extensions>", indent(), qualified_cpp_name);
-    } else if (!descriptor.fields.empty()) {
+    } else if (!descriptor.fields().empty()) {
       auto &content = file.content;
       content.resize(content.size() - 2);
     }
@@ -1382,13 +1331,13 @@ struct hpp_meta_generator : code_generator {
 
     fmt::format_to(target, ">;\n\n");
 
-    for (auto *f : descriptor.extensions) {
-      process(*f, qualified_cpp_name, 0UL);
+    for (auto &f : descriptor.extensions()) {
+      process(f, qualified_cpp_name, 0UL);
     }
 
-    for (auto *m : descriptor.messages) {
-      if (!m->is_map_entry()) {
-        process(*m, qualified_cpp_name, pb_name);
+    for (auto &m : descriptor.messages()) {
+      if (!m.is_map_entry()) {
+        process(m, qualified_cpp_name, pb_name);
       }
     }
   }
@@ -1422,14 +1371,14 @@ struct hpp_meta_generator : code_generator {
     using enum gpb::FieldDescriptorProto::Type;
 
     if (descriptor.is_map_entry()) {
-      auto get_meta_type = [](const auto *field) {
-        return field->cpp_meta_type == "void" ? field->qualified_cpp_field_type : field->cpp_meta_type;
+      auto get_meta_type = [](const auto &field) {
+        return field.cpp_meta_type == "void" ? field.qualified_cpp_field_type : field.cpp_meta_type;
       };
-      auto* type_desc = descriptor.message_field_type_descriptor();
-      descriptor.cpp_meta_type = fmt::format(
-          "hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields[0]),
-          get_meta_type(type_desc->fields[1]), fmt::join(meta_options(*type_desc->fields[0]), " | "),
-          fmt::join(meta_options(*type_desc->fields[1]), " | "));
+      auto *type_desc = descriptor.message_field_type_descriptor();
+      descriptor.cpp_meta_type =
+          fmt::format("hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
+                      get_meta_type(type_desc->fields()[1]), fmt::join(meta_options(type_desc->fields()[0]), " | "),
+                      fmt::join(meta_options(type_desc->fields()[1]), " | "));
     }
 
     std::string default_value;
@@ -1473,8 +1422,7 @@ struct hpp_meta_generator : code_generator {
       type_and_default_value += ", " + descriptor.default_value_template_arg;
     }
 
-    auto namespace_prefix =
-        msg_code_generator::namespace_prefix_of(*descriptor.extendee_descriptor());
+    auto namespace_prefix = msg_code_generator::namespace_prefix_of(*descriptor.extendee_descriptor());
 
     fmt::format_to(target,
                    "{0}constexpr auto {1}() {{\n"
@@ -1487,29 +1435,30 @@ struct hpp_meta_generator : code_generator {
   // NOLINTEND(readability-function-cognitive-complexity)
 
   void process(oneof_descriptor_t &descriptor, const std::string &cpp_scope, const std::string & /* unused */) {
-    if (descriptor.fields.size() > 1) {
+    auto fields = descriptor.fields();
+    if (fields.size() > 1) {
       std::string types;
       std::string sep;
-      for (auto &f : descriptor.fields) {
-        types += (sep + f->cpp_field_type);
+      for (auto &f : fields) {
+        types += (sep + f.cpp_field_type);
         sep = ",";
       }
       fmt::format_to(target, "{}hpp::proto::oneof_field_meta<\n", indent());
       indent_num += 2;
       fmt::format_to(target, "{}&{}::{},\n", indent(), cpp_scope, descriptor.cpp_name);
       std::size_t i = 0;
-      for (auto *f : descriptor.fields) {
-        process(*f, cpp_scope, ++i);
+      for (auto &f : fields) {
+        process(f, cpp_scope, ++i);
       }
 
       indent_num -= 2;
-      if (!descriptor.fields.empty()) {
+      if (!fields.empty()) {
         auto &content = file.content;
         content.resize(content.size() - 2);
       }
       fmt::format_to(target, ">,\n");
     } else {
-      process(*descriptor.fields[0], cpp_scope, 0);
+      process(fields[0], cpp_scope, 0);
     }
   }
 
@@ -1538,8 +1487,8 @@ struct glaze_meta_generator : code_generator {
     file.name = file_name.substr(0, file_name.size() - 5) + "glz.hpp";
 
     std::string sole_message_name;
-    if (descriptor.messages.size() == 1) {
-      sole_message_name = descriptor.messages[0]->pb_name;
+    if (descriptor.messages().size() == 1) {
+      sole_message_name = descriptor.messages().front().pb_name;
     }
 
     if (sole_message_name != "google.protobuf.Any") {
@@ -1566,12 +1515,12 @@ struct glaze_meta_generator : code_generator {
     auto package = descriptor.proto().package;
     auto ns = make_qualified_cpp_name(descriptor.namespace_prefix, "." + package);
 
-    for (auto *m : descriptor.messages) {
-      process(*m, ns);
+    for (auto &m : descriptor.messages()) {
+      process(m, ns);
     }
 
-    for (auto *e : descriptor.enums) {
-      process(*e, ns);
+    for (auto &e : descriptor.enums()) {
+      process(e, ns);
     }
 
     fmt::format_to(target, "// clang-format on\n");
@@ -1770,32 +1719,32 @@ struct glaze_meta_generator : code_generator {
                      "  static constexpr auto value = object(\n",
                      qualified_name);
 
-      for (auto *f : descriptor.fields) {
-        if (!f->proto().oneof_index.has_value()) {
-          process(*f);
+      for (auto &f : descriptor.fields()) {
+        if (!f.proto().oneof_index.has_value()) {
+          process(f);
         } else {
-          auto index = static_cast<std::size_t>(*f->proto().oneof_index);
-          auto &oneof = *(descriptor.oneofs[index]);
-          if (oneof.fields[0]->proto().number == f->proto().number) {
+          auto index = *f.proto().oneof_index;
+          auto &oneof = descriptor.oneofs()[index];
+          if (oneof.fields()[0].proto().number == f.proto().number) {
             process(oneof);
           }
         }
       }
-      if (!descriptor.fields.empty()) {
+      if (!descriptor.fields().empty()) {
         auto &content = file.content;
         content.resize(content.size() - 2);
       }
 
       fmt::format_to(target, ");\n}};\n\n");
 
-      for (auto *m : descriptor.messages) {
-        if (!m->is_map_entry()) {
-          process(*m, qualified_name);
+      for (auto &m : descriptor.messages()) {
+        if (!m.is_map_entry()) {
+          process(m, qualified_name);
         }
       }
 
-      for (auto *e : descriptor.enums) {
-        process(*e, qualified_name);
+      for (auto &e : descriptor.enums()) {
+        process(e, qualified_name);
       }
     }
   }
@@ -1833,13 +1782,14 @@ struct glaze_meta_generator : code_generator {
   }
 
   void process(oneof_descriptor_t &descriptor) {
-    if (descriptor.fields.size() > 1) {
-      for (unsigned i = 0; i < descriptor.fields.size(); ++i) {
-        fmt::format_to(target, "    \"{}\", hpp::proto::as_oneof_member<&T::{},{}>,\n",
-                       descriptor.fields[i]->proto().json_name, descriptor.cpp_name, i + 1);
+    auto fields = descriptor.fields();
+    if (fields.size() > 1) {
+      for (unsigned i = 0; i < fields.size(); ++i) {
+        fmt::format_to(target, "    \"{}\", hpp::proto::as_oneof_member<&T::{},{}>,\n", fields[i].proto().json_name,
+                       descriptor.cpp_name, i + 1);
       }
     } else {
-      process(*descriptor.fields[0]);
+      process(fields[0]);
     }
   }
 
@@ -2076,10 +2026,6 @@ int main(int argc, const char **argv) {
   response.minimum_edition = static_cast<int32_t>(gpb::Edition::EDITION_PROTO2);
   response.maximum_edition = static_cast<int32_t>(gpb::Edition::EDITION_2024);
 
-  for (auto& f : pool.files()) {
-    f.resolve_dependencies(pool);
-  }
-
   for (const auto &file_name : request.file_to_generate) {
     auto &descriptor = *pool.file_by_name(file_name);
 
@@ -2093,7 +2039,7 @@ int main(int argc, const char **argv) {
     glaze_meta_generator glz_meta_code(response.file);
     glz_meta_code.process(descriptor);
 
-    if (!descriptor.messages.empty()) {
+    if (!descriptor.messages().empty()) {
       desc_hpp_generator desc_hpp_code(response.file);
       desc_hpp_code.process(descriptor);
     }

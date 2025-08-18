@@ -26,6 +26,13 @@
 #include <iostream>
 namespace hpp::proto {
 
+struct deref_pointer {
+  template <typename T>
+  T &operator()(T *pointer) {
+    return *pointer;
+  }
+};
+
 template <typename FlatMap>
 void initial_reserve(FlatMap &m, std::size_t s) {
   assert(m.empty());
@@ -87,6 +94,11 @@ public:
         base_type::on_options_resolved(proto_, options_);
       }
     }
+
+    field_descriptor_t(const field_descriptor_t &) = delete;
+    field_descriptor_t(field_descriptor_t &&) = default;
+    field_descriptor_t &operator=(const field_descriptor_t &) = delete;
+    field_descriptor_t &operator=(field_descriptor_t &&) = default;
 
     [[nodiscard]] const google::protobuf::FieldDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const google::protobuf::FieldOptions &options() const { return options_; }
@@ -202,13 +214,31 @@ public:
       }
     }
 
+    oneof_descriptor_t(const oneof_descriptor_t &) = delete;
+    oneof_descriptor_t(oneof_descriptor_t &&) = default;
+    oneof_descriptor_t &operator=(const oneof_descriptor_t &) = delete;
+    oneof_descriptor_t &operator=(oneof_descriptor_t &&) = default;
+
     [[nodiscard]] const google::protobuf::OneofDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const google::protobuf::OneofOptions &options() const { return options_; }
 
+    /**
+     * @brief Returns a view that transforms the elements of fields_ by dereferencing pointers.
+     *
+     * This function provides a lazy view over the fields_ container, applying the deref_pointer
+     * functor to each element. The resulting view allows iteration over the dereferenced objects
+     * without copying or modifying the underlying container.
+     *
+     * @return A std::views::transform view of fields_ with elements dereferenced.
+     */
+    auto fields() const { return std::views::transform(fields_, deref_pointer{}); }
+
   private:
+    friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::OneofDescriptorProto &proto_;
     google::protobuf::OneofOptions options_;
+    std::vector<field_descriptor_t *> fields_;
   };
 
   class enum_descriptor_t : public AddOns::template enum_descriptor<enum_descriptor_t> {
@@ -230,6 +260,11 @@ public:
         base_type::on_options_resolved(proto_, options_);
       }
     }
+
+    enum_descriptor_t(const enum_descriptor_t &) = delete;
+    enum_descriptor_t(enum_descriptor_t &&) = default;
+    enum_descriptor_t &operator=(const enum_descriptor_t &) = delete;
+    enum_descriptor_t &operator=(enum_descriptor_t &&) = default;
 
     [[nodiscard]] const google::protobuf::EnumDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const google::protobuf::EnumOptions &options() const { return options_; }
@@ -264,12 +299,23 @@ public:
       }
     }
 
+    message_descriptor_t(const message_descriptor_t &) = delete;
+    message_descriptor_t(message_descriptor_t &&) = default;
+    message_descriptor_t &operator=(const message_descriptor_t &) = delete;
+    message_descriptor_t &operator=(message_descriptor_t &&) = default;
+
     [[nodiscard]] const google::protobuf::DescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const google::protobuf::MessageOptions &options() const { return options_; }
     [[nodiscard]] file_descriptor_t *parent_file() const { return parent_file_; }
     [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
 
     bool is_map_entry() const { return proto_.options.has_value() && proto_.options->map_entry; }
+
+    auto fields() const { return std::views::transform(fields_, deref_pointer{}); }
+    auto enums() const { return std::views::transform(enums_, deref_pointer{}); }
+    auto oneofs() const { return std::views::transform(oneofs_, deref_pointer{}); }
+    auto messages() const { return std::views::transform(messages_, deref_pointer{}); }
+    auto extensions() const { return std::views::transform(extensions_, deref_pointer{}); }
 
   private:
     friend class descriptor_pool;
@@ -278,6 +324,11 @@ public:
     google::protobuf::MessageOptions options_;
     file_descriptor_t *parent_file_;
     message_descriptor_t *parent_message_;
+    std::vector<field_descriptor_t *> fields_;
+    std::vector<enum_descriptor_t *> enums_;
+    std::vector<message_descriptor_t *> messages_;
+    std::vector<oneof_descriptor_t *> oneofs_;
+    std::vector<field_descriptor_t *> extensions_;
 
     void setup_options(const google::protobuf::MessageOptions &inherited_options) {
       options_.features = merge_features(inherited_options.features.value(), proto_.options);
@@ -316,14 +367,28 @@ public:
       }
     }
 
+    file_descriptor_t(const file_descriptor_t &) = delete;
+    file_descriptor_t(file_descriptor_t &&) = default;
+    file_descriptor_t &operator=(const file_descriptor_t &) = delete;
+    file_descriptor_t &operator=(file_descriptor_t &&) = default;
+
     [[nodiscard]] const google::protobuf::FileDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const google::protobuf::FileOptions &options() const { return options_; }
+
+    auto enums() const { return std::views::transform(enums_, deref_pointer{}); }
+    auto messages() const { return std::views::transform(messages_, deref_pointer{}); }
+    auto extensions() const { return std::views::transform(extensions_, deref_pointer{}); }
+    auto dependencies() const { return std::views::transform(dependencies_, deref_pointer{}); }
 
   private:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const google::protobuf::FileDescriptorProto &proto_;
     google::protobuf::FileOptions options_;
+    std::vector<enum_descriptor_t *> enums_;
+    std::vector<message_descriptor_t *> messages_;
+    std::vector<field_descriptor_t *> extensions_;
+    std::vector<file_descriptor_t *> dependencies_;
   };
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
@@ -342,6 +407,12 @@ public:
       if (!proto.name.empty() && file_map_.count(proto.name) == 0) {
         build(files_.emplace_back(proto, select_features(proto)));
       }
+    }
+
+    for (auto &file : files_) {
+      file.dependencies_.resize(file.proto().dependency.size());
+      std::transform(file.proto().dependency.begin(), file.proto().dependency.end(), file.dependencies_.begin(),
+                     [this](auto &dep) { return this->file_by_name(dep); });
     }
 
     for (auto [name, msg] : message_map_) {
@@ -505,40 +576,46 @@ private:
   void build(file_descriptor_t &descriptor) {
     file_map_.try_emplace(descriptor.proto_.name, &descriptor);
     const std::string package = descriptor.proto_.package;
+    descriptor.messages_.reserve(descriptor.proto_.message_type.size());
     for (auto &proto : descriptor.proto_.message_type) {
       std::string const scope = !package.empty() ? package + "." + proto.name : proto.name;
       auto &message =
           messages_.emplace_back(proto, descriptor.options_, &descriptor, static_cast<message_descriptor_t *>(nullptr));
       build(message, scope);
-      descriptor.add_message(message);
+      descriptor.messages_.push_back(&message);
     }
 
+    descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
       const std::string scope = !package.empty() ? package + "." + proto.name : proto.name;
       auto &e = enums_.emplace_back(proto, descriptor.options_, &descriptor);
       enum_map_.try_emplace(scope, &e);
-      descriptor.add_enum(e);
+      descriptor.enums_.push_back(&e);
     }
   }
 
   void build(message_descriptor_t &descriptor, const std::string &scope) {
+    descriptor.oneofs_.reserve(descriptor.proto_.oneof_decl.size());
+    for (auto &proto : descriptor.proto_.oneof_decl) {
+      auto &oneof = oneofs_.emplace_back(proto, descriptor.options_);
+      descriptor.oneofs_.push_back(&oneof);
+    }
+
     message_map_.try_emplace(scope, &descriptor);
+    descriptor.messages_.reserve(descriptor.proto_.nested_type.size());
     for (auto &proto : descriptor.proto_.nested_type) {
       const std::string new_scope = scope.empty() ? proto.name : scope + "." + proto.name;
       auto &message = messages_.emplace_back(proto, descriptor.options_, descriptor.parent_file_, &descriptor);
       build(message, new_scope);
-      descriptor.add_message(message);
+      descriptor.messages_.push_back(&message);
     }
 
+    descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
       const std::string new_scope = scope.empty() ? proto.name : scope + "." + proto.name;
       auto &e = enums_.emplace_back(proto, descriptor.options_, descriptor.parent_file_);
       enum_map_.try_emplace(new_scope, &e);
-      descriptor.add_enum(e);
-    }
-
-    for (auto &proto : descriptor.proto_.oneof_decl) {
-      descriptor.add_oneof(oneofs_.emplace_back(proto, descriptor.options_));
+      descriptor.enums_.push_back(&e);
     }
   }
 
@@ -550,8 +627,13 @@ private:
   }
 
   void build_fields(message_descriptor_t &descriptor, const std::string &qualified_name) {
+    descriptor.fields_.reserve(descriptor.proto_.field.size());
     for (auto &proto : descriptor.proto_.field) {
-      descriptor.add_field(fields_.emplace_back(proto, qualified_name, &descriptor, descriptor.options_));
+      auto &field = fields_.emplace_back(proto, qualified_name, &descriptor, descriptor.options_);
+      descriptor.fields_.push_back(&field);
+      if (proto.oneof_index.has_value()) {
+        descriptor.oneofs_[static_cast<std::size_t>(*proto.oneof_index)]->fields_.push_back(&field);
+      }
     }
   };
 
@@ -561,7 +643,8 @@ private:
       if constexpr (std::same_as<decltype(&parent), message_descriptor_t *>) {
         msg_desc = &parent;
       }
-      parent.add_extension(fields_.emplace_back(proto, scope, msg_desc, parent.options_));
+      auto &field = fields_.emplace_back(proto, scope, msg_desc, parent.options_);
+      parent.extensions_.push_back(&field);
     }
   }
 };
