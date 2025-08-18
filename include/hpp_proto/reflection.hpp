@@ -192,14 +192,14 @@ using message_descriptor_t = reflection_descriptor_pool::message_descriptor_t;
 
 template <typename T>
 struct scalar_storage_base {
-  T content_;
-  alignas(8) uint64_t present_;
+  T content;
+  alignas(8) uint64_t present;
 };
 
 template <typename T>
 struct repeated_storage_base {
-  T *content_;
-  alignas(8) uint64_t size_;
+  T *content;
+  alignas(8) uint64_t size;
 };
 
 using bytes_storage_t = repeated_storage_base<const std::byte>;
@@ -228,8 +228,8 @@ union value_storage {
   repeated_storage_base<value_storage> of_repeated_message;
 
   struct {
-    value_storage *content_;
-    uint64_t ordinal_;
+    value_storage *content;
+    uint64_t ordinal;
   } of_oneof;
   value_storage() : of_int64{} {}
 };
@@ -274,7 +274,7 @@ public:
   field_mref(field_mref &&) = default;
   ~field_mref() = default;
 
-  void reset() { storage_.of_int64.present_ = 0; }
+  void reset() { storage_.of_int64.present = 0; }
   field_kind_t field_kind() const { return descriptor_.field_kind; }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
@@ -312,8 +312,8 @@ public:
   scalar_field_cref(scalar_field_cref &&) = default;
   ~scalar_field_cref() = default;
 
-  bool has_value() const { return storage_.present_ != 0; }
-  T value() const { return storage_.content_; }
+  bool has_value() const { return storage_.present != 0; }
+  T value() const { return storage_.content; }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
 };
@@ -332,32 +332,31 @@ public:
 
   static void init_storage(const field_descriptor_t &descriptor, value_storage &storage) {
     scalar_storage_base<T> &storage_base = reinterpret_cast<scalar_storage_base<T> &>(storage);
-    storage_base.content_ = std::get<T>(descriptor.default_value);
+    storage_base.content = std::get<T>(descriptor.default_value);
   }
 
   scalar_field_mref(const scalar_field_mref &) = default;
   scalar_field_mref(scalar_field_mref &&) = default;
   ~scalar_field_mref() = default;
-  scalar_field_mref &operator=(T value) {
-    storage_.content_ = value;
-    storage_.present_ = 1;
+  scalar_field_mref &operator=(T v) {
+    emplace(v);
     return *this;
   }
 
   scalar_field_cref<T, Kind> cref() const { return {descriptor_, storage_}; }
   operator scalar_field_cref<T, Kind>() const { return cref(); }
 
-  bool has_value() const { return storage_.present_ != 0; }
-  T &value() const { return storage_.content_; }
+  bool has_value() const { return storage_.present != 0; }
+  T &value() const { return storage_.content; }
   void reset() {
-    storage_.present_ = 0;
-    storage_.content_ = std::get<T>(descriptor_.default_value);
+    storage_.present = 0;
+    storage_.content = std::get<T>(descriptor_.default_value);
   }
 
   T &emplace(T v) {
-    storage_.content_ = v;
-    storage_.present_ = 1;
-    return storage_.content_;
+    storage_.content = v;
+    storage_.present = descriptor_.explicit_presence() ? true : (v == std::get<T>(descriptor_.default_value));
+    return storage_.content;
   }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
@@ -380,15 +379,15 @@ public:
   string_field_cref(string_field_cref &&) = default;
   ~string_field_cref() = default;
 
-  bool has_value() const { return storage_.size_ != 0; }
-  std::size_t size() const { return storage_.size_ - 1; }
+  bool has_value() const { return storage_.size != 0; }
+  std::size_t size() const { return storage_.size - 1; }
 
   std::string_view value() const {
-    if (storage_.size_ == 0) {
+    if (storage_.size == 0) {
       auto &default_value = std::get<std::string>(descriptor_.default_value);
       return default_value;
     }
-    return {storage_.content_, storage_.size_ - 1};
+    return {storage_.content, storage_.size - 1};
   }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
@@ -398,6 +397,14 @@ class string_field_mref {
   const field_descriptor_t &descriptor_;
   string_storage_t &storage_;
   std::pmr::monotonic_buffer_resource &memory_resource_;
+
+  const std::string& default_value() const {
+    return std::get<std::string>(descriptor_.default_value);
+  }
+
+  bool is_default_value(std::string_view v) const {
+    return std::ranges::equal(v, default_value());
+  } 
 
 public:
   constexpr static field_kind_t field_kind = field_kind_t::KIND_STRING;
@@ -409,8 +416,8 @@ public:
 
   static void init_storage(const field_descriptor_t &, value_storage &storage) {
     string_storage_t &storage_base = storage.of_string;
-    storage_base.content_ = nullptr;
-    storage_base.size_ = 0;
+    storage_base.content = nullptr;
+    storage_base.size = 0;
   }
 
   string_field_mref(const string_field_mref &) = default;
@@ -425,18 +432,22 @@ public:
   string_field_cref cref() const { return string_field_cref{descriptor_, storage_}; }
   operator string_field_cref() const { return cref(); }
 
-  bool has_value() const { return storage_.size_ != 0; }
+  bool has_value() const { return storage_.size != 0; }
   std::string_view value() const { return cref().value(); }
 
   std::string_view emplace(std::string_view v) {
-    storage_.content_ = v.data();
-    storage_.size_ = v.size() + 1;
-    return {storage_.content_, storage_.size_};
+    if (!descriptor_.explicit_presence() && v == std::get<std::string>(descriptor_.default_value)) {
+      reset();
+    } else {
+      storage_.content = v.data();
+      storage_.size = v.size() + 1;
+    }
+    return {storage_.content, storage_.size};
   }
 
   void reset() {
-    storage_.content_ = nullptr;
-    storage_.size_ = 0;
+    storage_.content = nullptr;
+    storage_.size = 0;
   }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
@@ -459,13 +470,13 @@ public:
   bytes_field_cref(bytes_field_cref &&) = default;
   ~bytes_field_cref() = default;
 
-  bool has_value() const { return storage_.size_ != 0; }
+  bool has_value() const { return storage_.size != 0; }
   std::span<const std::byte> value() const {
-    if (storage_.content_ == 0) {
+    if (storage_.content == 0) {
       auto &default_value = std::get<std::vector<std::byte>>(descriptor_.default_value);
       return std::span<const std::byte>(default_value.data(), default_value.size());
     }
-    return std::span<const std::byte>(storage_.content_, storage_.size_ - 1);
+    return std::span<const std::byte>(storage_.content, storage_.size - 1);
   }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
@@ -476,6 +487,14 @@ class bytes_field_mref {
   bytes_storage_t &storage_;
   std::pmr::monotonic_buffer_resource &memory_resource_;
 
+  const std::vector<std::byte> default_value() const {
+    return std::get<std::vector<std::byte>>(descriptor_.default_value);
+  }
+
+  bool is_default_value(std::span<const std::byte> v) const {
+    return std::ranges::equal(v, default_value());
+  } 
+
 public:
   constexpr static field_kind_t field_kind = field_kind_t::KIND_BYTES;
   bytes_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
@@ -485,8 +504,8 @@ public:
   }
   static void init_storage(const field_descriptor_t &, value_storage &storage) {
     bytes_storage_t &storage_base = storage.of_bytes;
-    storage_base.content_ = nullptr;
-    storage_base.size_ = 0;
+    storage_base.content = nullptr;
+    storage_base.size = 0;
   }
   bytes_field_mref(const bytes_field_mref &) = default;
   bytes_field_mref(bytes_field_mref &&) = default;
@@ -498,18 +517,22 @@ public:
   bytes_field_cref cref() const { return bytes_field_cref(descriptor_, storage_); }
   operator bytes_field_cref() const { return cref(); }
 
-  bool has_value() const { return storage_.size_ != 0; }
+  bool has_value() const { return storage_.size != 0; }
   std::span<const std::byte> value() const { return cref().value(); }
 
   std::span<const std::byte> emplace(std::span<const std::byte> v) {
-    storage_.content_ = v.data();
-    storage_.size_ = v.size() + 1;
-    return {storage_.content_, storage_.size_ - 1};
+    if (!descriptor_.explicit_presence() && is_default_value(v)) {
+      reset();
+    } else {
+      storage_.content = v.data();
+      storage_.size = v.size() + 1;
+    }
+    return {storage_.content, storage_.size};
   }
 
   void reset() {
-    storage_.content_ = nullptr;
-    storage_.size_ = 0;
+    storage_.content = nullptr;
+    storage_.size = 0;
   }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
@@ -575,8 +598,8 @@ public:
 
   ~enum_field_cref() = default;
 
-  bool has_value() const { return storage_.present_ != 0; }
-  enum_value_cref value() const { return {*enum_descriptor(), storage_.content_}; }
+  bool has_value() const { return storage_.present != 0; }
+  enum_value_cref value() const { return {*enum_descriptor(), storage_.content}; }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
 };
@@ -593,27 +616,27 @@ public:
   }
 
   static void init_storage(const field_descriptor_t &descriptor, value_storage &storage) {
-    storage.of_int32.content_ = std::get<int32_t>(descriptor.default_value);
+    storage.of_int32.content = std::get<int32_t>(descriptor.default_value);
   }
 
   enum_field_mref(const enum_field_mref &) = default;
   enum_field_mref(enum_field_mref &&) = default;
   ~enum_field_mref() = default;
   enum_field_mref &operator=(int32_t value) {
-    storage_.content_ = value;
-    storage_.present_ = 1;
+    storage_.content = value;
+    storage_.present = 1;
     return *this;
   }
 
   enum_field_cref cref() const { return enum_field_cref{descriptor_, storage_}; }
   operator enum_field_cref() const { return cref(); }
 
-  bool has_value() const { return storage_.present_ != 0; }
-  enum_value_mref value() const { return {*descriptor_.enum_field_type_descriptor(), storage_.content_}; }
+  bool has_value() const { return storage_.present != 0; }
+  enum_value_mref value() const { return {*descriptor_.enum_field_type_descriptor(), storage_.content}; }
 
   void reset() {
-    storage_.present_ = 0;
-    storage_.content_ = std::get<int32_t>(descriptor_.default_value);
+    storage_.present = 0;
+    storage_.content = std::get<int32_t>(descriptor_.default_value);
   }
   const field_descriptor_t &descriptor() const { return descriptor_; }
 };
@@ -636,9 +659,9 @@ public:
   repeated_scalar_field_cref(repeated_scalar_field_cref &&) = default;
   ~repeated_scalar_field_cref() = default;
 
-  std::size_t size() const { return storage_.size_; }
-  const T *begin() { return storage_.content_; }
-  const T *end() { return storage_.content_ + storage_.size_; }
+  std::size_t size() const { return storage_.size; }
+  const T *begin() { return storage_.content; }
+  const T *end() { return storage_.content + storage_.size; }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
 };
@@ -659,8 +682,8 @@ public:
 
   static void init_storage(const field_descriptor_t &, value_storage &storage) {
     repeated_storage_base<T> &storage_base = reinterpret_cast<repeated_storage_base<T> &>(storage);
-    storage_base.content_ = nullptr;
-    storage_base.size_ = 0;
+    storage_base.content = nullptr;
+    storage_base.size = 0;
   }
 
   repeated_scalar_field_mref(const repeated_scalar_field_mref &) = default;
@@ -673,21 +696,21 @@ public:
   operator repeated_scalar_field_cref<T, Kind>() const { return cref(); }
 
   void resize(std::size_t n) {
-    if (storage_.size_ < n) {
+    if (storage_.size < n) {
       auto new_data = static_cast<T *>(memory_resource_.allocate(n * sizeof(T), alignof(T)));
       std::uninitialized_default_construct(new_data, new_data + n);
-      storage_.content_ = new_data;
+      storage_.content = new_data;
     }
-    storage_.size_ = n;
+    storage_.size = n;
   }
 
-  std::size_t size() const { return storage_.size_; }
-  T *begin() { return storage_.content_; }
-  T *end() { return storage_.content_ + storage_.size_; }
+  std::size_t size() const { return storage_.size; }
+  T *begin() { return storage_.content; }
+  T *end() { return storage_.content + storage_.size; }
 
   void reset() {
-    storage_.content_ = nullptr;
-    storage_.size_ = 0;
+    storage_.content = nullptr;
+    storage_.size = 0;
   }
   const field_descriptor_t &descriptor() const { return descriptor_; }
 };
@@ -775,11 +798,11 @@ public:
   repeated_enum_field_cref(repeated_enum_field_cref &&) = default;
   ~repeated_enum_field_cref() = default;
 
-  std::size_t size() const { return storage_.size_; }
+  std::size_t size() const { return storage_.size; }
   iterator begin() const { return {this, 0}; }
-  iterator end() const { return {this, storage_.size_}; }
+  iterator end() const { return {this, storage_.size}; }
   reference operator[](std::size_t index) const {
-    return {*descriptor_.enum_field_type_descriptor(), storage_.content_[index]};
+    return {*descriptor_.enum_field_type_descriptor(), storage_.content[index]};
   }
 
   const field_descriptor_t &descriptor() const { return descriptor_; }
@@ -806,8 +829,8 @@ public:
 
   static void init_storage(const field_descriptor_t &, value_storage &storage) {
     repeated_storage_base<int32_t> &storage_base = storage.of_repeated_int32;
-    storage_base.content_ = nullptr;
-    storage_base.size_ = 0;
+    storage_base.content = nullptr;
+    storage_base.size = 0;
   }
 
   repeated_enum_field_mref(const repeated_enum_field_mref &) = default;
@@ -818,22 +841,22 @@ public:
   operator repeated_enum_field_cref() const { return cref(); }
 
   void resize(std::size_t n) {
-    if (storage_.size_ < n) {
+    if (storage_.size < n) {
       auto new_data = static_cast<int32_t *>(memory_resource_.allocate(n * sizeof(int32_t), alignof(int32_t)));
       std::uninitialized_default_construct(new_data, new_data + n);
-      storage_.content_ = new_data;
+      storage_.content = new_data;
     }
-    storage_.size_ = n;
+    storage_.size = n;
   }
 
-  std::size_t size() const { return storage_.size_; }
+  std::size_t size() const { return storage_.size; }
   iterator begin() { return {this, 0}; }
-  iterator end() { return {this, storage_.size_}; }
-  reference operator[](std::size_t index) const { return {*enum_descriptor(), storage_.content_[index]}; }
+  iterator end() { return {this, storage_.size}; }
+  reference operator[](std::size_t index) const { return {*enum_descriptor(), storage_.content[index]}; }
 
   void reset() {
-    storage_.content_ = nullptr;
-    storage_.size_ = 0;
+    storage_.content = nullptr;
+    storage_.size = 0;
   }
   const field_descriptor_t &descriptor() const { return descriptor_; }
 };
@@ -856,9 +879,9 @@ public:
   std::optional<field_mref> mref_by_number(uint32_t number);
 
   auto visit(auto &&visitor) const {
-    if (storage_.of_oneof.ordinal_ > 0) {
-      const auto &desc = descriptor_.fields()[static_cast<ptrdiff_t>(storage_.of_oneof.ordinal_ - 1)];
-      field_mref{desc, *storage_.of_oneof.content_, memory_resource_}.visit(visitor);
+    if (storage_.of_oneof.ordinal > 0) {
+      const auto &desc = descriptor_.fields()[static_cast<ptrdiff_t>(storage_.of_oneof.ordinal - 1)];
+      field_mref{desc, *storage_.of_oneof.content, memory_resource_}.visit(visitor);
     }
   }
 };
@@ -882,8 +905,8 @@ public:
 
   field_cref field_cref_for(const field_descriptor_t &desc) const {
     auto &storage = storage_for(desc);
-    if (desc.oneof_ordinal && storage.of_oneof.ordinal_ && storage.of_oneof.content_) {
-      return field_cref(desc, *storage.of_oneof.content_);
+    if (desc.oneof_ordinal && storage.of_oneof.ordinal && storage.of_oneof.content) {
+      return field_cref(desc, *storage.of_oneof.content);
     } else {
       return field_cref(desc, storage);
     }
@@ -910,7 +933,7 @@ public:
   void for_each_field(auto &&unary_function) const {
     for (auto &desc : descriptor_.fields()) {
       auto &storage = storage_for(desc);
-      if (!storage.of_uint64.present_)
+      if (!storage.of_uint64.present)
         continue;
 
       unary_function(field_cref_for(desc));
@@ -941,10 +964,10 @@ public:
   message_value_mref(const message_descriptor_t &descriptor, std::pmr::monotonic_buffer_resource &memory_resource)
       : message_value_mref(descriptor,
                            static_cast<value_storage *>(
-                               memory_resource_.allocate(sizeof(value_storage) * num_slots(), alignof(value_storage))),
+                               memory_resource.allocate(sizeof(value_storage) * num_slots(), alignof(value_storage))),
                            memory_resource) {
-                            reset();
-                           }
+    reset();
+  }
 
   message_value_mref(const message_value_mref &) = default;
   message_value_mref(message_value_mref &&) = default;
@@ -958,8 +981,8 @@ public:
     for (const auto &field_descriptor : descriptor_.fields()) {
       auto &storage = storage_for(field_descriptor);
       if (field_descriptor.oneof_ordinal) {
-        storage.of_oneof.content_ = nullptr;
-        storage.of_oneof.ordinal_ = 0;
+        storage.of_oneof.content = nullptr;
+        storage.of_oneof.ordinal = 0;
       } else {
         init_field_storage(field_descriptor, storage);
       }
@@ -968,13 +991,13 @@ public:
 
   field_mref field_mref_for(const field_descriptor_t &desc) const {
     auto &storage = storage_for(desc);
-    if (desc.oneof_ordinal && desc.oneof_ordinal != storage.of_oneof.ordinal_) {
-      if (storage.of_oneof.content_ == nullptr) {
-        storage.of_oneof.content_ =
+    if (desc.oneof_ordinal && desc.oneof_ordinal != storage.of_oneof.ordinal) {
+      if (storage.of_oneof.content == nullptr) {
+        storage.of_oneof.content =
             static_cast<value_storage *>(memory_resource_.allocate(sizeof(value_storage), alignof(value_storage)));
       }
-      storage.of_oneof.ordinal_ = desc.oneof_ordinal;
-      init_field_storage(desc, *storage.of_oneof.content_);
+      storage.of_oneof.ordinal = desc.oneof_ordinal;
+      init_field_storage(desc, *storage.of_oneof.content);
     }
     return field_mref(desc, storage, memory_resource_);
   }
@@ -1002,8 +1025,8 @@ public:
     for (auto &desc : fields) {
       auto &storage = storage_for(desc);
       if (desc.oneof_ordinal) {
-        if (desc.oneof_ordinal == storage.of_oneof.ordinal_ ||
-            (desc.oneof_ordinal == 1 && storage.of_oneof.ordinal_ == 0)) {
+        if (desc.oneof_ordinal == storage.of_oneof.ordinal ||
+            (desc.oneof_ordinal == 1 && storage.of_oneof.ordinal == 0)) {
           auto &oneof_desc = descriptor_.oneofs()[desc.proto().oneof_index];
           unary_function(oneof_field_mref{oneof_desc, storage, memory_resource_});
           return;
@@ -1033,9 +1056,9 @@ public:
   message_field_cref(message_field_cref &&) = default;
   ~message_field_cref() = default;
 
-  bool has_value() const { return storage_.present_ != 0; }
+  bool has_value() const { return storage_.present != 0; }
   const field_descriptor_t &descriptor() const { return descriptor_; }
-  message_value_cref value() const { return {*descriptor_.message_field_type_descriptor(), storage_.content_}; }
+  message_value_cref value() const { return {*descriptor_.message_field_type_descriptor(), storage_.content}; }
 };
 
 class message_field_mref {
@@ -1054,8 +1077,8 @@ public:
 
   static void init_storage(const field_descriptor_t &, value_storage &storage) {
     scalar_storage_base<value_storage *> &storage_base = storage.of_message;
-    storage_base.content_ = nullptr;
-    storage_base.present_ = 0;
+    storage_base.content = nullptr;
+    storage_base.present = 0;
   }
 
   message_field_mref(const message_field_mref &) = default;
@@ -1063,20 +1086,20 @@ public:
   ~message_field_mref() = default;
 
   message_value_mref emplace() {
-    if (storage_.content_ == nullptr) {
-      storage_.content_ = static_cast<value_storage *>(
+    if (storage_.content == nullptr) {
+      storage_.content = static_cast<value_storage *>(
           memory_resource_.allocate(sizeof(value_storage) * num_slots(), alignof(value_storage)));
     }
-    storage_.present_ = 1;
+    storage_.present = 1;
     auto result = value();
     result.reset();
     return result;
   }
-  bool has_value() const { return storage_.present_ != 0; }
-  void reset() { storage_.present_ = 0; }
+  [[nodiscard]] bool has_value() const { return storage_.present != 0; }
+  void reset() { storage_.present = 0; }
   const field_descriptor_t &descriptor() const { return descriptor_; }
-  message_value_mref value() const {
-    return {*descriptor_.message_field_type_descriptor(), storage_.content_, memory_resource_};
+  [[nodiscard]] message_value_mref value() const {
+    return {*descriptor_.message_field_type_descriptor(), storage_.content, memory_resource_};
   }
 };
 
@@ -1101,10 +1124,10 @@ public:
   repeated_message_field_cref(repeated_message_field_cref &&) = default;
   ~repeated_message_field_cref() = default;
 
-  std::size_t size() const { return storage_.size_; }
+  std::size_t size() const { return storage_.size; }
   message_value_cref operator[](std::size_t index) const {
     assert(index < size());
-    return message_value_cref(*descriptor_.message_field_type_descriptor(), &storage_.content_[index * num_slots()]);
+    return message_value_cref(*descriptor_.message_field_type_descriptor(), &storage_.content[index * num_slots()]);
   }
   iterator begin() const { return {this, 0}; }
   iterator end() const { return {this, size()}; }
@@ -1131,8 +1154,8 @@ public:
 
   static void init_storage(const field_descriptor_t &, value_storage &storage) {
     repeated_storage_base<value_storage> &storage_base = storage.of_repeated_message;
-    storage_base.content_ = nullptr;
-    storage_base.size_ = 0;
+    storage_base.content = nullptr;
+    storage_base.size = 0;
   }
 
   repeated_message_field_mref(const repeated_message_field_mref &) = default;
@@ -1147,27 +1170,27 @@ public:
     if (old_size < n) {
       auto new_data = static_cast<value_storage *>(
           memory_resource_.allocate(n * num_slots() * sizeof(value_storage), alignof(value_storage)));
-      std::ranges::copy(std::span{storage_.content_, storage_.size_}, new_data);
-      storage_.content_ = new_data;
-      storage_.size_ = n;
+      std::ranges::copy(std::span{storage_.content, storage_.size}, new_data);
+      storage_.content = new_data;
+      storage_.size = n;
       for (std::size_t i = old_size; i < size(); ++i) {
         (*this)[i].reset();
       }
     } else if (old_size > n) {
-      storage_.size_ = n;
+      storage_.size = n;
     }
   }
 
-  std::size_t size() const { return storage_.size_; }
+  std::size_t size() const { return storage_.size; }
   message_value_mref operator[](std::size_t index) const {
     assert(index < size());
-    return message_value_mref(*descriptor_.message_field_type_descriptor(), &storage_.content_[index * num_slots()],
+    return message_value_mref(*descriptor_.message_field_type_descriptor(), &storage_.content[index * num_slots()],
                               memory_resource_);
   }
   iterator begin() const { return {this, 0}; }
   iterator end() const { return {this, size()}; }
 
-  void reset() { storage_.size_ = 0; }
+  void reset() { storage_.size = 0; }
   const field_descriptor_t &descriptor() const { return descriptor_; }
 };
 
