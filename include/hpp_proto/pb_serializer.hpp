@@ -68,7 +68,7 @@ constexpr bool utf8_validation_failed(auto meta, const auto &str) {
   [[maybe_unused]] meta;
   [[maybe_unused]] str;
 #else
-  if constexpr (meta.validate_utf8) {
+  if constexpr (meta.requires_utf8_validation()) {
     if (!std::is_constant_evaluated()) {
       return !::is_utf8(str.data(), str.size());
     }
@@ -510,11 +510,18 @@ struct field_meta_base {
   constexpr static uint32_t number = Number;
   using type = Type;
 
-  constexpr static bool is_explicit_presence = static_cast<bool>(FieldOptions & field_option::explicit_presence);
-  constexpr static bool is_packed = static_cast<bool>(FieldOptions & field_option::is_packed);
-  constexpr static bool is_group = static_cast<bool>(FieldOptions & field_option::group);
-  constexpr static bool validate_utf8 = static_cast<bool>(FieldOptions & field_option::utf8_validation);
-  constexpr static bool closed_enum = static_cast<bool>(FieldOptions & field_option::closed_enum);
+  constexpr static bool is_packed() { return static_cast<bool>(FieldOptions & field_option::is_packed);}
+  constexpr static bool explicit_presence() { return static_cast<bool>(FieldOptions & field_option::explicit_presence); }
+  constexpr static bool requires_utf8_validation() { return static_cast<bool>(FieldOptions & field_option::utf8_validation); }
+  constexpr static bool is_delimited() { return static_cast<bool>(FieldOptions & field_option::group); }
+  constexpr static bool closed_enum() { return  static_cast<bool>(FieldOptions & field_option::closed_enum); }
+
+  constexpr static bool valid_enum_value(auto value) {
+    if constexpr (closed_enum()) {
+      return is_valid(value);
+    }
+    return false;
+  }
 
   template <typename T>
   static constexpr bool omit_value(const T &v) {
@@ -542,7 +549,7 @@ struct field_meta : field_meta_base<Number, FieldOptions, Type, DefaultValue> {
 template <auto Accessor, typename... AlternativeMeta>
 struct oneof_field_meta {
   constexpr static auto access = accessor_type<Accessor>{};
-  constexpr static bool is_explicit_presence = true;
+  constexpr static bool explicit_presence() { return false; }
   using alternatives_meta = std::tuple<AlternativeMeta...>;
   using type = void;
   template <typename T>
@@ -1272,14 +1279,14 @@ struct pb_serializer {
   }
 
   HPP_PROTO_INLINE constexpr static std::size_t cache_count(concepts::has_meta auto const &item, auto meta) {
-    return cache_count(item) + (!meta.is_group);
+    return cache_count(item) + (!meta.is_delimited());
   }
 
   template <typename Meta>
   HPP_PROTO_INLINE constexpr static std::size_t cache_count(std::ranges::input_range auto const &item, Meta meta) {
     using type = std::remove_cvref_t<decltype(item)>;
     using value_type = typename std::ranges::range_value_t<type>;
-    if constexpr (concepts::has_meta<value_type> || !meta.is_packed || meta.is_group) {
+    if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
       return transform_accumulate(item, [](const auto &elem) constexpr { return cache_count(elem, Meta{}); });
     } else {
       using element_type =
@@ -1414,7 +1421,7 @@ struct pb_serializer {
   HPP_PROTO_INLINE constexpr static std::size_t field_size(concepts::has_meta auto const &item, auto meta,
                                                            concepts::is_size_cache_iterator auto &cache_itr) {
     constexpr std::size_t tag_size = varint_size(meta.number << 3U);
-    if constexpr (!meta.is_group) {
+    if constexpr (!meta.is_delimited()) {
       decltype(auto) msg_size = *cache_itr++;
       auto s = static_cast<uint32_t>(message_size(item, cache_itr));
       msg_size = s;
@@ -1448,7 +1455,7 @@ struct pb_serializer {
       return tag_size + len_size(item.size());
     } else {
       using value_type = typename std::ranges::range_value_t<type>;
-      if constexpr (concepts::has_meta<value_type> || !meta.is_packed || meta.is_group) {
+      if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
         return transform_accumulate(
             item, [&cache_itr](const auto &elem) constexpr { return field_size(elem, Meta{}, cache_itr); });
       } else {
@@ -1620,7 +1627,7 @@ struct pb_serializer {
   [[nodiscard]] HPP_PROTO_INLINE constexpr static bool serialize_field(concepts::has_meta auto const &item, auto meta,
                                                                        concepts::is_size_cache_iterator auto &cache_itr,
                                                                        auto &archive) {
-    if constexpr (!meta.is_group) {
+    if constexpr (!meta.is_delimited()) {
       archive(make_tag<decltype(item)>(meta), varint{*cache_itr++});
       return serialize(item, cache_itr, archive);
     } else {
@@ -1643,7 +1650,7 @@ struct pb_serializer {
         std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
                            value_type, typename Meta::type>;
 
-    if constexpr (concepts::has_meta<value_type> || !meta.is_packed || meta.is_group) {
+    if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
       for (const auto &element : item) {
         using serialize_element_type =
             std::conditional_t<concepts::is_map_entry<typename Meta::type>, decltype(element), element_type>;
@@ -2421,7 +2428,7 @@ struct pb_serializer {
         v.reserve(new_size);
       }
     } else {
-      if constexpr (meta.closed_enum) {
+      if constexpr (meta.closed_enum()) {
         v.reserve(new_size);
       } else if constexpr (requires { v.resize(new_size); }) {
         v.resize(new_size);
@@ -2442,7 +2449,7 @@ struct pb_serializer {
         } else { // pre-C++23 std::map
           v[std::move(val.first)] = std::move(val.second);
         }
-      } else if constexpr (std::same_as<element_type, value_type> && !meta.closed_enum) {
+      } else if constexpr (std::same_as<element_type, value_type> && !meta.closed_enum()) {
         if (auto result = deserialize_element(v[i]); !result.ok()) [[unlikely]] {
           return result;
         }
@@ -2451,8 +2458,8 @@ struct pb_serializer {
         if (auto result = deserialize_element(element); !result.ok()) [[unlikely]] {
           return result;
         }
-        if constexpr (meta.closed_enum) {
-          if (is_valid(element)) {
+        if constexpr (meta.closed_enum()) {
+          if (meta.valid_enum_value(element)) {
             v.push_back(element);
           }
         } else {
@@ -2510,8 +2517,8 @@ struct pb_serializer {
       result = deserialize_field(*item, meta, tag, archive);
     }
 
-    if constexpr (meta.closed_enum) {
-      if (!is_valid(*item)) {
+    if constexpr (meta.closed_enum()) {
+      if (!meta.valid_enum_value(*item)) {
         item.reset();
       }
     }
@@ -2545,7 +2552,7 @@ struct pb_serializer {
 
   constexpr static status deserialize_field(concepts::has_meta auto &item, auto meta, uint32_t tag,
                                             concepts::is_basic_in auto &archive) {
-    if constexpr (!meta.is_group) {
+    if constexpr (!meta.is_delimited()) {
       return deserialize_sized(item, archive);
     } else {
       return deserialize_group(tag_number(tag), item, archive);
@@ -2563,12 +2570,12 @@ struct pb_serializer {
         return result;
       }
       return utf8_validation_failed(meta, item) ? std::errc::bad_message : std::errc{};
-    } else if constexpr (meta.is_group) {
+    } else if constexpr (meta.is_delimited()) {
       // repeated group
       decltype(auto) v = detail::as_modifiable(archive.context, item);
       return deserialize_group(field_num, v.emplace_back(), archive);
     } else { // repeated non-group
-      if constexpr (meta.is_packed) {
+      if constexpr (meta.is_packed()) {
         if (tag_type(tag) != wire_type::length_delimited) {
           return deserialize_unpacked_repeated(meta, tag, item, archive);
         }
@@ -2963,7 +2970,7 @@ struct message_merger {
           dest = std::forward<U>(source);
         }
       }
-    } else if constexpr (meta.is_explicit_presence || !concepts::singular<T>) {
+    } else if constexpr (meta.explicit_presence() || !concepts::singular<T>) {
       perform(dest, std::forward<U>(source));
     } else {
       if (!meta.omit_value(source)) {

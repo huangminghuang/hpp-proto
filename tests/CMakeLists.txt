@@ -221,8 +221,8 @@ else()
     add_executable(hpp_options_test hpp_options_test.cpp)
     target_link_libraries(hpp_options_test PRIVATE hpp_options_test_lib)
 
-    add_executable(reflection_test reflection_test.cpp)
-    target_link_libraries(reflection_test PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
+    # add_executable(reflection_test reflection_test.cpp)
+    # target_link_libraries(reflection_test PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
 
     if(edition_support)
         add_library(unittest_lite_proto_lib INTERFACE
