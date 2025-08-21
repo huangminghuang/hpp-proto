@@ -1520,17 +1520,14 @@ struct freea {
 };
 #endif
 
-constexpr std::size_t cache_count(concepts::has_meta auto const &item) {
-  return cache_counter::count(item);
-}
+constexpr std::size_t cache_count(concepts::has_meta auto const &item) { return cache_counter::count(item); }
 
 constexpr std::size_t message_size(concepts::has_meta auto const &item, std::span<uint32_t> cache) {
   return message_size_calculator::message_size(item, cache);
 }
 
 template <bool overwrite_buffer = true, concepts::contiguous_byte_range Buffer>
-constexpr status serialize(auto const &item, Buffer &buffer,
-                           [[maybe_unused]] concepts::is_pb_context auto &context) {
+constexpr status serialize(auto const &item, Buffer &buffer, [[maybe_unused]] concepts::is_pb_context auto &context) {
   std::size_t n = cache_count(item);
 
   auto do_serialize = [&item, &buffer, &context](std::span<uint32_t> cache) constexpr -> status {
@@ -2355,6 +2352,23 @@ constexpr status count_unpacked_elements(uint32_t input_tag, std::size_t &count,
   return {};
 }
 
+constexpr status count_groups(uint32_t input_tag, std::size_t &count, concepts::is_basic_in auto &archive) {
+  auto new_archive = archive.copy();
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
+  do {
+    if (auto result = do_skip_group(tag_number(input_tag), new_archive); !result.ok()) {
+      return result;
+    }
+
+    ++count;
+
+    if (new_archive.in_avail() == 0) {
+      return {};
+    }
+  } while (new_archive.read_tag() == input_tag);
+  return {};
+}
+
 template <typename Meta>
 constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_basic_in auto &archive) {
   using type = std::remove_reference_t<decltype(item)>;
@@ -2494,6 +2508,33 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
 }
 // NOLINTEND(readability-function-cognitive-complexity)
 
+template <typename Meta>
+constexpr status deserialize_repeated_group(Meta, uint32_t tag, auto &&item, concepts::is_basic_in auto &archive) {
+  decltype(auto) v = detail::as_modifiable(archive.context, item);
+
+  std::size_t count = 0;
+  if (auto result = count_groups(tag, count, archive); !result.ok()) [[unlikely]] {
+    return result;
+  }
+  auto old_size = item.size();
+  const std::size_t new_size = item.size() + count;
+
+  v.resize(new_size);
+
+  for (auto i = old_size; i < new_size; ++i) {
+    if (auto result = deserialize_group(tag_number(tag), v[i], archive); !result.ok()) [[unlikely]] {
+      return result;
+    }
+
+    if (i < new_size - 1) {
+      // no error handling here, because  `count_groups()` already checked the tag
+      archive.maybe_advance_region();
+      (void)archive.read_tag();
+    }
+  }
+  return {};
+}
+
 constexpr status deserialize_field(boolean &item, auto, uint32_t, concepts::is_basic_in auto &archive) {
   return archive(item.value);
 }
@@ -2578,7 +2619,6 @@ constexpr status deserialize_field(concepts::has_meta auto &item, auto meta, uin
 template <typename Meta>
 constexpr status deserialize_field(std::ranges::range auto &item, Meta meta, uint32_t tag,
                                    concepts::is_basic_in auto &archive) {
-  const uint32_t field_num = tag_number(tag);
   using type = std::remove_reference_t<decltype(item)>;
 
   if constexpr (concepts::contiguous_byte_range<type>) {
@@ -2588,8 +2628,7 @@ constexpr status deserialize_field(std::ranges::range auto &item, Meta meta, uin
     return utf8_validation_failed(meta, item) ? std::errc::bad_message : std::errc{};
   } else if constexpr (meta.is_delimited()) {
     // repeated group
-    decltype(auto) v = detail::as_modifiable(archive.context, item);
-    return deserialize_group(field_num, v.emplace_back(), archive);
+    return deserialize_repeated_group(meta, tag, item, archive);
   } else { // repeated non-group
     if constexpr (meta.is_packed()) {
       if (tag_type(tag) != wire_type::length_delimited) {
@@ -2660,7 +2699,7 @@ constexpr status deserialize_field_by_tag(uint32_t tag, concepts::has_meta auto 
   });
 }
 
-constexpr status deserialize(auto &item, concepts::is_basic_in auto &archive) {
+constexpr status deserialize(auto &&item, concepts::is_basic_in auto &archive) {
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
     if (auto result = deserialize_field_by_tag(tag, item, archive); !result.ok()) {
