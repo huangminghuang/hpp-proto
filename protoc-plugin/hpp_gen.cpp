@@ -2011,12 +2011,7 @@ int main(int argc, const char **argv) {
     code_generator::proto2_explicit_presences.emplace_back(".");
   }
 
-  // remove all source info
-  for (auto &f : request.proto_file) {
-    f.source_code_info.reset();
-  }
-
-  hpp_gen_descriptor_pool pool(request.proto_file);
+  hpp_gen_descriptor_pool pool(std::move(request.proto_file));
 
   gpb::compiler::CodeGeneratorResponse response;
   using enum gpb::compiler::CodeGeneratorResponse::Feature;

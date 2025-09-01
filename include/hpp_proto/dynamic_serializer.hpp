@@ -36,27 +36,22 @@
 namespace hpp::proto {
 
 // used to represent a protobuf encoded FileDescriptorProto
-struct file_descriptor_pb {
-  std::string_view value;
 
-  constexpr bool operator==(const file_descriptor_pb &) const = default;
-  constexpr bool operator<(const file_descriptor_pb &other) const { return value < other.value; };
-};
 
 template <std::ranges::input_range R, class T>
 constexpr bool contains(const R &r, const T &value) {
   return std::find(std::begin(r), std::end(r), value) != std::end(r);
 }
 
-namespace concepts {
-template <typename T>
-concept input_bytes_range =
-    std::ranges::input_range<T> && contiguous_byte_range<typename std::ranges::range_value_t<T>>;
+// namespace concepts {
+// template <typename T>
+// concept input_bytes_range =
+//     std::ranges::input_range<T> && contiguous_byte_range<typename std::ranges::range_value_t<T>>;
 
-template <typename T>
-concept file_descriptor_pb_array =
-    std::ranges::input_range<T> && std::same_as<typename std::ranges::range_value_t<T>, file_descriptor_pb>;
-} // namespace concepts
+// template <typename T>
+// concept file_descriptor_pb_array =
+//     std::ranges::input_range<T> && std::same_as<typename std::ranges::range_value_t<T>, file_descriptor_pb>;
+// } // namespace concepts
 
 namespace wellknown {
 struct Any {
@@ -1394,8 +1389,8 @@ class dynamic_serializer {
   // NOLINTEND(readability-function-cognitive-complexity)
 public:
   using option_type = std::reference_wrapper<dynamic_serializer>;
-  explicit dynamic_serializer(const google::protobuf::FileDescriptorSet &set) {
-    descriptor_pool<proto_json_addons> pool(set.file);
+  explicit dynamic_serializer(google::protobuf::FileDescriptorSet &&set) {
+    descriptor_pool<proto_json_addons> pool(std::move(set));
 
     if (pool.enum_map().size() != 1 || pool.enum_map().begin()->first != "google.protobuf.NullValue") {
       enums.reserve(pool.enums().size());
@@ -1461,71 +1456,24 @@ public:
     protobuf_wrapper_type_message_indices.erase(first_invalid, protobuf_wrapper_type_message_indices.end());
   }
 
-  static auto make(concepts::contiguous_byte_range auto const &stream) {
-    using result_t = std::expected<dynamic_serializer, hpp::proto::status>;
-    google::protobuf::FileDescriptorSet fileset;
-    if (auto ec = read_proto(fileset, stream); !ec.ok()) [[unlikely]] {
-      return result_t{std::unexpected(ec)};
-    }
-
-    return result_t{dynamic_serializer{fileset}};
-  }
-
-  static auto make(concepts::input_bytes_range auto const &stream_range) {
+  static auto make(concepts::input_byte_range auto const &stream) {
     // workaround for std::expected requires its template parameters to be complete types
     using result_t = std::expected<dynamic_serializer, hpp::proto::status>;
-    google::protobuf::FileDescriptorSet fileset;
-    for (const auto &stream : stream_range) {
-      google::protobuf::FileDescriptorSet tmp;
-      if (auto ec = read_proto(tmp, stream); !ec.ok()) [[unlikely]] {
-        return result_t{std::unexpected(ec)};
-      }
-      fileset.file.insert(fileset.file.end(), tmp.file.begin(), tmp.file.end());
+    auto fileset = make_file_descriptor_set(stream);
+    if (!fileset) [[unlikely]] {
+      return result_t{std::unexpected(fileset.error())};
     }
-    // double check if we have duplicated files
-    std::unordered_map<std::string, google::protobuf::FileDescriptorProto *> file_map;
-    auto itr = fileset.file.begin();
-    auto last = fileset.file.end();
-    for (; itr != last; ++itr) {
-      auto [map_itr, inserted] = file_map.try_emplace(itr->name, &(*itr));
-      if (!inserted) {
-        if (*map_itr->second != *itr) [[unlikely]] {
-          // in this case, we have two files with identical names but different content
-          return std::unexpected(std::errc::invalid_argument);
-        } else {
-          std::rotate(itr, itr + 1, last);
-          --last;
-        }
-      }
-    }
-    fileset.file.erase(last, fileset.file.end());
-
-    return result_t{dynamic_serializer{fileset}};
+    return result_t{dynamic_serializer{std::move(*fileset)}};
   }
 
   static auto make(concepts::file_descriptor_pb_array auto const &...args) {
     // workaround for std::expected requires its template parameters to be complete types
     using result_t = std::expected<dynamic_serializer, hpp::proto::status>;
-    constexpr auto s = (std::tuple_size_v<std::remove_cvref_t<decltype(args)>> + ...);
-    std::array<file_descriptor_pb, s> tmp;
-    auto it = tmp.begin();
-    ((it = std::copy(args.begin(), args.end(), it)), ...);
-
-    std::sort(tmp.begin(), it);
-    auto last = std::unique(tmp.begin(), tmp.end());
-    auto size = static_cast<std::size_t>(last - tmp.begin());
-
-    google::protobuf::FileDescriptorSet fileset;
-    fileset.file.resize(size);
-
-    for (std::size_t i = 0; i < size; ++i) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-      if (auto ec = read_proto(fileset.file[i], tmp[i].value); !ec.ok()) [[unlikely]] {
-        return result_t{std::unexpected(ec)};
-      }
+    auto fileset = make_file_descriptor_set(args...);
+    if (!fileset) [[unlikely]] {
+      return result_t{std::unexpected(fileset.error())};
     }
-
-    return result_t{dynamic_serializer{fileset}};
+    return result_t{dynamic_serializer{std::move(*fileset)}};
   }
 
   hpp::proto::status proto_to_json(std::string_view message_name,

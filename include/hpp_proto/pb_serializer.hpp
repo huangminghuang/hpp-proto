@@ -1262,7 +1262,7 @@ constexpr std::size_t transform_accumulate(const Range &range, const UnaryOperat
  * @struct cache_counter
  * @brief Calculate the number of variable size integers needed for the serialized protobuf stream of a given message.
  *
- * This struct contains overloaded `count` methods that recursively compute the number of variable size integers needed. 
+ * This struct contains overloaded `count` methods that recursively compute the number of variable size integers needed.
  * It is used to cache the size of fields in protobuf messages, which can help optimize serialization performance.
  */
 struct cache_counter {
@@ -1750,6 +1750,11 @@ struct input_span {
     return {old_begin, _begin};
   }
 
+  template <typename U, std::size_t N>
+  constexpr void consume(std::array<U, N> &arr) {
+    std::copy(_begin, _begin + N, arr.data());
+  }
+
   void revert(std::size_t n) { _begin -= n; }
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -1965,6 +1970,35 @@ public:
         n -= k;
       }
     }
+    /*
+        item.resize(n);
+
+    if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && endian_swapped)) {
+      std::array<byte_type, sizeof(value_type)> v;
+      while (n > 0) {
+        maybe_advance_region();
+        current.consume(v);
+        if constexpr (sizeof(value_type) > 1 && endian_swapped) {
+          std::ranges::reverse(v);
+        }
+        item[n] = std::bit_cast<value_type>(v);
+        --n;
+      }
+    } else {
+      if constexpr (contiguous) {
+        std::memcpy(item.data(), current.consume(nbytes).data(), nbytes);
+      } else {
+        void *ptr = item.data();
+        while (nbytes > 0) {
+          maybe_advance_region();
+          auto k = region_size();
+          std::memcpy(ptr, current.consume(k).data(), k);
+          ptr = static_cast<char *>(ptr) + k;
+          nbytes -= k;
+        }
+      }
+    }
+    */
     return {};
   }
 
@@ -2018,7 +2052,7 @@ public:
 
   template <concepts::varint T>
   constexpr status parse_packed_varints_in_regions(std::uint32_t bytes_count, auto &item) {
-    auto it = item.begin();
+    auto it = item.data();
     while (bytes_count > 0) {
       maybe_advance_region();
       auto data = current.consume_packed_varints(bytes_count);
@@ -2064,7 +2098,7 @@ public:
 #endif
 
     if constexpr (contiguous) {
-      return parse_packed_varints_in_a_region<T>(current.consume(bytes_count), item.begin());
+      return parse_packed_varints_in_a_region<T>(current.consume(bytes_count), item.data());
     } else {
       return parse_packed_varints_in_regions<T>(bytes_count, item);
     }
@@ -2388,29 +2422,35 @@ constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_bas
   }
 
   decltype(auto) v = detail::as_modifiable(archive.context, item);
-
   if constexpr (requires { v.resize(1); }) {
-    // packed repeated vector,
-    auto n = count_packed_elements<encode_type>(static_cast<uint32_t>(byte_count), archive);
-    if (!n.has_value()) {
-      return std::errc::bad_message;
-    }
-    std::size_t size = *n;
-    if constexpr (std::same_as<encode_type, boolean> || std::same_as<encode_type, bool>) {
-      return archive.deserialize_packed_boolean(size, v);
-    } else if constexpr (concepts::byte_deserializable<encode_type>) {
-      v.resize(0);
-      return archive.deserialize_packed(size, v);
-    } else if constexpr (concepts::is_enum<encode_type>) {
-      return archive.template deserialize_packed_varint<vint64_t>(byte_count, size, v);
-    } else {
-      static_assert(concepts::varint<encode_type>);
-      return archive.template deserialize_packed_varint<encode_type>(byte_count, size, v);
-    }
+    return deserialize_packed_repeated_with_byte_count<encode_type>(v, byte_count, archive);
   } else {
     using context_t = std::decay_t<decltype(archive.context)>;
     static_assert(concepts::has_memory_resource<context_t>, "memory resource is required");
     return {};
+  }
+}
+
+template <typename EncodeType>
+constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable auto &&v, vuint32_t byte_count,
+                                                             concepts::is_basic_in auto &archive) {
+
+  // packed repeated vector,
+  auto n = count_packed_elements<EncodeType>(static_cast<uint32_t>(byte_count), archive);
+  if (!n.has_value()) {
+    return std::errc::bad_message;
+  }
+  std::size_t size = *n;
+  if constexpr (std::same_as<EncodeType, boolean> || std::same_as<EncodeType, bool>) {
+    return archive.deserialize_packed_boolean(size, v);
+  } else if constexpr (concepts::byte_deserializable<EncodeType>) {
+    v.resize(0);
+    return archive.deserialize_packed(size, v);
+  } else if constexpr (concepts::is_enum<EncodeType>) {
+    return archive.template deserialize_packed_varint<vint64_t>(byte_count, size, v);
+  } else {
+    static_assert(concepts::varint<EncodeType>);
+    return archive.template deserialize_packed_varint<EncodeType>(byte_count, size, v);
   }
 }
 
@@ -2676,7 +2716,8 @@ constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic
 }
 
 template <std::uint32_t Index>
-constexpr status deserialize_field_by_index(uint32_t tag, concepts::has_meta auto &item, concepts::is_basic_in auto &archive) {
+constexpr status deserialize_field_by_index(uint32_t tag, concepts::has_meta auto &item,
+                                            concepts::is_basic_in auto &archive) {
   if constexpr (Index != UINT32_MAX) {
     using type = std::remove_reference_t<decltype(item)>;
     using Meta = typename traits::field_meta_of<type, Index>::type;
@@ -2688,7 +2729,8 @@ constexpr status deserialize_field_by_index(uint32_t tag, concepts::has_meta aut
   }
 }
 
-constexpr status deserialize_field_by_tag(uint32_t tag, concepts::has_meta auto &item, concepts::is_basic_in auto &archive) {
+constexpr status deserialize_field_by_tag(uint32_t tag, concepts::has_meta auto &item,
+                                          concepts::is_basic_in auto &archive) {
   using type = std::remove_cvref_t<decltype(item)>;
   using dispatcher_t = traits::reverse_indices<type>;
   if (tag == 0) {

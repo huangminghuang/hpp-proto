@@ -22,8 +22,10 @@
 
 #pragma once
 #include <cassert>
+#include <expected>
 #include <google/protobuf/descriptor.pb.hpp>
 #include <iostream>
+#include <unordered_map>
 namespace hpp::proto {
 
 struct deref_pointer {
@@ -274,6 +276,10 @@ public:
       return options_.features.value().enum_type == google::protobuf::FeatureSet::EnumType::CLOSED;
     }
 
+    [[nodiscard]] bool valid_enum_value(uint32_t v) const {
+      return !is_closed() || std::ranges::contains(proto_.value, static_cast<int32_t>(v), [](const auto &item) { return item.number; });
+    }
+
   private:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
@@ -391,8 +397,62 @@ public:
     std::vector<file_descriptor_t *> dependencies_;
   };
 
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-  explicit descriptor_pool(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
+  explicit descriptor_pool(std::vector<google::protobuf::FileDescriptorProto> &&proto_files)
+      : proto_files_(std::move(proto_files)) {
+    init(proto_files_);
+  }
+
+  explicit descriptor_pool(google::protobuf::FileDescriptorSet &&fileset)
+      : descriptor_pool(std::move(fileset.file)) {
+  }
+
+  constexpr ~descriptor_pool() = default;
+  descriptor_pool(const descriptor_pool &) = delete;
+  descriptor_pool(descriptor_pool &&) = delete;
+  descriptor_pool &operator=(const descriptor_pool &) = delete;
+  descriptor_pool &operator=(descriptor_pool &&) = delete;
+
+  [[nodiscard]] const message_descriptor_t *message_by_name(std::string_view name) const {
+    auto itr = message_map_.find(name);
+    return itr == message_map_.end() ? nullptr : itr->second;
+  }
+
+  [[nodiscard]] message_descriptor_t *message_by_name(std::string_view name) {
+    auto itr = message_map_.find(name);
+    return itr == message_map_.end() ? nullptr : itr->second;
+  }
+
+  [[nodiscard]] const enum_descriptor_t *enum_by_name(std::string_view name) const {
+    auto itr = enum_map_.find(name);
+    return itr == enum_map_.end() ? nullptr : itr->second;
+  }
+
+  [[nodiscard]] enum_descriptor_t *enum_by_name(std::string_view name) {
+    auto itr = enum_map_.find(name);
+    return itr == enum_map_.end() ? nullptr : itr->second;
+  }
+
+  [[nodiscard]] const file_descriptor_t *file_by_name(std::string_view name) const {
+    auto itr = file_map_.find(name);
+    return itr == file_map_.end() ? nullptr : itr->second;
+  }
+
+  [[nodiscard]] file_descriptor_t *file_by_name(std::string_view name) {
+    auto itr = file_map_.find(name);
+    return itr == file_map_.end() ? nullptr : itr->second;
+  }
+
+  std::span<file_descriptor_t> files() { return files_; }
+  std::span<message_descriptor_t> messages() { return messages_; }
+  std::span<enum_descriptor_t> enums() { return enums_; }
+  std::span<oneof_descriptor_t> oneofs() { return oneofs_; }
+  std::span<field_descriptor_t> fields() { return fields_; }
+
+  const flat_map<std::string, message_descriptor_t *, string_view_comp> &message_map() const { return message_map_; }
+  const flat_map<std::string, enum_descriptor_t *, string_view_comp> &enum_map() const { return enum_map_; }
+
+private:
+  void init(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
     const descriptor_counter counter(proto_files);
     files_.reserve(counter.files);
     messages_.reserve(counter.messages);
@@ -446,52 +506,6 @@ public:
     assert(messages_.size() == counter.messages);
   }
 
-  constexpr ~descriptor_pool() = default;
-  descriptor_pool(const descriptor_pool &) = delete;
-  descriptor_pool(descriptor_pool &&) = delete;
-  descriptor_pool &operator=(const descriptor_pool &) = delete;
-  descriptor_pool &operator=(descriptor_pool &&) = delete;
-
-  [[nodiscard]] const message_descriptor_t *message_by_name(std::string_view name) const {
-    auto itr = message_map_.find(name);
-    return itr == message_map_.end() ? nullptr : itr->second;
-  }
-
-  [[nodiscard]] message_descriptor_t *message_by_name(std::string_view name) {
-    auto itr = message_map_.find(name);
-    return itr == message_map_.end() ? nullptr : itr->second;
-  }
-
-  [[nodiscard]] const enum_descriptor_t *enum_by_name(std::string_view name) const {
-    auto itr = enum_map_.find(name);
-    return itr == enum_map_.end() ? nullptr : itr->second;
-  }
-
-  [[nodiscard]] enum_descriptor_t *enum_by_name(std::string_view name) {
-    auto itr = enum_map_.find(name);
-    return itr == enum_map_.end() ? nullptr : itr->second;
-  }
-
-  [[nodiscard]] const file_descriptor_t *file_by_name(std::string_view name) const {
-    auto itr = file_map_.find(name);
-    return itr == file_map_.end() ? nullptr : itr->second;
-  }
-
-  [[nodiscard]] file_descriptor_t *file_by_name(std::string_view name) {
-    auto itr = file_map_.find(name);
-    return itr == file_map_.end() ? nullptr : itr->second;
-  }
-
-  std::span<file_descriptor_t> files() { return files_; }
-  std::span<message_descriptor_t> messages() { return messages_; }
-  std::span<enum_descriptor_t> enums() { return enums_; }
-  std::span<oneof_descriptor_t> oneofs() { return oneofs_; }
-  std::span<field_descriptor_t> fields() { return fields_; }
-
-  const flat_map<std::string, message_descriptor_t *, string_view_comp> &message_map() const { return message_map_; }
-  const flat_map<std::string, enum_descriptor_t *, string_view_comp> &enum_map() const { return enum_map_; }
-
-private:
   static google::protobuf::FeatureSet merge_features(google::protobuf::FeatureSet features, const auto &options) {
     if (options.has_value()) {
       const auto &overriding_features = options->features;
@@ -535,6 +549,7 @@ private:
     }
   };
 
+  std::vector<google::protobuf::FileDescriptorProto> proto_files_;
   std::vector<file_descriptor_t> files_;
   std::vector<message_descriptor_t> messages_;
   std::vector<enum_descriptor_t> enums_;
@@ -648,6 +663,85 @@ private:
     }
   }
 };
+
+struct file_descriptor_pb {
+  std::string_view value;
+
+  constexpr bool operator==(const file_descriptor_pb &) const = default;
+  constexpr bool operator<(const file_descriptor_pb &other) const { return value < other.value; };
+};
+
+namespace concepts {
+template <typename T>
+concept input_bytes_range =
+    std::ranges::input_range<T> && contiguous_byte_range<typename std::ranges::range_value_t<T>>;
+
+template <typename T>
+concept file_descriptor_pb_array =
+    std::ranges::input_range<T> && std::same_as<typename std::ranges::range_value_t<T>, file_descriptor_pb>;
+} // namespace concepts
+
+std::expected<google::protobuf::FileDescriptorSet, hpp::proto::status>
+make_file_descriptor_set(concepts::contiguous_byte_range auto const &stream) {
+  google::protobuf::FileDescriptorSet fileset;
+  if (auto ec = read_proto(fileset, stream); !ec.ok()) [[unlikely]] {
+    return std::unexpected(ec);
+  }
+  return fileset;
+}
+
+std::expected<google::protobuf::FileDescriptorSet, hpp::proto::status>
+make_file_descriptor_set(concepts::segmented_byte_range auto const &stream_range) {
+  google::protobuf::FileDescriptorSet fileset;
+  for (const auto &stream : stream_range) {
+    google::protobuf::FileDescriptorSet tmp;
+    if (auto ec = read_proto(tmp, stream); !ec.ok()) [[unlikely]] {
+      return std::unexpected(ec);
+    }
+    fileset.file.insert(fileset.file.end(), tmp.file.begin(), tmp.file.end());
+  }
+  // double check if we have duplicated files
+  std::unordered_map<std::string, google::protobuf::FileDescriptorProto *> file_map;
+  auto itr = fileset.file.begin();
+  auto last = fileset.file.end();
+  for (; itr != last; ++itr) {
+    auto [map_itr, inserted] = file_map.try_emplace(itr->name, &(*itr));
+    if (!inserted) {
+      if (*map_itr->second != *itr) [[unlikely]] {
+        // in this case, we have two files with identical names but different content
+        return std::unexpected(std::errc::invalid_argument);
+      } else {
+        std::rotate(itr, itr + 1, last);
+        --last;
+      }
+    }
+  }
+  fileset.file.erase(last, fileset.file.end());
+  return fileset;
+}
+
+std::expected<google::protobuf::FileDescriptorSet, hpp::proto::status>
+make_file_descriptor_set(concepts::file_descriptor_pb_array auto const &...args) {
+  constexpr auto s = (std::tuple_size_v<std::remove_cvref_t<decltype(args)>> + ...);
+  std::array<file_descriptor_pb, s> tmp;
+  auto it = tmp.begin();
+  ((it = std::copy(args.begin(), args.end(), it)), ...);
+
+  std::sort(tmp.begin(), it);
+  auto last = std::unique(tmp.begin(), tmp.end());
+  auto size = static_cast<std::size_t>(last - tmp.begin());
+
+  google::protobuf::FileDescriptorSet fileset;
+  fileset.file.resize(size);
+
+  for (std::size_t i = 0; i < size; ++i) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+    if (auto ec = read_proto(fileset.file[i], tmp[i].value); !ec.ok()) [[unlikely]] {
+      return std::unexpected(ec);
+    }
+  }
+  return fileset;
+}
 
 // NOLINTEND(bugprone-unchecked-optional-access)
 } // namespace hpp::proto
