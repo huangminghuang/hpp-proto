@@ -1753,6 +1753,7 @@ struct input_span {
   template <typename U, std::size_t N>
   constexpr void consume(std::array<U, N> &arr) {
     std::copy(_begin, _begin + N, arr.data());
+    _begin += N;
   }
 
   void revert(std::size_t n) { _begin -= n; }
@@ -1828,21 +1829,6 @@ struct basic_in {
     while ((offset = current.slope_distance()) > 0 && !rest.empty()) {
       set_current_region(rest.next());
       current.consume(static_cast<std::size_t>(offset));
-    }
-  }
-
-  template <typename T>
-  constexpr void append_raw_data(T &container, concepts::contiguous_byte_range auto const &data) {
-    using value_type = typename T::value_type;
-    if constexpr (requires { container.append_raw_data(data); }) {
-      container.append_raw_data(data);
-    } else if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && std::endian::little != std::endian::native)) {
-      auto input_range = detail::bit_cast_view<value_type>(data);
-      container.insert(container.end(), input_range.begin(), input_range.end());
-    } else if (!data.empty()) {
-      auto n = container.size();
-      container.resize(n + (data.size() / sizeof(value_type)));
-      std::memcpy(container.data() + n, data.data(), data.size());
     }
   }
 
@@ -1958,47 +1944,51 @@ public:
     if (std::cmp_less(in_avail(), nbytes)) [[unlikely]] {
       return std::errc::bad_message;
     }
+    constexpr bool requires_byteswap = (sizeof(value_type) > 1 && endian_swapped);
 
-    item.reserve(n);
-    if constexpr (contiguous) {
-      append_raw_data(item, current.consume(nbytes));
-    } else {
-      while (n > 0) {
-        maybe_advance_region();
-        auto k = std::min<std::ptrdiff_t>(n, region_size() / sizeof(value_type));
-        append_raw_data(item, current.consume(k * sizeof(value_type)));
-        n -= k;
-      }
-    }
-    /*
-        item.resize(n);
-
-    if (std::is_constant_evaluated() || (sizeof(value_type) > 1 && endian_swapped)) {
-      std::array<byte_type, sizeof(value_type)> v;
-      while (n > 0) {
-        maybe_advance_region();
-        current.consume(v);
-        if constexpr (sizeof(value_type) > 1 && endian_swapped) {
-          std::ranges::reverse(v);
-        }
-        item[n] = std::bit_cast<value_type>(v);
-        --n;
-      }
-    } else {
+    auto old_size = item.size();
+    auto new_size = old_size + n;
+    if constexpr (requires { item.append_raw_data(std::span<byte_type>{}); } && !requires_byteswap) {
+      item.reserve(new_size);
       if constexpr (contiguous) {
-        std::memcpy(item.data(), current.consume(nbytes).data(), nbytes);
+        item.append_raw_data(current.consume(nbytes));
       } else {
-        void *ptr = item.data();
-        while (nbytes > 0) {
+        while (n > 0) {
           maybe_advance_region();
-          auto k = region_size();
-          std::memcpy(ptr, current.consume(k).data(), k);
-          ptr = static_cast<char *>(ptr) + k;
-          nbytes -= k;
+          auto k = std::min<std::ptrdiff_t>(n, region_size() / sizeof(value_type));
+          item.append_raw_data(current.consume(k * sizeof(value_type)));
+          n -= k;
+        }
+      }
+    } else {
+
+      item.resize(new_size);
+      auto target = std::span{item.data() + old_size, n};
+      if (std::is_constant_evaluated() || requires_byteswap) {
+        std::array<byte_type, sizeof(value_type)> v;
+        for (auto &elem : target) {
+          maybe_advance_region();
+          current.consume(v);
+          if constexpr (requires_byteswap) {
+            std::ranges::reverse(v);
+          }
+          elem = std::bit_cast<value_type>(v);
+        }
+      } else {
+        void *ptr = target.data();
+        if constexpr (contiguous) {
+          std::memcpy(ptr, current.consume(nbytes).data(), nbytes);
+        } else {
+          while (nbytes > 0) {
+            maybe_advance_region();
+            auto k = region_size();
+            std::memcpy(ptr, current.consume(k).data(), k);
+            ptr = static_cast<char *>(ptr) + k;
+            nbytes -= k;
+          }
         }
       }
     }
-    */
     return {};
   }
 
