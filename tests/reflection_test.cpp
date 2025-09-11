@@ -3,21 +3,19 @@
 #include <hpp_proto/reflection.hpp>
 #include <hpp_proto/reflection_json.hpp>
 #include <memory_resource>
+using namespace boost::ut;
 
-int main() {
-    using namespace boost::ut;
-    using namespace boost::ut::literals;
-    auto fileset = hpp::proto::make_file_descriptor_set(read_file("unittest.desc.binpb"));
-    if (!fileset) [[unlikely]] {
-        std::cerr << "Failed to read descriptor set";
-        return 1;
-    }
+const boost::ut::suite reflection_test = [] {
+  using namespace boost::ut::literals;
+  auto fileset = hpp::proto::make_file_descriptor_set(read_file("unittest.desc.binpb"));
+  if (!fileset) [[unlikely]] {
+    throw std::runtime_error("Failed to read descriptor set");
+  }
 
-    hpp::proto::reflection_descriptor_pool pool{std::move(*fileset)};
-    expect(fatal(!pool.files().empty()));
+  hpp::proto::reflection_descriptor_pool pool{std::move(*fileset)};
+  expect(fatal(!pool.files().empty()));
 
-    auto message_name = "protobuf_unittest.TestAllTypes";
-
+  "unit"_test = [&pool](const std::string &message_name) -> void {
     using namespace std::string_literals;
     std::string data = read_file("data/"s + message_name + ".binpb");
 
@@ -34,6 +32,16 @@ int main() {
     auto err = glz::write_json(message, str);
     expect(!err);
 
-    auto json = read_file("data/protobuf_unittest.TestAllTypes.json");
+    auto json = read_file("data/"s + message_name + ".json");
     expect(json == str);
+  } | std::vector<std::string>{"proto3_unittest.TestAllTypes",       "proto3_unittest.TestUnpackedTypes",
+                               "protobuf_unittest.TestAllTypes",     "protobuf_unittest.TestPackedTypes",
+                               "protobuf_unittest.TestMap",          "protobuf_unittest.TestUnpackedTypes",
+                               "protobuf_unittest.TestAllTypesLite", "protobuf_unittest.TestPackedTypesLite"};
+};
+
+int main() {
+  const auto result =
+      boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
+  return static_cast<int>(result);
 }

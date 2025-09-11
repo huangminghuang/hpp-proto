@@ -52,7 +52,6 @@ struct string_view_comp {
   bool operator()(const std::string &lhs, const std::string_view &rhs) const { return lhs.compare(rhs) < 0; }
 };
 
-// NOLINTBEGIN(bugprone-unchecked-optional-access)
 template <typename AddOns>
 class descriptor_pool {
   enum field_option_mask_t : uint8_t {
@@ -99,13 +98,14 @@ public:
 
     field_descriptor_t(const field_descriptor_t &) = delete;
     field_descriptor_t(field_descriptor_t &&) = default;
+    ~field_descriptor_t() = default;
     field_descriptor_t &operator=(const field_descriptor_t &) = delete;
     field_descriptor_t &operator=(field_descriptor_t &&) = default;
 
     [[nodiscard]] const google::protobuf::FieldDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const google::protobuf::FieldOptions &options() const { return options_; }
     [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
-    [[nodiscard]] bool is_message_or_enum() const { return type_descriptor_; }
+    [[nodiscard]] bool is_message_or_enum() const { return type_descriptor_ != nullptr; }
     [[nodiscard]] message_descriptor_t *extendee_descriptor() const { return extendee_descriptor_; }
 
     [[nodiscard]] message_descriptor_t *message_field_type_descriptor() const {
@@ -233,7 +233,7 @@ public:
      *
      * @return A std::views::transform view of fields_ with elements dereferenced.
      */
-    auto fields() const { return std::views::transform(fields_, deref_pointer{}); }
+    [[nodiscard]] auto fields() const { return std::views::transform(fields_, deref_pointer{}); }
 
   private:
     friend class descriptor_pool;
@@ -277,7 +277,8 @@ public:
     }
 
     [[nodiscard]] bool valid_enum_value(uint32_t v) const {
-      return !is_closed() || std::ranges::contains(proto_.value, static_cast<int32_t>(v), [](const auto &item) { return item.number; });
+      return !is_closed() ||
+             std::ranges::contains(proto_.value, static_cast<int32_t>(v), [](const auto &item) { return item.number; });
     }
 
   private:
@@ -307,6 +308,7 @@ public:
 
     message_descriptor_t(const message_descriptor_t &) = delete;
     message_descriptor_t(message_descriptor_t &&) = default;
+    ~message_descriptor_t() = default;
     message_descriptor_t &operator=(const message_descriptor_t &) = delete;
     message_descriptor_t &operator=(message_descriptor_t &&) = default;
 
@@ -315,13 +317,13 @@ public:
     [[nodiscard]] file_descriptor_t *parent_file() const { return parent_file_; }
     [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
 
-    bool is_map_entry() const { return proto_.options.has_value() && proto_.options->map_entry; }
+    [[nodiscard]] bool is_map_entry() const { return proto_.options.has_value() && proto_.options->map_entry; }
 
-    auto fields() const { return std::views::transform(fields_, deref_pointer{}); }
-    auto enums() const { return std::views::transform(enums_, deref_pointer{}); }
-    auto oneofs() const { return std::views::transform(oneofs_, deref_pointer{}); }
-    auto messages() const { return std::views::transform(messages_, deref_pointer{}); }
-    auto extensions() const { return std::views::transform(extensions_, deref_pointer{}); }
+    [[nodiscard]] auto fields() const { return std::views::transform(fields_, deref_pointer{}); }
+    [[nodiscard]] auto enums() const { return std::views::transform(enums_, deref_pointer{}); }
+    [[nodiscard]] auto oneofs() const { return std::views::transform(oneofs_, deref_pointer{}); }
+    [[nodiscard]] auto messages() const { return std::views::transform(messages_, deref_pointer{}); }
+    [[nodiscard]] auto extensions() const { return std::views::transform(extensions_, deref_pointer{}); }
 
   private:
     friend class descriptor_pool;
@@ -375,17 +377,18 @@ public:
 
     file_descriptor_t(const file_descriptor_t &) = delete;
     file_descriptor_t(file_descriptor_t &&) = default;
+    ~file_descriptor_t() = default;
     file_descriptor_t &operator=(const file_descriptor_t &) = delete;
     file_descriptor_t &operator=(file_descriptor_t &&) = default;
 
     [[nodiscard]] const google::protobuf::FileDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const google::protobuf::FileOptions &options() const { return options_; }
 
-    auto enums() const { return std::views::transform(enums_, deref_pointer{}); }
-    auto messages() const { return std::views::transform(messages_, deref_pointer{}); }
-    auto extensions() const { return std::views::transform(extensions_, deref_pointer{}); }
-    auto dependencies() const { return std::views::transform(dependencies_, deref_pointer{}); }
-
+    [[nodiscard]] auto enums() const { return std::views::transform(enums_, deref_pointer{}); }
+    [[nodiscard]] auto messages() const { return std::views::transform(messages_, deref_pointer{}); }
+    [[nodiscard]] auto extensions() const { return std::views::transform(extensions_, deref_pointer{}); }
+    [[nodiscard]] auto dependencies() const { return std::views::transform(dependencies_, deref_pointer{}); }
+    [[nodiscard]] const descriptor_pool& descriptor_pool() const { return *descriptor_pool_; }
   private:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
@@ -395,6 +398,7 @@ public:
     std::vector<message_descriptor_t *> messages_;
     std::vector<field_descriptor_t *> extensions_;
     std::vector<file_descriptor_t *> dependencies_;
+    const class descriptor_pool* descriptor_pool_ = nullptr;
   };
 
   explicit descriptor_pool(std::vector<google::protobuf::FileDescriptorProto> &&proto_files)
@@ -402,9 +406,8 @@ public:
     init(proto_files_);
   }
 
-  explicit descriptor_pool(google::protobuf::FileDescriptorSet &&fileset)
-      : descriptor_pool(std::move(fileset.file)) {
-  }
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
+  explicit descriptor_pool(google::protobuf::FileDescriptorSet &&fileset) : descriptor_pool(std::move(fileset.file)) {}
 
   constexpr ~descriptor_pool() = default;
   descriptor_pool(const descriptor_pool &) = delete;
@@ -448,8 +451,12 @@ public:
   std::span<oneof_descriptor_t> oneofs() { return oneofs_; }
   std::span<field_descriptor_t> fields() { return fields_; }
 
-  const flat_map<std::string, message_descriptor_t *, string_view_comp> &message_map() const { return message_map_; }
-  const flat_map<std::string, enum_descriptor_t *, string_view_comp> &enum_map() const { return enum_map_; }
+  [[nodiscard]] const flat_map<std::string, message_descriptor_t *, string_view_comp> &message_map() const {
+    return message_map_;
+  }
+  [[nodiscard]] const flat_map<std::string, enum_descriptor_t *, string_view_comp> &enum_map() const {
+    return enum_map_;
+  }
 
 private:
   void init(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
@@ -470,6 +477,7 @@ private:
     }
 
     for (auto &file : files_) {
+      file.descriptor_pool_ = this;
       file.dependencies_.resize(file.proto().dependency.size());
       std::transform(file.proto().dependency.begin(), file.proto().dependency.end(), file.dependencies_.begin(),
                      [this](auto &dep) { return this->file_by_name(dep); });
@@ -662,6 +670,7 @@ private:
       parent.extensions_.push_back(&field);
     }
   }
+  // NOLINTEND(bugprone-unchecked-optional-access)
 };
 
 struct file_descriptor_pb {
@@ -743,5 +752,4 @@ make_file_descriptor_set(concepts::file_descriptor_pb_array auto const &...args)
   return fileset;
 }
 
-// NOLINTEND(bugprone-unchecked-optional-access)
 } // namespace hpp::proto

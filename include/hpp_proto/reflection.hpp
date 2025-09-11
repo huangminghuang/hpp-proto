@@ -31,6 +31,20 @@ enum field_kind_t : uint8_t {
   KIND_REPEATED_MESSAGE
 };
 
+enum class wellknown_types_t : uint8_t {
+  NONE = 0,
+  ANY = 1,
+  TIMESTAMP = 2,
+  DURATION = 3,
+  FIELDMASK = 4,
+  VALUE = 5,
+  LISTVALUE,
+  STRUCT,
+  WRAPPER
+};
+
+class reflection_descriptor_pool;
+
 struct reflection_addons {
   template <typename Derived>
   struct field_descriptor {
@@ -151,6 +165,7 @@ struct reflection_addons {
   template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
   struct message_descriptor {
     uint32_t num_slots = 0;
+    wellknown_types_t wellknown = wellknown_types_t::NONE;
     explicit message_descriptor(const google::protobuf::DescriptorProto &) {}
   };
 
@@ -162,7 +177,8 @@ struct reflection_addons {
 
 using reflection_descriptor_pool_base = descriptor_pool<reflection_addons>;
 
-struct reflection_descriptor_pool : descriptor_pool<reflection_addons> {
+class reflection_descriptor_pool : public descriptor_pool<reflection_addons> {
+public:
   explicit reflection_descriptor_pool(google::protobuf::FileDescriptorSet &&proto_files)
       : descriptor_pool<reflection_addons>(std::move(proto_files)) {
     for (auto &message : this->messages()) {
@@ -185,6 +201,31 @@ struct reflection_descriptor_pool : descriptor_pool<reflection_addons> {
         prev_oneof_index = f.proto().oneof_index;
       }
       message.num_slots = cur_slot + 1;
+    }
+
+    const static std::pair<const char *, wellknown_types_t> wellknown_mappings[] = {
+        {"google.protobuf.Any", wellknown_types_t::ANY},
+        {"google.protobuf.Timestamp", wellknown_types_t::TIMESTAMP},
+        {"google.protobuf.Duration", wellknown_types_t::DURATION},
+        {"google.protobuf.FieldMask", wellknown_types_t::FIELDMASK},
+        {"google.protobuf.Value", wellknown_types_t::VALUE},
+        {"google.protobuf.ListValue", wellknown_types_t::LISTVALUE},
+        {"google.protobuf.Struct", wellknown_types_t::STRUCT},
+        {"google.protobuf.DoubleValue", wellknown_types_t::WRAPPER},
+        {"google.protobuf.FloatValue", wellknown_types_t::WRAPPER},
+        {"google.protobuf.Int64Value", wellknown_types_t::WRAPPER},
+        {"google.protobuf.UInt64Value", wellknown_types_t::WRAPPER},
+        {"google.protobuf.Int32Value", wellknown_types_t::WRAPPER},
+        {"google.protobuf.UInt32Value", wellknown_types_t::WRAPPER},
+        {"google.protobuf.BoolValue", wellknown_types_t::WRAPPER},
+        {"google.protobuf.StringValue", wellknown_types_t::WRAPPER},
+        {"google.protobuf.BytesValue", wellknown_types_t::WRAPPER},
+    };
+
+    for (auto [name, id] : wellknown_mappings) {
+      if (auto *desc = message_by_name(name); desc != nullptr) {
+        desc->wellknown = id;
+      }
     }
   }
 };
@@ -306,7 +347,7 @@ public:
   }
 
   [[nodiscard]] field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
-  // NOLINTNEXTLINE(hicpp-explicit-conversion)
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator field_cref() const noexcept { return cref(); }
   auto visit(auto &&v);
 }; // class field_mref
@@ -373,7 +414,7 @@ public:
   }
 
   [[nodiscard]] scalar_field_cref<T, Kind> cref() const noexcept { return {*descriptor_, *storage_}; }
-  // NOLINTNEXTLINE(hicpp-explicit-conversion)
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator scalar_field_cref<T, Kind>() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
@@ -455,6 +496,7 @@ public:
   }
 
   [[nodiscard]] string_field_cref cref() const noexcept { return string_field_cref{*descriptor_, *storage_}; }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator string_field_cref() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
@@ -554,6 +596,7 @@ class enum_value_cref {
 
 public:
   using is_enum_value_ref = void;
+
   enum_value_cref(const enum_descriptor_t &descriptor, uint32_t number) noexcept
       : descriptor_(&descriptor), number_(number) {}
   enum_value_cref(const enum_value_cref &) noexcept = default;
@@ -575,6 +618,7 @@ class enum_value_mref {
 
 public:
   using is_enum_value_ref = void;
+
   enum_value_mref(const enum_descriptor_t &descriptor, uint32_t &number) noexcept
       : descriptor_(&descriptor), number_(&number) {}
   enum_value_mref(const enum_value_mref &) noexcept = default;
@@ -604,6 +648,7 @@ class enum_field_cref {
 public:
   constexpr static field_kind_t field_kind = field_kind_t::KIND_ENUM;
   using type = vuint32_t;
+
   enum_field_cref(const field_descriptor_t &descriptor, const scalar_storage_base<uint32_t> &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {
     assert(descriptor.field_kind == field_kind);
@@ -637,6 +682,7 @@ class enum_field_mref {
 public:
   constexpr static field_kind_t field_kind = field_kind_t::KIND_ENUM;
   using type = vuint32_t;
+
   enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                   std::pmr::monotonic_buffer_resource &) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
@@ -656,6 +702,7 @@ public:
   }
 
   [[nodiscard]] enum_field_cref cref() const noexcept { return enum_field_cref{*descriptor_, *storage_}; }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator enum_field_cref() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
@@ -748,6 +795,7 @@ public:
   [[nodiscard]] repeated_scalar_field_cref<T, Kind> cref() const noexcept {
     return repeated_scalar_field_cref<T, Kind>{*descriptor_, *storage_};
   }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_scalar_field_cref<T, Kind>() const noexcept { return cref(); }
 
   T &operator[](std::size_t index) const noexcept {
@@ -941,6 +989,7 @@ public:
   [[nodiscard]] repeated_enum_field_cref cref() const noexcept {
     return repeated_enum_field_cref{*descriptor_, *storage_};
   }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_enum_field_cref() const noexcept { return cref(); }
 
   void resize(std::size_t n) {
@@ -965,7 +1014,7 @@ public:
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
-    return { *descriptor_->enum_field_type_descriptor(), storage_->content[index]};
+    return {*descriptor_->enum_field_type_descriptor(), storage_->content[index]};
   }
 
   [[nodiscard]] reference at(std::size_t index) const {
@@ -1126,6 +1175,7 @@ public:
   std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   [[nodiscard]] message_value_cref cref() const noexcept { return {*descriptor_, storage_}; }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator message_value_cref() const noexcept { return cref(); }
 
   [[nodiscard]] const field_descriptor_t *field_descriptor_by_name(std::string_view name) const noexcept {
@@ -1211,8 +1261,9 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0; }
   [[nodiscard]] message_value_cref value() const {
-    if (!has_value())
+    if (!has_value()) {
       throw std::bad_optional_access{};
+    }
     return {message_descriptor(), storage_->content};
   }
   [[nodiscard]] message_value_cref operator*() const noexcept { return {message_descriptor(), storage_->content}; }
@@ -1228,7 +1279,7 @@ class message_field_mref {
   const field_descriptor_t *descriptor_;
   scalar_storage_base<value_storage *> *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
-  std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
+  [[nodiscard]] std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
 
 public:
   static constexpr field_kind_t field_kind = field_kind_t::KIND_MESSAGE;
@@ -1278,7 +1329,7 @@ public:
 class repeated_message_field_cref : std::ranges::view_interface<repeated_message_field_cref> {
   const field_descriptor_t *descriptor_;
   const repeated_storage_base<value_storage> *storage_;
-  std::size_t num_slots() const { return message_descriptor().num_slots; }
+  [[nodiscard]] std::size_t num_slots() const { return message_descriptor().num_slots; }
 
 public:
   static constexpr field_kind_t field_kind = field_kind_t::KIND_REPEATED_MESSAGE;
@@ -1328,7 +1379,7 @@ class repeated_message_field_mref : std::ranges::view_interface<repeated_message
   repeated_storage_base<value_storage> *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
-  std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
+  [[nodiscard]] std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
 
 public:
   static constexpr field_kind_t field_kind = field_kind_t::KIND_REPEATED_MESSAGE;
@@ -1349,12 +1400,13 @@ public:
   ~repeated_message_field_mref() noexcept = default;
 
   [[nodiscard]] repeated_message_field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator repeated_message_field_cref() const noexcept { return cref(); }
 
   void resize(std::size_t n) noexcept {
     auto old_size = size();
     if (capacity() < n) {
-      auto new_data = static_cast<value_storage *>(
+      auto *new_data = static_cast<value_storage *>(
           memory_resource_->allocate(n * num_slots() * sizeof(value_storage), alignof(value_storage)));
       std::ranges::copy(std::span{storage_->content, storage_->size * num_slots()}, new_data);
       storage_->content = new_data;
@@ -1377,12 +1429,12 @@ public:
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
   [[nodiscard]] message_value_mref operator[](std::size_t index) const noexcept {
     assert(index < size());
-    return message_value_mref(message_descriptor(), &storage_->content[index * num_slots()], *memory_resource_);
+    return {message_descriptor(), &storage_->content[index * num_slots()], *memory_resource_};
   }
 
   [[nodiscard]] message_value_mref at(std::size_t index) const {
     if (index < size()) {
-      return message_value_mref(message_descriptor(), &storage_->content[index * num_slots()], *memory_resource_);
+      return {message_descriptor(), &storage_->content[index * num_slots()], *memory_resource_};
     }
     throw std::out_of_range("");
   }
@@ -1432,7 +1484,7 @@ using repeated_string_field_mref = repeated_scalar_field_mref<std::string_view, 
 using repeated_bytes_field_mref = repeated_scalar_field_mref<bytes_view, KIND_REPEATED_BYTES>;
 
 inline auto field_cref::visit(auto &&visitor) {
-  switch (descriptor_->field_kind) {
+  switch (descriptor().field_kind) {
   case KIND_DOUBLE:
     return visitor(double_field_cref{*descriptor_, *storage_});
   case KIND_FLOAT:
@@ -1481,7 +1533,7 @@ inline auto field_cref::visit(auto &&visitor) {
 }
 
 inline auto field_mref::visit(auto &&visitor) {
-  switch (descriptor_->field_kind) {
+  switch (descriptor().field_kind) {
   case KIND_DOUBLE:
     return visitor(double_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_FLOAT:
@@ -1533,8 +1585,6 @@ template <typename T>
 struct adapt_descriptor : field_descriptor_t {
   using type = T;
 };
-
-// NOLINTEND(cppcoreguidelines-pro-type-union-access)
 
 namespace concepts {
 template <typename T>
@@ -1856,6 +1906,6 @@ status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts:
 status read_proto(message_value_mref msg, auto &&buffer) {
   msg.reset();
   auto context = pb_context{alloc_from(msg.memory_resource())};
-  return pb_serializer::deserialize(msg, buffer, context);
+  return pb_serializer::deserialize(msg, std::forward<decltype(buffer)>(buffer), context);
 }
 } // namespace hpp::proto

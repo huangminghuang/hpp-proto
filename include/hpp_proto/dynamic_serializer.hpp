@@ -37,7 +37,6 @@ namespace hpp::proto {
 
 // used to represent a protobuf encoded FileDescriptorProto
 
-
 template <std::ranges::input_range R, class T>
 constexpr bool contains(const R &r, const T &value) {
   return std::find(std::begin(r), std::end(r), value) != std::end(r);
@@ -1451,8 +1450,7 @@ public:
     std::ranges::sort(protobuf_wrapper_type_message_indices);
 
     // erase the invalid indices in protobuf_wrapper_type_message_indices
-    auto first_invalid = std::lower_bound(protobuf_wrapper_type_message_indices.begin(),
-                                          protobuf_wrapper_type_message_indices.end(), messages.size());
+    auto first_invalid = std::ranges::lower_bound(protobuf_wrapper_type_message_indices, messages.size());
     protobuf_wrapper_type_message_indices.erase(first_invalid, protobuf_wrapper_type_message_indices.end());
   }
 

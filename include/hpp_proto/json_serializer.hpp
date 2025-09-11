@@ -351,7 +351,17 @@ struct json_codec;
 namespace concepts {
 template <typename T>
 concept has_codec = requires { typename json_codec<T>::type; };
+
+template <typename T>
+concept has_nested_codec = requires { typename T::json_codec; };
+
 } // namespace concepts
+
+template <concepts::has_nested_codec T>
+struct json_codec<T> {
+  using type = typename T::json_codec;
+};
+
 struct use_base64 {
   constexpr static bool glaze_reflect = false;
 };
