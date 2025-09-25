@@ -55,9 +55,9 @@ enum class wellknown_types_t : uint8_t {
   WRAPPER
 };
 
-class reflection_descriptor_pool;
+class dynamic_message_factory;
 
-struct reflection_addons {
+struct dynamic_message_factory_addons {
   template <typename Derived>
   struct field_descriptor {
     using type = void;
@@ -169,12 +169,12 @@ struct reflection_addons {
   };
 };
 
-using reflection_descriptor_pool_base = descriptor_pool<reflection_addons>;
-
-class reflection_descriptor_pool : public descriptor_pool<reflection_addons> {
+using dynamic_message_factory_base = descriptor_pool<dynamic_message_factory_addons>;
+class message_value_mref;
+class dynamic_message_factory : public descriptor_pool<dynamic_message_factory_addons> {
 public:
-  explicit reflection_descriptor_pool(google::protobuf::FileDescriptorSet &&proto_files)
-      : descriptor_pool<reflection_addons>(std::move(proto_files)) {
+  explicit dynamic_message_factory(google::protobuf::FileDescriptorSet &&proto_files)
+      : descriptor_pool<dynamic_message_factory_addons>(std::move(proto_files)) {
     for (auto &message : this->messages()) {
       hpp::proto::optional<std::int32_t> prev_oneof_index;
       uint16_t oneof_ordinal = 1;
@@ -222,12 +222,13 @@ public:
       }
     }
   }
+  std::optional<message_value_mref> get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr);
 };
 
-using field_descriptor_t = reflection_descriptor_pool::field_descriptor_t;
-using enum_descriptor_t = reflection_descriptor_pool::enum_descriptor_t;
-using oneof_descriptor_t = reflection_descriptor_pool::oneof_descriptor_t;
-using message_descriptor_t = reflection_descriptor_pool::message_descriptor_t;
+using field_descriptor_t = dynamic_message_factory::field_descriptor_t;
+using enum_descriptor_t = dynamic_message_factory::enum_descriptor_t;
+using oneof_descriptor_t = dynamic_message_factory::oneof_descriptor_t;
+using message_descriptor_t = dynamic_message_factory::message_descriptor_t;
 
 template <typename T>
 struct scalar_storage_base {
@@ -1725,13 +1726,14 @@ inline auto field_mref::visit(auto &&visitor) {
   }
 }
 
-template <typename T>
-using zig_zag_varint = varint<T, varint_encoding::zig_zag>;
-
-template <typename T>
-struct adapt_descriptor : field_descriptor_t {
-  using type = T;
-};
+std::optional<message_value_mref> dynamic_message_factory::get_message(std::string_view name,
+                                                                       std::pmr::monotonic_buffer_resource &mr) {
+  auto *desc = get_message_descriptor(name);
+  if (desc) {
+    return message_value_mref{*desc, mr};
+  }
+  return {};
+}
 
 namespace concepts {
 template <typename T>
@@ -2227,9 +2229,7 @@ struct field_serializer {
   }
 
   bool operator()(message_value_cref item) {
-    return std::ranges::all_of(item.fields(), [&](field_cref f) {
-      return !f.has_value() || f.visit(*this);
-    });
+    return std::ranges::all_of(item.fields(), [&](field_cref f) { return !f.has_value() || f.visit(*this); });
   }
 
   struct message_tag_writer {

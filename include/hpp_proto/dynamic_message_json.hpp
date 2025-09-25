@@ -3,7 +3,7 @@
 #include <hpp_proto/field_mask_codec.hpp>
 #include <hpp_proto/json_serializer.hpp>
 
-#include <hpp_proto/reflection.hpp>
+#include <hpp_proto/dynamic_message.hpp>
 
 namespace glz {
 
