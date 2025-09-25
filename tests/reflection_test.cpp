@@ -19,7 +19,7 @@ const boost::ut::suite reflection_test = [] {
     using namespace std::string_literals;
     std::string data = read_file("data/"s + message_name + ".binpb");
 
-    auto desc = pool.message_by_name(message_name);
+    auto* desc = pool.get_message_descriptor(message_name);
     expect(fatal(desc != nullptr));
 
     std::pmr::monotonic_buffer_resource memory_resource;
@@ -28,16 +28,25 @@ const boost::ut::suite reflection_test = [] {
     auto r = hpp::proto::read_proto(message, data);
     expect(fatal(r.ok()));
 
+
+    std::string new_data;
+    r = hpp::proto::write_proto(message.cref(), new_data);
+    expect(fatal(r.ok()));
+    expect(eq(data, new_data));
+
     std::string str;
     auto err = glz::write_json(message, str);
     expect(!err);
 
     auto json = read_file("data/"s + message_name + ".json");
     expect(json == str);
-  } | std::vector<std::string>{"proto3_unittest.TestAllTypes",       "proto3_unittest.TestUnpackedTypes",
+
+  } | std::vector<std::string>{"proto3_unittest.TestAllTypes"
+    ,       "proto3_unittest.TestUnpackedTypes",
                                "protobuf_unittest.TestAllTypes",     "protobuf_unittest.TestPackedTypes",
                                "protobuf_unittest.TestMap",          "protobuf_unittest.TestUnpackedTypes",
-                               "protobuf_unittest.TestAllTypesLite", "protobuf_unittest.TestPackedTypesLite"};
+                               "protobuf_unittest.TestAllTypesLite", "protobuf_unittest.TestPackedTypesLite"
+                              };
 };
 
 int main() {

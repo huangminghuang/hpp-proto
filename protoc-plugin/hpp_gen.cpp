@@ -833,7 +833,7 @@ struct msg_code_generator : code_generator {
         }
       }
 
-      auto *dependent_msg = pool.message_by_name(dependent);
+      auto *dependent_msg = pool.get_message_descriptor(dependent);
       message_descriptor_t *dependee_msg = type == TYPE_ENUM ? nullptr : field.message_field_type_descriptor();
 
       std::string namespace_prefix;
@@ -2022,7 +2022,7 @@ int main(int argc, const char **argv) {
   response.maximum_edition = static_cast<int32_t>(gpb::Edition::EDITION_2024);
 
   for (const auto &file_name : request.file_to_generate) {
-    auto &descriptor = *pool.file_by_name(file_name);
+    auto &descriptor = *pool.get_file_descriptor(file_name);
 
     msg_code_generator msg_code(response.file);
     msg_code.resolve_message_dependencies(pool);

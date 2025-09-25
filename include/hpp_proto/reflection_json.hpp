@@ -1,6 +1,6 @@
-#include <hpp_proto/field_mask_codec.hpp>
 #include <google/protobuf/duration.glz.hpp>
 #include <google/protobuf/timestamp.glz.hpp>
+#include <hpp_proto/field_mask_codec.hpp>
 #include <hpp_proto/json_serializer.hpp>
 
 #include <hpp_proto/reflection.hpp>
@@ -51,16 +51,21 @@ struct generic_message_json_serializer {
         field.visit([&](auto v) { to<JSON, decltype(v)>::template op<field_opts>(v, ctx, b, ix); });
         separator = ",";
       } else {
-        bool need_extra_quote =
-            (separator == nullptr && field.field_kind() != hpp::proto::KIND_STRING &&
-             field.field_kind() != hpp::proto::KIND_INT64 && field.field_kind() != hpp::proto::KIND_UINT64);
-        if (need_extra_quote) {
-          glz::dump<'"'>(b, ix);
+        if (separator == nullptr) {
+          bool need_extra_quote = (field.field_kind() == hpp::proto::KIND_BOOL);
+          if (need_extra_quote) {
+            glz::dump<'"'>(b, ix);
+          }
+          field.visit([&](auto v) {
+            to<JSON, decltype(v)>::template op<opt_true<field_opts, &opts::quoted_num>>(v, ctx, b, ix);
+          });
+          if (need_extra_quote) {
+            glz::dump<'"'>(b, ix);
+          }
+        } else {
+          field.visit([&](auto v) { to<JSON, decltype(v)>::template op<field_opts>(v, ctx, b, ix); });
         }
-        field.visit([&](auto v) { to<JSON, decltype(v)>::template op<field_opts>(v, ctx, b, ix); });
-        if (need_extra_quote) {
-          glz::dump<'"'>(b, ix);
-        }
+
         separator = ":";
       }
     }
@@ -107,7 +112,7 @@ struct any_message_json_serializer {
       return;
     }
 
-    auto *value_descriptor = pool.message_by_name(type_url.substr(slash_pos + 1));
+    auto *value_descriptor = pool.get_message_descriptor(type_url.substr(slash_pos + 1));
     if (!value_descriptor) {
       ctx.error = error_code::invalid_get;
       ctx.custom_error_message = "unresolvable type_url in google.protobuf.Any message";
@@ -222,10 +227,12 @@ struct to<JSON, hpp::proto::scalar_field_cref<T, Kind>> {
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_cref<T, Kind> &value, auto &&...args) noexcept {
 
     if (value.has_value()) {
-      if constexpr (std::is_integral_v<T> && sizeof(T) > 4) {
-        to<JSON, T>::template op<opt_true<Opts, &opts::quoted_num>>(*value, std::forward<decltype(args)>(args)...);
+      using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
+      if constexpr (!std::same_as<T, double> && sizeof(T) == 8) {
+        to<JSON, value_type>::template op<opt_true<Opts, &opts::quoted_num>>(*value,
+                                                                             std::forward<decltype(args)>(args)...);
       } else {
-        to<JSON, T>::template op<Opts>(*value, std::forward<decltype(args)>(args)...);
+        to<JSON, value_type>::template op<Opts>(*value, std::forward<decltype(args)>(args)...);
       }
     }
   }
@@ -238,7 +245,7 @@ struct to<JSON, hpp::proto::repeated_scalar_field_cref<T, Kind>> {
                                    auto &&...args) noexcept {
     if (!value.empty()) {
       auto range = std::span{value.data(), value.size()};
-      if constexpr (std::is_integral_v<T> && sizeof(T) > 4) {
+      if constexpr (!std::same_as<T, double> && sizeof(T) == 8) {
         to<JSON, decltype(range)>::template op<opt_true<Opts, &opts::quoted_num>>(
             range, std::forward<decltype(args)>(args)...);
       } else {
@@ -291,7 +298,7 @@ struct to<JSON, hpp::proto::message_value_cref> {
 template <>
 struct to<JSON, hpp::proto::message_value_mref> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(auto const &value, auto &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(const hpp::proto::message_value_mref &value, auto &&...args) noexcept {
     to<JSON, hpp::proto::message_value_cref>::template op<Opts>(value.cref(), std::forward<decltype(args)>(args)...);
   }
 };

@@ -415,32 +415,32 @@ public:
   descriptor_pool &operator=(const descriptor_pool &) = delete;
   descriptor_pool &operator=(descriptor_pool &&) = delete;
 
-  [[nodiscard]] const message_descriptor_t *message_by_name(std::string_view name) const {
+  [[nodiscard]] const message_descriptor_t *get_message_descriptor(std::string_view name) const {
     auto itr = message_map_.find(name);
     return itr == message_map_.end() ? nullptr : itr->second;
   }
 
-  [[nodiscard]] message_descriptor_t *message_by_name(std::string_view name) {
+  [[nodiscard]] message_descriptor_t *get_message_descriptor(std::string_view name) {
     auto itr = message_map_.find(name);
     return itr == message_map_.end() ? nullptr : itr->second;
   }
 
-  [[nodiscard]] const enum_descriptor_t *enum_by_name(std::string_view name) const {
+  [[nodiscard]] const enum_descriptor_t *get_enum_descriptor(std::string_view name) const {
     auto itr = enum_map_.find(name);
     return itr == enum_map_.end() ? nullptr : itr->second;
   }
 
-  [[nodiscard]] enum_descriptor_t *enum_by_name(std::string_view name) {
+  [[nodiscard]] enum_descriptor_t *get_enum_descriptor(std::string_view name) {
     auto itr = enum_map_.find(name);
     return itr == enum_map_.end() ? nullptr : itr->second;
   }
 
-  [[nodiscard]] const file_descriptor_t *file_by_name(std::string_view name) const {
+  [[nodiscard]] const file_descriptor_t *get_file_descriptor(std::string_view name) const {
     auto itr = file_map_.find(name);
     return itr == file_map_.end() ? nullptr : itr->second;
   }
 
-  [[nodiscard]] file_descriptor_t *file_by_name(std::string_view name) {
+  [[nodiscard]] file_descriptor_t *get_file_descriptor(std::string_view name) {
     auto itr = file_map_.find(name);
     return itr == file_map_.end() ? nullptr : itr->second;
   }
@@ -480,7 +480,7 @@ private:
       file.descriptor_pool_ = this;
       file.dependencies_.resize(file.proto().dependency.size());
       std::transform(file.proto().dependency.begin(), file.proto().dependency.end(), file.dependencies_.begin(),
-                     [this](auto &dep) { return this->file_by_name(dep); });
+                     [this](auto &dep) { return this->get_file_descriptor(dep); });
     }
 
     for (auto [name, msg] : message_map_) {

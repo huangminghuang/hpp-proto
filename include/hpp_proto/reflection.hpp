@@ -7,28 +7,40 @@
 #include <hpp_proto/pb_serializer.hpp>
 namespace hpp::proto {
 enum field_kind_t : uint8_t {
-  KIND_DOUBLE,
-  KIND_FLOAT,
-  KIND_UINT64,
-  KIND_INT64,
-  KIND_UINT32,
-  KIND_INT32,
-  KIND_BOOL,
-  KIND_STRING,
-  KIND_BYTES,
-  KIND_ENUM,
-  KIND_MESSAGE,
-  KIND_REPEATED_DOUBLE,
-  KIND_REPEATED_FLOAT,
-  KIND_REPEATED_UINT64,
-  KIND_REPEATED_INT64,
-  KIND_REPEATED_UINT32,
-  KIND_REPEATED_INT32,
-  KIND_REPEATED_BOOL,
-  KIND_REPEATED_STRING,
-  KIND_REPEATED_BYTES,
-  KIND_REPEATED_ENUM,
-  KIND_REPEATED_MESSAGE
+  KIND_DOUBLE = 1,
+  KIND_FLOAT = 2,
+  KIND_INT64 = 3,
+  KIND_UINT64 = 4,
+  KIND_INT32 = 5,
+  KIND_FIXED64 = 6,
+  KIND_FIXED32 = 7,
+  KIND_BOOL = 8,
+  KIND_STRING = 9,
+  KIND_MESSAGE = 11,
+  KIND_BYTES = 12,
+  KIND_UINT32 = 13,
+  KIND_ENUM = 14,
+  KIND_SFIXED32 = 15,
+  KIND_SFIXED64 = 16,
+  KIND_SINT32 = 17,
+  KIND_SINT64 = 18,
+  KIND_REPEATED_DOUBLE = 19,
+  KIND_REPEATED_FLOAT = 20,
+  KIND_REPEATED_INT64 = 21,
+  KIND_REPEATED_UINT64 = 22,
+  KIND_REPEATED_INT32 = 23,
+  KIND_REPEATED_FIXED64 = 24,
+  KIND_REPEATED_FIXED32 = 25,
+  KIND_REPEATED_BOOL = 26,
+  KIND_REPEATED_STRING = 27,
+  KIND_REPEATED_MESSAGE = 29,
+  KIND_REPEATED_BYTES = 30,
+  KIND_REPEATED_UINT32 = 31,
+  KIND_REPEATED_ENUM = 32,
+  KIND_REPEATED_SFIXED32 = 33,
+  KIND_REPEATED_SFIXED64 = 34,
+  KIND_REPEATED_SINT32 = 35,
+  KIND_REPEATED_SINT64 = 36
 };
 
 enum class wellknown_types_t : uint8_t {
@@ -51,7 +63,6 @@ struct reflection_addons {
     using type = void;
     std::variant<bool, std::string, int32_t, uint32_t, int64_t, uint64_t, double, float, std::vector<std::byte>>
         default_value;
-    field_kind_t field_kind = KIND_DOUBLE;
     /// @brief slot represents the index to the field memory storage of a message; all non-oneof fields use different
     /// slot, fields of the same oneof type share the same slot.
     uint32_t storage_slot = 0;
@@ -59,71 +70,54 @@ struct reflection_addons {
     /// always 1 for singular field and 0 for repeated field
     uint16_t oneof_ordinal = 0;
     field_descriptor(const google::protobuf::FieldDescriptorProto &proto, const std::string &) {
-      set_kind_and_default_value(proto);
+      set_default_value(proto);
     }
 
-    void set_kind_and_default_value(const google::protobuf::FieldDescriptorProto &proto) {
+    void set_default_value(const google::protobuf::FieldDescriptorProto &proto) {
       using enum google::protobuf::FieldDescriptorProto::Type;
       using namespace std::string_literals;
       const auto &default_value_opt = proto.default_value;
       switch (proto.type) {
-      case TYPE_MESSAGE:
-      case TYPE_GROUP:
-        field_kind = KIND_MESSAGE;
-        break;
       case TYPE_ENUM:
-        field_kind = KIND_ENUM;
         break;
       case TYPE_DOUBLE:
         default_value = std::stod(default_value_opt.empty() ? "0.0"s : default_value_opt);
-        field_kind = KIND_DOUBLE;
         break;
       case TYPE_FLOAT:
         default_value = std::stof(default_value_opt.empty() ? "0.0"s : default_value_opt);
-        field_kind = KIND_FLOAT;
         break;
       case TYPE_INT64:
       case TYPE_SFIXED64:
       case TYPE_SINT64:
         default_value = std::stoll(default_value_opt.empty() ? "0"s : default_value_opt);
-        field_kind = KIND_INT64;
         break;
       case TYPE_UINT64:
       case TYPE_FIXED64:
         default_value = std::stoull(default_value_opt.empty() ? "0"s : default_value_opt);
-        field_kind = KIND_UINT64;
         break;
       case TYPE_INT32:
       case TYPE_SFIXED32:
       case TYPE_SINT32:
         default_value = std::stoi(default_value_opt.empty() ? "0"s : default_value_opt);
-        field_kind = KIND_INT32;
         break;
       case TYPE_UINT32:
       case TYPE_FIXED32:
         default_value = std::stoul(default_value_opt.empty() ? "0"s : default_value_opt);
-        field_kind = KIND_UINT32;
         break;
       case TYPE_BOOL:
         default_value = proto.default_value == "true";
-        field_kind = KIND_BOOL;
         break;
       case TYPE_STRING:
         default_value = default_value_opt;
-        field_kind = KIND_STRING;
         break;
       case TYPE_BYTES:
         if (!default_value_opt.empty()) {
           auto const view = detail::bit_cast_view<std::byte>(default_value_opt);
           default_value.emplace<std::vector<std::byte>>(view.begin(), view.end());
         }
-        field_kind = KIND_BYTES;
         break;
-      }
-
-      using enum google::protobuf::FieldDescriptorProto::Label;
-      if (proto.label == LABEL_REPEATED) {
-        field_kind = static_cast<field_kind_t>(field_kind + KIND_REPEATED_DOUBLE);
+      default:
+        // Do nothing
       }
     }
   };
@@ -223,7 +217,7 @@ public:
     };
 
     for (auto [name, id] : wellknown_mappings) {
-      if (auto *desc = message_by_name(name); desc != nullptr) {
+      if (auto *desc = get_message_descriptor(name); desc != nullptr) {
         desc->wellknown = id;
       }
     }
@@ -294,14 +288,21 @@ public:
   field_cref &operator=(field_cref &&) noexcept = default;
   ~field_cref() noexcept = default;
 
-  [[nodiscard]] field_kind_t field_kind() const noexcept { return descriptor_->field_kind; }
-  [[nodiscard]] bool is_repeated() const noexcept { return field_kind() >= KIND_REPEATED_DOUBLE; }
+  [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+  [[nodiscard]] field_kind_t field_kind() const noexcept {
+    // map TYPE_GROUP to TYPE_MESSAGE
+    auto base_type = descriptor().proto().type == google::protobuf::FieldDescriptorProto::Type::TYPE_GROUP
+                         ? google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE
+                         : descriptor().proto().type;
+    return static_cast<field_kind_t>(std::to_underlying(base_type) +
+                                     (18 * static_cast<int>(descriptor().is_repeated())));
+  }
+
   [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
 
-  [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
-
   [[nodiscard]] bool has_value() const noexcept {
-    return storage_->has_value() && (is_repeated() || storage_->of_int64.selection == descriptor().oneof_ordinal);
+    return storage_->has_value() &&
+           (descriptor().is_repeated() || storage_->of_int64.selection == descriptor().oneof_ordinal);
   }
 
   template <typename T>
@@ -332,10 +333,10 @@ public:
   ~field_mref() noexcept = default;
 
   void reset() noexcept { storage_->reset(); }
-  [[nodiscard]] field_kind_t field_kind() const noexcept { return descriptor_->field_kind; }
-  [[nodiscard]] bool is_repeated() const noexcept { return field_kind() >= KIND_REPEATED_DOUBLE; }
-  [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+  [[nodiscard]] field_kind_t field_kind() const noexcept { return cref().field_kind(); }
+
+  [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
 
   template <typename T>
@@ -352,22 +353,24 @@ public:
   auto visit(auto &&v);
 }; // class field_mref
 
+template <typename T>
+struct value_type_identity {
+  using value_type = T;
+};
 template <typename T, field_kind_t Kind>
 class scalar_field_cref {
-  const field_descriptor_t *descriptor_;
-  const scalar_storage_base<T> *storage_;
-
 public:
-  static constexpr field_kind_t field_kind = Kind;
+  using encode_type = T;
+  using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
+  using storage_type = scalar_storage_base<value_type>;
+  constexpr static field_kind_t field_kind = Kind;
 
-  scalar_field_cref(const field_descriptor_t &descriptor, const scalar_storage_base<T> &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {
-    assert(descriptor.field_kind == field_kind);
-  }
+  scalar_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   scalar_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : scalar_field_cref(descriptor, reinterpret_cast<const scalar_storage_base<T> &>(storage)) {}
+      : scalar_field_cref(descriptor, reinterpret_cast<const storage_type &>(storage)) {}
 
   scalar_field_cref(const scalar_field_cref &) noexcept = default;
   scalar_field_cref(scalar_field_cref &&) noexcept = default;
@@ -376,31 +379,34 @@ public:
   ~scalar_field_cref() noexcept = default;
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection; }
-  [[nodiscard]] T value() const noexcept {
+  [[nodiscard]] value_type value() const noexcept {
     if (!descriptor().explicit_presence() && !has_value()) {
-      return std::get<T>(descriptor_->default_value);
+      return std::get<value_type>(descriptor_->default_value);
     }
     return storage_->content;
   }
 
-  [[nodiscard]] T operator*() const noexcept { return value(); }
+  [[nodiscard]] value_type operator*() const noexcept { return value(); }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const field_descriptor_t *descriptor_;
+  const storage_type *storage_;
 };
 
 template <typename T, field_kind_t Kind>
 class scalar_field_mref {
-  const field_descriptor_t *descriptor_;
-  scalar_storage_base<T> *storage_;
-
 public:
-  static constexpr field_kind_t field_kind = Kind;
+  using encode_type = T;
+  using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
+  using storage_type = scalar_storage_base<value_type>;
+  constexpr static field_kind_t field_kind = Kind;
+
   scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                     std::pmr::monotonic_buffer_resource &) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : descriptor_(&descriptor), storage_(reinterpret_cast<scalar_storage_base<T> *>(&storage)) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(reinterpret_cast<storage_type *>(&storage)) {}
 
   scalar_field_mref(const scalar_field_mref &) noexcept = default;
   scalar_field_mref(scalar_field_mref &&) noexcept = default;
@@ -418,23 +424,26 @@ public:
   [[nodiscard]] operator scalar_field_cref<T, Kind>() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
-  [[nodiscard]] T operator*() const noexcept { return cref().operator*(); }
-  [[nodiscard]] T value() const noexcept { return cref().value(); }
+  [[nodiscard]] value_type operator*() const noexcept { return cref().operator*(); }
+  [[nodiscard]] value_type value() const noexcept { return cref().value(); }
   void reset() noexcept { storage_->selection = 0; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const field_descriptor_t *descriptor_;
+  storage_type *storage_;
 };
 
 class string_field_cref {
-  const field_descriptor_t *descriptor_;
-  const string_storage_t *storage_;
-
 public:
-  constexpr static field_kind_t field_kind = field_kind_t::KIND_STRING;
+  using encode_type = std::string_view;
+  using value_type = std::string_view;
+  using storage_type = string_storage_t;
+  constexpr static field_kind_t field_kind = KIND_STRING;
+
   string_field_cref(const field_descriptor_t &descriptor, const string_storage_t &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(&storage) {}
   string_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
       : string_field_cref(descriptor, storage.of_string) {}
@@ -458,29 +467,23 @@ public:
 
   [[nodiscard]] std::string_view operator*() const noexcept { return value(); }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const field_descriptor_t *descriptor_;
+  const string_storage_t *storage_;
 };
 
 class string_field_mref {
-  const field_descriptor_t *descriptor_;
-  string_storage_t *storage_;
-  std::pmr::monotonic_buffer_resource *memory_resource_;
-
-  [[nodiscard]] const std::string &default_value() const noexcept {
-    return std::get<std::string>(descriptor_->default_value);
-  }
-
-  [[nodiscard]] bool is_default_value(std::string_view v) const noexcept {
-    return std::ranges::equal(v, default_value());
-  }
-
 public:
-  constexpr static field_kind_t field_kind = field_kind_t::KIND_STRING;
+  using encode_type = std::string_view;
+  using value_type = std::string_view;
+  using storage_type = string_storage_t;
+  constexpr static field_kind_t field_kind = KIND_STRING;
+
   string_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                     std::pmr::monotonic_buffer_resource &mr) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_string), memory_resource_(&mr) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(&storage.of_string), memory_resource_(&mr) {}
 
   string_field_mref(const string_field_mref &) noexcept = default;
   string_field_mref(string_field_mref &&) noexcept = default;
@@ -509,18 +512,30 @@ public:
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const field_descriptor_t *descriptor_;
+  string_storage_t *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
+
+  [[nodiscard]] const std::string &default_value() const noexcept {
+    return std::get<std::string>(descriptor_->default_value);
+  }
+
+  [[nodiscard]] bool is_default_value(std::string_view v) const noexcept {
+    return std::ranges::equal(v, default_value());
+  }
 };
 
 class bytes_field_cref {
-  const field_descriptor_t *descriptor_;
-  const bytes_storage_t *storage_;
-
 public:
-  constexpr static field_kind_t field_kind = field_kind_t::KIND_BYTES;
+  using encode_type = bytes_view;
+  using value_type = bytes_view;
+  using storage_type = bytes_storage_t;
+  constexpr static field_kind_t field_kind = KIND_BYTES;
+
   bytes_field_cref(const field_descriptor_t &descriptor, const bytes_storage_t &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(&storage) {}
   bytes_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
       : bytes_field_cref(descriptor, storage.of_bytes) {}
@@ -542,27 +557,23 @@ public:
   [[nodiscard]] bytes_view operator*() const noexcept { return value(); }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const field_descriptor_t *descriptor_;
+  const bytes_storage_t *storage_;
 };
 
 class bytes_field_mref {
-  const field_descriptor_t *descriptor_;
-  bytes_storage_t *storage_;
-  std::pmr::monotonic_buffer_resource *memory_resource_;
-
-  [[nodiscard]] const std::vector<std::byte> &default_value() const noexcept {
-    return std::get<std::vector<std::byte>>(descriptor_->default_value);
-  }
-
-  [[nodiscard]] bool is_default_value(bytes_view v) const noexcept { return std::ranges::equal(v, default_value()); }
-
 public:
-  constexpr static field_kind_t field_kind = field_kind_t::KIND_BYTES;
+  using encode_type = bytes_view;
+  using value_type = bytes_view;
+  using storage_type = bytes_storage_t;
+  constexpr static field_kind_t field_kind = KIND_BYTES;
+
   bytes_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                    std::pmr::monotonic_buffer_resource &mr) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_bytes), memory_resource_(&mr) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(&storage.of_bytes), memory_resource_(&mr) {}
 
   bytes_field_mref(const bytes_field_mref &) noexcept = default;
   bytes_field_mref(bytes_field_mref &&) noexcept = default;
@@ -588,12 +599,20 @@ public:
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const field_descriptor_t *descriptor_;
+  bytes_storage_t *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
+
+  [[nodiscard]] const std::vector<std::byte> &default_value() const noexcept {
+    return std::get<std::vector<std::byte>>(descriptor_->default_value);
+  }
+
+  [[nodiscard]] bool is_default_value(bytes_view v) const noexcept { return std::ranges::equal(v, default_value()); }
 };
 
 class enum_value_cref {
-  const enum_descriptor_t *descriptor_;
-  uint32_t number_;
-
 public:
   using is_enum_value_ref = void;
 
@@ -610,6 +629,10 @@ public:
   [[nodiscard]] uint32_t number() const noexcept { return number_; }
   [[nodiscard]] const char *name() const noexcept { return descriptor_->name_of(number_); }
   [[nodiscard]] const enum_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const enum_descriptor_t *descriptor_;
+  uint32_t number_;
 };
 
 class enum_value_mref {
@@ -642,17 +665,14 @@ public:
 };
 
 class enum_field_cref {
-  const field_descriptor_t *descriptor_;
-  const scalar_storage_base<uint32_t> *storage_;
-
 public:
-  constexpr static field_kind_t field_kind = field_kind_t::KIND_ENUM;
-  using type = vuint32_t;
+  using encode_type = vuint32_t;
+  using value_type = enum_value_cref;
+  using storage_type = scalar_storage_base<uint32_t>;
+  constexpr static field_kind_t field_kind = KIND_ENUM;
 
   enum_field_cref(const field_descriptor_t &descriptor, const scalar_storage_base<uint32_t> &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(&storage) {}
   enum_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
       : enum_field_cref(descriptor, storage.of_uint32) {}
@@ -667,28 +687,28 @@ public:
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection; }
   [[nodiscard]] enum_value_cref value() const noexcept { return {enum_descriptor(), storage_->content}; }
   [[nodiscard]] enum_value_cref operator*() const noexcept { return value(); }
-  [[nodiscard]] enum_value_cref operator->() const noexcept { return value(); }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
     return *descriptor_->enum_field_type_descriptor();
   }
+
+private:
+  const field_descriptor_t *descriptor_;
+  const scalar_storage_base<uint32_t> *storage_;
 };
 
 class enum_field_mref {
-  const field_descriptor_t *descriptor_;
-  scalar_storage_base<uint32_t> *storage_;
-
 public:
-  constexpr static field_kind_t field_kind = field_kind_t::KIND_ENUM;
-  using type = vuint32_t;
+  using encode_type = vuint32_t;
+  using value_type = enum_value_cref;
+  using storage_type = scalar_storage_base<uint32_t>;
+  constexpr static field_kind_t field_kind = KIND_ENUM;
 
   enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                   std::pmr::monotonic_buffer_resource &) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_uint32) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(&storage.of_uint32) {}
 
   enum_field_mref(const enum_field_mref &) noexcept = default;
   enum_field_mref(enum_field_mref &&) noexcept = default;
@@ -711,7 +731,6 @@ public:
   }
 
   [[nodiscard]] enum_value_mref operator*() const noexcept { return value(); }
-  [[nodiscard]] enum_value_mref operator->() const noexcept { return value(); }
 
   [[nodiscard]] enum_value_mref emplace() noexcept {
     storage_->selection = descriptor_->oneof_ordinal;
@@ -724,23 +743,26 @@ public:
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
     return *descriptor_->enum_field_type_descriptor();
   }
+
+private:
+  const field_descriptor_t *descriptor_;
+  scalar_storage_base<uint32_t> *storage_;
 };
 
 template <typename T, field_kind_t Kind>
 class repeated_scalar_field_cref : public std::ranges::view_interface<repeated_scalar_field_cref<T, Kind>> {
-  const field_descriptor_t *descriptor_;
-  const repeated_storage_base<T> *storage_;
 
 public:
-  static constexpr field_kind_t field_kind = Kind;
-  using value_type = T;
-  repeated_scalar_field_cref(const field_descriptor_t &descriptor, const repeated_storage_base<T> &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {
-    assert(descriptor.field_kind == field_kind);
-  }
+  using encode_type = T;
+  using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
+  using storage_type = repeated_storage_base<value_type>;
+  constexpr static field_kind_t field_kind = Kind;
+
+  repeated_scalar_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
+      : descriptor_(&descriptor), storage_(&storage) {}
   repeated_scalar_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : repeated_scalar_field_cref(descriptor, reinterpret_cast<const repeated_storage_base<T> &>(storage)) {}
+      : repeated_scalar_field_cref(descriptor, reinterpret_cast<const storage_type &>(storage)) {}
 
   repeated_scalar_field_cref(const repeated_scalar_field_cref &) noexcept = default;
   repeated_scalar_field_cref(repeated_scalar_field_cref &&) noexcept = default;
@@ -748,12 +770,12 @@ public:
   repeated_scalar_field_cref &operator=(repeated_scalar_field_cref &&) noexcept = default;
   ~repeated_scalar_field_cref() noexcept = default;
 
-  T operator[](std::size_t index) const noexcept {
+  value_type operator[](std::size_t index) const noexcept {
     assert(index < storage_->size);
     return storage_->content[index];
   }
 
-  T at(std::size_t index) const {
+  value_type at(std::size_t index) const {
     if (index < storage_->size) {
       return storage_->content[index];
     }
@@ -762,29 +784,30 @@ public:
 
   [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
-  [[nodiscard]] const T *data() const noexcept { return storage_->content; }
-  [[nodiscard]] const T *begin() const noexcept { return storage_->content; }
-  [[nodiscard]] const T *end() const noexcept { return storage_->content + storage_->size; }
+  [[nodiscard]] const value_type *data() const noexcept { return storage_->content; }
+  [[nodiscard]] const value_type *begin() const noexcept { return storage_->content; }
+  [[nodiscard]] const value_type *end() const noexcept { return storage_->content + storage_->size; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const field_descriptor_t *descriptor_;
+  const storage_type *storage_;
 };
 
 template <typename T, field_kind_t Kind>
 class repeated_scalar_field_mref : public std::ranges::view_interface<repeated_scalar_field_mref<T, Kind>> {
-  const field_descriptor_t *descriptor_;
-  repeated_storage_base<T> *storage_;
-  std::pmr::monotonic_buffer_resource *memory_resource_;
 
 public:
-  static constexpr field_kind_t field_kind = Kind;
-  using value_type = T;
+  using encode_type = T;
+  using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
+  using storage_type = repeated_storage_base<value_type>;
+  constexpr static field_kind_t field_kind = Kind;
+
   repeated_scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                              std::pmr::monotonic_buffer_resource &mr) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : descriptor_(&descriptor), storage_(reinterpret_cast<repeated_storage_base<T> *>(&storage)),
-        memory_resource_(&mr) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(reinterpret_cast<storage_type *>(&storage)), memory_resource_(&mr) {}
 
   repeated_scalar_field_mref(const repeated_scalar_field_mref &) noexcept = default;
   repeated_scalar_field_mref(repeated_scalar_field_mref &&) noexcept = default;
@@ -798,12 +821,12 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_scalar_field_cref<T, Kind>() const noexcept { return cref(); }
 
-  T &operator[](std::size_t index) const noexcept {
+  value_type &operator[](std::size_t index) const noexcept {
     assert(index < storage_->size);
     return storage_->content[index];
   }
 
-  T &at(std::size_t index) const {
+  value_type &at(std::size_t index) const {
     if (index < storage_->size) {
       return storage_->content[index];
     }
@@ -812,7 +835,7 @@ public:
 
   void reserve(std::size_t n) noexcept {
     if (capacity() < n) {
-      auto new_data = static_cast<T *>(memory_resource_->allocate(n * sizeof(T), alignof(T)));
+      auto new_data = static_cast<T *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
       storage_->capacity = n;
       if (storage_->content) {
         std::uninitialized_copy(storage_->content, storage_->content + storage_->size, new_data);
@@ -823,7 +846,8 @@ public:
 
   void resize(std::size_t n) {
     if (capacity() < n) {
-      auto new_data = static_cast<T *>(memory_resource_->allocate(n * sizeof(T), alignof(T)));
+      auto new_data =
+          static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
       storage_->capacity = n;
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       std::uninitialized_default_construct(new_data, new_data + n);
@@ -838,15 +862,20 @@ public:
   [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
-  [[nodiscard]] T *begin() const noexcept { return storage_->content; }
-  [[nodiscard]] T *end() const noexcept { return storage_->content + storage_->size; }
-  [[nodiscard]] T *data() const noexcept { return storage_->content; }
+  [[nodiscard]] value_type *begin() const noexcept { return storage_->content; }
+  [[nodiscard]] value_type *end() const noexcept { return storage_->content + storage_->size; }
+  [[nodiscard]] value_type *data() const noexcept { return storage_->content; }
 
   void reset() noexcept {
     storage_->content = nullptr;
     storage_->size = 0;
   }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const field_descriptor_t *descriptor_;
+  storage_type *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 
 template <typename Field>
@@ -860,6 +889,7 @@ public:
   using difference_type = std::ptrdiff_t;
   using reference = Field::reference;
   using pointer = void;
+  repeated_field_iterator() = default;
   repeated_field_iterator(const Field *field, std::size_t index) noexcept : field_(field), index_(index) {}
   repeated_field_iterator(const repeated_field_iterator &) noexcept = default;
   repeated_field_iterator(repeated_field_iterator &&) noexcept = default;
@@ -918,18 +948,17 @@ public:
 };
 
 class repeated_enum_field_cref : public std::ranges::view_interface<repeated_enum_field_cref> {
-  const field_descriptor_t *descriptor_;
-  const repeated_storage_base<uint32_t> *storage_;
-
 public:
+  using storage_type = repeated_storage_base<uint32_t>;
+  using encode_type = vint32_t;
   using reference = enum_value_cref;
   using iterator = repeated_field_iterator<repeated_enum_field_cref>;
-  static constexpr field_kind_t field_kind = field_kind_t::KIND_REPEATED_ENUM;
-  repeated_enum_field_cref(const field_descriptor_t &descriptor,
-                           const repeated_storage_base<uint32_t> &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {
-    assert(descriptor.field_kind == field_kind);
-  }
+  static_assert(std::input_or_output_iterator<iterator>);
+  static_assert(std::semiregular<iterator>);
+  constexpr static field_kind_t field_kind = KIND_REPEATED_ENUM;
+
+  repeated_enum_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   repeated_enum_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
@@ -959,24 +988,24 @@ public:
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+private:
+  const field_descriptor_t *descriptor_;
+  const storage_type *storage_;
 };
 
 class repeated_enum_field_mref : public std::ranges::view_interface<repeated_enum_field_mref> {
-  const field_descriptor_t *descriptor_;
-  repeated_storage_base<uint32_t> *storage_;
-  std::pmr::monotonic_buffer_resource *memory_resource_;
-
 public:
-  static constexpr field_kind_t field_kind = field_kind_t::KIND_REPEATED_ENUM;
+  using storage_type = repeated_storage_base<uint32_t>;
+  using encode_type = vint32_t;
   using reference = enum_value_mref;
   using iterator = repeated_field_iterator<repeated_enum_field_mref>;
+  constexpr static field_kind_t field_kind = KIND_REPEATED_ENUM;
 
   repeated_enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                            std::pmr::monotonic_buffer_resource &mr) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : descriptor_(&descriptor), storage_(reinterpret_cast<repeated_storage_base<uint32_t> *>(&storage)),
-        memory_resource_(&mr) {
-    assert(descriptor.field_kind == field_kind);
+      : descriptor_(&descriptor), storage_(reinterpret_cast<storage_type *>(&storage)), memory_resource_(&mr) {
     assert(descriptor.enum_field_type_descriptor() != nullptr);
   }
 
@@ -994,7 +1023,7 @@ public:
 
   void resize(std::size_t n) {
     if (capacity() < n) {
-      auto new_data = static_cast<uint32_t *>(memory_resource_->allocate(n * sizeof(uint32_t), alignof(uint32_t)));
+      auto *new_data = static_cast<uint32_t *>(memory_resource_->allocate(n * sizeof(uint32_t), alignof(uint32_t)));
       std::copy(storage_->content, storage_->content + size(), new_data);
       std::uninitialized_default_construct(new_data, new_data + n);
       storage_->content = new_data;
@@ -1014,11 +1043,13 @@ public:
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return {*descriptor_->enum_field_type_descriptor(), storage_->content[index]};
   }
 
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       return {*descriptor_->enum_field_type_descriptor(), storage_->content[index]};
     }
     throw std::out_of_range("");
@@ -1032,14 +1063,19 @@ public:
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
     return *descriptor_->enum_field_type_descriptor();
   }
+
+private:
+  const field_descriptor_t *descriptor_;
+  storage_type *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 
 class message_value_cref {
   const message_descriptor_t *descriptor_;
   const value_storage *storage_;
-  std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
+  [[nodiscard]] std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
 
-  const value_storage &storage_for(const field_descriptor_t &desc) const noexcept {
+  [[nodiscard]] const value_storage &storage_for(const field_descriptor_t &desc) const noexcept {
     return storage_[desc.storage_slot];
   }
 
@@ -1094,29 +1130,29 @@ public:
   }
 
   [[nodiscard]] field_cref const_field(const field_descriptor_t &desc) const noexcept {
-    auto &storage = storage_for(desc);
+    const auto &storage = storage_for(desc);
     if (!desc.is_repeated() && storage.of_int64.selection != desc.oneof_ordinal) {
-      return field_cref(desc, empty_storage());
+      return {desc, empty_storage()};
     } else {
-      return field_cref(desc, storage);
+      return {desc, storage};
     }
   }
 
   [[nodiscard]] field_cref operator[](std::string_view name) const noexcept {
-    auto *desc = field_descriptor_by_name(name);
+    const auto *desc = field_descriptor_by_name(name);
     assert(desc != nullptr);
     return const_field(*desc);
   }
 
   [[nodiscard]] field_cref at(std::string_view name) const {
-    if (auto *desc = field_descriptor_by_name(name); desc != nullptr) {
+    if (const auto *desc = field_descriptor_by_name(name); desc != nullptr) {
       return const_field(*desc);
     }
     throw std::out_of_range{""};
   }
 
   [[nodiscard]] bool has_oneof(const oneof_descriptor_t &desc) const noexcept {
-    auto &storage = storage_[desc.storage_slot()];
+    const auto &storage = storage_[desc.storage_slot()];
     return storage.of_int64.selection;
   }
   class fields_view : public std::ranges::view_interface<fields_view> {
@@ -1131,27 +1167,10 @@ public:
     [[nodiscard]] iterator end() const { return {base_, base_->descriptor().fields().size()}; }
   };
 
-  fields_view fields() const { return fields_view{*this}; }
+  [[nodiscard]] fields_view fields() const { return fields_view{*this}; }
 };
 
-class message_field_mref;
 class message_value_mref {
-  friend class message_field_mref;
-  const message_descriptor_t *descriptor_;
-  value_storage *storage_;
-  std::pmr::monotonic_buffer_resource *memory_resource_;
-
-  std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
-
-  value_storage &storage_for(const field_descriptor_t &desc) const noexcept { return storage_[desc.storage_slot]; }
-
-  field_mref operator[](std::int32_t n) const {
-    auto &desc = descriptor_->fields()[n];
-    return field_mref{desc, storage_for(desc), *memory_resource_};
-  }
-  friend class repeated_field_iterator<message_value_mref>;
-  using reference = field_mref;
-
 public:
   message_value_mref(const message_descriptor_t &descriptor, value_storage *storage,
                      std::pmr::monotonic_buffer_resource &memory_resource) noexcept
@@ -1171,8 +1190,8 @@ public:
   message_value_mref &operator=(const message_value_mref &) noexcept = default;
   message_value_mref &operator=(message_value_mref &&) noexcept = default;
   ~message_value_mref() noexcept = default;
-  const message_descriptor_t &descriptor() const noexcept { return *descriptor_; }
-  std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+  [[nodiscard]] const message_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   [[nodiscard]] message_value_cref cref() const noexcept { return {*descriptor_, storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
@@ -1194,29 +1213,37 @@ public:
 
   [[nodiscard]] field_mref mutable_field(const field_descriptor_t &desc) const noexcept {
     auto &storage = storage_for(desc);
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
     if (!desc.is_repeated() && storage.of_int64.selection != desc.oneof_ordinal) {
       storage.of_int64.size = 0;
       storage.of_int64.selection = desc.oneof_ordinal;
     }
+    // NOLINTEND(cppcoreguidelines-pro-type-union-access)
     return {desc, storage, *memory_resource_};
   }
 
   [[nodiscard]] field_mref operator[](std::string_view name) const noexcept {
-    auto *desc = field_descriptor_by_name(name);
+    const auto *desc = field_descriptor_by_name(name);
     assert(desc != nullptr);
     return mutable_field(*desc);
   }
 
   [[nodiscard]] field_mref at(std::string_view name) const {
-    if (auto *desc = field_descriptor_by_name(name); desc != nullptr) {
+    if (const auto *desc = field_descriptor_by_name(name); desc != nullptr) {
       return mutable_field(*desc);
     }
     throw std::out_of_range{""};
   }
 
-  void clear_field(const field_descriptor_t &desc) const noexcept { storage_for(desc).reset(); }
+  void clear_field(const field_descriptor_t &desc) const noexcept {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+    storage_for(desc).reset();
+  }
 
-  void clear_field(const oneof_descriptor_t &desc) const noexcept { storage_[desc.storage_slot()].reset(); }
+  void clear_field(const oneof_descriptor_t &desc) const noexcept {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines-pro-type-union-access)
+    storage_[desc.storage_slot()].reset();
+  }
 
   [[nodiscard]] bool has_oneof(const oneof_descriptor_t &descriptor) const noexcept {
     return cref().has_oneof(descriptor);
@@ -1230,24 +1257,42 @@ public:
     using reference = field_mref;
     using iterator = repeated_field_iterator<message_value_mref>;
     explicit fields_view(const message_value_mref &base) : base_(&base) {}
-    iterator begin() const { return {base_, 0}; }
-    iterator end() const { return {base_, base_->descriptor().fields().size()}; }
+    [[nodiscard]] iterator begin() const { return {base_, 0}; }
+    [[nodiscard]] iterator end() const { return {base_, base_->descriptor().fields().size()}; }
   };
 
   [[nodiscard]] fields_view fields() const { return fields_view{*this}; }
+
+private:
+  friend class message_field_mref;
+  friend class repeated_field_iterator<message_value_mref>;
+
+  const message_descriptor_t *descriptor_;
+  value_storage *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
+
+  [[nodiscard]] std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
+
+  [[nodiscard]] value_storage &storage_for(const field_descriptor_t &desc) const noexcept {
+    return storage_[desc.storage_slot];
+  }
+
+  field_mref operator[](std::int32_t n) const {
+    auto &desc = descriptor_->fields()[n];
+    return field_mref{desc, storage_for(desc), *memory_resource_};
+  }
+  using reference = field_mref;
 };
 
 class message_field_cref {
-  const field_descriptor_t *descriptor_;
-  const scalar_storage_base<value_storage *> *storage_;
-  std::size_t num_slots() const { return descriptor_->message_field_type_descriptor()->num_slots; }
-
 public:
-  static constexpr field_kind_t field_kind = field_kind_t::KIND_MESSAGE;
-  message_field_cref(const field_descriptor_t &descriptor, const scalar_storage_base<value_storage *> &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {
-    assert(descriptor.field_kind == field_kind);
-  }
+  using encode_type = message_value_cref;
+  using storage_type = scalar_storage_base<value_storage *>;
+  using value_type = message_value_cref;
+  constexpr static uint8_t field_kind = KIND_MESSAGE;
+
+  message_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   message_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
@@ -1260,34 +1305,36 @@ public:
   ~message_field_cref() noexcept = default;
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0; }
-  [[nodiscard]] message_value_cref value() const {
+  [[nodiscard]] value_type value() const {
     if (!has_value()) {
       throw std::bad_optional_access{};
     }
     return {message_descriptor(), storage_->content};
   }
-  [[nodiscard]] message_value_cref operator*() const noexcept { return {message_descriptor(), storage_->content}; }
-  [[nodiscard]] message_value_cref operator->() const noexcept { return operator*(); }
+  [[nodiscard]] value_type operator*() const noexcept { return {message_descriptor(), storage_->content}; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
     return *descriptor_->message_field_type_descriptor();
   }
+
+private:
+  const field_descriptor_t *descriptor_;
+  const storage_type *storage_;
+  [[nodiscard]] std::size_t num_slots() const { return descriptor_->message_field_type_descriptor()->num_slots; }
 };
 
 class message_field_mref {
-  const field_descriptor_t *descriptor_;
-  scalar_storage_base<value_storage *> *storage_;
-  std::pmr::monotonic_buffer_resource *memory_resource_;
-  [[nodiscard]] std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
-
 public:
-  static constexpr field_kind_t field_kind = field_kind_t::KIND_MESSAGE;
+  using encode_type = message_value_mref;
+  using storage_type = scalar_storage_base<value_storage *>;
+  using value_type = message_value_mref;
+  constexpr static uint8_t field_kind = KIND_MESSAGE;
+
   message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                      std::pmr::monotonic_buffer_resource &mr) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
       : descriptor_(&descriptor), storage_(&storage.of_message), memory_resource_(&mr) {
-    assert(descriptor.field_kind == field_kind);
     assert(descriptor.message_field_type_descriptor() != nullptr);
   }
 
@@ -1308,15 +1355,15 @@ public:
     return result;
   }
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0; }
-  [[nodiscard]] message_value_mref value() const {
-    if (!has_value())
+  [[nodiscard]] value_type value() const {
+    if (!has_value()) {
       throw std::bad_optional_access{};
-    return message_value_mref{message_descriptor(), storage_->content, *memory_resource_};
+    }
+    return {message_descriptor(), storage_->content, *memory_resource_};
   }
-  [[nodiscard]] message_value_mref operator*() const noexcept {
-    return message_value_mref{message_descriptor(), storage_->content, *memory_resource_};
+  [[nodiscard]] value_type operator*() const noexcept {
+    return {message_descriptor(), storage_->content, *memory_resource_};
   }
-  [[nodiscard]] message_value_mref operator->() const noexcept { return operator*(); }
 
   void reset() noexcept { storage_->selection = 0; }
 
@@ -1324,6 +1371,12 @@ public:
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
     return *descriptor_->message_field_type_descriptor();
   }
+
+private:
+  const field_descriptor_t *descriptor_;
+  storage_type *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
+  [[nodiscard]] std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
 };
 
 class repeated_message_field_cref : std::ranges::view_interface<repeated_message_field_cref> {
@@ -1332,14 +1385,15 @@ class repeated_message_field_cref : std::ranges::view_interface<repeated_message
   [[nodiscard]] std::size_t num_slots() const { return message_descriptor().num_slots; }
 
 public:
-  static constexpr field_kind_t field_kind = field_kind_t::KIND_REPEATED_MESSAGE;
+  using value_type = message_value_cref;
+  using encode_type = message_value_cref;
   using reference = message_value_cref;
   using iterator = repeated_field_iterator<repeated_message_field_cref>;
+  constexpr static field_kind_t field_kind = KIND_REPEATED_MESSAGE;
+
   repeated_message_field_cref(const field_descriptor_t &descriptor,
                               const repeated_storage_base<value_storage> &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   repeated_message_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
@@ -1374,6 +1428,8 @@ public:
   }
 };
 
+static_assert(std::ranges::range<repeated_message_field_cref>);
+
 class repeated_message_field_mref : std::ranges::view_interface<repeated_message_field_mref> {
   const field_descriptor_t *descriptor_;
   repeated_storage_base<value_storage> *storage_;
@@ -1382,16 +1438,16 @@ class repeated_message_field_mref : std::ranges::view_interface<repeated_message
   [[nodiscard]] std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
 
 public:
-  static constexpr field_kind_t field_kind = field_kind_t::KIND_REPEATED_MESSAGE;
   using value_type = message_value_mref;
+  using encode_type = message_value_mref;
   using reference = message_value_mref;
   using iterator = repeated_field_iterator<repeated_message_field_mref>;
+  constexpr static field_kind_t field_kind = KIND_REPEATED_MESSAGE;
+
   repeated_message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                               std::pmr::monotonic_buffer_resource &mr) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_repeated_message), memory_resource_(&mr) {
-    assert(descriptor.field_kind == field_kind);
-  }
+      : descriptor_(&descriptor), storage_(&storage.of_repeated_message), memory_resource_(&mr) {}
 
   repeated_message_field_mref(const repeated_message_field_mref &) noexcept = default;
   repeated_message_field_mref(repeated_message_field_mref &&) noexcept = default;
@@ -1451,40 +1507,80 @@ public:
 
 using double_field_cref = scalar_field_cref<double, KIND_DOUBLE>;
 using float_field_cref = scalar_field_cref<float, KIND_FLOAT>;
-using int64_field_cref = scalar_field_cref<int64_t, KIND_INT64>;
-using uint64_field_cref = scalar_field_cref<uint64_t, KIND_UINT64>;
-using int32_field_cref = scalar_field_cref<int32_t, KIND_INT32>;
-using uint32_field_cref = scalar_field_cref<uint32_t, KIND_UINT32>;
+
+using int64_field_cref = scalar_field_cref<vint64_t, KIND_INT64>;
+using sint64_field_cref = scalar_field_cref<vsint64_t, KIND_SINT64>;
+using sfixed64_field_cref = scalar_field_cref<int64_t, KIND_SFIXED64>;
+using uint64_field_cref = scalar_field_cref<vuint64_t, KIND_UINT64>;
+using fixed64_field_cref = scalar_field_cref<uint64_t, KIND_FIXED64>;
+
+using int32_field_cref = scalar_field_cref<vint32_t, KIND_INT32>;
+using sint32_field_cref = scalar_field_cref<vsint32_t, KIND_SINT32>;
+using sfixed32_field_cref = scalar_field_cref<int32_t, KIND_SFIXED32>;
+using uint32_field_cref = scalar_field_cref<vuint32_t, KIND_UINT32>;
+using fixed32_field_cref = scalar_field_cref<uint32_t, KIND_FIXED32>;
+
 using bool_field_cref = scalar_field_cref<bool, KIND_BOOL>;
+
 using repeated_double_field_cref = repeated_scalar_field_cref<double, KIND_REPEATED_DOUBLE>;
 using repeated_float_field_cref = repeated_scalar_field_cref<float, KIND_REPEATED_FLOAT>;
-using repeated_int64_field_cref = repeated_scalar_field_cref<int64_t, KIND_REPEATED_INT64>;
-using repeated_uint64_field_cref = repeated_scalar_field_cref<uint64_t, KIND_REPEATED_UINT64>;
-using repeated_int32_field_cref = repeated_scalar_field_cref<int32_t, KIND_REPEATED_INT32>;
-using repeated_uint32_field_cref = repeated_scalar_field_cref<uint32_t, KIND_REPEATED_UINT32>;
+
+using repeated_int64_field_cref = repeated_scalar_field_cref<vint64_t, KIND_REPEATED_INT64>;
+using repeated_sint64_field_cref = repeated_scalar_field_cref<vsint64_t, KIND_REPEATED_SINT64>;
+using repeated_sfixed64_field_cref = repeated_scalar_field_cref<int64_t, KIND_REPEATED_SFIXED64>;
+using repeated_uint64_field_cref = repeated_scalar_field_cref<vuint64_t, KIND_REPEATED_UINT64>;
+using repeated_fixed64_field_cref = repeated_scalar_field_cref<uint64_t, KIND_REPEATED_FIXED64>;
+
+using repeated_int32_field_cref = repeated_scalar_field_cref<vint32_t, KIND_REPEATED_INT32>;
+using repeated_sint32_field_cref = repeated_scalar_field_cref<vsint32_t, KIND_REPEATED_SINT32>;
+using repeated_sfixed32_field_cref = repeated_scalar_field_cref<int32_t, KIND_REPEATED_SFIXED32>;
+using repeated_uint32_field_cref = repeated_scalar_field_cref<vuint32_t, KIND_REPEATED_UINT32>;
+using repeated_fixed32_field_cref = repeated_scalar_field_cref<uint32_t, KIND_REPEATED_FIXED32>;
+
 using repeated_bool_field_cref = repeated_scalar_field_cref<bool, KIND_REPEATED_BOOL>;
 using repeated_string_field_cref = repeated_scalar_field_cref<std::string_view, KIND_REPEATED_STRING>;
 using repeated_bytes_field_cref = repeated_scalar_field_cref<bytes_view, KIND_REPEATED_BYTES>;
 
+////
+
 using double_field_mref = scalar_field_mref<double, KIND_DOUBLE>;
 using float_field_mref = scalar_field_mref<float, KIND_FLOAT>;
-using int64_field_mref = scalar_field_mref<int64_t, KIND_INT64>;
-using uint64_field_mref = scalar_field_mref<uint64_t, KIND_UINT64>;
-using int32_field_mref = scalar_field_mref<int32_t, KIND_INT32>;
-using uint32_field_mref = scalar_field_mref<uint32_t, KIND_UINT32>;
+
+using int64_field_mref = scalar_field_mref<vint64_t, KIND_INT64>;
+using sint64_field_mref = scalar_field_mref<vsint64_t, KIND_SINT64>;
+using sfixed64_field_mref = scalar_field_mref<int64_t, KIND_SFIXED64>;
+using uint64_field_mref = scalar_field_mref<vuint64_t, KIND_UINT64>;
+using fixed64_field_mref = scalar_field_mref<uint64_t, KIND_FIXED64>;
+
+using int32_field_mref = scalar_field_mref<vint32_t, KIND_INT32>;
+using sint32_field_mref = scalar_field_mref<vsint32_t, KIND_SINT32>;
+using sfixed32_field_mref = scalar_field_mref<int32_t, KIND_SFIXED32>;
+using uint32_field_mref = scalar_field_mref<vuint32_t, KIND_UINT32>;
+using fixed32_field_mref = scalar_field_mref<uint32_t, KIND_FIXED32>;
+
 using bool_field_mref = scalar_field_mref<bool, KIND_BOOL>;
+
 using repeated_double_field_mref = repeated_scalar_field_mref<double, KIND_REPEATED_DOUBLE>;
 using repeated_float_field_mref = repeated_scalar_field_mref<float, KIND_REPEATED_FLOAT>;
-using repeated_int64_field_mref = repeated_scalar_field_mref<int64_t, KIND_REPEATED_INT64>;
-using repeated_uint64_field_mref = repeated_scalar_field_mref<uint64_t, KIND_REPEATED_UINT64>;
-using repeated_int32_field_mref = repeated_scalar_field_mref<int32_t, KIND_REPEATED_INT32>;
-using repeated_uint32_field_mref = repeated_scalar_field_mref<uint32_t, KIND_REPEATED_UINT32>;
+
+using repeated_int64_field_mref = repeated_scalar_field_mref<vint64_t, KIND_REPEATED_INT64>;
+using repeated_sint64_field_mref = repeated_scalar_field_mref<vsint64_t, KIND_REPEATED_SINT64>;
+using repeated_sfixed64_field_mref = repeated_scalar_field_mref<int64_t, KIND_REPEATED_SFIXED64>;
+using repeated_uint64_field_mref = repeated_scalar_field_mref<vuint64_t, KIND_REPEATED_UINT64>;
+using repeated_fixed64_field_mref = repeated_scalar_field_mref<uint64_t, KIND_REPEATED_FIXED64>;
+
+using repeated_int32_field_mref = repeated_scalar_field_mref<vint32_t, KIND_REPEATED_INT32>;
+using repeated_sint32_field_mref = repeated_scalar_field_mref<vsint32_t, KIND_REPEATED_SINT32>;
+using repeated_sfixed32_field_mref = repeated_scalar_field_mref<int32_t, KIND_REPEATED_SFIXED32>;
+using repeated_uint32_field_mref = repeated_scalar_field_mref<vuint32_t, KIND_REPEATED_UINT32>;
+using repeated_fixed32_field_mref = repeated_scalar_field_mref<uint32_t, KIND_REPEATED_FIXED32>;
+
 using repeated_bool_field_mref = repeated_scalar_field_mref<bool, KIND_REPEATED_BOOL>;
 using repeated_string_field_mref = repeated_scalar_field_mref<std::string_view, KIND_REPEATED_STRING>;
 using repeated_bytes_field_mref = repeated_scalar_field_mref<bytes_view, KIND_REPEATED_BYTES>;
 
 inline auto field_cref::visit(auto &&visitor) {
-  switch (descriptor().field_kind) {
+  switch (field_kind()) {
   case KIND_DOUBLE:
     return visitor(double_field_cref{*descriptor_, *storage_});
   case KIND_FLOAT:
@@ -1495,18 +1591,30 @@ inline auto field_cref::visit(auto &&visitor) {
     return visitor(uint64_field_cref{*descriptor_, *storage_});
   case KIND_INT32:
     return visitor(int32_field_cref{*descriptor_, *storage_});
-  case KIND_UINT32:
-    return visitor(uint32_field_cref{*descriptor_, *storage_});
+  case KIND_FIXED64:
+    return visitor(fixed64_field_cref{*descriptor_, *storage_});
+  case KIND_FIXED32:
+    return visitor(fixed32_field_cref{*descriptor_, *storage_});
   case KIND_BOOL:
     return visitor(bool_field_cref{*descriptor_, *storage_});
   case KIND_STRING:
     return visitor(string_field_cref{*descriptor_, *storage_});
-  case KIND_BYTES:
-    return visitor(bytes_field_cref{*descriptor_, *storage_});
-  case KIND_ENUM:
-    return visitor(enum_field_cref{*descriptor_, *storage_});
   case KIND_MESSAGE:
     return visitor(message_field_cref{*descriptor_, *storage_});
+  case KIND_BYTES:
+    return visitor(bytes_field_cref{*descriptor_, *storage_});
+  case KIND_UINT32:
+    return visitor(uint32_field_cref{*descriptor_, *storage_});
+  case KIND_ENUM:
+    return visitor(enum_field_cref{*descriptor_, *storage_});
+  case KIND_SFIXED32:
+    return visitor(sfixed32_field_cref{*descriptor_, *storage_});
+  case KIND_SFIXED64:
+    return visitor(sfixed64_field_cref{*descriptor_, *storage_});
+  case KIND_SINT32:
+    return visitor(sint32_field_cref{*descriptor_, *storage_});
+  case KIND_SINT64:
+    return visitor(sint64_field_cref{*descriptor_, *storage_});
   case KIND_REPEATED_DOUBLE:
     return visitor(repeated_double_field_cref{*descriptor_, *storage_});
   case KIND_REPEATED_FLOAT:
@@ -1517,23 +1625,35 @@ inline auto field_cref::visit(auto &&visitor) {
     return visitor(repeated_uint64_field_cref{*descriptor_, *storage_});
   case KIND_REPEATED_INT32:
     return visitor(repeated_int32_field_cref{*descriptor_, *storage_});
-  case KIND_REPEATED_UINT32:
-    return visitor(repeated_uint32_field_cref{*descriptor_, *storage_});
+  case KIND_REPEATED_FIXED64:
+    return visitor(repeated_fixed64_field_cref{*descriptor_, *storage_});
+  case KIND_REPEATED_FIXED32:
+    return visitor(repeated_fixed32_field_cref{*descriptor_, *storage_});
   case KIND_REPEATED_BOOL:
     return visitor(repeated_bool_field_cref{*descriptor_, *storage_});
   case KIND_REPEATED_STRING:
     return visitor(repeated_string_field_cref{*descriptor_, *storage_});
-  case KIND_REPEATED_BYTES:
-    return visitor(repeated_bytes_field_cref{*descriptor_, *storage_});
-  case KIND_REPEATED_ENUM:
-    return visitor(repeated_enum_field_cref{*descriptor_, *storage_});
   case KIND_REPEATED_MESSAGE:
     return visitor(repeated_message_field_cref{*descriptor_, *storage_});
+  case KIND_REPEATED_BYTES:
+    return visitor(repeated_bytes_field_cref{*descriptor_, *storage_});
+  case KIND_REPEATED_UINT32:
+    return visitor(repeated_uint32_field_cref{*descriptor_, *storage_});
+  case KIND_REPEATED_ENUM:
+    return visitor(repeated_enum_field_cref{*descriptor_, *storage_});
+  case KIND_REPEATED_SFIXED32:
+    return visitor(repeated_sfixed32_field_cref{*descriptor_, *storage_});
+  case KIND_REPEATED_SFIXED64:
+    return visitor(repeated_sfixed64_field_cref{*descriptor_, *storage_});
+  case KIND_REPEATED_SINT32:
+    return visitor(repeated_sint32_field_cref{*descriptor_, *storage_});
+  case KIND_REPEATED_SINT64:
+    return visitor(repeated_sint64_field_cref{*descriptor_, *storage_});
   }
 }
 
 inline auto field_mref::visit(auto &&visitor) {
-  switch (descriptor().field_kind) {
+  switch (field_kind()) {
   case KIND_DOUBLE:
     return visitor(double_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_FLOAT:
@@ -1544,18 +1664,30 @@ inline auto field_mref::visit(auto &&visitor) {
     return visitor(uint64_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_INT32:
     return visitor(int32_field_mref{*descriptor_, *storage_, *memory_resource_});
-  case KIND_UINT32:
-    return visitor(uint32_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_FIXED64:
+    return visitor(fixed64_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_FIXED32:
+    return visitor(fixed32_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_BOOL:
     return visitor(bool_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_STRING:
     return visitor(string_field_mref{*descriptor_, *storage_, *memory_resource_});
-  case KIND_BYTES:
-    return visitor(bytes_field_mref{*descriptor_, *storage_, *memory_resource_});
-  case KIND_ENUM:
-    return visitor(enum_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_MESSAGE:
     return visitor(message_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_BYTES:
+    return visitor(bytes_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_UINT32:
+    return visitor(uint32_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_ENUM:
+    return visitor(enum_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_SFIXED32:
+    return visitor(sfixed32_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_SFIXED64:
+    return visitor(sfixed64_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_SINT32:
+    return visitor(sint32_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_SINT64:
+    return visitor(sint64_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_REPEATED_DOUBLE:
     return visitor(repeated_double_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_REPEATED_FLOAT:
@@ -1566,20 +1698,35 @@ inline auto field_mref::visit(auto &&visitor) {
     return visitor(repeated_uint64_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_REPEATED_INT32:
     return visitor(repeated_int32_field_mref{*descriptor_, *storage_, *memory_resource_});
-  case KIND_REPEATED_UINT32:
-    return visitor(repeated_uint32_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_REPEATED_FIXED64:
+    return visitor(repeated_fixed64_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_REPEATED_FIXED32:
+    return visitor(repeated_fixed32_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_REPEATED_BOOL:
     return visitor(repeated_bool_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_REPEATED_STRING:
     return visitor(repeated_string_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_REPEATED_BYTES:
     return visitor(repeated_bytes_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_REPEATED_UINT32:
+    return visitor(repeated_uint32_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_REPEATED_ENUM:
     return visitor(repeated_enum_field_mref{*descriptor_, *storage_, *memory_resource_});
   case KIND_REPEATED_MESSAGE:
     return visitor(repeated_message_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_REPEATED_SFIXED32:
+    return visitor(repeated_sfixed32_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_REPEATED_SFIXED64:
+    return visitor(repeated_sfixed64_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_REPEATED_SINT32:
+    return visitor(repeated_sint32_field_mref{*descriptor_, *storage_, *memory_resource_});
+  case KIND_REPEATED_SINT64:
+    return visitor(repeated_sint64_field_mref{*descriptor_, *storage_, *memory_resource_});
   }
 }
+
+template <typename T>
+using zig_zag_varint = varint<T, varint_encoding::zig_zag>;
 
 template <typename T>
 struct adapt_descriptor : field_descriptor_t {
@@ -1588,140 +1735,121 @@ struct adapt_descriptor : field_descriptor_t {
 
 namespace concepts {
 template <typename T>
-concept non_owning_string_or_bytes = std::is_same<T, std::string_view>::value || std::is_same<T, bytes_view>::value;
+concept non_owning_string_or_bytes = std::same_as<T, std::string_view> || std::same_as<T, bytes_view>;
 } // namespace concepts
 
 namespace pb_serializer {
 
-template <concepts::arithmetic T>
-status deserialize_scalar(auto &&v, const auto &, uint32_t, auto &archive) {
-  T value;
-  if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
-    return ec;
-  }
-  v = value;
-  return std::errc{};
-}
+template <concepts::is_basic_in Archive>
+struct field_deserializer {
+  uint32_t tag;
+  Archive &archive;
 
-status deserialize_scalar(enum_value_mref &&mref, const auto &, uint32_t, auto &archive) {
-  vuint32_t value;
-  if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
-    return ec;
-  }
-  if (!mref.descriptor().valid_enum_value(value)) [[likely]] {
-    return std::errc::result_out_of_range;
-  }
-  mref = value;
-  return std::errc{};
-}
-
-status deserialize_scalar(enum_field_mref &&mref, const auto &, uint32_t tag, auto &archive) {
-  auto ec = deserialize_scalar(mref.emplace(), tag, archive);
-  if (ec == std::errc::result_out_of_range) [[unlikely]] {
-    mref.reset();
+  status deserialize(concepts::arithmetic auto &value, const field_descriptor_t &) {
+    if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
+      return ec;
+    }
     return std::errc{};
   }
-  return ec;
-}
 
-template <concepts::non_owning_string_or_bytes T>
-status deserialize_scalar(auto &&mref, const auto &desc, uint32_t, auto &archive) {
-  vuint32_t byte_count;
-  if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
-    return result;
-  }
-  if (byte_count == 0) {
+  template <typename T, field_kind_t Kind>
+  status operator()(scalar_field_mref<T, Kind> mref) {
+    T value;
+    if (auto ec = deserialize(value, mref.descriptor()); !ec.ok()) [[likely]] {
+      return ec;
+    }
+    mref = value;
     return {};
   }
-  T item;
-  decltype(auto) v = detail::as_modifiable(archive.context, item);
-  if (auto result = deserialize_packed_repeated_with_byte_count<typename T::value_type>(v, byte_count, archive);
-      !result.ok()) [[unlikely]] {
-    return result;
+
+  status deserialize(enum_value_mref mref, const field_descriptor_t &) {
+    vuint32_t value;
+    if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
+      return ec;
+    }
+    if (!mref.descriptor().valid_enum_value(value)) [[likely]] {
+      return std::errc::result_out_of_range;
+    }
+    mref = value;
+    return std::errc{};
   }
-  mref = item;
-  if constexpr (std::is_same_v<T, std::string_view>) {
-    // ensure that the string is valid UTF-8 if required
-    if (desc.requires_utf8_validation()) {
-      if (!::is_utf8(item.data(), item.size())) {
-        mref = {};
-        return std::errc::illegal_byte_sequence;
+
+  status operator()(enum_field_mref mref) {
+    auto ec = deserialize(mref.emplace(), mref.descriptor());
+    if (ec == std::errc::result_out_of_range) [[unlikely]] {
+      mref.reset();
+      return std::errc{};
+    }
+    return ec;
+  }
+
+  template <concepts::non_owning_string_or_bytes T>
+  status deserialize(T &item, const field_descriptor_t &desc) {
+    vuint32_t byte_count;
+    if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
+      return result;
+    }
+    if (byte_count == 0) {
+      return {};
+    }
+
+    decltype(auto) v = detail::as_modifiable(archive.context, item);
+    if (auto result = deserialize_packed_repeated_with_byte_count<typename T::value_type>(v, byte_count, archive);
+        !result.ok()) [[unlikely]] {
+      return result;
+    }
+
+    if constexpr (std::same_as<T, std::string_view>) {
+      // ensure that the string is valid UTF-8 if required
+      if (desc.requires_utf8_validation()) {
+        if (!::is_utf8(item.data(), item.size())) {
+          item = {};
+          return std::errc::illegal_byte_sequence;
+        }
       }
     }
+    return {};
   }
-  return {};
-}
 
-status deserialize_field(message_value_mref mref, const field_descriptor_t &desc, uint32_t tag, auto &archive) {
-  if (desc.is_delimited()) {
-    return deserialize_group(tag_number(tag), mref, archive);
-  } else {
-    return deserialize_sized(mref, archive);
+  status operator()(string_field_mref mref) {
+    std::string_view item;
+    if (status result = this->deserialize(item, mref.descriptor()); !result.ok()) {
+      return result;
+    }
+    mref = item;
+    return {};
   }
-}
 
-status deserialize_non_repeated(field_mref f, const field_descriptor_t &desc, uint32_t tag, auto &archive) {
-  using enum google::protobuf::FieldDescriptorProto::Type;
-  switch (desc.proto().type) {
-  case TYPE_DOUBLE:
-    return deserialize_scalar<double>(*f.to<double_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_FLOAT:
-    return deserialize_scalar<float>(*f.to<float_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_INT64:
-    return deserialize_scalar<vint64_t>(*f.to<int64_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_UINT64:
-    return deserialize_scalar<vuint64_t>(*f.to<uint64_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_INT32:
-    return deserialize_scalar<vint32_t>(*f.to<int32_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_UINT32:
-    return deserialize_scalar<vuint32_t>(*f.to<uint32_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_BOOL:
-    return deserialize_scalar<bool>(*f.to<bool_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_STRING:
-    return deserialize_scalar<std::string_view>(*f.to<string_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_BYTES:
-    return deserialize_scalar<bytes_view>(*f.to<bytes_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_ENUM:
-    return deserialize_scalar<vuint32_t>(*f.to<enum_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_MESSAGE:
-  case TYPE_GROUP:
-    return deserialize_field(f.to<message_field_mref>()->emplace(), desc, tag, archive);
-  case TYPE_FIXED64:
-    return deserialize_scalar<uint64_t>(*f.to<uint64_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_FIXED32:
-    return deserialize_scalar<uint32_t>(*f.to<uint32_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_SFIXED32:
-    return deserialize_scalar<int32_t>(*f.to<int32_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_SFIXED64:
-    return deserialize_scalar<int64_t>(*f.to<int64_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_SINT32:
-    return deserialize_scalar<vsint32_t>(*f.to<int32_field_mref>(), f.descriptor(), tag, archive);
-  case TYPE_SINT64:
-    return deserialize_scalar<vsint64_t>(*f.to<int64_field_mref>(), f.descriptor(), tag, archive);
-  default:
-    return std::errc::bad_message;
+  status operator()(bytes_field_mref mref) {
+    bytes_view item;
+    if (status result = this->deserialize(item, mref.descriptor()); !result.ok()) {
+      return result;
+    }
+    mref = item;
+    return {};
   }
-}
 
-template <typename ElementType>
-status deserialize_singular(auto &&element, const auto &descriptor, uint32_t tag, auto &archive) {
-  if constexpr (std::is_same_v<ElementType, message_value_mref>) {
-    return deserialize_field(element, descriptor, tag, archive);
-  } else {
-    return deserialize_scalar<ElementType>(element, descriptor, tag, archive);
+  status deserialize(message_value_mref v, const field_descriptor_t &desc) {
+    if (desc.is_delimited()) {
+      return deserialize_group(tag_number(tag), v, archive);
+    } else {
+      return deserialize_sized(v, archive);
+    }
   }
-}
 
-template <typename ElementType, concepts::resizable MRef>
-status deserialize_unpacked_repeated(MRef mref, std::size_t count, uint32_t tag, auto &archive) {
-  auto old_size = mref.size();
-  const std::size_t new_size = mref.size() + count;
-  mref.resize(new_size);
+  status operator()(message_field_mref mref) { return deserialize(mref.emplace(), mref.descriptor()); }
 
-  if constexpr (std::is_same_v<MRef, repeated_enum_field_mref>) {
-    auto i = old_size;
+  status deserialize_unpacked_repeated(repeated_enum_field_mref mref) {
+    size_t count = 0;
+    if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
+      return result;
+    }
+
+    auto i = mref.size();
+    mref.resize(i + count);
+
     for (; count > 0; --count) {
-      auto ec = deserialize_scalar(mref[i++], mref.enum_descriptor(), tag, archive);
+      auto ec = this->deserialize(mref[i++], mref.descriptor());
       if (ec == std::errc::result_out_of_range) [[unlikely]] {
         // ec would only be std::errc::result_out_of_range when the element is an invalid closed enum value,
         // in which case we just skip it
@@ -1736,16 +1864,38 @@ status deserialize_unpacked_repeated(MRef mref, std::size_t count, uint32_t tag,
         (void)archive.read_tag();
       }
     }
+    return {};
+  }
 
-    if (i != new_size) [[unlikely]] {
-      // if we didn't write all elements, we need to resize the container
-      mref.resize(i);
+  template <concepts::resizable MRef>
+  status deserialize_unpacked_repeated(MRef mref) {
+    std::size_t count = 0;
+
+    if (mref.descriptor().is_delimited()) [[unlikely]] {
+      if (auto result = count_groups(tag, count, archive); !result.ok()) [[unlikely]] {
+        return result;
+      }
+    } else {
+      if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
+        return result;
+      }
     }
-  } else {
+
+    auto old_size = mref.size();
+    const std::size_t new_size = mref.size() + count;
+    mref.resize(new_size);
+
     for (std::size_t i = old_size; i < new_size; ++i, --count) {
-      if (auto ec = deserialize_singular<ElementType>(mref[i], mref.descriptor(), tag, archive); !ec.ok())
-          [[unlikely]] {
-        return ec;
+      if constexpr (std::same_as<typename MRef::encode_type, typename MRef::value_type>) {
+        if (auto ec = this->deserialize(mref[i], mref.descriptor()); !ec.ok()) [[unlikely]] {
+          return ec;
+        }
+      } else {
+        typename MRef::encode_type v;
+        if (auto ec = this->deserialize(v, mref.descriptor()); !ec.ok()) [[unlikely]] {
+          return ec;
+        }
+        mref[i] = v;
       }
       if (count > 1) {
         // no error handling here, because  `count_unpacked_elements()` already checked the tag
@@ -1753,143 +1903,50 @@ status deserialize_unpacked_repeated(MRef mref, std::size_t count, uint32_t tag,
         (void)archive.read_tag();
       }
     }
-  }
-  return {};
-}
 
-status deserialize_unpacked_repeated(field_mref v, uint32_t tag, concepts::is_basic_in auto &archive) {
-  std::size_t count = 0;
-  auto &desc = v.descriptor();
-  if (desc.is_delimited()) [[unlikely]] {
-    if (auto result = count_groups(tag, count, archive); !result.ok()) [[unlikely]] {
-      return result;
-    }
-  } else {
-    if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
-      return result;
-    }
-  }
-
-  using enum google::protobuf::FieldDescriptorProto::Type;
-  switch (desc.proto().type) {
-  case TYPE_DOUBLE:
-    return deserialize_unpacked_repeated<double>(*(v.to<repeated_double_field_mref>()), count, tag, archive);
-  case TYPE_FLOAT:
-    return deserialize_unpacked_repeated<float>(*(v.to<repeated_float_field_mref>()), count, tag, archive);
-  case TYPE_INT64:
-    return deserialize_unpacked_repeated<vint64_t>(*(v.to<repeated_int64_field_mref>()), count, tag, archive);
-  case TYPE_UINT64:
-    return deserialize_unpacked_repeated<vuint64_t>(*(v.to<repeated_uint64_field_mref>()), count, tag, archive);
-  case TYPE_INT32:
-    return deserialize_unpacked_repeated<vint32_t>(*(v.to<repeated_int32_field_mref>()), count, tag, archive);
-  case TYPE_UINT32:
-    return deserialize_unpacked_repeated<vuint32_t>(*(v.to<repeated_uint32_field_mref>()), count, tag, archive);
-  case TYPE_BOOL:
-    return deserialize_unpacked_repeated<bool>(*(v.to<repeated_bool_field_mref>()), count, tag, archive);
-  case TYPE_ENUM:
-    return deserialize_unpacked_repeated<vint64_t>(*(v.to<repeated_enum_field_mref>()), count, tag, archive);
-  case TYPE_STRING:
-    return deserialize_unpacked_repeated<std::string_view>(*(v.to<repeated_string_field_mref>()), count, tag, archive);
-  case TYPE_BYTES:
-    return deserialize_unpacked_repeated<bytes_view>(*(v.to<repeated_bytes_field_mref>()), count, tag, archive);
-  case TYPE_MESSAGE:
-  case TYPE_GROUP:
-    return deserialize_unpacked_repeated<message_value_mref>(*(v.to<repeated_message_field_mref>()), count, tag,
-                                                             archive);
-  case TYPE_FIXED64:
-    return deserialize_unpacked_repeated<uint64_t>(*(v.to<repeated_uint64_field_mref>()), count, tag, archive);
-  case TYPE_FIXED32:
-    return deserialize_unpacked_repeated<uint32_t>(*(v.to<repeated_uint32_field_mref>()), count, tag, archive);
-  case TYPE_SFIXED32:
-    return deserialize_unpacked_repeated<int32_t>(*(v.to<repeated_int32_field_mref>()), count, tag, archive);
-  case TYPE_SFIXED64:
-    return deserialize_unpacked_repeated<int64_t>(*(v.to<repeated_int64_field_mref>()), count, tag, archive);
-  case TYPE_SINT32:
-    return deserialize_unpacked_repeated<vsint32_t>(*(v.to<repeated_int32_field_mref>()), count, tag, archive);
-  case TYPE_SINT64:
-    return deserialize_unpacked_repeated<vsint64_t>(*(v.to<repeated_int64_field_mref>()), count, tag, archive);
-  default:
-    return std::errc::bad_message;
-  }
-}
-
-status deserialize_packed_repeated(const field_descriptor_t &desc, uint32_t, field_mref &item,
-                                   concepts::is_basic_in auto &archive) {
-
-  vuint32_t byte_count;
-  if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
-    return result;
-  }
-  if (byte_count == 0) {
     return {};
   }
 
-  using enum google::protobuf::FieldDescriptorProto::Type;
-  switch (desc.proto().type) {
-  case TYPE_DOUBLE:
-    return deserialize_packed_repeated_with_byte_count<double>(*item.to<repeated_double_field_mref>(), byte_count,
-                                                               archive);
-  case TYPE_FLOAT:
-    return deserialize_packed_repeated_with_byte_count<float>(*item.to<repeated_float_field_mref>(), byte_count,
-                                                              archive);
-  case TYPE_INT64:
-    return deserialize_packed_repeated_with_byte_count<vint64_t>(*item.to<repeated_int64_field_mref>(), byte_count,
-                                                                 archive);
-  case TYPE_UINT64:
-    return deserialize_packed_repeated_with_byte_count<vuint64_t>(*item.to<repeated_uint64_field_mref>(), byte_count,
-                                                                  archive);
-  case TYPE_INT32:
-    return deserialize_packed_repeated_with_byte_count<vint32_t>(*item.to<repeated_int32_field_mref>(), byte_count,
-                                                                 archive);
-  case TYPE_UINT32:
-    return deserialize_packed_repeated_with_byte_count<vuint32_t>(*item.to<repeated_uint32_field_mref>(), byte_count,
-                                                                  archive);
-  case TYPE_BOOL:
-    return deserialize_packed_repeated_with_byte_count<bool>(*item.to<repeated_bool_field_mref>(), byte_count, archive);
-  case TYPE_ENUM:
-    return deserialize_packed_repeated_with_byte_count<vuint32_t>(*item.to<repeated_enum_field_mref>(), byte_count,
-                                                                  archive);
-  case TYPE_FIXED64:
-    return deserialize_packed_repeated_with_byte_count<uint64_t>(*item.to<repeated_uint64_field_mref>(), byte_count,
-                                                                 archive);
-  case TYPE_FIXED32:
-    return deserialize_packed_repeated_with_byte_count<uint32_t>(*item.to<repeated_uint32_field_mref>(), byte_count,
-                                                                 archive);
-  case TYPE_SFIXED32:
-    return deserialize_packed_repeated_with_byte_count<int32_t>(*item.to<repeated_int32_field_mref>(), byte_count,
-                                                                archive);
-  case TYPE_SFIXED64:
-    return deserialize_packed_repeated_with_byte_count<int64_t>(*item.to<repeated_int64_field_mref>(), byte_count,
-                                                                archive);
-  case TYPE_SINT32:
-    return deserialize_packed_repeated_with_byte_count<vsint32_t>(*item.to<repeated_int32_field_mref>(), byte_count,
-                                                                  archive);
-  case TYPE_SINT64:
-    return deserialize_packed_repeated_with_byte_count<vsint64_t>(*item.to<repeated_int64_field_mref>(), byte_count,
-                                                                  archive);
-  default:
-    return std::errc::bad_message;
-  }
-}
-
-status deserialize_repeated(field_mref mref, const field_descriptor_t &desc, uint32_t tag, auto &archive) {
-  if (desc.is_packed()) {
-    if (tag_type(tag) != wire_type::length_delimited) {
-      return deserialize_unpacked_repeated(mref, tag, archive);
+  template <concepts::resizable MRef>
+  status deserialize_packed_repeated(MRef mref) {
+    vuint32_t byte_count;
+    if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
+      return result;
     }
-    return deserialize_packed_repeated(desc, tag, mref, archive);
-  } else {
-    return deserialize_unpacked_repeated(mref, tag, archive);
-  }
-}
+    if (byte_count == 0) {
+      return {};
+    }
 
-status deserialize_field(field_mref f, const field_descriptor_t &desc, uint32_t tag, auto &archive) {
-  if (f.is_repeated()) {
-    return deserialize_repeated(f, desc, tag, archive);
-  } else {
-    return deserialize_non_repeated(f, desc, tag, archive);
+    return deserialize_packed_repeated_with_byte_count<typename MRef::encode_type>(mref, byte_count, archive);
   }
-}
+
+  template <typename T, field_kind_t Kind>
+  status operator()(repeated_scalar_field_mref<T, Kind> mref) {
+    if (mref.descriptor().is_packed()) {
+      if (tag_type(tag) != wire_type::length_delimited) {
+        return deserialize_unpacked_repeated(mref);
+      }
+      return deserialize_packed_repeated(mref);
+    } else {
+      return deserialize_unpacked_repeated(mref);
+    }
+  }
+
+  status operator()(repeated_enum_field_mref mref) {
+    if (mref.descriptor().is_packed()) {
+      if (tag_type(tag) != wire_type::length_delimited) {
+        return deserialize_unpacked_repeated(mref);
+      }
+      return deserialize_packed_repeated(mref);
+    } else {
+      return deserialize_unpacked_repeated(mref);
+    }
+  }
+
+  status operator()(repeated_string_field_mref mref) { return deserialize_unpacked_repeated(mref); }
+  status operator()(repeated_bytes_field_mref mref) { return deserialize_unpacked_repeated(mref); }
+  status operator()(repeated_message_field_mref mref) { return deserialize_unpacked_repeated(mref); }
+}; // field_deserializer
 
 status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts::is_basic_in auto &archive) {
   if (tag == 0) {
@@ -1899,13 +1956,337 @@ status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts:
   if (field_desc == nullptr) [[unlikely]] {
     return std::errc::bad_message;
   }
-  return deserialize_field(item.mutable_field(*field_desc), *field_desc, tag, archive);
+
+  auto f = item.mutable_field(*field_desc);
+  return f.visit(field_deserializer{tag, archive});
+}
+
+template <>
+struct size_cache_counter<message_value_cref> {
+  constexpr std::size_t operator()(auto) const { return 0; }
+
+  template <concepts::varint T, field_kind_t Kind>
+  std::size_t operator()(repeated_scalar_field_cref<T, Kind> f) const {
+    return static_cast<std::size_t>(f.descriptor().is_packed());
+  }
+
+  template <typename T, field_kind_t Kind>
+  std::size_t operator()(repeated_scalar_field_cref<T, Kind>) const {
+    return 0;
+  }
+
+  std::size_t operator()(repeated_enum_field_cref f) const { return f.descriptor().is_packed() ? 1 : 0; }
+
+  static std::size_t count(message_value_cref f) {
+    auto fields = f.fields();
+    return std::transform_reduce(fields.begin(), fields.end(), 0ULL, std::plus<>{}, [](field_cref nested_field) {
+      return nested_field.has_value() ? nested_field.visit(size_cache_counter<message_value_cref>{}) : 0;
+    });
+  }
+
+  std::size_t operator()(message_field_cref f) const { return count(*f) + !(f.descriptor().is_delimited()); }
+
+  std::size_t operator()(repeated_message_field_cref f) const {
+
+    return std::transform_reduce(f.begin(), f.end(), 0ULL, std::plus<>{},
+                                 [](message_value_cref element) { return count(element); }) +
+           (!f.descriptor().is_delimited()) * f.size();
+  }
+};
+
+template <>
+struct message_size_calculator<message_value_cref> {
+  using size_cache = std::span<uint32_t>;
+  struct field_visitor {
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+    size_cache::iterator &cache_itr;
+    uint32_t result = 0;
+
+    explicit field_visitor(size_cache::iterator &itr) : cache_itr{itr} {}
+
+    static uint32_t tag_size(const auto &v) {
+      return varint_size(static_cast<uint32_t>(v.descriptor().proto().number) << 3U);
+    }
+
+    void cache_size(uint32_t s) {
+      decltype(auto) msg_size = *cache_itr++;
+      msg_size = s;
+    }
+
+    template <concepts::varint T, field_kind_t Kind>
+    uint32_t operator()(scalar_field_cref<T, Kind> v) {
+      return tag_size(v) + T{*v}.encode_size();
+    }
+
+    template <typename T, field_kind_t Kind>
+      requires std::is_arithmetic_v<T>
+    uint32_t operator()(scalar_field_cref<T, Kind> v) {
+      return tag_size(v) + sizeof(T);
+    }
+
+    uint32_t operator()(enum_field_cref v) { return tag_size(v) + varint_size((*v).number()); }
+    uint32_t operator()(string_field_cref v) { return tag_size(v) + len_size((*v).size()); }
+    uint32_t operator()(bytes_field_cref v) { return tag_size(v) + len_size((*v).size()); }
+
+    template <concepts::varint T, field_kind_t Kind>
+    uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
+      auto ts = tag_size(v);
+      if (v.descriptor().is_packed()) {
+        auto s =
+            std::transform_reduce(v.begin(), v.end(), 0ULL, std::plus<>{}, [](auto e) { return T{e}.encode_size(); });
+        cache_size(s);
+        return ts + len_size(s);
+      } else {
+        return std::transform_reduce(v.begin(), v.end(), 0ULL, std::plus<>{},
+                                     [ts](auto e) { return ts + T{e}.encode_size(); });
+      }
+    }
+
+    template <typename T, field_kind_t Kind>
+      requires std::is_arithmetic_v<T>
+    uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
+      auto ts = tag_size(v);
+      if (v.descriptor().is_packed()) {
+        return ts + len_size(v.size() * sizeof(T));
+      } else {
+        return v.size() * (ts + sizeof(T));
+      }
+    }
+
+    uint32_t operator()(repeated_enum_field_cref v) {
+      auto ts = tag_size(v);
+      if (v.descriptor().is_packed()) {
+        auto s = std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
+                                       [](enum_value_cref e) { return varint_size(e.number()); });
+        cache_size(s);
+        return ts + len_size(s);
+      } else {
+        return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
+                                     [ts](enum_value_cref e) { return ts + varint_size(e.number()); });
+      }
+    }
+
+    uint32_t operator()(repeated_string_field_cref v) {
+      auto ts = tag_size(v);
+      return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
+                                   [ts](std::string_view e) { return ts + len_size(e.size()); });
+    }
+
+    uint32_t operator()(repeated_bytes_field_cref v) {
+      auto ts = tag_size(v);
+      return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
+                                   [ts](bytes_view e) { return ts + len_size(e.size()); });
+    }
+
+    uint32_t operator()(message_value_cref msg) {
+      return std::transform_reduce(msg.fields().begin(), msg.fields().end(), 0U, std::plus<>{},
+                                   [this](field_cref f) { return f.has_value() ? f.visit(*this) : 0; });
+    }
+
+    uint32_t operator()(message_field_cref v) {
+      if (v.descriptor().is_delimited()) {
+        return (2 * tag_size(v)) + (*this)(*v);
+      } else {
+        decltype(auto) msg_size = *cache_itr++;
+        auto s = (*this)(*v);
+        msg_size = s;
+        return tag_size(v) + len_size(s);
+      }
+    }
+
+    uint32_t operator()(repeated_message_field_cref v) {
+      auto ts = tag_size(v);
+      if (v.descriptor().is_delimited()) {
+        return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
+                                     [this, ts](message_value_cref msg) { return (2 * ts) + (*this)(msg); });
+      } else {
+        return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{}, [this, ts](message_value_cref msg) {
+          decltype(auto) msg_size = *cache_itr++;
+          auto s = (*this)(msg);
+          msg_size = s;
+          return ts + len_size(s);
+        });
+      }
+    }
+  };
+
+  [[nodiscard]] static std::size_t message_size(const message_value_cref &item, size_cache cache) {
+    auto itr = cache.begin();
+    field_visitor calc{itr};
+    return calc(item);
+  }
+};
+
+template <typename Archive>
+struct field_serializer {
+  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+  std::span<uint32_t>::iterator &cache_itr;
+  Archive &archive;
+  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
+
+  constexpr static wire_type wire_type_map[] = {
+      wire_type::varint,           // 0
+      wire_type::fixed_64,         // TYPE_DOUBLE = 1,
+      wire_type::fixed_32,         // TYPE_FLOAT = 2,
+      wire_type::varint,           // TYPE_INT64 = 3,
+      wire_type::varint,           // TYPE_UINT64 = 4,
+      wire_type::varint,           // TYPE_INT32 = 5,
+      wire_type::fixed_64,         // TYPE_FIXED64 = 6,
+      wire_type::fixed_32,         // TYPE_FIXED32 = 7,
+      wire_type::varint,           // TYPE_BOOL = 8,
+      wire_type::length_delimited, // TYPE_STRING = 9,
+      wire_type::sgroup,           // TYPE_GROUP = 10,
+      wire_type::length_delimited, // TYPE_MESSAGE = 11,
+      wire_type::length_delimited, // TYPE_BYTES = 12,
+      wire_type::varint,           // TYPE_UINT32 = 13,
+      wire_type::varint,           // TYPE_ENUM = 14,
+      wire_type::fixed_32,         // TYPE_SFIXED32 = 15,
+      wire_type::fixed_64,         // TYPE_SFIXED64 = 16,
+      wire_type::varint,           // TYPE_SINT32 = 17,
+      wire_type::varint,           // TYPE_SINT64 = 18
+  };
+
+  static vint32_t make_tag(int32_t number, wire_type type) { return number << 3U | std::to_underlying(type); }
+
+  static vint32_t make_tag(const field_descriptor_t &desc) {
+    return make_tag(desc.proto().number, wire_type_map[std::to_underlying(desc.proto().type)]);
+  }
+
+  template <typename T, field_kind_t Kind>
+  bool operator()(scalar_field_cref<T, Kind> v) {
+    const field_descriptor_t &desc = v.descriptor();
+    archive(make_tag(desc), T{v.value()});
+    return true;
+  }
+
+  bool operator()(enum_field_cref v) {
+    archive(make_tag(v.descriptor()), varint{(*v).number()});
+    return true;
+  }
+
+  bool operator()(string_field_cref v) {
+    auto str = *v;
+    if (v.descriptor().requires_utf8_validation() && !::is_utf8(str.data(), str.size())) {
+      return false;
+    }
+    archive(make_tag(v.descriptor()), varint{str.size()}, str);
+    return true;
+  }
+
+  bool operator()(bytes_field_cref v) {
+    archive(make_tag(v.descriptor()), varint{(*v).size()}, *v);
+    return true;
+  }
+
+  template <typename T, field_kind_t Kind>
+  bool operator()(repeated_scalar_field_cref<T, Kind> v) {
+    const field_descriptor_t &desc = v.descriptor();
+    if (desc.is_packed()) {
+      uint32_t byte_count = concepts::varint<T> ? *cache_itr++ : sizeof(T) * v.size();
+      archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{byte_count});
+      std::ranges::for_each(v, [this](auto e) { archive(T{e}); });
+      return true;
+    } else {
+      const auto tag = make_tag(desc);
+      std::ranges::for_each(v, [this, tag](auto e) { archive(tag, T{e}); });
+      return true;
+    }
+  }
+
+  bool operator()(repeated_enum_field_cref v) {
+    const field_descriptor_t &desc = v.descriptor();
+    if (desc.is_packed()) {
+      archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{*cache_itr++});
+      std::ranges::for_each(v, [this](auto e) { archive(varint{e.number()}); });
+    } else {
+      const auto tag = make_tag(desc);
+      std::ranges::for_each(v, [this, tag](auto e) { archive(tag, varint{e.number()}); });
+    }
+    return true;
+  }
+
+  bool operator()(repeated_string_field_cref v) {
+    const field_descriptor_t &desc = v.descriptor();
+    const auto tag = make_tag(desc);
+    const bool requires_utf8_validation = desc.requires_utf8_validation();
+
+    return std::ranges::all_of(v, [&](std::string_view e) {
+      if (requires_utf8_validation && !::is_utf8(e.data(), e.size())) {
+        return false;
+      }
+      archive(tag, varint{e.size()}, e);
+      return true;
+    });
+  }
+
+  bool operator()(repeated_bytes_field_cref v) {
+    const field_descriptor_t &desc = v.descriptor();
+    const auto tag = make_tag(desc);
+    std::ranges::for_each(v, [this, tag](auto e) { archive(tag, varint{e.size()}, e); });
+    return true;
+  }
+
+  bool operator()(message_value_cref item) {
+    return std::ranges::all_of(item.fields(), [&](field_cref f) {
+      return !f.has_value() || f.visit(*this);
+    });
+  }
+
+  struct message_tag_writer {
+    field_serializer *serializer;
+    int32_t number;
+    bool is_delimited;
+    message_tag_writer(const message_tag_writer &) = delete;
+    message_tag_writer(message_tag_writer &&) = delete;
+    message_tag_writer(field_serializer *ser, const field_descriptor_t &desc)
+        : serializer(ser), number(desc.proto().number), is_delimited(desc.is_delimited()) {
+      if (is_delimited) {
+        serializer->archive(make_tag(number, wire_type::sgroup));
+      } else {
+        serializer->archive(make_tag(number, wire_type::length_delimited), varint{*serializer->cache_itr++});
+      }
+    };
+
+    message_tag_writer &operator=(const message_tag_writer &) = delete;
+    message_tag_writer &operator=(message_tag_writer &&) = delete;
+    ~message_tag_writer() {
+      if (is_delimited) {
+        serializer->archive(make_tag(number, wire_type::egroup));
+      }
+    }
+  };
+
+  bool operator()(message_field_cref item) {
+    const field_descriptor_t &desc = item.descriptor();
+    message_tag_writer tag_writer{this, desc};
+    return (*this)(item.value());
+  }
+
+  bool operator()(repeated_message_field_cref item) {
+    const field_descriptor_t &desc = item.descriptor();
+    return std::ranges::all_of(item, [&](auto e) {
+      message_tag_writer tag_writer{this, desc};
+      return (*this)(e);
+    });
+  }
+};
+
+[[nodiscard]] bool serialize(const message_value_cref &item, std::span<uint32_t>::iterator &cache_itr, auto &archive) {
+  field_serializer ser{cache_itr, archive};
+  return ser(item);
 }
 } // namespace pb_serializer
 
-status read_proto(message_value_mref msg, auto &&buffer) {
+[[nodiscard]] status read_proto(message_value_mref msg, auto &&buffer) {
   msg.reset();
   auto context = pb_context{alloc_from(msg.memory_resource())};
   return pb_serializer::deserialize(msg, std::forward<decltype(buffer)>(buffer), context);
+}
+
+[[nodiscard]] status write_proto(const message_value_cref &msg, concepts::contiguous_byte_range auto &buffer,
+                                 concepts::is_option_type auto &&...option) {
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  decltype(auto) v = detail::as_modifiable(ctx, buffer);
+  return pb_serializer::serialize(msg, v, ctx);
 }
 } // namespace hpp::proto
