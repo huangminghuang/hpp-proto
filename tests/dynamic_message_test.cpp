@@ -19,10 +19,7 @@ const boost::ut::suite dynamic_message_test = [] {
     std::string data = read_file("data/"s + message_name + ".binpb");
 
     std::pmr::monotonic_buffer_resource memory_resource;
-    auto opt_msg = factory.get_message(message_name, memory_resource);
-    expect(fatal(opt_msg.has_value()));
-
-    hpp::proto::message_value_mref &message = *opt_msg;
+    hpp::proto::message_value_mref message = factory.get_message(message_name, memory_resource).value();
     auto r = hpp::proto::read_proto(message, data);
     expect(fatal(r.ok()));
 

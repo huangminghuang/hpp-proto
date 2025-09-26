@@ -45,13 +45,6 @@ void initial_reserve(FlatMap &m, std::size_t s) {
   m.replace(std::move(keys), std::move(values));
 }
 
-struct string_view_comp {
-  using is_transparent = void;
-  bool operator()(const std::string &lhs, const std::string &rhs) const { return lhs < rhs; }
-  bool operator()(const std::string_view &lhs, const std::string &rhs) const { return lhs.compare(rhs) < 0; }
-  bool operator()(const std::string &lhs, const std::string_view &rhs) const { return lhs.compare(rhs) < 0; }
-};
-
 template <typename AddOns>
 class descriptor_pool {
   enum field_option_mask_t : uint8_t {
@@ -65,6 +58,13 @@ class descriptor_pool {
   };
 
 public:
+  struct string_view_comp {
+    using is_transparent = void;
+    bool operator()(const std::string &lhs, const std::string &rhs) const { return lhs < rhs; }
+    bool operator()(const std::string_view &lhs, const std::string &rhs) const { return lhs.compare(rhs) < 0; }
+    bool operator()(const std::string &lhs, const std::string_view &rhs) const { return lhs.compare(rhs) < 0; }
+  };
+
   // NOLINTBEGIN(bugprone-unchecked-optional-access)
   class message_descriptor_t;
   class enum_descriptor_t;
@@ -388,7 +388,8 @@ public:
     [[nodiscard]] auto messages() const { return std::views::transform(messages_, deref_pointer{}); }
     [[nodiscard]] auto extensions() const { return std::views::transform(extensions_, deref_pointer{}); }
     [[nodiscard]] auto dependencies() const { return std::views::transform(dependencies_, deref_pointer{}); }
-    [[nodiscard]] const descriptor_pool& descriptor_pool() const { return *descriptor_pool_; }
+    [[nodiscard]] const descriptor_pool &descriptor_pool() const { return *descriptor_pool_; }
+
   private:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
@@ -398,7 +399,7 @@ public:
     std::vector<message_descriptor_t *> messages_;
     std::vector<field_descriptor_t *> extensions_;
     std::vector<file_descriptor_t *> dependencies_;
-    const class descriptor_pool* descriptor_pool_ = nullptr;
+    const class descriptor_pool *descriptor_pool_ = nullptr;
   };
 
   explicit descriptor_pool(std::vector<google::protobuf::FileDescriptorProto> &&proto_files)

@@ -2119,6 +2119,18 @@ struct message_size_calculator<message_value_cref> {
   }
 };
 
+bool utf8_validation_failed(const field_descriptor_t &desc, const auto &str) {
+#if HPP_PROTO_NO_UTF8_VALIDATION
+  [[maybe_unused]] desc;
+  [[maybe_unused]] str;
+#else
+  if (desc.requires_utf8_validation()) {
+    return !::is_utf8(str.data(), str.size());
+  }
+#endif
+  return false;
+}
+
 template <typename Archive>
 struct field_serializer {
   // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
@@ -2157,75 +2169,54 @@ struct field_serializer {
   template <typename T, field_kind_t Kind>
   bool operator()(scalar_field_cref<T, Kind> v) {
     const field_descriptor_t &desc = v.descriptor();
-    archive(make_tag(desc), T{v.value()});
-    return true;
+    return archive(make_tag(desc), T{v.value()});
   }
 
-  bool operator()(enum_field_cref v) {
-    archive(make_tag(v.descriptor()), varint{(*v).number()});
-    return true;
-  }
+  bool operator()(enum_field_cref v) { return archive(make_tag(v.descriptor()), varint{(*v).number()}); }
 
   bool operator()(string_field_cref v) {
     auto str = *v;
-    if (v.descriptor().requires_utf8_validation() && !::is_utf8(str.data(), str.size())) {
-      return false;
-    }
-    archive(make_tag(v.descriptor()), varint{str.size()}, str);
-    return true;
+    return !utf8_validation_failed(v.descriptor(), str) && archive(make_tag(v.descriptor()), varint{str.size()}, str);
   }
 
-  bool operator()(bytes_field_cref v) {
-    archive(make_tag(v.descriptor()), varint{(*v).size()}, *v);
-    return true;
-  }
+  bool operator()(bytes_field_cref v) { return archive(make_tag(v.descriptor()), varint{(*v).size()}, *v); }
 
   template <typename T, field_kind_t Kind>
   bool operator()(repeated_scalar_field_cref<T, Kind> v) {
     const field_descriptor_t &desc = v.descriptor();
     if (desc.is_packed()) {
       uint32_t byte_count = concepts::varint<T> ? *cache_itr++ : sizeof(T) * v.size();
-      archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{byte_count});
-      std::ranges::for_each(v, [this](auto e) { archive(T{e}); });
-      return true;
+      return archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{byte_count}) &&
+             std::ranges::all_of(v, [this](auto e) { return archive(T{e}); });
     } else {
       const auto tag = make_tag(desc);
-      std::ranges::for_each(v, [this, tag](auto e) { archive(tag, T{e}); });
-      return true;
+      return std::ranges::all_of(v, [this, tag](auto e) { return archive(tag, T{e}); });
     }
   }
 
   bool operator()(repeated_enum_field_cref v) {
     const field_descriptor_t &desc = v.descriptor();
     if (desc.is_packed()) {
-      archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{*cache_itr++});
-      std::ranges::for_each(v, [this](auto e) { archive(varint{e.number()}); });
+      return archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{*cache_itr++}) &&
+             std::ranges::all_of(v, [this](auto e) { return archive(varint{e.number()}); });
     } else {
       const auto tag = make_tag(desc);
-      std::ranges::for_each(v, [this, tag](auto e) { archive(tag, varint{e.number()}); });
+      return std::ranges::all_of(v, [this, tag](auto e) { return archive(tag, varint{e.number()}); });
     }
-    return true;
   }
 
   bool operator()(repeated_string_field_cref v) {
     const field_descriptor_t &desc = v.descriptor();
     const auto tag = make_tag(desc);
-    const bool requires_utf8_validation = desc.requires_utf8_validation();
 
-    return std::ranges::all_of(v, [&](std::string_view e) {
-      if (requires_utf8_validation && !::is_utf8(e.data(), e.size())) {
-        return false;
-      }
-      archive(tag, varint{e.size()}, e);
-      return true;
-    });
+    return std::ranges::all_of(
+        v, [&](std::string_view e) { return !utf8_validation_failed(desc, e) && archive(tag, varint{e.size()}, e); });
   }
 
   bool operator()(repeated_bytes_field_cref v) {
     const field_descriptor_t &desc = v.descriptor();
     const auto tag = make_tag(desc);
-    std::ranges::for_each(v, [this, tag](auto e) { archive(tag, varint{e.size()}, e); });
-    return true;
+    return std::ranges::all_of(v, [this, tag](auto e) { return archive(tag, varint{e.size()}, e); });
   }
 
   bool operator()(message_value_cref item) {

@@ -723,7 +723,9 @@ template <typename Type>
 concept flat_map = requires {
   typename Type::key_type;
   typename Type::mapped_type;
-  requires std::same_as<Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type>>;
+  typename Type::key_container_type;
+  typename Type::mapped_container_type;
+  requires std::same_as<Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type, typename Type::key_container_type, typename Type::mapped_container_type>>;
 };
 }; // namespace concepts
 

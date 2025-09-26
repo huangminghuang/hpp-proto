@@ -1239,13 +1239,11 @@ struct basic_out {
       _data = _data.subspan(bytes_to_copy);
       return true;
     } else {
-      return std::ranges::all_of(item, [this](auto e){ return this->serialize(e); });
+      return std::ranges::all_of(item, [this](auto e) { return this->serialize(e); });
     }
   }
 
-  constexpr bool serialize(concepts::is_enum auto item) {
-    return serialize(varint{static_cast<int64_t>(item)});
-  }
+  constexpr bool serialize(concepts::is_enum auto item) { return serialize(varint{static_cast<int64_t>(item)}); }
 
   template <typename... Args>
   constexpr bool operator()(Args &&...item) {
@@ -1257,7 +1255,6 @@ template <concepts::contiguous_byte_range Range, typename Context>
 basic_out(Range &&, Context &) -> basic_out<std::ranges::range_value_t<Range>, Context>;
 
 constexpr std::size_t len_size(std::size_t len) { return varint_size(len) + len; }
-
 
 /**
  * @struct size_cache_counter
@@ -1391,7 +1388,7 @@ struct message_size_calculator<T> {
   };
 
   HPP_PROTO_INLINE constexpr static uint32_t message_size(concepts::has_meta auto const &item,
-                                                             concepts::is_size_cache_iterator auto &cache_itr) {
+                                                          concepts::is_size_cache_iterator auto &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
     return std::apply(
         [&item, &cache_itr](auto &&...meta) {
@@ -1405,24 +1402,24 @@ struct message_size_calculator<T> {
 
   template <typename Meta>
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::oneof_type auto const &item, Meta,
-                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+                                                        concepts::is_size_cache_iterator auto &cache_itr) {
     return oneof_size<0, typename Meta::alternatives_meta>(item, cache_itr);
   }
 
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::pb_extension auto const &item, auto,
-                                                           concepts::is_size_cache_iterator auto &) {
+                                                        concepts::is_size_cache_iterator auto &) {
     return transform_accumulate(item.fields, [](const auto &e) constexpr { return e.second.size(); });
   }
 
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::is_enum auto item, auto meta,
-                                                           concepts::is_size_cache_iterator auto &) {
+                                                        concepts::is_size_cache_iterator auto &) {
     using type = decltype(item);
     return varint_size(meta.number << 3U) + varint_size(static_cast<int64_t>(std::underlying_type_t<type>(item)));
   }
 
   template <typename Meta>
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::byte_serializable auto item, Meta meta,
-                                                           concepts::is_size_cache_iterator auto &) {
+                                                        concepts::is_size_cache_iterator auto &) {
     using type = decltype(item);
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
@@ -1436,18 +1433,18 @@ struct message_size_calculator<T> {
   }
 
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::varint auto item, auto meta,
-                                                           concepts::is_size_cache_iterator auto &) {
+                                                        concepts::is_size_cache_iterator auto &) {
     return varint_size(meta.number << 3U) + item.encode_size();
   }
 
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::dereferenceable auto const &item, auto meta,
-                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+                                                        concepts::is_size_cache_iterator auto &cache_itr) {
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return field_size(*item, meta, cache_itr);
   }
 
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::has_meta auto const &item, auto meta,
-                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+                                                        concepts::is_size_cache_iterator auto &cache_itr) {
     constexpr uint32_t tag_size = varint_size(meta.number << 3U);
     if constexpr (!meta.is_delimited()) {
       decltype(auto) msg_size = *cache_itr++;
@@ -1461,7 +1458,7 @@ struct message_size_calculator<T> {
 
   template <typename Meta>
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::is_pair auto const &item, Meta meta,
-                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+                                                        concepts::is_size_cache_iterator auto &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
     using value_type = typename serialize_type::read_only_type;
@@ -1512,7 +1509,7 @@ struct message_size_calculator<T> {
 
   template <std::size_t I, typename Meta>
   HPP_PROTO_INLINE constexpr static uint32_t oneof_size(auto const &item,
-                                                           concepts::is_size_cache_iterator auto &cache_itr) {
+                                                        concepts::is_size_cache_iterator auto &cache_itr) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
         return field_size(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{}, cache_itr);
@@ -1611,31 +1608,25 @@ template <typename Meta>
 
 [[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::pb_extension auto const &item, auto,
                                                               concepts::is_size_cache_iterator auto &, auto &archive) {
-  return std::ranges::all_of(item.fields, [&](const auto& f){ return archive(f.second); });
+  return std::ranges::all_of(item.fields, [&](const auto &f) { return archive(f.second); });
 }
 
 [[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::is_enum auto item, auto meta,
                                                               concepts::is_size_cache_iterator auto &, auto &archive) {
-  archive(make_tag<decltype(item)>(meta), item);
-  return true;
+  return archive(make_tag<decltype(item)>(meta), item);
 }
 
 [[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::arithmetic auto item, auto meta,
                                                               concepts::is_size_cache_iterator auto &, auto &archive) {
   using serialize_type = typename traits::get_serialize_type<decltype(meta), decltype(item)>::type;
-  archive(make_tag<serialize_type>(meta), serialize_type{item});
-  return true;
+  return archive(make_tag<serialize_type>(meta), serialize_type{item});
 }
 
 [[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::contiguous_byte_range auto const &item,
                                                               auto meta, concepts::is_size_cache_iterator auto &,
                                                               auto &archive) {
   using type = std::remove_cvref_t<decltype(item)>;
-  if (!utf8_validation_failed(meta, item)) {
-    archive(make_tag<type>(meta), varint{item.size()}, item);
-    return true;
-  }
-  return false;
+  return !utf8_validation_failed(meta, item) && archive(make_tag<type>(meta), varint{item.size()}, item);
 }
 
 [[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::dereferenceable auto const &item, auto meta,
@@ -1649,16 +1640,12 @@ template <typename Meta>
                                                               concepts::is_size_cache_iterator auto &cache_itr,
                                                               auto &archive) {
   if constexpr (!meta.is_delimited()) {
-    archive(make_tag<decltype(item)>(meta), varint{*cache_itr++});
-    return serialize(item, cache_itr, archive);
+    return archive(make_tag<decltype(item)>(meta), varint{*cache_itr++}) && serialize(item, cache_itr, archive);
   } else {
-    archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::sgroup)});
-    if (!serialize(item, cache_itr, archive)) {
-      return false;
-    }
-    archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::egroup)});
+    return archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::sgroup)}) &&
+           serialize(item, cache_itr, archive) &&
+           archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::egroup)});
   }
-  return true;
 }
 
 [[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(std::ranges::range auto const &item, auto meta,
@@ -1672,24 +1659,19 @@ template <typename Meta>
                          typename Meta::type>;
 
   if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
-    for (const auto &element : item) {
+    return std::ranges::all_of(item, [&](const auto &element) {
       using serialize_element_type =
           std::conditional_t<concepts::is_map_entry<typename Meta::type>, decltype(element), element_type>;
-      if (!serialize_field(static_cast<serialize_element_type>(element), meta, cache_itr, archive)) {
-        return false;
-      }
-    }
+      return serialize_field(static_cast<serialize_element_type>(element), meta, cache_itr, archive);
+    });
   } else if constexpr (concepts::byte_serializable<element_type>) {
     // packed fundamental types or bytes
-    archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)}, item);
+    return archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)}, item);
   } else {
     // packed varint or packed enum
-    archive(make_tag<type>(meta), varint{*cache_itr++});
-    for (auto element : item) {
-      archive(element_type{element});
-    }
+    return archive(make_tag<type>(meta), varint{*cache_itr++}) &&
+           std::ranges::all_of(item, [&](auto element) { return archive(element_type{element}); });
   }
-  return true;
 }
 
 template <typename Meta>
@@ -1698,11 +1680,10 @@ template <typename Meta>
                                                               auto &archive) {
   using type = std::remove_cvref_t<decltype(item)>;
   constexpr auto tag = make_tag<type>(meta);
-  archive(tag, varint{*cache_itr++});
   using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
   static_assert(concepts::has_meta<value_type>);
   auto &&[key, value] = item;
-  return serialize(value_type{key, value}, cache_itr, archive);
+  return archive(tag, varint{*cache_itr++}) && serialize(value_type{key, value}, cache_itr, archive);
 }
 
 template <std::size_t I, concepts::tuple Meta>
