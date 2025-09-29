@@ -535,15 +535,14 @@ struct hpp_addons {
   struct message_descriptor {
     std::string pb_name;
     std::string cpp_name;
-    std::set<std::string> dependencies;
+    std::set<MessageD *> dependencies;
     std::set<FieldD *> used_by_fields;
-    std::set<std::string> forward_declarations;
+    std::set<MessageD *> forward_messages;
     bool has_recursive_map_field = false;
     bool non_owning = false;
 
     explicit message_descriptor(const gpb::DescriptorProto &proto)
-        : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)) {
-    }
+        : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)) {}
 
     void on_options_resolved(const gpb::DescriptorProto &, const gpb::MessageOptions &options) {
       auto opts = options.get_extension(hpp::proto::hpp_message_opts()).value_or(hpp::proto::MessageOptions{});
@@ -561,8 +560,7 @@ struct hpp_addons {
     std::string namespace_prefix;
 
     explicit file_descriptor(const gpb::FileDescriptorProto &proto)
-        : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax), cpp_name(proto.name) {
-    }
+        : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax), cpp_name(proto.name) {}
 
     void on_options_resolved(const gpb::FileDescriptorProto &proto, const gpb::FileOptions &options) {
       auto file_opts = options.get_extension(hpp::proto::hpp_file_opts()).value_or(hpp::proto::FileOptions{});
@@ -664,8 +662,8 @@ struct code_generator {
 
       for (auto [m, no_non_repeated_usage] : used_by_messages) {
         if (!no_non_repeated_usage && !m->is_map_entry()) {
-          m->dependencies.erase(depended->cpp_name);
-          m->forward_declarations.insert(depended->cpp_name);
+          m->dependencies.erase(depended);
+          m->forward_messages.insert(depended);
           return m;
         }
       }
@@ -684,8 +682,8 @@ struct code_generator {
       for (auto [m, no_non_map_usage] : used_by_messages) {
         if (!no_non_map_usage) {
           m->parent_message()->has_recursive_map_field = true;
-          m->parent_message()->dependencies.erase(depended->cpp_name);
-          m->parent_message()->forward_declarations.insert(depended->cpp_name);
+          m->parent_message()->dependencies.erase(depended);
+          m->parent_message()->forward_messages.insert(depended);
           return m->parent_message();
         }
       }
@@ -694,11 +692,9 @@ struct code_generator {
   }
 
   static void resolve_dependency_cycle(message_descriptor_t &descriptor) {
-    auto nh = descriptor.dependencies.extract(descriptor.dependencies.begin());
-    auto &dep = nh.value();
-    descriptor.forward_declarations.insert(std::move(nh));
-
-    mark_field_recursive(descriptor, dep);
+    message_descriptor_t *dep = *descriptor.dependencies.begin();
+    descriptor.forward_messages.insert(descriptor.dependencies.extract(descriptor.dependencies.begin()));
+    mark_field_recursive(descriptor, dep->cpp_name);
   }
 
   static std::vector<message_descriptor_t *> order_messages(auto messages_view) {
@@ -706,12 +702,10 @@ struct code_generator {
     std::vector<message_descriptor_t *> unresolved_messages;
     resolved_messages.reserve(messages_view.size());
     unresolved_messages.reserve(messages_view.size());
-    std::set<std::string> resolved_message_names;
 
     for (auto &m : messages_view) {
       if (m.dependencies.empty()) {
         resolved_messages.push_back(&m);
-        resolved_message_names.insert(m.cpp_name);
       } else {
         unresolved_messages.push_back(&m);
       }
@@ -719,11 +713,12 @@ struct code_generator {
 
     while (!unresolved_messages.empty()) {
       for (auto &pm : std::ranges::reverse_view{unresolved_messages}) {
-        auto &deps = pm->dependencies;
-        if (std::ranges::includes(resolved_message_names, deps)) {
+        auto &message_deps = pm->dependencies;
+        std::set<message_descriptor_t *> sorted_resolved_messages{resolved_messages.begin(), resolved_messages.end()};
+        if (std::ranges::includes(sorted_resolved_messages, message_deps)) {
           resolved_messages.push_back(pm);
-          resolved_message_names.insert(pm->cpp_name);
-          pm = nullptr;
+          pm = nullptr; // set the reference to nullptr so that it can be removed from the unresolved_messages in
+                        // subsequent statement
         }
       }
 
@@ -736,7 +731,6 @@ struct code_generator {
           resolved_messages.push_back(to_be_resolved);
           auto to_remove = std::ranges::remove(unresolved_messages, to_be_resolved);
           unresolved_messages.erase(to_remove.begin(), to_remove.end());
-          resolved_message_names.insert(to_be_resolved->cpp_name);
         } else {
           std::ranges::sort(unresolved_messages, [](auto lhs, auto rhs) { return lhs->cpp_name < rhs->cpp_name; });
           auto *x = *(unresolved_messages.rbegin());
@@ -804,8 +798,8 @@ struct msg_code_generator : code_generator {
    * - Identifying the common ancestor scope between the field's parent message and its type.
    * - Extracting the top-level dependent and dependee names relative to the common ancestor.
    * - Locating the dependent message descriptor in the pool.
-   * - If the dependent and dependee are in the same file scope, it adds the dependee's
-   *   qualified C++ name to the dependent message's set of dependencies.
+   * - If the dependent and dependee are in the same file scope, it adds the dependee
+   *   to the dependent message's set of dependencies.
    */
   static void resolve_field_dependency(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {
     using enum google::protobuf::FieldDescriptorProto::Type;
@@ -815,34 +809,22 @@ struct msg_code_generator : code_generator {
       auto field_message_name = field.qualified_parent_name;
       auto common_ancestor_pos = shared_scope_position(field_message_name, field_type_name);
 
-      std::string dependent; // dependent is the full qualified top level message name of the field descended from the
-                             // common ancestor
-      std::string dependee;  // dependee is the top level type name of the field descended from the common ancestor,
-                             // relative to the common ancestor
+      message_descriptor_t *dependent_msg = nullptr;
       // if the common_ancestor exists and it is not the field message itself
       if (common_ancestor_pos > 0 && common_ancestor_pos < field_message_name.size() &&
           common_ancestor_pos != field_type_name.size()) {
         auto dependent_pos = field_message_name.find_first_of('.', common_ancestor_pos + 1);
-        dependent = field_message_name.substr(0, dependent_pos);
-        dependee = field_type_name.substr(common_ancestor_pos + 1);
-        auto dependee_pos = dependee.find('.');
-        if (dependee_pos != std::string::npos) {
-          dependee.resize(dependee_pos);
-        } else if (type == TYPE_ENUM) {
-          dependent = "";
+        dependent_msg = pool.get_message_descriptor(field_message_name.substr(0, dependent_pos));
+        if (type == TYPE_ENUM && field_type_name.find('.', common_ancestor_pos + 1) == std::string::npos) {
+          return;
         }
       }
 
-      auto *dependent_msg = pool.get_message_descriptor(dependent);
-      message_descriptor_t *dependee_msg = type == TYPE_ENUM ? nullptr : field.message_field_type_descriptor();
+      message_descriptor_t *dependee_msg = type == TYPE_ENUM ? field.enum_field_type_descriptor()->parent_message()
+                                                             : field.message_field_type_descriptor();
 
-      std::string namespace_prefix;
-
-      if (dependent_msg != nullptr &&
-          (dependee_msg == nullptr || dependent_msg->parent_file() == dependee_msg->parent_file())) {
-
-        namespace_prefix = namespace_prefix_of(*dependent_msg);
-        dependent_msg->dependencies.insert(make_qualified_cpp_name(namespace_prefix, dependee));
+      if (dependent_msg != nullptr && dependent_msg->parent_file() == dependee_msg->parent_file()) {
+        dependent_msg->dependencies.insert(dependee_msg);
       }
     }
   }
@@ -1108,8 +1090,8 @@ struct msg_code_generator : code_generator {
       qualified_cpp_name = cpp_scope + "::" + qualified_cpp_name;
     }
 
-    for (const auto &fwd : descriptor.forward_declarations) {
-      fmt::format_to(target, "{}struct {};\n", indent(), fwd);
+    for (const auto *fwd : descriptor.forward_messages) {
+      fmt::format_to(target, "{}struct {};\n", indent(), fwd->cpp_name);
     }
 
     std::string attribute;

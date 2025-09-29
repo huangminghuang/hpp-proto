@@ -248,9 +248,9 @@ public:
     using pool_type = descriptor_pool;
     using base_type = AddOns::template enum_descriptor<enum_descriptor_t>;
     explicit enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto, const auto &inherited_options,
-                               file_descriptor_t *parent_file)
+                               file_descriptor_t *parent_file, message_descriptor_t *parent_message)
         : base_type(proto), proto_(proto), options_(proto.options.value_or(google::protobuf::EnumOptions{})),
-          parent_file_(parent_file) {
+          parent_file_(parent_file), parent_message_(parent_message) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
         google::protobuf::EnumOptions::extension_t extensions;
@@ -271,6 +271,7 @@ public:
     [[nodiscard]] const google::protobuf::EnumDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const google::protobuf::EnumOptions &options() const { return options_; }
     [[nodiscard]] file_descriptor_t *parent_file() const { return parent_file_; }
+    [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
 
     [[nodiscard]] bool is_closed() const {
       return options_.features.value().enum_type == google::protobuf::FeatureSet::EnumType::CLOSED;
@@ -287,6 +288,7 @@ public:
     const google::protobuf::EnumDescriptorProto &proto_;
     google::protobuf::EnumOptions options_;
     file_descriptor_t *parent_file_;
+    message_descriptor_t *parent_message_;
   };
 
   class message_descriptor_t : public AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t,
@@ -612,7 +614,7 @@ private:
     descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
       const std::string scope = !package.empty() ? package + "." + proto.name : proto.name;
-      auto &e = enums_.emplace_back(proto, descriptor.options_, &descriptor);
+      auto &e = enums_.emplace_back(proto, descriptor.options_, &descriptor, nullptr);
       enum_map_.try_emplace(scope, &e);
       descriptor.enums_.push_back(&e);
     }
@@ -637,7 +639,7 @@ private:
     descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
       const std::string new_scope = scope.empty() ? proto.name : scope + "." + proto.name;
-      auto &e = enums_.emplace_back(proto, descriptor.options_, descriptor.parent_file_);
+      auto &e = enums_.emplace_back(proto, descriptor.options_, descriptor.parent_file_, &descriptor);
       enum_map_.try_emplace(new_scope, &e);
       descriptor.enums_.push_back(&e);
     }
