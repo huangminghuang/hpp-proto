@@ -157,8 +157,31 @@ concept variant = requires(T variant) {
 };
 
 template <typename T>
-concept string =
-    std::same_as<std::remove_cvref_t<T>, std::string> || std::same_as<std::remove_cvref_t<T>, std::string_view>;
+concept string_value_type = std::same_as<T, char> || std::same_as<T, char8_t>;
+
+template <typename T>
+concept basic_string_view = requires {
+  typename T::value_type;
+  requires string_value_type<typename T::value_type>;
+  requires std::same_as<T,
+                        std::basic_string_view<typename T::value_type,
+                                               std::char_traits<typename T::value_type>>>;
+};
+
+template <typename T>
+concept basic_string = requires {
+  typename T::value_type;
+  typename T::allocator_type;
+  requires string_value_type<typename T::value_type>;
+  requires std::same_as<T,
+                        std::basic_string<typename T::value_type,
+                                          std::char_traits<typename T::value_type>,
+                                          typename T::allocator_type>>;
+};
+
+template <typename T>
+concept string_like = basic_string_view<T> || basic_string<T>;
+
 
 template <typename T>
 concept has_local_meta = concepts::tuple<typename std::decay_t<T>::pb_meta>;
@@ -182,7 +205,7 @@ template <typename T>
 concept arithmetic = std::is_arithmetic_v<T> || concepts::varint<T>;
 
 template <typename T>
-concept singular = arithmetic<T> || is_enum<T> || string<T> || resizable_contiguous_byte_container<T>;
+concept singular = arithmetic<T> || is_enum<T> || string_like<T> || resizable_contiguous_byte_container<T>;
 
 template <typename T>
 concept pb_extension = requires(T value) { typename T::pb_extension; };
@@ -202,7 +225,7 @@ concept is_pair = std::same_as<T, std::pair<typename T::first_type, typename T::
 template <typename T>
 concept span = requires {
   typename T::element_type;
-  requires std::derived_from<T, std::span<typename T::element_type>> || std::same_as<T, std::string_view>;
+  requires std::derived_from<T, std::span<typename T::element_type>> || concepts::basic_string_view<T>;
 };
 
 template <typename T>
@@ -219,7 +242,7 @@ concept is_size_cache_iterator = requires(T v) {
 
 template <typename T>
 concept non_owning_bytes =
-    std::same_as<std::remove_cvref_t<T>, std::string_view> ||
+    basic_string_view<std::remove_cvref_t<T>> ||
     (concepts::dynamic_sized_view<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
 
 template <typename T>
@@ -2974,7 +2997,8 @@ status read_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&
 namespace concepts {
 template <typename T>
 concept is_any = requires(T &obj) {
-  { obj.type_url } -> concepts::string;
+  { obj.type_url };
+  requires concepts::string_like<std::remove_reference_t<decltype(obj.type_url)>>;
   { obj.value } -> concepts::contiguous_byte_range;
 };
 } // namespace concepts
