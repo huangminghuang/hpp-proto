@@ -774,15 +774,6 @@ struct msg_code_generator : code_generator {
 
   static std::string namespace_prefix_of(const auto &d) { return d.parent_file()->namespace_prefix; }
 
-  static std::string_view common_ancestor(std::string_view name1, std::string_view name2) {
-    auto pos = shared_scope_position(name1, name2);
-    if (pos > 0) {
-      if (pos == name1.size())
-        return name1.substr(0, name1.find_last_of('.', pos));
-    }
-    return "";
-  }
-
   /**
    * @brief Resolves the dependency of a field within a message descriptor pool.
    *
@@ -796,7 +787,7 @@ struct msg_code_generator : code_generator {
    *
    * The function works by:
    * - Identifying the common ancestor scope between the field's parent message and its type.
-   * - Extracting the top-level dependent and dependee names relative to the common ancestor.
+   * - Extracting the full qualified dependent and dependee names.
    * - Locating the dependent message descriptor in the pool.
    * - If the dependent and dependee are in the same file scope, it adds the dependee
    *   to the dependent message's set of dependencies.
@@ -805,25 +796,34 @@ struct msg_code_generator : code_generator {
     using enum google::protobuf::FieldDescriptorProto::Type;
     auto type = field.proto().type;
     if (field.parent_message()) {
-      auto field_type_name = field.proto().type_name.substr(1);
-      auto field_message_name = field.qualified_parent_name;
-      auto common_ancestor_pos = shared_scope_position(field_message_name, field_type_name);
-
-      message_descriptor_t *dependent_msg = nullptr;
-      // if the common_ancestor exists and it is not the field message itself
-      if (common_ancestor_pos > 0 && common_ancestor_pos < field_message_name.size() &&
-          common_ancestor_pos != field_type_name.size()) {
-        auto dependent_pos = field_message_name.find_first_of('.', common_ancestor_pos + 1);
-        dependent_msg = pool.get_message_descriptor(field_message_name.substr(0, dependent_pos));
-        if (type == TYPE_ENUM && field_type_name.find('.', common_ancestor_pos + 1) == std::string::npos) {
+      auto dependee_name = std::string_view{field.proto().type_name}.substr(1);
+      // For enum types, adjust dependee_name to refer to the parent message of the enum
+      if (type == TYPE_ENUM) {
+        if (field.enum_field_type_descriptor()->parent_message() == nullptr) {
           return;
         }
+        dependee_name = dependee_name.substr(0, dependee_name.find_last_of('.'));
       }
 
-      message_descriptor_t *dependee_msg = type == TYPE_ENUM ? field.enum_field_type_descriptor()->parent_message()
-                                                             : field.message_field_type_descriptor();
+      auto field_message_name = field.qualified_parent_name;
+      // Find the common ancestor scope between the field's parent and its type
+      auto common_ancestor = field_message_name.substr(0, shared_scope_position(field_message_name, dependee_name));
 
-      if (dependent_msg != nullptr && dependent_msg->parent_file() == dependee_msg->parent_file()) {
+      // Extract the full qualified dependent and dependee names
+      auto dependent_name = field_message_name.substr(0, field_message_name.find('.', common_ancestor.size() + 1));
+      dependee_name = dependee_name.substr(0, dependee_name.find('.', common_ancestor.size() + 1));
+
+      // If the common ancestor equals dependee_name, the field's type is a nested enum of the enclosing message.
+      // If the common ancestor equals dependent_name, the field's type is a nested message of the parent message.
+      // In either case there is no external dependency to record, so return.
+      if (dependee_name.size() == common_ancestor.size() || dependent_name.size() == common_ancestor.size()) {
+        return;
+      }
+      message_descriptor_t *dependent_msg = pool.get_message_descriptor(dependent_name);
+      message_descriptor_t *dependee_msg = pool.get_message_descriptor(dependee_name);
+
+      if (dependent_msg != nullptr && dependee_msg != nullptr &&
+          dependent_msg->parent_file() == dependee_msg->parent_file()) {
         dependent_msg->dependencies.insert(dependee_msg);
       }
     }
@@ -843,6 +843,7 @@ struct msg_code_generator : code_generator {
           field_type_msg->used_by_fields.insert(&field);
           field.set_user_cpp_type(namespace_prefix, field.proto());
         } else {
+          // type == TYPE_ENUM
           auto *enum_d = field.enum_field_type_descriptor();
           if (enum_d != nullptr) {
             auto namespace_prefix = namespace_prefix_of(*enum_d);
