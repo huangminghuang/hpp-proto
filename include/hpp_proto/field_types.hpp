@@ -804,8 +804,19 @@ struct default_traits {
   using vector_t = std::vector<T>;
   using string_t = std::string;
   using bytes_t = vector_t<std::byte>;
+
   template <typename Key, typename Mapped>
-  using map_t = hpp::proto::flat_map<Key, Mapped>;
+  struct map_trait {
+    using type = hpp::proto::flat_map<Key, Mapped>;
+  };
+
+  template <typename Mapped>
+  struct map_trait<bool, Mapped> {
+    using type = hpp::proto::flat_map<hpp::proto::boolean, Mapped>;
+  };
+
+  template <typename Key, typename Mapped>
+  using map_t = map_trait<Key, Mapped>::type;
 };
 
 struct non_owning_traits {
