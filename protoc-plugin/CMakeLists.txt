@@ -15,7 +15,7 @@ if(MSVC)
     target_compile_options(protoc-gen-hpp PRIVATE /bigobj)
 endif()
 
-if(HPP_PROTO_WELLKNOWN_TYPES AND Protobuf_INCLUDE_DIRS)
+if(Protobuf_INCLUDE_DIRS)
     set(proto_files google/protobuf/descriptor.proto
         google/protobuf/compiler/plugin.proto)
 
