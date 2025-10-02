@@ -801,7 +801,17 @@ constexpr static void reserve(T &mut, std::size_t size) {
 
 struct default_traits {
   template <typename T>
-  using vector_t = std::vector<T>;
+  struct vector_trait {
+    using type = std::vector<T>;
+  };
+
+  template <>
+  struct vector_trait<bool> {
+    using type = std::vector<hpp::proto::boolean>;
+  };
+
+  template <typename T>
+  using vector_t = vector_trait<T>::type;
   using string_t = std::string;
   using bytes_t = vector_t<std::byte>;
 

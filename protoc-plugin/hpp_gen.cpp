@@ -235,7 +235,6 @@ std::string to_hex_literal(hpp::proto::concepts::contiguous_byte_range auto cons
 }
 } // namespace
 struct hpp_addons {
-  static bool non_owning_mode;
   static hpp::proto::optional<std::string> namespace_prefix;
   static hpp::proto::optional<std::string> string_keyed_map;
   static hpp::proto::optional<std::string> numeric_keyed_map;
@@ -243,8 +242,7 @@ struct hpp_addons {
   static google::protobuf::FileOptions::extension_t default_file_options_extensions() {
     google::protobuf::FileOptions::extension_t extensions;
     if (!hpp::proto::hpp_file_opts()
-             .write(extensions, hpp::proto::FileOptions{.non_owning = non_owning_mode,
-                                                        .namespace_prefix = namespace_prefix,
+             .write(extensions, hpp::proto::FileOptions{.namespace_prefix = namespace_prefix,
                                                         .string_keyed_map = string_keyed_map,
                                                         .numeric_keyed_map = numeric_keyed_map})
              .ok()) {
@@ -259,8 +257,7 @@ struct hpp_addons {
     auto opts = hpp::proto::hpp_file_opts().read(inherited);
     if (opts.has_value()) {
       if (!hpp::proto::hpp_message_opts()
-               .write(extensions, hpp::proto::MessageOptions{.non_owning = opts->non_owning,
-                                                             .string_keyed_map = opts->string_keyed_map,
+               .write(extensions, hpp::proto::MessageOptions{.string_keyed_map = opts->string_keyed_map,
                                                              .numeric_keyed_map = opts->numeric_keyed_map})
                .ok()) {
         std::cerr << "Failed to write message options extensions\n";
@@ -274,8 +271,7 @@ struct hpp_addons {
     auto opts = hpp::proto::hpp_file_opts().read(inherited);
     if (opts.has_value()) {
       if (!hpp::proto::hpp_field_opts()
-               .write(extensions, hpp::proto::FieldOptions{.non_owning = opts->non_owning,
-                                                           .string_keyed_map = opts->string_keyed_map,
+               .write(extensions, hpp::proto::FieldOptions{.string_keyed_map = opts->string_keyed_map,
                                                            .numeric_keyed_map = opts->numeric_keyed_map})
                .ok()) {
         std::cerr << "Failed to write field options extensions\n";
@@ -289,8 +285,7 @@ struct hpp_addons {
     auto opts = hpp::proto::hpp_message_opts().read(inherited);
     if (opts.has_value()) {
       if (!hpp::proto::hpp_field_opts()
-               .write(extensions, hpp::proto::FieldOptions{.non_owning = opts->non_owning,
-                                                           .string_keyed_map = opts->string_keyed_map,
+               .write(extensions, hpp::proto::FieldOptions{.string_keyed_map = opts->string_keyed_map,
                                                            .numeric_keyed_map = opts->numeric_keyed_map})
                .ok()) {
         std::cerr << "Failed to write field options extensions\n";
@@ -310,7 +305,6 @@ struct hpp_addons {
     bool is_recursive = false;
     bool is_cpp_optional = false;
     bool is_closed_enum = false;
-    bool non_owning = false;
 
     field_descriptor(const gpb::FieldDescriptorProto &proto, const std::string &parent_name)
         : cpp_name(resolve_keyword(proto.name)), qualified_parent_name(parent_name) {
@@ -318,9 +312,7 @@ struct hpp_addons {
       using enum gpb::FieldDescriptorProto::Label;
     }
 
-    void on_options_resolved(const gpb::FieldDescriptorProto &proto, const gpb::FieldOptions &options) {
-      auto field_opts = options.get_extension(hpp::proto::hpp_field_opts()).value_or(hpp::proto::FieldOptions{});
-      non_owning = field_opts.non_owning.value();
+    void on_options_resolved(const gpb::FieldDescriptorProto &proto, const gpb::FieldOptions &) {
       set_cpp_type(proto);
       set_default_value(proto);
     }
@@ -365,7 +357,7 @@ struct hpp_addons {
         cpp_meta_type = "bool";
         break;
       case TYPE_STRING:
-        cpp_field_type = non_owning ? "std::string_view" : "std::string";
+        cpp_field_type = "std::string";
         qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_GROUP:
@@ -373,7 +365,7 @@ struct hpp_addons {
       case TYPE_ENUM:
         break;
       case TYPE_BYTES:
-        cpp_field_type = non_owning ? "hpp::proto::bytes_view" : "hpp::proto::bytes";
+        cpp_field_type = "hpp::proto::bytes";
         qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_UINT32:
@@ -539,15 +531,12 @@ struct hpp_addons {
     std::set<FieldD *> used_by_fields;
     std::set<MessageD *> forward_messages;
     bool has_recursive_map_field = false;
-    bool non_owning = false;
+    bool needs_templating = false;
 
     explicit message_descriptor(const gpb::DescriptorProto &proto)
         : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)) {}
 
-    void on_options_resolved(const gpb::DescriptorProto &, const gpb::MessageOptions &options) {
-      auto opts = options.get_extension(hpp::proto::hpp_message_opts()).value_or(hpp::proto::MessageOptions{});
-      non_owning = opts.non_owning.value();
-    }
+    void on_options_resolved(const gpb::DescriptorProto &, const gpb::MessageOptions &) {}
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
@@ -590,7 +579,6 @@ struct hpp_addons {
   };
 };
 
-bool hpp_addons::non_owning_mode = false;
 hpp::proto::optional<std::string> hpp_addons::namespace_prefix;
 hpp::proto::optional<std::string> hpp_addons::string_keyed_map;
 hpp::proto::optional<std::string> hpp_addons::numeric_keyed_map;
@@ -910,11 +898,11 @@ struct msg_code_generator : code_generator {
     using enum gpb::FieldDescriptorProto::Label;
     using enum gpb::FieldDescriptorProto::Type;
     if (proto.label == LABEL_REPEATED) {
-      return descriptor.non_owning ? "hpp::proto::equality_comparable_span" : "std::vector";
+      return "std::vector";
     }
     if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
       if (descriptor.is_recursive) {
-        return descriptor.non_owning ? "hpp::proto::optional_message_view" : "hpp::proto::heap_based_optional";
+        return "hpp::proto::heap_based_optional";
       } else if (descriptor.is_cpp_optional) {
         return "std::optional";
       }
@@ -939,19 +927,9 @@ struct msg_code_generator : code_generator {
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.is_map_entry()) {
       auto *type_desc = descriptor.message_field_type_descriptor();
-      if (!descriptor.non_owning) {
-        std::string type = get_map_container_name(descriptor);
-        auto transform_if_bool = [&type](const std::string &name) {
-          // when using flat_map with bool, it would make std::vector<bool> as one of its members; which is not what we
-          // want.
-          return (type == "hpp::proto::flat_map" && name == "bool") ? std::string{"hpp::proto::boolean"} : name;
-        };
-        return fmt::format("{}<{},{}>", type, transform_if_bool(type_desc->fields().front().cpp_field_type),
-                           transform_if_bool(type_desc->fields()[1].cpp_field_type));
-      } else {
-        return fmt::format("hpp::proto::equality_comparable_span<std::pair<{},{}>>",
-                           type_desc->fields().front().cpp_field_type, type_desc->fields()[1].cpp_field_type);
-      }
+      std::string type = get_map_container_name(descriptor);
+      return fmt::format("{}<{},{}>", type, type_desc->fields().front().cpp_field_type,
+                         type_desc->fields()[1].cpp_field_type);
     }
 
     auto wrapper = field_type_wrapper(descriptor);
@@ -1104,10 +1082,6 @@ struct msg_code_generator : code_generator {
       fmt::format_to(target, "{}constexpr static bool glaze_reflect = false;\n", indent());
     }
 
-    for (auto &e : descriptor.enums()) {
-      process(e, qualified_cpp_name);
-    }
-
     for (auto *m : order_messages(descriptor.messages())) {
       process(*m, qualified_cpp_name, descriptor.pb_name);
     }
@@ -1127,101 +1101,34 @@ struct msg_code_generator : code_generator {
     }
 
     if (!descriptor.proto().extension_range.empty()) {
-      if (!descriptor.non_owning) {
-        fmt::format_to(target,
-                       "\n"
-                       "{0}struct extension_t {{\n"
-                       "{0}  using pb_extension = {1};\n"
-                       "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
-                       "{0}  bool operator==(const extension_t &other) const = default;\n"
-                       "{0}}} extensions;\n\n"
-                       "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
-                       "{0}  return meta.read(extensions);\n"
-                       "{0}}}\n"
-                       "{0}template<typename Meta>\n"
-                       "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
-                       "{0}  return meta.write(extensions, std::move(value));\n"
-                       "{0}}}\n"
-                       "{0}template<typename Meta>\n"
-                       "{0}requires Meta::is_repeated\n"
-                       "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename "
-                       "Meta::element_type> value) {{\n"
-                       "{0}  return meta.write(extensions, std::span<const typename "
-                       "Meta::element_type>{{value.begin(), value.end()}});\n"
-                       "{0}}}\n"
-                       "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
-                       "{0}  return meta.element_of(extensions);\n"
-                       "{0}}}\n",
-                       indent(), descriptor.cpp_name);
-
-      } else {
-        fmt::format_to(
-            target,
-            "\n"
-            "{0}struct extension_t {{\n"
-            "{0}  using pb_extension = {1};\n"
-            "{0}  hpp::proto::equality_comparable_span<std::pair<uint32_t, hpp::proto::bytes_view>> fields;\n"
-            "{0}  bool operator==(const extension_t&) const = default;\n"
-            "{0}}} extensions;\n\n"
-            "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && "
-            "...option) const {{\n"
-            "{0}  return meta.read(extensions, std::forward<decltype(option)>(option)...);\n"
-            "{0}}}\n"
-            "{0}template<typename Meta>\n"
-            "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value,\n"
-            "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
-            "{0}  return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);\n"
-            "{0}}}\n"
-            "{0}template<typename Meta>\n"
-            "{0}requires Meta::is_repeated\n"
-            "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
-            "{0}                                 std::initializer_list<typename Meta::element_type> value,\n"
-            "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
-            "{0}  return meta.write(extensions, std::span<const typename Meta::element_type>{{value.begin(), "
-            "value.end()}}, std::forward<decltype(option)>(option)...);\n"
-            "{0}}}\n"
-            "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
-            "{0}  return meta.element_of(extensions);\n"
-            "{0}}}\n",
-            indent(), descriptor.cpp_name);
-      }
+      fmt::format_to(target,
+                     "\n"
+                     "{0}struct extension_t {{\n"
+                     "{0}  using pb_extension = {1};\n"
+                     "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
+                     "{0}  bool operator==(const extension_t &other) const = default;\n"
+                     "{0}}} extensions;\n\n"
+                     "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
+                     "{0}  return meta.read(extensions);\n"
+                     "{0}}}\n"
+                     "{0}template<typename Meta>\n"
+                     "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
+                     "{0}  return meta.write(extensions, std::move(value));\n"
+                     "{0}}}\n"
+                     "{0}template<typename Meta>\n"
+                     "{0}requires Meta::is_repeated\n"
+                     "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename "
+                     "Meta::element_type> value) {{\n"
+                     "{0}  return meta.write(extensions, std::span<const typename "
+                     "Meta::element_type>{{value.begin(), value.end()}});\n"
+                     "{0}}}\n"
+                     "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
+                     "{0}  return meta.element_of(extensions);\n"
+                     "{0}}}\n",
+                     indent(), descriptor.cpp_name);
     }
 
     fmt::format_to(target, "\n{0}bool operator == (const {1}&) const = default;\n", indent(), descriptor.cpp_name);
-
-    if (descriptor.non_owning) {
-      bool need_explicit_constructors = false;
-      for (auto &f : descriptor.fields()) {
-        if (f.is_recursive && f.proto().label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
-          need_explicit_constructors = true;
-        }
-      }
-
-      if (need_explicit_constructors) {
-        std::string copy_constructor_init_list;
-        int i = 0;
-        for (auto &f : descriptor.fields()) {
-          if (i > 0) {
-            copy_constructor_init_list += ",";
-          }
-          if (f.is_recursive && f.proto().label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED) {
-            copy_constructor_init_list += fmt::format("{0}(other.{0}.data(), other.{0}.size())", f.cpp_name);
-          } else {
-            copy_constructor_init_list += fmt::format("{0}(other.{0})", f.cpp_name);
-          }
-          ++i;
-        }
-
-        fmt::format_to(target,
-                       "#ifdef __clang__\n"
-                       "{0}constexpr {1}() noexcept = default;\n"
-                       "{0}constexpr {1}(const {1}& other) noexcept\n"
-                       "{0}  : {2}{{}}\n"
-                       "{0}constexpr {1}& operator=(const {1}& other) noexcept = default;\n"
-                       "#endif // __clang__\n",
-                       indent(), descriptor.cpp_name, copy_constructor_init_list);
-      }
-    }
 
     indent_num -= 2;
     fmt::format_to(target, "{}}};\n\n", indent());
@@ -1737,10 +1644,7 @@ struct glaze_meta_generator : code_generator {
     using enum google::protobuf::FieldDescriptorProto::Type;
     using enum google::protobuf::FieldDescriptorProto::Label;
 
-    if (descriptor.non_owning && descriptor.is_recursive) {
-      fmt::format_to(target, "    \"{}\", hpp::proto::as_optional_message_view_ref<&T::{}>,\n",
-                     descriptor.proto().json_name, descriptor.cpp_name);
-    } else if (descriptor.is_cpp_optional && descriptor.proto().type != TYPE_BOOL) {
+    if (descriptor.is_cpp_optional && descriptor.proto().type != TYPE_BOOL) {
       // we remove operator! from hpp::optional<bool> to make the interface less confusing; however, this
       // make it unfulfilling the optional concept in glaze library; therefor, we need to apply as_optional_ref
       // as a workaround.
@@ -1976,8 +1880,6 @@ int main(int argc, const char **argv) {
       code_generator::directory_prefix = opt_value;
     } else if (opt_key == "namespace_prefix") {
       hpp_addons::namespace_prefix = make_qualified_cpp_name("", opt_value);
-    } else if (opt_key == "non_owning") {
-      hpp_addons::non_owning_mode = true;
     } else if (opt_key == "string_keyed_map") {
       hpp_addons::string_keyed_map = make_qualified_cpp_name("", opt_value);
     } else if (opt_key == "numeric_keyed_map") {
