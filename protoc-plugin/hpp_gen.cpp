@@ -531,7 +531,8 @@ struct hpp_addons {
     std::set<FieldD *> used_by_fields;
     std::set<MessageD *> forward_messages;
     bool has_recursive_map_field = false;
-    bool needs_templating = false;
+    enum class AnalysisState { Unknown, True, False };
+    AnalysisState needs_traits = AnalysisState::Unknown;
 
     explicit message_descriptor(const gpb::DescriptorProto &proto)
         : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)) {}
@@ -850,8 +851,40 @@ struct msg_code_generator : code_generator {
         }
       }
     }
+
+    for (auto &message : pool.messages()) {
+      std::unordered_set<message_descriptor_t *> recursion_stack;
+      resolve_needs_traits(message, recursion_stack);
+    }
   }
   // NOLINTEND(readability-function-cognitive-complexity)
+
+  static bool resolve_needs_traits(message_descriptor_t &message,
+                                   std::unordered_set<message_descriptor_t *> &recursion_stack) {
+    if (message.needs_traits != message_descriptor_t::AnalysisState::Unknown) {
+      return message.needs_traits == message_descriptor_t::AnalysisState::True;
+    }
+
+    if (recursion_stack.count(&message)) {
+      return false;
+    }
+
+    recursion_stack.insert(&message);
+
+    bool result = std::ranges::any_of(message.fields(), [&](auto &field) {
+      using enum gpb::FieldDescriptorProto::Type;
+      auto type = field.proto().type;
+      return (type == TYPE_STRING || type == TYPE_BYTES ||
+              field.proto().label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED ||
+              ((type == TYPE_MESSAGE || type == TYPE_GROUP) &&
+               resolve_needs_traits(*field.message_field_type_descriptor(), recursion_stack)));
+    });
+
+    recursion_stack.erase(&message);
+    message.needs_traits =
+        result ? message_descriptor_t::AnalysisState::True : message_descriptor_t::AnalysisState::False;
+    return result;
+  }
 
   void process(file_descriptor_t &descriptor) {
     syntax = descriptor.syntax;
@@ -1074,6 +1107,9 @@ struct msg_code_generator : code_generator {
     }
 
     std::string attribute;
+    if (descriptor.needs_traits == message_descriptor_t::AnalysisState::True) {
+      attribute = "template <typename Traits = ::hpp::proto::default_traits>\n";
+    }
 
     fmt::format_to(target, "{}struct {}{} {{\n", indent(), attribute, descriptor.cpp_name);
     indent_num += 2;
