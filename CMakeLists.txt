@@ -10,6 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
+option(HPP_PROTO_WELLKNOWN_TYPES "Enable code generation for Wellknown types" ${HPP_PROTO_PROTOC_PLUGIN})
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 
@@ -141,7 +142,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     install(TARGETS protoc EXPORT hpp_proto-targets)
   endif()
 
-  install(TARGETS libhpp_proto well_known_types EXPORT hpp_proto-targets)
+  install(TARGETS libhpp_proto EXPORT hpp_proto-targets)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)

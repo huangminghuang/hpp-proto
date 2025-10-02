@@ -798,4 +798,23 @@ constexpr static void reserve(T &mut, std::size_t size) {
     mut.replace(std::move(keys), std::move(values));
   }
 }
+
+struct default_traits {
+  template <typename T>
+  using vector_t = std::vector<T>;
+  using string_t = std::string;
+  using bytes_t = vector_t<std::byte>;
+  template <typename Key, typename Mapped>
+  using map_t = hpp::proto::flat_map<Key, Mapped>;
+};
+
+struct non_owning_traits {
+ template <typename T>
+  using vector_t = std::span<T>;
+  using string_t = std::string_view;
+  using bytes_t = equality_comparable_span<const std::byte>;
+
+  template <typename Key, typename Mapped>
+  using map_t = equality_comparable_span<std::pair<Key, Mapped>>;
+};
 } // namespace hpp::proto

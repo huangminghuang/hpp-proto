@@ -15,7 +15,7 @@ if(MSVC)
     target_compile_options(protoc-gen-hpp PRIVATE /bigobj)
 endif()
 
-if(Protobuf_INCLUDE_DIRS)
+if(HPP_PROTO_WELLKNOWN_TYPES AND Protobuf_INCLUDE_DIRS)
     set(proto_files google/protobuf/descriptor.proto
         google/protobuf/compiler/plugin.proto)
 
@@ -68,4 +68,5 @@ if(Protobuf_INCLUDE_DIRS)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../include>
         $<INSTALL_INTERFACE:include>)
     add_library(hpp_proto::well_known_types ALIAS well_known_types)
+    install(TARGETS well_known_types EXPORT hpp_proto-targets)
 endif()

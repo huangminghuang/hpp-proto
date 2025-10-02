@@ -31,6 +31,21 @@
             }
         },
         {
+            "name": "protoc-gen-hpp-dev",
+            "inherits": "default",
+            "displayName": "protoc-gen-hpp Developer Mode",
+            "description": "Builds hpp-proto core library unit tests and protoc-gen-hpp only",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "HPP_PROTO_PROTOC_PLUGIN": true,
+                "HPP_PROTO_WELLKNOWN_TYPES": false,
+                "HPP_PROTO_TESTS": false,
+                "HPP_PROTO_BENCHMARKS": false,
+                "HPP_PROTO_ENABLE_SANITIZERS": "address,undefined"
+            }
+        },
+        {
             "name": "dev",
             "inherits": "default",
             "displayName": "Developer Mode",
