@@ -211,15 +211,15 @@ else()
     add_executable(proto3_decode proto3_decode.cpp)
     target_link_libraries(proto3_decode PRIVATE unittest_proto3_proto_lib)
 
-    add_library(hpp_options_test_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/hpp_options_test.proto")
-    protobuf_generate_hpp(
-            TARGET hpp_options_test_lib
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-    target_include_directories(hpp_options_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+    # add_library(hpp_options_test_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/hpp_options_test.proto")
+    # protobuf_generate_hpp(
+    #         TARGET hpp_options_test_lib
+    #         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+    #         PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    # target_include_directories(hpp_options_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 
-    add_executable(hpp_options_test hpp_options_test.cpp)
-    target_link_libraries(hpp_options_test PRIVATE hpp_options_test_lib)
+    # add_executable(hpp_options_test hpp_options_test.cpp)
+    # target_link_libraries(hpp_options_test PRIVATE hpp_options_test_lib)
 
     add_executable(dynamic_message_test dynamic_message_test.cpp)
     target_link_libraries(dynamic_message_test PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)

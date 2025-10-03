@@ -236,15 +236,11 @@ std::string to_hex_literal(hpp::proto::concepts::contiguous_byte_range auto cons
 } // namespace
 struct hpp_addons {
   static hpp::proto::optional<std::string> namespace_prefix;
-  static hpp::proto::optional<std::string> string_keyed_map;
-  static hpp::proto::optional<std::string> numeric_keyed_map;
 
   static google::protobuf::FileOptions::extension_t default_file_options_extensions() {
     google::protobuf::FileOptions::extension_t extensions;
     if (!hpp::proto::hpp_file_opts()
-             .write(extensions, hpp::proto::FileOptions{.namespace_prefix = namespace_prefix,
-                                                        .string_keyed_map = string_keyed_map,
-                                                        .numeric_keyed_map = numeric_keyed_map})
+             .write(extensions, hpp::proto::FileOptions{.namespace_prefix = namespace_prefix})
              .ok()) {
       std::cerr << "Failed to set default file options extensions\n";
       exit(1);
@@ -252,47 +248,6 @@ struct hpp_addons {
     return extensions;
   }
 
-  static void adapt_option_extensions(google::protobuf::MessageOptions::extension_t &extensions,
-                                      const google::protobuf::FileOptions::extension_t &inherited) {
-    auto opts = hpp::proto::hpp_file_opts().read(inherited);
-    if (opts.has_value()) {
-      if (!hpp::proto::hpp_message_opts()
-               .write(extensions, hpp::proto::MessageOptions{.string_keyed_map = opts->string_keyed_map,
-                                                             .numeric_keyed_map = opts->numeric_keyed_map})
-               .ok()) {
-        std::cerr << "Failed to write message options extensions\n";
-        exit(1);
-      }
-    }
-  }
-
-  static void adapt_option_extensions(google::protobuf::FieldOptions::extension_t &extensions,
-                                      const google::protobuf::FileOptions::extension_t &inherited) {
-    auto opts = hpp::proto::hpp_file_opts().read(inherited);
-    if (opts.has_value()) {
-      if (!hpp::proto::hpp_field_opts()
-               .write(extensions, hpp::proto::FieldOptions{.string_keyed_map = opts->string_keyed_map,
-                                                           .numeric_keyed_map = opts->numeric_keyed_map})
-               .ok()) {
-        std::cerr << "Failed to write field options extensions\n";
-        exit(1);
-      }
-    }
-  }
-
-  static void adapt_option_extensions([[maybe_unused]] google::protobuf::FieldOptions::extension_t &extensions,
-                                      [[maybe_unused]] const google::protobuf::MessageOptions::extension_t &inherited) {
-    auto opts = hpp::proto::hpp_message_opts().read(inherited);
-    if (opts.has_value()) {
-      if (!hpp::proto::hpp_field_opts()
-               .write(extensions, hpp::proto::FieldOptions{.string_keyed_map = opts->string_keyed_map,
-                                                           .numeric_keyed_map = opts->numeric_keyed_map})
-               .ok()) {
-        std::cerr << "Failed to write field options extensions\n";
-        exit(1);
-      }
-    }
-  }
   template <typename Derived>
   struct field_descriptor {
     std::string cpp_name;
@@ -305,6 +260,7 @@ struct hpp_addons {
     bool is_recursive = false;
     bool is_cpp_optional = false;
     bool is_closed_enum = false;
+    bool is_foreign = false;
 
     field_descriptor(const gpb::FieldDescriptorProto &proto, const std::string &parent_name)
         : cpp_name(resolve_keyword(proto.name)), qualified_parent_name(parent_name) {
@@ -531,8 +487,8 @@ struct hpp_addons {
     std::set<FieldD *> used_by_fields;
     std::set<MessageD *> forward_messages;
     bool has_recursive_map_field = false;
-    enum class AnalysisState { Unknown, True, False };
-    AnalysisState needs_traits = AnalysisState::Unknown;
+    enum class TraitAnalysisState { Unknown, True, False, Processing };
+    TraitAnalysisState needs_traits = TraitAnalysisState::Unknown;
 
     explicit message_descriptor(const gpb::DescriptorProto &proto)
         : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)) {}
@@ -581,8 +537,6 @@ struct hpp_addons {
 };
 
 hpp::proto::optional<std::string> hpp_addons::namespace_prefix;
-hpp::proto::optional<std::string> hpp_addons::string_keyed_map;
-hpp::proto::optional<std::string> hpp_addons::numeric_keyed_map;
 using hpp_gen_descriptor_pool = hpp::proto::descriptor_pool<hpp_addons>;
 
 const static std::map<std::string, std::string> well_known_codecs = {{"google.protobuf.Duration", "duration_codec"},
@@ -789,6 +743,7 @@ struct msg_code_generator : code_generator {
       // For enum types, adjust dependee_name to refer to the parent message of the enum
       if (type == TYPE_ENUM) {
         if (field.enum_field_type_descriptor()->parent_message() == nullptr) {
+          field.is_foreign = true;
           return;
         }
         dependee_name = dependee_name.substr(0, dependee_name.find_last_of('.'));
@@ -801,6 +756,8 @@ struct msg_code_generator : code_generator {
       // Extract the full qualified dependent and dependee names
       auto dependent_name = field_message_name.substr(0, field_message_name.find('.', common_ancestor.size() + 1));
       dependee_name = dependee_name.substr(0, dependee_name.find('.', common_ancestor.size() + 1));
+
+      field.is_foreign = (pool.get_message_descriptor(common_ancestor) == nullptr);
 
       // If the common ancestor equals dependee_name, the field's type is a nested enum of the enclosing message.
       // If the common ancestor equals dependent_name, the field's type is a nested message of the parent message.
@@ -853,23 +810,17 @@ struct msg_code_generator : code_generator {
     }
 
     for (auto &message : pool.messages()) {
-      std::unordered_set<message_descriptor_t *> recursion_stack;
-      resolve_needs_traits(message, recursion_stack);
+      resolve_needs_traits(message);
     }
   }
   // NOLINTEND(readability-function-cognitive-complexity)
 
-  static bool resolve_needs_traits(message_descriptor_t &message,
-                                   std::unordered_set<message_descriptor_t *> &recursion_stack) {
-    if (message.needs_traits != message_descriptor_t::AnalysisState::Unknown) {
-      return message.needs_traits == message_descriptor_t::AnalysisState::True;
+  static bool resolve_needs_traits(message_descriptor_t &message) {
+    if (message.needs_traits != message_descriptor_t::TraitAnalysisState::Unknown) {
+      return message.needs_traits == message_descriptor_t::TraitAnalysisState::True;
     }
 
-    if (recursion_stack.count(&message)) {
-      return false;
-    }
-
-    recursion_stack.insert(&message);
+    message.needs_traits = message_descriptor_t::TraitAnalysisState::Processing;
 
     bool result = std::ranges::any_of(message.fields(), [&](auto &field) {
       using enum gpb::FieldDescriptorProto::Type;
@@ -877,12 +828,12 @@ struct msg_code_generator : code_generator {
       return (type == TYPE_STRING || type == TYPE_BYTES ||
               field.proto().label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED ||
               ((type == TYPE_MESSAGE || type == TYPE_GROUP) &&
-               resolve_needs_traits(*field.message_field_type_descriptor(), recursion_stack)));
+               resolve_needs_traits(field.is_foreign ? field.message_field_type_descriptor()->root_message()
+                                                     : *field.message_field_type_descriptor())));
     });
 
-    recursion_stack.erase(&message);
     message.needs_traits =
-        result ? message_descriptor_t::AnalysisState::True : message_descriptor_t::AnalysisState::False;
+        result ? message_descriptor_t::TraitAnalysisState::True : message_descriptor_t::TraitAnalysisState::False;
     return result;
   }
 
@@ -945,22 +896,10 @@ struct msg_code_generator : code_generator {
     return "";
   }
 
-  static std::string get_map_container_name(const field_descriptor_t &descriptor) {
-    auto opts = descriptor.options().get_extension(hpp::proto::hpp_field_opts()).value_or(hpp::proto::FieldOptions{});
-    using enum gpb::FieldDescriptorProto::Type;
-    using namespace std::string_literals;
-    auto type_desc = descriptor.message_field_type_descriptor();
-    if (type_desc->fields().front().proto().type == TYPE_STRING) {
-      return opts.string_keyed_map.value_or("hpp::proto::flat_map"s);
-    } else {
-      return opts.numeric_keyed_map.value_or("hpp::proto::flat_map"s);
-    }
-  }
-
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.is_map_entry()) {
       auto *type_desc = descriptor.message_field_type_descriptor();
-      std::string type = get_map_container_name(descriptor);
+      std::string type = "hpp::proto::flat_map";
       return fmt::format("{}<{},{}>", type, type_desc->fields().front().cpp_field_type,
                          type_desc->fields()[1].cpp_field_type);
     }
@@ -1107,7 +1046,7 @@ struct msg_code_generator : code_generator {
     }
 
     std::string attribute;
-    if (descriptor.needs_traits == message_descriptor_t::AnalysisState::True) {
+    if (descriptor.needs_traits == message_descriptor_t::TraitAnalysisState::True) {
       attribute = "template <typename Traits = ::hpp::proto::default_traits>\n";
     }
 
@@ -1916,10 +1855,6 @@ int main(int argc, const char **argv) {
       code_generator::directory_prefix = opt_value;
     } else if (opt_key == "namespace_prefix") {
       hpp_addons::namespace_prefix = make_qualified_cpp_name("", opt_value);
-    } else if (opt_key == "string_keyed_map") {
-      hpp_addons::string_keyed_map = make_qualified_cpp_name("", opt_value);
-    } else if (opt_key == "numeric_keyed_map") {
-      hpp_addons::numeric_keyed_map = make_qualified_cpp_name("", opt_value);
     } else if (opt_key == "proto2_explicit_presence") {
       code_generator::proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "export_request") {
