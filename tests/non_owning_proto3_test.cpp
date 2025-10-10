@@ -2,24 +2,27 @@
 #include "gpb_proto_json/gpb_proto_json.hpp"
 #include "test_util.hpp"
 #include <boost/ut.hpp>
-#include <non_owning/google/protobuf/unittest_proto3.glz.hpp>
-#include <non_owning/google/protobuf/unittest_proto3.pb.hpp>
+#include <google/protobuf/unittest_proto3.glz.hpp>
+#include <google/protobuf/unittest_proto3.pb.hpp>
 
-using namespace non_owning;
 using namespace std::string_view_literals;
+
+using TestAllTypes = proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits>;
+using ForeignMessage = proto3_unittest::ForeignMessage<hpp::proto::non_owning_traits>;
+using TestUnpackedTypes = proto3_unittest::TestUnpackedTypes<hpp::proto::non_owning_traits>;
 
 // We selectively set/check a few representative fields rather than all fields
 // as this test is only expected to cover the basics of lite support.
-inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
+inline void SetAllFields(TestAllTypes *m) {
   m->optional_int32 = 100;
   m->optional_string = "asdf";
   m->optional_bytes = "jkl;"_bytes_view;
 
-  m->optional_nested_message = proto3_unittest::TestAllTypes::NestedMessage{.bb = 42};
+  m->optional_nested_message = TestAllTypes::NestedMessage{.bb = 42};
   m->optional_foreign_message.emplace().c = 43;
-  m->optional_nested_enum = proto3_unittest::TestAllTypes::NestedEnum::BAZ;
+  m->optional_nested_enum = TestAllTypes::NestedEnum::BAZ;
   m->optional_foreign_enum = proto3_unittest::ForeignEnum::FOREIGN_BAZ;
-  m->optional_lazy_message = proto3_unittest::TestAllTypes::NestedMessage{.bb = 45};
+  m->optional_lazy_message = TestAllTypes::NestedMessage{.bb = 45};
 
   const static int32_t repeated_int32[] = {100};
   m->repeated_int32 = repeated_int32;
@@ -27,26 +30,26 @@ inline void SetAllFields(proto3_unittest::TestAllTypes *m) {
   m->repeated_string = repeated_string;
   const static hpp::proto::bytes_view repeated_bytes[] = {"jkl;"_bytes_view};
   m->repeated_bytes = repeated_bytes;
-  const static proto3_unittest::TestAllTypes::NestedMessage repeated_nested_message[] = {
-      proto3_unittest::TestAllTypes::NestedMessage{.bb = 46}};
+  const static TestAllTypes::NestedMessage repeated_nested_message[] = {
+      TestAllTypes::NestedMessage{.bb = 46}};
   m->repeated_nested_message = repeated_nested_message;
-  const static proto3_unittest::ForeignMessage repeated_foreign_message[] = {proto3_unittest::ForeignMessage{.c = 47}};
+  const static ForeignMessage repeated_foreign_message[] = {ForeignMessage{.c = 47}};
   m->repeated_foreign_message = repeated_foreign_message;
-  const static proto3_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
-      proto3_unittest::TestAllTypes::NestedEnum::BAZ};
+  const static TestAllTypes::NestedEnum repeated_nested_enum[] = {
+      TestAllTypes::NestedEnum::BAZ};
   m->repeated_nested_enum = repeated_nested_enum;
   const static proto3_unittest::ForeignEnum repeated_foreign_enum[] = {proto3_unittest::ForeignEnum::FOREIGN_BAZ};
   m->repeated_foreign_enum = repeated_foreign_enum;
-  const static proto3_unittest::TestAllTypes::NestedMessage repeated_lazy_message[] = {
-      proto3_unittest::TestAllTypes::NestedMessage{.bb = 49}};
+  const static TestAllTypes::NestedMessage repeated_lazy_message[] = {
+      TestAllTypes::NestedMessage{.bb = 49}};
   m->repeated_lazy_message = repeated_lazy_message;
 
   m->oneof_field = 1U;
-  m->oneof_field = proto3_unittest::TestAllTypes::NestedMessage{.bb = 50};
+  m->oneof_field = TestAllTypes::NestedMessage{.bb = 50};
   m->oneof_field = "test"sv; // only this one remains set
 }
 
-inline void SetUnpackedFields(proto3_unittest::TestUnpackedTypes *message) {
+inline void SetUnpackedFields(TestUnpackedTypes *message) {
   const static int32_t repeated_int32[] = {601, 701};
   message->repeated_int32 = repeated_int32;
   const static int64_t repeated_int64[] = {602LL, 702LL};
@@ -74,12 +77,12 @@ inline void SetUnpackedFields(proto3_unittest::TestUnpackedTypes *message) {
   message->repeated_double = repeated_double;
   const static bool repeated_bool[] = {true, false};
   message->repeated_bool = repeated_bool;
-  const static proto3_unittest::TestAllTypes::NestedEnum repeated_nested_enum[] = {
-      proto3_unittest::TestAllTypes::NestedEnum::BAR, proto3_unittest::TestAllTypes::NestedEnum::BAZ};
+  const static TestAllTypes::NestedEnum repeated_nested_enum[] = {
+      TestAllTypes::NestedEnum::BAR, TestAllTypes::NestedEnum::BAZ};
   message->repeated_nested_enum = repeated_nested_enum;
 }
 
-inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
+inline void ExpectAllFieldsSet(const TestAllTypes &m) {
   namespace ut = boost::ut;
 
   ut::expect(100 == m.optional_int32);
@@ -88,7 +91,7 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
 
   ut::expect(m.optional_nested_message.has_value() && 42 == m.optional_nested_message->bb);
   ut::expect(m.optional_foreign_message.has_value() && 43 == m.optional_foreign_message->c);
-  ut::expect(proto3_unittest::TestAllTypes::NestedEnum::BAZ == m.optional_nested_enum);
+  ut::expect(TestAllTypes::NestedEnum::BAZ == m.optional_nested_enum);
   ut::expect(proto3_unittest::ForeignEnum::FOREIGN_BAZ == m.optional_foreign_enum);
   ut::expect(m.optional_lazy_message.has_value() && 45 == m.optional_lazy_message->bb);
 
@@ -103,7 +106,7 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   ut::expect(1 == m.repeated_foreign_message.size());
   ut::expect(47 == m.repeated_foreign_message[0].c);
   ut::expect(1 == m.repeated_nested_enum.size());
-  ut::expect(proto3_unittest::TestAllTypes::NestedEnum::BAZ == m.repeated_nested_enum[0]);
+  ut::expect(TestAllTypes::NestedEnum::BAZ == m.repeated_nested_enum[0]);
   ut::expect(1 == m.repeated_foreign_enum.size());
   ut::expect(proto3_unittest::ForeignEnum::FOREIGN_BAZ == m.repeated_foreign_enum[0]);
   ut::expect(1 == m.repeated_lazy_message.size());
@@ -112,7 +115,7 @@ inline void ExpectAllFieldsSet(const proto3_unittest::TestAllTypes &m) {
   ut::expect("test"sv == std::get<std::string_view>(m.oneof_field));
 }
 
-void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message) {
+void ExpectUnpackedFieldsSet(TestUnpackedTypes &message) {
   namespace ut = boost::ut;
 
   ut::expect(std::ranges::equal(std::vector{601, 701}, message.repeated_int32));
@@ -129,7 +132,7 @@ void ExpectUnpackedFieldsSet(proto3_unittest::TestUnpackedTypes &message) {
   ut::expect(std::ranges::equal(std::vector{612., 712.}, message.repeated_double));
   ut::expect(std::ranges::equal(std::array<bool, 2>{true, false}, message.repeated_bool));
   ut::expect(std::ranges::equal(
-      std::vector{proto3_unittest::TestAllTypes::NestedEnum::BAR, proto3_unittest::TestAllTypes::NestedEnum::BAZ},
+      std::vector{TestAllTypes::NestedEnum::BAR, TestAllTypes::NestedEnum::BAZ},
       message.repeated_nested_enum));
 }
 
@@ -139,10 +142,10 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
   auto unittest_proto3_descriptorset = read_file("unittest.desc.binpb");
 
   "protobuf"_test = [] {
-    proto3_unittest::TestAllTypes original;
+    TestAllTypes original;
     SetAllFields(&original);
 
-    proto3_unittest::TestAllTypes msg;
+    TestAllTypes msg;
 
     std::pmr::monotonic_buffer_resource mr;
     std::vector<std::byte> data;
@@ -154,10 +157,10 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
   };
 
   "unpacked_repeated"_test = [&] {
-    proto3_unittest::TestUnpackedTypes original;
+    TestUnpackedTypes original;
     SetUnpackedFields(&original);
 
-    proto3_unittest::TestUnpackedTypes msg;
+    TestUnpackedTypes msg;
 
     std::pmr::monotonic_buffer_resource mr;
     std::vector<char> data;
@@ -179,7 +182,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
 
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   "glaze"_test = [&] {
-    proto3_unittest::TestAllTypes original;
+    TestAllTypes original;
     SetAllFields(&original);
 
     std::pmr::monotonic_buffer_resource mr;
@@ -191,7 +194,7 @@ const boost::ut::suite non_owning_proto3_lite_test = [] {
     expect(fatal(!original_json.empty()));
     expect(hpp::proto::write_json(original).value() == original_json);
 
-    proto3_unittest::TestAllTypes msg;
+    TestAllTypes msg;
     expect(hpp::proto::read_json(msg, original_json, hpp::proto::alloc_from{mr}).ok());
 
     ExpectAllFieldsSet(msg);

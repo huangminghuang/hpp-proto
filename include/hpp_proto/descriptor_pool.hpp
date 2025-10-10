@@ -318,10 +318,12 @@ public:
     [[nodiscard]] const google::protobuf::MessageOptions &options() const { return options_; }
     [[nodiscard]] file_descriptor_t *parent_file() const { return parent_file_; }
     [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
-    [[nodiscard]] message_descriptor_t &root_message() { 
+    [[nodiscard]] message_descriptor_t &root_message() {
       auto result = this;
-      for (; result->parent_message_ != nullptr; result = result->parent_message_);
-      return *result; 
+      while (result->parent_message_ != nullptr) {
+         result = result->parent_message_;
+      }
+      return *result;
     }
 
     [[nodiscard]] bool is_map_entry() const { return proto_.options.has_value() && proto_.options->map_entry; }

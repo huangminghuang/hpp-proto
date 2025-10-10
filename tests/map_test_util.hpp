@@ -2,8 +2,9 @@
 #include "test_util.hpp"
 #include <boost/ut.hpp>
 #include <google/protobuf/map_unittest.pb.hpp>
+using TestMap = protobuf_unittest::TestMap<>;
 
-inline void SetMapFields(protobuf_unittest::TestMap *message) {
+inline void SetMapFields(TestMap *message) {
   // Add first element.
   message->map_int32_int32[0] = 0;
   message->map_int64_int64[0] = 0;
@@ -43,7 +44,7 @@ inline void SetMapFields(protobuf_unittest::TestMap *message) {
   message->map_int32_foreign_message[1].c = 1;
 }
 
-inline void ExpectMapFieldsSet(const protobuf_unittest::TestMap &message) {
+inline void ExpectMapFieldsSet(const TestMap &message) {
   using namespace boost::ut;
   using namespace std::literals::string_literals;
   expect(fatal(eq(2, message.map_int32_int32.size())));

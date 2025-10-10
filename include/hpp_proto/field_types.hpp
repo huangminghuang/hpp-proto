@@ -587,31 +587,34 @@ public:
 
   constexpr equality_comparable_span() noexcept = default;
   constexpr ~equality_comparable_span() noexcept = default;
-  constexpr equality_comparable_span(const equality_comparable_span &other) noexcept = default;
-  constexpr equality_comparable_span(equality_comparable_span &&other) noexcept = default;
-  constexpr equality_comparable_span &operator=(const equality_comparable_span &other) noexcept = default;
-  constexpr equality_comparable_span &operator=(equality_comparable_span &&other) noexcept = default;
+  constexpr equality_comparable_span(const equality_comparable_span &) noexcept = default;
+  constexpr equality_comparable_span(equality_comparable_span &&) noexcept = default;
+  constexpr equality_comparable_span &operator=(const equality_comparable_span &) noexcept = default;
+  constexpr equality_comparable_span &operator=(equality_comparable_span &&) noexcept = default;
 
   constexpr equality_comparable_span(T *data, std::size_t size) noexcept : _data(data), _size(size) {}
   constexpr equality_comparable_span(std::span<T> other) noexcept : _data(other.data()), _size(other.size()) {}
 
-  template <typename R>
-    requires requires(R &r) {
-      { std::ranges::data(r) } -> std::convertible_to<const T *>;
-    }
-  constexpr equality_comparable_span(R &other) noexcept
-      : equality_comparable_span(std::ranges::data(other), std::ranges::size(other)) {}
+  template <typename U>
+    requires std::is_convertible_v<U (*)[], T (*)[]>
+  constexpr equality_comparable_span(std::span<U> other) noexcept : _data(other.data()), _size(other.size()) {}
+
+  template <std::ranges::contiguous_range R>
+    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>) &&
+                std::convertible_to<decltype(std::ranges::data(std::declval<R &>())), T *>
+  constexpr equality_comparable_span(R &&r) noexcept : _data(std::ranges::data(r)), _size(std::ranges::size(r)) {}
 
   template <std::contiguous_iterator It>
-    requires std::assignable_from<T *, decltype(&(*std::declval<It>()))>
-  constexpr equality_comparable_span(It first, std::size_t size) noexcept : _data(&(*first)), _size(size) {}
+    requires std::convertible_to<decltype(std::to_address(std::declval<It &>())), T *>
+  constexpr equality_comparable_span(It first, std::size_t size) noexcept
+      : _data(std::to_address(first)), _size(size) {}
 
   template <std::contiguous_iterator It, class End>
     requires std::constructible_from<std::span<T>, It, End>
   constexpr equality_comparable_span(It first, End last) noexcept
       : equality_comparable_span(std::span<T>(first, last)) {}
 
-  operator std::span<T>() const noexcept { return std::span<T>(_data, _size); }
+  constexpr operator std::span<T>() const noexcept { return std::span<T>(_data, _size); }
 
   [[nodiscard]] constexpr T *data() const noexcept { return _data; }
   [[nodiscard]] constexpr size_type size() const noexcept { return _size; }
@@ -623,18 +626,24 @@ public:
     return *this;
   }
 
-  template <typename R>
-    requires requires(R &r) {
-      { std::ranges::data(r) } -> std::convertible_to<const T *>;
-    }
-  // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
-  constexpr equality_comparable_span &operator=(R &other) noexcept {
-    operator=(std::span<T>(other));
+  template <class U>
+    requires std::is_convertible_v<U (*)[], T (*)[]>
+  constexpr equality_comparable_span &operator=(std::span<U> s) noexcept {
+    _data = s.data();
+    _size = s.size();
+    return *this;
+  }
+
+  template <std::ranges::contiguous_range R>
+    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>) &&
+            std::is_convertible_v<std::remove_reference_t<std::ranges::range_reference_t<R>> (*)[], T (*)[]>
+  constexpr equality_comparable_span &operator=(R &r) noexcept {
+    _data = std::ranges::data(r);
+    _size = std::ranges::size(r);
     return *this;
   }
 
   [[nodiscard]] constexpr iterator begin() const noexcept { return _data; }
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr iterator end() const noexcept { return _data + _size; }
   [[nodiscard]] constexpr const_iterator cbegin() const noexcept { return _data; }
   [[nodiscard]] constexpr const_iterator cend() const noexcept { return _data + _size; }
@@ -643,30 +652,30 @@ public:
   [[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cend()); }
   [[nodiscard]] constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cbegin()); }
 
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr reference operator[](std::size_t idx) const noexcept { return _data[idx]; }
   [[nodiscard]] constexpr reference at(std::size_t idx) const {
-    if (idx >= _size) {
+    if (idx >= _size)
       throw std::out_of_range("equality_comparable_span::at");
-    }
-    return _data[idx]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return _data[idx];
   }
-
-  [[nodiscard]] constexpr reference front() const noexcept { return *_data; }
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  [[nodiscard]] constexpr reference back() const noexcept { return *(_data + _size - 1); }
-
   [[nodiscard]] constexpr bool empty() const noexcept { return _size == 0; }
 
-  [[nodiscard]] constexpr equality_comparable_span<element_type> first(size_type count) const {
-    return {data(), count};
+  [[nodiscard]] constexpr reference front() const noexcept {
+    assert(!_size);
+    return *_data;
   }
-  [[nodiscard]] constexpr equality_comparable_span<element_type> last(size_type count) const {
-    return {(data() + size() - count), count};
+  [[nodiscard]] constexpr reference back() const noexcept { return *(_data + _size - 1); }
+  [[nodiscard]] constexpr equality_comparable_span first(size_type count) const {
+    assert(count <= _size);
+    return {_data, count};
   }
-
-  [[nodiscard]] constexpr equality_comparable_span<element_type> subspan(size_type offset) const {
-    return {data() + offset, size() - offset};
+  [[nodiscard]] constexpr equality_comparable_span last(size_type count) const {
+    assert(count <= _size);
+    return {_data + (_size - count), count};
+  }
+  [[nodiscard]] constexpr equality_comparable_span subspan(size_type off) const {
+    assert(off <= _size);
+    return {_data + off, _size - off};
   }
 
   friend constexpr bool operator==(const equality_comparable_span<T> &lhs, const equality_comparable_span<T> &rhs) {
@@ -725,7 +734,9 @@ concept flat_map = requires {
   typename Type::mapped_type;
   typename Type::key_container_type;
   typename Type::mapped_container_type;
-  requires std::same_as<Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type, typename Type::key_container_type, typename Type::mapped_container_type>>;
+  requires std::same_as<
+      Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type,
+                                   typename Type::key_container_type, typename Type::mapped_container_type>>;
 };
 }; // namespace concepts
 
@@ -759,7 +770,9 @@ struct boolean {
   constexpr boolean() = default;
   constexpr boolean(bool v) : value(v) {}
   constexpr operator bool() const { return value; }
+  friend constexpr bool operator==(boolean, boolean) = default;
 };
+
 // NOLINTEND(hicpp-explicit-conversions)
 
 template <typename T, auto Default = std::monostate{}>
@@ -827,15 +840,19 @@ struct default_traits {
 
   template <typename Key, typename Mapped>
   using map_t = map_trait<Key, Mapped>::type;
+
+  struct unknown_fields_t {};
 };
 
 struct non_owning_traits {
- template <typename T>
-  using vector_t = std::span<T>;
+  template <typename T>
+  using vector_t = equality_comparable_span<const T>;
   using string_t = std::string_view;
   using bytes_t = equality_comparable_span<const std::byte>;
 
   template <typename Key, typename Mapped>
-  using map_t = equality_comparable_span<std::pair<Key, Mapped>>;
+  using map_t = equality_comparable_span<const std::pair<Key, Mapped>>;
+
+  struct unknown_fields_t {};
 };
 } // namespace hpp::proto

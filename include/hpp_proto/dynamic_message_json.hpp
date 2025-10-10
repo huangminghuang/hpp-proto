@@ -170,7 +170,7 @@ struct timestamp_message_json_serializer {
       return;
     }
     google::protobuf::Timestamp v{seconds_field->value(), nanos_field->value()};
-    to<JSON, google::protobuf::Timestamp>::template op<Opts>(v, ctx, b, ix);
+    to<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, b, ix);
   }
 };
 
@@ -192,7 +192,7 @@ struct duration_message_json_serializer {
       return;
     }
     google::protobuf::Duration v{seconds_field->value(), nanos_field->value()};
-    to<JSON, google::protobuf::Duration>::template op<Opts>(v, ctx, b, ix);
+    to<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, b, ix);
   }
 };
 

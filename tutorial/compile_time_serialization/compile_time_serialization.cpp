@@ -6,13 +6,14 @@ constexpr auto operator""_bytes_view() {
   return hpp::proto::bytes_view{data.data(), data.size()};
 }
 
-using enum tutorial::Person::PhoneType;
-constexpr std::array<const tutorial::Person::PhoneNumber, 1> alex_phones{
-    tutorial::Person::PhoneNumber{.number = "19890604", .type = PHONE_TYPE_MOBILE}};
+using Person = tutorial::Person<>;
+using enum Person::PhoneType;
+constexpr std::array<const Person::PhoneNumber, 1> alex_phones{
+    Person::PhoneNumber{.number = "19890604", .type = PHONE_TYPE_MOBILE}};
 
 int main() {
   constexpr auto alex_pb = hpp::proto::write_proto(
-      [] { return tutorial::Person{.name = "Alex", .id = 1, .email = "alex@email.com", .phones = alex_phones}; });
+      [] { return Person{.name = "Alex", .id = 1, .email = "alex@email.com", .phones = alex_phones}; });
 
   static_assert(std::ranges::equal(
       alex_pb,

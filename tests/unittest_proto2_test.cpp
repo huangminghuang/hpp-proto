@@ -1,10 +1,13 @@
 
 #include "gpb_proto_json/gpb_proto_json.hpp"
 #include "unittest_proto2_util.hpp"
-namespace ut = boost::ut;
+#include <google/protobuf/unittest.pb.hpp>
 
-using TestRequired_meta = decltype(pb_meta(std::declval<protobuf_unittest::TestRequired>()));
+using TestRequired_meta = decltype(pb_meta(std::declval<protobuf_unittest::TestRequired<>>()));
 static_assert(std::tuple_element_t<0, TestRequired_meta>::explicit_presence());
+static_assert(hpp::proto::concepts::has_meta<protobuf_unittest::TestAllTypes__::NestedMessage<hpp::proto::default_traits>>);
+//#if 0
+namespace ut = boost::ut;
 
 const ut::suite proto_test = [] {
   using namespace boost::ut;
@@ -31,9 +34,9 @@ const ut::suite proto_test = [] {
         TestUtil::ExpectAllSet(message2);
         TestUtil::ExpectAllSet(message3);
       } |
-      std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestAllExtensions,
-                 protobuf_unittest::TestUnpackedTypes, protobuf_unittest::TestPackedTypes,
-                 protobuf_unittest::TestPackedExtensions>{};
+      std::tuple<protobuf_unittest::TestAllTypes<>, protobuf_unittest::TestAllExtensions<>,
+                 protobuf_unittest::TestUnpackedTypes<>, protobuf_unittest::TestPackedTypes<>,
+                 protobuf_unittest::TestPackedExtensions<>>{};
 
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   "interoperate_with_google_protobuf_parser"_test =
@@ -56,8 +59,8 @@ const ut::suite proto_test = [] {
 
         TestUtil::ExpectAllSet(msg);
       } |
-      std::tuple<protobuf_unittest::TestAllTypes, protobuf_unittest::TestUnpackedTypes,
-                 protobuf_unittest::TestPackedTypes>{};
+      std::tuple<protobuf_unittest::TestAllTypes<>, protobuf_unittest::TestUnpackedTypes<>,
+                 protobuf_unittest::TestPackedTypes<>>{};
 #endif
 };
 
@@ -67,3 +70,6 @@ int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
 }
+// #endif
+
+// int main() {}

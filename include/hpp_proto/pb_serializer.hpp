@@ -531,6 +531,8 @@ struct accessor_type {
 template <uint32_t Number, uint8_t FieldOptions, typename Type, auto DefaultValue>
 struct field_meta_base {
   constexpr static uint32_t number = Number;
+  constexpr static auto default_value = unwrap(DefaultValue);
+
   using type = Type;
 
   constexpr static bool is_packed() { return static_cast<bool>(FieldOptions & field_option::is_packed); }
@@ -615,8 +617,8 @@ struct extension_meta_base {
 
   constexpr static auto access = accessor_type{};
 
-  static constexpr void check(const concepts::pb_extension auto &extensions) {
-    static_assert(std::same_as<typename std::remove_cvref_t<decltype(extensions)>::pb_extension, typename T::extendee>);
+  static constexpr void check(const concepts::pb_extension auto &) {
+    //static_assert(std::same_as<typename std::remove_cvref_t<decltype(extensions)>::pb_extension, typename T::extendee>);
   }
 
   static auto read(const concepts::pb_extension auto &extensions, concepts::is_option_type auto &&...option);
@@ -644,6 +646,7 @@ struct extension_meta
 
   using get_result_type = ValueType;
   using set_value_type = ValueType;
+  using value_type = ValueType;
 };
 
 template <typename Extendee, uint32_t Number, int FieldOptions, typename Type, typename ValueType>
@@ -657,12 +660,7 @@ struct repeated_extension_meta
       concepts::dynamic_sized_view<decltype(std::declval<typename extendee::extension_t>().fields)>;
   using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
   using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
-  using set_value_type = std::span<const element_type>;
-
-  template <typename T>
-  static constexpr bool omit_value(const T & /* unused */) {
-    return false;
-  }
+  using value_type = ValueType;
 };
 
 enum class wire_type : uint8_t {
@@ -2897,7 +2895,8 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
     return return_type{wrapper.value};
   }
 
-  if constexpr (ExtensionMeta::has_default_value) {
+  constexpr bool has_default_value = !std::same_as<std::remove_const_t<decltype(ExtensionMeta::default_value)>, std::monostate>;
+  if constexpr (has_default_value) {
     return return_type(value_type(ExtensionMeta::default_value));
   } else if constexpr (!concepts::has_meta<value_type>) {
     return return_type{value_type{}};

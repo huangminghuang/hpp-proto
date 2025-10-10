@@ -11,8 +11,11 @@ inline void expect(bool condition, const std::source_location location = std::so
   }
 }
 
+using Person = tutorial::Person<>;
+using AddressBook = tutorial::AddressBook<>;
+
 int main() {
-  using enum tutorial::Person::PhoneType;
+  using enum Person::PhoneType;
   tutorial::AddressBook address_book{
       .people = {{.name = "Alex",
                   .id = 1,
@@ -32,36 +35,36 @@ int main() {
   auto write_result = hpp::proto::write_proto(address_book);
   expect(write_result.has_value());
 
-  auto read_result = hpp::proto::read_proto<tutorial::AddressBook>(write_result.value());
+  auto read_result = hpp::proto::read_proto<AddressBook>(write_result.value());
   expect(address_book == read_result.value());
 
-  std::vector<tutorial::Person> &people = address_book.people;
+  std::vector<Person> &people = address_book.people;
   expect(people.size() == 2);
-  tutorial::Person &alex = address_book.people[0];
+  Person &alex = address_book.people[0];
   std::string &alex_name = alex.name;
   expect(alex_name == "Alex");
   int32_t &alex_id = alex.id;
   expect(alex_id == 1);
-  std::vector<tutorial::Person::PhoneNumber> &alex_phones = alex.phones;
+  std::vector<Person::PhoneNumber> &alex_phones = alex.phones;
   expect(alex_phones[0].number == "19890604");
   expect(alex_phones[0].type == PHONE_TYPE_MOBILE);
-  std::optional<tutorial::Person::NestedMessage> &alex_nested_message = alex.nested_message;
+  std::optional<Person::NestedMessage> &alex_nested_message = alex.nested_message;
   expect(alex_nested_message.has_value());
   // NOLINTBEGIN(bugprone-unchecked-optional-access)
   expect(alex_nested_message->bb == 89);
   // NOLINTEND(bugprone-unchecked-optional-access)
 
-  std::variant<std::monostate, uint32_t, tutorial::Person::NestedMessage, std::string, hpp::proto::bytes>
+  std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string, hpp::proto::bytes>
       &alex_oneof_field = alex.oneof_field;
 
-  expect(alex_oneof_field.index() == tutorial::Person::oneof_field_oneof_case::oneof_string);
+  expect(alex_oneof_field.index() == Person::oneof_field_oneof_case::oneof_string);
   expect(std::get<std::string>(alex_oneof_field) ==
          "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
 
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   auto write_json_result = hpp::proto::write_json(address_book);
   expect(write_json_result.has_value());
-  auto read_json_result = hpp::proto::read_json<tutorial::AddressBook>(write_json_result.value());
+  auto read_json_result = hpp::proto::read_json<AddressBook>(write_json_result.value());
   expect(address_book == read_json_result.value());
 #endif
   return 0;

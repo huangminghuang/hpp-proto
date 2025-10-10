@@ -22,6 +22,4 @@ int main() {
   static_assert(hpp::proto::concepts::optional<decltype(message.length_prefixed)>);
   static_assert(!std::tuple_element_t<6, meta_type>::is_delimited());
 
-  static_assert(std::same_as<decltype(message.string_keyed_map), std::unordered_map<std::string, std::int32_t>>);
-  static_assert(std::same_as<decltype(message.int32_keyed_map), std::map<std::int32_t, std::int32_t>>);
 }

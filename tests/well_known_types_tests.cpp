@@ -67,7 +67,7 @@ void verify(const hpp::proto::dynamic_serializer &ser, const T &msg, std::string
 }
 
 const ut::suite test_timestamp = [] {
-  using timestamp_t = google::protobuf::Timestamp;
+  using timestamp_t = google::protobuf::Timestamp<>;
 
   auto ser =
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_timestamp_proto());
@@ -104,7 +104,7 @@ const ut::suite test_timestamp = [] {
 };
 
 const ut::suite test_duration = [] {
-  using duration_t = google::protobuf::Duration;
+  using duration_t = google::protobuf::Duration<>;
   auto ser =
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_duration_proto());
   expect(fatal((ser.has_value())));
@@ -140,7 +140,7 @@ const ut::suite test_field_mask = [] {
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_field_mask_proto());
   expect(fatal((ser.has_value())));
 
-  using namespace google::protobuf;
+  using FieldMask = google::protobuf::FieldMask<>;
   verify<FieldMask>(*ser, FieldMask{}, R"("")");
   verify<FieldMask>(*ser, FieldMask{.paths = {"abc", "def"}}, R"("abc,def")");
 };
@@ -150,7 +150,7 @@ const ut::suite test_wrapper = [] {
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_wrappers_proto());
   expect(fatal((ser.has_value())));
   "wrapper"_test = [&ser] {
-    using namespace google::protobuf;
+    using Int64Value = google::protobuf::Int64Value<>;
     verify<Int64Value>(*ser, Int64Value{1000}, R"("1000")");
 
     std::string json_buf;
@@ -168,21 +168,23 @@ const ut::suite test_wrapper = [] {
 };
 
 const ut::suite test_empty = [] {
-  using namespace google::protobuf;
   auto ser = hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_empty_proto());
   expect(fatal((ser.has_value())));
+  using Empty = google::protobuf::Empty<>;
   verify<Empty>(*ser, Empty{}, "{}");
 };
 
 #if !defined(_MSC_VER) || (_MSC_VER > 1937)
 
 const ut::suite test_value = [] {
-  using namespace google::protobuf;
   using namespace boost::ut;
   auto ser =
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_struct_proto());
   expect(fatal((ser.has_value())));
-
+  using Value = google::protobuf::Value<>;
+  using NullValue = google::protobuf::NullValue;
+  using ListValue = google::protobuf::ListValue<>;
+  using Struct = google::protobuf::Struct<>;
   "value"_test = [&ser] {
     verify<Value>(*ser, Value{.kind = NullValue{}}, "null");
     verify<Value>(*ser, Value{.kind = true}, "true");
@@ -195,6 +197,8 @@ const ut::suite test_value = [] {
   };
 
   "struct"_test = [&ser] {
+    using Struct = google::protobuf::Struct<>;
+    using NullValue = google::protobuf::NullValue;
     verify<Struct>(*ser, Struct{}, "{}");
     verify<Struct>(
         *ser,
@@ -213,6 +217,7 @@ const ut::suite test_value = [] {
   };
 
   "list"_test = [&ser] {
+    using ListValue = google::protobuf::ListValue<>;
     verify<ListValue>(*ser, ListValue{}, "[]");
     verify<ListValue>(*ser, ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}, "[true,1]",
                       "[\n   true,\n   1\n]");

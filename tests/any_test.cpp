@@ -6,8 +6,6 @@
 #include <google/protobuf/field_mask.pb.hpp>
 #include <google/protobuf/unittest_proto3.desc.hpp>
 #include <google/protobuf/unittest_proto3.pb.hpp>
-#include <non_owning/google/protobuf/any_test.pb.hpp>
-#include <non_owning/google/protobuf/field_mask.pb.hpp>
 
 #include "test_util.hpp"
 #include <boost/ut.hpp>
@@ -29,25 +27,26 @@ const suite test_any = [] {
     expect(hpp::proto::unpack_any(message2.any_value.value(), fm2).ok());
     expect(fm == fm2);
 
-    expect(!hpp::proto::unpack_any<proto3_unittest::ForeignMessage>(message2.any_value.value()).has_value());
+    expect(!hpp::proto::unpack_any<proto3_unittest::ForeignMessage<>>(message2.any_value.value()).has_value());
   };
 
   "non_owning_any"_test = [] {
     using namespace std::string_view_literals;
 
     std::pmr::monotonic_buffer_resource mr;
+    using TestAny = protobuf_unittest::TestAny<hpp::proto::non_owning_traits>;
 
-    non_owning::protobuf_unittest::TestAny message;
+    TestAny message;
     std::array<std::string_view, 2> paths{"/usr/share"sv, "/usr/local/share"sv};
-    non_owning::google::protobuf::FieldMask fm{.paths = paths};
+    google::protobuf::FieldMask<hpp::proto::non_owning_traits> fm{.paths = paths};
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm, hpp::proto::alloc_from{mr}).ok());
 
     std::vector<char> buf;
     expect(hpp::proto::write_proto(message, buf).ok());
 
-    non_owning::protobuf_unittest::TestAny message2;
+    TestAny message2;
     expect(hpp::proto::read_proto(message2, buf, hpp::proto::alloc_from{mr}).ok());
-    non_owning::google::protobuf::FieldMask fm2;
+    google::protobuf::FieldMask<hpp::proto::non_owning_traits> fm2;
     expect(hpp::proto::unpack_any(message2.any_value.value(), fm2, hpp::proto::alloc_from{mr}).ok());
     expect(std::ranges::equal(paths, fm2.paths));
   };

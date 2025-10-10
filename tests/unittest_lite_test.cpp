@@ -28,8 +28,8 @@ const ut::suite proto_test = [] {
         TestUtil::ExpectAllSet(message2);
         TestUtil::ExpectAllSet(message3);
       } |
-      std::tuple<protobuf_unittest::TestAllTypesLite, protobuf_unittest::TestAllExtensionsLite,
-                 protobuf_unittest::TestPackedTypesLite, protobuf_unittest::TestPackedExtensionsLite>{};
+      std::tuple<protobuf_unittest::TestAllTypesLite<>, protobuf_unittest::TestAllExtensionsLite<>,
+                 protobuf_unittest::TestPackedTypesLite<>, protobuf_unittest::TestPackedExtensionsLite<>>{};
 
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   "interoperate_with_google_protobuf_parser"_test = [&]<class T> {
@@ -50,7 +50,7 @@ const ut::suite proto_test = [] {
     expect(hpp::proto::read_json(msg, original_json).ok());
 
     TestUtil::ExpectAllSet(msg);
-  } | std::tuple<protobuf_unittest::TestAllTypesLite, protobuf_unittest::TestPackedTypesLite>{};
+  } | std::tuple<protobuf_unittest::TestAllTypesLite<>, protobuf_unittest::TestPackedTypesLite<>>{};
 #endif
 };
 

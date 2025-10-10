@@ -212,7 +212,11 @@ std::size_t shared_scope_position(std::string_view s1, std::string_view s2) {
       return pos;
     }
   }
-  return std::string_view::npos;
+  return 0;
+}
+
+std::string_view get_common_ancestor(std::string_view s1, std::string_view s2) {
+  return s1.substr(0, shared_scope_position(s1, s2));
 }
 
 std::array<char, 4> to_hex_literal(hpp::proto::concepts::byte_type auto c) {
@@ -313,7 +317,7 @@ struct hpp_addons {
         cpp_meta_type = "bool";
         break;
       case TYPE_STRING:
-        cpp_field_type = "std::string";
+        cpp_field_type = "typename Traits::string_t";
         qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_GROUP:
@@ -321,7 +325,7 @@ struct hpp_addons {
       case TYPE_ENUM:
         break;
       case TYPE_BYTES:
-        cpp_field_type = "hpp::proto::bytes";
+        cpp_field_type = "typename Traits::bytes_t";
         qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_UINT32:
@@ -347,23 +351,6 @@ struct hpp_addons {
         qualified_cpp_field_type = cpp_field_type;
         cpp_meta_type = "hpp::proto::vsint64_t";
         break;
-      }
-    }
-
-    void set_user_cpp_type(const std::string &namespace_prefix, const google::protobuf::FieldDescriptorProto &proto) {
-      if (!proto.type_name.empty()) {
-        auto type_name = proto.type_name.substr(1); // remove leading "."
-        auto pos = shared_scope_position(qualified_parent_name, type_name);
-
-        is_recursive = (pos == type_name.size());
-        qualified_cpp_field_type = make_qualified_cpp_name(namespace_prefix, proto.type_name);
-        if (pos == 0) {
-          cpp_field_type = qualified_cpp_field_type;
-        } else if (is_recursive) {
-          cpp_field_type = resolve_keyword(proto.type_name.substr(proto.type_name.find_last_of('.') + 1));
-        } else {
-          cpp_field_type = make_qualified_cpp_name(namespace_prefix, proto.type_name.substr(pos + 2));
-        }
       }
     }
 
@@ -402,11 +389,9 @@ struct hpp_addons {
       }
     }
 
-    void set_enum_default_value(const std::string &namespace_prefix,
-                                const google::protobuf::FieldDescriptorProto &proto) {
+    void set_enum_default_value(const google::protobuf::FieldDescriptorProto &proto) {
       default_value = fmt::format("{}::{}", cpp_field_type, proto.default_value);
-      default_value_template_arg =
-          fmt::format("{}::{}", make_qualified_cpp_name(namespace_prefix, proto.type_name), proto.default_value);
+      default_value_template_arg = fmt::format("{}::{}", qualified_cpp_field_type, proto.default_value);
     }
 
     void set_integer_default_value(const google::protobuf::FieldDescriptorProto &proto) {
@@ -456,6 +441,7 @@ struct hpp_addons {
   struct enum_descriptor {
     std::string cpp_name;
     std::vector<int> sorted_values;
+    std::string qualified_name;
     bool continuous = true;
 
     explicit enum_descriptor(const gpb::EnumDescriptorProto &proto) : cpp_name(resolve_keyword(proto.name)) {
@@ -486,12 +472,16 @@ struct hpp_addons {
     std::set<MessageD *> dependencies;
     std::set<FieldD *> used_by_fields;
     std::set<MessageD *> forward_messages;
+    std::string qualified_name;
+    std::string no_namespace_qualified_name;
     bool has_recursive_map_field = false;
-    enum class TraitAnalysisState { Unknown, True, False, Processing };
-    TraitAnalysisState needs_traits = TraitAnalysisState::Unknown;
+    bool has_non_map_nested_message = false;
 
     explicit message_descriptor(const gpb::DescriptorProto &proto)
-        : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)) {}
+        : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)),
+          has_non_map_nested_message(std::ranges::any_of(proto.nested_type, [](const gpb::DescriptorProto &submsg) {
+            return !submsg.options.has_value() || !submsg.options->map_entry;
+          })) {}
 
     void on_options_resolved(const gpb::DescriptorProto &, const gpb::MessageOptions &) {}
   };
@@ -717,6 +707,35 @@ struct msg_code_generator : code_generator {
 
   static std::string namespace_prefix_of(const auto &d) { return d.parent_file()->namespace_prefix; }
 
+  static void set_field_cpp_type(field_descriptor_t &field, std::string_view relative_type_name, bool is_nested) {
+    using enum google::protobuf::FieldDescriptorProto::Type;
+    auto type = field.proto().type;
+    if (type == TYPE_ENUM) {
+      field.qualified_cpp_field_type = field.enum_field_type_descriptor()->qualified_name;
+    } else {
+      field.qualified_cpp_field_type = field.message_field_type_descriptor()->qualified_name;
+    }
+
+    if (field.is_foreign) {
+      field.cpp_field_type = field.qualified_cpp_field_type;
+    } else if (field.is_recursive) {
+      // only the last component of the type_name should be used
+      field.cpp_field_type = field.message_field_type_descriptor()->cpp_name;
+    } else {
+      // only the components excluding the common ancestor should be used
+      int num_components = std::ranges::count_if(relative_type_name, [](char c) { return c == '.'; });
+      std::string_view v = field.qualified_cpp_field_type;
+      int num_colons = 2 * num_components + 1;
+      auto pos = std::distance(
+          std::find_if(v.rbegin(), v.rend(), [&num_colons](char c) { return c == ':' && (--num_colons == 0); }),
+          v.rend());
+      field.cpp_field_type = field.qualified_cpp_field_type.substr(static_cast<std::size_t>(pos));
+      if (is_nested && type != TYPE_ENUM) {
+        field.cpp_field_type.resize(field.cpp_field_type.size() - std::string_view{"<Traits>"}.size());
+      }
+    }
+  }
+
   /**
    * @brief Resolves the dependency of a field within a message descriptor pool.
    *
@@ -735,106 +754,122 @@ struct msg_code_generator : code_generator {
    * - If the dependent and dependee are in the same file scope, it adds the dependee
    *   to the dependent message's set of dependencies.
    */
-  static void resolve_field_dependency(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {
+  static void resolve_field_dependency(hpp_gen_descriptor_pool &pool, std::string_view field_message_name, field_descriptor_t &field) {
     using enum google::protobuf::FieldDescriptorProto::Type;
     auto type = field.proto().type;
-    if (field.parent_message()) {
-      auto dependee_name = std::string_view{field.proto().type_name}.substr(1);
+    auto field_type_name = std::string_view{field.proto().type_name}.substr(1);
+    std::string_view dependee_name = field_type_name;
+    if (type == TYPE_ENUM) {
       // For enum types, adjust dependee_name to refer to the parent message of the enum
-      if (type == TYPE_ENUM) {
-        if (field.enum_field_type_descriptor()->parent_message() == nullptr) {
-          field.is_foreign = true;
-          return;
-        }
-        dependee_name = dependee_name.substr(0, dependee_name.find_last_of('.'));
+      dependee_name = field_type_name.substr(0, field_type_name.find_last_of('.'));
+    } else if (field.is_map_entry()) {
+      auto& value_field = field.message_field_type_descriptor()->fields()[1];
+      switch (value_field.proto().type) {
+        case TYPE_MESSAGE:
+        case TYPE_GROUP:
+        case TYPE_ENUM:
+          resolve_field_dependency(pool, field_message_name, value_field);
+        default:
       }
+      return;
+    }
 
-      auto field_message_name = field.qualified_parent_name;
-      // Find the common ancestor scope between the field's parent and its type
-      auto common_ancestor = field_message_name.substr(0, shared_scope_position(field_message_name, dependee_name));
+    // Find the common ancestor scope between the field's parent and its type
+    auto common_ancestor = get_common_ancestor(field_message_name, dependee_name);
 
-      // Extract the full qualified dependent and dependee names
-      auto dependent_name = field_message_name.substr(0, field_message_name.find('.', common_ancestor.size() + 1));
-      dependee_name = dependee_name.substr(0, dependee_name.find('.', common_ancestor.size() + 1));
+    // Extract the full qualified dependent and dependee names
+    auto dependent_name = field_message_name.substr(0, field_message_name.find('.', common_ancestor.size() + 1));
+    dependee_name = dependee_name.substr(0, dependee_name.find('.', common_ancestor.size() + 1));
 
-      field.is_foreign = (pool.get_message_descriptor(common_ancestor) == nullptr);
+    field.is_recursive = (common_ancestor.size() == dependee_name.size()) && type != TYPE_ENUM;
+    field.is_foreign = (pool.get_message_descriptor(common_ancestor) == nullptr);
 
-      // If the common ancestor equals dependee_name, the field's type is a nested enum of the enclosing message.
-      // If the common ancestor equals dependent_name, the field's type is a nested message of the parent message.
-      // In either case there is no external dependency to record, so return.
-      if (dependee_name.size() == common_ancestor.size() || dependent_name.size() == common_ancestor.size()) {
-        return;
-      }
-      message_descriptor_t *dependent_msg = pool.get_message_descriptor(dependent_name);
-      message_descriptor_t *dependee_msg = pool.get_message_descriptor(dependee_name);
+    auto relative_field_type =
+        field_type_name.substr(common_ancestor.size() + (field_type_name.size() > common_ancestor.size() ? 1 : 0));
+    set_field_cpp_type(field, relative_field_type, common_ancestor.size() == field_message_name.size());
 
-      if (dependent_msg != nullptr && dependee_msg != nullptr &&
-          dependent_msg->parent_file() == dependee_msg->parent_file()) {
-        dependent_msg->dependencies.insert(dependee_msg);
+    // If the common ancestor equals dependee_name, the field's type is a nested enum of the enclosing message or a
+    // file level enum. If the common ancestor equals dependent_name, the field's type is a nested message of the
+    // parent message. In either case there is no external dependency to record, so return.
+    if (dependee_name.size() == common_ancestor.size() || dependent_name.size() == common_ancestor.size()) {
+      return;
+    }
+    message_descriptor_t *dependent_msg = pool.get_message_descriptor(dependent_name);
+    message_descriptor_t *dependee_msg = pool.get_message_descriptor(dependee_name);
+
+    if (dependent_msg != nullptr && dependee_msg != nullptr &&
+        dependent_msg->parent_file() == dependee_msg->parent_file()) {
+      dependent_msg->dependencies.insert(dependee_msg);
+    }
+  }
+
+  static void resolve_message_field(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {
+    if (!field.parent_message() ||  !field.parent_message()->is_map_entry()) {
+      resolve_field_dependency(pool, field.qualified_parent_name, field);;
+    }
+    auto *field_type_msg = field.message_field_type_descriptor();
+    field_type_msg->used_by_fields.insert(&field);
+  }
+
+  static void resolve_enum_field(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {
+    resolve_field_dependency(pool, field.qualified_parent_name, field);
+    auto *enum_d = field.enum_field_type_descriptor();
+    if (enum_d != nullptr) {
+      field.is_closed_enum = enum_d->is_closed();
+      if (!field.proto().default_value.empty()) {
+        field.set_enum_default_value(field.proto());
+      } else if (field.proto().label == gpb::FieldDescriptorProto::Label::LABEL_OPTIONAL) {
+        std::string proto_default_value = resolve_keyword(enum_d->proto().value[0].name);
+        field.default_value = fmt::format("{}::{}", field.cpp_field_type, proto_default_value);
+        field.default_value_template_arg = fmt::format("{}::{}", field.qualified_cpp_field_type, proto_default_value);
       }
     }
   }
 
-  // NOLINTBEGIN(readability-function-cognitive-complexity)
+  static void resolve_enum_qualified_name(enum_descriptor_t &desc, std::string_view scope) {
+    desc.qualified_name = fmt::format("{}{}", scope, desc.cpp_name);
+  }
+
+  static void resolve_message_qualified_name(message_descriptor_t &msg, std::string_view namespace_prefix,
+                                             std::string_view scope) {
+    msg.qualified_name = fmt::format("{}{}{}<Traits>", namespace_prefix, scope, msg.cpp_name);
+    msg.no_namespace_qualified_name = msg.qualified_name.substr(namespace_prefix.size());
+
+    std::string nested_scope = fmt::format("{}{}__::", scope, msg.cpp_name);
+
+    for (auto &nested_msg : msg.messages()) {
+      resolve_message_qualified_name(nested_msg, namespace_prefix, nested_scope);
+    }
+
+    std::string nested_enum_scope = fmt::format("{}{}", namespace_prefix, nested_scope);
+    for (auto &nested_enum : msg.enums()) {
+      resolve_enum_qualified_name(nested_enum, nested_enum_scope);
+    }
+  }
+
   static void resolve_message_dependencies(hpp_gen_descriptor_pool &pool) {
+    for (auto &file : pool.files()) {
+      for (auto &msg : file.messages()) {
+        resolve_message_qualified_name(msg, file.cpp_namespace + "::", "");
+      }
+      for (auto &desc : file.enums()) {
+        resolve_enum_qualified_name(desc, file.cpp_namespace + "::");
+      }
+    }
+
     for (auto &field : pool.fields()) {
       using enum google::protobuf::FieldDescriptorProto::Type;
-      auto type = field.proto().type;
-      if (field.is_message_or_enum()) {
-        resolve_field_dependency(pool, field);
-
-        if (type == TYPE_MESSAGE || type == TYPE_GROUP) {
-          auto *field_type_msg = field.message_field_type_descriptor();
-          auto namespace_prefix = namespace_prefix_of(*field_type_msg);
-          field_type_msg->used_by_fields.insert(&field);
-          field.set_user_cpp_type(namespace_prefix, field.proto());
-        } else {
-          // type == TYPE_ENUM
-          auto *enum_d = field.enum_field_type_descriptor();
-          if (enum_d != nullptr) {
-            auto namespace_prefix = namespace_prefix_of(*enum_d);
-            field.set_user_cpp_type(namespace_prefix, field.proto());
-            field.is_closed_enum = enum_d->is_closed();
-
-            if (!field.proto().default_value.empty()) {
-              field.set_enum_default_value(namespace_prefix, field.proto());
-            } else if (field.proto().label == gpb::FieldDescriptorProto::Label::LABEL_OPTIONAL) {
-              std::string proto_default_value = resolve_keyword(enum_d->proto().value[0].name);
-              field.default_value = fmt::format("{}::{}", field.cpp_field_type, proto_default_value);
-              field.default_value_template_arg = fmt::format(
-                  "{}::{}", make_qualified_cpp_name(namespace_prefix, field.proto().type_name), proto_default_value);
-            }
-          }
-        }
-      }
+      switch (field.proto().type) {
+      case TYPE_MESSAGE:
+      case TYPE_GROUP:
+        resolve_message_field(pool, field);
+        break;
+      case TYPE_ENUM:
+        resolve_enum_field(pool, field);
+        break;
+      default:
+      };
     }
-
-    for (auto &message : pool.messages()) {
-      resolve_needs_traits(message);
-    }
-  }
-  // NOLINTEND(readability-function-cognitive-complexity)
-
-  static bool resolve_needs_traits(message_descriptor_t &message) {
-    if (message.needs_traits != message_descriptor_t::TraitAnalysisState::Unknown) {
-      return message.needs_traits == message_descriptor_t::TraitAnalysisState::True;
-    }
-
-    message.needs_traits = message_descriptor_t::TraitAnalysisState::Processing;
-
-    bool result = std::ranges::any_of(message.fields(), [&](auto &field) {
-      using enum gpb::FieldDescriptorProto::Type;
-      auto type = field.proto().type;
-      return (type == TYPE_STRING || type == TYPE_BYTES ||
-              field.proto().label == gpb::FieldDescriptorProto::Label::LABEL_REPEATED ||
-              ((type == TYPE_MESSAGE || type == TYPE_GROUP) &&
-               resolve_needs_traits(field.is_foreign ? field.message_field_type_descriptor()->root_message()
-                                                     : *field.message_field_type_descriptor())));
-    });
-
-    message.needs_traits =
-        result ? message_descriptor_t::TraitAnalysisState::True : message_descriptor_t::TraitAnalysisState::False;
-    return result;
   }
 
   void process(file_descriptor_t &descriptor) {
@@ -859,11 +894,11 @@ struct msg_code_generator : code_generator {
     }
 
     for (auto &e : descriptor.enums()) {
-      process(e, "");
+      process(e);
     }
 
     for (auto *m : order_messages(descriptor.messages())) {
-      process(*m, "", descriptor.proto().package);
+      process(*m, descriptor.proto().package);
     }
 
     std::ranges::copy(out_of_class_data, target);
@@ -882,7 +917,7 @@ struct msg_code_generator : code_generator {
     using enum gpb::FieldDescriptorProto::Label;
     using enum gpb::FieldDescriptorProto::Type;
     if (proto.label == LABEL_REPEATED) {
-      return "std::vector";
+      return "typename Traits::template vector_t";
     }
     if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
       if (descriptor.is_recursive) {
@@ -899,21 +934,15 @@ struct msg_code_generator : code_generator {
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.is_map_entry()) {
       auto *type_desc = descriptor.message_field_type_descriptor();
-      std::string type = "hpp::proto::flat_map";
-      return fmt::format("{}<{},{}>", type, type_desc->fields().front().cpp_field_type,
+      std::string type = "Traits::template map_t";
+      return fmt::format("Traits::template map_t<{}, {}>", type_desc->fields().front().cpp_field_type,
                          type_desc->fields()[1].cpp_field_type);
     }
 
     auto wrapper = field_type_wrapper(descriptor);
 
-    if (wrapper == "std::vector" && descriptor.cpp_field_type == "bool") {
-      descriptor.cpp_meta_type = "hpp::proto::boolean";
-      return fmt::format("std::vector<hpp::proto::boolean>");
-    } else if (wrapper == "hpp::proto::optional" && !descriptor.default_value_template_arg.empty()) {
-      return fmt::format("hpp::proto::optional<{},{}>", descriptor.cpp_field_type,
-                         descriptor.default_value_template_arg);
-    } else if (wrapper == "hpp::proto::equality_comparable_span") {
-      return fmt::format("hpp::proto::equality_comparable_span<const {}>", descriptor.cpp_field_type);
+    if (wrapper == "hpp::proto::optional" && !descriptor.default_value_template_arg.empty()) {
+      return fmt::format("hpp::proto::optional<{0}, {1}>", descriptor.cpp_field_type, descriptor.default_value);
     } else if (!wrapper.empty()) {
       return fmt::format("{}<{}>", wrapper, descriptor.cpp_field_type);
     }
@@ -933,11 +962,16 @@ struct msg_code_generator : code_generator {
                 std::ranges::any_of(proto2_explicit_presences, [&qualified_name](const auto &s) {
                   return qualified_name.starts_with(std::string_view{s}.substr(1));
                 })));
+
+    if (descriptor.is_cpp_optional &&
+        (descriptor.proto().type == TYPE_STRING || descriptor.proto().type == TYPE_BYTES) &&
+        !descriptor.default_value.empty()) {
+      descriptor.default_value = descriptor.default_value_template_arg;
+    }
   }
 
   void process(field_descriptor_t &descriptor) {
     set_presence_rule(descriptor);
-    std::string attribute;
     std::string initializer = " = {}";
     using enum gpb::FieldDescriptorProto::Type;
 
@@ -947,8 +981,7 @@ struct msg_code_generator : code_generator {
     } else if (!descriptor.default_value.empty()) {
       initializer = " = " + descriptor.default_value;
     }
-    fmt::format_to(target, "{}{}{} {}{};\n", indent(), attribute, field_type(descriptor), descriptor.cpp_name,
-                   initializer);
+    fmt::format_to(target, "{}{} {}{};\n", indent(), field_type(descriptor), descriptor.cpp_name, initializer);
   }
 
   void process(oneof_descriptor_t &descriptor, std::int32_t number) {
@@ -988,7 +1021,7 @@ struct msg_code_generator : code_generator {
     }
   }
 
-  void process(enum_descriptor_t &descriptor, const std::string &cpp_scope) {
+  void process(enum_descriptor_t &descriptor) {
     fmt::format_to(target, "{}enum class {} {{\n", indent(), descriptor.cpp_name);
     indent_num += 2;
     std::size_t index = 0;
@@ -1000,34 +1033,26 @@ struct msg_code_generator : code_generator {
     indent_num -= 2;
     fmt::format_to(target, "{}}};\n\n", indent());
 
-    std::string qualified_cpp_name = descriptor.cpp_name;
-    if (!cpp_scope.empty()) {
-      qualified_cpp_name = cpp_scope + "::" + qualified_cpp_name;
-    }
-
-    fmt::format_to(out_of_class_target,
-                   "\n"
-                   "constexpr bool is_valid({} value){{\n",
-                   qualified_cpp_name);
+    fmt::format_to(target, "{}constexpr bool is_valid({} value){{\n", indent(), descriptor.cpp_name);
     if (descriptor.sorted_values.empty()) {
-      fmt::format_to(out_of_class_target, "  return false;\n");
+      fmt::format_to(target, "{}  return false;\n", indent());
     } else {
-      fmt::format_to(out_of_class_target, "  int v = static_cast<int>(value);\n");
+      fmt::format_to(target, "{}  int v = static_cast<int>(value);\n", indent());
       if (descriptor.continuous) {
-        fmt::format_to(out_of_class_target, "  return v >= {} && v <= {};\n", descriptor.sorted_values.front(),
+        fmt::format_to(target, "{}  return v >= {} && v <= {};\n", indent(), descriptor.sorted_values.front(),
                        descriptor.sorted_values.back());
       } else {
-        fmt::format_to(out_of_class_target,
-                       "  constexpr std::array<int, {}> valid_values{{{}}};\n"
-                       "  return std::ranges::any_of(valid_values, [v](int u){{ return u==v; }});\n",
-                       descriptor.proto().value.size(), fmt::join(descriptor.sorted_values, ","));
+        fmt::format_to(target,
+                       "{0}  constexpr std::array<int, {1}> valid_values{{{2}}};\n"
+                       "{0}  return std::ranges::any_of(valid_values, [v](int u){{ return u==v; }});\n",
+                       indent(), descriptor.proto().value.size(), fmt::join(descriptor.sorted_values, ","));
       }
     }
-    fmt::format_to(out_of_class_target, "}}\n\n");
+    fmt::format_to(target, "{}}}\n\n", indent());
   }
 
   // NOLINTBEGIN(misc-no-recursion,readability-function-cognitive-complexity)
-  void process(message_descriptor_t &descriptor, const std::string &cpp_scope, const std::string &pb_scope) {
+  void process(message_descriptor_t &descriptor, const std::string &pb_scope) {
     if (descriptor.is_map_entry()) {
       return;
     }
@@ -1036,29 +1061,46 @@ struct msg_code_generator : code_generator {
       descriptor.pb_name = pb_scope + "." + descriptor.pb_name;
     }
 
-    std::string qualified_cpp_name = descriptor.cpp_name;
-    if (!cpp_scope.empty()) {
-      qualified_cpp_name = cpp_scope + "::" + qualified_cpp_name;
-    }
-
     for (const auto *fwd : descriptor.forward_messages) {
-      fmt::format_to(target, "{}struct {};\n", indent(), fwd->cpp_name);
+      fmt::format_to(target,
+                     "{0}template <typename Traits>\n"
+                     "{0}struct {1};\n",
+                     indent(), fwd->cpp_name);
     }
 
-    std::string attribute;
-    if (descriptor.needs_traits == message_descriptor_t::TraitAnalysisState::True) {
-      attribute = "template <typename Traits = ::hpp::proto::default_traits>\n";
+    if (!descriptor.enums().empty() || descriptor.has_non_map_nested_message) {
+      fmt::format_to(target, "{}namespace {}__ {{\n", indent(), descriptor.cpp_name);
+      indent_num += 2;
+      for (auto &e : descriptor.enums()) {
+        process(e);
+      }
+
+      for (auto *m : order_messages(descriptor.messages())) {
+        process(*m, descriptor.pb_name);
+      }
+
+      indent_num -= 2;
+      fmt::format_to(target, "{}}} //namespace {}__\n\n", indent(), descriptor.cpp_name);
     }
 
-    fmt::format_to(target, "{}struct {}{} {{\n", indent(), attribute, descriptor.cpp_name);
+    fmt::format_to(target,
+                   "{0}template <typename Traits = ::hpp::proto::default_traits>\n"
+                   "{0}struct {1} {{\n",
+                   indent(), descriptor.cpp_name);
     indent_num += 2;
+    fmt::format_to(target, "{}using hpp_proto_traits_type = Traits;\n", indent());
+    for (auto &e : descriptor.enums()) {
+      fmt::format_to(target, "{}using {} = {};\n", indent(), e.cpp_name, e.qualified_name);
+    }
 
     if (well_known_codecs.contains(descriptor.pb_name)) {
-      fmt::format_to(target, "{}constexpr static bool glaze_reflect = false;\n", indent());
+      fmt::format_to(target, "\n{}constexpr static bool glaze_reflect = false;\n\n", indent());
     }
 
-    for (auto *m : order_messages(descriptor.messages())) {
-      process(*m, qualified_cpp_name, descriptor.pb_name);
+    for (auto &m : descriptor.messages()) {
+      if (!m.is_map_entry()) {
+        fmt::format_to(target, "{0}using {1} = {2}__::{1}<Traits>;\n\n", indent(), m.cpp_name, descriptor.cpp_name);
+      }
     }
 
     for (auto &f : descriptor.fields()) {
@@ -1072,46 +1114,71 @@ struct msg_code_generator : code_generator {
     }
 
     for (auto &f : descriptor.extensions()) {
-      fmt::format_to(target, "\n{}static constexpr auto {}();\n", indent(), f.cpp_name);
+      fmt::format_to(target, "\n{}struct {};\n", indent(), f.cpp_name);
     }
 
     if (!descriptor.proto().extension_range.empty()) {
-      fmt::format_to(target,
-                     "\n"
-                     "{0}struct extension_t {{\n"
-                     "{0}  using pb_extension = {1};\n"
-                     "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
-                     "{0}  bool operator==(const extension_t &other) const = default;\n"
-                     "{0}}} extensions;\n\n"
-                     "{0}[[nodiscard]] auto get_extension(auto meta) const {{\n"
-                     "{0}  return meta.read(extensions);\n"
-                     "{0}}}\n"
-                     "{0}template<typename Meta>\n"
-                     "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {{\n"
-                     "{0}  return meta.write(extensions, std::move(value));\n"
-                     "{0}}}\n"
-                     "{0}template<typename Meta>\n"
-                     "{0}requires Meta::is_repeated\n"
-                     "{0}[[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename "
-                     "Meta::element_type> value) {{\n"
-                     "{0}  return meta.write(extensions, std::span<const typename "
-                     "Meta::element_type>{{value.begin(), value.end()}});\n"
-                     "{0}}}\n"
-                     "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
-                     "{0}  return meta.element_of(extensions);\n"
-                     "{0}}}\n",
-                     indent(), descriptor.cpp_name);
+      fmt::format_to(
+          target,
+          "\n"
+          "{0}struct extension_t {{\n"
+          "{0}  using pb_extension = {1};\n"
+          "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
+          "{0}  bool operator==(const extension_t &other) const = default;\n"
+          "{0}}} extensions;\n\n"
+          "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && "
+          "...option) const {{\n"
+          "{0}  return meta.read(extensions, std::forward<decltype(option)>(option)...);\n"
+          "{0}}}\n"
+          "{0}template<typename Meta>\n"
+          "{0}  requires (!Meta::is_repeated)\n"
+          "{0}[[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,\n"
+          "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
+          "{0}  return meta.write(extensions, value, std::forward<decltype(option)>(option)...);\n"
+          "{0}}}\n"
+          "{0}template<typename Meta>\n"
+          "{0}  requires (!Meta::is_repeated)\n"
+          "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,\n"
+          "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
+          "{0}  return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);\n"
+          "{0}}}\n"
+          "{0}template<typename Meta, std::ranges::contiguous_range R>\n"
+          "{0}  requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename "
+          "Meta::value_type>)\n"
+          "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
+          "{0}                                 const R& value,\n"
+          "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
+          "{0}  return meta.write(extensions, std::span<const typename "
+          "Meta::value_type>{{std::begin(value), "
+          "std::end(value)}}, std::forward<decltype(option)>(option)...);\n"
+          "{0}}}\n"
+          "{0}template<typename Meta>\n"
+          "{0}  requires Meta::is_repeated\n"
+          "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
+          "{0}                                 std::initializer_list<typename Meta::value_type> value,\n"
+          "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
+          "{0}  return meta.write(extensions, std::span<const typename "
+          "Meta::value_type>{{value.begin(), "
+          "value.end()}}, std::forward<decltype(option)>(option)...);\n"
+          "{0}}}\n"
+          "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
+          "{0}  return meta.element_of(extensions);\n"
+          "{0}}}\n",
+          indent(), descriptor.cpp_name);
     }
 
     fmt::format_to(target, "\n{0}bool operator == (const {1}&) const = default;\n", indent(), descriptor.cpp_name);
 
     indent_num -= 2;
     fmt::format_to(target, "{}}};\n\n", indent());
+    std::string_view qualified_name = descriptor.no_namespace_qualified_name;
     fmt::format_to(out_of_class_target,
-                   "constexpr auto message_type_url(const {0}&) {{ return "
-                   "hpp::proto::string_literal<\"type.googleapis.com/{1}\">{{}}; }}\n",
-                   qualified_cpp_name, descriptor.pb_name);
+                   "template <typename Traits>\n"
+                   "constexpr auto message_type_url(const {0}{1}&) {{ return "
+                   "hpp::proto::string_literal<\"type.googleapis.com/{2}\">{{}}; }}\n",
+                   qualified_name.ends_with('>') ? "" : "typename ", qualified_name, descriptor.pb_name);
   }
+
   // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
 };
 
@@ -1146,11 +1213,11 @@ struct hpp_meta_generator : code_generator {
     }
 
     for (auto &m : descriptor.messages()) {
-      process(m, "", package);
+      process(m, package);
     }
 
     for (auto &f : descriptor.extensions()) {
-      process(f, "", 0UL);
+      format_extension(f);
     }
 
     if (!ns.empty()) {
@@ -1161,33 +1228,34 @@ struct hpp_meta_generator : code_generator {
   }
 
   // NOLINTBEGIN(misc-no-recursion)
-  void process(message_descriptor_t &descriptor, const std::string &cpp_scope, const std::string &pb_scope) {
+  void process(message_descriptor_t &descriptor, const std::string &pb_scope) {
     std::string pb_name = descriptor.proto().name;
     if (!pb_scope.empty()) {
       pb_name = pb_scope + "." + pb_name;
     }
 
-    std::string qualified_cpp_name = descriptor.cpp_name;
-    if (!cpp_scope.empty()) {
-      qualified_cpp_name = cpp_scope + "::" + qualified_cpp_name;
-    }
-    fmt::format_to(target, "auto pb_meta(const {} &) -> std::tuple<\n", qualified_cpp_name);
+    auto &qualified_name = descriptor.no_namespace_qualified_name;
+
+    fmt::format_to(target,
+                   "{0}template <typename Traits>\n"
+                   "{0}auto pb_meta(const {1}<Traits> &) -> std::tuple<\n",
+                   indent(), descriptor.cpp_name);
     indent_num += 2;
 
     for (auto &f : descriptor.fields()) {
       if (!f.proto().oneof_index.has_value()) {
-        process(f, qualified_cpp_name, 0UL);
+        process(f, 0UL);
       } else {
         auto index = *f.proto().oneof_index;
         auto &oneof = descriptor.oneofs()[index];
         if (oneof.fields()[0].proto().number == f.proto().number) {
-          process(oneof, qualified_cpp_name, pb_name);
+          process(oneof, descriptor);
         }
       }
     }
 
     if (!descriptor.proto().extension_range.empty()) {
-      fmt::format_to(target, "{}hpp::proto::field_meta<UINT32_MAX, &{}::extensions>", indent(), qualified_cpp_name);
+      fmt::format_to(target, "{}::hpp::proto::field_meta<UINT32_MAX, &{}::extensions>", indent(), qualified_name);
     } else if (!descriptor.fields().empty()) {
       auto &content = file.content;
       content.resize(content.size() - 2);
@@ -1196,14 +1264,21 @@ struct hpp_meta_generator : code_generator {
 
     fmt::format_to(target, ">;\n\n");
 
-    for (auto &f : descriptor.extensions()) {
-      process(f, qualified_cpp_name, 0UL);
+    if (descriptor.has_non_map_nested_message) {
+      fmt::format_to(target, "{}namespace {}__ {{\n", indent(), descriptor.cpp_name);
+      indent_num += 2;
+
+      for (auto &m : descriptor.messages()) {
+        if (!m.is_map_entry()) {
+          process(m, pb_name);
+        }
+      }
+      indent_num -= 2;
+      fmt::format_to(target, "{}}} //namespace {}__\n\n", indent(), descriptor.cpp_name);
     }
 
-    for (auto &m : descriptor.messages()) {
-      if (!m.is_map_entry()) {
-        process(m, qualified_cpp_name, pb_name);
-      }
+    for (auto &f : descriptor.extensions()) {
+      format_extension(f);
     }
   }
 
@@ -1211,25 +1286,25 @@ struct hpp_meta_generator : code_generator {
     std::vector<std::string_view> options;
     using enum gpb::FieldDescriptorProto::Label;
     if (descriptor.is_cpp_optional || descriptor.is_required()) {
-      options.emplace_back("hpp::proto::field_option::explicit_presence");
+      options.emplace_back("::hpp::proto::field_option::explicit_presence");
     } else if (descriptor.is_packed()) {
-      options.emplace_back("hpp::proto::field_option::is_packed");
+      options.emplace_back("::hpp::proto::field_option::is_packed");
     }
 
     if (descriptor.is_delimited()) {
-      options.emplace_back("hpp::proto::field_option::group");
+      options.emplace_back("::hpp::proto::field_option::group");
     } else if (descriptor.requires_utf8_validation()) {
-      options.emplace_back("hpp::proto::field_option::utf8_validation");
+      options.emplace_back("::hpp::proto::field_option::utf8_validation");
     } else if (descriptor.is_closed_enum) {
-      options.emplace_back("hpp::proto::field_option::closed_enum");
+      options.emplace_back("::hpp::proto::field_option::closed_enum");
     } else if (options.empty()) {
-      options.emplace_back("hpp::proto::field_option::none");
+      options.emplace_back("::hpp::proto::field_option::none");
     }
     return options;
   }
   // NOLINTEND(misc-no-recursion)
   // NOLINTBEGIN(readability-function-cognitive-complexity)
-  void process(field_descriptor_t &descriptor, const std::string &cpp_scope, std::size_t oneof_index) {
+  void process(field_descriptor_t &descriptor, std::size_t oneof_index) {
     auto options = meta_options(descriptor);
     auto proto = descriptor.proto();
     using enum gpb::FieldDescriptorProto::Label;
@@ -1241,14 +1316,14 @@ struct hpp_meta_generator : code_generator {
       };
       auto *type_desc = descriptor.message_field_type_descriptor();
       descriptor.cpp_meta_type =
-          fmt::format("hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
+          fmt::format("::hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
                       get_meta_type(type_desc->fields()[1]), fmt::join(meta_options(type_desc->fields()[0]), " | "),
                       fmt::join(meta_options(type_desc->fields()[1]), " | "));
     }
 
     std::string default_value;
 
-    if (options[0] == "hpp::proto::field_option::none" || descriptor.is_closed_enum) {
+    if (options[0] == "::hpp::proto::field_option::none" || descriptor.is_closed_enum) {
       default_value = descriptor.default_value_template_arg;
     }
 
@@ -1260,46 +1335,88 @@ struct hpp_meta_generator : code_generator {
       }
     }
 
-    auto cpp_name = cpp_scope.empty() ? descriptor.cpp_name : cpp_scope + "::" + descriptor.cpp_name;
-
-    std::string access = (oneof_index == 0) ? "&" + cpp_name : std::to_string(oneof_index);
+    auto cpp_name = (descriptor.parent_message() == nullptr)
+                        ? descriptor.cpp_name
+                        : descriptor.parent_message()->cpp_name + "<Traits>::" + descriptor.cpp_name;
 
     if (descriptor.extendee_descriptor() == nullptr) {
-      fmt::format_to(target, "{}hpp::proto::field_meta<{}, {}, {}{}>,\n", indent(), proto.number, access,
+      std::string access = (oneof_index == 0) ? "&" + cpp_name : std::to_string(oneof_index);
+
+      fmt::format_to(target, "{}::hpp::proto::field_meta<{}, {}, {}{}>,\n", indent(), proto.number, access,
                      fmt::join(options, " | "), type_and_default_value);
-    } else {
-      format_extension(descriptor, cpp_name);
     }
   }
 
-  void format_extension(code_generator::field_descriptor_t &descriptor, std::string &cpp_name) {
-    std::string_view extension_prefix;
+  void format_extension(code_generator::field_descriptor_t &descriptor) {
+
+    auto cpp_name = (descriptor.parent_message() == nullptr)
+                        ? descriptor.cpp_name
+                        : descriptor.parent_message()->cpp_name + "<Traits>::" + descriptor.cpp_name;
+
     using enum gpb::FieldDescriptorProto::Label;
+    using enum gpb::FieldDescriptorProto::Type;
     auto proto = descriptor.proto();
-    if (proto.label == LABEL_REPEATED) {
-      extension_prefix = "repeated_";
-    }
-    std::string type_and_default_value = fmt::format(
-        ", {}, {}", descriptor.cpp_meta_type == "void" ? descriptor.cpp_field_type : descriptor.cpp_meta_type,
-        descriptor.cpp_field_type);
+    auto extendee_type_name = descriptor.extendee_descriptor()->qualified_name;
 
-    if (!descriptor.default_value_template_arg.empty()) {
-      type_and_default_value += ", " + descriptor.default_value_template_arg;
+    auto replace_substring = [](std::string &str, std::string_view to_find, const char *to_replace_with) {
+      size_t pos = str.find(to_find);
+      if (pos != std::string::npos) {
+        str.replace(pos, to_find.size(), to_replace_with);
+      }
+    };
+    replace_substring(extendee_type_name, "<Traits>", "<T>");
+
+    auto default_value = descriptor.default_value_template_arg;
+    if (default_value.empty()) {
+      default_value = "std::monostate{}";
     }
 
-    auto namespace_prefix = msg_code_generator::namespace_prefix_of(*descriptor.extendee_descriptor());
+    auto field_value_type = descriptor.cpp_field_type;
+    bool is_repeated = proto.label == LABEL_REPEATED;
+
+    auto get_result_type =
+        is_repeated ? std::format("typename Traits::template vector_t<{}>", field_value_type) : field_value_type;
+
+    std::string value_type;
+    switch (proto.type) {
+    case TYPE_STRING:
+      value_type = "std::string_view";
+      break;
+    case TYPE_BYTES:
+      value_type = "::hpp::proto::bytes_view";
+      break;
+    default:
+      value_type = descriptor.cpp_field_type;
+    }
+
+    const char *extra_crtp_arg = "";
+    if (proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP || proto.type == TYPE_STRING ||
+        proto.type == TYPE_BYTES || is_repeated || descriptor.parent_message() != nullptr) {
+      const char *default_traits = "";
+      if (descriptor.parent_message() == nullptr) {
+        extra_crtp_arg = "<Traits>";
+        default_traits = " = ::hpp::proto::default_traits";
+      }
+      fmt::format_to(target, "{0}template <typename Traits{1}>\n", indent(), default_traits);
+    }
 
     fmt::format_to(target,
-                   "{0}constexpr auto {1}() {{\n"
-                   "{0}  return hpp::proto::{2}extension_meta<{3}, {4}, "
-                   "{5}{6}>{{}};\n"
-                   "{0}}}\n\n",
-                   indent(), cpp_name, extension_prefix, make_qualified_cpp_name(namespace_prefix, proto.extendee),
-                   proto.number, fmt::join(meta_options(descriptor), " | "), type_and_default_value);
+                   "{0}struct {1}\n"
+                   "{0}    : ::hpp::proto::field_meta_base<{2}, {3}, {4}, {5}>\n"
+                   "{0}    , ::hpp::proto::extension_meta_base<{1}{6}> {{\n"
+                   "{0}  constexpr static bool is_repeated = {7};\n"
+                   "{0}  template <typename T>\n"
+                   "{0}  using extendee_t = {8};\n"
+                   "{0}  using get_result_type = {9};\n"
+                   "{0}  using value_type = {10};\n"
+                   "{0}}};\n\n",
+                   indent(), cpp_name, proto.number, fmt::join(meta_options(descriptor), " | "), descriptor.cpp_meta_type,
+                   default_value, extra_crtp_arg, is_repeated, extendee_type_name, get_result_type, value_type);
   }
+
   // NOLINTEND(readability-function-cognitive-complexity)
 
-  void process(oneof_descriptor_t &descriptor, const std::string &cpp_scope, const std::string & /* unused */) {
+  void process(oneof_descriptor_t &descriptor, message_descriptor_t &parent) {
     auto fields = descriptor.fields();
     if (fields.size() > 1) {
       std::string types;
@@ -1308,12 +1425,12 @@ struct hpp_meta_generator : code_generator {
         types += (sep + f.cpp_field_type);
         sep = ",";
       }
-      fmt::format_to(target, "{}hpp::proto::oneof_field_meta<\n", indent());
+      fmt::format_to(target, "{}::hpp::proto::oneof_field_meta<\n", indent());
       indent_num += 2;
-      fmt::format_to(target, "{}&{}::{},\n", indent(), cpp_scope, descriptor.cpp_name);
+      fmt::format_to(target, "{}&{}::{},\n", indent(), parent.no_namespace_qualified_name, descriptor.cpp_name);
       std::size_t i = 0;
       for (auto &f : fields) {
-        process(f, cpp_scope, ++i);
+        process(f, ++i);
       }
 
       indent_num -= 2;
@@ -1323,23 +1440,8 @@ struct hpp_meta_generator : code_generator {
       }
       fmt::format_to(target, ">,\n");
     } else {
-      process(fields[0], cpp_scope, 0);
+      process(fields[0], 0);
     }
-  }
-
-  void process(enum_descriptor_t &descriptor) {
-    // NOLINTBEGIN
-    fmt::format_to(target, "{}enum class {} {{\n", indent(), descriptor.cpp_name);
-    // NOLINTEND
-    indent_num += 2;
-    std::size_t index = 0;
-    for (const auto &e : descriptor.proto().value) {
-      char sep = (index++ == descriptor.proto().value.size() - 1) ? ' ' : ',';
-      fmt::format_to(target, "{}{} = {}{}\n", indent(), resolve_keyword(e.name), e.number, sep);
-    }
-
-    indent_num -= 2;
-    fmt::format_to(target, "{}}};\n\n", indent());
   }
 };
 
@@ -1378,22 +1480,21 @@ struct glaze_meta_generator : code_generator {
     }
 
     auto package = descriptor.proto().package;
-    auto ns = make_qualified_cpp_name(descriptor.namespace_prefix, "." + package);
 
     for (auto &m : descriptor.messages()) {
-      process(m, ns);
+      process(m);
     }
 
     for (auto &e : descriptor.enums()) {
-      process(e, ns);
+      process(e);
     }
 
     fmt::format_to(target, "// clang-format on\n");
   }
 
   // NOLINTBEGIN(misc-no-recursion,readability-function-cognitive-complexity)
-  void process(message_descriptor_t &descriptor, const std::string &scope) {
-    auto qualified_name = !scope.empty() ? scope + "::" + descriptor.cpp_name : descriptor.cpp_name;
+  void process(message_descriptor_t &descriptor) {
+    auto qualified_name = descriptor.qualified_name;
 
     const static std::set<std::string> well_known_wrapper_types = {
         "google.protobuf.DoubleValue", "google.protobuf.FloatValue",  "google.protobuf.Int64Value",
@@ -1407,7 +1508,7 @@ struct glaze_meta_generator : code_generator {
       }
       fmt::format_to(target,
                      "namespace glz {{\n"
-                     "template <>\n"
+                     "template <typename Traits>\n"
                      "struct to<JSON, {0}> {{\n"
                      "template <auto Opts>\n"
                      "  GLZ_ALWAYS_INLINE static void op(auto &&value, auto&& ...args) {{\n"
@@ -1415,7 +1516,7 @@ struct glaze_meta_generator : code_generator {
                      "std::forward<decltype(args)>(args)...);\n"
                      "  }}\n"
                      "}};\n\n"
-                     "template <>\n"
+                     "template <typename Traits>\n"
                      "struct from<JSON, {0}> {{\n"
                      "template <auto Opts>\n"
                      "  GLZ_ALWAYS_INLINE static void op(auto &value, auto&& ...args) {{\n"
@@ -1427,7 +1528,7 @@ struct glaze_meta_generator : code_generator {
                      qualified_name, opts);
     } else if (well_known_codecs.contains(descriptor.pb_name)) {
       fmt::format_to(target,
-                     "template <>\n"
+                     "template <typename Traits>\n"
                      "struct hpp::proto::json_codec<{0}> {{\n"
                      "  using type = hpp::proto::{1};\n"
                      "}};\n\n",
@@ -1436,16 +1537,16 @@ struct glaze_meta_generator : code_generator {
       fmt::format_to(target,
                      // clang-format off
                      "namespace glz {{\n"
-                     "template <>\n"
+                     "template <typename Traits>\n"
                      "struct to<JSON, {0}> {{\n"
                      "  template <auto Opts>\n"
                      "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
                      "    std::visit(\n"
                      "        [&ctx, &b, &ix](auto &v) {{\n"
                      "          using type = std::decay_t<decltype(v)>;\n"
-                     "          if constexpr (std::same_as<type, {1}::ListValue>) {{\n"
+                     "          if constexpr (std::same_as<type, {1}::ListValue<Traits>>) {{\n"
                      "            serialize<JSON>::template op<Opts>(v.values, ctx, b, ix);\n"
-                     "          }} else if constexpr (std::same_as<type, {1}::Struct>) {{\n"
+                     "          }} else if constexpr (std::same_as<type, {1}::Struct<Traits>>) {{\n"
                      "            serialize<JSON>::template op<Opts>(v.fields, ctx, b, ix);\n"
                      "          }} else if constexpr (!std::same_as<type, std::monostate>) {{\n"
                      "            serialize<JSON>::template op<Opts>(v, ctx, b, ix);\n"
@@ -1454,7 +1555,7 @@ struct glaze_meta_generator : code_generator {
                      "        value.kind);\n"
                      "  }}\n"
                      "}};\n\n"                    
-                     "template <>\n"
+                     "template <typename Traits>\n"
                      "struct from<JSON, {0}> {{\n"
                      "  template <auto Options>\n"
                      "  static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
@@ -1489,12 +1590,12 @@ struct glaze_meta_generator : code_generator {
                      "}};\n"
                      "}} // namespace glz\n\n",
                      // clang-format on
-                     qualified_name, scope);
+                     qualified_name, descriptor.parent_file()->cpp_namespace);
     } else if (descriptor.pb_name == "google.protobuf.Any") {
       fmt::format_to(
           target,
           "namespace glz {{\n"
-          "template <>\n"
+          "template <typename Traits>\n"
           "struct to<JSON, {0}> {{\n"
           "  template <auto Opts, class B>"
           "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &b, auto &&ix) noexcept {{\n"
@@ -1515,7 +1616,7 @@ struct glaze_meta_generator : code_generator {
           "    }}\n"
           "  }}\n"
           "}};\n\n"
-          "template <>\n"
+          "template <typename Traits>\n"
           "struct from<JSON, {0}> {{\n"
           "  template <auto Options, class It, class End>\n"
           "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {{\n"
@@ -1536,8 +1637,8 @@ struct glaze_meta_generator : code_generator {
       fmt::format_to(
           target, "namespace glz {{\n"
                   "\n"
-                  "template <>\n"
-                  "struct to<JSON, google::protobuf::Struct> {{\n"
+                  "template <typename Traits>\n"
+                  "struct to<JSON, google::protobuf::Struct<Traits>> {{\n"
                   "  template <auto Opts>\n"
                   "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
                   "    using fields_t = std::remove_cvref_t<decltype(value.fields)>;\n"
@@ -1545,8 +1646,8 @@ struct glaze_meta_generator : code_generator {
                   "  }}\n"
                   "}};\n"
                   "\n"
-                  "template <>\n"
-                  "struct from<JSON, google::protobuf::Struct> {{\n"
+                  "template <typename Traits>\n"
+                  "struct from<JSON, google::protobuf::Struct<Traits>> {{\n"
                   "  template <auto Options>\n"
                   "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
                   "    using fields_t = std::remove_cvref_t<decltype(value.fields)>;\n"
@@ -1558,8 +1659,8 @@ struct glaze_meta_generator : code_generator {
       fmt::format_to(
           target, "namespace glz {{\n"
                   "\n"
-                  "template <>\n"
-                  "struct to<JSON, google::protobuf::ListValue> {{\n"
+                  "template <typename Traits>\n"
+                  "struct to<JSON, google::protobuf::ListValue<Traits>> {{\n"
                   "  template <auto Opts>\n"
                   "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
                   "    using values_t = std::remove_cvref_t<decltype(value.values)>;\n"
@@ -1567,8 +1668,8 @@ struct glaze_meta_generator : code_generator {
                   "  }}\n"
                   "}};\n"
                   "\n"
-                  "template <>\n"
-                  "struct from<JSON, google::protobuf::ListValue> {{\n"
+                  "template <typename Traits>\n"
+                  "struct from<JSON, google::protobuf::ListValue<Traits>> {{\n"
                   "  template <auto Options>\n"
                   "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
                   "    using values_t = std::remove_cvref_t<decltype(value.values)>;\n"
@@ -1578,7 +1679,7 @@ struct glaze_meta_generator : code_generator {
                   "}} // namespace glz\n");
     } else {
       fmt::format_to(target,
-                     "template <>\n"
+                     "template <typename Traits>\n"
                      "struct glz::meta<{0}> {{\n"
                      "  using T = {0};\n"
                      "  static constexpr auto value = object(\n",
@@ -1604,12 +1705,12 @@ struct glaze_meta_generator : code_generator {
 
       for (auto &m : descriptor.messages()) {
         if (!m.is_map_entry()) {
-          process(m, qualified_name);
+          process(m);
         }
       }
 
       for (auto &e : descriptor.enums()) {
-        process(e, qualified_name);
+        process(e);
       }
     }
   }
@@ -1655,16 +1756,15 @@ struct glaze_meta_generator : code_generator {
     }
   }
 
-  void process(enum_descriptor_t &descriptor, const std::string &scope) {
-    auto qualified_name = !scope.empty() ? scope + "::" + descriptor.cpp_name : descriptor.cpp_name;
+  void process(enum_descriptor_t &descriptor) {
 
-    if (qualified_name != "google::protobuf::NullValue") {
+    if (descriptor.cpp_name != "NullValue" || descriptor.parent_file()->proto().package != "google.protobuf") {
       fmt::format_to(target,
                      "template <>\n"
                      "struct glz::meta<{0}> {{\n"
                      "  using enum {0};\n"
                      "  static constexpr auto value = enumerate(\n",
-                     qualified_name);
+                     descriptor.qualified_name);
 
       indent_num += 4;
       std::size_t index = 0;
@@ -1695,7 +1795,7 @@ struct glaze_meta_generator : code_generator {
           "  }}\n"
           "}};\n"
           "}}\n\n",
-          qualified_name);
+          descriptor.qualified_name);
     }
   }
 };

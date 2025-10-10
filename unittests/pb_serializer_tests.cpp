@@ -1068,8 +1068,10 @@ struct bytes_with_optional {
 auto pb_meta(const bytes_with_optional &)
     -> std::tuple<hpp::proto::field_meta<1, &bytes_with_optional::value, field_option::explicit_presence>>;
 
+
 const ut::suite test_bytes = [] {
   const static auto verified_value = "\x74\x65\x73\x74"_bytes;
+  static_assert(std::is_convertible_v<std::vector<std::byte>, hpp::proto::equality_comparable_span<const std::byte> >);
 
   "bytes_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_example{.value = verified_value}); };
 
@@ -1398,13 +1400,20 @@ struct extension_example {
   [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions); }
 
   template <typename Meta>
-  [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::set_value_type &&value) {
+  requires (!Meta::is_repeated)
+  [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::value_type &&value) {
     return meta.write(extensions, std::move(value));
   }
 
   template <typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] hpp::proto::status set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
+  requires (!Meta::is_repeated)
+  [[nodiscard]] hpp::proto::status set_extension(Meta meta, const typename Meta::value_type &value) {
+    return meta.write(extensions, value);
+  }
+
+  template <typename Meta, std::ranges::contiguous_range R>
+    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
+  [[nodiscard]] hpp::proto::status set_extension(Meta meta, const R& value) {
     return meta.write(extensions, std::span{value.begin(), value.end()});
   }
 
@@ -1528,13 +1537,13 @@ const ut::suite test_extensions = [] {
     ut::expect(value.set_extension(example_ext(), {.i = 150}).ok());
     ut::expect(value.extensions.fields[15] == "\x7a\x03\x08\x96\x01"_bytes);
 
-    ut::expect(value.set_extension(repeated_i32_ext(), {1, 2}).ok());
+    ut::expect(value.set_extension(repeated_i32_ext(), std::initializer_list<int32_t>{1, 2}).ok());
     ut::expect(value.extensions.fields[20] == "\xa0\x01\x01\xa0\x01\x02"_bytes);
 
-    ut::expect(value.set_extension(repeated_string_ext(), {"abc", "def"}).ok());
+    ut::expect(value.set_extension(repeated_string_ext(), std::initializer_list<std::string>{"abc", "def"}).ok());
     ut::expect(value.extensions.fields[21] == "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes);
 
-    ut::expect(value.set_extension(repeated_packed_i32_ext(), {1, 2, 3}).ok());
+    ut::expect(value.set_extension(repeated_packed_i32_ext(), std::initializer_list<int32_t>{1, 2, 3}).ok());
     ut::expect(value.extensions.fields[22] == "\xb2\x01\x03\01\02\03"_bytes);
   };
 
@@ -1571,16 +1580,17 @@ struct non_owning_extension_example {
   }
 
   template <typename Meta>
-  [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::set_value_type &&value,
+    requires (!Meta::is_repeated)
+  [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::value_type &&value,
                                                  hpp::proto::concepts::is_option_type auto &&...option) {
     return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
   }
 
   template <typename Meta>
     requires Meta::is_repeated
-  [[nodiscard]] hpp::proto::status set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value,
+  [[nodiscard]] hpp::proto::status set_extension(Meta meta, std::initializer_list<typename Meta::value_type> value,
                                                  hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>(value.begin(), value.end()),
+    return meta.write(extensions, std::span<const typename Meta::value_type>(value.begin(), value.end()),
                       std::forward<decltype(option)>(option)...);
   }
 
