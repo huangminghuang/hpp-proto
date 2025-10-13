@@ -37,7 +37,6 @@
 #include <io.h>
 #endif
 
-namespace gpb = google::protobuf;
 // NOLINTBEGIN(cert-err58-cpp)
 const std::unordered_set<std::string_view> keywords = {
     "NULL",          "alignas",      "alignof",   "and",        "and_eq",
@@ -239,10 +238,25 @@ std::string to_hex_literal(hpp::proto::concepts::contiguous_byte_range auto cons
 }
 } // namespace
 struct hpp_addons {
+  using traits_type = hpp::proto::default_traits;
+  using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
+  using FieldOptions = google::protobuf::FieldOptions<traits_type>;
+  using FeatureSet = google::protobuf::FeatureSet<traits_type>;
+  using OneofDescriptorProto = google::protobuf::OneofDescriptorProto<traits_type>;
+  using OneofOptions = google::protobuf::OneofOptions<traits_type>;
+  using EnumDescriptorProto = google::protobuf::EnumDescriptorProto<traits_type>;
+  using EnumValueOptions = google::protobuf::EnumValueOptions<traits_type>;
+  using EnumOptions = google::protobuf::EnumOptions<traits_type>;
+  using DescriptorProto = google::protobuf::DescriptorProto<traits_type>;
+  using MessageOptions = google::protobuf::MessageOptions<traits_type>;
+  using FileDescriptorProto = google::protobuf::FileDescriptorProto<traits_type>;
+  using FileOptions = google::protobuf::FileOptions<traits_type>;
+  using FileDescriptorSet = google::protobuf::FileDescriptorSet<traits_type>;
+
   static hpp::proto::optional<std::string> namespace_prefix;
 
-  static google::protobuf::FileOptions::extension_t default_file_options_extensions() {
-    google::protobuf::FileOptions::extension_t extensions;
+  static FileOptions::extension_t default_file_options_extensions() {
+    FileOptions::extension_t extensions;
     if (!hpp::proto::hpp_file_opts()
              .write(extensions, hpp::proto::FileOptions{.namespace_prefix = namespace_prefix})
              .ok()) {
@@ -266,19 +280,19 @@ struct hpp_addons {
     bool is_closed_enum = false;
     bool is_foreign = false;
 
-    field_descriptor(const gpb::FieldDescriptorProto &proto, const std::string &parent_name)
+    field_descriptor(const FieldDescriptorProto &proto, const std::string &parent_name)
         : cpp_name(resolve_keyword(proto.name)), qualified_parent_name(parent_name) {
-      using enum gpb::FieldDescriptorProto::Type;
-      using enum gpb::FieldDescriptorProto::Label;
+      using enum FieldDescriptorProto::Type;
+      using enum FieldDescriptorProto::Label;
     }
 
-    void on_options_resolved(const gpb::FieldDescriptorProto &proto, const gpb::FieldOptions &) {
+    void on_options_resolved(const FieldDescriptorProto &proto, const FieldOptions &) {
       set_cpp_type(proto);
       set_default_value(proto);
     }
 
-    void set_cpp_type(const gpb::FieldDescriptorProto &proto) {
-      using enum google::protobuf::FieldDescriptorProto::Type;
+    void set_cpp_type(const FieldDescriptorProto &proto) {
+      using enum FieldDescriptorProto::Type;
       switch (proto.type) {
       case TYPE_DOUBLE:
         cpp_field_type = "double";
@@ -354,9 +368,9 @@ struct hpp_addons {
       }
     }
 
-    void set_default_value(const gpb::FieldDescriptorProto &proto) {
-      using enum gpb::FieldDescriptorProto::Type;
-      using enum gpb::FieldDescriptorProto::Label;
+    void set_default_value(const FieldDescriptorProto &proto) {
+      using enum FieldDescriptorProto::Type;
+      using enum FieldDescriptorProto::Label;
 
       if (!proto.default_value.empty()) {
         if (proto.type == TYPE_STRING) {
@@ -373,7 +387,7 @@ struct hpp_addons {
       }
     }
 
-    void set_bytes_default_value(const google::protobuf::FieldDescriptorProto &proto) {
+    void set_bytes_default_value(const FieldDescriptorProto &proto) {
       if (!proto.default_value.empty()) {
         std::string escaped = cpp_escape(proto.default_value);
         default_value = fmt::format("hpp::proto::bytes_literal<\"{}\">{{}}", escaped);
@@ -381,7 +395,7 @@ struct hpp_addons {
       }
     }
 
-    void set_string_default_value(const google::protobuf::FieldDescriptorProto &proto) {
+    void set_string_default_value(const FieldDescriptorProto &proto) {
       if (!proto.default_value.empty()) {
         std::string escaped = cpp_escape(proto.default_value);
         default_value = fmt::format("\"{}\"", escaped);
@@ -389,12 +403,12 @@ struct hpp_addons {
       }
     }
 
-    void set_enum_default_value(const google::protobuf::FieldDescriptorProto &proto) {
+    void set_enum_default_value(const FieldDescriptorProto &proto) {
       default_value = fmt::format("{}::{}", cpp_field_type, proto.default_value);
       default_value_template_arg = fmt::format("{}::{}", qualified_cpp_field_type, proto.default_value);
     }
 
-    void set_integer_default_value(const google::protobuf::FieldDescriptorProto &proto) {
+    void set_integer_default_value(const FieldDescriptorProto &proto) {
       const std::string_view typename_view = cpp_field_type;
       std::string suffix;
       if (typename_view.size() > 6 && typename_view[5] == 'u') {
@@ -413,8 +427,8 @@ struct hpp_addons {
       default_value_template_arg = default_value;
     }
 
-    void set_float_default_value(const google::protobuf::FieldDescriptorProto &proto) {
-      using enum gpb::FieldDescriptorProto::Type;
+    void set_float_default_value(const FieldDescriptorProto &proto) {
+      using enum FieldDescriptorProto::Type;
       if (proto.default_value == "nan") {
         default_value = fmt::format("std::numeric_limits<{}>::quiet_NaN()", cpp_field_type);
       } else if (proto.default_value == "inf") {
@@ -444,7 +458,7 @@ struct hpp_addons {
     std::string qualified_name;
     bool continuous = true;
 
-    explicit enum_descriptor(const gpb::EnumDescriptorProto &proto) : cpp_name(resolve_keyword(proto.name)) {
+    explicit enum_descriptor(const EnumDescriptorProto &proto) : cpp_name(resolve_keyword(proto.name)) {
       sorted_values.resize(proto.value.size());
       std::ranges::transform(proto.value, sorted_values.begin(), [](auto &desc) { return desc.number; });
       std::ranges::sort(sorted_values);
@@ -462,7 +476,7 @@ struct hpp_addons {
     std::vector<FieldD *> fields;
     std::string cpp_name;
 
-    explicit oneof_descriptor(const gpb::OneofDescriptorProto &proto) : cpp_name(resolve_keyword(proto.name)) {}
+    explicit oneof_descriptor(const OneofDescriptorProto &proto) : cpp_name(resolve_keyword(proto.name)) {}
   };
 
   template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
@@ -477,13 +491,13 @@ struct hpp_addons {
     bool has_recursive_map_field = false;
     bool has_non_map_nested_message = false;
 
-    explicit message_descriptor(const gpb::DescriptorProto &proto)
+    explicit message_descriptor(const DescriptorProto &proto)
         : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)),
-          has_non_map_nested_message(std::ranges::any_of(proto.nested_type, [](const gpb::DescriptorProto &submsg) {
+          has_non_map_nested_message(std::ranges::any_of(proto.nested_type, [](const DescriptorProto &submsg) {
             return !submsg.options.has_value() || !submsg.options->map_entry;
           })) {}
 
-    void on_options_resolved(const gpb::DescriptorProto &, const gpb::MessageOptions &) {}
+    void on_options_resolved(const DescriptorProto &, const MessageOptions &) {}
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
@@ -495,10 +509,10 @@ struct hpp_addons {
     std::string cpp_name;
     std::string namespace_prefix;
 
-    explicit file_descriptor(const gpb::FileDescriptorProto &proto)
+    explicit file_descriptor(const FileDescriptorProto &proto)
         : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax), cpp_name(proto.name) {}
 
-    void on_options_resolved(const gpb::FileDescriptorProto &proto, const gpb::FileOptions &options) {
+    void on_options_resolved(const FileDescriptorProto &proto, const FileOptions &options) {
       auto file_opts = options.get_extension(hpp::proto::hpp_file_opts()).value_or(hpp::proto::FileOptions{});
       namespace_prefix = file_opts.namespace_prefix.value();
       cpp_namespace = make_qualified_cpp_name(namespace_prefix, "." + proto.package);
@@ -528,18 +542,21 @@ struct hpp_addons {
 
 hpp::proto::optional<std::string> hpp_addons::namespace_prefix;
 using hpp_gen_descriptor_pool = hpp::proto::descriptor_pool<hpp_addons>;
+using traits_type = typename hpp_gen_descriptor_pool::traits_type;
+using CodeGeneratorResponse = google::protobuf::compiler::CodeGeneratorResponse<traits_type>;
 
 const static std::map<std::string, std::string> well_known_codecs = {{"google.protobuf.Duration", "duration_codec"},
                                                                      {"google.protobuf.Timestamp", "timestamp_codec"},
                                                                      {"google.protobuf.FieldMask", "field_mask_codec"}};
 
 struct code_generator {
+
   static std::filesystem::path plugin_name;
   static std::string plugin_parameters;
   static std::vector<std::string> proto2_explicit_presences;
   static std::string directory_prefix;
   std::size_t indent_num = 0;
-  gpb::compiler::CodeGeneratorResponse::File &file;
+  typename CodeGeneratorResponse::File &file;
   std::back_insert_iterator<std::string> target;
 
   using message_descriptor_t = hpp_gen_descriptor_pool::message_descriptor_t;
@@ -550,7 +567,7 @@ struct code_generator {
 
   static message_descriptor_t *parent_message_of(auto *desc) { return desc->parent_message(); }
 
-  explicit code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
+  explicit code_generator(std::vector<typename CodeGeneratorResponse::File> &files)
       : file(files.emplace_back()), target(file.content) {}
 
   ~code_generator() = default;
@@ -588,7 +605,8 @@ struct code_generator {
       for (auto *f : depended->used_by_fields) {
         auto *message = parent_message_of(f);
         if (std::ranges::find(unresolved, message) != unresolved.end()) {
-          used_by_messages[message] |= (f->proto().label != gpb::FieldDescriptorProto::Label::LABEL_REPEATED);
+          used_by_messages[message] |=
+              (f->proto().label != hpp_gen_descriptor_pool::FieldDescriptorProto::Label::LABEL_REPEATED);
           f->is_recursive = true;
         }
       }
@@ -701,14 +719,15 @@ struct msg_code_generator : code_generator {
   std::string syntax;
   std::string out_of_class_data;
   std::back_insert_iterator<std::string> out_of_class_target;
+  using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
 
-  explicit msg_code_generator(std::vector<gpb::compiler::CodeGeneratorResponse::File> &files)
+  explicit msg_code_generator(std::vector<CodeGeneratorResponse::File> &files)
       : code_generator(files), out_of_class_target(out_of_class_data) {}
 
   static std::string namespace_prefix_of(const auto &d) { return d.parent_file()->namespace_prefix; }
 
   static void set_field_cpp_type(field_descriptor_t &field, std::string_view relative_type_name, bool is_nested) {
-    using enum google::protobuf::FieldDescriptorProto::Type;
+    using enum FieldDescriptorProto::Type;
     auto type = field.proto().type;
     if (type == TYPE_ENUM) {
       field.qualified_cpp_field_type = field.enum_field_type_descriptor()->qualified_name;
@@ -721,6 +740,8 @@ struct msg_code_generator : code_generator {
     } else if (field.is_recursive) {
       // only the last component of the type_name should be used
       field.cpp_field_type = field.message_field_type_descriptor()->cpp_name;
+    } else if (is_nested) {
+      field.cpp_field_type = make_qualified_cpp_name("", relative_type_name);;
     } else {
       // only the components excluding the common ancestor should be used
       int num_components = std::ranges::count_if(relative_type_name, [](char c) { return c == '.'; });
@@ -730,9 +751,6 @@ struct msg_code_generator : code_generator {
           std::find_if(v.rbegin(), v.rend(), [&num_colons](char c) { return c == ':' && (--num_colons == 0); }),
           v.rend());
       field.cpp_field_type = field.qualified_cpp_field_type.substr(static_cast<std::size_t>(pos));
-      if (is_nested && type != TYPE_ENUM) {
-        field.cpp_field_type.resize(field.cpp_field_type.size() - std::string_view{"<Traits>"}.size());
-      }
     }
   }
 
@@ -754,8 +772,9 @@ struct msg_code_generator : code_generator {
    * - If the dependent and dependee are in the same file scope, it adds the dependee
    *   to the dependent message's set of dependencies.
    */
-  static void resolve_field_dependency(hpp_gen_descriptor_pool &pool, std::string_view field_message_name, field_descriptor_t &field) {
-    using enum google::protobuf::FieldDescriptorProto::Type;
+  static void resolve_field_dependency(hpp_gen_descriptor_pool &pool, std::string_view field_message_name,
+                                       field_descriptor_t &field) {
+    using enum FieldDescriptorProto::Type;
     auto type = field.proto().type;
     auto field_type_name = std::string_view{field.proto().type_name}.substr(1);
     std::string_view dependee_name = field_type_name;
@@ -763,13 +782,13 @@ struct msg_code_generator : code_generator {
       // For enum types, adjust dependee_name to refer to the parent message of the enum
       dependee_name = field_type_name.substr(0, field_type_name.find_last_of('.'));
     } else if (field.is_map_entry()) {
-      auto& value_field = field.message_field_type_descriptor()->fields()[1];
+      auto &value_field = field.message_field_type_descriptor()->fields()[1];
       switch (value_field.proto().type) {
-        case TYPE_MESSAGE:
-        case TYPE_GROUP:
-        case TYPE_ENUM:
-          resolve_field_dependency(pool, field_message_name, value_field);
-        default:
+      case TYPE_MESSAGE:
+      case TYPE_GROUP:
+      case TYPE_ENUM:
+        resolve_field_dependency(pool, field_message_name, value_field);
+      default:
       }
       return;
     }
@@ -804,8 +823,9 @@ struct msg_code_generator : code_generator {
   }
 
   static void resolve_message_field(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {
-    if (!field.parent_message() ||  !field.parent_message()->is_map_entry()) {
-      resolve_field_dependency(pool, field.qualified_parent_name, field);;
+    if (!field.parent_message() || !field.parent_message()->is_map_entry()) {
+      resolve_field_dependency(pool, field.qualified_parent_name, field);
+      ;
     }
     auto *field_type_msg = field.message_field_type_descriptor();
     field_type_msg->used_by_fields.insert(&field);
@@ -818,7 +838,7 @@ struct msg_code_generator : code_generator {
       field.is_closed_enum = enum_d->is_closed();
       if (!field.proto().default_value.empty()) {
         field.set_enum_default_value(field.proto());
-      } else if (field.proto().label == gpb::FieldDescriptorProto::Label::LABEL_OPTIONAL) {
+      } else if (field.proto().label == FieldDescriptorProto::Label::LABEL_OPTIONAL) {
         std::string proto_default_value = resolve_keyword(enum_d->proto().value[0].name);
         field.default_value = fmt::format("{}::{}", field.cpp_field_type, proto_default_value);
         field.default_value_template_arg = fmt::format("{}::{}", field.qualified_cpp_field_type, proto_default_value);
@@ -858,7 +878,7 @@ struct msg_code_generator : code_generator {
     }
 
     for (auto &field : pool.fields()) {
-      using enum google::protobuf::FieldDescriptorProto::Type;
+      using enum FieldDescriptorProto::Type;
       switch (field.proto().type) {
       case TYPE_MESSAGE:
       case TYPE_GROUP:
@@ -914,8 +934,8 @@ struct msg_code_generator : code_generator {
 
   static std::string_view field_type_wrapper(field_descriptor_t &descriptor) {
     const auto &proto = descriptor.proto();
-    using enum gpb::FieldDescriptorProto::Label;
-    using enum gpb::FieldDescriptorProto::Type;
+    using enum FieldDescriptorProto::Label;
+    using enum FieldDescriptorProto::Type;
     if (proto.label == LABEL_REPEATED) {
       return "typename Traits::template vector_t";
     }
@@ -950,8 +970,8 @@ struct msg_code_generator : code_generator {
   }
 
   void set_presence_rule(field_descriptor_t &descriptor) {
-    using enum gpb::FieldDescriptorProto::Type;
-    using enum gpb::FieldDescriptorProto::Label;
+    using enum FieldDescriptorProto::Type;
+    using enum FieldDescriptorProto::Label;
     std::string qualified_name = std::string{descriptor.qualified_parent_name} + "." + descriptor.proto().name;
 
     descriptor.is_cpp_optional =
@@ -973,7 +993,7 @@ struct msg_code_generator : code_generator {
   void process(field_descriptor_t &descriptor) {
     set_presence_rule(descriptor);
     std::string initializer = " = {}";
-    using enum gpb::FieldDescriptorProto::Type;
+    using enum FieldDescriptorProto::Type;
 
     if (field_type_wrapper(descriptor).size() > 1 || descriptor.proto().type == TYPE_STRING ||
         descriptor.proto().type == TYPE_BYTES) {
@@ -1123,7 +1143,7 @@ struct msg_code_generator : code_generator {
           "\n"
           "{0}struct extension_t {{\n"
           "{0}  using pb_extension = {1};\n"
-          "{0}  hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;\n"
+          "{0}  Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;\n"
           "{0}  bool operator==(const extension_t &other) const = default;\n"
           "{0}}} extensions;\n\n"
           "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && "
@@ -1284,7 +1304,7 @@ struct hpp_meta_generator : code_generator {
 
   static std::vector<std::string_view> meta_options(const field_descriptor_t &descriptor) {
     std::vector<std::string_view> options;
-    using enum gpb::FieldDescriptorProto::Label;
+    using enum google::protobuf::FieldDescriptorProto__::Label;
     if (descriptor.is_cpp_optional || descriptor.is_required()) {
       options.emplace_back("::hpp::proto::field_option::explicit_presence");
     } else if (descriptor.is_packed()) {
@@ -1307,8 +1327,8 @@ struct hpp_meta_generator : code_generator {
   void process(field_descriptor_t &descriptor, std::size_t oneof_index) {
     auto options = meta_options(descriptor);
     auto proto = descriptor.proto();
-    using enum gpb::FieldDescriptorProto::Label;
-    using enum gpb::FieldDescriptorProto::Type;
+    using enum google::protobuf::FieldDescriptorProto__::Label;
+    using enum google::protobuf::FieldDescriptorProto__::Type;
 
     if (descriptor.is_map_entry()) {
       auto get_meta_type = [](const auto &field) {
@@ -1353,18 +1373,12 @@ struct hpp_meta_generator : code_generator {
                         ? descriptor.cpp_name
                         : descriptor.parent_message()->cpp_name + "<Traits>::" + descriptor.cpp_name;
 
-    using enum gpb::FieldDescriptorProto::Label;
-    using enum gpb::FieldDescriptorProto::Type;
+    using enum google::protobuf::FieldDescriptorProto__::Label;
+    using enum google::protobuf::FieldDescriptorProto__::Type;
     auto proto = descriptor.proto();
-    auto extendee_type_name = descriptor.extendee_descriptor()->qualified_name;
-
-    auto replace_substring = [](std::string &str, std::string_view to_find, const char *to_replace_with) {
-      size_t pos = str.find(to_find);
-      if (pos != std::string::npos) {
-        str.replace(pos, to_find.size(), to_replace_with);
-      }
-    };
-    replace_substring(extendee_type_name, "<Traits>", "<T>");
+    auto extendee_template = std::string_view{descriptor.extendee_descriptor()->qualified_name};
+    extendee_template =
+        extendee_template.substr(0, extendee_template.size() - sizeof("<Traits>") + 1); // remove the trailing <Traits>
 
     auto default_value = descriptor.default_value_template_arg;
     if (default_value.empty()) {
@@ -1376,18 +1390,6 @@ struct hpp_meta_generator : code_generator {
 
     auto get_result_type =
         is_repeated ? std::format("typename Traits::template vector_t<{}>", field_value_type) : field_value_type;
-
-    std::string value_type;
-    switch (proto.type) {
-    case TYPE_STRING:
-      value_type = "std::string_view";
-      break;
-    case TYPE_BYTES:
-      value_type = "::hpp::proto::bytes_view";
-      break;
-    default:
-      value_type = descriptor.cpp_field_type;
-    }
 
     const char *extra_crtp_arg = "";
     if (proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP || proto.type == TYPE_STRING ||
@@ -1403,15 +1405,14 @@ struct hpp_meta_generator : code_generator {
     fmt::format_to(target,
                    "{0}struct {1}\n"
                    "{0}    : ::hpp::proto::field_meta_base<{2}, {3}, {4}, {5}>\n"
-                   "{0}    , ::hpp::proto::extension_meta_base<{1}{6}> {{\n"
+                   "{0}    , ::hpp::proto::extension_meta_base<{1}{6}, {8}> {{\n"
                    "{0}  constexpr static bool is_repeated = {7};\n"
-                   "{0}  template <typename T>\n"
-                   "{0}  using extendee_t = {8};\n"
                    "{0}  using get_result_type = {9};\n"
                    "{0}  using value_type = {10};\n"
                    "{0}}};\n\n",
-                   indent(), cpp_name, proto.number, fmt::join(meta_options(descriptor), " | "), descriptor.cpp_meta_type,
-                   default_value, extra_crtp_arg, is_repeated, extendee_type_name, get_result_type, value_type);
+                   indent(), cpp_name, proto.number, fmt::join(meta_options(descriptor), " | "),
+                   descriptor.cpp_meta_type, default_value, extra_crtp_arg, is_repeated, extendee_template,
+                   get_result_type, descriptor.cpp_field_type);
   }
 
   // NOLINTEND(readability-function-cognitive-complexity)
@@ -1717,8 +1718,9 @@ struct glaze_meta_generator : code_generator {
   // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
 
   void process(field_descriptor_t &descriptor) {
-    using enum google::protobuf::FieldDescriptorProto::Type;
-    using enum google::protobuf::FieldDescriptorProto::Label;
+    using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
+    using enum FieldDescriptorProto::Type;
+    using enum FieldDescriptorProto::Label;
 
     if (descriptor.is_cpp_optional && descriptor.proto().type != TYPE_BOOL) {
       // we remove operator! from hpp::optional<bool> to make the interface less confusing; however, this
@@ -1937,7 +1939,7 @@ int main(int argc, const char **argv) {
     read_file(std::cin);
   }
 
-  gpb::compiler::CodeGeneratorRequest request;
+  google::protobuf::compiler::CodeGeneratorRequest<traits_type> request;
 
   if (auto ec = hpp::proto::read_proto(request, request_data); !ec.ok()) {
     (void)fputs("hpp decode error", stderr);
@@ -1967,15 +1969,15 @@ int main(int argc, const char **argv) {
     code_generator::proto2_explicit_presences.emplace_back(".");
   }
 
-  hpp_gen_descriptor_pool pool(std::move(request.proto_file));
+  hpp_gen_descriptor_pool pool(google::protobuf::FileDescriptorSet<>{.file = std::move(request.proto_file)});
 
-  gpb::compiler::CodeGeneratorResponse response;
-  using enum gpb::compiler::CodeGeneratorResponse::Feature;
+  CodeGeneratorResponse response;
+  using enum CodeGeneratorResponse::Feature;
   response.supported_features =
       static_cast<std::uint64_t>(FEATURE_PROTO3_OPTIONAL) | static_cast<std::uint64_t>(FEATURE_SUPPORTS_EDITIONS);
 
-  response.minimum_edition = static_cast<int32_t>(gpb::Edition::EDITION_PROTO2);
-  response.maximum_edition = static_cast<int32_t>(gpb::Edition::EDITION_2024);
+  response.minimum_edition = static_cast<int32_t>(google::protobuf::Edition::EDITION_PROTO2);
+  response.maximum_edition = static_cast<int32_t>(google::protobuf::Edition::EDITION_2024);
 
   for (const auto &file_name : request.file_to_generate) {
     auto &descriptor = *pool.get_file_descriptor(file_name);

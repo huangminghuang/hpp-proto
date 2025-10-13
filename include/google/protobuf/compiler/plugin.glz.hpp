@@ -12,9 +12,9 @@
 #include "google/protobuf/descriptor.glz.hpp"
 #include "google/protobuf/compiler/plugin.msg.hpp"
 
-template <>
-struct glz::meta<google::protobuf::compiler::Version> {
-  using T = google::protobuf::compiler::Version;
+template <typename Traits>
+struct glz::meta<google::protobuf::compiler::Version<Traits>> {
+  using T = google::protobuf::compiler::Version<Traits>;
   static constexpr auto value = object(
     "major", hpp::proto::as_optional_ref<&T::major>,
     "minor", hpp::proto::as_optional_ref<&T::minor>,
@@ -22,9 +22,9 @@ struct glz::meta<google::protobuf::compiler::Version> {
     "suffix", hpp::proto::as_optional_ref<&T::suffix>);
 };
 
-template <>
-struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest> {
-  using T = google::protobuf::compiler::CodeGeneratorRequest;
+template <typename Traits>
+struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest<Traits>> {
+  using T = google::protobuf::compiler::CodeGeneratorRequest<Traits>;
   static constexpr auto value = object(
     "fileToGenerate", hpp::proto::as_optional_ref<&T::file_to_generate>,
     "parameter", hpp::proto::as_optional_ref<&T::parameter>,
@@ -33,9 +33,9 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest> {
     "compilerVersion", &T::compiler_version);
 };
 
-template <>
-struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse> {
-  using T = google::protobuf::compiler::CodeGeneratorResponse;
+template <typename Traits>
+struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse<Traits>> {
+  using T = google::protobuf::compiler::CodeGeneratorResponse<Traits>;
   static constexpr auto value = object(
     "error", hpp::proto::as_optional_ref<&T::error>,
     "supportedFeatures", hpp::proto::as_optional_ref<&T::supported_features>,
@@ -44,9 +44,9 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse> {
     "file", hpp::proto::as_optional_ref<&T::file>);
 };
 
-template <>
-struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse::File> {
-  using T = google::protobuf::compiler::CodeGeneratorResponse::File;
+template <typename Traits>
+struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse__::File<Traits>> {
+  using T = google::protobuf::compiler::CodeGeneratorResponse__::File<Traits>;
   static constexpr auto value = object(
     "name", hpp::proto::as_optional_ref<&T::name>,
     "insertionPoint", hpp::proto::as_optional_ref<&T::insertion_point>,
@@ -55,8 +55,8 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse::File> {
 };
 
 template <>
-struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse::Feature> {
-  using enum google::protobuf::compiler::CodeGeneratorResponse::Feature;
+struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse__::Feature> {
+  using enum google::protobuf::compiler::CodeGeneratorResponse__::Feature;
   static constexpr auto value = enumerate(
     "FEATURE_NONE", FEATURE_NONE,
     "FEATURE_PROTO3_OPTIONAL", FEATURE_PROTO3_OPTIONAL,

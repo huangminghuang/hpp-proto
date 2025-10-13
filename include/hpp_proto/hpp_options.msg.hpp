@@ -16,34 +16,16 @@
 namespace hpp::proto {
 //NOLINTBEGIN(performance-enum-size)
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct FileOptions {
-  hpp::proto::optional<bool> non_owning;
-  hpp::proto::optional<std::string> namespace_prefix;
-  hpp::proto::optional<std::string> string_keyed_map;
-  hpp::proto::optional<std::string> numeric_keyed_map;
+  using hpp_proto_traits_type = Traits;
+  hpp::proto::optional<typename Traits::string_t> namespace_prefix;
 
   bool operator == (const FileOptions&) const = default;
 };
 
-struct MessageOptions {
-  hpp::proto::optional<bool> non_owning;
-  hpp::proto::optional<std::string> string_keyed_map;
-  hpp::proto::optional<std::string> numeric_keyed_map;
-
-  bool operator == (const MessageOptions&) const = default;
-};
-
-struct FieldOptions {
-  hpp::proto::optional<bool> non_owning;
-  hpp::proto::optional<std::string> string_keyed_map;
-  hpp::proto::optional<std::string> numeric_keyed_map;
-
-  bool operator == (const FieldOptions&) const = default;
-};
-
-constexpr auto message_type_url(const FileOptions&) { return hpp::proto::string_literal<"type.googleapis.com/hpp.proto.FileOptions">{}; }
-constexpr auto message_type_url(const MessageOptions&) { return hpp::proto::string_literal<"type.googleapis.com/hpp.proto.MessageOptions">{}; }
-constexpr auto message_type_url(const FieldOptions&) { return hpp::proto::string_literal<"type.googleapis.com/hpp.proto.FieldOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FileOptions<Traits>&) { return hpp::proto::string_literal<"type.googleapis.com/hpp.proto.FileOptions">{}; }
 // NOLINTEND(performance-enum-size)
 } // namespace hpp::proto
 // clang-format on

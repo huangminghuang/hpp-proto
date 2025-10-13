@@ -106,30 +106,44 @@ struct json_codec<wellknown::FieldMask> {
 };
 
 struct proto_json_addons {
+  using traits_type = default_traits;
+  using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
+  using FieldOptions = google::protobuf::FieldOptions<traits_type>;
+  using FeatureSet = google::protobuf::FeatureSet<traits_type>;
+  using OneofDescriptorProto = google::protobuf::OneofDescriptorProto<traits_type>;
+  using OneofOptions = google::protobuf::OneofOptions<traits_type>;
+  using EnumDescriptorProto = google::protobuf::EnumDescriptorProto<traits_type>;
+  using EnumValueOptions = google::protobuf::EnumValueOptions<traits_type>;
+  using EnumOptions = google::protobuf::EnumOptions<traits_type>;
+  using DescriptorProto = google::protobuf::DescriptorProto<traits_type>;
+  using MessageOptions = google::protobuf::MessageOptions<traits_type>;
+  using FileDescriptorProto = google::protobuf::FileDescriptorProto<traits_type>;
+  using FileOptions = google::protobuf::FileOptions<traits_type>;
+  using FileDescriptorSet = google::protobuf::FileDescriptorSet<traits_type>;
   template <typename Derived>
   struct field_descriptor {
-    field_descriptor(const google::protobuf::FieldDescriptorProto &, const std::string &) {}
+    field_descriptor(const FieldDescriptorProto &, const std::string &) {}
   };
 
   template <typename EnumD>
   struct enum_descriptor {
-    explicit enum_descriptor(const google::protobuf::EnumDescriptorProto &) {}
+    explicit enum_descriptor(const EnumDescriptorProto &) {}
   };
 
   template <typename OneofD, typename FieldD>
   struct oneof_descriptor {
-    explicit oneof_descriptor(const google::protobuf::OneofDescriptorProto &) {}
+    explicit oneof_descriptor(const OneofDescriptorProto &) {}
   };
 
   template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
   struct message_descriptor {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    explicit message_descriptor(const google::protobuf::DescriptorProto &) {}
+    explicit message_descriptor(const DescriptorProto &) {}
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
   struct file_descriptor {
-    explicit file_descriptor(const google::protobuf::FileDescriptorProto &) {}
+    explicit file_descriptor(const FileDescriptorProto &) {}
   };
 };
 
@@ -163,7 +177,7 @@ class dynamic_serializer {
     std::variant<std::monostate, const message_meta *, const enum_meta *> type_info;
     std::string name;
     std::string json_name;
-    google::protobuf::FieldDescriptorProto::Type type = {};
+    google::protobuf::FieldDescriptorProto__::Type type = {};
     uint8_t options = 0;
     std::string default_value;
 
@@ -175,20 +189,20 @@ class dynamic_serializer {
           json_name(field_descriptor.proto().json_name), type(field_descriptor.proto().type),
           default_value(field_descriptor.proto().default_value) {
       const auto &proto = field_descriptor.proto();
-      if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE) {
+      if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto__::Type::TYPE_MESSAGE) {
         if (pool.message_map().find(proto.type_name.substr(1))->second->is_map_entry()) {
           options |= field_options::is_map_entry;
         }
       }
 
-      using enum google::protobuf::FieldDescriptorProto::Type;
+      using enum google::protobuf::FieldDescriptorProto__::Type;
       if (proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP) {
         type_index = find_index(pool.message_map().keys(), proto.type_name.substr(1));
       } else if (proto.type == TYPE_ENUM) {
         type_index = find_index(pool.enum_map().keys(), proto.type_name.substr(1));
       }
 
-      using enum google::protobuf::FieldDescriptorProto::Label;
+      using enum google::protobuf::FieldDescriptorProto__::Label;
       if (proto.label == LABEL_REPEATED) {
         if (field_descriptor.is_packed()) {
           options |= uint8_t(field_options::repeated | field_options::packed);
@@ -425,7 +439,7 @@ class dynamic_serializer {
     template <auto Options>
     status field_to_json(const dynamic_serializer::field_meta &meta, bool is_map_key,
                          concepts::is_basic_in auto &archive) {
-      using enum google::protobuf::FieldDescriptorProto::Type;
+      using enum google::protobuf::FieldDescriptorProto__::Type;
       switch (meta.type) {
       case TYPE_DOUBLE:
         return field_type_to_json<Options, double>(false, archive, [](double) { return true; });
@@ -523,7 +537,7 @@ class dynamic_serializer {
           }
         }
 
-        using enum google::protobuf::FieldDescriptorProto::Type;
+        using enum google::protobuf::FieldDescriptorProto__::Type;
         if (is_map_entry) {
           separator = ':';
         } else if (!field_m.is_repeated() || unpacked_repeated_positions[field_index] == 0) {
@@ -930,7 +944,7 @@ class dynamic_serializer {
     }
 
     status map_key_to_pb(const dynamic_serializer::field_meta &meta, std::string_view key, auto &archive) {
-      using enum google::protobuf::FieldDescriptorProto::Type;
+      using enum google::protobuf::FieldDescriptorProto__::Type;
       switch (meta.type) {
       case TYPE_INT64:
         return map_key_to_pb<vint64_t>(key, archive);
@@ -978,7 +992,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status field_to_pb(const dynamic_serializer::field_meta &meta, auto &it, auto &end, auto &archive) {
-      using enum google::protobuf::FieldDescriptorProto::Type;
+      using enum google::protobuf::FieldDescriptorProto__::Type;
       switch (meta.type) {
       case TYPE_DOUBLE:
         return type_to_pb<Options, double, false>(meta, it, end, archive);
@@ -1388,8 +1402,7 @@ class dynamic_serializer {
   // NOLINTEND(readability-function-cognitive-complexity)
 public:
   using option_type = std::reference_wrapper<dynamic_serializer>;
-  explicit dynamic_serializer(google::protobuf::FileDescriptorSet &&set) {
-    descriptor_pool<proto_json_addons> pool(std::move(set));
+  explicit dynamic_serializer(descriptor_pool<proto_json_addons> &&pool) {
 
     if (pool.enum_map().size() != 1 || pool.enum_map().begin()->first != "google.protobuf.NullValue") {
       enums.reserve(pool.enums().size());
@@ -1419,7 +1432,7 @@ public:
 
     for (auto &msg : messages) {
       for (auto &field : msg.fields) {
-        using enum google::protobuf::FieldDescriptorProto::Type;
+        using enum google::protobuf::FieldDescriptorProto__::Type;
         if (field.type == TYPE_MESSAGE || field.type == TYPE_GROUP) {
           field.type_info = &messages[field.type_index];
         } else if (field.type == TYPE_ENUM) {
@@ -1454,24 +1467,34 @@ public:
     protobuf_wrapper_type_message_indices.erase(first_invalid, protobuf_wrapper_type_message_indices.end());
   }
 
-  static auto make(concepts::input_byte_range auto const &stream) {
-    // workaround for std::expected requires its template parameters to be complete types
-    using result_t = std::expected<dynamic_serializer, hpp::proto::status>;
-    auto fileset = make_file_descriptor_set(stream);
-    if (!fileset) [[unlikely]] {
-      return result_t{std::unexpected(fileset.error())};
+  static expected<dynamic_serializer, status> make(concepts::input_byte_range auto const &stream) {
+    std::unordered_set<std::string_view> unique_files;
+    pb_context ctx{};
+    pb_serializer::contiguous_input_archive archive{stream, ctx};
+    while (archive.in_avail() > 0) {
+      bytes_view file_field;
+      if (auto ec = pb_serializer::extract_length_delimited_field(1, file_field, archive); !ec.ok()) {
+        return std::unexpected(ec);
+      }
+      unique_files.insert(std::string_view{reinterpret_cast<const char*>(file_field.data()), file_field.size()});
     }
-    return result_t{dynamic_serializer{std::move(*fileset)}};
+
+    return descriptor_pool<proto_json_addons>::make(unique_files).transform([](auto &&pool) {
+      return dynamic_serializer(std::forward<decltype(pool)>(pool));
+    });
   }
 
-  static auto make(concepts::file_descriptor_pb_array auto const &...args) {
-    // workaround for std::expected requires its template parameters to be complete types
-    using result_t = std::expected<dynamic_serializer, hpp::proto::status>;
-    auto fileset = make_file_descriptor_set(args...);
-    if (!fileset) [[unlikely]] {
-      return result_t{std::unexpected(fileset.error())};
-    }
-    return result_t{dynamic_serializer{std::move(*fileset)}};
+  static expected<dynamic_serializer, status> make(concepts::file_descriptor_pb_array auto const &...args) {
+    std::unordered_set<std::string_view> unique_files;
+    auto insert_to_set = [&](auto const & arg) {
+      auto view = arg | std::views::transform([](const file_descriptor_pb& x) { return x.value; });
+      unique_files.insert(view.begin(), view.end());
+    };
+
+    (insert_to_set(args), ...);
+    return descriptor_pool<proto_json_addons>::make(unique_files).transform([](auto &&pool) {
+      return dynamic_serializer(std::forward<decltype(pool)>(pool));
+    });
   }
 
   hpp::proto::status proto_to_json(std::string_view message_name,

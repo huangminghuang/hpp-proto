@@ -58,6 +58,7 @@ enum class wellknown_types_t : uint8_t {
 class dynamic_message_factory;
 
 struct dynamic_message_factory_addons {
+  using traits_type = default_traits;
   template <typename Derived>
   struct field_descriptor {
     using type = void;
@@ -69,12 +70,12 @@ struct dynamic_message_factory_addons {
     /// @brief for oneof field, this value is the order among the same oneof field counting from 1; otherwise, it is
     /// always 1 for singular field and 0 for repeated field
     uint16_t oneof_ordinal = 0;
-    field_descriptor(const google::protobuf::FieldDescriptorProto &proto, const std::string &) {
+    field_descriptor(const google::protobuf::FieldDescriptorProto<traits_type> &proto, const std::string &) {
       set_default_value(proto);
     }
 
-    void set_default_value(const google::protobuf::FieldDescriptorProto &proto) {
-      using enum google::protobuf::FieldDescriptorProto::Type;
+    void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto) {
+      using enum google::protobuf::FieldDescriptorProto__::Type;
       using namespace std::string_literals;
       const auto &default_value_opt = proto.default_value;
       switch (proto.type) {
@@ -124,7 +125,7 @@ struct dynamic_message_factory_addons {
 
   template <typename EnumD>
   struct enum_descriptor {
-    explicit enum_descriptor(const google::protobuf::EnumDescriptorProto &) {}
+    explicit enum_descriptor(const google::protobuf::EnumDescriptorProto<traits_type> &) {}
 
     [[nodiscard]] const uint32_t *value_of(const std::string_view name) const {
       const auto &proto = static_cast<const EnumD *>(this)->proto();
@@ -150,7 +151,7 @@ struct dynamic_message_factory_addons {
 
   template <typename OneofD, typename FieldD>
   struct oneof_descriptor {
-    explicit oneof_descriptor(const google::protobuf::OneofDescriptorProto &) {}
+    explicit oneof_descriptor(const google::protobuf::OneofDescriptorProto<traits_type> &) {}
     [[nodiscard]] uint32_t storage_slot() const {
       return static_cast<const OneofD *>(this)->fields().front().storage_slot;
     }
@@ -160,12 +161,12 @@ struct dynamic_message_factory_addons {
   struct message_descriptor {
     uint32_t num_slots = 0;
     wellknown_types_t wellknown = wellknown_types_t::NONE;
-    explicit message_descriptor(const google::protobuf::DescriptorProto &) {}
+    explicit message_descriptor(const google::protobuf::DescriptorProto<traits_type> &) {}
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
   struct file_descriptor {
-    explicit file_descriptor(const google::protobuf::FileDescriptorProto &) {}
+    explicit file_descriptor(const google::protobuf::FileDescriptorProto<traits_type> &) {}
   };
 };
 
@@ -173,7 +174,8 @@ using dynamic_message_factory_base = descriptor_pool<dynamic_message_factory_add
 class message_value_mref;
 class dynamic_message_factory : public descriptor_pool<dynamic_message_factory_addons> {
 public:
-  explicit dynamic_message_factory(google::protobuf::FileDescriptorSet &&proto_files)
+  explicit dynamic_message_factory(
+      google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type> &&proto_files)
       : descriptor_pool<dynamic_message_factory_addons>(std::move(proto_files)) {
     for (auto &message : this->messages()) {
       hpp::proto::optional<std::int32_t> prev_oneof_index;
@@ -292,9 +294,8 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] field_kind_t field_kind() const noexcept {
     // map TYPE_GROUP to TYPE_MESSAGE
-    auto base_type = descriptor().proto().type == google::protobuf::FieldDescriptorProto::Type::TYPE_GROUP
-                         ? google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE
-                         : descriptor().proto().type;
+    using enum google::protobuf::FieldDescriptorProto__::Type;
+    auto base_type = descriptor().proto().type == TYPE_GROUP ? TYPE_MESSAGE : descriptor().proto().type;
     return static_cast<field_kind_t>(std::to_underlying(base_type) +
                                      (18 * static_cast<int>(descriptor().is_repeated())));
   }

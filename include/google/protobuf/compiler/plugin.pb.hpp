@@ -15,31 +15,38 @@
 
 namespace google::protobuf::compiler {
 
-auto pb_meta(const Version &) -> std::tuple<
-  hpp::proto::field_meta<1, &Version::major, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-  hpp::proto::field_meta<2, &Version::minor, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-  hpp::proto::field_meta<3, &Version::patch, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-  hpp::proto::field_meta<4, &Version::suffix, hpp::proto::field_option::none>>;
+template <typename Traits>
+auto pb_meta(const Version<Traits> &) -> std::tuple<
+  ::hpp::proto::field_meta<1, &Version<Traits>::major, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<2, &Version<Traits>::minor, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<3, &Version<Traits>::patch, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<4, &Version<Traits>::suffix, ::hpp::proto::field_option::none>>;
 
-auto pb_meta(const CodeGeneratorRequest &) -> std::tuple<
-  hpp::proto::field_meta<1, &CodeGeneratorRequest::file_to_generate, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<2, &CodeGeneratorRequest::parameter, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<15, &CodeGeneratorRequest::proto_file, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<17, &CodeGeneratorRequest::source_file_descriptors, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<3, &CodeGeneratorRequest::compiler_version, hpp::proto::field_option::explicit_presence>>;
+template <typename Traits>
+auto pb_meta(const CodeGeneratorRequest<Traits> &) -> std::tuple<
+  ::hpp::proto::field_meta<1, &CodeGeneratorRequest<Traits>::file_to_generate, ::hpp::proto::field_option::none>,
+  ::hpp::proto::field_meta<2, &CodeGeneratorRequest<Traits>::parameter, ::hpp::proto::field_option::none>,
+  ::hpp::proto::field_meta<15, &CodeGeneratorRequest<Traits>::proto_file, ::hpp::proto::field_option::none>,
+  ::hpp::proto::field_meta<17, &CodeGeneratorRequest<Traits>::source_file_descriptors, ::hpp::proto::field_option::none>,
+  ::hpp::proto::field_meta<3, &CodeGeneratorRequest<Traits>::compiler_version, ::hpp::proto::field_option::explicit_presence>>;
 
-auto pb_meta(const CodeGeneratorResponse &) -> std::tuple<
-  hpp::proto::field_meta<1, &CodeGeneratorResponse::error, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<2, &CodeGeneratorResponse::supported_features, hpp::proto::field_option::none, hpp::proto::vuint64_t>,
-  hpp::proto::field_meta<3, &CodeGeneratorResponse::minimum_edition, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-  hpp::proto::field_meta<4, &CodeGeneratorResponse::maximum_edition, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-  hpp::proto::field_meta<15, &CodeGeneratorResponse::file, hpp::proto::field_option::none>>;
+template <typename Traits>
+auto pb_meta(const CodeGeneratorResponse<Traits> &) -> std::tuple<
+  ::hpp::proto::field_meta<1, &CodeGeneratorResponse<Traits>::error, ::hpp::proto::field_option::none>,
+  ::hpp::proto::field_meta<2, &CodeGeneratorResponse<Traits>::supported_features, ::hpp::proto::field_option::none, hpp::proto::vuint64_t>,
+  ::hpp::proto::field_meta<3, &CodeGeneratorResponse<Traits>::minimum_edition, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<4, &CodeGeneratorResponse<Traits>::maximum_edition, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<15, &CodeGeneratorResponse<Traits>::file, ::hpp::proto::field_option::none>>;
 
-auto pb_meta(const CodeGeneratorResponse::File &) -> std::tuple<
-  hpp::proto::field_meta<1, &CodeGeneratorResponse::File::name, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<2, &CodeGeneratorResponse::File::insertion_point, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<15, &CodeGeneratorResponse::File::content, hpp::proto::field_option::none>,
-  hpp::proto::field_meta<16, &CodeGeneratorResponse::File::generated_code_info, hpp::proto::field_option::explicit_presence>>;
+namespace CodeGeneratorResponse__ {
+  template <typename Traits>
+  auto pb_meta(const File<Traits> &) -> std::tuple<
+    ::hpp::proto::field_meta<1, &File<Traits>::name, ::hpp::proto::field_option::none>,
+    ::hpp::proto::field_meta<2, &File<Traits>::insertion_point, ::hpp::proto::field_option::none>,
+    ::hpp::proto::field_meta<15, &File<Traits>::content, ::hpp::proto::field_option::none>,
+    ::hpp::proto::field_meta<16, &File<Traits>::generated_code_info, ::hpp::proto::field_option::explicit_presence>>;
+
+} //namespace CodeGeneratorResponse__
 
 } // namespace google::protobuf::compiler
 // clang-format on

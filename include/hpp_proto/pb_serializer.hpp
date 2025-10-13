@@ -163,9 +163,7 @@ template <typename T>
 concept basic_string_view = requires {
   typename T::value_type;
   requires string_value_type<typename T::value_type>;
-  requires std::same_as<T,
-                        std::basic_string_view<typename T::value_type,
-                                               std::char_traits<typename T::value_type>>>;
+  requires std::same_as<T, std::basic_string_view<typename T::value_type, std::char_traits<typename T::value_type>>>;
 };
 
 template <typename T>
@@ -173,15 +171,12 @@ concept basic_string = requires {
   typename T::value_type;
   typename T::allocator_type;
   requires string_value_type<typename T::value_type>;
-  requires std::same_as<T,
-                        std::basic_string<typename T::value_type,
-                                          std::char_traits<typename T::value_type>,
-                                          typename T::allocator_type>>;
+  requires std::same_as<T, std::basic_string<typename T::value_type, std::char_traits<typename T::value_type>,
+                                             typename T::allocator_type>>;
 };
 
 template <typename T>
 concept string_like = basic_string_view<T> || basic_string<T>;
-
 
 template <typename T>
 concept has_local_meta = concepts::tuple<typename std::decay_t<T>::pb_meta>;
@@ -606,7 +601,7 @@ struct [[nodiscard]] status {
   [[nodiscard]] constexpr bool ok() const noexcept { return ec == std::errc{}; }
 };
 
-template <typename T>
+template <typename T, template <typename Traits> class Extendee>
 struct extension_meta_base {
   struct accessor_type {
     constexpr auto &operator()(auto &item) const {
@@ -617,8 +612,10 @@ struct extension_meta_base {
 
   constexpr static auto access = accessor_type{};
 
-  static constexpr void check(const concepts::pb_extension auto &) {
-    //static_assert(std::same_as<typename std::remove_cvref_t<decltype(extensions)>::pb_extension, typename T::extendee>);
+  static constexpr void check(const concepts::pb_extension auto &extensions) {
+    using extendee_type = typename std::remove_cvref_t<decltype(extensions)>::pb_extension;
+    using traits_type = typename extendee_type::hpp_proto_traits_type;
+    static_assert(std::same_as<extendee_type, Extendee<traits_type>>);
   }
 
   static auto read(const concepts::pb_extension auto &extensions, concepts::is_option_type auto &&...option);
@@ -632,35 +629,6 @@ struct extension_meta_base {
                           [](const auto &item) { return item.first == T::number; }) != extensions.fields.end();
     }
   }
-};
-
-template <typename Extendee, uint32_t Number, int FieldOptions, typename Type, typename ValueType,
-          auto DefaultValue = std::monostate{}>
-struct extension_meta
-    : field_meta_base<Number, FieldOptions, Type, DefaultValue>,
-      extension_meta_base<extension_meta<Extendee, Number, FieldOptions, Type, ValueType, DefaultValue>> {
-  constexpr static auto default_value = unwrap(DefaultValue);
-  constexpr static bool has_default_value = !std::same_as<std::remove_const_t<decltype(DefaultValue)>, std::monostate>;
-  static constexpr bool is_repeated = false;
-  using extendee = Extendee;
-
-  using get_result_type = ValueType;
-  using set_value_type = ValueType;
-  using value_type = ValueType;
-};
-
-template <typename Extendee, uint32_t Number, int FieldOptions, typename Type, typename ValueType>
-struct repeated_extension_meta
-    : field_meta_base<Number, FieldOptions, Type, std::monostate{}>,
-      extension_meta_base<repeated_extension_meta<Extendee, Number, FieldOptions, Type, ValueType>> {
-  constexpr static bool has_default_value = false;
-  static constexpr bool is_repeated = true;
-  using extendee = Extendee;
-  static constexpr bool non_owning =
-      concepts::dynamic_sized_view<decltype(std::declval<typename extendee::extension_t>().fields)>;
-  using element_type = std::conditional_t<std::is_same_v<ValueType, bool> && !non_owning, boolean, ValueType>;
-  using get_result_type = std::conditional_t<non_owning, std::span<const element_type>, std::vector<element_type>>;
-  using value_type = ValueType;
 };
 
 enum class wire_type : uint8_t {
@@ -1900,6 +1868,8 @@ public:
     }
   }
 
+  basic_in(const basic_in &) = default;
+
   [[nodiscard]] basic_in copy() const { return *this; }
 
   constexpr status deserialize(bool &item) {
@@ -1963,9 +1933,9 @@ public:
         }
       }
     } else {
-
-      item.resize(new_size);
-      auto target = std::span{item.data() + old_size, n};
+      decltype(auto) x = detail::as_modifiable(context, const_cast<std::remove_cvref_t<decltype(item)>&>(item));
+      x.resize(new_size);
+      auto target = std::span{x.data() + old_size, n};
       if (std::is_constant_evaluated() || requires_byteswap) {
         std::array<byte_type, sizeof(value_type)> v;
         for (auto &elem : target) {
@@ -2280,7 +2250,7 @@ constexpr status skip_field(uint32_t tag, concepts::has_extension auto &item, co
       auto &entry = fields.back().second;
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       if (static_cast<const void *>(field_archive.data()) == entry.data() + entry.size()) {
-        entry = std::span<const byte_type>{entry.data(), entry.size() + field_len};
+        const_cast<equality_comparable_span<const byte_type>&>(entry) = std::span<const byte_type>{entry.data(), entry.size() + field_len};
         return {};
       }
     }
@@ -2758,6 +2728,30 @@ constexpr status deserialize_sized(auto &&item, concepts::is_basic_in auto &arch
   return std::errc::bad_message;
 }
 
+constexpr status extract_length_delimited_field(uint32_t number, bytes_view &bytes, concepts::is_basic_in auto &archive)
+  requires(std::remove_cvref_t<decltype(archive)>::contiguous)
+{
+  while (archive.in_avail() > 0) {
+    auto tag = archive.read_tag();
+    if (tag_type(tag) != wire_type::length_delimited)
+      return std::errc::bad_message;
+    if (tag_number(tag) == number) {
+      vuint32_t len;
+      if (auto result = archive(len); !result.ok() || len == 0) [[unlikely]] {
+        return result;
+      }
+
+      if (len <= archive.in_avail()) [[likely]] {
+        return archive.read_bytes(len, bytes);
+      }
+      return std::errc::bad_message;
+    } else if (auto result = do_skip_field(tag, archive); !result.ok()) {
+      return result;
+    }
+  }
+  return archive.in_avail() == 0 ? std::errc{} : std::errc::bad_message;
+}
+
 template <typename Context, typename Byte>
 struct contiguous_input_archive_base {
   std::array<Byte, patch_buffer_size> patch_buffer;
@@ -2870,9 +2864,9 @@ struct serialize_wrapper_type {
   serialize_wrapper_type &operator=(serialize_wrapper_type &&) = delete;
 };
 
-template <typename ExtensionMeta>
-inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extension auto &extensions,
-                                                     concepts::is_option_type auto &&...option) {
+template <typename ExtensionMeta, template <typename Traits> class Extendee>
+inline auto extension_meta_base<ExtensionMeta, Extendee>::read(const concepts::pb_extension auto &extensions,
+                                                               concepts::is_option_type auto &&...option) {
   check(extensions);
   decltype(extensions.fields.begin()) itr;
 
@@ -2895,7 +2889,8 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
     return return_type{wrapper.value};
   }
 
-  constexpr bool has_default_value = !std::same_as<std::remove_const_t<decltype(ExtensionMeta::default_value)>, std::monostate>;
+  constexpr bool has_default_value =
+      !std::same_as<std::remove_const_t<decltype(ExtensionMeta::default_value)>, std::monostate>;
   if constexpr (has_default_value) {
     return return_type(value_type(ExtensionMeta::default_value));
   } else if constexpr (!concepts::has_meta<value_type>) {
@@ -2905,9 +2900,9 @@ inline auto extension_meta_base<ExtensionMeta>::read(const concepts::pb_extensio
   }
 }
 
-template <typename ExtensionMeta>
-inline status extension_meta_base<ExtensionMeta>::write(concepts::pb_extension auto &extensions, auto &&value,
-                                                        concepts::is_option_type auto &&...option) {
+template <typename ExtensionMeta, template <typename Traits> class Extendee>
+inline status extension_meta_base<ExtensionMeta, Extendee>::write(concepts::pb_extension auto &extensions, auto &&value,
+                                                                  concepts::is_option_type auto &&...option) {
   check(extensions);
 
   pb_context ctx{std::forward<decltype(option)>(option)...};

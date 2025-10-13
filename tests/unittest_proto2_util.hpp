@@ -721,7 +721,7 @@ inline void SetAll(protobuf_unittest::TestAllExtensions<> *message) {
   expect(message->set_extension(protobuf_unittest::optional_double_extension{}, 112).ok());
   expect(message->set_extension(protobuf_unittest::optional_bool_extension{}, true).ok());
   expect(message->set_extension(protobuf_unittest::optional_string_extension{}, "115").ok());
-  expect(message->set_extension(protobuf_unittest::optional_bytes_extension{}, "116"_bytes_view).ok());
+  expect(message->set_extension(protobuf_unittest::optional_bytes_extension{}, "116"_bytes).ok());
 
   expect(message->set_extension(protobuf_unittest::optionalgroup_extension{}, {.a = 117}).ok());
   expect(message->set_extension(protobuf_unittest::optional_nested_message_extension{}, {.bb = 118}).ok());
@@ -782,11 +782,11 @@ inline void SetAll(protobuf_unittest::TestAllExtensions<> *message) {
   expect(message->set_extension(protobuf_unittest::repeated_double_extension{}, std::initializer_list<double>{212, 312})
              .ok());
   expect(message->set_extension(protobuf_unittest::repeated_bool_extension{}, std::initializer_list{true, false}).ok());
-  expect(message->set_extension(protobuf_unittest::repeated_string_extension{}, std::initializer_list{"215"sv, "315"sv})
+  expect(message->set_extension(protobuf_unittest::repeated_string_extension{}, std::initializer_list{"215"s, "315"s})
              .ok());
   expect(message
              ->set_extension(protobuf_unittest::repeated_bytes_extension{},
-                             std::initializer_list{"216"_bytes_view, "316"_bytes_view})
+                             std::initializer_list{"216"_bytes, "316"_bytes})
              .ok());
 
   using repeatedgroup_extension = protobuf_unittest::repeatedgroup_extension<>;
@@ -847,7 +847,7 @@ inline void SetAll(protobuf_unittest::TestAllExtensions<> *message) {
 
   expect(message->set_extension(protobuf_unittest::default_bool_extension{}, false).ok());
   expect(message->set_extension(protobuf_unittest::default_string_extension{}, "415").ok());
-  expect(message->set_extension(protobuf_unittest::default_bytes_extension{}, "416"_bytes_view).ok());
+  expect(message->set_extension(protobuf_unittest::default_bytes_extension{}, "416"_bytes).ok());
 
   expect(message
              ->set_extension(protobuf_unittest::default_nested_enum_extension{},
@@ -872,7 +872,7 @@ inline void SetOneofFields(protobuf_unittest::TestAllExtensions<> *message) {
   expect(message->set_extension(protobuf_unittest::oneof_uint32_extension{}, 601).ok());
   expect(message->set_extension(protobuf_unittest::oneof_nested_message_extension{}, {.bb = 602}).ok());
   expect(message->set_extension(protobuf_unittest::oneof_string_extension{}, "603").ok());
-  expect(message->set_extension(protobuf_unittest::oneof_bytes_extension{}, "604"_bytes_view).ok());
+  expect(message->set_extension(protobuf_unittest::oneof_bytes_extension{}, "604"_bytes).ok());
 }
 
 // -------------------------------------------------------------------

@@ -6,12 +6,13 @@ using namespace boost::ut;
 
 const boost::ut::suite dynamic_message_test = [] {
   using namespace boost::ut::literals;
-  auto fileset = hpp::proto::make_file_descriptor_set(read_file("unittest.desc.binpb"));
-  if (!fileset) [[unlikely]] {
+
+  google::protobuf::FileDescriptorSet fileset;
+  if (! hpp::proto::read_proto(fileset, read_file("unittest.desc.binpb")).ok() ){
     throw std::runtime_error("Failed to read descriptor set");
   }
 
-  hpp::proto::dynamic_message_factory factory{std::move(*fileset)};
+  hpp::proto::dynamic_message_factory factory{std::move(fileset)};
   expect(fatal(!factory.files().empty()));
 
   "unit"_test = [&factory](const std::string &message_name) -> void {

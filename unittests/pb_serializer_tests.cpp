@@ -1068,10 +1068,9 @@ struct bytes_with_optional {
 auto pb_meta(const bytes_with_optional &)
     -> std::tuple<hpp::proto::field_meta<1, &bytes_with_optional::value, field_option::explicit_presence>>;
 
-
 const ut::suite test_bytes = [] {
   const static auto verified_value = "\x74\x65\x73\x74"_bytes;
-  static_assert(std::is_convertible_v<std::vector<std::byte>, hpp::proto::equality_comparable_span<const std::byte> >);
+  static_assert(std::is_convertible_v<std::vector<std::byte>, hpp::proto::equality_comparable_span<const std::byte>>);
 
   "bytes_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_example{.value = verified_value}); };
 
@@ -1389,32 +1388,40 @@ const ut::suite test_oneof = [] {
   "enum_oneof_example"_test = [] { verify("\x18\x02"sv, oneof_example{.value = color_t::green}); };
 };
 
+template <typename Traits = hpp::proto::default_traits>
 struct extension_example {
+  using hpp_proto_traits_type = Traits;
   int32_t int_value = {};
   struct extension_t {
     using pb_extension = extension_example;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions); }
+  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) { return meta.read(extensions, option...); }
 
   template <typename Meta>
-  requires (!Meta::is_repeated)
-  [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::value_type &&value) {
-    return meta.write(extensions, std::move(value));
+    requires(!Meta::is_repeated)
+  [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::value_type &&value, hpp::proto::concepts::is_option_type auto && ...option) {
+    return meta.write(extensions, std::move(value), option...);
   }
 
   template <typename Meta>
-  requires (!Meta::is_repeated)
-  [[nodiscard]] hpp::proto::status set_extension(Meta meta, const typename Meta::value_type &value) {
-    return meta.write(extensions, value);
+    requires(!Meta::is_repeated)
+  [[nodiscard]] hpp::proto::status set_extension(Meta meta, const typename Meta::value_type &value, hpp::proto::concepts::is_option_type auto && ...option) {
+    return meta.write(extensions, value, option...);
   }
 
   template <typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] hpp::proto::status set_extension(Meta meta, const R& value) {
-    return meta.write(extensions, std::span{value.begin(), value.end()});
+    requires(Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
+  [[nodiscard]] hpp::proto::status set_extension(Meta meta, const R &value, hpp::proto::concepts::is_option_type auto && ...option) {
+    return meta.write(extensions, std::span{value.begin(), value.end()}, option...);
+  }
+
+  template <typename Meta>
+  requires Meta::is_repeated
+  [[nodiscard]] hpp::proto::status set_extension(Meta meta, std::initializer_list<typename Meta::value_type> value, hpp::proto::concepts::is_option_type auto && ...option) {
+    return meta.write(extensions, std::span{value.begin(), value.end()}, option...);
   }
 
   [[nodiscard]] bool has_extension(auto meta) const { return meta.element_of(extensions); }
@@ -1422,48 +1429,82 @@ struct extension_example {
   bool operator==(const extension_example &) const = default;
 };
 
-auto pb_meta(const extension_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &extension_example::int_value, field_option::none, hpp::proto::vint64_t>,
-                  hpp::proto::field_meta<UINT32_MAX, &extension_example::extensions>>;
+template <typename Traits>
+auto pb_meta(const extension_example<Traits> &)
+    -> std::tuple<
+        hpp::proto::field_meta<1, &extension_example<Traits>::int_value, field_option::none, hpp::proto::vint64_t>,
+        hpp::proto::field_meta<UINT32_MAX, &extension_example<Traits>::extensions>>;
 
-constexpr auto i32_ext() {
-  return hpp::proto::extension_meta<extension_example, 10, field_option::explicit_presence, hpp::proto::vint64_t,
-                                    int32_t>{};
-}
+template <typename Traits = ::hpp::proto::default_traits>
+struct i32_ext
+    : ::hpp::proto::field_meta_base<10, ::hpp::proto::field_option::none, hpp::proto::vint64_t, std::monostate{}>,
+      ::hpp::proto::extension_meta_base<i32_ext<Traits>, extension_example> {
+  constexpr static bool is_repeated = false;
+  using get_result_type = std::int32_t;
+  using value_type = std::int32_t;
+};
 
-constexpr auto string_ext() {
-  return hpp::proto::extension_meta<extension_example, 11,
-                                    field_option::explicit_presence | field_option::utf8_validation, std::string,
-                                    std::string>{};
-}
+template <typename Traits = ::hpp::proto::default_traits>
+struct string_ext
+    : ::hpp::proto::field_meta_base<11, ::hpp::proto::field_option::utf8_validation, void, std::monostate{}>,
+      ::hpp::proto::extension_meta_base<string_ext<Traits>, extension_example> {
+  constexpr static bool is_repeated = false;
+  using get_result_type = typename Traits::string_t;
+  using value_type = std::string_view;
+};
 
-constexpr auto i32_defaulted_ext() {
-  return hpp::proto::extension_meta<extension_example, 13, field_option::none, hpp::proto::vint64_t, int32_t,
-                                    hpp::proto::vint64_t{10}>{};
-}
+template <typename Traits = ::hpp::proto::default_traits>
+struct i32_defaulted_ext
+    : ::hpp::proto::field_meta_base<13, ::hpp::proto::field_option::none, hpp::proto::vint64_t, 10>,
+      ::hpp::proto::extension_meta_base<i32_defaulted_ext<Traits>, extension_example> {
+  constexpr static bool is_repeated = false;
+  using get_result_type = std::int32_t;
+  using value_type = std::int32_t;
+};
 
-constexpr auto i32_unset_ext() {
-  return hpp::proto::extension_meta<extension_example, 14, field_option::explicit_presence, hpp::proto::vint64_t,
-                                    int32_t>{};
-}
+template <typename Traits = ::hpp::proto::default_traits>
+struct i32_unset_ext
+    : ::hpp::proto::field_meta_base<14, ::hpp::proto::field_option::none, hpp::proto::vint64_t, std::monostate{}>,
+      ::hpp::proto::extension_meta_base<i32_unset_ext<Traits>, extension_example> {
+  constexpr static bool is_repeated = false;
+  using get_result_type = std::int32_t;
+  using value_type = std::int32_t;
+};
 
-constexpr auto example_ext() {
-  return hpp::proto::extension_meta<extension_example, 15, field_option::explicit_presence, example, example>{};
-}
+template <typename Traits = ::hpp::proto::default_traits>
+struct example_ext : ::hpp::proto::field_meta_base<15, ::hpp::proto::field_option::none, void, std::monostate{}>,
+                     ::hpp::proto::extension_meta_base<example_ext<Traits>, extension_example> {
+  constexpr static bool is_repeated = false;
+  using get_result_type = example;
+  using value_type = example;
+};
 
-constexpr auto repeated_i32_ext() {
-  return hpp::proto::repeated_extension_meta<extension_example, 20, field_option::none, hpp::proto::vint64_t,
-                                             int32_t>{};
-}
+template <typename Traits = ::hpp::proto::default_traits>
+struct repeated_i32_ext
+    : ::hpp::proto::field_meta_base<20, ::hpp::proto::field_option::none, hpp::proto::vint64_t, std::monostate{}>,
+      ::hpp::proto::extension_meta_base<repeated_i32_ext<Traits>, extension_example> {
+  constexpr static bool is_repeated = true;
+  using get_result_type = typename Traits::template vector_t<std::int32_t>;
+  using value_type = std::int32_t;
+};
 
-constexpr auto repeated_string_ext() {
-  return hpp::proto::repeated_extension_meta<extension_example, 21, field_option::none, void, std::string>{};
-}
+template <typename Traits = ::hpp::proto::default_traits>
+struct repeated_string_ext
+    : ::hpp::proto::field_meta_base<21, ::hpp::proto::field_option::none, void, std::monostate{}>,
+      ::hpp::proto::extension_meta_base<repeated_string_ext<Traits>, extension_example> {
+  constexpr static bool is_repeated = true;
+  using get_result_type = typename Traits::template vector_t<typename Traits::string_t>;
+  using value_type = std::string_view;
+};
 
-constexpr auto repeated_packed_i32_ext() {
-  return hpp::proto::repeated_extension_meta<extension_example, 22, field_option::is_packed, hpp::proto::vint64_t,
-                                             int32_t>{};
-}
+template <typename Traits = ::hpp::proto::default_traits>
+struct repeated_packed_i32_ext
+    : ::hpp::proto::field_meta_base<22, ::hpp::proto::field_option::is_packed, hpp::proto::vint64_t, std::monostate{}>,
+      ::hpp::proto::extension_meta_base<repeated_packed_i32_ext<Traits>, extension_example> {
+  constexpr static bool is_repeated = true;
+  using get_result_type = typename Traits::template vector_t<std::int32_t>;
+  using value_type = std::int32_t;
+};
 
 const ut::suite test_extensions = [] {
   "get_extension"_test = [] {
@@ -1481,39 +1522,39 @@ const ut::suite test_extensions = [] {
     ut::expect(hpp::proto::read_proto(value, encoded_data).ok());
     ut::expect(value == expected_value);
 
-    ut::expect(value.has_extension(i32_ext()));
-    ut::expect(value.has_extension(string_ext()));
-    ut::expect(!value.has_extension(i32_defaulted_ext()));
-    ut::expect(!value.has_extension(i32_unset_ext()));
-    ut::expect(value.has_extension(example_ext()));
+    ut::expect(value.has_extension(i32_ext{}));
+    ut::expect(value.has_extension(string_ext{}));
+    ut::expect(!value.has_extension(i32_defaulted_ext{}));
+    ut::expect(!value.has_extension(i32_unset_ext{}));
+    ut::expect(value.has_extension(example_ext{}));
 
     {
-      auto v = value.get_extension(i32_ext());
+      auto v = value.get_extension(i32_ext{});
       ut::expect(v.has_value());
       ut::expect(v.value() == 1);
     }
     {
-      auto v = value.get_extension(string_ext());
+      auto v = value.get_extension(string_ext{});
       ut::expect(v.has_value());
       ut::expect(v.value() == "test");
     }
     {
-      auto v = value.get_extension(example_ext());
+      auto v = value.get_extension(example_ext{});
       ut::expect(v.has_value());
       ut::expect(v.value() == example{.i = 150});
     }
     {
-      auto v = value.get_extension(repeated_i32_ext());
+      auto v = value.get_extension(repeated_i32_ext{});
       ut::expect(v.has_value());
       ut::expect(v.value() == std::vector<int32_t>{1, 2});
     }
     {
-      auto v = value.get_extension(repeated_string_ext());
+      auto v = value.get_extension(repeated_string_ext{});
       ut::expect(v.has_value());
       ut::expect(v == std::vector<std::string>{"abc", "def"});
     }
     {
-      auto v = value.get_extension(repeated_packed_i32_ext());
+      auto v = value.get_extension(repeated_packed_i32_ext{});
       ut::expect(v.has_value());
       ut::expect(v == std::vector<int32_t>{1, 2, 3});
     }
@@ -1525,25 +1566,25 @@ const ut::suite test_extensions = [] {
   };
   "set_extension"_test = [] {
     extension_example value;
-    ut::expect(value.set_extension(i32_ext(), 1).ok());
+    ut::expect(value.set_extension(i32_ext{}, 1).ok());
     ut::expect(value.extensions.fields[10] == "\x50\x01"_bytes);
 
-    ut::expect(value.set_extension(string_ext(), "test").ok());
+    ut::expect(value.set_extension(string_ext{}, "test").ok());
     ut::expect(value.extensions.fields[11] == "\x5a\x04\x74\x65\x73\x74"_bytes);
 
-    ut::expect(value.set_extension(i32_defaulted_ext(), 10).ok());
+    ut::expect(value.set_extension(i32_defaulted_ext{}, 10).ok());
     ut::expect(!value.extensions.fields.contains(13));
 
-    ut::expect(value.set_extension(example_ext(), {.i = 150}).ok());
+    ut::expect(value.set_extension(example_ext{}, {.i = 150}).ok());
     ut::expect(value.extensions.fields[15] == "\x7a\x03\x08\x96\x01"_bytes);
 
-    ut::expect(value.set_extension(repeated_i32_ext(), std::initializer_list<int32_t>{1, 2}).ok());
+    ut::expect(value.set_extension(repeated_i32_ext{}, std::initializer_list<int32_t>{1, 2}).ok());
     ut::expect(value.extensions.fields[20] == "\xa0\x01\x01\xa0\x01\x02"_bytes);
 
-    ut::expect(value.set_extension(repeated_string_ext(), std::initializer_list<std::string>{"abc", "def"}).ok());
+    ut::expect(value.set_extension(repeated_string_ext{}, std::initializer_list<std::string_view>{"abc", "def"}).ok());
     ut::expect(value.extensions.fields[21] == "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes);
 
-    ut::expect(value.set_extension(repeated_packed_i32_ext(), std::initializer_list<int32_t>{1, 2, 3}).ok());
+    ut::expect(value.set_extension(repeated_packed_i32_ext{}, std::initializer_list<int32_t>{1, 2, 3}).ok());
     ut::expect(value.extensions.fields[22] == "\xb2\x01\x03\01\02\03"_bytes);
   };
 
@@ -1564,86 +1605,8 @@ const ut::suite test_extensions = [] {
   };
 };
 
-struct non_owning_extension_example {
-  int32_t int_value = {};
-  struct extension_t {
-    using pb_extension = non_owning_extension_example;
-    hpp::proto::equality_comparable_span<std::pair<uint32_t, hpp::proto::equality_comparable_span<const std::byte>>>
-        fields;
-    bool operator==(const extension_t &) const = default;
-  } extensions;
-
-  [[nodiscard]] auto get_extension(auto meta) { return meta.read(extensions); }
-
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
-  }
-
-  template <typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] hpp::proto::status set_extension(Meta meta, typename Meta::value_type &&value,
-                                                 hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-
-  template <typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] hpp::proto::status set_extension(Meta meta, std::initializer_list<typename Meta::value_type> value,
-                                                 hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>(value.begin(), value.end()),
-                      std::forward<decltype(option)>(option)...);
-  }
-
-  [[nodiscard]] bool has_extension(auto meta) const { return meta.element_of(extensions); }
-  bool operator==(const non_owning_extension_example &) const = default;
-};
-
-auto pb_meta(const non_owning_extension_example &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_extension_example::int_value, field_option::none, hpp::proto::vint64_t>,
-        hpp::proto::field_meta<UINT32_MAX, &non_owning_extension_example::extensions>>;
-
-constexpr auto non_owning_i32_ext() {
-  return hpp::proto::extension_meta<non_owning_extension_example, 10, field_option::explicit_presence,
-                                    hpp::proto::vint64_t, int32_t>{};
-}
-
-constexpr auto non_owning_string_ext() {
-  return hpp::proto::extension_meta<non_owning_extension_example, 11, field_option::explicit_presence, std::string_view,
-                                    std::string_view>{};
-}
-
-constexpr auto non_owning_i32_defaulted_ext() {
-  return hpp::proto::extension_meta<non_owning_extension_example, 13, field_option::none, hpp::proto::vint64_t, int32_t,
-                                    hpp::proto::vint64_t{10}>{};
-}
-
-constexpr auto non_owning_i32_unset_ext() {
-  return hpp::proto::extension_meta<non_owning_extension_example, 14, field_option::explicit_presence,
-                                    hpp::proto::vint64_t, int32_t>{};
-}
-
-constexpr auto non_owning_example_ext() {
-  return hpp::proto::extension_meta<non_owning_extension_example, 15, field_option::explicit_presence, example,
-                                    example>{};
-}
-
-constexpr auto non_owning_repeated_i32_ext() {
-  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 20, field_option::none, hpp::proto::vint64_t,
-                                             int32_t>{};
-}
-
-constexpr auto non_owning_repeated_string_ext() {
-  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 21, field_option::none, void,
-                                             std::string_view>{};
-}
-
-constexpr auto non_owning_repeated_packed_i32_ext() {
-  return hpp::proto::repeated_extension_meta<non_owning_extension_example, 22, field_option::is_packed,
-                                             hpp::proto::vint64_t, int32_t>{};
-}
-
 const ut::suite test_non_owning_extensions = [] {
+  using non_owning_extension_example = extension_example<hpp::proto::non_owning_traits>;
   "get_non_owning_extension"_test = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;
@@ -1663,40 +1626,40 @@ const ut::suite test_non_owning_extensions = [] {
     ut::expect(hpp::proto::read_proto(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value == expected_value);
 
-    ut::expect(value.has_extension(non_owning_i32_ext()));
-    ut::expect(value.has_extension(non_owning_string_ext()));
-    ut::expect(!value.has_extension(non_owning_i32_defaulted_ext()));
-    ut::expect(!value.has_extension(non_owning_i32_unset_ext()));
-    ut::expect(value.has_extension(non_owning_example_ext()));
+    ut::expect(value.has_extension(i32_ext{}));
+    ut::expect(value.has_extension(string_ext{}));
+    ut::expect(!value.has_extension(i32_defaulted_ext{}));
+    ut::expect(!value.has_extension(i32_unset_ext{}));
+    ut::expect(value.has_extension(example_ext{}));
 
     {
-      auto v = value.get_extension(non_owning_i32_ext());
+      auto v = value.get_extension(i32_ext{});
       ut::expect(v.has_value());
       ut::expect(v.value() == 1);
     }
     {
-      auto v = value.get_extension(non_owning_string_ext(), hpp::proto::alloc_from{mr});
+      auto v = value.get_extension(string_ext<hpp::proto::non_owning_traits>{}, hpp::proto::alloc_from{mr});
       ut::expect(v.has_value());
       ut::expect(v.value() == "test");
     }
     {
-      auto v = value.get_extension(non_owning_example_ext());
+      auto v = value.get_extension(example_ext());
       ut::expect(v.has_value());
       ut::expect(v.value() == example{.i = 150});
     }
     {
-      auto v = value.get_extension(non_owning_repeated_i32_ext(), hpp::proto::alloc_from{mr});
+      auto v = value.get_extension(repeated_i32_ext<hpp::proto::non_owning_traits>{}, hpp::proto::alloc_from{mr});
       ut::expect(v.has_value());
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<uint32_t>{1, 2}));
     }
     {
-      auto v = value.get_extension(non_owning_repeated_string_ext(), hpp::proto::alloc_from{mr});
+      auto v = value.get_extension(repeated_string_ext<hpp::proto::non_owning_traits>{}, hpp::proto::alloc_from{mr});
       ut::expect(v.has_value());
       using namespace std::literals;
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<std::string_view>{"abc"sv, "def"sv}));
     }
     {
-      auto v = value.get_extension(non_owning_repeated_packed_i32_ext(), hpp::proto::alloc_from{mr});
+      auto v = value.get_extension(repeated_packed_i32_ext<hpp::proto::non_owning_traits>{}, hpp::proto::alloc_from{mr});
       ut::expect(v.has_value());
       ut::expect(std::ranges::equal(v.value(), std::initializer_list<uint32_t>{1, 2, 3}));
     }
@@ -1709,33 +1672,33 @@ const ut::suite test_non_owning_extensions = [] {
   "set_non_owning_extension"_test = [] {
     std::pmr::monotonic_buffer_resource mr;
     non_owning_extension_example value;
-    ut::expect(value.set_extension(non_owning_i32_ext(), 1, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(value.set_extension(i32_ext{}, 1, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 10);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x50\x01"_bytes));
 
-    ut::expect(value.set_extension(non_owning_string_ext(), "test", hpp::proto::alloc_from{mr}).ok());
+    ut::expect(value.set_extension(string_ext{}, "test", hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 11);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x5a\x04\x74\x65\x73\x74"_bytes));
 
-    ut::expect(value.set_extension(non_owning_i32_defaulted_ext(), 10, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(value.set_extension(i32_defaulted_ext{}, 10, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first != 13);
 
-    ut::expect(value.set_extension(non_owning_example_ext(), {.i = 150}, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(value.set_extension(example_ext{}, {.i = 150}, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 15);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\x7a\x03\x08\x96\x01"_bytes));
 
-    ut::expect(value.set_extension(non_owning_repeated_i32_ext(), {1, 2}, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(value.set_extension(repeated_i32_ext{}, {1, 2}, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 20);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\xa0\x01\x01\xa0\x01\x02"_bytes));
 
     using namespace std::literals;
     ut::expect(
-        value.set_extension(non_owning_repeated_string_ext(), {"abc"sv, "def"sv}, hpp::proto::alloc_from{mr}).ok());
+        value.set_extension(repeated_string_ext<hpp::proto::non_owning_traits>{}, {"abc"sv, "def"sv}, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 21);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
-    ut::expect(value.set_extension(non_owning_repeated_packed_i32_ext(), {1, 2, 3}, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(value.set_extension(repeated_packed_i32_ext<hpp::proto::non_owning_traits>{}, {1, 2, 3}, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.extensions.fields.back().first == 22);
     ut::expect(std::ranges::equal(value.extensions.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };

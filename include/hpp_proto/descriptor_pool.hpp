@@ -25,7 +25,7 @@
 #include <expected>
 #include <google/protobuf/descriptor.pb.hpp>
 #include <iostream>
-#include <unordered_map>
+#include <unordered_set>
 namespace hpp::proto {
 
 struct deref_pointer {
@@ -66,6 +66,21 @@ public:
   };
 
   // NOLINTBEGIN(bugprone-unchecked-optional-access)
+  using traits_type = typename AddOns::traits_type;
+  using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
+  using FieldOptions = google::protobuf::FieldOptions<traits_type>;
+  using FeatureSet = google::protobuf::FeatureSet<traits_type>;
+  using OneofDescriptorProto = google::protobuf::OneofDescriptorProto<traits_type>;
+  using OneofOptions = google::protobuf::OneofOptions<traits_type>;
+  using EnumDescriptorProto = google::protobuf::EnumDescriptorProto<traits_type>;
+  using EnumValueOptions = google::protobuf::EnumValueOptions<traits_type>;
+  using EnumOptions = google::protobuf::EnumOptions<traits_type>;
+  using DescriptorProto = google::protobuf::DescriptorProto<traits_type>;
+  using MessageOptions = google::protobuf::MessageOptions<traits_type>;
+  using FileDescriptorProto = google::protobuf::FileDescriptorProto<traits_type>;
+  using FileOptions = google::protobuf::FileOptions<traits_type>;
+  using FileDescriptorSet = google::protobuf::FileDescriptorSet<traits_type>;
+
   class message_descriptor_t;
   class enum_descriptor_t;
   class file_descriptor_t;
@@ -73,13 +88,13 @@ public:
   public:
     using pool_type = descriptor_pool;
     using base_type = AddOns::template field_descriptor<field_descriptor_t>;
-    field_descriptor_t(const google::protobuf::FieldDescriptorProto &proto, const std::string &parent_name,
-                       message_descriptor_t *parent, const auto &inherited_options)
-        : base_type(proto, parent_name), proto_(proto),
-          options_(proto.options.value_or(google::protobuf::FieldOptions{})), parent_message_(parent) {
+    field_descriptor_t(const FieldDescriptorProto &proto, const std::string &parent_name, message_descriptor_t *parent,
+                       const auto &inherited_options)
+        : base_type(proto, parent_name), proto_(proto), options_(proto.options.value_or(FieldOptions{})),
+          parent_message_(parent) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
-        google::protobuf::FieldOptions::extension_t extensions;
+        typename FieldOptions::extension_t extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options_.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
                                           extensions.fields.end());
@@ -102,20 +117,20 @@ public:
     field_descriptor_t &operator=(const field_descriptor_t &) = delete;
     field_descriptor_t &operator=(field_descriptor_t &&) = default;
 
-    [[nodiscard]] const google::protobuf::FieldDescriptorProto &proto() const { return proto_; }
-    [[nodiscard]] const google::protobuf::FieldOptions &options() const { return options_; }
+    [[nodiscard]] const FieldDescriptorProto &proto() const { return proto_; }
+    [[nodiscard]] const FieldOptions &options() const { return options_; }
     [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
     [[nodiscard]] bool is_message_or_enum() const { return type_descriptor_ != nullptr; }
     [[nodiscard]] message_descriptor_t *extendee_descriptor() const { return extendee_descriptor_; }
 
     [[nodiscard]] message_descriptor_t *message_field_type_descriptor() const {
-      assert(proto_.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE ||
-             proto_.type == google::protobuf::FieldDescriptorProto::Type::TYPE_GROUP);
+      assert(proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
+             proto_.type == FieldDescriptorProto::Type::TYPE_GROUP);
       return static_cast<message_descriptor_t *>(type_descriptor_);
     }
 
     [[nodiscard]] enum_descriptor_t *enum_field_type_descriptor() const {
-      assert(proto_.type == google::protobuf::FieldDescriptorProto::Type::TYPE_ENUM);
+      assert(proto_.type == FieldDescriptorProto::Type::TYPE_ENUM);
       return static_cast<enum_descriptor_t *>(type_descriptor_);
     }
 
@@ -132,66 +147,65 @@ public:
 
   private:
     friend class descriptor_pool;
+
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const google::protobuf::FieldDescriptorProto &proto_;
-    google::protobuf::FieldOptions options_;
+    const FieldDescriptorProto &proto_;
+    FieldOptions options_;
     message_descriptor_t *parent_message_ = nullptr;
     void *type_descriptor_ = nullptr;
     message_descriptor_t *extendee_descriptor_ = nullptr;
     uint8_t field_option_bitset_ = 0;
 
     void setup_presence() {
-      using enum google::protobuf::FieldDescriptorProto::Type;
-      using enum google::protobuf::FieldDescriptorProto::Label;
-      using enum google::protobuf::FeatureSet::FieldPresence;
-      if (proto_.label == LABEL_OPTIONAL) {
-        if (proto_.type == TYPE_GROUP || proto_.type == TYPE_MESSAGE || proto_.proto3_optional ||
-            proto_.oneof_index.has_value() || options_.features->field_presence == EXPLICIT ||
-            options_.features->field_presence == FIELD_PRESENCE_UNKNOWN) {
+      if (proto_.label == FieldDescriptorProto::Label::LABEL_OPTIONAL) {
+        if (proto_.type == FieldDescriptorProto::Type::TYPE_GROUP ||
+            proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE || proto_.proto3_optional ||
+            proto_.oneof_index.has_value() ||
+            options_.features->field_presence == FeatureSet::FieldPresence::EXPLICIT ||
+            options_.features->field_presence == FeatureSet::FieldPresence::FIELD_PRESENCE_UNKNOWN) {
           field_option_bitset_ |= MASK_EXPLICIT_PRESENCE;
         }
       }
     }
 
     void setup_repeated() {
-      using enum google::protobuf::FieldDescriptorProto::Type;
-      using enum google::protobuf::FieldDescriptorProto::Label;
-      if (proto_.label != LABEL_REPEATED) {
+      if (proto_.label != FieldDescriptorProto::Label::LABEL_REPEATED) {
         return;
       }
       field_option_bitset_ |= MASK_REPEATED;
 
       auto type = proto_.type;
-      if (type == TYPE_MESSAGE || type == TYPE_STRING || type == TYPE_BYTES || type == TYPE_GROUP) {
+      if (type == FieldDescriptorProto::Type::TYPE_MESSAGE || type == FieldDescriptorProto::Type::TYPE_STRING ||
+          type == FieldDescriptorProto::Type::TYPE_BYTES || type == FieldDescriptorProto::Type::TYPE_GROUP) {
         return;
       }
       if (proto_.options.has_value() && proto_.options->packed.has_value() && proto_.options->packed.value()) {
         field_option_bitset_ |= MASK_PACKED;
         return;
       }
-      if (options_.features->repeated_field_encoding == google::protobuf::FeatureSet::RepeatedFieldEncoding::PACKED) {
+      if (options_.features->repeated_field_encoding == FeatureSet::RepeatedFieldEncoding::PACKED) {
         field_option_bitset_ |= MASK_PACKED;
       }
     }
 
     void setup_utf8_validation() {
-      if (proto_.type == google::protobuf::FieldDescriptorProto::Type::TYPE_STRING &&
-          options_.features.value().utf8_validation == google::protobuf::FeatureSet::Utf8Validation::VERIFY) {
+      if (proto_.type == FieldDescriptorProto::Type::TYPE_STRING &&
+          options_.features.value().utf8_validation == FeatureSet::Utf8Validation::VERIFY) {
         field_option_bitset_ |= MASK_UTF8_VALIDATION;
       }
     }
 
     void setup_delimited() {
-      if (proto_.type == google::protobuf::FieldDescriptorProto::Type::TYPE_GROUP ||
-          (proto_.type == google::protobuf::FieldDescriptorProto::Type::TYPE_MESSAGE &&
-           options_.features.value().message_encoding == google::protobuf::FeatureSet::MessageEncoding::DELIMITED)) {
+      if (proto_.type == FieldDescriptorProto::Type::TYPE_GROUP ||
+          (proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE &&
+           options_.features.value().message_encoding == FeatureSet::MessageEncoding::DELIMITED)) {
         field_option_bitset_ |= MASK_DELIMITED;
       }
     }
 
     void setup_required() {
-      if (proto_.label == google::protobuf::FieldDescriptorProto::Label::LABEL_REQUIRED ||
-          options_.features->field_presence == google::protobuf::FeatureSet::FieldPresence::LEGACY_REQUIRED) {
+      if (proto_.label == FieldDescriptorProto::Label::LABEL_REQUIRED ||
+          options_.features->field_presence == FeatureSet::FieldPresence::LEGACY_REQUIRED) {
         field_option_bitset_ |= MASK_REQUIRED;
       }
     }
@@ -201,12 +215,11 @@ public:
   public:
     using pool_type = descriptor_pool;
     using base_type = AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t>;
-    explicit oneof_descriptor_t(const google::protobuf::OneofDescriptorProto &proto,
-                                const google::protobuf::MessageOptions &inherited_options)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(google::protobuf::OneofOptions{})) {
+    explicit oneof_descriptor_t(const OneofDescriptorProto &proto, const MessageOptions &inherited_options)
+        : base_type(proto), proto_(proto), options_(proto.options.value_or(OneofOptions{})) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
-        google::protobuf::OneofOptions::extension_t extensions;
+        typename OneofOptions::extension_t extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options_.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
                                           extensions.fields.end());
@@ -221,8 +234,8 @@ public:
     oneof_descriptor_t &operator=(const oneof_descriptor_t &) = delete;
     oneof_descriptor_t &operator=(oneof_descriptor_t &&) = default;
 
-    [[nodiscard]] const google::protobuf::OneofDescriptorProto &proto() const { return proto_; }
-    [[nodiscard]] const google::protobuf::OneofOptions &options() const { return options_; }
+    [[nodiscard]] const OneofDescriptorProto &proto() const { return proto_; }
+    [[nodiscard]] const OneofOptions &options() const { return options_; }
 
     /**
      * @brief Returns a view that transforms the elements of fields_ by dereferencing pointers.
@@ -238,8 +251,8 @@ public:
   private:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const google::protobuf::OneofDescriptorProto &proto_;
-    google::protobuf::OneofOptions options_;
+    const OneofDescriptorProto &proto_;
+    OneofOptions options_;
     std::vector<field_descriptor_t *> fields_;
   };
 
@@ -247,13 +260,13 @@ public:
   public:
     using pool_type = descriptor_pool;
     using base_type = AddOns::template enum_descriptor<enum_descriptor_t>;
-    explicit enum_descriptor_t(const google::protobuf::EnumDescriptorProto &proto, const auto &inherited_options,
+    explicit enum_descriptor_t(const EnumDescriptorProto &proto, const auto &inherited_options,
                                file_descriptor_t *parent_file, message_descriptor_t *parent_message)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(google::protobuf::EnumOptions{})),
-          parent_file_(parent_file), parent_message_(parent_message) {
+        : base_type(proto), proto_(proto), options_(proto.options.value_or(EnumOptions{})), parent_file_(parent_file),
+          parent_message_(parent_message) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
-        google::protobuf::EnumOptions::extension_t extensions;
+        typename EnumOptions::extension_t extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options_.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
                                           extensions.fields.end());
@@ -268,14 +281,12 @@ public:
     enum_descriptor_t &operator=(const enum_descriptor_t &) = delete;
     enum_descriptor_t &operator=(enum_descriptor_t &&) = default;
 
-    [[nodiscard]] const google::protobuf::EnumDescriptorProto &proto() const { return proto_; }
-    [[nodiscard]] const google::protobuf::EnumOptions &options() const { return options_; }
+    [[nodiscard]] const EnumDescriptorProto &proto() const { return proto_; }
+    [[nodiscard]] const EnumOptions &options() const { return options_; }
     [[nodiscard]] file_descriptor_t *parent_file() const { return parent_file_; }
     [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
 
-    [[nodiscard]] bool is_closed() const {
-      return options_.features.value().enum_type == google::protobuf::FeatureSet::EnumType::CLOSED;
-    }
+    [[nodiscard]] bool is_closed() const { return options_.features.value().enum_type == FeatureSet::EnumType::CLOSED; }
 
     [[nodiscard]] bool valid_enum_value(uint32_t v) const {
       return !is_closed() ||
@@ -285,8 +296,8 @@ public:
   private:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const google::protobuf::EnumDescriptorProto &proto_;
-    google::protobuf::EnumOptions options_;
+    const EnumDescriptorProto &proto_;
+    EnumOptions options_;
     file_descriptor_t *parent_file_;
     message_descriptor_t *parent_message_;
   };
@@ -298,9 +309,9 @@ public:
     using base_type = AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t, oneof_descriptor_t,
                                                           field_descriptor_t>;
 
-    explicit message_descriptor_t(const google::protobuf::DescriptorProto &proto, const auto &inherited_options,
+    explicit message_descriptor_t(const DescriptorProto &proto, const auto &inherited_options,
                                   file_descriptor_t *parent_file, message_descriptor_t *parent_message)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(google::protobuf::MessageOptions{})),
+        : base_type(proto), proto_(proto), options_(proto.options.value_or(MessageOptions{})),
           parent_file_(parent_file), parent_message_(parent_message) {
       setup_options(inherited_options);
       if constexpr (requires { base_type::on_options_resolved(proto_, options_); }) {
@@ -314,14 +325,14 @@ public:
     message_descriptor_t &operator=(const message_descriptor_t &) = delete;
     message_descriptor_t &operator=(message_descriptor_t &&) = default;
 
-    [[nodiscard]] const google::protobuf::DescriptorProto &proto() const { return proto_; }
-    [[nodiscard]] const google::protobuf::MessageOptions &options() const { return options_; }
+    [[nodiscard]] const DescriptorProto &proto() const { return proto_; }
+    [[nodiscard]] const MessageOptions &options() const { return options_; }
     [[nodiscard]] file_descriptor_t *parent_file() const { return parent_file_; }
     [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
     [[nodiscard]] message_descriptor_t &root_message() {
       auto result = this;
       while (result->parent_message_ != nullptr) {
-         result = result->parent_message_;
+        result = result->parent_message_;
       }
       return *result;
     }
@@ -337,8 +348,8 @@ public:
   private:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const google::protobuf::DescriptorProto &proto_;
-    google::protobuf::MessageOptions options_;
+    const DescriptorProto &proto_;
+    MessageOptions options_;
     file_descriptor_t *parent_file_;
     message_descriptor_t *parent_message_;
     std::vector<field_descriptor_t *> fields_;
@@ -347,16 +358,16 @@ public:
     std::vector<oneof_descriptor_t *> oneofs_;
     std::vector<field_descriptor_t *> extensions_;
 
-    void setup_options(const google::protobuf::MessageOptions &inherited_options) {
+    void setup_options(const MessageOptions &inherited_options) {
       options_.features = merge_features(inherited_options.features.value(), proto_.options);
       options_.extensions.fields.insert(hpp::proto::sorted_unique, inherited_options.extensions.fields.begin(),
                                         inherited_options.extensions.fields.end());
     }
 
-    void setup_options(const google::protobuf::FileOptions &inherited_options) {
+    void setup_options(const FileOptions &inherited_options) {
       options_.features = merge_features(inherited_options.features.value(), proto_.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
-        google::protobuf::MessageOptions::extension_t extensions;
+        typename MessageOptions::extension_t extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
         options_.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
                                           extensions.fields.end());
@@ -370,9 +381,8 @@ public:
     using pool_type = descriptor_pool;
     using base_type = AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t, enum_descriptor_t,
                                                        field_descriptor_t>;
-    explicit file_descriptor_t(const google::protobuf::FileDescriptorProto &proto,
-                               const google::protobuf::FeatureSet &default_features)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(google::protobuf::FileOptions{})) {
+    explicit file_descriptor_t(const FileDescriptorProto &proto, const FeatureSet &default_features)
+        : base_type(proto), proto_(proto), options_(proto.options.value_or(FileOptions{})) {
       options_.features = merge_features(default_features, proto.options);
       if constexpr (requires { AddOns::default_file_options_extensions(); }) {
         auto extensions = AddOns::default_file_options_extensions();
@@ -390,8 +400,8 @@ public:
     file_descriptor_t &operator=(const file_descriptor_t &) = delete;
     file_descriptor_t &operator=(file_descriptor_t &&) = default;
 
-    [[nodiscard]] const google::protobuf::FileDescriptorProto &proto() const { return proto_; }
-    [[nodiscard]] const google::protobuf::FileOptions &options() const { return options_; }
+    [[nodiscard]] const FileDescriptorProto &proto() const { return proto_; }
+    [[nodiscard]] const FileOptions &options() const { return options_; }
 
     [[nodiscard]] auto enums() const { return std::views::transform(enums_, deref_pointer{}); }
     [[nodiscard]] auto messages() const { return std::views::transform(messages_, deref_pointer{}); }
@@ -402,8 +412,8 @@ public:
   private:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const google::protobuf::FileDescriptorProto &proto_;
-    google::protobuf::FileOptions options_;
+    const FileDescriptorProto &proto_;
+    FileOptions options_;
     std::vector<enum_descriptor_t *> enums_;
     std::vector<message_descriptor_t *> messages_;
     std::vector<field_descriptor_t *> extensions_;
@@ -411,19 +421,30 @@ public:
     const class descriptor_pool *descriptor_pool_ = nullptr;
   };
 
-  explicit descriptor_pool(std::vector<google::protobuf::FileDescriptorProto> &&proto_files)
-      : proto_files_(std::move(proto_files)) {
-    init(proto_files_);
+  template <concepts::contiguous_byte_range FileDescriptorPbBin>
+  static std::expected<descriptor_pool, status> make(const std::unordered_set<FileDescriptorPbBin> &unique_files,
+                                                     concepts::is_option_type auto &&...option) {
+    FileDescriptorSet fileset;
+    pb_context ctx{option...};
+    decltype(auto) files = detail::as_modifiable(ctx, fileset.file);
+    files.resize(unique_files.size());
+    std::size_t i = 0;
+    for (const auto &stream : unique_files) {
+      if (auto ec = read_proto(files[i++], stream, option...); !ec.ok()) {
+        return std::unexpected(ec);
+      }
+    }
+    return descriptor_pool<AddOns>{std::move(fileset)};
   }
 
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
-  explicit descriptor_pool(google::protobuf::FileDescriptorSet &&fileset) : descriptor_pool(std::move(fileset.file)) {}
+  explicit descriptor_pool(FileDescriptorSet &&fileset) : fileset_(std::move(fileset.file)) { init(); }
 
   constexpr ~descriptor_pool() = default;
   descriptor_pool(const descriptor_pool &) = delete;
-  descriptor_pool(descriptor_pool &&) = delete;
+  descriptor_pool(descriptor_pool &&) = default;
   descriptor_pool &operator=(const descriptor_pool &) = delete;
-  descriptor_pool &operator=(descriptor_pool &&) = delete;
+  descriptor_pool &operator=(descriptor_pool &&) = default;
 
   [[nodiscard]] const message_descriptor_t *get_message_descriptor(std::string_view name) const {
     auto itr = message_map_.find(name);
@@ -469,8 +490,8 @@ public:
   }
 
 private:
-  void init(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
-    const descriptor_counter counter(proto_files);
+  void init() {
+    const descriptor_counter counter(fileset_);
     files_.reserve(counter.files);
     messages_.reserve(counter.messages);
     enums_.reserve(counter.enums);
@@ -480,7 +501,7 @@ private:
     initial_reserve(message_map_, counter.messages);
     initial_reserve(enum_map_, counter.enums);
 
-    for (const auto &proto : proto_files) {
+    for (const auto &proto : fileset_.file) {
       if (!proto.name.empty() && file_map_.count(proto.name) == 0) {
         build(files_.emplace_back(proto, select_features(proto)));
       }
@@ -503,8 +524,8 @@ private:
     }
 
     for (auto &f : fields_) {
-      using enum google::protobuf::FieldDescriptorProto::Type;
-      if (f.proto_.type == TYPE_MESSAGE || f.proto_.type == TYPE_GROUP) {
+      if (f.proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
+          f.proto_.type == FieldDescriptorProto::Type::TYPE_GROUP) {
         auto desc = find_type(message_map_, f.proto_.type_name.substr(1));
         if (desc) {
           f.type_descriptor_ = desc;
@@ -512,7 +533,7 @@ private:
             f.field_option_bitset_ |= MASK_MAP_ENTRY;
           }
         }
-      } else if (f.proto_.type == TYPE_ENUM) {
+      } else if (f.proto_.type == FieldDescriptorProto::Type::TYPE_ENUM) {
         f.type_descriptor_ = find_type(enum_map_, f.proto_.type_name.substr(1));
       }
 
@@ -524,7 +545,7 @@ private:
     assert(messages_.size() == counter.messages);
   }
 
-  static google::protobuf::FeatureSet merge_features(google::protobuf::FeatureSet features, const auto &options) {
+  static FeatureSet merge_features(FeatureSet features, const auto &options) {
     if (options.has_value()) {
       const auto &overriding_features = options->features;
       if (overriding_features.has_value()) {
@@ -541,13 +562,13 @@ private:
     std::size_t oneofs = 0;
     std::size_t enums = 0;
 
-    explicit descriptor_counter(const std::vector<google::protobuf::FileDescriptorProto> &proto_files) {
-      for (const auto &f : proto_files) {
+    explicit descriptor_counter(const FileDescriptorSet &fileset) {
+      for (const auto &f : fileset.file) {
         count_file(f);
       }
     }
 
-    void count_file(const google::protobuf::FileDescriptorProto &file) {
+    void count_file(const FileDescriptorProto &file) {
       files++;
       for (const auto &m : file.message_type) {
         count_message(m);
@@ -556,7 +577,7 @@ private:
       fields += file.extension.size();
     }
 
-    void count_message(const google::protobuf::DescriptorProto &message) {
+    void count_message(const DescriptorProto &message) {
       messages++;
       for (const auto &m : message.nested_type) {
         count_message(m);
@@ -567,7 +588,7 @@ private:
     }
   };
 
-  std::vector<google::protobuf::FileDescriptorProto> proto_files_;
+  FileDescriptorSet fileset_;
   std::vector<file_descriptor_t> files_;
   std::vector<message_descriptor_t> messages_;
   std::vector<enum_descriptor_t> enums_;
@@ -579,10 +600,10 @@ private:
   flat_map<std::string, enum_descriptor_t *, string_view_comp> enum_map_;
   google::protobuf::Edition current_edition_ = {};
 
-  google::protobuf::FeatureSet select_features(const google::protobuf::FileDescriptorProto &file) {
+  FeatureSet select_features(const FileDescriptorProto &file) {
     using namespace std::string_view_literals;
-    static const google::protobuf::FeatureSetDefaults cpp_edition_defaults =
-        hpp::proto::read_proto<google::protobuf::FeatureSetDefaults>(
+    static const auto cpp_edition_defaults =
+        hpp::proto::read_proto<google::protobuf::FeatureSetDefaults<traits_type>>(
             // from https://github.com/protocolbuffers/protobuf/blob/v28.2/src/google/protobuf/cpp_edition_defaults.h
             "\n\035\030\204\007\"\003\302>\000*\023\010\001\020\002\030\002 \003(\0010\002\302>\004\010\001\020\003\n\035\030\347\007\"\003\302>\000*\023\010\002\020\001\030\001 \002(\0010\001\302>\004\010\000\020\003\n\035\030\350\007\"\023\010\001\020\001\030\001 \002(\0010\001\302>\004\010\000\020\003*\003\302>\000\n\035\030\351\007\"\023\010\001\020\001\030\001 \002(\0010\001\302>\004\010\000\020\001*\003\302>\000 \346\007(\351\007"sv)
             .value();
@@ -599,7 +620,7 @@ private:
           return default_features.fixed_features.value();
         }
 
-        auto features = default_features.overridable_features.value_or(google::protobuf::FeatureSet{});
+        auto features = default_features.overridable_features.value_or(FeatureSet{});
         return merge_features(features, file.options);
       }
     }
@@ -683,6 +704,25 @@ private:
   // NOLINTEND(bugprone-unchecked-optional-access)
 };
 
+// template <typename AddOns>
+// template <concepts::contiguous_byte_range FileDescriptorPbBin>
+// std::expected<descriptor_pool<AddOns>, status>
+// descriptor_pool<AddOns>::make(const std::unordered_set<FileDescriptorPbBin> &unique_files,
+//                               concepts::is_option_type auto &&...option) {
+//   FileDescriptorSet fileset;
+//   pb_context ctx{option...};
+//   decltype(auto) files = detail::as_modifiable(ctx, fileset.file);
+//   files.resize(unique_files.size());
+//   std::size_t i = 0;
+//   for (const auto &stream : unique_files) {
+//     if (auto ec = read_proto(files[i], stream, option...); !ec.ok()) {
+//       return std::unexpected(ec);
+//     }
+//   }
+//   return descriptor_pool<AddOns> { std::move(fileset) }
+// };
+// }
+
 struct file_descriptor_pb {
   std::string_view value;
 
@@ -699,67 +739,5 @@ template <typename T>
 concept file_descriptor_pb_array =
     std::ranges::input_range<T> && std::same_as<typename std::ranges::range_value_t<T>, file_descriptor_pb>;
 } // namespace concepts
-
-std::expected<google::protobuf::FileDescriptorSet, hpp::proto::status>
-make_file_descriptor_set(concepts::contiguous_byte_range auto const &stream) {
-  google::protobuf::FileDescriptorSet fileset;
-  if (auto ec = read_proto(fileset, stream); !ec.ok()) [[unlikely]] {
-    return std::unexpected(ec);
-  }
-  return fileset;
-}
-
-std::expected<google::protobuf::FileDescriptorSet, hpp::proto::status>
-make_file_descriptor_set(concepts::segmented_byte_range auto const &stream_range) {
-  google::protobuf::FileDescriptorSet fileset;
-  for (const auto &stream : stream_range) {
-    google::protobuf::FileDescriptorSet tmp;
-    if (auto ec = read_proto(tmp, stream); !ec.ok()) [[unlikely]] {
-      return std::unexpected(ec);
-    }
-    fileset.file.insert(fileset.file.end(), tmp.file.begin(), tmp.file.end());
-  }
-  // double check if we have duplicated files
-  std::unordered_map<std::string, google::protobuf::FileDescriptorProto *> file_map;
-  auto itr = fileset.file.begin();
-  auto last = fileset.file.end();
-  for (; itr != last; ++itr) {
-    auto [map_itr, inserted] = file_map.try_emplace(itr->name, &(*itr));
-    if (!inserted) {
-      if (*map_itr->second != *itr) [[unlikely]] {
-        // in this case, we have two files with identical names but different content
-        return std::unexpected(std::errc::invalid_argument);
-      } else {
-        std::rotate(itr, itr + 1, last);
-        --last;
-      }
-    }
-  }
-  fileset.file.erase(last, fileset.file.end());
-  return fileset;
-}
-
-std::expected<google::protobuf::FileDescriptorSet, hpp::proto::status>
-make_file_descriptor_set(concepts::file_descriptor_pb_array auto const &...args) {
-  constexpr auto s = (std::tuple_size_v<std::remove_cvref_t<decltype(args)>> + ...);
-  std::array<file_descriptor_pb, s> tmp;
-  auto it = tmp.begin();
-  ((it = std::copy(args.begin(), args.end(), it)), ...);
-
-  std::sort(tmp.begin(), it);
-  auto last = std::unique(tmp.begin(), tmp.end());
-  auto size = static_cast<std::size_t>(last - tmp.begin());
-
-  google::protobuf::FileDescriptorSet fileset;
-  fileset.file.resize(size);
-
-  for (std::size_t i = 0; i < size; ++i) {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-    if (auto ec = read_proto(fileset.file[i], tmp[i].value); !ec.ok()) [[unlikely]] {
-      return std::unexpected(ec);
-    }
-  }
-  return fileset;
-}
 
 } // namespace hpp::proto

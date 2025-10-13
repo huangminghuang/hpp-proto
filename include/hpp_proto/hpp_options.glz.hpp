@@ -12,32 +12,11 @@
 #include "google/protobuf/descriptor.glz.hpp"
 #include "hpp_proto/hpp_options.msg.hpp"
 
-template <>
-struct glz::meta<hpp::proto::FileOptions> {
-  using T = hpp::proto::FileOptions;
+template <typename Traits>
+struct glz::meta<hpp::proto::FileOptions<Traits>> {
+  using T = hpp::proto::FileOptions<Traits>;
   static constexpr auto value = object(
-    "nonOwning", hpp::proto::as_optional_ref<&T::non_owning>,
-    "namespacePrefix", &T::namespace_prefix,
-    "stringKeyedMap", &T::string_keyed_map,
-    "numericKeyedMap", &T::numeric_keyed_map);
-};
-
-template <>
-struct glz::meta<hpp::proto::MessageOptions> {
-  using T = hpp::proto::MessageOptions;
-  static constexpr auto value = object(
-    "nonOwning", hpp::proto::as_optional_ref<&T::non_owning>,
-    "stringKeyedMap", &T::string_keyed_map,
-    "numericKeyedMap", &T::numeric_keyed_map);
-};
-
-template <>
-struct glz::meta<hpp::proto::FieldOptions> {
-  using T = hpp::proto::FieldOptions;
-  static constexpr auto value = object(
-    "nonOwning", hpp::proto::as_optional_ref<&T::non_owning>,
-    "stringKeyedMap", &T::string_keyed_map,
-    "numericKeyedMap", &T::numeric_keyed_map);
+    "namespacePrefix", &T::namespace_prefix);
 };
 
 // clang-format on

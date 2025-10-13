@@ -637,7 +637,7 @@ inline void SetAll(TestAllExtensions *message, auto &&mr) {
       message->set_extension(protobuf_unittest::optional_string_extension{}, "115", hpp::proto::alloc_from{mr}).ok());
   expect(
       message
-          ->set_extension(protobuf_unittest::optional_bytes_extension{}, "116"_bytes_view, hpp::proto::alloc_from{mr})
+          ->set_extension(protobuf_unittest::optional_bytes_extension{}, "116"_bytes, hpp::proto::alloc_from{mr})
           .ok());
 
   expect(message->set_extension(protobuf_unittest::optionalgroup_extension{}, {.a = 117}, hpp::proto::alloc_from{mr})
@@ -832,7 +832,7 @@ inline void SetAll(TestAllExtensions *message, auto &&mr) {
   expect(message->set_extension(protobuf_unittest::default_bool_extension{}, false, hpp::proto::alloc_from{mr}).ok());
   expect(message->set_extension(protobuf_unittest::default_string_extension{}, "415", hpp::proto::alloc_from{mr}).ok());
   expect(
-      message->set_extension(protobuf_unittest::default_bytes_extension{}, "416"_bytes_view, hpp::proto::alloc_from{mr})
+      message->set_extension(protobuf_unittest::default_bytes_extension{}, "416"_bytes, hpp::proto::alloc_from{mr})
           .ok());
 
   expect(message
@@ -863,7 +863,7 @@ inline void SetOneofFields(TestAllExtensions *message, auto &&mr) {
           .ok());
   expect(message->set_extension(protobuf_unittest::oneof_string_extension{}, "603", hpp::proto::alloc_from{mr}).ok());
   expect(
-      message->set_extension(protobuf_unittest::oneof_bytes_extension{}, "604"_bytes_view, hpp::proto::alloc_from{mr})
+      message->set_extension(protobuf_unittest::oneof_bytes_extension<hpp::proto::non_owning_traits>{}, "604"_bytes_view, hpp::proto::alloc_from{mr})
           .ok());
 }
 
