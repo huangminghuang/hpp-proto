@@ -1909,9 +1909,8 @@ public:
     return std::errc::bad_message;
   }
 
-  template <typename T>
-  constexpr status deserialize_packed(std::size_t n, T &item) {
-    using value_type = typename T::value_type;
+  constexpr status deserialize_packed(std::size_t n, auto &&item) {
+    using value_type = typename std::remove_cvref_t<decltype(item)>::value_type;
     std::size_t nbytes = n * sizeof(value_type);
     if (std::cmp_less(in_avail(), nbytes)) [[unlikely]] {
       return std::errc::bad_message;
@@ -1933,9 +1932,8 @@ public:
         }
       }
     } else {
-      decltype(auto) x = detail::as_modifiable(context, const_cast<std::remove_cvref_t<decltype(item)>&>(item));
-      x.resize(new_size);
-      auto target = std::span{x.data() + old_size, n};
+      item.resize(new_size);
+      auto target = std::span{item.data() + old_size, n};
       if (std::is_constant_evaluated() || requires_byteswap) {
         std::array<byte_type, sizeof(value_type)> v;
         for (auto &elem : target) {
@@ -2220,55 +2218,54 @@ public:
     }
     return 0;
   }
+
+  constexpr bool match_tag(std::uint32_t tag) {
+    maybe_advance_region();
+    std::int64_t res; // NOLINT(cppcoreguidelines-init-variables)
+    if (auto p = shift_mix_parse_varint<std::uint32_t, 4>(current, res); p <= current._end) {
+      if (static_cast<std::uint32_t>(res) == tag) {
+        current.advance_to(p);
+        return true;
+      }
+    }
+    return false;
+  }
 };
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 constexpr status skip_field(uint32_t tag, concepts::has_extension auto &item, concepts::is_basic_in auto &archive) {
   static_assert(std::decay_t<decltype(archive)>::contiguous);
   auto unwound_archive = archive.unwind_tag(tag);
-  if (auto result = do_skip_field(tag, archive); !result.ok()) [[unlikely]] {
+  if (auto result = skip_fields_match_tag(tag, archive); !result.ok()) [[unlikely]] {
     return result;
   }
   using fields_type = std::remove_cvref_t<decltype(item.extensions.fields)>;
   using bytes_type = typename fields_type::value_type::second_type;
-  using byte_type = std::remove_const_t<typename bytes_type::value_type>;
   auto field_len = static_cast<std::size_t>(unwound_archive.in_avail() - archive.in_avail());
   auto field_archive = unwound_archive.split(field_len);
 
   const uint32_t field_num = tag_number(tag);
 
   if constexpr (concepts::associative_container<fields_type>) {
-    auto &value = item.extensions.fields[field_num];
-    return field_archive.deserialize_packed(field_len, value);
+    return field_archive.deserialize_packed(field_len, item.extensions.fields[field_num]);
   } else {
     static_assert(concepts::dynamic_sized_view<fields_type>);
     auto &fields = item.extensions.fields;
-
-    if (!fields.empty() && fields.back().first == field_num &&
-        field_archive.in_avail() == field_archive.region_size()) {
-      // if the newly parsed has the same field number with previously parsed, just extends the content
-      auto &entry = fields.back().second;
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      if (static_cast<const void *>(field_archive.data()) == entry.data() + entry.size()) {
-        const_cast<equality_comparable_span<const byte_type>&>(entry) = std::span<const byte_type>{entry.data(), entry.size() + field_len};
-        return {};
-      }
-    }
-
     auto itr = std::find_if(fields.begin(), fields.end(), [field_num](const auto &e) { return e.first == field_num; });
 
     if (itr == fields.end() && field_archive.in_avail() == field_archive.region_size()) [[likely]] {
-      equality_comparable_span<const byte_type> field_span;
-      if (auto result = field_archive.read_bytes(static_cast<uint32_t>(field_len), field_span); !result.ok())
-          [[unlikely]] {
+      bytes_type field_span;
+      if (auto result =
+              field_archive.deserialize_packed(field_len, detail::as_modifiable(field_archive.context, field_span));
+          !result.ok()) {
         return result;
       }
       detail::as_modifiable(field_archive.context, fields).push_back({field_num, field_span});
       return {};
     }
     // the extension with the same field number exists, append the content to the previously parsed.
-    decltype(auto) v = detail::as_modifiable(field_archive.context, itr->second);
-    return field_archive.deserialize_packed(field_len, v);
+    return field_archive.deserialize_packed(
+        field_len, detail::as_modifiable(field_archive.context, const_cast<bytes_type &>(itr->second)));
   }
 }
 
@@ -2294,6 +2291,19 @@ constexpr status do_skip_field(uint32_t tag, concepts::is_basic_in auto &archive
   default:
     return std::errc::bad_message;
   }
+}
+
+constexpr status skip_fields_match_tag(uint32_t tag, concepts::is_basic_in auto &archive) {
+  if (auto result = do_skip_field(tag, archive); !result.ok()) {
+    return result;
+  }
+
+  while (archive.match_tag(tag)) {
+    if (auto result = do_skip_field(tag, archive); !result.ok()) {
+      return result;
+    }
+  }
+  return {};
 }
 
 constexpr status do_skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
