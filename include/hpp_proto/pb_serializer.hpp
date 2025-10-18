@@ -601,36 +601,6 @@ struct [[nodiscard]] status {
   [[nodiscard]] constexpr bool ok() const noexcept { return ec == std::errc{}; }
 };
 
-template <typename T, template <typename Traits> class Extendee>
-struct extension_meta_base {
-  struct accessor_type {
-    constexpr auto &operator()(auto &item) const {
-      auto &[e] = item;
-      return e;
-    }
-  };
-
-  constexpr static auto access = accessor_type{};
-
-  static constexpr void check(const concepts::pb_extension auto &extensions) {
-    using extendee_type = typename std::remove_cvref_t<decltype(extensions)>::pb_extension;
-    using traits_type = typename extendee_type::hpp_proto_traits_type;
-    static_assert(std::same_as<extendee_type, Extendee<traits_type>>);
-  }
-
-  static auto read(const concepts::pb_extension auto &extensions, concepts::is_option_type auto &&...option);
-  static status write(concepts::pb_extension auto &extensions, auto &&value, concepts::is_option_type auto &&...option);
-  static bool element_of(const concepts::pb_extension auto &extensions) {
-    check(extensions);
-    if constexpr (requires { extensions.fields.count(T::number); }) {
-      return extensions.fields.count(T::number) > 0;
-    } else {
-      return std::find_if(extensions.fields.begin(), extensions.fields.end(),
-                          [](const auto &item) { return item.first == T::number; }) != extensions.fields.end();
-    }
-  }
-};
-
 enum class wire_type : uint8_t {
   varint = 0,
   fixed_64 = 1,
@@ -2861,83 +2831,6 @@ constexpr status deserialize(auto &item, concepts::segmented_byte_range auto con
 } // namespace pb_serializer
 // NOLINTEND(bugprone-easily-swappable-parameters)
 
-template <typename FieldType, typename MetaType>
-struct serialize_wrapper_type {
-  FieldType value = {};
-  using pb_meta = std::tuple<MetaType>;
-  constexpr serialize_wrapper_type() = default;
-  explicit constexpr serialize_wrapper_type(FieldType v) : value(v) {}
-  constexpr ~serialize_wrapper_type() = default;
-  serialize_wrapper_type(const serialize_wrapper_type &) = delete;
-  serialize_wrapper_type(serialize_wrapper_type &&) = delete;
-  serialize_wrapper_type &operator=(const serialize_wrapper_type &) = delete;
-  serialize_wrapper_type &operator=(serialize_wrapper_type &&) = delete;
-};
-
-template <typename ExtensionMeta, template <typename Traits> class Extendee>
-inline auto extension_meta_base<ExtensionMeta, Extendee>::read(const concepts::pb_extension auto &extensions,
-                                                               concepts::is_option_type auto &&...option) {
-  check(extensions);
-  decltype(extensions.fields.begin()) itr;
-
-  if constexpr (requires { extensions.fields.find(ExtensionMeta::number); }) {
-    itr = extensions.fields.find(ExtensionMeta::number);
-  } else {
-    itr = std::find_if(extensions.fields.begin(), extensions.fields.end(),
-                       [](const auto &item) { return item.first == ExtensionMeta::number; });
-  }
-
-  using value_type = typename ExtensionMeta::get_result_type;
-  using return_type = expected<value_type, status>;
-
-  serialize_wrapper_type<value_type, ExtensionMeta> wrapper;
-  if (itr != extensions.fields.end()) {
-    pb_context ctx{std::forward<decltype(option)>(option)...};
-    if (auto result = pb_serializer::deserialize(wrapper, itr->second, ctx); !result.ok()) [[unlikely]] {
-      return return_type{unexpected(result)};
-    }
-    return return_type{wrapper.value};
-  }
-
-  constexpr bool has_default_value =
-      !std::same_as<std::remove_const_t<decltype(ExtensionMeta::default_value)>, std::monostate>;
-  if constexpr (has_default_value) {
-    return return_type(value_type(ExtensionMeta::default_value));
-  } else if constexpr (!concepts::has_meta<value_type>) {
-    return return_type{value_type{}};
-  } else {
-    return return_type{unexpected(std::errc::no_message)};
-  }
-}
-
-template <typename ExtensionMeta, template <typename Traits> class Extendee>
-inline status extension_meta_base<ExtensionMeta, Extendee>::write(concepts::pb_extension auto &extensions, auto &&value,
-                                                                  concepts::is_option_type auto &&...option) {
-  check(extensions);
-
-  pb_context ctx{std::forward<decltype(option)>(option)...};
-  typename decltype(extensions.fields)::value_type::second_type buf;
-  auto data = detail::as_modifiable(ctx, buf);
-  using value_type = std::decay_t<decltype(value)>;
-
-  serialize_wrapper_type<const value_type &, ExtensionMeta> wrapper{value};
-
-  if (auto result = pb_serializer::serialize(wrapper, data, ctx); !result.ok()) [[unlikely]] {
-    return result;
-  }
-
-  if (data.size()) {
-    if constexpr (concepts::associative_container<std::decay_t<decltype(extensions.fields)>>) {
-      extensions.fields[ExtensionMeta::number] = std::move(data);
-    } else {
-      using fields_mapped_type = std::remove_cvref_t<decltype(extensions.fields)>::value_type::second_type;
-      auto fields = detail::as_modifiable(ctx, extensions.fields);
-      fields.emplace_back(ExtensionMeta::number, fields_mapped_type{data.data(), data.size()});
-    }
-  }
-  return {};
-}
-
 template <typename F>
   requires std::regular_invocable<F>
 consteval auto write_proto(F make_object) {
@@ -2997,6 +2890,68 @@ status read_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&
   pb_context ctx{std::forward<decltype(option)>(option)...};
   return pb_serializer::deserialize(msg, buffer, ctx);
 }
+
+template <typename T, template <typename Traits> class Extendee>
+struct extension_base {
+  constexpr static auto number() {
+    using field_meta_t = std::tuple_element_t<0, typename hpp::proto::traits::meta_of<T>::type>;
+    return field_meta_t::number;
+  }
+
+  template <typename Traits>
+  status get_from(const Extendee<Traits> &extendee, concepts::is_option_type auto &&...option) {
+
+    auto &fields = extendee.extensions.fields;
+    decltype(fields.begin()) itr;
+
+    if constexpr (requires { fields.find(number()); }) {
+      itr = fields.find(number());
+    } else {
+      itr = std::find_if(fields.begin(), fields.end(), [](const auto &item) { return item.first == number(); });
+    }
+
+    if (itr != fields.end()) {
+      return read_proto(*static_cast<T *>(this), itr->second, std::forward<decltype(option)>(option)...);
+    }
+
+    return {};
+  }
+
+  template <typename Traits>
+  status set_to(Extendee<Traits> &extendee, concepts::is_option_type auto &&...option) const {
+    auto &fields = extendee.extensions.fields;
+    using fields_type = std::decay_t<decltype(fields)>;
+    using bytes_type = typename fields_type::value_type::second_type;
+    bytes_type data;
+
+    if (auto result = write_proto(*static_cast<const T *>(this), data, std::forward<decltype(option)>(option)...);
+        !result.ok()) [[unlikely]] {
+      return result;
+    }
+
+    if (data.size()) {
+      if constexpr (concepts::associative_container<fields_type>) {
+        fields[number()] = std::move(data);
+      } else {
+        pb_context ctx{std::forward<decltype(option)>(option)...};
+        detail::as_modifiable(ctx, fields).emplace_back(number(), data);
+      }
+    }
+    return {};
+  }
+
+  template <typename Traits>
+  static bool in(const Extendee<Traits> &extendee) {
+    auto &fields = extendee.extensions.fields;
+    if constexpr (requires { fields.count(number()); }) {
+      return fields.count(number()) > 0;
+    } else {
+      return std::find_if(fields.begin(), fields.end(), [](const auto &item) { return item.first == number(); }) !=
+             fields.end();
+    }
+  }
+};
+
 
 namespace concepts {
 template <typename T>

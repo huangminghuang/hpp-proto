@@ -54,6 +54,7 @@ namespace UninterpretedOption__ {
     typename Traits::string_t name_part;
     bool is_extension = {};
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const NamePart&) const = default;
   };
 
@@ -72,6 +73,7 @@ struct UninterpretedOption {
   typename Traits::bytes_t string_value;
   typename Traits::string_t aggregate_value;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const UninterpretedOption&) const = default;
 };
 
@@ -176,6 +178,7 @@ namespace FeatureSet__ {
     using hpp_proto_traits_type = Traits;
     using DefaultSymbolVisibility = google::protobuf::FeatureSet__::VisibilityFeature__::DefaultSymbolVisibility;
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const VisibilityFeature&) const = default;
   };
 
@@ -204,41 +207,19 @@ struct FeatureSet {
 
   struct extension_t {
     using pb_extension = FeatureSet;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const FeatureSet&) const = default;
@@ -254,6 +235,7 @@ namespace SourceCodeInfo__ {
     typename Traits::string_t trailing_comments;
     typename Traits::template vector_t<typename Traits::string_t> leading_detached_comments;
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const Location&) const = default;
   };
 
@@ -268,41 +250,19 @@ struct SourceCodeInfo {
 
   struct extension_t {
     using pb_extension = SourceCodeInfo;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const SourceCodeInfo&) const = default;
@@ -333,6 +293,7 @@ namespace GeneratedCodeInfo__ {
     std::int32_t end = {};
     Semantic semantic = Semantic::NONE;
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const Annotation&) const = default;
   };
 
@@ -345,6 +306,7 @@ struct GeneratedCodeInfo {
 
   typename Traits::template vector_t<Annotation> annotation;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const GeneratedCodeInfo&) const = default;
 };
 
@@ -356,6 +318,7 @@ namespace FeatureSetDefaults__ {
     std::optional<google::protobuf::FeatureSet<Traits>> overridable_features;
     std::optional<google::protobuf::FeatureSet<Traits>> fixed_features;
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const FeatureSetEditionDefault&) const = default;
   };
 
@@ -370,6 +333,7 @@ struct FeatureSetDefaults {
   google::protobuf::Edition minimum_edition = google::protobuf::Edition::EDITION_UNKNOWN;
   google::protobuf::Edition maximum_edition = google::protobuf::Edition::EDITION_UNKNOWN;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const FeatureSetDefaults&) const = default;
 };
 
@@ -398,41 +362,19 @@ struct MethodOptions {
 
   struct extension_t {
     using pb_extension = MethodOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const MethodOptions&) const = default;
@@ -447,41 +389,19 @@ struct ServiceOptions {
 
   struct extension_t {
     using pb_extension = ServiceOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const ServiceOptions&) const = default;
@@ -498,41 +418,19 @@ struct EnumOptions {
 
   struct extension_t {
     using pb_extension = EnumOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const EnumOptions&) const = default;
@@ -546,41 +444,19 @@ struct OneofOptions {
 
   struct extension_t {
     using pb_extension = OneofOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const OneofOptions&) const = default;
@@ -644,6 +520,7 @@ namespace FieldOptions__ {
     google::protobuf::Edition edition = google::protobuf::Edition::EDITION_UNKNOWN;
     typename Traits::string_t value;
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const EditionDefault&) const = default;
   };
 
@@ -655,6 +532,7 @@ namespace FieldOptions__ {
     typename Traits::string_t deprecation_warning;
     google::protobuf::Edition edition_removed = google::protobuf::Edition::EDITION_UNKNOWN;
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const FeatureSupport&) const = default;
   };
 
@@ -688,41 +566,19 @@ struct FieldOptions {
 
   struct extension_t {
     using pb_extension = FieldOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const FieldOptions&) const = default;
@@ -741,41 +597,19 @@ struct MessageOptions {
 
   struct extension_t {
     using pb_extension = MessageOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const MessageOptions&) const = default;
@@ -823,41 +657,19 @@ struct FileOptions {
 
   struct extension_t {
     using pb_extension = FileOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const FileOptions&) const = default;
@@ -873,6 +685,7 @@ struct MethodDescriptorProto {
   bool client_streaming = false;
   bool server_streaming = false;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const MethodDescriptorProto&) const = default;
 };
 
@@ -883,6 +696,7 @@ struct ServiceDescriptorProto {
   typename Traits::template vector_t<google::protobuf::MethodDescriptorProto<Traits>> method;
   std::optional<google::protobuf::ServiceOptions<Traits>> options;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const ServiceDescriptorProto&) const = default;
 };
 
@@ -892,6 +706,7 @@ struct OneofDescriptorProto {
   typename Traits::string_t name;
   std::optional<google::protobuf::OneofOptions<Traits>> options;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const OneofDescriptorProto&) const = default;
 };
 
@@ -952,6 +767,7 @@ struct FieldDescriptorProto {
   std::optional<google::protobuf::FieldOptions<Traits>> options;
   bool proto3_optional = {};
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const FieldDescriptorProto&) const = default;
 };
 
@@ -975,6 +791,7 @@ namespace ExtensionRangeOptions__ {
     bool reserved = {};
     bool repeated = {};
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const Declaration&) const = default;
   };
 
@@ -993,41 +810,19 @@ struct ExtensionRangeOptions {
 
   struct extension_t {
     using pb_extension = ExtensionRangeOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const ExtensionRangeOptions&) const = default;
@@ -1044,41 +839,19 @@ struct EnumValueOptions {
 
   struct extension_t {
     using pb_extension = EnumValueOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const EnumValueOptions&) const = default;
@@ -1091,6 +864,7 @@ struct EnumValueDescriptorProto {
   std::int32_t number = {};
   std::optional<google::protobuf::EnumValueOptions<Traits>> options;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const EnumValueDescriptorProto&) const = default;
 };
 
@@ -1101,6 +875,7 @@ namespace EnumDescriptorProto__ {
     std::int32_t start = {};
     std::int32_t end = {};
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const EnumReservedRange&) const = default;
   };
 
@@ -1118,6 +893,7 @@ struct EnumDescriptorProto {
   typename Traits::template vector_t<typename Traits::string_t> reserved_name;
   google::protobuf::SymbolVisibility visibility = google::protobuf::SymbolVisibility::VISIBILITY_UNSET;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const EnumDescriptorProto&) const = default;
 };
 
@@ -1129,6 +905,7 @@ namespace DescriptorProto__ {
     std::int32_t end = {};
     std::optional<google::protobuf::ExtensionRangeOptions<Traits>> options;
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const ExtensionRange&) const = default;
   };
 
@@ -1138,6 +915,7 @@ namespace DescriptorProto__ {
     std::int32_t start = {};
     std::int32_t end = {};
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const ReservedRange&) const = default;
   };
 
@@ -1162,6 +940,7 @@ struct DescriptorProto {
   typename Traits::template vector_t<typename Traits::string_t> reserved_name;
   google::protobuf::SymbolVisibility visibility = google::protobuf::SymbolVisibility::VISIBILITY_UNSET;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const DescriptorProto&) const = default;
 };
 
@@ -1183,6 +962,7 @@ struct FileDescriptorProto {
   typename Traits::string_t syntax;
   google::protobuf::Edition edition = google::protobuf::Edition::EDITION_UNKNOWN;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const FileDescriptorProto&) const = default;
 };
 
@@ -1193,41 +973,19 @@ struct FileDescriptorSet {
 
   struct extension_t {
     using pb_extension = FileDescriptorSet;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
+    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
     bool operator==(const extension_t &other) const = default;
   } extensions;
 
-  [[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && ...option) const {
-    return meta.read(extensions, std::forward<decltype(option)>(option)...);
+  [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,
+  [[nodiscard]] auto set_extension(const auto &ext,
                                    hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, value, std::forward<decltype(option)>(option)...);
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-    requires (!Meta::is_repeated)
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta, std::ranges::contiguous_range R>
-    requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename Meta::value_type>)
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   const R& value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{std::begin(value), std::end(value)}, std::forward<decltype(option)>(option)...);
-  }
-  template<typename Meta>
-    requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta,
-                                   std::initializer_list<typename Meta::value_type> value,
-                                   hpp::proto::concepts::is_option_type auto &&...option) {
-    return meta.write(extensions, std::span<const typename Meta::value_type>{value.begin(), value.end()}, std::forward<decltype(option)>(option)...);
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const FileDescriptorSet&) const = default;

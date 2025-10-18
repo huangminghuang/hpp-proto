@@ -841,7 +841,9 @@ struct default_traits {
   template <typename Key, typename Mapped>
   using map_t = map_trait<Key, Mapped>::type;
 
-  struct unknown_fields_t {};
+  struct unknown_fields_t {
+    bool operator==(const unknown_fields_t&) const = default;
+  };
 };
 
 struct non_owning_traits {
@@ -853,7 +855,9 @@ struct non_owning_traits {
   template <typename Key, typename Mapped>
   using map_t = equality_comparable_span<const std::pair<Key, Mapped>>;
 
-  struct unknown_fields_t {};
+  struct unknown_fields_t {
+    bool operator==(const unknown_fields_t&) const = default;
+  };
 };
 } // namespace hpp::proto
 

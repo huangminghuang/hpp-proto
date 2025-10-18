@@ -144,13 +144,7 @@ inline std::size_t cpp_escaped_len(std::string_view src) {
   return len;
 }
 
-std::string cpp_escape(std::string_view src) {
-  const std::size_t escaped_len = cpp_escaped_len(src);
-  if (escaped_len == src.size()) {
-    return {src.data(), src.size()};
-  }
-  std::string result;
-  result.reserve(escaped_len);
+const char *cpp_escape(char c) {
   static const char *const escapedChars[256] = {
       "\\\\000", "\\\\001", "\\\\002", "\\\\003", "\\\\004", "\\\\005", "\\\\006", "\\\a",    "\\\b",    "\\\t",
       "\\\n",    "\\\v",    "\\\f",    "\\\r",    "\\\\016", "\\\\017", "\\\\020", "\\\\021", "\\\\022", "\\\\023",
@@ -178,9 +172,19 @@ std::string cpp_escape(std::string_view src) {
       "\\\\346", "\\\\347", "\\\\350", "\\\\351", "\\\\352", "\\\\353", "\\\\354", "\\\\355", "\\\\356", "\\\\357",
       "\\\\360", "\\\\361", "\\\\362", "\\\\363", "\\\\364", "\\\\365", "\\\\366", "\\\\367", "\\\\370", "\\\\371",
       "\\\\372", "\\\\373", "\\\\374", "\\\\375", "\\\\376", "\\\\377"};
+  return escapedChars[static_cast<unsigned char>(c)];
+}
+
+std::string cpp_escape(std::string_view src) {
+  const std::size_t escaped_len = cpp_escaped_len(src);
+  if (escaped_len == src.size()) {
+    return {src.data(), src.size()};
+  }
+  std::string result;
+  result.reserve(escaped_len);
 
   for (const char c : src) {
-    result += escapedChars[static_cast<unsigned char>(c)];
+    result += cpp_escape(c);
   }
   return result;
 }
@@ -256,14 +260,11 @@ struct hpp_addons {
   static hpp::proto::optional<std::string> namespace_prefix;
 
   static FileOptions::extension_t default_file_options_extensions() {
-    FileOptions::extension_t extensions;
-    if (!hpp::proto::hpp_file_opts()
-             .write(extensions, hpp::proto::FileOptions{.namespace_prefix = namespace_prefix})
-             .ok()) {
+    FileOptions fileopts;
+    if (!fileopts.set_extension(hpp::proto::hpp_file_opts{.value = {.namespace_prefix = namespace_prefix}}).ok()) {
       std::cerr << "Failed to set default file options extensions\n";
-      exit(1);
     }
-    return extensions;
+    return fileopts.extensions;
   }
 
   template <typename Derived>
@@ -389,9 +390,13 @@ struct hpp_addons {
 
     void set_bytes_default_value(const FieldDescriptorProto &proto) {
       if (!proto.default_value.empty()) {
-        std::string escaped = cpp_escape(proto.default_value);
-        default_value = fmt::format("hpp::proto::bytes_literal<\"{}\">{{}}", escaped);
-        default_value_template_arg = fmt::format("hpp::proto::bytes_literal<\"{}\">{{}}", escaped);
+        default_value = fmt::format("std::initializer_list{{{0}}}",
+                                    fmt::join(proto.default_value | std::views::transform([](char c) {
+                                                return std::format("std::byte{{'{0}'}}", cpp_escape(c));
+                                              }),
+                                              ","));
+        default_value_template_arg =
+            fmt::format("hpp::proto::bytes_literal<\"{}\">{{}}", cpp_escape(proto.default_value));
       }
     }
 
@@ -513,11 +518,13 @@ struct hpp_addons {
         : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax), cpp_name(proto.name) {}
 
     void on_options_resolved(const FileDescriptorProto &proto, const FileOptions &options) {
-      auto file_opts = options.get_extension(hpp::proto::hpp_file_opts()).value_or(hpp::proto::FileOptions{});
-      namespace_prefix = file_opts.namespace_prefix.value();
-      cpp_namespace = make_qualified_cpp_name(namespace_prefix, "." + proto.package);
-      std::replace_if(cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
-      cpp_name = resolve_keyword(cpp_name);
+      hpp::proto::hpp_file_opts opts;
+      if (options.get_extension(opts).ok()) {
+        namespace_prefix = opts.value.namespace_prefix.value();
+        cpp_namespace = make_qualified_cpp_name(namespace_prefix, "." + proto.package);
+        std::replace_if(cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
+        cpp_name = resolve_keyword(cpp_name);
+      }
     }
 
     // NOLINTBEGIN(misc-no-recursion)
@@ -741,7 +748,8 @@ struct msg_code_generator : code_generator {
       // only the last component of the type_name should be used
       field.cpp_field_type = field.message_field_type_descriptor()->cpp_name;
     } else if (is_nested) {
-      field.cpp_field_type = make_qualified_cpp_name("", relative_type_name);;
+      field.cpp_field_type = make_qualified_cpp_name("", relative_type_name);
+      ;
     } else {
       // only the components excluding the common ancestor should be used
       int num_components = std::ranges::count_if(relative_type_name, [](char c) { return c == '.'; });
@@ -962,7 +970,8 @@ struct msg_code_generator : code_generator {
     auto wrapper = field_type_wrapper(descriptor);
 
     if (wrapper == "hpp::proto::optional" && !descriptor.default_value_template_arg.empty()) {
-      return fmt::format("hpp::proto::optional<{0}, {1}>", descriptor.cpp_field_type, descriptor.default_value);
+      return fmt::format("hpp::proto::optional<{0}, {1}>", descriptor.cpp_field_type,
+                         descriptor.default_value_template_arg);
     } else if (!wrapper.empty()) {
       return fmt::format("{}<{}>", wrapper, descriptor.cpp_field_type);
     }
@@ -982,12 +991,6 @@ struct msg_code_generator : code_generator {
                 std::ranges::any_of(proto2_explicit_presences, [&qualified_name](const auto &s) {
                   return qualified_name.starts_with(std::string_view{s}.substr(1));
                 })));
-
-    if (descriptor.is_cpp_optional &&
-        (descriptor.proto().type == TYPE_STRING || descriptor.proto().type == TYPE_BYTES) &&
-        !descriptor.default_value.empty()) {
-      descriptor.default_value = descriptor.default_value_template_arg;
-    }
   }
 
   void process(field_descriptor_t &descriptor) {
@@ -1137,7 +1140,12 @@ struct msg_code_generator : code_generator {
       fmt::format_to(target, "\n{}struct {};\n", indent(), f.cpp_name);
     }
 
-    if (!descriptor.proto().extension_range.empty()) {
+    if (descriptor.proto().extension_range.empty()) {
+      fmt::format_to(target,
+                     "\n"
+                     "{0}[[no_unique_address]] Traits::unknown_fields_t unknown_fields_;",
+                     indent());
+    } else {
       fmt::format_to(
           target,
           "\n"
@@ -1146,43 +1154,16 @@ struct msg_code_generator : code_generator {
           "{0}  Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;\n"
           "{0}  bool operator==(const extension_t &other) const = default;\n"
           "{0}}} extensions;\n\n"
-          "{0}[[nodiscard]] auto get_extension(auto meta, hpp::proto::concepts::is_option_type auto && "
+          "{0}[[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && "
           "...option) const {{\n"
-          "{0}  return meta.read(extensions, std::forward<decltype(option)>(option)...);\n"
+          "{0}  return ext.get_from(*this, std::forward<decltype(option)>(option)...);\n"
           "{0}}}\n"
-          "{0}template<typename Meta>\n"
-          "{0}  requires (!Meta::is_repeated)\n"
-          "{0}[[nodiscard]] auto set_extension(Meta meta, const typename Meta::value_type &value,\n"
+          "{0}[[nodiscard]] auto set_extension(const auto &ext,\n"
           "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
-          "{0}  return meta.write(extensions, value, std::forward<decltype(option)>(option)...);\n"
+          "{0}  return ext.set_to(*this, std::forward<decltype(option)>(option)...);\n"
           "{0}}}\n"
-          "{0}template<typename Meta>\n"
-          "{0}  requires (!Meta::is_repeated)\n"
-          "{0}[[nodiscard]] auto set_extension(Meta meta, typename Meta::value_type &&value,\n"
-          "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
-          "{0}  return meta.write(extensions, std::move(value), std::forward<decltype(option)>(option)...);\n"
-          "{0}}}\n"
-          "{0}template<typename Meta, std::ranges::contiguous_range R>\n"
-          "{0}  requires (Meta::is_repeated && std::same_as<std::ranges::range_value_t<R>, typename "
-          "Meta::value_type>)\n"
-          "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
-          "{0}                                 const R& value,\n"
-          "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
-          "{0}  return meta.write(extensions, std::span<const typename "
-          "Meta::value_type>{{std::begin(value), "
-          "std::end(value)}}, std::forward<decltype(option)>(option)...);\n"
-          "{0}}}\n"
-          "{0}template<typename Meta>\n"
-          "{0}  requires Meta::is_repeated\n"
-          "{0}[[nodiscard]] auto set_extension(Meta meta,\n"
-          "{0}                                 std::initializer_list<typename Meta::value_type> value,\n"
-          "{0}                                 hpp::proto::concepts::is_option_type auto &&...option) {{\n"
-          "{0}  return meta.write(extensions, std::span<const typename "
-          "Meta::value_type>{{value.begin(), "
-          "value.end()}}, std::forward<decltype(option)>(option)...);\n"
-          "{0}}}\n"
-          "{0}[[nodiscard]] bool has_extension(auto meta) const {{\n"
-          "{0}  return meta.element_of(extensions);\n"
+          "{0}[[nodiscard]] bool has_extension(const auto &ext) const {{\n"
+          "{0}  return ext.in(*this);\n"
           "{0}}}\n",
           indent(), descriptor.cpp_name);
     }
@@ -1402,17 +1383,21 @@ struct hpp_meta_generator : code_generator {
       fmt::format_to(target, "{0}template <typename Traits{1}>\n", indent(), default_traits);
     }
 
+    std::string initializer = " = {}";
+
+    if (!descriptor.default_value.empty()) {
+      initializer = " = " + descriptor.default_value;
+    }
+
     fmt::format_to(target,
                    "{0}struct {1}\n"
-                   "{0}    : ::hpp::proto::field_meta_base<{2}, {3}, {4}, {5}>\n"
-                   "{0}    , ::hpp::proto::extension_meta_base<{1}{6}, {8}> {{\n"
-                   "{0}  constexpr static bool is_repeated = {7};\n"
-                   "{0}  using get_result_type = {9};\n"
-                   "{0}  using value_type = {10};\n"
+                   "{0}    : ::hpp::proto::extension_base<{1}{2}, {3}> {{\n"
+                   "{0}  using value_type={4};\n"
+                   "{0}  value_type value{5};\n"
+                   "{0}  using pb_meta = std::tuple<::hpp::proto::field_meta<{6}, &{1}{2}::value, {7}, {8}, {9}>>;\n"
                    "{0}}};\n\n",
-                   indent(), cpp_name, proto.number, fmt::join(meta_options(descriptor), " | "),
-                   descriptor.cpp_meta_type, default_value, extra_crtp_arg, is_repeated, extendee_template,
-                   get_result_type, descriptor.cpp_field_type);
+                   indent(), cpp_name, extra_crtp_arg, extendee_template, get_result_type, initializer, proto.number,
+                   fmt::join(meta_options(descriptor), " | "), descriptor.cpp_meta_type, default_value);
   }
 
   // NOLINTEND(readability-function-cognitive-complexity)

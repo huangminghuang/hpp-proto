@@ -24,6 +24,7 @@ struct Version {
   std::int32_t patch = {};
   typename Traits::string_t suffix;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const Version&) const = default;
 };
 
@@ -47,6 +48,7 @@ namespace CodeGeneratorResponse__ {
     typename Traits::string_t content;
     std::optional<google::protobuf::GeneratedCodeInfo<Traits>> generated_code_info;
 
+    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
     bool operator == (const File&) const = default;
   };
 
@@ -64,6 +66,7 @@ struct CodeGeneratorResponse {
   std::int32_t maximum_edition = {};
   typename Traits::template vector_t<File> file;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const CodeGeneratorResponse&) const = default;
 };
 
@@ -76,6 +79,7 @@ struct CodeGeneratorRequest {
   typename Traits::template vector_t<google::protobuf::FileDescriptorProto<Traits>> source_file_descriptors;
   std::optional<google::protobuf::compiler::Version<Traits>> compiler_version;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const CodeGeneratorRequest&) const = default;
 };
 

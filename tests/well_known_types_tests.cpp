@@ -151,7 +151,7 @@ const ut::suite test_wrapper = [] {
   expect(fatal((ser.has_value())));
   "wrapper"_test = [&ser] {
     using Int64Value = google::protobuf::Int64Value<>;
-    verify<Int64Value>(*ser, Int64Value{1000}, R"("1000")");
+    verify<Int64Value>(*ser, Int64Value{1000, {}}, R"("1000")");
 
     std::string json_buf;
     using namespace std::string_view_literals;
@@ -186,13 +186,13 @@ const ut::suite test_value = [] {
   using ListValue = google::protobuf::ListValue<>;
   using Struct = google::protobuf::Struct<>;
   "value"_test = [&ser] {
-    verify<Value>(*ser, Value{.kind = NullValue{}}, "null");
-    verify<Value>(*ser, Value{.kind = true}, "true");
-    verify<Value>(*ser, Value{.kind = false}, "false");
-    verify<Value>(*ser, Value{.kind = 1.0}, "1");
-    verify<Value>(*ser, Value{.kind = "abc"}, R"("abc")");
-    verify<Value>(*ser, Value{.kind = ListValue{{Value{.kind = true}, Value{.kind = 1.0}}}}, "[true,1]");
-    verify<Value>(*ser, Value{.kind = Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}}}},
+    verify<Value>(*ser, Value{.kind = NullValue{}, {}}, "null");
+    verify<Value>(*ser, Value{.kind = true, {}}, "true");
+    verify<Value>(*ser, Value{.kind = false, {}}, "false");
+    verify<Value>(*ser, Value{.kind = 1.0, {}}, "1");
+    verify<Value>(*ser, Value{.kind = "abc", {}}, R"("abc")");
+    verify<Value>(*ser, Value{.kind = ListValue{{Value{.kind = true, {}}, Value{.kind = 1.0, {}}}, {}}}, "[true,1]");
+    verify<Value>(*ser, Value{.kind = Struct{.fields = {{"f1", Value{.kind = true, {}}}, {"f2", Value{.kind = 1.0, {}}}}, {}}},
                   R"({"f1":true,"f2":1})");
   };
 
@@ -202,7 +202,7 @@ const ut::suite test_value = [] {
     verify<Struct>(*ser, Struct{}, "{}");
     verify<Struct>(
         *ser,
-        Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}, {"f3", Value{.kind = NullValue{}}}}},
+        Struct{.fields = {{"f1", Value{.kind = true,{}}}, {"f2", Value{.kind = 1.0,{}}}, {"f3", Value{.kind = NullValue{}, {}}}}},
         R"({"f1":true,"f2":1,"f3":null})", R"({
    "f1": true,
    "f2": 1,

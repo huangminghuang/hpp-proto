@@ -21,6 +21,7 @@ struct FileOptions {
   using hpp_proto_traits_type = Traits;
   hpp::proto::optional<typename Traits::string_t> namespace_prefix;
 
+  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
   bool operator == (const FileOptions&) const = default;
 };
 

@@ -21,11 +21,10 @@ auto pb_meta(const FileOptions<Traits> &) -> std::tuple<
 
 template <typename Traits = ::hpp::proto::default_traits>
 struct hpp_file_opts
-    : ::hpp::proto::field_meta_base<8964, ::hpp::proto::field_option::none, void, std::monostate{}>
-    , ::hpp::proto::extension_meta_base<hpp_file_opts<Traits>, google::protobuf::FileOptions> {
-  constexpr static bool is_repeated = false;
-  using get_result_type = hpp::proto::FileOptions<Traits>;
-  using value_type = hpp::proto::FileOptions<Traits>;
+    : ::hpp::proto::extension_base<hpp_file_opts<Traits>, google::protobuf::FileOptions> {
+  using value_type=hpp::proto::FileOptions<Traits>;
+  value_type value = {};
+  using pb_meta = std::tuple<::hpp::proto::field_meta<8964, &hpp_file_opts<Traits>::value, ::hpp::proto::field_option::none, void, std::monostate{}>>;
 };
 
 } // namespace hpp::proto

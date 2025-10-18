@@ -169,7 +169,7 @@ struct timestamp_message_json_serializer {
       ctx.custom_error_message = "non-conforming google.protobuf.Timestamp message descriptor";
       return;
     }
-    google::protobuf::Timestamp v{seconds_field->value(), nanos_field->value()};
+    google::protobuf::Timestamp v{seconds_field->value(), nanos_field->value(), {}};
     to<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, b, ix);
   }
 };
@@ -191,7 +191,7 @@ struct duration_message_json_serializer {
       ctx.custom_error_message = "non-conforming google.protobuf.Duration message descriptor";
       return;
     }
-    google::protobuf::Duration v{seconds_field->value(), nanos_field->value()};
+    google::protobuf::Duration v{seconds_field->value(), nanos_field->value(), {}};
     to<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, b, ix);
   }
 };
