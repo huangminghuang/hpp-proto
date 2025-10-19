@@ -860,10 +860,3 @@ struct non_owning_traits {
   };
 };
 } // namespace hpp::proto
-
-namespace std {
-template <typename T>
-struct hash<hpp::proto::equality_comparable_span<T>> {
-  std::size_t operator()(const hpp::proto::equality_comparable_span<T> &s) const noexcept { return std::hash<std::span<T>>{}(s); }
-};
-} // namespace std

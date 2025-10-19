@@ -243,7 +243,6 @@ concept non_owning_bytes =
 template <typename T>
 concept has_extension = has_meta<T> && requires(T value) {
   value.extensions;
-  typename decltype(T::extensions)::pb_extension;
 };
 
 template <typename T>
@@ -259,6 +258,9 @@ concept segmented_byte_range =
 template <typename Range>
 concept input_byte_range = segmented_byte_range<Range> || contiguous_byte_range<Range>;
 
+template <typename R>
+concept uint32_pair_contiguous_range = std::ranges::contiguous_range<R> && is_pair<std::ranges::range_value_t<R>> &&
+                                       std::same_as<typename std::ranges::range_value_t<R>::first_type, std::uint32_t>;
 } // namespace concepts
 
 ////////////////////
@@ -2203,40 +2205,43 @@ public:
 };
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
+constexpr status deserialize_unknown_fields(concepts::associative_container auto &fields, uint32_t field_num,
+                                            std::size_t field_len, concepts::is_basic_in auto &archive) {
+  return archive.deserialize_packed(field_len,fields[field_num]);
+}
+
+constexpr status deserialize_unknown_fields(concepts::uint32_pair_contiguous_range auto &fields, uint32_t field_num,
+                                            std::size_t field_len, concepts::is_basic_in auto &archive) {
+  auto itr = std::find_if(fields.begin(), fields.end(), [field_num](const auto &e) { return e.first == field_num; });
+
+  using fields_type = std::remove_cvref_t<decltype(fields)>;
+  using bytes_type = typename fields_type::value_type::second_type;
+
+  if (itr == fields.end() && archive.in_avail() == archive.region_size()) [[likely]] {
+    bytes_type field_span;
+    if (auto result = archive.deserialize_packed(field_len, detail::as_modifiable(archive.context, field_span));
+        !result.ok()) {
+      return result;
+    }
+    detail::as_modifiable(archive.context, fields).push_back({field_num, field_span});
+    return {};
+  }
+  // the extension with the same field number exists, append the content to the previously parsed.
+  return archive.deserialize_packed(field_len,
+                                    detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)));
+}
+
 constexpr status skip_field(uint32_t tag, concepts::has_extension auto &item, concepts::is_basic_in auto &archive) {
   static_assert(std::decay_t<decltype(archive)>::contiguous);
   auto unwound_archive = archive.unwind_tag(tag);
   if (auto result = skip_fields_match_tag(tag, archive); !result.ok()) [[unlikely]] {
     return result;
   }
-  using fields_type = std::remove_cvref_t<decltype(item.extensions.fields)>;
-  using bytes_type = typename fields_type::value_type::second_type;
+  
   auto field_len = static_cast<std::size_t>(unwound_archive.in_avail() - archive.in_avail());
   auto field_archive = unwound_archive.split(field_len);
 
-  const uint32_t field_num = tag_number(tag);
-
-  if constexpr (concepts::associative_container<fields_type>) {
-    return field_archive.deserialize_packed(field_len, item.extensions.fields[field_num]);
-  } else {
-    static_assert(concepts::dynamic_sized_view<fields_type>);
-    auto &fields = item.extensions.fields;
-    auto itr = std::find_if(fields.begin(), fields.end(), [field_num](const auto &e) { return e.first == field_num; });
-
-    if (itr == fields.end() && field_archive.in_avail() == field_archive.region_size()) [[likely]] {
-      bytes_type field_span;
-      if (auto result =
-              field_archive.deserialize_packed(field_len, detail::as_modifiable(field_archive.context, field_span));
-          !result.ok()) {
-        return result;
-      }
-      detail::as_modifiable(field_archive.context, fields).push_back({field_num, field_span});
-      return {};
-    }
-    // the extension with the same field number exists, append the content to the previously parsed.
-    return field_archive.deserialize_packed(
-        field_len, detail::as_modifiable(field_archive.context, const_cast<bytes_type &>(itr->second)));
-  }
+  return deserialize_unknown_fields(item.extensions.fields, tag_number(tag),field_len, field_archive);
 }
 
 constexpr status skip_field(uint32_t tag, concepts::has_meta auto &, concepts::is_basic_in auto &archive) {
@@ -2951,7 +2956,6 @@ struct extension_base {
     }
   }
 };
-
 
 namespace concepts {
 template <typename T>
