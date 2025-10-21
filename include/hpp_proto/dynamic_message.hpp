@@ -1951,7 +1951,8 @@ struct field_deserializer {
   status operator()(repeated_message_field_mref mref) { return deserialize_unpacked_repeated(mref); }
 }; // field_deserializer
 
-status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts::is_basic_in auto &archive) {
+status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts::is_basic_in auto &archive,
+                                auto & /* unknown_fields*/) {
   if (tag == 0) {
     return std::errc::bad_message;
   }

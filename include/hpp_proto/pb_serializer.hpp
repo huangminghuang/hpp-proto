@@ -140,6 +140,9 @@ template <typename T>
 concept is_boolean = std::same_as<hpp::proto::boolean, T>;
 
 template <typename T>
+concept is_empty = std::is_empty_v<T>;
+
+template <typename T>
 concept varint = requires { requires std::same_as<T, hpp::proto::varint<typename T::value_type, T::encoding>>; };
 
 template <typename T>
@@ -203,12 +206,6 @@ template <typename T>
 concept singular = arithmetic<T> || is_enum<T> || string_like<T> || resizable_contiguous_byte_container<T>;
 
 template <typename T>
-concept pb_extension = requires(T value) { typename T::pb_extension; };
-
-template <typename T>
-concept no_cached_size = is_enum<T> || byte_serializable<T> || concepts::varint<T> || pb_extension<T>;
-
-template <typename T>
 concept is_map_entry = requires {
   typename T::key_type;
   typename T::mapped_type;
@@ -241,9 +238,29 @@ concept non_owning_bytes =
     (concepts::dynamic_sized_view<std::remove_cvref_t<T>> && concepts::byte_type<typename T::value_type>);
 
 template <typename T>
-concept has_extension = has_meta<T> && requires(T value) {
-  value.extensions;
+concept has_extension = has_meta<T> && requires(T value) { value.extensions; };
+
+template <typename T>
+concept pb_unknown_fields = requires {
+  typename T::unknown_fields_range_t;
+  requires contiguous_byte_range<typename T::unknown_fields_range_t>;
 };
+
+template <typename T>
+concept pb_extensions = requires {
+  typename T::unknown_fields_range_t::value_type;
+  requires is_pair<typename T::unknown_fields_range_t::value_type>;
+};
+
+template <typename T>
+concept has_unknown_fields_or_extensions = has_meta<T> && requires(T value) {
+  value.pb_unknown_fields_;
+  requires pb_unknown_fields<decltype(value.pb_unknown_fields_)> || pb_extensions<decltype(value.pb_unknown_fields_)>;
+};
+
+template <typename T>
+concept no_cached_size = is_enum<T> || byte_serializable<T> || concepts::varint<T> ||
+                         pb_unknown_fields<T> || pb_extensions<T> || std::is_empty_v<T>;
 
 template <typename T>
 concept is_basic_in = requires { typename T::is_basic_in; };
@@ -1367,9 +1384,19 @@ struct message_size_calculator<T> {
     return oneof_size<0, typename Meta::alternatives_meta>(item, cache_itr);
   }
 
-  HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::pb_extension auto const &item, auto,
+  HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::pb_extensions auto const &item, auto,
                                                         concepts::is_size_cache_iterator auto &) {
     return transform_accumulate(item.fields, [](const auto &e) constexpr { return e.second.size(); });
+  }
+
+  HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::pb_unknown_fields auto const &item, auto,
+                                                        concepts::is_size_cache_iterator auto &) {
+    return item.fields.size();
+  }
+
+  HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::is_empty auto const &, auto,
+                                                        concepts::is_size_cache_iterator auto &) {
+    return 0;
   }
 
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::is_enum auto item, auto meta,
@@ -1545,8 +1572,8 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
   }
 }
 
-[[nodiscard]] constexpr bool serialize(concepts::has_meta auto const &item,
-                                       concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
+template <concepts::has_meta T>
+[[nodiscard]] constexpr bool serialize(const T &item, concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
   using type = std::remove_cvref_t<decltype(item)>;
   using metas = typename traits::meta_of<type>::type;
   auto serialize_field_if_not_empty = [&](auto meta) {
@@ -1567,9 +1594,19 @@ template <typename Meta>
   return archive(make_tag<bool>(meta), item.value);
 }
 
-[[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::pb_extension auto const &item, auto,
+[[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::pb_extensions auto const &item, auto,
                                                               concepts::is_size_cache_iterator auto &, auto &archive) {
   return std::ranges::all_of(item.fields, [&](const auto &f) { return archive(f.second); });
+}
+
+[[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::pb_unknown_fields auto const &item, auto,
+                                                              concepts::is_size_cache_iterator auto &, auto &archive) {
+  return archive(item.fields);
+}
+
+[[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::is_empty auto const &, auto,
+                                                              concepts::is_size_cache_iterator auto &, auto &) {
+  return true;
 }
 
 [[nodiscard]] HPP_PROTO_INLINE constexpr bool serialize_field(concepts::is_enum auto item, auto meta,
@@ -2205,25 +2242,27 @@ public:
 };
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-constexpr status deserialize_unknown_fields(concepts::associative_container auto &fields, uint32_t field_num,
+constexpr status deserialize_unknown_fields(concepts::associative_container auto &unknown_fields, uint32_t field_num,
                                             std::size_t field_len, concepts::is_basic_in auto &archive) {
-  return archive.deserialize_packed(field_len,fields[field_num]);
+  return archive.deserialize_packed(field_len, unknown_fields[field_num]);
 }
 
-constexpr status deserialize_unknown_fields(concepts::uint32_pair_contiguous_range auto &fields, uint32_t field_num,
-                                            std::size_t field_len, concepts::is_basic_in auto &archive) {
-  auto itr = std::find_if(fields.begin(), fields.end(), [field_num](const auto &e) { return e.first == field_num; });
+constexpr status deserialize_unknown_fields(concepts::uint32_pair_contiguous_range auto &unknown_fields,
+                                            uint32_t field_num, std::size_t field_len,
+                                            concepts::is_basic_in auto &archive) {
+  auto itr = std::find_if(unknown_fields.begin(), unknown_fields.end(),
+                          [field_num](const auto &e) { return e.first == field_num; });
 
-  using fields_type = std::remove_cvref_t<decltype(fields)>;
+  using fields_type = std::remove_cvref_t<decltype(unknown_fields)>;
   using bytes_type = typename fields_type::value_type::second_type;
 
-  if (itr == fields.end() && archive.in_avail() == archive.region_size()) [[likely]] {
+  if (itr == unknown_fields.end() && archive.in_avail() == archive.region_size()) [[likely]] {
     bytes_type field_span;
     if (auto result = archive.deserialize_packed(field_len, detail::as_modifiable(archive.context, field_span));
         !result.ok()) {
       return result;
     }
-    detail::as_modifiable(archive.context, fields).push_back({field_num, field_span});
+    unknown_fields.push_back({field_num, field_span});
     return {};
   }
   // the extension with the same field number exists, append the content to the previously parsed.
@@ -2231,21 +2270,50 @@ constexpr status deserialize_unknown_fields(concepts::uint32_pair_contiguous_ran
                                     detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)));
 }
 
-constexpr status skip_field(uint32_t tag, concepts::has_extension auto &item, concepts::is_basic_in auto &archive) {
-  static_assert(std::decay_t<decltype(archive)>::contiguous);
-  auto unwound_archive = archive.unwind_tag(tag);
-  if (auto result = skip_fields_match_tag(tag, archive); !result.ok()) [[unlikely]] {
-    return result;
-  }
-  
-  auto field_len = static_cast<std::size_t>(unwound_archive.in_avail() - archive.in_avail());
-  auto field_archive = unwound_archive.split(field_len);
-
-  return deserialize_unknown_fields(item.extensions.fields, tag_number(tag),field_len, field_archive);
+constexpr status deserialize_unknown_fields(concepts::contiguous_byte_range auto &unknown_fields, uint32_t,
+                                            std::size_t field_len, concepts::is_basic_in auto &archive) {
+  return archive.deserialize_packed(field_len, unknown_fields);
 }
 
-constexpr status skip_field(uint32_t tag, concepts::has_meta auto &, concepts::is_basic_in auto &archive) {
-  return do_skip_field(tag, archive);
+constexpr void deserialize_unknown_enum(auto &unknown_fields, uint32_t field_num, int64_t value,
+                                        concepts::is_basic_in auto &archive) {
+  std::array<std::byte, 16> data;
+  auto tag = make_tag(field_num, wire_type::varint);
+  auto p = unchecked_pack_varint(varint{tag}, data.data());
+  p = unchecked_pack_varint(varint{value}, p);
+  std::span field_span{data.data(), static_cast<std::size_t>(p - data.data())};
+  using unknown_fields_t = std::remove_cvref_t<decltype(unknown_fields)>;
+  if constexpr (concepts::contiguous_byte_range<unknown_fields_t>) {
+    unknown_fields.append_range(field_span);
+  } else if constexpr (concepts::associative_container<unknown_fields_t>) {
+    unknown_fields[field_num].append_range(field_span);
+  } else if constexpr (concepts::uint32_pair_contiguous_range<unknown_fields_t>) {
+    auto itr = std::find_if(unknown_fields.begin(), unknown_fields.end(),
+                            [field_num](const auto &e) { return e.first == field_num; });
+    if (itr == unknown_fields.end()) {
+      unknown_fields.push_back({field_num, field_span});
+    } else {
+      using bytes_type = typename unknown_fields_t::value_type::second_type;
+      detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)).append_range(field_span);
+    }
+  }
+}
+
+template <typename T>
+constexpr status skip_field(uint32_t tag, concepts::is_basic_in auto &archive, T &unknown_fields) {
+  if constexpr (std::is_empty_v<T>) {
+    return do_skip_field(tag, archive);
+  } else {
+    auto unwound_archive = archive.unwind_tag(tag);
+    if (auto result = skip_fields_match_tag(tag, archive); !result.ok()) [[unlikely]] {
+      return result;
+    }
+
+    auto field_len = static_cast<std::size_t>(unwound_archive.in_avail() - archive.in_avail());
+    auto field_archive = unwound_archive.split(field_len);
+
+    return deserialize_unknown_fields(unknown_fields, tag_number(tag), field_len, field_archive);
+  }
 }
 
 constexpr status do_skip_field(uint32_t tag, concepts::is_basic_in auto &archive) {
@@ -2351,7 +2419,8 @@ constexpr status count_groups(uint32_t input_tag, std::size_t &count, concepts::
 }
 
 template <typename Meta>
-constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_basic_in auto &archive) {
+constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_basic_in auto &archive,
+                                             auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
   using value_type = typename type::value_type;
 
@@ -2370,7 +2439,19 @@ constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_bas
 
   decltype(auto) v = detail::as_modifiable(archive.context, item);
   if constexpr (requires { v.resize(1); }) {
-    return deserialize_packed_repeated_with_byte_count<encode_type>(v, byte_count, archive);
+    [[maybe_unused]] auto old_size = std::ssize(v);
+    auto result = deserialize_packed_repeated_with_byte_count<encode_type>(v, byte_count, archive);
+    if constexpr (Meta::closed_enum()) {
+      auto itr = std::remove_if(v.begin() + old_size, v.end(), [&](auto v) {
+        if (!Meta::valid_enum_value(v)) {
+          deserialize_unknown_enum(unknown_fields, Meta::number, std::to_underlying(v), archive);
+          return true;
+        }
+        return false;
+      });
+      v.resize(static_cast<std::size_t>(std::distance(v.begin(), itr)));
+    }
+    return result;
   } else {
     using context_t = std::decay_t<decltype(archive.context)>;
     static_assert(concepts::has_memory_resource<context_t>, "memory resource is required");
@@ -2414,7 +2495,7 @@ struct deserialize_element_type<MetaType, ValueType> {
 // NOLINTBEGIN(readability-function-cognitive-complexity)
 template <typename Meta>
 constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&item,
-                                               concepts::is_basic_in auto &archive) {
+                                               concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
   using value_type = typename type::value_type;
 
@@ -2435,7 +2516,7 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
     if constexpr (concepts::has_meta<element_type>) {
       return deserialize_sized(element, archive);
     } else {
-      return deserialize_field(element, meta, tag, archive);
+      return deserialize_field(element, meta, tag, archive, unknown_fields);
     }
   };
 
@@ -2479,6 +2560,8 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
       if constexpr (meta.closed_enum()) {
         if (meta.valid_enum_value(element)) {
           v.push_back(element);
+        } else {
+          deserialize_unknown_enum(unknown_fields, tag_number(tag), std::to_underlying(element), archive);
         }
       } else {
         v[i] = std::move(static_cast<value_type>(std::move(element)));
@@ -2522,27 +2605,40 @@ constexpr status deserialize_repeated_group(Meta, uint32_t tag, auto &&item, con
   return {};
 }
 
-constexpr status deserialize_field(boolean &item, auto, uint32_t, concepts::is_basic_in auto &archive) {
+constexpr status deserialize_field(boolean &item, auto, uint32_t, concepts::is_basic_in auto &archive,
+                                   auto & /* unknown_fields*/) {
   return archive(item.value);
 }
 
-constexpr status deserialize_field(concepts::is_enum auto &item, auto, uint32_t, concepts::is_basic_in auto &archive) {
+template <typename Meta>
+constexpr status deserialize_field(concepts::is_enum auto &item, Meta, uint32_t, concepts::is_basic_in auto &archive,
+                                   auto &unknown_fields) {
   vint64_t value;
   if (auto result = archive(value); !result.ok()) [[unlikely]] {
     return result;
   }
-  item = static_cast<std::remove_reference_t<decltype(item)>>(value.value);
+  using enum_type = std::remove_reference_t<decltype(item)>;
+
+  if constexpr (Meta::closed_enum() && Meta::explicit_presence()) {
+    if (!Meta::valid_enum_value(static_cast<enum_type>(value.value))) [[unlikely]] {
+      deserialize_unknown_enum(unknown_fields, Meta::number, value, archive);
+      return std::errc::value_too_large;
+    }
+  }
+
+  item = static_cast<enum_type>(value.value);
+
   return {};
 }
 
 constexpr status deserialize_field(concepts::optional_message_view auto &item, auto meta, uint32_t tag,
-                                   concepts::is_basic_in auto &archive) {
+                                   concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using context_t = std::decay_t<decltype(archive.context)>;
   static_assert(concepts::has_memory_resource<context_t>, "memory resource is required");
   using element_type = std::remove_cvref_t<decltype(*item)>;
   void *buffer = archive.context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
   auto loaded = new (buffer) element_type; // NOLINT(cppcoreguidelines-owning-memory)
-  if (auto result = deserialize_field(*loaded, meta, tag, archive); !result.ok()) [[unlikely]] {
+  if (auto result = deserialize_field(*loaded, meta, tag, archive, unknown_fields); !result.ok()) [[unlikely]] {
     return result;
   }
   item = loaded;
@@ -2551,40 +2647,45 @@ constexpr status deserialize_field(concepts::optional_message_view auto &item, a
 
 template <concepts::optional T>
   requires(!concepts::optional_message_view<T>)
-constexpr status deserialize_field(T &item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive) {
+constexpr status deserialize_field(T &item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive,
+                                   auto &unknown_fields) {
   status result;
-  if constexpr (requires { item.emplace(); }) {
-    result = deserialize_field(item.emplace(), meta, tag, archive);
+  using type = std::remove_reference_t<T>;
+  if constexpr (meta.closed_enum()) {
+    typename type::value_type tmp;
+    result = deserialize_field(tmp, meta, tag, archive, unknown_fields);
+    if (result.ok()) [[likely]] {
+      item = tmp;
+    } else if (result == std::errc::value_too_large) {
+      return {};
+    }
+  } else if constexpr (requires { item.emplace(); }) {
+    result = deserialize_field(item.emplace(), meta, tag, archive, unknown_fields);
+
   } else {
-    using type = std::remove_reference_t<T>;
     item = typename type::value_type{};
-    result = deserialize_field(*item, meta, tag, archive);
+    result = deserialize_field(*item, meta, tag, archive, unknown_fields);
   }
 
-  if constexpr (meta.closed_enum()) {
-    if (!meta.valid_enum_value(*item)) {
-      item.reset();
-    }
-  }
   return result;
 }
 
 template <typename Meta>
 constexpr status deserialize_field(concepts::oneof_type auto &item, Meta, uint32_t tag,
-                                   concepts::is_basic_in auto &archive) {
+                                   concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
   static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
-  return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, item, archive);
+  return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, item, archive, unknown_fields);
 }
 
 template <typename Meta>
 constexpr status deserialize_field(concepts::arithmetic auto &item, Meta meta, uint32_t tag,
-                                   concepts::is_basic_in auto &archive) {
+                                   concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
   using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
   if constexpr (!std::is_same_v<type, serialize_type>) {
     serialize_type value;
-    if (auto result = deserialize_field(value, meta, tag, archive); !result.ok()) [[unlikely]] {
+    if (auto result = deserialize_field(value, meta, tag, archive, unknown_fields); !result.ok()) [[unlikely]] {
       return result;
     }
     item = static_cast<type>(value);
@@ -2595,7 +2696,7 @@ constexpr status deserialize_field(concepts::arithmetic auto &item, Meta meta, u
 }
 
 constexpr status deserialize_field(concepts::has_meta auto &item, auto meta, uint32_t tag,
-                                   concepts::is_basic_in auto &archive) {
+                                   concepts::is_basic_in auto &archive, auto & /* unknown_fields*/) {
   if constexpr (!meta.is_delimited()) {
     return deserialize_sized(item, archive);
   } else {
@@ -2605,11 +2706,11 @@ constexpr status deserialize_field(concepts::has_meta auto &item, auto meta, uin
 
 template <typename Meta>
 constexpr status deserialize_field(std::ranges::range auto &item, Meta meta, uint32_t tag,
-                                   concepts::is_basic_in auto &archive) {
+                                   concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
 
   if constexpr (concepts::contiguous_byte_range<type>) {
-    if (auto result = deserialize_packed_repeated(meta, item, archive); !result.ok()) {
+    if (auto result = deserialize_packed_repeated(meta, item, archive, unknown_fields); !result.ok()) {
       return result;
     }
     return utf8_validation_failed(meta, item) ? std::errc::bad_message : std::errc{};
@@ -2619,42 +2720,39 @@ constexpr status deserialize_field(std::ranges::range auto &item, Meta meta, uin
   } else { // repeated non-group
     if constexpr (meta.is_packed()) {
       if (tag_type(tag) != wire_type::length_delimited) {
-        return deserialize_unpacked_repeated(meta, tag, item, archive);
+        return deserialize_unpacked_repeated(meta, tag, item, archive, unknown_fields);
       }
-      return deserialize_packed_repeated(meta, item, archive);
+      return deserialize_packed_repeated(meta, item, archive, unknown_fields);
     } else {
-      return deserialize_unpacked_repeated(meta, tag, item, archive);
+      return deserialize_unpacked_repeated(meta, tag, item, archive, unknown_fields);
     }
   }
-}
-
-constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is_basic_in auto &archive) {
-  while (archive.in_avail() > 0) {
-    auto tag = archive.read_tag();
-    if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag)) {
-      return {};
-    }
-    if (auto result = deserialize_field_by_tag(tag, item, archive); !result.ok()) [[unlikely]] {
-      return result;
-    }
-  }
-
-  return std::errc::bad_message;
 }
 
 template <std::size_t Index, concepts::tuple Meta>
-constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic_in auto &archive) {
+constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic_in auto &archive,
+                                   auto &unknown_fields) {
   if constexpr (Index < std::tuple_size_v<Meta>) {
     using meta = typename std::tuple_element<Index, Meta>::type;
     if (meta::number == tag_number(tag)) {
-      if constexpr (requires { item.template emplace<Index + 1>(); }) {
-        return deserialize_field(item.template emplace<Index + 1>(), meta{}, tag, archive);
+      if constexpr (meta::closed_enum()) {
+        std::variant_alternative_t<Index + 1, std::decay_t<decltype(item)>> v;
+        auto result = deserialize_field(v, meta{}, tag, archive, unknown_fields);
+        if (result.ok()) [[likely]] {
+          std::get<Index + 1>(item) = v;
+          return {};
+        } else if (result == std::errc::value_too_large) {
+          return {};
+        }
+        return result;
+      } else if constexpr (requires { item.template emplace<Index + 1>(); }) {
+        return deserialize_field(item.template emplace<Index + 1>(), meta{}, tag, archive, unknown_fields);
       } else {
         item = std::variant_alternative_t<Index + 1, std::decay_t<decltype(item)>>{};
-        return deserialize_field(std::get<Index + 1>(item), meta{}, tag, archive);
+        return deserialize_field(std::get<Index + 1>(item), meta{}, tag, archive, unknown_fields);
       }
     } else {
-      return deserialize_oneof<Index + 1, Meta>(tag, std::forward<decltype(item)>(item), archive);
+      return deserialize_oneof<Index + 1, Meta>(tag, std::forward<decltype(item)>(item), archive, unknown_fields);
     }
   } else {
     unreachable();
@@ -2664,34 +2762,64 @@ constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic
 
 template <std::uint32_t Index>
 constexpr status deserialize_field_by_index(uint32_t tag, concepts::has_meta auto &item,
-                                            concepts::is_basic_in auto &archive) {
+                                            concepts::is_basic_in auto &archive, auto &&unknown_fields) {
   if constexpr (Index != UINT32_MAX) {
     using type = std::remove_reference_t<decltype(item)>;
     using Meta = typename traits::field_meta_of<type, Index>::type;
-    return deserialize_field(Meta::access(item), Meta(), tag, archive);
+    return deserialize_field(Meta::access(item), Meta(), tag, archive, unknown_fields);
   } else if (archive.in_avail() > 0) {
-    return skip_field(tag, item, archive);
+    return skip_field(tag, archive, unknown_fields);
   } else {
     return std::errc::bad_message;
   }
 }
 
 constexpr status deserialize_field_by_tag(uint32_t tag, concepts::has_meta auto &item,
-                                          concepts::is_basic_in auto &archive) {
+                                          concepts::is_basic_in auto &archive, auto &&unknown_fields) {
   using type = std::remove_cvref_t<decltype(item)>;
   using dispatcher_t = traits::reverse_indices<type>;
   if (tag == 0) {
     return std::errc::bad_message;
   }
   return dispatcher_t::dispatch(tag_number(tag), [&](auto index) {
-    return deserialize_field_by_index<decltype(index)::value>(tag, item, archive);
+    return deserialize_field_by_index<decltype(index)::value>(tag, item, archive, unknown_fields);
   });
 }
 
-constexpr status deserialize(auto &&item, concepts::is_basic_in auto &archive) {
+constexpr auto &get_unknown_fields(auto &item)
+  requires requires { item.unknown_fields_.fields; }
+{
+  return item.unknown_fields_.fields;
+}
+
+constexpr auto &get_unknown_fields(auto &item)
+  requires requires { item.extensions; }
+{
+  return item.extensions.fields;
+}
+
+constexpr std::monostate get_unknown_fields(auto &) { return {}; }
+
+constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is_basic_in auto &archive) {
+  decltype(auto) unknown_fields = detail::as_modifiable(archive.context, get_unknown_fields(item));
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
-    if (auto result = deserialize_field_by_tag(tag, item, archive); !result.ok()) {
+    if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag)) {
+      return {};
+    }
+    if (auto result = deserialize_field_by_tag(tag, item, archive, unknown_fields); !result.ok()) [[unlikely]] {
+      return result;
+    }
+  }
+
+  return std::errc::bad_message;
+}
+
+constexpr status deserialize(auto &&item, concepts::is_basic_in auto &archive) {
+  decltype(auto) unknown_fields = detail::as_modifiable(archive.context, get_unknown_fields(item));
+  while (archive.in_avail() > 0) {
+    auto tag = archive.read_tag();
+    if (auto result = deserialize_field_by_tag(tag, item, archive, unknown_fields); !result.ok()) {
       [[unlikely]] return result;
     }
   }
@@ -2905,8 +3033,7 @@ struct extension_base {
 
   template <typename Traits>
   status get_from(const Extendee<Traits> &extendee, concepts::is_option_type auto &&...option) {
-
-    auto &fields = extendee.extensions.fields;
+    auto &fields = pb_serializer::get_unknown_fields(extendee);
     decltype(fields.begin()) itr;
 
     if constexpr (requires { fields.find(number()); }) {
@@ -2924,7 +3051,7 @@ struct extension_base {
 
   template <typename Traits>
   status set_to(Extendee<Traits> &extendee, concepts::is_option_type auto &&...option) const {
-    auto &fields = extendee.extensions.fields;
+    auto &fields = pb_serializer::get_unknown_fields(extendee);
     using fields_type = std::decay_t<decltype(fields)>;
     using bytes_type = typename fields_type::value_type::second_type;
     bytes_type data;
@@ -2947,7 +3074,7 @@ struct extension_base {
 
   template <typename Traits>
   static bool in(const Extendee<Traits> &extendee) {
-    auto &fields = extendee.extensions.fields;
+    auto &fields = pb_serializer::get_unknown_fields(extendee);
     if constexpr (requires { fields.count(number()); }) {
       return fields.count(number()) > 0;
     } else {
@@ -3109,10 +3236,10 @@ struct message_merger {
     }
   }
 
-  template <concepts::pb_extension T, typename U>
-    requires std::same_as<T, std::decay_t<U>>
-  static constexpr void perform(T &dest, U &&source) {
-    perform(dest.fields, std::forward<U>(source).fields);
+  template <typename T>
+    requires (concepts::pb_unknown_fields<T> || concepts::pb_extensions<T>)
+  static constexpr void perform(T &dest, const T &source) {
+    perform(dest.fields, source.fields);
   }
 
   template <concepts::singular T, typename U>

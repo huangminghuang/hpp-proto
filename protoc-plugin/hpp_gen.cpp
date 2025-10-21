@@ -259,12 +259,12 @@ struct hpp_addons {
 
   static hpp::proto::optional<std::string> namespace_prefix;
 
-  static FileOptions::extension_t default_file_options_extensions() {
+  static auto default_file_options_extensions() {
     FileOptions fileopts;
     if (!fileopts.set_extension(hpp::proto::hpp_file_opts{.value = {.namespace_prefix = namespace_prefix}}).ok()) {
       std::cerr << "Failed to set default file options extensions\n";
     }
-    return fileopts.extensions;
+    return fileopts.unknown_fields_;
   }
 
   template <typename Derived>
@@ -945,11 +945,11 @@ struct msg_code_generator : code_generator {
     using enum FieldDescriptorProto::Label;
     using enum FieldDescriptorProto::Type;
     if (proto.label == LABEL_REPEATED) {
-      return "typename Traits::template vector_t";
+      return "Traits::template repeated_t";
     }
     if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
       if (descriptor.is_recursive) {
-        return "hpp::proto::heap_based_optional";
+        return "Traits::template optional_recursive_t";
       } else if (descriptor.is_cpp_optional) {
         return "std::optional";
       }
@@ -1143,17 +1143,13 @@ struct msg_code_generator : code_generator {
     if (descriptor.proto().extension_range.empty()) {
       fmt::format_to(target,
                      "\n"
-                     "{0}[[no_unique_address]] Traits::unknown_fields_t unknown_fields_;",
+                     "{0}[[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;",
                      indent());
     } else {
       fmt::format_to(
           target,
           "\n"
-          "{0}struct extension_t {{\n"
-          "{0}  using pb_extension = {1};\n"
-          "{0}  Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;\n"
-          "{0}  bool operator==(const extension_t &other) const = default;\n"
-          "{0}}} extensions;\n\n"
+          "{0}hpp::proto::pb_extensions<Traits> unknown_fields_;\n\n"
           "{0}[[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && "
           "...option) const {{\n"
           "{0}  return ext.get_from(*this, std::forward<decltype(option)>(option)...);\n"
@@ -1255,11 +1251,8 @@ struct hpp_meta_generator : code_generator {
       }
     }
 
-    if (!descriptor.proto().extension_range.empty()) {
-      fmt::format_to(target, "{}::hpp::proto::field_meta<UINT32_MAX, &{}::extensions>", indent(), qualified_name);
-    } else if (!descriptor.fields().empty()) {
-      auto &content = file.content;
-      content.resize(content.size() - 2);
+    if (!descriptor.proto().extension_range.empty() || !descriptor.fields().empty()) {
+      fmt::format_to(target, "{}::hpp::proto::field_meta<UINT32_MAX, &{}::unknown_fields_>", indent(), qualified_name);
     }
     indent_num -= 2;
 
@@ -1370,7 +1363,7 @@ struct hpp_meta_generator : code_generator {
     bool is_repeated = proto.label == LABEL_REPEATED;
 
     auto get_result_type =
-        is_repeated ? std::format("typename Traits::template vector_t<{}>", field_value_type) : field_value_type;
+        is_repeated ? std::format("typename Traits::template repeated_t<{}>", field_value_type) : field_value_type;
 
     const char *extra_crtp_arg = "";
     if (proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP || proto.type == TYPE_STRING ||

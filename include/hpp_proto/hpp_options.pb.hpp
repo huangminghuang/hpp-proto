@@ -17,7 +17,8 @@ namespace hpp::proto {
 
 template <typename Traits>
 auto pb_meta(const FileOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<2, &FileOptions<Traits>::namespace_prefix, ::hpp::proto::field_option::explicit_presence>>;
+  ::hpp::proto::field_meta<2, &FileOptions<Traits>::namespace_prefix, ::hpp::proto::field_option::explicit_presence>,
+  ::hpp::proto::field_meta<UINT32_MAX, &FileOptions<Traits>::unknown_fields_>>;
 
 template <typename Traits = ::hpp::proto::default_traits>
 struct hpp_file_opts

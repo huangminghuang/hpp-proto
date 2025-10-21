@@ -811,6 +811,19 @@ constexpr static void reserve(T &mut, std::size_t size) {
     mut.replace(std::move(keys), std::move(values));
   }
 }
+template <typename Traits>
+struct pb_unknown_fields {
+  using unknown_fields_range_t = typename Traits::unknown_fields_range_t;
+  [[no_unique_address]] typename Traits::unknown_fields_range_t fields;
+  bool operator==(const pb_unknown_fields&) const = default;
+};
+
+template <typename Traits>
+struct pb_extensions  {
+  using unknown_fields_range_t = Traits::template map_t<uint32_t, typename Traits::bytes_t>;
+  unknown_fields_range_t fields;
+  bool operator==(const pb_extensions&) const = default;
+};
 
 struct default_traits {
   template <typename T>
@@ -825,8 +838,13 @@ struct default_traits {
 
   template <typename T>
   using vector_t = vector_trait<T>::type;
+  template <typename T>
+  using repeated_t = vector_trait<T>::type;
   using string_t = std::string;
   using bytes_t = vector_t<std::byte>;
+
+  template <typename T>
+  using optional_recursive_t = hpp::proto::heap_based_optional<T>;
 
   template <typename Key, typename Mapped>
   struct map_trait {
@@ -844,13 +862,21 @@ struct default_traits {
   struct unknown_fields_t {
     bool operator==(const unknown_fields_t&) const = default;
   };
+  struct unknown_fields_range_t {
+    bool operator==(const unknown_fields_range_t&) const = default;
+  };
 };
 
 struct non_owning_traits {
   template <typename T>
   using vector_t = equality_comparable_span<const T>;
+  template <typename T>
+  using repeated_t = equality_comparable_span<const T>;
   using string_t = std::string_view;
   using bytes_t = equality_comparable_span<const std::byte>;
+
+  template <typename T>
+  using optional_recursive_t = hpp::proto::optional_message_view<T>;
 
   template <typename Key, typename Mapped>
   using map_t = equality_comparable_span<const std::pair<Key, Mapped>>;
@@ -858,5 +884,14 @@ struct non_owning_traits {
   struct unknown_fields_t {
     bool operator==(const unknown_fields_t&) const = default;
   };
+
+  struct unknown_fields_range_t {
+    bool operator==(const unknown_fields_range_t&) const = default;
+  };
+};
+
+template <typename BaseTraits>
+struct keep_unknown_fields : BaseTraits {
+  using unknown_fields_range_t = BaseTraits::template repeated_t<std::byte>;
 };
 } // namespace hpp::proto

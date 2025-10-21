@@ -360,16 +360,16 @@ public:
 
     void setup_options(const MessageOptions &inherited_options) {
       options_.features = merge_features(inherited_options.features.value(), proto_.options);
-      options_.extensions.fields.insert(hpp::proto::sorted_unique, inherited_options.extensions.fields.begin(),
-                                        inherited_options.extensions.fields.end());
+      options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique, inherited_options.unknown_fields_.fields.begin(),
+                                        inherited_options.unknown_fields_.fields.end());
     }
 
     void setup_options(const FileOptions &inherited_options) {
       options_.features = merge_features(inherited_options.features.value(), proto_.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
-        typename MessageOptions::extension_t extensions;
-        AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
-        options_.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
+        typename hpp::proto::pb_extensions<traits_type> extensions;
+        AddOns::adapt_option_extensions(extensions, inherited_options.unknown_fields_);
+        options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
                                           extensions.fields.end());
       }
     }
@@ -386,7 +386,7 @@ public:
       options_.features = merge_features(default_features, proto.options);
       if constexpr (requires { AddOns::default_file_options_extensions(); }) {
         auto extensions = AddOns::default_file_options_extensions();
-        options_.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
+        options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
                                           extensions.fields.end());
       }
       if constexpr (requires { base_type::on_options_resolved(proto_, options_); }) {

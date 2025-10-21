@@ -54,7 +54,7 @@ namespace UninterpretedOption__ {
     typename Traits::string_t name_part;
     bool is_extension = {};
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const NamePart&) const = default;
   };
 
@@ -65,7 +65,7 @@ struct UninterpretedOption {
   using hpp_proto_traits_type = Traits;
   using NamePart = UninterpretedOption__::NamePart<Traits>;
 
-  typename Traits::template vector_t<NamePart> name;
+  Traits::template repeated_t<NamePart> name;
   typename Traits::string_t identifier_value;
   std::uint64_t positive_int_value = {};
   std::int64_t negative_int_value = {};
@@ -73,7 +73,7 @@ struct UninterpretedOption {
   typename Traits::bytes_t string_value;
   typename Traits::string_t aggregate_value;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const UninterpretedOption&) const = default;
 };
 
@@ -178,7 +178,7 @@ namespace FeatureSet__ {
     using hpp_proto_traits_type = Traits;
     using DefaultSymbolVisibility = google::protobuf::FeatureSet__::VisibilityFeature__::DefaultSymbolVisibility;
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const VisibilityFeature&) const = default;
   };
 
@@ -205,11 +205,7 @@ struct FeatureSet {
   EnforceNamingStyle enforce_naming_style = EnforceNamingStyle::ENFORCE_NAMING_STYLE_UNKNOWN;
   VisibilityFeature::DefaultSymbolVisibility default_symbol_visibility = VisibilityFeature::DefaultSymbolVisibility::DEFAULT_SYMBOL_VISIBILITY_UNKNOWN;
 
-  struct extension_t {
-    using pb_extension = FeatureSet;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -229,13 +225,13 @@ namespace SourceCodeInfo__ {
   template <typename Traits = ::hpp::proto::default_traits>
   struct Location {
     using hpp_proto_traits_type = Traits;
-    typename Traits::template vector_t<std::int32_t> path;
-    typename Traits::template vector_t<std::int32_t> span;
+    Traits::template repeated_t<std::int32_t> path;
+    Traits::template repeated_t<std::int32_t> span;
     typename Traits::string_t leading_comments;
     typename Traits::string_t trailing_comments;
-    typename Traits::template vector_t<typename Traits::string_t> leading_detached_comments;
+    Traits::template repeated_t<typename Traits::string_t> leading_detached_comments;
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const Location&) const = default;
   };
 
@@ -246,13 +242,9 @@ struct SourceCodeInfo {
   using hpp_proto_traits_type = Traits;
   using Location = SourceCodeInfo__::Location<Traits>;
 
-  typename Traits::template vector_t<Location> location;
+  Traits::template repeated_t<Location> location;
 
-  struct extension_t {
-    using pb_extension = SourceCodeInfo;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -287,13 +279,13 @@ namespace GeneratedCodeInfo__ {
   struct Annotation {
     using hpp_proto_traits_type = Traits;
     using Semantic = google::protobuf::GeneratedCodeInfo__::Annotation__::Semantic;
-    typename Traits::template vector_t<std::int32_t> path;
+    Traits::template repeated_t<std::int32_t> path;
     typename Traits::string_t source_file;
     std::int32_t begin = {};
     std::int32_t end = {};
     Semantic semantic = Semantic::NONE;
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const Annotation&) const = default;
   };
 
@@ -304,9 +296,9 @@ struct GeneratedCodeInfo {
   using hpp_proto_traits_type = Traits;
   using Annotation = GeneratedCodeInfo__::Annotation<Traits>;
 
-  typename Traits::template vector_t<Annotation> annotation;
+  Traits::template repeated_t<Annotation> annotation;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const GeneratedCodeInfo&) const = default;
 };
 
@@ -318,7 +310,7 @@ namespace FeatureSetDefaults__ {
     std::optional<google::protobuf::FeatureSet<Traits>> overridable_features;
     std::optional<google::protobuf::FeatureSet<Traits>> fixed_features;
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const FeatureSetEditionDefault&) const = default;
   };
 
@@ -329,11 +321,11 @@ struct FeatureSetDefaults {
   using hpp_proto_traits_type = Traits;
   using FeatureSetEditionDefault = FeatureSetDefaults__::FeatureSetEditionDefault<Traits>;
 
-  typename Traits::template vector_t<FeatureSetEditionDefault> defaults;
+  Traits::template repeated_t<FeatureSetEditionDefault> defaults;
   google::protobuf::Edition minimum_edition = google::protobuf::Edition::EDITION_UNKNOWN;
   google::protobuf::Edition maximum_edition = google::protobuf::Edition::EDITION_UNKNOWN;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const FeatureSetDefaults&) const = default;
 };
 
@@ -358,13 +350,9 @@ struct MethodOptions {
   bool deprecated = false;
   IdempotencyLevel idempotency_level = IdempotencyLevel::IDEMPOTENCY_UNKNOWN;
   std::optional<google::protobuf::FeatureSet<Traits>> features;
-  typename Traits::template vector_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = MethodOptions;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -385,13 +373,9 @@ struct ServiceOptions {
   using hpp_proto_traits_type = Traits;
   std::optional<google::protobuf::FeatureSet<Traits>> features;
   bool deprecated = false;
-  typename Traits::template vector_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = ServiceOptions;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -414,13 +398,9 @@ struct EnumOptions {
   bool deprecated = false;
   bool deprecated_legacy_json_field_conflicts = {};
   std::optional<google::protobuf::FeatureSet<Traits>> features;
-  typename Traits::template vector_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = EnumOptions;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -440,13 +420,9 @@ template <typename Traits = ::hpp::proto::default_traits>
 struct OneofOptions {
   using hpp_proto_traits_type = Traits;
   std::optional<google::protobuf::FeatureSet<Traits>> features;
-  typename Traits::template vector_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = OneofOptions;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -520,7 +496,7 @@ namespace FieldOptions__ {
     google::protobuf::Edition edition = google::protobuf::Edition::EDITION_UNKNOWN;
     typename Traits::string_t value;
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const EditionDefault&) const = default;
   };
 
@@ -532,7 +508,7 @@ namespace FieldOptions__ {
     typename Traits::string_t deprecation_warning;
     google::protobuf::Edition edition_removed = google::protobuf::Edition::EDITION_UNKNOWN;
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const FeatureSupport&) const = default;
   };
 
@@ -558,17 +534,13 @@ struct FieldOptions {
   bool weak = false;
   bool debug_redact = false;
   OptionRetention retention = OptionRetention::RETENTION_UNKNOWN;
-  typename Traits::template vector_t<OptionTargetType> targets;
-  typename Traits::template vector_t<EditionDefault> edition_defaults;
+  Traits::template repeated_t<OptionTargetType> targets;
+  Traits::template repeated_t<EditionDefault> edition_defaults;
   std::optional<google::protobuf::FeatureSet<Traits>> features;
   std::optional<FeatureSupport> feature_support;
-  typename Traits::template vector_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = FieldOptions;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -593,13 +565,9 @@ struct MessageOptions {
   bool map_entry = {};
   bool deprecated_legacy_json_field_conflicts = {};
   std::optional<google::protobuf::FeatureSet<Traits>> features;
-  typename Traits::template vector_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = MessageOptions;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -653,13 +621,9 @@ struct FileOptions {
   typename Traits::string_t php_metadata_namespace;
   typename Traits::string_t ruby_package;
   std::optional<google::protobuf::FeatureSet<Traits>> features;
-  typename Traits::template vector_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = FileOptions;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -685,7 +649,7 @@ struct MethodDescriptorProto {
   bool client_streaming = false;
   bool server_streaming = false;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const MethodDescriptorProto&) const = default;
 };
 
@@ -693,10 +657,10 @@ template <typename Traits = ::hpp::proto::default_traits>
 struct ServiceDescriptorProto {
   using hpp_proto_traits_type = Traits;
   typename Traits::string_t name;
-  typename Traits::template vector_t<google::protobuf::MethodDescriptorProto<Traits>> method;
+  Traits::template repeated_t<google::protobuf::MethodDescriptorProto<Traits>> method;
   std::optional<google::protobuf::ServiceOptions<Traits>> options;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const ServiceDescriptorProto&) const = default;
 };
 
@@ -706,7 +670,7 @@ struct OneofDescriptorProto {
   typename Traits::string_t name;
   std::optional<google::protobuf::OneofOptions<Traits>> options;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const OneofDescriptorProto&) const = default;
 };
 
@@ -767,7 +731,7 @@ struct FieldDescriptorProto {
   std::optional<google::protobuf::FieldOptions<Traits>> options;
   bool proto3_optional = {};
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const FieldDescriptorProto&) const = default;
 };
 
@@ -791,7 +755,7 @@ namespace ExtensionRangeOptions__ {
     bool reserved = {};
     bool repeated = {};
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const Declaration&) const = default;
   };
 
@@ -803,16 +767,12 @@ struct ExtensionRangeOptions {
   using VerificationState = google::protobuf::ExtensionRangeOptions__::VerificationState;
   using Declaration = ExtensionRangeOptions__::Declaration<Traits>;
 
-  typename Traits::template vector_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
-  typename Traits::template vector_t<Declaration> declaration;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<Declaration> declaration;
   std::optional<google::protobuf::FeatureSet<Traits>> features;
   VerificationState verification = VerificationState::UNVERIFIED;
 
-  struct extension_t {
-    using pb_extension = ExtensionRangeOptions;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -835,13 +795,9 @@ struct EnumValueOptions {
   std::optional<google::protobuf::FeatureSet<Traits>> features;
   bool debug_redact = false;
   std::optional<google::protobuf::FieldOptions__::FeatureSupport<Traits>> feature_support;
-  typename Traits::template vector_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = EnumValueOptions;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);
@@ -864,7 +820,7 @@ struct EnumValueDescriptorProto {
   std::int32_t number = {};
   std::optional<google::protobuf::EnumValueOptions<Traits>> options;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const EnumValueDescriptorProto&) const = default;
 };
 
@@ -875,7 +831,7 @@ namespace EnumDescriptorProto__ {
     std::int32_t start = {};
     std::int32_t end = {};
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const EnumReservedRange&) const = default;
   };
 
@@ -887,13 +843,13 @@ struct EnumDescriptorProto {
   using EnumReservedRange = EnumDescriptorProto__::EnumReservedRange<Traits>;
 
   typename Traits::string_t name;
-  typename Traits::template vector_t<google::protobuf::EnumValueDescriptorProto<Traits>> value;
+  Traits::template repeated_t<google::protobuf::EnumValueDescriptorProto<Traits>> value;
   std::optional<google::protobuf::EnumOptions<Traits>> options;
-  typename Traits::template vector_t<EnumReservedRange> reserved_range;
-  typename Traits::template vector_t<typename Traits::string_t> reserved_name;
+  Traits::template repeated_t<EnumReservedRange> reserved_range;
+  Traits::template repeated_t<typename Traits::string_t> reserved_name;
   google::protobuf::SymbolVisibility visibility = google::protobuf::SymbolVisibility::VISIBILITY_UNSET;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const EnumDescriptorProto&) const = default;
 };
 
@@ -905,7 +861,7 @@ namespace DescriptorProto__ {
     std::int32_t end = {};
     std::optional<google::protobuf::ExtensionRangeOptions<Traits>> options;
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const ExtensionRange&) const = default;
   };
 
@@ -915,7 +871,7 @@ namespace DescriptorProto__ {
     std::int32_t start = {};
     std::int32_t end = {};
 
-    [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const ReservedRange&) const = default;
   };
 
@@ -929,18 +885,18 @@ struct DescriptorProto {
   using ReservedRange = DescriptorProto__::ReservedRange<Traits>;
 
   typename Traits::string_t name;
-  typename Traits::template vector_t<google::protobuf::FieldDescriptorProto<Traits>> field;
-  typename Traits::template vector_t<google::protobuf::FieldDescriptorProto<Traits>> extension;
-  typename Traits::template vector_t<DescriptorProto> nested_type;
-  typename Traits::template vector_t<google::protobuf::EnumDescriptorProto<Traits>> enum_type;
-  typename Traits::template vector_t<ExtensionRange> extension_range;
-  typename Traits::template vector_t<google::protobuf::OneofDescriptorProto<Traits>> oneof_decl;
+  Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> field;
+  Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> extension;
+  Traits::template repeated_t<DescriptorProto> nested_type;
+  Traits::template repeated_t<google::protobuf::EnumDescriptorProto<Traits>> enum_type;
+  Traits::template repeated_t<ExtensionRange> extension_range;
+  Traits::template repeated_t<google::protobuf::OneofDescriptorProto<Traits>> oneof_decl;
   std::optional<google::protobuf::MessageOptions<Traits>> options;
-  typename Traits::template vector_t<ReservedRange> reserved_range;
-  typename Traits::template vector_t<typename Traits::string_t> reserved_name;
+  Traits::template repeated_t<ReservedRange> reserved_range;
+  Traits::template repeated_t<typename Traits::string_t> reserved_name;
   google::protobuf::SymbolVisibility visibility = google::protobuf::SymbolVisibility::VISIBILITY_UNSET;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const DescriptorProto&) const = default;
 };
 
@@ -949,33 +905,29 @@ struct FileDescriptorProto {
   using hpp_proto_traits_type = Traits;
   typename Traits::string_t name;
   typename Traits::string_t package;
-  typename Traits::template vector_t<typename Traits::string_t> dependency;
-  typename Traits::template vector_t<std::int32_t> public_dependency;
-  typename Traits::template vector_t<std::int32_t> weak_dependency;
-  typename Traits::template vector_t<typename Traits::string_t> option_dependency;
-  typename Traits::template vector_t<google::protobuf::DescriptorProto<Traits>> message_type;
-  typename Traits::template vector_t<google::protobuf::EnumDescriptorProto<Traits>> enum_type;
-  typename Traits::template vector_t<google::protobuf::ServiceDescriptorProto<Traits>> service;
-  typename Traits::template vector_t<google::protobuf::FieldDescriptorProto<Traits>> extension;
+  Traits::template repeated_t<typename Traits::string_t> dependency;
+  Traits::template repeated_t<std::int32_t> public_dependency;
+  Traits::template repeated_t<std::int32_t> weak_dependency;
+  Traits::template repeated_t<typename Traits::string_t> option_dependency;
+  Traits::template repeated_t<google::protobuf::DescriptorProto<Traits>> message_type;
+  Traits::template repeated_t<google::protobuf::EnumDescriptorProto<Traits>> enum_type;
+  Traits::template repeated_t<google::protobuf::ServiceDescriptorProto<Traits>> service;
+  Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> extension;
   std::optional<google::protobuf::FileOptions<Traits>> options;
   std::optional<google::protobuf::SourceCodeInfo<Traits>> source_code_info;
   typename Traits::string_t syntax;
   google::protobuf::Edition edition = google::protobuf::Edition::EDITION_UNKNOWN;
 
-  [[no_unique_address]] Traits::unknown_fields_t unknown_fields_;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const FileDescriptorProto&) const = default;
 };
 
 template <typename Traits = ::hpp::proto::default_traits>
 struct FileDescriptorSet {
   using hpp_proto_traits_type = Traits;
-  typename Traits::template vector_t<google::protobuf::FileDescriptorProto<Traits>> file;
+  Traits::template repeated_t<google::protobuf::FileDescriptorProto<Traits>> file;
 
-  struct extension_t {
-    using pb_extension = FileDescriptorSet;
-    Traits::template map_t<uint32_t, typename Traits::bytes_t> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  hpp::proto::pb_extensions<Traits> unknown_fields_;
 
   [[nodiscard]] hpp::proto::status get_extension(auto &ext, hpp::proto::concepts::is_option_type auto && ...option) const {
     return ext.get_from(*this, std::forward<decltype(option)>(option)...);

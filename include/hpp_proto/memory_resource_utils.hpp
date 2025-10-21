@@ -334,11 +334,10 @@ arena_vector(View &view, Context &ctx)
 constexpr auto as_modifiable(concepts::is_pb_context auto &context, concepts::dynamic_sized_view auto &view) {
   return detail::arena_vector{view, context};
 }
-
 template <typename T>
   requires(!concepts::dynamic_sized_view<T>)
-constexpr T &as_modifiable(const auto & /* unused */, T &view) {
-  return view;
+constexpr  auto as_modifiable(const auto & /* unused */, T &&view) ->decltype(std::forward<T>(view)) {
+  return std::forward<T>(view);
 }
 
 } // namespace detail
