@@ -42,16 +42,6 @@ constexpr bool contains(const R &r, const T &value) {
   return std::find(std::begin(r), std::end(r), value) != std::end(r);
 }
 
-// namespace concepts {
-// template <typename T>
-// concept input_bytes_range =
-//     std::ranges::input_range<T> && contiguous_byte_range<typename std::ranges::range_value_t<T>>;
-
-// template <typename T>
-// concept file_descriptor_pb_array =
-//     std::ranges::input_range<T> && std::same_as<typename std::ranges::range_value_t<T>, file_descriptor_pb>;
-// } // namespace concepts
-
 namespace wellknown {
 struct Any {
   std::string type_url;
@@ -120,9 +110,17 @@ struct proto_json_addons {
   using FileDescriptorProto = google::protobuf::FileDescriptorProto<traits_type>;
   using FileOptions = google::protobuf::FileOptions<traits_type>;
   using FileDescriptorSet = google::protobuf::FileDescriptorSet<traits_type>;
+
+  using string_t = std::string;
+  template <typename T>
+  using vector_t = std::vector<T>;
+
+  template <typename T, typename U>
+  using map_t = flat_map<T, U>;
+  
   template <typename Derived>
   struct field_descriptor {
-    field_descriptor(const FieldDescriptorProto &, const std::string &) {}
+    field_descriptor(const FieldDescriptorProto &) {}
   };
 
   template <typename EnumD>
@@ -167,7 +165,7 @@ class dynamic_serializer {
     std::string name;
   };
 
-  static uint32_t find_index(const std::vector<std::string> &m, std::string_view key) {
+  static uint32_t find_index(const std::vector<std::string_view> &m, std::string_view key) {
     return static_cast<uint32_t>(std::ranges::lower_bound(m, key) - m.begin());
   }
 
@@ -1442,7 +1440,7 @@ public:
     }
 
     std::ranges::transform(pool.message_map(), std::back_inserter(message_names),
-                           [](const auto &entry) { return entry.first; });
+                           [](const auto &entry) { return std::string{entry.first}; });
 
     protobuf_any_message_index = message_index("google.protobuf.Any");
     protobuf_timestamp_message_index = message_index("google.protobuf.Timestamp");

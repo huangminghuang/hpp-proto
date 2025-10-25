@@ -59,63 +59,56 @@ class dynamic_message_factory;
 
 struct dynamic_message_factory_addons {
   using traits_type = default_traits;
+  using string_t = std::string;
+  template <typename T>
+  using vector_t = std::vector<T>;
+
+  template <typename T, typename U>
+  using map_t = std::unordered_map<T, U>;
   template <typename Derived>
   struct field_descriptor {
     using type = void;
-    std::variant<bool, std::string, int32_t, uint32_t, int64_t, uint64_t, double, float, std::vector<std::byte>>
-        default_value;
+    std::variant<bool, int32_t, uint32_t, int64_t, uint64_t, double, float> default_value;
     /// @brief slot represents the index to the field memory storage of a message; all non-oneof fields use different
     /// slot, fields of the same oneof type share the same slot.
     uint32_t storage_slot = 0;
     /// @brief for oneof field, this value is the order among the same oneof field counting from 1; otherwise, it is
     /// always 1 for singular field and 0 for repeated field
     uint16_t oneof_ordinal = 0;
-    field_descriptor(const google::protobuf::FieldDescriptorProto<traits_type> &proto, const std::string &) {
-      set_default_value(proto);
-    }
+    field_descriptor(const google::protobuf::FieldDescriptorProto<traits_type> &proto) { set_default_value(proto); }
 
     void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto) {
       using enum google::protobuf::FieldDescriptorProto__::Type;
-      using namespace std::string_literals;
-      const auto &default_value_opt = proto.default_value;
+      const std::string default_value_opt{proto.default_value};
       switch (proto.type) {
       case TYPE_ENUM:
         break;
       case TYPE_DOUBLE:
-        default_value = std::stod(default_value_opt.empty() ? "0.0"s : default_value_opt);
+        default_value = default_value_opt.empty() ? 0.0 : std::stod(default_value_opt);
         break;
       case TYPE_FLOAT:
-        default_value = std::stof(default_value_opt.empty() ? "0.0"s : default_value_opt);
+        default_value = default_value_opt.empty() ? 0.0f : std::stof(default_value_opt);
         break;
       case TYPE_INT64:
       case TYPE_SFIXED64:
       case TYPE_SINT64:
-        default_value = std::stoll(default_value_opt.empty() ? "0"s : default_value_opt);
+        default_value = default_value_opt.empty() ? 0LL : std::stoll(default_value_opt);
         break;
       case TYPE_UINT64:
       case TYPE_FIXED64:
-        default_value = std::stoull(default_value_opt.empty() ? "0"s : default_value_opt);
+        default_value = default_value_opt.empty() ? 0ULL : std::stoull(default_value_opt);
         break;
       case TYPE_INT32:
       case TYPE_SFIXED32:
       case TYPE_SINT32:
-        default_value = std::stoi(default_value_opt.empty() ? "0"s : default_value_opt);
+        default_value = default_value_opt.empty() ? 0 : std::stoi(default_value_opt);
         break;
       case TYPE_UINT32:
       case TYPE_FIXED32:
-        default_value = std::stoul(default_value_opt.empty() ? "0"s : default_value_opt);
+        default_value = default_value_opt.empty() ? 0U : std::stoul(default_value_opt);
         break;
       case TYPE_BOOL:
         default_value = proto.default_value == "true";
-        break;
-      case TYPE_STRING:
-        default_value = default_value_opt;
-        break;
-      case TYPE_BYTES:
-        if (!default_value_opt.empty()) {
-          auto const view = detail::bit_cast_view<std::byte>(default_value_opt);
-          default_value.emplace<std::vector<std::byte>>(view.begin(), view.end());
-        }
         break;
       default:
         // Do nothing
@@ -461,8 +454,7 @@ public:
 
   [[nodiscard]] std::string_view value() const noexcept {
     if (!descriptor_->explicit_presence() && !has_value()) {
-      auto &default_value = std::get<std::string>(descriptor_->default_value);
-      return default_value;
+      return descriptor_->proto().default_value;
     }
     return {storage_->content, storage_->size};
   }
@@ -520,12 +512,9 @@ private:
   string_storage_t *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
-  [[nodiscard]] const std::string &default_value() const noexcept {
-    return std::get<std::string>(descriptor_->default_value);
-  }
 
   [[nodiscard]] bool is_default_value(std::string_view v) const noexcept {
-    return std::ranges::equal(v, default_value());
+    return std::ranges::equal(v, descriptor_->proto().default_value);
   }
 };
 
@@ -551,8 +540,8 @@ public:
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection; }
   [[nodiscard]] bytes_view value() const noexcept {
     if (!descriptor_->explicit_presence() && !has_value()) {
-      auto &default_value = std::get<std::vector<std::byte>>(descriptor_->default_value);
-      return {default_value.data(), default_value.size()};
+      const auto default_value = descriptor_->proto().default_value;
+      return {reinterpret_cast<const std::byte*>(default_value.data()), default_value.size()};
     }
     return {storage_->content, storage_->size};
   }
@@ -607,13 +596,14 @@ private:
   bytes_storage_t *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
-  [[nodiscard]] const std::vector<std::byte> &default_value() const noexcept {
-    return std::get<std::vector<std::byte>>(descriptor_->default_value);
-  }
 
-  [[nodiscard]] bool is_default_value(bytes_view v) const noexcept { return std::ranges::equal(v, default_value()); }
+  [[nodiscard]] bool is_default_value(bytes_view v) const noexcept { 
+    auto default_value = descriptor_->proto().default_value;
+    return v.size() == default_value.size() && std::memcmp(v.data(), default_value.data(), v.size()); 
+  }
 };
 
+// TODO: enum default value needs to be handled 
 class enum_value_cref {
 public:
   using is_enum_value_ref = void;

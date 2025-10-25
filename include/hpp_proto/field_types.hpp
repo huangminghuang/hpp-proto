@@ -564,6 +564,7 @@ public:
   constexpr bool operator==(std::nullptr_t /* unused */) const { return !has_value(); }
 };
 
+
 /// equality_comparable_span<T> provides a span-like interface that is equality comparable and can be used when T is a
 /// recursive type.
 template <typename T>
@@ -587,7 +588,8 @@ public:
 
   constexpr equality_comparable_span() noexcept = default;
   constexpr ~equality_comparable_span() noexcept = default;
-  constexpr equality_comparable_span(const equality_comparable_span &) noexcept = default;
+  constexpr equality_comparable_span(const equality_comparable_span &other) noexcept
+      : _data(other._data), _size(other._size) {}
   constexpr equality_comparable_span(equality_comparable_span &&) noexcept = default;
   constexpr equality_comparable_span &operator=(const equality_comparable_span &) noexcept = default;
   constexpr equality_comparable_span &operator=(equality_comparable_span &&) noexcept = default;
@@ -599,10 +601,9 @@ public:
     requires std::is_convertible_v<U (*)[], T (*)[]>
   constexpr equality_comparable_span(std::span<U> other) noexcept : _data(other.data()), _size(other.size()) {}
 
-  template <std::ranges::contiguous_range R>
-    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>) &&
-                std::convertible_to<decltype(std::ranges::data(std::declval<R &>())), T *>
-  constexpr equality_comparable_span(R &&r) noexcept : _data(std::ranges::data(r)), _size(std::ranges::size(r)) {}
+  template <typename R>
+    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>) 
+  constexpr equality_comparable_span(R &&r) noexcept : equality_comparable_span(std::span<element_type>(r)) {}
 
   template <std::contiguous_iterator It>
     requires std::convertible_to<decltype(std::to_address(std::declval<It &>())), T *>
@@ -620,11 +621,6 @@ public:
   [[nodiscard]] constexpr size_type size() const noexcept { return _size; }
   [[nodiscard]] constexpr size_type size_bytes() const noexcept { return _size * sizeof(T); }
 
-  constexpr equality_comparable_span &operator=(std::span<element_type> other) noexcept {
-    _data = other.data();
-    _size = other.size();
-    return *this;
-  }
 
   template <class U>
     requires std::is_convertible_v<U (*)[], T (*)[]>
@@ -634,13 +630,11 @@ public:
     return *this;
   }
 
-  template <std::ranges::contiguous_range R>
-    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>) &&
-            std::is_convertible_v<std::remove_reference_t<std::ranges::range_reference_t<R>> (*)[], T (*)[]>
-  constexpr equality_comparable_span &operator=(R &r) noexcept {
-    _data = std::ranges::data(r);
-    _size = std::ranges::size(r);
-    return *this;
+  template <typename R>
+    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>) 
+  constexpr equality_comparable_span& operator=(R &&r) noexcept  {
+     *this = std::span<element_type>{r};
+     return *this;
   }
 
   [[nodiscard]] constexpr iterator begin() const noexcept { return _data; }
@@ -815,14 +809,14 @@ template <typename Traits>
 struct pb_unknown_fields {
   using unknown_fields_range_t = typename Traits::unknown_fields_range_t;
   [[no_unique_address]] typename Traits::unknown_fields_range_t fields;
-  bool operator==(const pb_unknown_fields&) const = default;
+  bool operator==(const pb_unknown_fields &) const = default;
 };
 
 template <typename Traits>
-struct pb_extensions  {
+struct pb_extensions {
   using unknown_fields_range_t = Traits::template map_t<uint32_t, typename Traits::bytes_t>;
   unknown_fields_range_t fields;
-  bool operator==(const pb_extensions&) const = default;
+  bool operator==(const pb_extensions &) const = default;
 };
 
 struct default_traits {
@@ -860,10 +854,10 @@ struct default_traits {
   using map_t = map_trait<Key, Mapped>::type;
 
   struct unknown_fields_t {
-    bool operator==(const unknown_fields_t&) const = default;
+    bool operator==(const unknown_fields_t &) const = default;
   };
   struct unknown_fields_range_t {
-    bool operator==(const unknown_fields_range_t&) const = default;
+    bool operator==(const unknown_fields_range_t &) const = default;
   };
 };
 
@@ -882,11 +876,11 @@ struct non_owning_traits {
   using map_t = equality_comparable_span<const std::pair<Key, Mapped>>;
 
   struct unknown_fields_t {
-    bool operator==(const unknown_fields_t&) const = default;
+    bool operator==(const unknown_fields_t &) const = default;
   };
 
   struct unknown_fields_range_t {
-    bool operator==(const unknown_fields_range_t&) const = default;
+    bool operator==(const unknown_fields_range_t &) const = default;
   };
 };
 

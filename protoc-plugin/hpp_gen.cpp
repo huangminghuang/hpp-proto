@@ -32,6 +32,7 @@
 #include <numeric>
 #include <set>
 #include <unordered_set>
+#include <unordered_map>
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
@@ -257,6 +258,13 @@ struct hpp_addons {
   using FileOptions = google::protobuf::FileOptions<traits_type>;
   using FileDescriptorSet = google::protobuf::FileDescriptorSet<traits_type>;
 
+  using string_t = std::string;
+  template <typename T>
+  using vector_t = std::vector<T>;
+
+  template <typename T, typename U>
+  using map_t = std::unordered_map<T, U>;
+
   static hpp::proto::optional<std::string> namespace_prefix;
 
   static auto default_file_options_extensions() {
@@ -275,14 +283,14 @@ struct hpp_addons {
     std::string cpp_meta_type = "void";
     std::string default_value;
     std::string default_value_template_arg;
-    std::string_view qualified_parent_name;
+    
     bool is_recursive = false;
     bool is_cpp_optional = false;
     bool is_closed_enum = false;
     bool is_foreign = false;
 
-    field_descriptor(const FieldDescriptorProto &proto, const std::string &parent_name)
-        : cpp_name(resolve_keyword(proto.name)), qualified_parent_name(parent_name) {
+    field_descriptor(const FieldDescriptorProto &proto)
+        : cpp_name(resolve_keyword(proto.name)) {
       using enum FieldDescriptorProto::Type;
       using enum FieldDescriptorProto::Label;
     }
@@ -453,6 +461,14 @@ struct hpp_addons {
       const char *wrap_type = (proto.type == TYPE_DOUBLE) ? "DOUBLE" : "FLOAT";
 
       default_value_template_arg = fmt::format("HPP_PROTO_WRAP_{}({})", wrap_type, default_value);
+    }
+
+    std::string_view qualified_parent_name() const {
+      auto self = static_cast<const Derived*>(this);
+      if (self->parent_message()) {
+        return self->parent_message()->full_name();
+      }
+      return {};
     }
   };
 
@@ -832,15 +848,14 @@ struct msg_code_generator : code_generator {
 
   static void resolve_message_field(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {
     if (!field.parent_message() || !field.parent_message()->is_map_entry()) {
-      resolve_field_dependency(pool, field.qualified_parent_name, field);
-      ;
+      resolve_field_dependency(pool, field.qualified_parent_name(), field);
     }
     auto *field_type_msg = field.message_field_type_descriptor();
     field_type_msg->used_by_fields.insert(&field);
   }
 
   static void resolve_enum_field(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {
-    resolve_field_dependency(pool, field.qualified_parent_name, field);
+    resolve_field_dependency(pool, field.qualified_parent_name(), field);
     auto *enum_d = field.enum_field_type_descriptor();
     if (enum_d != nullptr) {
       field.is_closed_enum = enum_d->is_closed();
@@ -981,7 +996,7 @@ struct msg_code_generator : code_generator {
   void set_presence_rule(field_descriptor_t &descriptor) {
     using enum FieldDescriptorProto::Type;
     using enum FieldDescriptorProto::Label;
-    std::string qualified_name = std::string{descriptor.qualified_parent_name} + "." + descriptor.proto().name;
+    std::string qualified_name = std::string{descriptor.qualified_parent_name()} + "." + descriptor.proto().name;
 
     descriptor.is_cpp_optional =
         (syntax != "proto2" || proto2_explicit_presences.empty())

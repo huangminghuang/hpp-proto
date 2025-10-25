@@ -7,6 +7,9 @@ using namespace boost::ut;
 const boost::ut::suite dynamic_message_test = [] {
   using namespace boost::ut::literals;
 
+
+  std::pmr::monotonic_buffer_resource descriptor_memory_pool;
+
   google::protobuf::FileDescriptorSet fileset;
   if (! hpp::proto::read_proto(fileset, read_file("unittest.desc.binpb")).ok() ){
     throw std::runtime_error("Failed to read descriptor set");
@@ -39,6 +42,7 @@ const boost::ut::suite dynamic_message_test = [] {
                                "protobuf_unittest.TestAllTypes",     "protobuf_unittest.TestPackedTypes",
                                "protobuf_unittest.TestMap",          "protobuf_unittest.TestUnpackedTypes",
                                "protobuf_unittest.TestAllTypesLite", "protobuf_unittest.TestPackedTypesLite"};
+                               
 };
 
 int main() {

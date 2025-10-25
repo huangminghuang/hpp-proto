@@ -35,16 +35,6 @@ struct deref_pointer {
   }
 };
 
-template <typename FlatMap>
-void initial_reserve(FlatMap &m, std::size_t s) {
-  assert(m.empty());
-  typename FlatMap::key_container_type keys;
-  typename FlatMap::mapped_container_type values;
-  keys.reserve(s);
-  values.reserve(s);
-  m.replace(std::move(keys), std::move(values));
-}
-
 template <typename AddOns>
 class descriptor_pool {
   enum field_option_mask_t : uint8_t {
@@ -57,14 +47,14 @@ class descriptor_pool {
     MASK_MAP_ENTRY = 64
   };
 
-public:
-  struct string_view_comp {
-    using is_transparent = void;
-    bool operator()(const std::string &lhs, const std::string &rhs) const { return lhs < rhs; }
-    bool operator()(const std::string_view &lhs, const std::string &rhs) const { return lhs.compare(rhs) < 0; }
-    bool operator()(const std::string &lhs, const std::string_view &rhs) const { return lhs.compare(rhs) < 0; }
-  };
+  using string_t = AddOns::string_t;
+  template <typename T>
+  using vector_t = AddOns::template vector_t<T>;
 
+  template <typename T, typename U>
+  using map_t = AddOns::template map_t<T, U>;
+
+public:
   // NOLINTBEGIN(bugprone-unchecked-optional-access)
   using traits_type = typename AddOns::traits_type;
   using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
@@ -88,10 +78,8 @@ public:
   public:
     using pool_type = descriptor_pool;
     using base_type = AddOns::template field_descriptor<field_descriptor_t>;
-    field_descriptor_t(const FieldDescriptorProto &proto, const std::string &parent_name, message_descriptor_t *parent,
-                       const auto &inherited_options)
-        : base_type(proto, parent_name), proto_(proto), options_(proto.options.value_or(FieldOptions{})),
-          parent_message_(parent) {
+    field_descriptor_t(const FieldDescriptorProto &proto, message_descriptor_t *parent, const auto &inherited_options)
+        : base_type(proto), proto_(proto), options_(proto.options.value_or(FieldOptions{})), parent_message_(parent) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
         typename FieldOptions::extension_t extensions;
@@ -253,17 +241,17 @@ public:
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const OneofDescriptorProto &proto_;
     OneofOptions options_;
-    std::vector<field_descriptor_t *> fields_;
+    vector_t<field_descriptor_t *> fields_;
   };
 
   class enum_descriptor_t : public AddOns::template enum_descriptor<enum_descriptor_t> {
   public:
     using pool_type = descriptor_pool;
     using base_type = AddOns::template enum_descriptor<enum_descriptor_t>;
-    explicit enum_descriptor_t(const EnumDescriptorProto &proto, const auto &inherited_options,
+    explicit enum_descriptor_t(const EnumDescriptorProto &proto, string_t &&full_name, const auto &inherited_options,
                                file_descriptor_t *parent_file, message_descriptor_t *parent_message)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(EnumOptions{})), parent_file_(parent_file),
-          parent_message_(parent_message) {
+        : base_type(proto), proto_(proto), options_(proto.options.value_or(EnumOptions{})),
+          full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
       if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
         typename EnumOptions::extension_t extensions;
@@ -283,6 +271,7 @@ public:
 
     [[nodiscard]] const EnumDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const EnumOptions &options() const { return options_; }
+    [[nodiscard]] std::string_view full_name() const { return full_name_; }
     [[nodiscard]] file_descriptor_t *parent_file() const { return parent_file_; }
     [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
 
@@ -298,6 +287,7 @@ public:
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const EnumDescriptorProto &proto_;
     EnumOptions options_;
+    string_t full_name_;
     file_descriptor_t *parent_file_;
     message_descriptor_t *parent_message_;
   };
@@ -309,10 +299,10 @@ public:
     using base_type = AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t, oneof_descriptor_t,
                                                           field_descriptor_t>;
 
-    explicit message_descriptor_t(const DescriptorProto &proto, const auto &inherited_options,
+    explicit message_descriptor_t(const DescriptorProto &proto, string_t full_name, const auto &inherited_options,
                                   file_descriptor_t *parent_file, message_descriptor_t *parent_message)
         : base_type(proto), proto_(proto), options_(proto.options.value_or(MessageOptions{})),
-          parent_file_(parent_file), parent_message_(parent_message) {
+          full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message) {
       setup_options(inherited_options);
       if constexpr (requires { base_type::on_options_resolved(proto_, options_); }) {
         base_type::on_options_resolved(proto_, options_);
@@ -327,6 +317,7 @@ public:
 
     [[nodiscard]] const DescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const MessageOptions &options() const { return options_; }
+    [[nodiscard]] std::string_view full_name() const { return full_name_; }
     [[nodiscard]] file_descriptor_t *parent_file() const { return parent_file_; }
     [[nodiscard]] message_descriptor_t *parent_message() const { return parent_message_; }
     [[nodiscard]] message_descriptor_t &root_message() {
@@ -350,18 +341,20 @@ public:
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const DescriptorProto &proto_;
     MessageOptions options_;
+    string_t full_name_;
     file_descriptor_t *parent_file_;
     message_descriptor_t *parent_message_;
-    std::vector<field_descriptor_t *> fields_;
-    std::vector<enum_descriptor_t *> enums_;
-    std::vector<message_descriptor_t *> messages_;
-    std::vector<oneof_descriptor_t *> oneofs_;
-    std::vector<field_descriptor_t *> extensions_;
+    vector_t<field_descriptor_t *> fields_;
+    vector_t<enum_descriptor_t *> enums_;
+    vector_t<message_descriptor_t *> messages_;
+    vector_t<oneof_descriptor_t *> oneofs_;
+    vector_t<field_descriptor_t *> extensions_;
 
     void setup_options(const MessageOptions &inherited_options) {
       options_.features = merge_features(inherited_options.features.value(), proto_.options);
-      options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique, inherited_options.unknown_fields_.fields.begin(),
-                                        inherited_options.unknown_fields_.fields.end());
+      options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique,
+                                             inherited_options.unknown_fields_.fields.begin(),
+                                             inherited_options.unknown_fields_.fields.end());
     }
 
     void setup_options(const FileOptions &inherited_options) {
@@ -370,7 +363,7 @@ public:
         typename hpp::proto::pb_extensions<traits_type> extensions;
         AddOns::adapt_option_extensions(extensions, inherited_options.unknown_fields_);
         options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
-                                          extensions.fields.end());
+                                               extensions.fields.end());
       }
     }
   };
@@ -387,7 +380,7 @@ public:
       if constexpr (requires { AddOns::default_file_options_extensions(); }) {
         auto extensions = AddOns::default_file_options_extensions();
         options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
-                                          extensions.fields.end());
+                                               extensions.fields.end());
       }
       if constexpr (requires { base_type::on_options_resolved(proto_, options_); }) {
         base_type::on_options_resolved(proto_, options_);
@@ -414,10 +407,10 @@ public:
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const FileDescriptorProto &proto_;
     FileOptions options_;
-    std::vector<enum_descriptor_t *> enums_;
-    std::vector<message_descriptor_t *> messages_;
-    std::vector<field_descriptor_t *> extensions_;
-    std::vector<file_descriptor_t *> dependencies_;
+    vector_t<enum_descriptor_t *> enums_;
+    vector_t<message_descriptor_t *> messages_;
+    vector_t<field_descriptor_t *> extensions_;
+    vector_t<file_descriptor_t *> dependencies_;
     const class descriptor_pool *descriptor_pool_ = nullptr;
   };
 
@@ -439,6 +432,12 @@ public:
 
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   explicit descriptor_pool(FileDescriptorSet &&fileset) : fileset_(std::move(fileset.file)) { init(); }
+
+  explicit descriptor_pool(FileDescriptorSet &&fileset, std::pmr::memory_resource& mr) : fileset_(std::move(fileset.file)) { 
+    auto* old = std::pmr::set_default_resource(&mr);
+    init(mr); 
+    std::pmr::set_default_resource(old);
+  }
 
   constexpr ~descriptor_pool() = default;
   descriptor_pool(const descriptor_pool &) = delete;
@@ -482,12 +481,8 @@ public:
   std::span<oneof_descriptor_t> oneofs() { return oneofs_; }
   std::span<field_descriptor_t> fields() { return fields_; }
 
-  [[nodiscard]] const flat_map<std::string, message_descriptor_t *, string_view_comp> &message_map() const {
-    return message_map_;
-  }
-  [[nodiscard]] const flat_map<std::string, enum_descriptor_t *, string_view_comp> &enum_map() const {
-    return enum_map_;
-  }
+  [[nodiscard]] const map_t<std::string_view, message_descriptor_t *> &message_map() const { return message_map_; }
+  [[nodiscard]] const map_t<std::string_view, enum_descriptor_t *> &enum_map() const { return enum_map_; }
 
 private:
   void init() {
@@ -497,9 +492,11 @@ private:
     enums_.reserve(counter.enums);
     oneofs_.reserve(counter.oneofs);
     fields_.reserve(counter.fields);
-    initial_reserve(file_map_, counter.files);
-    initial_reserve(message_map_, counter.messages);
-    initial_reserve(enum_map_, counter.enums);
+    if constexpr (concepts::flat_map<map_t<std::string_view, message_descriptor_t *>>) {
+      reserve(file_map_, counter.files);
+      reserve(message_map_, counter.messages);
+      reserve(enum_map_, counter.enums);
+    }
 
     for (const auto &proto : fileset_.file) {
       if (!proto.name.empty() && file_map_.count(proto.name) == 0) {
@@ -515,12 +512,12 @@ private:
     }
 
     for (auto [name, msg] : message_map_) {
-      build_fields(*msg, name);
-      build_extensions(*msg, name);
+      build_fields(*msg);
+      build_extensions(*msg);
     }
 
     for (auto [name, f] : file_map_) {
-      build_extensions(*f, f->proto_.package);
+      build_extensions(*f);
     }
 
     for (auto &f : fields_) {
@@ -589,15 +586,15 @@ private:
   };
 
   FileDescriptorSet fileset_;
-  std::vector<file_descriptor_t> files_;
-  std::vector<message_descriptor_t> messages_;
-  std::vector<enum_descriptor_t> enums_;
-  std::vector<oneof_descriptor_t> oneofs_;
-  std::vector<field_descriptor_t> fields_;
+  vector_t<file_descriptor_t> files_;
+  vector_t<message_descriptor_t> messages_;
+  vector_t<enum_descriptor_t> enums_;
+  vector_t<oneof_descriptor_t> oneofs_;
+  vector_t<field_descriptor_t> fields_;
 
-  flat_map<std::string, file_descriptor_t *, string_view_comp> file_map_;
-  flat_map<std::string, message_descriptor_t *, string_view_comp> message_map_;
-  flat_map<std::string, enum_descriptor_t *, string_view_comp> enum_map_;
+  map_t<std::string_view, file_descriptor_t *> file_map_;
+  map_t<std::string_view, message_descriptor_t *> message_map_;
+  map_t<std::string_view, enum_descriptor_t *> enum_map_;
   google::protobuf::Edition current_edition_ = {};
 
   FeatureSet select_features(const FileDescriptorProto &file) {
@@ -627,63 +624,72 @@ private:
     throw std::runtime_error(std::string{"unsupported edition used by "} + file.name);
   }
 
+  static string_t join_by_dot(std::string_view x, std::string_view y) {
+    string_t result;
+    result.resize(x.size() + y.size() + 1);
+    auto it = std::copy(x.begin(), x.end(), result.begin());
+    *it++ = '.';
+    std::copy(y.begin(), y.end(), it);
+    return result;
+  }
+
   void build(file_descriptor_t &descriptor) {
     file_map_.try_emplace(descriptor.proto_.name, &descriptor);
-    const std::string package = descriptor.proto_.package;
+    const auto package = descriptor.proto_.package;
     descriptor.messages_.reserve(descriptor.proto_.message_type.size());
     for (auto &proto : descriptor.proto_.message_type) {
-      std::string const scope = !package.empty() ? package + "." + proto.name : proto.name;
-      auto &message =
-          messages_.emplace_back(proto, descriptor.options_, &descriptor, static_cast<message_descriptor_t *>(nullptr));
-      build(message, scope);
+      string_t scope = !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name};
+      auto &message = messages_.emplace_back(proto, std::move(scope), descriptor.options_, &descriptor,
+                                             static_cast<message_descriptor_t *>(nullptr));
+      build(message);
       descriptor.messages_.push_back(&message);
     }
 
     descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
-      const std::string scope = !package.empty() ? package + "." + proto.name : proto.name;
-      auto &e = enums_.emplace_back(proto, descriptor.options_, &descriptor, nullptr);
-      enum_map_.try_emplace(scope, &e);
+      string_t scope = !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name};
+      auto &e = enums_.emplace_back(proto, std::move(scope), descriptor.options_, &descriptor, nullptr);
+      enum_map_.try_emplace(e.full_name(), &e);
       descriptor.enums_.push_back(&e);
     }
   }
 
-  void build(message_descriptor_t &descriptor, const std::string &scope) {
+  void build(message_descriptor_t &descriptor) {
     descriptor.oneofs_.reserve(descriptor.proto_.oneof_decl.size());
     for (auto &proto : descriptor.proto_.oneof_decl) {
       auto &oneof = oneofs_.emplace_back(proto, descriptor.options_);
       descriptor.oneofs_.push_back(&oneof);
     }
 
-    message_map_.try_emplace(scope, &descriptor);
+    message_map_.try_emplace(descriptor.full_name(), &descriptor);
     descriptor.messages_.reserve(descriptor.proto_.nested_type.size());
     for (auto &proto : descriptor.proto_.nested_type) {
-      const std::string new_scope = scope.empty() ? proto.name : scope + "." + proto.name;
-      auto &message = messages_.emplace_back(proto, descriptor.options_, descriptor.parent_file_, &descriptor);
-      build(message, new_scope);
+      auto &message = messages_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name),
+                                             descriptor.options_, descriptor.parent_file_, &descriptor);
+      build(message);
       descriptor.messages_.push_back(&message);
     }
 
     descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
-      const std::string new_scope = scope.empty() ? proto.name : scope + "." + proto.name;
-      auto &e = enums_.emplace_back(proto, descriptor.options_, descriptor.parent_file_, &descriptor);
-      enum_map_.try_emplace(new_scope, &e);
+      auto &e = enums_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name), descriptor.options_,
+                                    descriptor.parent_file_, &descriptor);
+      enum_map_.try_emplace(e.full_name(), &e);
       descriptor.enums_.push_back(&e);
     }
   }
 
   template <typename FlatMap>
-  typename FlatMap::mapped_type find_type(FlatMap &types, const std::string &qualified_name) {
+  typename FlatMap::mapped_type find_type(FlatMap &types, std::string_view qualified_name) {
     auto itr = types.find(qualified_name);
     assert(itr != types.end() && "unable to find type");
     return itr->second;
   }
 
-  void build_fields(message_descriptor_t &descriptor, const std::string &qualified_name) {
+  void build_fields(message_descriptor_t &descriptor) {
     descriptor.fields_.reserve(descriptor.proto_.field.size());
     for (auto &proto : descriptor.proto_.field) {
-      auto &field = fields_.emplace_back(proto, qualified_name, &descriptor, descriptor.options_);
+      auto &field = fields_.emplace_back(proto, &descriptor, descriptor.options_);
       descriptor.fields_.push_back(&field);
       if (proto.oneof_index.has_value()) {
         descriptor.oneofs_[static_cast<std::size_t>(*proto.oneof_index)]->fields_.push_back(&field);
@@ -691,37 +697,18 @@ private:
     }
   };
 
-  void build_extensions(auto &parent, const std::string &scope) {
+  void build_extensions(auto &parent) {
     for (auto &proto : parent.proto_.extension) {
       message_descriptor_t *msg_desc = nullptr;
       if constexpr (std::same_as<decltype(&parent), message_descriptor_t *>) {
         msg_desc = &parent;
       }
-      auto &field = fields_.emplace_back(proto, scope, msg_desc, parent.options_);
+      auto &field = fields_.emplace_back(proto, msg_desc, parent.options_);
       parent.extensions_.push_back(&field);
     }
   }
   // NOLINTEND(bugprone-unchecked-optional-access)
 };
-
-// template <typename AddOns>
-// template <concepts::contiguous_byte_range FileDescriptorPbBin>
-// std::expected<descriptor_pool<AddOns>, status>
-// descriptor_pool<AddOns>::make(const std::unordered_set<FileDescriptorPbBin> &unique_files,
-//                               concepts::is_option_type auto &&...option) {
-//   FileDescriptorSet fileset;
-//   pb_context ctx{option...};
-//   decltype(auto) files = detail::as_modifiable(ctx, fileset.file);
-//   files.resize(unique_files.size());
-//   std::size_t i = 0;
-//   for (const auto &stream : unique_files) {
-//     if (auto ec = read_proto(files[i], stream, option...); !ec.ok()) {
-//       return std::unexpected(ec);
-//     }
-//   }
-//   return descriptor_pool<AddOns> { std::move(fileset) }
-// };
-// }
 
 struct file_descriptor_pb {
   std::string_view value;
