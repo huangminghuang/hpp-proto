@@ -163,6 +163,9 @@ template <typename T>
 concept string_value_type = std::same_as<T, char> || std::same_as<T, char8_t>;
 
 template <typename T>
+concept repeated = std::ranges::contiguous_range<T> && !byte_type<typename T::value_type>;
+
+template <typename T>
 concept basic_string_view = requires {
   typename T::value_type;
   requires string_value_type<typename T::value_type>;
@@ -203,7 +206,7 @@ template <typename T>
 concept arithmetic = std::is_arithmetic_v<T> || concepts::varint<T>;
 
 template <typename T>
-concept singular = arithmetic<T> || is_enum<T> || string_like<T> || resizable_contiguous_byte_container<T>;
+concept singular = arithmetic<T> || is_enum<T> || basic_string<T> || resizable_contiguous_byte_container<T>;
 
 template <typename T>
 concept is_map_entry = requires {
@@ -259,8 +262,8 @@ concept has_unknown_fields_or_extensions = has_meta<T> && requires(T value) {
 };
 
 template <typename T>
-concept no_cached_size = is_enum<T> || byte_serializable<T> || concepts::varint<T> ||
-                         pb_unknown_fields<T> || pb_extensions<T> || std::is_empty_v<T>;
+concept no_cached_size = is_enum<T> || byte_serializable<T> || concepts::varint<T> || pb_unknown_fields<T> ||
+                         pb_extensions<T> || std::is_empty_v<T>;
 
 template <typename T>
 concept is_basic_in = requires { typename T::is_basic_in; };
@@ -3124,21 +3127,23 @@ expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is
   }
 }
 
+template <concepts::is_pb_context Context>
 struct message_merger {
+  Context &ctx;
   template <concepts::has_meta T, typename U>
     requires std::same_as<T, std::decay_t<U>>
-  static constexpr void perform(T &dest, U &&source) {
+  constexpr void perform(T &dest, U &&source) {
     return std::apply(
-        [&dest, &source](auto &&...meta) {
+        [this, &dest, &source](auto &&...meta) {
           // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
-          (perform(meta, meta.access(dest), meta.access(std::forward<U>(source))), ...);
+          (this->perform(meta, meta.access(dest), meta.access(std::forward<U>(source))), ...);
         },
         typename traits::meta_of<T>::type{});
   }
 
   template <typename Meta, typename T, typename U>
     requires std::same_as<T, std::decay_t<U>>
-  static void perform(Meta meta, T &dest, U &&source) {
+  void perform(Meta meta, T &dest, U &&source) {
     if constexpr (concepts::variant<T>) {
       if (source.index() > 0) {
         if (dest.index() == source.index()) {
@@ -3159,7 +3164,7 @@ struct message_merger {
 
   template <typename Meta, concepts::variant T, typename U, std::size_t FirstIndex, std::size_t... Indices>
     requires std::same_as<T, std::decay_t<U>>
-  static void perform(Meta meta, T &dest, U &&source, std::index_sequence<FirstIndex, Indices...>) {
+  void perform(Meta meta, T &dest, U &&source, std::index_sequence<FirstIndex, Indices...>) {
     if (dest.index() == FirstIndex + 1) {
       perform(std::get<FirstIndex>(meta), std::get<FirstIndex + 1>(dest),
               std::get<FirstIndex + 1>(std::forward<U>(source)));
@@ -3169,11 +3174,11 @@ struct message_merger {
   }
 
   template <typename Meta, concepts::variant T>
-  static void perform(Meta, T &, const T &, std::index_sequence<>) {}
+  constexpr void perform(Meta, T &, const T &, std::index_sequence<>) {}
 
   template <concepts::optional T, typename U>
     requires std::same_as<T, std::decay_t<U>>
-  static constexpr void perform(T &dest, U &&source) {
+  constexpr void perform(T &dest, U &&source) {
     if constexpr (concepts::has_meta<typename T::value_type>) {
       if (source.has_value()) {
         if (!dest.has_value()) {
@@ -3189,15 +3194,14 @@ struct message_merger {
     }
   }
 
-  template <typename T>
-    requires(!concepts::byte_type<T>)
-  static constexpr void perform(std::vector<T> &dest, const std::vector<T> &source) {
-    dest.insert(dest.end(), source.begin(), source.end());
+  template <concepts::repeated T>
+  constexpr void perform(T &dest, const T &source) {
+    detail::as_modifiable(ctx, dest).append_range(source);
   }
 
   template <concepts::associative_container T, typename U>
     requires std::same_as<T, std::decay_t<U>>
-  static constexpr void perform(T &dest, U &&source) {
+  constexpr void perform(T &dest, U &&source) {
     if (!source.empty()) {
       if (dest.empty()) {
         dest = std::forward<U>(source);
@@ -3209,7 +3213,7 @@ struct message_merger {
 
   template <typename T>
     requires requires { typename T::mapped_type; }
-  static constexpr void insert_or_replace(T &dest, const T &source) {
+  constexpr void insert_or_replace(T &dest, const T &source) {
     T tmp;
     tmp.swap(dest);
     dest = source;
@@ -3223,7 +3227,7 @@ struct message_merger {
   template <typename T>
     requires requires { typename T::mapped_type; }
   // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
-  static constexpr void insert_or_replace(T &dest, T &&source) {
+  constexpr void insert_or_replace(T &dest, T &&source) {
     source.swap(dest);
     if constexpr (requires { dest.insert(sorted_unique, source.begin(), source.end()); }) {
       // flat_map
@@ -3237,26 +3241,35 @@ struct message_merger {
   }
 
   template <typename T>
-    requires (concepts::pb_unknown_fields<T> || concepts::pb_extensions<T>)
-  static constexpr void perform(T &dest, const T &source) {
+    requires(concepts::pb_unknown_fields<T> || concepts::pb_extensions<T>)
+  constexpr void perform(T &dest, const T &source) {
     perform(dest.fields, source.fields);
+  }
+
+  template <typename T>
+    requires(std::same_as<T, bytes_view> || concepts::basic_string_view<T>)
+  constexpr void perform(T &dest, const T &source) {
+    detail::as_modifiable(ctx, dest).assign_range(source);
   }
 
   template <concepts::singular T, typename U>
     requires std::same_as<T, std::decay_t<U>>
-  static constexpr void perform(T &dest, U &&source) {
+  constexpr void perform(T &dest, U &&source) {
     dest = std::forward<U>(source);
   }
 };
 
 /// @brief Merge the fields from the `source` message into `dest` message.
-/// @details Singular fields will be overwritten, if specified in from, except for embedded messages which will be
-/// merged. Repeated fields will be concatenated. The `source` message must be of the same type as `dest` message (i.e.
-/// the exact same class).
+/// @details Singular fields supplied in `source` overwrite those in `dest`, except embedded messages which merge.
+/// Repeated fields append the values from `source`. For non-owning traits, map fields behave like repeated fields;
+/// entries are appended without deduplication, so if a key appears multiple times only the last value should be
+/// considered authoritative. Both messages must share the same concrete type.
 template <concepts::has_meta T, typename U>
   requires std::same_as<T, std::decay_t<U>>
-constexpr void merge(T &dest, U &&source) {
-  message_merger::perform(dest, std::forward<U>(source));
+constexpr void merge(T &dest, U &&source, concepts::is_option_type auto &&...option) {
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  message_merger merger{ctx};
+  merger.perform(dest, std::forward<U>(source));
 }
 
 } // namespace hpp::proto

@@ -81,11 +81,8 @@ public:
     field_descriptor_t(const FieldDescriptorProto &proto, message_descriptor_t *parent, const auto &inherited_options)
         : base_type(proto), proto_(proto), options_(proto.options.value_or(FieldOptions{})), parent_message_(parent) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
-        typename FieldOptions::extension_t extensions;
-        AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
-        options_.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
-                                          extensions.fields.end());
+      if constexpr (requires { AddOns::resolve_options(options_, inherited_options); }) {
+        AddOns::resolve_options(options_, inherited_options);
       }
 
       setup_presence();
@@ -93,10 +90,6 @@ public:
       setup_utf8_validation();
       setup_delimited();
       setup_required();
-
-      if constexpr (requires { base_type::on_options_resolved(proto_, options_); }) {
-        base_type::on_options_resolved(proto_, options_);
-      }
     }
 
     field_descriptor_t(const field_descriptor_t &) = delete;
@@ -206,14 +199,8 @@ public:
     explicit oneof_descriptor_t(const OneofDescriptorProto &proto, const MessageOptions &inherited_options)
         : base_type(proto), proto_(proto), options_(proto.options.value_or(OneofOptions{})) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
-        typename OneofOptions::extension_t extensions;
-        AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
-        options_.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
-                                          extensions.fields.end());
-      }
-      if constexpr (requires { base_type::on_options_resolved(proto_, options_); }) {
-        base_type::on_options_resolved(proto_, options_);
+      if constexpr (requires { AddOns::resolve_options(options_, inherited_options); }) {
+        AddOns::resolve_options(options_, inherited_options);
       }
     }
 
@@ -253,14 +240,8 @@ public:
         : base_type(proto), proto_(proto), options_(proto.options.value_or(EnumOptions{})),
           full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
-        typename EnumOptions::extension_t extensions;
-        AddOns::adapt_option_extensions(extensions, inherited_options.extensions);
-        options_.extensions.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
-                                          extensions.fields.end());
-      }
-      if constexpr (requires { base_type::on_options_resolved(proto_, options_); }) {
-        base_type::on_options_resolved(proto_, options_);
+      if constexpr (requires { AddOns::resolve_options(options_, inherited_options); }) {
+        AddOns::resolve_options(options_, inherited_options);
       }
     }
 
@@ -303,9 +284,9 @@ public:
                                   file_descriptor_t *parent_file, message_descriptor_t *parent_message)
         : base_type(proto), proto_(proto), options_(proto.options.value_or(MessageOptions{})),
           full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message) {
-      setup_options(inherited_options);
-      if constexpr (requires { base_type::on_options_resolved(proto_, options_); }) {
-        base_type::on_options_resolved(proto_, options_);
+      options_.features = merge_features(inherited_options.features.value(), proto_.options);
+      if constexpr (requires { AddOns::resolve_options(options_, inherited_options); }) {
+        AddOns::resolve_options(options_, inherited_options);
       }
     }
 
@@ -349,23 +330,6 @@ public:
     vector_t<message_descriptor_t *> messages_;
     vector_t<oneof_descriptor_t *> oneofs_;
     vector_t<field_descriptor_t *> extensions_;
-
-    void setup_options(const MessageOptions &inherited_options) {
-      options_.features = merge_features(inherited_options.features.value(), proto_.options);
-      options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique,
-                                             inherited_options.unknown_fields_.fields.begin(),
-                                             inherited_options.unknown_fields_.fields.end());
-    }
-
-    void setup_options(const FileOptions &inherited_options) {
-      options_.features = merge_features(inherited_options.features.value(), proto_.options);
-      if constexpr (requires { AddOns::adapt_option_extensions(options_.extensions, inherited_options.extensions); }) {
-        typename hpp::proto::pb_extensions<traits_type> extensions;
-        AddOns::adapt_option_extensions(extensions, inherited_options.unknown_fields_);
-        options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
-                                               extensions.fields.end());
-      }
-    }
   };
 
   class file_descriptor_t : public AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t,
@@ -377,13 +341,9 @@ public:
     explicit file_descriptor_t(const FileDescriptorProto &proto, const FeatureSet &default_features)
         : base_type(proto), proto_(proto), options_(proto.options.value_or(FileOptions{})) {
       options_.features = merge_features(default_features, proto.options);
-      if constexpr (requires { AddOns::default_file_options_extensions(); }) {
-        auto extensions = AddOns::default_file_options_extensions();
-        options_.unknown_fields_.fields.insert(hpp::proto::sorted_unique, extensions.fields.begin(),
-                                               extensions.fields.end());
-      }
-      if constexpr (requires { base_type::on_options_resolved(proto_, options_); }) {
-        base_type::on_options_resolved(proto_, options_);
+      
+      if constexpr (requires { base_type::resolve_options(proto_, options_); }) {
+        base_type::resolve_options(proto_, options_);
       }
     }
 
@@ -431,11 +391,16 @@ public:
   }
 
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
-  explicit descriptor_pool(FileDescriptorSet &&fileset) : fileset_(std::move(fileset.file)) { init(); }
+  explicit descriptor_pool(FileDescriptorSet &&fileset) requires(!std::is_trivially_destructible_v<FileDescriptorSet>)
+      : fileset_(std::move(fileset.file))        
+  {
+    init();
+  }
 
-  explicit descriptor_pool(FileDescriptorSet &&fileset, std::pmr::memory_resource& mr) : fileset_(std::move(fileset.file)) { 
-    auto* old = std::pmr::set_default_resource(&mr);
-    init(mr); 
+  explicit descriptor_pool(FileDescriptorSet &&fileset, std::pmr::memory_resource &mr)
+      : fileset_(std::move(fileset.file)) {
+    auto *old = std::pmr::set_default_resource(&mr);
+    init(mr);
     std::pmr::set_default_resource(old);
   }
 

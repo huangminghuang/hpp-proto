@@ -291,11 +291,6 @@ struct hpp_addons {
 
     field_descriptor(const FieldDescriptorProto &proto)
         : cpp_name(resolve_keyword(proto.name)) {
-      using enum FieldDescriptorProto::Type;
-      using enum FieldDescriptorProto::Label;
-    }
-
-    void on_options_resolved(const FieldDescriptorProto &proto, const FieldOptions &) {
       set_cpp_type(proto);
       set_default_value(proto);
     }
@@ -517,8 +512,6 @@ struct hpp_addons {
           has_non_map_nested_message(std::ranges::any_of(proto.nested_type, [](const DescriptorProto &submsg) {
             return !submsg.options.has_value() || !submsg.options->map_entry;
           })) {}
-
-    void on_options_resolved(const DescriptorProto &, const MessageOptions &) {}
   };
 
   template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
@@ -533,7 +526,7 @@ struct hpp_addons {
     explicit file_descriptor(const FileDescriptorProto &proto)
         : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax), cpp_name(proto.name) {}
 
-    void on_options_resolved(const FileDescriptorProto &proto, const FileOptions &options) {
+    void resolve_options(const FileDescriptorProto &proto, const FileOptions &options) {
       hpp::proto::hpp_file_opts opts;
       if (options.get_extension(opts).ok()) {
         namespace_prefix = opts.value.namespace_prefix.value();
