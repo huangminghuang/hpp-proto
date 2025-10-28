@@ -31,8 +31,8 @@
 #include <iostream>
 #include <numeric>
 #include <set>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
@@ -283,16 +283,16 @@ struct hpp_addons {
     std::string cpp_meta_type = "void";
     std::string default_value;
     std::string default_value_template_arg;
-    
+
     bool is_recursive = false;
     bool is_cpp_optional = false;
     bool is_closed_enum = false;
     bool is_foreign = false;
 
-    field_descriptor(const FieldDescriptorProto &proto)
-        : cpp_name(resolve_keyword(proto.name)) {
-      set_cpp_type(proto);
-      set_default_value(proto);
+    field_descriptor(const Derived &self, [[maybe_unused]] const auto &inherited_options)
+        : cpp_name(resolve_keyword(self.proto().name)) {
+      set_cpp_type(self.proto());
+      set_default_value(self.proto());
     }
 
     void set_cpp_type(const FieldDescriptorProto &proto) {
@@ -459,7 +459,7 @@ struct hpp_addons {
     }
 
     std::string_view qualified_parent_name() const {
-      auto self = static_cast<const Derived*>(this);
+      auto self = static_cast<const Derived *>(this);
       if (self->parent_message()) {
         return self->parent_message()->full_name();
       }
@@ -467,16 +467,16 @@ struct hpp_addons {
     }
   };
 
-  template <typename EnumD>
+  template <typename Derived>
   struct enum_descriptor {
     std::string cpp_name;
     std::vector<int> sorted_values;
     std::string qualified_name;
     bool continuous = true;
 
-    explicit enum_descriptor(const EnumDescriptorProto &proto) : cpp_name(resolve_keyword(proto.name)) {
-      sorted_values.resize(proto.value.size());
-      std::ranges::transform(proto.value, sorted_values.begin(), [](auto &desc) { return desc.number; });
+    explicit enum_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options) : cpp_name(resolve_keyword(self.proto().name)) {
+      sorted_values.resize(self.proto().value.size());
+      std::ranges::transform(self.proto().value, sorted_values.begin(), [](auto &desc) { return desc.number; });
       std::ranges::sort(sorted_values);
       for (unsigned i = 1; i < sorted_values.size(); ++i) {
         if (sorted_values[i] - sorted_values[i - 1] > 1) {
@@ -487,34 +487,33 @@ struct hpp_addons {
     }
   };
 
-  template <typename OneofD, typename FieldD>
+  template <typename Derived>
   struct oneof_descriptor {
-    std::vector<FieldD *> fields;
     std::string cpp_name;
 
-    explicit oneof_descriptor(const OneofDescriptorProto &proto) : cpp_name(resolve_keyword(proto.name)) {}
+    explicit oneof_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options) : cpp_name(resolve_keyword(self.proto().name)) {}
   };
 
-  template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
+  template <typename Derived>
   struct message_descriptor {
     std::string pb_name;
     std::string cpp_name;
-    std::set<MessageD *> dependencies;
-    std::set<FieldD *> used_by_fields;
-    std::set<MessageD *> forward_messages;
+    std::vector<void *> used_by_fields;
+    std::set<Derived *> dependencies;
+    std::set<Derived *> forward_messages;
     std::string qualified_name;
     std::string no_namespace_qualified_name;
     bool has_recursive_map_field = false;
     bool has_non_map_nested_message = false;
 
-    explicit message_descriptor(const DescriptorProto &proto)
-        : pb_name(proto.name), cpp_name(resolve_keyword(proto.name)),
-          has_non_map_nested_message(std::ranges::any_of(proto.nested_type, [](const DescriptorProto &submsg) {
+    explicit message_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options)
+        : pb_name(self.proto().name), cpp_name(resolve_keyword(self.proto().name)),
+          has_non_map_nested_message(std::ranges::any_of(self.proto().nested_type, [](const DescriptorProto &submsg) {
             return !submsg.options.has_value() || !submsg.options->map_entry;
           })) {}
   };
 
-  template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
+  template <typename Derived>
   struct file_descriptor {
     std::vector<std::string> dependency_names;
 
@@ -523,14 +522,13 @@ struct hpp_addons {
     std::string cpp_name;
     std::string namespace_prefix;
 
-    explicit file_descriptor(const FileDescriptorProto &proto)
-        : syntax(proto.syntax.empty() ? std::string{"proto2"} : proto.syntax), cpp_name(proto.name) {}
-
-    void resolve_options(const FileDescriptorProto &proto, const FileOptions &options) {
+    explicit file_descriptor(Derived &self)
+        : syntax(self.proto().syntax.empty() ? std::string{"proto2"} : self.proto().syntax),
+          cpp_name(self.proto().name) {
       hpp::proto::hpp_file_opts opts;
-      if (options.get_extension(opts).ok()) {
+      if (self.options().get_extension(opts).ok()) {
         namespace_prefix = opts.value.namespace_prefix.value();
-        cpp_namespace = make_qualified_cpp_name(namespace_prefix, "." + proto.package);
+        cpp_namespace = make_qualified_cpp_name(namespace_prefix, "." + self.proto().package);
         std::replace_if(cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
         cpp_name = resolve_keyword(cpp_name);
       }
@@ -540,7 +538,7 @@ struct hpp_addons {
     const std::vector<std::string> &get_dependency_names() {
       if (dependency_names.empty()) {
         auto it = std::back_inserter(dependency_names);
-        auto &self = static_cast<FileD &>(*this);
+        auto &self = static_cast<Derived &>(*this);
         for (auto &dep : self.dependencies()) {
           auto &names = dep.get_dependency_names();
           std::copy(names.begin(), names.end(), it);
@@ -619,11 +617,12 @@ struct code_generator {
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto *message = parent_message_of(f);
+        auto* field = static_cast<field_descriptor_t*>(f);
+        auto *message = parent_message_of(field);
         if (std::ranges::find(unresolved, message) != unresolved.end()) {
           used_by_messages[message] |=
-              (f->proto().label != hpp_gen_descriptor_pool::FieldDescriptorProto::Label::LABEL_REPEATED);
-          f->is_recursive = true;
+              (field->proto().label != hpp_gen_descriptor_pool::FieldDescriptorProto::Label::LABEL_REPEATED);
+          field->is_recursive = true;
         }
       }
 
@@ -639,10 +638,11 @@ struct code_generator {
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto *message = parent_message_of(f);
+        auto* field = static_cast<field_descriptor_t*>(f);
+        auto *message = parent_message_of(field);
         if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry()) {
           used_by_messages[message] |= !(message->is_map_entry());
-          f->is_recursive = true;
+          field->is_recursive = true;
         }
       }
 
@@ -844,7 +844,7 @@ struct msg_code_generator : code_generator {
       resolve_field_dependency(pool, field.qualified_parent_name(), field);
     }
     auto *field_type_msg = field.message_field_type_descriptor();
-    field_type_msg->used_by_fields.insert(&field);
+    field_type_msg->used_by_fields.push_back(&field);
   }
 
   static void resolve_enum_field(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {

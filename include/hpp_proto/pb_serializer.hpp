@@ -130,6 +130,9 @@ using vuint32_t = varint<uint32_t>;
 using vsint64_t = varint<int64_t, varint_encoding::zig_zag>;
 using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 
+template <template <typename Traits> class Message, typename Traits>
+auto rebind_traits(Message<Traits>) -> Message<default_traits>;
+
 ////////////////////////////////////////////////////
 namespace concepts {
 
@@ -206,7 +209,7 @@ template <typename T>
 concept arithmetic = std::is_arithmetic_v<T> || concepts::varint<T>;
 
 template <typename T>
-concept singular = arithmetic<T> || is_enum<T> || basic_string<T> || resizable_contiguous_byte_container<T>;
+concept singular = arithmetic<T> || is_enum<T> || basic_string<T> || contiguous_byte_range<T>;
 
 template <typename T>
 concept is_map_entry = requires {
@@ -281,6 +284,10 @@ concept input_byte_range = segmented_byte_range<Range> || contiguous_byte_range<
 template <typename R>
 concept uint32_pair_contiguous_range = std::ranges::contiguous_range<R> && is_pair<std::ranges::range_value_t<R>> &&
                                        std::same_as<typename std::ranges::range_value_t<R>::first_type, std::uint32_t>;
+
+template <typename T, typename U>
+concept isomorphic_message =
+    requires(T t, U u) { requires std::same_as<decltype(rebind_traits(t)), decltype(rebind_traits(u))>; };
 } // namespace concepts
 
 ////////////////////
@@ -602,6 +609,7 @@ struct oneof_field_meta {
   static constexpr bool omit_value(const T &v) {
     return v.index() == 0;
   }
+  static alternatives_meta alternatives() { return alternatives_meta{}; }
 };
 
 struct [[nodiscard]] status {
@@ -3126,58 +3134,102 @@ expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is
     return msg;
   }
 }
+namespace detail {
+template <typename Tuple1, typename Tuple2, std::size_t... I>
+constexpr auto zip_tuples_impl(const Tuple1 &t1, const Tuple2 &t2, std::index_sequence<I...>) -> decltype(auto) {
+  // Use the index sequence (I...) to expand a pack of std::pair constructions.
+  // std::get<I>(t1) accesses the I-th element of t1.
+  return std::make_tuple(std::make_pair(std::get<I>(t1), std::get<I>(t2))...);
+}
+
+template <typename... T1, typename... T2>
+constexpr auto zip_tuples(const std::tuple<T1...> &t1, const std::tuple<T2...> &t2) -> decltype(auto) {
+  // Ensure the tuples are the same size at compile time
+  static_assert(sizeof...(T1) == sizeof...(T2), "Tuples must have the same size.");
+
+  // Generate an index sequence from 0 up to the size of the tuples.
+  return zip_tuples_impl(t1, t2, std::make_index_sequence<sizeof...(T1)>{});
+}
+
+} // namespace detail
+
+namespace concepts {
+
+template <typename T>
+concept string_view_or_bytes_view = std::same_as<T, bytes_view> || concepts::basic_string_view<T>;
+
+template <typename T>
+concept arithmetic_pair =
+    is_pair<T> && std::is_arithmetic_v<typename T::first_type> && std::is_arithmetic_v<typename T::second_type>;
+} // namespace concepts
 
 template <concepts::is_pb_context Context>
 struct message_merger {
   Context &ctx;
   template <concepts::has_meta T, typename U>
-    requires std::same_as<T, std::decay_t<U>>
+    requires concepts::isomorphic_message<T, std::decay_t<U>>
   constexpr void perform(T &dest, U &&source) {
     return std::apply(
-        [this, &dest, &source](auto &&...meta) {
+        [this, &dest, &source](auto &&...metas) {
           // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
-          (this->perform(meta, meta.access(dest), meta.access(std::forward<U>(source))), ...);
+          (this->perform(metas, metas.first.access(dest), metas.second.access(std::forward<U>(source))), ...);
         },
-        typename traits::meta_of<T>::type{});
+        detail::zip_tuples(typename traits::meta_of<T>::type{}, typename traits::meta_of<std::decay_t<U>>::type{}));
   }
 
-  template <typename Meta, typename T, typename U>
-    requires std::same_as<T, std::decay_t<U>>
-  void perform(Meta meta, T &dest, U &&source) {
+  template <typename MetaT, typename MetaU, typename T, typename U>
+  void perform(std::pair<MetaT, MetaU>, T &dest, U &&source) {
     if constexpr (concepts::variant<T>) {
       if (source.index() > 0) {
         if (dest.index() == source.index()) {
-          using alt_meta = typename Meta::alternatives_meta;
-          perform(alt_meta(), dest, std::forward<U>(source), std::make_index_sequence<std::tuple_size_v<alt_meta>>());
-        } else {
+          using alt_metas =
+              decltype(detail::zip_tuples(typename MetaT::alternatives_meta{}, typename MetaU::alternatives_meta{}));
+          perform(alt_metas(), dest, std::forward<U>(source), std::make_index_sequence<std::tuple_size_v<alt_metas>>());
+          return;
+        }
+
+        if constexpr (std::same_as<T, std::decay_t<U>>) {
           dest = std::forward<U>(source);
+        } else {
+          assign(dest, std::forward<U>(source),
+                 std::make_index_sequence<std::tuple_size_v<typename MetaU::alternatives_meta>>());
         }
       }
-    } else if constexpr (meta.explicit_presence() || !concepts::singular<T>) {
+    } else if constexpr (MetaT::explicit_presence() || !concepts::singular<T>) {
       perform(dest, std::forward<U>(source));
     } else {
-      if (!meta.omit_value(source)) {
-        dest = std::forward<U>(source);
+      if (!MetaU::omit_value(source)) {
+        perform(dest, source);
       }
     }
   }
 
-  template <typename Meta, concepts::variant T, typename U, std::size_t FirstIndex, std::size_t... Indices>
-    requires std::same_as<T, std::decay_t<U>>
-  void perform(Meta meta, T &dest, U &&source, std::index_sequence<FirstIndex, Indices...>) {
+  template <typename MetaPairs, concepts::variant T, typename U, std::size_t FirstIndex, std::size_t... Indices>
+  void perform(MetaPairs metas, T &dest, U &&source, std::index_sequence<FirstIndex, Indices...>) {
     if (dest.index() == FirstIndex + 1) {
-      perform(std::get<FirstIndex>(meta), std::get<FirstIndex + 1>(dest),
+      perform(std::get<FirstIndex>(metas), std::get<FirstIndex + 1>(dest),
               std::get<FirstIndex + 1>(std::forward<U>(source)));
     } else {
-      perform(meta, dest, std::forward<U>(source), std::index_sequence<Indices...>());
+      perform(metas, dest, std::forward<U>(source), std::index_sequence<Indices...>());
     }
   }
 
-  template <typename Meta, concepts::variant T>
-  constexpr void perform(Meta, T &, const T &, std::index_sequence<>) {}
+  template <typename MetaPairs, concepts::variant T, concepts::variant U>
+  constexpr void perform(MetaPairs, T &, const U &, std::index_sequence<>) {}
+
+  template <concepts::variant T, typename U, std::size_t FirstIndex, std::size_t... Indices>
+  void assign(T &dest, const U &source, std::index_sequence<FirstIndex, Indices...>) {
+    if (source.index() == FirstIndex + 1) {
+      perform(dest.template emplace<FirstIndex + 1>(), std::get<FirstIndex + 1>(source));
+    } else {
+      assign(dest, source, std::index_sequence<Indices...>());
+    }
+  }
+
+  template <concepts::variant T, typename U>
+  void assign(T &, const U &, std::index_sequence<>) {}
 
   template <concepts::optional T, typename U>
-    requires std::same_as<T, std::decay_t<U>>
   constexpr void perform(T &dest, U &&source) {
     if constexpr (concepts::has_meta<typename T::value_type>) {
       if (source.has_value()) {
@@ -3189,35 +3241,68 @@ struct message_merger {
       }
     } else {
       if (source.has_value()) {
-        dest = std::forward<U>(source);
+        perform(dest.emplace(), *std::forward<U>(source));
       }
     }
   }
 
-  template <concepts::repeated T>
-  constexpr void perform(T &dest, const T &source) {
+  template <concepts::repeated T, typename U>
+    requires(std::assignable_from<typename T::value_type &, typename U::value_type>)
+  constexpr void perform(T &dest, const U &source) {
+    if constexpr (std::ranges::contiguous_range<U>) {
+      if (dest.empty()) {
+        if constexpr (std::assignable_from<T &, U>) {
+          dest = source;
+        } else {
+          dest.assign_range(source);
+        }
+        return;
+      }
+    }
     detail::as_modifiable(ctx, dest).append_range(source);
   }
 
-  template <concepts::associative_container T, typename U>
-    requires std::same_as<T, std::decay_t<U>>
-  constexpr void perform(T &dest, U &&source) {
-    if (!source.empty()) {
-      if (dest.empty()) {
-        dest = std::forward<U>(source);
-      } else {
-        insert_or_replace(dest, std::forward<U>(source));
-      }
+  template <concepts::repeated T, typename U>
+    requires(!std::assignable_from<typename T::value_type &, typename U::value_type>)
+  constexpr void perform(T &dest, auto const &source) {
+    decltype(auto) x = detail::as_modifiable(ctx, dest);
+    auto orig_size = dest.size();
+    x.resize(dest.size() + source.size());
+    for (std::size_t i = 0; i < source.size(); ++i) {
+      perform(dest[i + orig_size], source[i]);
     }
   }
 
-  template <typename T>
+  template <concepts::is_pair T, typename U>
+  constexpr void perform(T &dest, U &&source) {
+    dest.first = source.first;
+    perform(dest.second, source.second);
+  }
+
+  template <concepts::associative_container T, typename U>
+  constexpr void perform(T &dest, U &&source) {
+    if (!source.empty()) {
+      if constexpr (std::same_as<T, std::decay_t<U>>) {
+        if (dest.empty()) {
+          dest = std::forward<U>(source);
+          return;
+        }
+      }
+      insert_or_replace(dest, std::forward<U>(source));
+    }
+  }
+
+  template <typename T, typename U>
     requires requires { typename T::mapped_type; }
-  constexpr void insert_or_replace(T &dest, const T &source) {
+  constexpr void insert_or_replace(T &dest, const U &source) {
     T tmp;
     tmp.swap(dest);
-    dest = source;
-    if constexpr (requires { dest.insert(sorted_unique, source.begin(), source.end()); }) {
+    if constexpr (std::same_as<T, U>) {
+      dest = source;
+    } else {
+      dest.insert(source.begin(), source.end());
+    }
+    if constexpr (requires { dest.insert(sorted_unique, tmp.begin(), tmp.end()); }) {
       dest.insert(sorted_unique, tmp.begin(), tmp.end());
     } else {
       dest.insert(tmp.begin(), tmp.end());
@@ -3246,16 +3331,15 @@ struct message_merger {
     perform(dest.fields, source.fields);
   }
 
-  template <typename T>
-    requires(std::same_as<T, bytes_view> || concepts::basic_string_view<T>)
-  constexpr void perform(T &dest, const T &source) {
-    detail::as_modifiable(ctx, dest).assign_range(source);
-  }
-
   template <concepts::singular T, typename U>
-    requires std::same_as<T, std::decay_t<U>>
   constexpr void perform(T &dest, U &&source) {
-    dest = std::forward<U>(source);
+    if constexpr (std::assignable_from<T &, U>) {
+      dest = std::forward<U>(source);
+    } else if constexpr (requires { dest.assign_range(source); }) {
+      dest.assign_range(source);
+    } else {
+      static_assert(false, "invalid operation");
+    }
   }
 };
 
@@ -3265,7 +3349,7 @@ struct message_merger {
 /// entries are appended without deduplication, so if a key appears multiple times only the last value should be
 /// considered authoritative. Both messages must share the same concrete type.
 template <concepts::has_meta T, typename U>
-  requires std::same_as<T, std::decay_t<U>>
+  requires concepts::isomorphic_message<T, std::decay_t<U>>
 constexpr void merge(T &dest, U &&source, concepts::is_option_type auto &&...option) {
   pb_context ctx{std::forward<decltype(option)>(option)...};
   message_merger merger{ctx};

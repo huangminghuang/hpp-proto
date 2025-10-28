@@ -58,13 +58,14 @@ enum class wellknown_types_t : uint8_t {
 class dynamic_message_factory;
 
 struct dynamic_message_factory_addons {
-  using traits_type = default_traits;
-  using string_t = std::string;
+  using traits_type = non_owning_traits;
+  using string_t = std::pmr::string;
   template <typename T>
-  using vector_t = std::vector<T>;
+  using vector_t = std::pmr::vector<T>;
 
   template <typename T, typename U>
-  using map_t = std::unordered_map<T, U>;
+  using map_t = std::pmr::unordered_map<T, U>;
+
   template <typename Derived>
   struct field_descriptor {
     using type = void;
@@ -75,7 +76,7 @@ struct dynamic_message_factory_addons {
     /// @brief for oneof field, this value is the order among the same oneof field counting from 1; otherwise, it is
     /// always 1 for singular field and 0 for repeated field
     uint16_t oneof_ordinal = 0;
-    field_descriptor(const google::protobuf::FieldDescriptorProto<traits_type> &proto) { set_default_value(proto); }
+    field_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options) { set_default_value(self.proto()); }
 
     void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto) {
       using enum google::protobuf::FieldDescriptorProto__::Type;
@@ -116,12 +117,12 @@ struct dynamic_message_factory_addons {
     }
   };
 
-  template <typename EnumD>
+  template <typename Derived>
   struct enum_descriptor {
-    explicit enum_descriptor(const google::protobuf::EnumDescriptorProto<traits_type> &) {}
+    explicit enum_descriptor(Derived &, [[maybe_unused]] const auto &inherited_options) {}
 
     [[nodiscard]] const uint32_t *value_of(const std::string_view name) const {
-      const auto &proto = static_cast<const EnumD *>(this)->proto();
+      const auto &proto = static_cast<const Derived *>(this)->proto();
       for (const auto &ev : proto.value) {
         if (ev.name == name) {
           // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -131,35 +132,35 @@ struct dynamic_message_factory_addons {
       return nullptr;
     }
 
-    [[nodiscard]] const char *name_of(uint32_t value) const {
-      const auto &proto = static_cast<const EnumD *>(this)->proto();
+    [[nodiscard]] std::string_view name_of(uint32_t value) const {
+      const auto &proto = static_cast<const Derived *>(this)->proto();
       for (const auto &ev : proto.value) {
         if (static_cast<uint32_t>(ev.number) == value) {
-          return ev.name.c_str();
+          return ev.name;
         }
       }
-      return nullptr;
+      return {};
     }
   };
 
-  template <typename OneofD, typename FieldD>
+  template <typename Derived>
   struct oneof_descriptor {
-    explicit oneof_descriptor(const google::protobuf::OneofDescriptorProto<traits_type> &) {}
+    explicit oneof_descriptor(Derived &, [[maybe_unused]] const auto &inherited_options) {}
     [[nodiscard]] uint32_t storage_slot() const {
-      return static_cast<const OneofD *>(this)->fields().front().storage_slot;
+      return static_cast<const Derived *>(this)->fields().front().storage_slot;
     }
   };
 
-  template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
+  template <typename Derived>
   struct message_descriptor {
     uint32_t num_slots = 0;
     wellknown_types_t wellknown = wellknown_types_t::NONE;
-    explicit message_descriptor(const google::protobuf::DescriptorProto<traits_type> &) {}
+    explicit message_descriptor(const Derived &, [[maybe_unused]] const auto &inherited_options) {}
   };
 
-  template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
+  template <typename Derived>
   struct file_descriptor {
-    explicit file_descriptor(const google::protobuf::FileDescriptorProto<traits_type> &) {}
+    explicit file_descriptor(const Derived &) {}
   };
 };
 
@@ -168,8 +169,9 @@ class message_value_mref;
 class dynamic_message_factory : public descriptor_pool<dynamic_message_factory_addons> {
 public:
   explicit dynamic_message_factory(
-      google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type> &&proto_files)
-      : descriptor_pool<dynamic_message_factory_addons>(std::move(proto_files)) {
+      google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type> &&proto_files,
+      std::pmr::monotonic_buffer_resource &mr)
+      : descriptor_pool<dynamic_message_factory_addons>(std::move(proto_files), mr) {
     for (auto &message : this->messages()) {
       hpp::proto::optional<std::int32_t> prev_oneof_index;
       uint16_t oneof_ordinal = 1;
@@ -512,7 +514,6 @@ private:
   string_storage_t *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
-
   [[nodiscard]] bool is_default_value(std::string_view v) const noexcept {
     return std::ranges::equal(v, descriptor_->proto().default_value);
   }
@@ -541,7 +542,7 @@ public:
   [[nodiscard]] bytes_view value() const noexcept {
     if (!descriptor_->explicit_presence() && !has_value()) {
       const auto default_value = descriptor_->proto().default_value;
-      return {reinterpret_cast<const std::byte*>(default_value.data()), default_value.size()};
+      return {reinterpret_cast<const std::byte *>(default_value.data()), default_value.size()};
     }
     return {storage_->content, storage_->size};
   }
@@ -596,14 +597,13 @@ private:
   bytes_storage_t *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
-
-  [[nodiscard]] bool is_default_value(bytes_view v) const noexcept { 
+  [[nodiscard]] bool is_default_value(bytes_view v) const noexcept {
     auto default_value = descriptor_->proto().default_value;
-    return v.size() == default_value.size() && std::memcmp(v.data(), default_value.data(), v.size()); 
+    return v.size() == default_value.size() && std::memcmp(v.data(), default_value.data(), v.size());
   }
 };
 
-// TODO: enum default value needs to be handled 
+// TODO: enum default value needs to be handled
 class enum_value_cref {
 public:
   using is_enum_value_ref = void;
@@ -619,7 +619,7 @@ public:
   [[nodiscard]] explicit operator uint32_t() const noexcept { return number_; }
 
   [[nodiscard]] uint32_t number() const noexcept { return number_; }
-  [[nodiscard]] const char *name() const noexcept { return descriptor_->name_of(number_); }
+  [[nodiscard]] std::string_view name() const noexcept { return descriptor_->name_of(number_); }
   [[nodiscard]] const enum_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
 private:
@@ -651,7 +651,7 @@ public:
 
   explicit operator uint32_t() const noexcept { return *number_; }
   [[nodiscard]] uint32_t number() const noexcept { return *number_; }
-  [[nodiscard]] const char *name() const noexcept { return descriptor_->name_of(*number_); }
+  [[nodiscard]] std::string_view name() const noexcept { return descriptor_->name_of(*number_); }
 
   [[nodiscard]] const enum_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 };

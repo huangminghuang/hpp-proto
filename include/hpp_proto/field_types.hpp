@@ -241,7 +241,7 @@ public:
   constexpr T &operator*() & noexcept { return value(); }
   constexpr const T &operator*() const & noexcept { return value(); }
 
-  constexpr T &&operator*() && noexcept { return value(); }
+  constexpr T &&operator*() && noexcept { return std::move(_value); }
   constexpr const T &&operator*() const && noexcept { return value(); }
 
   template <typename... Args>

@@ -1832,7 +1832,7 @@ int main() {
   constexpr_verify(carg("\x08\x00"_bytes_view), carg(example_explicit_presence{.i = 0}));
   constexpr_verify(carg(""_bytes_view), carg(example_default_type{}));
   // constexpr_verify(carg("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_view), carg(repeated_sint32{{0, 1, 2, 3,
-  // 4, -1, -2, -3, -4}}));
+  //  4, -1, -2, -3, -4}}));
 #endif
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);

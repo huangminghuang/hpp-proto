@@ -274,9 +274,12 @@ public:
     capacity_ = 0;
   }
 
-  constexpr void assign_range(const View &r) { assign_range_with_size(r, std::ranges::size(r)); }
+  template <std::ranges::sized_range R>
+  requires std::same_as<value_type, std::ranges::range_value_t<R>>
+  constexpr void assign_range(const R &r) { assign_range_with_size(r, std::ranges::size(r)); }
 
-  constexpr void append_range(const View &r) {
+  template <std::ranges::sized_range R>
+  constexpr void append_range(const R &r) {
     auto old_size = view_.size();
     auto n = std::ranges::size(r);
     assign_range_with_size(view_, old_size + n);
@@ -312,7 +315,7 @@ private:
   value_type *data_ = nullptr;
   std::size_t capacity_ = 0;
 
-  constexpr void assign_range_with_size(const View &r, std::size_t n) {
+  constexpr void assign_range_with_size(std::ranges::sized_range auto const &r, std::size_t n) {
     if (capacity_ < n) {
       auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       std::ranges::uninitialized_copy(r, std::span{new_data, n});

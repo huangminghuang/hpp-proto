@@ -74,16 +74,12 @@ public:
   class message_descriptor_t;
   class enum_descriptor_t;
   class file_descriptor_t;
-  class field_descriptor_t : public AddOns::template field_descriptor<field_descriptor_t> {
+  class field_descriptor_base {
   public:
-    using pool_type = descriptor_pool;
-    using base_type = AddOns::template field_descriptor<field_descriptor_t>;
-    field_descriptor_t(const FieldDescriptorProto &proto, message_descriptor_t *parent, const auto &inherited_options)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(FieldOptions{})), parent_message_(parent) {
+    field_descriptor_base(const FieldDescriptorProto &proto, message_descriptor_t *parent,
+                          const auto &inherited_options)
+        : proto_(proto), parent_message_(parent), options_(proto.options.value_or(FieldOptions{})) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::resolve_options(options_, inherited_options); }) {
-        AddOns::resolve_options(options_, inherited_options);
-      }
 
       setup_presence();
       setup_repeated();
@@ -92,11 +88,11 @@ public:
       setup_required();
     }
 
-    field_descriptor_t(const field_descriptor_t &) = delete;
-    field_descriptor_t(field_descriptor_t &&) = default;
-    ~field_descriptor_t() = default;
-    field_descriptor_t &operator=(const field_descriptor_t &) = delete;
-    field_descriptor_t &operator=(field_descriptor_t &&) = default;
+    field_descriptor_base(const field_descriptor_base &) = delete;
+    field_descriptor_base(field_descriptor_base &&) = default;
+    ~field_descriptor_base() = default;
+    field_descriptor_base &operator=(const field_descriptor_base &) = delete;
+    field_descriptor_base &operator=(field_descriptor_base &&) = default;
 
     [[nodiscard]] const FieldDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const FieldOptions &options() const { return options_; }
@@ -127,16 +123,6 @@ public:
     [[nodiscard]] bool is_required() const { return (field_option_bitset_ & MASK_REQUIRED) != 0; }
 
   private:
-    friend class descriptor_pool;
-
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const FieldDescriptorProto &proto_;
-    FieldOptions options_;
-    message_descriptor_t *parent_message_ = nullptr;
-    void *type_descriptor_ = nullptr;
-    message_descriptor_t *extendee_descriptor_ = nullptr;
-    uint8_t field_option_bitset_ = 0;
-
     void setup_presence() {
       if (proto_.label == FieldDescriptorProto::Label::LABEL_OPTIONAL) {
         if (proto_.type == FieldDescriptorProto::Type::TYPE_GROUP ||
@@ -190,28 +176,41 @@ public:
         field_option_bitset_ |= MASK_REQUIRED;
       }
     }
+
+    friend class descriptor_pool;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+    const FieldDescriptorProto &proto_;
+    message_descriptor_t *parent_message_ = nullptr;
+    void *type_descriptor_ = nullptr;
+    message_descriptor_t *extendee_descriptor_ = nullptr;
+    uint8_t field_option_bitset_ = 0;
+
+  protected:
+    FieldOptions options_;
   };
 
-  class oneof_descriptor_t : public AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t> {
+  class field_descriptor_t : public field_descriptor_base,
+                             public AddOns::template field_descriptor<field_descriptor_t> {
   public:
-    using pool_type = descriptor_pool;
-    using base_type = AddOns::template oneof_descriptor<oneof_descriptor_t, field_descriptor_t>;
-    explicit oneof_descriptor_t(const OneofDescriptorProto &proto, const MessageOptions &inherited_options)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(OneofOptions{})) {
+    using addon_type = AddOns::template field_descriptor<field_descriptor_t>;
+    field_descriptor_t(const FieldDescriptorProto &proto, message_descriptor_t *parent, const auto &inherited_options)
+        : field_descriptor_base(proto, parent, inherited_options), addon_type(*this, inherited_options) {}
+  };
+
+  class oneof_descriptor_base {
+  public:
+    explicit oneof_descriptor_base(const OneofDescriptorProto &proto, const MessageOptions &inherited_options)
+        : proto_(proto), options_(proto.options.value_or(OneofOptions{})) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::resolve_options(options_, inherited_options); }) {
-        AddOns::resolve_options(options_, inherited_options);
-      }
     }
 
-    oneof_descriptor_t(const oneof_descriptor_t &) = delete;
-    oneof_descriptor_t(oneof_descriptor_t &&) = default;
-    oneof_descriptor_t &operator=(const oneof_descriptor_t &) = delete;
-    oneof_descriptor_t &operator=(oneof_descriptor_t &&) = default;
+    oneof_descriptor_base(const oneof_descriptor_base &) = delete;
+    oneof_descriptor_base(oneof_descriptor_base &&) = default;
+    oneof_descriptor_base &operator=(const oneof_descriptor_base &) = delete;
+    oneof_descriptor_base &operator=(oneof_descriptor_base &&) = default;
 
     [[nodiscard]] const OneofDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const OneofOptions &options() const { return options_; }
-
     /**
      * @brief Returns a view that transforms the elements of fields_ by dereferencing pointers.
      *
@@ -227,28 +226,34 @@ public:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const OneofDescriptorProto &proto_;
-    OneofOptions options_;
     vector_t<field_descriptor_t *> fields_;
+
+  protected:
+    OneofOptions options_;
   };
 
-  class enum_descriptor_t : public AddOns::template enum_descriptor<enum_descriptor_t> {
+  class oneof_descriptor_t : public oneof_descriptor_base,
+                             public AddOns::template oneof_descriptor<oneof_descriptor_t> {
+    using addon_type = AddOns::template oneof_descriptor<oneof_descriptor_t>;
+
   public:
-    using pool_type = descriptor_pool;
-    using base_type = AddOns::template enum_descriptor<enum_descriptor_t>;
-    explicit enum_descriptor_t(const EnumDescriptorProto &proto, string_t &&full_name, const auto &inherited_options,
-                               file_descriptor_t *parent_file, message_descriptor_t *parent_message)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(EnumOptions{})),
-          full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message) {
+    oneof_descriptor_t(const OneofDescriptorProto &proto, const MessageOptions &inherited_options)
+        : oneof_descriptor_base(proto, inherited_options), addon_type(*this, inherited_options) {}
+  };
+
+  class enum_descriptor_base {
+  public:
+    explicit enum_descriptor_base(const EnumDescriptorProto &proto, string_t &&full_name, const auto &inherited_options,
+                                  file_descriptor_t *parent_file, message_descriptor_t *parent_message)
+        : proto_(proto), full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message),
+          options_(proto.options.value_or(EnumOptions{})) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
-      if constexpr (requires { AddOns::resolve_options(options_, inherited_options); }) {
-        AddOns::resolve_options(options_, inherited_options);
-      }
     }
 
-    enum_descriptor_t(const enum_descriptor_t &) = delete;
-    enum_descriptor_t(enum_descriptor_t &&) = default;
-    enum_descriptor_t &operator=(const enum_descriptor_t &) = delete;
-    enum_descriptor_t &operator=(enum_descriptor_t &&) = default;
+    enum_descriptor_base(const enum_descriptor_base &) = delete;
+    enum_descriptor_base(enum_descriptor_base &&) = default;
+    enum_descriptor_base &operator=(const enum_descriptor_base &) = delete;
+    enum_descriptor_base &operator=(enum_descriptor_base &&) = default;
 
     [[nodiscard]] const EnumDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const EnumOptions &options() const { return options_; }
@@ -267,34 +272,37 @@ public:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const EnumDescriptorProto &proto_;
-    EnumOptions options_;
     string_t full_name_;
     file_descriptor_t *parent_file_;
     message_descriptor_t *parent_message_;
+
+  protected:
+    EnumOptions options_;
   };
 
-  class message_descriptor_t : public AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t,
-                                                                          oneof_descriptor_t, field_descriptor_t> {
+  class enum_descriptor_t : public enum_descriptor_base, public AddOns::template enum_descriptor<enum_descriptor_t> {
   public:
-    using pool_type = descriptor_pool;
-    using base_type = AddOns::template message_descriptor<message_descriptor_t, enum_descriptor_t, oneof_descriptor_t,
-                                                          field_descriptor_t>;
+    using addon_type = AddOns::template enum_descriptor<enum_descriptor_t>;
+    explicit enum_descriptor_t(const EnumDescriptorProto &proto, string_t &&full_name, const auto &inherited_options,
+                               file_descriptor_t *parent_file, message_descriptor_t *parent_message)
+        : enum_descriptor_base(proto, std::move(full_name), inherited_options, parent_file, parent_message),
+          addon_type(*this, inherited_options) {}
+  };
 
-    explicit message_descriptor_t(const DescriptorProto &proto, string_t full_name, const auto &inherited_options,
-                                  file_descriptor_t *parent_file, message_descriptor_t *parent_message)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(MessageOptions{})),
-          full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message) {
+  class message_descriptor_base {
+  public:
+    explicit message_descriptor_base(const DescriptorProto &proto, string_t full_name, const auto &inherited_options,
+                                     file_descriptor_t *parent_file, message_descriptor_t *parent_message)
+        : proto_(proto), full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message),
+          options_(proto.options.value_or(MessageOptions{})) {
       options_.features = merge_features(inherited_options.features.value(), proto_.options);
-      if constexpr (requires { AddOns::resolve_options(options_, inherited_options); }) {
-        AddOns::resolve_options(options_, inherited_options);
-      }
     }
 
-    message_descriptor_t(const message_descriptor_t &) = delete;
-    message_descriptor_t(message_descriptor_t &&) = default;
-    ~message_descriptor_t() = default;
-    message_descriptor_t &operator=(const message_descriptor_t &) = delete;
-    message_descriptor_t &operator=(message_descriptor_t &&) = default;
+    message_descriptor_base(const message_descriptor_base &) = delete;
+    message_descriptor_base(message_descriptor_base &&) = default;
+    ~message_descriptor_base() = default;
+    message_descriptor_base &operator=(const message_descriptor_base &) = delete;
+    message_descriptor_base &operator=(message_descriptor_base &&) = default;
 
     [[nodiscard]] const DescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const MessageOptions &options() const { return options_; }
@@ -321,37 +329,43 @@ public:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const DescriptorProto &proto_;
-    MessageOptions options_;
     string_t full_name_;
     file_descriptor_t *parent_file_;
     message_descriptor_t *parent_message_;
     vector_t<field_descriptor_t *> fields_;
     vector_t<enum_descriptor_t *> enums_;
-    vector_t<message_descriptor_t *> messages_;
     vector_t<oneof_descriptor_t *> oneofs_;
+    vector_t<message_descriptor_t *> messages_;
     vector_t<field_descriptor_t *> extensions_;
+
+  protected:
+    MessageOptions options_;
   };
 
-  class file_descriptor_t : public AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t,
-                                                                    enum_descriptor_t, field_descriptor_t> {
+  class message_descriptor_t : public message_descriptor_base,
+                               public AddOns::template message_descriptor<message_descriptor_t> {
   public:
-    using pool_type = descriptor_pool;
-    using base_type = AddOns::template file_descriptor<file_descriptor_t, message_descriptor_t, enum_descriptor_t,
-                                                       field_descriptor_t>;
-    explicit file_descriptor_t(const FileDescriptorProto &proto, const FeatureSet &default_features)
-        : base_type(proto), proto_(proto), options_(proto.options.value_or(FileOptions{})) {
+    using addon_type = AddOns::template message_descriptor<message_descriptor_t>;
+    using field_type = field_descriptor_t;
+
+    explicit message_descriptor_t(const DescriptorProto &proto, string_t &&full_name, const auto &inherited_options,
+                                  file_descriptor_t *parent_file, message_descriptor_t *parent_message)
+        : message_descriptor_base(proto, std::move(full_name), inherited_options, parent_file, parent_message),
+          addon_type(*this, inherited_options) {}
+  };
+
+  class file_descriptor_base {
+  public:
+    explicit file_descriptor_base(const FileDescriptorProto &proto, const FeatureSet &default_features)
+        : proto_(proto), options_(proto.options.value_or(FileOptions{})) {
       options_.features = merge_features(default_features, proto.options);
-      
-      if constexpr (requires { base_type::resolve_options(proto_, options_); }) {
-        base_type::resolve_options(proto_, options_);
-      }
     }
 
-    file_descriptor_t(const file_descriptor_t &) = delete;
-    file_descriptor_t(file_descriptor_t &&) = default;
-    ~file_descriptor_t() = default;
-    file_descriptor_t &operator=(const file_descriptor_t &) = delete;
-    file_descriptor_t &operator=(file_descriptor_t &&) = default;
+    file_descriptor_base(const file_descriptor_base &) = delete;
+    file_descriptor_base(file_descriptor_base &&) = default;
+    ~file_descriptor_base() = default;
+    file_descriptor_base &operator=(const file_descriptor_base &) = delete;
+    file_descriptor_base &operator=(file_descriptor_base &&) = default;
 
     [[nodiscard]] const FileDescriptorProto &proto() const { return proto_; }
     [[nodiscard]] const FileOptions &options() const { return options_; }
@@ -366,12 +380,21 @@ public:
     friend class descriptor_pool;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const FileDescriptorProto &proto_;
-    FileOptions options_;
     vector_t<enum_descriptor_t *> enums_;
     vector_t<message_descriptor_t *> messages_;
     vector_t<field_descriptor_t *> extensions_;
     vector_t<file_descriptor_t *> dependencies_;
     const class descriptor_pool *descriptor_pool_ = nullptr;
+
+  protected:
+    FileOptions options_;
+  };
+
+  class file_descriptor_t : public file_descriptor_base, public AddOns::template file_descriptor<file_descriptor_t> {
+  public:
+    using addon_type = AddOns::template file_descriptor<file_descriptor_t>;
+    explicit file_descriptor_t(const FileDescriptorProto &proto, const FeatureSet &default_features)
+        : file_descriptor_base(proto, default_features), addon_type(*this) {}
   };
 
   template <concepts::contiguous_byte_range FileDescriptorPbBin>
@@ -391,16 +414,16 @@ public:
   }
 
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
-  explicit descriptor_pool(FileDescriptorSet &&fileset) requires(!std::is_trivially_destructible_v<FileDescriptorSet>)
-      : fileset_(std::move(fileset.file))        
-  {
+  explicit descriptor_pool(FileDescriptorSet &&fileset)
+    requires(!std::is_trivially_destructible_v<FileDescriptorSet>)
+      : fileset_(std::move(fileset.file)) {
     init();
   }
 
   explicit descriptor_pool(FileDescriptorSet &&fileset, std::pmr::memory_resource &mr)
       : fileset_(std::move(fileset.file)) {
     auto *old = std::pmr::set_default_resource(&mr);
-    init(mr);
+    init();
     std::pmr::set_default_resource(old);
   }
 
@@ -511,7 +534,11 @@ private:
     if (options.has_value()) {
       const auto &overriding_features = options->features;
       if (overriding_features.has_value()) {
-        hpp::proto::merge(features, *options->features);
+        if constexpr (std::is_trivially_destructible_v<FeatureSet>) {
+          hpp::proto::merge(features, *options->features, hpp::proto::alloc_from(*std::pmr::get_default_resource()));
+        } else {
+          hpp::proto::merge(features, *options->features);
+        }
       }
     }
     return features;
@@ -562,14 +589,75 @@ private:
   map_t<std::string_view, enum_descriptor_t *> enum_map_;
   google::protobuf::Edition current_edition_ = {};
 
-  FeatureSet select_features(const FileDescriptorProto &file) {
-    using namespace std::string_view_literals;
-    static const auto cpp_edition_defaults =
-        hpp::proto::read_proto<google::protobuf::FeatureSetDefaults<traits_type>>(
-            // from https://github.com/protocolbuffers/protobuf/blob/v28.2/src/google/protobuf/cpp_edition_defaults.h
-            "\n\035\030\204\007\"\003\302>\000*\023\010\001\020\002\030\002 \003(\0010\002\302>\004\010\001\020\003\n\035\030\347\007\"\003\302>\000*\023\010\002\020\001\030\001 \002(\0010\001\302>\004\010\000\020\003\n\035\030\350\007\"\023\010\001\020\001\030\001 \002(\0010\001\302>\004\010\000\020\003*\003\302>\000\n\035\030\351\007\"\023\010\001\020\001\030\001 \002(\0010\001\302>\004\010\000\020\001*\003\302>\000 \346\007(\351\007"sv)
-            .value();
+  static google::protobuf::FeatureSetDefaults<traits_type> get_cpp_edition_defaults() {
+    // from https://github.com/protocolbuffers/protobuf/blob/v33.0/src/google/protobuf/cpp_edition_defaults.h
+    //"\n#\030\204\007\"\003\302>\000*\031\010\001\020\002\030\002
+    //\003(\0010\0028\002@\001\302>\006\010\001\020\003\030\000\n#\030\347\007\"\003\302>\000*\031\010\002\020\001\030\001
+    //\002(\0010\0018\002@\001\302>\006\010\000\020\003\030\000\n#\030\350\007\"\023\010\001\020\001\030\001
+    //\002(\0010\001\302>\004\010\000\020\003*\t8\002@\001\302>\002\030\000\n#\030\351\007\"\031\010\001\020\001\030\001
+    //\002(\0010\0018\001@\002\302>\006\010\000\020\001\030\001*\003\302>\000 \346\007(\351\007"sv
+    using namespace google::protobuf::FeatureSet__;
+    using namespace VisibilityFeature__;
+    static auto default_feature_set =
+        std::initializer_list<typename google::protobuf::FeatureSetDefaults<traits_type>::FeatureSetEditionDefault>{
+            {.edition = google::protobuf::Edition::EDITION_LEGACY,
+             .overridable_features = {},
+             .fixed_features = FeatureSet{.field_presence = FieldPresence::EXPLICIT,
+                                          .enum_type = EnumType::CLOSED,
+                                          .repeated_field_encoding = RepeatedFieldEncoding::EXPANDED,
+                                          .utf8_validation = Utf8Validation::NONE,
+                                          .message_encoding = MessageEncoding::LENGTH_PREFIXED,
+                                          .json_format = JsonFormat::LEGACY_BEST_EFFORT,
+                                          .enforce_naming_style = EnforceNamingStyle::STYLE_LEGACY,
+                                          .default_symbol_visibility = DefaultSymbolVisibility::EXPORT_ALL,
+                                          .unknown_fields_ = {}},
+             .unknown_fields_ = {}},
+            {.edition = google::protobuf::Edition::EDITION_PROTO3,
+             .overridable_features = {},
+             .fixed_features = FeatureSet{.field_presence = FieldPresence::IMPLICIT,
+                                          .enum_type = EnumType::OPEN,
+                                          .repeated_field_encoding = RepeatedFieldEncoding::PACKED,
+                                          .utf8_validation = Utf8Validation::VERIFY,
+                                          .message_encoding = MessageEncoding::LENGTH_PREFIXED,
+                                          .json_format = JsonFormat::ALLOW,
+                                          .enforce_naming_style = EnforceNamingStyle::STYLE_LEGACY,
+                                          .default_symbol_visibility = DefaultSymbolVisibility::EXPORT_ALL,
+                                          .unknown_fields_ = {}},
+             .unknown_fields_ = {}},
+            {.edition = google::protobuf::Edition::EDITION_2023,
+             .overridable_features = FeatureSet{.field_presence = FieldPresence::EXPLICIT,
+                                                .enum_type = EnumType::OPEN,
+                                                .repeated_field_encoding = RepeatedFieldEncoding::PACKED,
+                                                .utf8_validation = Utf8Validation::VERIFY,
+                                                .message_encoding = MessageEncoding::LENGTH_PREFIXED,
+                                                .json_format = JsonFormat::ALLOW,
+                                                .enforce_naming_style = EnforceNamingStyle::STYLE_LEGACY,
+                                                .default_symbol_visibility = DefaultSymbolVisibility::EXPORT_ALL,
+                                                .unknown_fields_ = {}},
+             .fixed_features = {},
+             .unknown_fields_ = {}},
+            {.edition = google::protobuf::Edition::EDITION_2024,
+             .overridable_features = FeatureSet{.field_presence = FieldPresence::EXPLICIT,
+                                                .enum_type = EnumType::OPEN,
+                                                .repeated_field_encoding = RepeatedFieldEncoding::PACKED,
+                                                .utf8_validation = Utf8Validation::VERIFY,
+                                                .message_encoding = MessageEncoding::LENGTH_PREFIXED,
+                                                .json_format = JsonFormat::ALLOW,
+                                                .enforce_naming_style = EnforceNamingStyle::STYLE2024,
+                                                .default_symbol_visibility = DefaultSymbolVisibility::EXPORT_TOP_LEVEL,
+                                                .unknown_fields_ = {}},
+             .fixed_features = {},
+             .unknown_fields_ = {}}
 
+        };
+    return {.defaults = default_feature_set,
+            .minimum_edition = google::protobuf::Edition::EDITION_PROTO2,
+            .maximum_edition = google::protobuf::Edition::EDITION_2024,
+            .unknown_fields_ = {}};
+  }
+
+  FeatureSet select_features(const FileDescriptorProto &file) {
+    static const auto cpp_edition_defaults = get_cpp_edition_defaults();
     current_edition_ = google::protobuf::Edition::EDITION_LEGACY;
     if (file.syntax == "proto3") {
       current_edition_ = google::protobuf::Edition::EDITION_PROTO3;
@@ -586,7 +674,7 @@ private:
         return merge_features(features, file.options);
       }
     }
-    throw std::runtime_error(std::string{"unsupported edition used by "} + file.name);
+    throw std::runtime_error(std::string{"unsupported edition used by "} + std::string{file.name});
   }
 
   static string_t join_by_dot(std::string_view x, std::string_view y) {

@@ -260,8 +260,8 @@ struct to<JSON, hpp::proto::enum_value_cref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value_cref &value, is_context auto &ctx, auto &b,
                                    auto &ix) noexcept {
-    const char *name = value.name();
-    if (name != nullptr) {
+    std::string_view name = value.name();
+    if (!name.empty()) {
       dump<'"'>(b, ix);
       dump(name, b, ix);
       dump<'"'>(b, ix);

@@ -117,31 +117,31 @@ struct proto_json_addons {
 
   template <typename T, typename U>
   using map_t = flat_map<T, U>;
-  
+
   template <typename Derived>
   struct field_descriptor {
-    field_descriptor(const FieldDescriptorProto &) {}
+    field_descriptor(const Derived &, [[maybe_unused]] const auto &inherited_options) {}
   };
 
-  template <typename EnumD>
+  template <typename Derived>
   struct enum_descriptor {
-    explicit enum_descriptor(const EnumDescriptorProto &) {}
+    explicit enum_descriptor(Derived &, [[maybe_unused]] const auto &inherited_options) {}
   };
 
-  template <typename OneofD, typename FieldD>
+  template <typename Derived>
   struct oneof_descriptor {
-    explicit oneof_descriptor(const OneofDescriptorProto &) {}
+    explicit oneof_descriptor(Derived &, [[maybe_unused]] const auto &inherited_options) {}
   };
 
-  template <typename MessageD, typename EnumD, typename OneofD, typename FieldD>
+  template <typename Derived>
   struct message_descriptor {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    explicit message_descriptor(const DescriptorProto &) {}
+    explicit message_descriptor(const Derived &, [[maybe_unused]] const auto &inherited_options) {}
   };
 
-  template <typename FileD, typename MessageD, typename EnumD, typename FieldD>
+  template <typename Derived>
   struct file_descriptor {
-    explicit file_descriptor(const FileDescriptorProto &) {}
+    explicit file_descriptor(const Derived &) {}
   };
 };
 
