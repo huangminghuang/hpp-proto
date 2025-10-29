@@ -77,7 +77,7 @@ inline void ExpectMapFieldsSet(const TestMap &message) {
   expect(eq(0, message.map_sfixed64_sfixed64.at(0)));
   expect(eq(0, message.map_int32_float.at(0)));
   expect(eq(0, message.map_int32_double.at(0)));
-  expect(eq(false, message.map_bool_bool.at(false)));
+  expect(!message.map_bool_bool.at(false));
   expect(eq("0"s, message.map_string_string.at("0")));
   expect("0"_bytes == message.map_int32_bytes.at(0));
   expect(protobuf_unittest::MapEnum::MAP_ENUM_FOO == message.map_int32_enum.at(0));
@@ -95,7 +95,7 @@ inline void ExpectMapFieldsSet(const TestMap &message) {
   expect(eq(1, message.map_sfixed64_sfixed64.at(1)));
   expect(eq(1, message.map_int32_float.at(1)));
   expect(eq(1, message.map_int32_double.at(1)));
-  expect(eq(true, message.map_bool_bool.at(true)));
+  expect(message.map_bool_bool.at(true));
   expect(eq("1"s, message.map_string_string.at("1")));
   expect("1"_bytes == message.map_int32_bytes.at(1));
   expect(protobuf_unittest::MapEnum::MAP_ENUM_BAR == message.map_int32_enum.at(1));

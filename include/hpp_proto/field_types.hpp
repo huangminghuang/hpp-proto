@@ -850,6 +850,16 @@ struct default_traits {
     using type = hpp::proto::flat_map<hpp::proto::boolean, Mapped>;
   };
 
+  template <typename Key>
+  struct map_trait<Key, bool> {
+    using type = hpp::proto::flat_map<Key, hpp::proto::boolean>;
+  };
+
+  template <>
+  struct map_trait<bool, bool> {
+    using type = hpp::proto::flat_map<hpp::proto::boolean, hpp::proto::boolean>;
+  };
+
   template <typename Key, typename Mapped>
   using map_t = map_trait<Key, Mapped>::type;
 
