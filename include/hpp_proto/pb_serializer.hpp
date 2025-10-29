@@ -521,7 +521,7 @@ constexpr auto unchecked_parse_varint(concepts::contiguous_byte_range auto const
   if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
     auto p = shift_mix_parse_varint<typename VarintType::value_type>(input, res);
     // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    item = static_cast<typename VarintType::value_type>((static_cast<uint64_t>(res) >> 1) ^ -(res & 0x1));
+    item = static_cast<typename VarintType::value_type>((static_cast<uint64_t>(res) >> 1) ^ static_cast<uint64_t>(-(res & 0x1)));
     return p;
   } else {
     auto p = shift_mix_parse_varint<typename VarintType::value_type>(input, res);

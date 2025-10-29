@@ -32,18 +32,24 @@ const boost::ut::suite proto3_lite_test = [] {
     proto3_unittest::TestUnpackedTypes msg;
 
     std::vector<char> data;
-    expect(hpp::proto::write_proto(original, data).ok());
-    expect(hpp::proto::read_proto(msg, data).ok());
+    should("write_proto should work") = [&] { expect(hpp::proto::write_proto(original, data).ok()); };
+    should("read_proto should work") = [&] {
+      auto r = hpp::proto::read_proto(msg, data);
+      expect(r.ok());
+    };
 
     ExpectUnpackedFieldsSet(msg);
 
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
     auto r = glz::write_json(original);
-    expect(r.has_value());
+    should("write_json should work") = [&] { expect(r.has_value()); };
     auto original_json = gpb_based::proto_to_json(unittest_descriptorset, "proto3_unittest.TestUnpackedTypes",
                                                   {data.data(), data.size()});
-    expect(fatal(!original_json.empty()));
-    expect(eq(*r, original_json));
+    should("proto3_unittest.TestUnpackedTypes should be successfully read") = [&] {
+      std::cerr << "original_json = " << original_json << "\n";
+      expect(fatal(!original_json.empty()));
+    };
+    should("write_json result should match") = [&] { expect(eq(*r, original_json)); };
 #endif
   };
 

@@ -12,11 +12,11 @@ inline void SetAllFields(TestAllTypes *m) {
   m->optional_int32 = 100;
   m->optional_string = "asdf";
   m->optional_bytes = "jkl;"_bytes;
-  m->optional_nested_message = TestAllTypes::NestedMessage{.bb = 42};
+  m->optional_nested_message.emplace().bb = 42;
   m->optional_foreign_message.emplace().c = 43;
   m->optional_nested_enum = TestAllTypes::NestedEnum::BAZ;
   m->optional_foreign_enum = proto3_unittest::ForeignEnum::FOREIGN_BAZ;
-  m->optional_lazy_message = TestAllTypes::NestedMessage{.bb = 45};
+  m->optional_lazy_message.emplace().bb = 45;
 
   m->repeated_int32.push_back(100);
   m->repeated_string.emplace_back("asdf");
@@ -28,7 +28,7 @@ inline void SetAllFields(TestAllTypes *m) {
   m->repeated_lazy_message.emplace_back().bb = 49;
 
   m->oneof_field = 1U;
-  m->oneof_field = TestAllTypes::NestedMessage{.bb = 50};
+  m->oneof_field.emplace<TestAllTypes::NestedMessage>().bb = 50;
   m->oneof_field = "test"; // only this one remains set
 }
 

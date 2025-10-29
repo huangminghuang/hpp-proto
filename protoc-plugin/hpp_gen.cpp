@@ -1956,7 +1956,8 @@ int main(int argc, const char **argv) {
     code_generator::proto2_explicit_presences.emplace_back(".");
   }
 
-  hpp_gen_descriptor_pool pool(google::protobuf::FileDescriptorSet<>{.file = std::move(request.proto_file)});
+  hpp_gen_descriptor_pool pool(
+      google::protobuf::FileDescriptorSet<>{.file = std::move(request.proto_file), .unknown_fields_ = {}});
 
   CodeGeneratorResponse response;
   using enum CodeGeneratorResponse::Feature;

@@ -477,9 +477,9 @@ public:
   constexpr static field_kind_t field_kind = KIND_STRING;
 
   string_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
-                    std::pmr::monotonic_buffer_resource &mr) noexcept
+                    std::pmr::monotonic_buffer_resource &) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_string), memory_resource_(&mr) {}
+      : descriptor_(&descriptor), storage_(&storage.of_string) {}
 
   string_field_mref(const string_field_mref &) noexcept = default;
   string_field_mref(string_field_mref &&) noexcept = default;
@@ -512,7 +512,6 @@ public:
 private:
   const field_descriptor_t *descriptor_;
   string_storage_t *storage_;
-  std::pmr::monotonic_buffer_resource *memory_resource_;
 
   [[nodiscard]] bool is_default_value(std::string_view v) const noexcept {
     return std::ranges::equal(v, descriptor_->proto().default_value);
@@ -563,9 +562,9 @@ public:
   constexpr static field_kind_t field_kind = KIND_BYTES;
 
   bytes_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
-                   std::pmr::monotonic_buffer_resource &mr) noexcept
+                   std::pmr::monotonic_buffer_resource &) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_bytes), memory_resource_(&mr) {}
+      : descriptor_(&descriptor), storage_(&storage.of_bytes) {}
 
   bytes_field_mref(const bytes_field_mref &) noexcept = default;
   bytes_field_mref(bytes_field_mref &&) noexcept = default;
@@ -595,7 +594,6 @@ public:
 private:
   const field_descriptor_t *descriptor_;
   bytes_storage_t *storage_;
-  std::pmr::monotonic_buffer_resource *memory_resource_;
 
   [[nodiscard]] bool is_default_value(bytes_view v) const noexcept {
     auto default_value = descriptor_->proto().default_value;

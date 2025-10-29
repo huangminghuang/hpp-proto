@@ -18,11 +18,11 @@ inline void SetAllFields(TestAllTypes *m) {
   m->optional_string = "asdf";
   m->optional_bytes = "jkl;"_bytes_view;
 
-  m->optional_nested_message = TestAllTypes::NestedMessage{.bb = 42};
+  m->optional_nested_message.emplace().bb = 42;
   m->optional_foreign_message.emplace().c = 43;
   m->optional_nested_enum = TestAllTypes::NestedEnum::BAZ;
   m->optional_foreign_enum = proto3_unittest::ForeignEnum::FOREIGN_BAZ;
-  m->optional_lazy_message = TestAllTypes::NestedMessage{.bb = 45};
+  m->optional_lazy_message.emplace().bb = 45;
 
   const static int32_t repeated_int32[] = {100};
   m->repeated_int32 = repeated_int32;
@@ -31,9 +31,9 @@ inline void SetAllFields(TestAllTypes *m) {
   const static hpp::proto::bytes_view repeated_bytes[] = {"jkl;"_bytes_view};
   m->repeated_bytes = repeated_bytes;
   const static TestAllTypes::NestedMessage repeated_nested_message[] = {
-      TestAllTypes::NestedMessage{.bb = 46}};
+      TestAllTypes::NestedMessage{.bb = 46, .unknown_fields_={}}};
   m->repeated_nested_message = repeated_nested_message;
-  const static ForeignMessage repeated_foreign_message[] = {ForeignMessage{.c = 47}};
+  const static ForeignMessage repeated_foreign_message[] = {ForeignMessage{.c = 47, .unknown_fields_={}}};
   m->repeated_foreign_message = repeated_foreign_message;
   const static TestAllTypes::NestedEnum repeated_nested_enum[] = {
       TestAllTypes::NestedEnum::BAZ};
@@ -41,11 +41,11 @@ inline void SetAllFields(TestAllTypes *m) {
   const static proto3_unittest::ForeignEnum repeated_foreign_enum[] = {proto3_unittest::ForeignEnum::FOREIGN_BAZ};
   m->repeated_foreign_enum = repeated_foreign_enum;
   const static TestAllTypes::NestedMessage repeated_lazy_message[] = {
-      TestAllTypes::NestedMessage{.bb = 49}};
+      TestAllTypes::NestedMessage{.bb = 49, .unknown_fields_={}}};
   m->repeated_lazy_message = repeated_lazy_message;
 
   m->oneof_field = 1U;
-  m->oneof_field = TestAllTypes::NestedMessage{.bb = 50};
+  m->oneof_field.emplace<TestAllTypes::NestedMessage>().bb = 50;
   m->oneof_field = "test"sv; // only this one remains set
 }
 

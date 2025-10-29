@@ -76,12 +76,14 @@ inline void SetOptionalFields(TestAllTypesLite *message) {
   message->optional_string = "115";
   message->optional_bytes = "116"_bytes;
 
-  message->optionalgroup = TestAllTypesLite::OptionalGroup{.a = 117};
-  message->optional_nested_message = TestAllTypesLite::NestedMessage{.bb = 118, .cc = {}, .dd = {}};
+  message->optionalgroup.emplace().a = 117;
+  message->optional_nested_message =
+      TestAllTypesLite::NestedMessage{.bb = 118, .cc = {}, .dd = {}, .unknown_fields_ = {}};
   message->optional_foreign_message.emplace().c = 119;
   message->optional_import_message.emplace().d = 120;
   message->optional_public_import_message.emplace().e = 126;
-  message->optional_lazy_message = TestAllTypesLite::NestedMessage{.bb = 127, .cc = {}, .dd = {}};
+  message->optional_lazy_message =
+      TestAllTypesLite::NestedMessage{.bb = 127, .cc = {}, .dd = {}, .unknown_fields_ = {}};
 
   message->optional_nested_enum = TestAllTypesLite::NestedEnum::BAZ;
   message->optional_foreign_enum = protobuf_unittest::ForeignEnumLite::FOREIGN_LITE_BAZ;
@@ -206,7 +208,7 @@ inline void SetOneofFields(TestAllTypesLite *message) {
   message->oneof_field.emplace<std::uint32_t>(601U);
   using enum TestAllTypesLite::oneof_field_oneof_case;
   message->oneof_field.emplace<static_cast<int>(oneof_nested_message)>(
-      TestAllTypesLite::NestedMessage{.bb = 602, .cc = {}, .dd = {}});
+      TestAllTypesLite::NestedMessage{.bb = 602, .cc = {}, .dd = {}, .unknown_fields_ = {}});
   message->oneof_field.emplace<static_cast<int>(oneof_string)>("603");
   message->oneof_field = "604"_bytes;
 }
@@ -637,10 +639,10 @@ inline void SetAll(TestAllExtensionsLite *message) {
   expect_set_extension_ok(optional_string_extension_lite{.value = "115"});
   expect_set_extension_ok(optional_bytes_extension_lite{.value = "116"_bytes});
 
-  expect_set_extension_ok(optionalgroup_extension_lite{.value = {.a = 117}});
-  expect_set_extension_ok(optional_nested_message_extension_lite{.value = {.bb = 118, .cc = {}, .dd = {}}});
-  expect_set_extension_ok(optional_foreign_message_extension_lite{.value = {.c = 119}});
-  expect_set_extension_ok(optional_import_message_extension_lite{.value = {.d = 120}});
+  expect_set_extension_ok(optionalgroup_extension_lite{.value = {.a = 117, .unknown_fields_ = {}}});
+  expect_set_extension_ok(optional_nested_message_extension_lite{.value = {.bb = 118, .cc = {}, .dd = {}, .unknown_fields_={}}});
+  expect_set_extension_ok(optional_foreign_message_extension_lite{.value = {.c = 119, .unknown_fields_ = {}}});
+  expect_set_extension_ok(optional_import_message_extension_lite{.value = {.d = 120, .unknown_fields_ = {}}});
 
   expect_set_extension_ok(optional_nested_enum_extension_lite{.value = TestAllTypesLite::NestedEnum::BAZ});
   expect_set_extension_ok(optional_foreign_enum_extension_lite{.value = ForeignEnumLite::FOREIGN_LITE_BAZ});
@@ -650,8 +652,9 @@ inline void SetAll(TestAllExtensionsLite *message) {
   expect_set_extension_ok(optional_string_piece_extension_lite{.value = "124"});
   expect_set_extension_ok(optional_cord_extension_lite{.value = "125"});
 
-  expect_set_extension_ok(optional_public_import_message_extension_lite{.value = {.e = 126}});
-  expect_set_extension_ok(optional_lazy_message_extension_lite{.value = {.bb = 127, .cc = {}, .dd = {}}});
+  expect_set_extension_ok(optional_public_import_message_extension_lite{.value = {.e = 126, .unknown_fields_ = {}}});
+  expect_set_extension_ok(
+      optional_lazy_message_extension_lite{.value = {.bb = 127, .cc = {}, .dd = {}, .unknown_fields_ = {}}});
 
   // -----------------------------------------------------------------
 
@@ -674,18 +677,22 @@ inline void SetAll(TestAllExtensionsLite *message) {
       repeated_string_extension_lite<non_owning_t>{.value = std::initializer_list{"215"sv, "315"sv}});
   expect_set_extension_ok(repeated_bytes_extension_lite{.value = std::initializer_list{"216"_bytes, "316"_bytes}});
 
-  expect_set_extension_ok(repeatedgroup_extension_lite{
-      .value = std::initializer_list<RepeatedGroup_extension_lite<>>{{.a = 217}, {.a = 317}}});
   expect_set_extension_ok(
-      repeated_nested_message_extension_lite{.value = std::initializer_list<TestAllTypesLite::NestedMessage>{
-                                                 {.bb = 218, .cc = {}, .dd{}}, {.bb = 318, .cc = {}, .dd = {}}}});
-  expect_set_extension_ok(repeated_foreign_message_extension_lite{
-      .value = std::initializer_list<ForeignMessageLite<>>{{.c = 219}, {.c = 319}}});
+      repeatedgroup_extension_lite{.value = std::initializer_list<RepeatedGroup_extension_lite<>>{
+                                       {.a = 217, .unknown_fields_ = {}}, {.a = 317, .unknown_fields_ = {}}}});
+  expect_set_extension_ok(repeated_nested_message_extension_lite{
+      .value = std::initializer_list<TestAllTypesLite::NestedMessage>{
+          {.bb = 218, .cc = {}, .dd{}, .unknown_fields_ = {}}, {.bb = 318, .cc = {}, .dd = {}, .unknown_fields_ = {}}}});
+  expect_set_extension_ok(
+      repeated_foreign_message_extension_lite{.value = std::initializer_list<ForeignMessageLite<>>{
+                                                  {.c = 219, .unknown_fields_ = {}}, {.c = 319, .unknown_fields_ = {}}}});
   expect_set_extension_ok(repeated_import_message_extension_lite{
-      .value = std::initializer_list<protobuf_unittest_import::ImportMessageLite<>>{{.d = 220}, {.d = 320}}});
+      .value = std::initializer_list<protobuf_unittest_import::ImportMessageLite<>>{{.d = 220, .unknown_fields_ = {}},
+                                                                                    {.d = 320, .unknown_fields_ = {}}}});
   expect_set_extension_ok(
       repeated_lazy_message_extension_lite{.value = std::initializer_list<TestAllTypesLite::NestedMessage>{
-                                               {.bb = 227, .cc = {}, .dd = {}}, {.bb = 327, .cc = {}, .dd = {}}}});
+                                               {.bb = 227, .cc = {}, .dd = {}, .unknown_fields_ = {}},
+                                               {.bb = 327, .cc = {}, .dd = {}, .unknown_fields_ = {}}}});
 
   expect_set_extension_ok(repeated_nested_enum_extension_lite{
       .value = std::initializer_list{TestAllTypesLite::NestedEnum::BAR, TestAllTypesLite::NestedEnum::BAZ}});
@@ -734,7 +741,7 @@ inline void SetOneofFields(TestAllExtensionsLite *message) {
   using namespace protobuf_unittest;
 
   expect_set_extension_ok(oneof_uint32_extension_lite{.value = 601});
-  expect_set_extension_ok(oneof_nested_message_extension_lite{.value = {.bb = 602, .cc = {}, .dd = {}}});
+  expect_set_extension_ok(oneof_nested_message_extension_lite{.value = {.bb = 602, .cc = {}, .dd = {}, .unknown_fields_={}}});
   expect_set_extension_ok(oneof_string_extension_lite{.value = "603"});
   expect_set_extension_ok(oneof_bytes_extension_lite{.value = "604"_bytes});
 }
@@ -861,23 +868,23 @@ inline void ExpectAllSet(const TestAllExtensionsLite &message) {
   expect_extension_range_eq({"216"_bytes, "316"_bytes}, protobuf_unittest::repeated_bytes_extension_lite<>{});
 
   expect_extension_range_eq(
-      std::initializer_list<protobuf_unittest::RepeatedGroup_extension_lite<>>{{.a = 217}, {.a = 317}},
+      std::initializer_list<protobuf_unittest::RepeatedGroup_extension_lite<>>{{.a = 217, .unknown_fields_={}}, {.a = 317, .unknown_fields_={}}},
       protobuf_unittest::repeatedgroup_extension_lite{});
 
   expect_extension_range_eq(
-      std::initializer_list<typename TestAllTypesLite::NestedMessage>{{.bb = 218, .cc = {}, .dd = {}},
-                                                                      {.bb = 318, .cc = {}, .dd = {}}},
+      std::initializer_list<typename TestAllTypesLite::NestedMessage>{{.bb = 218, .cc = {}, .dd = {}, .unknown_fields_={}},
+                                                                      {.bb = 318, .cc = {}, .dd = {}, .unknown_fields_={}}},
       protobuf_unittest::repeated_nested_message_extension_lite<>{});
 
-  expect_extension_range_eq({{.c = 219}, {.c = 319}}, protobuf_unittest::repeated_foreign_message_extension_lite<>{});
+  expect_extension_range_eq({{.c = 219, .unknown_fields_={}}, {.c = 319, .unknown_fields_={}}}, protobuf_unittest::repeated_foreign_message_extension_lite<>{});
 
   expect_extension_range_eq(
-      std::initializer_list<protobuf_unittest_import::ImportMessageLite<>>{{.d = 220}, {.d = 320}},
+      std::initializer_list<protobuf_unittest_import::ImportMessageLite<>>{{.d = 220, .unknown_fields_={}}, {.d = 320, .unknown_fields_={}}},
       protobuf_unittest::repeated_import_message_extension_lite<>{});
 
   expect_extension_range_eq(
-      std::initializer_list<typename TestAllTypesLite::NestedMessage>{{.bb = 227, .cc = {}, .dd = {}},
-                                                                      {.bb = 327, .cc = {}, .dd = {}}},
+      std::initializer_list<typename TestAllTypesLite::NestedMessage>{{.bb = 227, .cc = {}, .dd = {}, .unknown_fields_={}},
+                                                                      {.bb = 327, .cc = {}, .dd = {}, .unknown_fields_={}}},
       protobuf_unittest::repeated_lazy_message_extension_lite<>{});
 
   expect_extension_range_eq({TestAllTypesLite::NestedEnum::BAR, TestAllTypesLite::NestedEnum::BAZ},

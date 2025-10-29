@@ -15,7 +15,8 @@ using namespace boost::ut;
 const suite test_any = [] {
   "any"_test = [] {
     protobuf_unittest::TestAny message;
-    google::protobuf::FieldMask fm{.paths = {"/usr/share", "/usr/local/share"}};
+    google::protobuf::FieldMask fm;
+    fm.paths = {"/usr/share", "/usr/local/share"};
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm).ok());
 
     std::vector<char> buf;
@@ -38,7 +39,8 @@ const suite test_any = [] {
 
     TestAny message;
     std::array<std::string_view, 2> paths{"/usr/share"sv, "/usr/local/share"sv};
-    google::protobuf::FieldMask<hpp::proto::non_owning_traits> fm{.paths = paths};
+    google::protobuf::FieldMask<hpp::proto::non_owning_traits> fm;
+    fm.paths = paths;
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm, hpp::proto::alloc_from{mr}).ok());
 
     std::vector<char> buf;
@@ -54,7 +56,8 @@ const suite test_any = [] {
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   "any_json_wellknown"_test = [] {
     protobuf_unittest::TestAny message;
-    google::protobuf::FieldMask fm{.paths = {"/usr/share", "/usr/local/share"}};
+    google::protobuf::FieldMask fm;
+    fm.paths = {"/usr/share", "/usr/local/share"};
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm).ok());
 
     auto ser =

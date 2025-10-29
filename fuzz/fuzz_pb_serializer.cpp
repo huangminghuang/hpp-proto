@@ -2,9 +2,6 @@
 #include <google/protobuf/map_unittest.pb.hpp>
 #include <google/protobuf/unittest.pb.hpp>
 #include <google/protobuf/unittest_proto3.pb.hpp>
-#include <non_owning/google/protobuf/map_unittest.pb.hpp>
-#include <non_owning/google/protobuf/unittest.pb.hpp>
-#include <non_owning/google/protobuf/unittest_proto3.pb.hpp>
 
 std::vector<std::vector<char>> split_input(FuzzedDataProvider &provider) {
   std::vector<std::vector<char>> result;
@@ -22,9 +19,11 @@ std::vector<std::vector<char>> split_input(FuzzedDataProvider &provider) {
   return result;
 }
 
-using messages_t = std::tuple<proto3_unittest::TestAllTypes, protobuf_unittest::TestAllTypes,
-                              protobuf_unittest::TestMap, non_owning::proto3_unittest::TestAllTypes,
-                              non_owning::protobuf_unittest::TestAllTypes, non_owning::protobuf_unittest::TestMap>;
+using messages_t =
+    std::tuple<proto3_unittest::TestAllTypes<>, protobuf_unittest::TestAllTypes<>, protobuf_unittest::TestMap<>,
+               proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits>,
+               protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits>,
+               protobuf_unittest::TestMap<hpp::proto::non_owning_traits>>;
 
 hpp::proto::status deserialize_data(FuzzedDataProvider &provider, uint32_t choice, std::index_sequence<>) { return {}; }
 
