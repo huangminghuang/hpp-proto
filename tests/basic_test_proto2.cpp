@@ -2,6 +2,8 @@
 #include <unordered_map>
 #include <map>
 #include "basic_test_proto2.pb.hpp"
+
+using namespace test;
 // clang-format on
 int main() {
   TestMessage message;

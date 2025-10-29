@@ -162,6 +162,17 @@ else()
     target_link_libraries(dynamic_message_test PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
     add_test(NAME dynamic_message_test COMMAND dynamic_message_test WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+
+    add_library(hpp_options_test_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/hpp_options_test.proto")
+    protobuf_generate_hpp(
+            TARGET hpp_options_test_lib
+            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    target_include_directories(hpp_options_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_executable(hpp_options_test hpp_options_test.cpp)
+    target_link_libraries(hpp_options_test PRIVATE hpp_options_test_lib)
+
     if(edition_support)
         add_library(unittest_lite_proto_lib INTERFACE
             "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_lite.proto"
@@ -194,7 +205,7 @@ else()
         protobuf_generate_hpp(
             TARGET basic_test_proto2_lib
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field")
+            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,namespace_prefix=test,export_request=basic_test_proto2.request.binpb")
 
         add_executable(basic_test_proto2 basic_test_proto2.cpp)
         target_link_libraries(basic_test_proto2 PRIVATE basic_test_proto2_lib)

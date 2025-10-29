@@ -1,4 +1,4 @@
-#include "owning/benchmark_messages_proto3.pb.hpp"
+#include "hpp/benchmark_messages_proto3.pb.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -20,7 +20,7 @@ int main(int argc, const char **argv) {
   }
   auto data = read_data_file(args[1]);
 
-  owning::benchmarks::proto3::GoogleMessage1 message;
+  hpp::benchmarks::proto3::GoogleMessage1 message;
   if (!hpp::proto::read_proto(message, data).ok()) {
     std::cerr << "decode failure\n";
     return 1;

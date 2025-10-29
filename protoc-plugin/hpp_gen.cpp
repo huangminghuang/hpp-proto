@@ -89,6 +89,9 @@ std::string make_qualified_cpp_name(const std::string &namespace_prefix, std::st
   std::string result;
   std::size_t i = 0;
   std::size_t j = 0;
+  if (name == ".") {
+    return namespace_prefix;
+  }
   while ((j = name.find('.', i)) != std::string_view::npos) {
     if (j == 0) {
       if (!namespace_prefix.empty()) {
@@ -266,14 +269,6 @@ struct hpp_addons {
   using map_t = std::unordered_map<T, U>;
 
   static hpp::proto::optional<std::string> namespace_prefix;
-
-  static auto default_file_options_extensions() {
-    FileOptions fileopts;
-    if (!fileopts.set_extension(hpp::proto::hpp_file_opts{.value = {.namespace_prefix = namespace_prefix}}).ok()) {
-      std::cerr << "Failed to set default file options extensions\n";
-    }
-    return fileopts.unknown_fields_;
-  }
 
   template <typename Derived>
   struct field_descriptor {
@@ -474,7 +469,8 @@ struct hpp_addons {
     std::string qualified_name;
     bool continuous = true;
 
-    explicit enum_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options) : cpp_name(resolve_keyword(self.proto().name)) {
+    explicit enum_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options)
+        : cpp_name(resolve_keyword(self.proto().name)) {
       sorted_values.resize(self.proto().value.size());
       std::ranges::transform(self.proto().value, sorted_values.begin(), [](auto &desc) { return desc.number; });
       std::ranges::sort(sorted_values);
@@ -491,7 +487,8 @@ struct hpp_addons {
   struct oneof_descriptor {
     std::string cpp_name;
 
-    explicit oneof_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options) : cpp_name(resolve_keyword(self.proto().name)) {}
+    explicit oneof_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options)
+        : cpp_name(resolve_keyword(self.proto().name)) {}
   };
 
   template <typename Derived>
@@ -527,7 +524,11 @@ struct hpp_addons {
           cpp_name(self.proto().name) {
       hpp::proto::hpp_file_opts opts;
       if (self.options().get_extension(opts).ok()) {
-        namespace_prefix = opts.value.namespace_prefix.value();
+        if (opts.value.namespace_prefix.has_value()) {
+          namespace_prefix = opts.value.namespace_prefix.value();
+        } else if (hpp_addons::namespace_prefix.has_value()) {
+          namespace_prefix = *hpp_addons::namespace_prefix;
+        }
         cpp_namespace = make_qualified_cpp_name(namespace_prefix, "." + self.proto().package);
         std::replace_if(cpp_name.begin(), cpp_name.end(), [](unsigned char c) { return std::isalnum(c) == 0; }, '_');
         cpp_name = resolve_keyword(cpp_name);
@@ -617,7 +618,7 @@ struct code_generator {
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto* field = static_cast<field_descriptor_t*>(f);
+        auto *field = static_cast<field_descriptor_t *>(f);
         auto *message = parent_message_of(field);
         if (std::ranges::find(unresolved, message) != unresolved.end()) {
           used_by_messages[message] |=
@@ -638,7 +639,7 @@ struct code_generator {
     for (auto *depended : unresolved) {
       std::map<message_descriptor_t *, bool> used_by_messages;
       for (auto *f : depended->used_by_fields) {
-        auto* field = static_cast<field_descriptor_t*>(f);
+        auto *field = static_cast<field_descriptor_t *>(f);
         auto *message = parent_message_of(field);
         if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry()) {
           used_by_messages[message] |= !(message->is_map_entry());
