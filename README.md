@@ -2,29 +2,62 @@
 ![linux](https://github.com/huangminghuang/hpp-proto/actions/workflows/linux.yml/badge.svg)![macos](https://github.com/huangminghuang/hpp-proto/actions/workflows/macos.yml/badge.svg)![windows](https://github.com/huangminghuang/hpp-proto/actions/workflows/windows.yml/badge.svg)
 [![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC)](https://codecov.io/github/huangminghuang/hpp-proto)[![Codacy Badge](https://app.codacy.com/project/badge/Grade/c629f1cf7a7c45b3b3640362da4ac95a)](https://app.codacy.com/gh/huangminghuang/hpp-proto/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-Hpp-proto is a lightweight, high-performance Protocol Buffers implementation in C++23. It maps Protocol Buffers messages directly to simple C++ aggregates, using only C++ built-in or standard library types. Apart from UTF-8 validation, the serialization code for these mapped aggregates is entirely header-only, ensuring minimal dependencies and efficient performance.
+Hpp-proto is a lightweight, high-performance Protocol Buffers implementation in C++23. Generated messages are templates that map Protocol Buffers definitions to simple C++ aggregates whose member types are supplied by a trait parameter. The default trait sticks to familiar C++ standard library types so you can use the messages like plain aggregates. Apart from UTF-8 validation, the serialization code for these mapped aggregates is entirely header-only, keeping dependencies minimal.
 
-Compared to Google’s implementation, hpp-proto adopts a minimalistic design that greatly reduces code size while offering superior performance in benchmarks where runtime reflection is unnecessary. Additionally, hpp-proto supports a non-owning mode, mapping all variable-length fields to lightweight types such as std::string_view or equality_comparable_span. This mode allows users to customize memory management during deserialization, further enhancing efficiency. These features make hpp-proto an excellent choice for performance-critical, real-time, or resource-constrained environments.
+Compared to Google’s implementation, hpp-proto adopts a minimalistic design that greatly reduces code size while offering superior performance in benchmarks where runtime reflection is unnecessary. Trait-driven generation also enables tailored memory layouts: swap in a view-based or arena-backed trait without touching generated code. These capabilities make hpp-proto an excellent choice for performance-critical, real-time, or resource-constrained environments.
 # Features
 * Supports Protocol Buffers syntax 2 and 3 and [editions](https://protobuf.dev/editions/overview/).
 * Supports the serialization of [ProtoJSON format](https://protobuf.dev/programming-guides/json/), utilizing a slightly modified version of the [glaze](https://github.com/stephenberry/glaze) library.
 * Significantly smaller code size compared to Google's C++ implementation.
 * Faster performance than Google's C++ implementation.
-* Maps all Protocol Buffers message definitions to simple C++ aggregates using standard C++ library types.
+* Maps all Protocol Buffers message definitions to templated C++ aggregates whose member types come from user-provided traits.
 * Aside from [UTF-8 validation](https://github.com/simdutf/is_utf8), all generated code and the core library are header-only.
 * Each generated C++ aggregate is associated with static C++ reflection data for efficient Protocol Buffers encoding and decoding.
 * All generated message types are equality-comparable, making them useful in unit testing.
 * Completely exception-free.
-* Supports non-owning mode code generation, mapping string and repeated fields to `std::string_view` and `hpp::proto::equality_comparable_span` which derives from `std::span` and adds the equality comparator. 
-Non-owning mode can be enabled globally via [protoc plugin options](docs/Code_Generation_Guide.md##plugin-options) 
-or selectively using [protobuf extensions](docs/Code_Generation_Guide.md#non-owning-mode-only-for-specific-files-messages-or-fields).
+* Ships ready-made trait sets, including owning (`hpp::proto::default_traits`) and view-based (`hpp::proto::non_owning_traits`) configurations, and composes them with mixins such as `hpp::proto::keep_unknown_fields`.
+* Pick the trait per instantiation: alias the same generated message as an owning struct in one TU and a view in another, or supply a custom trait to integrate with your allocator, span, or container types.
 * Enables compile-time serialization.
+
+## Trait-Based Design
+- **Goals**  
+  - Decouple generated message layouts from specific container types.  
+  - Let projects pick memory-management strategies (value-owning, arena-backed, view-only) without regenerating code.  
+  - Support incremental migration: different translation units can use different traits for the same `.proto` without ABI conflicts.
+
+- **What Traits Customize**  
+  - `string_t`, `bytes_t`: swap `std::string`/`std::vector<std::byte>` for `std::pmr::string`, ropes, or view types.  
+  - `repeated_t<T>`: choose storage for repeated fields; e.g. `std::pmr::vector`, `small_vector`, or spans.  
+  - `map_t<Key, Value>`: hook map-like containers that match your performance profile (flat_map, ordered map, btree, etc.).  
+- `optional_recursive_t<T>`: control how recursive embedded messages manage lifetimes; defaults to heap-based or view-based holders.  
+- `unknown_fields_range_t`: determine how unknown data is preserved or discarded (mix in `keep_unknown_fields` to retain them).
+
+- **Supplied Traits**  
+  - `hpp::proto::default_traits`: owning aggregates backed by STL containers.  
+  - `hpp::proto::non_owning_traits`: zero-copy views using `std::string_view` and `hpp::proto::equality_comparable_span`. Map fields are exposed as simple sequences of key/value pairs; no deduplication is attempted while reading or writing, so applications should treat the last entry for a repeated key as authoritative.  
+  - `hpp::proto::keep_unknown_fields<Base>`: decorator that enables unknown-field retention for any base trait.
+
+- **Custom Trait Example**
+
+  ```cpp
+  struct pmr_traits : hpp::proto::default_traits {
+    using string_t = std::pmr::string;
+    using bytes_t = std::pmr::vector<std::byte>;
+    template <typename T>
+    using repeated_t = std::pmr::vector<T>;
+  };
+
+  using PmrPerson = tutorial::Person<pmr_traits>;
+  ```
+
+  Because metadata generators (`pb_meta`, `glz::meta`, descriptors) mirror the message’s trait parameter, the rest of the API continues to work when you plug in your own containers.
+
+  **Important:** Keep the composability contract intact: if you alias repeated/map containers to trivially destructible views (e.g. `std::span`) while `string_t`/`bytes_t` are owning types (e.g. `std::string`), destructors for nested values may never run, leaking resources. Always ensure the lifetime semantics between repeated/map containers and the element types remain compatible.
 
 ## Limitations
 * Lacks runtime reflection support.
 * Lacks support for extra json print options in the google C++ protobuf implementation like `always_print_fields_with_no_presence`, `always_print_enums_as_ints`,
   `preserve_proto_field_names` or`unquote_int64_if_possible`.
-* Unknown fields are always discarded during deserialization.
 
 ## Comparison with google protobuf C++ implementation
 ### System Configuration
@@ -154,10 +187,7 @@ find_package(hpp_proto CONFIG REQUIRED)
 
 add_library(addressbook_lib INTERFACE addressbook.proto)
 target_include_directories(addressbook_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate_hpp(TARGET addressbook_lib
-# uncomment the next line for non-owning mode                 
-#                 PLUGIN_OPTIONS non_owning 
-)
+protobuf_generate_hpp(TARGET addressbook_lib)
 
 add_executable(tutorial_proto addressbook.cpp)
 target_link_libraries(tutorial_proto PRIVATE addressbook_lib)
@@ -187,10 +217,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(hpp_proto)
 add_library(addressbook_lib INTERFACE addressbook.proto)
 target_include_directories(addressbook_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate_hpp(TARGET addressbook_lib
-# uncomment the next line for non-owning mode  
-#                     PLUGIN_OPTIONS non_owning 
-)
+protobuf_generate_hpp(TARGET addressbook_lib)
 
 add_executable(tutorial_proto addressbook.cpp)
 target_link_libraries(tutorial_proto PRIVATE addressbook_lib)
@@ -200,105 +227,70 @@ target_link_libraries(tutorial_proto PRIVATE addressbook_lib)
 
 ## The hpp-proto API
 
-The mapping from proto messages to their C++ message types is straight forward, as shown in the following generated code. 
-Notice that the `*.msg.hpp` only contains the minimum message definitions and avoid the inclusion of headers related to the protobuf/JSON 
-encoding/decoding facilities. This makes those generated structures easier to be used as basic vocabulary types among modules without incurring unnecessary dependencies. 
-
-Below are the examples of the generated code for the `addressbook.proto` file in regular and non-owning modes.
-<details><summary> Regular Mode </summary>
-<p>
+Generated `.msg.hpp` headers stay lightweight: they declare only the data structures and avoid pulling in serialization helpers. Messages that depend on container types are emitted as templates whose member types come from the supplied `Traits` parameter. Nested enums and helper structs move into sibling namespaces and are re-exported through aliases so existing call sites can keep using familiar names.
 
 ```cpp
-// addressbook.msg.hpp
+// addressbook_proto3.msg.hpp (excerpt)
 namespace tutorial {
 
-using namespace hpp::proto::literals;
-struct Person {
+namespace Person__ {
   enum class PhoneType {
-    MOBILE = 0,
-    HOME = 1,
-    WORK = 2 
+    PHONE_TYPE_UNSPECIFIED = 0,
+    PHONE_TYPE_MOBILE = 1,
+    PHONE_TYPE_HOME = 2,
+    PHONE_TYPE_WORK = 3
   };
 
+  template <typename Traits = ::hpp::proto::default_traits>
   struct PhoneNumber {
-    std::string number = {};
-    PhoneType type = PhoneType::MOBILE;
+    using hpp_proto_traits_type = Traits;
+    typename Traits::string_t number;
+    PhoneType type = PhoneType::PHONE_TYPE_UNSPECIFIED;
 
-    bool operator == (const PhoneNumber&) const = default;
+    [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+    bool operator==(const PhoneNumber&) const = default;
   };
+} // namespace Person__
 
-  std::string name = {};
-  int32_t id = {};
-  std::string email = {};
-  std::vector<PhoneNumber> phones;
+template <typename Traits = ::hpp::proto::default_traits>
+struct Person {
+  using hpp_proto_traits_type = Traits;
+  using PhoneType = Person__::PhoneType;
+  using PhoneNumber = Person__::PhoneNumber<Traits>;
 
-  bool operator == (const Person&) const = default;
+  typename Traits::string_t name;
+  std::int32_t id = {};
+  typename Traits::string_t email;
+  Traits::template repeated_t<PhoneNumber> phones;
+
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  bool operator==(const Person&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct AddressBook {
-  std::vector<Person> people;
+  using hpp_proto_traits_type = Traits;
+  Traits::template repeated_t<Person<Traits>> people;
 
-  bool operator == (const AddressBook&) const = default;
+  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  bool operator==(const AddressBook&) const = default;
 };
-}
 
-// addressbook.pb.hpp
-#include "addressbook.msg.hpp"
-namespace tutorial {
-  auto pb_meta(const Person &) -> std::tuple<...> ;
-  auto pb_meta(const Person::PhoneNumber &) -> std::tuple<...> ;
-  auto pb_meta(const AddressBook &) -> std::tuple<...>;
 }
 ```
-</p>
-</details>
-<details><summary> Non-owning Mode </summary>
-<p>
+
+### Choosing Traits
+
+Pick the trait that matches the memory model you need and alias it for readability:
 
 ```cpp
-// addressbook.msg.hpp
-namespace tutorial {
-
-using namespace hpp::proto::literals;
-struct Person {
-  enum class PhoneType {
-    MOBILE = 0,
-    HOME = 1,
-    WORK = 2 
-  };
-
-  struct PhoneNumber {
-    std::string_view number = {};
-    PhoneType type = PhoneType::MOBILE;
-
-    bool operator == (const PhoneNumber&) const = default;
-  };
-
-  std::string_view name = {};
-  int32_t id = {};
-  std::string_view email = {};
-  hpp::proto::equality_comparable_span<const PhoneNumber> phones;
-
-  bool operator == (const Person&) const = default;
-};
-
-struct AddressBook {
-  hpp::proto::equality_comparable_span<const Person> people;
-
-  bool operator == (const AddressBook&) const = default;
-};
-}
-
-// addressbook.pb.hpp
-#include "addressbook.msg.hpp"
-namespace tutorial {
-  auto pb_meta(const Person &) -> std::tuple<...> ;
-  auto pb_meta(const Person::PhoneNumber &) -> std::tuple<...> ;
-  auto pb_meta(const AddressBook &) -> std::tuple<...>;
-}
+using OwningPerson = tutorial::Person<>;
+using PersonView = tutorial::Person<hpp::proto::non_owning_traits>;
+using PersonWithUnknowns = tutorial::Person<hpp::proto::keep_unknown_fields<hpp::proto::default_traits>>;
+using WorkspaceAddressBook = tutorial::AddressBook<my_custom_traits>;
 ```
-</p>
-</details>
+
+The same pattern applies to nested types: `OwningPerson::PhoneNumber` and `PersonView::PhoneNumber` refer to different instantiations of the generated template. The supporting metadata (`pb_meta`, `glz::meta`, descriptors) follows the message’s trait parameter automatically.
 
 ### Protobuf encoding/decoding APIs
 
@@ -307,47 +299,44 @@ The hpp-proto library provides an efficient and convenient interface for encodin
 -	`write_proto()`: Serializes a generated C++ message object into the binary Protobuf format.
 -	`read_proto()`: Deserializes a binary Protobuf-encoded buffer back into the corresponding C++ message object.
 
-These APIs offer flexible usage with overloads for returning either a status or an std::expected object (containing the result or an error). Below are demonstrations of their usage in both regular and non-owning modes.
+These APIs offer overloads that return either an `hpp::proto::status` or an `std::expected` (containing the result or an error). Alias the generated templates first, then invoke the helpers with the trait that matches your use case.
 
 <details> 
-<summary>Regular mode APIs</summary>
+<summary>Owning traits (`hpp::proto::default_traits`)</summary>
 <p>
 
 ```cpp
-#include <addressbook.pb.hpp> // Include "*.pb.hpp" for Protobuf APIs
+#include <addressbook.pb.hpp>
 
-// ....
-tutorial::Person in_msg, out_msg;
-msg1.name = "john";
+using Person = tutorial::Person<>;
+
+Person in_msg;
+in_msg.name = "john";
 
 std::string out_buffer;
-using namespace hpp::proto;
-// Serialize using the status return API
-if (!write_proto(in_msg, out_buffer).ok()) {
-  // Handle error
+if (!hpp::proto::write_proto(in_msg, out_buffer).ok()) {
+  // Handle error.
 }
 assert(out_buffer == "\x0a\x04john");
 
-// Serialize using the expected return API
-expected<std::string, std::errc> write_result = write_proto<std::string>(in_msg);
+std::expected<std::string, std::errc> write_result = hpp::proto::write_proto<std::string>(in_msg);
 assert(write_result.value() == "\x0a\x04john");
 
-std::string_view in_buffer = "\x0a\x04john";
-// Deserialize using the status return API
-if (!read_proto(out_msg, in_buffer).ok()) {
-  // Handle error
+std::string_view in_buffer = out_buffer;
+Person out_msg;
+if (!hpp::proto::read_proto(out_msg, in_buffer).ok()) {
+  // Handle error.
 }
 assert(out_msg.name == "john");
 
-// Deserialize using the expected return API
-expected<Person, std::errc> read_result = read_proto<Person>(in_msg);
+std::expected<Person, std::errc> read_result = hpp::proto::read_proto<Person>(in_buffer);
 assert(read_result.value().name == "john");
 ```
 </p>
 </details>
-<details> <summary>Non-owning mode APIs</summary>
+<details> <summary>View traits (`hpp::proto::non_owning_traits`)</summary>
 <p>
-In non-owning mode, variable-length fields in messages are mapped to lightweight types such as `std::string_view` or `equality_comparable_span`. Instead of copying values, non-owning messages provide views to the original data, requiring careful lifetime management of referenced memory to avoid invalid access.
+In non-owning mode, variable-length fields become lightweight views such as `std::string_view` or `hpp::proto::equality_comparable_span`. Instead of copying values, the deserialized message references memory owned by a caller-provided buffer. Make sure that buffer outlives the message instance.
 
 #### Key Differences in Non-Owning Mode
 
@@ -365,35 +354,21 @@ The option object allows you to specify memory resources for `read_proto()`:
 -	`alloc_from`: All memory used by the deserialized value is allocated from the provided memory resource.
 
 ```cpp
-#include <addressbook.pb.hpp> // Include "*.pb.hpp" for Protobuf APIs
+#include <addressbook.pb.hpp>
 
-// ....
-tutorial::Person in_msg, out_msg;
-msg1.name = "john";
-
-std::string out_buffer;
-using namespace hpp::proto;
-// Serialize using the status return API
-if (!write_proto(in_msg, out_buffer).ok()) {
-  // Handle error
-}
-assert(out_buffer == "\x0a\x04john");
-
-// Serialize using the expected return API
-expected<std::string, std::errc> write_result = write_proto<std::string>(in_msg);
-assert(write_result.value() == "\x0a\x04john");
+using PersonView = tutorial::Person<hpp::proto::non_owning_traits>;
 
 std::pmr::monotonic_buffer_resource pool;
 std::string_view in_buffer = "\x0a\x04john";
-// Deserialize using the status return API
-if (!read_proto(out_msg, in_buffer, alloc_from{pool}).ok()) {
-  // Handle error
+PersonView out_msg;
+if (!hpp::proto::read_proto(out_msg, in_buffer, hpp::proto::alloc_from{pool}).ok()) {
+  // Handle error.
 }
 assert(out_msg.name == "john");
 
-// Deserialize using the expected return API
-expected<Person, std::errc> read_result = read_proto<Person>(in_msg, alloc_from{pool});
-assert(read_result.value().name == "john");
+std::expected<PersonView, std::errc> read_result =
+    hpp::proto::read_proto<PersonView>(in_buffer, hpp::proto::alloc_from{pool});
+assert(read_result->name == "john");
 ```
 </p>
 </details>
@@ -409,62 +384,55 @@ Similar to Protobuf APIs, the JSON APIs provide overloads that return either a s
 In addition, `write_json()` can take an additional `indent` object for pretty printing. 
 Below is a demonstration of how to use these functions for encoding and decoding in regular and non-owning modes.
 
-<details><summary> Regular Mode </summary>
+<details><summary> Owning traits (`hpp::proto::default_traits`) </summary>
 <p>
 
 ```cpp
+#include "addressbook.glz.hpp"
 
-#include "addressbook.glz.hpp" // Include the "*.glz.hpp" for JSON APIs
-
-// ....
+using Person = tutorial::Person<>;
 std::string out_json;
-tutorial::Person in_msg;
+Person in_msg;
 in_msg.name = "john";
-using namespace hpp::proto;
-// Serialize using the status return API
-if (!write_json(in_msg, out_json).ok()) {
-    // Handle error
+if (!hpp::proto::write_json(in_msg, out_json).ok()) {
+    // Handle error.
 }
 
-// Serialize using the expected return API
-auto write_result = write_json(in_msg);
+auto write_result = hpp::proto::write_json(in_msg);
 assert(write_result.value() == out_json);
 
 // Pretty printing with 3 spaces indent
-if (!write_json(in_msg, out_json, indent<3>{}).ok()) {
-    // Handle error
+if (!hpp::proto::write_json(in_msg, out_json, hpp::proto::indent<3>{}).ok()) {
+    // Handle error.
 }
 
-tutorial::Person out_msg;
-// Deserialize using the status return API
-if (!read_json(out_msg, json).ok()) {
-    // Handle error
+Person out_msg;
+std::string_view in_json = out_json;
+if (!hpp::proto::read_json(out_msg, in_json).ok()) {
+    // Handle error.
 }
 
-// Deserialize using the expected return API
-auto read_result = read_json<tutorial::Person>(json);
+auto read_result = hpp::proto::read_json<Person>(in_json);
 assert(read_result.value() == out_msg);
 ```
 </p>
 </details>
-<details><summary> Non-owning Mode </summary>
+<details><summary> View traits (`hpp::proto::non_owning_traits`) </summary>
 <p>
 
 ```cpp
+#include "addressbook.glz.hpp"
 
-#include "addressbook.glz.hpp" // Include the "*.glz.hpp" for JSON APIs
-
-// ....
+using PersonView = tutorial::Person<hpp::proto::non_owning_traits>;
 std::pmr::monotonic_buffer_resource pool;
 
 std::string in_json = R"({"name":"john"})";
-tutorial::Person out_person;
-if (!read_json(out_person, in_json, alloc_from{pool}).ok()) {
-    // Handle error
+PersonView out_person;
+if (!hpp::proto::read_json(out_person, in_json, hpp::proto::alloc_from{pool}).ok()) {
+    // Handle error.
 }
 
-// alternatively, use the overload returning an expected object
-auto read_result = read_json<tutorial::Person>(in_json, alloc_from{pool});
+auto read_result = hpp::proto::read_json<PersonView>(in_json, hpp::proto::alloc_from{pool});
 assert(read_result.value() == out_person);
 ```
 </p>
