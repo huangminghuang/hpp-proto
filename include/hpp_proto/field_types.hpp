@@ -831,41 +831,17 @@ struct default_traits {
   };
 
   template <typename T>
-  using vector_t = vector_trait<T>::type;
-  template <typename T>
   using repeated_t = vector_trait<T>::type;
   using string_t = std::string;
-  using bytes_t = vector_t<std::byte>;
+  using bytes_t = std::vector<std::byte>;
 
   template <typename T>
   using optional_recursive_t = hpp::proto::heap_based_optional<T>;
 
   template <typename Key, typename Mapped>
-  struct map_trait {
-    using type = hpp::proto::flat_map<Key, Mapped>;
-  };
-
-  template <typename Mapped>
-  struct map_trait<bool, Mapped> {
-    using type = hpp::proto::flat_map<hpp::proto::boolean, Mapped>;
-  };
-
-  template <typename Key>
-  struct map_trait<Key, bool> {
-    using type = hpp::proto::flat_map<Key, hpp::proto::boolean>;
-  };
-
-  template <>
-  struct map_trait<bool, bool> {
-    using type = hpp::proto::flat_map<hpp::proto::boolean, hpp::proto::boolean>;
-  };
-
-  template <typename Key, typename Mapped>
-  using map_t = map_trait<Key, Mapped>::type;
-
-  struct unknown_fields_t {
-    bool operator==(const unknown_fields_t &) const = default;
-  };
+  using map_t = hpp::proto::flat_map<typename repeated_t<Key>::value_type, 
+                                     typename repeated_t<Mapped>::value_type, 
+                                     std::less<Key>, repeated_t<Key>, repeated_t<Mapped>>;
   struct unknown_fields_range_t {
     bool operator==(const unknown_fields_range_t &) const = default;
   };
@@ -884,10 +860,6 @@ struct non_owning_traits {
 
   template <typename Key, typename Mapped>
   using map_t = equality_comparable_span<const std::pair<Key, Mapped>>;
-
-  struct unknown_fields_t {
-    bool operator==(const unknown_fields_t &) const = default;
-  };
 
   struct unknown_fields_range_t {
     bool operator==(const unknown_fields_range_t &) const = default;

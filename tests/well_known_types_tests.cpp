@@ -195,15 +195,17 @@ const ut::suite test_value = [] {
     verify<Value>(*ser, Value{.kind = false, .unknown_fields_ = {}}, "false");
     verify<Value>(*ser, Value{.kind = 1.0, .unknown_fields_ = {}}, "1");
     verify<Value>(*ser, Value{.kind = "abc", .unknown_fields_ = {}}, R"("abc")");
-    verify<Value>(
-        *ser,
-        Value{.kind = ListValue{{Value{.kind = true, .unknown_fields_ = {}}, Value{.kind = 1.0, .unknown_fields_ = {}}},
-                                .unknown_fields_ = {}}},
-        "[true,1]");
     verify<Value>(*ser,
-                  Value{.kind = Struct{.fields = {{"f1", Value{.kind = true, {}}},
+                  Value{.kind = ListValue{.values = {Value{.kind = true, .unknown_fields_ = {}},
+                                                     Value{.kind = 1.0, .unknown_fields_ = {}}},
+                                          .unknown_fields_ = {}},
+                        .unknown_fields_ = {}},
+                  "[true,1]");
+    verify<Value>(*ser,
+                  Value{.kind = Struct{.fields = {{"f1", Value{.kind = true, .unknown_fields_ = {}}},
                                                   {"f2", Value{.kind = 1.0, .unknown_fields_ = {}}}},
-                                       .unknown_fields_ = {}}},
+                                       .unknown_fields_ = {}},
+                        .unknown_fields_ = {}},
                   R"({"f1":true,"f2":1})");
   };
 
@@ -214,7 +216,8 @@ const ut::suite test_value = [] {
     verify<Struct>(*ser,
                    Struct{.fields = {{"f1", Value{.kind = true, .unknown_fields_ = {}}},
                                      {"f2", Value{.kind = 1.0, .unknown_fields_ = {}}},
-                                     {"f3", Value{.kind = NullValue{}, .unknown_fields_ = {}}}}},
+                                     {"f3", Value{.kind = NullValue{}, .unknown_fields_ = {}}}},
+                          .unknown_fields_ = {}},
                    R"({"f1":true,"f2":1,"f3":null})", R"({
    "f1": true,
    "f2": 1,
@@ -231,8 +234,11 @@ const ut::suite test_value = [] {
   "list"_test = [&ser] {
     using ListValue = google::protobuf::ListValue<>;
     verify<ListValue>(*ser, ListValue{}, "[]");
-    verify<ListValue>(*ser, ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0, .unknown_fields_ = {}}}},
-                      "[true,1]", "[\n   true,\n   1\n]");
+    verify<ListValue>(
+        *ser,
+        ListValue{.values = {Value{.kind = true, .unknown_fields_ = {}}, Value{.kind = 1.0, .unknown_fields_ = {}}},
+                  .unknown_fields_ = {}},
+        "[true,1]", "[\n   true,\n   1\n]");
 
     std::string json_buf;
 
