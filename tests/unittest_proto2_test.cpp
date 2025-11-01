@@ -1,75 +1,167 @@
-
-#include "gpb_proto_json/gpb_proto_json.hpp"
-#include "unittest_proto2_util.hpp"
+#include "unittest_testsuite.hpp"
+#include <google/protobuf/unittest.glz.hpp>
 #include <google/protobuf/unittest.pb.hpp>
 
-using TestRequired_meta = decltype(pb_meta(std::declval<protobuf_unittest::TestRequired<>>()));
-static_assert(std::tuple_element_t<0, TestRequired_meta>::explicit_presence());
-static_assert(hpp::proto::concepts::has_meta<protobuf_unittest::TestAllTypes__::NestedMessage<hpp::proto::default_traits>>);
-//#if 0
-namespace ut = boost::ut;
 
-const ut::suite proto_test = [] {
-  using namespace boost::ut;
-  using namespace boost::ut::literals;
-  auto unittest_descriptorset = read_file("unittest.desc.binpb");
 
-  "protobuf"_test =
-      []<class T> {
-        T message;
-        T message2;
-        T message3;
+template <typename Traits>
+struct Proto2TypeMapping {
+  using TestAllTypes_t = protobuf_unittest::TestAllTypes<Traits>;
+  using TestAllExtensions_t = protobuf_unittest::TestAllExtensions<Traits>;
+  using TestPackedTypes_t = protobuf_unittest::TestPackedTypes<Traits>;
+  using TestPackedExtensions_t = protobuf_unittest::TestPackedExtensions<Traits>;
+  using TestUnpackedTypes_t = protobuf_unittest::TestUnpackedTypes<Traits>;
+  using NestedEnum = TestAllTypes_t::NestedEnum;
+  using ForeignEnum = protobuf_unittest::ForeignEnum;
+  using ImportEnum = protobuf_unittest_import::ImportEnum;
+  using ForeignMessage_t = protobuf_unittest::ForeignMessage<Traits>;
+  using ImportMessage_t = protobuf_unittest_import::ImportMessage<Traits>;
+  using NestedMessage_t = typename TestAllTypes_t::NestedMessage;
+  using RepeatedGroup_t = typename TestAllTypes_t::RepeatedGroup;
+  using RepeatedGroup_extension_t = protobuf_unittest::RepeatedGroup_extension<Traits>;
 
-        if constexpr (requires { TestUtil::ExpectClear(message); }) {
-          TestUtil::ExpectClear(message);
-        }
-        TestUtil::SetAll(&message);
-        message2 = message;
+  using oneof_uint32_extension_t = protobuf_unittest::oneof_uint32_extension;
+  using oneof_nested_message_extension_t = protobuf_unittest::oneof_nested_message_extension<Traits>;
+  using oneof_string_extension_t = protobuf_unittest::oneof_string_extension<Traits>;
+  using oneof_bytes_extension_t = protobuf_unittest::oneof_bytes_extension<Traits>;
 
-        std::vector<std::byte> data;
-        expect(hpp::proto::write_proto(message2, data).ok());
-        expect(hpp::proto::read_proto(message3, data).ok());
+  using my_extension_int_t = protobuf_unittest::my_extension_int;
+  using my_extension_string_t = protobuf_unittest::my_extension_string<Traits>;
 
-        TestUtil::ExpectAllSet(message);
-        TestUtil::ExpectAllSet(message2);
-        TestUtil::ExpectAllSet(message3);
-      } |
-      std::tuple<protobuf_unittest::TestAllTypes<>, protobuf_unittest::TestAllExtensions<>,
-                 protobuf_unittest::TestUnpackedTypes<>, protobuf_unittest::TestPackedTypes<>,
-                 protobuf_unittest::TestPackedExtensions<>>{};
+  using optional_int32_extension_t = protobuf_unittest::optional_int32_extension;
+  using optional_int64_extension_t = protobuf_unittest::optional_int64_extension;
+  using optional_uint32_extension_t = protobuf_unittest::optional_uint32_extension;
+  using optional_uint64_extension_t = protobuf_unittest::optional_uint64_extension;
+  using optional_sint32_extension_t = protobuf_unittest::optional_sint32_extension;
+  using optional_sint64_extension_t = protobuf_unittest::optional_sint64_extension;
+  using optional_fixed32_extension_t = protobuf_unittest::optional_fixed32_extension;
+  using optional_fixed64_extension_t = protobuf_unittest::optional_fixed64_extension;
+  using optional_sfixed32_extension_t = protobuf_unittest::optional_sfixed32_extension;
+  using optional_sfixed64_extension_t = protobuf_unittest::optional_sfixed64_extension;
+  using optional_float_extension_t = protobuf_unittest::optional_float_extension;
+  using optional_double_extension_t = protobuf_unittest::optional_double_extension;
+  using optional_bool_extension_t = protobuf_unittest::optional_bool_extension;
+  using optional_string_extension_t = protobuf_unittest::optional_string_extension<Traits>;
+  using optional_bytes_extension_t = protobuf_unittest::optional_bytes_extension<Traits>;
 
-#if !defined(HPP_PROTO_DISABLE_GLAZE)
-  "interoperate_with_google_protobuf_parser"_test =
-      [&]<class T> {
-        T original;
+  using optionalgroup_extension_t = protobuf_unittest::optionalgroup_extension<Traits>;
+  using optional_nested_message_extension_t = protobuf_unittest::optional_nested_message_extension<Traits>;
+  using optional_foreign_message_extension_t = protobuf_unittest::optional_foreign_message_extension<Traits>;
+  using optional_import_message_extension_t = protobuf_unittest::optional_import_message_extension<Traits>;
+  using optional_public_import_message_extension_t =
+      protobuf_unittest::optional_public_import_message_extension<Traits>;
+  using optional_lazy_message_extension_t = protobuf_unittest::optional_lazy_message_extension<Traits>;
 
-        TestUtil::SetAll(&original);
+  using optional_nested_enum_extension_t = protobuf_unittest::optional_nested_enum_extension;
+  using optional_foreign_enum_extension_t = protobuf_unittest::optional_foreign_enum_extension;
+  using optional_import_enum_extension_t = protobuf_unittest::optional_import_enum_extension;
 
-        std::vector<char> data;
-        expect(hpp::proto::write_proto(original, data).ok());
-        auto original_json = gpb_based::proto_to_json(unittest_descriptorset, hpp::proto::message_name(original),
-                                                      {data.data(), data.size()});
-        expect(fatal(!original_json.empty()));
-        auto generated_json = hpp::proto::write_json(original);
+  using optional_string_piece_extension_t = protobuf_unittest::optional_string_piece_extension<Traits>;
+  using optional_cord_extension_t = protobuf_unittest::optional_cord_extension<Traits>;
 
-        expect(eq(generated_json.value(), original_json));
+  using default_int32_extension_t = protobuf_unittest::default_int32_extension;
+  using default_int64_extension_t = protobuf_unittest::default_int64_extension;
+  using default_uint32_extension_t = protobuf_unittest::default_uint32_extension;
+  using default_uint64_extension_t = protobuf_unittest::default_uint64_extension;
+  using default_sint32_extension_t = protobuf_unittest::default_sint32_extension;
+  using default_sint64_extension_t = protobuf_unittest::default_sint64_extension;
+  using default_fixed32_extension_t = protobuf_unittest::default_fixed32_extension;
+  using default_fixed64_extension_t = protobuf_unittest::default_fixed64_extension;
+  using default_sfixed32_extension_t = protobuf_unittest::default_sfixed32_extension;
+  using default_sfixed64_extension_t = protobuf_unittest::default_sfixed64_extension;
+  using default_float_extension_t = protobuf_unittest::default_float_extension;
+  using default_double_extension_t = protobuf_unittest::default_double_extension;
+  using default_bool_extension_t = protobuf_unittest::default_bool_extension;
+  using default_string_extension_t = protobuf_unittest::default_string_extension<Traits>;
+  using default_bytes_extension_t = protobuf_unittest::default_bytes_extension<Traits>;
 
-        T msg;
-        expect(hpp::proto::read_json(msg, original_json).ok());
+  using default_nested_enum_extension_t = protobuf_unittest::default_nested_enum_extension;
+  using default_foreign_enum_extension_t = protobuf_unittest::default_foreign_enum_extension;
+  using default_import_enum_extension_t = protobuf_unittest::default_import_enum_extension;
 
-        TestUtil::ExpectAllSet(msg);
-      } |
-      std::tuple<protobuf_unittest::TestAllTypes<>, protobuf_unittest::TestUnpackedTypes<>,
-                 protobuf_unittest::TestPackedTypes<>>{};
-#endif
+  using default_string_piece_extension_t = protobuf_unittest::default_string_piece_extension<Traits>;
+  using default_cord_extension_t = protobuf_unittest::default_cord_extension<Traits>;
+
+  using repeated_int32_extension_t = protobuf_unittest::repeated_int32_extension<Traits>;
+  using repeated_int64_extension_t = protobuf_unittest::repeated_int64_extension<Traits>;
+  using repeated_uint32_extension_t = protobuf_unittest::repeated_uint32_extension<Traits>;
+  using repeated_uint64_extension_t = protobuf_unittest::repeated_uint64_extension<Traits>;
+  using repeated_sint32_extension_t = protobuf_unittest::repeated_sint32_extension<Traits>;
+  using repeated_sint64_extension_t = protobuf_unittest::repeated_sint64_extension<Traits>;
+  using repeated_fixed32_extension_t = protobuf_unittest::repeated_fixed32_extension<Traits>;
+  using repeated_fixed64_extension_t = protobuf_unittest::repeated_fixed64_extension<Traits>;
+  using repeated_sfixed32_extension_t = protobuf_unittest::repeated_sfixed32_extension<Traits>;
+  using repeated_sfixed64_extension_t = protobuf_unittest::repeated_sfixed64_extension<Traits>;
+  using repeated_float_extension_t = protobuf_unittest::repeated_float_extension<Traits>;
+  using repeated_double_extension_t = protobuf_unittest::repeated_double_extension<Traits>;
+  using repeated_bool_extension_t = protobuf_unittest::repeated_bool_extension<Traits>;
+  using repeated_string_extension_t = protobuf_unittest::repeated_string_extension<Traits>;
+  using repeated_bytes_extension_t = protobuf_unittest::repeated_bytes_extension<Traits>;
+
+  using repeatedgroup_extension_t = protobuf_unittest::repeatedgroup_extension<Traits>;
+  using repeated_nested_message_extension_t = protobuf_unittest::repeated_nested_message_extension<Traits>;
+  using repeated_foreign_message_extension_t = protobuf_unittest::repeated_foreign_message_extension<Traits>;
+  using repeated_import_message_extension_t = protobuf_unittest::repeated_import_message_extension<Traits>;
+  using repeated_lazy_message_extension_t = protobuf_unittest::repeated_lazy_message_extension<Traits>;
+  using repeated_nested_enum_extension_t = protobuf_unittest::repeated_nested_enum_extension<Traits>;
+  using repeated_foreign_enum_extension_t = protobuf_unittest::repeated_foreign_enum_extension<Traits>;
+  using repeated_import_enum_extension_t = protobuf_unittest::repeated_import_enum_extension<Traits>;
+
+  using repeated_string_piece_extension_t = protobuf_unittest::repeated_string_piece_extension<Traits>;
+  using repeated_cord_extension_t = protobuf_unittest::repeated_cord_extension<Traits>;
+
+  using packed_int32_extension_t = protobuf_unittest::packed_int32_extension<Traits>;
+  using packed_int64_extension_t = protobuf_unittest::packed_int64_extension<Traits>;
+  using packed_uint32_extension_t = protobuf_unittest::packed_uint32_extension<Traits>;
+  using packed_uint64_extension_t = protobuf_unittest::packed_uint64_extension<Traits>;
+  using packed_sint32_extension_t = protobuf_unittest::packed_sint32_extension<Traits>;
+  using packed_sint64_extension_t = protobuf_unittest::packed_sint64_extension<Traits>;
+  using packed_fixed32_extension_t = protobuf_unittest::packed_fixed32_extension<Traits>;
+  using packed_fixed64_extension_t = protobuf_unittest::packed_fixed64_extension<Traits>;
+  using packed_sfixed32_extension_t = protobuf_unittest::packed_sfixed32_extension<Traits>;
+  using packed_sfixed64_extension_t = protobuf_unittest::packed_sfixed64_extension<Traits>;
+  using packed_float_extension_t = protobuf_unittest::packed_float_extension<Traits>;
+  using packed_double_extension_t = protobuf_unittest::packed_double_extension<Traits>;
+  using packed_bool_extension_t = protobuf_unittest::packed_bool_extension<Traits>;
+  using packed_enum_extension_t = protobuf_unittest::packed_enum_extension<Traits>;
+
+  using unpacked_int32_extension_t = protobuf_unittest::unpacked_int32_extension<Traits>;
+  using unpacked_int64_extension_t = protobuf_unittest::unpacked_int64_extension<Traits>;
+  using unpacked_uint32_extension_t = protobuf_unittest::unpacked_uint32_extension<Traits>;
+  using unpacked_uint64_extension_t = protobuf_unittest::unpacked_uint64_extension<Traits>;
+  using unpacked_sint32_extension_t = protobuf_unittest::unpacked_sint32_extension<Traits>;
+  using unpacked_sint64_extension_t = protobuf_unittest::unpacked_sint64_extension<Traits>;
+  using unpacked_fixed32_extension_t = protobuf_unittest::unpacked_fixed32_extension<Traits>;
+  using unpacked_fixed64_extension_t = protobuf_unittest::unpacked_fixed64_extension<Traits>;
+  using unpacked_sfixed32_extension_t = protobuf_unittest::unpacked_sfixed32_extension<Traits>;
+  using unpacked_sfixed64_extension_t = protobuf_unittest::unpacked_sfixed64_extension<Traits>;
+  using unpacked_float_extension_t = protobuf_unittest::unpacked_float_extension<Traits>;
+  using unpacked_double_extension_t = protobuf_unittest::unpacked_double_extension<Traits>;
+  using unpacked_bool_extension_t = protobuf_unittest::unpacked_bool_extension<Traits>;
+  using unpacked_enum_extension_t = protobuf_unittest::unpacked_enum_extension<Traits>;
+
+  constexpr static auto FOREIGN_FOO = ForeignEnum::FOREIGN_FOO;
+  constexpr static auto FOREIGN_BAR = ForeignEnum::FOREIGN_BAR;
+  constexpr static auto FOREIGN_BAZ = ForeignEnum::FOREIGN_BAZ;
+
+  constexpr static auto IMPORT_FOO = ImportEnum::IMPORT_FOO;
+  constexpr static auto IMPORT_BAR = ImportEnum::IMPORT_BAR;
+  constexpr static auto IMPORT_BAZ = ImportEnum::IMPORT_BAZ;
+
+  using protobuf_test_types =
+      std::tuple<TestAllTypes_t, TestAllExtensions_t, TestUnpackedTypes_t, TestPackedTypes_t, TestPackedExtensions_t>;
+
+  using interoperability_test_types = std::tuple<TestAllTypes_t, TestUnpackedTypes_t, TestPackedTypes_t>;
 };
 
-// TODO: need a test case of TestOneof2
+const boost::ut::suite proto2_test = [] {
+  "proto2"_test = []<class Traits> { TestSuite<Traits, Proto2TypeMapping>::run(); } |
+                  std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+
+};
 
 int main() {
-  const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
+  const auto result =
+      boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
 }
-// #endif
-
-// int main() {}

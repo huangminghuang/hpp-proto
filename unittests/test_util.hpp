@@ -43,12 +43,11 @@ inline std::ostream &operator<<(std::ostream &os, const std::vector<std::byte> &
 inline std::ostream &operator<<(std::ostream &os, std::span<const std::byte> bytes) { return os << to_hex(bytes); }
 
 template <hpp::proto::compile_time_string str>
-constexpr auto operator""_bytes_view() {
-  hpp::proto::bytes_literal<str> data;
-  return hpp::proto::bytes_view{data.data(), data.size()};
+constexpr auto operator""_bytes() {
+  return hpp::proto::bytes_literal<str>{};
 }
 
-template <hpp::proto::compile_time_string str>
-constexpr auto operator""_bytes() {
-  return static_cast<std::vector<std::byte>>(hpp::proto::bytes_literal<str>{});
+template <hpp::proto::compile_time_string cts>
+std::ostream &operator<<(std::ostream &os, hpp::proto::bytes_literal<cts> v) {
+  return os << std::span<const std::byte>(v);
 }

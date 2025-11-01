@@ -548,7 +548,7 @@ const ut::suite test_enums = [] {
         expect(std::ranges::equal(closed_msg.packed_repeated_field, expected_repeated));
 
         if constexpr (!std::is_empty_v<typename Traits::unknown_fields_range_t>) {
-          expect(std::ranges::equal(closed_msg.unknown_fields_.fields, "\x08\x04\x10\x04\x18\04\x22\x02\x08\x01"_bytes_view));
+          expect(eq(closed_msg.unknown_fields_.fields, "\x08\x04\x10\x04\x18\04\x22\x02\x08\x01"_bytes));
           expect(hpp::proto::write_proto(closed_msg, buffer).ok());
 
           open_enum_message restored_msg;
@@ -1269,12 +1269,12 @@ const ut::suite test_non_owning_extensions = [] {
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;
 
     std::array<std::pair<uint32_t, hpp::proto::equality_comparable_span<const std::byte>>, 6> fields_storage = {
-        {{10U, "\x50\x01"_bytes_view},
-         {11U, "\x5a\x04\x74\x65\x73\x74"_bytes_view},
-         {15U, "\x7a\x03\x08\x96\x01"_bytes_view},
-         {20U, "\xa0\x01\x01\xa0\x01\x02"_bytes_view},
-         {21U, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes_view},
-         {22U, "\xb2\x01\x03\01\02\03"_bytes_view}}};
+        {{10U, "\x50\x01"_bytes},
+         {11U, "\x5a\x04\x74\x65\x73\x74"_bytes},
+         {15U, "\x7a\x03\x08\x96\x01"_bytes},
+         {20U, "\xa0\x01\x01\xa0\x01\x02"_bytes},
+         {21U, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes},
+         {22U, "\xb2\x01\x03\01\02\03"_bytes}}};
 
     non_owning_extension_example const expected_value{.int_value = 150, .unknown_fields_ = {.fields = fields_storage}};
     non_owning_extension_example value;
@@ -1824,14 +1824,14 @@ const ut::suite composite_type = [] {
 
 int main() {
 #if !defined(_MSC_VER) || (defined(__clang_major__) && (__clang_major__ > 14))
-  constexpr_verify(carg(""_bytes_view), carg(empty{}));
-  constexpr_verify(carg("\x08\x96\x01"_bytes_view), carg(example{150}));
-  constexpr_verify(carg("\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes_view), carg(example{-1}));
-  constexpr_verify(carg(""_bytes_view), carg(example{}));
-  constexpr_verify(carg("\x0a\x03\x08\x96\x01"_bytes_view), carg(nested_example{.nested = example{150}}));
-  constexpr_verify(carg("\x08\x00"_bytes_view), carg(example_explicit_presence{.i = 0}));
-  constexpr_verify(carg(""_bytes_view), carg(example_default_type{}));
-  // constexpr_verify(carg("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes_view), carg(repeated_sint32{{0, 1, 2, 3,
+  constexpr_verify(carg(""_bytes), carg(empty{}));
+  constexpr_verify(carg("\x08\x96\x01"_bytes), carg(example{150}));
+  constexpr_verify(carg("\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"_bytes), carg(example{-1}));
+  constexpr_verify(carg(""_bytes), carg(example{}));
+  constexpr_verify(carg("\x0a\x03\x08\x96\x01"_bytes), carg(nested_example{.nested = example{150}}));
+  constexpr_verify(carg("\x08\x00"_bytes), carg(example_explicit_presence{.i = 0}));
+  constexpr_verify(carg(""_bytes), carg(example_default_type{}));
+  // constexpr_verify(carg("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"_bytes), carg(repeated_sint32{{0, 1, 2, 3,
   //  4, -1, -2, -3, -4}}));
 #endif
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

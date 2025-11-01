@@ -66,6 +66,8 @@ void verify(const hpp::proto::dynamic_serializer &ser, const T &msg, std::string
   }
 }
 
+// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
+
 const ut::suite test_timestamp = [] {
   using timestamp_t = google::protobuf::Timestamp<>;
 
@@ -73,13 +75,13 @@ const ut::suite test_timestamp = [] {
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_timestamp_proto());
   expect(fatal((ser.has_value())));
 
-  verify<timestamp_t>(*ser, timestamp_t{.seconds = 1000, .unknown_fields_ = {}}, R"("1970-01-01T00:16:40Z")");
-  verify<timestamp_t>(*ser, timestamp_t{.seconds = 1000, .nanos = 20, .unknown_fields_ = {}},
+  verify<timestamp_t>(*ser, timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
+  verify<timestamp_t>(*ser, timestamp_t{.seconds = 1000, .nanos = 20},
                       R"("1970-01-01T00:16:40.000000020Z")");
 
   timestamp_t msg;
   ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2Z")").ok());
-  ut::expect(msg == timestamp_t{.seconds = 1000, .nanos = 200000000, .unknown_fields_ = {}});
+  ut::expect(msg == timestamp_t{.seconds = 1000, .nanos = 200000000});
 
   ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2xZ")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")").ok());
@@ -87,7 +89,7 @@ const ut::suite test_timestamp = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").ok());
 
   ut::expect(
-      !hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000, .unknown_fields_ = {}}).has_value());
+      !hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
 
   "timestamp_second_overlong"_test = [&ser] {
     std::string json_buf;
@@ -100,7 +102,7 @@ const ut::suite test_timestamp = [] {
   "timestamp_nano_too_large"_test = [&ser] {
     std::string json_buf;
     std::string pb_data;
-    expect(hpp::proto::write_proto(timestamp_t{.seconds = 1000, .nanos = 1000000000, .unknown_fields_ = {}}, pb_data)
+    expect(hpp::proto::write_proto(timestamp_t{.seconds = 1000, .nanos = 1000000000}, pb_data)
                .ok());
     expect(!ser->proto_to_json("google.protobuf.Timestamp", pb_data, json_buf).ok());
   };
@@ -112,17 +114,17 @@ const ut::suite test_duration = [] {
       hpp::proto::dynamic_serializer::make(hpp::proto::file_descriptors::desc_set_google_protobuf_duration_proto());
   expect(fatal((ser.has_value())));
 
-  verify<duration_t>(*ser, duration_t{.seconds = 1000, .unknown_fields_ = {}}, R"("1000s")");
-  verify<duration_t>(*ser, duration_t{.seconds = -1000, .nanos = 0, .unknown_fields_ = {}}, R"("-1000s")");
-  verify<duration_t>(*ser, duration_t{.seconds = 1000, .nanos = 20, .unknown_fields_ = {}}, R"("1000.000000020s")");
-  verify<duration_t>(*ser, duration_t{.seconds = -1000, .nanos = -20, .unknown_fields_ = {}}, R"("-1000.000000020s")");
+  verify<duration_t>(*ser, duration_t{.seconds = 1000}, R"("1000s")");
+  verify<duration_t>(*ser, duration_t{.seconds = -1000, .nanos = 0}, R"("-1000s")");
+  verify<duration_t>(*ser, duration_t{.seconds = 1000, .nanos = 20}, R"("1000.000000020s")");
+  verify<duration_t>(*ser, duration_t{.seconds = -1000, .nanos = -20}, R"("-1000.000000020s")");
 
   duration_t msg;
   ut::expect(hpp::proto::read_json(msg, R"("1000.2s")").ok());
-  ut::expect(msg == duration_t{.seconds = 1000, .nanos = 200000000, .unknown_fields_ = {}});
+  ut::expect(msg == duration_t{.seconds = 1000, .nanos = 200000000});
 
   ut::expect(hpp::proto::read_json(msg, R"("-1000.2s")").ok());
-  ut::expect(msg == duration_t{.seconds = -1000, .nanos = -200000000, .unknown_fields_ = {}});
+  ut::expect(msg == duration_t{.seconds = -1000, .nanos = -200000000});
 
   ut::expect(!hpp::proto::read_json(msg, R"("1000")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("1000.s")").ok());
@@ -136,7 +138,7 @@ const ut::suite test_duration = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("1000.0000000000000000s")").ok());
 
   ut::expect(
-      !hpp::proto::write_json(duration_t{.seconds = 1000, .nanos = 1000000000, .unknown_fields_ = {}}).has_value());
+      !hpp::proto::write_json(duration_t{.seconds = 1000, .nanos = 1000000000}).has_value());
 };
 
 const ut::suite test_field_mask = [] {
@@ -146,7 +148,7 @@ const ut::suite test_field_mask = [] {
 
   using FieldMask = google::protobuf::FieldMask<>;
   verify<FieldMask>(*ser, FieldMask{}, R"("")");
-  verify<FieldMask>(*ser, FieldMask{.paths = {"abc", "def"}, .unknown_fields_ = {}}, R"("abc,def")");
+  verify<FieldMask>(*ser, FieldMask{.paths = {"abc", "def"}}, R"("abc,def")");
 };
 
 const ut::suite test_wrapper = [] {
@@ -190,22 +192,18 @@ const ut::suite test_value = [] {
   using ListValue = google::protobuf::ListValue<>;
   using Struct = google::protobuf::Struct<>;
   "value"_test = [&ser] {
-    verify<Value>(*ser, Value{.kind = NullValue{}, .unknown_fields_ = {}}, "null");
-    verify<Value>(*ser, Value{.kind = true, .unknown_fields_ = {}}, "true");
-    verify<Value>(*ser, Value{.kind = false, .unknown_fields_ = {}}, "false");
-    verify<Value>(*ser, Value{.kind = 1.0, .unknown_fields_ = {}}, "1");
-    verify<Value>(*ser, Value{.kind = "abc", .unknown_fields_ = {}}, R"("abc")");
+    verify<Value>(*ser, Value{.kind = NullValue{}}, "null");
+    verify<Value>(*ser, Value{.kind = true}, "true");
+    verify<Value>(*ser, Value{.kind = false}, "false");
+    verify<Value>(*ser, Value{.kind = 1.0}, "1");
+    verify<Value>(*ser, Value{.kind = "abc"}, R"("abc")");
     verify<Value>(*ser,
-                  Value{.kind = ListValue{.values = {Value{.kind = true, .unknown_fields_ = {}},
-                                                     Value{.kind = 1.0, .unknown_fields_ = {}}},
-                                          .unknown_fields_ = {}},
-                        .unknown_fields_ = {}},
+                  Value{.kind = ListValue{.values = {Value{.kind = true},
+                                                     Value{.kind = 1.0}}}},
                   "[true,1]");
     verify<Value>(*ser,
-                  Value{.kind = Struct{.fields = {{"f1", Value{.kind = true, .unknown_fields_ = {}}},
-                                                  {"f2", Value{.kind = 1.0, .unknown_fields_ = {}}}},
-                                       .unknown_fields_ = {}},
-                        .unknown_fields_ = {}},
+                  Value{.kind = Struct{.fields = {{"f1", Value{.kind = true}},
+                                                  {"f2", Value{.kind = 1.0}}}}},
                   R"({"f1":true,"f2":1})");
   };
 
@@ -214,10 +212,9 @@ const ut::suite test_value = [] {
     using NullValue = google::protobuf::NullValue;
     verify<Struct>(*ser, Struct{}, "{}");
     verify<Struct>(*ser,
-                   Struct{.fields = {{"f1", Value{.kind = true, .unknown_fields_ = {}}},
-                                     {"f2", Value{.kind = 1.0, .unknown_fields_ = {}}},
-                                     {"f3", Value{.kind = NullValue{}, .unknown_fields_ = {}}}},
-                          .unknown_fields_ = {}},
+                   Struct{.fields = {{"f1", Value{.kind = true}},
+                                     {"f2", Value{.kind = 1.0}},
+                                     {"f3", Value{.kind = NullValue{}}}}},
                    R"({"f1":true,"f2":1,"f3":null})", R"({
    "f1": true,
    "f2": 1,
@@ -236,8 +233,7 @@ const ut::suite test_value = [] {
     verify<ListValue>(*ser, ListValue{}, "[]");
     verify<ListValue>(
         *ser,
-        ListValue{.values = {Value{.kind = true, .unknown_fields_ = {}}, Value{.kind = 1.0, .unknown_fields_ = {}}},
-                  .unknown_fields_ = {}},
+        ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}},
         "[true,1]", "[\n   true,\n   1\n]");
 
     std::string json_buf;
@@ -254,6 +250,7 @@ const ut::suite test_value = [] {
 };
 
 #endif
+// NOLINTEND(clang-diagnostic-missing-designated-field-initializers)
 
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

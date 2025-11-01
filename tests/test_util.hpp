@@ -42,14 +42,8 @@ std::string to_hex(hpp::proto::concepts::contiguous_byte_range auto const &data)
 }
 
 template <hpp::proto::compile_time_string str>
-constexpr auto operator""_bytes_view() {
-  hpp::proto::bytes_literal<str> data;
-  return hpp::proto::bytes_view{data.data(), data.size()};
-}
-
-template <hpp::proto::compile_time_string str>
 constexpr auto operator""_bytes() {
-  return static_cast<std::vector<std::byte>>(hpp::proto::bytes_literal<str>{});
+  return hpp::proto::bytes_literal<str>{};
 }
 
 // NOLINTBEGIN(cert-dcl58-cpp)
@@ -77,4 +71,20 @@ inline std::ostream &operator<<(ostream &os, const vector<T> &c) {
 }
 
 } // namespace std
+
+namespace hpp::proto {
+template <compile_time_string cts>
+std::ostream &operator<<(std::ostream &os, bytes_literal<cts> v) {
+  return os << std::span<const std::byte>(v);
+}
+} // namespace hpp::proto
+
 // NOLINTEND(cert-dcl58-cpp)
+
+#if defined(__GNUC__)
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
+#else
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+#endif

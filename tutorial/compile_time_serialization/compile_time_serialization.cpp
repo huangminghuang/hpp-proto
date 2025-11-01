@@ -1,9 +1,8 @@
 #include "person.pb.hpp"
 
 template <hpp::proto::compile_time_string str>
-constexpr auto operator""_bytes_view() {
-  hpp::proto::bytes_literal<str> data;
-  return hpp::proto::bytes_view{data.data(), data.size()};
+constexpr auto operator""_bytes() {
+  return hpp::proto::bytes_literal<str>{};
 }
 
 using Person = tutorial::Person<>;
@@ -17,5 +16,5 @@ int main() {
 
   static_assert(std::ranges::equal(
       alex_pb,
-      "\x0a\x04\x41\x6c\x65\x78\x10\x01\x1a\x0e\x61\x6c\x65\x78\x40\x65\x6d\x61\x69\x6c\x2e\x63\x6f\x6d\x22\x0c\x0a\x08\x31\x39\x38\x39\x30\x36\x30\x34\x10\x01"_bytes_view));
+      "\x0a\x04\x41\x6c\x65\x78\x10\x01\x1a\x0e\x61\x6c\x65\x78\x40\x65\x6d\x61\x69\x6c\x2e\x63\x6f\x6d\x22\x0c\x0a\x08\x31\x39\x38\x39\x30\x36\x30\x34\x10\x01"_bytes));
 }

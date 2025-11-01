@@ -710,9 +710,13 @@ struct bytes_literal {
   constexpr operator equality_comparable_span<const std::byte>() const {
     return equality_comparable_span<const std::byte>{data(), size()};
   }
-  explicit operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
+  operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
 
   friend constexpr bool operator==(const bytes_literal &lhs, const equality_comparable_span<const std::byte> &rhs) {
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+  }
+
+  friend constexpr bool operator==(const bytes_literal &lhs, const std::vector<std::byte> &rhs) {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
   }
 };

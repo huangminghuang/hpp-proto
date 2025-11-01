@@ -292,10 +292,10 @@ const ut::suite test_bytes = [] {
   };
   "non_ownning_bytes"_test = [] {
     verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{}, R"({"field0":""})");
-    verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{.field0 = "foo"_bytes_view,
-                                                                                .field1 = "light work."_bytes_view,
-                                                                                .field2 = "light work"_bytes_view,
-                                                                                .field3 = "light wor"_bytes_view},
+    verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{.field0 = "foo"_bytes,
+                                                                                .field1 = "light work."_bytes,
+                                                                                .field2 = "light work"_bytes,
+                                                                                .field3 = "light wor"_bytes},
            R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
   };
 };

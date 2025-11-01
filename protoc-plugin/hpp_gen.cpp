@@ -388,13 +388,10 @@ struct hpp_addons {
 
     void set_bytes_default_value(const FieldDescriptorProto &proto) {
       if (!proto.default_value.empty()) {
-        default_value = fmt::format("std::initializer_list{{{0}}}",
-                                    fmt::join(proto.default_value | std::views::transform([](char c) {
-                                                return std::format("std::byte{{'{0}'}}", cpp_escape(c));
-                                              }),
-                                              ","));
+
         default_value_template_arg =
             fmt::format("hpp::proto::bytes_literal<\"{}\">{{}}", cpp_escape(proto.default_value));
+        default_value = default_value_template_arg;
       }
     }
 
