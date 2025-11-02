@@ -76,8 +76,7 @@ const ut::suite test_timestamp = [] {
   expect(fatal((ser.has_value())));
 
   verify<timestamp_t>(*ser, timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
-  verify<timestamp_t>(*ser, timestamp_t{.seconds = 1000, .nanos = 20},
-                      R"("1970-01-01T00:16:40.000000020Z")");
+  verify<timestamp_t>(*ser, timestamp_t{.seconds = 1000, .nanos = 20}, R"("1970-01-01T00:16:40.000000020Z")");
 
   timestamp_t msg;
   ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2Z")").ok());
@@ -88,8 +87,7 @@ const ut::suite test_timestamp = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").ok());
 
-  ut::expect(
-      !hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
 
   "timestamp_second_overlong"_test = [&ser] {
     std::string json_buf;
@@ -102,8 +100,7 @@ const ut::suite test_timestamp = [] {
   "timestamp_nano_too_large"_test = [&ser] {
     std::string json_buf;
     std::string pb_data;
-    expect(hpp::proto::write_proto(timestamp_t{.seconds = 1000, .nanos = 1000000000}, pb_data)
-               .ok());
+    expect(hpp::proto::write_proto(timestamp_t{.seconds = 1000, .nanos = 1000000000}, pb_data).ok());
     expect(!ser->proto_to_json("google.protobuf.Timestamp", pb_data, json_buf).ok());
   };
 };
@@ -137,8 +134,7 @@ const ut::suite test_duration = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("-1000. 10000000s")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("1000.0000000000000000s")").ok());
 
-  ut::expect(
-      !hpp::proto::write_json(duration_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 1000, .nanos = 1000000000}).has_value());
 };
 
 const ut::suite test_field_mask = [] {
@@ -197,13 +193,8 @@ const ut::suite test_value = [] {
     verify<Value>(*ser, Value{.kind = false}, "false");
     verify<Value>(*ser, Value{.kind = 1.0}, "1");
     verify<Value>(*ser, Value{.kind = "abc"}, R"("abc")");
-    verify<Value>(*ser,
-                  Value{.kind = ListValue{.values = {Value{.kind = true},
-                                                     Value{.kind = 1.0}}}},
-                  "[true,1]");
-    verify<Value>(*ser,
-                  Value{.kind = Struct{.fields = {{"f1", Value{.kind = true}},
-                                                  {"f2", Value{.kind = 1.0}}}}},
+    verify<Value>(*ser, Value{.kind = ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}}, "[true,1]");
+    verify<Value>(*ser, Value{.kind = Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}}}},
                   R"({"f1":true,"f2":1})");
   };
 
@@ -211,11 +202,10 @@ const ut::suite test_value = [] {
     using Struct = google::protobuf::Struct<>;
     using NullValue = google::protobuf::NullValue;
     verify<Struct>(*ser, Struct{}, "{}");
-    verify<Struct>(*ser,
-                   Struct{.fields = {{"f1", Value{.kind = true}},
-                                     {"f2", Value{.kind = 1.0}},
-                                     {"f3", Value{.kind = NullValue{}}}}},
-                   R"({"f1":true,"f2":1,"f3":null})", R"({
+    verify<Struct>(
+        *ser,
+        Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}, {"f3", Value{.kind = NullValue{}}}}},
+        R"({"f1":true,"f2":1,"f3":null})", R"({
    "f1": true,
    "f2": 1,
    "f3": null
@@ -231,10 +221,8 @@ const ut::suite test_value = [] {
   "list"_test = [&ser] {
     using ListValue = google::protobuf::ListValue<>;
     verify<ListValue>(*ser, ListValue{}, "[]");
-    verify<ListValue>(
-        *ser,
-        ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}},
-        "[true,1]", "[\n   true,\n   1\n]");
+    verify<ListValue>(*ser, ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}, "[true,1]",
+                      "[\n   true,\n   1\n]");
 
     std::string json_buf;
 

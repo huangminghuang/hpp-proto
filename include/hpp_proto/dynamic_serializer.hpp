@@ -1474,7 +1474,7 @@ public:
       if (auto ec = pb_serializer::extract_length_delimited_field(1, file_field, archive); !ec.ok()) {
         return std::unexpected(ec);
       }
-      unique_files.insert(std::string_view{reinterpret_cast<const char*>(file_field.data()), file_field.size()});
+      unique_files.insert(std::string_view{reinterpret_cast<const char *>(file_field.data()), file_field.size()});
     }
 
     return descriptor_pool<proto_json_addons>::make(unique_files).transform([](auto &&pool) {
@@ -1484,8 +1484,8 @@ public:
 
   static expected<dynamic_serializer, status> make(concepts::file_descriptor_pb_array auto const &...args) {
     std::unordered_set<std::string_view> unique_files;
-    auto insert_to_set = [&](auto const & arg) {
-      auto view = arg | std::views::transform([](const file_descriptor_pb& x) { return x.value; });
+    auto insert_to_set = [&](auto const &arg) {
+      auto view = arg | std::views::transform([](const file_descriptor_pb &x) { return x.value; });
       unique_files.insert(view.begin(), view.end());
     };
 

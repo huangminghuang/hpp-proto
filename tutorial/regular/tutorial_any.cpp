@@ -24,7 +24,7 @@ int main() {
               .map_string_nested_message = {{"Tiananmen", {.bb = 89}}, {"Square", {.bb = 64}}},
               .oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"};
 
- AnyDemo message;
+  AnyDemo message;
   expect(hpp::proto::pack_any(message.any_value.emplace(), alex).ok());
 
   std::vector<std::byte> buffer;

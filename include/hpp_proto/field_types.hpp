@@ -564,7 +564,6 @@ public:
   constexpr bool operator==(std::nullptr_t /* unused */) const { return !has_value(); }
 };
 
-
 /// equality_comparable_span<T> provides a span-like interface that is equality comparable and can be used when T is a
 /// recursive type.
 template <typename T>
@@ -602,7 +601,7 @@ public:
   constexpr equality_comparable_span(std::span<U> other) noexcept : _data(other.data()), _size(other.size()) {}
 
   template <typename R>
-    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>) 
+    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>)
   constexpr equality_comparable_span(R &&r) noexcept : equality_comparable_span(std::span<element_type>(r)) {}
 
   template <std::contiguous_iterator It>
@@ -621,7 +620,6 @@ public:
   [[nodiscard]] constexpr size_type size() const noexcept { return _size; }
   [[nodiscard]] constexpr size_type size_bytes() const noexcept { return _size * sizeof(T); }
 
-
   template <class U>
     requires std::is_convertible_v<U (*)[], T (*)[]>
   constexpr equality_comparable_span &operator=(std::span<U> s) noexcept {
@@ -631,10 +629,10 @@ public:
   }
 
   template <typename R>
-    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>) 
-  constexpr equality_comparable_span& operator=(R &&r) noexcept  {
-     *this = std::span<element_type>{r};
-     return *this;
+    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>)
+  constexpr equality_comparable_span &operator=(R &&r) noexcept {
+    *this = std::span<element_type>{r};
+    return *this;
   }
 
   [[nodiscard]] constexpr iterator begin() const noexcept { return _data; }
@@ -843,8 +841,7 @@ struct default_traits {
   using optional_recursive_t = hpp::proto::heap_based_optional<T>;
 
   template <typename Key, typename Mapped>
-  using map_t = hpp::proto::flat_map<typename repeated_t<Key>::value_type, 
-                                     typename repeated_t<Mapped>::value_type, 
+  using map_t = hpp::proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
                                      std::less<Key>, repeated_t<Key>, repeated_t<Mapped>>;
   struct unknown_fields_range_t {
     bool operator==(const unknown_fields_range_t &) const = default;

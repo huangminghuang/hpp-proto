@@ -17,7 +17,6 @@ std::ostream &operator<<(std::ostream &os, const T &v) {
   return os << hpp::proto::write_json(v).value();
 }
 
-
 template <typename Traits, template <typename> typename TypeMapping>
 struct TestSuite {
   using mapping_t = TypeMapping<Traits>;
@@ -750,8 +749,8 @@ struct TestSuite {
     expect_set_extension_ok(repeated_double_extension_t{.value = std::initializer_list<double>{212, 312}});
     expect_set_extension_ok(repeated_bool_extension_t{.value = std::initializer_list<bool_t>{true, false}});
     expect_set_extension_ok(repeated_string_extension_t{.value = std::initializer_list<string_t>{"215", "315"}});
-    expect_set_extension_ok(repeated_bytes_extension_t{
-        .value = std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes}});
+    expect_set_extension_ok(
+        repeated_bytes_extension_t{.value = std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes}});
 
     expect_set_extension_ok(
         repeatedgroup_extension_t{.value = std::initializer_list<RepeatedGroup_extension_t>{{.a = 217}, {.a = 317}}});
@@ -931,8 +930,7 @@ struct TestSuite {
     expect_extension_range_eq({212, 312}, repeated_double_extension_t{});
     expect_extension_range_eq({true, false}, repeated_bool_extension_t{});
     expect_extension_range_eq(std::initializer_list<string_t>{"215", "315"}, repeated_string_extension_t{});
-    expect_extension_range_eq(std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes},
-                              repeated_bytes_extension_t{});
+    expect_extension_range_eq(std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes}, repeated_bytes_extension_t{});
     expect_extension_range_eq({{.a = 217}, {.a = 317}}, repeatedgroup_extension_t{});
 
     expect_extension_range_eq({{.bb = 218}, {.bb = 318}}, repeated_nested_message_extension_t{});

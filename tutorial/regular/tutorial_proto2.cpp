@@ -4,7 +4,6 @@
 #include "addressbook_proto2.glz.hpp" // required for write_json() and read_json()
 #include "addressbook_proto2.pb.hpp"  // required for write_proto() and read_proto()
 
-
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";

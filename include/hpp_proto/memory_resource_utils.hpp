@@ -275,8 +275,10 @@ public:
   }
 
   template <std::ranges::sized_range R>
-  requires std::same_as<value_type, std::ranges::range_value_t<R>>
-  constexpr void assign_range(const R &r) { assign_range_with_size(r, std::ranges::size(r)); }
+    requires std::same_as<value_type, std::ranges::range_value_t<R>>
+  constexpr void assign_range(const R &r) {
+    assign_range_with_size(r, std::ranges::size(r));
+  }
 
   template <std::ranges::sized_range R>
   constexpr void append_range(const R &r) {
@@ -339,7 +341,7 @@ constexpr auto as_modifiable(concepts::is_pb_context auto &context, concepts::dy
 }
 template <typename T>
   requires(!concepts::dynamic_sized_view<T>)
-constexpr  auto as_modifiable(const auto & /* unused */, T &&view) ->decltype(std::forward<T>(view)) {
+constexpr auto as_modifiable(const auto & /* unused */, T &&view) -> decltype(std::forward<T>(view)) {
   return std::forward<T>(view);
 }
 

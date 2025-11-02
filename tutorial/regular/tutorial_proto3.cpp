@@ -54,8 +54,8 @@ int main() {
   expect(alex_nested_message->bb == 89);
   // NOLINTEND(bugprone-unchecked-optional-access)
 
-  std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string, hpp::proto::bytes>
-      &alex_oneof_field = alex.oneof_field;
+  std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string, hpp::proto::bytes> &alex_oneof_field =
+      alex.oneof_field;
 
   expect(alex_oneof_field.index() == Person::oneof_field_oneof_case::oneof_string);
   expect(std::get<std::string>(alex_oneof_field) ==

@@ -7,15 +7,15 @@ using namespace boost::ut;
 const boost::ut::suite dynamic_message_test = [] {
   using namespace boost::ut::literals;
 
-
   std::pmr::monotonic_buffer_resource descriptor_memory_pool;
 
   google::protobuf::FileDescriptorSet<hpp::proto::non_owning_traits> fileset;
-  if (! hpp::proto::read_proto(fileset, read_file("unittest.desc.binpb"), hpp::proto::alloc_from{descriptor_memory_pool}).ok() ){
+  if (!hpp::proto::read_proto(fileset, read_file("unittest.desc.binpb"), hpp::proto::alloc_from{descriptor_memory_pool})
+           .ok()) {
     throw std::runtime_error("Failed to read descriptor set");
   }
 
-  hpp::proto::dynamic_message_factory factory{std::move(fileset), descriptor_memory_pool };
+  hpp::proto::dynamic_message_factory factory{std::move(fileset), descriptor_memory_pool};
   expect(fatal(!factory.files().empty()));
 
   "unit"_test = [&factory](const std::string &message_name) -> void {
@@ -42,7 +42,6 @@ const boost::ut::suite dynamic_message_test = [] {
                                "protobuf_unittest.TestAllTypes",     "protobuf_unittest.TestPackedTypes",
                                "protobuf_unittest.TestMap",          "protobuf_unittest.TestUnpackedTypes",
                                "protobuf_unittest.TestAllTypesLite", "protobuf_unittest.TestPackedTypesLite"};
-                               
 };
 
 int main() {

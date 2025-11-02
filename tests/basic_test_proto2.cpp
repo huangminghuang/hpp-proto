@@ -23,5 +23,4 @@ int main() {
 
   static_assert(hpp::proto::concepts::optional<decltype(message.length_prefixed)>);
   static_assert(!std::tuple_element_t<6, meta_type>::is_delimited());
-
 }

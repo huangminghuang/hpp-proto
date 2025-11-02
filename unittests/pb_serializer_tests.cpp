@@ -477,12 +477,11 @@ struct open_enum_message {
 
 template <typename Traits>
 auto pb_meta(const open_enum_message<Traits> &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &open_enum_message<Traits>::expanded_repeated_field, field_option::none>,
-        hpp::proto::field_meta<2, &open_enum_message<Traits>::foreign_enum_field, field_option::none>,
-        hpp::proto::field_meta<3, &open_enum_message<Traits>::packed_repeated_field, field_option::is_packed>,
-        hpp::proto::field_meta<4, &open_enum_message<Traits>::optional_message_field, field_option::none>,
-        hpp::proto::field_meta<UINT32_MAX, &open_enum_message<Traits>::unknown_fields_>>;
+    -> std::tuple<hpp::proto::field_meta<1, &open_enum_message<Traits>::expanded_repeated_field, field_option::none>,
+                  hpp::proto::field_meta<2, &open_enum_message<Traits>::foreign_enum_field, field_option::none>,
+                  hpp::proto::field_meta<3, &open_enum_message<Traits>::packed_repeated_field, field_option::is_packed>,
+                  hpp::proto::field_meta<4, &open_enum_message<Traits>::optional_message_field, field_option::none>,
+                  hpp::proto::field_meta<UINT32_MAX, &open_enum_message<Traits>::unknown_fields_>>;
 
 template <typename Traits = hpp::proto::default_traits>
 struct closed_enum_message {
@@ -1092,7 +1091,7 @@ struct extension_example {
 };
 
 template <typename Traits>
-auto pb_meta(const extension_example<Traits> &)   
+auto pb_meta(const extension_example<Traits> &)
     -> std::tuple<
         hpp::proto::field_meta<1, &extension_example<Traits>::int_value, field_option::none, hpp::proto::vint64_t>,
         hpp::proto::field_meta<UINT32_MAX, &extension_example<Traits>::unknown_fields_>>;
@@ -1168,11 +1167,11 @@ const ut::suite test_extensions = [] {
     const extension_example expected_value{
         .int_value = 150,
         .unknown_fields_ = {.fields = {{10U, "\x50\x01"_bytes},
-                                  {11U, "\x5a\x04\x74\x65\x73\x74"_bytes},
-                                  {15U, "\x7a\x03\x08\x96\x01"_bytes},
-                                  {20U, "\xa0\x01\x01\xa0\x01\x02"_bytes},
-                                  {21U, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes},
-                                  {22U, "\xb2\x01\x03\01\02\03"_bytes}}}};
+                                       {11U, "\x5a\x04\x74\x65\x73\x74"_bytes},
+                                       {15U, "\x7a\x03\x08\x96\x01"_bytes},
+                                       {20U, "\xa0\x01\x01\xa0\x01\x02"_bytes},
+                                       {21U, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes},
+                                       {22U, "\xb2\x01\x03\01\02\03"_bytes}}}};
     extension_example value;
     ut::expect(hpp::proto::read_proto(value, encoded_data).ok());
     ut::expect(value == expected_value);

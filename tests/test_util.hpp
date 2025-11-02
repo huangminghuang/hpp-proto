@@ -13,7 +13,7 @@
 inline std::string read_file(const std::string &filename) {
   std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
   if (!in) { // Checks if the stream is in a failed state
-    throw std::system_error{std::make_error_code(std::errc::no_such_file_or_directory), filename} ;
+    throw std::system_error{std::make_error_code(std::errc::no_such_file_or_directory), filename};
   }
   std::string contents;
   in.seekg(0, std::ios::end);

@@ -2,8 +2,6 @@
 #include <google/protobuf/unittest.glz.hpp>
 #include <google/protobuf/unittest.pb.hpp>
 
-
-
 template <typename Traits>
 struct Proto2TypeMapping {
   using TestAllTypes_t = protobuf_unittest::TestAllTypes<Traits>;
@@ -157,7 +155,6 @@ struct Proto2TypeMapping {
 const boost::ut::suite proto2_test = [] {
   "proto2"_test = []<class Traits> { TestSuite<Traits, Proto2TypeMapping>::run(); } |
                   std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
-
 };
 
 int main() {

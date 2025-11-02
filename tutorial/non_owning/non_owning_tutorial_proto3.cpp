@@ -85,8 +85,8 @@ int main() {
         alex.map_string_nested_message;
     expect(std::ranges::equal(map_string_nested_message, address_book.people[0].map_string_nested_message));
 
-    const std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string_view,
-                       hpp::proto::bytes_view> &alex_oneof_field = alex.oneof_field;
+    const std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string_view, hpp::proto::bytes_view>
+        &alex_oneof_field = alex.oneof_field;
     expect(alex_oneof_field.index() == Person::oneof_field_oneof_case::oneof_string);
     expect(std::get<Person::oneof_field_oneof_case::oneof_string>(alex_oneof_field) ==
            "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
@@ -95,8 +95,7 @@ int main() {
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   auto write_json_result = hpp::proto::write_json<std::pmr::string>(address_book, hpp::proto::alloc_from{pool});
   expect(write_json_result.has_value());
-  auto read_json_result =
-      hpp::proto::read_json<AddressBook>(write_json_result.value(), hpp::proto::alloc_from{pool});
+  auto read_json_result = hpp::proto::read_json<AddressBook>(write_json_result.value(), hpp::proto::alloc_from{pool});
   expect(address_book == read_json_result.value());
 #endif
   return 0;

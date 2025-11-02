@@ -135,7 +135,6 @@ struct LiteTypeMapping {
   using interoperability_test_types = std::tuple<TestAllTypes_t, TestPackedTypes_t>;
 };
 
-
 const boost::ut::suite lite_test = [] {
   "lite"_test = []<class Traits> { TestSuite<Traits, LiteTypeMapping>::run(); } |
                 std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};

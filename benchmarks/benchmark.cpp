@@ -103,7 +103,9 @@ std::span<char> get_packed_repeated_data() {
 
 std::span<char> get_data(repeated_packed::TestMessage * /*unused*/) { return get_packed_repeated_data(); }
 std::span<char> get_data(hpp::repeated_packed::TestMessage<> * /*unused*/) { return get_packed_repeated_data(); }
-std::span<char> get_data(hpp::repeated_packed::TestMessage<hpp::proto::non_owning_traits> * /*unused*/) { return get_packed_repeated_data(); }
+std::span<char> get_data(hpp::repeated_packed::TestMessage<hpp::proto::non_owning_traits> * /*unused*/) {
+  return get_packed_repeated_data();
+}
 
 template <typename Message>
 void google_deserialize_regular(benchmark::State &state) {
@@ -270,8 +272,10 @@ void hpp_proto_set_message_and_serialize_nonowning(benchmark::State &state) {
   }
   state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>);
-BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>);
+BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<
+          hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>);
+BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<
+          hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>);
 
 template <typename Message>
 void hpp_proto_set_message_nonowning(benchmark::State &state) {

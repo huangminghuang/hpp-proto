@@ -24,12 +24,12 @@ int main() {
       {{"Tiananmen"sv, {.bb = 89}}, {"Square"sv, {.bb = 64}}}};
 
   Person alex{.name = "Alex"sv,
-                        .id = 1,
-                        .email = "alex@email.com"sv,
-                        .phones = alex_phones,
-                        .nested_message = {{.bb = 89}},
-                        .map_string_nested_message = alex_map_string_nested_message,
-                        .oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"sv};
+              .id = 1,
+              .email = "alex@email.com"sv,
+              .phones = alex_phones,
+              .nested_message = {{.bb = 89}},
+              .map_string_nested_message = alex_map_string_nested_message,
+              .oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"sv};
 
   std::pmr::monotonic_buffer_resource pool;
 
