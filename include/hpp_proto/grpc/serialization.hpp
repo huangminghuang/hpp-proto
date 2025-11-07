@@ -2,15 +2,16 @@
 #include <grpc/byte_buffer.h>
 #include <grpc/byte_buffer_reader.h>
 #include <grpcpp/impl/call_op_set.h>
+#include <grpcpp/impl/serialization_traits.h>
 #include <hpp_proto/pb_serializer.hpp>
 
-namespace hpp::proto::grpc_support {
+namespace hpp::proto::grpc {
 class byte_buffer_access;
 }
 
 namespace grpc::internal {
 template <>
-class CallOpRecvMessage<hpp::proto::grpc_support::byte_buffer_access> {
+class CallOpRecvMessage<::hpp::proto::grpc::byte_buffer_access> {
 public:
   static void convert_slices(std::vector<std::span<const uint8_t>> &dest, const ::grpc::ByteBuffer &buffer) {
     grpc_byte_buffer_reader reader;
@@ -31,8 +32,23 @@ public:
 };
 } // namespace grpc::internal
 
-namespace hpp::proto::grpc_support {
+namespace hpp::proto {
 
+template <typename Message, typename Context>
+struct with_pb_context {
+  using is_with_pb_context = void;
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+  Message &message;
+  [[no_unique_address]] Context context;
+  explicit with_pb_context(Message &m, Context &&ctx) : message(m), context(std::move(ctx)) {}
+};
+
+namespace concepts {
+template <typename T>
+concept with_pb_context = requires { typename std::decay_t<T>::is_with_pb_context; };
+} // namespace concepts
+
+namespace grpc {
 namespace detail {
 class byte_buffer_adaptor {
   using storage_t = std::vector<std::span<const uint8_t>>;
@@ -50,7 +66,7 @@ public:
   using const_iterator = storage_t::const_iterator;
 
   explicit byte_buffer_adaptor(const ::grpc::ByteBuffer &buffer) {
-    grpc::internal::CallOpRecvMessage<byte_buffer_access>::convert_slices(slices_, buffer);
+    ::grpc::internal::CallOpRecvMessage<byte_buffer_access>::convert_slices(slices_, buffer);
   }
 
   [[nodiscard]] size_type size() const { return slices_.size(); }
@@ -89,10 +105,10 @@ struct single_shot_slice_memory_resource {
 };
 } // namespace detail
 
-::grpc::Status write_proto(hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer) {
+::grpc::Status write_proto(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer) {
   detail::single_shot_slice_memory_resource pool;
   std::span<const std::byte> buf;
-  if (hpp::proto::write_proto(message, buf, hpp::proto::alloc_from{pool}).ok()) [[likely]] {
+  if (::hpp::proto::write_proto(message, buf, ::hpp::proto::alloc_from{pool}).ok()) [[likely]] {
     buffer = pool.finalize();
     return ::grpc::Status::OK;
   }
@@ -100,23 +116,37 @@ struct single_shot_slice_memory_resource {
   return {::grpc::StatusCode::INTERNAL, "Failed to serialize message"};
 }
 
-std::optional<::grpc::ByteBuffer> write_proto(hpp::proto::concepts::has_meta auto const &message) {
-  detail::single_shot_slice_memory_resource pool;
-  std::span<const std::byte> buf;
-  if (hpp::proto::write_proto(message, buf, hpp::proto::alloc_from{pool}).ok()) [[likely]] {
-    return pool.finalize();
-  }
-  return {};
-}
-
-::grpc::Status read_proto(hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
-                          hpp::proto::concepts::is_option_type auto &&...option) {
+::grpc::Status read_proto(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
+                          ::hpp::proto::concepts::is_pb_context auto &context) {
 
   detail::byte_buffer_adaptor buffers(buffer);
-  if (hpp::proto::read_proto(message, buffers, option...).ok()) [[likely]] {
+  if (::hpp::proto::read_proto(message, buffers, context).ok()) [[likely]] {
     return ::grpc::Status::OK;
   }
   return {::grpc::StatusCode::INTERNAL, "Failed to deserialize message"};
 }
 
-} // namespace hpp::proto::grpc_support
+::grpc::Status read_proto(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
+                          ::hpp::proto::concepts::is_option_type auto &&...option) {
+
+  pb_context context{option...};
+  return read_proto(message, buffer, context);
+}
+} // namespace grpc
+
+} // namespace hpp::proto
+
+namespace grpc {
+template <class T>
+  requires ::hpp::proto::concepts::with_pb_context<T>
+class SerializationTraits<T> {
+public:
+  static Status Serialize(const T &msg_with_context, ByteBuffer *bb, bool *) {
+    return ::hpp::proto::grpc::write_proto(msg_with_context.message, *bb);
+  }
+
+  static Status Deserialize(ByteBuffer *buffer, T *msg_with_context) {
+   return ::hpp::proto::grpc::read_proto(msg_with_context->message, *buffer, msg_with_context->context);
+  }
+};
+} // namespace grpc

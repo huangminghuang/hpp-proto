@@ -1,200 +1,100 @@
-#include <grpcpp/generic/async_generic_service.h>
-#include <grpcpp/grpcpp.h>
-#include <grpcpp/health_check_service_interface.h>
 
 #include <condition_variable>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <unordered_set>
 
 #include "helloworld.service.hpp"
+#include <hpp_proto/grpc/server.hpp>
 
-template <typename Method, typename ServiceImpl>
-class ServerUnaryCallReactor : public ::grpc::ServerGenericBidiReactor {
-  ServiceImpl *service_;
-  using Request = typename Method::request;
-  using Response = typename Method::response;
-  using member_fun_t = grpc::Status (ServiceImpl::*)(const Request &, Response &);
-  member_fun_t fun_;
+static const ::grpc::Status name_not_specified_status{::grpc::StatusCode::INVALID_ARGUMENT, "name is not specified"};
 
-public:
-  constexpr static auto method_name = Method::method_name;
-  ServerUnaryCallReactor(ServiceImpl *s, member_fun_t fun) : service_(s), fun_(fun) { StartRead(&request_); }
-
-private:
-  void OnDone() override { delete this; }
-  void OnReadDone(bool ok) override {
-    if (!ok) {
-      return;
-    }
-    grpc::Status result;
-    // Deserialize a request message
-    Request request;
-    result = hpp::proto::grpc_support::read_proto(request, request_);
-    if (!result.ok()) {
-      Finish(result);
-      return;
-    }
-    // Call the response handler
-    Response reply;
-    result = (service_->*fun_)(request, reply);
-    if (!result.ok()) {
-      Finish(result);
-      return;
-    }
-    // Serialize a reply message
-    result = hpp::proto::grpc_support::write_proto(reply, response_);
-    if (!result.ok()) {
-      Finish(result);
-      return;
-    }
-    StartWrite(&response_);
-  }
-  void OnWriteDone(bool ok) override {
-    Finish(ok ? grpc::Status::OK : grpc::Status(grpc::StatusCode::UNKNOWN, "Unexpected failure"));
-  }
-  ::grpc::ByteBuffer request_;
-  ::grpc::ByteBuffer response_;
-};
-
-template <typename Method, typename ServiceImpl, typename Writer>
-class ServerStreamReactor : public ::grpc::ServerGenericBidiReactor {
-  using member_fun_t = void (ServiceImpl::*)(const typename Method::request &, Writer &, ServerStreamReactor &);
-
-public:
-  constexpr static auto method_name = Method::method_name;
-  ServerStreamReactor(ServiceImpl *s, member_fun_t on_read_done) : service_(s), on_read_done_(on_read_done) {
-    StartRead(&buffer_);
-  }
-
-  void OnReadDone(bool ok) override {
-    if (!ok) {
-      return;
-    }
-    grpc::Status result;
-    // Deserialize a request message
-    typename Method::request request;
-    result = hpp::proto::grpc_support::read_proto(request, buffer_);
-    if (!result.ok()) {
-      Finish(result);
-      return;
-    }
-    // Call the response handler
-    (service_->*on_read_done_)(request, writer_, *this);
-  }
-
-  void Write(const typename Method::response &reply) {
-    hpp::proto::grpc_support::write_proto(reply, buffer_);
-    StartWrite(&buffer_);
-  }
-
-  void OnWriteDone(bool ok) override {
-    if (!ok) {
-      Finish(grpc::Status::OK);
-    }
-    writer_(*this);
-  }
-
-  void OnDone() override { delete this; }
-
-private:
-  ::grpc::ByteBuffer buffer_;
-  ServiceImpl *service_;
-  member_fun_t on_read_done_;
-  Writer writer_;
-};
-
-using reactor_factory_t = std::function<::grpc::ServerGenericBidiReactor *()>;
-// Logic and data behind the server's behavior.
-class GenericService : public ::grpc::CallbackGenericService {
-  std::unordered_map<std::string_view, reactor_factory_t> reactor_factories_;
-
-public:
-  ::grpc::ServerGenericBidiReactor *CreateReactor(::grpc::GenericCallbackServerContext *context) override {
-    if (auto it = reactor_factories_.find(context->method()); it != reactor_factories_.end()) {
-      return it->second();
-    } else {
-      // Forward this to the implementation of the base class returning
-      // UNIMPLEMENTED.
-      return CallbackGenericService::CreateReactor(context);
-    }
-  }
-
-  template <typename Factory>
-  void add_reactor_factory(Factory &&factory) {
-    constexpr auto method_name = std::remove_pointer_t<decltype(factory())>::method_name;
-    reactor_factories_.emplace(method_name, std::forward<Factory>(factory));
-  }
-};
-
-class GreeterServiceImpl {
-  struct SayHelloStreamReplyWriter {
-    std::string name;
-    std::atomic<int> count{10};
-
-    void operator()(auto &reactor) {
-      int n = count--;
-      if (n == 0) {
-        reactor.Finish(grpc::Status::OK);
-        std::cout << "SayHelloStreamReply Finished\n";
-      } else {
-        helloworld::HelloReply reply;
-        reply.message = "Hello " + name + " " + std::to_string(n);
-        std::cout << "SayHelloStreamReply Sending reply: " << reply.message << "\n";
-        reactor.Write(reply);
-      }
-    }
-  };
-
+namespace helloworld::Greeter {
+class Service : public ::hpp::proto::grpc::CallbackService<Service, _methods> {
   std::mutex mu_;
   std::condition_variable shutdown_cv_;
   bool done_ = false;
 
 public:
-  explicit GreeterServiceImpl(GenericService &service) {
-    service.add_reactor_factory([&] {
-      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-      return new ServerUnaryCallReactor<helloworld::Greeter::SayHello, GreeterServiceImpl>{
-          this, &GreeterServiceImpl::SayHello};
-    });
-    service.add_reactor_factory([&] {
-      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-      return new ServerStreamReactor<helloworld::Greeter::SayHelloStreamReply, GreeterServiceImpl,
-                                     SayHelloStreamReplyWriter>(this, &GreeterServiceImpl::SayHelloStreamReply);
-    });
+  template <typename Method>
+  struct rpc_handler {};
 
-    service.add_reactor_factory([&] {
-      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-      return new ServerUnaryCallReactor<helloworld::Greeter::Shutdown, GreeterServiceImpl>(
-          this, &GreeterServiceImpl::Shutdown);
-    });
-  }
-
-  // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-  grpc::Status SayHello(const helloworld::HelloRequest &request, helloworld::HelloReply &reply) {
-    if (request.name.empty()) {
-      return {::grpc::StatusCode::INVALID_ARGUMENT, "name is not specified"};
+  template <>
+  struct rpc_handler<SayHello> {
+    rpc_handler(Service &, ::hpp::proto::grpc::ServerRPC<SayHello> &rpc) {
+      std::cerr << "rpc_handler<SayHello> called\n";
+      helloworld::HelloRequest request;
+      if (rpc.get_request(request)) {
+        if (request.name.empty()) {
+          rpc.finish(name_not_specified_status);
+        } else {
+          using namespace std::string_literals;
+          helloworld::HelloReply reply{.message = "Hello "s + request.name};
+          rpc.finish(reply);
+        }
+      } else {
+        std::cerr << "get_request() failed\n";
+      }
     }
-    reply.message = "Hello " + request.name;
-    return grpc::Status::OK;
-  }
+  };
 
-  void SayHelloStreamReply(const helloworld::HelloRequest &request, SayHelloStreamReplyWriter &writer, auto &reactor) {
-    if (request.name.empty()) {
-      reactor.Finish(grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "name is not specified"));
-    } else {
-      std::cout << "SayHelloStreamReply Started\n";
-      writer.name = request.name;
-      writer(reactor);
+  template <>
+  struct rpc_handler<SayHelloStreamReply> {
+    std::mutex mx;
+    int count = 10;
+    std::string message;
+    using rpc_t = ::hpp::proto::grpc::ServerRPC<SayHelloStreamReply>;
+
+    rpc_handler(Service &, rpc_t &rpc) {
+      std::pmr::monotonic_buffer_resource mr;
+      helloworld::HelloRequest<hpp::proto::non_owning_traits> request;
+      if (rpc.get_request(request, hpp::proto::alloc_from(mr))) {
+        if (request.name.empty()) {
+          rpc.finish(name_not_specified_status);
+        } else {
+          std::unique_lock lock(mx);
+          message = "Hello " + std::string{request.name};
+          using Reply = helloworld::HelloReply<hpp::proto::non_owning_traits>;
+          rpc.write(Reply{.message = this->message});
+        }
+      }
     }
-  }
 
-  grpc::Status Shutdown(const google::protobuf::Empty & /*request*/, google::protobuf::Empty & /*reply*/) {
+    void on_write_ok(rpc_t &rpc) {
+      std::unique_lock lock(mx);
+      count--;
+      if (count == 0) {
+        rpc.finish(::grpc::Status::OK);
+      } else {
+        using Reply = helloworld::HelloReply<hpp::proto::non_owning_traits>;
+        rpc.write(Reply{.message = message});
+      }
+    }
+
+    void on_cancel() const {
+      // Called from ServerBidiReactor::OnCancel()
+      // handle cancel events if desired
+    }
+
+    void on_send_initial_metadata_done(bool /* ok */) const {
+      // Called from ServerBidiReactor::OnSendInitialMetadataDone()
+      // handle send initial metadata done event if desired
+    }
+  };
+
+  template <>
+  struct rpc_handler<Shutdown> {
+    Service *service;
+    explicit rpc_handler(Service &service, ::hpp::proto::grpc::ServerRPC<Shutdown> &rpc) : service(&service) {
+      rpc.finish(google::protobuf::Empty{});
+    }
+    void on_done() const { service->notify_done(); }
+  };
+
+  void notify_done() {
     std::unique_lock<std::mutex> lock(mu_);
     done_ = true;
     shutdown_cv_.notify_all();
-    return grpc::Status::OK;
   }
 
   void wait() {
@@ -202,17 +102,17 @@ public:
     shutdown_cv_.wait(lock, [this] { return done_; });
   }
 };
+} // namespace helloworld::Greeter
 
 void RunServer(const char *server_address) {
-  GenericService service;
-  GreeterServiceImpl greeter_service(service);
-  grpc::EnableDefaultHealthCheckService(true);
+  helloworld::Greeter::Service greeter_service;
+  ::grpc::EnableDefaultHealthCheckService(true);
   ::grpc::ServerBuilder builder;
   // Listen on the given address without any authentication mechanism.
-  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  builder.AddListeningPort(server_address, ::grpc::InsecureServerCredentials());
   // Register "service" as the instance through which we'll communicate with
   // clients. In this case it corresponds to an *synchronous* service.
-  builder.RegisterCallbackGenericService(&service);
+  builder.RegisterService(&greeter_service);
   // Finally assemble the server.
   std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());
   std::cout << "Server listening on " << server_address << "\n";

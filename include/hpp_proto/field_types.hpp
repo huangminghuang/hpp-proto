@@ -850,8 +850,6 @@ struct default_traits {
 
 struct non_owning_traits {
   template <typename T>
-  using vector_t = equality_comparable_span<const T>;
-  template <typename T>
   using repeated_t = equality_comparable_span<const T>;
   using string_t = std::string_view;
   using bytes_t = equality_comparable_span<const std::byte>;

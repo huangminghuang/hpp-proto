@@ -2994,10 +2994,15 @@ consteval auto write_proto(F make_object) {
 }
 
 template <concepts::has_meta T, concepts::contiguous_byte_range Buffer>
-status write_proto(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...option) {
-  pb_context ctx{std::forward<decltype(option)>(option)...};
+status write_proto(T &&msg, Buffer &buffer, concepts::is_pb_context auto &ctx) {
   decltype(auto) v = detail::as_modifiable(ctx, buffer);
   return pb_serializer::serialize(std::forward<T>(msg), v, ctx);
+}
+
+template <concepts::has_meta T, concepts::contiguous_byte_range Buffer>
+status write_proto(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...option) {
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  return write_proto(std::forward<T>(msg), buffer, ctx);
 }
 
 template <concepts::contiguous_byte_range Buffer = std::vector<std::byte>>
@@ -3030,10 +3035,15 @@ constexpr static expected<T, std::errc> read_proto(concepts::input_byte_range au
 }
 
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
-status read_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
+status read_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &ctx) {
   msg = {};
-  pb_context ctx{std::forward<decltype(option)>(option)...};
   return pb_serializer::deserialize(msg, buffer, ctx);
+}
+
+template <concepts::has_meta T, concepts::input_byte_range Buffer>
+status read_proto(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  return read_proto(msg, buffer, ctx);
 }
 
 template <typename T, template <typename Traits> class Extendee>
