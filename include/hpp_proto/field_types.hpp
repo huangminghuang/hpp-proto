@@ -821,17 +821,16 @@ struct pb_extensions {
   bool operator==(const pb_extensions &) const = default;
 };
 
+template <typename T>
+struct vector_trait {
+  using type = std::vector<T>;
+};
+
+template <>
+struct vector_trait<bool> {
+  using type = std::vector<hpp::proto::boolean>;
+};
 struct default_traits {
-  template <typename T>
-  struct vector_trait {
-    using type = std::vector<T>;
-  };
-
-  template <>
-  struct vector_trait<bool> {
-    using type = std::vector<hpp::proto::boolean>;
-  };
-
   template <typename T>
   using repeated_t = vector_trait<T>::type;
   using string_t = std::string;

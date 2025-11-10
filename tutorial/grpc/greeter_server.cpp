@@ -10,87 +10,12 @@
 static const ::grpc::Status name_not_specified_status{::grpc::StatusCode::INVALID_ARGUMENT, "name is not specified"};
 
 namespace helloworld::Greeter {
-class Service : public ::hpp::proto::grpc::CallbackService<Service, _methods> {
+class ServiceBase  {
   std::mutex mu_;
   std::condition_variable shutdown_cv_;
   bool done_ = false;
 
 public:
-  template <typename Method>
-  struct rpc_handler {};
-
-  template <>
-  struct rpc_handler<SayHello> {
-    rpc_handler(Service &, ::hpp::proto::grpc::ServerRPC<SayHello> &rpc) {
-      std::cerr << "rpc_handler<SayHello> called\n";
-      helloworld::HelloRequest request;
-      if (rpc.get_request(request)) {
-        if (request.name.empty()) {
-          rpc.finish(name_not_specified_status);
-        } else {
-          using namespace std::string_literals;
-          helloworld::HelloReply reply{.message = "Hello "s + request.name};
-          rpc.finish(reply);
-        }
-      } else {
-        std::cerr << "get_request() failed\n";
-      }
-    }
-  };
-
-  template <>
-  struct rpc_handler<SayHelloStreamReply> {
-    std::mutex mx;
-    int count = 10;
-    std::string message;
-    using rpc_t = ::hpp::proto::grpc::ServerRPC<SayHelloStreamReply>;
-
-    rpc_handler(Service &, rpc_t &rpc) {
-      std::pmr::monotonic_buffer_resource mr;
-      helloworld::HelloRequest<hpp::proto::non_owning_traits> request;
-      if (rpc.get_request(request, hpp::proto::alloc_from(mr))) {
-        if (request.name.empty()) {
-          rpc.finish(name_not_specified_status);
-        } else {
-          std::unique_lock lock(mx);
-          message = "Hello " + std::string{request.name};
-          using Reply = helloworld::HelloReply<hpp::proto::non_owning_traits>;
-          rpc.write(Reply{.message = this->message});
-        }
-      }
-    }
-
-    void on_write_ok(rpc_t &rpc) {
-      std::unique_lock lock(mx);
-      count--;
-      if (count == 0) {
-        rpc.finish(::grpc::Status::OK);
-      } else {
-        using Reply = helloworld::HelloReply<hpp::proto::non_owning_traits>;
-        rpc.write(Reply{.message = message});
-      }
-    }
-
-    void on_cancel() const {
-      // Called from ServerBidiReactor::OnCancel()
-      // handle cancel events if desired
-    }
-
-    void on_send_initial_metadata_done(bool /* ok */) const {
-      // Called from ServerBidiReactor::OnSendInitialMetadataDone()
-      // handle send initial metadata done event if desired
-    }
-  };
-
-  template <>
-  struct rpc_handler<Shutdown> {
-    Service *service;
-    explicit rpc_handler(Service &service, ::hpp::proto::grpc::ServerRPC<Shutdown> &rpc) : service(&service) {
-      rpc.finish(google::protobuf::Empty{});
-    }
-    void on_done() const { service->notify_done(); }
-  };
-
   void notify_done() {
     std::unique_lock<std::mutex> lock(mu_);
     done_ = true;
@@ -102,6 +27,89 @@ public:
     shutdown_cv_.wait(lock, [this] { return done_; });
   }
 };
+namespace Service__ {
+template <typename Method>
+struct rpc_handler {};
+
+template <>
+struct rpc_handler<SayHello> {
+  rpc_handler(ServiceBase &, ::hpp::proto::grpc::ServerRPC<SayHello> &rpc) {
+    std::cerr << "rpc_handler<SayHello> called\n";
+    helloworld::HelloRequest request;
+    if (rpc.get_request(request)) {
+      if (request.name.empty()) {
+        rpc.finish(name_not_specified_status);
+      } else {
+        using namespace std::string_literals;
+        helloworld::HelloReply reply{.message = "Hello "s + request.name};
+        rpc.finish(reply);
+      }
+    } else {
+      std::cerr << "get_request() failed\n";
+    }
+  }
+};
+
+template <>
+struct rpc_handler<SayHelloStreamReply> {
+  std::mutex mx;
+  int count = 10;
+  std::string message;
+  using rpc_t = ::hpp::proto::grpc::ServerRPC<SayHelloStreamReply>;
+
+  rpc_handler(ServiceBase &, rpc_t &rpc) {
+    std::pmr::monotonic_buffer_resource mr;
+    helloworld::HelloRequest<hpp::proto::non_owning_traits> request;
+    if (rpc.get_request(request, hpp::proto::alloc_from(mr))) {
+      if (request.name.empty()) {
+        rpc.finish(name_not_specified_status);
+      } else {
+        std::unique_lock lock(mx);
+        message = "Hello " + std::string{request.name};
+        using Reply = helloworld::HelloReply<hpp::proto::non_owning_traits>;
+        rpc.write(Reply{.message = this->message});
+      }
+    }
+  }
+
+  void on_write_ok(rpc_t &rpc) {
+    std::unique_lock lock(mx);
+    count--;
+    if (count == 0) {
+      rpc.finish(::grpc::Status::OK);
+    } else {
+      using Reply = helloworld::HelloReply<hpp::proto::non_owning_traits>;
+      rpc.write(Reply{.message = message});
+    }
+  }
+
+  void on_cancel() const {
+    // Called from ServerBidiReactor::OnCancel()
+    // handle cancel events if desired
+  }
+
+  void on_send_initial_metadata_done(bool /* ok */) const {
+    // Called from ServerBidiReactor::OnSendInitialMetadataDone()
+    // handle send initial metadata done event if desired
+  }
+};
+
+template <>
+struct rpc_handler<Shutdown> {
+  ServiceBase *service;
+  explicit rpc_handler(ServiceBase &service, ::hpp::proto::grpc::ServerRPC<Shutdown> &rpc) : service(&service) {
+    rpc.finish(google::protobuf::Empty{});
+  }
+  void on_done() const { service->notify_done(); }
+};
+} // namespace Service__
+
+class Service : public ServiceBase, public ::hpp::proto::grpc::CallbackService<Service, _methods> {
+public:
+  template <typename Method>
+  using rpc_handler = Service__::rpc_handler<Method>;
+};
+
 } // namespace helloworld::Greeter
 
 void RunServer(const char *server_address) {
