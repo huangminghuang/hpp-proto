@@ -103,7 +103,7 @@ struct any_message_json_serializer {
       return;
     }
     std::string_view type_url = type_url_field.value().value();
-    const auto &pool = value.descriptor().parent_file()->descriptor_pool();
+    const auto &pool = value.descriptor().parent_file()->get_descriptor_pool();
 
     auto slash_pos = type_url.find('/');
     if (slash_pos >= type_url.size() - 1) {

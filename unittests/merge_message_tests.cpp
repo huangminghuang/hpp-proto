@@ -17,6 +17,16 @@ auto pb_meta(const ForeignMessage<Traits> &)
         hpp::proto::field_meta<2, &ForeignMessage<Traits>::d, hpp::proto::field_option::none, hpp::proto::vint64_t>,
         hpp::proto::field_meta<15, &ForeignMessage<Traits>::e, hpp::proto::field_option::none>>;
 
+
+#if defined(__GNUC__) && (__GNUC__ < 14)
+namespace std {
+template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
+bool operator == (const pair<LFirst, LSecond>& lhs, const pair<RFirst, RSecond>& rhs) {
+  return lhs.first == rhs.first && lhs.second == rhs.second;
+}
+}
+#endif
+
 template <typename Traits = hpp::proto::default_traits>
 struct TestMessage {
   hpp::proto::optional<std::int32_t> optional_int32;
@@ -149,8 +159,8 @@ const boost::ut::suite merge_test_suite = [] {
         source.optional_foreign_message.emplace(ForeignMessage<SourceTraits>{.c = 1, .d = 0, .e = uvw_bytes});
 
         auto list_5_6 = std::initializer_list{5, 6};
-        auto list_7_8 = std::initializer_list{7LL, 8LL};
-        auto list_9_10 = std::initializer_list{9LL, 10LL};
+        auto list_7_8 = std::initializer_list<std::int64_t>{7LL, 8LL};
+        auto list_9_10 = std::initializer_list<std::int64_t>{9LL, 10LL};
         auto list_11_12 = std::initializer_list{11U, 12U};
 
         // Repeated fields

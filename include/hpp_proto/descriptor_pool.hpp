@@ -374,7 +374,7 @@ public:
     [[nodiscard]] auto messages() const { return std::views::transform(messages_, deref_pointer{}); }
     [[nodiscard]] auto extensions() const { return std::views::transform(extensions_, deref_pointer{}); }
     [[nodiscard]] auto dependencies() const { return std::views::transform(dependencies_, deref_pointer{}); }
-    [[nodiscard]] const descriptor_pool &descriptor_pool() const { return *descriptor_pool_; }
+    [[nodiscard]] const descriptor_pool &get_descriptor_pool() const { return *descriptor_pool_; }
 
   private:
     friend class descriptor_pool;
@@ -416,12 +416,12 @@ public:
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   explicit descriptor_pool(FileDescriptorSet &&fileset)
     requires(!std::is_trivially_destructible_v<FileDescriptorSet>)
-      : fileset_(std::move(fileset.file)) {
+      : fileset_{.file = std::move(fileset.file), .unknown_fields_ = {}} {
     init();
   }
 
   explicit descriptor_pool(FileDescriptorSet &&fileset, std::pmr::memory_resource &mr)
-      : fileset_(std::move(fileset.file)) {
+      : fileset_{.file = std::move(fileset.file), .unknown_fields_ = {}} {
     auto *old = std::pmr::set_default_resource(&mr);
     init();
     std::pmr::set_default_resource(old);

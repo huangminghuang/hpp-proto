@@ -31,7 +31,7 @@ endif()
 CPMAddPackage("gh:fmtlib/fmt#12.0.0")
 set_target_properties(is_utf8 fmt PROPERTIES CXX_CLANG_TIDY "")
 
-
+if (HPP_PROTO_PROTOC_PLUGIN)
 if(HPP_PROTO_PROTOC STREQUAL "find")
     find_package(Protobuf CONFIG)
     if(NOT Protobuf_FOUND)
@@ -89,6 +89,7 @@ elseif(HPP_PROTO_PROTOC STREQUAL "compile")
     set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
 else()
     message(FATAL_ERROR "HPP_PROTO_PROTOC must be set to 'find' or 'compile'")
+endif()
 endif()
 
 if(HPP_PROTO_TESTS)

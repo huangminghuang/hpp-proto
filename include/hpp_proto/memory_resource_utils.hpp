@@ -288,6 +288,14 @@ public:
     std::ranges::uninitialized_copy(r, std::span{data_ + old_size, n});
   }
 
+  template <typename Iterator>
+  constexpr void append_range(Iterator first, Iterator last) {
+    auto old_size = view_.size();
+    auto n = std::distance(first, last);
+    assign_range_with_size(view_, old_size + n);
+    std::uninitialized_copy(first, last, std::span{data_ + old_size, n});
+  }
+
   constexpr void reserve(std::size_t n) {
     if (capacity_ < n) {
       auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));

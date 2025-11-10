@@ -1179,9 +1179,20 @@ constexpr bool sfvint_parser_allowed() {
 #endif
 }
 
+namespace util {
 template <typename Range, typename UnaryOperation>
 constexpr uint32_t transform_accumulate(const Range &range, const UnaryOperation &unary_op) {
   return std::transform_reduce(range.begin(), range.end(), 0U, std::plus<>{}, unary_op);
+}
+
+template <typename T, typename Range>
+void append_range(T& v, Range&& range) {
+  if constexpr (requires { v.append_range(range); }) {
+    v.append_range(range);
+  } else {
+    v.insert(v.end(), range.begin(), range.end());
+  }
+}
 }
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
@@ -1292,7 +1303,7 @@ struct size_cache_counter<T> {
     using type = std::remove_cvref_t<decltype(item)>;
     using value_type = typename std::ranges::range_value_t<type>;
     if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
-      return transform_accumulate(item, [](const auto &elem) constexpr { return count(elem, Meta{}); });
+      return util::transform_accumulate(item, [](const auto &elem) constexpr { return count(elem, Meta{}); });
     } else {
       using element_type =
           std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
@@ -1398,7 +1409,7 @@ struct message_size_calculator<T> {
 
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::pb_extensions auto const &item, auto,
                                                         concepts::is_size_cache_iterator auto &) {
-    return transform_accumulate(item.fields, [](const auto &e) constexpr { return e.second.size(); });
+    return util::transform_accumulate(item.fields, [](const auto &e) constexpr { return e.second.size(); });
   }
 
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::pb_unknown_fields auto const &item, auto,
@@ -1481,7 +1492,7 @@ struct message_size_calculator<T> {
     } else {
       using value_type = typename std::ranges::range_value_t<type>;
       if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
-        return transform_accumulate(
+        return util::transform_accumulate(
             item, [&cache_itr](const auto &elem) constexpr { return field_size(elem, Meta{}, cache_itr); });
       } else {
         using element_type =
@@ -1491,7 +1502,7 @@ struct message_size_calculator<T> {
         if constexpr (concepts::byte_serializable<element_type>) {
           return tag_size + len_size(item.size() * sizeof(value_type));
         } else {
-          auto s = transform_accumulate(item, [](auto elem) constexpr {
+          auto s = util::transform_accumulate(item, [](auto elem) constexpr {
             if constexpr (concepts::is_enum<element_type>) {
               return varint_size(static_cast<int64_t>(elem));
             } else {
@@ -2296,9 +2307,9 @@ constexpr void deserialize_unknown_enum(auto &unknown_fields, uint32_t field_num
   std::span field_span{data.data(), static_cast<std::size_t>(p - data.data())};
   using unknown_fields_t = std::remove_cvref_t<decltype(unknown_fields)>;
   if constexpr (concepts::contiguous_byte_range<unknown_fields_t>) {
-    unknown_fields.append_range(field_span);
+    util::append_range(unknown_fields, field_span);
   } else if constexpr (concepts::associative_container<unknown_fields_t>) {
-    unknown_fields[field_num].append_range(field_span);
+    util::append_range(unknown_fields[field_num], field_span);
   } else if constexpr (concepts::uint32_pair_contiguous_range<unknown_fields_t>) {
     auto itr = std::find_if(unknown_fields.begin(), unknown_fields.end(),
                             [field_num](const auto &e) { return e.first == field_num; });
@@ -2306,7 +2317,7 @@ constexpr void deserialize_unknown_enum(auto &unknown_fields, uint32_t field_num
       unknown_fields.push_back({field_num, field_span});
     } else {
       using bytes_type = typename unknown_fields_t::value_type::second_type;
-      detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)).append_range(field_span);
+      util::append_range(detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)), field_span);
     }
   }
 }
@@ -2828,10 +2839,11 @@ constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is
 }
 
 constexpr status deserialize(auto &&item, concepts::is_basic_in auto &archive) {
-  decltype(auto) unknown_fields = detail::as_modifiable(archive.context, get_unknown_fields(item));
+  decltype(auto) unknow_fields = get_unknown_fields(item);
+  decltype(auto) modifiable_unknown_fields = detail::as_modifiable(archive.context, unknow_fields);
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
-    if (auto result = deserialize_field_by_tag(tag, item, archive, unknown_fields); !result.ok()) {
+    if (auto result = deserialize_field_by_tag(tag, item, archive, modifiable_unknown_fields); !result.ok()) {
       [[unlikely]] return result;
     }
   }
@@ -3265,12 +3277,13 @@ struct message_merger {
         if constexpr (std::assignable_from<T &, U>) {
           dest = source;
         } else {
-          dest.assign_range(source);
+          dest.assign(source.begin(), source.end());
         }
         return;
       }
     }
-    detail::as_modifiable(ctx, dest).append_range(source);
+    decltype(auto) v = detail::as_modifiable(ctx, dest);
+    util::append_range(v, source);
   }
 
   template <concepts::repeated T, typename U>
@@ -3348,6 +3361,8 @@ struct message_merger {
       dest = std::forward<U>(source);
     } else if constexpr (requires { dest.assign_range(source); }) {
       dest.assign_range(source);
+    } else if constexpr (requires { dest.assign(source.begin(), source.end()); }) {
+      dest.assign(source.begin(), source.end());
     } else {
       static_assert(false, "invalid operation");
     }

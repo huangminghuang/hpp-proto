@@ -798,12 +798,9 @@ struct msg_code_generator : code_generator {
       dependee_name = field_type_name.substr(0, field_type_name.find_last_of('.'));
     } else if (field.is_map_entry()) {
       auto &value_field = field.message_field_type_descriptor()->fields()[1];
-      switch (value_field.proto().type) {
-      case TYPE_MESSAGE:
-      case TYPE_GROUP:
-      case TYPE_ENUM:
+      type = value_field.proto().type;
+      if (type == TYPE_MESSAGE || type == TYPE_GROUP || type == TYPE_ENUM) {
         resolve_field_dependency(pool, field_message_name, value_field);
-      default:
       }
       return;
     }
@@ -902,6 +899,7 @@ struct msg_code_generator : code_generator {
         resolve_enum_field(pool, field);
         break;
       default:
+        break;
       };
     }
   }
