@@ -1152,22 +1152,22 @@ struct msg_code_generator : code_generator {
                      "{0}[[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;",
                      indent());
     } else {
-      fmt::format_to(
-          target,
-          "\n"
-          "{0}::hpp::proto::pb_extensions<Traits> unknown_fields_;\n\n"
-          "{0}[[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && "
-          "...option) const {{\n"
-          "{0}  return ext.get_from(*this, std::forward<decltype(option)>(option)...);\n"
-          "{0}}}\n"
-          "{0}[[nodiscard]] auto set_extension(const auto &ext,\n"
-          "{0}                                 ::hpp::proto::concepts::is_option_type auto &&...option) {{\n"
-          "{0}  return ext.set_to(*this, std::forward<decltype(option)>(option)...);\n"
-          "{0}}}\n"
-          "{0}[[nodiscard]] bool has_extension(const auto &ext) const {{\n"
-          "{0}  return ext.in(*this);\n"
-          "{0}}}\n",
-          indent(), descriptor.cpp_name);
+      fmt::format_to(target,
+                     "\n"
+                     "{0}::hpp::proto::pb_extensions<Traits> unknown_fields_;\n\n"
+                     "{0}[[nodiscard]] ::hpp::proto::status get_extension(auto &ext, "
+                     "::hpp::proto::concepts::is_option_type auto && "
+                     "...option) const {{\n"
+                     "{0}  return ext.get_from(*this, std::forward<decltype(option)>(option)...);\n"
+                     "{0}}}\n"
+                     "{0}[[nodiscard]] auto set_extension(const auto &ext,\n"
+                     "{0}                                 ::hpp::proto::concepts::is_option_type auto &&...option) {{\n"
+                     "{0}  return ext.set_to(*this, std::forward<decltype(option)>(option)...);\n"
+                     "{0}}}\n"
+                     "{0}[[nodiscard]] bool has_extension(const auto &ext) const {{\n"
+                     "{0}  return ext.in(*this);\n"
+                     "{0}}}\n",
+                     indent(), descriptor.cpp_name);
     }
 
     fmt::format_to(target, "\n{0}bool operator == (const {1}&) const = default;\n", indent(), descriptor.cpp_name);
@@ -1846,9 +1846,7 @@ struct service_generator : code_generator {
       fmt::format_to(target, "#include \"{}.pb.hpp\"\n", basename(d, directory_prefix));
     }
 
-    fmt::format_to(target,
-                   "#include \"{}.pb.hpp\"\n\n",
-                   basename(descriptor.proto().name, directory_prefix));
+    fmt::format_to(target, "#include \"{}.pb.hpp\"\n\n", basename(descriptor.proto().name, directory_prefix));
 
     auto package = descriptor.proto().package;
     auto ns = make_qualified_cpp_name(descriptor.namespace_prefix, "." + package);
@@ -1881,7 +1879,7 @@ struct service_generator : code_generator {
                        "    using response_t = {}<Traits>;\n"
                        "  }};\n",
                        m.name, qualified_service_name, m.name, m.client_streaming, m.server_streaming,
-                       (static_cast<int>(m.server_streaming)*2+m.client_streaming), ordinal++,
+                       (static_cast<int>(m.server_streaming) * 2 + m.client_streaming), ordinal++,
                        make_qualified_cpp_name(descriptor.namespace_prefix, m.input_type),
                        make_qualified_cpp_name(descriptor.namespace_prefix, m.output_type));
       }

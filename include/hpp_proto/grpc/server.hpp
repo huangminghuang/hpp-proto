@@ -37,8 +37,7 @@ public:
   template <typename Traits>
   bool get_request(typename Method::template request_t<Traits> &request,
                    hpp::proto::concepts::is_option_type auto &&...option) {
-    if (auto status =
-            ::hpp::proto::grpc::read_proto(request, *req_buf_, std::forward<decltype(option)>(option)...);
+    if (auto status = ::hpp::proto::grpc::read_proto(request, *req_buf_, std::forward<decltype(option)>(option)...);
         !status.ok()) {
       this->Finish(status);
       return false;
@@ -84,8 +83,7 @@ public:
 #ifndef NDEBUG
     assert(has_request_); // get_request should only be called inside on_read_ok()
 #endif
-    if (auto status =
-            ::hpp::proto::grpc::read_proto(request, request_, std::forward<decltype(option)>(option)...);
+    if (auto status = ::hpp::proto::grpc::read_proto(request, request_, std::forward<decltype(option)>(option)...);
         !status.ok()) {
       this->Finish(status);
       return false;
@@ -116,8 +114,7 @@ public:
   template <typename Traits>
   bool get_request(typename Method::template request_t<Traits> &request,
                    hpp::proto::concepts::is_option_type auto &&...option) {
-    if (auto status =
-            ::hpp::proto::grpc::read_proto(request, *req_buf_, std::forward<decltype(option)>(option)...);
+    if (auto status = ::hpp::proto::grpc::read_proto(request, *req_buf_, std::forward<decltype(option)>(option)...);
         !status.ok()) {
       this->Finish(status);
       return false;
@@ -176,8 +173,7 @@ public:
   bool get_request(typename Method::template request_t<Traits> &request,
                    hpp::proto::concepts::is_option_type auto &&...option) {
     assert(has_request_); // get_request should only be called inside on_read_ok()
-    if (auto status =
-            ::hpp::proto::grpc::read_proto(request, request_, std::forward<decltype(option)>(option)...);
+    if (auto status = ::hpp::proto::grpc::read_proto(request, request_, std::forward<decltype(option)>(option)...);
         !status.ok()) {
       this->Finish(status);
       return false;

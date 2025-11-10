@@ -146,7 +146,7 @@ public:
   }
 
   static Status Deserialize(ByteBuffer *buffer, T *msg_with_context) {
-   return ::hpp::proto::grpc::read_proto(msg_with_context->message, *buffer, msg_with_context->context);
+    return ::hpp::proto::grpc::read_proto(msg_with_context->message, *buffer, msg_with_context->context);
   }
 };
 } // namespace grpc

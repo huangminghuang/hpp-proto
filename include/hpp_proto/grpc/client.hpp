@@ -101,9 +101,9 @@ public:
   Stub &operator=(Stub &&) = delete;
 
   template <typename Method, typename Request, typename Response>
-    requires(concepts::unary_method_check<Method, Request, Response>)
-  ::grpc::Status call(::grpc::ClientContext &context, const Request &request, Response &response,
-                    hpp::proto::concepts::is_option_type auto &&...response_option) {
+    requires(concepts::unary_method_check<Method, Request, Response>)::grpc::Status
+  call(::grpc::ClientContext &context, const Request &request, Response &response,
+       hpp::proto::concepts::is_option_type auto &&...response_option) {
     hpp::proto::with_pb_context request_with_context{request, hpp::proto::pb_context{}};
     hpp::proto::with_pb_context response_with_context{
         response, hpp::proto::pb_context{std::forward<decltype(response_option)>(response_option)...}};
@@ -191,7 +191,7 @@ public:
 
   template <typename Traits>
   ::grpc::Status write(typename Method::template request_t<Traits> &req,
-                     ::grpc::WriteOptions options = ::grpc::WriteOptions{})
+                       ::grpc::WriteOptions options = ::grpc::WriteOptions{})
     requires Method::client_streaming
   {
     auto result = ::hpp::proto::grpc::write_proto(req, request_);
@@ -229,13 +229,13 @@ public:
 
   template <typename Traits>
   ::grpc::Status get_response(typename Method::template response_t<Traits> &response,
-                            hpp::proto::concepts::is_option_type auto &&...option) {
+                              hpp::proto::concepts::is_option_type auto &&...option) {
     return ::hpp::proto::grpc::read_proto(response, response_, std::forward<decltype(option)>(option)...);
   }
 
   template <typename Traits>
   ::grpc::Status get_response(typename Method::template response_t<Traits> &response,
-                            hpp::proto::concepts::is_pb_context auto &context) {
+                              hpp::proto::concepts::is_pb_context auto &context) {
     return ::hpp::proto::grpc::read_proto(response, response_, context);
   }
 };
