@@ -1186,14 +1186,14 @@ constexpr uint32_t transform_accumulate(const Range &range, const UnaryOperation
 }
 
 template <typename T, typename Range>
-void append_range(T& v, Range&& range) {
+void append_range(T &v, Range &&range) {
   if constexpr (requires { v.append_range(range); }) {
     v.append_range(range);
   } else {
     v.insert(v.end(), range.begin(), range.end());
   }
 }
-}
+} // namespace util
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 namespace pb_serializer {

@@ -17,14 +17,13 @@ auto pb_meta(const ForeignMessage<Traits> &)
         hpp::proto::field_meta<2, &ForeignMessage<Traits>::d, hpp::proto::field_option::none, hpp::proto::vint64_t>,
         hpp::proto::field_meta<15, &ForeignMessage<Traits>::e, hpp::proto::field_option::none>>;
 
-
 #if defined(__GNUC__) && (__GNUC__ < 14)
 namespace std {
 template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
-bool operator == (const pair<LFirst, LSecond>& lhs, const pair<RFirst, RSecond>& rhs) {
+bool operator==(const pair<LFirst, LSecond> &lhs, const pair<RFirst, RSecond> &rhs) {
   return lhs.first == rhs.first && lhs.second == rhs.second;
 }
-}
+} // namespace std
 #endif
 
 template <typename Traits = hpp::proto::default_traits>
