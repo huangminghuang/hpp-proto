@@ -10,7 +10,7 @@
 static const ::grpc::Status name_not_specified_status{::grpc::StatusCode::INVALID_ARGUMENT, "name is not specified"};
 
 namespace helloworld::Greeter {
-class ServiceBase  {
+class ServiceBase {
   std::mutex mu_;
   std::condition_variable shutdown_cv_;
   bool done_ = false;
