@@ -46,7 +46,7 @@
             sudo apt-get update
             
             # Get the version suffix (e.g., "-13", "-19")
-            VERSION_SUFFIX=$(echo "${{ matrix.compiler }}" | grep -oE '-\d+$')
+            VERSION_SUFFIX=$(echo "${{ matrix.compiler }}" | grep -oE -- '-[0-9]+$')
 
             if [[ "${{ matrix.compiler }}" == gcc* ]]; then
               echo "Installing GCC..."
