@@ -112,7 +112,7 @@ struct dynamic_message_factory_addons {
         default_value = proto.default_value == "true";
         break;
       default:
-        // Do nothing
+        break;
       }
     }
   };
@@ -987,8 +987,9 @@ private:
 class repeated_enum_field_mref : public std::ranges::view_interface<repeated_enum_field_mref> {
 public:
   using storage_type = repeated_storage_base<uint32_t>;
-  using encode_type = vint32_t;
+  using encode_type = vint64_t;
   using reference = enum_value_mref;
+  using value_type = uint32_t;
   using iterator = repeated_field_iterator<repeated_enum_field_mref>;
   constexpr static field_kind_t field_kind = KIND_REPEATED_ENUM;
 
@@ -1199,7 +1200,16 @@ public:
     return cref().oneof_descriptor(name);
   }
 
-  void reset() const noexcept { std::memset(storage_, 0, sizeof(value_storage) * num_slots()); }
+  void reset() const noexcept {
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
+    std::memset(storage_, 0, sizeof(value_storage) * num_slots());
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+  }
 
   [[nodiscard]] field_mref mutable_field(const field_descriptor_t &desc) const noexcept {
     auto &storage = storage_for(desc);
@@ -1640,6 +1650,7 @@ inline auto field_cref::visit(auto &&visitor) {
   case KIND_REPEATED_SINT64:
     return visitor(repeated_sint64_field_cref{*descriptor_, *storage_});
   }
+  unreachable();
 }
 
 inline auto field_mref::visit(auto &&visitor) {
@@ -1713,6 +1724,7 @@ inline auto field_mref::visit(auto &&visitor) {
   case KIND_REPEATED_SINT64:
     return visitor(repeated_sint64_field_mref{*descriptor_, *storage_, *memory_resource_});
   }
+  unreachable();
 }
 
 std::optional<message_value_mref> dynamic_message_factory::get_message(std::string_view name,
@@ -1971,7 +1983,7 @@ struct size_cache_counter<message_value_cref> {
 
   static std::size_t count(message_value_cref f) {
     auto fields = f.fields();
-    return std::transform_reduce(fields.begin(), fields.end(), 0ULL, std::plus<>{}, [](field_cref nested_field) {
+    return util::transform_accumulate(fields, [](field_cref nested_field) {
       return nested_field.has_value() ? nested_field.visit(size_cache_counter<message_value_cref>{}) : 0;
     });
   }
@@ -1980,8 +1992,7 @@ struct size_cache_counter<message_value_cref> {
 
   std::size_t operator()(repeated_message_field_cref f) const {
 
-    return std::transform_reduce(f.begin(), f.end(), 0ULL, std::plus<>{},
-                                 [](message_value_cref element) { return count(element); }) +
+    return util::transform_accumulate(f, [](message_value_cref element) { return count(element); }) +
            (!f.descriptor().is_delimited()) * f.size();
   }
 };
@@ -2024,13 +2035,11 @@ struct message_size_calculator<message_value_cref> {
     uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
-        auto s =
-            std::transform_reduce(v.begin(), v.end(), 0ULL, std::plus<>{}, [](auto e) { return T{e}.encode_size(); });
+        auto s = util::transform_accumulate(v, [](auto e) { return T{e}.encode_size(); });
         cache_size(s);
         return ts + len_size(s);
       } else {
-        return std::transform_reduce(v.begin(), v.end(), 0ULL, std::plus<>{},
-                                     [ts](auto e) { return ts + T{e}.encode_size(); });
+        return util::transform_accumulate(v, [ts](auto e) { return ts + T{e}.encode_size(); });
       }
     }
 
@@ -2048,31 +2057,28 @@ struct message_size_calculator<message_value_cref> {
     uint32_t operator()(repeated_enum_field_cref v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
-        auto s = std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
-                                       [](enum_value_cref e) { return varint_size(e.number()); });
+        auto s = util::transform_accumulate(v, [](enum_value_cref e) { return varint_size(e.number()); });
         cache_size(s);
         return ts + len_size(s);
       } else {
-        return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
-                                     [ts](enum_value_cref e) { return ts + varint_size(e.number()); });
+        return util::transform_accumulate(v, [ts](enum_value_cref e) { return ts + varint_size(e.number()); });
       }
     }
 
     uint32_t operator()(repeated_string_field_cref v) {
       auto ts = tag_size(v);
-      return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
-                                   [ts](std::string_view e) { return ts + len_size(e.size()); });
+      return util::transform_accumulate(v, [ts](std::string_view e) { return ts + len_size(e.size()); });
     }
 
     uint32_t operator()(repeated_bytes_field_cref v) {
       auto ts = tag_size(v);
-      return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
+      return util::transform_accumulate(v,
                                    [ts](bytes_view e) { return ts + len_size(e.size()); });
     }
 
     uint32_t operator()(message_value_cref msg) {
-      return std::transform_reduce(msg.fields().begin(), msg.fields().end(), 0U, std::plus<>{},
-                                   [this](field_cref f) { return f.has_value() ? f.visit(*this) : 0; });
+      return util::transform_accumulate(msg.fields(),
+                                        [this](field_cref f) { return f.has_value() ? f.visit(*this) : 0; });
     }
 
     uint32_t operator()(message_field_cref v) {
@@ -2089,10 +2095,9 @@ struct message_size_calculator<message_value_cref> {
     uint32_t operator()(repeated_message_field_cref v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_delimited()) {
-        return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{},
-                                     [this, ts](message_value_cref msg) { return (2 * ts) + (*this)(msg); });
+        return util::transform_accumulate(v, [this, ts](message_value_cref msg) { return (2 * ts) + (*this)(msg); });
       } else {
-        return std::transform_reduce(v.begin(), v.end(), 0U, std::plus<>{}, [this, ts](message_value_cref msg) {
+        return util::transform_accumulate(v, [this, ts](message_value_cref msg) {
           decltype(auto) msg_size = *cache_itr++;
           auto s = (*this)(msg);
           msg_size = s;

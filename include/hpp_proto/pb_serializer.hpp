@@ -1182,11 +1182,13 @@ constexpr bool sfvint_parser_allowed() {
 namespace util {
 template <typename Range, typename UnaryOperation>
 constexpr uint32_t transform_accumulate(const Range &range, const UnaryOperation &unary_op) {
-  return std::transform_reduce(range.begin(), range.end(), 0U, std::plus<>{}, unary_op);
+  // **DO NOT** use std::transform_reduce() because it would apply unary_op in **unspecified** order
+  return std::accumulate(range.begin(), range.end(), std::size_t{0},
+                           [&unary_op](std::size_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
 }
 
 template <typename T, typename Range>
-void append_range(T &v, Range &&range) {
+void append_range(T &v, const Range &range) {
   if constexpr (requires { v.append_range(range); }) {
     v.append_range(range);
   } else {
@@ -2317,7 +2319,8 @@ constexpr void deserialize_unknown_enum(auto &unknown_fields, uint32_t field_num
       unknown_fields.push_back({field_num, field_span});
     } else {
       using bytes_type = typename unknown_fields_t::value_type::second_type;
-      util::append_range(detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)), field_span);
+      decltype(auto) v = detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second));
+      util::append_range(v, field_span);
     }
   }
 }
@@ -2824,13 +2827,14 @@ constexpr auto &get_unknown_fields(auto &item)
 constexpr std::monostate get_unknown_fields(auto &) { return {}; }
 
 constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is_basic_in auto &archive) {
-  decltype(auto) unknown_fields = detail::as_modifiable(archive.context, get_unknown_fields(item));
+  decltype(auto) unknown_fields = get_unknown_fields(item);
+  decltype(auto) modifiable_unknown_fields = detail::as_modifiable(archive.context, unknown_fields);
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
     if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag)) {
       return {};
     }
-    if (auto result = deserialize_field_by_tag(tag, item, archive, unknown_fields); !result.ok()) [[unlikely]] {
+    if (auto result = deserialize_field_by_tag(tag, item, archive, modifiable_unknown_fields); !result.ok()) [[unlikely]] {
       return result;
     }
   }

@@ -268,7 +268,7 @@ const ut::suite test_repeated_vint = [] {
   "normal_cases"_test = []<class Traits> {
     "repeated_sint32"_test = [] {
       verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv,
-             repeated_sint32<Traits>{.integers = std::initializer_list{0, 1, 2, 3, 4, -1, -2, -3, -4}});
+             repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{0, 1, 2, 3, 4, -1, -2, -3, -4}});
     };
 
     "repeated_sint32_unpacked"_test = [] {
@@ -279,13 +279,13 @@ const ut::suite test_repeated_vint = [] {
 
     "repeated_sint32_unpacked_decode"_test = [] {
       verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-             repeated_sint32<Traits>{.integers = std::initializer_list{1, 2, 3, 4, 0, -1, -2, -3, -4}}, decode_only);
+             repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}}, decode_only);
     };
 
     "repeated_sint32_unpacked_explicit_type"_test = [] {
       verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
              repeated_sint32_unpacked_explicit_type<Traits>{.integers =
-                                                                std::initializer_list{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+                                                                std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 };

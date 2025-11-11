@@ -29,6 +29,14 @@ using namespace ut;
 using namespace std::string_view_literals;
 using namespace std::string_literals;
 
+#if defined(__GNUC__)
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
+#else
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+#endif
+
 template <typename T>
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void verify(const hpp::proto::dynamic_serializer &ser, const T &msg, std::string_view json,

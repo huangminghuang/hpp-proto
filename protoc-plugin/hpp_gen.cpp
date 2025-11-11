@@ -1367,7 +1367,7 @@ struct hpp_meta_generator : code_generator {
     bool is_repeated = proto.label == LABEL_REPEATED;
 
     auto get_result_type =
-        is_repeated ? std::format("typename Traits::template repeated_t<{}>", field_value_type) : field_value_type;
+        is_repeated ? fmt::format("typename Traits::template repeated_t<{}>", field_value_type) : field_value_type;
 
     const char *extra_crtp_arg = "";
     if (proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP || proto.type == TYPE_STRING ||
@@ -1512,7 +1512,7 @@ struct glaze_meta_generator : code_generator {
     } else if (well_known_codecs.contains(descriptor.pb_name)) {
       fmt::format_to(target,
                      "template <typename Traits>\n"
-                     "struct ::hpp::proto::json_codec<{0}> {{\n"
+                     "struct hpp::proto::json_codec<{0}> {{\n"
                      "  using type = ::hpp::proto::{1};\n"
                      "}};\n\n",
                      qualified_name, well_known_codecs.at(descriptor.pb_name));

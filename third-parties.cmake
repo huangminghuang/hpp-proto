@@ -67,13 +67,14 @@ if(HPP_PROTO_PROTOC STREQUAL "find")
         get_target_property(Protobuf_INCLUDE_DIRS protobuf::libprotobuf INTERFACE_INCLUDE_DIRECTORIES)
     endif()
 elseif(HPP_PROTO_PROTOC STREQUAL "compile")
-    set(Protobuf_VERSION 31.1)
+    set(Protobuf_VERSION 33.0)
     CPMAddPackage(
         NAME protobuf
         VERSION ${Protobuf_VERSION}
         GITHUB_REPOSITORY protocolbuffers/protobuf
         SYSTEM ON
         OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
+        "protobuf_FORCE_FETCH_DEPENDENCIES ON"
         "protobuf_INSTALL OFF"
         "protobuf_BUILD_TESTS OFF"
         "protobuf_BUILD_PROTOBUF_BINARIES ON"

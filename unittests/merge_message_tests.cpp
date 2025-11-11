@@ -17,7 +17,7 @@ auto pb_meta(const ForeignMessage<Traits> &)
         hpp::proto::field_meta<2, &ForeignMessage<Traits>::d, hpp::proto::field_option::none, hpp::proto::vint64_t>,
         hpp::proto::field_meta<15, &ForeignMessage<Traits>::e, hpp::proto::field_option::none>>;
 
-#if defined(__GNUC__) && (__GNUC__ < 14)
+#if defined(__GNUC__) && (__GNUC__ < 14) && !defined(__clang__)
 namespace std {
 template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
 bool operator==(const pair<LFirst, LSecond> &lhs, const pair<RFirst, RSecond> &rhs) {
@@ -105,10 +105,10 @@ const boost::ut::suite merge_test_suite = [] {
 
   static_assert(hpp::proto::concepts::repeated<hpp::proto::equality_comparable_span<const int>>);
 
-  auto abc_bytes = std::initializer_list{std::byte{'a'}, std::byte{'b'}, std::byte{'c'}};
-  auto def_bytes = std::initializer_list{std::byte{'d'}, std::byte{'e'}, std::byte{'f'}};
-  auto uvw_bytes = std::initializer_list{std::byte{'u'}, std::byte{'v'}, std::byte{'w'}};
-  auto xyz_bytes = std::initializer_list{std::byte{'x'}, std::byte{'y'}, std::byte{'z'}};
+  auto abc_bytes = "abc"_bytes;
+  auto def_bytes = "def"_bytes;
+  auto uvw_bytes = "uvw"_bytes;
+  auto xyz_bytes = "xyz"_bytes;
 
   "merge"_test =
       [&]<class TraitsPair> {
@@ -157,10 +157,10 @@ const boost::ut::suite merge_test_suite = [] {
         // Nested message field
         source.optional_foreign_message.emplace(ForeignMessage<SourceTraits>{.c = 1, .d = 0, .e = uvw_bytes});
 
-        auto list_5_6 = std::initializer_list{5, 6};
+        auto list_5_6 = std::initializer_list<int32_t>{5, 6};
         auto list_7_8 = std::initializer_list<std::int64_t>{7LL, 8LL};
         auto list_9_10 = std::initializer_list<std::int64_t>{9LL, 10LL};
-        auto list_11_12 = std::initializer_list{11U, 12U};
+        auto list_11_12 = std::initializer_list<uint32_t>{11U, 12U};
 
         // Repeated fields
         source.repeated_int32 = list_5_6; // only source
