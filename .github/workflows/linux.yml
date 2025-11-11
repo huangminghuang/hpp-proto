@@ -26,7 +26,7 @@
         fail-fast: false
         matrix:
           os: [ubuntu-24.04]
-          compiler: [gcc-14, clang-18]
+          compiler: [gcc-13, clang-19]
           build_type: [Release, Debug]
           protoc: [find]
           include:
@@ -34,27 +34,43 @@
             - build_type: Debug
               sanitize: "address,undefined"
             - build_type: Coverage
-              compiler: clang-18
+              compiler: clang-19
               protoc: find
               sanitize: OFF
               # extra_cmake_configure_flags: "-DCMAKE_CXX_CLANG_TIDY=clang-tidy-18\\;-warnings-as-errors=*"
 
       runs-on: ubuntu-24.04
-  
-      env:
-        CC: ${{ matrix.compiler }}
       steps:
-        - name: set environment variables
+        - name: Install Compiler and Set Environment
           run: |
-            if [[ $CC == gcc* ]]; then
-              CXX=${CC/gcc/g++}
-            elif [[ $CC == clang-* ]]; then
-              CXX=${CC/clang/clang++}
-              sudo apt-get update
-              sudo apt-get install -y libc++-dev libc++abi-dev
-              echo 'CXXFLAGS="-stdlib=libc++"' >> "$GITHUB_ENV"
+            sudo apt-get update
+            
+            # Get the version suffix (e.g., "-13", "-19")
+            VERSION_SUFFIX=$(echo "${{ matrix.compiler }}" | grep -oE '-\d+$')
+
+            if [[ "${{ matrix.compiler }}" == gcc* ]]; then
+              echo "Installing GCC..."
+              sudo apt-get install -y ${{ matrix.compiler }} g++${VERSION_SUFFIX}
+              
+              echo "Setting GCC environment variables..."
+              echo "CC=${{ matrix.compiler }}" >> $GITHUB_ENV
+              echo "CXX=g++${VERSION_SUFFIX}" >> $GITHUB_ENV    
+            elif [[ "${{ matrix.compiler }}" == clang* ]]; then
+              echo "Installing Clang + libc++..."
+              sudo apt-get install -y \
+                ${{ matrix.compiler }} \
+                lld${VERSION_SUFFIX} \
+                libc++${VERSION_SUFFIX}-dev \
+                libc++abi${VERSION_SUFFIX}-dev
+                
+              echo "Setting Clang environment variables..."
+              echo "CC=${{ matrix.compiler }}" >> $GITHUB_ENV
+              echo "CXX=clang++${VERSION_SUFFIX}" >> $GITHUB_ENV
+              
+              # Tell Clang to use libc++ (compile and link)
+              echo "CXXFLAGS=-stdlib=libc++" >> $GITHUB_ENV
+              echo "LDFLAGS=-stdlib=libc++" >> $GITHUB_ENV
             fi
-            echo "CXX=$CXX" >> "$GITHUB_ENV"
         - uses: actions/checkout@v4
   
         - uses: actions/cache@v4
