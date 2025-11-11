@@ -1,9 +1,14 @@
 #pragma once
 
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/impl/server_callback_handlers.h>
 #include <grpcpp/impl/service_type.h>
 #include <grpcpp/support/server_callback.h>
+
+#if GRPC_CPP_VERSION_MINOR > 51
+#include <grpcpp/impl/server_callback_handlers.h>
+#else
+#include <grpcpp/impl/codegen/server_callback_handlers.h>
+#endif
 
 #include <hpp_proto/grpc/serialization.hpp>
 
