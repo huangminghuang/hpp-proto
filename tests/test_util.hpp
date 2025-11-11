@@ -82,7 +82,7 @@ std::ostream &operator<<(std::ostream &os, bytes_literal<cts> v) {
 // NOLINTEND(cert-dcl58-cpp)
 
 #if defined(__GNUC__)
-#if defined(__clang__)
+#if defined(__apple_build_version__)
 #pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
 #else
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"

@@ -30,7 +30,7 @@ using namespace std::string_view_literals;
 using namespace std::string_literals;
 
 #if defined(__GNUC__)
-#if defined(__clang__)
+#if defined(__apple_build_version__)
 #pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
 #else
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"

@@ -176,30 +176,30 @@ struct TestSuite {
   }
 
   static void SetRepeatedFields(TestAllTypes_t *message) {
-    const static auto repeated_int32 = std::initializer_list{201, 301};
+    const static auto repeated_int32 = std::initializer_list<int32_t>{201, 301};
     message->repeated_int32 = repeated_int32;
     const static auto repeated_int64 = std::initializer_list<int64_t>{202LL, 302LL};
     message->repeated_int64 = repeated_int64;
-    const static auto repeated_uint32 = std::initializer_list{203U, 303U};
+    const static auto repeated_uint32 = std::initializer_list<uint32_t>{203U, 303U};
     message->repeated_uint32 = repeated_uint32;
     const static auto repeated_uint64 = std::initializer_list<uint64_t>{204ULL, 304ULL};
     message->repeated_uint64 = repeated_uint64;
-    const static auto repeated_sint32 = std::initializer_list{205, 305};
+    const static auto repeated_sint32 = std::initializer_list<int32_t>{205, 305};
     message->repeated_sint32 = repeated_sint32;
     const static auto repeated_sint64 = std::initializer_list<int64_t>{206LL, 306LL};
     message->repeated_sint64 = repeated_sint64;
 
-    const static auto repeated_fixed32 = std::initializer_list{207U, 307U};
+    const static auto repeated_fixed32 = std::initializer_list<uint32_t>{207U, 307U};
     message->repeated_fixed32 = repeated_fixed32;
     const static auto repeated_fixed64 = std::initializer_list<uint64_t>{208ULL, 308ULL};
     message->repeated_fixed64 = repeated_fixed64;
-    const static auto repeated_sfixed32 = std::initializer_list{209, 309};
+    const static auto repeated_sfixed32 = std::initializer_list<int32_t>{209, 309};
     message->repeated_sfixed32 = repeated_sfixed32;
     const static auto repeated_sfixed64 = std::initializer_list<int64_t>{210LL, 310LL};
     message->repeated_sfixed64 = repeated_sfixed64;
-    const static auto repeated_float = std::initializer_list{211.F, 311.F};
+    const static auto repeated_float = std::initializer_list<float>{211.F, 311.F};
     message->repeated_float = repeated_float;
-    const static auto repeated_double = std::initializer_list{212., 312.};
+    const static auto repeated_double = std::initializer_list<double>{212., 312.};
     message->repeated_double = repeated_double;
     const static auto repeated_bool = std::initializer_list<bool_t>{true, false};
     message->repeated_bool = repeated_bool;
@@ -735,15 +735,15 @@ struct TestSuite {
 
     // -----------------------------------------------------------------
 
-    expect_set_extension_ok(repeated_int32_extension_t{.value = std::initializer_list{201, 301}});
+    expect_set_extension_ok(repeated_int32_extension_t{.value = std::initializer_list<int32_t>{201, 301}});
     expect_set_extension_ok(repeated_int64_extension_t{.value = std::initializer_list<int64_t>{202LL, 302LL}});
-    expect_set_extension_ok(repeated_uint32_extension_t{.value = std::initializer_list{203U, 303U}});
+    expect_set_extension_ok(repeated_uint32_extension_t{.value = std::initializer_list<uint32_t>{203U, 303U}});
     expect_set_extension_ok(repeated_uint64_extension_t{.value = std::initializer_list<uint64_t>{204ULL, 304ULL}});
-    expect_set_extension_ok(repeated_sint32_extension_t{.value = std::initializer_list{205, 305}});
+    expect_set_extension_ok(repeated_sint32_extension_t{.value = std::initializer_list<int32_t>{205, 305}});
     expect_set_extension_ok(repeated_sint64_extension_t{.value = std::initializer_list<int64_t>{206LL, 306LL}});
-    expect_set_extension_ok(repeated_fixed32_extension_t{.value = std::initializer_list{207U, 307U}});
+    expect_set_extension_ok(repeated_fixed32_extension_t{.value = std::initializer_list<uint32_t>{207U, 307U}});
     expect_set_extension_ok(repeated_fixed64_extension_t{.value = std::initializer_list<uint64_t>{208ULL, 308ULL}});
-    expect_set_extension_ok(repeated_sfixed32_extension_t{.value = std::initializer_list{209, 309}});
+    expect_set_extension_ok(repeated_sfixed32_extension_t{.value = std::initializer_list<int32_t>{209, 309}});
     expect_set_extension_ok(repeated_sfixed64_extension_t{.value = std::initializer_list<int64_t>{210LL, 310LL}});
     expect_set_extension_ok(repeated_float_extension_t{.value = std::initializer_list<float>{211, 311}});
     expect_set_extension_ok(repeated_double_extension_t{.value = std::initializer_list<double>{212, 312}});
@@ -764,11 +764,13 @@ struct TestSuite {
         repeated_lazy_message_extension_t{.value = std::initializer_list<NestedMessage_t>{{.bb = 227}, {.bb = 327}}});
 
     expect_set_extension_ok(
-        repeated_nested_enum_extension_t{.value = std::initializer_list{NestedEnum::BAR, NestedEnum::BAZ}});
+        repeated_nested_enum_extension_t{.value = std::initializer_list<NestedEnum>{NestedEnum::BAR, NestedEnum::BAZ}});
+    using foreign_enum_t = typename repeated_foreign_enum_extension_t::value_type::value_type;
     expect_set_extension_ok(repeated_foreign_enum_extension_t{
-        .value = std::initializer_list{mapping_t::FOREIGN_BAR, mapping_t::FOREIGN_BAZ}});
-    expect_set_extension_ok(
-        repeated_import_enum_extension_t{.value = std::initializer_list{mapping_t::IMPORT_BAR, mapping_t::IMPORT_BAZ}});
+        .value = std::initializer_list<foreign_enum_t>{mapping_t::FOREIGN_BAR, mapping_t::FOREIGN_BAZ}});
+    using import_enum_t = typename repeated_import_enum_extension_t::value_type::value_type;
+    expect_set_extension_ok(repeated_import_enum_extension_t{
+        .value = std::initializer_list<import_enum_t>{mapping_t::IMPORT_BAR, mapping_t::IMPORT_BAZ}});
 
     expect_set_extension_ok(repeated_string_piece_extension_t{.value = std::initializer_list<string_t>{"224", "324"}});
     expect_set_extension_ok(repeated_cord_extension_t{.value = std::initializer_list<string_t>{"225", "325"}});
@@ -1187,7 +1189,7 @@ struct TestSuite {
       expect(message->set_extension(ext, hpp::proto::alloc_from{mr}).ok());
     };
 
-    expect_set_extension_ok(packed_int32_extension_t{.value = std::initializer_list{601, 701}});
+    expect_set_extension_ok(packed_int32_extension_t{.value = std::initializer_list<int32_t>{601, 701}});
     expect_set_extension_ok(packed_int64_extension_t{.value = std::initializer_list<int64_t>{602, 702}});
     expect_set_extension_ok(packed_uint32_extension_t{.value = std::initializer_list<uint32_t>{603, 703}});
     expect_set_extension_ok(packed_uint64_extension_t{.value = std::initializer_list<uint64_t>{604, 704}});
