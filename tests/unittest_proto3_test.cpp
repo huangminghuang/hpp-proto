@@ -50,8 +50,13 @@ struct Proto3Tests {
 
     const static auto repeated_int32 = std::initializer_list<int32_t>{100};
     m->repeated_int32 = repeated_int32;
-    static auto repeated_string = std::initializer_list<string_t>{"asdf"};
-    m->repeated_string = repeated_string;
+    if constexpr (std::same_as<string_t, std::string_view>) {
+      // gcc-13 has trouble to compile the following when string_t is std::string
+      const static auto repeated_string = std::initializer_list<string_t>{"asdf"};
+      m->repeated_string = repeated_string;
+    } else {
+      m->repeated_string = std::initializer_list<string_t>{"asdf"};
+    }
     const static auto repeated_bytes = std::initializer_list<bytes_t>{"jkl;"_bytes};
     m->repeated_bytes = repeated_bytes;
     const static auto repeated_nested_message = std::initializer_list<typename TestAllTypes::NestedMessage>{{.bb = 46}};

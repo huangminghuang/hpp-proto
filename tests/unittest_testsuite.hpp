@@ -204,8 +204,14 @@ struct TestSuite {
     const static auto repeated_bool = std::initializer_list<bool_t>{true, false};
     message->repeated_bool = repeated_bool;
 
-    const static auto repeated_string = std::initializer_list<string_t>{"215", "315"};
-    message->repeated_string = repeated_string;
+    if constexpr (std::same_as<string_t, std::string_view>) {
+      // gcc-13 has trouble to compile the following when string_t is std::string
+      const static auto repeated_string = std::initializer_list<string_t>{"215", "315"};
+      message->repeated_string = repeated_string;
+    } else {
+      message->repeated_string = std::initializer_list<string_t>{"215", "315"};
+    }
+
     const static auto repeated_bytes = std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes};
     message->repeated_bytes = repeated_bytes;
 
