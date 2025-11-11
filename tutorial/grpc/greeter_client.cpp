@@ -106,10 +106,6 @@ public:
       std::cerr << "Shutdown Failed with error: " << status.error_message() << "\n";
     }
   }
-
-private:
-  // Instead of `Greeter::Stub`, it uses `::grpc::Channel` to send any calls.
-  std::shared_ptr<::grpc::Channel> channel_;
 };
 }; // namespace helloworld::Greeter
 

@@ -35,9 +35,7 @@ class ServerRPC<Method, RpcType::NORMAL_RPC> : public ::grpc::ServerUnaryReactor
 
 public:
   ServerRPC(::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *req_buf, ::grpc::ByteBuffer *resp_buf)
-      : context_(context), req_buf_(req_buf), resp_buf_(resp_buf) {
-    std::cerr << "NORMAL_RPC ServerRPC created\n";
-  }
+      : context_(context), req_buf_(req_buf), resp_buf_(resp_buf) {}
 
   template <typename Traits>
   bool get_request(typename Method::template request_t<Traits> &request,
@@ -212,11 +210,11 @@ public:
   }
 };
 
-template <typename Method, template <typename> typename RpcHandlerTemplate>
+template <typename Method, typename RpcHandler>
 class BasicServerReactor : public ServerRPC<Method> {
 protected:
   using rpc_t = ServerRPC<Method>;
-  RpcHandlerTemplate<Method> handler_;
+  RpcHandler handler_;
 
   void on_write_done(bool ok)
     requires Method::server_streaming
@@ -251,7 +249,6 @@ protected:
   }
 
 public:
-  using handler_t = RpcHandlerTemplate<Method>;
   template <typename Service>
   BasicServerReactor(::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *req_buf,
                      ::grpc::ByteBuffer *resp_buf, Service &service)
@@ -277,25 +274,22 @@ public:
   }
 };
 
-template <typename Method, template <typename> typename RpcHandlerTemplate,
-          RpcType Type = static_cast<RpcType>(Method::rpc_type)>
-class ServerReactor : public BasicServerReactor<Method, RpcHandlerTemplate> {
+template <typename Method, typename RpcHandler, RpcType Type = static_cast<RpcType>(Method::rpc_type)>
+class ServerReactor : public BasicServerReactor<Method, RpcHandler> {
 public:
-  using BasicServerReactor<Method, RpcHandlerTemplate>::BasicServerReactor;
+  using BasicServerReactor<Method, RpcHandler>::BasicServerReactor;
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    std::cerr << "creating CallbackUnaryHandler\n";
     return new ::grpc::internal::CallbackUnaryHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
         [&service](::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *request,
                    ::grpc::ByteBuffer *response) { return new ServerReactor(context, request, response, service); });
   }
 };
 
-template <typename Method, template <typename> typename RpcHandlerTemplate>
-class ServerReactor<Method, RpcHandlerTemplate, RpcType::CLIENT_STREAMING>
-    : public BasicServerReactor<Method, RpcHandlerTemplate> {
+template <typename Method, typename RpcHandler>
+class ServerReactor<Method, RpcHandler, RpcType::CLIENT_STREAMING> : public BasicServerReactor<Method, RpcHandler> {
 public:
-  using BasicServerReactor<Method, RpcHandlerTemplate>::BasicServerReactor;
+  using BasicServerReactor<Method, RpcHandler>::BasicServerReactor;
   void OnReadDone(bool ok) override { this->on_read_done(ok); }
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
@@ -306,15 +300,13 @@ public:
   }
 };
 
-template <typename Method, template <typename> typename RpcHandlerTemplate>
-class ServerReactor<Method, RpcHandlerTemplate, RpcType::SERVER_STREAMING>
-    : public BasicServerReactor<Method, RpcHandlerTemplate> {
+template <typename Method, typename RpcHandler>
+class ServerReactor<Method, RpcHandler, RpcType::SERVER_STREAMING> : public BasicServerReactor<Method, RpcHandler> {
 public:
-  using BasicServerReactor<Method, RpcHandlerTemplate>::BasicServerReactor;
+  using BasicServerReactor<Method, RpcHandler>::BasicServerReactor;
   void OnWriteDone(bool ok) override { this->on_write_done(ok); }
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    std::cerr << "creating CallbackServerStreamingHandler\n";
     return new ::grpc::internal::CallbackServerStreamingHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
         [&service](::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *request) {
           return new ServerReactor(context, request, nullptr, service);
@@ -322,11 +314,10 @@ public:
   }
 };
 
-template <typename Method, template <typename> typename RpcHandlerTemplate>
-class ServerReactor<Method, RpcHandlerTemplate, RpcType::BIDI_STREAMING>
-    : public BasicServerReactor<Method, RpcHandlerTemplate> {
+template <typename Method, typename RpcHandler>
+class ServerReactor<Method, RpcHandler, RpcType::BIDI_STREAMING> : public BasicServerReactor<Method, RpcHandler> {
 public:
-  using BasicServerReactor<Method, RpcHandlerTemplate>::BasicServerReactor;
+  using BasicServerReactor<Method, RpcHandler>::BasicServerReactor;
   void OnReadDone(bool ok) override { this->on_read_done(ok); }
   void OnWriteDone(bool ok) override { this->on_write_done(ok); }
 
@@ -343,12 +334,9 @@ class CallbackService : public ::grpc::Service {
 
   template <typename Method>
   void add_method(Method method) {
-    std::cerr << "add method\n";
-    using handler_t = Derived::template rpc_handler<Method>;
-    // check if the rpc_handler instantiation has the right constructor
-    if constexpr (std::constructible_from<handler_t, Derived &, ServerRPC<Method> &>) {
-      auto *handler =
-          ServerReactor<Method, Derived::template rpc_handler>::grpc_method_handler(static_cast<Derived &>(*this));
+    if constexpr (requires { std::declval<Derived>().handle(method); }) {
+      using rpc_handler_t = decltype(std::declval<Derived>().handle(method));
+      auto *handler = ServerReactor<Method, rpc_handler_t>::grpc_method_handler(static_cast<Derived &>(*this));
       this->AddMethod(new RpcRawCallbackServiceMethod(
           method.method_name, static_cast<::grpc::internal::RpcMethod::RpcType>(method.rpc_type), handler));
     }
