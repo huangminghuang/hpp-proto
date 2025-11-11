@@ -1201,12 +1201,12 @@ public:
   }
 
   void reset() const noexcept {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wclass-memaccess"
 #endif
     std::memset(storage_, 0, sizeof(value_storage) * num_slots());
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
   }
