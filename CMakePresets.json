@@ -59,7 +59,8 @@
             "description": "Optimized build with tests",
             "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
+                "CMAKE_BUILD_TYPE": "Release",
+                "HPP_PROTO_PROTOC": "find"
             }
         },
         {

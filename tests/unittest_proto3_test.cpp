@@ -50,7 +50,7 @@ struct Proto3Tests {
 
     const static auto repeated_int32 = std::initializer_list<int32_t>{100};
     m->repeated_int32 = repeated_int32;
-    const static auto repeated_string = std::initializer_list<string_t>{"asdf"};
+    static auto repeated_string = std::initializer_list<string_t>{"asdf"};
     m->repeated_string = repeated_string;
     const static auto repeated_bytes = std::initializer_list<bytes_t>{"jkl;"_bytes};
     m->repeated_bytes = repeated_bytes;

@@ -23,21 +23,26 @@ const boost::ut::suite dynamic_message_test = [] {
     std::string data = read_file("data/"s + message_name + ".binpb");
 
     std::pmr::monotonic_buffer_resource memory_resource;
-    hpp::proto::message_value_mref message = factory.get_message(message_name, memory_resource).value();
-    auto r = hpp::proto::read_proto(message, data);
-    expect(fatal(r.ok()));
+    auto optional_msg = factory.get_message(message_name, memory_resource);
+    // if using protoc without edition support, TestAllTypesLite and TestPackedTypesLite
+    // would be unavailable.
+    if (optional_msg.has_value()) {
+      hpp::proto::message_value_mref message = optional_msg.value();
+      auto r = hpp::proto::read_proto(message, data);
+      expect(fatal(r.ok()));
 
-    std::string new_data;
-    r = hpp::proto::write_proto(message.cref(), new_data);
-    expect(fatal(r.ok()));
-    expect(eq(data, new_data));
+      std::string new_data;
+      r = hpp::proto::write_proto(message.cref(), new_data);
+      expect(fatal(r.ok()));
+      expect(eq(data, new_data));
 
-    std::string str;
-    auto err = glz::write_json(message, str);
-    expect(!err);
+      std::string str;
+      auto err = glz::write_json(message, str);
+      expect(!err);
 
-    auto json = read_file("data/"s + message_name + ".json");
-    expect(json == str);
+      auto json = read_file("data/"s + message_name + ".json");
+      expect(json == str);
+    }
   } | std::vector<std::string>{"proto3_unittest.TestAllTypes",       "proto3_unittest.TestUnpackedTypes",
                                "protobuf_unittest.TestAllTypes",     "protobuf_unittest.TestPackedTypes",
                                "protobuf_unittest.TestMap",          "protobuf_unittest.TestUnpackedTypes",
