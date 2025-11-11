@@ -2072,8 +2072,7 @@ struct message_size_calculator<message_value_cref> {
 
     uint32_t operator()(repeated_bytes_field_cref v) {
       auto ts = tag_size(v);
-      return util::transform_accumulate(v,
-                                   [ts](bytes_view e) { return ts + len_size(e.size()); });
+      return util::transform_accumulate(v, [ts](bytes_view e) { return ts + len_size(e.size()); });
     }
 
     uint32_t operator()(message_value_cref msg) {

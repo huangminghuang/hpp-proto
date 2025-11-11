@@ -279,13 +279,14 @@ const ut::suite test_repeated_vint = [] {
 
     "repeated_sint32_unpacked_decode"_test = [] {
       verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-             repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}}, decode_only);
+             repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}},
+             decode_only);
     };
 
     "repeated_sint32_unpacked_explicit_type"_test = [] {
       verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-             repeated_sint32_unpacked_explicit_type<Traits>{.integers =
-                                                                std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+             repeated_sint32_unpacked_explicit_type<Traits>{
+                 .integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 };
@@ -515,13 +516,15 @@ const ut::suite test_enums = [] {
 
   "repeated_open_enum"_test = []<class Traits> {
     "repeated_enum_packed"_test = [] {
-      verify("\x1a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
-             open_enum_message<Traits>{.packed_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
+      verify(
+          "\x1a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
+          open_enum_message<Traits>{.packed_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
     };
 
     "repeated_enum_unpacked"_test = [] {
       verify("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
-             open_enum_message<Traits>{.expanded_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
+             open_enum_message<Traits>{.expanded_repeated_field =
+                                           std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 
@@ -542,7 +545,8 @@ const ut::suite test_enums = [] {
         ClosedMessage closed_msg;
         expect(hpp::proto::read_proto(closed_msg, buffer, hpp::proto::alloc_from{mr}).ok());
         expect(!closed_msg.foreign_enum_field.has_value());
-        auto expected_repeated = std::initializer_list<ForeignEnum>{ForeignEnum::FOO, ForeignEnum::BAR, ForeignEnum::BAZ};
+        auto expected_repeated =
+            std::initializer_list<ForeignEnum>{ForeignEnum::FOO, ForeignEnum::BAR, ForeignEnum::BAZ};
         expect(std::ranges::equal(closed_msg.expanded_repeated_field, expected_repeated));
         expect(std::ranges::equal(closed_msg.packed_repeated_field, expected_repeated));
 
@@ -554,8 +558,10 @@ const ut::suite test_enums = [] {
           expect(hpp::proto::read_proto(restored_msg, buffer).ok());
 
           expect(restored_msg.foreign_enum_field == EXTRA);
-          expect(std::ranges::equal(restored_msg.expanded_repeated_field, std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, EXTRA}));
-          expect(std::ranges::equal(restored_msg.packed_repeated_field, std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, EXTRA}));
+          expect(std::ranges::equal(restored_msg.expanded_repeated_field,
+                                    std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, EXTRA}));
+          expect(std::ranges::equal(restored_msg.packed_repeated_field,
+                                    std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, EXTRA}));
           expect(restored_msg.optional_message_field.has_value() && restored_msg.optional_message_field->i == 1);
         }
       } |
@@ -826,7 +832,8 @@ auto pb_meta(const bytes_explicit_presence &)
     -> std::tuple<hpp::proto::field_meta<1, &bytes_explicit_presence::value, field_option::explicit_presence>>;
 
 const ut::suite test_bytes = [] {
-  const auto verified_value = std::initializer_list<std::byte>{std::byte{'t'}, std::byte{'e'}, std::byte{'s'}, std::byte{'t'}};
+  const auto verified_value =
+      std::initializer_list<std::byte>{std::byte{'t'}, std::byte{'e'}, std::byte{'s'}, std::byte{'t'}};
   static_assert(std::is_convertible_v<std::vector<std::byte>, hpp::proto::equality_comparable_span<const std::byte>>);
 
   "bytes_explicit_presence"_test = [&] {
@@ -1344,19 +1351,20 @@ const ut::suite test_non_owning_extensions = [] {
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\xa0\x01\x01\xa0\x01\x02"_bytes));
 
     using namespace std::literals;
-    ut::expect(
-        value
-            .set_extension(
-                repeated_string_ext<hpp::proto::non_owning_traits>{.value = std::initializer_list<std::string_view>{"abc"sv, "def"sv}},
-                hpp::proto::alloc_from{mr})
-            .ok());
+    ut::expect(value
+                   .set_extension(
+                       repeated_string_ext<hpp::proto::non_owning_traits>{
+                           .value = std::initializer_list<std::string_view>{"abc"sv, "def"sv}},
+                       hpp::proto::alloc_from{mr})
+                   .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 21);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
     ut::expect(value
                    .set_extension(
-                       repeated_packed_i32_ext<hpp::proto::non_owning_traits>{.value = std::initializer_list<int32_t>{1, 2, 3}},
+                       repeated_packed_i32_ext<hpp::proto::non_owning_traits>{
+                           .value = std::initializer_list<int32_t>{1, 2, 3}},
                        hpp::proto::alloc_from{mr})
                    .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 22);

@@ -1184,7 +1184,7 @@ template <typename Range, typename UnaryOperation>
 constexpr uint32_t transform_accumulate(const Range &range, const UnaryOperation &unary_op) {
   // **DO NOT** use std::transform_reduce() because it would apply unary_op in **unspecified** order
   return std::accumulate(range.begin(), range.end(), std::size_t{0},
-                           [&unary_op](std::size_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
+                         [&unary_op](std::size_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
 }
 
 template <typename T, typename Range>
@@ -2834,7 +2834,8 @@ constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is
     if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag)) {
       return {};
     }
-    if (auto result = deserialize_field_by_tag(tag, item, archive, modifiable_unknown_fields); !result.ok()) [[unlikely]] {
+    if (auto result = deserialize_field_by_tag(tag, item, archive, modifiable_unknown_fields); !result.ok())
+        [[unlikely]] {
       return result;
     }
   }
