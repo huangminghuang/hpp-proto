@@ -19,10 +19,12 @@ class Service : public ::hpp::proto::grpc::CallbackService<Service, _methods> {
 public:
   // define the callback handler for SayHello
   struct SayHelloHandler {
-    SayHelloHandler(Service &, ::hpp::proto::grpc::ServerRPC<SayHello> &rpc) {
+    SayHelloHandler(Service &, ::hpp::proto::grpc::ServerRPC<SayHello> &rpc,
+                    ::hpp::proto::grpc::RequestToken<SayHello> token) {
       std::cerr << "rpc_handler<SayHello> called\n";
       helloworld::HelloRequest request;
-      if (rpc.get_request(request)) {
+      auto status = token.get(request);
+      if (status.ok()) {
         if (request.name.empty()) {
           rpc.finish(name_not_specified_status);
         } else {
@@ -31,7 +33,8 @@ public:
           rpc.finish(reply);
         }
       } else {
-        std::cerr << "get_request() failed\n";
+        rpc.finish(status);
+        std::cerr << "request serialization error\n";
       }
     }
   };
@@ -45,10 +48,11 @@ public:
     std::string message;
     using rpc_t = ::hpp::proto::grpc::ServerRPC<SayHelloStreamReply>;
 
-    SayHelloStreamReplyHandler(Service &, rpc_t &rpc) {
+    SayHelloStreamReplyHandler(Service &, rpc_t &rpc, ::hpp::proto::grpc::RequestToken<SayHelloStreamReply> token) {
       std::pmr::monotonic_buffer_resource mr;
       helloworld::HelloRequest<hpp::proto::non_owning_traits> request;
-      if (rpc.get_request(request, hpp::proto::alloc_from(mr))) {
+      auto status = token.get(request, hpp::proto::alloc_from(mr));
+      if (status.ok()) {
         if (request.name.empty()) {
           rpc.finish(name_not_specified_status);
         } else {
@@ -57,6 +61,8 @@ public:
           using Reply = helloworld::HelloReply<hpp::proto::non_owning_traits>;
           rpc.write(Reply{.message = this->message});
         }
+      } else {
+        rpc.finish(status);
       }
     }
 
@@ -87,7 +93,9 @@ public:
   // define the handler to handle Shutdown
   struct ShutdownHandler {
     Service *service;
-    explicit ShutdownHandler(Service &service, ::hpp::proto::grpc::ServerRPC<Shutdown> &rpc) : service(&service) {
+    explicit ShutdownHandler(Service &service, ::hpp::proto::grpc::ServerRPC<Shutdown> &rpc,
+                             ::hpp::proto::grpc::RequestToken<Shutdown> token)
+        : service(&service) {
       rpc.finish(google::protobuf::Empty{});
     }
     void on_done() const { service->notify_done(); }

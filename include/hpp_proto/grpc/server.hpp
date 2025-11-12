@@ -16,6 +16,28 @@ namespace hpp::proto::grpc {
 
 using RpcType = ::grpc::internal::RpcMethod::RpcType;
 
+template <typename Method>
+class RequestToken {
+  const ::grpc::ByteBuffer *req_buf_;
+
+public:
+  explicit RequestToken(const ::grpc::ByteBuffer *req_buf) : req_buf_(req_buf) {}
+  ~RequestToken() = default;
+
+  RequestToken(RequestToken &&) = default;
+  RequestToken(const RequestToken &) = default;
+  RequestToken &operator=(const RequestToken &) = default;
+  RequestToken &operator=(RequestToken &&) = default;
+
+  template <typename Traits>
+  ::grpc::Status get(typename Method::template request_t<Traits> &request,
+                     hpp::proto::concepts::is_option_type auto &&...option) const {
+    return ::hpp::proto::grpc::read_proto(request, *req_buf_, std::forward<decltype(option)>(option)...);
+  }
+
+  const ::grpc::ByteBuffer *get() const { return req_buf_; }
+};
+
 class RpcRawCallbackServiceMethod : public ::grpc::internal::RpcServiceMethod {
 public:
   RpcRawCallbackServiceMethod(const char *name, RpcType type, ::grpc::internal::MethodHandler *handler)
@@ -30,31 +52,24 @@ class ServerRPC;
 template <typename Method>
 class ServerRPC<Method, RpcType::NORMAL_RPC> : public ::grpc::ServerUnaryReactor {
   ::grpc::CallbackServerContext *context_;
-  const ::grpc::ByteBuffer *req_buf_;
   ::grpc::ByteBuffer *resp_buf_;
 
 public:
-  ServerRPC(::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *req_buf, ::grpc::ByteBuffer *resp_buf)
-      : context_(context), req_buf_(req_buf), resp_buf_(resp_buf) {}
-
-  template <typename Traits>
-  bool get_request(typename Method::template request_t<Traits> &request,
-                   hpp::proto::concepts::is_option_type auto &&...option) {
-    if (auto status = ::hpp::proto::grpc::read_proto(request, *req_buf_, std::forward<decltype(option)>(option)...);
-        !status.ok()) {
-      this->Finish(status);
-      return false;
-    }
-    return true;
-  }
+  ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *resp_buf)
+      : context_(context), resp_buf_(resp_buf) {}
 
   ::grpc::CallbackServerContext &context() const { return *context_; }
-  void finish(::grpc::Status s) { this->Finish(s); }
+  void finish(::grpc::Status s) { this->Finish(std::move(s)); }
 
   template <typename Traits>
-  void finish(const typename Method::template response_t<Traits> &reply) {
+  void finish(const typename Method::template response_t<Traits> &reply, ::grpc::Status s = ::grpc::Status{}) {
     auto result = ::hpp::proto::grpc::write_proto(reply, *resp_buf_);
-    this->Finish(result);
+    this->Finish(std::move(result));
+  }
+
+  void finish(const ::grpc::ByteBuffer &response, ::grpc::Status s = ::grpc::Status{}) {
+    *resp_buf_ = response;
+    this->Finish(std::move(s));
   }
 };
 
@@ -64,79 +79,55 @@ class ServerRPC<Method, RpcType::CLIENT_STREAMING> : public ::grpc::ServerReadRe
   ::grpc::ByteBuffer request_;
   ::grpc::ByteBuffer *resp_buf_;
 
-#ifndef NDEBUG
 protected:
-  std::atomic<bool> has_request_;
-#endif
+  const ::grpc::ByteBuffer *request_buf() const { return &request_; };
 
 public:
-  ServerRPC(::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *, ::grpc::ByteBuffer *resp_buf)
+  ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *resp_buf)
       : context_(context), resp_buf_(resp_buf) {}
 
-  void start_read() {
-#ifndef NDEBUG
-    has_request_ = false; // get_request should only be called inside on_read_ok()
-#endif
-    this->StartRead(&request_);
-  }
-
-  template <typename Traits>
-  bool get_request(typename Method::template request_t<Traits> &request,
-                   hpp::proto::concepts::is_option_type auto &&...option) {
-#ifndef NDEBUG
-    assert(has_request_); // get_request should only be called inside on_read_ok()
-#endif
-    if (auto status = ::hpp::proto::grpc::read_proto(request, request_, std::forward<decltype(option)>(option)...);
-        !status.ok()) {
-      this->Finish(status);
-      return false;
-    }
-    return true;
-  }
+  void start_read() { this->StartRead(&request_); }
 
   ::grpc::CallbackServerContext &context() const { return *context_; }
-  void finish(::grpc::Status s) { this->Finish(s); }
+  void finish(::grpc::Status s) { this->Finish(std::move(s)); }
 
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply) {
     auto result = ::hpp::proto::grpc::write_proto(reply, *resp_buf_);
-    this->finish(result);
+    this->Finish(std::move(result));
+  }
+
+  void finish(const ::grpc::ByteBuffer &response, ::grpc::Status s = ::grpc::Status{}) {
+    *resp_buf_ = response;
+    this->Finish(std::move(s));
   }
 };
 
 template <typename Method>
 class ServerRPC<Method, RpcType::SERVER_STREAMING> : public ::grpc::ServerWriteReactor<::grpc::ByteBuffer> {
   ::grpc::CallbackServerContext *context_;
-  const ::grpc::ByteBuffer *req_buf_;
   ::grpc::ByteBuffer response_;
 
 public:
-  ServerRPC(::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *req_buf, ::grpc::ByteBuffer *)
-      : context_(context), req_buf_(req_buf) {}
-
-  template <typename Traits>
-  bool get_request(typename Method::template request_t<Traits> &request,
-                   hpp::proto::concepts::is_option_type auto &&...option) {
-    if (auto status = ::hpp::proto::grpc::read_proto(request, *req_buf_, std::forward<decltype(option)>(option)...);
-        !status.ok()) {
-      this->Finish(status);
-      return false;
-    }
-    return true;
-  }
+  ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *) : context_(context) {}
 
   ::grpc::CallbackServerContext &context() const { return *context_; }
-  void finish(::grpc::Status s) { this->Finish(s); }
+  void finish(::grpc::Status s) { this->Finish(std::move(s)); }
 
   template <typename Traits>
-  void write(const typename Method::template response_t<Traits> &reply) {
-    ::grpc::WriteOptions options = ::grpc::WriteOptions{};
+  void write(const typename Method::template response_t<Traits> &reply,
+             ::grpc::WriteOptions options = ::grpc::WriteOptions{}) {
     auto result = ::hpp::proto::grpc::write_proto(reply, response_);
     if (result.ok()) {
-      this->StartWrite(&response_);
+      this->StartWrite(&response_, options);
     } else {
-      finish(result);
+      this->Finish(std::move(result));
     }
+  }
+
+  void write(const ::grpc::ByteBuffer &reply, ::grpc::WriteOptions options = ::grpc::WriteOptions{}) {
+    response_ = reply;
+    this->StartWrite(&response_, options);
   }
 
   template <typename Traits>
@@ -144,10 +135,16 @@ public:
               ::grpc::WriteOptions options = ::grpc::WriteOptions{}, ::grpc::Status s = ::grpc::Status{}) {
     auto result = ::hpp::proto::grpc::write_proto(reply, response_);
     if (result.ok()) {
-      this->StartWriteAndFinish(&response_, options, s);
+      this->StartWriteAndFinish(&response_, options, std::move(s));
     } else {
-      finish(result);
+      this->Finish(std::move(result));
     }
+  }
+
+  void finish(const ::grpc::ByteBuffer &reply, ::grpc::WriteOptions options = ::grpc::WriteOptions{},
+              ::grpc::Status s = ::grpc::Status{}) {
+    response_ = reply;
+    this->StartWriteAndFinish(&response_, options, std::move(s));
   }
 };
 
@@ -157,45 +154,32 @@ class ServerRPC<Method, RpcType::BIDI_STREAMING>
   ::grpc::CallbackServerContext *context_;
   ::grpc::ByteBuffer request_;
   ::grpc::ByteBuffer response_;
-#ifndef NDEBUG
+
 protected:
-  std::atomic<bool> has_request_;
-#endif
+  const ::grpc::ByteBuffer *request_buf() const { return &request_; };
+
 public:
-  ServerRPC(::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *, ::grpc::ByteBuffer *)
-      : context_(context) {}
+  ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *) : context_(context) {}
 
-  void start_read() {
-#ifndef NDEBUG
-    has_request_ = false; // get_request should only be called inside on_read_ok()
-#endif
-    this->StartRead(&request_);
-  }
-
-  template <typename Traits>
-  bool get_request(typename Method::template request_t<Traits> &request,
-                   hpp::proto::concepts::is_option_type auto &&...option) {
-    assert(has_request_); // get_request should only be called inside on_read_ok()
-    if (auto status = ::hpp::proto::grpc::read_proto(request, request_, std::forward<decltype(option)>(option)...);
-        !status.ok()) {
-      this->Finish(status);
-      return false;
-    }
-    return true;
-  }
+  void start_read() { this->StartRead(&request_); }
 
   ::grpc::CallbackServerContext &context() const { return *context_; }
-  void finish(::grpc::Status s) { this->Finish(s); }
+  void finish(::grpc::Status s) { this->Finish(std::move(s)); }
 
   template <typename Traits>
   void write(const typename Method::template response_t<Traits> &reply,
              ::grpc::WriteOptions options = ::grpc::WriteOptions{}) {
     auto result = ::hpp::proto::grpc::write_proto(reply, response_);
     if (result.ok()) {
-      this->StartWrite(&response_);
+      this->StartWrite(&response_, options);
     } else {
-      finish(result);
+      this->Finish(std::move(result));
     }
+  }
+
+  void write(const ::grpc::ByteBuffer &reply, ::grpc::WriteOptions options = ::grpc::WriteOptions{}) {
+    response_ = reply;
+    this->StartWrite(&response_, options);
   }
 
   template <typename Traits>
@@ -203,10 +187,16 @@ public:
               ::grpc::WriteOptions options = ::grpc::WriteOptions{}, ::grpc::Status s = ::grpc::Status{}) {
     auto result = ::hpp::proto::grpc::write_proto(reply, response_);
     if (result.ok()) {
-      this->StartWriteAndFinish(&response_, options, s);
+      this->StartWriteAndFinish(&response_, options, std::move(s));
     } else {
-      finish(result);
+      this->Finish(std::move(result));
     }
+  }
+
+  void finish(const ::grpc::ByteBuffer &reply, ::grpc::WriteOptions options = ::grpc::WriteOptions{},
+              ::grpc::Status s = ::grpc::Status{}) {
+    response_ = reply;
+    this->StartWriteAndFinish(&response_, options, std::move(s));
   }
 };
 
@@ -219,30 +209,27 @@ protected:
   void on_write_done(bool ok)
     requires Method::server_streaming
   {
-    if constexpr (requires { handler_.on_write_done(ok, *this); }) {
-      handler_.on_write_done(ok, *this);
-    } else if constexpr (requires { handler_.on_write_ok(*this); }) {
-      if (ok) {
-        handler_.on_write_ok(*this);
-      } else {
-        // Client cancelled it
-        this->Finish(::grpc::Status::CANCELLED);
+    if (ok) {
+      handler_.on_write_ok(*this);
+    } else {
+      if constexpr (requires { handler_.on_write_error(); }) {
+        handler_.on_write_error();
       }
+      // Client cancelled it
+      this->Finish(::grpc::Status::CANCELLED);
     }
   }
 
   void on_read_done(bool ok)
     requires Method::client_streaming
   {
-#ifndef NDEBUG
-    this->has_request_ = ok;
-#endif
-    if constexpr (requires { handler_.on_read_done(ok, *this); }) {
-      handler_.on_read_done(*this, ok);
-    } else if (ok) {
-      handler_.on_read_ok(*this);
+    if (ok) {
+      handler_.on_read_ok(*this, RequestToken<Method>{this->request_buf()});
     } else {
       // Client cancelled it
+      if constexpr (requires { handler_.on_read_error(); }) {
+        handler_.on_read_error();
+      }
       this->Finish(::grpc::Status::CANCELLED);
       return;
     }
@@ -250,9 +237,15 @@ protected:
 
 public:
   template <typename Service>
+    requires(!Method::client_streaming)
   BasicServerReactor(::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *req_buf,
                      ::grpc::ByteBuffer *resp_buf, Service &service)
-      : rpc_t(context, req_buf, resp_buf), handler_(service, *this) {}
+      : rpc_t(context, resp_buf), handler_(service, *this, RequestToken<Method>{req_buf}) {}
+
+  template <typename Service>
+    requires Method::client_streaming
+  BasicServerReactor(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *resp_buf, Service &service)
+      : rpc_t(context, resp_buf), handler_(service, *this) {}
 
   void OnDone() override {
     if constexpr (requires { handler_.on_done(); }) {
@@ -295,7 +288,7 @@ public:
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
     return new ::grpc::internal::CallbackClientStreamingHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
         [&service](::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *response) {
-          return new ServerReactor(context, nullptr, response, service);
+          return new ServerReactor(context, response, service);
         });
   }
 };
@@ -323,9 +316,7 @@ public:
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
     return new ::grpc::internal::CallbackBidiHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
-        [&service](::grpc::CallbackServerContext *context) {
-          return new ServerReactor(context, nullptr, nullptr, service);
-        });
+        [&service](::grpc::CallbackServerContext *context) { return new ServerReactor(context, nullptr, service); });
   }
 };
 
@@ -338,7 +329,7 @@ class CallbackService : public ::grpc::Service {
       using rpc_handler_t = decltype(std::declval<Derived>().handle(method));
       auto *handler = ServerReactor<Method, rpc_handler_t>::grpc_method_handler(static_cast<Derived &>(*this));
       this->AddMethod(new RpcRawCallbackServiceMethod(
-          method.method_name, static_cast<::grpc::internal::RpcMethod::RpcType>(method.rpc_type), handler));
+          method.method_name, static_cast<RpcType>(method.rpc_type), handler));
     }
   }
 

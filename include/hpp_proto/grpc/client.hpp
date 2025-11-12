@@ -88,7 +88,7 @@ public:
     std::apply(
         [this](auto &&...method) {
           ((grpc_methods_[method.ordinal].set(method.method_name, this->options_.suffix_for_stats(),
-                                              static_cast<::grpc::internal::RpcMethod::RpcType>(method.rpc_type),
+                                              static_cast<RpcType>(method.rpc_type),
                                               this->channel_)),
            ...);
         },
