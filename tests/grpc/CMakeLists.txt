@@ -5,6 +5,13 @@ if(NOT gRPC_FOUND)
     return()
 endif()
 
+if (HPP_PROTO_ENABLE_SANITIZERS)
+    # Unless we compile the grpc library direct with sanitizers; otherwise, we
+    # will have false positives. Just disable the sanitizer entirely.
+    add_compile_options(-fno-sanitize=${HPP_PROTO_ENABLE_SANITIZERS})
+    add_link_options(-fno-sanitize=${HPP_PROTO_ENABLE_SANITIZERS})
+endif()
+
 include(CheckCXXSourceCompiles)
 set(CMAKE_REQUIRED_LIBRARIES gRPC::grpc++)
 check_cxx_source_compiles("
