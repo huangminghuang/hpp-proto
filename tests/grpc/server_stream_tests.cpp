@@ -26,8 +26,7 @@ class ServerStreamReactor : public ::hpp::proto::grpc::ClientCallbackReactor<Ser
 public:
   using request_t = EchoRequest<>;
 
-  void start(Harness::stub_type &stub, request_t &request,
-             ::grpc::ClientContext &context) {
+  void start(Harness::stub_type &stub, request_t &request, ::grpc::ClientContext &context) {
     stub.async_call<ServerStreamFanout>(context, request, &(*this));
     this->start_read();
     this->start_call();
@@ -89,7 +88,5 @@ void run_server_stream_case() {
   expect(eq(reactor.messages().back(), "fanout"s));
 }
 
-const suite server_stream_suite = [] {
-  "server_stream_fanout"_test = [] { run_server_stream_case(); };
-};
+const suite server_stream_suite = [] { "server_stream_fanout"_test = [] { run_server_stream_case(); }; };
 } // namespace

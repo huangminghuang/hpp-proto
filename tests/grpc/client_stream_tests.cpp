@@ -110,7 +110,5 @@ void run_client_stream_case() {
   expect(eq(reactor.summary().last_message, std::string{"chunk_2"}));
 }
 
-const suite client_stream_suite = [] {
-  "client_stream_aggregate"_test = [] { run_client_stream_case(); };
-};
+const suite client_stream_suite = [] { "client_stream_aggregate"_test = [] { run_client_stream_case(); }; };
 } // namespace

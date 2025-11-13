@@ -143,8 +143,7 @@ public:
 
     void on_write_ok(rpc_t &rpc) { next_write(rpc); }
 
-    void on_write_error() {
-    }
+    void on_write_error() {}
 
   private:
     void next_write(rpc_t &rpc) {
@@ -153,7 +152,7 @@ public:
         EchoResponse current = pending_.front();
         pending_.pop_front();
         lock.unlock();
-        if (current.sequence != kTerminalSequence){ 
+        if (current.sequence != kTerminalSequence) {
           rpc.write(current);
         } else {
           rpc.finish(::grpc::Status::OK);

@@ -64,7 +64,7 @@ public:
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply, ::grpc::Status s = ::grpc::Status{}) {
     auto result = ::hpp::proto::grpc::write_proto(reply, *resp_buf_);
-    this->Finish(result.ok() ? std::move(result): std::move(s));
+    this->Finish(result.ok() ? std::move(result) : std::move(s));
   }
 
   void finish(const ::grpc::ByteBuffer &response, ::grpc::Status s = ::grpc::Status{}) {
@@ -328,8 +328,8 @@ class CallbackService : public ::grpc::Service {
     if constexpr (requires { std::declval<Derived>().handle(method); }) {
       using rpc_handler_t = decltype(std::declval<Derived>().handle(method));
       auto *handler = ServerReactor<Method, rpc_handler_t>::grpc_method_handler(static_cast<Derived &>(*this));
-      this->AddMethod(new RpcRawCallbackServiceMethod(
-          method.method_name, static_cast<RpcType>(method.rpc_type), handler));
+      this->AddMethod(
+          new RpcRawCallbackServiceMethod(method.method_name, static_cast<RpcType>(method.rpc_type), handler));
     }
   }
 

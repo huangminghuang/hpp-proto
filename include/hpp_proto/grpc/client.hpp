@@ -251,8 +251,7 @@ public:
   CallbackUnaryCall(Method, CallbackFunction &&f, Response &response,
                     hpp::proto::concepts::is_option_type auto &&...response_option)
       : f_(std::forward<CallbackFunction>(f)), response_ref_(response),
-        response_context_(std::forward<decltype(response_option)>(response_option)...) {
-  }
+        response_context_(std::forward<decltype(response_option)>(response_option)...) {}
 
   void OnDone(const ::grpc::Status &status) override {
     ::grpc::Status final_status = status;

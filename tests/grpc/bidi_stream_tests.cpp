@@ -127,7 +127,5 @@ void run_bidi_case() {
   expect(eq(reactor.responses()[1], "chat_1-bidi"s));
 }
 
-const suite bidi_suite = [] {
-  "bidi_chat_round_trip"_test = [] { run_bidi_case(); };
-};
+const suite bidi_suite = [] { "bidi_chat_round_trip"_test = [] { run_bidi_case(); }; };
 } // namespace
