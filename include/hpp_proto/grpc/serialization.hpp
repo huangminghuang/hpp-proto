@@ -81,9 +81,10 @@ public:
 
 struct single_shot_slice_memory_resource {
   grpc_slice slice_{};
+  bool finalized_ = false;
   single_shot_slice_memory_resource() = default;
   ~single_shot_slice_memory_resource() {
-    if (slice_.refcount != nullptr) {
+    if (!finalized_ && slice_.refcount != nullptr) {
       grpc_slice_unref(slice_);
     }
   }
@@ -98,8 +99,9 @@ struct single_shot_slice_memory_resource {
     return GRPC_SLICE_START_PTR(slice_);
   }
 
-  [[nodiscard]] ::grpc::ByteBuffer finalize() const {
+  [[nodiscard]] ::grpc::ByteBuffer finalize() {
     ::grpc::Slice slice(slice_, ::grpc::Slice::STEAL_REF);
+    finalized_ = true;
     return {&slice, 1};
   }
 };

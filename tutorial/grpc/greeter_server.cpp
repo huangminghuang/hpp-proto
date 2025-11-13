@@ -7,6 +7,7 @@
 #include "helloworld.service.hpp"
 #include <hpp_proto/grpc/server.hpp>
 
+// Additional guidance lives in include/hpp_proto/grpc/README.md.
 static const ::grpc::Status name_not_specified_status{::grpc::StatusCode::INVALID_ARGUMENT, "name is not specified"};
 
 namespace helloworld::Greeter {

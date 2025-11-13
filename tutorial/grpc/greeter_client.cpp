@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 
+// See include/hpp_proto/grpc/README.md for adapter usage and streaming best practices.
 namespace helloworld::Greeter {
 
 class Client {
@@ -91,6 +92,7 @@ public:
     } reactor;
     helloworld::HelloRequest<hpp::proto::non_owning_traits> request;
     request.name = user;
+    // See README streaming cookbook for write/read sequencing rules.
     stub_.async_call(reactor.context, request, &reactor);
     reactor.start();
   }

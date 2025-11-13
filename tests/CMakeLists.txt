@@ -199,3 +199,5 @@ else()
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     endif()
 endif()
+
+add_subdirectory(grpc)

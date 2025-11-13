@@ -88,8 +88,7 @@ public:
     std::apply(
         [this](auto &&...method) {
           ((grpc_methods_[method.ordinal].set(method.method_name, this->options_.suffix_for_stats(),
-                                              static_cast<RpcType>(method.rpc_type),
-                                              this->channel_)),
+                                              static_cast<RpcType>(method.rpc_type), this->channel_)),
            ...);
         },
         ServiceMethods{});
@@ -155,7 +154,7 @@ public:
     }
   }
 
-  template <typename Stub, typename Traits>
+  template <typename Stub>
     requires(rpc_type == RpcType::CLIENT_STREAMING)
   void prepare(const Stub &stub, ::grpc::ClientContext &context) {
     ::grpc::internal::ClientCallbackWriterFactory<::grpc::ByteBuffer>::Create(
@@ -175,7 +174,7 @@ public:
     }
   }
 
-  template <typename Stub, typename Traits>
+  template <typename Stub>
     requires(rpc_type == RpcType::BIDI_STREAMING)
   void prepare(const Stub &stub, ::grpc::ClientContext &context) {
     ::grpc::internal::ClientCallbackReaderWriterFactory<::grpc::ByteBuffer, ::grpc::ByteBuffer>::Create(
@@ -212,7 +211,7 @@ public:
   void write_done()
     requires Method::client_streaming
   {
-    this->StartWriteDone();
+    this->StartWritesDone();
   }
 
   void add_hold() { add_multiple_holds(1); }
@@ -238,29 +237,39 @@ public:
                               hpp::proto::concepts::is_pb_context auto &context) {
     return ::hpp::proto::grpc::read_proto(response, response_, context);
   }
+
+  ::grpc::ByteBuffer &response() { return response_; }
 };
 
-template <typename Method, typename Response, typename Context, typename CallbackFunction>
+template <typename Method, typename CallbackFunction, typename Response, typename Context>
 class CallbackUnaryCall : public ClientCallbackReactor<Method> {
-  Response response_;
-  Context response_context_;
   std::remove_cvref_t<CallbackFunction> f_;
+  Response &response_ref_;
+  Context response_context_;
 
 public:
-  CallbackUnaryCall(std::shared_ptr<::grpc::ChannelInterface> channel, ::grpc::StubOptions options,
-                    ::grpc::ClientContext &client_context, Response &response, Context &&response_context,
-                    CallbackFunction &&f)
-      : response_(response), response_context_(response_context), f_(std::forward<CallbackFunction>(f)) {}
+  CallbackUnaryCall(Method, CallbackFunction &&f, Response &response,
+                    hpp::proto::concepts::is_option_type auto &&...response_option)
+      : f_(std::forward<CallbackFunction>(f)), response_ref_(response),
+        response_context_(std::forward<decltype(response_option)>(response_option)...) {
+  }
 
   void OnDone(const ::grpc::Status &status) override {
-    if (status.ok()) {
-      f_(this->get_response(response_, response_context_));
-    } else {
-      f_(status);
+    ::grpc::Status final_status = status;
+    if (final_status.ok()) {
+      auto read_status = this->get_response(response_ref_, response_context_);
+      if (!read_status.ok()) {
+        final_status = read_status;
+      }
     }
+    f_(final_status);
     delete this;
   }
 };
+
+template <typename Method, typename CallbackFunction, typename Response, typename... U>
+CallbackUnaryCall(Method, CallbackFunction &&, Response &, U &&...)
+    -> CallbackUnaryCall<Method, CallbackFunction, Response, hpp::proto::pb_context<std::remove_cvref_t<U>...>>;
 
 template <typename ServiceMethods>
 template <typename Method, typename Request, typename Response, typename CallbackFunction>
@@ -269,8 +278,9 @@ void Stub<ServiceMethods>::async_call(::grpc::ClientContext &context, const Requ
                                       CallbackFunction &&f,
                                       hpp::proto::concepts::is_option_type auto &&...response_option) {
 
-  this->async_call<Method>(
-      context, request,
-      new CallbackUnaryCall{response, hpp::proto::pb_context{response_option...}, std::forward<CallbackFunction>(f)});
+  auto *callback_reactor =
+      new CallbackUnaryCall{Method{}, std::forward<CallbackFunction>(f), response, response_option...};
+  callback_reactor->prepare(*this, context, request);
+  callback_reactor->start_call();
 }
 } // namespace hpp::proto::grpc

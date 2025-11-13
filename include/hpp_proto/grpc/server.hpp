@@ -64,7 +64,7 @@ public:
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply, ::grpc::Status s = ::grpc::Status{}) {
     auto result = ::hpp::proto::grpc::write_proto(reply, *resp_buf_);
-    this->Finish(std::move(result));
+    this->Finish(result.ok() ? std::move(result): std::move(s));
   }
 
   void finish(const ::grpc::ByteBuffer &response, ::grpc::Status s = ::grpc::Status{}) {

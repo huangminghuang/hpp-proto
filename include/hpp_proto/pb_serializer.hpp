@@ -1985,7 +1985,7 @@ public:
         } else {
           while (nbytes > 0) {
             maybe_advance_region();
-            auto k = region_size();
+            std::size_t k = std::min(nbytes, static_cast<std::size_t>(region_size()));
             std::memcpy(ptr, current.consume(k).data(), k);
             ptr = static_cast<char *>(ptr) + k;
             nbytes -= k;
