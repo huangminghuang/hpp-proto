@@ -233,7 +233,7 @@ Generated `.msg.hpp` headers stay lightweight: they declare only the data struct
 // addressbook_proto3.msg.hpp (excerpt)
 namespace tutorial {
 
-namespace Person__ {
+namespace Person_ {
   enum class PhoneType {
     PHONE_TYPE_UNSPECIFIED = 0,
     PHONE_TYPE_MOBILE = 1,
@@ -250,13 +250,13 @@ namespace Person__ {
     [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator==(const PhoneNumber&) const = default;
   };
-} // namespace Person__
+} // namespace Person_
 
 template <typename Traits = ::hpp::proto::default_traits>
 struct Person {
   using hpp_proto_traits_type = Traits;
-  using PhoneType = Person__::PhoneType;
-  using PhoneNumber = Person__::PhoneNumber<Traits>;
+  using PhoneType = Person_:PhoneType;
+  using PhoneNumber = Person_:PhoneNumber<Traits>;
 
   typename Traits::string_t name;
   std::int32_t id = {};

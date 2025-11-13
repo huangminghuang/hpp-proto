@@ -866,7 +866,7 @@ struct msg_code_generator : code_generator {
     msg.qualified_name = fmt::format("{}{}{}<Traits>", namespace_prefix, scope, msg.cpp_name);
     msg.no_namespace_qualified_name = msg.qualified_name.substr(namespace_prefix.size());
 
-    std::string nested_scope = fmt::format("{}{}__::", scope, msg.cpp_name);
+    std::string nested_scope = fmt::format("{}{}_::", scope, msg.cpp_name);
 
     for (auto &nested_msg : msg.messages()) {
       resolve_message_qualified_name(nested_msg, namespace_prefix, nested_scope);
@@ -1096,7 +1096,7 @@ struct msg_code_generator : code_generator {
     }
 
     if (!descriptor.enums().empty() || descriptor.has_non_map_nested_message) {
-      fmt::format_to(target, "{}namespace {}__ {{\n", indent(), descriptor.cpp_name);
+      fmt::format_to(target, "{}namespace {}_ {{\n", indent(), descriptor.cpp_name);
       indent_num += 2;
       for (auto &e : descriptor.enums()) {
         process(e);
@@ -1107,7 +1107,7 @@ struct msg_code_generator : code_generator {
       }
 
       indent_num -= 2;
-      fmt::format_to(target, "{}}} //namespace {}__\n\n", indent(), descriptor.cpp_name);
+      fmt::format_to(target, "{}}} //namespace {}_\n\n", indent(), descriptor.cpp_name);
     }
 
     fmt::format_to(target,
@@ -1126,7 +1126,7 @@ struct msg_code_generator : code_generator {
 
     for (auto &m : descriptor.messages()) {
       if (!m.is_map_entry()) {
-        fmt::format_to(target, "{0}using {1} = {2}__::{1}<Traits>;\n\n", indent(), m.cpp_name, descriptor.cpp_name);
+        fmt::format_to(target, "{0}using {1} = {2}_::{1}<Traits>;\n\n", indent(), m.cpp_name, descriptor.cpp_name);
       }
     }
 
@@ -1263,7 +1263,7 @@ struct hpp_meta_generator : code_generator {
     fmt::format_to(target, ">;\n\n");
 
     if (descriptor.has_non_map_nested_message) {
-      fmt::format_to(target, "{}namespace {}__ {{\n", indent(), descriptor.cpp_name);
+      fmt::format_to(target, "{}namespace {}_ {{\n", indent(), descriptor.cpp_name);
       indent_num += 2;
 
       for (auto &m : descriptor.messages()) {
@@ -1272,7 +1272,7 @@ struct hpp_meta_generator : code_generator {
         }
       }
       indent_num -= 2;
-      fmt::format_to(target, "{}}} //namespace {}__\n\n", indent(), descriptor.cpp_name);
+      fmt::format_to(target, "{}}} //namespace {}_\n\n", indent(), descriptor.cpp_name);
     }
 
     for (auto &f : descriptor.extensions()) {
@@ -1282,7 +1282,7 @@ struct hpp_meta_generator : code_generator {
 
   static std::vector<std::string_view> meta_options(const field_descriptor_t &descriptor) {
     std::vector<std::string_view> options;
-    using enum google::protobuf::FieldDescriptorProto__::Label;
+    using enum google::protobuf::FieldDescriptorProto_::Label;
     if (descriptor.is_cpp_optional || descriptor.is_required()) {
       options.emplace_back("::hpp::proto::field_option::explicit_presence");
     } else if (descriptor.is_packed()) {
@@ -1305,8 +1305,8 @@ struct hpp_meta_generator : code_generator {
   void process(field_descriptor_t &descriptor, std::size_t oneof_index) {
     auto options = meta_options(descriptor);
     auto proto = descriptor.proto();
-    using enum google::protobuf::FieldDescriptorProto__::Label;
-    using enum google::protobuf::FieldDescriptorProto__::Type;
+    using enum google::protobuf::FieldDescriptorProto_::Label;
+    using enum google::protobuf::FieldDescriptorProto_::Type;
 
     if (descriptor.is_map_entry()) {
       auto get_meta_type = [](const auto &field) {
@@ -1351,8 +1351,8 @@ struct hpp_meta_generator : code_generator {
                         ? descriptor.cpp_name
                         : descriptor.parent_message()->cpp_name + "<Traits>::" + descriptor.cpp_name;
 
-    using enum google::protobuf::FieldDescriptorProto__::Label;
-    using enum google::protobuf::FieldDescriptorProto__::Type;
+    using enum google::protobuf::FieldDescriptorProto_::Label;
+    using enum google::protobuf::FieldDescriptorProto_::Type;
     auto proto = descriptor.proto();
     auto extendee_template = std::string_view{descriptor.extendee_descriptor()->qualified_name};
     extendee_template =

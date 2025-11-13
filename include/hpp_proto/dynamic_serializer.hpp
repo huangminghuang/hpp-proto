@@ -175,7 +175,7 @@ class dynamic_serializer {
     std::variant<std::monostate, const message_meta *, const enum_meta *> type_info;
     std::string name;
     std::string json_name;
-    google::protobuf::FieldDescriptorProto__::Type type = {};
+    google::protobuf::FieldDescriptorProto_::Type type = {};
     uint8_t options = 0;
     std::string default_value;
 
@@ -187,20 +187,20 @@ class dynamic_serializer {
           json_name(field_descriptor.proto().json_name), type(field_descriptor.proto().type),
           default_value(field_descriptor.proto().default_value) {
       const auto &proto = field_descriptor.proto();
-      if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto__::Type::TYPE_MESSAGE) {
+      if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto_::Type::TYPE_MESSAGE) {
         if (pool.message_map().find(proto.type_name.substr(1))->second->is_map_entry()) {
           options |= field_options::is_map_entry;
         }
       }
 
-      using enum google::protobuf::FieldDescriptorProto__::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
       if (proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP) {
         type_index = find_index(pool.message_map().keys(), proto.type_name.substr(1));
       } else if (proto.type == TYPE_ENUM) {
         type_index = find_index(pool.enum_map().keys(), proto.type_name.substr(1));
       }
 
-      using enum google::protobuf::FieldDescriptorProto__::Label;
+      using enum google::protobuf::FieldDescriptorProto_::Label;
       if (proto.label == LABEL_REPEATED) {
         if (field_descriptor.is_packed()) {
           options |= uint8_t(field_options::repeated | field_options::packed);
@@ -437,7 +437,7 @@ class dynamic_serializer {
     template <auto Options>
     status field_to_json(const dynamic_serializer::field_meta &meta, bool is_map_key,
                          concepts::is_basic_in auto &archive) {
-      using enum google::protobuf::FieldDescriptorProto__::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
       switch (meta.type) {
       case TYPE_DOUBLE:
         return field_type_to_json<Options, double>(false, archive, [](double) { return true; });
@@ -535,7 +535,7 @@ class dynamic_serializer {
           }
         }
 
-        using enum google::protobuf::FieldDescriptorProto__::Type;
+        using enum google::protobuf::FieldDescriptorProto_::Type;
         if (is_map_entry) {
           separator = ':';
         } else if (!field_m.is_repeated() || unpacked_repeated_positions[field_index] == 0) {
@@ -942,7 +942,7 @@ class dynamic_serializer {
     }
 
     status map_key_to_pb(const dynamic_serializer::field_meta &meta, std::string_view key, auto &archive) {
-      using enum google::protobuf::FieldDescriptorProto__::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
       switch (meta.type) {
       case TYPE_INT64:
         return map_key_to_pb<vint64_t>(key, archive);
@@ -990,7 +990,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status field_to_pb(const dynamic_serializer::field_meta &meta, auto &it, auto &end, auto &archive) {
-      using enum google::protobuf::FieldDescriptorProto__::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
       switch (meta.type) {
       case TYPE_DOUBLE:
         return type_to_pb<Options, double, false>(meta, it, end, archive);
@@ -1430,7 +1430,7 @@ public:
 
     for (auto &msg : messages) {
       for (auto &field : msg.fields) {
-        using enum google::protobuf::FieldDescriptorProto__::Type;
+        using enum google::protobuf::FieldDescriptorProto_::Type;
         if (field.type == TYPE_MESSAGE || field.type == TYPE_GROUP) {
           field.type_info = &messages[field.type_index];
         } else if (field.type == TYPE_ENUM) {

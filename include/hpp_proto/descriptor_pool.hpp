@@ -596,8 +596,8 @@ private:
     //\002(\0010\0018\002@\001\302>\006\010\000\020\003\030\000\n#\030\350\007\"\023\010\001\020\001\030\001
     //\002(\0010\001\302>\004\010\000\020\003*\t8\002@\001\302>\002\030\000\n#\030\351\007\"\031\010\001\020\001\030\001
     //\002(\0010\0018\001@\002\302>\006\010\000\020\001\030\001*\003\302>\000 \346\007(\351\007"sv
-    using namespace google::protobuf::FeatureSet__;
-    using namespace VisibilityFeature__;
+    using namespace google::protobuf::FeatureSet_;
+    using namespace VisibilityFeature_;
     static auto default_feature_set =
         std::initializer_list<typename google::protobuf::FeatureSetDefaults<traits_type>::FeatureSetEditionDefault>{
             {.edition = google::protobuf::Edition::EDITION_LEGACY,

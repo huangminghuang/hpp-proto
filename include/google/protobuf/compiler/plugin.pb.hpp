@@ -17,9 +17,9 @@ namespace google::protobuf::compiler {
 
 template <typename Traits>
 auto pb_meta(const Version<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &Version<Traits>::major, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
-  ::hpp::proto::field_meta<2, &Version<Traits>::minor, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
-  ::hpp::proto::field_meta<3, &Version<Traits>::patch, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<1, &Version<Traits>::major, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<2, &Version<Traits>::minor, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<3, &Version<Traits>::patch, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
   ::hpp::proto::field_meta<4, &Version<Traits>::suffix, ::hpp::proto::field_option::none>,
   ::hpp::proto::field_meta<UINT32_MAX, &Version<Traits>::unknown_fields_>>;
 
@@ -35,22 +35,22 @@ auto pb_meta(const CodeGeneratorRequest<Traits> &) -> std::tuple<
 template <typename Traits>
 auto pb_meta(const CodeGeneratorResponse<Traits> &) -> std::tuple<
   ::hpp::proto::field_meta<1, &CodeGeneratorResponse<Traits>::error, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &CodeGeneratorResponse<Traits>::supported_features, ::hpp::proto::field_option::none, hpp::proto::vuint64_t>,
-  ::hpp::proto::field_meta<3, &CodeGeneratorResponse<Traits>::minimum_edition, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
-  ::hpp::proto::field_meta<4, &CodeGeneratorResponse<Traits>::maximum_edition, ::hpp::proto::field_option::none, hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<2, &CodeGeneratorResponse<Traits>::supported_features, ::hpp::proto::field_option::none, ::hpp::proto::vuint64_t>,
+  ::hpp::proto::field_meta<3, &CodeGeneratorResponse<Traits>::minimum_edition, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
+  ::hpp::proto::field_meta<4, &CodeGeneratorResponse<Traits>::maximum_edition, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
   ::hpp::proto::field_meta<15, &CodeGeneratorResponse<Traits>::file, ::hpp::proto::field_option::none>,
   ::hpp::proto::field_meta<UINT32_MAX, &CodeGeneratorResponse<Traits>::unknown_fields_>>;
 
-namespace CodeGeneratorResponse__ {
+namespace CodeGeneratorResponse_ {
   template <typename Traits>
   auto pb_meta(const File<Traits> &) -> std::tuple<
     ::hpp::proto::field_meta<1, &File<Traits>::name, ::hpp::proto::field_option::none>,
     ::hpp::proto::field_meta<2, &File<Traits>::insertion_point, ::hpp::proto::field_option::none>,
     ::hpp::proto::field_meta<15, &File<Traits>::content, ::hpp::proto::field_option::none>,
     ::hpp::proto::field_meta<16, &File<Traits>::generated_code_info, ::hpp::proto::field_option::explicit_presence>,
-    ::hpp::proto::field_meta<UINT32_MAX, &CodeGeneratorResponse__::File<Traits>::unknown_fields_>>;
+    ::hpp::proto::field_meta<UINT32_MAX, &CodeGeneratorResponse_::File<Traits>::unknown_fields_>>;
 
-} //namespace CodeGeneratorResponse__
+} //namespace CodeGeneratorResponse_
 
 } // namespace google::protobuf::compiler
 // clang-format on

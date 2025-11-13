@@ -79,7 +79,7 @@ struct dynamic_message_factory_addons {
     field_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options) { set_default_value(self.proto()); }
 
     void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto) {
-      using enum google::protobuf::FieldDescriptorProto__::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
       const std::string default_value_opt{proto.default_value};
       switch (proto.type) {
       case TYPE_ENUM:
@@ -289,7 +289,7 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] field_kind_t field_kind() const noexcept {
     // map TYPE_GROUP to TYPE_MESSAGE
-    using enum google::protobuf::FieldDescriptorProto__::Type;
+    using enum google::protobuf::FieldDescriptorProto_::Type;
     auto base_type = descriptor().proto().type == TYPE_GROUP ? TYPE_MESSAGE : descriptor().proto().type;
     return static_cast<field_kind_t>(std::to_underlying(base_type) +
                                      (18 * static_cast<int>(descriptor().is_repeated())));

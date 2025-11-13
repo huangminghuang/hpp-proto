@@ -19,14 +19,14 @@ namespace hpp::proto {
 template <typename Traits = ::hpp::proto::default_traits>
 struct FileOptions {
   using hpp_proto_traits_type = Traits;
-  hpp::proto::optional<typename Traits::string_t> namespace_prefix;
+  ::hpp::proto::optional<typename Traits::string_t> namespace_prefix;
 
-  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const FileOptions&) const = default;
 };
 
 template <typename Traits>
-constexpr auto message_type_url(const FileOptions<Traits>&) { return hpp::proto::string_literal<"type.googleapis.com/hpp.proto.FileOptions">{}; }
+constexpr auto message_type_url(const FileOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/hpp.proto.FileOptions">{}; }
 // NOLINTEND(performance-enum-size)
 } // namespace hpp::proto
 // clang-format on
