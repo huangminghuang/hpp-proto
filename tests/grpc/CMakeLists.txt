@@ -1,8 +1,9 @@
-find_package(gRPC CONFIG 1.51)
 
 if (HPP_PROTO_PROTOC STREQUAL "compile")
     return()
 endif()
+
+find_package(gRPC CONFIG 1.51)
 
 if(NOT gRPC_FOUND)
     message(WARNING "gRPC not found, skipping grpc_quality_tests target")
