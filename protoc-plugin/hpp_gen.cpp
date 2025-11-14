@@ -133,9 +133,8 @@ constexpr std::size_t cpp_escaped_len(char c) {
       4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
   };
   /* clang-format on */
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+  // NOLINTBEGINNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return cpp_escaped_len_table[static_cast<unsigned char>(c)];
-  // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
 }
 // Calculates the length of the C-style escaped version of 'src'.
 // Assumes that non-printable characters are escaped using octal sequences,
@@ -229,9 +228,8 @@ std::string_view get_common_ancestor(std::string_view s1, std::string_view s2) {
 std::array<char, 4> to_hex_literal(::hpp::proto::concepts::byte_type auto c) {
   static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
   const auto uc = static_cast<unsigned char>(c);
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return {'\\', 'x', qmap[uc >> 4U], qmap[uc & 0x0FU]};
-  // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
 }
 
 std::string to_hex_literal(::hpp::proto::concepts::contiguous_byte_range auto const &data) {
@@ -759,13 +757,14 @@ struct msg_code_generator : code_generator {
       ;
     } else {
       // only the components excluding the common ancestor should be used
-      auto num_components = std::ranges::count_if(relative_type_name, [](char c) { return c == '.'; });
+      const auto num_components = std::ranges::count(relative_type_name, '.');
       std::string_view v = field.qualified_cpp_field_type;
-      auto num_colons = 2 * num_components + 1;
-      auto pos = std::distance(
-          std::find_if(v.rbegin(), v.rend(), [&num_colons](char c) { return c == ':' && (--num_colons == 0); }),
-          v.rend());
-      field.cpp_field_type = field.qualified_cpp_field_type.substr(static_cast<std::size_t>(pos));
+      auto num_colons = (2 * num_components) + 1;
+      auto reverse_view = std::ranges::reverse_view(v);
+      auto reverse_it =
+          std::ranges::find_if(reverse_view, [&num_colons](char c) mutable { return c == ':' && (--num_colons == 0); });
+      auto pos = static_cast<std::size_t>(std::distance(v.begin(), reverse_it.base()));
+      field.cpp_field_type = field.qualified_cpp_field_type.substr(pos);
     }
   }
 
@@ -835,7 +834,8 @@ struct msg_code_generator : code_generator {
   }
 
   static void resolve_message_field(hpp_gen_descriptor_pool &pool, field_descriptor_t &field) {
-    if (!field.parent_message() || !field.parent_message()->is_map_entry()) {
+    auto *parent = field.parent_message();
+    if (parent == nullptr || !parent->is_map_entry()) {
       resolve_field_dependency(pool, field.qualified_parent_name(), field);
     }
     auto *field_type_msg = field.message_field_type_descriptor();
@@ -966,7 +966,6 @@ struct msg_code_generator : code_generator {
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.is_map_entry()) {
       auto *type_desc = descriptor.message_field_type_descriptor();
-      std::string type = "Traits::template map_t";
       return fmt::format("Traits::template map_t<{}, {}>", type_desc->fields().front().cpp_field_type,
                          type_desc->fields()[1].cpp_field_type);
     }
@@ -982,7 +981,7 @@ struct msg_code_generator : code_generator {
     return descriptor.cpp_field_type;
   }
 
-  void set_presence_rule(field_descriptor_t &descriptor) {
+  void set_presence_rule(field_descriptor_t &descriptor) const {
     using enum FieldDescriptorProto::Type;
     using enum FieldDescriptorProto::Label;
     std::string qualified_name = std::string{descriptor.qualified_parent_name()} + "." + descriptor.proto().name;
@@ -1020,7 +1019,10 @@ struct msg_code_generator : code_generator {
     if (fields.size() > 1) {
       std::string types;
 
-      fmt::format_to(target, "{}enum {}_oneof_case : int {{\n", indent(), descriptor.cpp_name);
+      fmt::format_to(target,
+                     "{0}// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)\n"
+                     "{0}enum {1}_oneof_case : int {{\n",
+                     indent(), descriptor.cpp_name);
       indent_num += 2;
       std::size_t index = 1;
       for (auto &f : fields) {
@@ -1462,8 +1464,6 @@ struct glaze_meta_generator : code_generator {
                      basename(descriptor.proto().name, directory_prefix));
     }
 
-    auto package = descriptor.proto().package;
-
     for (auto &m : descriptor.messages()) {
       process(m);
     }
@@ -1550,10 +1550,7 @@ struct glaze_meta_generator : code_generator {
                      "    }}\n"
                      "    static constexpr auto Opts = ws_handled_off<Options>();\n"
                      "    if (*it == 'n') {{\n"
-                     "      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)\n"
-                     "      ++it;\n"
-                     "      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)\n"
-                     "      match<\"ull\", Opts>(ctx, it, end);\n"
+                     "      match<\"null\", Opts>(ctx, it, end);\n"
                      "      if (bool(ctx.error)) [[unlikely]]{{\n"
                      "        return;\n"
                      "      }}\n"
@@ -1864,6 +1861,7 @@ struct service_generator : code_generator {
       std::size_t ordinal = 0;
       for (const auto &m : s.method) {
         methods += fmt::format("{},", m.name);
+        const int rpc_type = (m.server_streaming ? 2 : 0) + (m.client_streaming ? 1 : 0);
         fmt::format_to(target,
                        "  struct {} {{\n"
                        "    constexpr static const char* method_name = \"{}/{}\";\n"
@@ -1876,9 +1874,8 @@ struct service_generator : code_generator {
                        "    template <typename Traits>\n"
                        "    using response_t = {}<Traits>;\n"
                        "  }};\n",
-                       m.name, qualified_service_name, m.name, m.client_streaming, m.server_streaming,
-                       (static_cast<int>(m.server_streaming) * 2 + m.client_streaming), ordinal++,
-                       make_qualified_cpp_name(descriptor.namespace_prefix, m.input_type),
+                       m.name, qualified_service_name, m.name, m.client_streaming, m.server_streaming, rpc_type,
+                       ordinal++, make_qualified_cpp_name(descriptor.namespace_prefix, m.input_type),
                        make_qualified_cpp_name(descriptor.namespace_prefix, m.output_type));
       }
       // remove trailing comma
@@ -1895,11 +1892,15 @@ struct service_generator : code_generator {
 namespace {
 
 void split(std::string_view str, char deliminator, auto &&callback) {
-  std::string_view::iterator pos = str.begin();
-  while (pos < str.end()) {
-    std::string_view::iterator next_pos = std::find(pos, str.end(), deliminator);
-    callback(std::string_view{&*pos, static_cast<std::string_view::size_type>(next_pos - pos)});
-    pos = next_pos + (next_pos == str.end() ? 0 : 1);
+  std::size_t pos = 0;
+  while (pos < str.size()) {
+    auto next_pos = str.find(deliminator, pos);
+    const auto length = next_pos == std::string_view::npos ? str.size() - pos : next_pos - pos;
+    callback(str.substr(pos, length));
+    if (next_pos == std::string_view::npos) {
+      break;
+    }
+    pos = next_pos + 1;
   }
 }
 } // namespace

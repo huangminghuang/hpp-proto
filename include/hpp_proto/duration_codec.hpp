@@ -23,16 +23,15 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
+#include <iterator>
 #include <hpp_proto/json_serializer.hpp>
 
 namespace hpp::proto {
 struct duration_codec {
   constexpr static std::size_t max_encode_size(const auto &) noexcept { return 32; }
 
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-rvalue-reference-param-not-moved)
   static int64_t encode(auto const &value, auto &&b) noexcept {
-    // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    auto has_same_sign = [](auto x, auto y) { return y == 0 || (x ^ y) >= 0; };
+    auto has_same_sign = [](auto x, auto y) { return y == 0 || (x < 0) == (y < 0); };
     if (value.nanos > 999999999 || !has_same_sign(value.seconds, value.nanos)) [[unlikely]] {
       return -1;
     }
@@ -47,7 +46,8 @@ struct duration_codec {
       glz::dump<'.'>(b, ix);
       const auto hi = nanos / 100000000;
       b[ix++] = '0' + hi;
-      glz::to_chars_u64_len_8(&b[ix], uint32_t(nanos % 100000000));
+      auto *pos = std::next(buf, static_cast<std::ptrdiff_t>(ix));
+      glz::to_chars_u64_len_8(pos, uint32_t(nanos % 100000000));
       ix += 8;
     }
     glz::dump<'s'>(b, ix);
@@ -100,6 +100,5 @@ struct duration_codec {
     }
     return true;
   }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-rvalue-reference-param-not-moved)
 };
 } // namespace hpp::proto

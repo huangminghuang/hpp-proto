@@ -22,6 +22,7 @@
 
 #pragma once
 #include <bit>
+#include <iterator>
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-braces"
@@ -250,10 +251,10 @@ struct base64 {
 
     // Handle remaining bytes
     if (i < n) {
-      auto ub1 = static_cast<uint32_t>(source[i]);
+      auto ub1 = static_cast<uint32_t>(static_cast<unsigned char>(source[i]));
       b[ix++] = static_cast<V>(base64_chars[ub1 >> 2U]);
       if (i + 1 < n) { // 2 bytes left
-        auto ub2 = static_cast<uint32_t>(source[i + 1]);
+        auto ub2 = static_cast<uint32_t>(static_cast<unsigned char>(source[i + 1]));
         b[ix++] = static_cast<V>(base64_chars[((ub1 & 0x03U) << 4U) | (ub2 >> 4U)]);
         b[ix++] = static_cast<V>(base64_chars[(ub2 & 0x0fU) << 2U]);
         b[ix++] = '=';
@@ -298,23 +299,27 @@ struct base64 {
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64};
     auto start = source.begin();
+    const auto end = source.end();
+    const auto read_next = [&]() {
+      auto ch = static_cast<uint8_t>(*start);
+      start = std::next(start);
+      return ch;
+    };
 
     size_t j = 0;
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    while (start != source.end()) {
-      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      auto ch_a = static_cast<uint8_t>(*start++);
-      auto ch_b = static_cast<uint8_t>(*start++);
-      auto ch_c = static_cast<uint8_t>(*start++);
-      auto ch_d = static_cast<uint8_t>(*start++);
-      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    while (start != end) {
+      auto ch_a = read_next();
+      auto ch_b = read_next();
+      auto ch_c = read_next();
+      auto ch_d = read_next();
 
       uint32_t const a = decode_table[ch_a];
       uint32_t const b = decode_table[ch_b];
       uint32_t const c = decode_table[ch_c];
       uint32_t const d = decode_table[ch_d];
 
-      if (!validate_and_decode_quartet(a, b, c, d, ch_c, ch_d, start, source.end())) {
+      if (!validate_and_decode_quartet(a, b, c, d, ch_c, ch_d, start, end)) {
         return false;
       }
 
@@ -630,7 +635,7 @@ template <auto Opts>
     switch (*it) {
     case ',': {
       ++count;
-      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      it = std::next(it);
       break;
     }
     case '/': {
@@ -667,7 +672,7 @@ template <auto Opts>
       return {};
     }
     default:
-      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      it = std::next(it);
     }
   }
   unreachable();
@@ -745,7 +750,7 @@ struct from<JSON, hpp::proto::optional_message_view_ref<T>> {
     using type = std::remove_const_t<typename T::value_type>;
 
     if (*it == 'n') {
-      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      it = std::next(it);
       match<"ull", Opts>(ctx, it, end);
       if (bool(ctx.error)) [[unlikely]] {
         return;

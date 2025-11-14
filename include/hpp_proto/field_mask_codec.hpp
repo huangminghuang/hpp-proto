@@ -22,8 +22,10 @@
 
 #pragma once
 #include <cstdint>
+#include <iterator>
 #include <hpp_proto/memory_resource_utils.hpp>
 #include <numeric>
+#include <span>
 namespace hpp::proto {
 
 struct field_mask_codec {
@@ -31,21 +33,19 @@ struct field_mask_codec {
     return value.paths.size() + std::transform_reduce(value.paths.begin(), value.paths.end(), 0ULL, std::plus{},
                                                       [](auto &p) { return p.size(); });
   }
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   static int64_t encode(auto const &value, auto &&b) noexcept {
     if (value.paths.empty()) {
       return 0;
     }
     auto *buf = std::data(std::forward<decltype(b)>(b));
-    char *cur = buf;
-    cur = std::copy(std::begin(value.paths[0]), std::end(value.paths[0]), cur);
-    auto rest = std::span{value.paths.data() + 1, value.paths.size() - 1};
-    for (auto &p : rest) {
-      *cur++ = ',';
-      cur = std::copy(std::begin(p), std::end(p), cur);
+    auto *cur = std::copy(std::begin(value.paths[0]), std::end(value.paths[0]), buf);
+    const auto rest = std::span{value.paths}.subspan(1);
+    for (const auto &p : rest) {
+      *cur = ',';
+      cur = std::copy(std::begin(p), std::end(p), std::next(cur));
     }
-    return cur - buf;
+    return std::distance(buf, cur);
   }
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -61,13 +61,11 @@ struct field_mask_codec {
       auto comma_pos = std::find_if(cur, json.end(), is_comma);
       auto &path = hpp::proto::detail::as_modifiable(value, p);
       path.assign(cur, comma_pos);
-#ifdef _MSC_VER
-      if (comma_pos != json.end())
-#endif
-        cur = comma_pos + 1;
+      if (comma_pos != json.end()) {
+        cur = std::next(comma_pos);
+      }
     }
     return true;
   }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 };
 } // namespace hpp::proto

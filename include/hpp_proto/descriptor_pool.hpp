@@ -37,7 +37,7 @@ struct deref_pointer {
 
 template <typename AddOns>
 class descriptor_pool {
-  enum field_option_mask_t : uint8_t {
+  enum class field_option_mask : uint8_t {
     MASK_EXPLICIT_PRESENCE = 1,
     MASK_REPEATED = 2,
     MASK_PACKED = 4,
@@ -46,6 +46,12 @@ class descriptor_pool {
     MASK_REQUIRED = 32,
     MASK_MAP_ENTRY = 64
   };
+
+  static constexpr uint8_t mask(field_option_mask value) { return static_cast<uint8_t>(value); }
+
+  static constexpr bool has_mask(uint8_t bitset, field_option_mask value) {
+    return (bitset & mask(value)) != 0;
+  }
 
   using string_t = AddOns::string_t;
   template <typename T>
@@ -112,15 +118,24 @@ public:
     }
 
     [[nodiscard]] bool repeated_expanded() const {
-      return (field_option_bitset_ & MASK_PACKED & MASK_REPEATED) == MASK_REPEATED;
+      return has_mask(field_option_bitset_, field_option_mask::MASK_REPEATED) &&
+             !has_mask(field_option_bitset_, field_option_mask::MASK_PACKED);
     }
-    [[nodiscard]] bool is_packed() const { return (field_option_bitset_ & MASK_PACKED) != 0; }
-    [[nodiscard]] constexpr bool is_repeated() const { return (field_option_bitset_ & MASK_REPEATED) != 0; }
-    [[nodiscard]] bool requires_utf8_validation() const { return (field_option_bitset_ & MASK_UTF8_VALIDATION) != 0; }
-    [[nodiscard]] bool is_delimited() const { return (field_option_bitset_ & MASK_DELIMITED) != 0; }
-    [[nodiscard]] bool is_map_entry() const { return (field_option_bitset_ & MASK_MAP_ENTRY) != 0; }
-    [[nodiscard]] bool explicit_presence() const { return (field_option_bitset_ & MASK_EXPLICIT_PRESENCE) != 0; }
-    [[nodiscard]] bool is_required() const { return (field_option_bitset_ & MASK_REQUIRED) != 0; }
+    [[nodiscard]] bool is_packed() const { return has_mask(field_option_bitset_, field_option_mask::MASK_PACKED); }
+    [[nodiscard]] constexpr bool is_repeated() const {
+      return has_mask(field_option_bitset_, field_option_mask::MASK_REPEATED);
+    }
+    [[nodiscard]] bool requires_utf8_validation() const {
+      return has_mask(field_option_bitset_, field_option_mask::MASK_UTF8_VALIDATION);
+    }
+    [[nodiscard]] bool is_delimited() const {
+      return has_mask(field_option_bitset_, field_option_mask::MASK_DELIMITED);
+    }
+    [[nodiscard]] bool is_map_entry() const { return has_mask(field_option_bitset_, field_option_mask::MASK_MAP_ENTRY); }
+    [[nodiscard]] bool explicit_presence() const {
+      return has_mask(field_option_bitset_, field_option_mask::MASK_EXPLICIT_PRESENCE);
+    }
+    [[nodiscard]] bool is_required() const { return has_mask(field_option_bitset_, field_option_mask::MASK_REQUIRED); }
 
   private:
     void setup_presence() {
@@ -130,7 +145,7 @@ public:
             proto_.oneof_index.has_value() ||
             options_.features->field_presence == FeatureSet::FieldPresence::EXPLICIT ||
             options_.features->field_presence == FeatureSet::FieldPresence::FIELD_PRESENCE_UNKNOWN) {
-          field_option_bitset_ |= MASK_EXPLICIT_PRESENCE;
+          field_option_bitset_ |= mask(field_option_mask::MASK_EXPLICIT_PRESENCE);
         }
       }
     }
@@ -139,7 +154,7 @@ public:
       if (proto_.label != FieldDescriptorProto::Label::LABEL_REPEATED) {
         return;
       }
-      field_option_bitset_ |= MASK_REPEATED;
+      field_option_bitset_ |= mask(field_option_mask::MASK_REPEATED);
 
       auto type = proto_.type;
       if (type == FieldDescriptorProto::Type::TYPE_MESSAGE || type == FieldDescriptorProto::Type::TYPE_STRING ||
@@ -147,18 +162,18 @@ public:
         return;
       }
       if (proto_.options.has_value() && proto_.options->packed.has_value() && proto_.options->packed.value()) {
-        field_option_bitset_ |= MASK_PACKED;
+        field_option_bitset_ |= mask(field_option_mask::MASK_PACKED);
         return;
       }
       if (options_.features->repeated_field_encoding == FeatureSet::RepeatedFieldEncoding::PACKED) {
-        field_option_bitset_ |= MASK_PACKED;
+        field_option_bitset_ |= mask(field_option_mask::MASK_PACKED);
       }
     }
 
     void setup_utf8_validation() {
       if (proto_.type == FieldDescriptorProto::Type::TYPE_STRING &&
           options_.features.value().utf8_validation == FeatureSet::Utf8Validation::VERIFY) {
-        field_option_bitset_ |= MASK_UTF8_VALIDATION;
+        field_option_bitset_ |= mask(field_option_mask::MASK_UTF8_VALIDATION);
       }
     }
 
@@ -166,14 +181,14 @@ public:
       if (proto_.type == FieldDescriptorProto::Type::TYPE_GROUP ||
           (proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE &&
            options_.features.value().message_encoding == FeatureSet::MessageEncoding::DELIMITED)) {
-        field_option_bitset_ |= MASK_DELIMITED;
+        field_option_bitset_ |= mask(field_option_mask::MASK_DELIMITED);
       }
     }
 
     void setup_required() {
       if (proto_.label == FieldDescriptorProto::Label::LABEL_REQUIRED ||
           options_.features->field_presence == FeatureSet::FieldPresence::LEGACY_REQUIRED) {
-        field_option_bitset_ |= MASK_REQUIRED;
+        field_option_bitset_ |= mask(field_option_mask::MASK_REQUIRED);
       }
     }
 
@@ -521,7 +536,7 @@ private:
         if (desc) {
           f.type_descriptor_ = desc;
           if (desc->is_map_entry()) {
-            f.field_option_bitset_ |= MASK_MAP_ENTRY;
+            f.field_option_bitset_ |= mask(field_option_mask::MASK_MAP_ENTRY);
           }
         }
       } else if (f.proto_.type == FieldDescriptorProto::Type::TYPE_ENUM) {

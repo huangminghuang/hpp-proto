@@ -1,6 +1,7 @@
 
 #include <condition_variable>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <string>
 
@@ -139,13 +140,13 @@ void RunServer(const char *server_address) {
 }
 
 int main(int argc, char **argv) {
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  const char *endpoint = (argc == 2) ? argv[1] : "localhost:50051";
-  if (argc > 2) {
-    std::cerr << "Usage: " << argv[0] << " <hostname:port>\n";
+  auto endpoint = "localhost:50051";
+  if (argc == 2) {
+    endpoint = *std::next(argv);
+  } else if (argc > 2) {
+    std::cerr << "Usage: " << *argv << " <hostname:port>\n";
     return 1;
   }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   RunServer(endpoint);
   return 0;
 }

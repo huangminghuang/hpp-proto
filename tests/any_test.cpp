@@ -53,7 +53,7 @@ const suite test_any = [] {
     expect(std::ranges::equal(paths, fm2.paths));
   };
 
-#if !defined(HPP_PROTO_DISABLE_GLAZE)
+#ifndef HPP_PROTO_DISABLE_GLAZE
   "any_json_wellknown"_test = [] {
     protobuf_unittest::TestAny message;
     google::protobuf::FieldMask fm;

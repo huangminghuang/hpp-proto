@@ -1,6 +1,7 @@
 #include "helloworld.service.hpp"
 #include <hpp_proto/grpc/client.hpp>
 #include <iostream>
+#include <iterator>
 #include <memory>
 
 // See include/hpp_proto/grpc/README.md for adapter usage and streaming best practices.
@@ -112,13 +113,13 @@ public:
 }; // namespace helloworld::Greeter
 
 int main(int argc, char **argv) {
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  const char *endpoint = (argc == 2) ? argv[1] : "localhost:50051";
-  if (argc > 2) {
-    std::cerr << "Usage: " << argv[0] << " <hostname:port>\n";
+  auto endpoint = "localhost:50051";
+  if (argc == 2) {
+    endpoint = *std::next(argv);
+  } else if (argc > 2) {
+    std::cerr << "Usage: " << *argv << " <hostname:port>\n";
     return 1;
   }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   helloworld::Greeter::Client greeter(::grpc::CreateChannel(endpoint, ::grpc::InsecureChannelCredentials()),
                                       ::grpc::StubOptions{});

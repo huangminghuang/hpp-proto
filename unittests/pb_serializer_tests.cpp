@@ -1,7 +1,9 @@
 #include "test_util.hpp"
 #include <boost/ut.hpp>
 #include <hpp_proto/pb_serializer.hpp>
+#include <iterator>
 #include <numeric>
+#include <ostream>
 #include <unordered_map>
 
 namespace ut = boost::ut;
@@ -33,21 +35,21 @@ const ut::suite varint_decode_tests = [] {
   "unchecked_parse_bool"_test = [] {
     bool value = true;
     std::string_view data = "\x00"sv;
-    expect(hpp::proto::unchecked_parse_bool(data, value) == data.data() + data.size());
+    expect(hpp::proto::unchecked_parse_bool(data, value) == data.end());
     expect(!value);
 
     data = "\x01"sv;
-    expect(hpp::proto::unchecked_parse_bool(data, value) == data.data() + data.size());
+    expect(hpp::proto::unchecked_parse_bool(data, value) == data.end());
     expect(value);
 
     // oversized bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x01"sv;
-    expect(hpp::proto::unchecked_parse_bool(data, value) == data.data() + data.size());
+    expect(hpp::proto::unchecked_parse_bool(data, value) == data.end());
     expect(value);
 
     // unterminated bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
-    expect(hpp::proto::unchecked_parse_bool(data, value) > (data.data() + data.size()));
+    expect(hpp::proto::unchecked_parse_bool(data, value) > data.end());
   };
 
   using vint64_t = hpp::proto::vint64_t;
@@ -68,8 +70,8 @@ const ut::suite varint_decode_tests = [] {
   "unterminated_varint"_test = [] {
     auto data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
     int64_t parsed_value; // NOLINT(cppcoreguidelines-init-variables)
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    ut::expect(hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value) > (data.data() + data.size()));
+    const auto *result = hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value);
+    ut::expect(std::distance(data.begin(), result) > static_cast<std::ptrdiff_t>(data.size()));
   };
 };
 
@@ -137,17 +139,17 @@ auto pb_meta(const example_optional_type &)
     -> std::tuple<
         hpp::proto::field_meta<1, &example_optional_type::i, field_option::explicit_presence, hpp::proto::vint64_t>>;
 
-enum test_mode : uint8_t { decode_encode, decode_only };
+enum class test_mode : uint8_t { decode_encode, decode_only };
 
 template <typename T>
-void verify(auto encoded_data, const T &expected_value, test_mode mode = decode_encode) {
+void verify(auto encoded_data, const T &expected_value, test_mode mode = test_mode::decode_encode) {
   std::remove_cvref_t<T> value;
 
   std::pmr::monotonic_buffer_resource mr;
   ut::expect(hpp::proto::read_proto(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
   ut::expect(ut::fatal(value == expected_value));
 
-  if (mode == decode_only) {
+  if (mode == test_mode::decode_only) {
     return;
   }
 
@@ -280,7 +282,7 @@ const ut::suite test_repeated_vint = [] {
     "repeated_sint32_unpacked_decode"_test = [] {
       verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
              repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}},
-             decode_only);
+             test_mode::decode_only);
     };
 
     "repeated_sint32_unpacked_explicit_type"_test = [] {
@@ -383,13 +385,13 @@ const ut::suite test_repeated_fixed = [] {
     "repeated_fixed_unpacked_decode"_test = [] {
       verify(
           "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
-          repeated_fixed<Traits>{{1, 2, 3}}, decode_only);
+          repeated_fixed<Traits>{{1, 2, 3}}, test_mode::decode_only);
     };
 
     "repeated_fixed_unpacked_explicit_type_decode"_test = [] {
       verify(
           "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
-          repeated_fixed_explicit_type<Traits>{{1, 2, 3}}, decode_only);
+          repeated_fixed_explicit_type<Traits>{{1, 2, 3}}, test_mode::decode_only);
     };
 
     "repeated_fixed_unpacked_explicit_type"_test = [] {
@@ -469,7 +471,7 @@ enum class ForeignEnumEx : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, EXTRA =
 template <typename Traits = hpp::proto::default_traits>
 struct open_enum_message {
   typename Traits::template repeated_t<ForeignEnumEx> expanded_repeated_field;
-  ForeignEnumEx foreign_enum_field;
+  ForeignEnumEx foreign_enum_field = ForeignEnumEx::ZERO;
   typename Traits::template repeated_t<ForeignEnumEx> packed_repeated_field;
   std::optional<example> optional_message_field;
   [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
@@ -867,8 +869,9 @@ void verify_segmented_input(auto &encoded, const T &value, const std::vector<int
   segments.resize(sizes.size());
   std::size_t len = 0;
   for (unsigned i = 0; i < sizes.size(); ++i) {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    segments[i] = std::vector<char>{encoded.data() + len, encoded.data() + len + static_cast<std::size_t>(sizes[i])};
+    auto begin = std::next(encoded.begin(), static_cast<std::ptrdiff_t>(len));
+    auto end = std::next(begin, static_cast<std::ptrdiff_t>(sizes[i]));
+    segments[i] = std::vector<char>{begin, end};
     len += sizes[i];
   }
   T decoded;
@@ -877,8 +880,9 @@ void verify_segmented_input(auto &encoded, const T &value, const std::vector<int
 };
 
 auto split(auto data, int pos) {
-  return std::array<std::vector<char>, 2>{std::vector<char>{data.begin(), data.begin() + pos},
-                                          std::vector<char>{data.begin() + pos, data.end()}};
+  auto midpoint = std::next(data.begin(), pos);
+  return std::array<std::vector<char>, 2>{std::vector<char>{data.begin(), midpoint},
+                                          std::vector<char>{midpoint, data.end()}};
 };
 
 const ut::suite test_segmented_byte_range = [] {
@@ -1553,7 +1557,7 @@ struct person {
   int32_t id = {};   // = 2
   std::string email; // = 3
 
-  enum phone_type : uint8_t {
+  enum class phone_type : uint8_t {
     mobile = 0,
     home = 1,
     work = 2,
@@ -1561,7 +1565,7 @@ struct person {
 
   struct phone_number {
     std::string number;   // = 1
-    phone_type type = {}; // = 2
+    phone_type type = phone_type::mobile; // = 2
     using pb_meta =
         std::tuple<hpp::proto::field_meta<1, &phone_number::number>, hpp::proto::field_meta<2, &phone_number::type>>;
   };
@@ -1579,12 +1583,24 @@ struct address_book {
   using pb_meta = std::tuple<hpp::proto::field_meta<1, &address_book::people, field_option::none>>;
 };
 
+std::ostream &operator<<(std::ostream &os, person::phone_type type) {
+  switch (type) {
+  case person::phone_type::mobile:
+    return os << "mobile";
+  case person::phone_type::home:
+    return os << "home";
+  case person::phone_type::work:
+    return os << "work";
+  }
+  return os << static_cast<int>(type);
+}
+
 struct person_map {
   std::string name;  // = 1
   int32_t id = {};   // = 2
   std::string email; // = 3
 
-  enum phone_type : uint8_t {
+  enum class phone_type : uint8_t {
     mobile = 0,
     home = 1,
     work = 2,
@@ -1598,6 +1614,18 @@ struct person_map {
                              hpp::proto::field_meta<4, &person_map::phones, field_option::none,
                                                     hpp::proto::map_entry<std::string, phone_type>>>;
 };
+
+std::ostream &operator<<(std::ostream &os, person_map::phone_type type) {
+  switch (type) {
+  case person_map::phone_type::mobile:
+    return os << "mobile";
+  case person_map::phone_type::home:
+    return os << "home";
+  case person_map::phone_type::work:
+    return os << "work";
+  }
+  return os << static_cast<int>(type);
+}
 
 const ut::suite composite_type = [] {
   "monster"_test = [] {
@@ -1706,7 +1734,7 @@ const ut::suite composite_type = [] {
     ut::expect(p.email == "jdoe@example.com"sv);
     ut::expect(fatal((p.phones.size() == 1_u)));
     ut::expect(p.phones[0].number == "555-4321"sv);
-    ut::expect(that % p.phones[0].type == person::home);
+    ut::expect(that % p.phones[0].type == person::phone_type::home);
 
     std::array<char, data.size()> new_data{};
     ut::expect(hpp::proto::write_proto(p, new_data).ok());
@@ -1735,15 +1763,15 @@ const ut::suite composite_type = [] {
     expect(b.people[0].email == "jdoe@example.com"sv);
     expect(fatal((b.people[0].phones.size() == 1U)));
     expect(b.people[0].phones[0].number == "555-4321"sv);
-    expect(b.people[0].phones[0].type == person::home);
+    expect(b.people[0].phones[0].type == person::phone_type::home);
     expect(b.people[1].name == "John Doe 2"sv);
     expect(that % b.people[1].id == 1235);
     expect(b.people[1].email == "jdoe2@example.com"sv);
     expect(fatal((b.people[1].phones.size() == 2_u)));
     expect(b.people[1].phones[0].number == "555-4322"sv);
-    expect(b.people[1].phones[0].type == person::home);
+    expect(b.people[1].phones[0].type == person::phone_type::home);
     expect(b.people[1].phones[1].number == "555-4323"sv);
-    expect(b.people[1].phones[1].type == person::work);
+    expect(b.people[1].phones[1].type == person::phone_type::work);
 
     std::array<char, data.size()> new_data{};
     expect(hpp::proto::write_proto(b, new_data).ok());
@@ -1766,7 +1794,7 @@ const ut::suite composite_type = [] {
     expect(p.email == "jdoe@example.com"sv);
     expect(fatal((p.phones.size() == 1_u)));
     expect(fatal((p.phones.contains("555-4321"))));
-    expect(that % p.phones["555-4321"] == person_map::home);
+    expect(that % p.phones["555-4321"] == person_map::phone_type::home);
 
     std::array<char, data.size()> new_data{};
     expect(hpp::proto::write_proto(p, new_data).ok());

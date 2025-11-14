@@ -21,13 +21,15 @@
 // SOFTWARE.
 
 #pragma once
+#include <algorithm>
 #include <chrono>
+#include <iterator>
+#include <span>
 
 namespace hpp::proto {
 
 struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   template <int Len, char sep>
   static char *fixed_len_to_chars(char *buf, auto val) {
     static_assert(Len == 2 || Len == 4 || Len == 9);
@@ -36,19 +38,20 @@ struct timestamp_codec {
     if constexpr (Len == 9) {
       const int hi = val / 100000000;
       assert(hi < 10);
-      *buf++ = static_cast<char>('0' + static_cast<uint8_t>(hi));
-      buf = glz::to_chars_u64_len_8(buf, uint32_t(val % 100000000));
+      *buf = static_cast<char>('0' + static_cast<uint8_t>(hi));
+      buf = glz::to_chars_u64_len_8(std::next(buf), uint32_t(val % 100000000));
     } else if constexpr (Len == 4) {
       buf = glz::to_chars_u64_len_4(buf, uint32_t(val));
     } else if constexpr (Len == 2) {
       assert(val < 100);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-      std::memcpy(buf, &glz::char_table[val * 2], 2);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-pinter-arithmetic)
-      buf += 2;
+      const auto offset = static_cast<std::size_t>(val) * 2;
+      std::span digits{glz::char_table};
+      const auto slice = digits.subspan(offset, 2);
+      std::copy(slice.begin(), slice.end(), buf);
+      buf = std::next(buf, 2);
     }
-    *buf++ = sep;
-    return buf;
+    *buf = sep;
+    return std::next(buf);
   }
 
   static int64_t encode(auto &&value, auto &&b) noexcept {
@@ -73,7 +76,7 @@ struct timestamp_codec {
     } else {
       buf = fixed_len_to_chars<2, 'Z'>(buf, hms.seconds().count());
     }
-    return buf - static_cast<char *>(std::data(b));
+    return std::distance(static_cast<char *>(std::data(b)), buf);
   }
 
   static bool decode(auto &&json, auto &&value) {
@@ -84,26 +87,28 @@ struct timestamp_codec {
     sv.remove_suffix(1); // Remove 'Z'
 
     const char *ptr = sv.data();
-    const char *end = ptr + sv.size();
+    const char *end = std::next(ptr, static_cast<std::ptrdiff_t>(sv.size()));
 
     // NOLINTNEXTLINE(readability-isolate-declaration,cppcoreguidelines-init-variables)
     int32_t yy, mm, dd, hh, mn, ss;
 
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     auto parse_with_separator = [&](int32_t &val, size_t width, char sep) -> bool {
-      if (ptr + width > end) {
+      const auto remaining = std::distance(ptr, end);
+      if (remaining < static_cast<std::ptrdiff_t>(width)) {
         return false;
       }
-      auto res = std::from_chars(ptr, ptr + width, val);
-      if (res.ec != std::errc{} || res.ptr != ptr + width) {
+      const auto next = std::next(ptr, static_cast<std::ptrdiff_t>(width));
+      auto res = std::from_chars(ptr, next, val);
+      if (res.ec != std::errc{} || res.ptr != next) {
         return false;
       }
-      ptr += width;
+      ptr = next;
       if (sep != '\0') {
         if (ptr >= end || *ptr != sep) {
           return false;
         }
-        ptr++;
+        ptr = std::next(ptr);
       }
       return true;
     };
@@ -126,11 +131,12 @@ struct timestamp_codec {
       return true;
     }
 
-    if (*ptr++ != '.') [[unlikely]] {
+    if (*ptr != '.') [[unlikely]] {
       return false;
     }
+    ptr = std::next(ptr);
 
-    std::string_view nanos_sv{ptr, static_cast<std::size_t>(end - ptr)};
+    std::string_view nanos_sv{ptr, static_cast<std::size_t>(std::distance(ptr, end))};
     if (nanos_sv.empty() || nanos_sv.length() > 9) [[unlikely]] {
       return false;
     }
@@ -151,7 +157,6 @@ struct timestamp_codec {
 
     return true;
   }
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 };
 
 } // namespace hpp::proto

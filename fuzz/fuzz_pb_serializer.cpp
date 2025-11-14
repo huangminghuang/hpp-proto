@@ -14,8 +14,9 @@ std::vector<std::vector<char>> split_input(FuzzedDataProvider &provider) {
   };
 
   auto v = provider.ConsumeRemainingBytes<char>();
-  if (!v.empty())
+  if (!v.empty()){
     result.push_back(std::move(v));
+  }
   return result;
 }
 

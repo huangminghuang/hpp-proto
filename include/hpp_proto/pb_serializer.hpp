@@ -30,10 +30,12 @@
 #include <cstring>
 
 #include <expected>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <numeric>
 #include <system_error>
+#include <type_traits>
 #include <utility>
 
 #include <hpp_proto/memory_resource_utils.hpp>
@@ -290,6 +292,14 @@ concept isomorphic_message =
     requires(T t, U u) { requires std::same_as<decltype(rebind_traits(t)), decltype(rebind_traits(u))>; };
 } // namespace concepts
 
+template <concepts::is_size_cache_iterator Iterator>
+constexpr decltype(auto) consume_size_cache_entry(Iterator &iterator) {
+  decltype(auto) entry = *iterator;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  iterator++;
+  return entry;
+}
+
 ////////////////////
 
 template <concepts::varint VarintType, concepts::byte_type Byte>
@@ -532,7 +542,7 @@ constexpr auto unchecked_parse_varint(concepts::contiguous_byte_range auto const
 
 ///////////////////
 
-enum field_option : uint8_t {
+enum class field_option : uint8_t {
   none = 0,
   explicit_presence = 1,
   is_packed = 2,
@@ -540,6 +550,27 @@ enum field_option : uint8_t {
   utf8_validation = 8,
   closed_enum = 16
 };
+
+constexpr uint8_t option_mask(field_option option) { return static_cast<uint8_t>(option); }
+
+template <typename T>
+constexpr bool has_option(T value, field_option option) {
+  using unsigned_value_t = std::make_unsigned_t<std::remove_cv_t<T>>;
+  return (static_cast<unsigned_value_t>(value) & option_mask(option)) != 0U;
+}
+
+constexpr field_option operator|(field_option lhs, field_option rhs) {
+  return static_cast<field_option>(option_mask(lhs) | option_mask(rhs));
+}
+
+constexpr field_option operator&(field_option lhs, field_option rhs) {
+  return static_cast<field_option>(option_mask(lhs) & option_mask(rhs));
+}
+
+constexpr field_option &operator|=(field_option &lhs, field_option rhs) {
+  lhs = lhs | rhs;
+  return lhs;
+}
 
 template <auto Accessor>
 struct accessor_type {
@@ -559,15 +590,13 @@ struct field_meta_base {
 
   using type = Type;
 
-  constexpr static bool is_packed() { return static_cast<bool>(FieldOptions & field_option::is_packed); }
-  constexpr static bool explicit_presence() {
-    return static_cast<bool>(FieldOptions & field_option::explicit_presence);
-  }
+  constexpr static bool is_packed() { return has_option(FieldOptions, field_option::is_packed); }
+  constexpr static bool explicit_presence() { return has_option(FieldOptions, field_option::explicit_presence); }
   constexpr static bool requires_utf8_validation() {
-    return static_cast<bool>(FieldOptions & field_option::utf8_validation);
+    return has_option(FieldOptions, field_option::utf8_validation);
   }
-  constexpr static bool is_delimited() { return static_cast<bool>(FieldOptions & field_option::group); }
-  constexpr static bool closed_enum() { return static_cast<bool>(FieldOptions & field_option::closed_enum); }
+  constexpr static bool is_delimited() { return has_option(FieldOptions, field_option::group); }
+  constexpr static bool closed_enum() { return has_option(FieldOptions, field_option::closed_enum); }
 
   constexpr static bool valid_enum_value(auto value) {
     if constexpr (closed_enum()) {
@@ -578,7 +607,7 @@ struct field_meta_base {
 
   template <typename T>
   static constexpr bool omit_value(const T &v) {
-    if constexpr ((FieldOptions & field_option::explicit_presence) == 0) {
+    if constexpr (!has_option(FieldOptions, field_option::explicit_presence)) {
       return is_default_value<T, DefaultValue>(v);
     } else if constexpr (requires { v.has_value(); }) {
       return !v.has_value();
@@ -593,9 +622,9 @@ struct field_meta_base {
   }
 };
 
-template <uint32_t Number, auto Accessor, int FieldOptions = field_option::none, typename Type = void,
+template <uint32_t Number, auto Accessor, auto FieldOptions = option_mask(field_option::none), typename Type = void,
           auto DefaultValue = std::monostate{}>
-struct field_meta : field_meta_base<Number, FieldOptions, Type, DefaultValue> {
+struct field_meta : field_meta_base<Number, static_cast<uint8_t>(FieldOptions), Type, DefaultValue> {
   constexpr static auto access = accessor_type<Accessor>{};
 };
 
@@ -712,8 +741,8 @@ struct serialize_type<bool> {
   using convertible_type = boolean;
 };
 
-template <typename KeyType, typename MappedType, unsigned int KeyOptions = field_option::none,
-          unsigned int MappedOptions = field_option::none>
+template <typename KeyType, typename MappedType, field_option KeyOptions = field_option::none,
+          field_option MappedOptions = field_option::none>
 struct map_entry {
   using key_type = KeyType;
   using mapped_type = MappedType;
@@ -726,7 +755,8 @@ struct map_entry {
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
     using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence | KeyOptions>,
-                               field_meta<2, &mutable_type::value, field_option::explicit_presence | MappedOptions>>;
+                               field_meta<2, &mutable_type::value,
+                                          field_option::explicit_presence | MappedOptions>>;
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
@@ -1462,7 +1492,7 @@ struct message_size_calculator<T> {
                                                         concepts::is_size_cache_iterator auto &cache_itr) {
     constexpr uint32_t tag_size = varint_size(meta.number << 3U);
     if constexpr (!meta.is_delimited()) {
-      decltype(auto) msg_size = *cache_itr++; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
       auto s = static_cast<uint32_t>(message_size(item, cache_itr));
       msg_size = s;
       return tag_size + len_size(s);
@@ -1480,7 +1510,7 @@ struct message_size_calculator<T> {
 
     constexpr uint32_t tag_size = varint_size(meta.number << 3U);
     auto &[key, value] = item;
-    decltype(auto) msg_size = *cache_itr++; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
     auto s = message_size(value_type{key, value}, cache_itr);
     msg_size = static_cast<uint32_t>(s);
     return tag_size + len_size(s);
@@ -1514,7 +1544,7 @@ struct message_size_calculator<T> {
               return element_type(elem).encode_size();
             }
           });
-          decltype(auto) msg_size = *cache_itr++;
+          decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
           msg_size = static_cast<uint32_t>(s);
           return tag_size + len_size(s);
         }
@@ -1665,7 +1695,7 @@ template <typename Meta>
                                                               concepts::is_size_cache_iterator auto &cache_itr,
                                                               auto &archive) {
   if constexpr (!meta.is_delimited()) {
-    auto len = varint{*cache_itr++};
+    auto len = varint{consume_size_cache_entry(cache_itr)};
     return archive(make_tag<decltype(item)>(meta), len) && serialize(item, cache_itr, archive);
   } else {
     return archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::sgroup)}) &&
@@ -1695,7 +1725,7 @@ template <typename Meta>
     return archive(make_tag<type>(meta), varint{item.size() * sizeof(typename type::value_type)}, item);
   } else {
     // packed varint or packed enum
-    return archive(make_tag<type>(meta), varint{*cache_itr++}) &&
+    return archive(make_tag<type>(meta), varint{consume_size_cache_entry(cache_itr)}) &&
            std::ranges::all_of(item, [&](auto element) { return archive(element_type{element}); });
   }
 }
@@ -1709,7 +1739,7 @@ template <typename Meta>
   using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
   static_assert(concepts::has_meta<value_type>);
   auto &&[key, value] = item;
-  auto len = varint{*cache_itr++};
+  auto len = varint{consume_size_cache_entry(cache_itr)};
   return archive(tag, len) && serialize(value_type{key, value}, cache_itr, archive);
 }
 
@@ -2493,7 +2523,8 @@ constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_bas
     [[maybe_unused]] auto old_size = std::ssize(v);
     auto result = deserialize_packed_repeated_with_byte_count<encode_type>(v, byte_count, archive);
     if constexpr (Meta::closed_enum()) {
-      auto itr = std::remove_if(v.begin() + old_size, v.end(), [&](auto v) {
+      auto start_itr = std::next(v.begin(), old_size);
+      auto itr = std::remove_if(start_itr, v.end(), [&](auto v) {
         if (!Meta::valid_enum_value(v)) {
           deserialize_unknown_enum(unknown_fields, Meta::number, std::to_underlying(v), archive);
           return true;
@@ -3121,8 +3152,8 @@ struct extension_base {
     using bytes_type = typename fields_type::value_type::second_type;
     bytes_type data;
 
-    if (auto result = write_proto(*static_cast<const T *>(this), data, std::forward<decltype(option)>(option)...);
-        !result.ok()) [[unlikely]] {
+    pb_context ctx{std::forward<decltype(option)>(option)...};
+    if (auto result = write_proto(*static_cast<const T *>(this), data, ctx); !result.ok()) [[unlikely]] {
       return result;
     }
 
@@ -3130,7 +3161,6 @@ struct extension_base {
       if constexpr (concepts::associative_container<fields_type>) {
         fields[number()] = std::move(data);
       } else {
-        pb_context ctx{std::forward<decltype(option)>(option)...};
         detail::as_modifiable(ctx, fields).emplace_back(number(), data);
       }
     }

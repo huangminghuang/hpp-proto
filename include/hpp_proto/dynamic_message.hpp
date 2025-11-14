@@ -1,12 +1,13 @@
 #pragma once
 #include <compare>
+#include <iterator>
 #include <utility>
 #include <variant>
 
 #include <hpp_proto/descriptor_pool.hpp>
 #include <hpp_proto/pb_serializer.hpp>
 namespace hpp::proto {
-enum field_kind_t : uint8_t {
+enum class field_kind_t : uint8_t {
   KIND_DOUBLE = 1,
   KIND_FLOAT = 2,
   KIND_INT64 = 3,
@@ -42,6 +43,8 @@ enum field_kind_t : uint8_t {
   KIND_REPEATED_SINT32 = 35,
   KIND_REPEATED_SINT64 = 36
 };
+
+using enum field_kind_t;
 
 enum class wellknown_types_t : uint8_t {
   NONE = 0,
@@ -767,12 +770,12 @@ public:
 
   value_type operator[](std::size_t index) const noexcept {
     assert(index < storage_->size);
-    return storage_->content[index];
+    return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
   }
 
   [[nodiscard]] value_type at(std::size_t index) const {
     if (index < storage_->size) {
-      return storage_->content[index];
+      return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
     }
     throw std::out_of_range("");
   }
@@ -781,8 +784,9 @@ public:
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] const value_type *data() const noexcept { return storage_->content; }
   [[nodiscard]] const value_type *begin() const noexcept { return storage_->content; }
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  [[nodiscard]] const value_type *end() const noexcept { return storage_->content + storage_->size; }
+  [[nodiscard]] const value_type *end() const noexcept {
+    return std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size));
+  }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
@@ -819,13 +823,12 @@ public:
 
   value_type &operator[](std::size_t index) const noexcept {
     assert(index < storage_->size);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return storage_->content[index];
+    return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
   }
 
   [[nodiscard]] value_type &at(std::size_t index) const {
     if (index < storage_->size) {
-      return storage_->content[index];
+      return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
     }
     throw std::out_of_range("");
   }
@@ -835,7 +838,9 @@ public:
       auto new_data = static_cast<T *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
       storage_->capacity = n;
       if (storage_->content) {
-        std::uninitialized_copy(storage_->content, storage_->content + storage_->size, new_data);
+        std::uninitialized_copy(
+            storage_->content,
+            std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)), new_data);
       }
       storage_->content = new_data;
     }
@@ -846,12 +851,12 @@ public:
       auto new_data =
           static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
       storage_->capacity = n;
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::uninitialized_default_construct(new_data, new_data + n);
+      std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
       storage_->content = new_data;
     } else if (size() < n) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::uninitialized_default_construct(storage_->content + storage_->size, storage_->content + n);
+      std::uninitialized_default_construct(
+          std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)),
+          std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
     storage_->size = n;
   }
@@ -860,8 +865,9 @@ public:
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
   [[nodiscard]] value_type *begin() const noexcept { return storage_->content; }
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  [[nodiscard]] value_type *end() const noexcept { return storage_->content + storage_->size; }
+  [[nodiscard]] value_type *end() const noexcept {
+    return std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size));
+  }
   [[nodiscard]] value_type *data() const noexcept { return storage_->content; }
 
   void reset() noexcept {
@@ -974,14 +980,14 @@ public:
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->size}; }
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return {*descriptor_->enum_field_type_descriptor(), storage_->content[index]};
+    return {*descriptor_->enum_field_type_descriptor(),
+            *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
   }
 
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      return {*descriptor_->enum_field_type_descriptor(), storage_->content[index]};
+      return {*descriptor_->enum_field_type_descriptor(),
+              *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
     }
     throw std::out_of_range("");
   }
@@ -1024,15 +1030,15 @@ public:
   void resize(std::size_t n) {
     if (capacity() < n) {
       auto *new_data = static_cast<uint32_t *>(memory_resource_->allocate(n * sizeof(uint32_t), alignof(uint32_t)));
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::copy(storage_->content, storage_->content + size(), new_data);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::uninitialized_default_construct(new_data, new_data + n);
+      std::copy(storage_->content,
+                std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
       storage_->content = new_data;
       storage_->capacity = n;
     } else if (size() < n) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::uninitialized_default_construct(storage_->content + size(), storage_->content + n);
+      std::uninitialized_default_construct(
+          std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+          std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
     storage_->size = n;
   }
@@ -1046,14 +1052,14 @@ public:
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return {*descriptor_->enum_field_type_descriptor(), storage_->content[index]};
+    return {*descriptor_->enum_field_type_descriptor(),
+            *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
   }
 
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      return {*descriptor_->enum_field_type_descriptor(), storage_->content[index]};
+      return {*descriptor_->enum_field_type_descriptor(),
+              *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
     }
     throw std::out_of_range("");
   }
@@ -1079,8 +1085,7 @@ class message_value_cref {
   [[nodiscard]] std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
 
   [[nodiscard]] const value_storage &storage_for(const field_descriptor_t &desc) const noexcept {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return storage_[desc.storage_slot];
+    return *std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot));
   }
 
   static const value_storage &empty_storage() noexcept {
@@ -1157,8 +1162,7 @@ public:
   }
 
   [[nodiscard]] bool has_oneof(const oneof_descriptor_t &desc) const noexcept {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    const auto &storage = storage_[desc.storage_slot()];
+    const auto &storage = *std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot()));
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
     return storage.of_int64.selection != 0U;
   }
@@ -1257,8 +1261,8 @@ public:
   }
 
   void clear_field(const oneof_descriptor_t &desc) const noexcept {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines-pro-type-union-access)
-    storage_[desc.storage_slot()].reset();
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+    std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot()))->reset();
   }
 
   [[nodiscard]] bool has_oneof(const oneof_descriptor_t &descriptor) const noexcept {
@@ -1290,8 +1294,7 @@ private:
   [[nodiscard]] std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
 
   [[nodiscard]] value_storage &storage_for(const field_descriptor_t &desc) const noexcept {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return storage_[desc.storage_slot];
+    return *std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot));
   }
 
   field_mref operator[](std::int32_t n) const {
@@ -1306,7 +1309,7 @@ public:
   using encode_type = message_value_cref;
   using storage_type = scalar_storage_base<value_storage *>;
   using value_type = message_value_cref;
-  constexpr static uint8_t field_kind = KIND_MESSAGE;
+  constexpr static field_kind_t field_kind = KIND_MESSAGE;
 
   message_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -1346,7 +1349,7 @@ public:
   using encode_type = message_value_mref;
   using storage_type = scalar_storage_base<value_storage *>;
   using value_type = message_value_mref;
-  constexpr static uint8_t field_kind = KIND_MESSAGE;
+  constexpr static field_kind_t field_kind = KIND_MESSAGE;
 
   message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                      std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -1426,14 +1429,16 @@ public:
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] message_value_cref operator[](std::size_t index) const noexcept {
     assert(index < size());
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return {message_descriptor(), &storage_->content[index * num_slots()]};
+    const auto offset =
+        static_cast<std::ptrdiff_t>(index * num_slots());
+    return {message_descriptor(), std::next(storage_->content, offset)};
   }
 
   [[nodiscard]] message_value_cref at(std::size_t index) const {
     if (index < size()) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      return {message_descriptor(), &storage_->content[index * num_slots()]};
+      const auto offset =
+          static_cast<std::ptrdiff_t>(index * num_slots());
+      return {message_descriptor(), std::next(storage_->content, offset)};
     }
     throw std::out_of_range("");
   }
@@ -1504,14 +1509,16 @@ public:
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
   [[nodiscard]] message_value_mref operator[](std::size_t index) const noexcept {
     assert(index < size());
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return {message_descriptor(), &storage_->content[index * num_slots()], *memory_resource_};
+    const auto offset =
+        static_cast<std::ptrdiff_t>(index * num_slots());
+    return {message_descriptor(), std::next(storage_->content, offset), *memory_resource_};
   }
 
   [[nodiscard]] message_value_mref at(std::size_t index) const {
     if (index < size()) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      return {message_descriptor(), &storage_->content[index * num_slots()], *memory_resource_};
+      const auto offset =
+          static_cast<std::ptrdiff_t>(index * num_slots());
+      return {message_descriptor(), std::next(storage_->content, offset), *memory_resource_};
     }
     throw std::out_of_range("");
   }

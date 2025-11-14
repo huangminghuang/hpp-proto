@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #pragma once
+#include <iterator>
 #include <system_error>
 #include <unordered_map>
 #include <utility>
@@ -149,7 +150,7 @@ class dynamic_serializer {
   struct message_meta;
   struct enum_meta;
 
-  enum field_options : uint8_t {
+  enum class field_option : uint8_t {
     explicit_presence = 1,
     repeated = 2,
     packed = 4,
@@ -159,6 +160,12 @@ class dynamic_serializer {
     required = 64,
     is_map_entry = 128
   };
+
+  static constexpr uint8_t option_mask(field_option option) { return static_cast<uint8_t>(option); }
+
+  static constexpr bool has_option(uint8_t bits, field_option option) {
+    return (bits & option_mask(option)) != 0;
+  }
 
   struct enum_value_meta {
     int32_t number;
@@ -189,7 +196,7 @@ class dynamic_serializer {
       const auto &proto = field_descriptor.proto();
       if (!proto.type_name.empty() && proto.type == google::protobuf::FieldDescriptorProto_::Type::TYPE_MESSAGE) {
         if (pool.message_map().find(proto.type_name.substr(1))->second->is_map_entry()) {
-          options |= field_options::is_map_entry;
+          options |= option_mask(field_option::is_map_entry);
         }
       }
 
@@ -203,33 +210,37 @@ class dynamic_serializer {
       using enum google::protobuf::FieldDescriptorProto_::Label;
       if (proto.label == LABEL_REPEATED) {
         if (field_descriptor.is_packed()) {
-          options |= uint8_t(field_options::repeated | field_options::packed);
+          const auto repeated_packed_mask =
+              static_cast<uint8_t>(option_mask(field_option::repeated) | option_mask(field_option::packed));
+          options |= repeated_packed_mask;
         } else {
-          options |= (field_options::repeated);
+          options |= option_mask(field_option::repeated);
         }
       }
 
       if (field_descriptor.is_required()) {
-        options |= field_options::required;
+        options |= option_mask(field_option::required);
       }
 
       if (field_descriptor.requires_utf8_validation()) {
-        options |= field_options::utf8_validation;
+        options |= option_mask(field_option::utf8_validation);
       }
 
       if (field_descriptor.is_delimited()) {
         type = TYPE_GROUP;
-        options |= field_options::group;
+        options |= option_mask(field_option::group);
       }
 
       if (proto.oneof_index.has_value()) {
-        options |= field_options::is_oneof;
+        options |= option_mask(field_option::is_oneof);
       }
     }
 
-    [[nodiscard]] constexpr bool is_packed_repeated() const { return (options & field_options::packed) != 0; }
-    [[nodiscard]] constexpr bool is_repeated() const { return (options & field_options::repeated) != 0; }
-    [[nodiscard]] constexpr bool is_map_entry() const { return (options & field_options::is_map_entry) != 0; }
+    [[nodiscard]] constexpr bool is_packed_repeated() const {
+      return has_option(options, field_option::packed);
+    }
+    [[nodiscard]] constexpr bool is_repeated() const { return has_option(options, field_option::repeated); }
+    [[nodiscard]] constexpr bool is_map_entry() const { return has_option(options, field_option::is_map_entry); }
   };
 
   [[nodiscard]] std::size_t message_index(std::string_view name) const {
@@ -457,7 +468,7 @@ class dynamic_serializer {
         return field_type_to_json<Options, bool>(is_map_key, archive, [](bool) { return true; });
       case TYPE_STRING:
         return field_type_to_json<Options, std::string>(false, archive, [meta](const std::string &s) {
-          return !(meta.options & field_options::utf8_validation) || is_utf8(s.data(), s.size());
+          return !has_option(meta.options, field_option::utf8_validation) || is_utf8(s.data(), s.size());
         });
       case TYPE_GROUP:
         return group_to_json<Options>(std::get<const message_meta *>(meta.type_info), meta.number, archive);
@@ -870,8 +881,8 @@ class dynamic_serializer {
       if (remaining_size() < sz) {
         buffer.resize(2 * (buffer.size() + sz));
       }
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      auto out_span = std::span{buffer.data() + position, remaining_size()};
+      auto out_begin = std::next(buffer.data(), static_cast<std::ptrdiff_t>(position));
+      auto out_span = std::span{out_begin, remaining_size()};
       pb_context context{};
       pb_serializer::basic_out archive{out_span, context};
       (serialize(std::forward<Item>(item), archive), ...);
@@ -1170,21 +1181,22 @@ class dynamic_serializer {
           return std::errc::bad_message;
         }
       }
-      enum value_kind : uint8_t { kind_null, kind_number, kind_string, kind_bool, kind_struct, kind_list };
+      enum class value_kind : uint8_t { kind_null, kind_number, kind_string, kind_bool, kind_struct, kind_list };
 
       static constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Options>()>();
 
       switch (static_cast<char>(*it)) {
       case 'n':
-        return field_to_pb<Opts>(meta->fields[kind_null], it, end, archive);
+        return field_to_pb<Opts>(meta->fields[static_cast<std::size_t>(value_kind::kind_null)], it, end, archive);
       case 'f':
       case 't':
-        return field_to_pb<Opts>(meta->fields[kind_bool], it, end, archive);
+        return field_to_pb<Opts>(meta->fields[static_cast<std::size_t>(value_kind::kind_bool)], it, end, archive);
       case '"':
-        return field_to_pb<Opts>(meta->fields[kind_string], it, end, archive);
+        return field_to_pb<Opts>(meta->fields[static_cast<std::size_t>(value_kind::kind_string)], it, end, archive);
       case '{': {
         const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[pb_meta.protobuf_struct_message_index];
-        return serialize_sized(meta->fields[kind_struct].number, archive, [&](auto &archive) {
+        return serialize_sized(meta->fields[static_cast<std::size_t>(value_kind::kind_struct)].number, archive,
+                               [&](auto &archive) {
           auto meta = msg_meta.fields[0];
           return this->message_to_pb<Options>(std::get<const message_meta *>(meta.type_info), it, end,
                                               meta.is_map_entry(), archive);
@@ -1192,12 +1204,13 @@ class dynamic_serializer {
       }
       case '[': {
         const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[pb_meta.protobuf_list_value_message_index];
-        return serialize_sized(meta->fields[kind_list].number, archive, [&](auto &archive) {
+        return serialize_sized(meta->fields[static_cast<std::size_t>(value_kind::kind_list)].number, archive,
+                               [&](auto &archive) {
           return repeated_to_pb<Opts>(msg_meta.fields[0], it, end, archive);
         });
       }
       default:
-        return field_to_pb<Opts>(meta->fields[kind_number], it, end, archive);
+        return field_to_pb<Opts>(meta->fields[static_cast<std::size_t>(value_kind::kind_number)], it, end, archive);
       }
     }
 
@@ -1343,7 +1356,7 @@ class dynamic_serializer {
       bool first = !has_opening_handled(Options);
       while (true) {
         if (*it == '}') [[unlikely]] {
-          ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+          it = std::next(it);
           return {};
         } else if (first) [[unlikely]] {
           first = false;
@@ -1552,8 +1565,7 @@ public:
     }
     json_to_pb_state state{*this};
     const char *it = json_view.data();
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    const char *end = it + json_view.size();
+    const char *end = std::next(it, static_cast<std::ptrdiff_t>(json_view.size()));
     relocatable_out archive{buffer};
     if (auto ec = state.template message_to_pb<glz::opts{}>(&messages[id], it, end, 0, archive); !ec.ok())
         [[unlikely]] {

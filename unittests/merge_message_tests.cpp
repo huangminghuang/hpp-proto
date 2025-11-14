@@ -48,8 +48,14 @@ struct TestMessage {
 
   Traits::template map_t<std::int32_t, std::int32_t> map_int32_int32;
 
-  // NOLINTNEXTLINE(performance-enum-size)
-  enum oneof_field_oneof_case : int { oneof_uint32 = 1, oneof_foreign_message = 2, oneof_string = 3, oneof_bytes = 4 };
+  // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
+  enum oneof_field_oneof_case : std::uint8_t {
+    oneof_uint32 = 1,
+    oneof_foreign_message = 2,
+    oneof_string = 3,
+    oneof_bytes = 4
+  };
+
   static constexpr std::array<std::uint32_t, 5> oneof_field_oneof_numbers{0U, 111U, 112U, 113U, 114U};
   std::variant<std::monostate, std::uint32_t, ForeignMessage<Traits>, typename Traits::string_t,
                typename Traits::bytes_t>
