@@ -49,9 +49,7 @@ class descriptor_pool {
 
   static constexpr uint8_t mask(field_option_mask value) { return static_cast<uint8_t>(value); }
 
-  static constexpr bool has_mask(uint8_t bitset, field_option_mask value) {
-    return (bitset & mask(value)) != 0;
-  }
+  static constexpr bool has_mask(uint8_t bitset, field_option_mask value) { return (bitset & mask(value)) != 0; }
 
   using string_t = AddOns::string_t;
   template <typename T>
@@ -131,7 +129,9 @@ public:
     [[nodiscard]] bool is_delimited() const {
       return has_mask(field_option_bitset_, field_option_mask::MASK_DELIMITED);
     }
-    [[nodiscard]] bool is_map_entry() const { return has_mask(field_option_bitset_, field_option_mask::MASK_MAP_ENTRY); }
+    [[nodiscard]] bool is_map_entry() const {
+      return has_mask(field_option_bitset_, field_option_mask::MASK_MAP_ENTRY);
+    }
     [[nodiscard]] bool explicit_presence() const {
       return has_mask(field_option_bitset_, field_option_mask::MASK_EXPLICIT_PRESENCE);
     }

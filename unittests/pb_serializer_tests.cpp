@@ -1564,7 +1564,7 @@ struct person {
   };
 
   struct phone_number {
-    std::string number;   // = 1
+    std::string number;                   // = 1
     phone_type type = phone_type::mobile; // = 2
     using pb_meta =
         std::tuple<hpp::proto::field_meta<1, &phone_number::number>, hpp::proto::field_meta<2, &phone_number::type>>;

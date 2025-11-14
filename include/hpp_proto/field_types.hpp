@@ -23,9 +23,9 @@
 #pragma once
 
 #include <algorithm>
-#include <concepts>
 #include <bit>
 #include <cassert>
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #ifdef __cpp_lib_flat_map
@@ -602,9 +602,8 @@ public:
   constexpr equality_comparable_span(std::span<U> other) noexcept : _data(other.data()), _size(other.size()) {}
 
   template <typename R>
-    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span> &&
-             std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
-             std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
+    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
+             std::ranges::sized_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
   constexpr equality_comparable_span(R &&r) noexcept
       : equality_comparable_span(std::span<element_type>{std::forward<R>(r)}) {}
 
@@ -633,9 +632,8 @@ public:
   }
 
   template <typename R>
-    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span> &&
-             std::ranges::contiguous_range<R> && std::ranges::sized_range<R> &&
-             std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
+    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
+             std::ranges::sized_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
   constexpr equality_comparable_span &operator=(R &&r) noexcept {
     *this = std::span<element_type>{std::forward<R>(r)};
     return *this;

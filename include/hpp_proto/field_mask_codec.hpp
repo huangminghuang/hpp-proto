@@ -22,8 +22,8 @@
 
 #pragma once
 #include <cstdint>
-#include <iterator>
 #include <hpp_proto/memory_resource_utils.hpp>
+#include <iterator>
 #include <numeric>
 #include <span>
 namespace hpp::proto {

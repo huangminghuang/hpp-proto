@@ -23,8 +23,8 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
-#include <iterator>
 #include <hpp_proto/json_serializer.hpp>
+#include <iterator>
 
 namespace hpp::proto {
 struct duration_codec {

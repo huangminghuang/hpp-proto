@@ -592,9 +592,7 @@ struct field_meta_base {
 
   constexpr static bool is_packed() { return has_option(FieldOptions, field_option::is_packed); }
   constexpr static bool explicit_presence() { return has_option(FieldOptions, field_option::explicit_presence); }
-  constexpr static bool requires_utf8_validation() {
-    return has_option(FieldOptions, field_option::utf8_validation);
-  }
+  constexpr static bool requires_utf8_validation() { return has_option(FieldOptions, field_option::utf8_validation); }
   constexpr static bool is_delimited() { return has_option(FieldOptions, field_option::group); }
   constexpr static bool closed_enum() { return has_option(FieldOptions, field_option::closed_enum); }
 
@@ -755,8 +753,7 @@ struct map_entry {
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
     using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence | KeyOptions>,
-                               field_meta<2, &mutable_type::value,
-                                          field_option::explicit_presence | MappedOptions>>;
+                               field_meta<2, &mutable_type::value, field_option::explicit_presence | MappedOptions>>;
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif

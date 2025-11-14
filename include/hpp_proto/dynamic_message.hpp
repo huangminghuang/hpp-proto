@@ -838,9 +838,8 @@ public:
       auto new_data = static_cast<T *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
       storage_->capacity = n;
       if (storage_->content) {
-        std::uninitialized_copy(
-            storage_->content,
-            std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)), new_data);
+        std::uninitialized_copy(storage_->content,
+                                std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)), new_data);
       }
       storage_->content = new_data;
     }
@@ -854,9 +853,8 @@ public:
       std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
       storage_->content = new_data;
     } else if (size() < n) {
-      std::uninitialized_default_construct(
-          std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)),
-          std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
+      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)),
+                                           std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
     storage_->size = n;
   }
@@ -1030,15 +1028,13 @@ public:
   void resize(std::size_t n) {
     if (capacity() < n) {
       auto *new_data = static_cast<uint32_t *>(memory_resource_->allocate(n * sizeof(uint32_t), alignof(uint32_t)));
-      std::copy(storage_->content,
-                std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
       std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
       storage_->content = new_data;
       storage_->capacity = n;
     } else if (size() < n) {
-      std::uninitialized_default_construct(
-          std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
-          std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
+      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+                                           std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
     storage_->size = n;
   }
@@ -1429,15 +1425,13 @@ public:
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] message_value_cref operator[](std::size_t index) const noexcept {
     assert(index < size());
-    const auto offset =
-        static_cast<std::ptrdiff_t>(index * num_slots());
+    const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
     return {message_descriptor(), std::next(storage_->content, offset)};
   }
 
   [[nodiscard]] message_value_cref at(std::size_t index) const {
     if (index < size()) {
-      const auto offset =
-          static_cast<std::ptrdiff_t>(index * num_slots());
+      const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
       return {message_descriptor(), std::next(storage_->content, offset)};
     }
     throw std::out_of_range("");
@@ -1509,15 +1503,13 @@ public:
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
   [[nodiscard]] message_value_mref operator[](std::size_t index) const noexcept {
     assert(index < size());
-    const auto offset =
-        static_cast<std::ptrdiff_t>(index * num_slots());
+    const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
     return {message_descriptor(), std::next(storage_->content, offset), *memory_resource_};
   }
 
   [[nodiscard]] message_value_mref at(std::size_t index) const {
     if (index < size()) {
-      const auto offset =
-          static_cast<std::ptrdiff_t>(index * num_slots());
+      const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
       return {message_descriptor(), std::next(storage_->content, offset), *memory_resource_};
     }
     throw std::out_of_range("");

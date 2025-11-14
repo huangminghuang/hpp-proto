@@ -163,9 +163,7 @@ class dynamic_serializer {
 
   static constexpr uint8_t option_mask(field_option option) { return static_cast<uint8_t>(option); }
 
-  static constexpr bool has_option(uint8_t bits, field_option option) {
-    return (bits & option_mask(option)) != 0;
-  }
+  static constexpr bool has_option(uint8_t bits, field_option option) { return (bits & option_mask(option)) != 0; }
 
   struct enum_value_meta {
     int32_t number;
@@ -236,9 +234,7 @@ class dynamic_serializer {
       }
     }
 
-    [[nodiscard]] constexpr bool is_packed_repeated() const {
-      return has_option(options, field_option::packed);
-    }
+    [[nodiscard]] constexpr bool is_packed_repeated() const { return has_option(options, field_option::packed); }
     [[nodiscard]] constexpr bool is_repeated() const { return has_option(options, field_option::repeated); }
     [[nodiscard]] constexpr bool is_map_entry() const { return has_option(options, field_option::is_map_entry); }
   };
@@ -1197,17 +1193,16 @@ class dynamic_serializer {
         const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[pb_meta.protobuf_struct_message_index];
         return serialize_sized(meta->fields[static_cast<std::size_t>(value_kind::kind_struct)].number, archive,
                                [&](auto &archive) {
-          auto meta = msg_meta.fields[0];
-          return this->message_to_pb<Options>(std::get<const message_meta *>(meta.type_info), it, end,
-                                              meta.is_map_entry(), archive);
-        });
+                                 auto meta = msg_meta.fields[0];
+                                 return this->message_to_pb<Options>(std::get<const message_meta *>(meta.type_info), it,
+                                                                     end, meta.is_map_entry(), archive);
+                               });
       }
       case '[': {
         const dynamic_serializer::message_meta &msg_meta = pb_meta.messages[pb_meta.protobuf_list_value_message_index];
-        return serialize_sized(meta->fields[static_cast<std::size_t>(value_kind::kind_list)].number, archive,
-                               [&](auto &archive) {
-          return repeated_to_pb<Opts>(msg_meta.fields[0], it, end, archive);
-        });
+        return serialize_sized(
+            meta->fields[static_cast<std::size_t>(value_kind::kind_list)].number, archive,
+            [&](auto &archive) { return repeated_to_pb<Opts>(msg_meta.fields[0], it, end, archive); });
       }
       default:
         return field_to_pb<Opts>(meta->fields[static_cast<std::size_t>(value_kind::kind_number)], it, end, archive);
