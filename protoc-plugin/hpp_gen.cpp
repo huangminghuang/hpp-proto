@@ -176,7 +176,7 @@ const char *cpp_escape(char c) {
       "\\\\346", "\\\\347", "\\\\350", "\\\\351", "\\\\352", "\\\\353", "\\\\354", "\\\\355", "\\\\356", "\\\\357",
       "\\\\360", "\\\\361", "\\\\362", "\\\\363", "\\\\364", "\\\\365", "\\\\366", "\\\\367", "\\\\370", "\\\\371",
       "\\\\372", "\\\\373", "\\\\374", "\\\\375", "\\\\376", "\\\\377"};
-  return escapedChars[static_cast<unsigned char>(c)];
+  return escapedChars[static_cast<unsigned char>(c)]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 }
 
 std::string cpp_escape(std::string_view src) {
@@ -450,7 +450,7 @@ struct hpp_addons {
       default_value_template_arg = fmt::format("HPP_PROTO_WRAP_{}({})", wrap_type, default_value);
     }
 
-    std::string_view qualified_parent_name() const {
+    [[nodiscard]] std::string_view qualified_parent_name() const {
       auto self = static_cast<const Derived *>(this);
       if (self->parent_message()) {
         return self->parent_message()->full_name();
@@ -759,9 +759,9 @@ struct msg_code_generator : code_generator {
       ;
     } else {
       // only the components excluding the common ancestor should be used
-      int num_components = std::ranges::count_if(relative_type_name, [](char c) { return c == '.'; });
+      auto num_components = std::ranges::count_if(relative_type_name, [](char c) { return c == '.'; });
       std::string_view v = field.qualified_cpp_field_type;
-      int num_colons = 2 * num_components + 1;
+      auto num_colons = 2 * num_components + 1;
       auto pos = std::distance(
           std::find_if(v.rbegin(), v.rend(), [&num_colons](char c) { return c == ':' && (--num_colons == 0); }),
           v.rend());

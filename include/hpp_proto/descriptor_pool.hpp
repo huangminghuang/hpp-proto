@@ -204,6 +204,7 @@ public:
       options_.features = merge_features(inherited_options.features.value(), proto.options);
     }
 
+    ~oneof_descriptor_base() = default;
     oneof_descriptor_base(const oneof_descriptor_base &) = delete;
     oneof_descriptor_base(oneof_descriptor_base &&) = default;
     oneof_descriptor_base &operator=(const oneof_descriptor_base &) = delete;
@@ -249,7 +250,7 @@ public:
           options_(proto.options.value_or(EnumOptions{})) {
       options_.features = merge_features(inherited_options.features.value(), proto.options);
     }
-
+    ~enum_descriptor_base() = default;
     enum_descriptor_base(const enum_descriptor_base &) = delete;
     enum_descriptor_base(enum_descriptor_base &&) = default;
     enum_descriptor_base &operator=(const enum_descriptor_base &) = delete;
@@ -420,8 +421,8 @@ public:
     init();
   }
 
-  explicit descriptor_pool(FileDescriptorSet &&fileset, std::pmr::memory_resource &mr)
-      : fileset_{.file = std::move(fileset.file), .unknown_fields_ = {}} {
+  descriptor_pool(FileDescriptorSet &&fileset, std::pmr::memory_resource &mr)
+      : fileset_{.file = std::move(fileset).file, .unknown_fields_ = {}} {
     auto *old = std::pmr::set_default_resource(&mr);
     init();
     std::pmr::set_default_resource(old);
@@ -464,10 +465,15 @@ public:
   }
 
   std::span<file_descriptor_t> files() { return files_; }
+  [[nodiscard]]  std::span<const file_descriptor_t> files() const { return files_; }
   std::span<message_descriptor_t> messages() { return messages_; }
+  [[nodiscard]] std::span<const message_descriptor_t> messages() const { return messages_; }
   std::span<enum_descriptor_t> enums() { return enums_; }
+  [[nodiscard]] std::span<const enum_descriptor_t> enums() const { return enums_; }
   std::span<oneof_descriptor_t> oneofs() { return oneofs_; }
+  [[nodiscard]] std::span<const oneof_descriptor_t> oneofs() const { return oneofs_; }
   std::span<field_descriptor_t> fields() { return fields_; }
+  [[nodiscard]] std::span<const field_descriptor_t> fields() const { return fields_; }
 
   [[nodiscard]] const map_t<std::string_view, message_descriptor_t *> &message_map() const { return message_map_; }
   [[nodiscard]] const map_t<std::string_view, enum_descriptor_t *> &enum_map() const { return enum_map_; }

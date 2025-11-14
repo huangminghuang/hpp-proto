@@ -27,7 +27,7 @@
 #include <cassert>
 #include <cstdint>
 #include <functional>
-#if defined(__cpp_lib_flat_map)
+#ifdef __cpp_lib_flat_map
 #include <flat_map>
 #else
 #include <hpp_proto/flat_map.hpp>
@@ -42,7 +42,7 @@
 #include <variant>
 #include <vector>
 namespace hpp::proto {
-#if defined(__cpp_lib_flat_map)
+#ifdef __cpp_lib_flat_map
 using std::flat_map;
 using std::sorted_unique;
 #else
@@ -65,7 +65,7 @@ struct float_wrapper {
 };
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
-#if defined(__clang__)
+#ifdef __clang__
 #define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
   hpp::proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
 #define HPP_PROTO_WRAP_DOUBLE(v)                                                                                       \
@@ -602,7 +602,7 @@ public:
 
   template <typename R>
     requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>)
-  constexpr equality_comparable_span(R &&r) noexcept : equality_comparable_span(std::span<element_type>(r)) {}
+  constexpr equality_comparable_span(R &&r) noexcept : equality_comparable_span(std::span<element_type>( std::forward<R>(r))) {}
 
   template <std::contiguous_iterator It>
     requires std::convertible_to<decltype(std::to_address(std::declval<It &>())), T *>
@@ -631,11 +631,12 @@ public:
   template <typename R>
     requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>)
   constexpr equality_comparable_span &operator=(R &&r) noexcept {
-    *this = std::span<element_type>{r};
+    *this = std::span<element_type>{ std::forward<R>(r)};
     return *this;
   }
 
   [[nodiscard]] constexpr iterator begin() const noexcept { return _data; }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr iterator end() const noexcept { return _data + _size; }
   [[nodiscard]] constexpr const_iterator cbegin() const noexcept { return _data; }
   [[nodiscard]] constexpr const_iterator cend() const noexcept { return _data + _size; }
@@ -644,10 +645,13 @@ public:
   [[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cend()); }
   [[nodiscard]] constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cbegin()); }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr reference operator[](std::size_t idx) const noexcept { return _data[idx]; }
   [[nodiscard]] constexpr reference at(std::size_t idx) const {
-    if (idx >= _size)
+    if (idx >= _size) {
       throw std::out_of_range("equality_comparable_span::at");
+    }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return _data[idx];
   }
   [[nodiscard]] constexpr bool empty() const noexcept { return _size == 0; }

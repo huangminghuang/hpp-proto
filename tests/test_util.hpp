@@ -50,7 +50,7 @@ constexpr auto operator""_bytes() {
 namespace std {
 template <glz::glaze_t T>
 inline std::ostream &operator<<(ostream &os, const T &v) {
-#if !defined(HPP_PROTO_DISABLE_GLAZE)
+#ifndef HPP_PROTO_DISABLE_GLAZE
   return os << hpp::proto::write_json(v).value();
 #else
   return os;
@@ -81,8 +81,8 @@ std::ostream &operator<<(std::ostream &os, bytes_literal<cts> v) {
 
 // NOLINTEND(cert-dcl58-cpp)
 
-#if defined(__GNUC__)
-#if defined(__apple_build_version__)
+#ifdef __GNUC__
+#ifdef __apple_build_version__
 #pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
 #else
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"

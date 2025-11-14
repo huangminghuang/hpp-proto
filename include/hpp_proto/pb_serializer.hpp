@@ -39,16 +39,16 @@
 #include <hpp_proto/memory_resource_utils.hpp>
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
-#if defined(_WIN32)
+#ifdef _WIN32
 #include <intrin.h>
 #elif defined(__GNUC__) || defined(__clang__)
 #include <cpuid.h>
 #endif
 #endif
 
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #define HPP_PROTO_INLINE [[gnu::always_inline]] inline
-#elif defined(_MSC_VER)
+#elifdef _MSC_VER
 #pragma warning(error : 4714)
 #define HPP_PROTO_INLINE __forceinline
 #else
@@ -520,9 +520,8 @@ constexpr auto unchecked_parse_varint(concepts::contiguous_byte_range auto const
   int64_t res; // NOLINT(cppcoreguidelines-init-variables)
   if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
     auto p = shift_mix_parse_varint<typename VarintType::value_type>(input, res);
-    // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    item = static_cast<typename VarintType::value_type>((static_cast<uint64_t>(res) >> 1) ^
-                                                        static_cast<uint64_t>(-(res & 0x1)));
+    auto ures = static_cast<uint64_t>(res);
+    item = static_cast<typename VarintType::value_type>((ures >> 1U) ^ (-(ures & 0x1ULL)));
     return p;
   } else {
     auto p = shift_mix_parse_varint<typename VarintType::value_type>(input, res);
@@ -722,13 +721,13 @@ struct map_entry {
     typename serialize_type<KeyType>::type key = {};
     typename serialize_type<MappedType>::type value = {};
     constexpr static bool allow_inline_visit_members_lambda = true;
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
     using pb_meta = std::tuple<field_meta<1, &mutable_type::key, field_option::explicit_presence | KeyOptions>,
                                field_meta<2, &mutable_type::value, field_option::explicit_presence | MappedOptions>>;
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 #ifdef _MSC_VER
@@ -766,13 +765,13 @@ struct map_entry {
     struct value_accessor {
       constexpr const auto &operator()(const read_only_type &entry) const { return entry.value; }
     };
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
     using pb_meta = std::tuple<field_meta<1, key_accessor{}, field_option::explicit_presence | KeyOptions>,
                                field_meta<2, value_accessor{}, field_option::explicit_presence | MappedOptions>>;
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
   };
@@ -794,7 +793,7 @@ struct meta_of<Type> {
 
 template <concepts::has_meta Type, std::size_t Index>
 struct field_meta_of {
-  using type = typename std::tuple_element<Index, typename meta_of<Type>::type>::type;
+  using type = typename std::tuple_element_t<Index, typename meta_of<Type>::type>;
 };
 
 template <typename Meta, typename Type>
@@ -814,6 +813,7 @@ constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N>
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::array<T, M + N> result;
   std::copy(lhs.begin(), lhs.end(), result.begin());
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   std::copy(rhs.begin(), rhs.end(), result.begin() + M);
   return result;
 }
@@ -924,6 +924,7 @@ struct reverse_indices {
     }
 
     std::array<std::uint32_t, mask + 2> table_offsets = {0};
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::partial_sum(masked_number_occurrences.begin(), masked_number_occurrences.end(), table_offsets.begin() + 1);
     return table_offsets;
   }
@@ -934,6 +935,7 @@ struct reverse_indices {
       return std::span<std::pair<std::uint32_t, std::uint32_t>>{};
     } else {
       std::array<std::uint32_t, mask + 1> counts = {};
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       std::copy(lookup_table_offsets.begin(), lookup_table_offsets.end() - 1, counts.begin());
 
       std::array<std::pair<std::uint32_t, std::uint32_t>, field_numbers.size()> result;
@@ -983,7 +985,7 @@ struct reverse_indices {
 };
 } // namespace traits
 
-#if defined(__cpp_lib_constexpr_vector)
+#ifdef __cpp_lib_constexpr_vector
 template <typename T>
 using constexpr_vector = std::vector<T>;
 #else
@@ -1340,7 +1342,7 @@ struct size_cache_counter<T> {
   HPP_PROTO_INLINE constexpr static std::size_t count_oneof(auto const &item) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return count(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{});
+        return count(std::get<I + 1>(item), typename std::tuple_element_t<I, Meta>{});
       }
       return count_oneof<I + 1, Meta>(item);
     } else {
@@ -1460,7 +1462,7 @@ struct message_size_calculator<T> {
                                                         concepts::is_size_cache_iterator auto &cache_itr) {
     constexpr uint32_t tag_size = varint_size(meta.number << 3U);
     if constexpr (!meta.is_delimited()) {
-      decltype(auto) msg_size = *cache_itr++;
+      decltype(auto) msg_size = *cache_itr++; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       auto s = static_cast<uint32_t>(message_size(item, cache_itr));
       msg_size = s;
       return tag_size + len_size(s);
@@ -1478,7 +1480,7 @@ struct message_size_calculator<T> {
 
     constexpr uint32_t tag_size = varint_size(meta.number << 3U);
     auto &[key, value] = item;
-    decltype(auto) msg_size = *cache_itr++;
+    decltype(auto) msg_size = *cache_itr++; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     auto s = message_size(value_type{key, value}, cache_itr);
     msg_size = static_cast<uint32_t>(s);
     return tag_size + len_size(s);
@@ -1525,7 +1527,7 @@ struct message_size_calculator<T> {
                                                         concepts::is_size_cache_iterator auto &cache_itr) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return field_size(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{}, cache_itr);
+        return field_size(std::get<I + 1>(item), typename std::tuple_element_t<I, Meta>{}, cache_itr);
       }
       return oneof_size<I + 1, Meta>(item, cache_itr);
     } else {
@@ -1534,7 +1536,7 @@ struct message_size_calculator<T> {
   }
 };
 
-#if defined(_WIN32)
+#ifdef _WIN32
 struct freea {
   void operator()(void *p) { _freea(p); }
 };
@@ -1581,10 +1583,10 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
       return do_serialize(cache);
     }
   } else if (n > 0) {
-#if defined(_WIN32)
+#ifdef _WIN32
     std::unique_ptr<uint32_t, freea> ptr{static_cast<uint32_t *>(_malloca(n * sizeof(uint32_t)))};
     auto *cache = ptr.get();
-#elif defined(__GNUC__)
+#elifdef __GNUC__
     auto *cache =
         static_cast<uint32_t *>(__builtin_alloca_with_align(n * sizeof(uint32_t), CHAR_BIT * sizeof(uint32_t)));
 #else
@@ -1663,7 +1665,8 @@ template <typename Meta>
                                                               concepts::is_size_cache_iterator auto &cache_itr,
                                                               auto &archive) {
   if constexpr (!meta.is_delimited()) {
-    return archive(make_tag<decltype(item)>(meta), varint{*cache_itr++}) && serialize(item, cache_itr, archive);
+    auto len = varint{*cache_itr++};
+    return archive(make_tag<decltype(item)>(meta), len) && serialize(item, cache_itr, archive);
   } else {
     return archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::sgroup)}) &&
            serialize(item, cache_itr, archive) &&
@@ -1706,7 +1709,8 @@ template <typename Meta>
   using value_type = typename traits::get_map_entry<Meta, type>::read_only_type;
   static_assert(concepts::has_meta<value_type>);
   auto &&[key, value] = item;
-  return archive(tag, varint{*cache_itr++}) && serialize(value_type{key, value}, cache_itr, archive);
+  auto len = varint{*cache_itr++};
+  return archive(tag, len) && serialize(value_type{key, value}, cache_itr, archive);
 }
 
 template <std::size_t I, concepts::tuple Meta>
@@ -1714,7 +1718,7 @@ template <std::size_t I, concepts::tuple Meta>
 serialize_oneof(auto const &item, concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
   if constexpr (I < std::tuple_size_v<Meta>) {
     if (I == item.index() - 1) {
-      return serialize_field(std::get<I + 1>(item), typename std::tuple_element<I, Meta>::type{}, cache_itr, archive);
+      return serialize_field(std::get<I + 1>(item), typename std::tuple_element_t<I, Meta>{}, cache_itr, archive);
     }
     return serialize_oneof<I + 1, Meta>(item, cache_itr, archive);
   }
@@ -1903,6 +1907,10 @@ public:
   }
 
   basic_in(const basic_in &) = default;
+  basic_in(basic_in &&) = default;
+  basic_in& operator=(const basic_in &) = default;
+  basic_in& operator=(basic_in &&) = default;
+  ~basic_in() = default;
 
   [[nodiscard]] basic_in copy() const { return *this; }
 
@@ -1943,6 +1951,59 @@ public:
     return std::errc::bad_message;
   }
 
+  // Helper: append raw data path for packed deserialization (no byte-swap required)
+  template <typename ValueType>
+  constexpr status do_deserialize_packed_append_raw(std::size_t n, auto &item, std::size_t nbytes,
+                                                   std::size_t new_size) {
+    item.reserve(new_size);
+    if constexpr (contiguous) {
+      item.append_raw_data(current.consume(nbytes));
+      return {};
+    } else {
+      while (n > 0) {
+        maybe_advance_region();
+        auto k = std::min<std::ptrdiff_t>(n, region_size() / static_cast<std::ptrdiff_t>(sizeof(ValueType)));
+        item.append_raw_data(current.consume(static_cast<std::size_t>(k) * sizeof(ValueType)));
+        n -= k;
+      }
+      return {};
+    }
+  }
+
+  // Helper: resize-and-copy path for packed deserialization (handles byte-swap and constant evaluation)
+  template <typename ValueType>
+  constexpr status do_deserialize_packed_resize(std::size_t n, auto &item, std::size_t old_size,
+                                               std::size_t new_size, std::size_t nbytes) {
+    item.resize(new_size);
+    auto target = std::span{item.data() + old_size, n};
+    constexpr bool requires_byteswap = (sizeof(ValueType) > 1 && endian_swapped);
+    if (std::is_constant_evaluated() || requires_byteswap) {
+      std::array<byte_type, sizeof(ValueType)> v{};
+      for (auto &elem : target) {
+        maybe_advance_region();
+        current.consume(v);
+        if constexpr (requires_byteswap) {
+          std::ranges::reverse(v);
+        }
+        elem = std::bit_cast<ValueType>(v);
+      }
+    } else {
+      void *ptr = target.data();
+      if constexpr (contiguous) {
+        std::memcpy(ptr, current.consume(nbytes).data(), nbytes);
+      } else {
+        while (nbytes > 0) {
+          maybe_advance_region();
+          std::size_t k = std::min(nbytes, static_cast<std::size_t>(region_size()));
+          std::memcpy(ptr, current.consume(k).data(), k);
+          ptr = static_cast<char *>(ptr) + k;
+          nbytes -= k;
+        }
+      }
+    }
+    return {};
+  }
+
   constexpr status deserialize_packed(std::size_t n, auto &&item) {
     using value_type = typename std::remove_cvref_t<decltype(item)>::value_type;
     std::size_t nbytes = n * sizeof(value_type);
@@ -1954,53 +2015,17 @@ public:
     auto old_size = item.size();
     auto new_size = old_size + n;
     if constexpr (requires { item.append_raw_data(std::span<byte_type>{}); } && !requires_byteswap) {
-      item.reserve(new_size);
-      if constexpr (contiguous) {
-        item.append_raw_data(current.consume(nbytes));
-      } else {
-        while (n > 0) {
-          maybe_advance_region();
-          auto k = std::min<std::ptrdiff_t>(n, region_size() / sizeof(value_type));
-          item.append_raw_data(current.consume(k * sizeof(value_type)));
-          n -= k;
-        }
-      }
+      return do_deserialize_packed_append_raw<value_type>(n, item, nbytes, new_size);
     } else {
-      item.resize(new_size);
-      auto target = std::span{item.data() + old_size, n};
-      if (std::is_constant_evaluated() || requires_byteswap) {
-        std::array<byte_type, sizeof(value_type)> v;
-        for (auto &elem : target) {
-          maybe_advance_region();
-          current.consume(v);
-          if constexpr (requires_byteswap) {
-            std::ranges::reverse(v);
-          }
-          elem = std::bit_cast<value_type>(v);
-        }
-      } else {
-        void *ptr = target.data();
-        if constexpr (contiguous) {
-          std::memcpy(ptr, current.consume(nbytes).data(), nbytes);
-        } else {
-          while (nbytes > 0) {
-            maybe_advance_region();
-            std::size_t k = std::min(nbytes, static_cast<std::size_t>(region_size()));
-            std::memcpy(ptr, current.consume(k).data(), k);
-            ptr = static_cast<char *>(ptr) + k;
-            nbytes -= k;
-          }
-        }
-      }
+      return do_deserialize_packed_resize<value_type>(n, item, old_size, new_size, nbytes);
     }
-    return {};
   }
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
   // workaround for C++20 doesn't support static in constexpr function
   static bool has_bmi2() {
     auto check = [] {
-#if defined(_WIN32)
+#ifdef _WIN32
       int cpuInfo[4];
       __cpuidex(cpuInfo, 7, 0);
       return (cpuInfo[1] & (1 << 8)) != 0; // Check BMI2 bit
@@ -2257,7 +2282,7 @@ public:
     maybe_advance_region();
     std::int64_t res; // NOLINT(cppcoreguidelines-init-variables)
     if (auto p = shift_mix_parse_varint<std::uint32_t, 4>(current, res); p <= current._end) {
-      if (static_cast<std::uint32_t>(res) == tag) {
+      if (std::cmp_equal(res, tag)) {
         current.advance_to(p);
         return true;
       }
@@ -2302,9 +2327,9 @@ constexpr status deserialize_unknown_fields(concepts::contiguous_byte_range auto
 
 constexpr void deserialize_unknown_enum(auto &unknown_fields, uint32_t field_num, int64_t value,
                                         concepts::is_basic_in auto &archive) {
-  std::array<std::byte, 16> data;
+  std::array<std::byte, 16> data{};
   auto tag = make_tag(field_num, wire_type::varint);
-  auto p = unchecked_pack_varint(varint{tag}, data.data());
+  auto* p = unchecked_pack_varint(varint{tag}, data.data());
   p = unchecked_pack_varint(varint{value}, p);
   std::span field_span{data.data(), static_cast<std::size_t>(p - data.data())};
   using unknown_fields_t = std::remove_cvref_t<decltype(unknown_fields)>;
@@ -2759,7 +2784,7 @@ template <std::size_t Index, concepts::tuple Meta>
 constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic_in auto &archive,
                                    auto &unknown_fields) {
   if constexpr (Index < std::tuple_size_v<Meta>) {
-    using meta = typename std::tuple_element<Index, Meta>::type;
+    using meta = typename std::tuple_element_t<Index, Meta>;
     if (meta::number == tag_number(tag)) {
       if constexpr (meta::closed_enum()) {
         std::variant_alternative_t<Index + 1, std::decay_t<decltype(item)>> v;
@@ -2875,8 +2900,9 @@ constexpr status extract_length_delimited_field(uint32_t number, bytes_view &byt
 {
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
-    if (tag_type(tag) != wire_type::length_delimited)
+    if (tag_type(tag) != wire_type::length_delimited){
       return std::errc::bad_message;
+    }
     if (tag_number(tag) == number) {
       vuint32_t len;
       if (auto result = archive(len); !result.ok() || len == 0) [[unlikely]] {
@@ -2975,7 +3001,7 @@ constexpr status deserialize(auto &item, concepts::segmented_byte_range auto con
       return deserialize(item, context, buffer, std::span{regions.data(), regions.size()},
                          std::span{patch_buffer.data(), patch_buffer.size()});
     } else {
-#if defined(_WIN32)
+#ifdef _WIN32
       std::unique_ptr<byte_type, freea> patch_buffer_ptr{static_cast<byte_type *>(_malloca(patch_buffer_bytes_count))};
       auto patch_buffer = std::span{patch_buffer_ptr.get(), patch_buffer_bytes_count};
       std::unique_ptr<input_buffer_region<byte_type>, freea> regions_ptr{
@@ -3193,6 +3219,7 @@ concept arithmetic_pair =
 
 template <concepts::is_pb_context Context>
 struct message_merger {
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   Context &ctx;
   template <concepts::has_meta T, typename U>
     requires concepts::isomorphic_message<T, std::decay_t<U>>
@@ -3303,7 +3330,7 @@ struct message_merger {
   }
 
   template <concepts::is_pair T, typename U>
-  constexpr void perform(T &dest, U &&source) {
+  constexpr void perform(T &dest, const U &source) {
     dest.first = source.first;
     perform(dest.second, source.second);
   }

@@ -61,7 +61,7 @@ int main() {
   expect(std::get<std::string>(alex_oneof_field) ==
          "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
 
-#if !defined(HPP_PROTO_DISABLE_GLAZE)
+#ifndef HPP_PROTO_DISABLE_GLAZE
   auto write_json_result = hpp::proto::write_json(address_book);
   expect(write_json_result.has_value());
   auto read_json_result = hpp::proto::read_json<AddressBook>(write_json_result.value());

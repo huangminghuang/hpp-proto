@@ -183,7 +183,10 @@ public:
   }
 
   [[nodiscard]] constexpr iterator begin() const { return iterator{base.data()}; }
-  [[nodiscard]] constexpr iterator end() const { return iterator{base.data() + base.size()}; }
+  [[nodiscard]] constexpr iterator end() const { 
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return iterator{base.data() + base.size()}; 
+  }
 };
 
 template <typename T, concepts::contiguous_byte_range Bytes>

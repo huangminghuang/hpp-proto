@@ -22,12 +22,12 @@
 
 #pragma once
 #include <bit>
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-braces"
 #endif
 #include <glaze/glaze.hpp>
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 
@@ -203,7 +203,7 @@ struct base64 {
         // Process 8 chunks of 3 bytes
         for (std::size_t j = 0; j < 8U; ++j) {
           uint32_t x = 0;
-          std::memcpy(&x, &source[i + j * 3], 3);
+          std::memcpy(&x, &source[i + (j * 3)], 3);
 
           if constexpr (std::endian::native == std::endian::little) {
             b[ix++] = static_cast<V>(base64_chars[(x >> 2U) & 0x3FU]);
@@ -250,15 +250,15 @@ struct base64 {
 
     // Handle remaining bytes
     if (i < n) {
-      uint8_t b1 = static_cast<uint8_t>(source[i]);
-      b[ix++] = static_cast<V>(base64_chars[b1 >> 2]);
+      auto ub1 = static_cast<uint32_t>(source[i]);
+      b[ix++] = static_cast<V>(base64_chars[ub1 >> 2U]);
       if (i + 1 < n) { // 2 bytes left
-        uint8_t b2 = static_cast<uint8_t>(source[i + 1]);
-        b[ix++] = static_cast<V>(base64_chars[((b1 & 0x03) << 4) | (b2 >> 4)]);
-        b[ix++] = static_cast<V>(base64_chars[(b2 & 0x0f) << 2]);
+        auto ub2 = static_cast<uint32_t>(source[i + 1]);
+        b[ix++] = static_cast<V>(base64_chars[((ub1 & 0x03U) << 4U) | (ub2 >> 4U)]);
+        b[ix++] = static_cast<V>(base64_chars[(ub2 & 0x0fU) << 2U]);
         b[ix++] = '=';
       } else { // 1 byte left
-        b[ix++] = static_cast<V>(base64_chars[(b1 & 0x03) << 4]);
+        b[ix++] = static_cast<V>(base64_chars[(ub1 & 0x03U) << 4U]);
         b[ix++] = '=';
         b[ix++] = '=';
       }
@@ -302,46 +302,69 @@ struct base64 {
     size_t j = 0;
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     while (start != source.end()) {
-      uint8_t ch_a = static_cast<uint8_t>(*start++);
-      uint8_t ch_b = static_cast<uint8_t>(*start++);
-      uint8_t ch_c = static_cast<uint8_t>(*start++);
-      uint8_t ch_d = static_cast<uint8_t>(*start++);
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      auto ch_a = static_cast<uint8_t>(*start++);
+      auto ch_b = static_cast<uint8_t>(*start++);
+      auto ch_c = static_cast<uint8_t>(*start++);
+      auto ch_d = static_cast<uint8_t>(*start++);
+      // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
       uint32_t const a = decode_table[ch_a];
       uint32_t const b = decode_table[ch_b];
       uint32_t const c = decode_table[ch_c];
       uint32_t const d = decode_table[ch_d];
 
-      if ((a | b | c | d) >= 64) {
-        // Invalid character found. It might be padding.
-        if (ch_d == '=' && ch_c == '=') { // XY==
-          if (start != source.end())
-            return false; // padding must be at the end
-          if (c != 64 || d != 64)
-            return false;         // should not happen with '='
-        } else if (ch_d == '=') { // XYZ=
-          if (start != source.end())
-            return false;
-          if (d != 64)
-            return false;
-        } else {
-          return false; // Not a valid padding sequence or invalid char
-        }
+      if (!validate_and_decode_quartet(a, b, c, d, ch_c, ch_d, start, source.end())) {
+        return false;
       }
 
-      uint32_t const triple = (a << 18) + (b << 12) + (c << 6) + d;
-
-      using byte = std::ranges::range_value_t<decltype(value)>;
-
-      if (j < len)
-        value[j++] = static_cast<byte>((triple >> 16) & 0xFF);
-      if (j < len)
-        value[j++] = static_cast<byte>((triple >> 8) & 0xFF);
-      if (j < len)
-        value[j++] = static_cast<byte>((triple >> 0) & 0xFF);
+      uint32_t const triple = (a << 18U) + (b << 12U) + (c << 6U) + d;
+      write_decoded_bytes(triple, value, j, len);
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
     return j == len;
+  }
+
+  // Helper function to validate and decode a single base64 quartet
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+  constexpr static bool validate_and_decode_quartet(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint8_t ch_c,
+                                                    uint8_t ch_d, auto &source_begin, auto const &source_end) noexcept {
+    if ((a | b | c | d) >= 64) {
+      // Invalid character found. It might be padding.
+      if (ch_d == '=' && ch_c == '=') { // XY==
+        if (source_begin != source_end) {
+          return false; // padding must be at the end
+        }
+        if (c != 64 || d != 64) {
+          return false; // should not happen with '='
+        }
+      } else if (ch_d == '=') { // XYZ=
+        if (source_begin != source_end) {
+          return false;
+        }
+        if (d != 64) {
+          return false;
+        }
+      } else {
+        return false; // Not a valid padding sequence or invalid char
+      }
+    }
+    return true;
+  }
+
+  // Helper function to write decoded bytes to output
+  constexpr static void write_decoded_bytes(uint32_t triple, auto &value, size_t &j, size_t len) noexcept {
+    using byte = std::ranges::range_value_t<decltype(value)>;
+
+    if (j < len) {
+      value[j++] = static_cast<byte>((triple >> 16U) & 0xFFU);
+    }
+    if (j < len) {
+      value[j++] = static_cast<byte>((triple >> 8U) & 0xFFU);
+    }
+    if (j < len) {
+      value[j++] = static_cast<byte>((triple >> 0U) & 0xFFU);
+    }
   }
 };
 
@@ -607,7 +630,7 @@ template <auto Opts>
     switch (*it) {
     case ',': {
       ++count;
-      ++it;
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       break;
     }
     case '/': {
@@ -644,7 +667,7 @@ template <auto Opts>
       return {};
     }
     default:
-      ++it;
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
   }
   unreachable();

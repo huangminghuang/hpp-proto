@@ -28,7 +28,6 @@ namespace hpp::proto {
 struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
   template <int Len, char sep>
   static char *fixed_len_to_chars(char *buf, auto val) {
     static_assert(Len == 2 || Len == 4 || Len == 9);
@@ -90,17 +89,20 @@ struct timestamp_codec {
     // NOLINTNEXTLINE(readability-isolate-declaration,cppcoreguidelines-init-variables)
     int32_t yy, mm, dd, hh, mn, ss;
 
-    // NOLINTBEGIN(bugprone-easily-swappable-parameters)
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     auto parse_with_separator = [&](int32_t &val, size_t width, char sep) -> bool {
-      if (ptr + width > end)
+      if (ptr + width > end){
         return false;
+      }
       auto res = std::from_chars(ptr, ptr + width, val);
-      if (res.ec != std::errc{} || res.ptr != ptr + width)
+      if (res.ec != std::errc{} || res.ptr != ptr + width) {
         return false;
+      }
       ptr += width;
       if (sep != '\0') {
-        if (ptr >= end || *ptr != sep)
+        if (ptr >= end || *ptr != sep) {
           return false;
+        }
         ptr++;
       }
       return true;

@@ -737,7 +737,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status message_to_json(const message_meta *msg_meta, bool is_map_entry, concepts::is_basic_in auto &archive) {
-      auto msg_index = static_cast<std::size_t>(msg_meta - &pb_meta.messages[0]);
+      auto msg_index = static_cast<std::size_t>(msg_meta - pb_meta.messages.data());
       if (msg_index == pb_meta.protobuf_duration_message_index) {
         return wellknown_with_codec_to_json<Options, wellknown::Duration>(archive);
       } else if (msg_index == pb_meta.protobuf_timestamp_message_index) {
@@ -931,8 +931,8 @@ class dynamic_serializer {
     template <typename T>
     status map_key_to_pb(std::string_view key, auto &archive) {
       T value;
-      glz::parse<glz::JSON>::op<glz::ws_handled<glz::opts{}>()>(get_underlying_value(value), context, key.data(),
-                                                                key.data() + key.size());
+      glz::parse<glz::JSON>::op<glz::ws_handled<glz::opts{}>()>(get_underlying_value(value), context, key.begin(),
+                                                                key.end());
       if (bool(context.error)) [[unlikely]] {
         return std::errc::bad_message;
       }
@@ -1309,7 +1309,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status message_to_pb(const message_meta *msg_meta, auto &it, auto &end, uint32_t map_entry_number, auto &archive) {
-      auto msg_index = static_cast<std::size_t>(msg_meta - &pb_meta.messages[0]);
+      auto msg_index = static_cast<std::size_t>(msg_meta - pb_meta.messages.data());
       if (msg_index == pb_meta.protobuf_duration_message_index) {
         return wellknown_with_codec_to_pb<Options, wellknown::Duration>(it, end, archive);
       } else if (msg_index == pb_meta.protobuf_timestamp_message_index) {
@@ -1400,7 +1400,7 @@ class dynamic_serializer {
   // NOLINTEND(readability-function-cognitive-complexity)
 public:
   using option_type = std::reference_wrapper<dynamic_serializer>;
-  explicit dynamic_serializer(descriptor_pool<proto_json_addons> &&pool) {
+  explicit dynamic_serializer(const descriptor_pool<proto_json_addons> &pool) {
 
     if (pool.enum_map().size() != 1 || pool.enum_map().begin()->first != "google.protobuf.NullValue") {
       enums.reserve(pool.enums().size());
@@ -1474,6 +1474,7 @@ public:
       if (auto ec = pb_serializer::extract_length_delimited_field(1, file_field, archive); !ec.ok()) {
         return std::unexpected(ec);
       }
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
       unique_files.insert(std::string_view{reinterpret_cast<const char *>(file_field.data()), file_field.size()});
     }
 

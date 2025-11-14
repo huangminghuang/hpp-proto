@@ -9,20 +9,76 @@ namespace glz {
 
 struct generic_message_json_serializer {
   template <auto Opts>
+  static void dump_opening_brace(is_context auto &ctx, auto &b, auto &ix) noexcept {
+    glz::dump<'{'>(b, ix);
+    if constexpr (Opts.prettify) {
+      ctx.indentation_level += Opts.indentation_width;
+      glz::dump<'\n'>(b, ix);
+      glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    }
+  }
+
+  template <auto Opts>
+  static void dump_closing_brace(is_context auto &ctx, auto &b, auto &ix) noexcept {
+    if constexpr (Opts.prettify) {
+      ctx.indentation_level -= Opts.indentation_width;
+      glz::dump<'\n'>(b, ix);
+      glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    }
+    glz::dump<'}'>(b, ix);
+  }
+
+  template <auto Opts>
+  static void dump_field_separator(is_context auto &ctx, auto &b, auto &ix) noexcept {
+    glz::dump(',', b, ix);
+    if constexpr (Opts.prettify) {
+      glz::dump<'\n'>(b, ix);
+      glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    }
+  }
+
+  template <auto Opts>
+  static void serialize_regular_field(hpp::proto::field_cref field, bool is_wellknown_type, is_context auto &ctx, auto &b, auto &ix) noexcept {
+    constexpr auto field_opts = glz::opening_handled_off<Opts>();
+    if (!is_wellknown_type) {
+      auto json_name = field.descriptor().proto().json_name;
+      glz::serialize<glz::JSON>::op<field_opts>(json_name, ctx, b, ix);
+      glz::dump<':'>(b, ix);
+      if constexpr (Opts.prettify) {
+        glz::dump<' '>(b, ix);
+      }
+    }
+    field.visit([&](auto v) { to<JSON, decltype(v)>::template op<field_opts>(v, ctx, b, ix); });
+  }
+
+  template <auto Opts>
+  static void serialize_map_entry_field(hpp::proto::field_cref field, bool is_first_field, is_context auto &ctx, auto &b, auto &ix) noexcept {
+    constexpr auto field_opts = glz::opening_handled_off<Opts>();
+    if (is_first_field) {
+      bool need_extra_quote = (field.field_kind() == hpp::proto::KIND_BOOL);
+      if (need_extra_quote) {
+        glz::dump<'"'>(b, ix);
+      }
+      field.visit([&](auto v) {
+        to<JSON, decltype(v)>::template op<opt_true<field_opts, &opts::quoted_num>>(v, ctx, b, ix);
+      });
+      if (need_extra_quote) {
+        glz::dump<'"'>(b, ix);
+      }
+    } else {
+      field.visit([&](auto v) { to<JSON, decltype(v)>::template op<field_opts>(v, ctx, b, ix); });
+    }
+  }
+
+  template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
     bool is_wellknown_type = (value.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE);
     const bool dump_brace = !has_opening_handled(Opts) && !value.descriptor().is_map_entry() && !is_wellknown_type;
 
     if (dump_brace) {
-      glz::dump<'{'>(b, ix);
-      if constexpr (Opts.prettify) {
-        ctx.indentation_level += Opts.indentation_width;
-        glz::dump<'\n'>(b, ix);
-        glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
-      }
+      dump_opening_brace<Opts>(ctx, b, ix);
     }
 
-    constexpr auto field_opts = glz::opening_handled_off<Opts>();
     const char *separator = nullptr;
 
     for (auto field : value.fields()) {
@@ -31,52 +87,20 @@ struct generic_message_json_serializer {
       }
 
       if (separator != nullptr) {
-        // not the first field in a message, output the separator
-        glz::dump(separator, b, ix);
-        if (Opts.prettify) {
-          glz::dump<'\n'>(b, ix);
-          glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
-        }
+        dump_field_separator<Opts>(ctx, b, ix);
       }
 
       if (!value.descriptor().is_map_entry()) {
-        if (!is_wellknown_type) {
-          auto json_name = field.descriptor().proto().json_name;
-          glz::serialize<glz::JSON>::op<field_opts>(json_name, ctx, b, ix);
-          glz::dump<':'>(b, ix);
-          if constexpr (Opts.prettify) {
-            glz::dump<' '>(b, ix);
-          }
-        }
-        field.visit([&](auto v) { to<JSON, decltype(v)>::template op<field_opts>(v, ctx, b, ix); });
+        serialize_regular_field<Opts>(field, is_wellknown_type, ctx, b, ix);
         separator = ",";
       } else {
-        if (separator == nullptr) {
-          bool need_extra_quote = (field.field_kind() == hpp::proto::KIND_BOOL);
-          if (need_extra_quote) {
-            glz::dump<'"'>(b, ix);
-          }
-          field.visit([&](auto v) {
-            to<JSON, decltype(v)>::template op<opt_true<field_opts, &opts::quoted_num>>(v, ctx, b, ix);
-          });
-          if (need_extra_quote) {
-            glz::dump<'"'>(b, ix);
-          }
-        } else {
-          field.visit([&](auto v) { to<JSON, decltype(v)>::template op<field_opts>(v, ctx, b, ix); });
-        }
-
+        serialize_map_entry_field<Opts>(field, separator == nullptr, ctx, b, ix);
         separator = ":";
       }
     }
 
     if (dump_brace) {
-      if constexpr (Opts.prettify) {
-        ctx.indentation_level -= Opts.indentation_width;
-        glz::dump<'\n'>(b, ix);
-        glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
-      }
-      glz::dump<'}'>(b, ix);
+      dump_closing_brace<Opts>(ctx, b, ix);
     }
   }
 };
@@ -88,8 +112,8 @@ struct any_message_json_serializer {
 
   template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
-    auto *type_url_desc = value.field_descriptor_by_number(1);
-    auto *value_desc = value.field_descriptor_by_number(2);
+    const auto *const type_url_desc = value.field_descriptor_by_number(1);
+    const auto *const value_desc = value.field_descriptor_by_number(2);
     if (type_url_desc == nullptr || value_desc == nullptr) {
       ctx.error = error_code::invalid_get;
       ctx.custom_error_message = "non-conforming google.protobuf.Any message descriptor";
@@ -112,7 +136,7 @@ struct any_message_json_serializer {
       return;
     }
 
-    auto *value_descriptor = pool.get_message_descriptor(type_url.substr(slash_pos + 1));
+    const auto *const value_descriptor = pool.get_message_descriptor(type_url.substr(slash_pos + 1));
     if (!value_descriptor) {
       ctx.error = error_code::invalid_get;
       ctx.custom_error_message = "unresolvable type_url in google.protobuf.Any message";
@@ -155,8 +179,8 @@ struct timestamp_message_json_serializer {
 
   template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
-    auto *seconds_desc = value.field_descriptor_by_number(1);
-    auto *nanos_desc = value.field_descriptor_by_number(2);
+    const auto *const seconds_desc = value.field_descriptor_by_number(1);
+    const auto *const nanos_desc = value.field_descriptor_by_number(2);
     if (seconds_desc == nullptr || nanos_desc == nullptr) {
       ctx.error = error_code::invalid_get;
       ctx.custom_error_message = "non-conforming google.protobuf.Timestamp message descriptor";
@@ -177,8 +201,8 @@ struct timestamp_message_json_serializer {
 struct duration_message_json_serializer {
   template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
-    auto *seconds_desc = value.field_descriptor_by_number(1);
-    auto *nanos_desc = value.field_descriptor_by_number(2);
+    const auto *const seconds_desc = value.field_descriptor_by_number(1);
+    const auto *const nanos_desc = value.field_descriptor_by_number(2);
     if (seconds_desc == nullptr || nanos_desc == nullptr) {
       ctx.error = error_code::invalid_get;
       ctx.custom_error_message = "non-conforming google.protobuf.Duration message descriptor";
@@ -204,14 +228,14 @@ struct field_mask_message_json_serializer {
 
   template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
-    auto *paths_desc = value.field_descriptor_by_number(1);
+    const auto *const paths_desc = value.field_descriptor_by_number(1);
     if (paths_desc == nullptr) {
       ctx.error = error_code::invalid_get;
       ctx.custom_error_message = "non-conforming google.protobuf.FieldMask message descriptor";
       return;
     }
     auto paths_field = value.const_field(*paths_desc).to<hpp::proto::repeated_string_field_cref>();
-    if (paths_field.has_value()) {
+    if (!paths_field.has_value()) {
       ctx.error = error_code::invalid_get;
       ctx.custom_error_message = "non-conforming google.protobuf.FieldMask message descriptor";
       return;

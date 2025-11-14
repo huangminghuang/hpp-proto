@@ -50,9 +50,9 @@ enum class wellknown_types_t : uint8_t {
   DURATION = 3,
   FIELDMASK = 4,
   VALUE = 5,
-  LISTVALUE,
-  STRUCT,
-  WRAPPER
+  LISTVALUE = 6,
+  STRUCT = 7,
+  WRAPPER = 8
 };
 
 class dynamic_message_factory;
@@ -88,7 +88,7 @@ struct dynamic_message_factory_addons {
         default_value = default_value_opt.empty() ? 0.0 : std::stod(default_value_opt);
         break;
       case TYPE_FLOAT:
-        default_value = default_value_opt.empty() ? 0.0f : std::stof(default_value_opt);
+        default_value = default_value_opt.empty() ? 0.0F : std::stof(default_value_opt);
         break;
       case TYPE_INT64:
       case TYPE_SFIXED64:
@@ -303,7 +303,7 @@ public:
   }
 
   template <typename T>
-  std::optional<T> to() const noexcept {
+  [[nodiscard]] std::optional<T> to() const noexcept {
     if (T::field_kind == field_kind()) {
       return T(*descriptor_, *storage_);
     }
@@ -537,11 +537,14 @@ public:
   bytes_field_cref &operator=(bytes_field_cref &&) noexcept = default;
   ~bytes_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0U; }
   [[nodiscard]] bytes_view value() const noexcept {
     if (!descriptor_->explicit_presence() && !has_value()) {
-      const auto default_value = descriptor_->proto().default_value;
-      return {reinterpret_cast<const std::byte *>(default_value.data()), default_value.size()};
+      const auto &default_value = descriptor_->proto().default_value;
+      // Avoid reinterpret_cast by using std::as_bytes to obtain a span of bytes
+      auto sval = std::span<const char>(default_value.data(), default_value.size());
+      auto bspan = std::as_bytes(sval);
+      return {bspan.data(), bspan.size()};
     }
     return {storage_->content, storage_->size};
   }
@@ -578,6 +581,7 @@ public:
     return *this;
   }
   [[nodiscard]] bytes_field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator bytes_field_cref() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
@@ -594,10 +598,11 @@ public:
 private:
   const field_descriptor_t *descriptor_;
   bytes_storage_t *storage_;
-
-  [[nodiscard]] bool is_default_value(bytes_view v) const noexcept {
+  
+  // NOLINTNEXTLINE(performance-unnecessary-value-param)
+  [[nodiscard]] bool is_default_value(const bytes_view v) const noexcept {
     auto default_value = descriptor_->proto().default_value;
-    return v.size() == default_value.size() && std::memcmp(v.data(), default_value.data(), v.size());
+    return v.size() == default_value.size() && std::memcmp(v.data(), default_value.data(), v.size()) != 0;
   }
 };
 
@@ -674,7 +679,7 @@ public:
 
   ~enum_field_cref() = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0U; }
   [[nodiscard]] enum_value_cref value() const noexcept { return {enum_descriptor(), storage_->content}; }
   [[nodiscard]] enum_value_cref operator*() const noexcept { return value(); }
 
@@ -765,7 +770,7 @@ public:
     return storage_->content[index];
   }
 
-  value_type at(std::size_t index) const {
+  [[nodiscard]] value_type at(std::size_t index) const {
     if (index < storage_->size) {
       return storage_->content[index];
     }
@@ -776,6 +781,7 @@ public:
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] const value_type *data() const noexcept { return storage_->content; }
   [[nodiscard]] const value_type *begin() const noexcept { return storage_->content; }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] const value_type *end() const noexcept { return storage_->content + storage_->size; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -813,10 +819,11 @@ public:
 
   value_type &operator[](std::size_t index) const noexcept {
     assert(index < storage_->size);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return storage_->content[index];
   }
 
-  value_type &at(std::size_t index) const {
+  [[nodiscard]] value_type &at(std::size_t index) const {
     if (index < storage_->size) {
       return storage_->content[index];
     }
@@ -853,6 +860,7 @@ public:
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
   [[nodiscard]] value_type *begin() const noexcept { return storage_->content; }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] value_type *end() const noexcept { return storage_->content + storage_->size; }
   [[nodiscard]] value_type *data() const noexcept { return storage_->content; }
 
@@ -972,6 +980,7 @@ public:
 
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       return {*descriptor_->enum_field_type_descriptor(), storage_->content[index]};
     }
     throw std::out_of_range("");
@@ -1015,11 +1024,14 @@ public:
   void resize(std::size_t n) {
     if (capacity() < n) {
       auto *new_data = static_cast<uint32_t *>(memory_resource_->allocate(n * sizeof(uint32_t), alignof(uint32_t)));
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       std::copy(storage_->content, storage_->content + size(), new_data);
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       std::uninitialized_default_construct(new_data, new_data + n);
       storage_->content = new_data;
       storage_->capacity = n;
     } else if (size() < n) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       std::uninitialized_default_construct(storage_->content + size(), storage_->content + n);
     }
     storage_->size = n;
@@ -1067,6 +1079,7 @@ class message_value_cref {
   [[nodiscard]] std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
 
   [[nodiscard]] const value_storage &storage_for(const field_descriptor_t &desc) const noexcept {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return storage_[desc.storage_slot];
   }
 
@@ -1122,6 +1135,7 @@ public:
 
   [[nodiscard]] field_cref const_field(const field_descriptor_t &desc) const noexcept {
     const auto &storage = storage_for(desc);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
     if (!desc.is_repeated() && storage.of_int64.selection != desc.oneof_ordinal) {
       return {desc, empty_storage()};
     } else {
@@ -1143,8 +1157,10 @@ public:
   }
 
   [[nodiscard]] bool has_oneof(const oneof_descriptor_t &desc) const noexcept {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const auto &storage = storage_[desc.storage_slot()];
-    return storage.of_int64.selection;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+    return storage.of_int64.selection != 0U;
   }
   class fields_view : public std::ranges::view_interface<fields_view> {
     const message_value_cref *base_;
@@ -1274,6 +1290,7 @@ private:
   [[nodiscard]] std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
 
   [[nodiscard]] value_storage &storage_for(const field_descriptor_t &desc) const noexcept {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return storage_[desc.storage_slot];
   }
 
@@ -1409,12 +1426,14 @@ public:
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] message_value_cref operator[](std::size_t index) const noexcept {
     assert(index < size());
-    return message_value_cref(message_descriptor(), &storage_->content[index * num_slots()]);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return {message_descriptor(), &storage_->content[index * num_slots()]};
   }
 
   [[nodiscard]] message_value_cref at(std::size_t index) const {
     if (index < size()) {
-      return message_value_cref(message_descriptor(), &storage_->content[index * num_slots()]);
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      return {message_descriptor(), &storage_->content[index * num_slots()]};
     }
     throw std::out_of_range("");
   }
@@ -1485,11 +1504,13 @@ public:
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
   [[nodiscard]] message_value_mref operator[](std::size_t index) const noexcept {
     assert(index < size());
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return {message_descriptor(), &storage_->content[index * num_slots()], *memory_resource_};
   }
 
   [[nodiscard]] message_value_mref at(std::size_t index) const {
     if (index < size()) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       return {message_descriptor(), &storage_->content[index * num_slots()], *memory_resource_};
     }
     throw std::out_of_range("");
@@ -1727,10 +1748,10 @@ inline auto field_mref::visit(auto &&visitor) {
   unreachable();
 }
 
-std::optional<message_value_mref> dynamic_message_factory::get_message(std::string_view name,
-                                                                       std::pmr::monotonic_buffer_resource &mr) {
+inline std::optional<message_value_mref> dynamic_message_factory::get_message(std::string_view name,
+                                                                               std::pmr::monotonic_buffer_resource &mr) {
   auto *desc = get_message_descriptor(name);
-  if (desc) {
+  if (desc != nullptr) {
     return message_value_mref{*desc, mr};
   }
   return {};
@@ -1746,6 +1767,7 @@ namespace pb_serializer {
 template <concepts::is_basic_in Archive>
 struct field_deserializer {
   uint32_t tag;
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   Archive &archive;
 
   status deserialize(concepts::arithmetic auto &value, const field_descriptor_t &) {
@@ -1988,12 +2010,13 @@ struct size_cache_counter<message_value_cref> {
     });
   }
 
-  std::size_t operator()(message_field_cref f) const { return count(*f) + !(f.descriptor().is_delimited()); }
+  std::size_t operator()(message_field_cref f) const { 
+    return count(*f) + (f.descriptor().is_delimited() ? 0 : 1); 
+  }
 
   std::size_t operator()(repeated_message_field_cref f) const {
-
     return util::transform_accumulate(f, [](message_value_cref element) { return count(element); }) +
-           (!f.descriptor().is_delimited()) * f.size();
+           (f.descriptor().is_delimited() ? 0 : f.size());
   }
 };
 
@@ -2067,12 +2090,13 @@ struct message_size_calculator<message_value_cref> {
 
     uint32_t operator()(repeated_string_field_cref v) {
       auto ts = tag_size(v);
-      return util::transform_accumulate(v, [ts](std::string_view e) { return ts + len_size(e.size()); });
+      return util::transform_accumulate(v, [ts](const std::string_view e) { return ts + len_size(e.size()); });
     }
 
     uint32_t operator()(repeated_bytes_field_cref v) {
       auto ts = tag_size(v);
-      return util::transform_accumulate(v, [ts](bytes_view e) { return ts + len_size(e.size()); });
+      // NOLINTNEXTLINE(performance-unnecessary-value-param)
+      return util::transform_accumulate(v, [ts](const bytes_view e) { return ts + len_size(e.size()); });
     }
 
     uint32_t operator()(message_value_cref msg) {
@@ -2154,9 +2178,12 @@ struct field_serializer {
       wire_type::varint,           // TYPE_SINT64 = 18
   };
 
-  static vint32_t make_tag(int32_t number, wire_type type) { return number << 3U | std::to_underlying(type); }
+  static vint32_t make_tag(int32_t number, wire_type type) { 
+    return static_cast<vint32_t>(static_cast<int32_t>(static_cast<uint32_t>(number) << 3U | std::to_underlying(type)));
+  }
 
   static vint32_t make_tag(const field_descriptor_t &desc) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
     return make_tag(desc.proto().number, wire_type_map[std::to_underlying(desc.proto().type)]);
   }
 
@@ -2210,7 +2237,7 @@ struct field_serializer {
   bool operator()(repeated_bytes_field_cref v) {
     const field_descriptor_t &desc = v.descriptor();
     const auto tag = make_tag(desc);
-    return std::ranges::all_of(v, [this, tag](auto e) { return archive(tag, varint{e.size()}, e); });
+    return std::ranges::all_of(v, [this, &tag](const auto &e) { return archive(tag, varint{e.size()}, e); });
   }
 
   bool operator()(message_value_cref item) {
