@@ -29,8 +29,8 @@ struct generic_message_json_serializer {
   }
 
   template <auto Opts>
-  static void dump_field_separator(is_context auto &ctx, auto &b, auto &ix) noexcept {
-    glz::dump(',', b, ix);
+  static void dump_field_separator(is_context auto &ctx, auto &b, auto &ix, char separator) noexcept {
+    glz::dump(separator, b, ix);
     if constexpr (Opts.prettify) {
       glz::dump<'\n'>(b, ix);
       glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
@@ -88,7 +88,7 @@ struct generic_message_json_serializer {
       }
 
       if (separator != nullptr) {
-        dump_field_separator<Opts>(ctx, b, ix);
+        dump_field_separator<Opts>(ctx, b, ix, *separator);
       }
 
       if (!value.descriptor().is_map_entry()) {
