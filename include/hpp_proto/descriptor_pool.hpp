@@ -465,7 +465,7 @@ public:
   }
 
   std::span<file_descriptor_t> files() { return files_; }
-  [[nodiscard]]  std::span<const file_descriptor_t> files() const { return files_; }
+  [[nodiscard]] std::span<const file_descriptor_t> files() const { return files_; }
   std::span<message_descriptor_t> messages() { return messages_; }
   [[nodiscard]] std::span<const message_descriptor_t> messages() const { return messages_; }
   std::span<enum_descriptor_t> enums() { return enums_; }

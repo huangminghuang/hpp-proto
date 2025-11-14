@@ -183,9 +183,9 @@ public:
   }
 
   [[nodiscard]] constexpr iterator begin() const { return iterator{base.data()}; }
-  [[nodiscard]] constexpr iterator end() const { 
+  [[nodiscard]] constexpr iterator end() const {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return iterator{base.data() + base.size()}; 
+    return iterator{base.data() + base.size()};
   }
 };
 

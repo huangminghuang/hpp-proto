@@ -602,7 +602,8 @@ public:
 
   template <typename R>
     requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>)
-  constexpr equality_comparable_span(R &&r) noexcept : equality_comparable_span(std::span<element_type>( std::forward<R>(r))) {}
+  constexpr equality_comparable_span(R &&r) noexcept
+      : equality_comparable_span(std::span<element_type>(std::forward<R>(r))) {}
 
   template <std::contiguous_iterator It>
     requires std::convertible_to<decltype(std::to_address(std::declval<It &>())), T *>
@@ -631,7 +632,7 @@ public:
   template <typename R>
     requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span>)
   constexpr equality_comparable_span &operator=(R &&r) noexcept {
-    *this = std::span<element_type>{ std::forward<R>(r)};
+    *this = std::span<element_type>{std::forward<R>(r)};
     return *this;
   }
 

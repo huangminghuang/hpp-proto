@@ -91,7 +91,7 @@ struct timestamp_codec {
 
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     auto parse_with_separator = [&](int32_t &val, size_t width, char sep) -> bool {
-      if (ptr + width > end){
+      if (ptr + width > end) {
         return false;
       }
       auto res = std::from_chars(ptr, ptr + width, val);

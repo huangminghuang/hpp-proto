@@ -38,7 +38,8 @@ struct generic_message_json_serializer {
   }
 
   template <auto Opts>
-  static void serialize_regular_field(hpp::proto::field_cref field, bool is_wellknown_type, is_context auto &ctx, auto &b, auto &ix) noexcept {
+  static void serialize_regular_field(hpp::proto::field_cref field, bool is_wellknown_type, is_context auto &ctx,
+                                      auto &b, auto &ix) noexcept {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
     if (!is_wellknown_type) {
       auto json_name = field.descriptor().proto().json_name;
@@ -52,16 +53,16 @@ struct generic_message_json_serializer {
   }
 
   template <auto Opts>
-  static void serialize_map_entry_field(hpp::proto::field_cref field, bool is_first_field, is_context auto &ctx, auto &b, auto &ix) noexcept {
+  static void serialize_map_entry_field(hpp::proto::field_cref field, bool is_first_field, is_context auto &ctx,
+                                        auto &b, auto &ix) noexcept {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
     if (is_first_field) {
       bool need_extra_quote = (field.field_kind() == hpp::proto::KIND_BOOL);
       if (need_extra_quote) {
         glz::dump<'"'>(b, ix);
       }
-      field.visit([&](auto v) {
-        to<JSON, decltype(v)>::template op<opt_true<field_opts, &opts::quoted_num>>(v, ctx, b, ix);
-      });
+      field.visit(
+          [&](auto v) { to<JSON, decltype(v)>::template op<opt_true<field_opts, &opts::quoted_num>>(v, ctx, b, ix); });
       if (need_extra_quote) {
         glz::dump<'"'>(b, ix);
       }

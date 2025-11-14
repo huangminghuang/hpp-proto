@@ -1908,8 +1908,8 @@ public:
 
   basic_in(const basic_in &) = default;
   basic_in(basic_in &&) = default;
-  basic_in& operator=(const basic_in &) = default;
-  basic_in& operator=(basic_in &&) = default;
+  basic_in &operator=(const basic_in &) = default;
+  basic_in &operator=(basic_in &&) = default;
   ~basic_in() = default;
 
   [[nodiscard]] basic_in copy() const { return *this; }
@@ -1954,7 +1954,7 @@ public:
   // Helper: append raw data path for packed deserialization (no byte-swap required)
   template <typename ValueType>
   constexpr status do_deserialize_packed_append_raw(std::size_t n, auto &item, std::size_t nbytes,
-                                                   std::size_t new_size) {
+                                                    std::size_t new_size) {
     item.reserve(new_size);
     if constexpr (contiguous) {
       item.append_raw_data(current.consume(nbytes));
@@ -1972,8 +1972,8 @@ public:
 
   // Helper: resize-and-copy path for packed deserialization (handles byte-swap and constant evaluation)
   template <typename ValueType>
-  constexpr status do_deserialize_packed_resize(std::size_t n, auto &item, std::size_t old_size,
-                                               std::size_t new_size, std::size_t nbytes) {
+  constexpr status do_deserialize_packed_resize(std::size_t n, auto &item, std::size_t old_size, std::size_t new_size,
+                                                std::size_t nbytes) {
     item.resize(new_size);
     auto target = std::span{item.data() + old_size, n};
     constexpr bool requires_byteswap = (sizeof(ValueType) > 1 && endian_swapped);
@@ -2329,7 +2329,7 @@ constexpr void deserialize_unknown_enum(auto &unknown_fields, uint32_t field_num
                                         concepts::is_basic_in auto &archive) {
   std::array<std::byte, 16> data{};
   auto tag = make_tag(field_num, wire_type::varint);
-  auto* p = unchecked_pack_varint(varint{tag}, data.data());
+  auto *p = unchecked_pack_varint(varint{tag}, data.data());
   p = unchecked_pack_varint(varint{value}, p);
   std::span field_span{data.data(), static_cast<std::size_t>(p - data.data())};
   using unknown_fields_t = std::remove_cvref_t<decltype(unknown_fields)>;
@@ -2900,7 +2900,7 @@ constexpr status extract_length_delimited_field(uint32_t number, bytes_view &byt
 {
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
-    if (tag_type(tag) != wire_type::length_delimited){
+    if (tag_type(tag) != wire_type::length_delimited) {
       return std::errc::bad_message;
     }
     if (tag_number(tag) == number) {

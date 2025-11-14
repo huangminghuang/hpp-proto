@@ -598,7 +598,7 @@ public:
 private:
   const field_descriptor_t *descriptor_;
   bytes_storage_t *storage_;
-  
+
   // NOLINTNEXTLINE(performance-unnecessary-value-param)
   [[nodiscard]] bool is_default_value(const bytes_view v) const noexcept {
     auto default_value = descriptor_->proto().default_value;
@@ -1749,7 +1749,7 @@ inline auto field_mref::visit(auto &&visitor) {
 }
 
 inline std::optional<message_value_mref> dynamic_message_factory::get_message(std::string_view name,
-                                                                               std::pmr::monotonic_buffer_resource &mr) {
+                                                                              std::pmr::monotonic_buffer_resource &mr) {
   auto *desc = get_message_descriptor(name);
   if (desc != nullptr) {
     return message_value_mref{*desc, mr};
@@ -2010,9 +2010,7 @@ struct size_cache_counter<message_value_cref> {
     });
   }
 
-  std::size_t operator()(message_field_cref f) const { 
-    return count(*f) + (f.descriptor().is_delimited() ? 0 : 1); 
-  }
+  std::size_t operator()(message_field_cref f) const { return count(*f) + (f.descriptor().is_delimited() ? 0 : 1); }
 
   std::size_t operator()(repeated_message_field_cref f) const {
     return util::transform_accumulate(f, [](message_value_cref element) { return count(element); }) +
@@ -2178,7 +2176,7 @@ struct field_serializer {
       wire_type::varint,           // TYPE_SINT64 = 18
   };
 
-  static vint32_t make_tag(int32_t number, wire_type type) { 
+  static vint32_t make_tag(int32_t number, wire_type type) {
     return static_cast<vint32_t>(static_cast<int32_t>(static_cast<uint32_t>(number) << 3U | std::to_underlying(type)));
   }
 
