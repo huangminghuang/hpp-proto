@@ -289,7 +289,7 @@ struct hpp_addons {
     }
 
     void set_cpp_type(const FieldDescriptorProto &proto) {
-      using enum FieldDescriptorProto::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
       switch (proto.type) {
       case TYPE_DOUBLE:
         cpp_field_type = "double";
@@ -366,8 +366,8 @@ struct hpp_addons {
     }
 
     void set_default_value(const FieldDescriptorProto &proto) {
-      using enum FieldDescriptorProto::Type;
-      using enum FieldDescriptorProto::Label;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Label;
 
       if (!proto.default_value.empty()) {
         if (proto.type == TYPE_STRING) {
@@ -426,7 +426,7 @@ struct hpp_addons {
     }
 
     void set_float_default_value(const FieldDescriptorProto &proto) {
-      using enum FieldDescriptorProto::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
       if (proto.default_value == "nan") {
         default_value = fmt::format("std::numeric_limits<{}>::quiet_NaN()", cpp_field_type);
       } else if (proto.default_value == "inf") {
