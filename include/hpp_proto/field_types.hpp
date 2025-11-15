@@ -604,7 +604,8 @@ public:
 
   template <typename U>
     requires(std::is_const_v<T> && std::is_same_v<std::remove_const_t<T>, std::remove_const_t<U>>)
-  constexpr equality_comparable_span(std::initializer_list<U> init) noexcept : _data(init.begin()), _size(init.size()) {}
+  constexpr equality_comparable_span(std::initializer_list<U> init) noexcept
+      : _data(init.begin()), _size(init.size()) {}
 
   template <typename R>
     requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&

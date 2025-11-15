@@ -255,9 +255,7 @@ concept pb_extensions = requires {
 };
 
 template <typename T>
-concept pb_unknown_fields = requires {
-  typename T::unknown_fields_range_t;
-} && !pb_extensions<T>;
+concept pb_unknown_fields = requires { typename T::unknown_fields_range_t; } && !pb_extensions<T>;
 
 template <typename T>
 concept has_unknown_fields_or_extensions = has_meta<T> && requires(T value) {
@@ -1212,8 +1210,9 @@ namespace util {
 template <typename Range, typename UnaryOperation>
 constexpr uint32_t transform_accumulate(const Range &range, const UnaryOperation &unary_op) {
   // **DO NOT** use std::transform_reduce() because it would apply unary_op in **unspecified** order
-  auto total = std::accumulate(range.begin(), range.end(), std::size_t{0},
-                               [&unary_op](std::size_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
+  auto total =
+      std::accumulate(range.begin(), range.end(), std::size_t{0},
+                      [&unary_op](std::size_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
   return static_cast<uint32_t>(total);
 }
 
@@ -1502,7 +1501,7 @@ struct message_size_calculator<T> {
       decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
       auto s = static_cast<uint32_t>(message_size(item, cache_itr));
       msg_size = s;
-    return static_cast<uint32_t>(tag_size + len_size(s));
+      return static_cast<uint32_t>(tag_size + len_size(s));
     } else {
       return (2 * tag_size) + message_size(item, cache_itr);
     }

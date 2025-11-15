@@ -265,7 +265,6 @@ const ut::suite test_repeated_vint = [] {
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x0d\x01\x02\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10"sv).ok());
   };
 
-
   "normal_cases"_test = []<class Traits> {
     "repeated_sint32_case"_test = [] {
       verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv,
@@ -485,7 +484,6 @@ auto pb_meta(const open_enum_message<Traits> &)
                   hpp::proto::field_meta<4, &open_enum_message<Traits>::optional_message_field, field_option::none>,
                   hpp::proto::field_meta<UINT32_MAX, &open_enum_message<Traits>::unknown_fields_>>;
 
-
 template <typename Traits = hpp::proto::default_traits>
 struct closed_enum_message {
   typename Traits::template repeated_t<ForeignEnum> expanded_repeated_field;
@@ -509,8 +507,7 @@ const ut::suite test_enums = [] {
   using namespace boost::ut::operators;
   using enum ForeignEnumEx;
   "enum_message"_test = [] {
-    verify("\x10\x01"sv,
-           open_enum_message<hpp::proto::default_traits>{.foreign_enum_field = FOO});
+    verify("\x10\x01"sv, open_enum_message<hpp::proto::default_traits>{.foreign_enum_field = FOO});
   };
 
   "invalid_enum_message"_test = [] {
@@ -522,15 +519,13 @@ const ut::suite test_enums = [] {
     "repeated_enum_packed"_test = [] {
       verify(
           "\x1a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
-          open_enum_message<Traits>{
-              .packed_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
+          open_enum_message<Traits>{.packed_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
     };
 
     "repeated_enum_unpacked"_test = [] {
-      verify(
-          "\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
-          open_enum_message<Traits>{.expanded_repeated_field =
-                                                                     std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
+      verify("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
+             open_enum_message<Traits>{.expanded_repeated_field =
+                                           std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 
@@ -593,8 +588,7 @@ const ut::suite test_repeated_example = [] {
                  "\xff\xff\xff\xff\x01\x0a\x0b\x08\xfc\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv;
 
   "repeated_message_examples_case"_test = [&]<class Traits> {
-    repeated_message_examples<Traits> const expected{
-        .examples = {{1}, {2}, {3}, {4}, {-1}, {-2}, {-3}, {-4}}};
+    repeated_message_examples<Traits> const expected{.examples = {{1}, {2}, {3}, {4}, {-1}, {-2}, {-3}, {-4}}};
     verify(encoded, expected);
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 
@@ -849,13 +843,10 @@ const ut::suite test_bytes = [] {
   };
 
   "bytes_example_case"_test = [&]<class Traits>() {
-    "field"_test = [&] {
-      verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_example<Traits>{.field = verified_value});
-    };
+    "field"_test = [&] { verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_example<Traits>{.field = verified_value}); };
 
     "optional_field"_test = [&] {
-      verify("\x12\x04\x74\x65\x73\x74"sv,
-             bytes_example<Traits>{.optional_field = verified_value});
+      verify("\x12\x04\x74\x65\x73\x74"sv, bytes_example<Traits>{.optional_field = verified_value});
     };
 
     bytes_example<Traits> const v;
@@ -1021,7 +1012,6 @@ template <typename Traits>
 auto pb_meta(const repeated_strings<Traits> &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_strings<Traits>::values, field_option::utf8_validation>>;
 
-
 using namespace std::literals;
 
 const ut::suite test_repeated_strings = [] {
@@ -1038,8 +1028,7 @@ const ut::suite test_repeated_strings = [] {
   "repeated_strings_case"_test = []<class Traits> {
     using element_type = typename Traits::string_t;
     verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv,
-           repeated_strings<Traits>{
-               .values = std::initializer_list<element_type>{"abc", "def"}});
+           repeated_strings<Traits>{.values = std::initializer_list<element_type>{"abc", "def"}});
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 };
 
@@ -1145,8 +1134,8 @@ template <typename Traits = ::hpp::proto::default_traits>
 struct i32unset_ext : ::hpp::proto::extension_base<i32unset_ext<Traits>, extension_example> {
   using value_type = std::int32_t;
   value_type value = {};
-  using pb_meta = std::tuple<::hpp::proto::field_meta<14, &i32unset_ext<Traits>::value,
-                                                      field_option::explicit_presence, hpp::proto::vint64_t>>;
+  using pb_meta = std::tuple<::hpp::proto::field_meta<14, &i32unset_ext<Traits>::value, field_option::explicit_presence,
+                                                      hpp::proto::vint64_t>>;
 };
 
 template <typename Traits = ::hpp::proto::default_traits>
@@ -1180,7 +1169,6 @@ struct repeated_packed_i32_ext : ::hpp::proto::extension_base<repeated_packed_i3
   using pb_meta = std::tuple<::hpp::proto::field_meta<22, &repeated_packed_i32_ext<Traits>::value,
                                                       field_option::is_packed, hpp::proto::vint64_t>>;
 };
-
 
 const ut::suite test_extensions = [] {
   "get_extension"_test = [] {
@@ -1285,8 +1273,7 @@ const ut::suite test_extensions = [] {
 };
 
 const ut::suite test_non_owning_extensions = [] {
-  using non_owning_extension_example =
-      extension_example<hpp::proto::non_owning_traits>;
+  using non_owning_extension_example = extension_example<hpp::proto::non_owning_traits>;
   "get_non_owning_extension"_test = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;
@@ -1357,13 +1344,13 @@ const ut::suite test_non_owning_extensions = [] {
     ut::expect(value.unknown_fields_.fields.back().first == 11);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\x5a\x04\x74\x65\x73\x74"_bytes));
 
-    ut::expect(
-        value.set_extension(i32_defaulted_ext{}, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(value.set_extension(i32_defaulted_ext{}, hpp::proto::alloc_from{mr}).ok());
     ut::expect(value.unknown_fields_.fields.back().first == 13);
 
-    ut::expect(value.set_extension(example_ext<hpp::proto::default_traits>{.value = example{.i = 150}},
-                                    hpp::proto::alloc_from{mr})
-                    .ok());
+    ut::expect(value
+                   .set_extension(example_ext<hpp::proto::default_traits>{.value = example{.i = 150}},
+                                  hpp::proto::alloc_from{mr})
+                   .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 15);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\x7a\x03\x08\x96\x01"_bytes));
 
@@ -1375,18 +1362,20 @@ const ut::suite test_non_owning_extensions = [] {
 
     using namespace std::literals;
     ut::expect(value
-                   .set_extension(repeated_string_ext<hpp::proto::non_owning_traits>{
-                                      .value = std::initializer_list<std::string_view>{"abc"sv, "def"sv}},
-                                  hpp::proto::alloc_from{mr})
+                   .set_extension(
+                       repeated_string_ext<hpp::proto::non_owning_traits>{
+                           .value = std::initializer_list<std::string_view>{"abc"sv, "def"sv}},
+                       hpp::proto::alloc_from{mr})
                    .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 21);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
     ut::expect(value
-                   .set_extension(repeated_packed_i32_ext<hpp::proto::non_owning_traits>{
-                                      .value = std::initializer_list<int32_t>{1, 2, 3}},
-                                  hpp::proto::alloc_from{mr})
+                   .set_extension(
+                       repeated_packed_i32_ext<hpp::proto::non_owning_traits>{
+                           .value = std::initializer_list<int32_t>{1, 2, 3}},
+                       hpp::proto::alloc_from{mr})
                    .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 22);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
@@ -1744,7 +1733,7 @@ const ut::suite composite_type = [] {
     ut::expect(hpp::proto::read_proto(p, data).ok());
 
     using namespace std::literals::string_view_literals;
-  
+
     ut::expect(p.name == "John Doe"sv);
     ut::expect(ut::that % p.id == 1234);
     ut::expect(p.email == "jdoe@example.com"sv);
@@ -1768,7 +1757,7 @@ const ut::suite composite_type = [] {
     static_assert(data.size() == 111);
 
     using namespace std::literals::string_view_literals;
-  
+
     address_book b;
     ut::expect(hpp::proto::read_proto(b, data).ok());
 
@@ -1799,7 +1788,7 @@ const ut::suite composite_type = [] {
     static_assert(data.size() == 45);
 
     using namespace std::literals::string_view_literals;
-  
+
     person_map p;
     ut::expect(hpp::proto::read_proto(p, data).ok());
 
@@ -1820,7 +1809,7 @@ const ut::suite composite_type = [] {
     constexpr auto data = "\n\x00"sv;
 
     using namespace std::literals::string_view_literals;
-  
+
     address_book b;
     ut::expect(hpp::proto::read_proto(b, data).ok());
 
@@ -1839,7 +1828,6 @@ const ut::suite composite_type = [] {
   "test_empty_address_book"_test = [] {
     constexpr auto data = ""sv;
 
-  
     address_book b;
     ut::expect(hpp::proto::read_proto(b, data).ok());
 
@@ -1853,7 +1841,7 @@ const ut::suite composite_type = [] {
   "empty_person"_test = [] {
     constexpr auto data = ""sv;
     using namespace std::literals::string_view_literals;
-  
+
     person p;
     ut::expect(hpp::proto::read_proto(p, data).ok());
 
