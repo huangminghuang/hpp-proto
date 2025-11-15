@@ -34,21 +34,25 @@ const ut::suite varint_decode_tests = [] {
   "unchecked_parse_bool"_test = [] {
     bool value = true;
     std::string_view data = "\x00"sv;
-    ut::expect(hpp::proto::unchecked_parse_bool(data, value) == std::ranges::cdata(data) + data.size());
+    ut::expect(hpp::proto::unchecked_parse_bool(data, value) ==
+               std::next(std::ranges::cdata(data), static_cast<std::ptrdiff_t>(data.size())));
     ut::expect(!value);
 
     data = "\x01"sv;
-    ut::expect(hpp::proto::unchecked_parse_bool(data, value) == std::ranges::cdata(data) + data.size());
+    ut::expect(hpp::proto::unchecked_parse_bool(data, value) ==
+               std::next(std::ranges::cdata(data), static_cast<std::ptrdiff_t>(data.size())));
     ut::expect(value);
 
     // oversized bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x01"sv;
-    ut::expect(hpp::proto::unchecked_parse_bool(data, value) == std::ranges::cdata(data) + data.size());
+    ut::expect(hpp::proto::unchecked_parse_bool(data, value) ==
+               std::next(std::ranges::cdata(data), static_cast<std::ptrdiff_t>(data.size())));
     ut::expect(value);
 
     // unterminated bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
-    ut::expect(hpp::proto::unchecked_parse_bool(data, value) > std::ranges::cdata(data) + data.size());
+    ut::expect(hpp::proto::unchecked_parse_bool(data, value) >
+               std::next(std::ranges::cdata(data), static_cast<std::ptrdiff_t>(data.size())));
   };
 
   using vint64_t = hpp::proto::vint64_t;
@@ -70,7 +74,8 @@ const ut::suite varint_decode_tests = [] {
     auto data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
     int64_t parsed_value; // NOLINT(cppcoreguidelines-init-variables)
     const auto *result = hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value);
-    ut::expect(result - std::ranges::cdata(data) > static_cast<std::ptrdiff_t>(data.size()));
+    ut::expect(std::distance(std::ranges::cdata(data), result) >
+               static_cast<std::ptrdiff_t>(data.size()));
   };
 };
 
@@ -1738,7 +1743,7 @@ const ut::suite composite_type = [] {
     ut::expect(p.name == "John Doe"sv);
     ut::expect(ut::that % p.id == 1234);
     ut::expect(p.email == "jdoe@example.com"sv);
-    ut::expect(ut::fatal((p.phones.size() == 1u)));
+    ut::expect(ut::fatal((p.phones.size() == 1U)));
     ut::expect(p.phones[0].number == "555-4321"sv);
     ut::expect(ut::that % p.phones[0].type == person::phone_type::home);
 
@@ -1762,7 +1767,7 @@ const ut::suite composite_type = [] {
     address_book b;
     ut::expect(hpp::proto::read_proto(b, data).ok());
 
-    ut::expect(b.people.size() == 2u);
+    ut::expect(b.people.size() == 2U);
     ut::expect(b.people[0].name == "John Doe"sv);
     ut::expect(ut::that % b.people[0].id == 1234);
     ut::expect(b.people[0].email == "jdoe@example.com"sv);
@@ -1772,7 +1777,7 @@ const ut::suite composite_type = [] {
     ut::expect(b.people[1].name == "John Doe 2"sv);
     ut::expect(ut::that % b.people[1].id == 1235);
     ut::expect(b.people[1].email == "jdoe2@example.com"sv);
-    ut::expect(ut::fatal((b.people[1].phones.size() == 2u)));
+    ut::expect(ut::fatal((b.people[1].phones.size() == 2U)));
     ut::expect(b.people[1].phones[0].number == "555-4322"sv);
     ut::expect(b.people[1].phones[0].type == person::phone_type::home);
     ut::expect(b.people[1].phones[1].number == "555-4323"sv);
@@ -1796,7 +1801,7 @@ const ut::suite composite_type = [] {
     ut::expect(p.name == "John Doe"sv);
     ut::expect(ut::that % p.id == 1234);
     ut::expect(p.email == "jdoe@example.com"sv);
-    ut::expect(ut::fatal((p.phones.size() == 1u)));
+    ut::expect(ut::fatal((p.phones.size() == 1U)));
     ut::expect(ut::fatal((p.phones.contains("555-4321"))));
     ut::expect(ut::that % p.phones["555-4321"] == person_map::phone_type::home);
 
@@ -1814,7 +1819,7 @@ const ut::suite composite_type = [] {
     address_book b;
     ut::expect(hpp::proto::read_proto(b, data).ok());
 
-    ut::expect(b.people.size() == 1u);
+    ut::expect(b.people.size() == 1U);
     ut::expect(b.people[0].name.empty());
     ut::expect(ut::that % b.people[0].id == 0);
     ut::expect(b.people[0].email.empty());
@@ -1832,7 +1837,7 @@ const ut::suite composite_type = [] {
     address_book b;
     ut::expect(hpp::proto::read_proto(b, data).ok());
 
-    ut::expect(b.people.size() == 0u);
+    ut::expect(b.people.empty());
 
     std::vector<char> new_data{};
     ut::expect(hpp::proto::write_proto(b, new_data).ok());

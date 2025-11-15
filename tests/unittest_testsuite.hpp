@@ -301,12 +301,36 @@ struct TestSuite {
     expect_eq("115"sv, message.optional_string);
     expect_eq(bytes_literal<"116">(), message.optional_bytes);
 
-    expect_eq(117, message.optionalgroup.value().a);
-    expect_eq(118, message.optional_nested_message.value().bb);
-    expect_eq(119, message.optional_foreign_message.value().c);
-    expect_eq(120, message.optional_import_message.value().d);
-    expect_eq(126, message.optional_public_import_message.value().e);
-    expect_eq(127, message.optional_lazy_message.value().bb);
+    if (!message.optionalgroup.has_value()) {
+      expect(false);
+    } else {
+      expect_eq(117, message.optionalgroup.value().a);
+    }
+    if (!message.optional_nested_message.has_value()) {
+      expect(false);
+    } else {
+      expect_eq(118, message.optional_nested_message.value().bb);
+    }
+    if (!message.optional_foreign_message.has_value()) {
+      expect(false);
+    } else {
+      expect_eq(119, message.optional_foreign_message.value().c);
+    }
+    if (!message.optional_import_message.has_value()) {
+      expect(false);
+    } else {
+      expect_eq(120, message.optional_import_message.value().d);
+    }
+    if (!message.optional_public_import_message.has_value()) {
+      expect(false);
+    } else {
+      expect_eq(126, message.optional_public_import_message.value().e);
+    }
+    if (!message.optional_lazy_message.has_value()) {
+      expect(false);
+    } else {
+      expect_eq(127, message.optional_lazy_message.value().bb);
+    }
 
     expect_eq(NestedEnum::BAZ, message.optional_nested_enum);
     expect_eq(mapping_t::FOREIGN_BAZ, message.optional_foreign_enum);
@@ -1267,7 +1291,7 @@ struct TestSuite {
 
     auto unittest_descriptorset = read_file("unittest.desc.binpb");
 
-#if !defined(HPP_PROTO_DISABLE_GLAZE)
+#ifndef HPP_PROTO_DISABLE_GLAZE
     "interoperate_with_google_protobuf_parser"_test = [&]<class T> {
       T original;
       std::pmr::monotonic_buffer_resource mr;

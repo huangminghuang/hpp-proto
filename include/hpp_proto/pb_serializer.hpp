@@ -1411,7 +1411,7 @@ struct message_size_calculator<T> {
     uint32_t sum = 0;
     explicit constexpr field_size_accumulator(Itr &itr) : cache_itr(itr) {}
     constexpr void operator()(auto const &field, auto meta) {
-      const auto size = meta.omit_value(field) ? 0u : static_cast<uint32_t>(field_size(field, meta, cache_itr));
+      const auto size = meta.omit_value(field) ? 0U : static_cast<uint32_t>(field_size(field, meta, cache_itr));
       sum += size;
     }
     constexpr ~field_size_accumulator() = default;
@@ -1475,7 +1475,7 @@ struct message_size_calculator<T> {
     using type = decltype(item);
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
 
-    constexpr uint32_t tag_size = static_cast<uint32_t>(varint_size(meta.number << 3U));
+    constexpr auto tag_size = static_cast<uint32_t>(varint_size(meta.number << 3U));
     if constexpr (concepts::byte_serializable<serialize_type>) {
       return static_cast<uint32_t>(tag_size + sizeof(serialize_type));
     } else {
@@ -1497,7 +1497,7 @@ struct message_size_calculator<T> {
 
   HPP_PROTO_INLINE constexpr static uint32_t field_size(concepts::has_meta auto const &item, auto meta,
                                                         concepts::is_size_cache_iterator auto &cache_itr) {
-    constexpr uint32_t tag_size = static_cast<uint32_t>(varint_size(meta.number << 3U));
+    constexpr auto tag_size = static_cast<uint32_t>(varint_size(meta.number << 3U));
     if constexpr (!meta.is_delimited()) {
       decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
       auto s = static_cast<uint32_t>(message_size(item, cache_itr));
@@ -1515,7 +1515,7 @@ struct message_size_calculator<T> {
     using serialize_type = typename traits::get_serialize_type<Meta, type>::type;
     using value_type = typename serialize_type::read_only_type;
 
-    constexpr uint32_t tag_size = static_cast<uint32_t>(varint_size(meta.number << 3U));
+    constexpr auto tag_size = static_cast<uint32_t>(varint_size(meta.number << 3U));
     auto &[key, value] = item;
     decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
     auto s = message_size(value_type{key, value}, cache_itr);
@@ -1527,7 +1527,7 @@ struct message_size_calculator<T> {
   HPP_PROTO_INLINE constexpr static std::size_t field_size(std::ranges::input_range auto const &item, Meta meta,
                                                            concepts::is_size_cache_iterator auto &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
-    constexpr uint32_t tag_size = static_cast<uint32_t>(varint_size(meta.number << 3U));
+    constexpr auto tag_size = static_cast<uint32_t>(varint_size(meta.number << 3U));
     if constexpr (concepts::contiguous_byte_range<type>) {
       return tag_size + len_size(item.size());
     } else {

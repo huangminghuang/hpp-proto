@@ -29,8 +29,8 @@ using namespace ut;
 using namespace std::string_view_literals;
 using namespace std::string_literals;
 
-#if defined(__GNUC__)
-#if defined(__apple_build_version__)
+#ifdef __GNUC__
+#ifdef __apple_build_version__
 #pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
 #else
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -47,7 +47,7 @@ void verify(const hpp::proto::dynamic_serializer &ser, const T &msg, std::string
     expect(eq(pretty_json, hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value()));
   }
 
-  T msg2;
+  T msg2{};
 
   expect(fatal((hpp::proto::read_json(msg2, json).ok())));
   expect(msg == msg2);

@@ -69,8 +69,10 @@ struct duration_codec {
     }
 
     auto from_str_view = [](std::string_view s, auto &value) noexcept {
-      auto r = std::from_chars(s.data(), s.data() + s.size(), value);
-      return r.ptr == s.data() + s.size() && r.ec == std::errc();
+      const auto *begin = s.data();
+      const auto *end = std::next(begin, static_cast<std::ptrdiff_t>(s.size()));
+      auto r = std::from_chars(begin, end, value);
+      return r.ptr == end && r.ec == std::errc();
     };
 
     auto point_pos = s.find('.');

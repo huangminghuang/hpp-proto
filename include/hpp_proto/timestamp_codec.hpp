@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iterator>
+#include <ranges>
 #include <span>
 
 namespace hpp::proto {
@@ -47,7 +48,7 @@ struct timestamp_codec {
       const auto offset = static_cast<std::size_t>(val) * 2;
       std::span digits{glz::char_table};
       const auto slice = digits.subspan(offset, 2);
-      std::copy(slice.begin(), slice.end(), buf);
+      std::ranges::copy(slice, buf);
       buf = std::next(buf, 2);
     }
     *buf = sep;
@@ -93,12 +94,12 @@ struct timestamp_codec {
     int32_t yy, mm, dd, hh, mn, ss;
 
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    auto parse_with_separator = [&](int32_t &val, size_t width, char sep) -> bool {
+    auto parse_with_separator = [&](int32_t &val, std::ptrdiff_t width, char sep) -> bool {
       const auto remaining = std::distance(ptr, end);
-      if (remaining < static_cast<std::ptrdiff_t>(width)) {
+      if (remaining < width) {
         return false;
       }
-      const auto next = std::next(ptr, static_cast<std::ptrdiff_t>(width));
+      const auto *const next = std::next(ptr, width);
       auto res = std::from_chars(ptr, next, val);
       if (res.ec != std::errc{} || res.ptr != next) {
         return false;
@@ -142,8 +143,10 @@ struct timestamp_codec {
     }
 
     auto from_str_view = [](std::string_view s, auto &value) noexcept {
-      auto r = std::from_chars(s.data(), s.data() + s.size(), value);
-      return r.ptr == s.data() + s.size() && r.ec == std::errc();
+      const auto *begin = s.data();
+      const auto *end = std::next(begin, static_cast<std::ptrdiff_t>(s.size()));
+      auto r = std::from_chars(begin, end, value);
+      return r.ptr == end && r.ec == std::errc();
     };
 
     if (!from_str_view(nanos_sv, value.nanos)) [[unlikely]] {
