@@ -74,8 +74,7 @@ const ut::suite varint_decode_tests = [] {
     auto data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
     int64_t parsed_value; // NOLINT(cppcoreguidelines-init-variables)
     const auto *result = hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value);
-    ut::expect(std::distance(std::ranges::cdata(data), result) >
-               static_cast<std::ptrdiff_t>(data.size()));
+    ut::expect(std::distance(std::ranges::cdata(data), result) > static_cast<std::ptrdiff_t>(data.size()));
   };
 };
 
