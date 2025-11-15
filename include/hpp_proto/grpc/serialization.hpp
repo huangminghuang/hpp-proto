@@ -84,7 +84,7 @@ struct single_shot_slice_memory_resource {
   bool finalized_ = false;
   single_shot_slice_memory_resource() = default;
   ~single_shot_slice_memory_resource() {
-    if (!finalized_ && slice_.refcount != nullptr) {
+    if (!finalized_) {
       grpc_slice_unref(slice_);
     }
   }
