@@ -533,8 +533,9 @@ const ut::suite test_enums = [] {
       []<class Traits> {
         open_enum_message<Traits> msg;
         msg.foreign_enum_field = EXTRA;
-        msg.expanded_repeated_field = {FOO, BAR, EXTRA, BAZ};
-        msg.packed_repeated_field = {FOO, BAR, EXTRA, BAZ};
+        auto repeated_fields = std::initializer_list<ForeignEnumEx>{FOO, BAR, EXTRA, BAZ};
+        msg.expanded_repeated_field = repeated_fields;
+        msg.packed_repeated_field = repeated_fields;
         msg.optional_message_field.emplace().i = 1;
         std::vector<std::byte> buffer;
         ut::expect(hpp::proto::write_proto(msg, buffer).ok());

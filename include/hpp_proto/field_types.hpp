@@ -602,11 +602,12 @@ public:
     requires std::is_convertible_v<U (*)[], T (*)[]>
   constexpr equality_comparable_span(std::span<U> other) noexcept : _data(other.data()), _size(other.size()) {}
 
+#ifdef _MSC_VER
   template <typename U>
     requires(std::is_const_v<T> && std::is_same_v<std::remove_const_t<T>, std::remove_const_t<U>>)
   constexpr equality_comparable_span(std::initializer_list<U> init) noexcept
       : _data(init.begin()), _size(init.size()) {}
-
+#endif
   template <typename R>
     requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
              std::ranges::sized_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
@@ -637,6 +638,7 @@ public:
     return *this;
   }
 
+#ifdef _MSC_VER
   template <typename U>
     requires(std::is_const_v<T> && std::is_same_v<std::remove_const_t<T>, std::remove_const_t<U>>)
   constexpr equality_comparable_span &operator=(std::initializer_list<U> init) noexcept {
@@ -644,6 +646,7 @@ public:
     _size = init.size();
     return *this;
   }
+#endif
 
   template <typename R>
     requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&

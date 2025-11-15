@@ -94,6 +94,7 @@
             "binaryDir": "${sourceDir}/build/find_protobuf",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
+                "HPP_PROTO_ENABLE_SANITIZERS": "address,undefined",
                 "HPP_PROTO_PROTOC": "find"
             }
         }

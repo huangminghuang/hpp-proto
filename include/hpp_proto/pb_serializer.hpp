@@ -252,10 +252,11 @@ template <typename T>
 concept pb_extensions = requires {
   typename T::unknown_fields_range_t::value_type;
   requires is_pair<typename T::unknown_fields_range_t::value_type>;
-};
+} && (!std::is_empty_v<std::remove_cvref_t<T>>);
 
 template <typename T>
-concept pb_unknown_fields = requires { typename T::unknown_fields_range_t; } && !pb_extensions<T>;
+concept pb_unknown_fields =
+    requires { typename T::unknown_fields_range_t; } && (!std::is_empty_v<std::remove_cvref_t<T>>) && !pb_extensions<T>;
 
 template <typename T>
 concept has_unknown_fields_or_extensions = has_meta<T> && requires(T value) {
@@ -2912,14 +2913,15 @@ constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is
 }
 
 constexpr status deserialize(auto &&item, concepts::is_basic_in auto &archive) {
-  decltype(auto) unknow_fields = get_unknown_fields(item);
-  decltype(auto) modifiable_unknown_fields = detail::as_modifiable(archive.context, unknow_fields);
+  decltype(auto) unknown_fields = get_unknown_fields(item);
+  decltype(auto) modifiable_unknown_fields = detail::as_modifiable(archive.context, unknown_fields);
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
     if (auto result = deserialize_field_by_tag(tag, item, archive, modifiable_unknown_fields); !result.ok()) {
       [[unlikely]] return result;
     }
   }
+
   return archive.in_avail() == 0 ? std::errc{} : std::errc::bad_message;
 }
 
