@@ -96,13 +96,11 @@ struct dynamic_message_factory_addons {
       case TYPE_INT64:
       case TYPE_SFIXED64:
       case TYPE_SINT64:
-        default_value =
-            default_value_opt.empty() ? int64_t{0} : static_cast<int64_t>(std::stoll(default_value_opt));
+        default_value = default_value_opt.empty() ? int64_t{0} : static_cast<int64_t>(std::stoll(default_value_opt));
         break;
       case TYPE_UINT64:
       case TYPE_FIXED64:
-        default_value =
-            default_value_opt.empty() ? uint64_t{0} : static_cast<uint64_t>(std::stoull(default_value_opt));
+        default_value = default_value_opt.empty() ? uint64_t{0} : static_cast<uint64_t>(std::stoull(default_value_opt));
         break;
       case TYPE_INT32:
       case TYPE_SFIXED32:
@@ -111,8 +109,7 @@ struct dynamic_message_factory_addons {
         break;
       case TYPE_UINT32:
       case TYPE_FIXED32:
-        default_value =
-            default_value_opt.empty() ? uint32_t{0} : static_cast<uint32_t>(std::stoul(default_value_opt));
+        default_value = default_value_opt.empty() ? uint32_t{0} : static_cast<uint32_t>(std::stoul(default_value_opt));
         break;
       case TYPE_BOOL:
         default_value = proto.default_value == "true";
@@ -2030,9 +2027,7 @@ struct message_size_calculator<message_value_cref> {
 
     explicit field_visitor(size_cache::iterator &itr) : cache_itr{itr} {}
 
-    static constexpr uint32_t narrow_size(std::size_t value) {
-      return static_cast<uint32_t>(value);
-    }
+    static constexpr uint32_t narrow_size(std::size_t value) { return static_cast<uint32_t>(value); }
 
     static uint32_t tag_size(const auto &v) {
       return narrow_size(varint_size(static_cast<uint32_t>(v.descriptor().proto().number) << 3U));
@@ -2044,11 +2039,15 @@ struct message_size_calculator<message_value_cref> {
     }
 
     template <concepts::varint T, field_kind_t Kind>
-    uint32_t operator()(scalar_field_cref<T, Kind> v) { return narrow_size(tag_size(v) + T{*v}.encode_size()); }
+    uint32_t operator()(scalar_field_cref<T, Kind> v) {
+      return narrow_size(tag_size(v) + T{*v}.encode_size());
+    }
 
     template <typename T, field_kind_t Kind>
       requires std::is_arithmetic_v<T>
-    uint32_t operator()(scalar_field_cref<T, Kind> v) { return narrow_size(tag_size(v) + sizeof(T)); }
+    uint32_t operator()(scalar_field_cref<T, Kind> v) {
+      return narrow_size(tag_size(v) + sizeof(T));
+    }
 
     uint32_t operator()(enum_field_cref v) { return narrow_size(tag_size(v) + varint_size((*v).number())); }
     uint32_t operator()(string_field_cref v) { return narrow_size(tag_size(v) + len_size((*v).size())); }
@@ -2084,7 +2083,8 @@ struct message_size_calculator<message_value_cref> {
         cache_size(narrow_size(s));
         return narrow_size(ts + len_size(s));
       } else {
-        return narrow_size(util::transform_accumulate(v, [ts](enum_value_cref e) { return ts + varint_size(e.number()); }));
+        return narrow_size(
+            util::transform_accumulate(v, [ts](enum_value_cref e) { return ts + varint_size(e.number()); }));
       }
     }
 
@@ -2208,8 +2208,7 @@ struct field_serializer {
   bool operator()(repeated_scalar_field_cref<T, Kind> v) {
     const field_descriptor_t &desc = v.descriptor();
     if (desc.is_packed()) {
-      const uint32_t byte_count =
-          concepts::varint<T> ? *cache_itr++ : static_cast<uint32_t>(sizeof(T) * v.size());
+      const uint32_t byte_count = concepts::varint<T> ? *cache_itr++ : static_cast<uint32_t>(sizeof(T) * v.size());
       return archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{byte_count}) &&
              std::ranges::all_of(v, [this](auto e) { return archive(T{e}); });
     } else {
