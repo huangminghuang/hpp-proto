@@ -42,24 +42,30 @@ public:
         : public ::hpp::proto::grpc::ClientCallbackReactor<::helloworld::Greeter::SayHelloStreamReply> {
       std::mutex mu_;
       std::condition_variable cv_;
-      std::optional<::grpc::Status> result_;
+      ::grpc::Status result_;
+      bool has_result_ = false;
 
     public:
       ::grpc::ClientContext context;
       SayHelloStreamReplyReactor() = default;
+      SayHelloStreamReplyReactor(const SayHelloStreamReplyReactor &) = delete;
+      SayHelloStreamReplyReactor &operator=(const SayHelloStreamReplyReactor &) = delete;
+      SayHelloStreamReplyReactor(SayHelloStreamReplyReactor &&) = delete;
+      SayHelloStreamReplyReactor &operator=(SayHelloStreamReplyReactor &&) = delete;
 
       void start() {
         this->start_read();
         this->start_call();
       }
 
-      ~SayHelloStreamReplyReactor() {
+      ~SayHelloStreamReplyReactor() override {
         std::unique_lock lock(mu_);
-        cv_.wait(lock, [&] { return result_.has_value(); });
-        if (result_->ok()) {
+        cv_.wait(lock, [&] { return has_result_; });
+        const auto &result = result_;
+        if (result.ok()) {
           std::cout << "SayHelloStreamReply Success\n";
         } else {
-          std::cerr << "SayHelloStreamReply Failed with error: " << result_->error_message() << "\n";
+          std::cerr << "SayHelloStreamReply Failed with error: " << result.error_message() << "\n";
         }
       }
 
@@ -75,6 +81,7 @@ public:
           context.TryCancel();
           std::unique_lock lock(mu_);
           result_ = std::move(r);
+          has_result_ = true;
           return;
         }
         std::cout << "Received reply: " << reply.message << "\n";
@@ -84,8 +91,9 @@ public:
 
       void OnDone(const ::grpc::Status &status) override {
         std::unique_lock lock(mu_);
-        if (!result_.has_value()) {
+        if (!has_result_) {
           result_ = status;
+          has_result_ = true;
         }
         cv_.notify_one();
       }
@@ -113,7 +121,7 @@ public:
 }; // namespace helloworld::Greeter
 
 int main(int argc, char **argv) {
-  auto endpoint = "localhost:50051";
+  const auto *endpoint = "localhost:50051";
   if (argc == 2) {
     endpoint = *std::next(argv);
   } else if (argc > 2) {

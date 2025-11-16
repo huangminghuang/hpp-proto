@@ -49,10 +49,9 @@ public:
 
   struct ClientStreamHandler {
     using rpc_t = ::hpp::proto::grpc::ServerRPC<ClientStreamAggregate>;
-    rpc_t &rpc_;
     StreamSummary summary_;
 
-    explicit ClientStreamHandler(EchoService &, rpc_t &rpc) : rpc_(rpc) { rpc_.start_read(); }
+    explicit ClientStreamHandler(EchoService &, rpc_t &rpc) { rpc.start_read(); }
 
     void on_read_ok(rpc_t &rpc, ::hpp::proto::grpc::RequestToken<ClientStreamAggregate> token) {
       EchoRequest request;
@@ -106,7 +105,7 @@ public:
     }
 
   private:
-    void write_next(rpc_t &rpc) {
+    void write_next(rpc_t &rpc) const {
       EchoResponse response;
       response.message = payload_;
       response.sequence = remaining_;
@@ -135,7 +134,7 @@ public:
       response.message = std::string{request.message} + "-bidi";
       response.sequence = request.sequence;
       {
-        std::lock_guard lock(mu_);
+        std::scoped_lock lock(mu_);
         pending_.emplace_back(std::move(response));
       }
       next_write(rpc);
@@ -171,6 +170,10 @@ public:
 
   Harness();
   ~Harness();
+  Harness(const Harness &) = delete;
+  Harness &operator=(const Harness &) = delete;
+  Harness(Harness &&) = delete;
+  Harness &operator=(Harness &&) = delete;
 
   stub_type &stub() { return *stub_; }
 

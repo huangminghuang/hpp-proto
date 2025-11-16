@@ -35,7 +35,7 @@ public:
     return ::hpp::proto::grpc::read_proto(request, *req_buf_, std::forward<decltype(option)>(option)...);
   }
 
-  const ::grpc::ByteBuffer *get() const { return req_buf_; }
+  [[nodiscard]] const ::grpc::ByteBuffer *get() const { return req_buf_; }
 };
 
 class RpcRawCallbackServiceMethod : public ::grpc::internal::RpcServiceMethod {
@@ -49,6 +49,7 @@ public:
 template <typename Method, RpcType Type = static_cast<RpcType>(Method::rpc_type)>
 class ServerRPC;
 
+// NOLINTBEGIN(portability-template-virtual-member-function)
 template <typename Method>
 class ServerRPC<Method, RpcType::NORMAL_RPC> : public ::grpc::ServerUnaryReactor {
   ::grpc::CallbackServerContext *context_;
@@ -58,7 +59,7 @@ public:
   ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *resp_buf)
       : context_(context), resp_buf_(resp_buf) {}
 
-  ::grpc::CallbackServerContext &context() const { return *context_; }
+  [[nodiscard]] ::grpc::CallbackServerContext &context() const { return *context_; }
   void finish(::grpc::Status s) { this->Finish(std::move(s)); }
 
   template <typename Traits>
@@ -80,7 +81,7 @@ class ServerRPC<Method, RpcType::CLIENT_STREAMING> : public ::grpc::ServerReadRe
   ::grpc::ByteBuffer *resp_buf_;
 
 protected:
-  const ::grpc::ByteBuffer *request_buf() const { return &request_; };
+  [[nodiscard]] const ::grpc::ByteBuffer *request_buf() const { return &request_; }
 
 public:
   ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *resp_buf)
@@ -88,7 +89,7 @@ public:
 
   void start_read() { this->StartRead(&request_); }
 
-  ::grpc::CallbackServerContext &context() const { return *context_; }
+  [[nodiscard]] ::grpc::CallbackServerContext &context() const { return *context_; }
   void finish(::grpc::Status s) { this->Finish(std::move(s)); }
 
   template <typename Traits>
@@ -111,7 +112,7 @@ class ServerRPC<Method, RpcType::SERVER_STREAMING> : public ::grpc::ServerWriteR
 public:
   ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *) : context_(context) {}
 
-  ::grpc::CallbackServerContext &context() const { return *context_; }
+  [[nodiscard]] ::grpc::CallbackServerContext &context() const { return *context_; }
   void finish(::grpc::Status s) { this->Finish(std::move(s)); }
 
   template <typename Traits>
@@ -156,14 +157,14 @@ class ServerRPC<Method, RpcType::BIDI_STREAMING>
   ::grpc::ByteBuffer response_;
 
 protected:
-  const ::grpc::ByteBuffer *request_buf() const { return &request_; };
+  [[nodiscard]] const ::grpc::ByteBuffer *request_buf() const { return &request_; }
 
 public:
   ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *) : context_(context) {}
 
   void start_read() { this->StartRead(&request_); }
 
-  ::grpc::CallbackServerContext &context() const { return *context_; }
+  [[nodiscard]] ::grpc::CallbackServerContext &context() const { return *context_; }
   void finish(::grpc::Status s) { this->Finish(std::move(s)); }
 
   template <typename Traits>
@@ -199,6 +200,7 @@ public:
     this->StartWriteAndFinish(&response_, options, std::move(s));
   }
 };
+// NOLINTEND(portability-template-virtual-member-function)
 
 template <typename Method, typename RpcHandler>
 class BasicServerReactor : public ServerRPC<Method> {
@@ -273,9 +275,11 @@ public:
   using BasicServerReactor<Method, RpcHandler>::BasicServerReactor;
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    return new ::grpc::internal::CallbackUnaryHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+    return new ::grpc::internal::CallbackUnaryHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
         [&service](::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *request,
-                   ::grpc::ByteBuffer *response) { return new ServerReactor(context, request, response, service); });
+                   ::grpc::ByteBuffer *response) {
+          return new ServerReactor(context, request, response, service); // NOLINT(cppcoreguidelines-owning-memory)
+        });
   }
 };
 
@@ -286,9 +290,9 @@ public:
   void OnReadDone(bool ok) override { this->on_read_done(ok); }
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    return new ::grpc::internal::CallbackClientStreamingHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+    return new ::grpc::internal::CallbackClientStreamingHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
         [&service](::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *response) {
-          return new ServerReactor(context, response, service);
+          return new ServerReactor(context, response, service); // NOLINT(cppcoreguidelines-owning-memory)
         });
   }
 };
@@ -300,9 +304,9 @@ public:
   void OnWriteDone(bool ok) override { this->on_write_done(ok); }
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    return new ::grpc::internal::CallbackServerStreamingHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+    return new ::grpc::internal::CallbackServerStreamingHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
         [&service](::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *request) {
-          return new ServerReactor(context, request, nullptr, service);
+          return new ServerReactor(context, request, nullptr, service); // NOLINT(cppcoreguidelines-owning-memory)
         });
   }
 };
@@ -315,8 +319,10 @@ public:
   void OnWriteDone(bool ok) override { this->on_write_done(ok); }
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    return new ::grpc::internal::CallbackBidiHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
-        [&service](::grpc::CallbackServerContext *context) { return new ServerReactor(context, nullptr, service); });
+    return new ::grpc::internal::CallbackBidiHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
+        [&service](::grpc::CallbackServerContext *context) {
+          return new ServerReactor(context, nullptr, service); // NOLINT(cppcoreguidelines-owning-memory)
+        });
   }
 };
 
@@ -328,8 +334,8 @@ class CallbackService : public ::grpc::Service {
     if constexpr (requires { std::declval<Derived>().handle(method); }) {
       using rpc_handler_t = decltype(std::declval<Derived>().handle(method));
       auto *handler = ServerReactor<Method, rpc_handler_t>::grpc_method_handler(static_cast<Derived &>(*this));
-      this->AddMethod(
-          new RpcRawCallbackServiceMethod(method.method_name, static_cast<RpcType>(method.rpc_type), handler));
+      this->AddMethod(new RpcRawCallbackServiceMethod( // NOLINT(cppcoreguidelines-owning-memory)
+          method.method_name, static_cast<RpcType>(method.rpc_type), handler));
     }
   }
 

@@ -1,6 +1,7 @@
 #include <boost/ut.hpp>
 
 #include <condition_variable>
+#include <memory>
 #include <memory_resource>
 #include <mutex>
 #include <string>
@@ -68,7 +69,7 @@ void run_unary_async_reactor_case() {
   request.message = "async-reactor";
   request.sequence = 10;
 
-  auto *reactor = new UnaryAsyncReactor();
+  auto *reactor = new UnaryAsyncReactor(); // NOLINT(cppcoreguidelines-owning-memory)
   stub.async_call<UnaryEcho>(context, request, reactor);
   reactor->start_call();
   reactor->wait();
@@ -76,7 +77,7 @@ void run_unary_async_reactor_case() {
   expect(reactor->status().ok()) << reactor->status().error_message();
   expect(eq(static_cast<int>(reactor->response().sequence), 11));
   expect(eq(reactor->response().message, std::string{"async-reactor-unary"}));
-  delete reactor;
+  delete reactor; // NOLINT(cppcoreguidelines-owning-memory)
 }
 
 void run_unary_async_callback_case() {
@@ -95,7 +96,7 @@ void run_unary_async_callback_case() {
 
   stub.async_call<UnaryEcho>(context, request, response, [&](::grpc::Status s) {
     std::unique_lock lock(mu);
-    status = s;
+    status = std::move(s);
     done = true;
     cv.notify_all();
   });

@@ -9,6 +9,8 @@
 #include <condition_variable>
 #include <hpp_proto/grpc/serialization.hpp>
 #include <mutex>
+#include <type_traits>
+#include <utility>
 
 namespace hpp::proto::grpc {
 
@@ -78,7 +80,7 @@ class Stub {
 
   template <typename Method>
     requires concepts::service_method_check<ServiceMethods, Method>
-  const ::grpc::internal::RpcMethod &grpc_method() const {
+  [[nodiscard]] const ::grpc::internal::RpcMethod &grpc_method() const {
     return grpc_methods_[Method::ordinal];
   }
 
@@ -98,6 +100,7 @@ public:
   Stub(Stub &&) = delete;
   Stub &operator=(const Stub &) = delete;
   Stub &operator=(Stub &&) = delete;
+  ~Stub() = default;
 
   template <typename Method, typename Request, typename Response>
     requires(concepts::unary_method_check<Method, Request, Response>)::grpc::Status
@@ -244,11 +247,11 @@ public:
 template <typename Method, typename CallbackFunction, typename Response, typename Context>
 class CallbackUnaryCall : public ClientCallbackReactor<Method> {
   std::remove_cvref_t<CallbackFunction> f_;
-  Response &response_ref_;
+  Response &response_ref_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
   Context response_context_;
 
 public:
-  CallbackUnaryCall(Method, CallbackFunction &&f, Response &response,
+  CallbackUnaryCall(Method, CallbackFunction &&f, Response &response, // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
                     hpp::proto::concepts::is_option_type auto &&...response_option)
       : f_(std::forward<CallbackFunction>(f)), response_ref_(response),
         response_context_(std::forward<decltype(response_option)>(response_option)...) {}
@@ -277,8 +280,8 @@ void Stub<ServiceMethods>::async_call(::grpc::ClientContext &context, const Requ
                                       CallbackFunction &&f,
                                       hpp::proto::concepts::is_option_type auto &&...response_option) {
 
-  auto *callback_reactor =
-      new CallbackUnaryCall{Method{}, std::forward<CallbackFunction>(f), response, response_option...};
+  auto *callback_reactor = new CallbackUnaryCall{ // NOLINT(cppcoreguidelines-owning-memory)
+      Method{}, std::forward<CallbackFunction>(f), response, response_option...};
   callback_reactor->prepare(*this, context, request);
   callback_reactor->start_call();
 }

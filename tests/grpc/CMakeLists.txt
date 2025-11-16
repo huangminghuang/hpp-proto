@@ -43,23 +43,28 @@ protobuf_generate_hpp(
     PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(grpc_quality_proto_lib INTERFACE gRPC::grpc++)
 
-set(GRPC_QUALITY_TEST_SOURCES
-    grpc_quality_tests.cpp
+set(GRPC_QUALITY_TEST_CASES
     unary_tests.cpp
     client_stream_tests.cpp
     server_stream_tests.cpp
     bidi_stream_tests.cpp)
 
-add_executable(grpc_quality_tests
-    ${GRPC_QUALITY_TEST_SOURCES})
-target_link_libraries(grpc_quality_tests PRIVATE
-    grpc_quality_proto_lib
-    hpp_proto::libhpp_proto
-    Boost::ut
-    glaze::glaze
-    gRPC::grpc++)
-target_include_directories(grpc_quality_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR})
-add_test(NAME grpc_quality_tests
-    COMMAND grpc_quality_tests
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+foreach(test_src IN LISTS GRPC_QUALITY_TEST_CASES)
+    get_filename_component(test_name "${test_src}" NAME_WE)
+    set(target_name "grpc_${test_name}")
+
+    add_executable(${target_name}
+        grpc_quality_tests.cpp
+        "${test_src}")
+    target_link_libraries(${target_name} PRIVATE
+        grpc_quality_proto_lib
+        hpp_proto::libhpp_proto
+        Boost::ut
+        glaze::glaze
+        gRPC::grpc++)
+    target_include_directories(${target_name} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME ${target_name}
+        COMMAND ${target_name}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+endforeach()

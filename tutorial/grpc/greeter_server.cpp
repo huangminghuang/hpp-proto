@@ -96,7 +96,7 @@ public:
   struct ShutdownHandler {
     Service *service;
     explicit ShutdownHandler(Service &service, ::hpp::proto::grpc::ServerRPC<Shutdown> &rpc,
-                             ::hpp::proto::grpc::RequestToken<Shutdown> token)
+                             [[maybe_unused]] ::hpp::proto::grpc::RequestToken<Shutdown>)
         : service(&service) {
       rpc.finish(google::protobuf::Empty{});
     }
@@ -140,7 +140,7 @@ void RunServer(const char *server_address) {
 }
 
 int main(int argc, char **argv) {
-  auto endpoint = "localhost:50051";
+  const auto *endpoint = "localhost:50051";
   if (argc == 2) {
     endpoint = *std::next(argv);
   } else if (argc > 2) {

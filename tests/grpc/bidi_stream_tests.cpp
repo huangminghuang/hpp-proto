@@ -25,7 +25,7 @@ class BidiReactor : public ::hpp::proto::grpc::ClientCallbackReactor<BidiStreamC
   std::vector<std::string> payloads_;
   ::grpc::Status status_;
   std::vector<std::string> responses_;
-  ::grpc::ClientContext *context_;
+  ::grpc::ClientContext *context_ = nullptr;
 
 public:
   using request_t = EchoRequest<>;
