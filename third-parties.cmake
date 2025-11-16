@@ -8,9 +8,9 @@ endif()
 
 CPMAddPackage(
     NAME glaze
-    GIT_TAG v5.0.2
+    GIT_TAG v6.0.3
     GITHUB_REPOSITORY stephenberry/glaze
-    PATCH_COMMAND ${GIT_EXECUTABLE} apply --ignore-space-change --ignore-whitespace ${CMAKE_CURRENT_SOURCE_DIR}/glaze-5.0.2.patch
+    PATCH_COMMAND ${GIT_EXECUTABLE} apply --ignore-space-change --ignore-whitespace ${CMAKE_CURRENT_SOURCE_DIR}/glaze-6.0.3.patch
     UPDATE_DISCONNECTED ON
     ${system_package}
 )

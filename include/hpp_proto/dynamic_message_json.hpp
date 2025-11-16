@@ -74,7 +74,7 @@ struct generic_message_json_serializer {
   template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
     bool is_wellknown_type = (value.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE);
-    const bool dump_brace = !has_opening_handled(Opts) && !value.descriptor().is_map_entry() && !is_wellknown_type;
+    const bool dump_brace = !check_opening_handled(Opts) && !value.descriptor().is_map_entry() && !is_wellknown_type;
 
     if (dump_brace) {
       dump_opening_brace<Opts>(ctx, b, ix);

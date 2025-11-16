@@ -758,7 +758,7 @@ class dynamic_serializer {
       }
 
       const bool dump_brace =
-          !has_opening_handled(Options) && !is_map_entry && msg_index != pb_meta.protobuf_value_message_index;
+          !check_opening_handled(Options) && !is_map_entry && msg_index != pb_meta.protobuf_value_message_index;
 
       if (dump_brace) {
         glz::dump<'{'>(b, ix);
@@ -1056,7 +1056,7 @@ class dynamic_serializer {
     template <auto Opts>
     status enum_to_pb(const dynamic_serializer::field_meta &meta, auto &it, auto &end, auto &archive) {
       const auto &enum_meta = std::get<const struct enum_meta *>(meta.type_info);
-      if constexpr (!has_ws_handled(Opts)) {
+      if constexpr (!check_ws_handled(Opts)) {
         if (glz::skip_ws<Opts>(context, it, end)) [[unlikely]] {
           return std::errc::bad_message;
         }
@@ -1091,7 +1091,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status repeated_to_pb(const dynamic_serializer::field_meta &meta, auto &it, auto &end, auto &archive) {
-      if constexpr (!has_ws_handled(Options)) {
+      if constexpr (!check_ws_handled(Options)) {
         if (glz::skip_ws<Options>(context, it, end)) [[unlikely]] {
           return std::errc::bad_message;
         }
@@ -1172,7 +1172,7 @@ class dynamic_serializer {
 
     template <auto Options>
     status value_to_pb(const dynamic_serializer::message_meta *meta, auto &it, auto &end, auto &archive) {
-      if constexpr (!has_ws_handled(Options)) {
+      if constexpr (!check_ws_handled(Options)) {
         if (glz::skip_ws<Options>(context, it, end)) [[unlikely]] {
           return std::errc::bad_message;
         }
@@ -1212,8 +1212,8 @@ class dynamic_serializer {
     template <auto Options>
     bool parse_opening(auto &it, auto &end) {
       using namespace glz;
-      if constexpr (!has_opening_handled(Options)) {
-        if constexpr (!has_ws_handled(Options)) {
+      if constexpr (!check_opening_handled(Options)) {
+        if constexpr (!check_ws_handled(Options)) {
           if (skip_ws<Options>(context, it, end)) [[unlikely]] {
             return false;
           }
@@ -1348,7 +1348,7 @@ class dynamic_serializer {
 
       uint32_t field_index = 0;
 
-      bool first = !has_opening_handled(Options);
+      bool first = !check_opening_handled(Options);
       while (true) {
         if (*it == '}') [[unlikely]] {
           it = std::next(it);

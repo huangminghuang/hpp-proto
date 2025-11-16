@@ -683,7 +683,7 @@ struct from<JSON, hpp::proto::map_wrapper<T>> {
   template <auto Options>
   static void op(auto &v, is_context auto &ctx, auto &it, auto &end) {
     auto &value = v.value;
-    if constexpr (!has_ws_handled(Options)) {
+    if constexpr (!check_ws_handled(Options)) {
       if (skip_ws<Options>(ctx, it, end)) [[unlikely]] {
         return;
       }
@@ -741,7 +741,7 @@ template <typename T>
 struct from<JSON, hpp::proto::optional_message_view_ref<T>> {
   template <auto Options>
   static void op(auto value, hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
-    if constexpr (!has_ws_handled(Options)) {
+    if constexpr (!check_ws_handled(Options)) {
       if (skip_ws<Options>(ctx, it, end)) [[unlikely]] {
         return;
       }
@@ -791,10 +791,10 @@ template <typename T>
 concept glz_opts_t = requires { requires std::same_as<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
 
 template <typename T>
-concept write_json_supported = glz::write_supported<glz::JSON, T>;
+concept write_json_supported = glz::write_supported<T, glz::JSON>;
 
 template <typename T>
-concept read_json_supported = glz::read_supported<glz::JSON, T>;
+concept read_json_supported = glz::read_supported<T, glz::JSON>;
 } // namespace concepts
 namespace detail {
 template <typename Context, typename... Rest>

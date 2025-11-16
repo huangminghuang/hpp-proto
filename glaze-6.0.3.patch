@@ -1,17 +1,17 @@
 diff --git a/.gitignore b/.gitignore
-index 0fa1c03a..8611f6e6 100644
+index d3e328f..7ceb093 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -48,3 +48,4 @@ Thumbs.db
- 
- # Allow mock test data
+@@ -50,3 +50,4 @@ Thumbs.db
  !tests/mock_json_test/json/*.json
+ alabastar.beve
+ *.jsonc
 +.qodo
 diff --git a/include/glaze/core/context.hpp b/include/glaze/core/context.hpp
-index 2405fbdf..d9ed4fdb 100644
+index 18ca34d..58202d4 100644
 --- a/include/glaze/core/context.hpp
 +++ b/include/glaze/core/context.hpp
-@@ -102,7 +102,7 @@ namespace glz
+@@ -106,7 +106,7 @@ namespace glz
  
     // Runtime context for configuration
     // We do not template the context on iterators so that it can be easily shared across buffer implementations
@@ -20,7 +20,7 @@ index 2405fbdf..d9ed4fdb 100644
     {
        error_code error{};
        std::string_view custom_error_message;
-@@ -117,5 +117,5 @@ namespace glz
+@@ -121,5 +121,5 @@ namespace glz
     };
  
     template <class T>
