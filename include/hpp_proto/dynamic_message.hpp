@@ -1089,7 +1089,7 @@ class message_value_cref {
     return empty;
   }
 
-  field_cref operator[](std::int32_t n) const {
+  field_cref operator[](std::size_t n) const {
     auto &desc = descriptor_->fields()[n];
     return field_cref{desc, storage_for(desc)};
   }
@@ -1293,7 +1293,7 @@ private:
     return *std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot));
   }
 
-  field_mref operator[](std::int32_t n) const {
+  field_mref operator[](std::size_t n) const {
     auto &desc = descriptor_->fields()[n];
     return field_mref{desc, storage_for(desc), *memory_resource_};
   }
