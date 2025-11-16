@@ -8,6 +8,7 @@
 #include <ranges>
 #include <span>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 inline std::string read_file(const std::string &filename) {
@@ -70,12 +71,41 @@ inline std::ostream &operator<<(ostream &os, const vector<T> &c) {
   return os;
 }
 
+template <typename Enum>
+  requires std::is_enum_v<Enum>
+inline std::ostream &operator<<(std::ostream &os, Enum value) {
+  return os << static_cast<std::underlying_type_t<Enum>>(value);
+}
+
+template <typename T, std::size_t ExtentL, typename U, std::size_t ExtentR>
+inline bool operator==(std::span<T, ExtentL> lhs, std::span<U, ExtentR> rhs) {
+  if (lhs.size() != rhs.size()) {
+    return false;
+  }
+  return std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
 } // namespace std
 
 namespace hpp::proto {
 template <compile_time_string cts>
 std::ostream &operator<<(std::ostream &os, bytes_literal<cts> v) {
   return os << std::span<const std::byte>(v);
+}
+
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const equality_comparable_span<T> &span) {
+  os << '[';
+  bool first = true;
+  for (const auto &value : span) {
+    if (!first) {
+      os << ", ";
+    }
+    first = false;
+    os << value;
+  }
+  os << ']';
+  return os;
 }
 } // namespace hpp::proto
 

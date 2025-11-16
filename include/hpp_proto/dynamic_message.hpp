@@ -96,20 +96,23 @@ struct dynamic_message_factory_addons {
       case TYPE_INT64:
       case TYPE_SFIXED64:
       case TYPE_SINT64:
-        default_value = default_value_opt.empty() ? 0LL : std::stoll(default_value_opt);
+        default_value =
+            default_value_opt.empty() ? int64_t{0} : static_cast<int64_t>(std::stoll(default_value_opt));
         break;
       case TYPE_UINT64:
       case TYPE_FIXED64:
-        default_value = default_value_opt.empty() ? 0ULL : std::stoull(default_value_opt);
+        default_value =
+            default_value_opt.empty() ? uint64_t{0} : static_cast<uint64_t>(std::stoull(default_value_opt));
         break;
       case TYPE_INT32:
       case TYPE_SFIXED32:
       case TYPE_SINT32:
-        default_value = default_value_opt.empty() ? 0 : std::stoi(default_value_opt);
+        default_value = default_value_opt.empty() ? int32_t{0} : static_cast<int32_t>(std::stoi(default_value_opt));
         break;
       case TYPE_UINT32:
       case TYPE_FIXED32:
-        default_value = default_value_opt.empty() ? 0U : std::stoul(default_value_opt);
+        default_value =
+            default_value_opt.empty() ? uint32_t{0} : static_cast<uint32_t>(std::stoul(default_value_opt));
         break;
       case TYPE_BOOL:
         default_value = proto.default_value == "true";
@@ -492,7 +495,7 @@ public:
 
   string_field_mref &operator=(std::string_view v) noexcept {
     storage_->content = v.data();
-    storage_->size = v.size();
+    storage_->size = static_cast<uint32_t>(v.size());
     storage_->selection = descriptor_->oneof_ordinal;
     return *this;
   }
@@ -579,7 +582,7 @@ public:
   ~bytes_field_mref() = default;
   bytes_field_mref &operator=(std::span<const std::byte> v) noexcept {
     storage_->content = v.data();
-    storage_->size = v.size();
+    storage_->size = static_cast<uint32_t>(v.size());
     storage_->selection = descriptor_->oneof_ordinal;
     return *this;
   }
@@ -836,7 +839,7 @@ public:
   void reserve(std::size_t n) noexcept {
     if (capacity() < n) {
       auto new_data = static_cast<T *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
-      storage_->capacity = n;
+      storage_->capacity = static_cast<uint32_t>(n);
       if (storage_->content) {
         std::uninitialized_copy(storage_->content,
                                 std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)), new_data);
@@ -849,14 +852,14 @@ public:
     if (capacity() < n) {
       auto new_data =
           static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
-      storage_->capacity = n;
+      storage_->capacity = static_cast<uint32_t>(n);
       std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
       storage_->content = new_data;
     } else if (size() < n) {
       std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)),
                                            std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
-    storage_->size = n;
+    storage_->size = static_cast<uint32_t>(n);
   }
 
   [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
@@ -946,7 +949,7 @@ public:
     return index_ == other.index_;
   }
 
-  reference operator*() const noexcept { return (*field_)[index_]; }
+  reference operator*() const noexcept { return (*field_)[static_cast<std::int32_t>(index_)]; }
 };
 
 class repeated_enum_field_cref : public std::ranges::view_interface<repeated_enum_field_cref> {
@@ -1031,12 +1034,12 @@ public:
       std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
       std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
       storage_->content = new_data;
-      storage_->capacity = n;
+      storage_->capacity = static_cast<uint32_t>(n);
     } else if (size() < n) {
       std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
                                            std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
-    storage_->size = n;
+    storage_->size = static_cast<uint32_t>(n);
   }
 
   [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
@@ -1484,18 +1487,18 @@ public:
           memory_resource_->allocate(n * num_slots() * sizeof(value_storage), alignof(value_storage)));
       std::ranges::copy(std::span{storage_->content, storage_->size * num_slots()}, new_data);
       storage_->content = new_data;
-      storage_->size = n;
-      storage_->capacity = n;
+      storage_->size = static_cast<uint32_t>(n);
+      storage_->capacity = static_cast<uint32_t>(n);
       for (std::size_t i = old_size; i < size(); ++i) {
         (*this)[i].reset();
       }
     } else if (size() < n) {
-      storage_->size = n;
+      storage_->size = static_cast<uint32_t>(n);
       for (std::size_t i = old_size; i < size(); ++i) {
         (*this)[i].reset();
       }
     } else {
-      storage_->size = n;
+      storage_->size = static_cast<uint32_t>(n);
     }
   }
 
@@ -2027,8 +2030,12 @@ struct message_size_calculator<message_value_cref> {
 
     explicit field_visitor(size_cache::iterator &itr) : cache_itr{itr} {}
 
+    static constexpr uint32_t narrow_size(std::size_t value) {
+      return static_cast<uint32_t>(value);
+    }
+
     static uint32_t tag_size(const auto &v) {
-      return varint_size(static_cast<uint32_t>(v.descriptor().proto().number) << 3U);
+      return narrow_size(varint_size(static_cast<uint32_t>(v.descriptor().proto().number) << 3U));
     }
 
     void cache_size(uint32_t s) {
@@ -2037,29 +2044,25 @@ struct message_size_calculator<message_value_cref> {
     }
 
     template <concepts::varint T, field_kind_t Kind>
-    uint32_t operator()(scalar_field_cref<T, Kind> v) {
-      return tag_size(v) + T{*v}.encode_size();
-    }
+    uint32_t operator()(scalar_field_cref<T, Kind> v) { return narrow_size(tag_size(v) + T{*v}.encode_size()); }
 
     template <typename T, field_kind_t Kind>
       requires std::is_arithmetic_v<T>
-    uint32_t operator()(scalar_field_cref<T, Kind> v) {
-      return tag_size(v) + sizeof(T);
-    }
+    uint32_t operator()(scalar_field_cref<T, Kind> v) { return narrow_size(tag_size(v) + sizeof(T)); }
 
-    uint32_t operator()(enum_field_cref v) { return tag_size(v) + varint_size((*v).number()); }
-    uint32_t operator()(string_field_cref v) { return tag_size(v) + len_size((*v).size()); }
-    uint32_t operator()(bytes_field_cref v) { return tag_size(v) + len_size((*v).size()); }
+    uint32_t operator()(enum_field_cref v) { return narrow_size(tag_size(v) + varint_size((*v).number())); }
+    uint32_t operator()(string_field_cref v) { return narrow_size(tag_size(v) + len_size((*v).size())); }
+    uint32_t operator()(bytes_field_cref v) { return narrow_size(tag_size(v) + len_size((*v).size())); }
 
     template <concepts::varint T, field_kind_t Kind>
     uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
         auto s = util::transform_accumulate(v, [](auto e) { return T{e}.encode_size(); });
-        cache_size(s);
-        return ts + len_size(s);
+        cache_size(narrow_size(s));
+        return narrow_size(ts + len_size(s));
       } else {
-        return util::transform_accumulate(v, [ts](auto e) { return ts + T{e}.encode_size(); });
+        return narrow_size(util::transform_accumulate(v, [ts](auto e) { return ts + T{e}.encode_size(); }));
       }
     }
 
@@ -2068,9 +2071,9 @@ struct message_size_calculator<message_value_cref> {
     uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
-        return ts + len_size(v.size() * sizeof(T));
+        return narrow_size(ts + len_size(v.size() * sizeof(T)));
       } else {
-        return v.size() * (ts + sizeof(T));
+        return narrow_size(v.size() * (ts + sizeof(T)));
       }
     }
 
@@ -2078,51 +2081,53 @@ struct message_size_calculator<message_value_cref> {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
         auto s = util::transform_accumulate(v, [](enum_value_cref e) { return varint_size(e.number()); });
-        cache_size(s);
-        return ts + len_size(s);
+        cache_size(narrow_size(s));
+        return narrow_size(ts + len_size(s));
       } else {
-        return util::transform_accumulate(v, [ts](enum_value_cref e) { return ts + varint_size(e.number()); });
+        return narrow_size(util::transform_accumulate(v, [ts](enum_value_cref e) { return ts + varint_size(e.number()); }));
       }
     }
 
     uint32_t operator()(repeated_string_field_cref v) {
       auto ts = tag_size(v);
-      return util::transform_accumulate(v, [ts](const std::string_view e) { return ts + len_size(e.size()); });
+      return narrow_size(
+          util::transform_accumulate(v, [ts](const std::string_view e) { return ts + len_size(e.size()); }));
     }
 
     uint32_t operator()(repeated_bytes_field_cref v) {
       auto ts = tag_size(v);
       // NOLINTNEXTLINE(performance-unnecessary-value-param)
-      return util::transform_accumulate(v, [ts](const bytes_view e) { return ts + len_size(e.size()); });
+      return narrow_size(util::transform_accumulate(v, [ts](const bytes_view e) { return ts + len_size(e.size()); }));
     }
 
     uint32_t operator()(message_value_cref msg) {
-      return util::transform_accumulate(msg.fields(),
-                                        [this](field_cref f) { return f.has_value() ? f.visit(*this) : 0; });
+      return narrow_size(util::transform_accumulate(
+          msg.fields(), [this](field_cref f) { return f.has_value() ? f.visit(*this) : 0; }));
     }
 
     uint32_t operator()(message_field_cref v) {
       if (v.descriptor().is_delimited()) {
-        return (2 * tag_size(v)) + (*this)(*v);
+        return narrow_size((2 * tag_size(v)) + (*this)(*v));
       } else {
         decltype(auto) msg_size = *cache_itr++;
         auto s = (*this)(*v);
         msg_size = s;
-        return tag_size(v) + len_size(s);
+        return narrow_size(tag_size(v) + len_size(s));
       }
     }
 
     uint32_t operator()(repeated_message_field_cref v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_delimited()) {
-        return util::transform_accumulate(v, [this, ts](message_value_cref msg) { return (2 * ts) + (*this)(msg); });
+        return narrow_size(
+            util::transform_accumulate(v, [this, ts](message_value_cref msg) { return (2 * ts) + (*this)(msg); }));
       } else {
-        return util::transform_accumulate(v, [this, ts](message_value_cref msg) {
+        return narrow_size(util::transform_accumulate(v, [this, ts](message_value_cref msg) {
           decltype(auto) msg_size = *cache_itr++;
           auto s = (*this)(msg);
           msg_size = s;
           return ts + len_size(s);
-        });
+        }));
       }
     }
   };
@@ -2203,7 +2208,8 @@ struct field_serializer {
   bool operator()(repeated_scalar_field_cref<T, Kind> v) {
     const field_descriptor_t &desc = v.descriptor();
     if (desc.is_packed()) {
-      uint32_t byte_count = concepts::varint<T> ? *cache_itr++ : sizeof(T) * v.size();
+      const uint32_t byte_count =
+          concepts::varint<T> ? *cache_itr++ : static_cast<uint32_t>(sizeof(T) * v.size());
       return archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{byte_count}) &&
              std::ranges::all_of(v, [this](auto e) { return archive(T{e}); });
     } else {

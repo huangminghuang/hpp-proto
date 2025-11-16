@@ -12,19 +12,22 @@
 
 using namespace boost::ut;
 
+using DefaultTestAny = protobuf_unittest::TestAny<>;
+using DefaultFieldMask = google::protobuf::FieldMask<>;
+
 const suite test_any = [] {
   "any"_test = [] {
-    protobuf_unittest::TestAny message;
-    google::protobuf::FieldMask fm;
+    DefaultTestAny message;
+    DefaultFieldMask fm;
     fm.paths = {"/usr/share", "/usr/local/share"};
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm).ok());
 
     std::vector<char> buf;
     expect(hpp::proto::write_proto(message, buf).ok());
 
-    protobuf_unittest::TestAny message2;
+    DefaultTestAny message2;
     expect(hpp::proto::read_proto(message2, buf).ok());
-    google::protobuf::FieldMask fm2;
+    DefaultFieldMask fm2;
     expect(hpp::proto::unpack_any(message2.any_value.value(), fm2).ok());
     expect(fm == fm2);
 
@@ -55,8 +58,8 @@ const suite test_any = [] {
 
 #ifndef HPP_PROTO_DISABLE_GLAZE
   "any_json_wellknown"_test = [] {
-    protobuf_unittest::TestAny message;
-    google::protobuf::FieldMask fm;
+    DefaultTestAny message;
+    DefaultFieldMask fm;
     fm.paths = {"/usr/share", "/usr/local/share"};
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm).ok());
 
@@ -70,7 +73,7 @@ const suite test_any = [] {
     expect(hpp::proto::write_json(message, buf, *ser).ok());
     expect(eq(buf, expected_json));
 
-    protobuf_unittest::TestAny message2;
+    DefaultTestAny message2;
     expect(hpp::proto::read_json(message2, expected_json, *ser).ok());
     expect(message == message2);
 

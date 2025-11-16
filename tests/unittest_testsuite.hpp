@@ -3,6 +3,7 @@
 #include "gpb_proto_json/gpb_proto_json.hpp"
 #include "test_util.hpp"
 #include <boost/ut.hpp>
+#include <utility>
 
 // NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
 
@@ -10,6 +11,12 @@ using namespace std::literals::string_view_literals;
 using namespace boost::ut;
 template <hpp::proto::compile_time_string cts>
 using bytes_literal = hpp::proto::bytes_literal<cts>;
+
+template <typename TLhs, typename TRhs>
+  requires(!requires { ::boost::ut::eq(std::declval<TLhs>(), std::declval<TRhs>()); })
+[[nodiscard]] constexpr auto eq(const TLhs &lhs, const TRhs &rhs) {
+  return lhs == rhs;
+}
 
 template <typename T>
   requires requires { glz::meta<T>::value; }
@@ -276,10 +283,18 @@ struct TestSuite {
   // -------------------------------------------------------------------
 
   static void expect_eq(auto expected, const auto &actual) {
+    const auto compare = [&]<typename L, typename R>(L &&lhs, R &&rhs) {
+      if constexpr (requires { eq(lhs, rhs); }) {
+        expect(eq(lhs, rhs));
+      } else {
+        expect(lhs == rhs);
+      }
+    };
+
     if constexpr (hpp::proto::concepts::optional<decltype(actual)>) {
-      expect(eq(expected, actual.value()));
+      compare(expected, actual.value());
     } else {
-      expect(eq(expected, actual));
+      compare(expected, actual);
     }
   }
 

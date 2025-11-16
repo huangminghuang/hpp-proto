@@ -11,10 +11,10 @@ const boost::ut::suite map_test = [] {
   auto map_unittest_descriptorset = read_file("unittest.desc.binpb");
 
   "protobuf"_test = [] {
-    protobuf_unittest::TestMap original;
+    TestMap original;
     SetMapFields(&original);
 
-    protobuf_unittest::TestMap msg;
+    TestMap msg;
 
     std::vector<char> data;
     expect(hpp::proto::write_proto(original, data).ok());
@@ -25,7 +25,7 @@ const boost::ut::suite map_test = [] {
 
 #if !defined(HPP_PROTO_DISABLE_GLAZE)
   "glaze"_test = [&] {
-    protobuf_unittest::TestMap original;
+    TestMap original;
     SetMapFields(&original);
 
     std::vector<char> data;
@@ -37,7 +37,7 @@ const boost::ut::suite map_test = [] {
 
     expect(eq(hpp::proto::write_json(original).value(), original_json));
 
-    protobuf_unittest::TestMap msg;
+    TestMap msg;
     expect(hpp::proto::read_json(msg, original_json).ok());
 
     ExpectMapFieldsSet(msg);

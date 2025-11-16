@@ -3001,7 +3001,7 @@ contiguous_input_archive(const Buffer &,
                          Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
 constexpr status deserialize(auto &item, concepts::contiguous_byte_range auto const &buffer) {
-  pb_context ctx;
+  pb_context<> ctx;
   return deserialize(item, buffer, ctx);
 }
 
@@ -3072,7 +3072,7 @@ consteval auto write_proto(F make_object) {
   if constexpr (sz == 0) {
     return std::span<std::byte>{};
   } else {
-    pb_context ctx;
+    pb_context<> ctx;
     std::array<std::byte, sz> buffer = {};
     if (auto result = pb_serializer::serialize(obj, buffer, ctx); !result.ok()) {
       throw std::system_error(std::make_error_code(result.ec));
@@ -3107,7 +3107,7 @@ expected<Buffer, std::errc> write_proto(concepts::has_meta auto const &msg, conc
 template <concepts::has_meta T>
 status append_proto(T &&msg, concepts::resizable_contiguous_byte_container auto &buffer) {
   constexpr bool overwrite_buffer = false;
-  pb_context ctx;
+  pb_context<> ctx;
   return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer, ctx);
 }
 
