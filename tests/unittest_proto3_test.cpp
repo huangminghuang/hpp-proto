@@ -5,8 +5,8 @@
 #include <google/protobuf/unittest_proto3.glz.hpp>
 #include <google/protobuf/unittest_proto3.pb.hpp>
 
-#if defined(__GNUC__)
-#if defined(__clang__)
+#ifdef __GNUC__
+#ifdef __clang__
 #pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
 #else
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -194,7 +194,7 @@ struct Proto3Tests {
 
       ExpectUnpackedFieldsSet(msg);
 
-#if !defined(HPP_PROTO_DISABLE_GLAZE)
+#ifndef HPP_PROTO_DISABLE_GLAZE
       auto r = glz::write_json(original);
       expect(r.has_value());
       auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes",
@@ -205,7 +205,7 @@ struct Proto3Tests {
 #endif
     };
 
-#if !defined(HPP_PROTO_DISABLE_GLAZE)
+#ifndef HPP_PROTO_DISABLE_GLAZE
     "glaze"_test = [&] {
       TestAllTypes original;
       SetAllFields(&original);

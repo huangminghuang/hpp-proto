@@ -23,7 +23,7 @@ const boost::ut::suite map_test = [] {
     ExpectMapFieldsSet(msg);
   };
 
-#if !defined(HPP_PROTO_DISABLE_GLAZE)
+#ifndef HPP_PROTO_DISABLE_GLAZE
   "glaze"_test = [&] {
     TestMap original;
     SetMapFields(&original);

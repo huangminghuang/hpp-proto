@@ -939,7 +939,7 @@ class dynamic_serializer {
     status map_key_to_pb(std::string_view key, auto &archive) {
       T value;
       const char *key_it = key.data();
-      const char *key_end = key_it + key.size();
+      const char *key_end = std::next(key_it, static_cast<std::ptrdiff_t>(key.size()));
       glz::parse<glz::JSON>::op<glz::ws_handled<glz::opts{}>()>(get_underlying_value(value), context, key_it, key_end);
       if (bool(context.error)) [[unlikely]] {
         return std::errc::bad_message;

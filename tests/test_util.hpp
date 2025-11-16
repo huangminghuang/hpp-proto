@@ -74,7 +74,7 @@ inline std::ostream &operator<<(ostream &os, const vector<T> &c) {
 template <typename Enum>
   requires std::is_enum_v<Enum>
 inline std::ostream &operator<<(std::ostream &os, Enum value) {
-  return os << static_cast<std::underlying_type_t<Enum>>(value);
+  return os << static_cast<int64_t>(static_cast<std::underlying_type_t<Enum>>(value));
 }
 
 template <typename T, std::size_t ExtentL, typename U, std::size_t ExtentR>

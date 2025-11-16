@@ -283,7 +283,7 @@ struct TestSuite {
   // -------------------------------------------------------------------
 
   static void expect_eq(auto expected, const auto &actual) {
-    const auto compare = [&]<typename L, typename R>(L &&lhs, R &&rhs) {
+    const auto compare = [&]<typename L, typename R>(const L &lhs, const R &rhs) {
       if constexpr (requires { eq(lhs, rhs); }) {
         expect(eq(lhs, rhs));
       } else {

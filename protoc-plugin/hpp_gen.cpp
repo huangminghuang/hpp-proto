@@ -133,7 +133,7 @@ constexpr std::size_t cpp_escaped_len(char c) {
       4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
   };
   /* clang-format on */
-  // NOLINTBEGINNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return cpp_escaped_len_table[static_cast<unsigned char>(c)];
 }
 // Calculates the length of the C-style escaped version of 'src'.
