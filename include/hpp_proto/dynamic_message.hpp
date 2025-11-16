@@ -1090,7 +1090,7 @@ class message_value_cref {
   }
 
   field_cref operator[](std::size_t n) const {
-    auto &desc = descriptor_->fields()[n];
+    auto &desc = descriptor_->fields()[static_cast<std::ptrdiff_t>(n)];
     return field_cref{desc, storage_for(desc)};
   }
   friend class repeated_field_iterator<message_value_cref>;
@@ -1294,7 +1294,7 @@ private:
   }
 
   field_mref operator[](std::size_t n) const {
-    auto &desc = descriptor_->fields()[n];
+    auto &desc = descriptor_->fields()[static_cast<std::ptrdiff_t>(n)];
     return field_mref{desc, storage_for(desc), *memory_resource_};
   }
   using reference = field_mref;
