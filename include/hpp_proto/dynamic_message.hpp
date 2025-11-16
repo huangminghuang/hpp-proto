@@ -946,7 +946,7 @@ public:
     return index_ == other.index_;
   }
 
-  reference operator*() const noexcept { return (*field_)[static_cast<std::int32_t>(index_)]; }
+  reference operator*() const noexcept { return (*field_)[static_cast<std::size_t>(index_)]; }
 };
 
 class repeated_enum_field_cref : public std::ranges::view_interface<repeated_enum_field_cref> {
