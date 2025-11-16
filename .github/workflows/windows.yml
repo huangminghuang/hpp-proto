@@ -35,11 +35,6 @@ jobs:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.14
-        with:
-          key: ${{ github.workflow }}
-
       - name: Setup Ninja
         uses: wirekang/setup-ninja@v1
         with:
@@ -54,7 +49,7 @@ jobs:
       - name: configure
         shell: bash
         run: |
-          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DHPP_PROTO_TEST_USE_PROTOBUF=OFF
+          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DHPP_PROTO_TEST_USE_PROTOBUF=OFF
 
       - name: build
         shell: bash
