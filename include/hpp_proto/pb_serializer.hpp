@@ -1815,6 +1815,7 @@ struct input_span {
 
 constexpr static std::size_t slope_size = 16;
 constexpr static std::size_t patch_buffer_size = 2 * slope_size;
+inline constexpr std::size_t stack_segment_threshold = 8;
 
 template <typename Byte>
 struct input_buffer_region : input_span<Byte> {
@@ -3040,7 +3041,7 @@ constexpr status deserialize(auto &item, concepts::segmented_byte_range auto con
                              num_regions};
     return deserialize(item, context, buffer, regions, patch_buffer);
   } else {
-    if (num_segments > 8) {
+    if (num_segments > stack_segment_threshold) {
       std::vector<byte_type> patch_buffer(patch_buffer_bytes_count);
       std::vector<input_buffer_region<byte_type>> regions(num_regions);
       return deserialize(item, context, buffer, std::span{regions.data(), regions.size()},

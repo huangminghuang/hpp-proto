@@ -5,6 +5,7 @@
 #include <hpp_proto/grpc/client.hpp>
 #include <hpp_proto/grpc/server.hpp>
 
+#include <cstdlib>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -186,14 +187,18 @@ private:
 };
 
 inline Harness::Harness() {
-  ::grpc::ServerBuilder builder;
-  int selected_port = 0;
-  builder.AddListeningPort("127.0.0.1:0", ::grpc::InsecureServerCredentials(), &selected_port);
-  builder.RegisterService(&service_);
-  server_ = builder.BuildAndStart();
-  std::cerr << "selected port = " << selected_port << "\n";
-  const std::string target = "127.0.0.1:" + std::to_string(selected_port);
-  channel_ = ::grpc::CreateChannel(target, ::grpc::InsecureChannelCredentials());
+  const char *external_endpoint = std::getenv("HPP_PROTO_GRPC_TEST_ENDPOINT");
+  if (external_endpoint == nullptr) {
+    ::grpc::ServerBuilder builder;
+    int selected_port = 0;
+    builder.AddListeningPort("127.0.0.1:0", ::grpc::InsecureServerCredentials(), &selected_port);
+    builder.RegisterService(&service_);
+    server_ = builder.BuildAndStart();
+    const std::string target = "127.0.0.1:" + std::to_string(selected_port);
+    channel_ = ::grpc::CreateChannel(target, ::grpc::InsecureChannelCredentials());
+  } else {
+    channel_ = ::grpc::CreateChannel(external_endpoint, ::grpc::InsecureChannelCredentials());
+  }
   stub_ = std::make_unique<stub_type>(channel_, options_);
 }
 

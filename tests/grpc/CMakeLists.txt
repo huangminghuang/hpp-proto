@@ -4,9 +4,15 @@ if (HPP_PROTO_PROTOC STREQUAL "compile")
 endif()
 
 find_package(gRPC CONFIG 1.51)
+find_package(Python3 COMPONENTS Interpreter)
 
 if(NOT gRPC_FOUND)
     message(WARNING "gRPC not found, skipping grpc_quality_tests target")
+    return()
+endif()
+
+if(NOT Python3_Interpreter_FOUND)
+    message(WARNING "Python3 interpreter not found, skipping grpc_quality_tests target")
     return()
 endif()
 
@@ -49,6 +55,17 @@ set(GRPC_QUALITY_TEST_CASES
     server_stream_tests.cpp
     bidi_stream_tests.cpp)
 
+add_executable(grpc_test_server
+    grpc_test_server.cpp)
+target_link_libraries(grpc_test_server PRIVATE
+    grpc_quality_proto_lib
+    hpp_proto::libhpp_proto
+    gRPC::grpc++)
+target_include_directories(grpc_test_server PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR})
+
+set(GRPC_TEST_RUNNER "${CMAKE_CURRENT_SOURCE_DIR}/run_grpc_test.py")
+
 foreach(test_src IN LISTS GRPC_QUALITY_TEST_CASES)
     get_filename_component(test_name "${test_src}" NAME_WE)
     set(target_name "grpc_${test_name}")
@@ -65,6 +82,6 @@ foreach(test_src IN LISTS GRPC_QUALITY_TEST_CASES)
     target_include_directories(${target_name} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME ${target_name}
-        COMMAND ${target_name}
+        COMMAND ${Python3_EXECUTABLE} "${GRPC_TEST_RUNNER}" $<TARGET_FILE:grpc_test_server> $<TARGET_FILE:${target_name}>
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endforeach()
