@@ -251,7 +251,8 @@ class CallbackUnaryCall : public ClientCallbackReactor<Method> {
   Context response_context_;
 
 public:
-  CallbackUnaryCall(Method, CallbackFunction &&f, Response &response, // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+  CallbackUnaryCall(Method, CallbackFunction &&f,
+                    Response &response, // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
                     hpp::proto::concepts::is_option_type auto &&...response_option)
       : f_(std::forward<CallbackFunction>(f)), response_ref_(response),
         response_context_(std::forward<decltype(response_option)>(response_option)...) {}
@@ -280,8 +281,9 @@ void Stub<ServiceMethods>::async_call(::grpc::ClientContext &context, const Requ
                                       CallbackFunction &&f,
                                       hpp::proto::concepts::is_option_type auto &&...response_option) {
 
-  auto *callback_reactor = new CallbackUnaryCall{ // NOLINT(cppcoreguidelines-owning-memory)
-      Method{}, std::forward<CallbackFunction>(f), response, response_option...};
+  auto *callback_reactor =
+      new CallbackUnaryCall{// NOLINT(cppcoreguidelines-owning-memory)
+                            Method{}, std::forward<CallbackFunction>(f), response, response_option...};
   callback_reactor->prepare(*this, context, request);
   callback_reactor->start_call();
 }

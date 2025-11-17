@@ -275,7 +275,9 @@ public:
   using BasicServerReactor<Method, RpcHandler>::BasicServerReactor;
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    return new ::grpc::internal::CallbackUnaryHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
+    return new ::grpc::internal::CallbackUnaryHandler<
+        ::grpc::ByteBuffer,
+        ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
         [&service](::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *request,
                    ::grpc::ByteBuffer *response) {
           return new ServerReactor(context, request, response, service); // NOLINT(cppcoreguidelines-owning-memory)
@@ -290,7 +292,9 @@ public:
   void OnReadDone(bool ok) override { this->on_read_done(ok); }
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    return new ::grpc::internal::CallbackClientStreamingHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
+    return new ::grpc::internal::CallbackClientStreamingHandler<
+        ::grpc::ByteBuffer,
+        ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
         [&service](::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *response) {
           return new ServerReactor(context, response, service); // NOLINT(cppcoreguidelines-owning-memory)
         });
@@ -304,7 +308,9 @@ public:
   void OnWriteDone(bool ok) override { this->on_write_done(ok); }
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    return new ::grpc::internal::CallbackServerStreamingHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
+    return new ::grpc::internal::CallbackServerStreamingHandler<
+        ::grpc::ByteBuffer,
+        ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
         [&service](::grpc::CallbackServerContext *context, const ::grpc::ByteBuffer *request) {
           return new ServerReactor(context, request, nullptr, service); // NOLINT(cppcoreguidelines-owning-memory)
         });
@@ -319,7 +325,9 @@ public:
   void OnWriteDone(bool ok) override { this->on_write_done(ok); }
 
   static ::grpc::internal::MethodHandler *grpc_method_handler(auto &service) {
-    return new ::grpc::internal::CallbackBidiHandler<::grpc::ByteBuffer, ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
+    return new ::grpc::internal::CallbackBidiHandler<
+        ::grpc::ByteBuffer,
+        ::grpc::ByteBuffer>( // NOLINT(cppcoreguidelines-owning-memory, portability-template-virtual-member-function)
         [&service](::grpc::CallbackServerContext *context) {
           return new ServerReactor(context, nullptr, service); // NOLINT(cppcoreguidelines-owning-memory)
         });
