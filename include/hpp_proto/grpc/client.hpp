@@ -8,6 +8,7 @@
 
 #include <condition_variable>
 #include <hpp_proto/grpc/serialization.hpp>
+#include <memory>
 #include <mutex>
 #include <type_traits>
 #include <utility>
@@ -246,15 +247,16 @@ public:
 
 template <typename Method, typename CallbackFunction, typename Response, typename Context>
 class CallbackUnaryCall : public ClientCallbackReactor<Method> {
-  std::remove_cvref_t<CallbackFunction> f_;
+  using callback_storage_t = std::remove_cvref_t<CallbackFunction>;
+  callback_storage_t f_;
   Response &response_ref_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
   Context response_context_;
 
 public:
-  CallbackUnaryCall(Method, CallbackFunction &&f,
+  CallbackUnaryCall(Method, callback_storage_t callback,
                     Response &response, // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
                     hpp::proto::concepts::is_option_type auto &&...response_option)
-      : f_(std::forward<CallbackFunction>(f)), response_ref_(response),
+      : f_(std::move(callback)), response_ref_(response),
         response_context_(std::forward<decltype(response_option)>(response_option)...) {}
 
   void OnDone(const ::grpc::Status &status) override {
@@ -281,10 +283,13 @@ void Stub<ServiceMethods>::async_call(::grpc::ClientContext &context, const Requ
                                       CallbackFunction &&f,
                                       hpp::proto::concepts::is_option_type auto &&...response_option) {
 
-  auto *callback_reactor =
-      new CallbackUnaryCall{// NOLINT(cppcoreguidelines-owning-memory)
-                            Method{}, std::forward<CallbackFunction>(f), response, response_option...};
+  using CallbackReactorType =
+      CallbackUnaryCall<Method, CallbackFunction, Response,
+                        hpp::proto::pb_context<std::remove_cvref_t<decltype(response_option)>...>>;
+
+  auto callback_reactor = std::unique_ptr<CallbackReactorType>{
+      new CallbackReactorType{Method{}, std::forward<CallbackFunction>(f), response, response_option...}};
   callback_reactor->prepare(*this, context, request);
-  callback_reactor->start_call();
+  callback_reactor.release()->start_call(); // gRPC callback deletes reactor in OnDone
 }
 } // namespace hpp::proto::grpc
