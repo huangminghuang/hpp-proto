@@ -99,8 +99,8 @@ namespace grpc {
 
     [[nodiscard]] std::size_t size() const { return slices_.size(); }
     [[nodiscard]] const slice_span *data() const { return slices_.data(); }
-    [[nodiscard]] auto cbegin() const { return slices_.cbegin(); }
-    [[nodiscard]] auto cend() const { return slices_.cend(); }
+    [[nodiscard]] auto cbegin() const { return std::cbegin(slices_); }
+    [[nodiscard]] auto cend() const { return std::cend(slices_); }
     [[nodiscard]] auto begin() const { return slices_.begin(); }
     [[nodiscard]] auto end() const { return slices_.end(); }
   };

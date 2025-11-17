@@ -189,7 +189,7 @@ else()
         protobuf_generate_hpp(
             TARGET basic_test_proto2_lib
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,namespace_prefix=test,export_request=basic_test_proto2.request.binpb")
+            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,namespace_prefix=test")
 
         add_executable(basic_test_proto2 basic_test_proto2.cpp)
         target_link_libraries(basic_test_proto2 PRIVATE basic_test_proto2_lib)
