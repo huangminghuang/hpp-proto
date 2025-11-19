@@ -754,6 +754,8 @@ public:
   using encode_type = T;
   using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
   using storage_type = repeated_storage_base<value_type>;
+  using difference_type = std::ptrdiff_t;
+  using size_type = std::size_t;
   constexpr static field_kind_t field_kind = Kind;
 
   repeated_scalar_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
@@ -771,6 +773,10 @@ public:
   value_type operator[](std::size_t index) const noexcept {
     assert(index < storage_->size);
     return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
+  }
+
+  value_type operator[](difference_type index) const noexcept {
+    return (*this)[static_cast<size_type>(index)];
   }
 
   [[nodiscard]] value_type at(std::size_t index) const {
@@ -802,6 +808,8 @@ public:
   using encode_type = T;
   using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
   using storage_type = repeated_storage_base<value_type>;
+  using difference_type = std::ptrdiff_t;
+  using size_type = std::size_t;
   constexpr static field_kind_t field_kind = Kind;
 
   repeated_scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
@@ -824,6 +832,10 @@ public:
   value_type &operator[](std::size_t index) const noexcept {
     assert(index < storage_->size);
     return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
+  }
+
+  value_type &operator[](difference_type index) const noexcept {
+    return (*this)[static_cast<size_type>(index)];
   }
 
   [[nodiscard]] value_type &at(std::size_t index) const {
@@ -957,6 +969,8 @@ public:
   using encode_type = vint32_t;
   using reference = enum_value_cref;
   using iterator = repeated_field_iterator<repeated_enum_field_cref>;
+  using difference_type = std::ptrdiff_t;
+  using size_type = std::size_t;
   static_assert(std::input_or_output_iterator<iterator>);
   static_assert(std::semiregular<iterator>);
   constexpr static field_kind_t field_kind = KIND_REPEATED_ENUM;
@@ -984,6 +998,10 @@ public:
             *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
   }
 
+  [[nodiscard]] reference operator[](difference_type index) const noexcept {
+    return (*this)[static_cast<size_type>(index)];
+  }
+
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
       return {*descriptor_->enum_field_type_descriptor(),
@@ -1006,6 +1024,8 @@ public:
   using reference = enum_value_mref;
   using value_type = uint32_t;
   using iterator = repeated_field_iterator<repeated_enum_field_mref>;
+  using difference_type = std::ptrdiff_t;
+  using size_type = std::size_t;
   constexpr static field_kind_t field_kind = KIND_REPEATED_ENUM;
 
   repeated_enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
@@ -1052,6 +1072,10 @@ public:
     assert(index < size());
     return {*descriptor_->enum_field_type_descriptor(),
             *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
+  }
+
+  [[nodiscard]] reference operator[](difference_type index) const noexcept {
+    return (*this)[static_cast<size_type>(index)];
   }
 
   [[nodiscard]] reference at(std::size_t index) const {
@@ -1407,6 +1431,8 @@ public:
   using encode_type = message_value_cref;
   using reference = message_value_cref;
   using iterator = repeated_field_iterator<repeated_message_field_cref>;
+  using difference_type = std::ptrdiff_t;
+  using size_type = std::size_t;
   constexpr static field_kind_t field_kind = KIND_REPEATED_MESSAGE;
 
   repeated_message_field_cref(const field_descriptor_t &descriptor,
@@ -1429,6 +1455,10 @@ public:
     assert(index < size());
     const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
     return {message_descriptor(), std::next(storage_->content, offset)};
+  }
+
+  [[nodiscard]] message_value_cref operator[](difference_type index) const noexcept {
+    return (*this)[static_cast<size_type>(index)];
   }
 
   [[nodiscard]] message_value_cref at(std::size_t index) const {
@@ -1462,6 +1492,8 @@ public:
   using encode_type = message_value_mref;
   using reference = message_value_mref;
   using iterator = repeated_field_iterator<repeated_message_field_mref>;
+  using difference_type = std::ptrdiff_t;
+  using size_type = std::size_t;
   constexpr static field_kind_t field_kind = KIND_REPEATED_MESSAGE;
 
   repeated_message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
@@ -1507,6 +1539,10 @@ public:
     assert(index < size());
     const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
     return {message_descriptor(), std::next(storage_->content, offset), *memory_resource_};
+  }
+
+  [[nodiscard]] message_value_mref operator[](difference_type index) const noexcept {
+    return (*this)[static_cast<size_type>(index)];
   }
 
   [[nodiscard]] message_value_mref at(std::size_t index) const {

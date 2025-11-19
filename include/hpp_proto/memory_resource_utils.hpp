@@ -42,8 +42,8 @@ concept has_memory_resource =
 
 template <typename T>
 concept resizable = requires {
-  std::declval<T &>().resize(1);
-  std::declval<T>()[0];
+  std::declval<T &>().resize(std::size_t{1});
+  std::declval<T>()[std::size_t{}];
 };
 
 template <typename T>
