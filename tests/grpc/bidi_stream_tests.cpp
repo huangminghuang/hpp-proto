@@ -18,6 +18,7 @@ using hpp::proto::grpc::test_utils::kTerminalSequence;
 
 class BidiReactor : public ::hpp::proto::grpc::ClientCallbackReactor<BidiStreamChat> {
   std::mutex mu_;
+  std::mutex write_mu_;
   std::condition_variable cv_;
   bool done_ = false;
   bool writes_complete_ = false;
@@ -26,6 +27,7 @@ class BidiReactor : public ::hpp::proto::grpc::ClientCallbackReactor<BidiStreamC
   ::grpc::Status status_;
   std::vector<std::string> responses_;
   ::grpc::ClientContext *context_ = nullptr;
+  bool sentinel_sent_ = false;
 
 public:
   using request_t = EchoRequest<>;
@@ -72,6 +74,17 @@ public:
       return;
     }
     send_next();
+    bool should_close = false;
+    {
+      std::lock_guard<std::mutex> lock(write_mu_);
+      if (sentinel_sent_ && !writes_complete_ && next_payload_ >= payloads_.size()) {
+        writes_complete_ = true;
+        should_close = true;
+      }
+    }
+    if (should_close) {
+      this->write_done();
+    }
   }
 
   void OnDone(const ::grpc::Status &status) override {
@@ -85,18 +98,22 @@ public:
 
 private:
   void send_next() {
+    std::lock_guard<std::mutex> lock(write_mu_);
     if (writes_complete_) {
       return;
     }
     if (next_payload_ >= payloads_.size()) {
+      if (sentinel_sent_) {
+        return;
+      }
+      sentinel_sent_ = true;
       request_t sentinel;
       sentinel.message = "bye";
       sentinel.sequence = kTerminalSequence;
-      auto status = this->write_last(sentinel, ::grpc::WriteOptions{});
+      auto status = this->write(sentinel);
       if (!status.ok()) {
         OnDone(status);
       }
-      writes_complete_ = true;
       return;
     }
 
