@@ -76,7 +76,7 @@ public:
     send_next();
     bool should_close = false;
     {
-      std::lock_guard<std::mutex> lock(write_mu_);
+      std::scoped_lock<std::mutex> lock(write_mu_);
       if (sentinel_sent_ && !writes_complete_ && next_payload_ >= payloads_.size()) {
         writes_complete_ = true;
         should_close = true;
@@ -98,7 +98,7 @@ public:
 
 private:
   void send_next() {
-    std::lock_guard<std::mutex> lock(write_mu_);
+    std::scoped_lock<std::mutex> lock(write_mu_);
     if (writes_complete_) {
       return;
     }
