@@ -1,0 +1,36 @@
+{
+    "version": 9,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 23,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "asan",
+            "hidden": true,
+            "displayName": "Address Sanitizer",
+            "cacheVariables": {
+                "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+            }
+        },
+        {
+            "name": "msan",
+            "hidden": true,
+            "displayName": "Memory Sanitizer",
+            "cacheVariables": {
+                "CMAKE_CXX_FLAGS": "-fsanitize=memory",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=memory"
+            }
+        },
+        {
+            "name": "fuzz",
+            "hidden": true,
+            "cacheVariables": {
+                "HPP_PROTO_FUZZ_CXX_FLAGS": "-fsanitize=fuzz,address -fno-sanitize-recover=all",
+                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzz,address"
+            }
+        }
+    ]
+}

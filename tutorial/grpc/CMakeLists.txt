@@ -5,30 +5,6 @@ if(NOT gRPC_FOUND)
     return()
 endif()
 
-include(CheckCXXSourceCompiles)
-
-set(CMAKE_REQUIRED_LIBRARIES gRPC::grpc++)
-
-check_cxx_source_compiles("
-      #include <grpcpp/grpcpp.h>
-      int main() {
-        grpc::CreateChannel(\"127.0.0.0:1234\", grpc::InsecureChannelCredentials());
-        return 0;
-      }
-    " GRPC_COMPILES)
-
-if(NOT GRPC_COMPILES)
-    message(WARNING "gRPC does not compile, skipping gRPC examples")
-    return()
-endif()
-
-if (HPP_PROTO_ENABLE_SANITIZERS)
-    # Unless we compile the grpc library direct with sanitizers; otherwise, we
-    # will have false positives. Just disable the sanitizer entirely.
-    add_compile_options(-fno-sanitize=${HPP_PROTO_ENABLE_SANITIZERS})
-    add_link_options(-fno-sanitize=${HPP_PROTO_ENABLE_SANITIZERS})
-endif()
-
 # # when sanitizer is enable, we can't use gRPC unless the gRPC library is built with sanitizer.
 add_library(helloworld INTERFACE)
 

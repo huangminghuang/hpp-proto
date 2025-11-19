@@ -27,7 +27,7 @@ protobuf_generate_hpp(
     PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(grpc_proto_lib INTERFACE gRPC::grpc++)
 
-set(GRPC_QUALITY_TEST_CASES
+set(GRPC_TEST_CASES
     unary_tests.cpp
     client_stream_tests.cpp
     server_stream_tests.cpp
@@ -44,7 +44,7 @@ target_include_directories(grpc_test_server PRIVATE
 
 set(GRPC_TEST_RUNNER "${CMAKE_CURRENT_SOURCE_DIR}/run_grpc_test.py")
 
-foreach(test_src IN LISTS GRPC_QUALITY_TEST_CASES)
+foreach(test_src IN LISTS GRPC_TEST_CASES)
     get_filename_component(test_name "${test_src}" NAME_WE)
     set(target_name "grpc_${test_name}")
 

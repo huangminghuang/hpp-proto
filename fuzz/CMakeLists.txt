@@ -1,20 +1,12 @@
 
-if(DEFINED ENV{LIB_FUZZING_ENGINE})
-  set(LIB_FUZZING_ENGINE $ENV{LIB_FUZZING_ENGINE})
-else()
-  set(FUZZ_COMPILE_FLAGS "-fsanitize=fuzzer,${HPP_PROTO_ENABLE_SANITIZERS}" -fno-sanitize-recover=all)
-  set(LIB_FUZZING_ENGINE "-fsanitize=fuzzer,${HPP_PROTO_ENABLE_SANITIZERS}")
-endif()
-
 function(add_fuzz_target target source)
   add_executable(${target} ${source})
   target_link_libraries(${target} PRIVATE hpp_proto::libhpp_proto unittest_proto_lib)
-  target_compile_options(${target} PRIVATE ${FUZZ_COMPILE_FLAGS})
-  target_link_options(${target} PRIVATE ${LIB_FUZZING_ENGINE})
+  target_compile_options(${target} PRIVATE ${HPP_PROTO_FUZZ_CXX_FLAGS})
+  target_link_options(${target} PRIVATE ${HPP_PROTO_FUZZ_LINKER_FLAGS})
 
-  if(DEFINED FUZZ_COMPILE_FLAGS)
+  if(DEFINED HPP_PROTO_FUZZ_CXX_FLAGS)
     add_executable(${target}_debug_case ${source} fuzz_case_main.cpp)
-    target_compile_options(${target}_debug_case PRIVATE -fsanitize=${HPP_PROTO_ENABLE_SANITIZERS})
     target_link_libraries(${target}_debug_case PRIVATE hpp_proto::libhpp_proto unittest_proto_lib)
   endif()
 endfunction()

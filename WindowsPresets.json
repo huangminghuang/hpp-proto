@@ -1,0 +1,27 @@
+{
+    "version": 7,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 23,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "asan",
+            "hidden": true,
+            "displayName": "Address Sanitizer",
+            "cacheVariables": {
+                "CMAKE_CXX_FLAGS": "/fsanitize=address",
+                "CMAKE_EXE_LINKER_FLAGS": "/fsanitize=address"
+            }
+        },
+        {
+            "name": "msan",
+            "hidden": true
+        },
+        {
+            "name": "ubsan",
+            "hidden": true
+        }
+    ]
+}

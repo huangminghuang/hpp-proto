@@ -13,7 +13,6 @@ option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 
-option(HPP_PROTO_ENABLE_SANITIZERS "The sanitizer to enable" OFF)
 option(HPP_PROTO_BUILD_FUZZ "Build fuzz target" OFF)
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
@@ -62,24 +61,6 @@ if(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER_LAUNCHER STREQ
 endif()
 
 include(third-parties.cmake)
-
-if(HPP_PROTO_ENABLE_SANITIZERS)
-  if(MSVC)
-    # add_compile_options("/fsanitize=address")
-    # add_link_options("/fsanitize=address")
-  else()
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND HPP_PROTO_PROTOC STREQUAL "compile")
-      # absl library have trouble to compile when undefined sanitizer is enabled
-      string(REPLACE "," ";" _tmp_list "${HPP_PROTO_ENABLE_SANITIZERS}")
-      list(REMOVE_ITEM _tmp_list "undefined")
-      string(REPLACE ";" "," USE_SANITIZERS "${_tmp_list}")
-    else()
-      set(USE_SANITIZERS "${HPP_PROTO_ENABLE_SANITIZERS}")
-    endif()
-    add_compile_options("-fsanitize=${USE_SANITIZERS}" "-fno-omit-frame-pointer")
-    add_link_options("-fsanitize=${USE_SANITIZERS}")
-  endif()
-endif()
 
 set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} -g -O0 --coverage -fprofile-arcs -ftest-coverage")
 
