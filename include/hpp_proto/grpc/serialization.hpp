@@ -45,7 +45,7 @@ namespace grpc {
 ::grpc::Status write_proto(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer) {
   class slice_arena {
     ::grpc::ByteBuffer *buffer_;
-    grpc_slice slice_{};
+    ::grpc::Slice slice_{};
 
   public:
     explicit slice_arena(::grpc::ByteBuffer &buffer) : buffer_(&buffer) {}
@@ -54,17 +54,17 @@ namespace grpc {
     slice_arena &operator=(const slice_arena &) = delete;
     slice_arena &operator=(slice_arena &&) = delete;
     ~slice_arena() {
-      ::grpc::Slice slice(slice_, ::grpc::Slice::STEAL_REF);
-      *buffer_ = ::grpc::ByteBuffer{&slice, 1};
+      ::grpc::ByteBuffer tmp(&slice_, 1);
+      buffer_->Swap(&tmp);
     }
 
     void *allocate(std::size_t size, std::size_t) {
-      assert(slice_.refcount == nullptr);
-      slice_ = grpc_slice_malloc(size);
-      return GRPC_SLICE_START_PTR(slice_);
+      std::construct_at(&slice_, size);
+      return const_cast<uint8_t *>(slice_.begin());
     }
   } pool{buffer};
   std::span<const std::byte> buf;
+  // TODO: consider writing to a chain of bounded slices
   if (::hpp::proto::write_proto(message, buf, ::hpp::proto::alloc_from{pool}).ok()) [[likely]] {
     return ::grpc::Status::OK;
   }
@@ -140,12 +140,15 @@ template <class T>
   requires ::hpp::proto::concepts::with_pb_context<T>
 class SerializationTraits<T> {
 public:
-  static Status Serialize(const T &msg_with_context, ByteBuffer *bb, bool *) {
+  static Status Serialize(const T &msg_with_context, ByteBuffer *bb, bool *own_buffer) {
+    *own_buffer = true;
     return ::hpp::proto::grpc::write_proto(msg_with_context.message, *bb);
   }
 
   static Status Deserialize(ByteBuffer *buffer, T *msg_with_context) {
-    return ::hpp::proto::grpc::read_proto(msg_with_context->message, *buffer, msg_with_context->context);
+    auto status = ::hpp::proto::grpc::read_proto(msg_with_context->message, *buffer, msg_with_context->context);
+    buffer->Clear();
+    return status;
   }
 };
 } // namespace grpc

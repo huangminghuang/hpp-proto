@@ -1857,6 +1857,7 @@ struct service_generator : code_generator {
 
       fmt::format_to(target, "namespace {} {{\n", s.name);
       auto qualified_service_name = ns.empty() ? s.name : ns + "." + s.name;
+      auto proto_service_name = package.empty() ? s.name : package + "." + s.name;
       std::string methods;
       std::size_t ordinal = 0;
       for (const auto &m : s.method) {
@@ -1864,7 +1865,7 @@ struct service_generator : code_generator {
         const int rpc_type = (m.server_streaming ? 2 : 0) + (m.client_streaming ? 1 : 0);
         fmt::format_to(target,
                        "  struct {} {{\n"
-                       "    constexpr static const char* method_name = \"{}/{}\";\n"
+                       "    constexpr static const char* method_name = \"/{}/{}\";\n"
                        "    constexpr static bool client_streaming = {};\n"
                        "    constexpr static bool server_streaming = {};\n"
                        "    constexpr static int rpc_type = {};\n"
@@ -1874,7 +1875,7 @@ struct service_generator : code_generator {
                        "    template <typename Traits>\n"
                        "    using response_t = {}<Traits>;\n"
                        "  }};\n",
-                       m.name, qualified_service_name, m.name, m.client_streaming, m.server_streaming, rpc_type,
+                       m.name, proto_service_name, m.name, m.client_streaming, m.server_streaming, rpc_type,
                        ordinal++, make_qualified_cpp_name(descriptor.namespace_prefix, m.input_type),
                        make_qualified_cpp_name(descriptor.namespace_prefix, m.output_type));
       }

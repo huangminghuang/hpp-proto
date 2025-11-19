@@ -46,7 +46,7 @@ public:
   // define the callback handler for SayHelloStreamReply
   struct SayHelloStreamReplyHandler {
     std::mutex mx;
-    int count = 10;
+    int count = 3;
     std::string message;
     using rpc_t = ::hpp::proto::grpc::ServerRPC<SayHelloStreamReply>;
 
