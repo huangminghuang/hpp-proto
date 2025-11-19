@@ -5,6 +5,22 @@ if(NOT gRPC_FOUND)
     return()
 endif()
 
+include(CheckCXXSourceCompiles)
+set(CMAKE_REQUIRED_LIBRARIES gRPC::grpc++)
+check_cxx_source_compiles("
+      #include <grpcpp/grpcpp.h>
+      int main() {
+        grpc::CreateChannel(\"127.0.0.0:1234\", grpc::InsecureChannelCredentials());
+        return 0;
+      }
+    " HPP_PROTO_GRPC_TESTS_COMPILE)
+set(CMAKE_REQUIRED_LIBRARIES)
+
+if(NOT HPP_PROTO_GRPC_TESTS_COMPILE)
+    message(WARNING "gRPC headers found but compilation failed, skipping grpc tutorial targets")
+    return()
+endif()
+
 # # when sanitizer is enable, we can't use gRPC unless the gRPC library is built with sanitizer.
 add_library(helloworld INTERFACE)
 
