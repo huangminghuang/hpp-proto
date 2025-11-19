@@ -1875,8 +1875,8 @@ struct service_generator : code_generator {
                        "    template <typename Traits>\n"
                        "    using response_t = {}<Traits>;\n"
                        "  }};\n",
-                       m.name, proto_service_name, m.name, m.client_streaming, m.server_streaming, rpc_type,
-                       ordinal++, make_qualified_cpp_name(descriptor.namespace_prefix, m.input_type),
+                       m.name, proto_service_name, m.name, m.client_streaming, m.server_streaming, rpc_type, ordinal++,
+                       make_qualified_cpp_name(descriptor.namespace_prefix, m.input_type),
                        make_qualified_cpp_name(descriptor.namespace_prefix, m.output_type));
       }
       // remove trailing comma

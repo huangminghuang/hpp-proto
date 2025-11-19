@@ -13,7 +13,6 @@ using hpp::proto::grpc::EchoRequest;
 using hpp::proto::grpc::EchoResponse;
 using hpp::proto::grpc::EchoStreamService;
 
-
 class OfficialUnaryHarness {
 public:
   OfficialUnaryHarness() {
@@ -23,9 +22,7 @@ public:
     stub_ = EchoStreamService::NewStub(channel_);
   }
 
-  ~OfficialUnaryHarness() {
-    
-  }
+  ~OfficialUnaryHarness() {}
 
   EchoStreamService::Stub &stub() { return *stub_; }
 
