@@ -887,9 +887,9 @@ class repeated_field_iterator {
 
 public:
   using iterator_category = std::random_access_iterator_tag;
-  using value_type = Field::reference;
+  using value_type = typename Field::reference;
   using difference_type = std::ptrdiff_t;
-  using reference = Field::reference;
+  using reference = typename Field::reference;
   using pointer = void;
   repeated_field_iterator() = default;
   repeated_field_iterator(const Field *field, std::size_t index) noexcept : field_(field), index_(index) {}
@@ -917,11 +917,11 @@ public:
     return tmp;
   }
   repeated_field_iterator &operator+=(std::ptrdiff_t n) noexcept {
-    index_ += n;
+    index_ = static_cast<std::size_t>(static_cast<std::ptrdiff_t>(index_) + n);
     return *this;
   }
   repeated_field_iterator &operator-=(std::ptrdiff_t n) noexcept {
-    index_ -= n;
+    index_ = static_cast<std::size_t>(static_cast<std::ptrdiff_t>(index_) - n);
     return *this;
   }
   repeated_field_iterator operator+(std::ptrdiff_t n) const noexcept {
@@ -934,7 +934,9 @@ public:
     tmp -= n;
     return tmp;
   }
-  std::ptrdiff_t operator-(const repeated_field_iterator &other) const noexcept { return index_ - other.index_; }
+  std::ptrdiff_t operator-(const repeated_field_iterator &other) const noexcept {
+    return static_cast<std::ptrdiff_t>(index_) - static_cast<std::ptrdiff_t>(other.index_);
+  }
 
   std::strong_ordering operator<=>(const repeated_field_iterator &other) const noexcept {
     assert(field_ == other.field_);
@@ -946,7 +948,7 @@ public:
     return index_ == other.index_;
   }
 
-  reference operator*() const noexcept { return (*field_)[static_cast<std::size_t>(index_)]; }
+  reference operator*() const noexcept { return (*field_)[index_]; }
 };
 
 class repeated_enum_field_cref : public std::ranges::view_interface<repeated_enum_field_cref> {
