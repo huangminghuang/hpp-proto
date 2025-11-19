@@ -29,7 +29,8 @@
             "hidden": true,
             "cacheVariables": {
                 "HPP_PROTO_FUZZ_CXX_FLAGS": "-fsanitize=fuzz,address -fno-sanitize-recover=all",
-                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzz,address"
+                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzz,address",
+                "HPP_PROTO_BUILD_FUZZ": "ON"
             }
         }
     ]

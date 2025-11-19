@@ -109,6 +109,8 @@ if(GRPC_OFFICIAL_PROTO_AVAILABLE)
     target_link_libraries(grpc_official_proto PUBLIC
         protobuf::libprotobuf
         gRPC::grpc++)
+    target_compile_options(grpc_official_proto PRIVATE
+        $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang>:-w>)
 
     add_executable(grpc_unary_official_tests
         grpc_tests.cpp
@@ -116,6 +118,7 @@ if(GRPC_OFFICIAL_PROTO_AVAILABLE)
     target_link_libraries(grpc_unary_official_tests PRIVATE
         grpc_official_proto
         Boost::ut)
+    set_property(TARGET grpc_official_proto grpc_unary_official_tests PROPERTY CXX_CLANG_TIDY "" )
 
     add_test(NAME grpc_unary_official_tests
         COMMAND ${Python3_EXECUTABLE} "${GRPC_TEST_RUNNER}" $<TARGET_FILE:grpc_test_server> $<TARGET_FILE:grpc_unary_official_tests>

@@ -22,8 +22,6 @@ public:
     stub_ = EchoStreamService::NewStub(channel_);
   }
 
-  ~OfficialUnaryHarness() {}
-
   EchoStreamService::Stub &stub() { return *stub_; }
 
 private:

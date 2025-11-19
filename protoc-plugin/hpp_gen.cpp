@@ -1856,7 +1856,6 @@ struct service_generator : code_generator {
       }
 
       fmt::format_to(target, "namespace {} {{\n", s.name);
-      auto qualified_service_name = ns.empty() ? s.name : ns + "." + s.name;
       auto proto_service_name = package.empty() ? s.name : package + "." + s.name;
       std::string methods;
       std::size_t ordinal = 0;

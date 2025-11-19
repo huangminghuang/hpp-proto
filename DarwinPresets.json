@@ -1,5 +1,5 @@
 {
-    "version": 7,
+    "version": 9,
     "cmakeMinimumRequired": {
         "major": 3,
         "minor": 23,
@@ -28,8 +28,9 @@
             "name": "fuzz",
             "hidden": true,
             "cacheVariables": {
-                "HPP_PROTO_FUZZ_CXX_FLAGS": "-fsanitize=fuzz,address  -fno-sanitize-recover=all",
-                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzz,address"
+                "HPP_PROTO_FUZZ_CXX_FLAGS": "-fsanitize=fuzz,address -fno-sanitize-recover=all",
+                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzz,address",
+                "HPP_PROTO_BUILD_FUZZ": "ON"
             }
         }
     ]

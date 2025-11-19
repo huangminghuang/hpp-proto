@@ -45,7 +45,7 @@ namespace grpc {
 ::grpc::Status write_proto(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer) {
   class slice_arena {
     ::grpc::ByteBuffer *buffer_;
-    ::grpc::Slice slice_{};
+    ::grpc::Slice slice_;
 
   public:
     explicit slice_arena(::grpc::ByteBuffer &buffer) : buffer_(&buffer) {}
@@ -60,6 +60,7 @@ namespace grpc {
 
     void *allocate(std::size_t size, std::size_t) {
       std::construct_at(&slice_, size);
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
       return const_cast<uint8_t *>(slice_.begin());
     }
   } pool{buffer};
