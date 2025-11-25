@@ -218,6 +218,7 @@ public:
 
     for (auto [name, id] : wellknown_mappings) {
       if (auto *desc = get_message_descriptor(name); desc != nullptr) {
+        // TODO: we need to validate these wellknown types
         desc->wellknown = id;
       }
     }
@@ -275,9 +276,18 @@ union value_storage {
   void reset() noexcept { of_repeated_int64.size = 0; }
 };
 
+namespace concepts {
+template <typename T>
+concept const_field_ref = !T::is_mutable && requires { T::field_kind; };
+
+template <typename T>
+concept mutable_field_ref = T::is_mutable && requires { T::field_kind; };
+}; // namespace concepts
+
 class field_cref {
   const field_descriptor_t *descriptor_;
   const value_storage *storage_;
+  friend class field_mref;
 
 public:
   field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
@@ -313,7 +323,7 @@ public:
     return std::nullopt;
   }
 
-  auto visit(auto &&v);
+  auto visit(auto &&v) const;
 }; // class field_cref
 
 class field_mref {
@@ -331,6 +341,8 @@ public:
   field_mref &operator=(const field_mref &) noexcept = default;
   field_mref &operator=(field_mref &&) noexcept = default;
   ~field_mref() noexcept = default;
+
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   void reset() noexcept { storage_->reset(); }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -350,7 +362,12 @@ public:
   [[nodiscard]] field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator field_cref() const noexcept { return cref(); }
-  auto visit(auto &&v);
+  auto visit(auto &&v) const;
+  void alias_from(const field_mref &other) const noexcept {
+    assert(this->descriptor_ == other.descriptor_);
+    *storage_ = *other.storage_;
+  }
+  void clone_from(const field_cref &other) const noexcept;
 }; // class field_mref
 
 template <typename T>
@@ -364,6 +381,7 @@ public:
   using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
   using storage_type = scalar_storage_base<value_type>;
   constexpr static field_kind_t field_kind = Kind;
+  constexpr static bool is_mutable = false;
 
   scalar_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -386,11 +404,14 @@ public:
     return storage_->content;
   }
 
-  [[nodiscard]] value_type operator*() const noexcept { return value(); }
+  // [[nodiscard]] value_type operator*() const noexcept { return value(); }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
 private:
+  template <typename, field_kind_t>
+  friend class scalar_field_mref;
+
   const field_descriptor_t *descriptor_;
   const storage_type *storage_;
 };
@@ -401,7 +422,10 @@ public:
   using encode_type = T;
   using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
   using storage_type = scalar_storage_base<value_type>;
+  using cref_type = scalar_field_cref<T, Kind>;
+
   constexpr static field_kind_t field_kind = Kind;
+  constexpr static bool is_mutable = true;
 
   scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                     std::pmr::monotonic_buffer_resource &) noexcept
@@ -413,18 +437,20 @@ public:
   scalar_field_mref &operator=(const scalar_field_mref &) noexcept = default;
   scalar_field_mref &operator=(scalar_field_mref &&) noexcept = default;
   ~scalar_field_mref() noexcept = default;
-  scalar_field_mref &operator=(T v) noexcept {
+  void set(T v) const noexcept {
     storage_->content = v;
     storage_->selection = descriptor_->oneof_ordinal;
-    return *this;
   }
+
+  void alias_from(const scalar_field_cref<T, Kind> &other) const noexcept { set(other.value()); }
+  void clone_from(scalar_field_cref<T, Kind> other) const noexcept { set(other.value()); }
 
   [[nodiscard]] scalar_field_cref<T, Kind> cref() const noexcept { return {*descriptor_, *storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator scalar_field_cref<T, Kind>() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
-  [[nodiscard]] value_type operator*() const noexcept { return cref().operator*(); }
+  // [[nodiscard]] value_type operator*() const noexcept { return cref().operator*(); }
   [[nodiscard]] value_type value() const noexcept { return cref().value(); }
   void reset() noexcept { storage_->selection = 0; }
 
@@ -441,6 +467,7 @@ public:
   using value_type = std::string_view;
   using storage_type = string_storage_t;
   constexpr static field_kind_t field_kind = KIND_STRING;
+  constexpr static bool is_mutable = false;
 
   string_field_cref(const field_descriptor_t &descriptor, const string_storage_t &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -468,6 +495,7 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
 private:
+  friend class string_field_mref;
   const field_descriptor_t *descriptor_;
   const string_storage_t *storage_;
 };
@@ -477,12 +505,14 @@ public:
   using encode_type = std::string_view;
   using value_type = std::string_view;
   using storage_type = string_storage_t;
+  using cref_type = string_field_cref;
   constexpr static field_kind_t field_kind = KIND_STRING;
+  constexpr static bool is_mutable = true;
 
   string_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
-                    std::pmr::monotonic_buffer_resource &) noexcept
+                    std::pmr::monotonic_buffer_resource &mr) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_string) {}
+      : descriptor_(&descriptor), storage_(&storage.of_string), memory_resource_(&mr) {}
 
   string_field_mref(const string_field_mref &) noexcept = default;
   string_field_mref(string_field_mref &&) noexcept = default;
@@ -490,11 +520,30 @@ public:
   string_field_mref &operator=(string_field_mref &&) noexcept = default;
   ~string_field_mref() noexcept = default;
 
-  string_field_mref &operator=(std::string_view v) noexcept {
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
+  void adopt(std::string_view v) const noexcept {
     storage_->content = v.data();
     storage_->size = static_cast<uint32_t>(v.size());
     storage_->selection = descriptor_->oneof_ordinal;
-    return *this;
+  }
+
+  void assign(std::string_view v) const noexcept {
+    auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
+    std::copy(v.begin(), v.end(), dest);
+    storage_->content = dest;
+    storage_->size = static_cast<uint32_t>(v.size());
+    storage_->selection = descriptor_->oneof_ordinal;
+  }
+
+  void alias_from(const cref_type &other) const noexcept { *storage_ = *other.storage_; }
+
+  void clone_from(const cref_type &other) const noexcept {
+    if (other.has_value()) {
+      assign(other.value());
+    } else {
+      reset();
+    }
   }
 
   [[nodiscard]] string_field_cref cref() const noexcept { return string_field_cref{*descriptor_, *storage_}; }
@@ -505,7 +554,7 @@ public:
   [[nodiscard]] std::string_view value() const noexcept { return cref().value(); }
   [[nodiscard]] std::string_view operator*() const noexcept { return cref().operator*(); }
 
-  void reset() noexcept {
+  void reset() const noexcept {
     storage_->size = 0;
     storage_->selection = 0;
   }
@@ -515,6 +564,7 @@ public:
 private:
   const field_descriptor_t *descriptor_;
   string_storage_t *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
 
   [[nodiscard]] bool is_default_value(std::string_view v) const noexcept {
     return std::ranges::equal(v, descriptor_->proto().default_value);
@@ -527,6 +577,7 @@ public:
   using value_type = bytes_view;
   using storage_type = bytes_storage_t;
   constexpr static field_kind_t field_kind = KIND_BYTES;
+  constexpr static bool is_mutable = false;
 
   bytes_field_cref(const field_descriptor_t &descriptor, const bytes_storage_t &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -556,6 +607,7 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
 private:
+  friend class bytes_field_mref;
   const field_descriptor_t *descriptor_;
   const bytes_storage_t *storage_;
 };
@@ -565,25 +617,48 @@ public:
   using encode_type = bytes_view;
   using value_type = bytes_view;
   using storage_type = bytes_storage_t;
+  using cref_type = bytes_field_cref;
   constexpr static field_kind_t field_kind = KIND_BYTES;
+  constexpr static bool is_mutable = true;
 
   bytes_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
-                   std::pmr::monotonic_buffer_resource &) noexcept
+                   std::pmr::monotonic_buffer_resource &mr) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_bytes) {}
+      : descriptor_(&descriptor), storage_(&storage.of_bytes), memory_resource_(&mr) {}
 
   bytes_field_mref(const bytes_field_mref &) noexcept = default;
   bytes_field_mref(bytes_field_mref &&) noexcept = default;
   bytes_field_mref &operator=(const bytes_field_mref &) noexcept = default;
   bytes_field_mref &operator=(bytes_field_mref &&) noexcept = default;
   ~bytes_field_mref() = default;
-  bytes_field_mref &operator=(std::span<const std::byte> v) noexcept {
+
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
+  void adopt(std::span<const std::byte> v) const noexcept {
     storage_->content = v.data();
     storage_->size = static_cast<uint32_t>(v.size());
     storage_->selection = descriptor_->oneof_ordinal;
-    return *this;
   }
-  [[nodiscard]] bytes_field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
+
+  void assign(std::span<const std::byte> v) const noexcept {
+    auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
+    std::copy(v.begin(), v.end(), dest);
+    storage_->content = dest;
+    storage_->size = static_cast<uint32_t>(v.size());
+    storage_->selection = descriptor_->oneof_ordinal;
+  }
+
+  void alias_from(const cref_type &other) const noexcept { *storage_ = *other.storage_; }
+
+  void clone_from(const cref_type &other) const noexcept {
+    if (other.has_value()) {
+      assign(other.value());
+    } else {
+      reset();
+    }
+  }
+
+  [[nodiscard]] cref_type cref() const noexcept { return {*descriptor_, *storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator bytes_field_cref() const noexcept { return cref(); }
 
@@ -591,7 +666,7 @@ public:
   [[nodiscard]] bytes_view value() const noexcept { return cref().value(); }
   [[nodiscard]] bytes_view operator*() const noexcept { return cref().operator*(); }
 
-  void reset() noexcept {
+  void reset() const noexcept {
     storage_->size = 0;
     storage_->selection = 0;
   }
@@ -601,6 +676,7 @@ public:
 private:
   const field_descriptor_t *descriptor_;
   bytes_storage_t *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
 
   // NOLINTNEXTLINE(performance-unnecessary-value-param)
   [[nodiscard]] bool is_default_value(const bytes_view v) const noexcept {
@@ -609,10 +685,214 @@ private:
   }
 };
 
+class string_value_mref {
+public:
+  using traits_type = std::string_view::traits_type;
+  using value_type = std::string_view::value_type;
+  using pointer = std::string_view::pointer;
+  using const_pointer = std::string_view::const_pointer;
+  using reference = std::string_view::reference;
+  using const_reference = std::string_view::const_reference;
+  using const_iterator = std::string_view::const_iterator;
+  using iterator = std::string_view::iterator;
+  using const_reverse_iterator = std::string_view::const_reverse_iterator;
+  using reverse_iterator = std::string_view::reverse_iterator;
+  using size_type = std::string_view::size_type;
+  using difference_type = std::string_view::difference_type;
+  using char_type = value_type;
+
+  constexpr static bool is_mutable = true;
+  static constexpr size_type npos = std::string_view::npos;
+  string_value_mref(std::string_view &data, std::pmr::monotonic_buffer_resource &mr) noexcept
+      : data_(&data), memory_resource_(&mr) {}
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
+  void adopt(std::string_view v) const noexcept { *data_ = v; }
+
+  void assign(std::string_view v) const noexcept {
+    auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
+    std::copy(v.begin(), v.end(), dest);
+    adopt(std::string_view{dest, v.size()});
+  }
+
+  void clone_from(std::string_view v) const noexcept { assign(v); }
+
+  operator std::string_view() const noexcept { return *data_; }
+
+  auto begin() const noexcept { return view().begin(); }
+  auto cbegin() const noexcept { return view().cbegin(); }
+  auto end() const noexcept { return view().end(); }
+  auto cend() const noexcept { return view().cend(); }
+  auto rbegin() const noexcept { return view().rbegin(); }
+  auto crbegin() const noexcept { return view().crbegin(); }
+  auto rend() const noexcept { return view().rend(); }
+  auto crend() const noexcept { return view().crend(); }
+
+  [[nodiscard]] size_type size() const noexcept { return view().size(); }
+  [[nodiscard]] size_type length() const noexcept { return view().length(); }
+  [[nodiscard]] size_type max_size() const noexcept { return view().max_size(); }
+  [[nodiscard]] bool empty() const noexcept { return view().empty(); }
+
+  const_reference operator[](size_type pos) const noexcept { return view()[pos]; }
+  const_reference at(size_type pos) const { return view().at(pos); }
+  const_reference front() const noexcept { return view().front(); }
+  const_reference back() const noexcept { return view().back(); }
+  const_pointer data() const noexcept { return view().data(); }
+
+  void remove_prefix(size_type n) const noexcept { data_->remove_prefix(n); }
+  void remove_suffix(size_type n) const noexcept { data_->remove_suffix(n); }
+  void swap(std::string_view &other) const noexcept { data_->swap(other); }
+
+  size_type copy(char_type *dest, size_type count, size_type pos = 0) const { return view().copy(dest, count, pos); }
+
+  [[nodiscard]] std::string_view substr(size_type pos = 0, size_type count = npos) const {
+    return view().substr(pos, count);
+  }
+
+  int compare(std::string_view v) const noexcept { return view().compare(v); }
+  int compare(size_type pos1, size_type count1, std::string_view v) const { return view().compare(pos1, count1, v); }
+  int compare(size_type pos1, size_type count1, const char_type *s) const { return view().compare(pos1, count1, s); }
+  int compare(size_type pos1, size_type count1, const char_type *s, size_type count2) const {
+    return view().compare(pos1, count1, s, count2);
+  }
+  int compare(const char_type *s) const { return view().compare(s); }
+
+  bool starts_with(std::string_view v) const noexcept { return view().starts_with(v); }
+  bool starts_with(char_type c) const noexcept { return view().starts_with(c); }
+  bool starts_with(const char_type *s) const { return view().starts_with(s); }
+
+  bool ends_with(std::string_view v) const noexcept { return view().ends_with(v); }
+  bool ends_with(char_type c) const noexcept { return view().ends_with(c); }
+  bool ends_with(const char_type *s) const { return view().ends_with(s); }
+
+  bool contains(std::string_view v) const noexcept { return view().contains(v); }
+  bool contains(char_type c) const noexcept { return view().contains(c); }
+  bool contains(const char_type *s) const { return view().contains(s); }
+
+  bool operator==(std::string_view other) const noexcept { return view() == other; }
+  auto operator<=>(std::string_view other) const noexcept { return view() <=> other; }
+
+  size_type find(std::string_view v, size_type pos = 0) const noexcept { return view().find(v, pos); }
+  size_type find(char_type c, size_type pos = 0) const noexcept { return view().find(c, pos); }
+  size_type find(const char_type *s, size_type pos, size_type count) const { return view().find(s, pos, count); }
+  size_type find(const char_type *s, size_type pos = 0) const { return view().find(s, pos); }
+
+  size_type rfind(std::string_view v, size_type pos = npos) const noexcept { return view().rfind(v, pos); }
+  size_type rfind(char_type c, size_type pos = npos) const noexcept { return view().rfind(c, pos); }
+  size_type rfind(const char_type *s, size_type pos, size_type count) const { return view().rfind(s, pos, count); }
+  size_type rfind(const char_type *s, size_type pos = npos) const { return view().rfind(s, pos); }
+
+  size_type find_first_of(std::string_view v, size_type pos = 0) const noexcept { return view().find_first_of(v, pos); }
+  size_type find_first_of(char_type c, size_type pos = 0) const noexcept { return view().find_first_of(c, pos); }
+  size_type find_first_of(const char_type *s, size_type pos, size_type count) const {
+    return view().find_first_of(s, pos, count);
+  }
+  size_type find_first_of(const char_type *s, size_type pos = 0) const { return view().find_first_of(s, pos); }
+
+  size_type find_last_of(std::string_view v, size_type pos = npos) const noexcept {
+    return view().find_last_of(v, pos);
+  }
+  size_type find_last_of(char_type c, size_type pos = npos) const noexcept { return view().find_last_of(c, pos); }
+  size_type find_last_of(const char_type *s, size_type pos, size_type count) const {
+    return view().find_last_of(s, pos, count);
+  }
+  size_type find_last_of(const char_type *s, size_type pos = npos) const { return view().find_last_of(s, pos); }
+
+  size_type find_first_not_of(std::string_view v, size_type pos = 0) const noexcept {
+    return view().find_first_not_of(v, pos);
+  }
+  size_type find_first_not_of(char_type c, size_type pos = 0) const noexcept {
+    return view().find_first_not_of(c, pos);
+  }
+  size_type find_first_not_of(const char_type *s, size_type pos, size_type count) const {
+    return view().find_first_not_of(s, pos, count);
+  }
+  size_type find_first_not_of(const char_type *s, size_type pos = 0) const { return view().find_first_not_of(s, pos); }
+
+  size_type find_last_not_of(std::string_view v, size_type pos = npos) const noexcept {
+    return view().find_last_not_of(v, pos);
+  }
+  size_type find_last_not_of(char_type c, size_type pos = npos) const noexcept {
+    return view().find_last_not_of(c, pos);
+  }
+  size_type find_last_not_of(const char_type *s, size_type pos, size_type count) const {
+    return view().find_last_not_of(s, pos, count);
+  }
+  size_type find_last_not_of(const char_type *s, size_type pos = npos) const { return view().find_last_not_of(s, pos); }
+
+private:
+  [[nodiscard]] const std::string_view &view() const noexcept { return *data_; }
+
+  std::string_view *data_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
+};
+
+class bytes_value_mref {
+public:
+  constexpr static bool is_mutable = true;
+  using view_type = hpp::proto::bytes_view;
+  using element_type = view_type::element_type;
+  using value_type = view_type::value_type;
+  using size_type = view_type::size_type;
+  using difference_type = view_type::difference_type;
+  using pointer = view_type::pointer;
+  using const_pointer = view_type::const_pointer;
+  using reference = view_type::reference;
+  using const_reference = view_type::const_reference;
+  using iterator = view_type::iterator;
+  using const_iterator = view_type::const_iterator;
+  using reverse_iterator = view_type::reverse_iterator;
+  using const_reverse_iterator = view_type::const_reverse_iterator;
+
+  bytes_value_mref(hpp::proto::bytes_view &data, std::pmr::monotonic_buffer_resource &mr) noexcept
+      : data_(&data), memory_resource_(&mr) {}
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
+  void adopt(hpp::proto::bytes_view v) const noexcept { *data_ = v; }
+
+  void assign(hpp::proto::bytes_view v) const noexcept {
+    auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
+    std::copy(v.begin(), v.end(), dest);
+    adopt(hpp::proto::bytes_view{dest, v.size()});
+  }
+
+  operator hpp::proto::bytes_view() const noexcept { return view(); }
+
+  auto begin() const noexcept { return view().begin(); }
+  auto end() const noexcept { return view().end(); }
+  auto cbegin() const noexcept { return view().cbegin(); }
+  auto cend() const noexcept { return view().cend(); }
+  auto rbegin() const noexcept { return view().rbegin(); }
+  auto rend() const noexcept { return view().rend(); }
+  auto crbegin() const noexcept { return view().crbegin(); }
+  auto crend() const noexcept { return view().crend(); }
+
+  [[nodiscard]] size_type size() const noexcept { return view().size(); }
+  [[nodiscard]] size_type size_bytes() const noexcept { return view().size_bytes(); }
+  [[nodiscard]] bool empty() const noexcept { return view().empty(); }
+
+  const_reference operator[](size_type pos) const noexcept { return view()[pos]; }
+  const_reference at(size_type pos) const { return view().at(pos); }
+  const_reference front() const noexcept { return view().front(); }
+  const_reference back() const noexcept { return view().back(); }
+  const_pointer data() const noexcept { return view().data(); }
+
+  [[nodiscard]] view_type first(size_type count) const { return view().first(count); }
+  [[nodiscard]] view_type last(size_type count) const { return view().last(count); }
+  [[nodiscard]] view_type subspan(size_type off) const { return view().subspan(off); }
+
+private:
+  [[nodiscard]] const view_type &view() const noexcept { return *data_; }
+
+  hpp::proto::bytes_view *data_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
+};
+
 // TODO: enum default value needs to be handled
 class enum_value_cref {
 public:
   using is_enum_value_ref = void;
+  constexpr static bool is_mutable = false;
 
   enum_value_cref(const enum_descriptor_t &descriptor, uint32_t number) noexcept
       : descriptor_(&descriptor), number_(number) {}
@@ -639,6 +919,8 @@ class enum_value_mref {
 
 public:
   using is_enum_value_ref = void;
+  using cref_type = enum_value_cref;
+  constexpr static bool is_mutable = true;
 
   enum_value_mref(const enum_descriptor_t &descriptor, uint32_t &number) noexcept
       : descriptor_(&descriptor), number_(&number) {}
@@ -648,12 +930,12 @@ public:
   enum_value_mref &operator=(enum_value_mref &&) noexcept = default;
   ~enum_value_mref() noexcept = default;
 
-  enum_value_mref &operator=(uint32_t number) noexcept {
-    *number_ = number;
-    return *this;
-  };
+  void set(uint32_t number) const noexcept { *number_ = number; }
 
   [[nodiscard]] const uint32_t *number_by_name(const char *name) const noexcept { return descriptor_->value_of(name); }
+  [[nodiscard]] const uint32_t *number_by_name(std::string_view name) const noexcept {
+    return descriptor_->value_of(name);
+  }
 
   explicit operator uint32_t() const noexcept { return *number_; }
   [[nodiscard]] uint32_t number() const noexcept { return *number_; }
@@ -668,6 +950,7 @@ public:
   using value_type = enum_value_cref;
   using storage_type = scalar_storage_base<uint32_t>;
   constexpr static field_kind_t field_kind = KIND_ENUM;
+  constexpr static bool is_mutable = false;
 
   enum_field_cref(const field_descriptor_t &descriptor, const scalar_storage_base<uint32_t> &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -692,6 +975,7 @@ public:
   }
 
 private:
+  friend class enum_field_mref;
   const field_descriptor_t *descriptor_;
   const scalar_storage_base<uint32_t> *storage_;
 };
@@ -701,7 +985,9 @@ public:
   using encode_type = vuint32_t;
   using value_type = enum_value_cref;
   using storage_type = scalar_storage_base<uint32_t>;
+  using cref_type = enum_field_cref;
   constexpr static field_kind_t field_kind = KIND_ENUM;
+  constexpr static bool is_mutable = true;
 
   enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                   std::pmr::monotonic_buffer_resource &) noexcept
@@ -713,10 +999,20 @@ public:
   enum_field_mref &operator=(const enum_field_mref &) noexcept = default;
   enum_field_mref &operator=(enum_field_mref &&) noexcept = default;
   ~enum_field_mref() noexcept = default;
-  enum_field_mref &operator=(uint32_t value) noexcept {
+
+  void set(uint32_t value) const noexcept {
     storage_->content = value;
     storage_->selection = descriptor_->oneof_ordinal;
-    return *this;
+  }
+
+  void alias_from(const cref_type &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    *storage_ = *other.storage_;
+  }
+
+  void clone_from(const cref_type &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    alias_from(other);
   }
 
   [[nodiscard]] enum_field_cref cref() const noexcept { return enum_field_cref{*descriptor_, *storage_}; }
@@ -757,6 +1053,7 @@ public:
   using difference_type = std::ptrdiff_t;
   using size_type = std::size_t;
   constexpr static field_kind_t field_kind = Kind;
+  constexpr static bool is_mutable = false;
 
   repeated_scalar_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -775,9 +1072,7 @@ public:
     return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
   }
 
-  value_type operator[](difference_type index) const noexcept {
-    return (*this)[static_cast<size_type>(index)];
-  }
+  value_type operator[](difference_type index) const noexcept { return (*this)[static_cast<size_type>(index)]; }
 
   [[nodiscard]] value_type at(std::size_t index) const {
     if (index < storage_->size) {
@@ -797,6 +1092,8 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
 private:
+  template <typename, field_kind_t>
+  friend class repeated_scalar_field_mref;
   const field_descriptor_t *descriptor_;
   const storage_type *storage_;
 };
@@ -809,8 +1106,11 @@ public:
   using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
   using storage_type = repeated_storage_base<value_type>;
   using difference_type = std::ptrdiff_t;
+  using reference = value_type&;
   using size_type = std::size_t;
+  using cref_type = repeated_scalar_field_cref<T, Kind>;
   constexpr static field_kind_t field_kind = Kind;
+  constexpr static bool is_mutable = true;
 
   repeated_scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                              std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -823,6 +1123,8 @@ public:
   repeated_scalar_field_mref &operator=(repeated_scalar_field_mref &&) noexcept = default;
   ~repeated_scalar_field_mref() noexcept = default;
 
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
   [[nodiscard]] repeated_scalar_field_cref<T, Kind> cref() const noexcept {
     return repeated_scalar_field_cref<T, Kind>{*descriptor_, *storage_};
   }
@@ -834,9 +1136,7 @@ public:
     return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
   }
 
-  value_type &operator[](difference_type index) const noexcept {
-    return (*this)[static_cast<size_type>(index)];
-  }
+  value_type &operator[](difference_type index) const noexcept { return (*this)[static_cast<size_type>(index)]; }
 
   [[nodiscard]] value_type &at(std::size_t index) const {
     if (index < storage_->size) {
@@ -857,7 +1157,7 @@ public:
     }
   }
 
-  void resize(std::size_t n) {
+  void resize(std::size_t n) const noexcept {
     if (capacity() < n) {
       auto new_data =
           static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
@@ -880,11 +1180,36 @@ public:
   }
   [[nodiscard]] value_type *data() const noexcept { return storage_->content; }
 
-  void reset() noexcept {
+  void reset() const noexcept {
     storage_->content = nullptr;
     storage_->size = 0;
   }
+  void clear() const noexcept { storage_->size = 0; }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+  void adopt(std::span<value_type> s) const noexcept {
+    storage_->content = s.data();
+    storage_->size = static_cast<uint32_t>(s.size());
+  }
+
+  void assign(std::span<const value_type> s) const noexcept {
+    resize(s.size());
+    std::copy(s.begin(), s.end(), data());
+  }
+
+  void alias_from(const repeated_scalar_field_mref &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    *storage_ = *other.storage_;
+  }
+
+  void clone_from(const cref_type &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    if (other.empty()) {
+      clear();
+    } else {
+      assign(std::span{other.data(), other.size()});
+    }
+  }
 
 private:
   const field_descriptor_t *descriptor_;
@@ -946,8 +1271,13 @@ public:
     tmp -= n;
     return tmp;
   }
+
   std::ptrdiff_t operator-(const repeated_field_iterator &other) const noexcept {
     return static_cast<std::ptrdiff_t>(index_) - static_cast<std::ptrdiff_t>(other.index_);
+  }
+
+  friend repeated_field_iterator operator+(std::ptrdiff_t n, const repeated_field_iterator &rhs) noexcept {
+    return rhs + n;
   }
 
   std::strong_ordering operator<=>(const repeated_field_iterator &other) const noexcept {
@@ -961,6 +1291,7 @@ public:
   }
 
   reference operator*() const noexcept { return (*field_)[index_]; }
+  reference operator[](std::ptrdiff_t n) const noexcept { return *(*this + n); }
 };
 
 class repeated_enum_field_cref : public std::ranges::view_interface<repeated_enum_field_cref> {
@@ -974,6 +1305,7 @@ public:
   static_assert(std::input_or_output_iterator<iterator>);
   static_assert(std::semiregular<iterator>);
   constexpr static field_kind_t field_kind = KIND_REPEATED_ENUM;
+  constexpr static bool is_mutable = false;
 
   repeated_enum_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -992,6 +1324,8 @@ public:
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->size}; }
+  [[nodiscard]] const uint32_t *data() const noexcept { return storage_->content; }
+
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
     return {*descriptor_->enum_field_type_descriptor(),
@@ -1026,7 +1360,9 @@ public:
   using iterator = repeated_field_iterator<repeated_enum_field_mref>;
   using difference_type = std::ptrdiff_t;
   using size_type = std::size_t;
+  using cref_type = repeated_enum_field_cref;
   constexpr static field_kind_t field_kind = KIND_REPEATED_ENUM;
+  constexpr static bool is_mutable = true;
 
   repeated_enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                            std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -1041,13 +1377,15 @@ public:
   repeated_enum_field_mref &operator=(repeated_enum_field_mref &&) noexcept = default;
   ~repeated_enum_field_mref() noexcept = default;
 
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
   [[nodiscard]] repeated_enum_field_cref cref() const noexcept {
     return repeated_enum_field_cref{*descriptor_, *storage_};
   }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_enum_field_cref() const noexcept { return cref(); }
 
-  void resize(std::size_t n) {
+  void resize(std::size_t n) const noexcept {
     if (capacity() < n) {
       auto *new_data = static_cast<uint32_t *>(memory_resource_->allocate(n * sizeof(uint32_t), alignof(uint32_t)));
       std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
@@ -1090,9 +1428,265 @@ public:
     storage_->content = nullptr;
     storage_->size = 0;
   }
+
+  void clear() noexcept { storage_->size = 0; }
+
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
     return *descriptor_->enum_field_type_descriptor();
+  }
+
+  void adopt(std::span<uint32_t> s) const noexcept {
+    storage_->content = s.data();
+    storage_->capacity = static_cast<uint32_t>(s.size());
+  }
+
+  void assign(std::span<const uint32_t> s) const noexcept {
+    resize(s.size());
+    std::copy(s.begin(), s.end(), data());
+  }
+
+  void alias_from(const repeated_enum_field_mref &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    adopt(std::span{other.data(), other.size()});
+  }
+
+  void clone_from(const cref_type &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    assign(std::span{other.data(), other.size()});
+  }
+
+private:
+  const field_descriptor_t *descriptor_;
+  storage_type *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
+};
+
+using repeated_string_field_cref = repeated_scalar_field_cref<std::string_view, KIND_REPEATED_STRING>;
+class repeated_string_field_mref : public std::ranges::view_interface<repeated_string_field_mref> {
+public:
+  using storage_type = repeated_storage_base<std::string_view>;
+  using encode_type = std::string_view;
+  using reference = string_value_mref;
+  using value_type = std::string_view;
+  using iterator = repeated_field_iterator<repeated_string_field_mref>;
+  using difference_type = std::ptrdiff_t;
+  using size_type = std::size_t;
+  using cref_type = repeated_string_field_cref;
+  constexpr static field_kind_t field_kind = KIND_REPEATED_STRING;
+  constexpr static bool is_mutable = true;
+
+  repeated_string_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
+                             std::pmr::monotonic_buffer_resource &mr) noexcept
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      : descriptor_(&descriptor), storage_(reinterpret_cast<storage_type *>(&storage)), memory_resource_(&mr) {}
+
+  repeated_string_field_mref(const repeated_string_field_mref &) noexcept = default;
+  repeated_string_field_mref(repeated_string_field_mref &&) noexcept = default;
+  repeated_string_field_mref &operator=(const repeated_string_field_mref &) noexcept = default;
+  repeated_string_field_mref &operator=(repeated_string_field_mref &&) noexcept = default;
+  ~repeated_string_field_mref() noexcept = default;
+
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
+  [[nodiscard]] repeated_string_field_cref cref() const noexcept {
+    return repeated_string_field_cref{*descriptor_, *storage_};
+  }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
+  [[nodiscard]] operator repeated_string_field_cref() const noexcept { return cref(); }
+
+  void resize(std::size_t n) const noexcept {
+    if (capacity() < n) {
+      auto *new_data = static_cast<std::string_view *>(
+          memory_resource_->allocate(n * sizeof(std::string_view), alignof(value_type)));
+      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
+      storage_->content = new_data;
+      storage_->capacity = static_cast<uint32_t>(n);
+    } else if (size() < n) {
+      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+                                           std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
+    }
+    storage_->size = static_cast<uint32_t>(n);
+  }
+
+  [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
+  [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
+  [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
+  [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
+  [[nodiscard]] iterator end() const noexcept { return {this, storage_->size}; }
+  [[nodiscard]] std::string_view *data() const noexcept { return storage_->content; }
+
+  [[nodiscard]] reference operator[](std::size_t index) const noexcept {
+    assert(index < size());
+    return reference{storage_->content[index], *memory_resource_};
+  }
+
+  [[nodiscard]] reference operator[](difference_type index) const noexcept {
+    return (*this)[static_cast<size_type>(index)];
+  }
+
+  [[nodiscard]] reference at(std::size_t index) const {
+    if (index < size()) {
+      return reference{storage_->content[index], *memory_resource_};
+    }
+    throw std::out_of_range("");
+  }
+
+  void reset() const noexcept {
+    storage_->content = nullptr;
+    storage_->size = 0;
+  }
+
+  void clear() const noexcept { storage_->size = 0; }
+
+  [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+  void adopt(std::span<std::string_view> s) const noexcept {
+    storage_->content = s.data();
+    storage_->capacity = static_cast<uint32_t>(s.size());
+    storage_->size = static_cast<uint32_t>(s.size());
+  }
+
+  void assign(std::span<const std::string_view> s) const noexcept {
+    resize(s.size());
+    for (std::size_t i = 0; i < s.size(); ++i) {
+      (*this)[i].clone_from(s[i]);
+    }
+  }
+
+  void alias_from(const repeated_string_field_mref &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    adopt(std::span{other.data(), other.size()});
+  }
+
+  void clone_from(const cref_type &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    if (other.empty()) {
+      clear();
+      return;
+    }
+    resize(other.size());
+    for (std::size_t i = 0; i < other.size(); ++i) {
+      (*this)[i].clone_from(other[i]);
+    }
+  }
+
+private:
+  const field_descriptor_t *descriptor_;
+  storage_type *storage_;
+  std::pmr::monotonic_buffer_resource *memory_resource_;
+};
+
+using repeated_bytes_field_cref = repeated_scalar_field_cref<bytes_view, KIND_REPEATED_BYTES>;
+
+class repeated_bytes_field_mref : public std::ranges::view_interface<repeated_bytes_field_mref> {
+public:
+  using storage_type = repeated_storage_base<bytes_view>;
+  using encode_type = bytes_view;
+  using reference = bytes_value_mref;
+  using value_type = bytes_view;
+  using iterator = repeated_field_iterator<repeated_bytes_field_mref>;
+  using difference_type = std::ptrdiff_t;
+  using size_type = std::size_t;
+  using cref_type = repeated_bytes_field_cref;
+  constexpr static field_kind_t field_kind = KIND_REPEATED_BYTES;
+  constexpr static bool is_mutable = true;
+
+  repeated_bytes_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
+                            std::pmr::monotonic_buffer_resource &mr) noexcept
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      : descriptor_(&descriptor), storage_(reinterpret_cast<storage_type *>(&storage)), memory_resource_(&mr) {}
+
+  repeated_bytes_field_mref(const repeated_bytes_field_mref &) noexcept = default;
+  repeated_bytes_field_mref(repeated_bytes_field_mref &&) noexcept = default;
+  repeated_bytes_field_mref &operator=(const repeated_bytes_field_mref &) noexcept = default;
+  repeated_bytes_field_mref &operator=(repeated_bytes_field_mref &&) noexcept = default;
+  ~repeated_bytes_field_mref() noexcept = default;
+
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
+  [[nodiscard]] repeated_bytes_field_cref cref() const noexcept {
+    return repeated_bytes_field_cref{*descriptor_, *storage_};
+  }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
+  [[nodiscard]] operator repeated_bytes_field_cref() const noexcept { return cref(); }
+
+  void resize(std::size_t n) const noexcept {
+    if (capacity() < n) {
+      auto *new_data =
+          static_cast<bytes_view *>(memory_resource_->allocate(n * sizeof(bytes_view), alignof(value_type)));
+      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
+      storage_->content = new_data;
+      storage_->capacity = static_cast<uint32_t>(n);
+    } else if (size() < n) {
+      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+                                           std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
+    }
+    storage_->size = static_cast<uint32_t>(n);
+  }
+
+  [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
+  [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
+  [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
+  [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
+  [[nodiscard]] iterator end() const noexcept { return {this, storage_->size}; }
+  [[nodiscard]] bytes_view *data() const noexcept { return storage_->content; }
+
+  [[nodiscard]] reference operator[](std::size_t index) const noexcept {
+    assert(index < size());
+    return reference{storage_->content[index], *memory_resource_};
+  }
+
+  [[nodiscard]] reference operator[](difference_type index) const noexcept {
+    return (*this)[static_cast<size_type>(index)];
+  }
+
+  [[nodiscard]] reference at(std::size_t index) const {
+    if (index < size()) {
+      return reference{storage_->content[index], *memory_resource_};
+    }
+    throw std::out_of_range("");
+  }
+
+  void reset() const noexcept {
+    storage_->content = nullptr;
+    storage_->size = 0;
+  }
+
+  void clear() const noexcept { storage_->size = 0; }
+
+  [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+  void adopt(std::span<bytes_view> s) const noexcept {
+    storage_->content = s.data();
+    storage_->capacity = static_cast<uint32_t>(s.size());
+    storage_->size = static_cast<uint32_t>(s.size());
+  }
+
+  void assign(std::span<const bytes_view> s) const noexcept {
+    resize(s.size());
+    for (std::size_t i = 0; i < s.size(); ++i) {
+      (*this)[i].assign(s[i]);
+    }
+  }
+
+  void alias_from(const repeated_bytes_field_mref &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    adopt(std::span{other.data(), other.size()});
+  }
+
+  void clone_from(const cref_type &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    if (other.empty()) {
+      clear();
+      return;
+    }
+    resize(other.size());
+    for (std::size_t i = 0; i < other.size(); ++i) {
+      (*this)[i].assign(other[i]);
+    }
   }
 
 private:
@@ -1123,6 +1717,7 @@ class message_value_cref {
   using reference = field_cref;
 
 public:
+  constexpr static bool is_mutable = false;
   message_value_cref(const message_descriptor_t &descriptor, const value_storage *storage) noexcept
       : descriptor_(&descriptor), storage_(storage) {}
   message_value_cref(const message_value_cref &) noexcept = default;
@@ -1141,10 +1736,19 @@ public:
     return nullptr;
   }
 
-  [[nodiscard]] const field_descriptor_t *field_descriptor_by_number(int32_t number) const noexcept {
+  [[nodiscard]] const field_descriptor_t *field_descriptor_by_json_name(std::string_view name) const noexcept {
     auto field_descriptors = descriptor_->fields();
-    auto it =
-        std::ranges::find_if(field_descriptors, [number](const auto &desc) { return desc.proto().number == number; });
+    auto it = std::ranges::find_if(field_descriptors, [name](const auto &desc) { return desc.proto().json_name == name; });
+    if (it != field_descriptors.end()) {
+      return std::addressof(*it);
+    }
+    return nullptr;
+  }
+
+  [[nodiscard]] const field_descriptor_t *field_descriptor_by_number(uint32_t number) const noexcept {
+    auto field_descriptors = descriptor_->fields();
+    auto it = std::ranges::find_if(field_descriptors,
+                                   [number](const auto &desc) { return std::cmp_equal(desc.proto().number, number); });
     if (it != field_descriptors.end()) {
       return std::addressof(*it);
     }
@@ -1196,15 +1800,49 @@ public:
     using reference = field_cref;
     using iterator = repeated_field_iterator<message_value_cref>;
     explicit fields_view(const message_value_cref &base) : base_(&base) {}
-    [[nodiscard]] iterator begin() const { return {base_, 0}; }
-    [[nodiscard]] iterator end() const { return {base_, base_->descriptor().fields().size()}; }
+    [[nodiscard]] iterator begin() const noexcept { return {base_, 0}; }
+    [[nodiscard]] iterator end() const noexcept { return {base_, base_->descriptor().fields().size()}; }
+
+    reference operator[](std::size_t n) const { return (*base_)[n]; }
   };
 
   [[nodiscard]] fields_view fields() const { return fields_view{*this}; }
+
+  template <concepts::const_field_ref T>
+  [[nodiscard]] std::expected<T, std::errc> field_by_number(uint32_t number) const noexcept {
+    const auto *desc = field_descriptor_by_number(number);
+    if (desc == nullptr) {
+      return std::unexpected(std::errc::result_out_of_range);
+    }
+
+    auto f = const_field(*desc).to<T>();
+    if (f.has_value()) {
+      return *f;
+    } else {
+      return std::unexpected(std::errc::wrong_protocol_type);
+    }
+  }
+
+  template <concepts::const_field_ref T>
+  [[nodiscard]] std::expected<T, std::errc> field_by_name(std::string_view name) const noexcept {
+    const auto *desc = field_descriptor_by_name(name);
+    if (desc == nullptr) {
+      return std::unexpected(std::errc::result_out_of_range);
+    }
+
+    auto f = const_field(*desc).to<T>();
+    if (f.has_value()) {
+      return *f;
+    } else {
+      return std::unexpected(std::errc::wrong_protocol_type);
+    }
+  }
 };
 
 class message_value_mref {
 public:
+  using cref_type = message_value_cref;
+  constexpr static bool is_mutable = true;
   message_value_mref(const message_descriptor_t &descriptor, value_storage *storage,
                      std::pmr::monotonic_buffer_resource &memory_resource) noexcept
       : descriptor_(&descriptor), storage_(storage), memory_resource_(&memory_resource) {}
@@ -1234,7 +1872,11 @@ public:
     return cref().field_descriptor_by_name(name);
   }
 
-  [[nodiscard]] const field_descriptor_t *field_descriptor_by_number(int32_t number) const noexcept {
+  [[nodiscard]] const field_descriptor_t *field_descriptor_by_json_name(std::string_view name) const noexcept {
+    return cref().field_descriptor_by_json_name(name);
+  }
+
+  [[nodiscard]] const field_descriptor_t *field_descriptor_by_number(uint32_t number) const noexcept {
     return cref().field_descriptor_by_number(number);
   }
 
@@ -1256,10 +1898,10 @@ public:
   [[nodiscard]] field_mref mutable_field(const field_descriptor_t &desc) const noexcept {
     auto &storage = storage_for(desc);
     // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
-    if (!desc.is_repeated() && storage.of_int64.selection != desc.oneof_ordinal) {
-      storage.of_int64.size = 0;
-      storage.of_int64.selection = desc.oneof_ordinal;
-    }
+    // if (!desc.is_repeated() && storage.of_int64.selection != desc.oneof_ordinal) {
+    //   storage.of_int64.size = 0;
+    //   storage.of_int64.selection = desc.oneof_ordinal;
+    // }
     // NOLINTEND(cppcoreguidelines-pro-type-union-access)
     return {desc, storage, *memory_resource_};
   }
@@ -1301,9 +1943,62 @@ public:
     explicit fields_view(const message_value_mref &base) : base_(&base) {}
     [[nodiscard]] iterator begin() const { return {base_, 0}; }
     [[nodiscard]] iterator end() const { return {base_, base_->descriptor().fields().size()}; }
+    reference operator[](std::size_t n) const { return (*base_)[n]; }
   };
 
   [[nodiscard]] fields_view fields() const { return fields_view{*this}; }
+
+  template <concepts::const_field_ref T>
+  [[nodiscard]] std::expected<T, std::errc> field_by_number(uint32_t number) const noexcept {
+    return cref().field_by_number<T>(number);
+  }
+
+  template <concepts::mutable_field_ref T>
+  [[nodiscard]] std::expected<T, std::errc> field_by_number(uint32_t number) const noexcept {
+    const auto *desc = field_descriptor_by_number(number);
+    if (desc == nullptr) {
+      return std::unexpected(std::errc::result_out_of_range);
+    }
+
+    auto f = mutable_field(*desc).to<T>();
+    if (f.has_value()) {
+      return *f;
+    } else {
+      return std::unexpected(std::errc::wrong_protocol_type);
+    }
+  }
+
+  template <concepts::const_field_ref T>
+  [[nodiscard]] std::expected<T, std::errc> field_by_name(std::string_view name) const noexcept {
+    return cref().field_by_name<T>(name);
+  }
+
+  template <concepts::mutable_field_ref T>
+  [[nodiscard]] std::expected<T, std::errc> field_by_name(std::string_view name) const noexcept {
+    const auto *desc = field_descriptor_by_name(name);
+    if (desc == nullptr) {
+      return std::unexpected(std::errc::result_out_of_range);
+    }
+
+    auto f = mutable_field(*desc).to<T>();
+    if (f.has_value()) {
+      return *f;
+    } else {
+      return std::unexpected(std::errc::wrong_protocol_type);
+    }
+  }
+
+  void alias_from(const message_value_mref &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    std::copy(other.storage_, std::next(other.storage_, static_cast<std::ptrdiff_t>(num_slots())), storage_);
+  }
+
+  void clone_from(const cref_type &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    for (std::size_t i = 0; i < num_slots(); ++i) {
+      fields()[i].clone_from(other.fields()[i]);
+    }
+  }
 
 private:
   friend class message_field_mref;
@@ -1331,7 +2026,9 @@ public:
   using encode_type = message_value_cref;
   using storage_type = scalar_storage_base<value_storage *>;
   using value_type = message_value_cref;
+
   constexpr static field_kind_t field_kind = KIND_MESSAGE;
+  constexpr static bool is_mutable = false;
 
   message_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -1370,8 +2067,10 @@ class message_field_mref {
 public:
   using encode_type = message_value_mref;
   using storage_type = scalar_storage_base<value_storage *>;
-  using value_type = message_value_mref;
+  using value_type = message_value_mref; // TODO: why?
+  using cref_type = message_field_cref;
   constexpr static field_kind_t field_kind = KIND_MESSAGE;
+  constexpr static bool is_mutable = true;
 
   message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                      std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -1386,7 +2085,9 @@ public:
   message_field_mref &operator=(message_field_mref &&) noexcept = default;
   ~message_field_mref() noexcept = default;
 
-  message_value_mref emplace() noexcept {
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
+  message_value_mref emplace() const noexcept {
     storage_->selection = descriptor_->oneof_ordinal;
     if (storage_->content == nullptr) {
       storage_->content = static_cast<value_storage *>(
@@ -1407,11 +2108,25 @@ public:
     return {message_descriptor(), storage_->content, *memory_resource_};
   }
 
-  void reset() noexcept { storage_->selection = 0; }
+  void reset() const noexcept { storage_->selection = 0; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
     return *descriptor_->message_field_type_descriptor();
+  }
+
+  void alias_from(const message_field_mref &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    *storage_ = *other.storage_;
+  }
+
+  void clone_from(const cref_type &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    if (other.has_value()) {
+      emplace().clone_from(*other);
+    } else {
+      this->reset();
+    }
   }
 
 private:
@@ -1425,6 +2140,7 @@ class repeated_message_field_cref : std::ranges::view_interface<repeated_message
   const field_descriptor_t *descriptor_;
   const repeated_storage_base<value_storage> *storage_;
   [[nodiscard]] std::size_t num_slots() const { return message_descriptor().num_slots; }
+  friend class repeated_message_field_mref;
 
 public:
   using value_type = message_value_cref;
@@ -1434,6 +2150,7 @@ public:
   using difference_type = std::ptrdiff_t;
   using size_type = std::size_t;
   constexpr static field_kind_t field_kind = KIND_REPEATED_MESSAGE;
+  constexpr static bool is_mutable = false;
 
   repeated_message_field_cref(const field_descriptor_t &descriptor,
                               const repeated_storage_base<value_storage> &storage) noexcept
@@ -1494,7 +2211,9 @@ public:
   using iterator = repeated_field_iterator<repeated_message_field_mref>;
   using difference_type = std::ptrdiff_t;
   using size_type = std::size_t;
+  using cref_type = repeated_message_field_cref;
   constexpr static field_kind_t field_kind = KIND_REPEATED_MESSAGE;
+  constexpr static bool is_mutable = true;
 
   repeated_message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                               std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -1507,11 +2226,13 @@ public:
   repeated_message_field_mref &operator=(repeated_message_field_mref &&) noexcept = default;
   ~repeated_message_field_mref() noexcept = default;
 
+  [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
+
   [[nodiscard]] repeated_message_field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator repeated_message_field_cref() const noexcept { return cref(); }
 
-  void resize(std::size_t n) noexcept {
+  void resize(std::size_t n) const noexcept {
     auto old_size = size();
     if (capacity() < n) {
       auto *new_data = static_cast<value_storage *>(
@@ -1556,10 +2277,24 @@ public:
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
   [[nodiscard]] iterator end() const noexcept { return {this, size()}; }
 
-  void reset() noexcept { storage_->size = 0; }
+  void reset() const noexcept { storage_->size = 0; }
+  void clear() const noexcept { storage_->size = 0; }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
     return *descriptor_->message_field_type_descriptor();
+  }
+
+  void alias_from(const repeated_message_field_mref &other) const noexcept {
+    assert(this->descriptor_ == &other.descriptor());
+    *storage_ = *other.storage_;
+  }
+
+  void clone_from(const cref_type &other) const noexcept {
+    assert(this->descriptor_ == other.descriptor_);
+    resize(other.size());
+    for (std::size_t i = 0; i < size(); ++i) {
+      (*this)[i].clone_from(other[i]);
+    }
   }
 };
 
@@ -1596,8 +2331,6 @@ using repeated_uint32_field_cref = repeated_scalar_field_cref<vuint32_t, KIND_RE
 using repeated_fixed32_field_cref = repeated_scalar_field_cref<uint32_t, KIND_REPEATED_FIXED32>;
 
 using repeated_bool_field_cref = repeated_scalar_field_cref<bool, KIND_REPEATED_BOOL>;
-using repeated_string_field_cref = repeated_scalar_field_cref<std::string_view, KIND_REPEATED_STRING>;
-using repeated_bytes_field_cref = repeated_scalar_field_cref<bytes_view, KIND_REPEATED_BYTES>;
 
 ////
 
@@ -1634,10 +2367,8 @@ using repeated_uint32_field_mref = repeated_scalar_field_mref<vuint32_t, KIND_RE
 using repeated_fixed32_field_mref = repeated_scalar_field_mref<uint32_t, KIND_REPEATED_FIXED32>;
 
 using repeated_bool_field_mref = repeated_scalar_field_mref<bool, KIND_REPEATED_BOOL>;
-using repeated_string_field_mref = repeated_scalar_field_mref<std::string_view, KIND_REPEATED_STRING>;
-using repeated_bytes_field_mref = repeated_scalar_field_mref<bytes_view, KIND_REPEATED_BYTES>;
 
-inline auto field_cref::visit(auto &&visitor) {
+inline auto field_cref::visit(auto &&visitor) const {
   switch (field_kind()) {
   case KIND_DOUBLE:
     return visitor(double_field_cref{*descriptor_, *storage_});
@@ -1711,7 +2442,7 @@ inline auto field_cref::visit(auto &&visitor) {
   unreachable();
 }
 
-inline auto field_mref::visit(auto &&visitor) {
+inline auto field_mref::visit(auto &&visitor) const {
   switch (field_kind()) {
   case KIND_DOUBLE:
     return visitor(double_field_mref{*descriptor_, *storage_, *memory_resource_});
@@ -1785,6 +2516,14 @@ inline auto field_mref::visit(auto &&visitor) {
   unreachable();
 }
 
+void field_mref::clone_from(const field_cref &other) const noexcept {
+  assert(this->descriptor_ == &other.descriptor());
+  this->visit([&](const auto &specific_mref) {
+    using cref_type = typename std::decay_t<decltype(specific_mref)>::cref_type;
+    specific_mref.clone_from(cref_type{*descriptor_, *other.storage_});
+  });
+}
+
 inline std::optional<message_value_mref> dynamic_message_factory::get_message(std::string_view name,
                                                                               std::pmr::monotonic_buffer_resource &mr) {
   auto *desc = get_message_descriptor(name);
@@ -1820,7 +2559,7 @@ struct field_deserializer {
     if (auto ec = deserialize(value, mref.descriptor()); !ec.ok()) [[likely]] {
       return ec;
     }
-    mref = value;
+    mref.set(value);
     return {};
   }
 
@@ -1832,7 +2571,7 @@ struct field_deserializer {
     if (!mref.descriptor().valid_enum_value(value)) [[likely]] {
       return std::errc::result_out_of_range;
     }
-    mref = value;
+    mref.set(value);
     return std::errc{};
   }
 
@@ -1878,7 +2617,16 @@ struct field_deserializer {
     if (status result = this->deserialize(item, mref.descriptor()); !result.ok()) {
       return result;
     }
-    mref = item;
+    mref.adopt(item);
+    return {};
+  }
+
+  status deserialize(string_value_mref mref, const field_descriptor_t &desc) {
+    std::string_view item;
+    if (status result = this->deserialize(item, desc); !result.ok()) {
+      return result;
+    }
+    mref.adopt(item);
     return {};
   }
 
@@ -1887,7 +2635,16 @@ struct field_deserializer {
     if (status result = this->deserialize(item, mref.descriptor()); !result.ok()) {
       return result;
     }
-    mref = item;
+    mref.adopt(item);
+    return {};
+  }
+
+  status deserialize(bytes_value_mref mref, const field_descriptor_t &desc) {
+    bytes_view item;
+    if (status result = this->deserialize(item, desc); !result.ok()) {
+      return result;
+    }
+    mref.adopt(item);
     return {};
   }
 
@@ -2015,7 +2772,7 @@ status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts:
   if (tag == 0) {
     return std::errc::bad_message;
   }
-  const auto *field_desc = item.field_descriptor_by_number(static_cast<int32_t>(tag_number(tag)));
+  const auto *field_desc = item.field_descriptor_by_number(tag_number(tag));
   if (field_desc == nullptr) [[unlikely]] {
     return std::errc::bad_message;
   }
@@ -2078,7 +2835,7 @@ struct message_size_calculator<message_value_cref> {
 
     template <concepts::varint T, field_kind_t Kind>
     uint32_t operator()(scalar_field_cref<T, Kind> v) {
-      return narrow_size(tag_size(v) + T{*v}.encode_size());
+      return narrow_size(tag_size(v) + T{v.value()}.encode_size());
     }
 
     template <typename T, field_kind_t Kind>

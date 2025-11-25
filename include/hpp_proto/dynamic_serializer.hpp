@@ -1284,6 +1284,8 @@ class dynamic_serializer {
         if (bool(context.error)) [[unlikely]] {
           return std::errc::bad_message;
         }
+
+        
         auto msg_index = pb_meta.message_index_from_type_url(type_url);
         if (msg_index >= pb_meta.messages.size()) [[unlikely]] {
           return std::errc::no_message;

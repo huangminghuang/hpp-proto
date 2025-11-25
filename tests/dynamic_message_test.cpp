@@ -42,13 +42,25 @@ const boost::ut::suite dynamic_message_test = [] {
 
       auto json = read_file("data/"s + message_name + ".json");
       expect(json == str);
-    }
-  } | std::vector<std::string>{"protobuf_unittest.TestMap"};
 
-  // std::vector<std::string>{"proto3_unittest.TestAllTypes",       "proto3_unittest.TestUnpackedTypes",
-  //                              "protobuf_unittest.TestAllTypes",     "protobuf_unittest.TestPackedTypes",
-  //                              "protobuf_unittest.TestMap",          "protobuf_unittest.TestUnpackedTypes",
-  //                              "protobuf_unittest.TestAllTypesLite", "protobuf_unittest.TestPackedTypesLite"};
+#if 1
+      
+      std::pmr::monotonic_buffer_resource memory_resource2;
+      auto optional_msg2 = factory.get_message(message_name, memory_resource2);
+      hpp::proto::message_value_mref message2 = optional_msg2.value();
+
+      expect(!glz::read_json(message2, json));
+      str.clear();
+      err = glz::write_json(message2.cref(), str);
+      expect(!err);
+      expect(eq(json, str)); 
+#endif
+
+    }
+  } | std::vector<std::string>{"proto3_unittest.TestAllTypes",       "proto3_unittest.TestUnpackedTypes",
+                               "protobuf_unittest.TestAllTypes",     "protobuf_unittest.TestPackedTypes",
+                               "protobuf_unittest.TestMap",          "protobuf_unittest.TestUnpackedTypes",
+                               "protobuf_unittest.TestAllTypesLite", "protobuf_unittest.TestPackedTypesLite"};
 };
 
 int main() {
