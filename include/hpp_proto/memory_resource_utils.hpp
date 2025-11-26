@@ -283,6 +283,11 @@ public:
     assign_range_with_size(r, std::ranges::size(r));
   }
 
+  template <typename It>
+  constexpr void assign(It first, It last) {
+    assign_range(std::span{first, last});
+  }
+
   template <std::ranges::sized_range R>
   constexpr void append_range(const R &r) {
     auto old_size = view_.size();

@@ -403,6 +403,223 @@ struct json_codec<use_base64> {
 
 namespace glz {
 
+namespace util {
+template <auto Opts>
+bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
+  // adapted from
+  //    template <class T>
+  //    requires((nullable_t<T> || nullable_value_t<T>) && not is_expected<T> && not std::is_array_v<T> &&
+  //             not custom_read<T>)
+  // struct from<JSON, T>;
+
+  if constexpr (!check_ws_handled(Opts)) {
+      if (skip_ws<Opts>(ctx, it, end)) {
+        return true;
+      }
+    }
+
+  if (*it == 'n') {
+    ++it;
+    if constexpr (not Opts.null_terminated) {
+      if (it == end) [[unlikely]] {
+        ctx.error = error_code::unexpected_end;
+        return true;
+      }
+    }
+    match<"ull", Opts>(ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]]
+      return true;
+    value.reset();
+    return true;
+  }
+  return false;
+}
+
+// parse_opening(), match_ending() and parse_key_and_colon() are adapted from the snippet of
+// template <class T>
+//    requires((readable_map_t<T> || glaze_object_t<T> || reflectable<T>) && not custom_read<T>)
+//  struct from<JSON, T> {
+//  {
+//    template <auto Options, string_literal tag = "">
+//    static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end);
+//  };
+
+template <auto Opts>
+GLZ_ALWAYS_INLINE bool parse_opening(char c, glz::is_context auto &ctx, auto &it, auto &end) {
+  assert(c == '{' || c == '[');
+
+  if constexpr (!check_opening_handled(Opts)) {
+    if constexpr (!check_ws_handled(Opts)) {
+      if (skip_ws<Opts>(ctx, it, end)) {
+        return false;
+      }
+    }
+
+    auto match_invalid_end = [](char c, auto &ctx, auto &it, auto &end) {
+      if (*it != c) [[unlikely]] {
+        if (c == '[') {
+          ctx.error = error_code::expected_bracket;
+        } else {
+          ctx.error = error_code::expected_brace;
+        }
+        return true;
+      } else [[likely]] {
+        ++it;
+      }
+      if constexpr (not Opts.null_terminated) {
+        if (it == end) [[unlikely]] {
+          ctx.error = error_code::unexpected_end;
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (match_invalid_end(c, ctx, it, end)) {
+      return false;
+    }
+
+    if constexpr (not Opts.null_terminated) {
+      ++ctx.indentation_level;
+    }
+  }
+  return true;
+}
+
+template <auto Opts>
+bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto &) {
+  if (*it == c) {
+    ++it;
+    if constexpr (not Opts.null_terminated) {
+      --ctx.indentation_level;
+    }
+    return true;
+  }
+  return false;
+}
+
+template <auto Opts>
+std::string_view parse_key_and_colon(glz::is_context auto &ctx, auto &it, auto &end) {
+  std::string_view key;
+  parse<JSON>::op<Opts>(key, ctx, it, end);
+  if (bool(ctx.error)) [[unlikely]]
+    return {};
+
+  if (parse_ws_colon<Opts>(ctx, it, end)) {
+    return {};
+  }
+  return key;
+}
+
+template <auto Opts>
+[[nodiscard]] size_t number_of_elements(char stop_token, is_context auto &ctx, auto it, auto &end) noexcept {
+  // adapted from glz::number_of_array_elements
+  skip_ws<Opts>(ctx, it, end);
+  if (bool(ctx.error)) [[unlikely]] {
+    return {};
+  }
+
+  if (*it == stop_token) [[unlikely]] {
+    return 0;
+  }
+  size_t count = 1;
+  while (true) {
+    switch (*it) {
+    case ',': {
+      ++count;
+      ++it;
+      break;
+    }
+    case '/': {
+      skip_comment(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]] {
+        return {};
+      }
+      break;
+    }
+    case '{':
+      ++it;
+      skip_until_closed<Opts, '{', '}'>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]] {
+        return {};
+      }
+      break;
+    case '[':
+      ++it;
+      skip_until_closed<Opts, '[', ']'>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]] {
+        return {};
+      }
+      break;
+    case '"': {
+      skip_string<Opts>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]] {
+        return {};
+      }
+      break;
+    }
+    case '\0': {
+      ctx.error = error_code::unexpected_end;
+      return {};
+    }
+    default:
+      if (*it == stop_token) {
+        return count;
+      }
+      ++it;
+    }
+  }
+  unreachable();
+}
+
+template <auto Options>
+GLZ_ALWAYS_INLINE void parse_repeated(bool is_map, auto &&value, auto &ctx, auto &it, auto &end,
+                                      const auto &element_parser) {
+  // adapted from
+  // template <class T>
+  //    requires readable_array_t<T> && (!emplace_backable<T> && resizable<T>)
+  //  struct from<JSON, T>;
+  constexpr auto Opts = ws_handled_off<Options>();
+
+  const auto opening_token = is_map ? '{' : '[';
+  const auto ending_token = is_map ? '}' : ']';
+
+  if (!util::parse_opening<Options>(opening_token, ctx, it, end)) {
+    return;
+  }
+
+  if (skip_ws<Opts>(ctx, it, end)) {
+    return;
+  }
+
+  const auto n = util::number_of_elements<Opts>(ending_token, ctx, it, end);
+  if (bool(ctx.error)) [[unlikely]] {
+    return;
+  }
+  value.resize(n);
+  size_t i = 0;
+
+  for (auto &&x : value) {
+    element_parser(x, ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]]
+      return;
+
+    if (skip_ws<Opts>(ctx, it, end)) {
+      return;
+    }
+    if (i < n - 1) {
+      if (match_invalid_end<',', Opts>(ctx, it, end)) {
+        return;
+      }
+    }
+    ++i;
+  }
+
+  util::match_ending<Opts>(ending_token, ctx, it, end);
+}
+
+} // namespace util
+
 using base64 = hpp::proto::base64;
 
 template <hpp::proto::concepts::has_codec T>
@@ -680,87 +897,42 @@ template <auto Opts>
 
 template <typename T>
 struct from<JSON, hpp::proto::map_wrapper<T>> {
+
   template <auto Options>
   static void op(auto &v, is_context auto &ctx, auto &it, auto &end) {
-    auto &value = v.value;
-    if constexpr (!check_ws_handled(Options)) {
-      if (skip_ws<Options>(ctx, it, end)) [[unlikely]] {
+    util::parse_repeated<Options>(true, v.value, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {
+      constexpr auto Opts = ws_handled_off<Options>();
+
+      auto key_str = util::parse_key_and_colon<Opts>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]] {
         return;
       }
-    }
-    static constexpr auto Opts = ws_handled_off<Options>();
-
-    if (match<'{'>(ctx, it)) [[unlikely]] {
-      return;
-    }
-    const auto n = number_of_map_elements<Opts>(ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]] {
-      return;
-    }
-    value.resize(n);
-    size_t i = 0;
-    using k_t = typename T::value_type::first_type;
-    for (auto &x : value) {
+      using element_type = std::decay_t<decltype(element)>;
+      using k_t = typename element_type::first_type;
       if constexpr (std::is_arithmetic_v<k_t>) {
-        parse<JSON>::op<opt_true<Opts, &opts::quoted_num>>(x.first, ctx, it, end);
+        from<JSON, k_t>::template op<Opts>(element.first, ctx, key_str.begin(), key_str.end());
       } else {
-        parse<JSON>::op<Opts>(x.first, ctx, it, end);
-      }
-      if (bool(ctx.error)) [[unlikely]] {
-        return;
+        decltype(auto) mkey = ::hpp::proto::detail::as_modifiable(ctx, element.first);
+        mkey.assign(key_str.begin(), key_str.end());
       }
 
-      if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
-        return;
-      }
-      if (match<':'>(ctx, it)) [[unlikely]] {
-        return;
-      }
-      if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
-        return;
-      }
-
-      parse<JSON>::op<ws_handled<Opts>()>(x.second, ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]] {
-        return;
-      }
-
-      skip_ws<Opts>(ctx, it, end);
-      if (i < n - 1) {
-        if (match<','>(ctx, it)) [[unlikely]] {
-          return;
-        }
-      }
-      ++i;
-    }
-    match<'}'>(ctx, it);
+      from<JSON, typename element_type::second_type>::template op<Opts>(element.second, ctx, it, end);
+    });
   }
 };
 
 template <typename T>
 struct from<JSON, hpp::proto::optional_message_view_ref<T>> {
+
   template <auto Options>
   static void op(auto value, hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
-    if constexpr (!check_ws_handled(Options)) {
-      if (skip_ws<Options>(ctx, it, end)) [[unlikely]] {
-        return;
-      }
-    }
-    static constexpr auto Opts = ws_handled_off<Options>();
-    using type = std::remove_const_t<typename T::value_type>;
-
-    if (*it == 'n') {
-      it = std::next(it);
-      match<"ull", Opts>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]] {
-        return;
-      }
-      value.ref.reset();
-    } else {
+    if (!util::parse_null<Options>(value.ref, ctx, it, end)) {
+      using type = std::remove_const_t<typename T::value_type>;
       void *addr = ctx.memory_resource().allocate(sizeof(type), alignof(type));
       // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
       type *obj = new (addr) type;
-      parse<JSON>::op<Opts>(*obj, ctx, it, end);
+      constexpr auto Opts = ws_handled_off<Options>();
+      parse<JSON>::op<Options>(*obj, ctx, it, end);
       value.ref = obj;
     }
   }

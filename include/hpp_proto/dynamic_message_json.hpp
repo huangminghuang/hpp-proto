@@ -8,131 +8,6 @@
 namespace glz {
 
 namespace util {
-
-template <auto Opts>
-[[nodiscard]] size_t number_of_elements(char stop_token, is_context auto &ctx, auto it, auto &end) noexcept {
-  // adapted from glz::number_of_array_elements
-  skip_ws<Opts>(ctx, it, end);
-  if (bool(ctx.error)) [[unlikely]] {
-    return {};
-  }
-
-  if (*it == stop_token) [[unlikely]] {
-    return 0;
-  }
-  size_t count = 1;
-  while (true) {
-    switch (*it) {
-    case ',': {
-      ++count;
-      ++it;
-      break;
-    }
-    case '/': {
-      skip_comment(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]] {
-        return {};
-      }
-      break;
-    }
-    case '{':
-      ++it;
-      skip_until_closed<Opts, '{', '}'>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]] {
-        return {};
-      }
-      break;
-    case '[':
-      ++it;
-      skip_until_closed<Opts, '[', ']'>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]] {
-        return {};
-      }
-      break;
-    case '"': {
-      skip_string<Opts>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]] {
-        return {};
-      }
-      break;
-    }
-    case '\0': {
-      ctx.error = error_code::unexpected_end;
-      return {};
-    }
-    default:
-      if (*it == stop_token) {
-        return count;
-      }
-      ++it;
-    }
-  }
-  unreachable();
-}
-
-// the following functions in util namespace are adapted from the snippet of
-// template <class T>
-//    requires((readable_map_t<T> || glaze_object_t<T> || reflectable<T>) && not custom_read<T>)
-//  struct from<JSON, T> {
-//  {
-//    template <auto Options, string_literal tag = "">
-//    static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end);
-//  };
-
-template <auto Opts>
-GLZ_ALWAYS_INLINE bool parse_opening(char c, glz::is_context auto &ctx, auto &it, auto &end) {
-  assert(c == '{' || c == '[');
-
-  if constexpr (!check_opening_handled(Opts)) {
-    if constexpr (!check_ws_handled(Opts)) {
-      if (skip_ws<Opts>(ctx, it, end)) {
-        return false;
-      }
-    }
-
-    auto match_invalid_end = [](char c, auto &ctx, auto &it, auto &end) {
-      if (*it != c) [[unlikely]] {
-        if (c == '[') {
-          ctx.error = error_code::expected_bracket;
-        } else {
-          ctx.error = error_code::expected_brace;
-        }
-        return true;
-      } else [[likely]] {
-        ++it;
-      }
-      if constexpr (not Opts.null_terminated) {
-        if (it == end) [[unlikely]] {
-          ctx.error = error_code::unexpected_end;
-          return true;
-        }
-      }
-      return false;
-    };
-
-    if (match_invalid_end(c, ctx, it, end)) {
-      return false;
-    }
-
-    if constexpr (not Opts.null_terminated) {
-      ++ctx.indentation_level;
-    }
-  }
-  return true;
-}
-
-template <auto Opts>
-bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto &) {
-  if (*it == c) {
-    ++it;
-    if constexpr (not Opts.null_terminated) {
-      --ctx.indentation_level;
-    }
-    return true;
-  }
-  return false;
-}
-
 template <auto Opts>
 bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, glz::is_context auto &ctx, auto &it,
                                    auto &end) {
@@ -167,19 +42,6 @@ bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, g
     }
   }
   return false;
-}
-
-template <auto Opts>
-std::string_view parse_key_and_colon(glz::is_context auto &ctx, auto &it, auto &end) {
-  std::string_view key;
-  parse<JSON>::op<Opts>(key, ctx, it, end);
-  if (bool(ctx.error)) [[unlikely]]
-    return {};
-
-  if (parse_ws_colon<Opts>(ctx, it, end)) {
-    return {};
-  }
-  return key;
 }
 
 template <auto Opts>
@@ -244,12 +106,15 @@ concept map_key_mref = std::same_as<T, ::hpp::proto::string_field_mref> ||
 
 template <>
 struct from<JSON, hpp::proto::field_mref> {
-  template <auto Opts>
+  template <auto Options>
   GLZ_ALWAYS_INLINE static void op(hpp::proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
-    value.visit([&](auto v) {
-      using T = std::remove_cvref_t<decltype(v)>;
-      from<JSON, T>::template op<Opts>(v, ctx, it, end);
-    });
+    if (!util::parse_null<Options>(value, ctx, it, end)) {
+      value.visit([&](auto v) {
+        using T = std::remove_cvref_t<decltype(v)>;
+        constexpr auto Opts = ws_handled_off<Options>();
+        from<JSON, T>::template op<Opts>(v, ctx, it, end);
+      });
+    }
   }
 };
 
@@ -567,7 +432,6 @@ struct to<JSON, hpp::proto::scalar_field_cref<T, Kind>> {
   }
 };
 
-
 template <typename T, hpp::proto::field_kind_t Kind>
 struct to<JSON, hpp::proto::repeated_scalar_field_cref<T, Kind>> {
   template <auto Opts>
@@ -782,58 +646,36 @@ struct from<JSON, hpp::proto::enum_value_mref> {
   }
 };
 
-template <auto Opts, concepts::map_key_mref T>
-void parse_map_key(const T &value, is_context auto &ctx, auto &it, auto &end) noexcept {
-
-  std::string_view key;
-  from<JSON, std::string_view>::template op<Opts>(key, ctx, it, end);
-  if (bool(ctx.error)) [[unlikely]] {
-    return;
-  }
-
-  if constexpr (std::same_as<T, ::hpp::proto::string_field_mref>) {
-    value.assign(key);
-  } else {
-    using value_type = typename T::value_type;
-    value_type v;
-    from<JSON, value_type>::template op<Opts>(v, ctx, key.begin(), key.end());
-    if (bool(ctx.error)) [[unlikely]] {
-      return;
-    }
-    value.set(v);
-  }
-}
-
 template <>
 struct from<JSON, hpp::proto::message_value_mref> {
   template <auto Opts>
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
     if (value.descriptor().is_map_entry()) {
-      value.fields()[0].visit([&](auto key) {
-        if constexpr (concepts::map_key_mref<decltype(key)>) {
-          parse_map_key<Opts>(key, ctx, it, end);
+      value.fields()[0].visit([&](auto key_mref) {
+        using key_mref_type = decltype(key_mref);
+        if constexpr (concepts::map_key_mref<key_mref_type>) {
+          auto key_str = util::parse_key_and_colon<Opts>(ctx, it, end);
+          if (bool(ctx.error)) [[unlikely]] {
+            return;
+          }
+
+          if constexpr (std::same_as<key_mref_type, ::hpp::proto::string_field_mref>) {
+            key_mref.assign(key_str);
+          } else {
+            using key_value_type = typename key_mref_type::value_type;
+            key_value_type v;
+            from<JSON, key_value_type>::template op<Opts>(v, ctx, key_str.begin(), key_str.end());
+            if (bool(ctx.error)) [[unlikely]] {
+              return;
+            }
+            key_mref.set(v);
+          }
+          from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[1], ctx, it, end);
         } else {
           ctx.error = error_code::syntax_error;
         }
       });
-
-      if (bool(ctx.error)) [[unlikely]] {
-        return;
-      }
-
-      if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
-        return;
-      }
-      if (match_invalid_end<':', Opts>(ctx, it, end)) [[unlikely]] {
-        return;
-      }
-
-      if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
-        return;
-      }
-
-      from<JSON, ::hpp::proto::field_mref>::template op<ws_handled<Opts>()>(value.fields()[1], ctx, it, end);
     } else {
       using enum hpp::proto::wellknown_types_t;
       switch (value.descriptor().wellknown) {
@@ -863,43 +705,12 @@ struct from<JSON, T> {
     const bool is_map =
         std::same_as<T, ::hpp::proto::repeated_message_field_mref> ? value.descriptor().is_map_entry() : false;
 
-    const auto opening_token = is_map ? '{' : '[';
-    const auto ending_token = is_map ? '}' : ']';
-
-    if (!util::parse_opening<Opts>(opening_token, ctx, it, end)) {
-      return;
-    }
-
-    if (skip_ws<Opts>(ctx, it, end)) {
-      return;
-    }
-
-    const auto n = util::number_of_elements<Opts>(ending_token, ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]] {
-      return;
-    }
-    value.resize(n);
-    size_t i = 0;
-    constexpr bool need_quote = concepts::eight_bytes_integer<typename T::value_type>;
-    constexpr auto ElementOpts = set_opt<Opts, &opts::quoted_num>(need_quote);
-
-    for (auto &&x : value) {
-      from<JSON, std::remove_reference_t<typename T::reference>>::template op<ElementOpts>(x, ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]]
-        return;
-
-      if (skip_ws<Opts>(ctx, it, end)) {
-        return;
-      }
-      if (i < n - 1) {
-        if (match_invalid_end<',', Opts>(ctx, it, end)) {
-          return;
-        }
-      }
-      ++i;
-    }
-
-    util::match_ending<Opts>(ending_token, ctx, it, end);
+    util::parse_repeated<Opts>(is_map, value, ctx, it, end, [](auto &&element, auto &ctx, auto &it, auto &end) {
+      constexpr bool need_quote = concepts::eight_bytes_integer<typename T::value_type>;
+      constexpr auto ElementOpts = set_opt<Opts, &opts::quoted_num>(need_quote);
+      from<JSON, std::remove_reference_t<typename T::reference>>::template op<ElementOpts>(
+          std::forward<decltype(element)>(element), ctx, it, end);
+    });
   }
 };
 
