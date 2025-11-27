@@ -65,11 +65,15 @@ void dump_closing_brace(is_context auto &ctx, auto &b, auto &ix) noexcept {
 }
 
 template <auto Opts>
-void dump_field_separator(is_context auto &ctx, auto &b, auto &ix, char separator) noexcept {
+void dump_field_separator(bool is_map_entry, is_context auto &ctx, auto &b, auto &ix, char separator) noexcept {
   glz::dump(separator, b, ix);
   if constexpr (Opts.prettify) {
-    glz::dump<'\n'>(b, ix);
-    glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    if (!is_map_entry) {
+      glz::dump<'\n'>(b, ix);
+      glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    } else {
+      glz::dump<' '>(b, ix);
+    }
   }
 }
 
@@ -157,7 +161,8 @@ struct generic_message_json_serializer {
   template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
     bool is_wellknown_type = (value.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE);
-    const bool dump_brace = !check_opening_handled(Opts) && !value.descriptor().is_map_entry() && !is_wellknown_type;
+    bool is_map_entry = value.descriptor().is_map_entry();
+    const bool dump_brace = !check_opening_handled(Opts) && !is_map_entry && !is_wellknown_type;
 
     if (dump_brace) {
       util::dump_opening_brace<Opts>(ctx, b, ix);
@@ -171,7 +176,7 @@ struct generic_message_json_serializer {
       }
 
       if (separator != nullptr) {
-        util::dump_field_separator<Opts>(ctx, b, ix, *separator);
+        util::dump_field_separator<Opts>(is_map_entry, ctx, b, ix, *separator);
       }
 
       if (!value.descriptor().is_map_entry()) {
@@ -233,7 +238,7 @@ struct generic_message_json_serializer {
 };
 
 struct any_message_json_serializer {
-  static const ::hpp::proto::dynamic_message_factory_base::message_descriptor_t *
+  static const ::hpp::proto::dynamic_message_factory::message_descriptor_t *
   message_descriptor_from_type_url(is_context auto &ctx, hpp::proto::message_value_cref value,
                                    std::string_view type_url) {
     const auto &pool = value.descriptor().parent_file()->get_descriptor_pool();
@@ -267,7 +272,7 @@ struct any_message_json_serializer {
       ctx.custom_error_message = "non-conforming google.protobuf.Any message descriptor";
       return;
     }
-    std::string_view type_url = *type_url_field.value();
+    std::string_view type_url = type_url_field.value().value();
     const auto *const value_descriptor = message_descriptor_from_type_url(ctx, value, type_url);
     if (value_descriptor == nullptr) {
       return;
@@ -451,6 +456,10 @@ struct to<JSON, hpp::proto::enum_value_cref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value_cref &value, is_context auto &ctx, auto &b,
                                    auto &ix) noexcept {
+    if (value.descriptor().is_null_value) {
+      dump<"null">(b, ix);
+      return;
+    }
     std::string_view name = value.name();
     if (!name.empty()) {
       dump<'"'>(b, ix);
@@ -463,25 +472,37 @@ struct to<JSON, hpp::proto::enum_value_cref> {
 };
 
 template <>
+struct to<JSON, hpp::proto::repeated_message_field_cref> {
+  template <auto Opts>
+  static void op(auto const &value, is_context auto &ctx, auto &b, auto &ix) noexcept;
+};
+
+template <>
 struct to<JSON, hpp::proto::message_value_cref> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::message_value_cref &value, auto &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(const hpp::proto::message_value_cref &value, is_context auto &ctx, auto &b,
+                                   auto &ix) noexcept {
     using enum hpp::proto::wellknown_types_t;
     switch (value.descriptor().wellknown) {
     case ANY:
-      any_message_json_serializer::template to_json<Opts>(value, std::forward<decltype(args)>(args)...);
+      any_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
       break;
     case TIMESTAMP:
-      timestamp_message_json_serializer::template to_json<Opts>(value, std::forward<decltype(args)>(args)...);
+      timestamp_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
       break;
     case DURATION:
-      duration_message_json_serializer::template to_json<Opts>(value, std::forward<decltype(args)>(args)...);
+      duration_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
       break;
     case FIELDMASK:
-      field_mask_message_json_serializer::template to_json<Opts>(value, std::forward<decltype(args)>(args)...);
+      field_mask_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
       break;
+    case STRUCT:
+    case LISTVALUE: {
+      auto f0 = value.fields()[0].to<::hpp::proto::repeated_message_field_cref>();
+      to<JSON, ::hpp::proto::repeated_message_field_cref>::template op<Opts>(*f0, ctx, b, ix);
+    } break;
     default:
-      generic_message_json_serializer::template to_json<Opts>(value, std::forward<decltype(args)>(args)...);
+      generic_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
     }
   }
 };
@@ -494,49 +515,53 @@ struct to<JSON, hpp::proto::message_value_mref> {
   }
 };
 
-template <>
-struct to<JSON, hpp::proto::repeated_message_field_cref> {
-  template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(auto const &value, is_context auto &ctx, auto &b, auto &ix) noexcept {
-    if (value.descriptor().is_map_entry()) {
-      glz::dump<'{'>(b, ix);
-    } else {
-      glz::dump<'['>(b, ix);
-    }
-    if constexpr (Opts.prettify) {
-      ctx.indentation_level += Opts.indentation_width;
-      glz::dump<'\n'>(b, ix);
-      glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
-    }
+template <auto Opts>
+void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is_context auto &ctx, auto &b,
+                                                           auto &ix) noexcept {
+  if (value.descriptor().is_map_entry()) {
+    glz::dump<'{'>(b, ix);
+  } else {
+    glz::dump<'['>(b, ix);
+  }
+  if constexpr (Opts.prettify) {
+    ctx.indentation_level += Opts.indentation_width;
+    glz::dump<'\n'>(b, ix);
+    glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+  }
 
-    char separator = '\0';
+  char separator = '\0';
 
-    for (auto entry : value) {
-      if (separator) {
-        // not the first field in a message, output the separator
-        glz::dump<','>(b, ix);
-        if (Opts.prettify) {
-          glz::dump<'\n'>(b, ix);
-          glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
-        }
+  for (auto entry : value) {
+    auto pre_separator_ix = ix;
+    if (separator) {
+      // not the first field in a message, output the separator
+      glz::dump<','>(b, ix);
+      if (Opts.prettify) {
+        glz::dump<'\n'>(b, ix);
+        glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
       }
-
-      to<JSON, hpp::proto::message_value_cref>::template op<Opts>(entry, ctx, b, ix);
+    }
+    auto pre_element_ix = ix;
+    to<JSON, hpp::proto::message_value_cref>::template op<Opts>(entry, ctx, b, ix);
+    if (ix == pre_element_ix) [[unlikely]] {
+      // in this case, we have an element with unknown fields only, just skip it.
+      ix = pre_separator_ix;
+    } else {
       separator = ',';
     }
-
-    if constexpr (Opts.prettify) {
-      ctx.indentation_level -= Opts.indentation_width;
-      glz::dump<'\n'>(b, ix);
-      glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
-    }
-    if (value.descriptor().is_map_entry()) {
-      glz::dump<'}'>(b, ix);
-    } else {
-      glz::dump<']'>(b, ix);
-    }
   }
-};
+
+  if constexpr (Opts.prettify) {
+    ctx.indentation_level -= Opts.indentation_width;
+    glz::dump<'\n'>(b, ix);
+    glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+  }
+  if (value.descriptor().is_map_entry()) {
+    glz::dump<'}'>(b, ix);
+  } else {
+    glz::dump<']'>(b, ix);
+  }
+}
 
 template <auto Opts>
 void any_message_json_serializer::any_value_to_json(const hpp::proto::message_descriptor_t &descriptor,
@@ -607,6 +632,10 @@ struct from<JSON, hpp::proto::enum_value_mref> {
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value_mref &value, is_context auto &ctx, auto &it,
                                    auto &end) noexcept {
 
+    if (value.descriptor().is_null_value) {
+      from<JSON, std::nullptr_t>::template op<Opts>(nullptr, ctx, it, end);
+      return;
+    }
     if constexpr (!check_ws_handled(Opts)) {
       if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
         return;
@@ -690,6 +719,10 @@ struct from<JSON, hpp::proto::message_value_mref> {
         break;
       case FIELDMASK:
         field_mask_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
+        break;
+      case STRUCT:
+      case LISTVALUE:
+        from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[0], ctx, it, end);
         break;
       default:
         generic_message_json_serializer::template from_json<Opts>(value, ctx, it, end);

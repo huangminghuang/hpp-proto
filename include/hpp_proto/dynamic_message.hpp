@@ -88,6 +88,7 @@ struct dynamic_message_factory_addons {
       case TYPE_ENUM:
         break;
       case TYPE_DOUBLE:
+        // TODO: use from_chars
         default_value = default_value_opt.empty() ? 0.0 : std::stod(default_value_opt);
         break;
       case TYPE_FLOAT:
@@ -122,7 +123,9 @@ struct dynamic_message_factory_addons {
 
   template <typename Derived>
   struct enum_descriptor {
-    explicit enum_descriptor(Derived &, [[maybe_unused]] const auto &inherited_options) {}
+    bool is_null_value = false;
+    explicit enum_descriptor(Derived &derived, [[maybe_unused]] const auto &inherited_options)
+        : is_null_value(derived.full_name() == "google.protobuf.NullValue") {}
 
     [[nodiscard]] const uint32_t *value_of(const std::string_view name) const {
       const auto &proto = static_cast<const Derived *>(this)->proto();
@@ -167,15 +170,14 @@ struct dynamic_message_factory_addons {
   };
 };
 
-using dynamic_message_factory_base = descriptor_pool<dynamic_message_factory_addons>;
 class message_value_mref;
-class dynamic_message_factory : public descriptor_pool<dynamic_message_factory_addons> {
-public:
-  explicit dynamic_message_factory(
-      google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type> &&proto_files,
-      std::pmr::monotonic_buffer_resource &mr)
-      : descriptor_pool<dynamic_message_factory_addons>(std::move(proto_files), mr) {
-    for (auto &message : this->messages()) {
+class dynamic_message_factory {
+  using descriptor_pool_t = descriptor_pool<dynamic_message_factory_addons>;
+  std::pmr::monotonic_buffer_resource memory_resource_;
+  descriptor_pool_t pool_;
+
+  void setup_storage_slots() {
+    for (auto &message : pool_.messages()) {
       hpp::proto::optional<std::int32_t> prev_oneof_index;
       uint16_t oneof_ordinal = 1;
       uint32_t cur_slot = UINT32_MAX;
@@ -196,7 +198,9 @@ public:
       }
       message.num_slots = cur_slot + 1;
     }
+  }
 
+  void setup_wellknown_types() {
     const static std::pair<const char *, wellknown_types_t> wellknown_mappings[] = {
         {"google.protobuf.Any", wellknown_types_t::ANY},
         {"google.protobuf.Timestamp", wellknown_types_t::TIMESTAMP},
@@ -217,13 +221,61 @@ public:
     };
 
     for (auto [name, id] : wellknown_mappings) {
-      if (auto *desc = get_message_descriptor(name); desc != nullptr) {
+      if (auto *desc = pool_.get_message_descriptor(name); desc != nullptr) {
         // TODO: we need to validate these wellknown types
         desc->wellknown = id;
       }
     }
   }
-  std::optional<message_value_mref> get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr);
+
+  void setup_enum_field_default_value() {
+    using enum google::protobuf::FieldDescriptorProto_::Type;
+    for (auto &field : pool_.fields()) {
+      const auto &proto = field.proto();
+      if (proto.type == TYPE_ENUM && !proto.default_value.empty()) {
+        field.default_value = *field.enum_field_type_descriptor()->value_of(proto.default_value);
+      }
+    }
+  }
+
+  void init() {
+    setup_storage_slots();
+    setup_wellknown_types();
+    setup_enum_field_default_value();
+  }
+
+public:
+  using FileDescriptorSet = google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
+  using field_descriptor_t = typename descriptor_pool_t::field_descriptor_t;
+  using enum_descriptor_t = typename descriptor_pool_t::enum_descriptor_t;
+  using oneof_descriptor_t = typename descriptor_pool_t::oneof_descriptor_t;
+  using message_descriptor_t = typename descriptor_pool_t::message_descriptor_t;
+  using file_descriptor_t = typename descriptor_pool_t::file_descriptor_t;
+
+  explicit dynamic_message_factory(FileDescriptorSet &&proto_files, std::pmr::monotonic_buffer_resource &mr)
+      : memory_resource_(), pool_(std::move(proto_files), mr) {
+    init();
+  }
+
+  template <concepts::contiguous_byte_range FileDescriptorPbBin>
+  explicit dynamic_message_factory(const std::unordered_set<FileDescriptorPbBin> &unique_files,
+                                   auto &&...memory_resource_init_args)
+      : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
+        pool_(descriptor_pool_t::make_file_descriptor_set(unique_files, alloc_from(memory_resource_)).value(),
+              memory_resource_) {
+    init();
+  }
+
+  explicit dynamic_message_factory(concepts::file_descriptor_pb_array auto const &pb_array,
+                                   auto &&...memory_resource_init_args)
+      : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
+        pool_(descriptor_pool_t::make_file_descriptor_set(pb_array, alloc_from(memory_resource_)).value(),
+              memory_resource_) {
+    init();
+  }
+
+  std::optional<message_value_mref> get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const;
+  [[nodiscard]] std::span<const file_descriptor_t> files() const { return pool_.files(); }
 };
 
 using field_descriptor_t = dynamic_message_factory::field_descriptor_t;
@@ -311,8 +363,8 @@ public:
   [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
 
   [[nodiscard]] bool has_value() const noexcept {
-    return storage_->has_value() &&
-           (descriptor().is_repeated() || storage_->of_int64.selection == descriptor().oneof_ordinal);
+    return (storage_->has_value() &&
+           descriptor().is_repeated()) || storage_->of_int64.selection == descriptor().oneof_ordinal;
   }
 
   template <typename T>
@@ -396,9 +448,9 @@ public:
   scalar_field_cref &operator=(scalar_field_cref &&) noexcept = default;
   ~scalar_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
   [[nodiscard]] value_type value() const noexcept {
-    if (!descriptor().explicit_presence() && !has_value()) {
+    if (descriptor().explicit_presence() && !has_value()) {
       return std::get<value_type>(descriptor_->default_value);
     }
     return storage_->content;
@@ -481,17 +533,16 @@ public:
   string_field_cref &operator=(string_field_cref &&) noexcept = default;
   ~string_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
 
   [[nodiscard]] std::string_view value() const noexcept {
-    if (!descriptor_->explicit_presence() && !has_value()) {
+    if (descriptor().explicit_presence() && !has_value()) {
       return descriptor_->proto().default_value;
     }
     return {storage_->content, storage_->size};
   }
 
-  [[nodiscard]] std::string_view operator*() const noexcept { return value(); }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
 private:
@@ -552,7 +603,6 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] std::string_view value() const noexcept { return cref().value(); }
-  [[nodiscard]] std::string_view operator*() const noexcept { return cref().operator*(); }
 
   void reset() const noexcept {
     storage_->size = 0;
@@ -591,9 +641,9 @@ public:
   bytes_field_cref &operator=(bytes_field_cref &&) noexcept = default;
   ~bytes_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0U; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
   [[nodiscard]] bytes_view value() const noexcept {
-    if (!descriptor_->explicit_presence() && !has_value()) {
+    if (descriptor().explicit_presence() && !has_value()) {
       const auto &default_value = descriptor_->proto().default_value;
       // Avoid reinterpret_cast by using std::as_bytes to obtain a span of bytes
       auto sval = std::span<const char>(default_value.data(), default_value.size());
@@ -602,7 +652,6 @@ public:
     }
     return {storage_->content, storage_->size};
   }
-  [[nodiscard]] bytes_view operator*() const noexcept { return value(); }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
@@ -664,7 +713,6 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] bytes_view value() const noexcept { return cref().value(); }
-  [[nodiscard]] bytes_view operator*() const noexcept { return cref().operator*(); }
 
   void reset() const noexcept {
     storage_->size = 0;
@@ -965,9 +1013,13 @@ public:
 
   ~enum_field_cref() = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0U; }
-  [[nodiscard]] enum_value_cref value() const noexcept { return {enum_descriptor(), storage_->content}; }
-  [[nodiscard]] enum_value_cref operator*() const noexcept { return value(); }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] enum_value_cref value() const noexcept {
+    if (descriptor().explicit_presence() && !has_value()) {
+      const_cast<scalar_storage_base<uint32_t> *>(storage_)->content = std::get<uint32_t>(descriptor_->default_value);
+    }
+    return {enum_descriptor(), storage_->content};
+  }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
@@ -1021,10 +1073,11 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] enum_value_mref value() const noexcept {
+    if (descriptor().explicit_presence() && !has_value()) {
+      storage_->content = std::get<uint32_t>(descriptor_->default_value);
+    }
     return {*descriptor_->enum_field_type_descriptor(), storage_->content};
   }
-
-  [[nodiscard]] enum_value_mref operator*() const noexcept { return value(); }
 
   [[nodiscard]] enum_value_mref emplace() noexcept {
     storage_->selection = descriptor_->oneof_ordinal;
@@ -1106,7 +1159,7 @@ public:
   using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
   using storage_type = repeated_storage_base<value_type>;
   using difference_type = std::ptrdiff_t;
-  using reference = value_type&;
+  using reference = value_type &;
   using size_type = std::size_t;
   using cref_type = repeated_scalar_field_cref<T, Kind>;
   constexpr static field_kind_t field_kind = Kind;
@@ -1738,7 +1791,8 @@ public:
 
   [[nodiscard]] const field_descriptor_t *field_descriptor_by_json_name(std::string_view name) const noexcept {
     auto field_descriptors = descriptor_->fields();
-    auto it = std::ranges::find_if(field_descriptors, [name](const auto &desc) { return desc.proto().json_name == name; });
+    auto it =
+        std::ranges::find_if(field_descriptors, [name](const auto &desc) { return desc.proto().json_name == name; });
     if (it != field_descriptors.end()) {
       return std::addressof(*it);
     }
@@ -1766,12 +1820,8 @@ public:
 
   [[nodiscard]] field_cref const_field(const field_descriptor_t &desc) const noexcept {
     const auto &storage = storage_for(desc);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-    if (!desc.is_repeated() && storage.of_int64.selection != desc.oneof_ordinal) {
-      return {desc, empty_storage()};
-    } else {
-      return {desc, storage};
-    }
+
+    return {desc, storage};
   }
 
   [[nodiscard]] field_cref operator[](std::string_view name) const noexcept {
@@ -1897,12 +1947,6 @@ public:
 
   [[nodiscard]] field_mref mutable_field(const field_descriptor_t &desc) const noexcept {
     auto &storage = storage_for(desc);
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
-    // if (!desc.is_repeated() && storage.of_int64.selection != desc.oneof_ordinal) {
-    //   storage.of_int64.size = 0;
-    //   storage.of_int64.selection = desc.oneof_ordinal;
-    // }
-    // NOLINTEND(cppcoreguidelines-pro-type-union-access)
     return {desc, storage, *memory_resource_};
   }
 
@@ -2043,7 +2087,7 @@ public:
   message_field_cref &operator=(message_field_cref &&) noexcept = default;
   ~message_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
   [[nodiscard]] value_type value() const {
     if (!has_value()) {
       throw std::bad_optional_access{};
@@ -2067,7 +2111,7 @@ class message_field_mref {
 public:
   using encode_type = message_value_mref;
   using storage_type = scalar_storage_base<value_storage *>;
-  using value_type = message_value_mref; // TODO: why?
+  using value_type = message_value_mref;
   using cref_type = message_field_cref;
   constexpr static field_kind_t field_kind = KIND_MESSAGE;
   constexpr static bool is_mutable = true;
@@ -2087,9 +2131,13 @@ public:
 
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
+  cref_type cref() const noexcept {
+    return cref_type{*descriptor_, *storage_};
+  }
+
   message_value_mref emplace() const noexcept {
-    storage_->selection = descriptor_->oneof_ordinal;
-    if (storage_->content == nullptr) {
+    if (!has_value()) {
+      storage_->selection = descriptor_->oneof_ordinal;
       storage_->content = static_cast<value_storage *>(
           memory_resource_->allocate(sizeof(value_storage) * num_slots(), alignof(value_storage)));
     }
@@ -2097,7 +2145,7 @@ public:
     result.reset();
     return result;
   }
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection != 0; }
+  [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] value_type value() const {
     if (!has_value()) {
       throw std::bad_optional_access{};
@@ -2524,9 +2572,9 @@ void field_mref::clone_from(const field_cref &other) const noexcept {
   });
 }
 
-inline std::optional<message_value_mref> dynamic_message_factory::get_message(std::string_view name,
-                                                                              std::pmr::monotonic_buffer_resource &mr) {
-  auto *desc = get_message_descriptor(name);
+inline std::optional<message_value_mref>
+dynamic_message_factory::get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const {
+  auto *desc = pool_.get_message_descriptor(name);
   if (desc != nullptr) {
     return message_value_mref{*desc, mr};
   }
@@ -2774,7 +2822,7 @@ status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts:
   }
   const auto *field_desc = item.field_descriptor_by_number(tag_number(tag));
   if (field_desc == nullptr) [[unlikely]] {
-    return std::errc::bad_message;
+    return do_skip_field(tag, archive);
   }
 
   auto f = item.mutable_field(*field_desc);
@@ -2844,9 +2892,9 @@ struct message_size_calculator<message_value_cref> {
       return narrow_size(tag_size(v) + sizeof(T));
     }
 
-    uint32_t operator()(enum_field_cref v) { return narrow_size(tag_size(v) + varint_size((*v).number())); }
-    uint32_t operator()(string_field_cref v) { return narrow_size(tag_size(v) + len_size((*v).size())); }
-    uint32_t operator()(bytes_field_cref v) { return narrow_size(tag_size(v) + len_size((*v).size())); }
+    uint32_t operator()(enum_field_cref v) { return narrow_size(tag_size(v) + varint_size(v.value().number())); }
+    uint32_t operator()(string_field_cref v) { return narrow_size(tag_size(v) + len_size(v.value().size())); }
+    uint32_t operator()(bytes_field_cref v) { return narrow_size(tag_size(v) + len_size(v.value().size())); }
 
     template <concepts::varint T, field_kind_t Kind>
     uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
@@ -2990,14 +3038,14 @@ struct field_serializer {
     return archive(make_tag(desc), T{v.value()});
   }
 
-  bool operator()(enum_field_cref v) { return archive(make_tag(v.descriptor()), varint{(*v).number()}); }
+  bool operator()(enum_field_cref v) { return archive(make_tag(v.descriptor()), varint{v.value().number()}); }
 
   bool operator()(string_field_cref v) {
-    auto str = *v;
+    auto str = v.value();
     return !utf8_validation_failed(v.descriptor(), str) && archive(make_tag(v.descriptor()), varint{str.size()}, str);
   }
 
-  bool operator()(bytes_field_cref v) { return archive(make_tag(v.descriptor()), varint{(*v).size()}, *v); }
+  bool operator()(bytes_field_cref v) { return archive(make_tag(v.descriptor()), varint{v.value().size()}, v.value()); }
 
   template <typename T, field_kind_t Kind>
   bool operator()(repeated_scalar_field_cref<T, Kind> v) {

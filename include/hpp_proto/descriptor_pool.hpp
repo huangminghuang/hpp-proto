@@ -24,6 +24,7 @@
 #include <cassert>
 #include <expected>
 #include <google/protobuf/descriptor.pb.hpp>
+#include <hpp_proto/file_descriptor_pb.hpp>
 #include <iostream>
 #include <unordered_set>
 namespace hpp::proto {
@@ -414,6 +415,32 @@ public:
   };
 
   template <concepts::contiguous_byte_range FileDescriptorPbBin>
+  static std::expected<FileDescriptorSet, status>
+  make_file_descriptor_set(const std::unordered_set<FileDescriptorPbBin> &unique_files,
+                           concepts::is_option_type auto &&...option) {
+    FileDescriptorSet fileset;
+    pb_context ctx{std::forward<decltype(option)>(option)...};
+    decltype(auto) files = detail::as_modifiable(ctx, fileset.file);
+    files.resize(unique_files.size());
+    std::size_t i = 0;
+    for (const auto &stream : unique_files) {
+      if (auto ec = read_proto(files[i++], stream, ctx); !ec.ok()) {
+        return std::unexpected(ec);
+      }
+    }
+    return fileset;
+  }
+
+  static std::expected<FileDescriptorSet, status>
+  make_file_descriptor_set(concepts::file_descriptor_pb_array auto const &arg,
+                           concepts::is_option_type auto &&...option) {
+    std::unordered_set<std::string_view> unique_files;
+    auto view = arg | std::views::transform([](const file_descriptor_pb &x) { return x.value; });
+    unique_files.insert(view.begin(), view.end());
+    return make_file_descriptor_set(unique_files, std::forward<decltype(option)>(option)...);
+  }
+
+  template <concepts::contiguous_byte_range FileDescriptorPbBin>
   static std::expected<descriptor_pool, status> make(const std::unordered_set<FileDescriptorPbBin> &unique_files,
                                                      concepts::is_option_type auto &&...option) {
     FileDescriptorSet fileset;
@@ -494,6 +521,8 @@ public:
   [[nodiscard]] const map_t<std::string_view, enum_descriptor_t *> &enum_map() const { return enum_map_; }
 
 private:
+  friend class dynamic_message_factory;
+  descriptor_pool() = default;
   void init() {
     const descriptor_counter counter(fileset_);
     files_.reserve(counter.files);
@@ -783,22 +812,5 @@ private:
   }
   // NOLINTEND(bugprone-unchecked-optional-access)
 };
-
-struct file_descriptor_pb {
-  std::string_view value;
-
-  constexpr bool operator==(const file_descriptor_pb &) const = default;
-  constexpr bool operator<(const file_descriptor_pb &other) const { return value < other.value; };
-};
-
-namespace concepts {
-template <typename T>
-concept input_bytes_range =
-    std::ranges::input_range<T> && contiguous_byte_range<typename std::ranges::range_value_t<T>>;
-
-template <typename T>
-concept file_descriptor_pb_array =
-    std::ranges::input_range<T> && std::same_as<typename std::ranges::range_value_t<T>, file_descriptor_pb>;
-} // namespace concepts
 
 } // namespace hpp::proto
