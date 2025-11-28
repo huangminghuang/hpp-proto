@@ -1,6 +1,13 @@
 #pragma once
+#include <cerrno>
+#include <charconv>
 #include <compare>
+#include <cstdlib>
 #include <iterator>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
@@ -69,6 +76,60 @@ struct dynamic_message_factory_addons {
   template <typename T, typename U>
   using map_t = std::pmr::unordered_map<T, U>;
 
+// macOS historically lacks floating-point from_chars; fall back to strto* when not available.
+#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L && !defined(__APPLE__)
+  static constexpr bool has_std_from_chars_float = true;
+#else
+  static constexpr bool has_std_from_chars_float = false;
+#endif
+
+  template <typename T>
+  static T parse_default_value(std::string_view value) {
+    T parsed{};
+    if (value.empty()) {
+      return parsed;
+    }
+    const char *begin = value.data();
+    const char *end = value.data() + value.size();
+    const char *parsed_end = begin;
+    std::errc ec{};
+
+    if constexpr (std::is_floating_point_v<T>) {
+      if constexpr (has_std_from_chars_float) {
+        const auto result = std::from_chars(begin, end, parsed);
+        ec = result.ec;
+        parsed_end = result.ptr;
+      } else {
+        std::string buffer(value);
+        char *conv_end = nullptr;
+        errno = 0;
+        if constexpr (std::is_same_v<T, float>) {
+          parsed = std::strtof(buffer.c_str(), &conv_end);
+        } else {
+          parsed = std::strtod(buffer.c_str(), &conv_end);
+        }
+        parsed_end = begin + (conv_end - buffer.c_str());
+        if (errno == ERANGE) {
+          ec = std::errc::result_out_of_range;
+        } else if (conv_end == buffer.c_str() || conv_end != buffer.c_str() + buffer.size()) {
+          ec = std::errc::invalid_argument;
+        }
+      }
+    } else {
+      const auto result = std::from_chars(begin, end, parsed);
+      ec = result.ec;
+      parsed_end = result.ptr;
+    }
+
+    if (ec == std::errc::result_out_of_range) {
+      throw std::out_of_range("default value out of range");
+    }
+    if (ec != std::errc{} || parsed_end != end) {
+      throw std::invalid_argument("invalid default value");
+    }
+    return parsed;
+  }
+
   template <typename Derived>
   struct field_descriptor {
     using type = void;
@@ -88,29 +149,28 @@ struct dynamic_message_factory_addons {
       case TYPE_ENUM:
         break;
       case TYPE_DOUBLE:
-        // TODO: use from_chars
-        default_value = default_value_opt.empty() ? 0.0 : std::stod(default_value_opt);
+        default_value = parse_default_value<double>(proto.default_value);
         break;
       case TYPE_FLOAT:
-        default_value = default_value_opt.empty() ? 0.0F : std::stof(default_value_opt);
+        default_value = parse_default_value<float>(proto.default_value);
         break;
       case TYPE_INT64:
       case TYPE_SFIXED64:
       case TYPE_SINT64:
-        default_value = default_value_opt.empty() ? int64_t{0} : static_cast<int64_t>(std::stoll(default_value_opt));
+        default_value = parse_default_value<int64_t>(proto.default_value);
         break;
       case TYPE_UINT64:
       case TYPE_FIXED64:
-        default_value = default_value_opt.empty() ? uint64_t{0} : static_cast<uint64_t>(std::stoull(default_value_opt));
+        default_value = parse_default_value<uint64_t>(proto.default_value);
         break;
       case TYPE_INT32:
       case TYPE_SFIXED32:
       case TYPE_SINT32:
-        default_value = default_value_opt.empty() ? int32_t{0} : static_cast<int32_t>(std::stoi(default_value_opt));
+        default_value = parse_default_value<int32_t>(proto.default_value);
         break;
       case TYPE_UINT32:
       case TYPE_FIXED32:
-        default_value = default_value_opt.empty() ? uint32_t{0} : static_cast<uint32_t>(std::stoul(default_value_opt));
+        default_value = parse_default_value<uint32_t>(proto.default_value);
         break;
       case TYPE_BOOL:
         default_value = proto.default_value == "true";
@@ -363,8 +423,8 @@ public:
   [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
 
   [[nodiscard]] bool has_value() const noexcept {
-    return (storage_->has_value() &&
-           descriptor().is_repeated()) || storage_->of_int64.selection == descriptor().oneof_ordinal;
+    return (descriptor().is_repeated() && storage_->of_repeated_uint64.size) ||
+             (!descriptor().is_repeated() && storage_->of_int64.selection == descriptor().oneof_ordinal);
   }
 
   template <typename T>
@@ -2131,9 +2191,7 @@ public:
 
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
-  cref_type cref() const noexcept {
-    return cref_type{*descriptor_, *storage_};
-  }
+  cref_type cref() const noexcept { return cref_type{*descriptor_, *storage_}; }
 
   message_value_mref emplace() const noexcept {
     if (!has_value()) {

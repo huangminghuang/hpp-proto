@@ -1,8 +1,32 @@
 #include "test_util.hpp"
 #include <boost/ut.hpp>
+#include <hpp_proto/dynamic_message.hpp>
 #include <hpp_proto/dynamic_message_json.hpp>
+#include <limits>
 #include <memory_resource>
+#include <string>
 using namespace boost::ut;
+
+const boost::ut::suite parse_default_value_tests = [] {
+  "parse_default_value_success"_test = [] {
+    expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<int32_t>("123"), 123));
+    expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<uint64_t>(
+                  std::to_string(std::numeric_limits<uint64_t>::max())),
+              std::numeric_limits<uint64_t>::max()));
+    expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<float>("1.5"), 1.5f));
+    expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<double>("-2.5"), -2.5));
+    expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<int32_t>(""), 0)); // empty defaults to zero-initialized
+  };
+
+  "parse_default_value_errors"_test = [] {
+    expect(throws<std::invalid_argument>(
+        [] { (void)hpp::proto::dynamic_message_factory_addons::parse_default_value<int32_t>("abc"); }));
+    expect(throws<std::out_of_range>(
+        [] { (void)hpp::proto::dynamic_message_factory_addons::parse_default_value<int32_t>("999999999999"); }));
+    expect(
+        throws<std::out_of_range>([] { (void)hpp::proto::dynamic_message_factory_addons::parse_default_value<double>("1e400"); }));
+  };
+};
 
 const boost::ut::suite dynamic_message_test = [] {
   using namespace boost::ut::literals;
@@ -134,6 +158,8 @@ const boost::ut::suite dynamic_message_test = [] {
       return mref.value();
     }));
   };
+
+
 
   "oneof_field_access"_test = [&factory]() {
     using namespace std::string_view_literals;
