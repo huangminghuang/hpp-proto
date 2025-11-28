@@ -19,7 +19,7 @@ constexpr file_descriptor_pb _desc_hpp_proto_hpp_options_proto{
 };
 
 inline auto desc_set_hpp_proto_hpp_options_proto(){
-  return std::array<file_descriptor_pb, 2> {
+  return distinct_file_descriptor_pb_array{
     _desc_google_protobuf_descriptor_proto,
     _desc_hpp_proto_hpp_options_proto,
   };

@@ -36,6 +36,8 @@ struct deref_pointer {
   }
 };
 
+struct distinct_file_tag_t {};
+constexpr distinct_file_tag_t distinct_file_tag;
 template <typename AddOns>
 class descriptor_pool {
   enum class field_option_mask : uint8_t {
@@ -414,30 +416,30 @@ public:
         : file_descriptor_base(proto, default_features), addon_type(*this) {}
   };
 
-  template <concepts::contiguous_byte_range FileDescriptorPbBin>
   static std::expected<FileDescriptorSet, status>
-  make_file_descriptor_set(const std::unordered_set<FileDescriptorPbBin> &unique_files,
+  make_file_descriptor_set(concepts::file_descriptor_pb_range auto const &unique_descs, distinct_file_tag_t,
                            concepts::is_option_type auto &&...option) {
     FileDescriptorSet fileset;
     pb_context ctx{std::forward<decltype(option)>(option)...};
     decltype(auto) files = detail::as_modifiable(ctx, fileset.file);
-    files.resize(unique_files.size());
+    files.resize(std::ranges::size(unique_descs));
     std::size_t i = 0;
-    for (const auto &stream : unique_files) {
-      if (auto ec = read_proto(files[i++], stream, ctx); !ec.ok()) {
+    for (const auto &desc : unique_descs) {
+      if (auto ec = read_proto(files[i++], desc.value, ctx); !ec.ok()) {
         return std::unexpected(ec);
       }
     }
     return fileset;
   }
 
-  static std::expected<FileDescriptorSet, status>
-  make_file_descriptor_set(concepts::file_descriptor_pb_array auto const &arg,
-                           concepts::is_option_type auto &&...option) {
-    std::unordered_set<std::string_view> unique_files;
-    auto view = arg | std::views::transform([](const file_descriptor_pb &x) { return x.value; });
-    unique_files.insert(view.begin(), view.end());
-    return make_file_descriptor_set(unique_files, std::forward<decltype(option)>(option)...);
+  template <std::ranges::forward_range Range>
+    requires std::same_as<std::ranges::range_value_t<Range>, file_descriptor_pb>
+  static std::expected<FileDescriptorSet, status> make_file_descriptor_set(Range const &descs,
+                                                                           concepts::is_option_type auto &&...option) {
+    std::unordered_set<file_descriptor_pb> unique_files;
+    unique_files.insert(std::ranges::begin(descs), std::ranges::end(descs));
+
+    return make_file_descriptor_set(unique_files, distinct_file_tag, std::forward<decltype(option)>(option)...);
   }
 
   template <concepts::contiguous_byte_range FileDescriptorPbBin>

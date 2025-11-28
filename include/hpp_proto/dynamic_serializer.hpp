@@ -1494,7 +1494,7 @@ public:
     });
   }
 
-  static expected<dynamic_serializer, status> make(concepts::file_descriptor_pb_array auto const &...args) {
+  static expected<dynamic_serializer, status> make(concepts::file_descriptor_pb_range auto const &...args) {
     std::unordered_set<std::string_view> unique_files;
     auto insert_to_set = [&](auto const &arg) {
       auto view = arg | std::views::transform([](const file_descriptor_pb &x) { return x.value; });

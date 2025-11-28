@@ -18,7 +18,7 @@ constexpr file_descriptor_pb _desc_google_protobuf_descriptor_proto{
 };
 
 inline auto desc_set_google_protobuf_descriptor_proto(){
-  return std::array<file_descriptor_pb, 1> {
+  return distinct_file_descriptor_pb_array{
     _desc_google_protobuf_descriptor_proto,
   };
 }

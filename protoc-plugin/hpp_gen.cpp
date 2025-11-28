@@ -1811,7 +1811,7 @@ struct desc_hpp_generator : code_generator {
 
     fmt::format_to(target, "inline auto desc_set_{}(){{\n", descriptor.cpp_name);
     const auto &dependency_names = descriptor.get_dependency_names();
-    fmt::format_to(target, "  return std::array<file_descriptor_pb, {}> {{\n", dependency_names.size());
+    fmt::format_to(target, "  return distinct_file_descriptor_pb_array{{\n");
     for (const auto &p : dependency_names) {
       fmt::format_to(target, "    _desc_{},\n", p);
     }

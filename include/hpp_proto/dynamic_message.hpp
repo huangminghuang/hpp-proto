@@ -4,6 +4,7 @@
 #include <compare>
 #include <cstdlib>
 #include <iterator>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -317,20 +318,24 @@ public:
     init();
   }
 
-  template <concepts::contiguous_byte_range FileDescriptorPbBin>
-  explicit dynamic_message_factory(const std::unordered_set<FileDescriptorPbBin> &unique_files,
-                                   auto &&...memory_resource_init_args)
+  template <std::ranges::forward_range Range>
+    requires std::same_as<std::ranges::range_value_t<Range>, file_descriptor_pb>
+  explicit dynamic_message_factory(Range &&descs, auto &&...memory_resource_init_args)
       : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
-        pool_(descriptor_pool_t::make_file_descriptor_set(unique_files, alloc_from(memory_resource_)).value(),
-              memory_resource_) {
+        pool_(descriptor_pool_t::make_file_descriptor_set(descs, alloc_from(memory_resource_)).value(),
+               memory_resource_) {
     init();
   }
 
-  explicit dynamic_message_factory(concepts::file_descriptor_pb_array auto const &pb_array,
-                                   auto &&...memory_resource_init_args)
+  template <std::size_t N>
+  explicit dynamic_message_factory(distinct_file_descriptor_pb_array<N> &&descs, auto &&...memory_resource_init_args)
+      : dynamic_message_factory(std::span<file_descriptor_pb>(std::data(descs), std::size(descs)), distinct_file_tag_t{},
+                                std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...) {}
+
+  explicit dynamic_message_factory(std::span<file_descriptor_pb> unique_descs, distinct_file_tag_t tag, auto &&...memory_resource_init_args)
       : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
-        pool_(descriptor_pool_t::make_file_descriptor_set(pb_array, alloc_from(memory_resource_)).value(),
-              memory_resource_) {
+        pool_(descriptor_pool_t::make_file_descriptor_set(unique_descs, tag, alloc_from(memory_resource_)).value(),
+               memory_resource_) {
     init();
   }
 
@@ -424,7 +429,7 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept {
     return (descriptor().is_repeated() && storage_->of_repeated_uint64.size) ||
-             (!descriptor().is_repeated() && storage_->of_int64.selection == descriptor().oneof_ordinal);
+           (!descriptor().is_repeated() && storage_->of_int64.selection == descriptor().oneof_ordinal);
   }
 
   template <typename T>
