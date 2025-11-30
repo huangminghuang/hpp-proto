@@ -12,6 +12,12 @@
 #include <utility>
 #include <variant>
 
+#include <google/protobuf/any.desc.hpp>
+#include <google/protobuf/duration.desc.hpp>
+#include <google/protobuf/field_mask.desc.hpp>
+#include <google/protobuf/struct.desc.hpp>
+#include <google/protobuf/timestamp.desc.hpp>
+#include <google/protobuf/wrappers.desc.hpp>
 #include <hpp_proto/descriptor_pool.hpp>
 #include <hpp_proto/pb_serializer.hpp>
 namespace hpp::proto {
@@ -227,7 +233,23 @@ struct dynamic_message_factory_addons {
 
   template <typename Derived>
   struct file_descriptor {
-    explicit file_descriptor(const Derived &) {}
+    bool wellknown_validated_ = false;
+    explicit file_descriptor([[maybe_unused]] const Derived &derived) {
+      using namespace hpp::proto::file_descriptors;
+      static flat_map<std::string_view, file_descriptor_pb> wellknown_type_pbs{
+          {"google/protobuf/any.proto", _desc_google_protobuf_any_proto},
+          {"google/protobuf/duration.proto", _desc_google_protobuf_duration_proto},
+          {"google/protobuf/field_mask.proto", _desc_google_protobuf_field_mask_proto},
+          {"google/protobuf/struct.proto", _desc_google_protobuf_struct_proto},
+          {"google/protobuf/timestamp.proto", _desc_google_protobuf_timestamp_proto},
+          {"google/protobuf/wrappers.proto", _desc_google_protobuf_wrappers_proto}};
+
+      if (auto itr = wellknown_type_pbs.find(derived.proto().name); itr != wellknown_type_pbs.end()) {
+        std::string pb;
+        assert(write_proto(derived.proto(), pb).ok());
+        wellknown_validated_ = (pb == itr->second.value);
+      }
+    }
   };
 };
 
@@ -283,8 +305,9 @@ class dynamic_message_factory {
 
     for (auto [name, id] : wellknown_mappings) {
       if (auto *desc = pool_.get_message_descriptor(name); desc != nullptr) {
-        // TODO: we need to validate these wellknown types
-        desc->wellknown = id;
+        if (desc->parent_file()->wellknown_validated_) {
+          desc->wellknown = id;
+        }
       }
     }
   }
@@ -313,6 +336,9 @@ public:
   using message_descriptor_t = typename descriptor_pool_t::message_descriptor_t;
   using file_descriptor_t = typename descriptor_pool_t::file_descriptor_t;
 
+  /// enable to pass dynamic_message_factory as an option to read_json()/write_json()
+  using option_type = std::reference_wrapper<dynamic_message_factory>;
+
   explicit dynamic_message_factory(FileDescriptorSet &&proto_files, std::pmr::monotonic_buffer_resource &mr)
       : memory_resource_(), pool_(std::move(proto_files), mr) {
     init();
@@ -323,19 +349,21 @@ public:
   explicit dynamic_message_factory(Range &&descs, auto &&...memory_resource_init_args)
       : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
         pool_(descriptor_pool_t::make_file_descriptor_set(descs, alloc_from(memory_resource_)).value(),
-               memory_resource_) {
+              memory_resource_) {
     init();
   }
 
   template <std::size_t N>
   explicit dynamic_message_factory(distinct_file_descriptor_pb_array<N> &&descs, auto &&...memory_resource_init_args)
-      : dynamic_message_factory(std::span<file_descriptor_pb>(std::data(descs), std::size(descs)), distinct_file_tag_t{},
+      : dynamic_message_factory(std::span<file_descriptor_pb>(std::data(descs), std::size(descs)),
+                                distinct_file_tag_t{},
                                 std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...) {}
 
-  explicit dynamic_message_factory(std::span<file_descriptor_pb> unique_descs, distinct_file_tag_t tag, auto &&...memory_resource_init_args)
+  explicit dynamic_message_factory(std::span<file_descriptor_pb> unique_descs, distinct_file_tag_t tag,
+                                   auto &&...memory_resource_init_args)
       : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
         pool_(descriptor_pool_t::make_file_descriptor_set(unique_descs, tag, alloc_from(memory_resource_)).value(),
-               memory_resource_) {
+              memory_resource_) {
     init();
   }
 
@@ -399,6 +427,10 @@ concept const_field_ref = !T::is_mutable && requires { T::field_kind; };
 
 template <typename T>
 concept mutable_field_ref = T::is_mutable && requires { T::field_kind; };
+
+template <typename T>
+concept contiguous_std_byte_range =
+    std::ranges::contiguous_range<T> && std::same_as<std::ranges::range_value_t<T>, std::byte>;
 }; // namespace concepts
 
 class field_cref {
@@ -428,8 +460,8 @@ public:
   [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
 
   [[nodiscard]] bool has_value() const noexcept {
-    return (descriptor().is_repeated() && storage_->of_repeated_uint64.size) ||
-           (!descriptor().is_repeated() && storage_->of_int64.selection == descriptor().oneof_ordinal);
+    return descriptor().is_repeated() ? (storage_->of_repeated_uint64.size > 0)
+                                      : (storage_->of_int64.selection == descriptor().oneof_ordinal);
   }
 
   template <typename T>
@@ -441,6 +473,20 @@ public:
   }
 
   auto visit(auto &&v) const;
+  template <typename T>
+  [[nodiscard]] auto get() const noexcept -> std::expected<T, std::errc> {
+    return visit([](auto cref) -> std::expected<T, std::errc> {
+      if constexpr (requires {
+                      { cref.value() } -> std::same_as<T>;
+                    }) {
+        return cref.value();
+      } else if constexpr (requires { T{cref.data(), cref.size()}; }) {
+        return T{cref.data(), cref.size()};
+      } else {
+        return std::unexpected(std::errc::wrong_protocol_type);
+      }
+    });
+  }
 }; // class field_cref
 
 class field_mref {
@@ -485,6 +531,47 @@ public:
     *storage_ = *other.storage_;
   }
   void clone_from(const field_cref &other) const noexcept;
+
+  template <typename T>
+  [[nodiscard]] auto get() const noexcept -> std::expected<T, std::errc> {
+    return cref().get<T>();
+  }
+
+  template <typename T>
+  [[nodiscard]] auto set(T v) const noexcept -> std::expected<void, std::errc> {
+    return visit([&v](auto mref) -> std::expected<void, std::errc> {
+      if constexpr (std::same_as<typename decltype(mref)::value_type, T> && requires { mref.set(v); }) {
+        mref.set(v);
+        return {};
+      } else {
+        return std::unexpected(std::errc::wrong_protocol_type);
+      }
+    });
+  }
+
+  template <typename T>
+  [[nodiscard]] auto assign(T v) const noexcept -> std::expected<void, std::errc> {
+    return visit([&v](auto mref) -> std::expected<void, std::errc> {
+      if constexpr (requires { mref.assign(v); }) {
+        mref.assign(v);
+        return {};
+      } else {
+        return std::unexpected(std::errc::wrong_protocol_type);
+      }
+    });
+  }
+
+  template <typename T>
+  [[nodiscard]] auto adopt(T v) const noexcept -> std::expected<void, std::errc> {
+    return visit([&v](auto mref) -> std::expected<void, std::errc> {
+      if constexpr (requires { mref.adopt(v); }) {
+        mref.adopt(v);
+        return {};
+      } else {
+        return std::unexpected(std::errc::wrong_protocol_type);
+      }
+    });
+  }
 }; // class field_mref
 
 template <typename T>
@@ -644,7 +731,9 @@ public:
     storage_->selection = descriptor_->oneof_ordinal;
   }
 
-  void assign(std::string_view v) const noexcept {
+  template <typename T>
+    requires std::convertible_to<T, std::string_view>
+  void assign(const T& v) const noexcept {
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     storage_->content = dest;
@@ -754,7 +843,7 @@ public:
     storage_->selection = descriptor_->oneof_ordinal;
   }
 
-  void assign(std::span<const std::byte> v) const noexcept {
+  void assign(concepts::contiguous_std_byte_range auto const& v) const noexcept {
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     storage_->content = dest;
@@ -963,7 +1052,7 @@ public:
 
   void adopt(hpp::proto::bytes_view v) const noexcept { *data_ = v; }
 
-  void assign(hpp::proto::bytes_view v) const noexcept {
+  void assign(concepts::contiguous_std_byte_range auto const& v) const noexcept {
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     adopt(hpp::proto::bytes_view{dest, v.size()});
@@ -1001,7 +1090,6 @@ private:
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 
-// TODO: enum default value needs to be handled
 class enum_value_cref {
 public:
   using is_enum_value_ref = void;
@@ -1190,8 +1278,6 @@ public:
     return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
   }
 
-  value_type operator[](difference_type index) const noexcept { return (*this)[static_cast<size_type>(index)]; }
-
   [[nodiscard]] value_type at(std::size_t index) const {
     if (index < storage_->size) {
       return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
@@ -1254,8 +1340,6 @@ public:
     return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
   }
 
-  value_type &operator[](difference_type index) const noexcept { return (*this)[static_cast<size_type>(index)]; }
-
   [[nodiscard]] value_type &at(std::size_t index) const {
     if (index < storage_->size) {
       return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
@@ -1310,8 +1394,10 @@ public:
     storage_->size = static_cast<uint32_t>(s.size());
   }
 
-  void assign(std::span<const value_type> s) const noexcept {
-    resize(s.size());
+  template <std::ranges::forward_range Range>
+    requires std::same_as<std::ranges::range_value_t<Range>, value_type>
+  void assign(const Range &s) const noexcept {
+    resize(static_cast<std::size_t>(std::ranges::distance(s)));
     std::copy(s.begin(), s.end(), data());
   }
 
@@ -1450,10 +1536,6 @@ public:
             *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
   }
 
-  [[nodiscard]] reference operator[](difference_type index) const noexcept {
-    return (*this)[static_cast<size_type>(index)];
-  }
-
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
       return {*descriptor_->enum_field_type_descriptor(),
@@ -1530,10 +1612,6 @@ public:
             *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
   }
 
-  [[nodiscard]] reference operator[](difference_type index) const noexcept {
-    return (*this)[static_cast<size_type>(index)];
-  }
-
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
       return {*descriptor_->enum_field_type_descriptor(),
@@ -1558,9 +1636,10 @@ public:
     storage_->content = s.data();
     storage_->capacity = static_cast<uint32_t>(s.size());
   }
-
-  void assign(std::span<const uint32_t> s) const noexcept {
-    resize(s.size());
+  template <std::ranges::forward_range Range>
+    requires std::same_as<std::ranges::range_value_t<Range>, uint32_t>
+  void assign(Range const& s) const noexcept {
+    resize(static_cast<std::size_t>(std::ranges::distance(s)));
     std::copy(s.begin(), s.end(), data());
   }
 
@@ -1640,10 +1719,6 @@ public:
     return reference{storage_->content[index], *memory_resource_};
   }
 
-  [[nodiscard]] reference operator[](difference_type index) const noexcept {
-    return (*this)[static_cast<size_type>(index)];
-  }
-
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
       return reference{storage_->content[index], *memory_resource_};
@@ -1666,8 +1741,10 @@ public:
     storage_->size = static_cast<uint32_t>(s.size());
   }
 
-  void assign(std::span<const std::string_view> s) const noexcept {
-    resize(s.size());
+  template <std::ranges::forward_range Range>
+    requires std::convertible_to<std::ranges::range_value_t<Range>, std::string_view>
+  void assign(const Range &s) const noexcept {
+    resize(static_cast<std::size_t>(std::ranges::distance(s)));
     for (std::size_t i = 0; i < s.size(); ++i) {
       (*this)[i].clone_from(s[i]);
     }
@@ -1757,10 +1834,6 @@ public:
     return reference{storage_->content[index], *memory_resource_};
   }
 
-  [[nodiscard]] reference operator[](difference_type index) const noexcept {
-    return (*this)[static_cast<size_type>(index)];
-  }
-
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
       return reference{storage_->content[index], *memory_resource_};
@@ -1783,8 +1856,10 @@ public:
     storage_->size = static_cast<uint32_t>(s.size());
   }
 
-  void assign(std::span<const bytes_view> s) const noexcept {
-    resize(s.size());
+  template <std::ranges::forward_range Range>
+    requires concepts::contiguous_std_byte_range<std::ranges::range_value_t<Range>>
+  void assign(const Range &s) const noexcept {
+    resize(static_cast<std::size_t>(std::ranges::distance(s)));
     for (std::size_t i = 0; i < s.size(); ++i) {
       (*this)[i].assign(s[i]);
     }
@@ -2285,10 +2360,6 @@ public:
     return {message_descriptor(), std::next(storage_->content, offset)};
   }
 
-  [[nodiscard]] message_value_cref operator[](difference_type index) const noexcept {
-    return (*this)[static_cast<size_type>(index)];
-  }
-
   [[nodiscard]] message_value_cref at(std::size_t index) const {
     if (index < size()) {
       const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
@@ -2371,10 +2442,6 @@ public:
     assert(index < size());
     const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
     return {message_descriptor(), std::next(storage_->content, offset), *memory_resource_};
-  }
-
-  [[nodiscard]] message_value_mref operator[](difference_type index) const noexcept {
-    return (*this)[static_cast<size_type>(index)];
   }
 
   [[nodiscard]] message_value_mref at(std::size_t index) const {

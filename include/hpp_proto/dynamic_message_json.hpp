@@ -45,7 +45,7 @@ bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, g
 }
 
 template <auto Opts>
-void dump_opening_brace(is_context auto &ctx, auto &b, auto &ix) noexcept {
+void dump_opening_brace(is_context auto &ctx, auto &b, auto &ix) {
   glz::dump<'{'>(b, ix);
   if constexpr (Opts.prettify) {
     ctx.indentation_level += Opts.indentation_width;
@@ -55,7 +55,7 @@ void dump_opening_brace(is_context auto &ctx, auto &b, auto &ix) noexcept {
 }
 
 template <auto Opts>
-void dump_closing_brace(is_context auto &ctx, auto &b, auto &ix) noexcept {
+void dump_closing_brace(is_context auto &ctx, auto &b, auto &ix) {
   if constexpr (Opts.prettify) {
     ctx.indentation_level -= Opts.indentation_width;
     glz::dump<'\n'>(b, ix);
@@ -65,7 +65,7 @@ void dump_closing_brace(is_context auto &ctx, auto &b, auto &ix) noexcept {
 }
 
 template <auto Opts>
-void dump_field_separator(bool is_map_entry, is_context auto &ctx, auto &b, auto &ix, char separator) noexcept {
+void dump_field_separator(bool is_map_entry, is_context auto &ctx, auto &b, auto &ix, char separator) {
   glz::dump(separator, b, ix);
   if constexpr (Opts.prettify) {
     if (!is_map_entry) {
@@ -126,7 +126,7 @@ struct generic_message_json_serializer {
 
   template <auto Opts>
   static void serialize_regular_field(hpp::proto::field_cref field, bool is_wellknown_type, is_context auto &ctx,
-                                      auto &b, auto &ix) noexcept {
+                                      auto &b, auto &ix) {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
     if (!is_wellknown_type) {
       auto json_name = field.descriptor().proto().json_name;
@@ -141,7 +141,7 @@ struct generic_message_json_serializer {
 
   template <auto Opts>
   static void serialize_map_entry_field(hpp::proto::field_cref field, bool is_first_field, is_context auto &ctx,
-                                        auto &b, auto &ix) noexcept {
+                                        auto &b, auto &ix) {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
     if (is_first_field) {
       bool need_extra_quote = (field.field_kind() == hpp::proto::KIND_BOOL);
@@ -159,7 +159,7 @@ struct generic_message_json_serializer {
   }
 
   template <auto Opts>
-  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
+  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     bool is_wellknown_type = (value.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE);
     bool is_map_entry = value.descriptor().is_map_entry();
     const bool dump_brace = !check_opening_handled(Opts) && !is_map_entry && !is_wellknown_type;
@@ -194,7 +194,7 @@ struct generic_message_json_serializer {
   }
 
   template <auto Opts>
-  static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) noexcept {
+  static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     // adapted from the snippet of
     // template <class T>
     //    requires((readable_map_t<T> || glaze_object_t<T> || reflectable<T>) && not custom_read<T>)
@@ -238,139 +238,128 @@ struct generic_message_json_serializer {
 };
 
 struct any_message_json_serializer {
-  static const ::hpp::proto::dynamic_message_factory::message_descriptor_t *
-  message_descriptor_from_type_url(is_context auto &ctx, hpp::proto::message_value_cref value,
-                                   std::string_view type_url) {
-    const auto &pool = value.descriptor().parent_file()->get_descriptor_pool();
 
+  static std::expected<std::string_view, const char *> to_message_name(std::string_view type_url) {
     auto slash_pos = type_url.find('/');
     if (slash_pos >= type_url.size() - 1) {
-      ctx.error = error_code::invalid_get;
-      ctx.custom_error_message = "invalid type_url in google.protobuf.Any message";
-      return nullptr;
+      return std::unexpected("invalid formatted google.protobuf.Any type_url field value");
     }
-
-    const auto *const descriptor = pool.get_message_descriptor(type_url.substr(slash_pos + 1));
-    if (!descriptor) {
-      ctx.error = error_code::invalid_get;
-      ctx.custom_error_message = "unresolvable type_url in google.protobuf.Any message";
-      return nullptr;
-    }
-    return descriptor;
+    return type_url.substr(slash_pos + 1);
   }
 
   template <auto Opts>
-  static void any_value_to_json(const hpp::proto::message_descriptor_t &descriptor, std::span<const std::byte> value,
-                                is_context auto &ctx, auto &b, auto &ix) noexcept;
+  static void to_json_impl(auto &&build_message, const auto &any_type_url, const auto &any_value, is_context auto &ctx,
+                           auto &b, auto &ix);
 
   template <auto Opts>
-  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
-    auto type_url_field = value.field_by_number<hpp::proto::string_field_cref>(1);
-    auto value_field = value.field_by_number<hpp::proto::bytes_field_cref>(2);
-    if (!type_url_field.has_value() || !value_field.has_value()) {
-      ctx.error = error_code::invalid_get;
-      ctx.custom_error_message = "non-conforming google.protobuf.Any message descriptor";
-      return;
-    }
-    std::string_view type_url = type_url_field.value().value();
-    const auto *const value_descriptor = message_descriptor_from_type_url(ctx, value, type_url);
-    if (value_descriptor == nullptr) {
-      return;
-    }
+  static void from_json_impl(auto &&build_message, auto &&any_type_url, auto &&any_value, is_context auto &ctx,
+                             auto &it, auto &end);
 
-    glz::dump<"\"@type\":">(b, ix);
-    if constexpr (Opts.prettify) {
-      glz::dump<' '>(b, ix);
-    }
-
-    glz::to<glz::JSON, std::string_view>::template op<Opts>(type_url, ctx, b, ix);
-    glz::dump<','>(b, ix);
-    if (Opts.prettify) {
-      glz::dump<'\n'>(b, ix);
-      glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
-    }
-
-    const bool is_wellknown = value_descriptor->wellknown != hpp::proto::wellknown_types_t::NONE;
-    if (is_wellknown) {
-      glz::dump<R"("value":)">(b, ix);
-      if constexpr (Opts.prettify) {
-        glz::dump<' '>(b, ix);
+  static auto msg_builder(std::pmr::monotonic_buffer_resource &mr, const hpp::proto::message_value_cref &value) {
+    return [&](std::string_view message_name) -> std::expected<::hpp::proto::message_value_mref, const char *> {
+      const auto &pool = value.descriptor().parent_file()->get_descriptor_pool();
+      const auto *const descriptor = pool.get_message_descriptor(message_name);
+      if (descriptor) {
+        return ::hpp::proto::message_value_mref{*descriptor, mr};
+      } else {
+        return std::unexpected("unknown message type from google.protobuf.Any type_url field");
       }
-
-      any_value_to_json<Opts>(*value_descriptor, value_field->value(), ctx, b, ix);
-
-      if constexpr (Opts.prettify) {
-        ctx.indentation_level -= Opts.indentation_width;
-        glz::dump<'\n'>(b, ix);
-        glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
-      }
-      glz::dump<'}'>(b, ix);
-    } else {
-      any_value_to_json<glz::opening_handled<Opts>()>(*value_descriptor, value_field->value(), ctx, b, ix);
-    }
+    };
   }
 
   template <auto Opts>
-  static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end);
+  static void to_json(::hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+    assert(value.descriptor().full_name() == "google.protobuf.Any");
+    std::string_view any_type_url = value.fields()[0].to<::hpp::proto::string_field_cref>().value().value();
+    ::hpp::proto::bytes_view any_value = value.fields()[1].to<::hpp::proto::bytes_field_cref>().value().value();
+    std::pmr::monotonic_buffer_resource mr;
+    to_json_impl<Opts>(msg_builder(mr, value), any_type_url, any_value, ctx, b, ix);
+  }
+
+  template <auto Opts>
+  static void from_json(::hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+    assert(value.descriptor().full_name() == "google.protobuf.Any");
+    std::string_view any_type_url;
+    ::hpp::proto::bytes_view any_value;
+
+    using namespace ::hpp::proto;
+    pb_context pb_ctx{alloc_from{value.memory_resource()}};
+    using ::hpp::proto::detail::as_modifiable;
+
+    from_json_impl<Opts>(msg_builder(value.memory_resource(), value), as_modifiable(pb_ctx, any_type_url),
+                         as_modifiable(pb_ctx, any_value), ctx, it, end);
+    if (!bool(ctx.error)) {
+      (void)value.fields()[0].adopt(any_type_url);
+      (void)value.fields()[1].adopt(any_value);
+    }
+  }
+
+  static auto msg_builder(::hpp::proto::concepts::is_json_context auto &ctx) {
+    return [&](auto message_name) -> std::expected<::hpp::proto::message_value_mref, const char *> {
+      auto &msg_factory = ctx.template get<::hpp::proto::dynamic_message_factory>();
+      auto opt_msg = msg_factory.get_message(message_name);
+      if (opt_msg.has_value()) {
+        return *opt_msg;
+      } else {
+        return std::unexpected("unknown message type from type_url");
+      }
+    };
+  }
+
+  template <auto Opts>
+  static void to_json(const ::hpp::proto::concepts::is_any auto &any, ::hpp::proto::concepts::is_json_context auto &ctx,
+                      auto &b, auto &ix) {
+    to_json_impl<Opts>(msg_builder(ctx), any.type_url, any.value, ctx, b, ix);
+  }
+
+  template <auto Opts>
+  static void from_json(::hpp::proto::concepts::is_any auto &any, ::hpp::proto::concepts::is_json_context auto &ctx,
+                        auto &it, auto &end) {
+    using namespace ::hpp::proto::detail;
+    from_json_impl<Opts>(msg_builder(ctx), as_modifiable(ctx, any.type_url), as_modifiable(ctx, any.value), ctx, it,
+                         end);
+  }
 };
 struct timestamp_message_json_serializer {
 
   template <auto Opts>
-  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
-    auto seconds_field = value.field_by_number<::hpp::proto::int64_field_cref>(1);
-    auto nanos_field = value.field_by_number<::hpp::proto::int32_field_cref>(2);
-    if (seconds_field.has_value() && nanos_field.has_value()) [[likely]] {
-      google::protobuf::Timestamp v{seconds_field->value(), nanos_field->value(), {}};
-      to<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, b, ix);
-    } else {
-      ctx.error = error_code::invalid_get;
-      ctx.custom_error_message = "non-conforming google.protobuf.Timestamp message descriptor";
-    }
+  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+    assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
+    auto seconds_field = value.fields()[0];
+    auto nanos_field = value.fields()[1];
+    google::protobuf::Timestamp v{
+        seconds_field.get<std::int64_t>().value(), nanos_field.get<std::int32_t>().value(), {}};
+    to<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, b, ix);
   }
 
   template <auto Opts>
   static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
-    auto seconds_field = value.field_by_number<::hpp::proto::int64_field_mref>(1);
-    auto nanos_field = value.field_by_number<::hpp::proto::int32_field_mref>(2);
-    if (seconds_field.has_value() && nanos_field.has_value()) [[likely]] {
-      google::protobuf::Timestamp v;
-      from<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, it, end);
-      seconds_field->set(v.seconds);
-      nanos_field->set(v.nanos);
-    } else {
-      ctx.error = error_code::invalid_get;
-      ctx.custom_error_message = "non-conforming google.protobuf.Timestamp message descriptor";
-    }
+    assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
+    google::protobuf::Timestamp v;
+    from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
+    (void)value.fields()[0].set(v.seconds);
+    (void)value.fields()[1].set(v.nanos);
   }
 };
 
 struct duration_message_json_serializer {
   template <auto Opts>
-  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
-    auto seconds_field = value.field_by_number<::hpp::proto::int64_field_cref>(1);
-    auto nanos_field = value.field_by_number<::hpp::proto::int32_field_cref>(2);
-    if (seconds_field.has_value() && nanos_field.has_value()) [[likely]] {
-      google::protobuf::Duration v{seconds_field->value(), nanos_field->value(), {}};
-      to<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, b, ix);
-    } else {
-      ctx.error = error_code::invalid_get;
-      ctx.custom_error_message = "non-conforming google.protobuf.Duration message descriptor";
-    }
+  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+    assert(value.descriptor().full_name() == "google.protobuf.Duration");
+    auto seconds_field = value.fields()[0];
+    auto nanos_field = value.fields()[1];
+    google::protobuf::Duration v{
+        seconds_field.get<std::int64_t>().value(), nanos_field.get<std::int32_t>().value(), {}};
+    to<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, b, ix);
   }
 
   template <auto Opts>
   static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
-    auto seconds_field = value.field_by_number<::hpp::proto::int64_field_mref>(1);
-    auto nanos_field = value.field_by_number<::hpp::proto::int32_field_mref>(2);
-    if (seconds_field.has_value() && nanos_field.has_value()) [[likely]] {
-      google::protobuf::Duration v;
-      from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
-      seconds_field->set(v.seconds);
-      nanos_field->set(v.nanos);
-    } else {
-      ctx.error = error_code::invalid_get;
-      ctx.custom_error_message = "non-conforming google.protobuf.Duration message descriptor";
-    }
+    assert(value.descriptor().full_name() == "google.protobuf.Duration");
+    google::protobuf::Duration v;
+    from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
+    (void)value.fields()[0].set(v.seconds);
+    (void)value.fields()[1].set(v.nanos);
   }
 };
 
@@ -378,55 +367,28 @@ struct field_mask_message_json_serializer {
   using FieldMask = ::google::protobuf::FieldMask<::hpp::proto::non_owning_traits>;
 
   template <auto Opts>
-  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) noexcept {
-    auto paths_field = value.field_by_number<hpp::proto::repeated_string_field_cref>(1);
-    if (paths_field.has_value()) [[likely]] {
-      to<JSON, FieldMask>::template op<Opts>(FieldMask{.paths = {paths_field->data(), paths_field->size()}}, ctx, b,
-                                             ix);
-    } else {
-      ctx.error = error_code::invalid_get;
-      ctx.custom_error_message = "non-conforming google.protobuf.FieldMask message descriptor";
-    }
+  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+    assert(value.descriptor().full_name() == "google.protobuf.FieldMask");
+    auto paths = value.fields()[0].get<std::span<const std::string_view>>().value();
+    to<JSON, FieldMask>::template op<Opts>(FieldMask{.paths = paths}, ctx, b, ix);
   }
 
   template <auto Opts>
   static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
-    auto paths_field = value.field_by_number<hpp::proto::repeated_string_field_mref>(1);
-    if (paths_field.has_value()) [[likely]] {
-      std::string_view encoded;
-      from<JSON, std::string_view>::template op<Opts>(encoded, ctx, it, end);
-      if (static_cast<bool>(ctx.error)) [[unlikely]] {
-        return;
-      }
-
-      if (encoded.empty()) {
-        return;
-      }
-
-      auto is_comma = [](auto c) { return c == ','; };
-      auto num_commas = std::count_if(encoded.begin(), encoded.end(), is_comma);
-
-      paths_field->resize(static_cast<std::size_t>(num_commas + 1));
-      auto cur = encoded.begin();
-      for (const auto &p : *paths_field) {
-        auto comma_pos = std::find_if(cur, encoded.end(), is_comma);
-        p.assign(std::string_view{cur, comma_pos});
-        if (comma_pos != encoded.end()) {
-          cur = std::next(comma_pos);
-        }
-      }
-
-    } else {
-      ctx.error = error_code::invalid_get;
-      ctx.custom_error_message = "non-conforming google.protobuf.FieldMask message descriptor";
+    assert(value.descriptor().full_name() == "google.protobuf.FieldMask");
+    std::string_view encoded;
+    from<JSON, std::string_view>::template op<Opts>(encoded, ctx, it, end);
+    if (static_cast<bool>(ctx.error)) [[unlikely]] {
+      return;
     }
+    (void)value.fields()[0].assign(encoded | std::views::split(','));
   }
 };
 
 template <typename T, hpp::proto::field_kind_t Kind>
 struct to<JSON, hpp::proto::scalar_field_cref<T, Kind>> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_cref<T, Kind> &value, auto &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_cref<T, Kind> &value, auto &&...args) {
 
     if (value.has_value()) {
       using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
@@ -441,7 +403,7 @@ template <typename T, hpp::proto::field_kind_t Kind>
 struct to<JSON, hpp::proto::repeated_scalar_field_cref<T, Kind>> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::repeated_scalar_field_cref<T, Kind> &value,
-                                   auto &&...args) noexcept {
+                                   auto &&...args) {
     if (!value.empty()) {
       auto range = std::span{value.data(), value.size()};
       constexpr bool need_quote = concepts::eight_bytes_integer<T>;
@@ -455,7 +417,7 @@ template <>
 struct to<JSON, hpp::proto::enum_value_cref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value_cref &value, is_context auto &ctx, auto &b,
-                                   auto &ix) noexcept {
+                                   auto &ix) {
     if (value.descriptor().is_null_value) {
       dump<"null">(b, ix);
       return;
@@ -474,14 +436,14 @@ struct to<JSON, hpp::proto::enum_value_cref> {
 template <>
 struct to<JSON, hpp::proto::repeated_message_field_cref> {
   template <auto Opts>
-  static void op(auto const &value, is_context auto &ctx, auto &b, auto &ix) noexcept;
+  static void op(auto const &value, is_context auto &ctx, auto &b, auto &ix);
 };
 
 template <>
 struct to<JSON, hpp::proto::message_value_cref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::message_value_cref &value, is_context auto &ctx, auto &b,
-                                   auto &ix) noexcept {
+                                   auto &ix) {
     using enum hpp::proto::wellknown_types_t;
     switch (value.descriptor().wellknown) {
     case ANY:
@@ -510,14 +472,14 @@ struct to<JSON, hpp::proto::message_value_cref> {
 template <>
 struct to<JSON, hpp::proto::message_value_mref> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::message_value_mref &value, auto &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(const hpp::proto::message_value_mref &value, auto &&...args) {
     to<JSON, hpp::proto::message_value_cref>::template op<Opts>(value.cref(), std::forward<decltype(args)>(args)...);
   }
 };
 
 template <auto Opts>
 void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is_context auto &ctx, auto &b,
-                                                           auto &ix) noexcept {
+                                                           auto &ix) {
   if (value.descriptor().is_map_entry()) {
     glz::dump<'{'>(b, ix);
   } else {
@@ -563,25 +525,10 @@ void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is
   }
 }
 
-template <auto Opts>
-void any_message_json_serializer::any_value_to_json(const hpp::proto::message_descriptor_t &descriptor,
-                                                    std::span<const std::byte> value, is_context auto &ctx, auto &b,
-                                                    auto &ix) noexcept {
-  std::pmr::monotonic_buffer_resource memory_resource;
-  hpp::proto::message_value_mref message{descriptor, memory_resource};
-  auto r = hpp::proto::read_proto(message, value);
-  if (!r.ok()) {
-    ctx.error = error_code::invalid_get;
-    ctx.custom_error_message = "unable to deserialize value in google.protobuf.Any message";
-    return;
-  }
-  to<JSON, hpp::proto::message_value_cref>::template op<Opts>(message, ctx, b, ix);
-}
-
 template <typename T, hpp::proto::field_kind_t Kind>
 struct from<JSON, hpp::proto::scalar_field_mref<T, Kind>> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_mref<T, Kind> &value, auto &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_mref<T, Kind> &value, auto &&...args) {
     using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
     constexpr bool need_quote = concepts::eight_bytes_integer<T> || (Opts.quoted_num);
     value_type v;
@@ -598,7 +545,7 @@ struct meta<T> {
 template <concepts::string_mref T>
 struct from<JSON, T> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, auto &it, auto &end) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, auto &it, auto &end) {
     std::string_view v;
     from<JSON, std::string_view>::template op<Opts>(v, ctx, it, end);
     if (!bool(ctx.error)) [[likely]] {
@@ -610,7 +557,7 @@ struct from<JSON, T> {
 template <concepts::bytes_mref T>
 struct from<JSON, T> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, auto &it, auto &end) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, auto &it, auto &end) {
     std::string_view encoded;
     from<JSON, std::string_view>::template op<Opts>(encoded, ctx, it, end);
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
@@ -630,7 +577,7 @@ template <>
 struct from<JSON, hpp::proto::enum_value_mref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value_mref &value, is_context auto &ctx, auto &it,
-                                   auto &end) noexcept {
+                                   auto &end) {
 
     if (value.descriptor().is_null_value) {
       from<JSON, std::nullptr_t>::template op<Opts>(nullptr, ctx, it, end);
@@ -734,7 +681,7 @@ struct from<JSON, hpp::proto::message_value_mref> {
 template <concepts::repeated_mref T>
 struct from<JSON, T> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
     const bool is_map =
         std::same_as<T, ::hpp::proto::repeated_message_field_mref> ? value.descriptor().is_map_entry() : false;
 
@@ -748,8 +695,62 @@ struct from<JSON, T> {
 };
 
 template <auto Opts>
-void any_message_json_serializer::from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it,
-                                            auto &end) {
+void any_message_json_serializer::to_json_impl(auto &&build_message, const auto &any_type_url, const auto &any_value,
+                                               is_context auto &ctx, auto &b, auto &ix) {
+  dump<"\"@type\":">(b, ix);
+  if constexpr (Opts.prettify) {
+    glz::dump<' '>(b, ix);
+  }
+
+  glz::to<glz::JSON, std::string_view>::template op<Opts>(std::string_view{any_type_url}, ctx, b, ix);
+  dump<','>(b, ix);
+  if (Opts.prettify) {
+    dump<'\n'>(b, ix);
+    dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+  }
+
+  to_message_name(any_type_url)
+      .and_then(build_message)
+      .and_then([&](::hpp::proto::message_value_mref message) -> std::expected<void, const char *> {
+        auto message_to_json = [&] -> std::expected<void, const char *> {
+          if (hpp::proto::read_proto(message, any_value).ok()) {
+            to<JSON, hpp::proto::message_value_cref>::template op<Opts>(message, ctx, b, ix);
+            return {};
+          } else {
+            return std::unexpected("unable to deserialize value in google.protobuf.Any message");
+          }
+        };
+
+        if (message.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE) {
+          dump<R"("value":)">(b, ix);
+          if constexpr (Opts.prettify) {
+            dump<' '>(b, ix);
+          }
+
+          return message_to_json().and_then([&]() -> std::expected<void, const char *> {
+            if constexpr (Opts.prettify) {
+              ctx.indentation_level -= Opts.indentation_width;
+              dump<'\n'>(b, ix);
+              dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+            }
+            dump<'}'>(b, ix);
+            return {};
+          });
+
+        } else {
+          return message_to_json();
+        }
+      })
+      .transform_error([&](const char *err_msg) {
+        ctx.error = error_code::syntax_error;
+        ctx.custom_error_message = err_msg;
+        return 0;
+      });
+}
+
+template <auto Opts>
+void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&any_type_url, auto &&any_value,
+                                                 is_context auto &ctx, auto &it, auto &end) {
   if (!util::parse_opening<Opts>('{', ctx, it, end)) [[unlikely]] {
     return;
   }
@@ -762,62 +763,130 @@ void any_message_json_serializer::from_json(hpp::proto::message_value_mref value
   }
 
   if (key == "@type") {
-    // constexpr auto Opts = glz::opening_handled_off<glz::ws_handled_off<Opts>()>();
-    using namespace glz;
     std::string_view type_url;
     from<JSON, std::string_view>::template op<Opts>(type_url, ctx, it, end);
     if (bool(ctx.error)) [[unlikely]] {
       return;
     }
+    any_type_url = type_url;
 
-    const auto *const desc = message_descriptor_from_type_url(ctx, value, type_url);
-    if (desc == nullptr) [[unlikely]] {
-      ctx.error = error_code::key_not_found;
-      ctx.custom_error_message = "invalid type_url in google.protobuf.Any message";
-      return;
-    }
+    to_message_name(type_url)
+        .and_then(build_message)
+        .and_then([&](auto message) -> std::expected<void, const char *> {
+          if (message.descriptor().wellknown != ::hpp::proto::wellknown_types_t::NONE) {
+            auto key = util::parse_key_and_colon<Opts>(ctx, it, end);
+            if (bool(ctx.error)) [[unlikely]] {
+              return {};
+            }
+            if (key != "value") {
+              return std::unexpected("value key not found in google.protobuf.Any message");
+            }
+            // parse the the json into a new dynamic_message
+            from<JSON, ::hpp::proto::message_value_mref>::template op<Opts>(message, ctx, it, end);
+          } else {
+            // parse the the json into a new dynamic_message with opening handled
+            from<JSON, ::hpp::proto::message_value_mref>::template op<opening_handled_off<Opts>()>(message, ctx, it,
+                                                                                                   end);
+          }
 
-    ::hpp::proto::message_value_mref obj(*desc, value.memory_resource());
-
-    if (desc->wellknown != ::hpp::proto::wellknown_types_t::NONE) {
-      auto key = util::parse_key_and_colon<Opts>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]] {
-        return;
-      }
-      if (key != "value") {
-        ctx.error = error_code::key_not_found;
-        ctx.custom_error_message = "value key not found in google.protobuf.Any message";
-        return;
-      }
-      // parse the the json into a new dynamic_message
-      from<JSON, ::hpp::proto::message_value_mref>::template op<Opts>(obj, ctx, it, end);
-    } else {
-      // parse the the json into a new dynamic_message with opening handled
-      from<JSON, ::hpp::proto::message_value_mref>::template op<opening_handled_off<Opts>()>(obj, ctx, it, end);
-    }
-
-    if (bool(ctx.error)) [[unlikely]] {
-      return;
-    }
-
-    // write the type_url
-    value.fields()[0].to<::hpp::proto::string_field_mref>()->assign(type_url);
-
-    // encode the dynamic_message into protobuf
-    std::span<const std::byte> v;
-    if (::hpp::proto::write_proto(obj, v, ::hpp::proto::alloc_from(value.memory_resource())).ok()) {
-
-      // write the encoded value into the field
-      value.fields()[1].to<::hpp::proto::bytes_field_mref>()->adopt(v);
-    } else {
-      ctx.error = error_code::invalid_body;
-      ctx.custom_error_message = "google.protobuf.Any value encode error";
-    }
-
-  } else [[unlikely]] {
-    ctx.error = error_code::key_not_found;
-    ctx.custom_error_message = "@type key not found in google.protobuf.Any message";
+          if (!hpp::proto::write_proto(message, any_value).ok()) {
+            return std::unexpected("unable to serialize the value for google.protobuf.Any message");
+          }
+          return {};
+        })
+        .transform_error([&](const char *error_msg) {
+          ctx.error = error_code::syntax_error;
+          ctx.custom_error_message = error_msg;
+          return 0;
+        });
   }
 }
 
 } // namespace glz
+
+namespace hpp::proto {
+
+json_status json_to_proto(dynamic_message_factory &factory, std::string_view message_name, const char *json_view,
+                          concepts::contiguous_byte_range auto &buffer) {
+  std::pmr::monotonic_buffer_resource mr;
+  auto opt_msg = factory.get_message(message_name, mr);
+  if (opt_msg.has_value()) {
+    auto msg = *opt_msg;
+    auto err = ::glz::read<::glz::opts{}>(msg, json_view);
+    if (!err) {
+      write_proto(msg, buffer);
+      return {};
+    } else {
+      return {.ctx = err};
+    }
+  } else {
+    return {.ctx = {.ec = ::glz::error_code::get_wrong_type,
+                    .custom_error_message = "unknown message name",
+                    .location = {},
+                    .includer_error = {}}};
+  }
+}
+
+// NOLINTBEGIN(bugprone-easily-swappable-parameters)
+json_status json_to_proto(dynamic_message_factory &factory, std::string_view message_name, std::string_view json_view,
+                          concepts::contiguous_byte_range auto &buffer) {
+  std::pmr::monotonic_buffer_resource mr;
+
+  auto opt_msg = factory.get_message(message_name, mr);
+  if (opt_msg.has_value()) {
+    auto msg = *opt_msg;
+    auto err = ::glz::read<glz::opts{.null_terminated = false}>(msg, json_view);
+    if (!err) {
+      write_proto(msg, buffer);
+      return {};
+    } else {
+      return {.ctx = err};
+    }
+  } else {
+    return {.ctx = {.ec = ::glz::error_code::get_wrong_type,
+                    .custom_error_message = "unknown message name",
+                    .location = {},
+                    .includer_error = {}}};
+  }
+}
+
+status proto_to_json(dynamic_message_factory &factory, std::string_view message_name,
+                     concepts::contiguous_byte_range auto const &pb_encoded_stream,
+                     concepts::resizable_contiguous_byte_container auto &buffer, concepts::glz_opts_t auto opts) {
+  std::pmr::monotonic_buffer_resource mr;
+  auto opt_msg = factory.get_message(message_name, mr);
+  if (opt_msg.has_value()) {
+    auto msg = *opt_msg;
+    if (auto r = read_proto(msg, pb_encoded_stream); !r.ok()) {
+      return r;
+    }
+    if (!::glz::write<decltype(opts)::glz_opts_value>(msg, buffer)) [[unlikely]] {
+      return std::errc::io_error;
+    }
+    return {};
+  } else {
+    return std::errc::invalid_argument;
+  }
+}
+
+} // namespace hpp::proto
+
+// namespace glz {
+// template <typename Traits>
+// struct from<JSON, ::google::protobuf::Any<Traits>> {
+//   template <auto Opts>
+//   GLZ_ALWAYS_INLINE static void op(auto &value, ::hpp::proto::is_json_context auto &ctx, auto &it, auto &end)
+//   noexcept {
+//     any_message_json_serializer::from_json<Opts>(value, ctx, it, end);
+//   }
+// };
+
+// template <typename Traits>
+// struct to<JSON, ::google::protobuf::Any<Traits>> {
+//   template <auto Opts>
+//   GLZ_ALWAYS_INLINE static void op(auto &value, ::hpp::proto::is_json_context auto &ctx, auto &b, auto &ix) noexcept
+//   {
+//     any_message_json_serializer::to_json(value, ctx, b, ix);
+//   }
+// };
+// } // namespace glz
