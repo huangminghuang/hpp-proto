@@ -84,7 +84,7 @@ concept is_json_context = requires {
 } // namespace concepts
 template <typename... AuxContext>
 struct json_context : glz::context, pb_context<AuxContext...> {
-  using is_json_contxt = void;
+  using is_json_context = void;
   const char *error_message_name = nullptr;
   template <typename... U>
   explicit json_context(U &&...ctx) : pb_context<AuxContext...>(std::forward<U>(ctx)...) {}

@@ -1459,7 +1459,7 @@ struct glaze_meta_generator : code_generator {
     } else {
       fmt::format_to(target,
                      "#pragma once\n\n"
-                     "#include <hpp_proto/dynamic_serializer.hpp>\n\n"
+                     "#include <hpp_proto/dynamic_message_json.hpp>\n\n"
                      "#include \"{}.msg.hpp\"\n\n",
                      basename(descriptor.proto().name, directory_prefix));
     }
@@ -1577,38 +1577,16 @@ struct glaze_meta_generator : code_generator {
           "namespace glz {{\n"
           "template <typename Traits>\n"
           "struct to<JSON, {0}> {{\n"
-          "  template <auto Opts, class B>"
-          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, B &b, auto &&ix) noexcept {{\n"
-          "    if constexpr (requires {{ ctx.template get<::hpp::proto::dynamic_serializer>(); }}) {{\n"
-          "      auto &dyn_serializer = ctx.template get<::hpp::proto::dynamic_serializer>();\n\n"
-          "      if constexpr (!check_opening_handled(Opts)) {{\n"
-          "        glz::dump<'{{'>(b, ix);\n"
-          "        if constexpr (Opts.prettify) {{\n"
-          "          ctx.indentation_level += Opts.indentation_width;\n"
-          "          glz::dump<'\\n'>(b, ix);\n"
-          "          glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);\n"
-          "        }}\n"
-          "      }}\n"
-          "      dyn_serializer.template to_json_any<Opts>(value, ctx, b, ix);\n"
-          "    }} else {{\n"
-          "      static_assert(!sizeof(value), \"JSON serialization for Any message requires `dynamic_serializer` in "
-          "the context\");\n"
-          "    }}\n"
+          "  template <auto Opts>"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto &ctx, auto &b, auto &ix) {{\n"
+          "    any_message_json_serializer::to_json<Opts>(value, ctx, b, ix);\n"
           "  }}\n"
           "}};\n\n"
           "template <typename Traits>\n"
           "struct from<JSON, {0}> {{\n"
-          "  template <auto Options, class It, class End>\n"
-          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, It &&it, End &&end) {{\n"
-          "    if constexpr (requires {{ ctx.template get<::hpp::proto::dynamic_serializer>(); }}) {{\n"
-          "      auto &dyn_serializer = ctx.template get<::hpp::proto::dynamic_serializer>();\n"
-          "      return dyn_serializer.template from_json_any<Options>(value, ctx, std::forward<It>(it), "
-          "std::forward<End>(end));\n"
-          "    }} else {{\n"
-          "      static_assert(!sizeof(value),\n"
-          "                    \"JSON deserialization for Any message requires `dynamic_serializer` in the "
-          "context\");\n"
-          "    }}\n"
+          "  template <auto Opts>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto &ctx, auto &it, auto &end) {{\n"
+          "    any_message_json_serializer::from_json<Opts>(value, ctx, it, end);\n"
           "  }}\n"
           "}};\n"
           "}} // namespace glz\n",
@@ -1790,7 +1768,7 @@ struct desc_hpp_generator : code_generator {
     file.name = path.substr(0, path.size() - 5) + "desc.hpp";
 
     fmt::format_to(target, "#pragma once\n"
-                           "#include <hpp_proto/dynamic_serializer.hpp>\n\n");
+                           "#include <hpp_proto/file_descriptor_pb.hpp>\n\n");
 
     for (const auto &d : descriptor.proto().dependency) {
       fmt::format_to(target, "#include \"{}.desc.hpp\"\n", basename(d, directory_prefix));

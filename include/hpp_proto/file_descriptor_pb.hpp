@@ -40,6 +40,8 @@ template <typename... Ts>
   requires(sizeof...(Ts) > 0 && (std::is_convertible_v<Ts, file_descriptor_pb> && ...))
 distinct_file_descriptor_pb_array(Ts...)->distinct_file_descriptor_pb_array<sizeof...(Ts)>;
 
+// TODO: an consteval function to combine multiple distinct_file_descriptor_pb_array into one
+
 } // namespace hpp::proto
 
 namespace std {

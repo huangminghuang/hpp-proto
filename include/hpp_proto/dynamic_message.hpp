@@ -74,6 +74,22 @@ enum class wellknown_types_t : uint8_t {
 
 class dynamic_message_factory;
 
+
+template <std::ranges::input_range Range>
+struct sized_input_range { // NOLINT(hicpp-member-init)
+  Range& range_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+  std::size_t size_;
+
+  auto begin() const { return std::ranges::begin(range_); }
+  auto end() const { return std::ranges::end(range_); }
+  [[nodiscard]] std::size_t size() const { return size_; }
+};
+
+template <typename R>
+sized_input_range(R&& range, std::size_t size) -> sized_input_range<std::remove_cvref_t<R>>;
+
+// TODO: a utility to make FileDescriptorSet from encoded FileDescriptorSet streams
+
 struct dynamic_message_factory_addons {
   using traits_type = non_owning_traits;
   using string_t = std::pmr::string;
@@ -462,6 +478,12 @@ public:
   [[nodiscard]] bool has_value() const noexcept {
     return descriptor().is_repeated() ? (storage_->of_repeated_uint64.size > 0)
                                       : (storage_->of_int64.selection == descriptor().oneof_ordinal);
+  }
+
+  /// if the field is part of an oneof fields, return the active field index of the oneof. If the returned 
+  /// value is smaller than 0, it means the oneof does not contains any value.
+  std::int32_t active_oneof_index() const {
+    return static_cast<std::int32_t>(storage_->of_int64.selection + descriptor().storage_slot) - descriptor().oneof_ordinal ;
   }
 
   template <typename T>
@@ -1743,10 +1765,11 @@ public:
 
   template <std::ranges::forward_range Range>
     requires std::convertible_to<std::ranges::range_value_t<Range>, std::string_view>
-  void assign(const Range &s) const noexcept {
-    resize(static_cast<std::size_t>(std::ranges::distance(s)));
-    for (std::size_t i = 0; i < s.size(); ++i) {
-      (*this)[i].clone_from(s[i]);
+  void assign(const Range &r) const noexcept {
+    resize(static_cast<std::size_t>(std::ranges::distance(r)));
+    std::size_t i = 0;
+    for (auto&& e : r) {
+      (*this)[i++].assign(e);
     }
   }
 
@@ -1858,10 +1881,11 @@ public:
 
   template <std::ranges::forward_range Range>
     requires concepts::contiguous_std_byte_range<std::ranges::range_value_t<Range>>
-  void assign(const Range &s) const noexcept {
-    resize(static_cast<std::size_t>(std::ranges::distance(s)));
-    for (std::size_t i = 0; i < s.size(); ++i) {
-      (*this)[i].assign(s[i]);
+  void assign(const Range &r) const noexcept {
+    resize(static_cast<std::size_t>(std::ranges::distance(r)));
+    std::size_t i = 0;
+    for (auto&& e: r) {
+      (*this)[i++].assign(e);
     }
   }
 

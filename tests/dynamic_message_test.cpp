@@ -90,77 +90,42 @@ const boost::ut::suite dynamic_message_test = [] {
     using namespace std::string_view_literals;
     std::pmr::monotonic_buffer_resource memory_resource;
     auto msg = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource).value();
-    expect(41 == msg.field_by_name<::hpp::proto::int32_field_mref>("default_int32").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(42LL == msg.field_by_name<::hpp::proto::int64_field_mref>("default_int64").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(43U == msg.field_by_name<::hpp::proto::uint32_field_mref>("default_uint32").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(44ULL == msg.field_by_name<::hpp::proto::uint64_field_mref>("default_uint64").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(-45 == msg.field_by_name<::hpp::proto::sint32_field_mref>("default_sint32").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(46LL == msg.field_by_name<::hpp::proto::sint64_field_mref>("default_sint64").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(47U == msg.field_by_name<::hpp::proto::fixed32_field_mref>("default_fixed32").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(48ULL == msg.field_by_name<::hpp::proto::fixed64_field_mref>("default_fixed64").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(49U == msg.field_by_name<::hpp::proto::sfixed32_field_mref>("default_sfixed32").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(-50LL == msg.field_by_name<::hpp::proto::sfixed64_field_mref>("default_sfixed64").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(51.5F == msg.field_by_name<::hpp::proto::float_field_mref>("default_float").transform([](auto mref) {
-      return mref.value();
-    }));
-    expect(52e3 == msg.field_by_name<::hpp::proto::double_field_mref>("default_double").transform([](auto mref) {
-      return mref.value();
-    }));
+    expect(41 == msg["default_int32"].get<std::int32_t>().value());
+    expect(42LL == msg["default_int64"].get<std::int64_t>().value());
+    expect(43U == msg["default_uint32"].get<std::uint32_t>().value());
+    expect(44ULL == msg["default_uint64"].get<std::uint64_t>().value());
+    expect(-45 == msg["default_sint32"].get<std::int32_t>().value());
+    expect(46LL == msg["default_sint64"].get<std::int64_t>().value());
+    expect(47U == msg["default_fixed32"].get<std::uint32_t>().value());
+    expect(48ULL == msg["default_fixed64"].get<std::uint64_t>().value());
+    expect(49 == msg["default_sfixed32"].get<std::int32_t>().value());
+    expect(-50LL == msg["default_sfixed64"].get<std::int64_t>().value());
+    expect(51.5F == msg["default_float"].get<float>().value());
+    expect(52e3 == msg["default_double"].get<double>().value());
 
-    expect(msg.field_by_name<::hpp::proto::bool_field_mref>("default_bool")
-               .transform([](auto mref) { return mref.value(); })
-               .value());
+    expect(msg["default_bool"].get<bool>().value());
 
-    expect("hello"sv == msg.field_by_name<::hpp::proto::string_field_mref>("default_string").transform([](auto mref) {
-      return mref.value();
-    }));
+    expect("hello"sv == msg["default_string"].get<std::string_view>().value());
 
-    expect("world"_bytes == msg.field_by_name<::hpp::proto::bytes_field_mref>("default_bytes").transform([](auto mref) {
-      return mref.value();
-    }));
+    expect("world"_bytes == msg["default_bytes"].get<hpp::proto::bytes_view>().value());
 
-    expect("BAR"sv == msg.field_by_name<::hpp::proto::enum_field_mref>("default_nested_enum").transform([](auto mref) {
-      return mref.value().name();
-    }));
+    expect("BAR"sv == msg["default_nested_enum"].get<hpp::proto::enum_value_cref>().transform([](auto cref) {
+      return cref.name();
+    }).value());
 
     expect("FOREIGN_BAR"sv ==
-           msg.field_by_name<::hpp::proto::enum_field_mref>("default_foreign_enum").transform([](auto mref) {
-             return mref.value().name();
+           msg["default_foreign_enum"].get<hpp::proto::enum_value_cref>().transform([](auto cref) {
+             return cref.name();
            }));
 
     expect("IMPORT_BAR"sv ==
-           msg.field_by_name<::hpp::proto::enum_field_mref>("default_import_enum").transform([](auto mref) {
-             return mref.value().name();
+           msg["default_import_enum"].get<hpp::proto::enum_value_cref>().transform([](auto cref) {
+             return cref.name();
            }));
 
-    expect("abc"sv ==
-           msg.field_by_name<::hpp::proto::string_field_mref>("default_string_piece").transform([](auto mref) {
-             return mref.value();
-           }));
+    expect("abc"sv == msg["default_string_piece"].get<std::string_view>().value());
 
-    expect("123"sv == msg.field_by_name<::hpp::proto::string_field_mref>("default_cord").transform([](auto mref) {
-      return mref.value();
-    }));
+    expect("123"sv == msg["default_cord"].get<std::string_view>().value());
   };
 
   "oneof_field_access"_test = [&factory]() {
