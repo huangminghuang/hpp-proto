@@ -74,10 +74,9 @@ enum class wellknown_types_t : uint8_t {
 
 class dynamic_message_factory;
 
-
 template <std::ranges::input_range Range>
 struct sized_input_range { // NOLINT(hicpp-member-init)
-  Range& range_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+  Range &range_;           // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
   std::size_t size_;
 
   auto begin() const { return std::ranges::begin(range_); }
@@ -86,9 +85,65 @@ struct sized_input_range { // NOLINT(hicpp-member-init)
 };
 
 template <typename R>
-sized_input_range(R&& range, std::size_t size) -> sized_input_range<std::remove_cvref_t<R>>;
+sized_input_range(R &&range, std::size_t size) -> sized_input_range<std::remove_cvref_t<R>>;
 
-// TODO: a utility to make FileDescriptorSet from encoded FileDescriptorSet streams
+template <typename U, typename = void>
+struct range_value_or_void {
+  using type = void;
+};
+template <typename U>
+struct range_value_or_void<U, std::void_t<std::ranges::range_value_t<U>>> {
+  using type = std::ranges::range_value_t<U>;
+};
+template <typename U>
+using range_value_or_void_t = typename range_value_or_void<U>::type;
+
+struct enum_number {
+  std::int32_t value = 0;
+  operator std::int32_t() const { return value; }
+};
+
+struct enum_name {
+  std::string_view value;
+  operator std::string_view() const { return value; }
+};
+
+struct enum_numbers_span {
+  std::span<std::int32_t> value = {};
+};
+
+template <typename BaseView = std::monostate>
+struct enum_names_view {
+  BaseView value;
+};
+
+template <typename T>
+  requires(std::ranges::sized_range<T> && std::is_convertible_v<range_value_or_void_t<T>, std::string_view>)
+enum_names_view(const T &v) -> enum_names_view<const T &>;
+
+
+template <typename T>
+struct get_traits {
+  using type = T;
+};
+
+template <>
+struct get_traits<enum_number> {
+  using type = std::uint32_t;
+};
+
+template <>
+struct get_traits<enum_name> {
+  using type = std::string_view;
+};
+
+template <>
+struct get_traits<enum_numbers_span> {
+  using type = std::span<const std::uint32_t>;
+};
+
+
+enum dynamic_message_errc { no_error, no_such_field, no_such_value, invalid_field_type, wrong_message_type };
 
 struct dynamic_message_factory_addons {
   using traits_type = non_owning_traits;
@@ -210,21 +265,21 @@ struct dynamic_message_factory_addons {
     explicit enum_descriptor(Derived &derived, [[maybe_unused]] const auto &inherited_options)
         : is_null_value(derived.full_name() == "google.protobuf.NullValue") {}
 
-    [[nodiscard]] const uint32_t *value_of(const std::string_view name) const {
+    [[nodiscard]] const int32_t *value_of(const std::string_view name) const {
       const auto &proto = static_cast<const Derived *>(this)->proto();
       for (const auto &ev : proto.value) {
         if (ev.name == name) {
           // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-          return reinterpret_cast<const uint32_t *>(&ev.number);
+          return &ev.number;
         }
       }
       return nullptr;
     }
 
-    [[nodiscard]] std::string_view name_of(uint32_t value) const {
+    [[nodiscard]] std::string_view name_of(int32_t value) const {
       const auto &proto = static_cast<const Derived *>(this)->proto();
       for (const auto &ev : proto.value) {
-        if (static_cast<uint32_t>(ev.number) == value) {
+        if (ev.number == value) {
           return ev.name;
         }
       }
@@ -480,10 +535,11 @@ public:
                                       : (storage_->of_int64.selection == descriptor().oneof_ordinal);
   }
 
-  /// if the field is part of an oneof fields, return the active field index of the oneof. If the returned 
+  /// if the field is part of an oneof fields, return the active field index of the oneof. If the returned
   /// value is smaller than 0, it means the oneof does not contains any value.
   std::int32_t active_oneof_index() const {
-    return static_cast<std::int32_t>(storage_->of_int64.selection + descriptor().storage_slot) - descriptor().oneof_ordinal ;
+    return static_cast<std::int32_t>(storage_->of_int64.selection + descriptor().storage_slot) -
+           descriptor().oneof_ordinal;
   }
 
   template <typename T>
@@ -496,16 +552,32 @@ public:
 
   auto visit(auto &&v) const;
   template <typename T>
-  [[nodiscard]] auto get() const noexcept -> std::expected<T, std::errc> {
-    return visit([](auto cref) -> std::expected<T, std::errc> {
-      if constexpr (requires {
-                      { cref.value() } -> std::same_as<T>;
-                    }) {
-        return cref.value();
-      } else if constexpr (requires { T{cref.data(), cref.size()}; }) {
-        return T{cref.data(), cref.size()};
+  [[nodiscard]] auto get() const noexcept -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
+    return visit([this](auto cref) -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
+      using cref_type = decltype(cref);
+
+      if constexpr (!cref_type::template gettable_to_v<T>) {
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
       } else {
-        return std::unexpected(std::errc::wrong_protocol_type);
+        if constexpr (cref_type::field_kind == KIND_MESSAGE) {
+          if (!has_value()) {
+            return std::unexpected(dynamic_message_errc::no_such_value);
+          }
+        }
+
+        if constexpr (cref_type::field_kind == KIND_ENUM) {
+          if constexpr (std::same_as<T, enum_number>) {
+            return cref.number();
+          } else if constexpr (std::same_as<T, enum_name>) {
+            return cref.name();
+          }
+        } else if constexpr (cref_type::field_kind == KIND_REPEATED_ENUM && std::same_as<T, enum_numbers_span>) {
+          return cref.numbers();
+        } else if constexpr (requires { cref.value(); }) {
+          return cref.value();
+        } else if constexpr (requires { T{cref.data(), cref.size()}; }) {
+          return T{cref.data(), cref.size()};
+        }
       }
     });
   }
@@ -555,42 +627,31 @@ public:
   void clone_from(const field_cref &other) const noexcept;
 
   template <typename T>
-  [[nodiscard]] auto get() const noexcept -> std::expected<T, std::errc> {
+  [[nodiscard]] auto get() const noexcept {
     return cref().get<T>();
   }
 
   template <typename T>
-  [[nodiscard]] auto set(T v) const noexcept -> std::expected<void, std::errc> {
-    return visit([&v](auto mref) -> std::expected<void, std::errc> {
-      if constexpr (std::same_as<typename decltype(mref)::value_type, T> && requires { mref.set(v); }) {
+  [[nodiscard]] auto set(T v) const noexcept -> std::expected<void, dynamic_message_errc> {
+    return visit([&v](auto mref) -> std::expected<void, dynamic_message_errc> {
+      using mref_type = decltype(mref);
+      if constexpr (mref_type::template settable_from_v<T>) {
         mref.set(v);
         return {};
       } else {
-        return std::unexpected(std::errc::wrong_protocol_type);
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
     });
   }
 
   template <typename T>
-  [[nodiscard]] auto assign(T v) const noexcept -> std::expected<void, std::errc> {
-    return visit([&v](auto mref) -> std::expected<void, std::errc> {
-      if constexpr (requires { mref.assign(v); }) {
-        mref.assign(v);
-        return {};
-      } else {
-        return std::unexpected(std::errc::wrong_protocol_type);
-      }
-    });
-  }
-
-  template <typename T>
-  [[nodiscard]] auto adopt(T v) const noexcept -> std::expected<void, std::errc> {
-    return visit([&v](auto mref) -> std::expected<void, std::errc> {
+  [[nodiscard]] auto adopt(T v) const noexcept -> std::expected<void, dynamic_message_errc> {
+    return visit([&v](auto mref) -> std::expected<void, dynamic_message_errc> {
       if constexpr (requires { mref.adopt(v); }) {
         mref.adopt(v);
         return {};
       } else {
-        return std::unexpected(std::errc::wrong_protocol_type);
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
     });
   }
@@ -608,6 +669,10 @@ public:
   using storage_type = scalar_storage_base<value_type>;
   constexpr static field_kind_t field_kind = Kind;
   constexpr static bool is_mutable = false;
+  constexpr static bool is_repeated = false;
+
+  template <typename U>
+  static constexpr bool gettable_to_v = std::same_as<U, value_type>;
 
   scalar_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -652,6 +717,10 @@ public:
 
   constexpr static field_kind_t field_kind = Kind;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = false;
+
+  template <typename U>
+  static constexpr bool settable_from_v = std::same_as<U, value_type>;
 
   scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                     std::pmr::monotonic_buffer_resource &) noexcept
@@ -694,6 +763,10 @@ public:
   using storage_type = string_storage_t;
   constexpr static field_kind_t field_kind = KIND_STRING;
   constexpr static bool is_mutable = false;
+  constexpr static bool is_repeated = false;
+
+  template <typename U>
+  static constexpr bool gettable_to_v = std::same_as<U, std::string_view>;
 
   string_field_cref(const field_descriptor_t &descriptor, const string_storage_t &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -733,6 +806,10 @@ public:
   using cref_type = string_field_cref;
   constexpr static field_kind_t field_kind = KIND_STRING;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = false;
+
+  template <typename U>
+  static constexpr bool settable_from_v = std::convertible_to<U, std::string_view>;
 
   string_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                     std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -755,7 +832,7 @@ public:
 
   template <typename T>
     requires std::convertible_to<T, std::string_view>
-  void assign(const T& v) const noexcept {
+  void set(const T &v) const noexcept {
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     storage_->content = dest;
@@ -767,7 +844,7 @@ public:
 
   void clone_from(const cref_type &other) const noexcept {
     if (other.has_value()) {
-      assign(other.value());
+      set(other.value());
     } else {
       reset();
     }
@@ -804,6 +881,10 @@ public:
   using storage_type = bytes_storage_t;
   constexpr static field_kind_t field_kind = KIND_BYTES;
   constexpr static bool is_mutable = false;
+  constexpr static bool is_repeated = false;
+
+  template <typename U>
+  static constexpr bool gettable_to_v = std::same_as<U, bytes_view>;
 
   bytes_field_cref(const field_descriptor_t &descriptor, const bytes_storage_t &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -845,6 +926,10 @@ public:
   using cref_type = bytes_field_cref;
   constexpr static field_kind_t field_kind = KIND_BYTES;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = false;
+
+  template <typename U>
+  static constexpr bool settable_from_v = concepts::contiguous_std_byte_range<U>;
 
   bytes_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                    std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -865,7 +950,7 @@ public:
     storage_->selection = descriptor_->oneof_ordinal;
   }
 
-  void assign(concepts::contiguous_std_byte_range auto const& v) const noexcept {
+  void set(concepts::contiguous_std_byte_range auto const &v) const noexcept {
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     storage_->content = dest;
@@ -877,7 +962,7 @@ public:
 
   void clone_from(const cref_type &other) const noexcept {
     if (other.has_value()) {
-      assign(other.value());
+      set(other.value());
     } else {
       reset();
     }
@@ -926,6 +1011,8 @@ public:
   using char_type = value_type;
 
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = false;
+
   static constexpr size_type npos = std::string_view::npos;
   string_value_mref(std::string_view &data, std::pmr::monotonic_buffer_resource &mr) noexcept
       : data_(&data), memory_resource_(&mr) {}
@@ -933,120 +1020,17 @@ public:
 
   void adopt(std::string_view v) const noexcept { *data_ = v; }
 
-  void assign(std::string_view v) const noexcept {
+  void set(std::string_view v) const noexcept {
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     adopt(std::string_view{dest, v.size()});
   }
 
-  void clone_from(std::string_view v) const noexcept { assign(v); }
+  void clone_from(std::string_view v) const noexcept { set(v); }
 
   operator std::string_view() const noexcept { return *data_; }
 
-  auto begin() const noexcept { return view().begin(); }
-  auto cbegin() const noexcept { return view().cbegin(); }
-  auto end() const noexcept { return view().end(); }
-  auto cend() const noexcept { return view().cend(); }
-  auto rbegin() const noexcept { return view().rbegin(); }
-  auto crbegin() const noexcept { return view().crbegin(); }
-  auto rend() const noexcept { return view().rend(); }
-  auto crend() const noexcept { return view().crend(); }
-
-  [[nodiscard]] size_type size() const noexcept { return view().size(); }
-  [[nodiscard]] size_type length() const noexcept { return view().length(); }
-  [[nodiscard]] size_type max_size() const noexcept { return view().max_size(); }
-  [[nodiscard]] bool empty() const noexcept { return view().empty(); }
-
-  const_reference operator[](size_type pos) const noexcept { return view()[pos]; }
-  const_reference at(size_type pos) const { return view().at(pos); }
-  const_reference front() const noexcept { return view().front(); }
-  const_reference back() const noexcept { return view().back(); }
-  const_pointer data() const noexcept { return view().data(); }
-
-  void remove_prefix(size_type n) const noexcept { data_->remove_prefix(n); }
-  void remove_suffix(size_type n) const noexcept { data_->remove_suffix(n); }
-  void swap(std::string_view &other) const noexcept { data_->swap(other); }
-
-  size_type copy(char_type *dest, size_type count, size_type pos = 0) const { return view().copy(dest, count, pos); }
-
-  [[nodiscard]] std::string_view substr(size_type pos = 0, size_type count = npos) const {
-    return view().substr(pos, count);
-  }
-
-  int compare(std::string_view v) const noexcept { return view().compare(v); }
-  int compare(size_type pos1, size_type count1, std::string_view v) const { return view().compare(pos1, count1, v); }
-  int compare(size_type pos1, size_type count1, const char_type *s) const { return view().compare(pos1, count1, s); }
-  int compare(size_type pos1, size_type count1, const char_type *s, size_type count2) const {
-    return view().compare(pos1, count1, s, count2);
-  }
-  int compare(const char_type *s) const { return view().compare(s); }
-
-  bool starts_with(std::string_view v) const noexcept { return view().starts_with(v); }
-  bool starts_with(char_type c) const noexcept { return view().starts_with(c); }
-  bool starts_with(const char_type *s) const { return view().starts_with(s); }
-
-  bool ends_with(std::string_view v) const noexcept { return view().ends_with(v); }
-  bool ends_with(char_type c) const noexcept { return view().ends_with(c); }
-  bool ends_with(const char_type *s) const { return view().ends_with(s); }
-
-  bool contains(std::string_view v) const noexcept { return view().contains(v); }
-  bool contains(char_type c) const noexcept { return view().contains(c); }
-  bool contains(const char_type *s) const { return view().contains(s); }
-
-  bool operator==(std::string_view other) const noexcept { return view() == other; }
-  auto operator<=>(std::string_view other) const noexcept { return view() <=> other; }
-
-  size_type find(std::string_view v, size_type pos = 0) const noexcept { return view().find(v, pos); }
-  size_type find(char_type c, size_type pos = 0) const noexcept { return view().find(c, pos); }
-  size_type find(const char_type *s, size_type pos, size_type count) const { return view().find(s, pos, count); }
-  size_type find(const char_type *s, size_type pos = 0) const { return view().find(s, pos); }
-
-  size_type rfind(std::string_view v, size_type pos = npos) const noexcept { return view().rfind(v, pos); }
-  size_type rfind(char_type c, size_type pos = npos) const noexcept { return view().rfind(c, pos); }
-  size_type rfind(const char_type *s, size_type pos, size_type count) const { return view().rfind(s, pos, count); }
-  size_type rfind(const char_type *s, size_type pos = npos) const { return view().rfind(s, pos); }
-
-  size_type find_first_of(std::string_view v, size_type pos = 0) const noexcept { return view().find_first_of(v, pos); }
-  size_type find_first_of(char_type c, size_type pos = 0) const noexcept { return view().find_first_of(c, pos); }
-  size_type find_first_of(const char_type *s, size_type pos, size_type count) const {
-    return view().find_first_of(s, pos, count);
-  }
-  size_type find_first_of(const char_type *s, size_type pos = 0) const { return view().find_first_of(s, pos); }
-
-  size_type find_last_of(std::string_view v, size_type pos = npos) const noexcept {
-    return view().find_last_of(v, pos);
-  }
-  size_type find_last_of(char_type c, size_type pos = npos) const noexcept { return view().find_last_of(c, pos); }
-  size_type find_last_of(const char_type *s, size_type pos, size_type count) const {
-    return view().find_last_of(s, pos, count);
-  }
-  size_type find_last_of(const char_type *s, size_type pos = npos) const { return view().find_last_of(s, pos); }
-
-  size_type find_first_not_of(std::string_view v, size_type pos = 0) const noexcept {
-    return view().find_first_not_of(v, pos);
-  }
-  size_type find_first_not_of(char_type c, size_type pos = 0) const noexcept {
-    return view().find_first_not_of(c, pos);
-  }
-  size_type find_first_not_of(const char_type *s, size_type pos, size_type count) const {
-    return view().find_first_not_of(s, pos, count);
-  }
-  size_type find_first_not_of(const char_type *s, size_type pos = 0) const { return view().find_first_not_of(s, pos); }
-
-  size_type find_last_not_of(std::string_view v, size_type pos = npos) const noexcept {
-    return view().find_last_not_of(v, pos);
-  }
-  size_type find_last_not_of(char_type c, size_type pos = npos) const noexcept {
-    return view().find_last_not_of(c, pos);
-  }
-  size_type find_last_not_of(const char_type *s, size_type pos, size_type count) const {
-    return view().find_last_not_of(s, pos, count);
-  }
-  size_type find_last_not_of(const char_type *s, size_type pos = npos) const { return view().find_last_not_of(s, pos); }
-
 private:
-  [[nodiscard]] const std::string_view &view() const noexcept { return *data_; }
-
   std::string_view *data_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
@@ -1074,40 +1058,15 @@ public:
 
   void adopt(hpp::proto::bytes_view v) const noexcept { *data_ = v; }
 
-  void assign(concepts::contiguous_std_byte_range auto const& v) const noexcept {
+  void set(concepts::contiguous_std_byte_range auto const &v) const noexcept {
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     adopt(hpp::proto::bytes_view{dest, v.size()});
   }
 
-  operator hpp::proto::bytes_view() const noexcept { return view(); }
-
-  auto begin() const noexcept { return view().begin(); }
-  auto end() const noexcept { return view().end(); }
-  auto cbegin() const noexcept { return view().cbegin(); }
-  auto cend() const noexcept { return view().cend(); }
-  auto rbegin() const noexcept { return view().rbegin(); }
-  auto rend() const noexcept { return view().rend(); }
-  auto crbegin() const noexcept { return view().crbegin(); }
-  auto crend() const noexcept { return view().crend(); }
-
-  [[nodiscard]] size_type size() const noexcept { return view().size(); }
-  [[nodiscard]] size_type size_bytes() const noexcept { return view().size_bytes(); }
-  [[nodiscard]] bool empty() const noexcept { return view().empty(); }
-
-  const_reference operator[](size_type pos) const noexcept { return view()[pos]; }
-  const_reference at(size_type pos) const { return view().at(pos); }
-  const_reference front() const noexcept { return view().front(); }
-  const_reference back() const noexcept { return view().back(); }
-  const_pointer data() const noexcept { return view().data(); }
-
-  [[nodiscard]] view_type first(size_type count) const { return view().first(count); }
-  [[nodiscard]] view_type last(size_type count) const { return view().last(count); }
-  [[nodiscard]] view_type subspan(size_type off) const { return view().subspan(off); }
+  operator hpp::proto::bytes_view() const noexcept { return *data_; }
 
 private:
-  [[nodiscard]] const view_type &view() const noexcept { return *data_; }
-
   hpp::proto::bytes_view *data_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
@@ -1117,7 +1076,7 @@ public:
   using is_enum_value_ref = void;
   constexpr static bool is_mutable = false;
 
-  enum_value_cref(const enum_descriptor_t &descriptor, uint32_t number) noexcept
+  enum_value_cref(const enum_descriptor_t &descriptor, int32_t number) noexcept
       : descriptor_(&descriptor), number_(number) {}
   enum_value_cref(const enum_value_cref &) noexcept = default;
   enum_value_cref(enum_value_cref &&) noexcept = default;
@@ -1125,27 +1084,27 @@ public:
   enum_value_cref &operator=(enum_value_cref &&) noexcept = default;
   ~enum_value_cref() noexcept = default;
 
-  [[nodiscard]] explicit operator uint32_t() const noexcept { return number_; }
+  [[nodiscard]] explicit operator int32_t() const noexcept { return number_; }
 
-  [[nodiscard]] uint32_t number() const noexcept { return number_; }
+  [[nodiscard]] int32_t number() const noexcept { return number_; }
   [[nodiscard]] std::string_view name() const noexcept { return descriptor_->name_of(number_); }
   [[nodiscard]] const enum_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
 private:
   const enum_descriptor_t *descriptor_;
-  uint32_t number_;
+  int32_t number_;
 };
 
 class enum_value_mref {
   const enum_descriptor_t *descriptor_;
-  uint32_t *number_;
+  int32_t *number_;
 
 public:
   using is_enum_value_ref = void;
   using cref_type = enum_value_cref;
   constexpr static bool is_mutable = true;
 
-  enum_value_mref(const enum_descriptor_t &descriptor, uint32_t &number) noexcept
+  enum_value_mref(const enum_descriptor_t &descriptor, int32_t &number) noexcept
       : descriptor_(&descriptor), number_(&number) {}
   enum_value_mref(const enum_value_mref &) noexcept = default;
   enum_value_mref(enum_value_mref &&) noexcept = default;
@@ -1153,15 +1112,15 @@ public:
   enum_value_mref &operator=(enum_value_mref &&) noexcept = default;
   ~enum_value_mref() noexcept = default;
 
-  void set(uint32_t number) const noexcept { *number_ = number; }
+  void set(int32_t number) const noexcept { *number_ = number; }
 
-  [[nodiscard]] const uint32_t *number_by_name(const char *name) const noexcept { return descriptor_->value_of(name); }
-  [[nodiscard]] const uint32_t *number_by_name(std::string_view name) const noexcept {
+  [[nodiscard]] const int32_t *number_by_name(const char *name) const noexcept { return descriptor_->value_of(name); }
+  [[nodiscard]] const int32_t *number_by_name(std::string_view name) const noexcept {
     return descriptor_->value_of(name);
   }
 
-  explicit operator uint32_t() const noexcept { return *number_; }
-  [[nodiscard]] uint32_t number() const noexcept { return *number_; }
+  explicit operator int32_t() const noexcept { return *number_; }
+  [[nodiscard]] int32_t number() const noexcept { return *number_; }
   [[nodiscard]] std::string_view name() const noexcept { return descriptor_->name_of(*number_); }
 
   [[nodiscard]] const enum_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -1169,17 +1128,21 @@ public:
 
 class enum_field_cref {
 public:
-  using encode_type = vuint32_t;
+  using encode_type = vint64_t;
   using value_type = enum_value_cref;
-  using storage_type = scalar_storage_base<uint32_t>;
+  using storage_type = scalar_storage_base<int32_t>;
   constexpr static field_kind_t field_kind = KIND_ENUM;
   constexpr static bool is_mutable = false;
+  constexpr static bool is_repeated = false;
 
-  enum_field_cref(const field_descriptor_t &descriptor, const scalar_storage_base<uint32_t> &storage) noexcept
+  template <typename U>
+  static constexpr bool gettable_to_v = std::same_as<U, enum_number> || std::same_as<U, enum_name>;
+
+  enum_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
   enum_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : enum_field_cref(descriptor, storage.of_uint32) {}
+      : enum_field_cref(descriptor, storage.of_int32) {}
 
   enum_field_cref(const enum_field_cref &) noexcept = default;
   enum_field_cref(enum_field_cref &&) noexcept = default;
@@ -1191,7 +1154,7 @@ public:
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
   [[nodiscard]] enum_value_cref value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
-      const_cast<scalar_storage_base<uint32_t> *>(storage_)->content = std::get<uint32_t>(descriptor_->default_value);
+      const_cast<scalar_storage_base<int32_t> *>(storage_)->content = std::get<int32_t>(descriptor_->default_value);
     }
     return {enum_descriptor(), storage_->content};
   }
@@ -1201,36 +1164,42 @@ public:
     return *descriptor_->enum_field_type_descriptor();
   }
 
+  std::int32_t number() const {
+    return descriptor().explicit_presence() && !has_value() ? std::get<int32_t>(descriptor_->default_value)
+                                                            : storage_->content;
+  }
+
+  std::string_view name() const { return enum_descriptor().name_of(number()); }
+
 private:
   friend class enum_field_mref;
   const field_descriptor_t *descriptor_;
-  const scalar_storage_base<uint32_t> *storage_;
+  const scalar_storage_base<int32_t> *storage_;
 };
 
 class enum_field_mref {
 public:
-  using encode_type = vuint32_t;
+  using encode_type = vint64_t;
   using value_type = enum_value_cref;
-  using storage_type = scalar_storage_base<uint32_t>;
+  using storage_type = scalar_storage_base<int32_t>;
   using cref_type = enum_field_cref;
   constexpr static field_kind_t field_kind = KIND_ENUM;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = false;
+
+  template <typename U>
+  static constexpr bool settable_from_v = std::same_as<U, enum_number> || std::same_as<U, enum_name>;
 
   enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                   std::pmr::monotonic_buffer_resource &) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_uint32) {}
+      : descriptor_(&descriptor), storage_(&storage.of_int32) {}
 
   enum_field_mref(const enum_field_mref &) noexcept = default;
   enum_field_mref(enum_field_mref &&) noexcept = default;
   enum_field_mref &operator=(const enum_field_mref &) noexcept = default;
   enum_field_mref &operator=(enum_field_mref &&) noexcept = default;
   ~enum_field_mref() noexcept = default;
-
-  void set(uint32_t value) const noexcept {
-    storage_->content = value;
-    storage_->selection = descriptor_->oneof_ordinal;
-  }
 
   void alias_from(const cref_type &other) const noexcept {
     assert(this->descriptor_ == &other.descriptor());
@@ -1249,7 +1218,7 @@ public:
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] enum_value_mref value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
-      storage_->content = std::get<uint32_t>(descriptor_->default_value);
+      storage_->content = std::get<int32_t>(descriptor_->default_value);
     }
     return {*descriptor_->enum_field_type_descriptor(), storage_->content};
   }
@@ -1266,9 +1235,22 @@ public:
     return *descriptor_->enum_field_type_descriptor();
   }
 
+  std::int32_t number() const {
+    return descriptor().explicit_presence() && !has_value() ? std::get<int32_t>(descriptor_->default_value)
+                                                            : storage_->content;
+  }
+  std::string_view name() const { return enum_descriptor().name_of(number()); }
+ 
+  void set(enum_number number) const {
+    storage_->content = number.value;
+    storage_->selection = descriptor_->oneof_ordinal;
+  }
+
+  void set(enum_name name) const { set(enum_number{*enum_descriptor().value_of(enum_name{name.value})}); }
+
 private:
   const field_descriptor_t *descriptor_;
-  scalar_storage_base<uint32_t> *storage_;
+  scalar_storage_base<int32_t> *storage_;
 };
 
 template <typename T, field_kind_t Kind>
@@ -1282,6 +1264,10 @@ public:
   using size_type = std::size_t;
   constexpr static field_kind_t field_kind = Kind;
   constexpr static bool is_mutable = false;
+  constexpr static bool is_repeated = true;
+
+  template <typename U>
+  static constexpr bool gettable_to_v = std::same_as<U, std::span<const value_type>>;
 
   repeated_scalar_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -1337,6 +1323,11 @@ public:
   using cref_type = repeated_scalar_field_cref<T, Kind>;
   constexpr static field_kind_t field_kind = Kind;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = true;
+
+  template <typename U>
+  static constexpr bool settable_from_v =
+      std::ranges::sized_range<U> && std::is_same_v<range_value_or_void_t<U>, value_type>;
 
   repeated_scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                              std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -1416,9 +1407,9 @@ public:
     storage_->size = static_cast<uint32_t>(s.size());
   }
 
-  template <std::ranges::forward_range Range>
+  template <std::ranges::sized_range Range>
     requires std::same_as<std::ranges::range_value_t<Range>, value_type>
-  void assign(const Range &s) const noexcept {
+  void set(const Range &s) const noexcept {
     resize(static_cast<std::size_t>(std::ranges::distance(s)));
     std::copy(s.begin(), s.end(), data());
   }
@@ -1433,7 +1424,7 @@ public:
     if (other.empty()) {
       clear();
     } else {
-      assign(std::span{other.data(), other.size()});
+      set(std::span{other.data(), other.size()});
     }
   }
 
@@ -1522,8 +1513,8 @@ public:
 
 class repeated_enum_field_cref : public std::ranges::view_interface<repeated_enum_field_cref> {
 public:
-  using storage_type = repeated_storage_base<uint32_t>;
-  using encode_type = vint32_t;
+  using storage_type = repeated_storage_base<int32_t>;
+  using encode_type = vint64_t;
   using reference = enum_value_cref;
   using iterator = repeated_field_iterator<repeated_enum_field_cref>;
   using difference_type = std::ptrdiff_t;
@@ -1532,13 +1523,17 @@ public:
   static_assert(std::semiregular<iterator>);
   constexpr static field_kind_t field_kind = KIND_REPEATED_ENUM;
   constexpr static bool is_mutable = false;
+  constexpr static bool is_repeated = true;
+
+  template <typename U>
+  static constexpr bool gettable_to_v = std::same_as<U, enum_numbers_span>;
 
   repeated_enum_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
 
   repeated_enum_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : repeated_enum_field_cref(descriptor, storage.of_repeated_uint32) {}
+      : repeated_enum_field_cref(descriptor, storage.of_repeated_int32) {}
 
   repeated_enum_field_cref(const repeated_enum_field_cref &) noexcept = default;
   repeated_enum_field_cref(repeated_enum_field_cref &&) noexcept = default;
@@ -1550,7 +1545,7 @@ public:
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->size}; }
-  [[nodiscard]] const uint32_t *data() const noexcept { return storage_->content; }
+  [[nodiscard]] const int32_t *data() const noexcept { return storage_->content; }
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
@@ -1568,6 +1563,13 @@ public:
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
+  std::span<const std::int32_t> numbers() const { return std::span{storage_->content, storage_->size}; }
+
+  auto names() const {
+    return numbers() |
+           std::views::transform([this](auto v) { return descriptor_->enum_field_type_descriptor()->name_of(v); });
+  }
+
 private:
   const field_descriptor_t *descriptor_;
   const storage_type *storage_;
@@ -1575,16 +1577,21 @@ private:
 
 class repeated_enum_field_mref : public std::ranges::view_interface<repeated_enum_field_mref> {
 public:
-  using storage_type = repeated_storage_base<uint32_t>;
+  using storage_type = repeated_storage_base<int32_t>;
   using encode_type = vint64_t;
   using reference = enum_value_mref;
-  using value_type = uint32_t;
+  using value_type = int32_t;
   using iterator = repeated_field_iterator<repeated_enum_field_mref>;
   using difference_type = std::ptrdiff_t;
   using size_type = std::size_t;
   using cref_type = repeated_enum_field_cref;
   constexpr static field_kind_t field_kind = KIND_REPEATED_ENUM;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = true;
+
+  template <typename U>
+  static constexpr bool settable_from_v =
+      std::ranges::sized_range<U> && std::is_same_v<range_value_or_void_t<U>, value_type>;
 
   repeated_enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                            std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -1609,7 +1616,7 @@ public:
 
   void resize(std::size_t n) const noexcept {
     if (capacity() < n) {
-      auto *new_data = static_cast<uint32_t *>(memory_resource_->allocate(n * sizeof(uint32_t), alignof(uint32_t)));
+      auto *new_data = static_cast<int32_t *>(memory_resource_->allocate(n * sizeof(int32_t), alignof(int32_t)));
       std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
       std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
       storage_->content = new_data;
@@ -1626,7 +1633,7 @@ public:
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->size}; }
-  [[nodiscard]] uint32_t *data() const noexcept { return storage_->content; }
+  [[nodiscard]] int32_t *data() const noexcept { return storage_->content; }
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
@@ -1654,13 +1661,13 @@ public:
     return *descriptor_->enum_field_type_descriptor();
   }
 
-  void adopt(std::span<uint32_t> s) const noexcept {
+  void adopt(std::span<int32_t> s) const noexcept {
     storage_->content = s.data();
     storage_->capacity = static_cast<uint32_t>(s.size());
   }
-  template <std::ranges::forward_range Range>
-    requires std::same_as<std::ranges::range_value_t<Range>, uint32_t>
-  void assign(Range const& s) const noexcept {
+  template <std::ranges::sized_range Range>
+    requires std::same_as<std::ranges::range_value_t<Range>, std::int32_t>
+  void set(Range const &s) const noexcept {
     resize(static_cast<std::size_t>(std::ranges::distance(s)));
     std::copy(s.begin(), s.end(), data());
   }
@@ -1672,7 +1679,7 @@ public:
 
   void clone_from(const cref_type &other) const noexcept {
     assert(this->descriptor_ == &other.descriptor());
-    assign(std::span{other.data(), other.size()});
+    set(std::span{other.data(), other.size()});
   }
 
 private:
@@ -1694,6 +1701,11 @@ public:
   using cref_type = repeated_string_field_cref;
   constexpr static field_kind_t field_kind = KIND_REPEATED_STRING;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = true;
+
+  template <typename U>
+  static constexpr bool settable_from_v =
+      std::ranges::sized_range<U> && std::is_convertible_v<range_value_or_void_t<U>, value_type>;
 
   repeated_string_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                              std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -1763,13 +1775,13 @@ public:
     storage_->size = static_cast<uint32_t>(s.size());
   }
 
-  template <std::ranges::forward_range Range>
+  template <std::ranges::sized_range Range>
     requires std::convertible_to<std::ranges::range_value_t<Range>, std::string_view>
-  void assign(const Range &r) const noexcept {
+  void set(const Range &r) const noexcept {
     resize(static_cast<std::size_t>(std::ranges::distance(r)));
     std::size_t i = 0;
-    for (auto&& e : r) {
-      (*this)[i++].assign(e);
+    for (auto &&e : r) {
+      (*this)[i++].set(e);
     }
   }
 
@@ -1810,6 +1822,11 @@ public:
   using cref_type = repeated_bytes_field_cref;
   constexpr static field_kind_t field_kind = KIND_REPEATED_BYTES;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = true;
+
+  template <typename U>
+  static constexpr bool settable_from_v =
+      std::ranges::sized_range<U> && concepts::contiguous_std_byte_range<range_value_or_void_t<U>>;
 
   repeated_bytes_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                             std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -1879,13 +1896,13 @@ public:
     storage_->size = static_cast<uint32_t>(s.size());
   }
 
-  template <std::ranges::forward_range Range>
+  template <std::ranges::sized_range Range>
     requires concepts::contiguous_std_byte_range<std::ranges::range_value_t<Range>>
-  void assign(const Range &r) const noexcept {
+  void set(const Range &r) const noexcept {
     resize(static_cast<std::size_t>(std::ranges::distance(r)));
     std::size_t i = 0;
-    for (auto&& e: r) {
-      (*this)[i++].assign(e);
+    for (auto &&e : r) {
+      (*this)[i++].set(e);
     }
   }
 
@@ -1902,7 +1919,7 @@ public:
     }
     resize(other.size());
     for (std::size_t i = 0; i < other.size(); ++i) {
-      (*this)[i].assign(other[i]);
+      (*this)[i].set(other[i]);
     }
   }
 
@@ -1982,23 +1999,38 @@ public:
     return nullptr;
   }
 
-  [[nodiscard]] field_cref const_field(const field_descriptor_t &desc) const noexcept {
+  [[nodiscard]] field_cref field(const field_descriptor_t &desc) const noexcept {
     const auto &storage = storage_for(desc);
 
     return {desc, storage};
   }
 
-  [[nodiscard]] field_cref operator[](std::string_view name) const noexcept {
+  [[nodiscard]] std::expected<field_cref, dynamic_message_errc> field_by_name(std::string_view name) const noexcept {
     const auto *desc = field_descriptor_by_name(name);
-    assert(desc != nullptr);
-    return const_field(*desc);
+    if (desc != nullptr) {
+      return field(*desc);
+    } else {
+      return std::unexpected(dynamic_message_errc::no_such_field);
+    }
   }
 
-  [[nodiscard]] field_cref at(std::string_view name) const {
-    if (const auto *desc = field_descriptor_by_name(name); desc != nullptr) {
-      return const_field(*desc);
+  [[nodiscard]] std::expected<field_cref, dynamic_message_errc> field_by_number(uint32_t number) const noexcept {
+    const auto *desc = field_descriptor_by_number(number);
+    if (desc != nullptr) {
+      return field(*desc);
+    } else {
+      return std::unexpected(dynamic_message_errc::no_such_field);
     }
-    throw std::out_of_range{""};
+  }
+
+  template <typename T>
+  [[nodiscard]] std::expected<T, dynamic_message_errc> field_value_by_name(std::string_view name) const noexcept {
+    return field_by_name(name).transform([](auto ref) { return ref.template get<T>(); });
+  }
+
+  template <typename T>
+  [[nodiscard]] std::expected<T, dynamic_message_errc> field_value_by_number(std::uint32_t number) const noexcept {
+    return field_by_number(number).transform([](auto ref) { return ref.template get<T>(); });
   }
 
   [[nodiscard]] bool has_oneof(const oneof_descriptor_t &desc) const noexcept {
@@ -2023,33 +2055,27 @@ public:
   [[nodiscard]] fields_view fields() const { return fields_view{*this}; }
 
   template <concepts::const_field_ref T>
-  [[nodiscard]] std::expected<T, std::errc> field_by_number(uint32_t number) const noexcept {
-    const auto *desc = field_descriptor_by_number(number);
-    if (desc == nullptr) {
-      return std::unexpected(std::errc::result_out_of_range);
-    }
-
-    auto f = const_field(*desc).to<T>();
-    if (f.has_value()) {
-      return *f;
-    } else {
-      return std::unexpected(std::errc::wrong_protocol_type);
-    }
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_number(uint32_t number) const noexcept {
+    return field_by_number(number).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
+      auto r = ref.template to<T>();
+      if (r.has_value()) {
+        return r.value();
+      } else {
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
+      }
+    });
   }
 
   template <concepts::const_field_ref T>
-  [[nodiscard]] std::expected<T, std::errc> field_by_name(std::string_view name) const noexcept {
-    const auto *desc = field_descriptor_by_name(name);
-    if (desc == nullptr) {
-      return std::unexpected(std::errc::result_out_of_range);
-    }
-
-    auto f = const_field(*desc).to<T>();
-    if (f.has_value()) {
-      return *f;
-    } else {
-      return std::unexpected(std::errc::wrong_protocol_type);
-    }
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_name(std::string_view name) const noexcept {
+    return field_by_name(name).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
+      auto r = ref.template to<T>();
+      if (r.has_value()) {
+        return r.value();
+      } else {
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
+      }
+    });
   }
 };
 
@@ -2109,22 +2135,85 @@ public:
 #endif
   }
 
-  [[nodiscard]] field_mref mutable_field(const field_descriptor_t &desc) const noexcept {
+  [[nodiscard]] field_mref field(const field_descriptor_t &desc) const noexcept {
     auto &storage = storage_for(desc);
     return {desc, storage, *memory_resource_};
   }
 
-  [[nodiscard]] field_mref operator[](std::string_view name) const noexcept {
+  [[nodiscard]] std::expected<field_mref, dynamic_message_errc> field_by_name(std::string_view name) const noexcept {
     const auto *desc = field_descriptor_by_name(name);
-    assert(desc != nullptr);
-    return mutable_field(*desc);
+    if (desc != nullptr) {
+      return field(*desc);
+    } else {
+      return std::unexpected(dynamic_message_errc::no_such_field);
+    }
   }
 
-  [[nodiscard]] field_mref at(std::string_view name) const {
-    if (const auto *desc = field_descriptor_by_name(name); desc != nullptr) {
-      return mutable_field(*desc);
+  [[nodiscard]] std::expected<field_mref, dynamic_message_errc> field_by_number(uint32_t number) const noexcept {
+    const auto *desc = field_descriptor_by_number(number);
+    if (desc != nullptr) {
+      return field(*desc);
+    } else {
+      return std::unexpected(dynamic_message_errc::no_such_field);
     }
-    throw std::out_of_range{""};
+  }
+
+  template <typename T>
+  [[nodiscard]] std::expected<typename get_traits<T>::type, dynamic_message_errc> field_value_by_name(std::string_view name) const noexcept {
+    return field_by_name(name).and_then([](auto ref) { return ref.template get<T>(); });
+  }
+
+  template <typename T>
+  [[nodiscard]] std::expected<typename get_traits<T>::type, dynamic_message_errc> field_value_by_number(uint32_t number) const noexcept {
+    return field_by_number(number).and_then([](auto ref) { return ref.template get<T>(); });
+  }
+
+  template <concepts::const_field_ref T>
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_number(uint32_t number) const noexcept {
+    return cref().field_by_number(number).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
+      auto r = ref.template to<T>();
+      if (r.has_value()) {
+        return r.value();
+      } else {
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
+      }
+    });
+  }
+
+  template <concepts::const_field_ref T>
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_name(std::string_view name) const noexcept {
+    return cref().field_by_name(name).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
+      auto r = ref.template to<T>();
+      if (r.has_value()) {
+        return r.value();
+      } else {
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
+      }
+    });
+  }
+
+  template <concepts::mutable_field_ref T>
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_number(uint32_t number) const noexcept {
+    return field_by_number(number).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
+      auto r = ref.template to<T>();
+      if (r.has_value()) {
+        return r.value();
+      } else {
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
+      }
+    });
+  }
+
+  template <concepts::mutable_field_ref T>
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_name(std::string_view name) const noexcept {
+    return field_by_name(name).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
+      auto r = ref.template to<T>();
+      if (r.has_value()) {
+        return r.value();
+      } else {
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
+      }
+    });
   }
 
   void clear_field(const field_descriptor_t &desc) const noexcept {
@@ -2155,46 +2244,6 @@ public:
   };
 
   [[nodiscard]] fields_view fields() const { return fields_view{*this}; }
-
-  template <concepts::const_field_ref T>
-  [[nodiscard]] std::expected<T, std::errc> field_by_number(uint32_t number) const noexcept {
-    return cref().field_by_number<T>(number);
-  }
-
-  template <concepts::mutable_field_ref T>
-  [[nodiscard]] std::expected<T, std::errc> field_by_number(uint32_t number) const noexcept {
-    const auto *desc = field_descriptor_by_number(number);
-    if (desc == nullptr) {
-      return std::unexpected(std::errc::result_out_of_range);
-    }
-
-    auto f = mutable_field(*desc).to<T>();
-    if (f.has_value()) {
-      return *f;
-    } else {
-      return std::unexpected(std::errc::wrong_protocol_type);
-    }
-  }
-
-  template <concepts::const_field_ref T>
-  [[nodiscard]] std::expected<T, std::errc> field_by_name(std::string_view name) const noexcept {
-    return cref().field_by_name<T>(name);
-  }
-
-  template <concepts::mutable_field_ref T>
-  [[nodiscard]] std::expected<T, std::errc> field_by_name(std::string_view name) const noexcept {
-    const auto *desc = field_descriptor_by_name(name);
-    if (desc == nullptr) {
-      return std::unexpected(std::errc::result_out_of_range);
-    }
-
-    auto f = mutable_field(*desc).to<T>();
-    if (f.has_value()) {
-      return *f;
-    } else {
-      return std::unexpected(std::errc::wrong_protocol_type);
-    }
-  }
 
   void alias_from(const message_value_mref &other) const noexcept {
     assert(this->descriptor_ == &other.descriptor());
@@ -2234,6 +2283,10 @@ public:
   using encode_type = message_value_cref;
   using storage_type = scalar_storage_base<value_storage *>;
   using value_type = message_value_cref;
+  constexpr static bool is_repeated = false;
+
+  template <typename U>
+  static constexpr bool gettable_to_v = std::same_as<U, message_value_cref>;
 
   constexpr static field_kind_t field_kind = KIND_MESSAGE;
   constexpr static bool is_mutable = false;
@@ -2279,6 +2332,10 @@ public:
   using cref_type = message_field_cref;
   constexpr static field_kind_t field_kind = KIND_MESSAGE;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = false;
+
+  template <typename U>
+  static constexpr bool settable_from_v = std::convertible_to<U, message_value_cref>;
 
   message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                      std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -2326,16 +2383,30 @@ public:
   }
 
   void alias_from(const message_field_mref &other) const noexcept {
-    assert(this->descriptor_ == &other.descriptor());
+    assert(&message_descriptor() == &other.message_descriptor());
     *storage_ = *other.storage_;
   }
 
   void clone_from(const cref_type &other) const noexcept {
-    assert(this->descriptor_ == &other.descriptor());
+    assert(&this->message_descriptor() == &other.message_descriptor());
     if (other.has_value()) {
       emplace().clone_from(*other);
     } else {
       this->reset();
+    }
+  }
+
+  std::expected<void, dynamic_message_errc> set(const message_value_cref &v) {
+    if (&this->message_descriptor() == &v.descriptor()) {
+      if (!has_value()) {
+        emplace().clone_from(v);
+      } else {
+        message_value_mref val = *(*this);
+        val.clone_from(v);
+      }
+      return {};
+    } else {
+      return std::unexpected(dynamic_message_errc::wrong_message_type);
     }
   }
 
@@ -2359,8 +2430,13 @@ public:
   using iterator = repeated_field_iterator<repeated_message_field_cref>;
   using difference_type = std::ptrdiff_t;
   using size_type = std::size_t;
+
   constexpr static field_kind_t field_kind = KIND_REPEATED_MESSAGE;
   constexpr static bool is_mutable = false;
+  constexpr static bool is_repeated = true;
+
+  template <typename U>
+  static constexpr bool gettable_to_v = false;
 
   repeated_message_field_cref(const field_descriptor_t &descriptor,
                               const repeated_storage_base<value_storage> &storage) noexcept
@@ -2420,6 +2496,11 @@ public:
   using cref_type = repeated_message_field_cref;
   constexpr static field_kind_t field_kind = KIND_REPEATED_MESSAGE;
   constexpr static bool is_mutable = true;
+  constexpr static bool is_repeated = true;
+
+  template <typename U>
+  static constexpr bool settable_from_v =
+      std::ranges::sized_range<U> && std::is_convertible_v<range_value_or_void_t<U>, message_value_cref>;
 
   repeated_message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                               std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -2491,12 +2572,26 @@ public:
     *storage_ = *other.storage_;
   }
 
-  void clone_from(const cref_type &other) const noexcept {
+  void clone_from(const cref_type &other) const {
     assert(this->descriptor_ == other.descriptor_);
     resize(other.size());
     for (std::size_t i = 0; i < size(); ++i) {
       (*this)[i].clone_from(other[i]);
     }
+  }
+
+  template <typename T>
+    requires settable_from_v<T>
+  std::expected<void, dynamic_message_errc> set(const T &v) const {
+    resize(v.size());
+
+    for (std::size_t i = 0; i < size(); ++i) {
+      if (&message_descriptor() != &(v[i].descriptor())) {
+        return std::unexpected(dynamic_message_errc::wrong_message_type);
+      }
+      (*this)[i].clone_from(v[i]);
+    }
+    return {};
   }
 };
 
@@ -2766,14 +2861,14 @@ struct field_deserializer {
   }
 
   status deserialize(enum_value_mref mref, const field_descriptor_t &) {
-    vuint32_t value;
+    vint64_t value;
     if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
       return ec;
     }
     if (!mref.descriptor().valid_enum_value(value)) [[likely]] {
       return std::errc::result_out_of_range;
     }
-    mref.set(value);
+    mref.set(static_cast<int32_t>(value.value));
     return std::errc{};
   }
 
@@ -2979,7 +3074,7 @@ status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts:
     return do_skip_field(tag, archive);
   }
 
-  auto f = item.mutable_field(*field_desc);
+  auto f = item.field(*field_desc);
   return f.visit(field_deserializer{tag, archive});
 }
 

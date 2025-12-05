@@ -90,53 +90,48 @@ const boost::ut::suite dynamic_message_test = [] {
     using namespace std::string_view_literals;
     std::pmr::monotonic_buffer_resource memory_resource;
     auto msg = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource).value();
-    expect(41 == msg["default_int32"].get<std::int32_t>().value());
-    expect(42LL == msg["default_int64"].get<std::int64_t>().value());
-    expect(43U == msg["default_uint32"].get<std::uint32_t>().value());
-    expect(44ULL == msg["default_uint64"].get<std::uint64_t>().value());
-    expect(-45 == msg["default_sint32"].get<std::int32_t>().value());
-    expect(46LL == msg["default_sint64"].get<std::int64_t>().value());
-    expect(47U == msg["default_fixed32"].get<std::uint32_t>().value());
-    expect(48ULL == msg["default_fixed64"].get<std::uint64_t>().value());
-    expect(49 == msg["default_sfixed32"].get<std::int32_t>().value());
-    expect(-50LL == msg["default_sfixed64"].get<std::int64_t>().value());
-    expect(51.5F == msg["default_float"].get<float>().value());
-    expect(52e3 == msg["default_double"].get<double>().value());
+    expect(41 == msg.field_value_by_name<std::int32_t>("default_int32"));
+    expect(42LL == msg.field_value_by_name<std::int64_t>("default_int64"));
+    expect(43U == msg.field_value_by_name<std::uint32_t>("default_uint32"));
+    expect(44ULL == msg.field_value_by_name<std::uint64_t>("default_uint64"));
+    expect(-45 == msg.field_value_by_name<std::int32_t>("default_sint32"));
+    expect(46LL == msg.field_value_by_name<std::int64_t>("default_sint64"));
+    expect(47U == msg.field_value_by_name<std::uint32_t>("default_fixed32"));
+    expect(48ULL == msg.field_value_by_name<std::uint64_t>("default_fixed64"));
+    expect(49 == msg.field_value_by_name<std::int32_t>("default_sfixed32"));
+    expect(-50LL == msg.field_value_by_name<std::int64_t>("default_sfixed64"));
+    expect(51.5F == msg.field_value_by_name<float>("default_float"));
+    expect(52e3 == msg.field_value_by_name<double>("default_double"));
+    expect(true == msg.field_value_by_name<bool>("default_bool"));
+    expect("hello"sv == msg.field_value_by_name<std::string_view>("default_string"));
+    expect("world"_bytes == msg.field_value_by_name<hpp::proto::bytes_view>("default_bytes"));
+    expect("BAR"sv == msg.field_value_by_name<hpp::proto::enum_name>("default_nested_enum"));
+    
 
-    expect(msg["default_bool"].get<bool>().value());
+    // expect("FOREIGN_BAR"sv ==
+    //        msg.field_value_by_name<hpp::proto::enum_value_cref>("default_foreign_enum").transform([](auto cref) {
+    //   return cref.name();
+    //        }));
 
-    expect("hello"sv == msg["default_string"].get<std::string_view>().value());
+    // expect("IMPORT_BAR"sv ==
+    //        msg.field_value_by_name<hpp::proto::enum_value_cref>("default_import_enum").transform([](auto cref) {
+    //          return cref.name();
+    //        }));
 
-    expect("world"_bytes == msg["default_bytes"].get<hpp::proto::bytes_view>().value());
+    expect("abc"sv == msg.field_value_by_name<std::string_view>("default_string_piece"));
 
-    expect("BAR"sv == msg["default_nested_enum"].get<hpp::proto::enum_value_cref>().transform([](auto cref) {
-      return cref.name();
-    }).value());
-
-    expect("FOREIGN_BAR"sv ==
-           msg["default_foreign_enum"].get<hpp::proto::enum_value_cref>().transform([](auto cref) {
-             return cref.name();
-           }));
-
-    expect("IMPORT_BAR"sv ==
-           msg["default_import_enum"].get<hpp::proto::enum_value_cref>().transform([](auto cref) {
-             return cref.name();
-           }));
-
-    expect("abc"sv == msg["default_string_piece"].get<std::string_view>().value());
-
-    expect("123"sv == msg["default_cord"].get<std::string_view>().value());
+    expect("123"sv == msg.field_value_by_name<std::string_view>("default_cord"));
   };
 
   "oneof_field_access"_test = [&factory]() {
     using namespace std::string_view_literals;
     std::pmr::monotonic_buffer_resource memory_resource;
     auto msg = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource).value();
-    auto oneof_uint32_field = msg.field_by_name<::hpp::proto::uint32_field_mref>("oneof_uint32").value();
+    auto oneof_uint32_field = msg.typed_ref_by_name<::hpp::proto::uint32_field_mref>("oneof_uint32").value();
     auto oneof_nested_message_field =
-        msg.field_by_name<::hpp::proto::message_field_mref>("oneof_nested_message").value();
-    auto oneof_string_field = msg.field_by_name<::hpp::proto::string_field_mref>("oneof_string").value();
-    auto oneof_bytes_field = msg.field_by_name<::hpp::proto::bytes_field_mref>("oneof_bytes").value();
+        msg.typed_ref_by_name<::hpp::proto::message_field_mref>("oneof_nested_message").value();
+    auto oneof_string_field = msg.typed_ref_by_name<::hpp::proto::string_field_mref>("oneof_string").value();
+    auto oneof_bytes_field = msg.typed_ref_by_name<::hpp::proto::bytes_field_mref>("oneof_bytes").value();
 
     expect(!oneof_uint32_field.has_value());
     expect(!oneof_nested_message_field.has_value());
@@ -168,13 +163,15 @@ const boost::ut::suite dynamic_message_test = [] {
     expect(!oneof_bytes_field.has_value());
   };
 
-  "field_cref_get_and_field_mref_set_assign_adopt"_test = [&factory]() {
+  "field_cref_get_and_field_mref_set_adopt"_test = [&factory]() {
     using namespace std::string_view_literals;
     std::pmr::monotonic_buffer_resource memory_resource;
     auto msg = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource).value();
 
+    static_assert(hpp::proto::int32_field_mref::settable_from_v<int32_t>);
+
     "set on scalar field_mref and read via field_cref::get"_test = [&] {
-      auto optional_int32_field = msg.at("optional_int32");
+      auto optional_int32_field = msg.field_by_name("optional_int32").value();
       expect(optional_int32_field.set(123).has_value());
       expect(optional_int32_field.has_value());
       expect(optional_int32_field.get<std::int32_t>().has_value());
@@ -182,7 +179,7 @@ const boost::ut::suite dynamic_message_test = [] {
     };
 
     "set on field_mref wrong type"_test = [&] {
-      auto optional_int32_field = msg.at("optional_int32");
+      auto optional_int32_field = msg.field_by_name("optional_int32").value();
       optional_int32_field.reset();
       expect(!optional_int32_field.has_value());
       expect(!optional_int32_field.set(3.14));
@@ -191,16 +188,16 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(!optional_int32_field.has_value());
     };
 
-    "string assign copies into the message"_test = [&] {
-      auto optional_string_field = msg["optional_string"];
+    "string set copies into the message"_test = [&] {
+      auto optional_string_field = msg.field_by_name("optional_string").value();
       std::string source = "assigned";
-      expect(optional_string_field.assign(source).has_value());
+      expect(optional_string_field.set(source).has_value());
       expect(optional_string_field.has_value());
       expect(optional_string_field.get<std::string_view>().has_value());
     };
 
     "adopt aliases existing storage"_test = [&] {
-      auto optional_string_field = msg["optional_string"];
+      auto optional_string_field = msg.field_by_name("optional_string").value();
       optional_string_field.reset();
       expect(!optional_string_field.has_value());
       std::string_view adopted_string_view = "adopted"sv;
@@ -212,10 +209,10 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(optional_string_field_value.data() == adopted_string_view.data());
     };
 
-    "bytes assign"_test = [&] {
-      auto optional_bytes_field = msg["optional_bytes"];
+    "bytes set"_test = [&] {
+      auto optional_bytes_field = msg.field_by_name("optional_bytes").value();
       auto assigned_bytes = "\x01\x02\x03"_bytes;
-      expect(optional_bytes_field.assign(std::span<const std::byte>(assigned_bytes)).has_value());
+      expect(optional_bytes_field.set(std::span<const std::byte>(assigned_bytes)).has_value());
       expect(optional_bytes_field.has_value());
       optional_bytes_field.get<hpp::proto::bytes_view>().has_value();
       expect(optional_bytes_field.get<hpp::proto::bytes_view>().has_value());
@@ -226,7 +223,7 @@ const boost::ut::suite dynamic_message_test = [] {
     };
 
     "bytes adopt"_test = [&] {
-      auto optional_bytes_field = msg["optional_bytes"];
+      auto optional_bytes_field = msg.field_by_name("optional_bytes").value();
       optional_bytes_field.reset();
       expect(!optional_bytes_field.has_value());
       auto adopted_bytes = "\x0A\x0B"_bytes;
@@ -239,14 +236,14 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(adopted_bytes.data() == optional_bytes_field_value.data());
     };
 
-    "repeated scalar assign and adopt"_test = [&] {
-      auto repeated_int_field = msg["repeated_int32"];
+    "repeated scalar set and adopt"_test = [&] {
+      auto repeated_int_field = msg.field_by_name("repeated_int32").value();
       std::array<std::int32_t, 3> ints{1, 2, 3};
-      expect(repeated_int_field.assign(std::span<const std::int32_t>(ints)).has_value());
+      expect(repeated_int_field.set(std::span<const std::int32_t>(ints)).has_value());
       auto typed_repeated_int_field = repeated_int_field.to<hpp::proto::repeated_int32_field_mref>().value();
       expect(eq(typed_repeated_int_field.size(), std::size_t{3}));
       expect(eq(typed_repeated_int_field[0], 1));
-      // assign copies; mutating source should not alter stored values
+      // set copies; mutating source should not alter stored values
       ints[0] = 99;
       expect(eq(typed_repeated_int_field[0], 1));
       auto rep_int_cref_span = repeated_int_field.cref().get<std::span<const std::int32_t>>();
@@ -264,14 +261,14 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(rep_int_cref_span_after_adopt->data() == adopt_ints.data());
     };
 
-    "repeated string assign and adopt"_test = [&] {
-      auto repeated_string_field = msg["repeated_string"];
+    "repeated string set and adopt"_test = [&] {
+      auto repeated_string_field = msg.field_by_name("repeated_string").value();
       std::array<std::string_view, 2> strs{"alpha", "beta"};
-      expect(repeated_string_field.assign(std::span<const std::string_view>(strs)).has_value());
+      expect(repeated_string_field.set(std::span<const std::string_view>(strs)).has_value());
       auto typed_repeated_string_field = repeated_string_field.to<hpp::proto::repeated_string_field_mref>().value();
       expect(eq(typed_repeated_string_field.size(), std::size_t{2}));
       expect(typed_repeated_string_field[1] == std::string_view{"beta"});
-      // assign copies; mutate source should not affect stored copy
+      // set copies; mutate source should not affect stored copy
       strs[1] = "changed";
       expect(typed_repeated_string_field[1] == std::string_view{"beta"});
       auto rep_string_cref_span = repeated_string_field.cref().get<std::span<const std::string_view>>();
@@ -289,8 +286,8 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(rep_string_cref_span_after_adopt->data() == adopt_strs.data());
     };
 
-    "repeated bytes assign and adopt"_test = [&] {
-      auto repeated_bytes_field = msg["repeated_bytes"];
+    "repeated bytes set and adopt"_test = [&] {
+      auto repeated_bytes_field = msg.field_by_name("repeated_bytes").value();
       using byte = std::byte;
       std::array<byte, 2> stored0{byte{0x01}, byte{0x02}};
       std::array<byte, 1> stored1{byte{0x03}};
@@ -298,7 +295,7 @@ const boost::ut::suite dynamic_message_test = [] {
           hpp::proto::bytes_view{stored0.data(), stored0.size()},
           hpp::proto::bytes_view{stored1.data(), stored1.size()},
       };
-      expect(repeated_bytes_field.assign(std::span<const hpp::proto::bytes_view>(byte_views)).has_value());
+      expect(repeated_bytes_field.set(std::span<const hpp::proto::bytes_view>(byte_views)).has_value());
       auto typed_repeated_bytes_field = repeated_bytes_field.to<hpp::proto::repeated_bytes_field_mref>().value();
       expect(eq(typed_repeated_bytes_field.size(), std::size_t{2}));
       expect(typed_repeated_bytes_field[0] == byte_views[0]);

@@ -238,7 +238,7 @@ struct generic_message_json_serializer {
       if (desc == nullptr) {
         skip_value<JSON>::template op<Opts>(ctx, it, end);
       } else {
-        from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.mutable_field(*desc), ctx, it, end);
+        from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.field(*desc), ctx, it, end);
       }
 
       if (bool(ctx.error)) [[unlikely]]
@@ -407,7 +407,7 @@ struct field_mask_message_json_serializer {
                                   return std::string_view{subrange.data(), subrange.size()};
                                 });
 
-    (void)value.fields()[0].assign(::hpp::proto::sized_input_range{comma_separated_view, num_commas + 1});
+    (void)value.fields()[0].set(::hpp::proto::sized_input_range{comma_separated_view, num_commas + 1});
   }
 };
 
@@ -589,7 +589,7 @@ struct from<JSON, T> {
     std::string_view v;
     from<JSON, std::string_view>::template op<Opts>(v, ctx, it, end);
     if (!bool(ctx.error)) [[likely]] {
-      value.assign(v);
+      value.set(v);
     }
   }
 };
@@ -630,8 +630,8 @@ struct from<JSON, hpp::proto::enum_value_mref> {
     }
 
     if (*it != '"') [[unlikely]] {
-      uint32_t v;
-      from<JSON, uint32_t>::template op<Opts>(v, ctx, it, end);
+      int32_t v;
+      from<JSON, int32_t>::template op<Opts>(v, ctx, it, end);
       if (!bool(ctx.error)) {
         value.set(v);
       }
@@ -677,7 +677,7 @@ struct from<JSON, hpp::proto::message_value_mref> {
           }
 
           if constexpr (std::same_as<key_mref_type, ::hpp::proto::string_field_mref>) {
-            key_mref.assign(key_str);
+            key_mref.set(key_str);
           } else {
             using key_value_type = typename key_mref_type::value_type;
             key_value_type v;
