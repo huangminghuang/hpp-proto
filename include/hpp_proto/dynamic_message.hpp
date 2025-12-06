@@ -1,3 +1,17 @@
+/**
+ * @file dynamic_message.hpp
+ * @brief Runtime facilities for parsing, building, and serializing protobuf messages using descriptors only.
+ *
+ * The dynamic message layer exposes:
+ * - descriptor-driven factories (`dynamic_message_factory`) to load FileDescriptorSets and produce mutable/const views.
+ * - field and message reference types (`*_field_mref` / `*_field_cref`, `*_value_mref` / `*_value_cref`)
+ *   that provide typed accessors, mutation helpers, and serialization hooks without generated code.
+ *   * field_refs point at a specific field slot within a message (with presence/descriptor info); value_refs wrap the
+ *     underlying value itself (e.g., messages, enums, strings) and can be used by field_refs to expose typed access.
+ * - utilities and traits to support JSON/proto encoding, well-known types, and enum access patterns.
+ *
+ * This header is the main entry point when working with dynamic messages in hpp_proto.
+ */
 #pragma once
 #include <cerrno>
 #include <charconv>
@@ -72,6 +86,13 @@ enum class wellknown_types_t : uint8_t {
   WRAPPER = 8
 };
 
+/**
+ * @brief Factory that builds dynamic message instances from descriptor sets.
+ *
+ * The factory owns a descriptor pool created from provided FileDescriptorSets and can
+ * spawn mutable message views (`message_value_mref`) backed by a user-supplied
+ * monotonic_buffer_resource. It also exposes access to the loaded file descriptors.
+ */
 class dynamic_message_factory;
 
 template <std::ranges::input_range Range>
@@ -527,6 +548,12 @@ template <typename T>
   requires(std::ranges::sized_range<T> && std::is_convertible_v<range_value_or_void_t<T>, std::string_view>)
 enum_names_range(const T &v) -> enum_names_range<T>;
 
+/**
+ * @brief Untyped, read-only reference to a single field in a dynamic message.
+ *
+ * This wrapper provides presence checks and type-erased access via `get<T>()`, which
+ * dispatches to the underlying typed field view if the requested type matches.
+ */
 class field_cref {
   const field_descriptor_t *descriptor_;
   const value_storage *storage_;
@@ -592,6 +619,13 @@ class field_mref {
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
 public:
+  /**
+ * @brief Mutable, untyped reference to a single field in a dynamic message.
+ *
+ * Offers type-erased mutation via `set<T>()` (copying into message-owned storage)
+ * or `adopt<T>()` (aliasing caller-provided storage where supported), presence checks,
+ * and conversion to a read-only `field_cref`.
+   */
   field_mref(const field_descriptor_t &descriptor, value_storage &storage,
              std::pmr::monotonic_buffer_resource &mr) noexcept
       : descriptor_(&descriptor), storage_(&storage), memory_resource_(&mr) {}
@@ -670,6 +704,11 @@ template <typename T>
 struct value_type_identity {
   using value_type = T;
 };
+/**
+ * @brief Typed, read-only view of a scalar (non-enum) field.
+ *
+ * Provides presence checks and `value()` access returning the decoded native type.
+ */
 template <typename T, field_kind_t Kind>
 class scalar_field_cref {
 public:
@@ -725,6 +764,11 @@ private:
   const storage_type *storage_;
 };
 
+/**
+ * @brief Typed, mutable view of a scalar (non-enum) field.
+ *
+ * Supports `set()`/`reset()` along with read-only access via `cref()`.
+ */
 template <typename T, field_kind_t Kind>
 class scalar_field_mref {
 public:
@@ -825,6 +869,14 @@ private:
   const string_storage_t *storage_;
 };
 
+/**
+ * @brief Mutable view of a singular string field.
+ *
+ * - `set` copies the provided data into message-owned storage allocated from the associated
+ *   monotonic_buffer_resource.
+ * - `adopt` aliases external storage; the caller must ensure the lifetime of the referenced
+ *   characters outlives the message.
+ */
 class string_field_mref {
 public:
   using encode_type = std::string_view;
@@ -952,6 +1004,14 @@ private:
   const bytes_storage_t *storage_;
 };
 
+/**
+ * @brief Mutable view of a singular bytes field.
+ *
+ * - `set` copies the bytes into message-owned memory allocated from the associated
+ *   monotonic_buffer_resource.
+ * - `adopt` aliases an external buffer; the caller must keep the source buffer alive
+ *   for as long as the message references it.
+ */
 class bytes_field_mref {
 public:
   using encode_type = bytes_view;
@@ -1134,6 +1194,9 @@ class enum_value_mref {
   int32_t *number_;
 
 public:
+  /**
+   * @brief Mutable view of a single enum value, allowing numeric assignment and name lookup.
+   */
   using is_enum_value_ref = void;
   using cref_type = enum_value_cref;
   constexpr static bool is_mutable = true;
@@ -1375,6 +1438,13 @@ private:
   const storage_type *storage_;
 };
 
+/**
+ * @brief Mutable view over a repeated scalar field.
+ *
+ * `set` copies a range of values into message-owned storage (resizing as needed), while
+ * `adopt` (where provided) points the field at caller-managed storage. Supports resize
+ * and random-access iteration over elements.
+ */
 template <typename T, field_kind_t Kind>
 class repeated_scalar_field_mref : public std::ranges::view_interface<repeated_scalar_field_mref<T, Kind>> {
 
@@ -1630,6 +1700,9 @@ public:
 
   std::span<const std::int32_t> numbers() const { return std::span{storage_->content, storage_->size}; }
 
+  /**
+   * @brief Lazily maps stored enum numbers to their corresponding names.
+   */
   auto names() const { return enum_numbers_to_names(*descriptor_->enum_field_type_descriptor(), numbers()); }
 
   template <typename U>
@@ -1793,6 +1866,13 @@ private:
 };
 
 using repeated_string_field_cref = repeated_scalar_field_cref<std::string_view, KIND_REPEATED_STRING>;
+/**
+ * @brief Mutable view over a repeated string field.
+ *
+ * - `set` copies a range of strings into message-owned storage (resizing as needed).
+ * - `adopt` aliases an external span of string_views; the caller must keep the backing
+ *   character data alive while referenced by the message.
+ */
 class repeated_string_field_mref : public std::ranges::view_interface<repeated_string_field_mref> {
 public:
   using storage_type = repeated_storage_base<std::string_view>;
@@ -1914,6 +1994,14 @@ private:
 
 using repeated_bytes_field_cref = repeated_scalar_field_cref<bytes_view, KIND_REPEATED_BYTES>;
 
+/**
+ * @brief Mutable view over a repeated bytes field.
+ *
+ * - `set` copies a range of bytes_view elements into message-owned storage.
+ * - `adopt` aliases an external span of bytes_view elements; the caller must keep the
+ *   referenced buffers alive.
+ * Elements are accessible via random-access iterators.
+ */
 class repeated_bytes_field_mref : public std::ranges::view_interface<repeated_bytes_field_mref> {
 public:
   using storage_type = repeated_storage_base<bytes_view>;
@@ -2183,6 +2271,12 @@ public:
   }
 };
 
+/**
+ * @brief Mutable dynamic message instance backed by descriptor metadata.
+ *
+ * Owns storage allocated from a monotonic_buffer_resource and provides typed access
+ * to fields via `field_by_name/number` returning `field_mref` views.
+ */
 class message_value_mref {
 public:
   using cref_type = message_value_cref;
@@ -2443,6 +2537,12 @@ private:
   [[nodiscard]] std::size_t num_slots() const { return descriptor_->message_field_type_descriptor()->num_slots; }
 };
 
+/**
+ * @brief Mutable view of a singular embedded message field.
+ *
+ * Use `emplace()` to materialize a child message (allocating storage from the parent’s
+ * monotonic_buffer_resource), then mutate its fields via the returned message_value_mref.
+ */
 class message_field_mref {
 public:
   using encode_type = message_value_mref;
@@ -2603,6 +2703,11 @@ public:
 
 static_assert(std::ranges::range<repeated_message_field_cref>);
 
+/**
+ * @brief Mutable view over a repeated embedded message field.
+ *
+ * Supports resize and random access to child message_value_mref elements.
+ */
 class repeated_message_field_mref : std::ranges::view_interface<repeated_message_field_mref> {
   const field_descriptor_t *descriptor_;
   repeated_storage_base<value_storage> *storage_;
