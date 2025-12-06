@@ -12,5 +12,4 @@ function(add_fuzz_target target source)
 endfunction()
 
 add_fuzz_target(fuzz_pb_serializer fuzz_pb_serializer.cpp)
-add_fuzz_target(fuzz_dynamic_serializer fuzz_dynamic_serializer.cpp)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/corpus)

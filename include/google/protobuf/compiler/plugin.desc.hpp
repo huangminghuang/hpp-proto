@@ -7,7 +7,7 @@
 //           google/protobuf/compiler/plugin.proto
 
 #pragma once
-#include <hpp_proto/dynamic_serializer.hpp>
+#include <hpp_proto/file_descriptor_pb.hpp>
 
 #include "google/protobuf/descriptor.desc.hpp"
 

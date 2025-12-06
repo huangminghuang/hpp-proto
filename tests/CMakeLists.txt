@@ -111,22 +111,6 @@ else()
             COMMAND any_test
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-        add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
-
-        if(edition_support)
-            target_compile_definitions(dynamic_serializer_tests PRIVATE EDITION_SUPPORT)
-        endif()
-
-        target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
-
-        add_test(NAME dynamic_serializer_tests
-            COMMAND dynamic_serializer_tests
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-        add_executable(dynamic_serializer_coverage_tests dynamic_serializer_coverage_tests.cpp)
-        target_link_libraries(dynamic_serializer_coverage_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze unittest_proto3_proto_lib)
-        add_hpp_proto_test(dynamic_serializer_coverage_tests)
-
         add_executable(well_known_types_tests well_known_types_tests.cpp)
         target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
         target_link_libraries(well_known_types_tests PRIVATE well_known_types hpp_proto::libhpp_proto Boost::ut glaze::glaze)

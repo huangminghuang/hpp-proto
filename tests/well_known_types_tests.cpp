@@ -39,45 +39,6 @@ using namespace std::string_literals;
 #endif
 #endif
 
-#if 0
-
-template <typename T>
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void verify(const hpp::proto::dynamic_serializer &ser, const T &msg, std::string_view json,
-            std::string_view pretty_json = ""sv) {
-  expect(eq(json, hpp::proto::write_json(msg).value()));
-
-  if (!pretty_json.empty()) {
-    expect(eq(pretty_json, hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value()));
-  }
-
-  T msg2{};
-
-  expect(fatal((hpp::proto::read_json(msg2, json).ok())));
-  expect(msg == msg2);
-
-  auto message_name = hpp::proto::message_name(msg);
-
-  hpp::proto::bytes pb;
-  auto ec = hpp::proto::write_proto(msg, pb);
-  expect(ec.ok());
-
-  std::string json_buf;
-  expect(ser.proto_to_json(message_name, pb, json_buf).ok());
-  expect(json_buf == json);
-
-  if (!pretty_json.empty()) {
-    expect(ser.proto_to_json(message_name, pb, json_buf, hpp::proto::indent_level<3>).ok());
-    expect(eq(json_buf, pretty_json));
-  }
-
-  hpp::proto::bytes pb_buf;
-  expect(ser.json_to_proto(message_name, json, pb_buf).ok());
-  expect(std::ranges::equal(pb_buf, pb));
-}
-
-#endif
-
 template <typename T>
 void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, std::string_view json,
             std::string_view pretty_json = ""sv) {
