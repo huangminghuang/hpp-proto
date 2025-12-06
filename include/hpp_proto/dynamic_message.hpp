@@ -577,25 +577,10 @@ public:
   template <typename T>
   [[nodiscard]] auto get() const noexcept -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
     return visit([](auto cref) -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
-      using cref_type = decltype(cref);
-      using result_value_type = typename get_traits<T>::type;
-
-      if constexpr (!cref_type::template gettable_to_v<T>) {
-        return std::unexpected(dynamic_message_errc::invalid_field_type);
+      if constexpr (requires { cref.template get<T>(); }) {
+        return cref.template get<T>();
       } else {
-        if constexpr (cref_type::field_kind == KIND_ENUM && std::same_as<T, enum_number>) {
-          return cref.number();
-        } else if constexpr (cref_type::field_kind == KIND_ENUM && std::same_as<T, enum_name>) {
-          return cref.name();
-        } else if constexpr (cref_type::field_kind == KIND_REPEATED_ENUM && std::same_as<T, enum_numbers_span>) {
-          return cref.numbers();
-        } else if constexpr (cref_type::field_kind == KIND_REPEATED_ENUM && std::same_as<T, enum_names_view>) {
-          return cref.names();
-        } else if constexpr (requires { cref.value(); }) {
-          return cref.value();
-        } else if constexpr (requires { result_value_type{cref.data(), cref.size()}; }) {
-          return result_value_type{cref.data(), cref.size()};
-        }
+        return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
     });
   }
@@ -719,6 +704,15 @@ public:
     return storage_->content;
   }
 
+  template <typename U>
+  [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
+    if constexpr (std::same_as<U, value_type>) {
+      return value();
+    } else {
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
+    }
+  }
+
   // [[nodiscard]] value_type operator*() const noexcept { return value(); }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -812,6 +806,15 @@ public:
       return descriptor_->proto().default_value;
     }
     return {storage_->content, storage_->size};
+  }
+
+  template <typename U>
+  [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
+    if constexpr (std::same_as<U, std::string_view>) {
+      return value();
+    } else {
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
+    }
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -930,6 +933,15 @@ public:
       return {bspan.data(), bspan.size()};
     }
     return {storage_->content, storage_->size};
+  }
+
+  template <typename U>
+  [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
+    if constexpr (std::same_as<U, bytes_view>) {
+      return value();
+    } else {
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
+    }
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -1158,7 +1170,8 @@ public:
   constexpr static bool is_repeated = false;
 
   template <typename U>
-  static constexpr bool gettable_to_v = std::same_as<U, enum_number> || std::same_as<U, enum_name>;
+  static constexpr bool gettable_to_v =
+      std::same_as<U, enum_number> || std::same_as<U, enum_name> || std::same_as<U, enum_value_cref>;
 
   enum_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -1182,6 +1195,19 @@ public:
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+  template <typename U>
+  [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
+    if constexpr (std::same_as<U, enum_number>) {
+      return number();
+    } else if constexpr (std::same_as<U, enum_name>) {
+      return name();
+    } else if constexpr (std::same_as<U, enum_value_cref>) {
+      return value();
+    } else {
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
+    }
+  }
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
     return *descriptor_->enum_field_type_descriptor();
   }
@@ -1332,6 +1358,15 @@ public:
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
+
+  template <typename U>
+  [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
+    if constexpr (std::same_as<U, std::span<const value_type>>) {
+      return std::span<const value_type>{storage_->content, storage_->size};
+    } else {
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
+    }
+  }
 
 private:
   template <typename, field_kind_t>
@@ -1596,6 +1631,17 @@ public:
   std::span<const std::int32_t> numbers() const { return std::span{storage_->content, storage_->size}; }
 
   auto names() const { return enum_numbers_to_names(*descriptor_->enum_field_type_descriptor(), numbers()); }
+
+  template <typename U>
+  [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
+    if constexpr (std::same_as<U, enum_numbers_span>) {
+      return numbers();
+    } else if constexpr (std::same_as<U, enum_names_view>) {
+      return names();
+    } else {
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
+    }
+  }
 
 private:
   const field_descriptor_t *descriptor_;
@@ -2346,7 +2392,7 @@ public:
   constexpr static bool is_repeated = false;
 
   template <typename U>
-  static constexpr bool gettable_to_v = false;
+  static constexpr bool gettable_to_v = std::same_as<U, message_value_cref>;
 
   constexpr static field_kind_t field_kind = KIND_MESSAGE;
   constexpr static bool is_mutable = false;
@@ -2376,6 +2422,19 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
     return *descriptor_->message_field_type_descriptor();
+  }
+
+  template <typename U>
+  [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const {
+    if constexpr (std::same_as<U, message_value_cref>) {
+      if (has_value()) {
+        return *(*this);
+      } else {
+        return std::unexpected(dynamic_message_errc::no_such_value);
+      }
+    } else {
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
+    }
   }
 
 private:
@@ -2433,6 +2492,11 @@ public:
   }
   [[nodiscard]] value_type operator*() const noexcept {
     return {message_descriptor(), storage_->content, *memory_resource_};
+  }
+
+  template <typename U>
+  [[nodiscard]] auto get() const {
+    return cref().get<U>();
   }
 
   void reset() const noexcept { storage_->selection = 0; }
