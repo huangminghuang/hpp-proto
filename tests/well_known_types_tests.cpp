@@ -78,7 +78,7 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
 }
 
 hpp::proto::status dynamic_proto_to_json(const ::hpp::proto::dynamic_message_factory &factory,
-                                         std::string_view message_name, std::string_view pb_buf, std::string& json) {
+                                         std::string_view message_name, std::string_view pb_buf, std::string &json) {
   std::pmr::monotonic_buffer_resource memory_resource;
   auto dyn_msg = factory.get_message(message_name, memory_resource).value();
   if (auto r = hpp::proto::read_proto(dyn_msg, pb_buf); !r.ok()) {
@@ -114,7 +114,7 @@ const ut::suite test_timestamp = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     expect(!dynamic_proto_to_json(factory, "google.protobuf.Timestamp",
-                                        "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
+                                  "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
                 .ok());
   };
 
@@ -178,7 +178,7 @@ const ut::suite test_wrapper = [] {
     expect(!dynamic_proto_to_json(factory, "google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
     // wrong value
     expect(!dynamic_proto_to_json(factory, "google.protobuf.Int64Value",
-                                        "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
+                                  "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
                 .ok());
     // skip unknown field
     expect(dynamic_proto_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
@@ -191,7 +191,6 @@ const ut::suite test_empty = [] {
   using Empty = google::protobuf::Empty<>;
   verify<Empty>(factory, Empty{}, "{}");
 };
-
 
 const ut::suite test_value = [] {
   using namespace boost::ut;
@@ -228,7 +227,7 @@ const ut::suite test_value = [] {
     std::string json_buf;
     // field name is not a valid utf8 string
     expect(!dynamic_proto_to_json(factory, "google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv,
-                                        json_buf)
+                                  json_buf)
                 .ok());
     // skip unknown field
     expect(dynamic_proto_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
@@ -243,13 +242,14 @@ const ut::suite test_value = [] {
     std::string json_buf;
 
     // list element is not a valid utf8 string
-    expect(!dynamic_proto_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf)
-                .ok());
+    expect(!dynamic_proto_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
     // skip first unknown element
     expect(dynamic_proto_to_json(factory, "google.protobuf.ListValue", "\x0a\x02\x38\x01"sv, json_buf).ok());
     expect(eq(json_buf, "[]"s));
     // skip middle unknown element
-    expect(dynamic_proto_to_json(factory, "google.protobuf.ListValue", "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf).ok());
+    expect(dynamic_proto_to_json(factory, "google.protobuf.ListValue",
+                                 "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
+               .ok());
     expect(eq(json_buf, "[true,false]"s));
     // TODO: we need to test the case where the unknown element in not in the beginning of the list
 

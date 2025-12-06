@@ -1572,25 +1572,26 @@ struct glaze_meta_generator : code_generator {
                      // clang-format on
                      qualified_name, descriptor.parent_file()->cpp_namespace);
     } else if (descriptor.pb_name == "google.protobuf.Any") {
-      fmt::format_to(
-          target,
-          "namespace glz {{\n"
-          "template <typename Traits>\n"
-          "struct to<JSON, {0}> {{\n"
-          "  template <auto Opts>"
-          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto &ctx, auto &b, auto &ix) {{\n"
-          "    any_message_json_serializer::to_json<Opts>(value, ctx, b, ix);\n"
-          "  }}\n"
-          "}};\n\n"
-          "template <typename Traits>\n"
-          "struct from<JSON, {0}> {{\n"
-          "  template <auto Opts>\n"
-          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto &ctx, auto &it, auto &end) {{\n"
-          "    any_message_json_serializer::from_json<Opts>(value, ctx, it, end);\n"
-          "  }}\n"
-          "}};\n"
-          "}} // namespace glz\n",
-          qualified_name);
+      fmt::format_to(target,
+                     "namespace glz {{\n"
+                     "template <typename Traits>\n"
+                     "struct to<JSON, {0}> {{\n"
+                     "  template <auto Opts>"
+                     "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto "
+                     "&ctx, auto &b, auto &ix) {{\n"
+                     "    any_message_json_serializer::to_json<Opts>(value, ctx, b, ix);\n"
+                     "  }}\n"
+                     "}};\n\n"
+                     "template <typename Traits>\n"
+                     "struct from<JSON, {0}> {{\n"
+                     "  template <auto Opts>\n"
+                     "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto "
+                     "&ctx, auto &it, auto &end) {{\n"
+                     "    any_message_json_serializer::from_json<Opts>(value, ctx, it, end);\n"
+                     "  }}\n"
+                     "}};\n"
+                     "}} // namespace glz\n",
+                     qualified_name);
     } else if (descriptor.pb_name == "google.protobuf.Struct") {
       fmt::format_to(
           target, "namespace glz {{\n"

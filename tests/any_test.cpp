@@ -38,7 +38,6 @@ const suite test_any = [] {
                                                                               ::hpp::proto::alloc_from(mr))
                 .has_value());
   } | std::tuple<::hpp::proto::default_traits, ::hpp::proto::non_owning_traits>{};
-
 };
 
 const suite test_dynamic_message_any = [] {

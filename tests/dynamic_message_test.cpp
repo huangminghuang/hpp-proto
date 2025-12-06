@@ -354,7 +354,8 @@ const boost::ut::suite dynamic_message_test = [] {
     };
 
     "nested message set/get"_test = [&] {
-      auto nested_msg_field = msg.typed_ref_by_name<::hpp::proto::message_field_mref>("optional_nested_message").value();
+      auto nested_msg_field =
+          msg.typed_ref_by_name<::hpp::proto::message_field_mref>("optional_nested_message").value();
       expect(!nested_msg_field.has_value());
       auto nested = nested_msg_field.emplace();
       expect(nested_msg_field.has_value());
@@ -369,7 +370,8 @@ const boost::ut::suite dynamic_message_test = [] {
     };
 
     "repeated nested message set/get"_test = [&] {
-      auto rep_nested_field = msg.typed_ref_by_name<::hpp::proto::repeated_message_field_mref>("repeated_nested_message").value();
+      auto rep_nested_field =
+          msg.typed_ref_by_name<::hpp::proto::repeated_message_field_mref>("repeated_nested_message").value();
       expect(rep_nested_field.size() == 0u);
 
       rep_nested_field.resize(2);
@@ -379,10 +381,10 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(first.field_by_name("bb").value().set(111).has_value());
       expect(second.field_by_name("bb").value().set(222).has_value());
 
-      expect(std::ranges::equal(std::array<int32_t, 2>{111, 222},
-                                std::array<int32_t, 2>{
-                                    rep_nested_field[0].field_by_name("bb").value().get<std::int32_t>().value(),
-                                    rep_nested_field[1].field_by_name("bb").value().get<std::int32_t>().value()}));
+      expect(std::ranges::equal(
+          std::array<int32_t, 2>{111, 222},
+          std::array<int32_t, 2>{rep_nested_field[0].field_by_name("bb").value().get<std::int32_t>().value(),
+                                 rep_nested_field[1].field_by_name("bb").value().get<std::int32_t>().value()}));
 
       auto rep_cref = rep_nested_field.cref();
       expect(rep_cref.size() == 2u);

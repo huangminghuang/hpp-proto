@@ -78,9 +78,7 @@ concept is_non_owning_context = glz::is_context<T> && requires(T &v) {
 };
 
 template <typename T>
-concept is_json_context = requires {
-  typename T::is_json_context;
-};
+concept is_json_context = requires { typename T::is_json_context; };
 } // namespace concepts
 template <typename... AuxContext>
 struct json_context : glz::context, pb_context<AuxContext...> {
@@ -418,10 +416,10 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
   // struct from<JSON, T>;
 
   if constexpr (!check_ws_handled(Opts)) {
-      if (skip_ws<Opts>(ctx, it, end)) {
-        return true;
-      }
+    if (skip_ws<Opts>(ctx, it, end)) {
+      return true;
     }
+  }
 
   if (*it == 'n') {
     ++it;

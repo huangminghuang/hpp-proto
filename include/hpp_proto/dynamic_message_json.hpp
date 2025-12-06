@@ -417,7 +417,8 @@ struct value_message_json_serializer {
     assert(value.descriptor().full_name() == "google.protobuf.Value");
     auto oneof_index = value.fields()[0].active_oneof_index();
     if (oneof_index >= 0) {
-      to<JSON, ::hpp::proto::field_cref>::template op<Opts>(value.fields()[static_cast<std::size_t>(oneof_index)], ctx, b, ix);
+      to<JSON, ::hpp::proto::field_cref>::template op<Opts>(value.fields()[static_cast<std::size_t>(oneof_index)], ctx,
+                                                            b, ix);
     }
   }
 };

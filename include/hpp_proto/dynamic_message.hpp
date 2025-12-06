@@ -620,11 +620,11 @@ class field_mref {
 
 public:
   /**
- * @brief Mutable, untyped reference to a single field in a dynamic message.
- *
- * Offers type-erased mutation via `set<T>()` (copying into message-owned storage)
- * or `adopt<T>()` (aliasing caller-provided storage where supported), presence checks,
- * and conversion to a read-only `field_cref`.
+   * @brief Mutable, untyped reference to a single field in a dynamic message.
+   *
+   * Offers type-erased mutation via `set<T>()` (copying into message-owned storage)
+   * or `adopt<T>()` (aliasing caller-provided storage where supported), presence checks,
+   * and conversion to a read-only `field_cref`.
    */
   field_mref(const field_descriptor_t &descriptor, value_storage &storage,
              std::pmr::monotonic_buffer_resource &mr) noexcept
