@@ -112,16 +112,6 @@ struct enum_numbers_span {
   std::span<std::int32_t> value = {};
 };
 
-template <typename BaseView = std::monostate>
-struct enum_names_view {
-  BaseView value;
-};
-
-template <typename T>
-  requires(std::ranges::sized_range<T> && std::is_convertible_v<range_value_or_void_t<T>, std::string_view>)
-enum_names_view(const T &v) -> enum_names_view<const T &>;
-
-
 template <typename T>
 struct get_traits {
   using type = T;
@@ -129,7 +119,7 @@ struct get_traits {
 
 template <>
 struct get_traits<enum_number> {
-  using type = std::uint32_t;
+  using type = std::int32_t;
 };
 
 template <>
@@ -139,11 +129,17 @@ struct get_traits<enum_name> {
 
 template <>
 struct get_traits<enum_numbers_span> {
-  using type = std::span<const std::uint32_t>;
+  using type = std::span<const std::int32_t>;
 };
 
-
-enum dynamic_message_errc { no_error, no_such_field, no_such_value, invalid_field_type, wrong_message_type };
+enum dynamic_message_errc {
+  no_error,
+  no_such_field,
+  no_such_value,
+  invalid_field_type,
+  invalid_enum_name,
+  wrong_message_type
+};
 
 struct dynamic_message_factory_addons {
   using traits_type = non_owning_traits;
@@ -504,6 +500,33 @@ concept contiguous_std_byte_range =
     std::ranges::contiguous_range<T> && std::same_as<std::ranges::range_value_t<T>, std::byte>;
 }; // namespace concepts
 
+auto enum_numbers_to_names(const enum_descriptor_t &descriptor, std::span<const std::int32_t> numbers) {
+  return std::views::transform(numbers, [&descriptor](std::int32_t v) { return descriptor.name_of(v); });
+}
+
+using enum_names_view = decltype(enum_numbers_to_names(std::declval<const enum_descriptor_t &>(),
+                                                       std::declval<std::span<const std::int32_t>>()));
+
+template <typename Range>
+struct enum_numbers_range {
+  using is_enum_numbers_range = void;
+  const Range &value;
+};
+
+template <typename T>
+  requires(std::ranges::sized_range<T> && std::is_convertible_v<range_value_or_void_t<T>, std::int32_t>)
+enum_numbers_range(const T &v) -> enum_numbers_range<T>;
+
+template <typename Range>
+struct enum_names_range {
+  using is_enum_names_range = void;
+  const Range &value;
+};
+
+template <typename T>
+  requires(std::ranges::sized_range<T> && std::is_convertible_v<range_value_or_void_t<T>, std::string_view>)
+enum_names_range(const T &v) -> enum_names_range<T>;
+
 class field_cref {
   const field_descriptor_t *descriptor_;
   const value_storage *storage_;
@@ -553,30 +576,25 @@ public:
   auto visit(auto &&v) const;
   template <typename T>
   [[nodiscard]] auto get() const noexcept -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
-    return visit([this](auto cref) -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
+    return visit([](auto cref) -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
       using cref_type = decltype(cref);
+      using result_value_type = typename get_traits<T>::type;
 
       if constexpr (!cref_type::template gettable_to_v<T>) {
         return std::unexpected(dynamic_message_errc::invalid_field_type);
       } else {
-        if constexpr (cref_type::field_kind == KIND_MESSAGE) {
-          if (!has_value()) {
-            return std::unexpected(dynamic_message_errc::no_such_value);
-          }
-        }
-
-        if constexpr (cref_type::field_kind == KIND_ENUM) {
-          if constexpr (std::same_as<T, enum_number>) {
-            return cref.number();
-          } else if constexpr (std::same_as<T, enum_name>) {
-            return cref.name();
-          }
+        if constexpr (cref_type::field_kind == KIND_ENUM && std::same_as<T, enum_number>) {
+          return cref.number();
+        } else if constexpr (cref_type::field_kind == KIND_ENUM && std::same_as<T, enum_name>) {
+          return cref.name();
         } else if constexpr (cref_type::field_kind == KIND_REPEATED_ENUM && std::same_as<T, enum_numbers_span>) {
           return cref.numbers();
+        } else if constexpr (cref_type::field_kind == KIND_REPEATED_ENUM && std::same_as<T, enum_names_view>) {
+          return cref.names();
         } else if constexpr (requires { cref.value(); }) {
           return cref.value();
-        } else if constexpr (requires { T{cref.data(), cref.size()}; }) {
-          return T{cref.data(), cref.size()};
+        } else if constexpr (requires { result_value_type{cref.data(), cref.size()}; }) {
+          return result_value_type{cref.data(), cref.size()};
         }
       }
     });
@@ -636,8 +654,14 @@ public:
     return visit([&v](auto mref) -> std::expected<void, dynamic_message_errc> {
       using mref_type = decltype(mref);
       if constexpr (mref_type::template settable_from_v<T>) {
-        mref.set(v);
-        return {};
+        if constexpr (requires {
+                        { mref.set(v) } -> std::same_as<void>;
+                      }) {
+          mref.set(v);
+          return {};
+        } else {
+          return mref.set(v);
+        }
       } else {
         return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
@@ -830,9 +854,7 @@ public:
     storage_->selection = descriptor_->oneof_ordinal;
   }
 
-  template <typename T>
-    requires std::convertible_to<T, std::string_view>
-  void set(const T &v) const noexcept {
+  void set(std::string_view v) const noexcept {
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     storage_->content = dest;
@@ -1165,8 +1187,8 @@ public:
   }
 
   std::int32_t number() const {
-    return descriptor().explicit_presence() && !has_value() ? std::get<int32_t>(descriptor_->default_value)
-                                                            : storage_->content;
+    bool is_default = descriptor().explicit_presence() && !has_value();
+    return is_default ? std::get<int32_t>(descriptor_->default_value) : storage_->content;
   }
 
   std::string_view name() const { return enum_descriptor().name_of(number()); }
@@ -1240,13 +1262,21 @@ public:
                                                             : storage_->content;
   }
   std::string_view name() const { return enum_descriptor().name_of(number()); }
- 
+
   void set(enum_number number) const {
     storage_->content = number.value;
     storage_->selection = descriptor_->oneof_ordinal;
   }
 
-  void set(enum_name name) const { set(enum_number{*enum_descriptor().value_of(enum_name{name.value})}); }
+  std::expected<void, dynamic_message_errc> set(enum_name name) const {
+    auto *pval = enum_descriptor().value_of(name.value);
+    if (pval == nullptr) [[unlikely]] {
+      return std::unexpected(dynamic_message_errc::invalid_enum_name);
+    }
+
+    set(enum_number{*pval});
+    return {};
+  }
 
 private:
   const field_descriptor_t *descriptor_;
@@ -1526,7 +1556,7 @@ public:
   constexpr static bool is_repeated = true;
 
   template <typename U>
-  static constexpr bool gettable_to_v = std::same_as<U, enum_numbers_span>;
+  static constexpr bool gettable_to_v = std::same_as<U, enum_numbers_span> || std::same_as<U, enum_names_view>;
 
   repeated_enum_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -1565,10 +1595,7 @@ public:
 
   std::span<const std::int32_t> numbers() const { return std::span{storage_->content, storage_->size}; }
 
-  auto names() const {
-    return numbers() |
-           std::views::transform([this](auto v) { return descriptor_->enum_field_type_descriptor()->name_of(v); });
-  }
+  auto names() const { return enum_numbers_to_names(*descriptor_->enum_field_type_descriptor(), numbers()); }
 
 private:
   const field_descriptor_t *descriptor_;
@@ -1591,7 +1618,7 @@ public:
 
   template <typename U>
   static constexpr bool settable_from_v =
-      std::ranges::sized_range<U> && std::is_same_v<range_value_or_void_t<U>, value_type>;
+      requires { typename U::is_enum_numbers_range; } || requires { typename U::is_enum_names_range; };
 
   repeated_enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                            std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -1664,12 +1691,43 @@ public:
   void adopt(std::span<int32_t> s) const noexcept {
     storage_->content = s.data();
     storage_->capacity = static_cast<uint32_t>(s.size());
+    storage_->size = static_cast<uint32_t>(s.size());
   }
+
   template <std::ranges::sized_range Range>
     requires std::same_as<std::ranges::range_value_t<Range>, std::int32_t>
-  void set(Range const &s) const noexcept {
-    resize(static_cast<std::size_t>(std::ranges::distance(s)));
-    std::copy(s.begin(), s.end(), data());
+  void set(Range const &r) const {
+    resize(std::ranges::size(r));
+    std::copy(r.begin(), r.end(), data());
+  }
+
+  template <std::ranges::sized_range Range>
+    requires std::same_as<std::ranges::range_value_t<Range>, std::string_view>
+  auto set(Range const &r) const -> std::expected<void, dynamic_message_errc> {
+    resize(std::ranges::size(r));
+    std::size_t i = 0;
+    for (std::string_view name : r) {
+      auto *pval = enum_descriptor().value_of(name);
+      if (pval) [[likely]] {
+        storage_->content[i++] = *pval;
+      } else {
+        resize(i);
+        return std::unexpected(dynamic_message_errc::invalid_enum_name);
+      }
+    }
+    return {};
+  }
+
+  template <typename U>
+    requires requires { typename U::is_enum_numbers_range; }
+  void set(const U &u) const {
+    set(u.value);
+  }
+
+  template <typename U>
+    requires requires { typename U::is_enum_names_range; }
+  auto set(const U &u) -> std::expected<void, dynamic_message_errc> const {
+    return set(u.value);
   }
 
   void alias_from(const repeated_enum_field_mref &other) const noexcept {
@@ -1778,7 +1836,7 @@ public:
   template <std::ranges::sized_range Range>
     requires std::convertible_to<std::ranges::range_value_t<Range>, std::string_view>
   void set(const Range &r) const noexcept {
-    resize(static_cast<std::size_t>(std::ranges::distance(r)));
+    resize(std::ranges::size(r));
     std::size_t i = 0;
     for (auto &&e : r) {
       (*this)[i++].set(e);
@@ -1899,7 +1957,7 @@ public:
   template <std::ranges::sized_range Range>
     requires concepts::contiguous_std_byte_range<std::ranges::range_value_t<Range>>
   void set(const Range &r) const noexcept {
-    resize(static_cast<std::size_t>(std::ranges::distance(r)));
+    resize(std::ranges::size(r));
     std::size_t i = 0;
     for (auto &&e : r) {
       (*this)[i++].set(e);
@@ -2159,12 +2217,14 @@ public:
   }
 
   template <typename T>
-  [[nodiscard]] std::expected<typename get_traits<T>::type, dynamic_message_errc> field_value_by_name(std::string_view name) const noexcept {
+  [[nodiscard]] std::expected<typename get_traits<T>::type, dynamic_message_errc>
+  field_value_by_name(std::string_view name) const noexcept {
     return field_by_name(name).and_then([](auto ref) { return ref.template get<T>(); });
   }
 
   template <typename T>
-  [[nodiscard]] std::expected<typename get_traits<T>::type, dynamic_message_errc> field_value_by_number(uint32_t number) const noexcept {
+  [[nodiscard]] std::expected<typename get_traits<T>::type, dynamic_message_errc>
+  field_value_by_number(uint32_t number) const noexcept {
     return field_by_number(number).and_then([](auto ref) { return ref.template get<T>(); });
   }
 
@@ -2286,7 +2346,7 @@ public:
   constexpr static bool is_repeated = false;
 
   template <typename U>
-  static constexpr bool gettable_to_v = std::same_as<U, message_value_cref>;
+  static constexpr bool gettable_to_v = false;
 
   constexpr static field_kind_t field_kind = KIND_MESSAGE;
   constexpr static bool is_mutable = false;

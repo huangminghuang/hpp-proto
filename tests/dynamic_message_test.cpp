@@ -106,20 +106,15 @@ const boost::ut::suite dynamic_message_test = [] {
     expect("hello"sv == msg.field_value_by_name<std::string_view>("default_string"));
     expect("world"_bytes == msg.field_value_by_name<hpp::proto::bytes_view>("default_bytes"));
     expect("BAR"sv == msg.field_value_by_name<hpp::proto::enum_name>("default_nested_enum"));
-    
+    expect(2 == msg.field_value_by_name<hpp::proto::enum_number>("default_nested_enum"));
 
-    // expect("FOREIGN_BAR"sv ==
-    //        msg.field_value_by_name<hpp::proto::enum_value_cref>("default_foreign_enum").transform([](auto cref) {
-    //   return cref.name();
-    //        }));
+    expect("FOREIGN_BAR"sv == msg.field_value_by_name<hpp::proto::enum_name>("default_foreign_enum"));
+    expect(5 == msg.field_value_by_name<hpp::proto::enum_number>("default_foreign_enum"));
 
-    // expect("IMPORT_BAR"sv ==
-    //        msg.field_value_by_name<hpp::proto::enum_value_cref>("default_import_enum").transform([](auto cref) {
-    //          return cref.name();
-    //        }));
+    expect("IMPORT_BAR"sv == msg.field_value_by_name<hpp::proto::enum_name>("default_import_enum"));
+    expect(8 == msg.field_value_by_name<hpp::proto::enum_number>("default_import_enum"));
 
     expect("abc"sv == msg.field_value_by_name<std::string_view>("default_string_piece"));
-
     expect("123"sv == msg.field_value_by_name<std::string_view>("default_cord"));
   };
 
@@ -176,6 +171,8 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(optional_int32_field.has_value());
       expect(optional_int32_field.get<std::int32_t>().has_value());
       expect(eq(optional_int32_field.get<std::int32_t>().value(), 123));
+
+      expect(123 == msg.field_value_by_name<std::int32_t>("optional_int32"));
     };
 
     "set on field_mref wrong type"_test = [&] {
@@ -186,6 +183,8 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(!optional_int32_field.has_value());
       expect(!optional_int32_field.set(234U));
       expect(!optional_int32_field.has_value());
+
+      expect(0 == msg.field_value_by_name<std::int32_t>("optional_int32"));
     };
 
     "string set copies into the message"_test = [&] {
@@ -259,6 +258,9 @@ const boost::ut::suite dynamic_message_test = [] {
       auto rep_int_cref_span_after_adopt = repeated_int_field.cref().get<std::span<const std::int32_t>>();
       expect(rep_int_cref_span_after_adopt.has_value());
       expect(rep_int_cref_span_after_adopt->data() == adopt_ints.data());
+
+      expect(std::ranges::equal(adopt_ints,
+                                msg.field_value_by_name<std::span<const std::int32_t>>("repeated_int32").value()));
     };
 
     "repeated string set and adopt"_test = [&] {
@@ -314,6 +316,41 @@ const boost::ut::suite dynamic_message_test = [] {
       auto rep_bytes_cref_span_after_adopt = repeated_bytes_field.cref().get<std::span<const hpp::proto::bytes_view>>();
       expect(rep_bytes_cref_span_after_adopt.has_value());
       expect(rep_bytes_cref_span_after_adopt->data() == adopt_views.data());
+    };
+
+    "enum set"_test = [&] {
+      auto enum_field = msg.field_by_name("optional_nested_enum").value();
+      expect(enum_field.set(hpp::proto::enum_number{1}).has_value());
+
+      expect(enum_field.get<hpp::proto::enum_number>() == 1);
+      expect("FOO"sv == enum_field.get<hpp::proto::enum_name>());
+
+      expect(!enum_field.set(hpp::proto::enum_name{"abc"}).has_value());
+      expect(enum_field.set(hpp::proto::enum_name{"BAR"}).has_value());
+      expect("BAR"sv == enum_field.get<hpp::proto::enum_name>());
+    };
+
+    "repeated enum set and adopt"_test = [&] {
+      auto rep_enum_field = msg.field_by_name("repeated_nested_enum").value();
+      std::array<std::int32_t, 2> enums{1, 2};
+      using namespace std::string_view_literals;
+      std::array<std::string_view, 2> enum_names{"FOO"sv, "BAR"sv};
+      expect(rep_enum_field.set(::hpp::proto::enum_numbers_range(enums)).has_value());
+      expect(rep_enum_field.has_value());
+      expect(std::ranges::equal(enums, rep_enum_field.get<::hpp::proto::enum_numbers_span>().value()));
+      expect(std::ranges::equal(enum_names, rep_enum_field.get<::hpp::proto::enum_names_view>().value()));
+
+      std::array<std::int32_t, 1> adopt_enums{3};
+      expect(rep_enum_field.adopt(std::span<std::int32_t>(adopt_enums)).has_value());
+      expect(std::ranges::equal(adopt_enums, rep_enum_field.get<::hpp::proto::enum_numbers_span>().value()));
+
+      expect(rep_enum_field.set(::hpp::proto::enum_names_range{enum_names}).has_value());
+      expect(std::ranges::equal(enum_names, rep_enum_field.get<::hpp::proto::enum_names_view>().value()));
+
+      std::array<std::string_view, 2> partially_invalid_names{"BAZ"sv, "XXX"sv};
+      expect(!rep_enum_field.set(::hpp::proto::enum_names_range{partially_invalid_names}).has_value());
+      expect(std::ranges::equal(std::initializer_list<std::string_view>{"BAZ"sv},
+                                rep_enum_field.get<::hpp::proto::enum_names_view>().value()));
     };
   };
 };
