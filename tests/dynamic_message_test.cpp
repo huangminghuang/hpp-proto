@@ -16,7 +16,7 @@ const boost::ut::suite parse_default_value_tests = [] {
     expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<uint64_t>(
                   std::to_string(std::numeric_limits<uint64_t>::max())),
               std::numeric_limits<uint64_t>::max()));
-    expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<float>("1.5"), 1.5f));
+    expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<float>("1.5"), 1.5F));
     expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<double>("-2.5"), -2.5));
     expect(eq(hpp::proto::dynamic_message_factory_addons::parse_default_value<int32_t>(""),
               0)); // empty defaults to zero-initialized
@@ -151,7 +151,7 @@ const boost::ut::suite dynamic_message_test = [] {
     expect(!oneof_string_field.has_value());
     expect(oneof_bytes_field.has_value());
 
-    oneof_nested_message_field.emplace();
+    (void) oneof_nested_message_field.emplace();
     expect(!oneof_uint32_field.has_value());
     expect(oneof_nested_message_field.has_value());
     expect(!oneof_string_field.has_value());
@@ -213,7 +213,7 @@ const boost::ut::suite dynamic_message_test = [] {
       auto assigned_bytes = "\x01\x02\x03"_bytes;
       expect(optional_bytes_field.set(std::span<const std::byte>(assigned_bytes)).has_value());
       expect(optional_bytes_field.has_value());
-      optional_bytes_field.get<hpp::proto::bytes_view>().has_value();
+      expect(optional_bytes_field.get<hpp::proto::bytes_view>().has_value());
       expect(optional_bytes_field.get<hpp::proto::bytes_view>().has_value());
       auto optional_bytes_field_value = optional_bytes_field.get<hpp::proto::bytes_view>().value();
 
@@ -372,7 +372,7 @@ const boost::ut::suite dynamic_message_test = [] {
     "repeated nested message set/get"_test = [&] {
       auto rep_nested_field =
           msg.typed_ref_by_name<::hpp::proto::repeated_message_field_mref>("repeated_nested_message").value();
-      expect(rep_nested_field.size() == 0u);
+      expect(rep_nested_field.size() == 0U);
 
       rep_nested_field.resize(2);
       auto first = rep_nested_field[0];
@@ -387,7 +387,7 @@ const boost::ut::suite dynamic_message_test = [] {
                                  rep_nested_field[1].field_by_name("bb").value().get<std::int32_t>().value()}));
 
       auto rep_cref = rep_nested_field.cref();
-      expect(rep_cref.size() == 2u);
+      expect(rep_cref.size() == 2U);
       expect(rep_cref[0].field_by_name("bb").value().get<std::int32_t>() == 111);
       expect(rep_cref[1].field_by_name("bb").value().get<std::int32_t>() == 222);
     };

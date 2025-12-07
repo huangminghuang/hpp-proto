@@ -222,7 +222,7 @@ struct generic_message_json_serializer {
     if (skip_ws<Opts>(ctx, it, end)) {
       return;
     }
-    const size_t ws_size = size_t(it - ws_start);
+    const auto ws_size = size_t(it - ws_start);
     bool first = true;
     while (true) {
       if (util::match_ending_or_consume_comma<Opts>(ws_start, ws_size, first, ctx, it, end)) {
@@ -241,8 +241,9 @@ struct generic_message_json_serializer {
         from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.field(*desc), ctx, it, end);
       }
 
-      if (bool(ctx.error)) [[unlikely]]
+      if (bool(ctx.error)) [[unlikely]] {
         return;
+      }
 
       if (skip_ws<Opts>(ctx, it, end)) {
         return;
@@ -284,10 +285,19 @@ struct any_message_json_serializer {
   template <auto Opts>
   static void to_json(::hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Any");
-    std::string_view any_type_url = value.fields()[0].to<::hpp::proto::string_field_cref>().value().value();
-    ::hpp::proto::bytes_view any_value = value.fields()[1].to<::hpp::proto::bytes_field_cref>().value().value();
-    std::pmr::monotonic_buffer_resource mr;
-    to_json_impl<Opts>(msg_builder(mr, value), any_type_url, any_value, ctx, b, ix);
+    if (value.fields().size() == 2U) [[likely]] {
+      const auto type_url_field = value.fields()[0].to<::hpp::proto::string_field_cref>();
+      const auto value_field = value.fields()[1].to<::hpp::proto::bytes_field_cref>();
+      if (type_url_field.has_value() && value_field.has_value()) [[likely]] {
+        std::string_view any_type_url = type_url_field->value();
+        ::hpp::proto::bytes_view any_value = value_field->value();
+        std::pmr::monotonic_buffer_resource mr;
+        to_json_impl<Opts>(msg_builder(mr, value), any_type_url, any_value, ctx, b, ix);
+        return;
+      }
+    }
+    ctx.error = error_code::syntax_error;
+    ctx.custom_error_message = "invalid google.protobuf.Any descriptor";
   }
 
   template <auto Opts>
@@ -303,8 +313,13 @@ struct any_message_json_serializer {
     from_json_impl<Opts>(msg_builder(value.memory_resource(), value), as_modifiable(pb_ctx, any_type_url),
                          as_modifiable(pb_ctx, any_value), ctx, it, end);
     if (!bool(ctx.error)) {
-      (void)value.fields()[0].adopt(any_type_url);
-      (void)value.fields()[1].adopt(any_value);
+      if (value.fields().size() == 2U && value.fields()[0].adopt(any_type_url).has_value() &&
+          value.fields()[1].adopt(any_value).has_value()) [[likely]] {
+        return;
+      } else {
+        ctx.error = error_code::syntax_error;
+        ctx.custom_error_message = "invalid google.protobuf.Any descriptor";
+      }
     }
   }
 
@@ -341,11 +356,17 @@ struct timestamp_message_json_serializer {
   template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
-    auto seconds_field = value.fields()[0];
-    auto nanos_field = value.fields()[1];
-    google::protobuf::Timestamp v{
-        seconds_field.get<std::int64_t>().value(), nanos_field.get<std::int32_t>().value(), {}};
-    to<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, b, ix);
+    if (value.fields().size() == 2U) [[likely]] {
+      auto seconds_value = value.fields()[0].get<std::int64_t>();
+      auto nanos_value = value.fields()[1].get<std::int32_t>();
+      if (seconds_value.has_value() && nanos_value.has_value()) [[likely]] {
+        google::protobuf::Timestamp v{seconds_value.value(), nanos_value.value(), {}};
+        to<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, b, ix);
+        return;
+      }
+    }
+    ctx.error = error_code::syntax_error;
+    ctx.custom_error_message = "invalid google.protobuf.Timestamp descriptor";
   }
 
   template <auto Opts>
@@ -353,8 +374,12 @@ struct timestamp_message_json_serializer {
     assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
     google::protobuf::Timestamp v;
     from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
-    (void)value.fields()[0].set(v.seconds);
-    (void)value.fields()[1].set(v.nanos);
+    if (!bool(ctx.error) && value.fields().size() == 2 && value.fields()[0].set(v.seconds).has_value() &&
+        value.fields()[1].set(v.nanos).has_value()) [[likely]] {
+      return;
+    }
+    ctx.error = error_code::syntax_error;
+    ctx.custom_error_message = "invalid google.protobuf.Timestamp descriptor";
   }
 };
 
@@ -362,11 +387,17 @@ struct duration_message_json_serializer {
   template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Duration");
-    auto seconds_field = value.fields()[0];
-    auto nanos_field = value.fields()[1];
-    google::protobuf::Duration v{
-        seconds_field.get<std::int64_t>().value(), nanos_field.get<std::int32_t>().value(), {}};
-    to<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, b, ix);
+    if (value.fields().size() == 2) [[likely]] {
+      auto seconds_value = value.fields()[0].get<std::int64_t>();
+      auto nanos_value = value.fields()[1].get<std::int32_t>();
+      if (seconds_value.has_value() && nanos_value.has_value()) [[likely]] {
+        google::protobuf::Duration v{seconds_value.value(), nanos_value.value(), {}};
+        to<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, b, ix);
+        return;
+      }
+    }
+    ctx.error = error_code::syntax_error;
+    ctx.custom_error_message = "invalid google.protobuf.Duration descriptor";
   }
 
   template <auto Opts>
@@ -374,8 +405,12 @@ struct duration_message_json_serializer {
     assert(value.descriptor().full_name() == "google.protobuf.Duration");
     google::protobuf::Duration v;
     from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
-    (void)value.fields()[0].set(v.seconds);
-    (void)value.fields()[1].set(v.nanos);
+    if (!bool(ctx.error) && value.fields().size() == 2 && value.fields()[0].set(v.seconds).has_value() &&
+        value.fields()[1].set(v.nanos).has_value()) [[likely]] {
+      return;
+    }
+    ctx.error = error_code::syntax_error;
+    ctx.custom_error_message = "invalid google.protobuf.Duration descriptor";
   }
 };
 
@@ -385,8 +420,15 @@ struct field_mask_message_json_serializer {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.FieldMask");
-    auto paths = value.fields()[0].get<std::span<const std::string_view>>().value();
-    to<JSON, FieldMask>::template op<Opts>(FieldMask{.paths = paths}, ctx, b, ix);
+    if (value.fields().size() == 1U) [[likely]] {
+      auto paths = value.fields()[0].get<std::span<const std::string_view>>();
+      if (paths.has_value()) [[likely]] {
+        to<JSON, FieldMask>::template op<Opts>(FieldMask{.paths = paths.value(), .unknown_fields_ = {}}, ctx, b, ix);
+        return;
+      }
+    }
+    ctx.error = error_code::syntax_error;
+    ctx.custom_error_message = "invalid google.protobuf.FieldMask descriptor";
   }
 
   template <auto Opts>
@@ -407,7 +449,13 @@ struct field_mask_message_json_serializer {
                                   return std::string_view{subrange.data(), subrange.size()};
                                 });
 
-    (void)value.fields()[0].set(::hpp::proto::sized_input_range{comma_separated_view, num_commas + 1});
+    if (value.fields().size() == 1 &&
+        value.fields()[0].set(::hpp::proto::sized_input_range{comma_separated_view, num_commas + 1}).has_value())
+        [[likely]] {
+      return;
+    }
+    ctx.error = error_code::syntax_error;
+    ctx.custom_error_message = "invalid google.protobuf.FieldMask descriptor";
   }
 };
 
@@ -415,10 +463,12 @@ struct value_message_json_serializer {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Value");
-    auto oneof_index = value.fields()[0].active_oneof_index();
-    if (oneof_index >= 0) {
-      to<JSON, ::hpp::proto::field_cref>::template op<Opts>(value.fields()[static_cast<std::size_t>(oneof_index)], ctx,
-                                                            b, ix);
+    if (value.fields().size() > 0) {
+      auto oneof_index = value.fields()[0].active_oneof_index();
+      if (oneof_index >= 0 && oneof_index < value.fields().size()) {
+        to<JSON, ::hpp::proto::field_cref>::template op<Opts>(value.fields()[static_cast<std::size_t>(oneof_index)],
+                                                              ctx, b, ix);
+      }
     }
   }
 };
@@ -500,6 +550,7 @@ struct to<JSON, hpp::proto::message_value_cref> {
     case STRUCT:
     case LISTVALUE: {
       auto f0 = value.fields()[0].to<::hpp::proto::repeated_message_field_cref>();
+      // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
       to<JSON, ::hpp::proto::repeated_message_field_cref>::template op<Opts>(*f0, ctx, b, ix);
     } break;
     case WRAPPER: {
@@ -572,7 +623,7 @@ struct from<JSON, hpp::proto::scalar_field_mref<T, Kind>> {
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_mref<T, Kind> &value, auto &&...args) {
     using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
     constexpr bool need_quote = concepts::eight_bytes_integer<T> || (Opts.quoted_num);
-    value_type v;
+    value_type v = {};
     from<JSON, value_type>::template op<set_opt<Opts, &opts::quoted_num>(need_quote)>(
         v, std::forward<decltype(args)>(args)...);
     value.set(v);
@@ -631,7 +682,7 @@ struct from<JSON, hpp::proto::enum_value_mref> {
     }
 
     if (*it != '"') [[unlikely]] {
-      int32_t v;
+      int32_t v = 0;
       from<JSON, int32_t>::template op<Opts>(v, ctx, it, end);
       if (!bool(ctx.error)) {
         value.set(v);
@@ -645,7 +696,7 @@ struct from<JSON, hpp::proto::enum_value_mref> {
       return;
     }
     const sv key{start, size_t(it - start)};
-    ++it;
+    ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
     if constexpr (not Opts.null_terminated) {
       if (it == end) [[unlikely]] {
@@ -792,6 +843,7 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
 }
 
 template <auto Opts>
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&any_type_url, auto &&any_value,
                                                  is_context auto &ctx, auto &it, auto &end) {
   if (!util::parse_opening<Opts>('{', ctx, it, end)) [[unlikely]] {
@@ -879,7 +931,7 @@ json_status json_to_proto(dynamic_message_factory &factory, std::string_view mes
   }
 }
 
-// NOLINTBEGIN(bugprone-easily-swappable-parameters)
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 json_status json_to_proto(dynamic_message_factory &factory, std::string_view message_name, std::string_view json_view,
                           concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;

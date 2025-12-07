@@ -422,7 +422,7 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
   }
 
   if (*it == 'n') {
-    ++it;
+    ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     if constexpr (not Opts.null_terminated) {
       if (it == end) [[unlikely]] {
         ctx.error = error_code::unexpected_end;
@@ -430,8 +430,9 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
       }
     }
     match<"ull", Opts>(ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]]
+    if (bool(ctx.error)) [[unlikely]] {
       return true;
+    }
     value.reset();
     return true;
   }
@@ -447,8 +448,9 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
 //    static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end);
 //  };
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 template <auto Opts>
-GLZ_ALWAYS_INLINE bool parse_opening(char c, glz::is_context auto &ctx, auto &it, auto &end) {
+GLZ_ALWAYS_INLINE bool parse_opening(char c, glz::is_context auto &ctx, auto &it, auto &end) { // NOLINT(readability-function-cognitive-complexity)
   assert(c == '{' || c == '[');
 
   if constexpr (!check_opening_handled(Opts)) {
@@ -458,7 +460,7 @@ GLZ_ALWAYS_INLINE bool parse_opening(char c, glz::is_context auto &ctx, auto &it
       }
     }
 
-    auto match_invalid_end = [](char c, auto &ctx, auto &it, auto &end) {
+    auto match_invalid_end = [](char c, auto &ctx, auto &it, [[maybe_unused]] auto &end) {
       if (*it != c) [[unlikely]] {
         if (c == '[') {
           ctx.error = error_code::expected_bracket;
@@ -467,7 +469,7 @@ GLZ_ALWAYS_INLINE bool parse_opening(char c, glz::is_context auto &ctx, auto &it
         }
         return true;
       } else [[likely]] {
-        ++it;
+        ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       }
       if constexpr (not Opts.null_terminated) {
         if (it == end) [[unlikely]] {
@@ -492,7 +494,7 @@ GLZ_ALWAYS_INLINE bool parse_opening(char c, glz::is_context auto &ctx, auto &it
 template <auto Opts>
 bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto &) {
   if (*it == c) {
-    ++it;
+    ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     if constexpr (not Opts.null_terminated) {
       --ctx.indentation_level;
     }
@@ -505,8 +507,9 @@ template <auto Opts>
 std::string_view parse_key_and_colon(glz::is_context auto &ctx, auto &it, auto &end) {
   std::string_view key;
   parse<JSON>::op<Opts>(key, ctx, it, end);
-  if (bool(ctx.error)) [[unlikely]]
+  if (bool(ctx.error)) [[unlikely]] {
     return {};
+  }
 
   if (parse_ws_colon<Opts>(ctx, it, end)) {
     return {};
@@ -530,7 +533,7 @@ template <auto Opts>
     switch (*it) {
     case ',': {
       ++count;
-      ++it;
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       break;
     }
     case '/': {
@@ -541,14 +544,14 @@ template <auto Opts>
       break;
     }
     case '{':
-      ++it;
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       skip_until_closed<Opts, '{', '}'>(ctx, it, end);
       if (bool(ctx.error)) [[unlikely]] {
         return {};
       }
       break;
     case '[':
-      ++it;
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       skip_until_closed<Opts, '[', ']'>(ctx, it, end);
       if (bool(ctx.error)) [[unlikely]] {
         return {};
@@ -569,7 +572,7 @@ template <auto Opts>
       if (*it == stop_token) {
         return count;
       }
-      ++it;
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
   }
   unreachable();
@@ -604,8 +607,9 @@ GLZ_ALWAYS_INLINE void parse_repeated(bool is_map, auto &&value, auto &ctx, auto
 
   for (auto &&x : value) {
     element_parser(x, ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]]
+    if (bool(ctx.error)) [[unlikely]] {
       return;
+    }
 
     if (skip_ws<Opts>(ctx, it, end)) {
       return;
@@ -932,8 +936,7 @@ struct from<JSON, hpp::proto::optional_message_view_ref<T>> {
     if (!util::parse_null<Options>(value.ref, ctx, it, end)) {
       using type = std::remove_const_t<typename T::value_type>;
       void *addr = ctx.memory_resource().allocate(sizeof(type), alignof(type));
-      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-      type *obj = new (addr) type;
+      auto *obj = new (addr) type; // NOLINT(cppcoreguidelines-owning-memory)
       constexpr auto Opts = ws_handled_off<Options>();
       parse<JSON>::op<Options>(*obj, ctx, it, end);
       value.ref = obj;

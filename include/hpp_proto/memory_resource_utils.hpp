@@ -23,6 +23,7 @@
 #pragma once
 
 #include <concepts>
+#include <cstring>
 #include <hpp_proto/field_types.hpp>
 #include <memory_resource>
 #include <ranges>

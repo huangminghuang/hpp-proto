@@ -17,7 +17,9 @@
 #include <charconv>
 #include <compare>
 #include <cstdlib>
+#include <functional>
 #include <iterator>
+#include <memory>
 #include <ranges>
 #include <stdexcept>
 #include <string>
@@ -100,8 +102,8 @@ struct sized_input_range { // NOLINT(hicpp-member-init)
   Range &range_;           // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
   std::size_t size_;
 
-  auto begin() const { return std::ranges::begin(range_); }
-  auto end() const { return std::ranges::end(range_); }
+  [[nodiscard]] auto begin() const { return std::ranges::begin(range_); }
+  [[nodiscard]] auto end() const { return std::ranges::end(range_); }
   [[nodiscard]] std::size_t size() const { return size_; }
 };
 
@@ -121,16 +123,16 @@ using range_value_or_void_t = typename range_value_or_void<U>::type;
 
 struct enum_number {
   std::int32_t value = 0;
-  operator std::int32_t() const { return value; }
+  operator std::int32_t() const { return value; } // NOLINT(hicpp-explicit-conversions)
 };
 
 struct enum_name {
   std::string_view value;
-  operator std::string_view() const { return value; }
+  operator std::string_view() const { return value; } // NOLINT(hicpp-explicit-conversions)
 };
 
 struct enum_numbers_span {
-  std::span<std::int32_t> value = {};
+  std::span<std::int32_t> value;
 };
 
 template <typename T>
@@ -153,7 +155,7 @@ struct get_traits<enum_numbers_span> {
   using type = std::span<const std::int32_t>;
 };
 
-enum dynamic_message_errc {
+enum class dynamic_message_errc : uint8_t {
   no_error,
   no_such_field,
   no_such_value,
@@ -184,16 +186,16 @@ struct dynamic_message_factory_addons {
     if (value.empty()) {
       return parsed;
     }
-    const char *begin = value.data();
-    const char *end = value.data() + value.size();
-    const char *parsed_end = begin;
+    const char *const begin = value.data();
+    const char *const end = std::to_address(value.cend());
+    bool consumed_entire_input = true;
     std::errc ec{};
 
     if constexpr (std::is_floating_point_v<T>) {
       if constexpr (has_std_from_chars_float) {
         const auto result = std::from_chars(begin, end, parsed);
         ec = result.ec;
-        parsed_end = result.ptr;
+        consumed_entire_input = result.ptr == end;
       } else {
         std::string buffer(value);
         char *conv_end = nullptr;
@@ -203,23 +205,30 @@ struct dynamic_message_factory_addons {
         } else {
           parsed = std::strtod(buffer.c_str(), &conv_end);
         }
-        parsed_end = begin + (conv_end - buffer.c_str());
         if (errno == ERANGE) {
           ec = std::errc::result_out_of_range;
-        } else if (conv_end == buffer.c_str() || conv_end != buffer.c_str() + buffer.size()) {
+          consumed_entire_input = false;
+        } else if (conv_end == buffer.c_str()) {
           ec = std::errc::invalid_argument;
+          consumed_entire_input = false;
+        } else {
+          const char *const buffer_end = std::to_address(buffer.cend());
+          consumed_entire_input = (conv_end == buffer_end);
+          if (!consumed_entire_input) {
+            ec = std::errc::invalid_argument;
+          }
         }
       }
     } else {
       const auto result = std::from_chars(begin, end, parsed);
       ec = result.ec;
-      parsed_end = result.ptr;
+      consumed_entire_input = result.ptr == end;
     }
 
     if (ec == std::errc::result_out_of_range) {
       throw std::out_of_range("default value out of range");
     }
-    if (ec != std::errc{} || parsed_end != end) {
+    if (ec != std::errc{} || !consumed_entire_input) {
       throw std::invalid_argument("invalid default value");
     }
     return parsed;
@@ -239,7 +248,6 @@ struct dynamic_message_factory_addons {
 
     void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto) {
       using enum google::protobuf::FieldDescriptorProto_::Type;
-      const std::string default_value_opt{proto.default_value};
       switch (proto.type) {
       case TYPE_ENUM:
         break;
@@ -334,7 +342,8 @@ struct dynamic_message_factory_addons {
 
       if (auto itr = wellknown_type_pbs.find(derived.proto().name); itr != wellknown_type_pbs.end()) {
         std::string pb;
-        assert(write_proto(derived.proto(), pb).ok());
+        [[maybe_unused]] auto status = write_proto(derived.proto(), pb);
+        assert(status.ok());
         wellknown_validated_ = (pb == itr->second.value);
       }
     }
@@ -428,7 +437,7 @@ public:
   using option_type = std::reference_wrapper<dynamic_message_factory>;
 
   explicit dynamic_message_factory(FileDescriptorSet &&proto_files, std::pmr::monotonic_buffer_resource &mr)
-      : memory_resource_(), pool_(std::move(proto_files), mr) {
+      : pool_(std::move(proto_files), mr) {
     init();
   }
 
@@ -436,13 +445,13 @@ public:
     requires std::same_as<std::ranges::range_value_t<Range>, file_descriptor_pb>
   explicit dynamic_message_factory(Range &&descs, auto &&...memory_resource_init_args)
       : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
-        pool_(descriptor_pool_t::make_file_descriptor_set(descs, alloc_from(memory_resource_)).value(),
+        pool_(descriptor_pool_t::make_file_descriptor_set(std::forward<Range>(descs), alloc_from(memory_resource_)).value(),
               memory_resource_) {
     init();
   }
 
   template <std::size_t N>
-  explicit dynamic_message_factory(distinct_file_descriptor_pb_array<N> &&descs, auto &&...memory_resource_init_args)
+  explicit dynamic_message_factory(const distinct_file_descriptor_pb_array<N> &descs, auto &&...memory_resource_init_args)
       : dynamic_message_factory(std::span<file_descriptor_pb>(std::data(descs), std::size(descs)),
                                 distinct_file_tag_t{},
                                 std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...) {}
@@ -521,7 +530,7 @@ concept contiguous_std_byte_range =
     std::ranges::contiguous_range<T> && std::same_as<std::ranges::range_value_t<T>, std::byte>;
 }; // namespace concepts
 
-auto enum_numbers_to_names(const enum_descriptor_t &descriptor, std::span<const std::int32_t> numbers) {
+inline auto enum_numbers_to_names(const enum_descriptor_t &descriptor, std::span<const std::int32_t> numbers) {
   return std::views::transform(numbers, [&descriptor](std::int32_t v) { return descriptor.name_of(v); });
 }
 
@@ -531,7 +540,7 @@ using enum_names_view = decltype(enum_numbers_to_names(std::declval<const enum_d
 template <typename Range>
 struct enum_numbers_range {
   using is_enum_numbers_range = void;
-  const Range &value;
+  const Range& value; // NOLINT
 };
 
 template <typename T>
@@ -541,7 +550,7 @@ enum_numbers_range(const T &v) -> enum_numbers_range<T>;
 template <typename Range>
 struct enum_names_range {
   using is_enum_names_range = void;
-  const Range &value;
+  const Range& value; // NOLINT
 };
 
 template <typename T>
@@ -587,7 +596,7 @@ public:
 
   /// if the field is part of an oneof fields, return the active field index of the oneof. If the returned
   /// value is smaller than 0, it means the oneof does not contains any value.
-  std::int32_t active_oneof_index() const {
+  [[nodiscard]] std::int32_t active_oneof_index() const {
     return static_cast<std::int32_t>(storage_->of_int64.selection + descriptor().storage_slot) -
            descriptor().oneof_ordinal;
   }
@@ -911,7 +920,7 @@ public:
 
   void set(std::string_view v) const noexcept {
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
-    std::copy(v.begin(), v.end(), dest);
+    std::ranges::copy(v, dest);
     storage_->content = dest;
     storage_->size = static_cast<uint32_t>(v.size());
     storage_->selection = descriptor_->oneof_ordinal;
@@ -1116,12 +1125,13 @@ public:
 
   void set(std::string_view v) const noexcept {
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
-    std::copy(v.begin(), v.end(), dest);
+    std::ranges::copy(v, dest);
     adopt(std::string_view{dest, v.size()});
   }
 
   void clone_from(std::string_view v) const noexcept { set(v); }
 
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator std::string_view() const noexcept { return *data_; }
 
 private:
@@ -1150,7 +1160,7 @@ public:
       : data_(&data), memory_resource_(&mr) {}
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
-  void adopt(hpp::proto::bytes_view v) const noexcept { *data_ = v; }
+  void adopt(const hpp::proto::bytes_view &v) const noexcept { *data_ = v; }
 
   void set(concepts::contiguous_std_byte_range auto const &v) const noexcept {
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
@@ -1158,6 +1168,7 @@ public:
     adopt(hpp::proto::bytes_view{dest, v.size()});
   }
 
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator hpp::proto::bytes_view() const noexcept { return *data_; }
 
 private:
@@ -1252,6 +1263,7 @@ public:
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
   [[nodiscard]] enum_value_cref value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
       const_cast<scalar_storage_base<int32_t> *>(storage_)->content = std::get<int32_t>(descriptor_->default_value);
     }
     return {enum_descriptor(), storage_->content};
@@ -1275,12 +1287,12 @@ public:
     return *descriptor_->enum_field_type_descriptor();
   }
 
-  std::int32_t number() const {
+  [[nodiscard]] std::int32_t number() const {
     bool is_default = descriptor().explicit_presence() && !has_value();
     return is_default ? std::get<int32_t>(descriptor_->default_value) : storage_->content;
   }
 
-  std::string_view name() const { return enum_descriptor().name_of(number()); }
+  [[nodiscard]] std::string_view name() const { return enum_descriptor().name_of(number()); }
 
 private:
   friend class enum_field_mref;
@@ -1346,19 +1358,19 @@ public:
     return *descriptor_->enum_field_type_descriptor();
   }
 
-  std::int32_t number() const {
+  [[nodiscard]] std::int32_t number() const {
     return descriptor().explicit_presence() && !has_value() ? std::get<int32_t>(descriptor_->default_value)
                                                             : storage_->content;
   }
-  std::string_view name() const { return enum_descriptor().name_of(number()); }
+  [[nodiscard]] std::string_view name() const { return enum_descriptor().name_of(number()); }
 
   void set(enum_number number) const {
     storage_->content = number.value;
     storage_->selection = descriptor_->oneof_ordinal;
   }
 
-  std::expected<void, dynamic_message_errc> set(enum_name name) const {
-    auto *pval = enum_descriptor().value_of(name.value);
+  [[nodiscard]] std::expected<void, dynamic_message_errc> set(enum_name name) const {
+    const auto *pval = enum_descriptor().value_of(name.value);
     if (pval == nullptr) [[unlikely]] {
       return std::unexpected(dynamic_message_errc::invalid_enum_name);
     }
@@ -1698,12 +1710,12 @@ public:
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
-  std::span<const std::int32_t> numbers() const { return std::span{storage_->content, storage_->size}; }
+  [[nodiscard]] std::span<const std::int32_t> numbers() const { return std::span{storage_->content, storage_->size}; }
 
   /**
    * @brief Lazily maps stored enum numbers to their corresponding names.
    */
-  auto names() const { return enum_numbers_to_names(*descriptor_->enum_field_type_descriptor(), numbers()); }
+  [[nodiscard]] auto names() const { return enum_numbers_to_names(*descriptor_->enum_field_type_descriptor(), numbers()); }
 
   template <typename U>
   [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
@@ -1822,13 +1834,14 @@ public:
 
   template <std::ranges::sized_range Range>
     requires std::same_as<std::ranges::range_value_t<Range>, std::string_view>
-  auto set(Range const &r) const -> std::expected<void, dynamic_message_errc> {
+  [[nodiscard]] std::expected<void, dynamic_message_errc> set(Range const &r) const {
     resize(std::ranges::size(r));
     std::size_t i = 0;
+    auto values = std::span{storage_->content, storage_->size};
     for (std::string_view name : r) {
-      auto *pval = enum_descriptor().value_of(name);
+      const auto *pval = enum_descriptor().value_of(name);
       if (pval) [[likely]] {
-        storage_->content[i++] = *pval;
+        values[i++] = *pval;
       } else {
         resize(i);
         return std::unexpected(dynamic_message_errc::invalid_enum_name);
@@ -1845,7 +1858,7 @@ public:
 
   template <typename U>
     requires requires { typename U::is_enum_names_range; }
-  auto set(const U &u) -> std::expected<void, dynamic_message_errc> const {
+  [[nodiscard]] std::expected<void, dynamic_message_errc> set(const U &u) const {
     return set(u.value);
   }
 
@@ -1933,13 +1946,15 @@ public:
   [[nodiscard]] std::string_view *data() const noexcept { return storage_->content; }
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
-    assert(index < size());
-    return reference{storage_->content[index], *memory_resource_};
+    auto values = content_span();
+    assert(index < values.size());
+    return reference{values[index], *memory_resource_};
   }
 
   [[nodiscard]] reference at(std::size_t index) const {
-    if (index < size()) {
-      return reference{storage_->content[index], *memory_resource_};
+    auto values = content_span();
+    if (index < values.size()) {
+      return reference{values[index], *memory_resource_};
     }
     throw std::out_of_range("");
   }
@@ -1987,6 +2002,9 @@ public:
   }
 
 private:
+  [[nodiscard]] std::span<std::string_view> content_span() const noexcept {
+    return {storage_->content, static_cast<std::size_t>(storage_->size)};
+  }
   const field_descriptor_t *descriptor_;
   storage_type *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
@@ -2062,13 +2080,15 @@ public:
   [[nodiscard]] bytes_view *data() const noexcept { return storage_->content; }
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
-    assert(index < size());
-    return reference{storage_->content[index], *memory_resource_};
+    auto values = content_span();
+    assert(index < values.size());
+    return reference{values[index], *memory_resource_};
   }
 
   [[nodiscard]] reference at(std::size_t index) const {
-    if (index < size()) {
-      return reference{storage_->content[index], *memory_resource_};
+    auto values = content_span();
+    if (index < values.size()) {
+      return reference{values[index], *memory_resource_};
     }
     throw std::out_of_range("");
   }
@@ -2116,6 +2136,9 @@ public:
   }
 
 private:
+  [[nodiscard]] std::span<bytes_view> content_span() const noexcept {
+    return {storage_->content, static_cast<std::size_t>(storage_->size)};
+  }
   const field_descriptor_t *descriptor_;
   storage_type *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
@@ -2571,9 +2594,9 @@ public:
 
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
-  cref_type cref() const noexcept { return cref_type{*descriptor_, *storage_}; }
+  [[nodiscard]] cref_type cref() const noexcept { return cref_type{*descriptor_, *storage_}; }
 
-  message_value_mref emplace() const noexcept {
+  [[nodiscard]] message_value_mref emplace() const noexcept {
     if (!has_value()) {
       storage_->selection = descriptor_->oneof_ordinal;
       storage_->content = static_cast<value_storage *>(
@@ -2620,7 +2643,7 @@ public:
     }
   }
 
-  std::expected<void, dynamic_message_errc> set(const message_value_cref &v) {
+  [[nodiscard]] std::expected<void, dynamic_message_errc> set(const message_value_cref &v) const {
     if (&this->message_descriptor() == &v.descriptor()) {
       if (!has_value()) {
         emplace().clone_from(v);
@@ -3042,7 +3065,7 @@ inline auto field_mref::visit(auto &&visitor) const {
   unreachable();
 }
 
-void field_mref::clone_from(const field_cref &other) const noexcept {
+inline void field_mref::clone_from(const field_cref &other) const noexcept {
   assert(this->descriptor_ == &other.descriptor());
   this->visit([&](const auto &specific_mref) {
     using cref_type = typename std::decay_t<decltype(specific_mref)>::cref_type;
@@ -3052,7 +3075,7 @@ void field_mref::clone_from(const field_cref &other) const noexcept {
 
 inline std::optional<message_value_mref>
 dynamic_message_factory::get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const {
-  auto *desc = pool_.get_message_descriptor(name);
+  const auto *desc = pool_.get_message_descriptor(name);
   if (desc != nullptr) {
     return message_value_mref{*desc, mr};
   }

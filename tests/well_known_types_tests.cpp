@@ -24,6 +24,9 @@
 
 #include <hpp_proto/dynamic_message_json.hpp>
 
+#include <optional>
+#include <stdexcept>
+
 #include <boost/ut.hpp>
 namespace ut = boost::ut;
 using source_location = boost::ut::reflection::source_location;
@@ -41,12 +44,12 @@ using namespace std::string_literals;
 
 template <typename T>
 void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, std::string_view json,
-            std::string_view pretty_json = ""sv) {
+            std::optional<std::string_view> pretty_json = std::nullopt) {
 
   expect(eq(json, hpp::proto::write_json(msg).value()));
 
-  if (!pretty_json.empty()) {
-    expect(eq(pretty_json, hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value()));
+  if (pretty_json && !pretty_json->empty()) {
+    expect(eq(*pretty_json, hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value()));
   }
 
   T msg2{};
@@ -55,36 +58,46 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
   expect(msg == msg2);
 
   std::pmr::monotonic_buffer_resource memory_resource;
-  auto dyn_msg = factory.get_message(hpp::proto::message_name(msg), memory_resource).value();
+  auto dyn_msg = factory.get_message(hpp::proto::message_name(msg), memory_resource);
+  expect(fatal(dyn_msg.has_value()));
+  auto message = *dyn_msg;
 
   hpp::proto::bytes pb;
   auto ec = hpp::proto::write_proto(msg, pb);
   expect(ec.ok());
 
-  expect(hpp::proto::read_proto(dyn_msg, pb).ok());
+  expect(hpp::proto::read_proto(message, pb).ok());
 
   std::string json_buf;
-  expect(!::glz::write_json(dyn_msg, json_buf));
+  expect(!::glz::write_json(message, json_buf));
   expect(json_buf == json);
 
-  if (!pretty_json.empty()) {
-    expect(!::glz::write<glz::opts{.prettify = true}>(dyn_msg, json_buf));
-    expect(eq(json_buf, pretty_json));
+  if (pretty_json && !pretty_json->empty()) {
+    expect(!::glz::write<glz::opts{.prettify = true}>(message, json_buf));
+    expect(eq(json_buf, *pretty_json));
   }
 
   hpp::proto::bytes pb_buf;
-  expect(::hpp::proto::write_proto(dyn_msg, pb_buf).ok());
+  expect(::hpp::proto::write_proto(message, pb_buf).ok());
   expect(std::ranges::equal(pb_buf, pb));
 }
 
+struct pb_buffer_view {
+  std::string_view value;
+};
+
 hpp::proto::status dynamic_proto_to_json(const ::hpp::proto::dynamic_message_factory &factory,
-                                         std::string_view message_name, std::string_view pb_buf, std::string &json) {
+                                         std::string_view message_name, pb_buffer_view pb_buf, std::string &json) {
   std::pmr::monotonic_buffer_resource memory_resource;
-  auto dyn_msg = factory.get_message(message_name, memory_resource).value();
-  if (auto r = hpp::proto::read_proto(dyn_msg, pb_buf); !r.ok()) {
+  auto dyn_msg = factory.get_message(message_name, memory_resource);
+  if (!dyn_msg.has_value()) {
+    return std::errc::invalid_argument;
+  }
+  auto message = *dyn_msg;
+  if (auto r = hpp::proto::read_proto(message, pb_buf.value); !r.ok()) {
     return r;
   }
-  if (auto err = glz::write_json(dyn_msg, json); err) {
+  if (auto err = glz::write_json(message, json); err) {
     return std::errc::bad_message;
   }
   return {};
@@ -114,7 +127,7 @@ const ut::suite test_timestamp = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     expect(!dynamic_proto_to_json(factory, "google.protobuf.Timestamp",
-                                  "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
+                                  pb_buffer_view{"\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv}, json_buf)
                 .ok());
   };
 
@@ -122,7 +135,7 @@ const ut::suite test_timestamp = [] {
     std::string json_buf;
     std::string pb_data;
     expect(hpp::proto::write_proto(timestamp_t{.seconds = 1000, .nanos = 1000000000}, pb_data).ok());
-    expect(!dynamic_proto_to_json(factory, "google.protobuf.Timestamp", pb_data, json_buf).ok());
+    expect(!dynamic_proto_to_json(factory, "google.protobuf.Timestamp", pb_buffer_view{pb_data}, json_buf).ok());
   };
 };
 
@@ -175,13 +188,13 @@ const ut::suite test_wrapper = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     // wrong tag
-    expect(!dynamic_proto_to_json(factory, "google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
+    expect(!dynamic_proto_to_json(factory, "google.protobuf.Int64Value", pb_buffer_view{"\x00\x01"sv}, json_buf).ok());
     // wrong value
     expect(!dynamic_proto_to_json(factory, "google.protobuf.Int64Value",
-                                  "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
+                                  pb_buffer_view{"\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv}, json_buf)
                 .ok());
     // skip unknown field
-    expect(dynamic_proto_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
+    expect(dynamic_proto_to_json(factory, "google.protobuf.Int64Value", pb_buffer_view{"\x10\x01"sv}, json_buf).ok());
     expect(json_buf.empty());
   };
 };
@@ -226,11 +239,11 @@ const ut::suite test_value = [] {
 
     std::string json_buf;
     // field name is not a valid utf8 string
-    expect(!dynamic_proto_to_json(factory, "google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv,
-                                  json_buf)
+    expect(!dynamic_proto_to_json(factory, "google.protobuf.Struct",
+                                  pb_buffer_view{"\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv}, json_buf)
                 .ok());
     // skip unknown field
-    expect(dynamic_proto_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
+    expect(dynamic_proto_to_json(factory, "google.protobuf.Struct", pb_buffer_view{"\x10\x01"sv}, json_buf).ok());
   };
 
   "list"_test = [&factory] {
@@ -242,19 +255,22 @@ const ut::suite test_value = [] {
     std::string json_buf;
 
     // list element is not a valid utf8 string
-    expect(!dynamic_proto_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
+    expect(!dynamic_proto_to_json(factory, "google.protobuf.ListValue", pb_buffer_view{"\x0a\x04\x1a\x02\xc0\xcd"sv},
+                                  json_buf)
+               .ok());
     // skip first unknown element
-    expect(dynamic_proto_to_json(factory, "google.protobuf.ListValue", "\x0a\x02\x38\x01"sv, json_buf).ok());
+    expect(dynamic_proto_to_json(factory, "google.protobuf.ListValue", pb_buffer_view{"\x0a\x02\x38\x01"sv}, json_buf)
+               .ok());
     expect(eq(json_buf, "[]"s));
     // skip middle unknown element
     expect(dynamic_proto_to_json(factory, "google.protobuf.ListValue",
-                                 "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
+                                 pb_buffer_view{"\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv}, json_buf)
                .ok());
     expect(eq(json_buf, "[true,false]"s));
     // TODO: we need to test the case where the unknown element in not in the beginning of the list
 
     // skip unknown field
-    expect(dynamic_proto_to_json(factory, "google.protobuf.ListValue", "\x10\x01"sv, json_buf).ok());
+    expect(dynamic_proto_to_json(factory, "google.protobuf.ListValue", pb_buffer_view{"\x10\x01"sv}, json_buf).ok());
   };
 };
 

@@ -30,7 +30,7 @@ concept file_descriptor_pb_range =
 template <std::size_t N>
 class distinct_file_descriptor_pb_array : public std::array<file_descriptor_pb, N> {
 public:
-  constexpr explicit distinct_file_descriptor_pb_array(std::initializer_list<file_descriptor_pb> list)
+  constexpr distinct_file_descriptor_pb_array(std::initializer_list<file_descriptor_pb> list)
       : std::array<file_descriptor_pb, N>{} {
     std::copy_n(list.begin(), std::min(list.size(), N), this->begin());
   }
