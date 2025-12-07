@@ -445,13 +445,15 @@ public:
     requires std::same_as<std::ranges::range_value_t<Range>, file_descriptor_pb>
   explicit dynamic_message_factory(Range &&descs, auto &&...memory_resource_init_args)
       : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
-        pool_(descriptor_pool_t::make_file_descriptor_set(std::forward<Range>(descs), alloc_from(memory_resource_)).value(),
+        pool_(descriptor_pool_t::make_file_descriptor_set(std::forward<Range>(descs), alloc_from(memory_resource_))
+                  .value(),
               memory_resource_) {
     init();
   }
 
   template <std::size_t N>
-  explicit dynamic_message_factory(const distinct_file_descriptor_pb_array<N> &descs, auto &&...memory_resource_init_args)
+  explicit dynamic_message_factory(const distinct_file_descriptor_pb_array<N> &descs,
+                                   auto &&...memory_resource_init_args)
       : dynamic_message_factory(std::span<file_descriptor_pb>(std::data(descs), std::size(descs)),
                                 distinct_file_tag_t{},
                                 std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...) {}
@@ -540,7 +542,7 @@ using enum_names_view = decltype(enum_numbers_to_names(std::declval<const enum_d
 template <typename Range>
 struct enum_numbers_range {
   using is_enum_numbers_range = void;
-  const Range& value; // NOLINT
+  const Range &value; // NOLINT
 };
 
 template <typename T>
@@ -550,7 +552,7 @@ enum_numbers_range(const T &v) -> enum_numbers_range<T>;
 template <typename Range>
 struct enum_names_range {
   using is_enum_names_range = void;
-  const Range& value; // NOLINT
+  const Range &value; // NOLINT
 };
 
 template <typename T>
@@ -1715,7 +1717,9 @@ public:
   /**
    * @brief Lazily maps stored enum numbers to their corresponding names.
    */
-  [[nodiscard]] auto names() const { return enum_numbers_to_names(*descriptor_->enum_field_type_descriptor(), numbers()); }
+  [[nodiscard]] auto names() const {
+    return enum_numbers_to_names(*descriptor_->enum_field_type_descriptor(), numbers());
+  }
 
   template <typename U>
   [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {

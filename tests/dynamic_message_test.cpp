@@ -151,7 +151,7 @@ const boost::ut::suite dynamic_message_test = [] {
     expect(!oneof_string_field.has_value());
     expect(oneof_bytes_field.has_value());
 
-    (void) oneof_nested_message_field.emplace();
+    (void)oneof_nested_message_field.emplace();
     expect(!oneof_uint32_field.has_value());
     expect(oneof_nested_message_field.has_value());
     expect(!oneof_string_field.has_value());

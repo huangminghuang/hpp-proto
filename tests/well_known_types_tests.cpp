@@ -127,7 +127,8 @@ const ut::suite test_timestamp = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     expect(!dynamic_proto_to_json(factory, "google.protobuf.Timestamp",
-                                  pb_buffer_view{"\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv}, json_buf)
+                                  pb_buffer_view{"\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv},
+                                  json_buf)
                 .ok());
   };
 
@@ -257,7 +258,7 @@ const ut::suite test_value = [] {
     // list element is not a valid utf8 string
     expect(!dynamic_proto_to_json(factory, "google.protobuf.ListValue", pb_buffer_view{"\x0a\x04\x1a\x02\xc0\xcd"sv},
                                   json_buf)
-               .ok());
+                .ok());
     // skip first unknown element
     expect(dynamic_proto_to_json(factory, "google.protobuf.ListValue", pb_buffer_view{"\x0a\x02\x38\x01"sv}, json_buf)
                .ok());
