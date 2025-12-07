@@ -3121,7 +3121,7 @@ struct field_deserializer {
     if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
       return ec;
     }
-    if (!mref.descriptor().valid_enum_value(value)) [[likely]] {
+    if (!mref.descriptor().valid_enum_value(static_cast<int32_t>(value))) [[likely]] {
       return std::errc::result_out_of_range;
     }
     mref.set(static_cast<int32_t>(value.value));

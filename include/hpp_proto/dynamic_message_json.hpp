@@ -372,8 +372,8 @@ struct timestamp_message_json_serializer {
   template <auto Opts>
   static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
-    google::protobuf::Timestamp v;
-    from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
+    google::protobuf::Timestamp<> v;
+    from<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, it, end);
     if (!bool(ctx.error) && value.fields().size() == 2 && value.fields()[0].set(v.seconds).has_value() &&
         value.fields()[1].set(v.nanos).has_value()) [[likely]] {
       return;
@@ -391,7 +391,7 @@ struct duration_message_json_serializer {
       auto seconds_value = value.fields()[0].get<std::int64_t>();
       auto nanos_value = value.fields()[1].get<std::int32_t>();
       if (seconds_value.has_value() && nanos_value.has_value()) [[likely]] {
-        google::protobuf::Duration v{seconds_value.value(), nanos_value.value(), {}};
+        google::protobuf::Duration<> v{seconds_value.value(), nanos_value.value(), {}};
         to<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, b, ix);
         return;
       }
@@ -403,7 +403,7 @@ struct duration_message_json_serializer {
   template <auto Opts>
   static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.Duration");
-    google::protobuf::Duration v;
+    google::protobuf::Duration<> v;
     from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
     if (!bool(ctx.error) && value.fields().size() == 2 && value.fields()[0].set(v.seconds).has_value() &&
         value.fields()[1].set(v.nanos).has_value()) [[likely]] {
@@ -733,7 +733,7 @@ struct from<JSON, hpp::proto::message_value_mref> {
           } else {
             using key_value_type = typename key_mref_type::value_type;
             key_value_type v;
-            from<JSON, key_value_type>::template op<Opts>(v, ctx, key_str.begin(), key_str.end());
+            from<JSON, key_value_type>::template op<Opts>(v, ctx, std::to_address(key_str.begin()), std::to_address(key_str.end()));
             if (bool(ctx.error)) [[unlikely]] {
               return;
             }
@@ -821,7 +821,7 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
     dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
   }
 
-  to_message_name(any_type_url)
+  (void) to_message_name(any_type_url)
       .and_then(build_message)
       .and_then([&](::hpp::proto::message_value_mref message) -> std::expected<void, const char *> {
         if (message.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE) {
@@ -875,7 +875,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
       }
     }
 
-    to_message_name(type_url)
+    (void) to_message_name(type_url)
         .and_then(build_message)
         .and_then([&](auto message) -> std::expected<void, const char *> {
           if (message.descriptor().wellknown != ::hpp::proto::wellknown_types_t::NONE) {

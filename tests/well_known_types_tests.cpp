@@ -60,7 +60,7 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
   std::pmr::monotonic_buffer_resource memory_resource;
   auto dyn_msg = factory.get_message(hpp::proto::message_name(msg), memory_resource);
   expect(fatal(dyn_msg.has_value()));
-  auto message = *dyn_msg;
+  auto message = *dyn_msg; // NOLINT(bugprone-unchecked-optional-access)
 
   hpp::proto::bytes pb;
   auto ec = hpp::proto::write_proto(msg, pb);

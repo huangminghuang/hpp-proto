@@ -448,8 +448,7 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
 //    static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end);
 //  };
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-template <auto Opts>
+template <auto Opts> // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 GLZ_ALWAYS_INLINE bool parse_opening(char c, glz::is_context auto &ctx, auto &it,
                                      auto &end) { // NOLINT(readability-function-cognitive-complexity)
   assert(c == '{' || c == '[');
