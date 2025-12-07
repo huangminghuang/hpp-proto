@@ -283,8 +283,7 @@ public:
     [[nodiscard]] bool is_closed() const { return options_.features.value().enum_type == FeatureSet::EnumType::CLOSED; }
 
     [[nodiscard]] bool valid_enum_value(int32_t v) const {
-      return !is_closed() ||
-             std::ranges::contains(proto_.value, v, [](const auto &item) { return item.number; });
+      return !is_closed() || std::ranges::contains(proto_.value, v, [](const auto &item) { return item.number; });
     }
 
   private:
