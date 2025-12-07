@@ -733,7 +733,8 @@ struct from<JSON, hpp::proto::message_value_mref> {
           } else {
             using key_value_type = typename key_mref_type::value_type;
             key_value_type v;
-            from<JSON, key_value_type>::template op<Opts>(v, ctx, std::to_address(key_str.begin()), std::to_address(key_str.end()));
+            from<JSON, key_value_type>::template op<Opts>(v, ctx, std::to_address(key_str.begin()),
+                                                          std::to_address(key_str.end()));
             if (bool(ctx.error)) [[unlikely]] {
               return;
             }
@@ -821,7 +822,7 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
     dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
   }
 
-  (void) to_message_name(any_type_url)
+  (void)to_message_name(any_type_url)
       .and_then(build_message)
       .and_then([&](::hpp::proto::message_value_mref message) -> std::expected<void, const char *> {
         if (message.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE) {
@@ -875,7 +876,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
       }
     }
 
-    (void) to_message_name(type_url)
+    (void)to_message_name(type_url)
         .and_then(build_message)
         .and_then([&](auto message) -> std::expected<void, const char *> {
           if (message.descriptor().wellknown != ::hpp::proto::wellknown_types_t::NONE) {
