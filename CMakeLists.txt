@@ -103,7 +103,8 @@ if(HPP_PROTO_PROTOC_PLUGIN)
 
     add_subdirectory(tests)
     add_subdirectory(tutorial)
-    if (HPP_PROTO_BUILD_FUZZ AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+
+    if(HPP_PROTO_BUILD_FUZZ AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
       add_subdirectory(fuzz)
     endif()
   endif()
@@ -168,27 +169,26 @@ endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Coverage" OR _coverage_config_index GREATER_EQUAL 0)
   find_program(LCOV_EXECUTABLE lcov)
   find_program(GENHTML_EXECUTABLE genhtml)
-  if(NOT LCOV_EXECUTABLE OR NOT GENHTML_EXECUTABLE)
-    message(FATAL_ERROR "Coverage build requires 'lcov' and 'genhtml' to generate HTML reports.")
+
+  if(LCOV_EXECUTABLE AND GENHTML_EXECUTABLE)
+    set(COVERAGE_EXCLUDE_PATTERNS
+      "/usr/include/*"
+      "${CMAKE_SOURCE_DIR}/include/google/protobuf"
+      "${CMAKE_BINARY_DIR}/*"
+      "$ENV{CPM_SOURCE_CACHE}/*"
+    )
+
+    add_custom_target(coverage_html
+      COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+      COMMAND ${LCOV_EXECUTABLE} --capture --directory ${CMAKE_BINARY_DIR} --output-file ${CMAKE_BINARY_DIR}/coverage.info
+      COMMAND ${LCOV_EXECUTABLE} --remove ${CMAKE_BINARY_DIR}/coverage.info
+      ${COVERAGE_EXCLUDE_PATTERNS}
+      --output-file ${CMAKE_BINARY_DIR}/coverage.filtered.info
+      COMMAND ${GENHTML_EXECUTABLE} ${CMAKE_BINARY_DIR}/coverage.filtered.info
+      --output-directory ${CMAKE_BINARY_DIR}/coverage-report
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      COMMENT "Generating coverage HTML report"
+      VERBATIM
+    )
   endif()
-
-  set(COVERAGE_EXCLUDE_PATTERNS
-    "/usr/include/*"
-    "${CMAKE_SOURCE_DIR}/include/google/protobuf"
-    "${CMAKE_BINARY_DIR}/*"
-    "$ENV{CPM_SOURCE_CACHE}/*"
-  )
-
-  add_custom_target(coverage_html
-    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    COMMAND ${LCOV_EXECUTABLE} --capture --directory ${CMAKE_BINARY_DIR} --output-file ${CMAKE_BINARY_DIR}/coverage.info
-    COMMAND ${LCOV_EXECUTABLE} --remove ${CMAKE_BINARY_DIR}/coverage.info
-            ${COVERAGE_EXCLUDE_PATTERNS}
-            --output-file ${CMAKE_BINARY_DIR}/coverage.filtered.info
-    COMMAND ${GENHTML_EXECUTABLE} ${CMAKE_BINARY_DIR}/coverage.filtered.info
-            --output-directory ${CMAKE_BINARY_DIR}/coverage-report
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Generating coverage HTML report"
-    VERBATIM
-  )
 endif()
