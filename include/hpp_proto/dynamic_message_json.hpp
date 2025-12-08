@@ -497,7 +497,7 @@ struct value_message_json_serializer {
       if (bool(ctx.error)) [[unlikely]] {
         return;
       }
-      (void)value.fields()[null_value - 1].set(::hpp::proto::enum_number{0});
+      (void)value.fields()[null_value - 1].set(::hpp::proto::enum_number{0}); // NOLINT
     } else if (*it == 'f' || *it == 't') {
       from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[bool_value - 1], ctx, it, end);
     } else if (*it == '"') {

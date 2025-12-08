@@ -163,7 +163,7 @@ const boost::ut::suite dynamic_message_test = [] {
     auto msg = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource).value();
     const auto &cref = msg.cref();
 
-    auto *json_desc = msg.field_descriptor_by_json_name("optionalInt32");
+    const auto *json_desc = msg.field_descriptor_by_json_name("optionalInt32");
     expect(json_desc != nullptr);
     expect(eq(json_desc->proto().name, std::string_view{"optional_int32"}));
     expect(cref.field_descriptor_by_json_name("optionalInt32") == json_desc);
@@ -176,7 +176,7 @@ const boost::ut::suite dynamic_message_test = [] {
     expect(cref.field_descriptor_by_number(field_number) == json_desc);
     expect(msg.field_descriptor_by_number(999999) == nullptr);
 
-    auto *oneof_desc = cref.oneof_descriptor("oneof_field");
+    const auto *oneof_desc = cref.oneof_descriptor("oneof_field");
     expect(oneof_desc != nullptr);
     expect(eq(oneof_desc->proto().name, std::string_view{"oneof_field"}));
     expect(cref.oneof_descriptor("missing_oneof") == nullptr);
