@@ -124,9 +124,7 @@ const ut::suite test_duration = [] {
   using duration_t = google::protobuf::Duration<>;
   hpp::proto::dynamic_message_factory factory{hpp::proto::file_descriptors::desc_set_google_protobuf_duration_proto()};
 
-  "verify Duration 1000s"_test = [&factory] {
-    verify<duration_t>(factory, duration_t{.seconds = 1000}, R"("1000s")");
-  };
+  "verify Duration 1000s"_test = [&factory] { verify<duration_t>(factory, duration_t{.seconds = 1000}, R"("1000s")"); };
 
   "verify Duration -1000s"_test = [&factory] {
     verify<duration_t>(factory, duration_t{.seconds = -1000, .nanos = 0}, R"("-1000s")");
@@ -167,9 +165,7 @@ const ut::suite test_field_mask = [] {
 
   using FieldMask = google::protobuf::FieldMask<>;
 
-  "verify FieldMask empty"_test = [&factory] {
-    verify<FieldMask>(factory, FieldMask{}, R"("")");
-  };
+  "verify FieldMask empty"_test = [&factory] { verify<FieldMask>(factory, FieldMask{}, R"("")"); };
 
   "verify FieldMask abc def"_test = [&factory] {
     verify<FieldMask>(factory, FieldMask{.paths = {"abc", "def"}}, R"("abc,def")");
@@ -180,9 +176,7 @@ const ut::suite test_wrapper = [] {
   hpp::proto::dynamic_message_factory factory{hpp::proto::file_descriptors::desc_set_google_protobuf_wrappers_proto()};
   using Int64Value = google::protobuf::Int64Value<>;
 
-  "verify Int64Value 1000"_test = [&factory] {
-    verify<Int64Value>(factory, Int64Value{1000, {}}, R"("1000")");
-  };
+  "verify Int64Value 1000"_test = [&factory] { verify<Int64Value>(factory, Int64Value{1000, {}}, R"("1000")"); };
 
   "wrapper invalid proto cases"_test = [&factory] {
     std::string json_buf;
@@ -203,9 +197,7 @@ const ut::suite test_empty = [] {
   hpp::proto::dynamic_message_factory factory{hpp::proto::file_descriptors::desc_set_google_protobuf_empty_proto()};
   using Empty = google::protobuf::Empty<>;
 
-  "verify Empty {}"_test = [&factory] {
-    verify<Empty>(factory, Empty{}, "{}");
-  };
+  "verify Empty {}"_test = [&factory] { verify<Empty>(factory, Empty{}, "{}"); };
 };
 
 const ut::suite test_value = [] {
@@ -216,25 +208,15 @@ const ut::suite test_value = [] {
   using NullValue = google::protobuf::NullValue;
   using ListValue = google::protobuf::ListValue<>;
   using Struct = google::protobuf::Struct<>;
-  "verify Value null"_test = [&factory] {
-    verify<Value>(factory, Value{.kind = NullValue{}}, "null");
-  };
+  "verify Value null"_test = [&factory] { verify<Value>(factory, Value{.kind = NullValue{}}, "null"); };
 
-  "verify Value true"_test = [&factory] {
-    verify<Value>(factory, Value{.kind = true}, "true");
-  };
+  "verify Value true"_test = [&factory] { verify<Value>(factory, Value{.kind = true}, "true"); };
 
-  "verify Value false"_test = [&factory] {
-    verify<Value>(factory, Value{.kind = false}, "false");
-  };
+  "verify Value false"_test = [&factory] { verify<Value>(factory, Value{.kind = false}, "false"); };
 
-  "verify Value number"_test = [&factory] {
-    verify<Value>(factory, Value{.kind = 1.0}, "1");
-  };
+  "verify Value number"_test = [&factory] { verify<Value>(factory, Value{.kind = 1.0}, "1"); };
 
-  "verify Value string"_test = [&factory] {
-    verify<Value>(factory, Value{.kind = "abc"}, R"("abc")");
-  };
+  "verify Value string"_test = [&factory] { verify<Value>(factory, Value{.kind = "abc"}, R"("abc")"); };
 
   "verify Value list"_test = [&factory] {
     verify<Value>(factory, Value{.kind = ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}}, "[true,1]");
@@ -245,9 +227,7 @@ const ut::suite test_value = [] {
                   R"({"f1":true,"f2":1})");
   };
 
-  "verify Struct empty"_test = [&factory] {
-    verify<Struct>(factory, Struct{}, "{}");
-  };
+  "verify Struct empty"_test = [&factory] { verify<Struct>(factory, Struct{}, "{}"); };
 
   "verify Struct with null"_test = [&factory] {
     verify<Struct>(factory, Struct{.fields = {{"f1", Value{.kind = NullValue{}}}}}, R"({"f1":null})");
@@ -275,9 +255,7 @@ const ut::suite test_value = [] {
     expect(hpp::proto::proto_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
   };
 
-  "verify ListValue empty"_test = [&factory] {
-    verify<ListValue>(factory, ListValue{}, "[]");
-  };
+  "verify ListValue empty"_test = [&factory] { verify<ListValue>(factory, ListValue{}, "[]"); };
 
   "verify ListValue populated"_test = [&factory] {
     verify<ListValue>(factory, ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}, "[true,1]",

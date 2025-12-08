@@ -1228,9 +1228,7 @@ public:
   enum_value_mref &operator=(enum_value_mref &&) noexcept = default;
   ~enum_value_mref() noexcept = default;
 
-  [[nodiscard]] enum_value_cref cref() const noexcept {
-    return enum_value_cref{*descriptor_, *number_};
-  }
+  [[nodiscard]] enum_value_cref cref() const noexcept { return enum_value_cref{*descriptor_, *number_}; }
 
   void set(int32_t number) const noexcept { *number_ = number; }
 
@@ -1291,7 +1289,7 @@ public:
     if constexpr (std::same_as<U, enum_number>) {
       return number();
     } else if constexpr (std::same_as<U, enum_name>) {
-      if (name().empty()){
+      if (name().empty()) {
         return std::unexpected(dynamic_message_errc::unknown_enum_value);
       }
       return name();
@@ -3100,13 +3098,13 @@ inline void field_mref::clone_from(const field_cref &other) const noexcept {
 }
 
 inline void field_mref::set_null() noexcept {
-  const auto* msg_descriptor = descriptor().message_field_type_descriptor();
+  const auto *msg_descriptor = descriptor().message_field_type_descriptor();
   if (msg_descriptor != nullptr && msg_descriptor->wellknown == wellknown_types_t::VALUE) {
     auto msg = message_field_mref{*descriptor_, *storage_, *memory_resource_}.emplace();
-    (void) msg.fields()[0].set(enum_number(0)).has_value();
+    (void)msg.fields()[0].set(enum_number(0)).has_value();
   } else {
     reset();
-  } 
+  }
 }
 
 inline std::optional<message_value_mref>
