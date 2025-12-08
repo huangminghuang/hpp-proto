@@ -158,6 +158,30 @@ const boost::ut::suite dynamic_message_test = [] {
     expect(!oneof_bytes_field.has_value());
   };
 
+  "descriptor_lookup_helpers"_test = [&factory]() {
+    std::pmr::monotonic_buffer_resource memory_resource;
+    auto msg = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource).value();
+    const auto &cref = msg.cref();
+
+    auto *json_desc = msg.field_descriptor_by_json_name("optionalInt32");
+    expect(json_desc != nullptr);
+    expect(eq(json_desc->proto().name, std::string_view{"optional_int32"}));
+    expect(cref.field_descriptor_by_json_name("optionalInt32") == json_desc);
+    expect(cref.field_descriptor_by_name("optional_int32") == json_desc);
+    expect(cref.field_descriptor_by_json_name("missingField") == nullptr);
+    expect(cref.field_descriptor_by_name("missing_field") == nullptr);
+
+    const auto field_number = static_cast<std::uint32_t>(json_desc->proto().number);
+    expect(msg.field_descriptor_by_number(field_number) == json_desc);
+    expect(cref.field_descriptor_by_number(field_number) == json_desc);
+    expect(msg.field_descriptor_by_number(999999) == nullptr);
+
+    auto *oneof_desc = cref.oneof_descriptor("oneof_field");
+    expect(oneof_desc != nullptr);
+    expect(eq(oneof_desc->proto().name, std::string_view{"oneof_field"}));
+    expect(cref.oneof_descriptor("missing_oneof") == nullptr);
+  };
+
   "field_cref_get_and_field_mref_set_adopt"_test = [&factory]() {
     using namespace std::string_view_literals;
     std::pmr::monotonic_buffer_resource memory_resource;
@@ -328,6 +352,24 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(!enum_field.set(hpp::proto::enum_name{"abc"}).has_value());
       expect(enum_field.set(hpp::proto::enum_name{"BAR"}).has_value());
       expect("BAR"sv == enum_field.get<hpp::proto::enum_name>());
+    };
+
+    "unknown enum json"_test = [&] {
+      auto msg1 = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource).value();
+      auto enum_field = msg1.field_by_name("optional_nested_enum").value();
+      expect(enum_field.set(hpp::proto::enum_number{10}).has_value());
+      expect(enum_field.get<hpp::proto::enum_number>() == 10);
+      expect(!enum_field.get<hpp::proto::enum_name>().has_value());
+
+      std::string expected_json_str = R"({"optionalNestedEnum":10})";
+      std::string json_buf;
+      expect(::hpp::proto::write_json(msg1, json_buf).ok());
+      using namespace std::string_literals;
+      expect(eq(expected_json_str, json_buf));
+
+      auto msg2 = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource).value();
+      expect(::hpp::proto::read_json(msg2, expected_json_str).ok());
+      expect(10 == msg2.field_value_by_name<hpp::proto::enum_number>("optional_nested_enum"));
     };
 
     "repeated enum set and adopt"_test = [&] {

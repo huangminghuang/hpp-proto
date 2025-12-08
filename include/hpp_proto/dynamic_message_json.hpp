@@ -1,6 +1,7 @@
 #pragma once
 #include <google/protobuf/duration.glz.hpp>
 #include <google/protobuf/field_mask.glz.hpp>
+#include <google/protobuf/struct.msg.hpp>
 #include <google/protobuf/timestamp.glz.hpp>
 #include <hpp_proto/json_serializer.hpp>
 
@@ -125,7 +126,7 @@ struct to<JSON, hpp::proto::field_cref> {
 template <>
 struct from<JSON, hpp::proto::field_mref> {
   template <auto Options>
-  GLZ_ALWAYS_INLINE static void op(hpp::proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void op(hpp::proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
     if (!util::parse_null<Options>(value, ctx, it, end)) {
       value.visit([&](auto v) {
         using T = std::remove_cvref_t<decltype(v)>;
@@ -374,8 +375,9 @@ struct timestamp_message_json_serializer {
     assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
     google::protobuf::Timestamp<> v;
     from<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, it, end);
-    if (!bool(ctx.error) && value.fields().size() == 2 && value.fields()[0].set(v.seconds).has_value() &&
-        value.fields()[1].set(v.nanos).has_value()) [[likely]] {
+    if (!bool(ctx.error) && value.fields().size() == 2 &&
+        (v.seconds == 0 || value.fields()[0].set(v.seconds).has_value()) &&
+        (v.nanos == 0 || value.fields()[1].set(v.nanos).has_value())) [[likely]] {
       return;
     }
     ctx.error = error_code::syntax_error;
@@ -405,8 +407,9 @@ struct duration_message_json_serializer {
     assert(value.descriptor().full_name() == "google.protobuf.Duration");
     google::protobuf::Duration<> v;
     from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
-    if (!bool(ctx.error) && value.fields().size() == 2 && value.fields()[0].set(v.seconds).has_value() &&
-        value.fields()[1].set(v.nanos).has_value()) [[likely]] {
+    if (!bool(ctx.error) && value.fields().size() == 2 &&
+        (v.seconds == 0 || value.fields()[0].set(v.seconds).has_value()) &&
+        (v.nanos == 0 || value.fields()[1].set(v.nanos).has_value())) [[likely]] {
       return;
     }
     ctx.error = error_code::syntax_error;
@@ -435,7 +438,7 @@ struct field_mask_message_json_serializer {
   static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.FieldMask");
     std::string_view encoded;
-    from<JSON, std::string_view>::template op<Opts>(encoded, ctx, it, end);
+    from<JSON, std::string_view>::template op<opt_true<Opts, &opts::null_terminated>>(encoded, ctx, it, end);
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
       return;
     }
@@ -469,6 +472,43 @@ struct value_message_json_serializer {
         to<JSON, ::hpp::proto::field_cref>::template op<Opts>(value.fields()[static_cast<std::size_t>(oneof_index)],
                                                               ctx, b, ix);
       }
+    }
+  }
+  template <auto Options>
+  static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+    if constexpr (!check_ws_handled(Options)) {
+      if (skip_ws<Options>(ctx, it, end)) {
+        return;
+      }
+    }
+
+    constexpr auto Opts = ws_handled<Options>();
+    using enum ::google::protobuf::Value<>::kind_oneof_case;
+    // parse null
+    if (*it == 'n') {
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      if constexpr (not Opts.null_terminated) {
+        if (it == end) [[unlikely]] {
+          ctx.error = error_code::unexpected_end;
+          return;
+        }
+      }
+      match<"ull", Opts>(ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]] {
+        return;
+      }
+      (void)value.fields()[null_value - 1].set(::hpp::proto::enum_number{0});
+    } else if (*it == 'f' || *it == 't') {
+      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[bool_value - 1], ctx, it, end);
+    } else if (*it == '"') {
+      from<JSON, ::hpp::proto::field_mref>::template op<opt_true<Opts, &opts::null_terminated>>(
+          value.fields()[string_value - 1], ctx, it, end);
+    } else if (*it == '[') {
+      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[list_value - 1], ctx, it, end);
+    } else if (*it == '{') {
+      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[struct_value - 1], ctx, it, end);
+    } else {
+      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[number_value - 1], ctx, it, end);
     }
   }
 };
@@ -671,10 +711,6 @@ struct from<JSON, hpp::proto::enum_value_mref> {
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value_mref &value, is_context auto &ctx, auto &it,
                                    auto &end) {
 
-    if (value.descriptor().is_null_value) {
-      from<JSON, std::nullptr_t>::template op<Opts>(nullptr, ctx, it, end);
-      return;
-    }
     if constexpr (!check_ws_handled(Opts)) {
       if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
         return;
@@ -759,6 +795,9 @@ struct from<JSON, hpp::proto::message_value_mref> {
         break;
       case FIELDMASK:
         field_mask_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
+        break;
+      case VALUE:
+        value_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
         break;
       case STRUCT:
       case LISTVALUE:
@@ -911,7 +950,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
 
 namespace hpp::proto {
 
-json_status json_to_proto(dynamic_message_factory &factory, std::string_view message_name, const char *json_view,
+json_status json_to_proto(const dynamic_message_factory &factory, std::string_view message_name, const char *json_view,
                           concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
   auto opt_msg = factory.get_message(message_name, mr);
@@ -919,8 +958,11 @@ json_status json_to_proto(dynamic_message_factory &factory, std::string_view mes
     auto msg = *opt_msg;
     auto err = ::glz::read<::glz::opts{}>(msg, json_view);
     if (!err) {
-      write_proto(msg, buffer);
-      return {};
+      if (write_proto(msg, buffer).ok()) [[likely]] {
+        return {};
+      } else {
+        return {.ctx = {.ec = ::glz::error_code::syntax_error, .custom_error_message = "protobuf encoding error"}};
+      }
     } else {
       return {.ctx = err};
     }
@@ -933,8 +975,8 @@ json_status json_to_proto(dynamic_message_factory &factory, std::string_view mes
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-json_status json_to_proto(dynamic_message_factory &factory, std::string_view message_name, std::string_view json_view,
-                          concepts::contiguous_byte_range auto &buffer) {
+json_status json_to_proto(const dynamic_message_factory &factory, std::string_view message_name,
+                          std::string_view json_view, concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
 
   auto opt_msg = factory.get_message(message_name, mr);
@@ -942,8 +984,11 @@ json_status json_to_proto(dynamic_message_factory &factory, std::string_view mes
     auto msg = *opt_msg;
     auto err = ::glz::read<glz::opts{.null_terminated = false}>(msg, json_view);
     if (!err) {
-      write_proto(msg, buffer);
-      return {};
+      if (write_proto(msg, buffer).ok()) [[likely]] {
+        return {};
+      } else {
+        return {.ctx = {.ec = ::glz::error_code::syntax_error, .custom_error_message = "protobuf encoding error"}};
+      }
     } else {
       return {.ctx = err};
     }
@@ -955,7 +1000,7 @@ json_status json_to_proto(dynamic_message_factory &factory, std::string_view mes
   }
 }
 
-status proto_to_json(dynamic_message_factory &factory, std::string_view message_name,
+status proto_to_json(const dynamic_message_factory &factory, std::string_view message_name,
                      concepts::contiguous_byte_range auto const &pb_encoded_stream,
                      concepts::resizable_contiguous_byte_container auto &buffer, concepts::glz_opts_t auto opts) {
   std::pmr::monotonic_buffer_resource mr;
@@ -974,7 +1019,7 @@ status proto_to_json(dynamic_message_factory &factory, std::string_view message_
   }
 }
 
-status proto_to_json(dynamic_message_factory &factory, std::string_view message_name,
+status proto_to_json(const dynamic_message_factory &factory, std::string_view message_name,
                      concepts::contiguous_byte_range auto const &pb_encoded_stream,
                      concepts::resizable_contiguous_byte_container auto &buffer) {
   return proto_to_json(factory, message_name, pb_encoded_stream, buffer, glz_opts_t<glz::opts{}>{});

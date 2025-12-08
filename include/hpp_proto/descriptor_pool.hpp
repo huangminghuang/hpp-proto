@@ -108,14 +108,15 @@ public:
     [[nodiscard]] message_descriptor_t *extendee_descriptor() const { return extendee_descriptor_; }
 
     [[nodiscard]] message_descriptor_t *message_field_type_descriptor() const {
-      assert(proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
-             proto_.type == FieldDescriptorProto::Type::TYPE_GROUP);
-      return static_cast<message_descriptor_t *>(type_descriptor_);
+      return (proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
+              proto_.type == FieldDescriptorProto::Type::TYPE_GROUP)
+                 ? static_cast<message_descriptor_t *>(type_descriptor_)
+                 : nullptr;
     }
 
     [[nodiscard]] enum_descriptor_t *enum_field_type_descriptor() const {
-      assert(proto_.type == FieldDescriptorProto::Type::TYPE_ENUM);
-      return static_cast<enum_descriptor_t *>(type_descriptor_);
+      return (proto_.type == FieldDescriptorProto::Type::TYPE_ENUM) ? static_cast<enum_descriptor_t *>(type_descriptor_)
+                                                                    : nullptr;
     }
 
     [[nodiscard]] bool repeated_expanded() const {

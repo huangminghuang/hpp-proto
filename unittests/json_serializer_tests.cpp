@@ -199,6 +199,7 @@ const ut::suite test_base64 = [] {
   verify("light work.", "bGlnaHQgd29yay4=");
   verify("light work", "bGlnaHQgd29yaw==");
   verify("light wor", "bGlnaHQgd29y");
+  verify("abcdefghijklmnopqrstuvwxyz", "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXo=");
 
   verify("f", "Zg==");
   verify("fo", "Zm8=");

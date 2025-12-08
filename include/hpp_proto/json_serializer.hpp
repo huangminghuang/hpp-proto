@@ -170,6 +170,7 @@ template <typename T>
 struct optional_message_view_ref {
   static constexpr auto glaze_reflect = false;
   T &ref; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+  void set_null() { ref.reset(); }
 };
 
 template <auto MemPtr>
@@ -433,7 +434,7 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
     if (bool(ctx.error)) [[unlikely]] {
       return true;
     }
-    value.reset();
+    value.set_null();
     return true;
   }
   return false;
@@ -681,7 +682,7 @@ struct from<JSON, T> {
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, It &it, End &end) {
     std::string_view encoded;
-    from<JSON, std::string_view>::op<Opts>(encoded, ctx, it, end);
+    from<JSON, std::string_view>::op<opt_true<Opts, &opts::null_terminated>>(encoded, ctx, it, end);
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
       return;
     }
@@ -933,7 +934,7 @@ struct from<JSON, hpp::proto::optional_message_view_ref<T>> {
 
   template <auto Options>
   static void op(auto value, hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
-    if (!util::parse_null<Options>(value.ref, ctx, it, end)) {
+    if (!util::parse_null<Options>(value, ctx, it, end)) {
       using type = std::remove_const_t<typename T::value_type>;
       void *addr = ctx.memory_resource().allocate(sizeof(type), alignof(type));
       auto *obj = new (addr) type; // NOLINT(cppcoreguidelines-owning-memory)
@@ -1012,7 +1013,10 @@ inline json_status read_json(concepts::read_json_supported auto &value,
   static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<decltype(buffer)> ||
                     ((concepts::has_memory_resource<decltype(option)> || ...)),
                 "temporary buffer cannot be used for non-owning object parsing");
-  value = {};
+
+  if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
+    value = {};
+  }
   constexpr auto opts = detail::get_glz_opts<decltype(option)...>();
   json_context ctx{std::forward<decltype(option)>(option)...};
   return {glz::read<opts>(value, std::forward<decltype(buffer)>(buffer), ctx)};

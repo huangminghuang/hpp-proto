@@ -161,6 +161,7 @@ enum class dynamic_message_errc : uint8_t {
   no_such_value,
   invalid_field_type,
   invalid_enum_name,
+  unknown_enum_value,
   wrong_message_type
 };
 
@@ -709,6 +710,8 @@ public:
       }
     });
   }
+
+  void set_null() noexcept;
 }; // class field_mref
 
 template <typename T>
@@ -1194,6 +1197,9 @@ public:
   [[nodiscard]] explicit operator int32_t() const noexcept { return number_; }
 
   [[nodiscard]] int32_t number() const noexcept { return number_; }
+  /**
+   * @brief Returns the enum value's symbolic name (empty if schema lacks this number).
+   */
   [[nodiscard]] std::string_view name() const noexcept { return descriptor_->name_of(number_); }
   [[nodiscard]] const enum_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
@@ -1222,6 +1228,10 @@ public:
   enum_value_mref &operator=(enum_value_mref &&) noexcept = default;
   ~enum_value_mref() noexcept = default;
 
+  [[nodiscard]] enum_value_cref cref() const noexcept {
+    return enum_value_cref{*descriptor_, *number_};
+  }
+
   void set(int32_t number) const noexcept { *number_ = number; }
 
   [[nodiscard]] const int32_t *number_by_name(const char *name) const noexcept { return descriptor_->value_of(name); }
@@ -1231,7 +1241,10 @@ public:
 
   explicit operator int32_t() const noexcept { return *number_; }
   [[nodiscard]] int32_t number() const noexcept { return *number_; }
-  [[nodiscard]] std::string_view name() const noexcept { return descriptor_->name_of(*number_); }
+  /**
+   * @brief Returns the enum value's symbolic name (empty if schema lacks this number).
+   */
+  [[nodiscard]] std::string_view name() const noexcept { return cref().name(); }
 
   [[nodiscard]] const enum_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 };
@@ -1278,6 +1291,9 @@ public:
     if constexpr (std::same_as<U, enum_number>) {
       return number();
     } else if constexpr (std::same_as<U, enum_name>) {
+      if (name().empty()){
+        return std::unexpected(dynamic_message_errc::unknown_enum_value);
+      }
       return name();
     } else if constexpr (std::same_as<U, enum_value_cref>) {
       return value();
@@ -1294,6 +1310,9 @@ public:
     return is_default ? std::get<int32_t>(descriptor_->default_value) : storage_->content;
   }
 
+  /**
+   * @brief Returns the enum value's symbolic name (empty if schema lacks this number).
+   */
   [[nodiscard]] std::string_view name() const { return enum_descriptor().name_of(number()); }
 
 private:
@@ -1364,7 +1383,10 @@ public:
     return descriptor().explicit_presence() && !has_value() ? std::get<int32_t>(descriptor_->default_value)
                                                             : storage_->content;
   }
-  [[nodiscard]] std::string_view name() const { return enum_descriptor().name_of(number()); }
+  /**
+   * @brief Returns the enum value's symbolic name (empty if schema lacks this number).
+   */
+  [[nodiscard]] std::string_view name() const { return cref().name(); }
 
   void set(enum_number number) const {
     storage_->content = number.value;
@@ -3075,6 +3097,16 @@ inline void field_mref::clone_from(const field_cref &other) const noexcept {
     using cref_type = typename std::decay_t<decltype(specific_mref)>::cref_type;
     specific_mref.clone_from(cref_type{*descriptor_, *other.storage_});
   });
+}
+
+inline void field_mref::set_null() noexcept {
+  const auto* msg_descriptor = descriptor().message_field_type_descriptor();
+  if (msg_descriptor != nullptr && msg_descriptor->wellknown == wellknown_types_t::VALUE) {
+    auto msg = message_field_mref{*descriptor_, *storage_, *memory_resource_}.emplace();
+    (void) msg.fields()[0].set(enum_number(0)).has_value();
+  } else {
+    reset();
+  } 
 }
 
 inline std::optional<message_value_mref>

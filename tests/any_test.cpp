@@ -47,11 +47,6 @@ const suite test_dynamic_message_any = [] {
     fm.paths = {"/usr/share", "/usr/local/share"};
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm).ok());
 
-    // ::hpp::proto::distinct_file_descriptor_pb_array descriptor_pbs{
-    //     ::hpp::proto::file_descriptors::_desc_google_protobuf_any_proto,
-    //     ::hpp::proto::file_descriptors::_desc_google_protobuf_any_test_proto,
-    //     ::hpp::proto::file_descriptors::_desc_google_protobuf_field_mask_proto};
-
     auto message_factory = ::hpp::proto::dynamic_message_factory{
         ::hpp::proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()};
 
