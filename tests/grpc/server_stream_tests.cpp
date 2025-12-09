@@ -16,7 +16,7 @@ using hpp::proto::grpc::test_utils::Harness;
 using hpp::proto::grpc::test_utils::ServerStreamFanout;
 
 class ServerStreamReactor : public ::hpp::proto::grpc::ClientCallbackReactor<ServerStreamFanout> {
-  std::mutex mu_;
+  mutable std::mutex mu_;
   std::condition_variable cv_;
   bool done_ = false;
   ::grpc::Status status_;
@@ -37,8 +37,14 @@ public:
     cv_.wait(lock, [&] { return done_; });
   }
 
-  [[nodiscard]] const ::grpc::Status &status() const { return status_; }
-  [[nodiscard]] const std::vector<std::string> &messages() const { return messages_; }
+  [[nodiscard]] ::grpc::Status status() const {
+    std::scoped_lock lock(mu_);
+    return status_;
+  }
+  [[nodiscard]] std::vector<std::string> messages() const {
+    std::scoped_lock lock(mu_);
+    return messages_;
+  }
 
   void OnReadDone(bool ok) override {
     if (!ok) {
@@ -47,8 +53,8 @@ public:
     std::pmr::monotonic_buffer_resource mr;
     EchoResponse<> response;
     auto read_status = this->get_response(response, hpp::proto::alloc_from{mr});
+    std::unique_lock lock(mu_);
     if (!read_status.ok()) {
-      std::unique_lock lock(mu_);
       status_ = read_status;
       forced_status_ = true;
       done_ = true;

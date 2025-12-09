@@ -18,7 +18,6 @@ using hpp::proto::grpc::test_utils::kTerminalSequence;
 
 class ClientStreamReactor : public ::hpp::proto::grpc::ClientCallbackReactor<ClientStreamAggregate> {
   std::mutex mu_;
-  std::mutex write_mu_;
   std::condition_variable cv_;
   bool done_ = false;
   size_t next_message_ = 0;
@@ -44,8 +43,14 @@ public:
     cv_.wait(lock, [&] { return done_; });
   }
 
-  [[nodiscard]] const ::grpc::Status &status() const { return status_; }
-  [[nodiscard]] const StreamSummary<> &summary() const { return summary_; }
+  [[nodiscard]] ::grpc::Status status() {
+    std::scoped_lock lock(mu_);
+    return status_;
+  }
+  [[nodiscard]] StreamSummary<> summary() {
+    std::scoped_lock lock(mu_);
+    return summary_;
+  }
 
   void OnWriteDone(bool ok) override {
     if (!ok) {
@@ -55,7 +60,7 @@ public:
     send_next();
     bool should_close = false;
     {
-      std::scoped_lock<std::mutex> lock(write_mu_);
+      std::scoped_lock<std::mutex> lock(mu_);
       if (sentinel_sent_ && !writes_complete_ && next_message_ >= payloads_.size()) {
         writes_complete_ = true;
         should_close = true;
@@ -81,7 +86,7 @@ public:
 
 private:
   void send_next() {
-    std::scoped_lock<std::mutex> lock(write_mu_);
+    std::scoped_lock<std::mutex> lock(mu_);
     if (writes_complete_) {
       return;
     }

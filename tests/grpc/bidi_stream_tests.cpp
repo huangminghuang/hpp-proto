@@ -57,14 +57,18 @@ public:
     std::pmr::monotonic_buffer_resource mr;
     EchoResponse<> response;
     auto read_status = this->get_response(response, hpp::proto::alloc_from{mr});
-    if (!read_status.ok()) {
-      status_ = read_status;
-      done_ = true;
-      cv_.notify_all();
-      context_->TryCancel();
-      return;
+    {
+      std::unique_lock lock(mu_);
+      if (!read_status.ok()) {
+        status_ = read_status;
+        done_ = true;
+        cv_.notify_all();
+        lock.unlock();
+        context_->TryCancel();
+        return;
+      }
+      responses_.emplace_back(response.message.begin(), response.message.end());
     }
-    responses_.emplace_back(response.message.begin(), response.message.end());
     this->start_read();
   }
 
