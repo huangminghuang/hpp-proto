@@ -197,7 +197,7 @@ struct Proto3Tests {
 #ifndef HPP_PROTO_DISABLE_GLAZE
       auto r = glz::write_json(original);
       expect(r.has_value());
-      auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes",
+      auto original_json = gpb_based::pb_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes",
                                                     {data.data(), data.size()});
 
       expect(fatal(!original_json.empty()));
@@ -214,7 +214,7 @@ struct Proto3Tests {
       std::vector<char> data;
       expect(hpp::proto::write_proto(original, data).ok());
 
-      auto original_json = gpb_based::proto_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
+      auto original_json = gpb_based::pb_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
                                                     {data.data(), data.size()});
       expect(fatal(!original_json.empty()));
       expect(hpp::proto::write_json(original).value() == original_json);

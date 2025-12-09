@@ -32,7 +32,7 @@ const boost::ut::suite map_test = [] {
     expect(hpp::proto::write_proto(original, data).ok());
 
     auto original_json =
-        gpb_based::proto_to_json(map_unittest_descriptorset, "protobuf_unittest.TestMap", {data.data(), data.size()});
+        gpb_based::pb_to_json(map_unittest_descriptorset, "protobuf_unittest.TestMap", {data.data(), data.size()});
     expect(fatal(!original_json.empty()));
 
     expect(eq(hpp::proto::write_json(original).value(), original_json));

@@ -950,7 +950,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
 
 namespace hpp::proto {
 
-json_status json_to_proto(const dynamic_message_factory &factory, std::string_view message_name, const char *json_view,
+json_status json_to_pb(const dynamic_message_factory &factory, std::string_view message_name, const char *json_view,
                           concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
   auto opt_msg = factory.get_message(message_name, mr);
@@ -975,7 +975,7 @@ json_status json_to_proto(const dynamic_message_factory &factory, std::string_vi
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-json_status json_to_proto(const dynamic_message_factory &factory, std::string_view message_name,
+json_status json_to_pb(const dynamic_message_factory &factory, std::string_view message_name,
                           std::string_view json_view, concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
 
@@ -1000,7 +1000,7 @@ json_status json_to_proto(const dynamic_message_factory &factory, std::string_vi
   }
 }
 
-status proto_to_json(const dynamic_message_factory &factory, std::string_view message_name,
+status pb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
                      concepts::contiguous_byte_range auto const &pb_encoded_stream,
                      concepts::resizable_contiguous_byte_container auto &buffer, concepts::glz_opts_t auto opts) {
   std::pmr::monotonic_buffer_resource mr;
@@ -1019,10 +1019,10 @@ status proto_to_json(const dynamic_message_factory &factory, std::string_view me
   }
 }
 
-status proto_to_json(const dynamic_message_factory &factory, std::string_view message_name,
+status pb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
                      concepts::contiguous_byte_range auto const &pb_encoded_stream,
                      concepts::resizable_contiguous_byte_container auto &buffer) {
-  return proto_to_json(factory, message_name, pb_encoded_stream, buffer, glz_opts_t<glz::opts{}>{});
+  return pb_to_json(factory, message_name, pb_encoded_stream, buffer, glz_opts_t<glz::opts{}>{});
 }
 
 } // namespace hpp::proto

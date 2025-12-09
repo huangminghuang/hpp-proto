@@ -91,14 +91,14 @@ const suite test_dynamic_message_any = [] {
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234}})";
 
     std::string result;
-    expect(proto_to_json(message_factory, message_name, data, result).ok());
+    expect(pb_to_json(message_factory, message_name, data, result).ok());
     expect(eq(expected_json, result));
 
     std::vector<char> serialized;
-    expect(json_to_proto(message_factory, message_name, expected_json, serialized).ok());
+    expect(json_to_pb(message_factory, message_name, expected_json, serialized).ok());
     expect(std::ranges::equal(data, serialized));
 
-    expect(proto_to_json(message_factory, message_name, data, result, hpp::proto::indent_level<3>).ok());
+    expect(pb_to_json(message_factory, message_name, data, result, hpp::proto::indent_level<3>).ok());
     const char *expected_json_indented = R"({
    "anyValue": {
       "@type": "type.googleapis.com/proto3_unittest.ForeignMessage",
@@ -112,7 +112,7 @@ const suite test_dynamic_message_any = [] {
     auto message_factory =
         hpp::proto::dynamic_message_factory{hpp::proto::file_descriptors::desc_set_google_protobuf_any_test_proto()};
     std::string result;
-    expect(!proto_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
+    expect(!pb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
   };
 
   "bad_message"_test = [&] {
@@ -124,9 +124,9 @@ const suite test_dynamic_message_any = [] {
         "\x65\x73\x73\x61\x67\x65\x12\x03\x08\xd2\x89\x80\x80\x80\x80\x80\x80\x80\x90\10";
     std::string result;
 
-    expect(!proto_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
+    expect(!pb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
     using namespace std::string_view_literals;
-    expect(!proto_to_json(message_factory, "protobuf_unittest.TestAny", "\x12\x04\x0a\x02\xc0\xcd"sv, result).ok());
+    expect(!pb_to_json(message_factory, "protobuf_unittest.TestAny", "\x12\x04\x0a\x02\xc0\xcd"sv, result).ok());
   };
 };
 

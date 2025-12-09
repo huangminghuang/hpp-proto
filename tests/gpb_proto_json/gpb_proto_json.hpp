@@ -4,6 +4,6 @@
 namespace gpb_based {
 
 GPB_PROTO_JSON_EXPORT
-std::string proto_to_json(std::string_view filedescriptorset_stream, const char *message_name, std::string_view data);
+std::string pb_to_json(std::string_view filedescriptorset_stream, const char *message_name, std::string_view data);
 
 } // namespace gpb_based

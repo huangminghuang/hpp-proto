@@ -64,17 +64,17 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
   auto message_name = hpp::proto::message_name(msg);
   hpp::proto::bytes pb_buf1;
   std::string json_buf1;
-  expect(hpp::proto::json_to_proto(factory, message_name, json, pb_buf1).ok());
+  expect(hpp::proto::json_to_pb(factory, message_name, json, pb_buf1).ok());
   expect(std::ranges::equal(pb, pb_buf1));
-  expect(hpp::proto::proto_to_json(factory, message_name, pb_buf1, json_buf1).ok());
+  expect(hpp::proto::pb_to_json(factory, message_name, pb_buf1, json_buf1).ok());
   expect(eq(json, json_buf1));
 
   if (pretty_json && !pretty_json->empty()) {
     hpp::proto::bytes pb_buf2;
     std::string json_buf2;
-    expect(hpp::proto::proto_to_json(factory, message_name, pb, json_buf2, hpp::proto::indent_level<3>).ok());
+    expect(hpp::proto::pb_to_json(factory, message_name, pb, json_buf2, hpp::proto::indent_level<3>).ok());
     expect(eq(*pretty_json, json_buf2));
-    expect(hpp::proto::json_to_proto(factory, message_name, *pretty_json, pb_buf2).ok());
+    expect(hpp::proto::json_to_pb(factory, message_name, *pretty_json, pb_buf2).ok());
     expect(std::ranges::equal(pb, pb_buf2));
   }
 }
@@ -107,7 +107,7 @@ const ut::suite test_timestamp = [] {
   "timestamp_second_overlong"_test = [&factory] {
     std::string json_buf;
     using namespace std::string_view_literals;
-    expect(!hpp::proto::proto_to_json(factory, "google.protobuf.Timestamp",
+    expect(!hpp::proto::pb_to_json(factory, "google.protobuf.Timestamp",
                                       "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
                 .ok());
   };
@@ -116,7 +116,7 @@ const ut::suite test_timestamp = [] {
     std::string json_buf;
     std::string pb_data;
     expect(hpp::proto::write_proto(timestamp_t{.seconds = 1000, .nanos = 1000000000}, pb_data).ok());
-    expect(!hpp::proto::proto_to_json(factory, "google.protobuf.Timestamp", pb_data, json_buf).ok());
+    expect(!hpp::proto::pb_to_json(factory, "google.protobuf.Timestamp", pb_data, json_buf).ok());
   };
 };
 
@@ -182,13 +182,13 @@ const ut::suite test_wrapper = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     // wrong tag
-    expect(!hpp::proto::proto_to_json(factory, "google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
+    expect(!hpp::proto::pb_to_json(factory, "google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
     // wrong value
-    expect(!hpp::proto::proto_to_json(factory, "google.protobuf.Int64Value",
+    expect(!hpp::proto::pb_to_json(factory, "google.protobuf.Int64Value",
                                       "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
                 .ok());
     // skip unknown field
-    expect(hpp::proto::proto_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
+    expect(hpp::proto::pb_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
     expect(json_buf.empty());
   };
 };
@@ -248,11 +248,11 @@ const ut::suite test_value = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     // field name is not a valid utf8 string
-    expect(!hpp::proto::proto_to_json(factory, "google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv,
+    expect(!hpp::proto::pb_to_json(factory, "google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv,
                                       json_buf)
                 .ok());
     // skip unknown field
-    expect(hpp::proto::proto_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
+    expect(hpp::proto::pb_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
   };
 
   "verify ListValue empty"_test = [&factory] { verify<ListValue>(factory, ListValue{}, "[]"); };
@@ -268,19 +268,19 @@ const ut::suite test_value = [] {
 
     // list element is not a valid utf8 string
     expect(
-        !hpp::proto::proto_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
+        !hpp::proto::pb_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
     // skip first unknown element
-    expect(hpp::proto::proto_to_json(factory, "google.protobuf.ListValue", "\x0a\x02\x38\x01"sv, json_buf).ok());
+    expect(hpp::proto::pb_to_json(factory, "google.protobuf.ListValue", "\x0a\x02\x38\x01"sv, json_buf).ok());
     expect(eq(json_buf, "[]"s));
     // skip middle unknown element
-    expect(hpp::proto::proto_to_json(factory, "google.protobuf.ListValue",
+    expect(hpp::proto::pb_to_json(factory, "google.protobuf.ListValue",
                                      "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
                .ok());
     expect(eq(json_buf, "[true,false]"s));
     // TODO: we need to test the case where the unknown element in not in the beginning of the list
 
     // skip unknown field
-    expect(hpp::proto::proto_to_json(factory, "google.protobuf.ListValue", "\x10\x01"sv, json_buf).ok());
+    expect(hpp::proto::pb_to_json(factory, "google.protobuf.ListValue", "\x10\x01"sv, json_buf).ok());
   };
 };
 
