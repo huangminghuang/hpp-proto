@@ -442,27 +442,21 @@ public:
     init();
   }
 
-  template <std::ranges::forward_range Range>
-    requires std::same_as<std::ranges::range_value_t<Range>, file_descriptor_pb>
-  explicit dynamic_message_factory(Range &&descs, auto &&...memory_resource_init_args)
-      : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
-        pool_(descriptor_pool_t::make_file_descriptor_set(std::forward<Range>(descs), alloc_from(memory_resource_))
-                  .value(),
-              memory_resource_) {
-    init();
-  }
-
   template <std::size_t N>
+  /**
+   * Construct a factory from a fixed array of file descriptors.
+   *
+   * Precondition: every element in `descs` must describe a different file. Passing
+   * duplicates is undefined and will violate the distinct-file contract enforced by
+   * `distinct_file_descriptor_pb_array`.
+   */
   explicit dynamic_message_factory(const distinct_file_descriptor_pb_array<N> &descs,
                                    auto &&...memory_resource_init_args)
-      : dynamic_message_factory(std::span<file_descriptor_pb>(std::data(descs), std::size(descs)),
-                                distinct_file_tag_t{},
-                                std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...) {}
-
-  explicit dynamic_message_factory(std::span<file_descriptor_pb> unique_descs, distinct_file_tag_t tag,
-                                   auto &&...memory_resource_init_args)
       : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
-        pool_(descriptor_pool_t::make_file_descriptor_set(unique_descs, tag, alloc_from(memory_resource_)).value(),
+        pool_(descriptor_pool_t::make_file_descriptor_set(
+                  std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), distinct_file_tag_t{},
+                  alloc_from(memory_resource_))
+                  .value(),
               memory_resource_) {
     init();
   }
@@ -1098,7 +1092,7 @@ private:
   // NOLINTNEXTLINE(performance-unnecessary-value-param)
   [[nodiscard]] bool is_default_value(const bytes_view v) const noexcept {
     auto default_value = descriptor_->proto().default_value;
-    return v.size() == default_value.size() && std::memcmp(v.data(), default_value.data(), v.size()) != 0;
+    return v.size() == default_value.size() && std::memcmp(v.data(), default_value.data(), v.size()) == 0;
   }
 };
 
@@ -1275,11 +1269,11 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
   [[nodiscard]] enum_value_cref value() const noexcept {
+    int32_t effective_value = storage_->content;
     if (descriptor().explicit_presence() && !has_value()) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-      const_cast<scalar_storage_base<int32_t> *>(storage_)->content = std::get<int32_t>(descriptor_->default_value);
+      effective_value = std::get<int32_t>(descriptor_->default_value);
     }
-    return {enum_descriptor(), storage_->content};
+    return {enum_descriptor(), effective_value};
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -1529,9 +1523,9 @@ public:
     throw std::out_of_range("");
   }
 
-  void reserve(std::size_t n) noexcept {
+  void reserve(std::size_t n) const noexcept {
     if (capacity() < n) {
-      auto new_data = static_cast<T *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
+      auto new_data = static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
       storage_->capacity = static_cast<uint32_t>(n);
       if (storage_->content) {
         std::uninitialized_copy(storage_->content,
@@ -1796,6 +1790,15 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_enum_field_cref() const noexcept { return cref(); }
 
+  void reserve(std::size_t n) const noexcept {
+    if (capacity() < n) {
+      auto *new_data = static_cast<int32_t *>(memory_resource_->allocate(n * sizeof(int32_t), alignof(int32_t)));
+      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      storage_->content = new_data;
+      storage_->capacity = static_cast<uint32_t>(n);
+    }
+  }
+
   void resize(std::size_t n) const noexcept {
     if (capacity() < n) {
       auto *new_data = static_cast<int32_t *>(memory_resource_->allocate(n * sizeof(int32_t), alignof(int32_t)));
@@ -1947,6 +1950,16 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_string_field_cref() const noexcept { return cref(); }
 
+  void reserve(std::size_t n) const noexcept {
+    if (capacity() < n) {
+      auto *new_data = static_cast<std::string_view *>(
+          memory_resource_->allocate(n * sizeof(std::string_view), alignof(value_type)));
+      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      storage_->content = new_data;
+      storage_->capacity = static_cast<uint32_t>(n);
+    }
+  }
+
   void resize(std::size_t n) const noexcept {
     if (capacity() < n) {
       auto *new_data = static_cast<std::string_view *>(
@@ -2081,6 +2094,16 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_bytes_field_cref() const noexcept { return cref(); }
 
+  void reserve(std::size_t n) const noexcept {
+    if (capacity() < n) {
+      auto *new_data =
+          static_cast<bytes_view *>(memory_resource_->allocate(n * sizeof(bytes_view), alignof(value_type)));
+      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      storage_->content = new_data;
+      storage_->capacity = static_cast<uint32_t>(n);
+    }
+  }
+
   void resize(std::size_t n) const noexcept {
     if (capacity() < n) {
       auto *new_data =
@@ -2200,6 +2223,11 @@ public:
   ~message_value_cref() noexcept = default;
   [[nodiscard]] const message_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
+  /**
+   * Look up a field descriptor by proto name.
+   *
+   * Returns a pointer to the descriptor, or `nullptr` if no such field exists.
+   */
   [[nodiscard]] const field_descriptor_t *field_descriptor_by_name(std::string_view name) const noexcept {
     auto field_descriptors = descriptor_->fields();
     auto it = std::ranges::find_if(field_descriptors, [name](const auto &desc) { return desc.proto().name == name; });
@@ -2209,6 +2237,11 @@ public:
     return nullptr;
   }
 
+  /**
+   * Look up a field descriptor by JSON name.
+   *
+   * Returns a pointer to the descriptor, or `nullptr` if no such field exists.
+   */
   [[nodiscard]] const field_descriptor_t *field_descriptor_by_json_name(std::string_view name) const noexcept {
     auto field_descriptors = descriptor_->fields();
     auto it =
@@ -2219,6 +2252,11 @@ public:
     return nullptr;
   }
 
+  /**
+   * Look up a field descriptor by tag number.
+   *
+   * Returns a pointer to the descriptor, or `nullptr` if no such field exists.
+   */
   [[nodiscard]] const field_descriptor_t *field_descriptor_by_number(uint32_t number) const noexcept {
     auto field_descriptors = descriptor_->fields();
     auto it = std::ranges::find_if(field_descriptors,
@@ -2229,6 +2267,11 @@ public:
     return nullptr;
   }
 
+  /**
+   * Look up a oneof descriptor by proto name.
+   *
+   * Returns a pointer to the descriptor, or `nullptr` if no such field exists.
+   */
   [[nodiscard]] const oneof_descriptor_t *oneof_descriptor(std::string_view name) const noexcept {
     auto oneofs = descriptor_->oneofs();
     auto it = std::ranges::find_if(oneofs, [name](const auto &oneof) { return oneof.proto().name == name; });
@@ -2319,10 +2362,14 @@ public:
 };
 
 /**
- * @brief Mutable dynamic message instance backed by descriptor metadata.
- *
- * Owns storage allocated from a monotonic_buffer_resource and provides typed access
- * to fields via `field_by_name/number` returning `field_mref` views.
+ * @brief Mutable reference to a dynamic message.
+ * 
+ * Lifetime: This reference is valid as long as the underlying message 
+ * storage (held by the monotonic_buffer_resource) remains valid.
+ * 
+ * Memory Ownership:
+ * - Scalar/string/bytes fields: owned by the message's memory resource
+ * - Field values from adopt(): caller-managed; must outlive message
  */
 class message_value_mref {
 public:
@@ -2794,6 +2841,16 @@ public:
   [[nodiscard]] repeated_message_field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator repeated_message_field_cref() const noexcept { return cref(); }
+
+  void reserve(std::size_t n) const noexcept {
+    if (capacity() < n) {
+      auto *new_data = static_cast<value_storage *>(
+          memory_resource_->allocate(n * num_slots() * sizeof(value_storage), alignof(value_storage)));
+      std::ranges::copy(std::span{storage_->content, storage_->size * num_slots()}, new_data);
+      storage_->content = new_data;
+      storage_->capacity = static_cast<uint32_t>(n);
+    }
+  }
 
   void resize(std::size_t n) const noexcept {
     auto old_size = size();

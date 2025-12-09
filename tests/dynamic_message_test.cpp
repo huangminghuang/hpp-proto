@@ -1,4 +1,5 @@
 #include "test_util.hpp"
+#include <algorithm>
 #include <array>
 #include <boost/ut.hpp>
 #include <hpp_proto/dynamic_message.hpp>
@@ -340,6 +341,56 @@ const boost::ut::suite dynamic_message_test = [] {
       auto rep_bytes_cref_span_after_adopt = repeated_bytes_field.cref().get<std::span<const hpp::proto::bytes_view>>();
       expect(rep_bytes_cref_span_after_adopt.has_value());
       expect(rep_bytes_cref_span_after_adopt->data() == adopt_views.data());
+    };
+
+    "repeated reserve keeps size and grows capacity"_test = [&] {
+      // scalars
+      auto repeated_int_field = msg.field_by_name("repeated_int32").value();
+      auto int_mref = repeated_int_field.to<hpp::proto::repeated_int32_field_mref>().value();
+      int_mref.clear();
+      auto int_cap = int_mref.capacity();
+      int_mref.reserve(5);
+      expect(int_mref.capacity() >= std::max<std::size_t>(int_cap, 5));
+      expect(eq(int_mref.size(), std::size_t{0}));
+
+      // enums
+      auto repeated_enum_field = msg.field_by_name("repeated_nested_enum").value();
+      auto enum_mref = repeated_enum_field.to<hpp::proto::repeated_enum_field_mref>().value();
+      enum_mref.clear();
+      auto enum_cap = enum_mref.capacity();
+      enum_mref.reserve(3);
+      expect(enum_mref.capacity() >= std::max<std::size_t>(enum_cap, 3));
+      expect(eq(enum_mref.size(), std::size_t{0}));
+
+      // strings
+      auto repeated_string_field = msg.field_by_name("repeated_string").value();
+      auto str_mref = repeated_string_field.to<hpp::proto::repeated_string_field_mref>().value();
+      str_mref.clear();
+      auto str_cap = str_mref.capacity();
+      str_mref.reserve(4);
+      expect(str_mref.capacity() >= std::max<std::size_t>(str_cap, 4));
+      expect(eq(str_mref.size(), std::size_t{0}));
+
+      // bytes
+      auto repeated_bytes_field = msg.field_by_name("repeated_bytes").value();
+      auto bytes_mref = repeated_bytes_field.to<hpp::proto::repeated_bytes_field_mref>().value();
+      bytes_mref.clear();
+      auto bytes_cap = bytes_mref.capacity();
+      bytes_mref.reserve(2);
+      expect(bytes_mref.capacity() >= std::max<std::size_t>(bytes_cap, 2));
+      expect(eq(bytes_mref.size(), std::size_t{0}));
+
+      // messages
+      auto repeated_msg_field = msg.field_by_name("repeated_nested_message").value();
+      auto msg_mref = repeated_msg_field.to<hpp::proto::repeated_message_field_mref>().value();
+      msg_mref.clear();
+      auto msg_cap = msg_mref.capacity();
+      msg_mref.reserve(2);
+      expect(msg_mref.capacity() >= std::max<std::size_t>(msg_cap, 2));
+      expect(eq(msg_mref.size(), std::size_t{0}));
+      msg_mref.resize(1);
+      expect(eq(msg_mref.size(), std::size_t{1}));
+      msg_mref.clear(); // leave message in a clean state for subsequent tests
     };
 
     "enum set"_test = [&] {
