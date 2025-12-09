@@ -108,8 +108,6 @@ using Owning = tutorial::Person<>;
 using View = tutorial::Person<hpp::proto::non_owning_traits>;
 ```
 
-If you want generated aliases to default to a different trait inside a proto subtree, annotate the file, message, or field with the `hpp_options` extension. See [hpp_options_test.proto](hpp_options_test.proto) for examples that mix owning and non-owning defaults while keeping the underlying template API available for manual selection.
-
 ## Messages
 
 All generated messages are templates parameterized on `Traits`, because each struct embeds the trait-governed `unknown_fields_` member. The only exception is `google::protobuf::Empty`, which intentionally omits unknown-field storage and therefore stays as a plain struct.
