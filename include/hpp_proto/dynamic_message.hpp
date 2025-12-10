@@ -121,16 +121,34 @@ struct range_value_or_void<U, std::void_t<std::ranges::range_value_t<U>>> {
 template <typename U>
 using range_value_or_void_t = typename range_value_or_void<U>::type;
 
+/**
+ * @brief Enum number wrapper for single-value enum setters.
+ *
+ * Example (set): `enum_field.set(enum_number{1});`
+ * Example (get):  `auto n = enum_field.get<enum_number>();`
+ */
 struct enum_number {
   std::int32_t value = 0;
   operator std::int32_t() const { return value; } // NOLINT(hicpp-explicit-conversions)
 };
 
+/**
+ * @brief Enum name wrapper for single-value enum setters.
+ *
+ * Example (set): `enum_field.set(enum_name{"OPEN"});`
+ * Example (get):  `auto name = enum_field.get<enum_name>();`
+ */
 struct enum_name {
   std::string_view value;
   operator std::string_view() const { return value; } // NOLINT(hicpp-explicit-conversions)
 };
 
+/**
+ * @brief Bulk helper to pass a span of enum numbers to repeated enum setters.
+ *
+ * Example (set): `rep_enum.set(enum_numbers_span{nums_span});`
+ * Example (get):  `auto nums = rep_enum.get<enum_numbers_span>();`
+ */
 struct enum_numbers_span {
   std::span<std::int32_t> value;
 };
@@ -534,6 +552,15 @@ inline auto enum_numbers_to_names(const enum_descriptor_t &descriptor, std::span
 using enum_names_view = decltype(enum_numbers_to_names(std::declval<const enum_descriptor_t &>(),
                                                        std::declval<std::span<const std::int32_t>>()));
 
+/**
+ * @brief Sized range of enum numbers for bulk set on repeated enums.
+ *
+ * Example:
+ * ```
+ * std::array<int32_t, 2> nums{1, 2};
+ * rep_enum.set(enum_numbers_range{nums});
+ * ```
+ */
 template <typename Range>
 struct enum_numbers_range {
   using is_enum_numbers_range = void;
@@ -544,6 +571,15 @@ template <typename T>
   requires(std::ranges::sized_range<T> && std::is_convertible_v<range_value_or_void_t<T>, std::int32_t>)
 enum_numbers_range(const T &v) -> enum_numbers_range<T>;
 
+/**
+ * @brief Sized range of enum names for bulk set on repeated enums.
+ *
+ * Example:
+ * ```
+ * std::array<std::string_view, 2> names{"OPEN", "CLOSED"};
+ * rep_enum.set(enum_names_range{names});
+ * ```
+ */
 template <typename Range>
 struct enum_names_range {
   using is_enum_names_range = void;
@@ -619,19 +655,19 @@ public:
   }
 }; // class field_cref
 
+/**
+ * @brief Mutable, untyped reference to a single field in a dynamic message.
+ *
+ * Offers type-erased mutation via `set<T>()` (copying into message-owned storage)
+ * or `adopt<T>()` (aliasing caller-provided storage where supported), presence checks,
+ * and conversion to a read-only `field_cref`.
+ */
 class field_mref {
   const field_descriptor_t *descriptor_;
   value_storage *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
 public:
-  /**
-   * @brief Mutable, untyped reference to a single field in a dynamic message.
-   *
-   * Offers type-erased mutation via `set<T>()` (copying into message-owned storage)
-   * or `adopt<T>()` (aliasing caller-provided storage where supported), presence checks,
-   * and conversion to a read-only `field_cref`.
-   */
   field_mref(const field_descriptor_t &descriptor, value_storage &storage,
              std::pmr::monotonic_buffer_resource &mr) noexcept
       : descriptor_(&descriptor), storage_(&storage), memory_resource_(&mr) {}
@@ -954,9 +990,6 @@ private:
   string_storage_t *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
-  [[nodiscard]] bool is_default_value(std::string_view v) const noexcept {
-    return std::ranges::equal(v, descriptor_->proto().default_value);
-  }
 };
 
 class bytes_field_cref {
@@ -1088,12 +1121,6 @@ private:
   const field_descriptor_t *descriptor_;
   bytes_storage_t *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
-
-  // NOLINTNEXTLINE(performance-unnecessary-value-param)
-  [[nodiscard]] bool is_default_value(const bytes_view v) const noexcept {
-    auto default_value = descriptor_->proto().default_value;
-    return v.size() == default_value.size() && std::memcmp(v.data(), default_value.data(), v.size()) == 0;
-  }
 };
 
 class string_value_mref {
@@ -1175,18 +1202,24 @@ private:
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 
-class enum_value_cref {
+/**
+ * @brief Immutable enum value view (stores the value, not a reference).
+ *
+ * The `_cref` suffix is intentionally omitted: this type holds the numeric enum
+ * value by copy and exposes its descriptor for name lookups.
+ */
+class enum_value {
 public:
   using is_enum_value_ref = void;
   constexpr static bool is_mutable = false;
 
-  enum_value_cref(const enum_descriptor_t &descriptor, int32_t number) noexcept
+  enum_value(const enum_descriptor_t &descriptor, int32_t number) noexcept
       : descriptor_(&descriptor), number_(number) {}
-  enum_value_cref(const enum_value_cref &) noexcept = default;
-  enum_value_cref(enum_value_cref &&) noexcept = default;
-  enum_value_cref &operator=(const enum_value_cref &) noexcept = default;
-  enum_value_cref &operator=(enum_value_cref &&) noexcept = default;
-  ~enum_value_cref() noexcept = default;
+  enum_value(const enum_value &) noexcept = default;
+  enum_value(enum_value &&) noexcept = default;
+  enum_value &operator=(const enum_value &) noexcept = default;
+  enum_value &operator=(enum_value &&) noexcept = default;
+  ~enum_value() noexcept = default;
 
   [[nodiscard]] explicit operator int32_t() const noexcept { return number_; }
 
@@ -1202,16 +1235,16 @@ private:
   int32_t number_;
 };
 
+/**
+ * @brief Mutable view of a single enum value, allowing numeric assignment and name lookup.
+ */
 class enum_value_mref {
   const enum_descriptor_t *descriptor_;
   int32_t *number_;
 
 public:
-  /**
-   * @brief Mutable view of a single enum value, allowing numeric assignment and name lookup.
-   */
   using is_enum_value_ref = void;
-  using cref_type = enum_value_cref;
+  using cref_type = enum_value;
   constexpr static bool is_mutable = true;
 
   enum_value_mref(const enum_descriptor_t &descriptor, int32_t &number) noexcept
@@ -1222,7 +1255,7 @@ public:
   enum_value_mref &operator=(enum_value_mref &&) noexcept = default;
   ~enum_value_mref() noexcept = default;
 
-  [[nodiscard]] enum_value_cref cref() const noexcept { return enum_value_cref{*descriptor_, *number_}; }
+  operator enum_value() const noexcept { return {*descriptor_, *number_}; }
 
   void set(int32_t number) const noexcept { *number_ = number; }
 
@@ -1236,7 +1269,10 @@ public:
   /**
    * @brief Returns the enum value's symbolic name (empty if schema lacks this number).
    */
-  [[nodiscard]] std::string_view name() const noexcept { return cref().name(); }
+  [[nodiscard]] std::string_view name() const noexcept {
+    return descriptor_->name_of(*number_);
+    ;
+  }
 
   [[nodiscard]] const enum_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 };
@@ -1244,7 +1280,7 @@ public:
 class enum_field_cref {
 public:
   using encode_type = vint64_t;
-  using value_type = enum_value_cref;
+  using value_type = enum_value;
   using storage_type = scalar_storage_base<int32_t>;
   constexpr static field_kind_t field_kind = KIND_ENUM;
   constexpr static bool is_mutable = false;
@@ -1252,7 +1288,7 @@ public:
 
   template <typename U>
   static constexpr bool gettable_to_v =
-      std::same_as<U, enum_number> || std::same_as<U, enum_name> || std::same_as<U, enum_value_cref>;
+      std::same_as<U, enum_number> || std::same_as<U, enum_name> || std::same_as<U, enum_value>;
 
   enum_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
@@ -1268,7 +1304,7 @@ public:
   ~enum_field_cref() = default;
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
-  [[nodiscard]] enum_value_cref value() const noexcept {
+  [[nodiscard]] enum_value value() const noexcept {
     int32_t effective_value = storage_->content;
     if (descriptor().explicit_presence() && !has_value()) {
       effective_value = std::get<int32_t>(descriptor_->default_value);
@@ -1287,7 +1323,7 @@ public:
         return std::unexpected(dynamic_message_errc::unknown_enum_value);
       }
       return name();
-    } else if constexpr (std::same_as<U, enum_value_cref>) {
+    } else if constexpr (std::same_as<U, enum_value>) {
       return value();
     } else {
       return std::unexpected(dynamic_message_errc::invalid_field_type);
@@ -1316,7 +1352,7 @@ private:
 class enum_field_mref {
 public:
   using encode_type = vint64_t;
-  using value_type = enum_value_cref;
+  using value_type = enum_value;
   using storage_type = scalar_storage_base<int32_t>;
   using cref_type = enum_field_cref;
   constexpr static field_kind_t field_kind = KIND_ENUM;
@@ -1523,9 +1559,16 @@ public:
     throw std::out_of_range("");
   }
 
+  void push_back(const value_type &v) const noexcept {
+    auto idx = size();
+    resize(idx + 1);
+    (*this)[idx] = v;
+  }
+
   void reserve(std::size_t n) const noexcept {
     if (capacity() < n) {
-      auto new_data = static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
+      auto new_data =
+          static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
       storage_->capacity = static_cast<uint32_t>(n);
       if (storage_->content) {
         std::uninitialized_copy(storage_->content,
@@ -1536,14 +1579,12 @@ public:
   }
 
   void resize(std::size_t n) const noexcept {
+    const auto old_size = size();
     if (capacity() < n) {
-      auto new_data =
-          static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
-      storage_->capacity = static_cast<uint32_t>(n);
-      std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
-      storage_->content = new_data;
-    } else if (size() < n) {
-      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)),
+      reserve(n);
+    }
+    if (old_size < n) {
+      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(old_size)),
                                            std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
     storage_->size = static_cast<uint32_t>(n);
@@ -1678,7 +1719,8 @@ class repeated_enum_field_cref : public std::ranges::view_interface<repeated_enu
 public:
   using storage_type = repeated_storage_base<int32_t>;
   using encode_type = vint64_t;
-  using reference = enum_value_cref;
+  using value_type = enum_value;
+  using reference = enum_value;
   using iterator = repeated_field_iterator<repeated_enum_field_cref>;
   using difference_type = std::ptrdiff_t;
   using size_type = std::size_t;
@@ -1756,7 +1798,7 @@ public:
   using storage_type = repeated_storage_base<int32_t>;
   using encode_type = vint64_t;
   using reference = enum_value_mref;
-  using value_type = int32_t;
+  using value_type = enum_value_mref;
   using iterator = repeated_field_iterator<repeated_enum_field_mref>;
   using difference_type = std::ptrdiff_t;
   using size_type = std::size_t;
@@ -1793,21 +1835,20 @@ public:
   void reserve(std::size_t n) const noexcept {
     if (capacity() < n) {
       auto *new_data = static_cast<int32_t *>(memory_resource_->allocate(n * sizeof(int32_t), alignof(int32_t)));
-      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      std::uninitialized_copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+                              new_data);
       storage_->content = new_data;
       storage_->capacity = static_cast<uint32_t>(n);
     }
   }
 
   void resize(std::size_t n) const noexcept {
+    const auto old_size = size();
     if (capacity() < n) {
-      auto *new_data = static_cast<int32_t *>(memory_resource_->allocate(n * sizeof(int32_t), alignof(int32_t)));
-      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
-      std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
-      storage_->content = new_data;
-      storage_->capacity = static_cast<uint32_t>(n);
-    } else if (size() < n) {
-      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+      reserve(n);
+    }
+    if (old_size < n) {
+      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(old_size)),
                                            std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
     storage_->size = static_cast<uint32_t>(n);
@@ -1832,6 +1873,21 @@ public:
               *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
     }
     throw std::out_of_range("");
+  }
+
+  void push_back(enum_number number) const noexcept {
+    auto idx = size();
+    resize(idx + 1);
+    data()[idx] = number.value;
+  }
+
+  [[nodiscard]] std::expected<void, dynamic_message_errc> push_back(enum_name name) const noexcept {
+    const auto *pval = enum_descriptor().value_of(name.value);
+    if (pval == nullptr) {
+      return std::unexpected(dynamic_message_errc::invalid_enum_name);
+    }
+    push_back(enum_number{*pval});
+    return {};
   }
 
   void reset() noexcept {
@@ -1954,22 +2010,20 @@ public:
     if (capacity() < n) {
       auto *new_data = static_cast<std::string_view *>(
           memory_resource_->allocate(n * sizeof(std::string_view), alignof(value_type)));
-      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      std::uninitialized_copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+                              new_data);
       storage_->content = new_data;
       storage_->capacity = static_cast<uint32_t>(n);
     }
   }
 
   void resize(std::size_t n) const noexcept {
+    const auto old_size = size();
     if (capacity() < n) {
-      auto *new_data = static_cast<std::string_view *>(
-          memory_resource_->allocate(n * sizeof(std::string_view), alignof(value_type)));
-      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
-      std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
-      storage_->content = new_data;
-      storage_->capacity = static_cast<uint32_t>(n);
-    } else if (size() < n) {
-      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+      reserve(n);
+    }
+    if (old_size < n) {
+      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(old_size)),
                                            std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
     storage_->size = static_cast<uint32_t>(n);
@@ -1994,6 +2048,12 @@ public:
       return reference{values[index], *memory_resource_};
     }
     throw std::out_of_range("");
+  }
+
+  void push_back(std::string_view v) const noexcept {
+    auto idx = size();
+    resize(idx + 1);
+    (*this)[idx].set(v);
   }
 
   void reset() const noexcept {
@@ -2098,22 +2158,20 @@ public:
     if (capacity() < n) {
       auto *new_data =
           static_cast<bytes_view *>(memory_resource_->allocate(n * sizeof(bytes_view), alignof(value_type)));
-      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
+      std::uninitialized_copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+                              new_data);
       storage_->content = new_data;
       storage_->capacity = static_cast<uint32_t>(n);
     }
   }
 
   void resize(std::size_t n) const noexcept {
+    const auto old_size = size();
     if (capacity() < n) {
-      auto *new_data =
-          static_cast<bytes_view *>(memory_resource_->allocate(n * sizeof(bytes_view), alignof(value_type)));
-      std::copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())), new_data);
-      std::uninitialized_default_construct(new_data, std::next(new_data, static_cast<std::ptrdiff_t>(n)));
-      storage_->content = new_data;
-      storage_->capacity = static_cast<uint32_t>(n);
-    } else if (size() < n) {
-      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+      reserve(n);
+    }
+    if (old_size < n) {
+      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(old_size)),
                                            std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
     }
     storage_->size = static_cast<uint32_t>(n);
@@ -2138,6 +2196,13 @@ public:
       return reference{values[index], *memory_resource_};
     }
     throw std::out_of_range("");
+  }
+
+  template <concepts::contiguous_std_byte_range Range>
+  void push_back(const Range &r) const noexcept {
+    auto idx = size();
+    resize(idx + 1);
+    (*this)[idx].set(r);
   }
 
   void reset() const noexcept {
@@ -2307,12 +2372,12 @@ public:
 
   template <typename T>
   [[nodiscard]] std::expected<T, dynamic_message_errc> field_value_by_name(std::string_view name) const noexcept {
-    return field_by_name(name).transform([](auto ref) { return ref.template get<T>(); });
+    return field_by_name(name).and_then([](auto ref) { return ref.template get<T>(); });
   }
 
   template <typename T>
   [[nodiscard]] std::expected<T, dynamic_message_errc> field_value_by_number(std::uint32_t number) const noexcept {
-    return field_by_number(number).transform([](auto ref) { return ref.template get<T>(); });
+    return field_by_number(number).and_then([](auto ref) { return ref.template get<T>(); });
   }
 
   [[nodiscard]] bool has_oneof(const oneof_descriptor_t &desc) const noexcept {
@@ -2363,10 +2428,10 @@ public:
 
 /**
  * @brief Mutable reference to a dynamic message.
- * 
- * Lifetime: This reference is valid as long as the underlying message 
+ *
+ * Lifetime: This reference is valid as long as the underlying message
  * storage (held by the monotonic_buffer_resource) remains valid.
- * 
+ *
  * Memory Ownership:
  * - Scalar/string/bytes fields: owned by the message's memory resource
  * - Field values from adopt(): caller-managed; must outlive message
@@ -2846,7 +2911,11 @@ public:
     if (capacity() < n) {
       auto *new_data = static_cast<value_storage *>(
           memory_resource_->allocate(n * num_slots() * sizeof(value_storage), alignof(value_storage)));
-      std::ranges::copy(std::span{storage_->content, storage_->size * num_slots()}, new_data);
+      auto old_size = size();
+      if (old_size > 0) {
+        auto content_span = std::span{storage_->content, old_size * num_slots()};
+        std::uninitialized_copy(content_span.begin(), content_span.end(), new_data);
+      }
       storage_->content = new_data;
       storage_->capacity = static_cast<uint32_t>(n);
     }
@@ -2855,22 +2924,13 @@ public:
   void resize(std::size_t n) const noexcept {
     auto old_size = size();
     if (capacity() < n) {
-      auto *new_data = static_cast<value_storage *>(
-          memory_resource_->allocate(n * num_slots() * sizeof(value_storage), alignof(value_storage)));
-      std::ranges::copy(std::span{storage_->content, storage_->size * num_slots()}, new_data);
-      storage_->content = new_data;
-      storage_->size = static_cast<uint32_t>(n);
-      storage_->capacity = static_cast<uint32_t>(n);
-      for (std::size_t i = old_size; i < size(); ++i) {
-        (*this)[i].reset();
-      }
-    } else if (size() < n) {
-      storage_->size = static_cast<uint32_t>(n);
-      for (std::size_t i = old_size; i < size(); ++i) {
-        (*this)[i].reset();
-      }
-    } else {
-      storage_->size = static_cast<uint32_t>(n);
+      reserve(n);
+    }
+    storage_->size = static_cast<uint32_t>(n);
+    if (n > old_size) {
+      auto *start = std::next(storage_->content, static_cast<std::ptrdiff_t>(old_size * num_slots()));
+      const auto count = (n - old_size) * num_slots();
+      std::memset(start, 0, sizeof(value_storage) * count);
     }
   }
 
@@ -2898,6 +2958,12 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
     return *descriptor_->message_field_type_descriptor();
+  }
+
+  [[nodiscard]] message_value_mref emplace_back() const noexcept {
+    auto idx = size();
+    resize(idx + 1);
+    return (*this)[idx];
   }
 
   void alias_from(const repeated_message_field_mref &other) const noexcept {
@@ -3514,12 +3580,11 @@ struct message_size_calculator<message_value_cref> {
     uint32_t operator()(repeated_enum_field_cref v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
-        auto s = util::transform_accumulate(v, [](enum_value_cref e) { return varint_size(e.number()); });
+        auto s = util::transform_accumulate(v, [](enum_value e) { return varint_size(e.number()); });
         cache_size(narrow_size(s));
         return narrow_size(ts + len_size(s));
       } else {
-        return narrow_size(
-            util::transform_accumulate(v, [ts](enum_value_cref e) { return ts + varint_size(e.number()); }));
+        return narrow_size(util::transform_accumulate(v, [ts](enum_value e) { return ts + varint_size(e.number()); }));
       }
     }
 

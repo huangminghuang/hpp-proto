@@ -541,9 +541,9 @@ struct to<JSON, hpp::proto::repeated_scalar_field_cref<T, Kind>> {
 };
 
 template <>
-struct to<JSON, hpp::proto::enum_value_cref> {
+struct to<JSON, hpp::proto::enum_value> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value_cref &value, is_context auto &ctx, auto &b, auto &ix) {
+  GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value &value, is_context auto &ctx, auto &b, auto &ix) {
     if (value.descriptor().is_null_value) {
       dump<"null">(b, ix);
       return;
