@@ -180,7 +180,8 @@ enum class dynamic_message_errc : uint8_t {
   invalid_field_type,
   invalid_enum_name,
   unknown_enum_value,
-  wrong_message_type
+  wrong_message_type,
+  unknown_message_name
 };
 
 struct dynamic_message_factory_addons {
@@ -369,7 +370,7 @@ struct dynamic_message_factory_addons {
   };
 };
 
-class message_value_mref;
+class expected_message_mref;
 class dynamic_message_factory {
   using descriptor_pool_t = descriptor_pool<dynamic_message_factory_addons>;
   std::pmr::monotonic_buffer_resource memory_resource_;
@@ -479,7 +480,7 @@ public:
     init();
   }
 
-  std::optional<message_value_mref> get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const;
+  expected_message_mref get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const;
   [[nodiscard]] std::span<const file_descriptor_t> files() const { return pool_.files(); }
 };
 
@@ -741,12 +742,31 @@ public:
     });
   }
 
+  template <typename Mutator>
+  [[nodiscard]] std::expected<void, dynamic_message_errc> modify(Mutator &&mutator) const {
+    return visit(
+        [mutator = std::forward<Mutator>(mutator)](auto mref) mutable -> std::expected<void, dynamic_message_errc> {
+          if constexpr (requires { mutator(mref); }) {
+            return mutator(mref);
+          } else {
+            return std::unexpected(dynamic_message_errc::invalid_field_type);
+          }
+        });
+  }
+
   void set_null() noexcept;
 }; // class field_mref
 
 template <typename T>
 struct value_type_identity {
   using value_type = T;
+};
+
+template <typename T>
+struct value_proxy {
+  T value;
+  [[nodiscard]] T *operator->() noexcept { return std::addressof(value); }
+  [[nodiscard]] const T *operator->() const noexcept { return std::addressof(value); }
 };
 /**
  * @brief Typed, read-only view of a scalar (non-enum) field.
@@ -895,6 +915,7 @@ public:
     }
     return {storage_->content, storage_->size};
   }
+  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   template <typename U>
   [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
@@ -977,6 +998,7 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] std::string_view value() const noexcept { return cref().value(); }
+  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   void reset() const noexcept {
     storage_->size = 0;
@@ -989,7 +1011,6 @@ private:
   const field_descriptor_t *descriptor_;
   string_storage_t *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
-
 };
 
 class bytes_field_cref {
@@ -1027,6 +1048,7 @@ public:
     }
     return {storage_->content, storage_->size};
   }
+  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   template <typename U>
   [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
@@ -1109,6 +1131,7 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] bytes_view value() const noexcept { return cref().value(); }
+  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   void reset() const noexcept {
     storage_->size = 0;
@@ -1311,6 +1334,7 @@ public:
     }
     return {enum_descriptor(), effective_value};
   }
+  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
@@ -1394,6 +1418,7 @@ public:
     }
     return {*descriptor_->enum_field_type_descriptor(), storage_->content};
   }
+  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   [[nodiscard]] enum_value_mref emplace() noexcept {
     storage_->selection = descriptor_->oneof_ordinal;
@@ -2575,6 +2600,42 @@ public:
     });
   }
 
+  template <typename T>
+  std::expected<message_value_mref, dynamic_message_errc> set_field_by_name(std::string_view field_name,
+                                                                            T &&value) const {
+    return field_by_name(field_name)
+        .and_then([value = std::forward<T>(value)](auto field) { return field.set(value); })
+        .transform([this]() { return *this; });
+  }
+
+  template <typename T>
+  std::expected<message_value_mref, dynamic_message_errc> set_field_by_number(std::uint32_t field_number,
+                                                                              T &&value) const {
+    return field_by_number(field_number)
+        .and_then([value = std::forward<T>(value)](auto field) { return field.set(value); })
+        .transform([this]() { return *this; });
+  }
+
+  template <typename Mutator>
+  std::expected<message_value_mref, dynamic_message_errc> modify_field_by_name(std::string_view field_name,
+                                                                               Mutator &&mutator) const {
+    return field_by_name(field_name)
+        .and_then([mutator = std::forward<Mutator>(mutator)](auto field) mutable {
+          return field.modify(std::forward<Mutator>(mutator));
+        })
+        .transform([this]() { return *this; });
+  }
+
+  template <typename Mutator>
+  std::expected<message_value_mref, dynamic_message_errc> modify_field_by_number(std::uint32_t field_number,
+                                                                                 Mutator &&mutator) const {
+    return field_by_number(field_number)
+        .and_then([mutator = std::forward<Mutator>(mutator)](auto field) mutable {
+          return field.modify(std::forward<Mutator>(mutator));
+        })
+        .transform([this]() { return *this; });
+  }
+
   void clear_field(const field_descriptor_t &desc) const noexcept {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
     storage_for(desc).reset();
@@ -2670,6 +2731,7 @@ public:
     }
     return {message_descriptor(), storage_->content};
   }
+  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
   [[nodiscard]] value_type operator*() const noexcept { return {message_descriptor(), storage_->content}; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -2749,6 +2811,7 @@ public:
     }
     return {message_descriptor(), storage_->content, *memory_resource_};
   }
+  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
   [[nodiscard]] value_type operator*() const noexcept {
     return {message_descriptor(), storage_->content, *memory_resource_};
   }
@@ -3230,13 +3293,128 @@ inline void field_mref::set_null() noexcept {
   }
 }
 
-inline std::optional<message_value_mref>
-dynamic_message_factory::get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const {
+namespace util {
+// Extract first argument type from callables/functions.
+template <typename T, typename = void>
+struct callable_arg;
+
+// function pointer
+template <typename Ret, typename Arg>
+struct callable_arg<Ret (*)(Arg), void> {
+  using type = Arg;
+};
+
+// free function type
+template <typename Ret, typename Arg>
+struct callable_arg<Ret(Arg), void> {
+  using type = Arg;
+};
+
+// member function pointer (non-const)
+template <typename ClassType, typename Ret, typename Arg>
+struct callable_arg<Ret (ClassType::*)(Arg), void> {
+  using type = Arg;
+};
+
+// member function pointer (const)
+template <typename ClassType, typename Ret, typename Arg>
+struct callable_arg<Ret (ClassType::*)(Arg) const, void> {
+  using type = Arg;
+};
+
+// functor/lambda fallback: peel off operator()
+template <typename T>
+struct callable_arg<T, std::void_t<decltype(&T::operator())>> {
+  using type = typename callable_arg<decltype(&T::operator())>::type;
+};
+
+template <typename T>
+using callable_arg_t = typename callable_arg<T>::type;
+
+} // namespace util
+
+class expected_message_mref {
+  std::expected<hpp::proto::message_value_mref, hpp::proto::dynamic_message_errc> obj_;
+
+public:
+  /**
+   * @brief Fluent wrapper around `message_value_mref` that carries `std::expected` and
+   *        supports chainable mutations.
+   *
+   * Typical usage mirrors the dynamic tutorial (`tutorial/dynamic_message/tutorial_proto3_dynamic.cpp`):
+   *
+   * ```cpp
+   * auto person = expected_message_mref{people.emplace_back()}
+   *     .set_field_by_name("name", "Alex")
+   *     .set_field_by_name("id", 1)
+   *     .modify_field_by_name("phones", [](hpp::proto::repeated_message_field_mref phones) {
+   *         return expected_message_mref{phones.emplace_back()}
+   *             .set_field_by_name("number", "19890604")
+   *             .done();
+   *     });
+   * if (!person) {
+   *   //  handle dynamic_message_errc
+   * }
+   * ```
+   *
+   * Each mutator returns a new `expected_message_mref`; chaining stops on the first failure,
+   * and `done()` produces `expected<void, dynamic_message_errc>` for easy combination.
+   */
+  expected_message_mref(std::expected<hpp::proto::message_value_mref, hpp::proto::dynamic_message_errc> &&o)
+      : obj_(o) {}
+  expected_message_mref(hpp::proto::message_value_mref msg) : obj_(msg) {}
+
+  template <typename T>
+  [[nodiscard]] expected_message_mref set_field_by_name(std::string_view name, T &&v) const {
+    return expected_message_mref{
+        obj_.and_then([name, v = std::forward<T>(v)](hpp::proto::message_value_mref msg) mutable {
+          return msg.set_field_by_name(name, std::forward<T>(v));
+        })};
+  }
+
+  template <typename T>
+  [[nodiscard]] expected_message_mref set_field_by_number(std::uint32_t number, T &&v) const {
+    return expected_message_mref{
+        obj_.and_then([number, v = std::forward<T>(v)](hpp::proto::message_value_mref msg) mutable {
+          return msg.set_field_by_number(number, std::forward<T>(v));
+        })};
+  }
+
+  template <typename Mutator>
+  [[nodiscard]] expected_message_mref modify_field_by_name(std::string_view name, Mutator &&mutator) const {
+    return expected_message_mref{
+        obj_.and_then([name, mutator = std::forward<Mutator>(mutator)](hpp::proto::message_value_mref o) mutable {
+          return o.modify_field_by_name(name, std::forward<Mutator>(mutator));
+        })};
+  }
+
+  template <typename Mutator>
+  [[nodiscard]] expected_message_mref modify_field_by_number(std::uint32_t number, Mutator &&mutator) const {
+    return expected_message_mref{
+        obj_.and_then([number, mutator = std::forward<Mutator>(mutator)](hpp::proto::message_value_mref o) mutable {
+          return o.modify_field_by_number(number, std::forward<Mutator>(mutator));
+        })};
+  }
+
+  [[nodiscard]] bool has_value() const noexcept { return obj_.has_value(); }
+  [[nodiscard]] operator bool() const noexcept { return static_cast<bool>(obj_); }
+  [[nodiscard]] auto operator->() const noexcept { return obj_.operator->(); }
+  [[nodiscard]] auto operator*() const noexcept { return *obj_; }
+  [[nodiscard]] auto value() const noexcept { return obj_.value(); }
+  [[nodiscard]] auto error() const noexcept { return obj_.error(); }
+
+  [[nodiscard]] std::expected<void, hpp::proto::dynamic_message_errc> done() const noexcept {
+    return obj_.and_then([](auto) { return std::expected<void, hpp::proto::dynamic_message_errc>{}; });
+  }
+};
+
+inline expected_message_mref dynamic_message_factory::get_message(std::string_view name,
+                                                                  std::pmr::monotonic_buffer_resource &mr) const {
   const auto *desc = pool_.get_message_descriptor(name);
   if (desc != nullptr) {
-    return message_value_mref{*desc, mr};
+    return expected_message_mref{message_value_mref{*desc, mr}};
   }
-  return {};
+  return {std::unexpected(dynamic_message_errc::unknown_message_name)};
 }
 
 namespace concepts {
