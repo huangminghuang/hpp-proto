@@ -442,22 +442,6 @@ public:
     return make_file_descriptor_set(unique_files, distinct_file_tag, std::forward<decltype(option)>(option)...);
   }
 
-  template <concepts::contiguous_byte_range FileDescriptorPbBin>
-  static std::expected<descriptor_pool, status> make(const std::unordered_set<FileDescriptorPbBin> &unique_files,
-                                                     concepts::is_option_type auto &&...option) {
-    FileDescriptorSet fileset;
-    pb_context ctx{option...};
-    decltype(auto) files = detail::as_modifiable(ctx, fileset.file);
-    files.resize(unique_files.size());
-    std::size_t i = 0;
-    for (const auto &stream : unique_files) {
-      if (auto ec = read_proto(files[i++], stream, option...); !ec.ok()) {
-        return std::unexpected(ec);
-      }
-    }
-    return descriptor_pool<AddOns>{std::move(fileset)};
-  }
-
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   explicit descriptor_pool(FileDescriptorSet &&fileset)
     requires(!std::is_trivially_destructible_v<FileDescriptorSet>)
@@ -522,9 +506,24 @@ public:
   [[nodiscard]] const map_t<std::string_view, message_descriptor_t *> &message_map() const { return message_map_; }
   [[nodiscard]] const map_t<std::string_view, enum_descriptor_t *> &enum_map() const { return enum_map_; }
 
+  descriptor_pool() = default;
+
+  void init(FileDescriptorSet &&fileset)
+    requires(!std::is_trivially_destructible_v<FileDescriptorSet>)
+  {
+    fileset_.file = std::move(fileset.file);
+    init();
+  }
+
+  void init(FileDescriptorSet &&fileset, std::pmr::memory_resource &mr) {
+    fileset_.file = std::move(fileset.file);
+    auto *old = std::pmr::set_default_resource(&mr);
+    init();
+    std::pmr::set_default_resource(old);
+  }
+
 private:
   friend class dynamic_message_factory;
-  descriptor_pool() = default;
   void init() {
     const descriptor_counter counter(fileset_);
     files_.reserve(counter.files);

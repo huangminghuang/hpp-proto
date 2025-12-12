@@ -83,7 +83,8 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
 const ut::suite test_timestamp = [] {
   using timestamp_t = google::protobuf::Timestamp<>;
 
-  hpp::proto::dynamic_message_factory factory{hpp::proto::file_descriptors::desc_set_google_protobuf_timestamp_proto()};
+  hpp::proto::dynamic_message_factory factory;
+  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_timestamp_proto()));
 
   "verify Timestamp 1970-01-01T00:16:40Z"_test = [&factory] {
     verify<timestamp_t>(factory, timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
@@ -108,7 +109,7 @@ const ut::suite test_timestamp = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     expect(!hpp::proto::pb_to_json(factory, "google.protobuf.Timestamp",
-                                      "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
+                                   "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
                 .ok());
   };
 
@@ -122,7 +123,8 @@ const ut::suite test_timestamp = [] {
 
 const ut::suite test_duration = [] {
   using duration_t = google::protobuf::Duration<>;
-  hpp::proto::dynamic_message_factory factory{hpp::proto::file_descriptors::desc_set_google_protobuf_duration_proto()};
+  hpp::proto::dynamic_message_factory factory;
+  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_duration_proto()));
 
   "verify Duration 1000s"_test = [&factory] { verify<duration_t>(factory, duration_t{.seconds = 1000}, R"("1000s")"); };
 
@@ -160,8 +162,8 @@ const ut::suite test_duration = [] {
 };
 
 const ut::suite test_field_mask = [] {
-  hpp::proto::dynamic_message_factory factory{
-      hpp::proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()};
+  hpp::proto::dynamic_message_factory factory;
+  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
 
   using FieldMask = google::protobuf::FieldMask<>;
 
@@ -173,7 +175,8 @@ const ut::suite test_field_mask = [] {
 };
 
 const ut::suite test_wrapper = [] {
-  hpp::proto::dynamic_message_factory factory{hpp::proto::file_descriptors::desc_set_google_protobuf_wrappers_proto()};
+  hpp::proto::dynamic_message_factory factory;
+  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_wrappers_proto()));
   using Int64Value = google::protobuf::Int64Value<>;
 
   "verify Int64Value 1000"_test = [&factory] { verify<Int64Value>(factory, Int64Value{1000, {}}, R"("1000")"); };
@@ -185,7 +188,7 @@ const ut::suite test_wrapper = [] {
     expect(!hpp::proto::pb_to_json(factory, "google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
     // wrong value
     expect(!hpp::proto::pb_to_json(factory, "google.protobuf.Int64Value",
-                                      "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
+                                   "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
                 .ok());
     // skip unknown field
     expect(hpp::proto::pb_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
@@ -194,7 +197,8 @@ const ut::suite test_wrapper = [] {
 };
 
 const ut::suite test_empty = [] {
-  hpp::proto::dynamic_message_factory factory{hpp::proto::file_descriptors::desc_set_google_protobuf_empty_proto()};
+  hpp::proto::dynamic_message_factory factory;
+  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_empty_proto()));
   using Empty = google::protobuf::Empty<>;
 
   "verify Empty {}"_test = [&factory] { verify<Empty>(factory, Empty{}, "{}"); };
@@ -202,7 +206,8 @@ const ut::suite test_empty = [] {
 
 const ut::suite test_value = [] {
   using namespace boost::ut;
-  hpp::proto::dynamic_message_factory factory{hpp::proto::file_descriptors::desc_set_google_protobuf_struct_proto()};
+  hpp::proto::dynamic_message_factory factory;
+  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
 
   using Value = google::protobuf::Value<>;
   using NullValue = google::protobuf::NullValue;
@@ -249,7 +254,7 @@ const ut::suite test_value = [] {
     using namespace std::string_view_literals;
     // field name is not a valid utf8 string
     expect(!hpp::proto::pb_to_json(factory, "google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv,
-                                      json_buf)
+                                   json_buf)
                 .ok());
     // skip unknown field
     expect(hpp::proto::pb_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
@@ -267,14 +272,13 @@ const ut::suite test_value = [] {
     using namespace std::string_view_literals;
 
     // list element is not a valid utf8 string
-    expect(
-        !hpp::proto::pb_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
+    expect(!hpp::proto::pb_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
     // skip first unknown element
     expect(hpp::proto::pb_to_json(factory, "google.protobuf.ListValue", "\x0a\x02\x38\x01"sv, json_buf).ok());
     expect(eq(json_buf, "[]"s));
     // skip middle unknown element
     expect(hpp::proto::pb_to_json(factory, "google.protobuf.ListValue",
-                                     "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
+                                  "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
                .ok());
     expect(eq(json_buf, "[true,false]"s));
     // TODO: we need to test the case where the unknown element in not in the beginning of the list

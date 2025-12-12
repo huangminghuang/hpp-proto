@@ -25,10 +25,10 @@ operator&&(const std::expected<void, hpp::proto::dynamic_message_errc> &lhs,
 
 int main() {
   // Build a factory from the compiled descriptor set.
-  // std::pmr::monotonic_buffer_resource descriptor_mr;
-  // auto files = tutorial::addressbook_proto3::descriptor_set(descriptor_mr);
-  // hpp::proto::dynamic_message_factory factory{std::move(files), descriptor_mr};
-  hpp::proto::dynamic_message_factory factory{hpp::proto::file_descriptors::desc_set_addressbook_proto3_proto()};
+  
+  hpp::proto::dynamic_message_factory factory;
+  
+  expect(factory.init(hpp::proto::file_descriptors::desc_set_addressbook_proto3_proto()));
 
   // Allocate a message arena.
   std::pmr::monotonic_buffer_resource mr;

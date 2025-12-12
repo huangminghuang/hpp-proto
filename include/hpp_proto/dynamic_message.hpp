@@ -433,8 +433,16 @@ class dynamic_message_factory {
     using enum google::protobuf::FieldDescriptorProto_::Type;
     for (auto &field : pool_.fields()) {
       const auto &proto = field.proto();
-      if (proto.type == TYPE_ENUM && !proto.default_value.empty()) {
-        field.default_value = *field.enum_field_type_descriptor()->value_of(proto.default_value);
+      if (proto.type == TYPE_ENUM) {
+        if (!proto.default_value.empty()) {
+          field.default_value = *field.enum_field_type_descriptor()->value_of(proto.default_value);
+        } else if (field.explicit_presence()) {
+          // In proto2, if you do not explicitly specify a [default = ...] option for an optional enum field, the
+          // default value is the first value defined in that enum's definition.
+          field.default_value = field.enum_field_type_descriptor()->proto().value[0].number;
+        } else {
+          field.default_value = 0;
+        }
       }
     }
   }
@@ -446,7 +454,7 @@ class dynamic_message_factory {
   }
 
 public:
-  using FileDescriptorSet = google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
+  using FileDescriptorSet = ::google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
   using field_descriptor_t = typename descriptor_pool_t::field_descriptor_t;
   using enum_descriptor_t = typename descriptor_pool_t::enum_descriptor_t;
   using oneof_descriptor_t = typename descriptor_pool_t::oneof_descriptor_t;
@@ -456,30 +464,75 @@ public:
   /// enable to pass dynamic_message_factory as an option to read_json()/write_json()
   using option_type = std::reference_wrapper<dynamic_message_factory>;
 
-  explicit dynamic_message_factory(FileDescriptorSet &&proto_files, std::pmr::monotonic_buffer_resource &mr)
-      : pool_(std::move(proto_files), mr) {
+  dynamic_message_factory() = default;
+
+  /**
+   * @brief Construct a factory with an in-place monotonic buffer resource.
+   *
+   * The constructor forwards `memory_resource_init_args...` to
+   * `std::pmr::monotonic_buffer_resource`, letting callers optionally provide a
+   * backing buffer and upstream resource. Use `init(...)` afterward to populate
+   * the descriptor pool before calling `get_message()`.
+   */
+  explicit dynamic_message_factory(auto &&...memory_resource_init_args)
+      : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...) {}
+
+  /**
+   * @brief Initialize the object from a FileDescriptorSet
+   */
+
+  void init(FileDescriptorSet &&fileset) {
+    pool_.init(std::move(fileset), memory_resource_);
     init();
   }
 
-  template <std::size_t N>
   /**
-   * Construct a factory from a fixed array of file descriptors.
+   * @brief Initialize the object from a fixed array of serialized file descriptors.
    *
-   * Precondition: every element in `descs` must describe a different file. Passing
+   * @pre: Every element in `descs` must describe a different file. Passing
    * duplicates is undefined and will violate the distinct-file contract enforced by
    * `distinct_file_descriptor_pb_array`.
+   *
+   * @return false if any of the element in the array cannot be deserialized into
+   *          ::google::protobuf::FileDescriptorProto.
    */
-  explicit dynamic_message_factory(const distinct_file_descriptor_pb_array<N> &descs,
-                                   auto &&...memory_resource_init_args)
-      : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...),
-        pool_(descriptor_pool_t::make_file_descriptor_set(
-                  std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), distinct_file_tag_t{},
-                  alloc_from(memory_resource_))
-                  .value(),
-              memory_resource_) {
-    init();
+  template <std::size_t N>
+  bool init(const distinct_file_descriptor_pb_array<N> &descs) {
+    return descriptor_pool_t::make_file_descriptor_set(
+               std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), distinct_file_tag_t{},
+               alloc_from(memory_resource_))
+        .and_then([this](auto &&fileset) -> std::expected<void, status> {
+          this->init(std::move(fileset));
+          return {};
+        })
+        .has_value();
   }
 
+  /**
+   * @brief Initialize the object from a serialized FileDescriptorSet.
+   *
+   * @return false if the input cannot be deserialized into
+   *          ::google::protobuf::FileDescriptorSet.
+   */
+  bool init(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb) {
+    return ::hpp::proto::read_proto<FileDescriptorSet>(file_descriptor_set_binpb, alloc_from(memory_resource_))
+        .and_then([this](auto &&fileset) -> std::expected<void, std::errc> {
+          this->init(std::move(fileset));
+          return {};
+        })
+        .has_value();
+  }
+
+  /**
+   * @brief Construct a mutable dynamic message for the given type name.
+   *
+   * @pre `init()` has been called on this factory and returned true so that the descriptor
+   *      pool is populated.
+   * @param name Fully-qualified protobuf message name.
+   * @param mr   Monotonic buffer resource used for allocating message storage.
+   * @return `expected_message_mref` containing a message view on success, or an error
+   *         (e.g., `dynamic_message_errc::unknown_message_name`) if the name is not found.
+   */
   expected_message_mref get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const;
   [[nodiscard]] std::span<const file_descriptor_t> files() const { return pool_.files(); }
 };

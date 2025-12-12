@@ -47,8 +47,8 @@ const suite test_dynamic_message_any = [] {
     fm.paths = {"/usr/share", "/usr/local/share"};
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm).ok());
 
-    auto message_factory = ::hpp::proto::dynamic_message_factory{
-        ::hpp::proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()};
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(::hpp::proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
 
     const std::string_view expected_json =
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/local/share"}})";
@@ -84,7 +84,8 @@ const suite test_dynamic_message_any = [] {
   };
 
   "any_json"_test = [&] {
-    auto message_factory = ::hpp::proto::dynamic_message_factory{protos};
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
 
     const char *message_name = "protobuf_unittest.TestAny";
     std::string_view expected_json =
@@ -109,14 +110,15 @@ const suite test_dynamic_message_any = [] {
   };
 
   "type_not_found"_test = [data] {
-    auto message_factory =
-        hpp::proto::dynamic_message_factory{hpp::proto::file_descriptors::desc_set_google_protobuf_any_test_proto()};
+    hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_any_test_proto()));
     std::string result;
     expect(!pb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
   };
 
   "bad_message"_test = [&] {
-    auto message_factory = ::hpp::proto::dynamic_message_factory{protos};
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
 
     std::string_view data =
         "\x12\x39\x0a\x32\x74\x79\x70\x65\x2e\x67\x6f\x6f\x67\x6c\x65\x61\x70\x69\x73\x2e\x63\x6f\x6d\x2f"
