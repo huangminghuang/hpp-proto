@@ -2663,7 +2663,7 @@ public:
 
   template <typename T>
   [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc> set_field_by_name(std::string_view field_name,
-                                                                            T &&value) const {
+                                                                                          T &&value) const {
     return field_by_name(field_name)
         .and_then([&value](auto field) { return field.set(std::forward<T>(value)); })
         .transform([this]() { return *this; });
@@ -2671,8 +2671,8 @@ public:
 
   template <typename CharT, std::size_t N>
     requires(std::same_as<std::remove_cv_t<CharT>, char>)
-  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc>
-  set_field_by_name(std::string_view field_name, CharT (&value)[N]) const {
+  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc> set_field_by_name(std::string_view field_name,
+                                                                                          CharT (&value)[N]) const {
     auto chars = std::span<CharT, N>{value};
     const auto has_trailing_null = value[N - 1] == CharT{};
     const auto view_size = has_trailing_null ? N - 1 : N;
@@ -2681,8 +2681,8 @@ public:
 
   template <typename T, std::size_t N>
     requires(!std::same_as<std::remove_cv_t<T>, char>)
-  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc>
-  set_field_by_name(std::string_view field_name, T (&value)[N]) const {
+  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc> set_field_by_name(std::string_view field_name,
+                                                                                          T (&value)[N]) const {
     return set_field_by_name(field_name, std::span<T, N>{value});
   }
 
@@ -2696,8 +2696,8 @@ public:
 
   template <typename CharT, std::size_t N>
     requires(std::same_as<std::remove_cv_t<CharT>, char>)
-  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc>
-  set_field_by_number(std::uint32_t field_number, CharT (&value)[N]) const {
+  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc> set_field_by_number(std::uint32_t field_number,
+                                                                                            CharT (&value)[N]) const {
     auto chars = std::span<CharT, N>{value};
     const auto has_trailing_null = value[N - 1] == CharT{};
     const auto view_size = has_trailing_null ? N - 1 : N;
@@ -2706,8 +2706,8 @@ public:
 
   template <typename T, std::size_t N>
     requires(!std::same_as<std::remove_cv_t<T>, char>)
-  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc>
-  set_field_by_number(std::uint32_t field_number, T (&value)[N]) const {
+  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc> set_field_by_number(std::uint32_t field_number,
+                                                                                            T (&value)[N]) const {
     return set_field_by_number(field_number, std::span<T, N>{value});
   }
 
@@ -3717,7 +3717,7 @@ struct field_deserializer {
   }
 
   template <typename EncodeType>
-  status deserialize_packed_repeated(concepts::resizable auto&& mref) {
+  status deserialize_packed_repeated(concepts::resizable auto &&mref) {
     vuint32_t byte_count;
     if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
       return result;
