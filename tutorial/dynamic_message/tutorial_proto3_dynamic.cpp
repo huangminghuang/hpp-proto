@@ -36,8 +36,6 @@ operator&&(const std::expected<void, hpp::proto::dynamic_message_errc> &lhs,
 int main() {
   // Build a factory from the compiled descriptor set.
 
-  
-
   // Read the serialized FileDescriptorSet generated from
   //   `protoc --include_imports --descriptor_set_out=addressbook_proto3.desc.binpb addressbook_proto3.proto`
   auto filedescriptorset_binpb = read_file("addressbook_proto3.desc.binpb");

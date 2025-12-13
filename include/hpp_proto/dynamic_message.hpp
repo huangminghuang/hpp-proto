@@ -2530,8 +2530,7 @@ public:
                      std::pmr::monotonic_buffer_resource &memory_resource)
       : descriptor_(&descriptor), storage_(storage), memory_resource_(&memory_resource) {}
 
-  message_value_mref(const message_descriptor_t &descriptor,
-                     std::pmr::monotonic_buffer_resource &memory_resource)
+  message_value_mref(const message_descriptor_t &descriptor, std::pmr::monotonic_buffer_resource &memory_resource)
       : message_value_mref(descriptor,
                            static_cast<value_storage *>(memory_resource.allocate(
                                sizeof(value_storage) * descriptor.num_slots, alignof(value_storage))),

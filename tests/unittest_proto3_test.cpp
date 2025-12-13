@@ -198,7 +198,7 @@ struct Proto3Tests {
       auto r = glz::write_json(original);
       expect(r.has_value());
       auto original_json = gpb_based::pb_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes",
-                                                    {data.data(), data.size()});
+                                                 {data.data(), data.size()});
 
       expect(fatal(!original_json.empty()));
       expect(eq(*r, original_json));
@@ -215,7 +215,7 @@ struct Proto3Tests {
       expect(hpp::proto::write_proto(original, data).ok());
 
       auto original_json = gpb_based::pb_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
-                                                    {data.data(), data.size()});
+                                                 {data.data(), data.size()});
       expect(fatal(!original_json.empty()));
       expect(hpp::proto::write_json(original).value() == original_json);
 

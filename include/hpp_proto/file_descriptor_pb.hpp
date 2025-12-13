@@ -40,7 +40,6 @@ template <typename... Ts>
   requires(sizeof...(Ts) > 0 && (std::is_convertible_v<Ts, file_descriptor_pb> && ...))
 distinct_file_descriptor_pb_array(Ts...) -> distinct_file_descriptor_pb_array<sizeof...(Ts)>;
 
-
 } // namespace hpp::proto
 
 namespace std {
