@@ -96,14 +96,15 @@ int main() {
     auto msg = expected_msg.value();
     auto people = msg.typed_ref_by_name<hpp::proto::repeated_message_field_mref>("people").value();
     auto bob = people.emplace_back();
-    bob.set_field_by_name("name", "Bob").value();
-    bob.set_field_by_name("id", 2).value();
-    bob.set_field_by_name("email", "bob@email.com"sv).value();
+    expect(bob.set_field_by_name("name", "Bob").has_value());
+    expect(bob.set_field_by_name("id", 2).has_value());
+    expect(bob.set_field_by_name("email", "bob@email.com"sv).has_value());
     auto phones = bob.typed_ref_by_name<hpp::proto::repeated_message_field_mref>("people").value();
     auto phone = phones.emplace_back();
-    phone.set_field_by_name("number", "22222222").value();
-    phone.set_field_by_name("type", hpp::proto::enum_name{"PHONE_TYPE_HOME"}).value();
-  } catch (std::exception &ex) {
+    expect(phone.set_field_by_name("number", "22222222").has_value());
+    expect(phone.set_field_by_name("type", hpp::proto::enum_name{"PHONE_TYPE_HOME"}).has_value());
+  } catch (const std::exception &ex) {
+    std::cerr << ex.what() << '\n';
     expect(false);
   }
 
