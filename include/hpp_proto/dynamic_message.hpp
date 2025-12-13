@@ -502,7 +502,7 @@ public:
                std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), distinct_file_tag_t{},
                alloc_from(memory_resource_))
         .and_then([this](auto &&fileset) -> std::expected<void, status> {
-          this->init(std::move(fileset));
+          this->init(std::forward<decltype(fileset)>(fileset));
           return {};
         })
         .has_value();
@@ -517,7 +517,7 @@ public:
   bool init(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb) {
     return ::hpp::proto::read_proto<FileDescriptorSet>(file_descriptor_set_binpb, alloc_from(memory_resource_))
         .and_then([this](auto &&fileset) -> std::expected<void, std::errc> {
-          this->init(std::move(fileset));
+          this->init(std::forward<decltype(fileset)>(fileset));
           return {};
         })
         .has_value();
@@ -1337,7 +1337,7 @@ public:
   enum_value_mref &operator=(enum_value_mref &&) noexcept = default;
   ~enum_value_mref() noexcept = default;
 
-  operator enum_value() const noexcept { return {*descriptor_, *number_}; }
+  [[nodiscard]] operator enum_value() const noexcept { return {*descriptor_, *number_}; } // NOLINT
 
   void set(int32_t number) const noexcept { *number_ = number; }
 
@@ -1964,7 +1964,8 @@ public:
   void push_back(enum_number number) const {
     auto idx = size();
     resize(idx + 1);
-    data()[idx] = number.value;
+    auto values = std::span{storage_->content, storage_->size};
+    values[idx] = number.value;
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> push_back(enum_name name) const {
@@ -2661,19 +2662,53 @@ public:
   }
 
   template <typename T>
-  std::expected<message_value_mref, dynamic_message_errc> set_field_by_name(std::string_view field_name,
+  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc> set_field_by_name(std::string_view field_name,
                                                                             T &&value) const {
     return field_by_name(field_name)
-        .and_then([value = std::forward<T>(value)](auto field) { return field.set(value); })
+        .and_then([&value](auto field) { return field.set(std::forward<T>(value)); })
         .transform([this]() { return *this; });
+  }
+
+  template <typename CharT, std::size_t N>
+    requires(std::same_as<std::remove_cv_t<CharT>, char>)
+  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc>
+  set_field_by_name(std::string_view field_name, CharT (&value)[N]) const {
+    auto chars = std::span<CharT, N>{value};
+    const auto has_trailing_null = value[N - 1] == CharT{};
+    const auto view_size = has_trailing_null ? N - 1 : N;
+    return set_field_by_name(field_name, std::string_view{chars.data(), view_size});
+  }
+
+  template <typename T, std::size_t N>
+    requires(!std::same_as<std::remove_cv_t<T>, char>)
+  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc>
+  set_field_by_name(std::string_view field_name, T (&value)[N]) const {
+    return set_field_by_name(field_name, std::span<T, N>{value});
   }
 
   template <typename T>
   std::expected<message_value_mref, dynamic_message_errc> set_field_by_number(std::uint32_t field_number,
                                                                               T &&value) const {
     return field_by_number(field_number)
-        .and_then([value = std::forward<T>(value)](auto field) { return field.set(value); })
+        .and_then([&value](auto field) { return field.set(std::forward<T>(value)); })
         .transform([this]() { return *this; });
+  }
+
+  template <typename CharT, std::size_t N>
+    requires(std::same_as<std::remove_cv_t<CharT>, char>)
+  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc>
+  set_field_by_number(std::uint32_t field_number, CharT (&value)[N]) const {
+    auto chars = std::span<CharT, N>{value};
+    const auto has_trailing_null = value[N - 1] == CharT{};
+    const auto view_size = has_trailing_null ? N - 1 : N;
+    return set_field_by_number(field_number, std::string_view{chars.data(), view_size});
+  }
+
+  template <typename T, std::size_t N>
+    requires(!std::same_as<std::remove_cv_t<T>, char>)
+  [[nodiscard]] std::expected<message_value_mref, dynamic_message_errc>
+  set_field_by_number(std::uint32_t field_number, T (&value)[N]) const {
+    return set_field_by_number(field_number, std::span<T, N>{value});
   }
 
   template <typename Mutator>
@@ -3037,9 +3072,17 @@ public:
       auto *new_data = static_cast<value_storage *>(
           memory_resource_->allocate(n * num_slots() * sizeof(value_storage), alignof(value_storage)));
       auto old_size = size();
-      if (old_size > 0) {
-        auto content_span = std::span{storage_->content, old_size * num_slots()};
-        std::uninitialized_copy(content_span.begin(), content_span.end(), new_data);
+      const auto total_slots = n * num_slots();
+      const auto initialized_slots = old_size * num_slots();
+      if (initialized_slots > 0) {
+        auto *old_begin = storage_->content;
+        auto *old_end = std::next(old_begin, static_cast<std::ptrdiff_t>(initialized_slots));
+        std::uninitialized_copy(old_begin, old_end, new_data);
+      }
+      auto *construct_begin = std::next(new_data, static_cast<std::ptrdiff_t>(initialized_slots));
+      const auto remaining_slots = total_slots - initialized_slots;
+      if (remaining_slots > 0) {
+        std::uninitialized_value_construct_n(construct_begin, remaining_slots);
       }
       storage_->content = new_data;
       storage_->capacity = static_cast<uint32_t>(n);
@@ -3055,7 +3098,8 @@ public:
     if (n > old_size) {
       auto *start = std::next(storage_->content, static_cast<std::ptrdiff_t>(old_size * num_slots()));
       const auto count = (n - old_size) * num_slots();
-      std::memset(start, 0, sizeof(value_storage) * count);
+      auto new_span = std::span{start, count};
+      std::ranges::fill(new_span, value_storage{});
     }
   }
 
@@ -3422,9 +3466,9 @@ public:
    * Each mutator returns a new `expected_message_mref`; chaining stops on the first failure,
    * and `done()` produces `expected<void, dynamic_message_errc>` for easy combination.
    */
-  expected_message_mref(std::expected<hpp::proto::message_value_mref, hpp::proto::dynamic_message_errc> &&o)
-      : obj_(o) {}
-  expected_message_mref(hpp::proto::message_value_mref msg) : obj_(msg) {}
+  explicit expected_message_mref(std::expected<hpp::proto::message_value_mref, hpp::proto::dynamic_message_errc> &&o)
+      : obj_(std::move(o)) {}
+  explicit expected_message_mref(hpp::proto::message_value_mref msg) : obj_(msg) {}
 
   template <typename T>
   [[nodiscard]] expected_message_mref set_field_by_name(std::string_view name, T &&v) const {
@@ -3459,7 +3503,7 @@ public:
   }
 
   [[nodiscard]] bool has_value() const noexcept { return obj_.has_value(); }
-  [[nodiscard]] operator bool() const noexcept { return static_cast<bool>(obj_); }
+  [[nodiscard]] operator bool() const noexcept { return static_cast<bool>(obj_); } // NOLINT(hicpp-explicit-conversions)
   [[nodiscard]] auto operator->() const noexcept { return obj_.operator->(); }
   [[nodiscard]] auto operator*() const noexcept { return *obj_; }
   [[nodiscard]] auto value() const noexcept { return obj_.value(); }
@@ -3476,7 +3520,7 @@ inline expected_message_mref dynamic_message_factory::get_message(std::string_vi
   if (desc != nullptr) {
     return expected_message_mref{message_value_mref{*desc, mr}};
   }
-  return {std::unexpected(dynamic_message_errc::unknown_message_name)};
+  return expected_message_mref{std::unexpected(dynamic_message_errc::unknown_message_name)};
 }
 
 namespace concepts {
@@ -3672,8 +3716,8 @@ struct field_deserializer {
     return {};
   }
 
-  template <concepts::resizable MRef>
-  status deserialize_packed_repeated(MRef mref) {
+  template <typename EncodeType>
+  status deserialize_packed_repeated(concepts::resizable auto&& mref) {
     vuint32_t byte_count;
     if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
       return result;
@@ -3682,7 +3726,7 @@ struct field_deserializer {
       return {};
     }
 
-    return deserialize_packed_repeated_with_byte_count<typename MRef::encode_type>(mref, byte_count, archive);
+    return deserialize_packed_repeated_with_byte_count<EncodeType>(mref, byte_count, archive);
   }
 
   template <typename T, field_kind_t Kind>
@@ -3691,7 +3735,7 @@ struct field_deserializer {
       if (tag_type(tag) != wire_type::length_delimited) {
         return deserialize_unpacked_repeated(mref);
       }
-      return deserialize_packed_repeated(mref);
+      return deserialize_packed_repeated<T>(mref);
     } else {
       return deserialize_unpacked_repeated(mref);
     }
@@ -3702,7 +3746,13 @@ struct field_deserializer {
       if (tag_type(tag) != wire_type::length_delimited) {
         return deserialize_unpacked_repeated(mref);
       }
-      return deserialize_packed_repeated(mref);
+      std::span<int32_t> content;
+      pb_context ctx{alloc_from{mref.memory_resource()}};
+      if (auto r = deserialize_packed_repeated<vint64_t>(detail::as_modifiable(ctx, content)); !r.ok()) {
+        return r;
+      }
+      mref.adopt(content);
+      return {};
     } else {
       return deserialize_unpacked_repeated(mref);
     }

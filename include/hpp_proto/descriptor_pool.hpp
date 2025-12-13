@@ -511,12 +511,12 @@ public:
   void init(FileDescriptorSet &&fileset)
     requires(!std::is_trivially_destructible_v<FileDescriptorSet>)
   {
-    fileset_.file = std::move(fileset.file);
+    fileset_.file = std::move(fileset).file;
     init();
   }
 
   void init(FileDescriptorSet &&fileset, std::pmr::memory_resource &mr) {
-    fileset_.file = std::move(fileset.file);
+    fileset_.file = std::move(fileset).file;
     auto *old = std::pmr::set_default_resource(&mr);
     init();
     std::pmr::set_default_resource(old);

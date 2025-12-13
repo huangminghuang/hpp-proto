@@ -15,7 +15,7 @@ using namespace boost::ut;
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   expect(fatal(exp.has_value()));
-  return std::forward<Exp>(exp).value();
+  return std::forward<Exp>(exp).value(); // NOLINT
 }
 
 const boost::ut::suite parse_default_value_tests = [] {
@@ -667,10 +667,11 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(bytes_field->size() == 2U);
 
       auto enum_field = expect_ok(msg.typed_ref_by_name<hpp::proto::enum_field_mref>("optional_nested_enum"));
-      expect(static_cast<bool>(enum_field));
+      expect(!static_cast<bool>(enum_field));
       expect(enum_field->name() == "FOO"sv);
       expect(enum_field->number() == 1);
       enum_field.set(hpp::proto::enum_number{2});
+      expect(static_cast<bool>(enum_field));
       expect(enum_field->number() == 2);
       expect(!enum_field->name().empty());
 
