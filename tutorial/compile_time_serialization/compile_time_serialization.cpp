@@ -5,7 +5,7 @@ constexpr auto operator""_bytes() {
   return hpp::proto::bytes_literal<str>{};
 }
 
-using Person = tutorial::Person<>;
+using Person = tutorial::Person<hpp::proto::non_owning_traits>;
 using enum Person::PhoneType;
 constexpr std::array<const Person::PhoneNumber, 1> alex_phones{
     Person::PhoneNumber{.number = "19890604", .type = PHONE_TYPE_MOBILE}};
