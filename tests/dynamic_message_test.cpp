@@ -646,21 +646,28 @@ const boost::ut::suite dynamic_message_test = [] {
       auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
 
       auto int_field = expect_ok(msg.typed_ref_by_name<hpp::proto::int32_field_mref>("optional_int32"));
+      expect(!static_cast<bool>(int_field));
       expect(int_field.value() == 0);
       int_field.set(123);
+      expect(static_cast<bool>(int_field));
       expect(int_field.value() == 123);
 
       auto str_field = expect_ok(msg.typed_ref_by_name<hpp::proto::string_field_mref>("optional_string"));
+      expect(!static_cast<bool>(str_field));
       expect(str_field->empty());
       str_field.set("hello");
+      expect(static_cast<bool>(str_field));
       expect(str_field->size() == 5U);
 
       auto bytes_field = expect_ok(msg.typed_ref_by_name<hpp::proto::bytes_field_mref>("optional_bytes"));
+      expect(!static_cast<bool>(bytes_field));
       expect(bytes_field->empty());
       bytes_field.set("hi"_bytes);
+      expect(static_cast<bool>(bytes_field));
       expect(bytes_field->size() == 2U);
 
       auto enum_field = expect_ok(msg.typed_ref_by_name<hpp::proto::enum_field_mref>("optional_nested_enum"));
+      expect(static_cast<bool>(enum_field));
       expect(enum_field->name() == "FOO"sv);
       expect(enum_field->number() == 1);
       enum_field.set(hpp::proto::enum_number{2});
@@ -669,15 +676,19 @@ const boost::ut::suite dynamic_message_test = [] {
 
       auto msg_cref = msg.cref();
       auto int_cref = expect_ok(msg_cref.typed_ref_by_name<hpp::proto::int32_field_cref>("optional_int32"));
+      expect(static_cast<bool>(int_cref));
       expect(int_cref.value() == 123);
 
       auto str_cref = expect_ok(msg_cref.typed_ref_by_name<hpp::proto::string_field_cref>("optional_string"));
+      expect(static_cast<bool>(str_cref));
       expect(str_cref->size() == 5U);
 
       auto bytes_cref = expect_ok(msg_cref.typed_ref_by_name<hpp::proto::bytes_field_cref>("optional_bytes"));
+      expect(static_cast<bool>(bytes_cref));
       expect(bytes_cref->size() == 2U);
 
       auto enum_cref = expect_ok(msg_cref.typed_ref_by_name<hpp::proto::enum_field_cref>("optional_nested_enum"));
+      expect(static_cast<bool>(enum_cref));
       expect(enum_cref->number() == 2);
       expect(!enum_cref->name().empty());
     };

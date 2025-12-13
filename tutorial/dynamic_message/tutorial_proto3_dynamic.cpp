@@ -8,13 +8,23 @@
 #include <hpp_proto/dynamic_message_json.hpp>
 #endif
 
-#include "addressbook_proto3.desc.hpp" // descriptor set for dynamic loading
+// #include "addressbook_proto3.desc.hpp" // descriptor set for dynamic loading
 
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
     std::exit(1);
   }
+}
+
+inline std::string read_file(const char *filename) {
+  std::ifstream in(filename, std::ios::in | std::ios::binary);
+  std::string contents;
+  in.seekg(0, std::ios::end);
+  contents.resize(in.tellg());
+  in.seekg(0, std::ios::beg);
+  in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
+  return contents;
 }
 
 inline std::expected<void, hpp::proto::dynamic_message_errc>
@@ -25,10 +35,16 @@ operator&&(const std::expected<void, hpp::proto::dynamic_message_errc> &lhs,
 
 int main() {
   // Build a factory from the compiled descriptor set.
+
   
+
+  // Read the serialized FileDescriptorSet generated from
+  //   `protoc --include_imports --descriptor_set_out=addressbook_proto3.desc.binpb addressbook_proto3.proto`
+  auto filedescriptorset_binpb = read_file("addressbook_proto3.desc.binpb");
+
+  // construct and init a dynamic_message_factory
   hpp::proto::dynamic_message_factory factory;
-  
-  expect(factory.init(hpp::proto::file_descriptors::desc_set_addressbook_proto3_proto()));
+  expect(factory.init(filedescriptorset_binpb));
 
   // Allocate a message arena.
   std::pmr::monotonic_buffer_resource mr;

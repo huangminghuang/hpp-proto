@@ -853,6 +853,7 @@ public:
   ~scalar_field_cref() noexcept = default;
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
       return std::get<value_type>(descriptor_->default_value);
@@ -924,6 +925,7 @@ public:
   [[nodiscard]] operator scalar_field_cref<T, Kind>() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   // [[nodiscard]] value_type operator*() const noexcept { return cref().operator*(); }
   [[nodiscard]] value_type value() const noexcept { return cref().value(); }
   void reset() noexcept { storage_->selection = 0; }
@@ -960,6 +962,7 @@ public:
   ~string_field_cref() noexcept = default;
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
 
   [[nodiscard]] std::string_view value() const noexcept {
@@ -1027,7 +1030,7 @@ public:
     storage_->selection = descriptor_->oneof_ordinal;
   }
 
-  void set(std::string_view v) const noexcept {
+  void set(std::string_view v) const {
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
     std::ranges::copy(v, dest);
     storage_->content = dest;
@@ -1037,7 +1040,7 @@ public:
 
   void alias_from(const cref_type &other) const noexcept { *storage_ = *other.storage_; }
 
-  void clone_from(const cref_type &other) const noexcept {
+  void clone_from(const cref_type &other) const {
     if (other.has_value()) {
       set(other.value());
     } else {
@@ -1050,6 +1053,7 @@ public:
   [[nodiscard]] operator string_field_cref() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] std::string_view value() const noexcept { return cref().value(); }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
@@ -1091,6 +1095,7 @@ public:
   ~bytes_field_cref() noexcept = default;
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] bytes_view value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
       const auto &default_value = descriptor_->proto().default_value;
@@ -1160,7 +1165,7 @@ public:
     storage_->selection = descriptor_->oneof_ordinal;
   }
 
-  void set(concepts::contiguous_std_byte_range auto const &v) const noexcept {
+  void set(concepts::contiguous_std_byte_range auto const &v) const {
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     storage_->content = dest;
@@ -1170,7 +1175,7 @@ public:
 
   void alias_from(const cref_type &other) const noexcept { *storage_ = *other.storage_; }
 
-  void clone_from(const cref_type &other) const noexcept {
+  void clone_from(const cref_type &other) const {
     if (other.has_value()) {
       set(other.value());
     } else {
@@ -1183,6 +1188,7 @@ public:
   [[nodiscard]] operator bytes_field_cref() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] bytes_view value() const noexcept { return cref().value(); }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
@@ -1264,7 +1270,7 @@ public:
 
   void adopt(const hpp::proto::bytes_view &v) const noexcept { *data_ = v; }
 
-  void set(concepts::contiguous_std_byte_range auto const &v) const noexcept {
+  void set(concepts::contiguous_std_byte_range auto const &v) const {
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     adopt(hpp::proto::bytes_view{dest, v.size()});
@@ -1380,6 +1386,7 @@ public:
   ~enum_field_cref() = default;
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] enum_value value() const noexcept {
     int32_t effective_value = storage_->content;
     if (descriptor().explicit_presence() && !has_value()) {
@@ -1465,6 +1472,7 @@ public:
   [[nodiscard]] operator enum_field_cref() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] enum_value_mref value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
       storage_->content = std::get<int32_t>(descriptor_->default_value);
@@ -1473,12 +1481,12 @@ public:
   }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
-  [[nodiscard]] enum_value_mref emplace() noexcept {
+  [[nodiscard]] enum_value_mref emplace() const noexcept {
     storage_->selection = descriptor_->oneof_ordinal;
     return {*descriptor_->enum_field_type_descriptor(), storage_->content};
   }
 
-  void reset() noexcept { storage_->selection = 0; }
+  void reset() const noexcept { storage_->selection = 0; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
@@ -1637,13 +1645,13 @@ public:
     throw std::out_of_range("");
   }
 
-  void push_back(const value_type &v) const noexcept {
+  void push_back(const value_type &v) const {
     auto idx = size();
     resize(idx + 1);
     (*this)[idx] = v;
   }
 
-  void reserve(std::size_t n) const noexcept {
+  void reserve(std::size_t n) const {
     if (capacity() < n) {
       auto new_data =
           static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
@@ -1656,7 +1664,7 @@ public:
     }
   }
 
-  void resize(std::size_t n) const noexcept {
+  void resize(std::size_t n) const {
     const auto old_size = size();
     if (capacity() < n) {
       reserve(n);
@@ -1910,7 +1918,7 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_enum_field_cref() const noexcept { return cref(); }
 
-  void reserve(std::size_t n) const noexcept {
+  void reserve(std::size_t n) const {
     if (capacity() < n) {
       auto *new_data = static_cast<int32_t *>(memory_resource_->allocate(n * sizeof(int32_t), alignof(int32_t)));
       std::uninitialized_copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
@@ -1920,7 +1928,7 @@ public:
     }
   }
 
-  void resize(std::size_t n) const noexcept {
+  void resize(std::size_t n) const {
     const auto old_size = size();
     if (capacity() < n) {
       reserve(n);
@@ -1953,13 +1961,13 @@ public:
     throw std::out_of_range("");
   }
 
-  void push_back(enum_number number) const noexcept {
+  void push_back(enum_number number) const {
     auto idx = size();
     resize(idx + 1);
     data()[idx] = number.value;
   }
 
-  [[nodiscard]] std::expected<void, dynamic_message_errc> push_back(enum_name name) const noexcept {
+  [[nodiscard]] std::expected<void, dynamic_message_errc> push_back(enum_name name) const {
     const auto *pval = enum_descriptor().value_of(name.value);
     if (pval == nullptr) {
       return std::unexpected(dynamic_message_errc::invalid_enum_name);
@@ -2084,7 +2092,7 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_string_field_cref() const noexcept { return cref(); }
 
-  void reserve(std::size_t n) const noexcept {
+  void reserve(std::size_t n) const {
     if (capacity() < n) {
       auto *new_data = static_cast<std::string_view *>(
           memory_resource_->allocate(n * sizeof(std::string_view), alignof(value_type)));
@@ -2095,7 +2103,7 @@ public:
     }
   }
 
-  void resize(std::size_t n) const noexcept {
+  void resize(std::size_t n) const {
     const auto old_size = size();
     if (capacity() < n) {
       reserve(n);
@@ -2128,7 +2136,7 @@ public:
     throw std::out_of_range("");
   }
 
-  void push_back(std::string_view v) const noexcept {
+  void push_back(std::string_view v) const {
     auto idx = size();
     resize(idx + 1);
     (*this)[idx].set(v);
@@ -2232,7 +2240,7 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_bytes_field_cref() const noexcept { return cref(); }
 
-  void reserve(std::size_t n) const noexcept {
+  void reserve(std::size_t n) const {
     if (capacity() < n) {
       auto *new_data =
           static_cast<bytes_view *>(memory_resource_->allocate(n * sizeof(bytes_view), alignof(value_type)));
@@ -2243,7 +2251,7 @@ public:
     }
   }
 
-  void resize(std::size_t n) const noexcept {
+  void resize(std::size_t n) const {
     const auto old_size = size();
     if (capacity() < n) {
       reserve(n);
@@ -2277,7 +2285,7 @@ public:
   }
 
   template <concepts::contiguous_std_byte_range Range>
-  void push_back(const Range &r) const noexcept {
+  void push_back(const Range &r) const {
     auto idx = size();
     resize(idx + 1);
     (*this)[idx].set(r);
@@ -2519,11 +2527,11 @@ public:
   using cref_type = message_value_cref;
   constexpr static bool is_mutable = true;
   message_value_mref(const message_descriptor_t &descriptor, value_storage *storage,
-                     std::pmr::monotonic_buffer_resource &memory_resource) noexcept
+                     std::pmr::monotonic_buffer_resource &memory_resource)
       : descriptor_(&descriptor), storage_(storage), memory_resource_(&memory_resource) {}
 
   message_value_mref(const message_descriptor_t &descriptor,
-                     std::pmr::monotonic_buffer_resource &memory_resource) noexcept
+                     std::pmr::monotonic_buffer_resource &memory_resource)
       : message_value_mref(descriptor,
                            static_cast<value_storage *>(memory_resource.allocate(
                                sizeof(value_storage) * descriptor.num_slots, alignof(value_storage))),
@@ -2778,6 +2786,7 @@ public:
   ~message_field_cref() noexcept = default;
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const {
     if (!has_value()) {
       throw std::bad_optional_access{};
@@ -2847,7 +2856,7 @@ public:
 
   [[nodiscard]] cref_type cref() const noexcept { return cref_type{*descriptor_, *storage_}; }
 
-  [[nodiscard]] message_value_mref emplace() const noexcept {
+  [[nodiscard]] message_value_mref emplace() const {
     if (!has_value()) {
       storage_->selection = descriptor_->oneof_ordinal;
       storage_->content = static_cast<value_storage *>(
@@ -2858,6 +2867,7 @@ public:
     return result;
   }
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
+  [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const {
     if (!has_value()) {
       throw std::bad_optional_access{};
@@ -3023,7 +3033,7 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator repeated_message_field_cref() const noexcept { return cref(); }
 
-  void reserve(std::size_t n) const noexcept {
+  void reserve(std::size_t n) const {
     if (capacity() < n) {
       auto *new_data = static_cast<value_storage *>(
           memory_resource_->allocate(n * num_slots() * sizeof(value_storage), alignof(value_storage)));
@@ -3037,7 +3047,7 @@ public:
     }
   }
 
-  void resize(std::size_t n) const noexcept {
+  void resize(std::size_t n) const {
     auto old_size = size();
     if (capacity() < n) {
       reserve(n);
@@ -3076,7 +3086,7 @@ public:
     return *descriptor_->message_field_type_descriptor();
   }
 
-  [[nodiscard]] message_value_mref emplace_back() const noexcept {
+  [[nodiscard]] message_value_mref emplace_back() const {
     auto idx = size();
     resize(idx + 1);
     return (*this)[idx];
