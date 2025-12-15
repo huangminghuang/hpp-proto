@@ -28,9 +28,10 @@
             "name": "fuzz",
             "hidden": true,
             "cacheVariables": {
-                "HPP_PROTO_FUZZ_CXX_FLAGS": "-fsanitize=fuzz,address -fno-sanitize-recover=all",
-                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzz,address",
-                "HPP_PROTO_BUILD_FUZZ": "ON"
+                "HPP_PROTO_FUZZ_CXX_FLAGS": "-g;-O2;-fsanitize=fuzzer,address,undefined;-fno-sanitize-recover=all",
+                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzzer,address,undefined",
+                "HPP_PROTO_BUILD_FUZZ": "ON",
+                "HPP_PROTO_TESTS": "ON"
             }
         }
     ]

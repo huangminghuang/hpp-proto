@@ -96,6 +96,16 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "HPP_PROTO_PROTOC": "find"
             }
+        }, 
+        {
+           "name": "Fuzz",
+            "inherits": ["default", "fuzz"],
+            "displayName": "Fuzz",
+            "description": "Fuzz Build",
+            "binaryDir": "${sourceDir}/build/fuzz",
+            "cacheVariables": {
+                "HPP_PROTO_PROTOC": "find"
+            }       
         }
     ],
     "testPresets": [

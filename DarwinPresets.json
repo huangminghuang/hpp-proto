@@ -25,12 +25,27 @@
             }
         },
         {
-            "name": "fuzz",
+            "name": "homebrew_clang",
+            "displayName": "Homebrew Clang with libc++",
+            "description": "Use the Homebrew LLVM toolchain and its bundled libc++",
             "hidden": true,
             "cacheVariables": {
-                "HPP_PROTO_FUZZ_CXX_FLAGS": "-fsanitize=fuzz,address -fno-sanitize-recover=all",
-                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzz,address",
-                "HPP_PROTO_BUILD_FUZZ": "ON"
+                "CMAKE_C_COMPILER": "/opt/homebrew/opt/llvm/bin/clang",
+                "CMAKE_CXX_COMPILER": "/opt/homebrew/opt/llvm/bin/clang++",
+                "CMAKE_CXX_FLAGS": "-stdlib=libc++ -isystem /opt/homebrew/opt/llvm/include/c++/v1",
+                "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -L/opt/homebrew/opt/llvm/lib/c++ -Wl,-rpath,/opt/homebrew/opt/llvm/lib/c++",
+                "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -L/opt/homebrew/opt/llvm/lib/c++ -Wl,-rpath,/opt/homebrew/opt/llvm/lib/c++"
+            }
+        },
+        {
+            "name": "fuzz",
+            "inherits": ["homebrew_clang"],
+            "hidden": true,
+            "cacheVariables": {
+                "HPP_PROTO_FUZZ_CXX_FLAGS": "-g;-O2;-fsanitize=fuzzer,address,undefined;-fno-sanitize-recover=all",
+                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzzer,address,undefined",
+                "HPP_PROTO_BUILD_FUZZ": "ON",
+                "HPP_PROTO_TESTS": "ON"
             }
         }
     ]

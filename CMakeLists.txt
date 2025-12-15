@@ -104,7 +104,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     add_subdirectory(tests)
     add_subdirectory(tutorial)
 
-    if(HPP_PROTO_BUILD_FUZZ AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if(HPP_PROTO_BUILD_FUZZ AND (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
       add_subdirectory(fuzz)
     endif()
   endif()
