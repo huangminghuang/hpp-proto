@@ -2874,7 +2874,7 @@ constexpr status deserialize_field_by_tag(uint32_t tag, concepts::has_meta auto 
                                           concepts::is_basic_in auto &archive, auto &&unknown_fields) {
   using type = std::remove_cvref_t<decltype(item)>;
   using dispatcher_t = traits::reverse_indices<type>;
-  if (tag == 0) {
+  if (tag_number(tag) == 0) {
     return std::errc::bad_message;
   }
   return dispatcher_t::dispatch(tag_number(tag), [&](auto index) {

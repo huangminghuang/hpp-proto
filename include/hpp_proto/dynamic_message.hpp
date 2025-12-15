@@ -3765,7 +3765,7 @@ struct field_deserializer {
 
 status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts::is_basic_in auto &archive,
                                 auto & /* unknown_fields*/) {
-  if (tag == 0) {
+  if (tag_number(tag) == 0) {
     return std::errc::bad_message;
   }
   const auto *field_desc = item.field_descriptor_by_number(tag_number(tag));
