@@ -177,8 +177,7 @@ public:
           static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
       s.capacity = static_cast<uint32_t>(n);
       if (s.content) {
-        std::uninitialized_copy(s.content, std::next(s.content, static_cast<std::ptrdiff_t>(s.size)),
-                                new_data);
+        std::uninitialized_copy(s.content, std::next(s.content, static_cast<std::ptrdiff_t>(s.size)), new_data);
       }
       s.content = new_data;
     }

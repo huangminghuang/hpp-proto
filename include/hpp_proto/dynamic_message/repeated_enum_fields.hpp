@@ -224,8 +224,7 @@ public:
     auto &s = storage_->of_repeated_int32;
     if (s.capacity < n) {
       auto *new_data = static_cast<int32_t *>(memory_resource_->allocate(n * sizeof(int32_t), alignof(int32_t)));
-      std::uninitialized_copy(s.content, std::next(s.content, static_cast<std::ptrdiff_t>(s.size)),
-                              new_data);
+      std::uninitialized_copy(s.content, std::next(s.content, static_cast<std::ptrdiff_t>(s.size)), new_data);
       s.content = new_data;
       s.capacity = static_cast<uint32_t>(n);
     }

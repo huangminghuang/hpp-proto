@@ -79,8 +79,7 @@ public:
     if (s.capacity < n) {
       auto *new_data =
           static_cast<bytes_view *>(memory_resource_->allocate(n * sizeof(bytes_view), alignof(value_type)));
-      std::uninitialized_copy(s.content, std::next(s.content, static_cast<std::ptrdiff_t>(s.size)),
-                              new_data);
+      std::uninitialized_copy(s.content, std::next(s.content, static_cast<std::ptrdiff_t>(s.size)), new_data);
       s.content = new_data;
       s.capacity = static_cast<uint32_t>(n);
     }

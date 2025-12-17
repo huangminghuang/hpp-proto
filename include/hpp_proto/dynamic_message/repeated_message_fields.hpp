@@ -140,7 +140,9 @@ public:
 
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
-  [[nodiscard]] repeated_message_field_cref cref() const noexcept { return {*descriptor_, storage_->of_repeated_message}; }
+  [[nodiscard]] repeated_message_field_cref cref() const noexcept {
+    return {*descriptor_, storage_->of_repeated_message};
+  }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator repeated_message_field_cref() const noexcept { return cref(); }
 
