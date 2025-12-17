@@ -110,8 +110,7 @@ public:
 
   string_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                     std::pmr::monotonic_buffer_resource &mr) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_string), memory_resource_(&mr) {}
+      : descriptor_(&descriptor), storage_(&storage), memory_resource_(&mr) {}
 
   string_field_mref(const string_field_mref &) noexcept = default;
   string_field_mref(string_field_mref &&) noexcept = default;
@@ -122,24 +121,20 @@ public:
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   void adopt(std::string_view v) const noexcept {
-    storage_->content = v.data();
-    storage_->size = static_cast<uint32_t>(v.size());
-    // Direct assignment violates strict aliasing. Use memcpy.
-    uint32_t selection_val = descriptor_->oneof_ordinal;
-    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
+    storage_->of_string.content = v.data();
+    storage_->of_string.size = static_cast<uint32_t>(v.size());
+    storage_->of_string.selection = descriptor_->oneof_ordinal;
   }
 
   void set(std::string_view v) const {
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
     std::ranges::copy(v, dest);
-    storage_->content = dest;
-    storage_->size = static_cast<uint32_t>(v.size());
-    // Direct assignment violates strict aliasing. Use memcpy.
-    uint32_t selection_val = descriptor_->oneof_ordinal;
-    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
+    storage_->of_string.content = dest;
+    storage_->of_string.size = static_cast<uint32_t>(v.size());
+    storage_->of_string.selection = descriptor_->oneof_ordinal;
   }
 
-  void alias_from(const cref_type &other) const noexcept { *storage_ = *other.storage_; }
+  void alias_from(const cref_type &other) const noexcept { adopt(other.value()); }
 
   void clone_from(const cref_type &other) const {
     if (other.has_value()) {
@@ -159,17 +154,15 @@ public:
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   void reset() const noexcept {
-    storage_->size = 0;
-    // Direct assignment violates strict aliasing. Use memcpy.
-    uint32_t zero = 0;
-    std::memcpy(&storage_->selection, &zero, sizeof(zero));
+    storage_->of_string.size = 0;
+    storage_->of_string.selection = 0;
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
 private:
   const field_descriptor_t *descriptor_;
-  string_storage_t *storage_;
+  value_storage *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 

@@ -134,8 +134,7 @@ public:
 
   repeated_scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                              std::pmr::monotonic_buffer_resource &mr) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : descriptor_(&descriptor), storage_(reinterpret_cast<storage_type *>(&storage)), memory_resource_(&mr) {}
+      : descriptor_(&descriptor), storage_(&storage), memory_resource_(&mr) {}
 
   repeated_scalar_field_mref(const repeated_scalar_field_mref &) noexcept = default;
   repeated_scalar_field_mref(repeated_scalar_field_mref &&) noexcept = default;
@@ -146,19 +145,21 @@ public:
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   [[nodiscard]] repeated_scalar_field_cref<T, Kind> cref() const noexcept {
-    return repeated_scalar_field_cref<T, Kind>{*descriptor_, *storage_};
+    return repeated_scalar_field_cref<T, Kind>{*descriptor_, access_storage()};
   }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_scalar_field_cref<T, Kind>() const noexcept { return cref(); }
 
   value_type &operator[](std::size_t index) const noexcept {
-    assert(index < storage_->size);
-    return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
+    auto &s = access_storage();
+    assert(index < s.size);
+    return *std::next(s.content, static_cast<std::ptrdiff_t>(index));
   }
 
   [[nodiscard]] value_type &at(std::size_t index) const {
-    if (index < storage_->size) {
-      return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
+    auto &s = access_storage();
+    if (index < s.size) {
+      return *std::next(s.content, static_cast<std::ptrdiff_t>(index));
     }
     throw std::out_of_range("");
   }
@@ -170,49 +171,54 @@ public:
   }
 
   void reserve(std::size_t n) const {
-    if (capacity() < n) {
+    auto &s = access_storage();
+    if (s.capacity < n) {
       auto new_data =
           static_cast<value_type *>(memory_resource_->allocate(n * sizeof(value_type), alignof(value_type)));
-      storage_->capacity = static_cast<uint32_t>(n);
-      if (storage_->content) {
-        std::uninitialized_copy(storage_->content,
-                                std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size)), new_data);
+      s.capacity = static_cast<uint32_t>(n);
+      if (s.content) {
+        std::uninitialized_copy(s.content, std::next(s.content, static_cast<std::ptrdiff_t>(s.size)),
+                                new_data);
       }
-      storage_->content = new_data;
+      s.content = new_data;
     }
   }
 
   void resize(std::size_t n) const {
-    const auto old_size = size();
-    if (capacity() < n) {
+    auto &s = access_storage();
+    const auto old_size = s.size;
+    if (s.capacity < n) {
       reserve(n);
     }
     if (old_size < n) {
-      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(old_size)),
-                                           std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
+      std::uninitialized_default_construct(std::next(s.content, static_cast<std::ptrdiff_t>(old_size)),
+                                           std::next(s.content, static_cast<std::ptrdiff_t>(n)));
     }
-    storage_->size = static_cast<uint32_t>(n);
+    s.size = static_cast<uint32_t>(n);
   }
 
-  [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
-  [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
-  [[nodiscard]] value_type *begin() const noexcept { return storage_->content; }
+  [[nodiscard]] bool empty() const noexcept { return access_storage().size == 0; }
+  [[nodiscard]] std::size_t size() const noexcept { return access_storage().size; }
+  [[nodiscard]] std::size_t capacity() const noexcept { return access_storage().capacity; }
+  [[nodiscard]] value_type *begin() const noexcept { return access_storage().content; }
   [[nodiscard]] value_type *end() const noexcept {
-    return std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size));
+    auto &s = access_storage();
+    return std::next(s.content, static_cast<std::ptrdiff_t>(s.size));
   }
-  [[nodiscard]] value_type *data() const noexcept { return storage_->content; }
+  [[nodiscard]] value_type *data() const noexcept { return access_storage().content; }
 
   void reset() const noexcept {
-    storage_->content = nullptr;
-    storage_->size = 0;
+    auto &s = access_storage();
+    s.content = nullptr;
+    s.size = 0;
   }
-  void clear() const noexcept { storage_->size = 0; }
+  void clear() const noexcept { access_storage().size = 0; }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
   void adopt(std::span<value_type> s) const noexcept {
-    storage_->content = s.data();
-    storage_->size = static_cast<uint32_t>(s.size());
+    auto &storage = access_storage();
+    storage.content = s.data();
+    storage.size = static_cast<uint32_t>(s.size());
   }
 
   template <std::ranges::sized_range Range>
@@ -224,7 +230,7 @@ public:
 
   void alias_from(const repeated_scalar_field_mref &other) const noexcept {
     assert(this->descriptor_ == &other.descriptor());
-    *storage_ = *other.storage_;
+    access_storage() = other.access_storage();
   }
 
   void clone_from(const cref_type &other) const noexcept {
@@ -237,8 +243,25 @@ public:
   }
 
 private:
+  [[nodiscard]] storage_type &access_storage() const noexcept {
+    if constexpr (std::is_same_v<value_type, int64_t>) {
+      return storage_->of_repeated_int64;
+    } else if constexpr (std::is_same_v<value_type, uint64_t>) {
+      return storage_->of_repeated_uint64;
+    } else if constexpr (std::is_same_v<value_type, int32_t>) {
+      return storage_->of_repeated_int32;
+    } else if constexpr (std::is_same_v<value_type, uint32_t>) {
+      return storage_->of_repeated_uint32;
+    } else if constexpr (std::is_same_v<value_type, double>) {
+      return storage_->of_repeated_double;
+    } else if constexpr (std::is_same_v<value_type, float>) {
+      return storage_->of_repeated_float;
+    } else if constexpr (std::is_same_v<value_type, bool>) {
+      return storage_->of_repeated_bool;
+    }
+  }
   const field_descriptor_t *descriptor_;
-  storage_type *storage_;
+  value_storage *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 

@@ -202,8 +202,7 @@ public:
 
   repeated_enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                            std::pmr::monotonic_buffer_resource &mr) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : descriptor_(&descriptor), storage_(reinterpret_cast<storage_type *>(&storage)), memory_resource_(&mr) {
+      : descriptor_(&descriptor), storage_(&storage), memory_resource_(&mr) {
     assert(descriptor.enum_field_type_descriptor() != nullptr);
   }
 
@@ -216,50 +215,52 @@ public:
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   [[nodiscard]] repeated_enum_field_cref cref() const noexcept {
-    return repeated_enum_field_cref{*descriptor_, *storage_};
+    return repeated_enum_field_cref{*descriptor_, storage_->of_repeated_int32};
   }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_enum_field_cref() const noexcept { return cref(); }
 
   void reserve(std::size_t n) const {
-    if (capacity() < n) {
+    auto &s = storage_->of_repeated_int32;
+    if (s.capacity < n) {
       auto *new_data = static_cast<int32_t *>(memory_resource_->allocate(n * sizeof(int32_t), alignof(int32_t)));
-      std::uninitialized_copy(storage_->content, std::next(storage_->content, static_cast<std::ptrdiff_t>(size())),
+      std::uninitialized_copy(s.content, std::next(s.content, static_cast<std::ptrdiff_t>(s.size)),
                               new_data);
-      storage_->content = new_data;
-      storage_->capacity = static_cast<uint32_t>(n);
+      s.content = new_data;
+      s.capacity = static_cast<uint32_t>(n);
     }
   }
 
   void resize(std::size_t n) const {
-    const auto old_size = size();
-    if (capacity() < n) {
+    auto &s = storage_->of_repeated_int32;
+    const auto old_size = s.size;
+    if (s.capacity < n) {
       reserve(n);
     }
     if (old_size < n) {
-      std::uninitialized_default_construct(std::next(storage_->content, static_cast<std::ptrdiff_t>(old_size)),
-                                           std::next(storage_->content, static_cast<std::ptrdiff_t>(n)));
+      std::uninitialized_default_construct(std::next(s.content, static_cast<std::ptrdiff_t>(old_size)),
+                                           std::next(s.content, static_cast<std::ptrdiff_t>(n)));
     }
-    storage_->size = static_cast<uint32_t>(n);
+    s.size = static_cast<uint32_t>(n);
   }
 
-  [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
-  [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
+  [[nodiscard]] bool empty() const noexcept { return storage_->of_repeated_int32.size == 0; }
+  [[nodiscard]] std::size_t size() const noexcept { return storage_->of_repeated_int32.size; }
+  [[nodiscard]] std::size_t capacity() const noexcept { return storage_->of_repeated_int32.capacity; }
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
-  [[nodiscard]] iterator end() const noexcept { return {this, storage_->size}; }
-  [[nodiscard]] int32_t *data() const noexcept { return storage_->content; }
+  [[nodiscard]] iterator end() const noexcept { return {this, storage_->of_repeated_int32.size}; }
+  [[nodiscard]] int32_t *data() const noexcept { return storage_->of_repeated_int32.content; }
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
     return {*descriptor_->enum_field_type_descriptor(),
-            *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
+            *std::next(storage_->of_repeated_int32.content, static_cast<std::ptrdiff_t>(index))};
   }
 
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
       return {*descriptor_->enum_field_type_descriptor(),
-              *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
+              *std::next(storage_->of_repeated_int32.content, static_cast<std::ptrdiff_t>(index))};
     }
     throw std::out_of_range("");
   }
@@ -267,7 +268,7 @@ public:
   void push_back(enum_number number) const {
     auto idx = size();
     resize(idx + 1);
-    auto values = std::span{storage_->content, storage_->size};
+    auto values = std::span{storage_->of_repeated_int32.content, storage_->of_repeated_int32.size};
     values[idx] = number.value;
   }
 
@@ -281,11 +282,11 @@ public:
   }
 
   void reset() noexcept {
-    storage_->content = nullptr;
-    storage_->size = 0;
+    storage_->of_repeated_int32.content = nullptr;
+    storage_->of_repeated_int32.size = 0;
   }
 
-  void clear() noexcept { storage_->size = 0; }
+  void clear() noexcept { storage_->of_repeated_int32.size = 0; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
@@ -293,9 +294,10 @@ public:
   }
 
   void adopt(std::span<int32_t> s) const noexcept {
-    storage_->content = s.data();
-    storage_->capacity = static_cast<uint32_t>(s.size());
-    storage_->size = static_cast<uint32_t>(s.size());
+    auto &storage = storage_->of_repeated_int32;
+    storage.content = s.data();
+    storage.capacity = static_cast<uint32_t>(s.size());
+    storage.size = static_cast<uint32_t>(s.size());
   }
 
   template <std::ranges::sized_range Range>
@@ -310,7 +312,7 @@ public:
   [[nodiscard]] std::expected<void, dynamic_message_errc> set(Range const &r) const {
     resize(std::ranges::size(r));
     std::size_t i = 0;
-    auto values = std::span{storage_->content, storage_->size};
+    auto values = std::span{storage_->of_repeated_int32.content, storage_->of_repeated_int32.size};
     for (std::string_view name : r) {
       const auto *pval = enum_descriptor().value_of(name);
       if (pval) [[likely]] {
@@ -347,7 +349,7 @@ public:
 
 private:
   const field_descriptor_t *descriptor_;
-  storage_type *storage_;
+  value_storage *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 

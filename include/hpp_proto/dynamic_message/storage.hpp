@@ -65,7 +65,7 @@ union value_storage {
   repeated_storage_base<double> of_repeated_double;
   repeated_storage_base<float> of_repeated_float;
   repeated_storage_base<bool> of_repeated_bool;
-  repeated_storage_base<std::span<const std::byte>> of_repeated_bytes;
+  repeated_storage_base<bytes_view> of_repeated_bytes;
   repeated_storage_base<std::string_view> of_repeated_string;
   repeated_storage_base<value_storage> of_repeated_message;
 

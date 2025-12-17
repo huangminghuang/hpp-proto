@@ -107,7 +107,7 @@ static_assert(std::ranges::range<repeated_message_field_cref>);
  */
 class repeated_message_field_mref : std::ranges::view_interface<repeated_message_field_mref> {
   const field_descriptor_t *descriptor_;
-  repeated_storage_base<value_storage> *storage_;
+  value_storage *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
   [[nodiscard]] std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
@@ -130,8 +130,7 @@ public:
 
   repeated_message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                               std::pmr::monotonic_buffer_resource &mr) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_repeated_message), memory_resource_(&mr) {}
+      : descriptor_(&descriptor), storage_(&storage), memory_resource_(&mr) {}
 
   repeated_message_field_mref(const repeated_message_field_mref &) noexcept = default;
   repeated_message_field_mref(repeated_message_field_mref &&) noexcept = default;
@@ -141,19 +140,20 @@ public:
 
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
-  [[nodiscard]] repeated_message_field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
+  [[nodiscard]] repeated_message_field_cref cref() const noexcept { return {*descriptor_, storage_->of_repeated_message}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator repeated_message_field_cref() const noexcept { return cref(); }
 
   void reserve(std::size_t n) const {
-    if (capacity() < n) {
+    auto &s = storage_->of_repeated_message;
+    if (s.capacity < n) {
       auto *new_data = static_cast<value_storage *>(
           memory_resource_->allocate(n * num_slots() * sizeof(value_storage), alignof(value_storage)));
-      auto old_size = size();
+      auto old_size = s.size;
       const auto total_slots = n * num_slots();
       const auto initialized_slots = old_size * num_slots();
       if (initialized_slots > 0) {
-        auto *old_begin = storage_->content;
+        auto *old_begin = s.content;
         auto *old_end = std::next(old_begin, static_cast<std::ptrdiff_t>(initialized_slots));
         std::uninitialized_copy(old_begin, old_end, new_data);
       }
@@ -162,37 +162,38 @@ public:
       if (remaining_slots > 0) {
         std::uninitialized_value_construct_n(construct_begin, remaining_slots);
       }
-      storage_->content = new_data;
-      storage_->capacity = static_cast<uint32_t>(n);
+      s.content = new_data;
+      s.capacity = static_cast<uint32_t>(n);
     }
   }
 
   void resize(std::size_t n) const {
-    auto old_size = size();
-    if (capacity() < n) {
+    auto &s = storage_->of_repeated_message;
+    auto old_size = s.size;
+    if (s.capacity < n) {
       reserve(n);
     }
-    storage_->size = static_cast<uint32_t>(n);
+    s.size = static_cast<uint32_t>(n);
     if (n > old_size) {
-      auto *start = std::next(storage_->content, static_cast<std::ptrdiff_t>(old_size * num_slots()));
+      auto *start = std::next(s.content, static_cast<std::ptrdiff_t>(old_size * num_slots()));
       const auto count = (n - old_size) * num_slots();
       auto new_span = std::span{start, count};
       std::ranges::fill(new_span, value_storage{});
     }
   }
 
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
-  [[nodiscard]] std::size_t capacity() const noexcept { return storage_->capacity; }
+  [[nodiscard]] std::size_t size() const noexcept { return storage_->of_repeated_message.size; }
+  [[nodiscard]] std::size_t capacity() const noexcept { return storage_->of_repeated_message.capacity; }
   [[nodiscard]] message_value_mref operator[](std::size_t index) const noexcept {
     assert(index < size());
     const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
-    return {message_descriptor(), std::next(storage_->content, offset), *memory_resource_};
+    return {message_descriptor(), std::next(storage_->of_repeated_message.content, offset), *memory_resource_};
   }
 
   [[nodiscard]] message_value_mref at(std::size_t index) const {
     if (index < size()) {
       const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
-      return {message_descriptor(), std::next(storage_->content, offset), *memory_resource_};
+      return {message_descriptor(), std::next(storage_->of_repeated_message.content, offset), *memory_resource_};
     }
     throw std::out_of_range("");
   }
@@ -200,8 +201,8 @@ public:
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
   [[nodiscard]] iterator end() const noexcept { return {this, size()}; }
 
-  void reset() const noexcept { storage_->size = 0; }
-  void clear() const noexcept { storage_->size = 0; }
+  void reset() const noexcept { storage_->of_repeated_message.size = 0; }
+  void clear() const noexcept { storage_->of_repeated_message.size = 0; }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
     return *descriptor_->message_field_type_descriptor();
@@ -215,7 +216,7 @@ public:
 
   void alias_from(const repeated_message_field_mref &other) const noexcept {
     assert(this->descriptor_ == &other.descriptor());
-    *storage_ = *other.storage_;
+    storage_->of_repeated_message = other.storage_->of_repeated_message;
   }
 
   void clone_from(const cref_type &other) const {

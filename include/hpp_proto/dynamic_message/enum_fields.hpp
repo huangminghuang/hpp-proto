@@ -226,8 +226,7 @@ public:
 
   enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                   std::pmr::monotonic_buffer_resource &) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_int32) {}
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   enum_field_mref(const enum_field_mref &) noexcept = default;
   enum_field_mref(enum_field_mref &&) noexcept = default;
@@ -237,7 +236,7 @@ public:
 
   void alias_from(const cref_type &other) const noexcept {
     assert(this->descriptor_ == &other.descriptor());
-    *storage_ = *other.storage_;
+    storage_->of_int32 = *other.storage_;
   }
 
   void clone_from(const cref_type &other) const noexcept {
@@ -253,24 +252,18 @@ public:
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] enum_value_mref value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
-      storage_->content = std::get<int32_t>(descriptor_->default_value);
+      storage_->of_int32.content = std::get<int32_t>(descriptor_->default_value);
     }
-    return {*descriptor_->enum_field_type_descriptor(), storage_->content};
+    return {*descriptor_->enum_field_type_descriptor(), storage_->of_int32.content};
   }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   [[nodiscard]] enum_value_mref emplace() const noexcept {
-    // Direct assignment violates strict aliasing. Use memcpy.
-    uint32_t selection_val = descriptor_->oneof_ordinal;
-    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
-    return {*descriptor_->enum_field_type_descriptor(), storage_->content};
+    storage_->of_int32.selection = descriptor_->oneof_ordinal;
+    return {*descriptor_->enum_field_type_descriptor(), storage_->of_int32.content};
   }
 
-  void reset() const noexcept {
-    // Direct assignment violates strict aliasing. Use memcpy.
-    uint32_t zero = 0;
-    std::memcpy(&storage_->selection, &zero, sizeof(zero));
-  }
+  void reset() const noexcept { storage_->of_int32.selection = 0; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
@@ -279,7 +272,7 @@ public:
 
   [[nodiscard]] std::int32_t number() const {
     return descriptor().explicit_presence() && !has_value() ? std::get<int32_t>(descriptor_->default_value)
-                                                            : storage_->content;
+                                                            : storage_->of_int32.content;
   }
   /**
    * @brief Returns the enum value's symbolic name (empty if schema lacks this number).
@@ -287,10 +280,8 @@ public:
   [[nodiscard]] std::string_view name() const { return cref().name(); }
 
   void set(enum_number number) const {
-    storage_->content = number.value;
-    // Direct assignment violates strict aliasing. Use memcpy.
-    uint32_t selection_val = descriptor_->oneof_ordinal;
-    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
+    storage_->of_int32.content = number.value;
+    storage_->of_int32.selection = descriptor_->oneof_ordinal;
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> set(enum_name name) const {
@@ -305,7 +296,7 @@ public:
 
 private:
   const field_descriptor_t *descriptor_;
-  scalar_storage_base<int32_t> *storage_;
+  value_storage *storage_;
 };
 
 } // namespace hpp::proto

@@ -568,8 +568,7 @@ public:
 
   message_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                      std::pmr::monotonic_buffer_resource &mr) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : descriptor_(&descriptor), storage_(&storage.of_message), memory_resource_(&mr) {
+      : descriptor_(&descriptor), storage_(&storage), memory_resource_(&mr) {
     assert(descriptor.message_field_type_descriptor() != nullptr);
   }
 
@@ -585,14 +584,11 @@ public:
 
   [[nodiscard]] message_value_mref emplace() const {
     if (!has_value()) {
-      // Direct assignment violates strict aliasing. Use memcpy.
-      uint32_t selection_val = descriptor_->oneof_ordinal;
-      std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
-
-      storage_->content = static_cast<value_storage *>(
+      storage_->of_message.selection = descriptor_->oneof_ordinal;
+      storage_->of_message.content = static_cast<value_storage *>(
           memory_resource_->allocate(sizeof(value_storage) * num_slots(), alignof(value_storage)));
     }
-    auto result = message_value_mref{message_descriptor(), storage_->content, *memory_resource_};
+    auto result = message_value_mref{message_descriptor(), storage_->of_message.content, *memory_resource_};
     result.reset();
     return result;
   }
@@ -602,11 +598,11 @@ public:
     if (!has_value()) {
       throw std::bad_optional_access{};
     }
-    return {message_descriptor(), storage_->content, *memory_resource_};
+    return {message_descriptor(), storage_->of_message.content, *memory_resource_};
   }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
   [[nodiscard]] value_type operator*() const noexcept {
-    return {message_descriptor(), storage_->content, *memory_resource_};
+    return {message_descriptor(), storage_->of_message.content, *memory_resource_};
   }
 
   template <typename U>
@@ -614,11 +610,7 @@ public:
     return cref().get<U>();
   }
 
-  void reset() const noexcept {
-    // Direct assignment violates strict aliasing. Use memcpy.
-    uint32_t zero = 0;
-    std::memcpy(&storage_->selection, &zero, sizeof(zero));
-  }
+  void reset() const noexcept { storage_->of_message.selection = 0; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
@@ -627,7 +619,7 @@ public:
 
   void alias_from(const message_field_mref &other) const noexcept {
     assert(&message_descriptor() == &other.message_descriptor());
-    *storage_ = *other.storage_;
+    storage_->of_message = other.storage_->of_message;
   }
 
   void clone_from(const cref_type &other) const noexcept {
@@ -655,7 +647,7 @@ public:
 
 private:
   const field_descriptor_t *descriptor_;
-  storage_type *storage_;
+  value_storage *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
   [[nodiscard]] std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
 };

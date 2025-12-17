@@ -100,6 +100,8 @@ private:
  */
 template <typename T, field_kind_t Kind>
 class scalar_field_mref {
+  using self_type = scalar_field_mref<T, Kind>;
+
 public:
   using encode_type = T;
   using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
@@ -115,44 +117,54 @@ public:
 
   scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                     std::pmr::monotonic_buffer_resource &) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : descriptor_(&descriptor), storage_(reinterpret_cast<storage_type *>(&storage)) {}
+      : descriptor_(&descriptor), storage_(&storage) {}
 
-  scalar_field_mref(const scalar_field_mref &) noexcept = default;
-  scalar_field_mref(scalar_field_mref &&) noexcept = default;
-  scalar_field_mref &operator=(const scalar_field_mref &) noexcept = default;
-  scalar_field_mref &operator=(scalar_field_mref &&) noexcept = default;
+  scalar_field_mref(const self_type &) noexcept = default;
+  scalar_field_mref(self_type &&) noexcept = default;
+  self_type &operator=(const self_type &) noexcept = default;
+  self_type &operator=(self_type &&) noexcept = default;
   ~scalar_field_mref() noexcept = default;
 
   void set(T v) const noexcept {
-    storage_->content = v;
-    // Direct assignment to 'selection' violates strict aliasing if another
-    // union member was active. Use memcpy to safely write to this memory location.
-    uint32_t selection_val = descriptor_->oneof_ordinal;
-    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
+    auto &storage = access_storage();
+    storage.content = v;
+    storage.selection = descriptor_->oneof_ordinal;
   }
 
   void alias_from(const scalar_field_cref<T, Kind> &other) const noexcept { set(other.value()); }
   void clone_from(scalar_field_cref<T, Kind> other) const noexcept { set(other.value()); }
 
-  [[nodiscard]] scalar_field_cref<T, Kind> cref() const noexcept { return {*descriptor_, *storage_}; }
+  [[nodiscard]] cref_type cref() const noexcept { return {*descriptor_, access_storage()}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
-  [[nodiscard]] operator scalar_field_cref<T, Kind>() const noexcept { return cref(); }
+  [[nodiscard]] operator cref_type() const noexcept { return cref(); }
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const noexcept { return cref().value(); }
-  void reset() noexcept {
-    // Direct assignment to 'selection' violates strict aliasing. Use memcpy.
-    uint32_t zero = 0;
-    std::memcpy(&storage_->selection, &zero, sizeof(zero));
-  }
+  void reset() noexcept { access_storage().selection = 0; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
 private:
+  [[nodiscard]] storage_type &access_storage() const noexcept {
+    if constexpr (std::is_same_v<value_type, int64_t>) {
+      return storage_->of_int64;
+    } else if constexpr (std::is_same_v<value_type, uint64_t>) {
+      return storage_->of_uint64;
+    } else if constexpr (std::is_same_v<value_type, int32_t>) {
+      return storage_->of_int32;
+    } else if constexpr (std::is_same_v<value_type, uint32_t>) {
+      return storage_->of_uint32;
+    } else if constexpr (std::is_same_v<value_type, double>) {
+      return storage_->of_double;
+    } else if constexpr (std::is_same_v<value_type, float>) {
+      return storage_->of_float;
+    } else if constexpr (std::is_same_v<value_type, bool>) {
+      return storage_->of_bool;
+    }
+  }
   const field_descriptor_t *descriptor_;
-  storage_type *storage_;
+  value_storage *storage_;
 };
 
 using double_field_cref = scalar_field_cref<double, KIND_DOUBLE>;
