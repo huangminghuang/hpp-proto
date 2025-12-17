@@ -87,6 +87,14 @@ private:
   const bytes_storage_t *storage_;
 };
 
+/**
+ * @brief Mutable view of a singular bytes field.
+ *
+ * - `set` copies the bytes into message-owned memory allocated from the associated
+ *   monotonic_buffer_resource.
+ * - `adopt` aliases an external buffer; the caller must keep the source buffer alive
+ *   for as long as the message references it.
+ */
 class bytes_field_mref {
 public:
   using encode_type = bytes_view;
@@ -116,7 +124,9 @@ public:
   void adopt(std::span<const std::byte> v) const noexcept {
     storage_->content = v.data();
     storage_->size = static_cast<uint32_t>(v.size());
-    storage_->selection = descriptor_->oneof_ordinal;
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t selection_val = descriptor_->oneof_ordinal;
+    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
   }
 
   void set(concepts::contiguous_std_byte_range auto const &v) const {
@@ -124,7 +134,9 @@ public:
     std::copy(v.begin(), v.end(), dest);
     storage_->content = dest;
     storage_->size = static_cast<uint32_t>(v.size());
-    storage_->selection = descriptor_->oneof_ordinal;
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t selection_val = descriptor_->oneof_ordinal;
+    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
   }
 
   void alias_from(const cref_type &other) const noexcept { *storage_ = *other.storage_; }
@@ -148,7 +160,9 @@ public:
 
   void reset() const noexcept {
     storage_->size = 0;
-    storage_->selection = 0;
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t zero = 0;
+    std::memcpy(&storage_->selection, &zero, sizeof(zero));
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }

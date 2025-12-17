@@ -260,11 +260,17 @@ public:
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   [[nodiscard]] enum_value_mref emplace() const noexcept {
-    storage_->selection = descriptor_->oneof_ordinal;
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t selection_val = descriptor_->oneof_ordinal;
+    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
     return {*descriptor_->enum_field_type_descriptor(), storage_->content};
   }
 
-  void reset() const noexcept { storage_->selection = 0; }
+  void reset() const noexcept {
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t zero = 0;
+    std::memcpy(&storage_->selection, &zero, sizeof(zero));
+  }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const enum_descriptor_t &enum_descriptor() const noexcept {
@@ -282,7 +288,9 @@ public:
 
   void set(enum_number number) const {
     storage_->content = number.value;
-    storage_->selection = descriptor_->oneof_ordinal;
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t selection_val = descriptor_->oneof_ordinal;
+    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> set(enum_name name) const {

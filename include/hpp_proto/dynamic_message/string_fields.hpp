@@ -87,6 +87,14 @@ private:
   const string_storage_t *storage_;
 };
 
+/**
+ * @brief Mutable view of a singular string field.
+ *
+ * - `set` copies the provided data into message-owned storage allocated from the associated
+ *   monotonic_buffer_resource.
+ * - `adopt` aliases external storage; the caller must ensure the lifetime of the referenced
+ *   characters outlives the message.
+ */
 class string_field_mref {
 public:
   using encode_type = std::string_view;
@@ -116,7 +124,9 @@ public:
   void adopt(std::string_view v) const noexcept {
     storage_->content = v.data();
     storage_->size = static_cast<uint32_t>(v.size());
-    storage_->selection = descriptor_->oneof_ordinal;
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t selection_val = descriptor_->oneof_ordinal;
+    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
   }
 
   void set(std::string_view v) const {
@@ -124,7 +134,9 @@ public:
     std::ranges::copy(v, dest);
     storage_->content = dest;
     storage_->size = static_cast<uint32_t>(v.size());
-    storage_->selection = descriptor_->oneof_ordinal;
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t selection_val = descriptor_->oneof_ordinal;
+    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
   }
 
   void alias_from(const cref_type &other) const noexcept { *storage_ = *other.storage_; }
@@ -148,7 +160,9 @@ public:
 
   void reset() const noexcept {
     storage_->size = 0;
-    storage_->selection = 0;
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t zero = 0;
+    std::memcpy(&storage_->selection, &zero, sizeof(zero));
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }

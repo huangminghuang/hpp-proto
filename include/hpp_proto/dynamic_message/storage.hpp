@@ -24,6 +24,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <span>
 #include <string_view>
 #include <variant>
@@ -70,7 +71,28 @@ union value_storage {
 
   value_storage() : of_int64{0ULL, 0U, 0U} {}
 
-  [[nodiscard]] bool has_value() const noexcept { return of_repeated_int64.size != 0; }
-  void reset() noexcept { of_repeated_int64.size = 0; }
+  [[nodiscard]] bool has_value() const noexcept {
+    // This implementation relies on a layout hack where the 'selection' field of
+    // scalar types and the 'size' field of repeated types are at the same
+    // memory offset. Reading from an inactive union member (e.g. of_int32.selection)
+    // when another member is active is a strict aliasing violation and thus
+    // undefined behavior.
+    // We use std::memcpy to safely access the bytes at the given offset, which
+    // is a standard-compliant way to perform this type of type-punning.
+    // Compilers will optimize this memcpy to a single efficient instruction.
+    static_assert(offsetof(scalar_storage_base<bool>, selection) ==
+                  offsetof(repeated_storage_base<bool>, size));
+    uint32_t value;
+    std::memcpy(&value, &this->of_repeated_int64.size, sizeof(value));
+    return value != 0;
+  }
+  void reset() noexcept {
+    // Similar to has_value(), we use memcpy to avoid undefined behavior when
+    // writing to an inactive union member.
+    static_assert(offsetof(scalar_storage_base<bool>, selection) ==
+                  offsetof(repeated_storage_base<bool>, size));
+    uint32_t zero = 0;
+    std::memcpy(&this->of_repeated_int64.size, &zero, sizeof(zero));
+  }
 };
 } // namespace hpp::proto

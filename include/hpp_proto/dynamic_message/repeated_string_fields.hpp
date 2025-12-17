@@ -39,6 +39,13 @@ using enum field_kind_t;
 
 using repeated_string_field_cref = repeated_scalar_field_cref<std::string_view, KIND_REPEATED_STRING>;
 
+/**
+ * @brief Mutable view over a repeated string field.
+ *
+ * - `set` copies a range of strings into message-owned storage (resizing as needed).
+ * - `adopt` aliases an external span of string_views; the caller must keep the backing
+ *   character data alive while referenced by the message.
+ */
 class repeated_string_field_mref : public std::ranges::view_interface<repeated_string_field_mref> {
 public:
   using storage_type = repeated_storage_base<std::string_view>;

@@ -126,7 +126,10 @@ public:
 
   void set(T v) const noexcept {
     storage_->content = v;
-    storage_->selection = descriptor_->oneof_ordinal;
+    // Direct assignment to 'selection' violates strict aliasing if another
+    // union member was active. Use memcpy to safely write to this memory location.
+    uint32_t selection_val = descriptor_->oneof_ordinal;
+    std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
   }
 
   void alias_from(const scalar_field_cref<T, Kind> &other) const noexcept { set(other.value()); }
@@ -139,7 +142,11 @@ public:
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const noexcept { return cref().value(); }
-  void reset() noexcept { storage_->selection = 0; }
+  void reset() noexcept {
+    // Direct assignment to 'selection' violates strict aliasing. Use memcpy.
+    uint32_t zero = 0;
+    std::memcpy(&storage_->selection, &zero, sizeof(zero));
+  }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 

@@ -585,7 +585,10 @@ public:
 
   [[nodiscard]] message_value_mref emplace() const {
     if (!has_value()) {
-      storage_->selection = descriptor_->oneof_ordinal;
+      // Direct assignment violates strict aliasing. Use memcpy.
+      uint32_t selection_val = descriptor_->oneof_ordinal;
+      std::memcpy(&storage_->selection, &selection_val, sizeof(selection_val));
+
       storage_->content = static_cast<value_storage *>(
           memory_resource_->allocate(sizeof(value_storage) * num_slots(), alignof(value_storage)));
     }
@@ -611,7 +614,11 @@ public:
     return cref().get<U>();
   }
 
-  void reset() const noexcept { storage_->selection = 0; }
+  void reset() const noexcept {
+    // Direct assignment violates strict aliasing. Use memcpy.
+    uint32_t zero = 0;
+    std::memcpy(&storage_->selection, &zero, sizeof(zero));
+  }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
