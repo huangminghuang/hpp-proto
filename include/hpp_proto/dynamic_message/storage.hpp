@@ -80,8 +80,7 @@ union value_storage {
     // We use std::memcpy to safely access the bytes at the given offset, which
     // is a standard-compliant way to perform this type of type-punning.
     // Compilers will optimize this memcpy to a single efficient instruction.
-    static_assert(offsetof(scalar_storage_base<bool>, selection) ==
-                  offsetof(repeated_storage_base<bool>, size));
+    static_assert(offsetof(scalar_storage_base<bool>, selection) == offsetof(repeated_storage_base<bool>, size));
     uint32_t value;
     std::memcpy(&value, &this->of_repeated_int64.size, sizeof(value));
     return value != 0;
@@ -89,8 +88,7 @@ union value_storage {
   void reset() noexcept {
     // Similar to has_value(), we use memcpy to avoid undefined behavior when
     // writing to an inactive union member.
-    static_assert(offsetof(scalar_storage_base<bool>, selection) ==
-                  offsetof(repeated_storage_base<bool>, size));
+    static_assert(offsetof(scalar_storage_base<bool>, selection) == offsetof(repeated_storage_base<bool>, size));
     uint32_t zero = 0;
     std::memcpy(&this->of_repeated_int64.size, &zero, sizeof(zero));
   }
