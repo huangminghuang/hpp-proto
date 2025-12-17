@@ -373,6 +373,7 @@ const boost::ut::suite dynamic_message_test = [] {
 
     oneof_uint32_field.set(1);
     expect(oneof_uint32_field.has_value());
+    expect(1 == oneof_uint32_field.value());
     expect(!oneof_nested_message_field.has_value());
     expect(!oneof_string_field.has_value());
     expect(!oneof_bytes_field.has_value());
@@ -381,6 +382,7 @@ const boost::ut::suite dynamic_message_test = [] {
     expect(!oneof_uint32_field.has_value());
     expect(!oneof_nested_message_field.has_value());
     expect(oneof_string_field.has_value());
+    expect("abc"sv ==  oneof_string_field.value());
     expect(!oneof_bytes_field.has_value());
 
     oneof_bytes_field.adopt("def"_bytes);
@@ -388,10 +390,13 @@ const boost::ut::suite dynamic_message_test = [] {
     expect(!oneof_nested_message_field.has_value());
     expect(!oneof_string_field.has_value());
     expect(oneof_bytes_field.has_value());
+    expect("def"_bytes == oneof_bytes_field.value());
 
-    (void)oneof_nested_message_field.emplace();
+    auto nested = oneof_nested_message_field.emplace();
+    expect(nested.set_field_by_name("bb", 1).has_value());
     expect(!oneof_uint32_field.has_value());
     expect(oneof_nested_message_field.has_value());
+    expect(1 == oneof_nested_message_field->field_value_by_name<std::int32_t>("bb"sv));
     expect(!oneof_string_field.has_value());
     expect(!oneof_bytes_field.has_value());
   };
