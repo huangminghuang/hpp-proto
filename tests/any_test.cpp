@@ -10,7 +10,7 @@
 #include "test_util.hpp"
 #include <boost/ut.hpp>
 
-#include <hpp_proto/dynamic_message_json.hpp>
+#include <hpp_proto/dynamic_message/json.hpp>
 
 using namespace boost::ut;
 

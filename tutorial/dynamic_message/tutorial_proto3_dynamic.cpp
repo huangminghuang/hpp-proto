@@ -5,7 +5,7 @@
 
 #include <hpp_proto/dynamic_message.hpp>
 #ifndef HPP_PROTO_DISABLE_GLAZE
-#include <hpp_proto/dynamic_message_json.hpp>
+#include <hpp_proto/dynamic_message/json.hpp>
 #endif
 
 // #include "addressbook_proto3.desc.hpp" // descriptor set for dynamic loading

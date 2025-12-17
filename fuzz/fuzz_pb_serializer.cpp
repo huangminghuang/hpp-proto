@@ -13,7 +13,7 @@
 #include <google/protobuf/map_unittest.glz.hpp>
 #include <google/protobuf/unittest.glz.hpp>
 #include <google/protobuf/unittest_proto3.glz.hpp>
-#include <hpp_proto/dynamic_message_json.hpp>
+#include <hpp_proto/dynamic_message/json.hpp>
 
 std::string read_file(const char *filename);
 

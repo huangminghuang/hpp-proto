@@ -1459,7 +1459,7 @@ struct glaze_meta_generator : code_generator {
     } else {
       fmt::format_to(target,
                      "#pragma once\n\n"
-                     "#include <hpp_proto/dynamic_message_json.hpp>\n\n"
+                     "#include <hpp_proto/dynamic_message/json.hpp>\n\n"
                      "#include \"{}.msg.hpp\"\n\n",
                      basename(descriptor.proto().name, directory_prefix));
     }

@@ -22,7 +22,7 @@
 #include <google/protobuf/wrappers.glz.hpp>
 #include <google/protobuf/wrappers.pb.hpp>
 
-#include <hpp_proto/dynamic_message_json.hpp>
+#include <hpp_proto/dynamic_message/json.hpp>
 
 #include <optional>
 #include <stdexcept>

@@ -3,7 +3,7 @@
 #include <array>
 #include <boost/ut.hpp>
 #include <hpp_proto/dynamic_message.hpp>
-#include <hpp_proto/dynamic_message_json.hpp>
+#include <hpp_proto/dynamic_message/json.hpp>
 #include <limits>
 #include <memory_resource>
 #include <span>
