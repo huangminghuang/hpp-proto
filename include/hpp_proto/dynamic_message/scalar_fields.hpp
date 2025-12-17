@@ -34,18 +34,6 @@
 namespace hpp::proto {
 using enum field_kind_t;
 
-template <typename T>
-struct value_type_identity {
-  using value_type = T;
-};
-
-template <typename T>
-struct value_proxy {
-  T value;
-  [[nodiscard]] T *operator->() noexcept { return std::addressof(value); }
-  [[nodiscard]] const T *operator->() const noexcept { return std::addressof(value); }
-};
-
 /**
  * @brief Typed, read-only view of a scalar (non-enum) field.
  *

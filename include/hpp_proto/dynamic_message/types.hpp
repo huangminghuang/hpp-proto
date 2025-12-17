@@ -134,4 +134,16 @@ template <typename T>
 concept mutable_field_ref = T::is_mutable && requires { T::field_kind; };
 } // namespace concepts
 
+template <typename T>
+struct value_type_identity {
+  using value_type = T;
+};
+
+template <typename T>
+struct value_proxy {
+  T value;
+  [[nodiscard]] T *operator->() noexcept { return std::addressof(value); }
+  [[nodiscard]] const T *operator->() const noexcept { return std::addressof(value); }
+};
+
 } // namespace hpp::proto

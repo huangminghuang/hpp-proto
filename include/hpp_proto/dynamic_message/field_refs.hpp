@@ -204,5 +204,3 @@ public:
 }; // class field_mref
 
 } // namespace hpp::proto
-
-#include <hpp_proto/dynamic_message/field_visit.hpp>
