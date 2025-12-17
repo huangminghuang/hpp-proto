@@ -22,7 +22,10 @@
         },
         {
             "name": "core-dev",
-            "inherits": [ "default", "asan"],
+            "inherits": [
+                "default",
+                "asan"
+            ],
             "displayName": "Core Developer Mode",
             "description": "Builds hpp-proto core library unit tests only",
             "binaryDir": "${sourceDir}/build/debug",
@@ -33,7 +36,10 @@
         },
         {
             "name": "dev",
-            "inherits": [ "default", "asan" ],
+            "inherits": [
+                "default",
+                "asan"
+            ],
             "displayName": "Developer Mode",
             "description": "Debug build and test against google protobuf implementation",
             "binaryDir": "${sourceDir}/build/debug",
@@ -45,7 +51,10 @@
         },
         {
             "name": "dev-msan",
-            "inherits": [ "default", "msan"],
+            "inherits": [
+                "default",
+                "msan"
+            ],
             "displayName": "Memory Sanitizer Mode",
             "binaryDir": "${sourceDir}/build/msan",
             "cacheVariables": {
@@ -60,6 +69,18 @@
             "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -g -fno-optimize-sibling-calls",
+                "HPP_PROTO_PROTOC": "find"
+            }
+        },
+        {
+            "name": "RelWithDebInfo",
+            "inherits": "default",
+            "displayName": "RelWithDebInfo",
+            "description": "Optimized build with tests",
+            "binaryDir": "${sourceDir}/build/RelWithDebInfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "HPP_PROTO_PROTOC": "find"
             }
         },
@@ -88,7 +109,10 @@
         },
         {
             "name": "find_protobuf",
-            "inherits": ["default", "asan"],
+            "inherits": [
+                "default",
+                "asan"
+            ],
             "displayName": "find_protobuf",
             "description": "find_protobuf Build",
             "binaryDir": "${sourceDir}/build/find_protobuf",
@@ -96,16 +120,19 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "HPP_PROTO_PROTOC": "find"
             }
-        }, 
+        },
         {
-           "name": "Fuzz",
-            "inherits": ["default", "fuzz"],
+            "name": "Fuzz",
+            "inherits": [
+                "default",
+                "fuzz"
+            ],
             "displayName": "Fuzz",
             "description": "Fuzz Build",
             "binaryDir": "${sourceDir}/build/fuzz",
             "cacheVariables": {
                 "HPP_PROTO_PROTOC": "find"
-            }       
+            }
         }
     ],
     "testPresets": [

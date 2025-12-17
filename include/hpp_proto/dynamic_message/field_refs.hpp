@@ -64,6 +64,7 @@ public:
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] field_kind_t field_kind() const noexcept {
+    // map TYPE_GROUP to TYPE_MESSAGE
     using enum google::protobuf::FieldDescriptorProto_::Type;
     auto base_type = descriptor().proto().type == TYPE_GROUP ? TYPE_MESSAGE : descriptor().proto().type;
     return static_cast<field_kind_t>(std::to_underlying(base_type) +
@@ -77,6 +78,8 @@ public:
                                       : (storage_->of_int64.selection == descriptor().oneof_ordinal);
   }
 
+  /// if the field is part of an oneof fields, return the active field index of the oneof. If the returned
+  /// value is smaller than 0, it means the oneof does not contains any value.
   [[nodiscard]] std::int32_t active_oneof_index() const {
     return static_cast<std::int32_t>(storage_->of_int64.selection + descriptor().storage_slot) -
            descriptor().oneof_ordinal;
@@ -144,6 +147,7 @@ public:
   }
 
   [[nodiscard]] field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator field_cref() const noexcept { return cref(); }
   auto visit(auto &&v) const;
   void alias_from(const field_mref &other) const noexcept {

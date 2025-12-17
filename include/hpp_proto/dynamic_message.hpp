@@ -31,6 +31,7 @@ namespace hpp::proto {
 template <std::size_t N>
 [[nodiscard]] status read_proto(message_value_mref msg, const char (&buffer)[N]) {
   constexpr auto span_size = N == 0 ? 0 : N - 1;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,-warnings-as-errors)
   auto span = std::span<const char>{buffer, span_size};
   return read_proto(msg, span);
 }

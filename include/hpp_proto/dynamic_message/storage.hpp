@@ -81,7 +81,7 @@ union value_storage {
     // is a standard-compliant way to perform this type of type-punning.
     // Compilers will optimize this memcpy to a single efficient instruction.
     static_assert(offsetof(scalar_storage_base<bool>, selection) == offsetof(repeated_storage_base<bool>, size));
-    uint32_t value;
+    uint32_t value = 0;
     std::memcpy(&value, &this->of_repeated_int64.size, sizeof(value));
     return value != 0;
   }

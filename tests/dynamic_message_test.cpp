@@ -88,6 +88,7 @@ const boost::ut::suite dynamic_message_test = [] {
 
   "basic_serialization"_test = [&factory] {
     using namespace std::string_view_literals;
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     auto roundtrip = [&](std::string_view msg_name, std::string_view data, auto verify) {
       std::pmr::monotonic_buffer_resource mr1;
       auto msg1 = expect_ok(factory.get_message(msg_name, mr1));

@@ -38,6 +38,14 @@ using enum field_kind_t;
 
 using repeated_bytes_field_cref = repeated_scalar_field_cref<bytes_view, KIND_REPEATED_BYTES>;
 
+/**
+ * @brief Mutable view over a repeated bytes field.
+ *
+ * - `set` copies a range of bytes_view elements into message-owned storage.
+ * - `adopt` aliases an external span of bytes_view elements; the caller must keep the
+ *   referenced buffers alive.
+ * Elements are accessible via random-access iterators.
+ */
 class repeated_bytes_field_mref : public std::ranges::view_interface<repeated_bytes_field_mref> {
 public:
   using storage_type = repeated_storage_base<bytes_view>;
@@ -119,10 +127,11 @@ public:
     throw std::out_of_range("");
   }
 
-  void push_back(bytes_view v) const {
+  template <concepts::contiguous_std_byte_range Range>
+  void push_back(const Range &r) const {
     auto idx = size();
     resize(idx + 1);
-    (*this)[idx].set(v);
+    (*this)[idx].set(r);
   }
 
   void reset() const noexcept {
@@ -164,7 +173,7 @@ public:
     }
     resize(other.size());
     for (std::size_t i = 0; i < other.size(); ++i) {
-      (*this)[i].clone_from(other[i]);
+      (*this)[i].set(other[i]);
     }
   }
 

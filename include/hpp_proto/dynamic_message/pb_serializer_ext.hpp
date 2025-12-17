@@ -412,6 +412,7 @@ struct message_size_calculator<message_value_cref> {
 
     uint32_t operator()(repeated_bytes_field_cref v) {
       auto ts = tag_size(v);
+      // NOLINTNEXTLINE(performance-unnecessary-value-param)
       return narrow_size(util::transform_accumulate(v, [ts](const bytes_view e) { return ts + len_size(e.size()); }));
     }
 
