@@ -29,9 +29,9 @@
 #include <string_view>
 #include <utility>
 
+#include <hpp_proto/descriptor_pool.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
-#include <hpp_proto/descriptor_pool.hpp>
 #include <hpp_proto/pb_serializer.hpp>
 
 namespace hpp::proto {
@@ -170,14 +170,22 @@ inline void dynamic_message_factory::setup_storage_slots() {
 
 inline void dynamic_message_factory::setup_wellknown_types() {
   const static std::pair<const char *, wellknown_types_t> wellknown_mappings[] = {
-      {"google.protobuf.Any", wellknown_types_t::ANY},          {"google.protobuf.Timestamp", wellknown_types_t::TIMESTAMP},
-      {"google.protobuf.Duration", wellknown_types_t::DURATION},{"google.protobuf.FieldMask", wellknown_types_t::FIELDMASK},
-      {"google.protobuf.Value", wellknown_types_t::VALUE},      {"google.protobuf.ListValue", wellknown_types_t::LISTVALUE},
-      {"google.protobuf.Struct", wellknown_types_t::STRUCT},    {"google.protobuf.DoubleValue", wellknown_types_t::WRAPPER},
-      {"google.protobuf.FloatValue", wellknown_types_t::WRAPPER},{"google.protobuf.Int64Value", wellknown_types_t::WRAPPER},
-      {"google.protobuf.UInt64Value", wellknown_types_t::WRAPPER},{"google.protobuf.Int32Value", wellknown_types_t::WRAPPER},
-      {"google.protobuf.UInt32Value", wellknown_types_t::WRAPPER},{"google.protobuf.BoolValue", wellknown_types_t::WRAPPER},
-      {"google.protobuf.StringValue", wellknown_types_t::WRAPPER},{"google.protobuf.BytesValue", wellknown_types_t::WRAPPER},
+      {"google.protobuf.Any", wellknown_types_t::ANY},
+      {"google.protobuf.Timestamp", wellknown_types_t::TIMESTAMP},
+      {"google.protobuf.Duration", wellknown_types_t::DURATION},
+      {"google.protobuf.FieldMask", wellknown_types_t::FIELDMASK},
+      {"google.protobuf.Value", wellknown_types_t::VALUE},
+      {"google.protobuf.ListValue", wellknown_types_t::LISTVALUE},
+      {"google.protobuf.Struct", wellknown_types_t::STRUCT},
+      {"google.protobuf.DoubleValue", wellknown_types_t::WRAPPER},
+      {"google.protobuf.FloatValue", wellknown_types_t::WRAPPER},
+      {"google.protobuf.Int64Value", wellknown_types_t::WRAPPER},
+      {"google.protobuf.UInt64Value", wellknown_types_t::WRAPPER},
+      {"google.protobuf.Int32Value", wellknown_types_t::WRAPPER},
+      {"google.protobuf.UInt32Value", wellknown_types_t::WRAPPER},
+      {"google.protobuf.BoolValue", wellknown_types_t::WRAPPER},
+      {"google.protobuf.StringValue", wellknown_types_t::WRAPPER},
+      {"google.protobuf.BytesValue", wellknown_types_t::WRAPPER},
   };
 
   for (auto [name, id] : wellknown_mappings) {

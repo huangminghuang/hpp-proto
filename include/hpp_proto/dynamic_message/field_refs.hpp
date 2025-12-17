@@ -31,10 +31,10 @@
 #include <string_view>
 
 #include <hpp_proto/dynamic_message/factory.hpp>
+#include <hpp_proto/dynamic_message/repeated_bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_enum_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_string_fields.hpp>
-#include <hpp_proto/dynamic_message/repeated_bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
@@ -116,7 +116,8 @@ class field_mref {
   std::pmr::monotonic_buffer_resource *memory_resource_;
 
 public:
-  field_mref(const field_descriptor_t &descriptor, value_storage &storage, std::pmr::monotonic_buffer_resource &mr) noexcept
+  field_mref(const field_descriptor_t &descriptor, value_storage &storage,
+             std::pmr::monotonic_buffer_resource &mr) noexcept
       : descriptor_(&descriptor), storage_(&storage), memory_resource_(&mr) {}
 
   field_mref(const field_mref &) noexcept = default;

@@ -107,4 +107,3 @@ public:
 };
 
 } // namespace hpp::proto
-

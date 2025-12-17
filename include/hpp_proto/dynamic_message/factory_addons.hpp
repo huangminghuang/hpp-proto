@@ -37,12 +37,12 @@
 #include <vector>
 
 #include <google/protobuf/any.desc.hpp>
+#include <google/protobuf/descriptor.pb.hpp>
 #include <google/protobuf/duration.desc.hpp>
 #include <google/protobuf/field_mask.desc.hpp>
 #include <google/protobuf/struct.desc.hpp>
 #include <google/protobuf/timestamp.desc.hpp>
 #include <google/protobuf/wrappers.desc.hpp>
-#include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 #include <hpp_proto/field_types.hpp>
 

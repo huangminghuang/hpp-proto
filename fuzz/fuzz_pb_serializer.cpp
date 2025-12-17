@@ -141,7 +141,6 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           // std::cout << "1: " << non_owning_json << "\n";
           // std::cout << "2: " << dyn_json << "\n";
 
-
           // if constexpr (std::same_as<owning_message_t,proto3_unittest::TestAllTypes<> >) {
           //   auto fix_repeated_enum = owning_message.repeated_nested_enum | std::ranges::views::transform([](auto x)
           //   -> int32_t { return std::to_underlying(x); }); auto dyn_repeated_enum =

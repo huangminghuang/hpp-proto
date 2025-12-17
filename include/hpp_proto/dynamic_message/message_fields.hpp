@@ -30,8 +30,8 @@
 #include <span>
 #include <string_view>
 
-#include <hpp_proto/dynamic_message/field_refs.hpp>
 #include <hpp_proto/dynamic_message/factory.hpp>
+#include <hpp_proto/dynamic_message/field_refs.hpp>
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 

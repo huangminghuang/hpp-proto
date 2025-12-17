@@ -26,15 +26,15 @@
 #include <string_view>
 #include <utility>
 
+#include <hpp_proto/dynamic_message/bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/message_fields.hpp>
+#include <hpp_proto/dynamic_message/repeated_bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_enum_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_message_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_string_fields.hpp>
-#include <hpp_proto/dynamic_message/repeated_bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/string_fields.hpp>
-#include <hpp_proto/dynamic_message/bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 #include <hpp_proto/pb_serializer.hpp>
 
@@ -416,8 +416,8 @@ struct message_size_calculator<message_value_cref> {
     }
 
     uint32_t operator()(message_value_cref msg) {
-      return narrow_size(
-          util::transform_accumulate(msg.fields(), [this](field_cref f) { return f.has_value() ? f.visit(*this) : 0; }));
+      return narrow_size(util::transform_accumulate(
+          msg.fields(), [this](field_cref f) { return f.has_value() ? f.visit(*this) : 0; }));
     }
 
     uint32_t operator()(message_field_cref v) {

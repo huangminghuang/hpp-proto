@@ -33,7 +33,7 @@ template <typename T>
 struct scalar_storage_base {
   T content;
   alignas(8) uint32_t size; // only used for string and bytes
-  uint32_t selection;       // 0 means no value; otherwise it means the selection index in oneof or 1 for non-oneof fields
+  uint32_t selection; // 0 means no value; otherwise it means the selection index in oneof or 1 for non-oneof fields
 };
 
 template <typename T>

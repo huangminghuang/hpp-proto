@@ -35,7 +35,6 @@
 namespace hpp::proto {
 using enum field_kind_t;
 
-
 /**
  * @brief Bulk helper to pass a span of enum numbers to repeated enum setters.
  *

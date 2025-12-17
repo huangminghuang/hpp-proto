@@ -24,17 +24,17 @@
 
 #include <cassert>
 
+#include <hpp_proto/dynamic_message/bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/enum_fields.hpp>
 #include <hpp_proto/dynamic_message/field_refs.hpp>
 #include <hpp_proto/dynamic_message/message_fields.hpp>
+#include <hpp_proto/dynamic_message/repeated_bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_enum_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_message_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_string_fields.hpp>
-#include <hpp_proto/dynamic_message/repeated_bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/string_fields.hpp>
-#include <hpp_proto/dynamic_message/bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 #include <hpp_proto/pb_serializer.hpp>
 

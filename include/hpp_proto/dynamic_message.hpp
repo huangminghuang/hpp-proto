@@ -17,8 +17,8 @@
 #include <span>
 #include <utility>
 
-#include <hpp_proto/dynamic_message/field_visit.hpp>
 #include <hpp_proto/dynamic_message/expected_message_mref.hpp>
+#include <hpp_proto/dynamic_message/field_visit.hpp>
 #include <hpp_proto/dynamic_message/pb_serializer_ext.hpp>
 namespace hpp::proto {
 
