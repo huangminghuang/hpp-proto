@@ -2498,6 +2498,9 @@ constexpr status count_unpacked_elements(uint32_t input_tag, std::size_t &count,
 
 constexpr status count_groups(uint32_t input_tag, std::size_t &count, concepts::is_basic_in auto &archive) {
   auto new_archive = archive.copy();
+  if (tag_type(input_tag) != wire_type::sgroup) {
+    return std::errc::bad_message;
+  }
   // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while)
   do {
     if (auto result = do_skip_group(tag_number(input_tag), new_archive); !result.ok()) {
@@ -2701,14 +2704,20 @@ constexpr status deserialize_repeated_group(Meta, uint32_t tag, auto &&item, con
   return {};
 }
 
-constexpr status deserialize_field(boolean &item, auto, uint32_t, concepts::is_basic_in auto &archive,
+constexpr status deserialize_field(boolean &item, auto, uint32_t tag, concepts::is_basic_in auto &archive,
                                    auto & /* unknown_fields*/) {
+  if (tag_type(tag) != wire_type::varint) [[unlikely]] {
+    return std::errc::bad_message;
+  }
   return archive(item.value);
 }
 
 template <typename Meta>
-constexpr status deserialize_field(concepts::is_enum auto &item, Meta, uint32_t, concepts::is_basic_in auto &archive,
-                                   auto &unknown_fields) {
+constexpr status deserialize_field(concepts::is_enum auto &item, Meta, uint32_t tag,
+                                   concepts::is_basic_in auto &archive, auto &unknown_fields) {
+  if (tag_type(tag) != wire_type::varint) [[unlikely]] {
+    return std::errc::bad_message;
+  }
   vint64_t value;
   if (auto result = archive(value); !result.ok()) [[unlikely]] {
     return result;
@@ -2787,6 +2796,9 @@ constexpr status deserialize_field(concepts::arithmetic auto &item, Meta meta, u
     item = static_cast<type>(value);
     return {};
   } else {
+    if (tag_type<type>() != tag_type(tag)) [[unlikely]] {
+      return std::errc::bad_message;
+    }
     return archive(item);
   }
 }
@@ -2794,9 +2806,17 @@ constexpr status deserialize_field(concepts::arithmetic auto &item, Meta meta, u
 constexpr status deserialize_field(concepts::has_meta auto &item, auto meta, uint32_t tag,
                                    concepts::is_basic_in auto &archive, auto & /* unknown_fields*/) {
   if constexpr (!meta.is_delimited()) {
-    return deserialize_sized(item, archive);
+    if (tag_type(tag) == wire_type::length_delimited) [[likely]] {
+      return deserialize_sized(item, archive);
+    } else {
+      return std::errc::bad_message;
+    }
   } else {
-    return deserialize_group(tag_number(tag), item, archive);
+    if (tag_type(tag) == wire_type::sgroup) [[likely]] {
+      return deserialize_group(tag_number(tag), item, archive);
+    } else {
+      return std::errc::bad_message;
+    }
   }
 }
 
@@ -2806,6 +2826,9 @@ constexpr status deserialize_field(std::ranges::range auto &item, Meta meta, uin
   using type = std::remove_reference_t<decltype(item)>;
 
   if constexpr (concepts::contiguous_byte_range<type>) {
+    if (tag_type(tag) != wire_type::length_delimited) [[unlikely]] {
+      return std::errc::bad_message;
+    }
     if (auto result = deserialize_packed_repeated(meta, item, archive, unknown_fields); !result.ok()) {
       return result;
     }
@@ -2815,13 +2838,11 @@ constexpr status deserialize_field(std::ranges::range auto &item, Meta meta, uin
     return deserialize_repeated_group(meta, tag, item, archive);
   } else { // repeated non-group
     if constexpr (meta.is_packed()) {
-      if (tag_type(tag) != wire_type::length_delimited) {
-        return deserialize_unpacked_repeated(meta, tag, item, archive, unknown_fields);
+      if (tag_type(tag) == wire_type::length_delimited) [[likely]] {
+        return deserialize_packed_repeated(meta, item, archive, unknown_fields);
       }
-      return deserialize_packed_repeated(meta, item, archive, unknown_fields);
-    } else {
-      return deserialize_unpacked_repeated(meta, tag, item, archive, unknown_fields);
     }
+    return deserialize_unpacked_repeated(meta, tag, item, archive, unknown_fields);
   }
 }
 
@@ -2946,10 +2967,11 @@ constexpr status extract_length_delimited_field(uint32_t number, bytes_view &byt
 {
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
-    if (tag_type(tag) != wire_type::length_delimited) {
-      return std::errc::bad_message;
-    }
+
     if (tag_number(tag) == number) {
+      if (tag_type(tag) != wire_type::length_delimited) {
+        return std::errc::bad_message;
+      }
       vuint32_t len;
       if (auto result = archive(len); !result.ok() || len == 0) [[unlikely]] {
         return result;
@@ -3127,6 +3149,20 @@ template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status read_proto(T &msg, const Buffer &buffer, concepts::is_pb_context auto &ctx) {
   msg = {};
   return pb_serializer::deserialize(msg, buffer, ctx);
+}
+
+template <concepts::has_meta T, std::size_t N>
+constexpr static expected<T, std::errc> read_proto(const char (&buffer)[N], concepts::is_option_type auto &&...option) {
+  constexpr auto span_size = N == 0 ? 0 : N - 1;
+  auto span = std::span<const char>{buffer, span_size};
+  return read_proto<T>(span, std::forward<decltype(option)>(option)...);
+}
+
+template <concepts::has_meta T, std::size_t N>
+status read_proto(T &msg, const char (&buffer)[N], concepts::is_option_type auto &&...option) {
+  constexpr auto span_size = N == 0 ? 0 : N - 1;
+  auto span = std::span<const char>{buffer, span_size};
+  return read_proto(msg, span, std::forward<decltype(option)>(option)...);
 }
 
 template <concepts::has_meta T, concepts::input_byte_range Buffer>

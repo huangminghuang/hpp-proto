@@ -175,6 +175,7 @@ const ut::suite test_bool = [] {
   "invalid_bool"_test = [] {
     bool_example value;
     ut::expect(!hpp::proto::read_proto(value, "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x09\x01"sv).ok());
   };
 };
 
@@ -307,6 +308,11 @@ auto pb_meta(const non_owing_nested_example &)
 const ut::suite test_non_owning_nested_example = [] {
   example const ex{.i = 150};
   verify("\x0a\x03\x08\x96\x01"sv, non_owing_nested_example{.nested = &ex});
+
+  std::pmr::monotonic_buffer_resource mr;
+  non_owing_nested_example value;
+  // invalid tag type
+  ut::expect(!hpp::proto::read_proto(value, "\x08\x03\x08\x96\x01"sv, hpp::proto::alloc_from(mr)).ok());
 };
 
 template <typename Traits = hpp::proto::default_traits>
@@ -517,6 +523,8 @@ const ut::suite test_enums = [] {
   "invalid_enum_message"_test = [] {
     open_enum_message<hpp::proto::default_traits> value = {};
     ut::expect(!hpp::proto::read_proto(value, "\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
+    // invalid tag type
+    ut::expect(!hpp::proto::read_proto(value, "\x11\x01"sv).ok());
   };
 
   "repeated_open_enum"_test = []<class Traits> {
@@ -600,19 +608,39 @@ const ut::suite test_repeated_example = [] {
   "invalid_repeated_example"_test = [] {
     repeated_message_examples<hpp::proto::default_traits> value;
     ut::expect(!hpp::proto::read_proto(value, "\x0a\x02\x08\x01\x0a\x02\x08\xa2"sv).ok());
+    // invalid message tag type
+    ut::expect(!hpp::proto::read_proto(value, "\x0a\x02\x09\x01"sv).ok());
+    // invalid length delimited tag type
+    ut::expect(!hpp::proto::read_proto(value, "\x0b\x02\x08\x01"sv).ok());
   };
 };
 
-struct group {
-  uint32_t a;
-  bool operator==(const group &) const = default;
+// struct group {
+//   uint32_t a;
+//   bool operator==(const group &) const = default;
+// };
+
+// auto pb_meta(const group &)
+//     -> std::tuple<hpp::proto::field_meta<2, &group::a, field_option::none, hpp::proto::vint64_t>>;
+
+struct nested_group {
+  example nested;
+  bool operator==(const nested_group &) const = default;
 };
 
-auto pb_meta(const group &)
-    -> std::tuple<hpp::proto::field_meta<2, &group::a, field_option::none, hpp::proto::vint64_t>>;
+auto pb_meta(const nested_group &) -> std::tuple<hpp::proto::field_meta<1, &nested_group::nested, field_option::group>>;
+
+const ut::suite test_nested_group = [] {
+  "nested_group_case"_test = [] { verify("\x0b\x08\x01\x0c"sv, nested_group{.nested = {.i = 1}}); };
+  nested_group value;
+  // invalid group start tag type
+  ut::expect(!::hpp::proto::read_proto(value, "\x0a\x08\x01\x0c"sv).ok());
+  // invalid group end tag type
+  ut::expect(!::hpp::proto::read_proto(value, "\x0b\x08\x01\x0a"sv).ok());
+};
 
 struct repeated_group {
-  std::vector<group> repeatedgroup;
+  std::vector<example> repeatedgroup;
   bool operator==(const repeated_group &) const = default;
 };
 
@@ -620,7 +648,7 @@ auto pb_meta(const repeated_group &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_group::repeatedgroup, field_option::group>>;
 
 const ut::suite test_repeated_group = [] {
-  auto encoded = "\x0b\x10\x01\x0c\x0b\x10\x02\x0c"sv;
+  auto encoded = "\x0b\x08\x01\x0c\x0b\x08\x02\x0c"sv;
 
   "repeated_group_case"_test = [&] {
     const repeated_group expected{.repeatedgroup = {{1}, {2}}};
@@ -629,19 +657,19 @@ const ut::suite test_repeated_group = [] {
 
   "invalid_repeated_group"_test = [] {
     repeated_group value;
-    ut::expect(!hpp::proto::read_proto(value, "\x0b\x10\x01\x0c\x0b"sv).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x0b\x08\x01\x0c\x0b"sv).ok());
     // invalid tag
-    ut::expect(!hpp::proto::read_proto(value, "\x1f\x10\x01\x0c\x0b"sv).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x1f\x08\x01\x0c\x0b"sv).ok());
     // group with zero tag field
     ut::expect(!hpp::proto::read_proto(value, "\x0b\x00\x01\x1c"sv).ok());
     // group with incomplete field
-    ut::expect(!hpp::proto::read_proto(value, "\x0b\x10"sv).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x0b\x08"sv).ok());
     // skip group with zero tag field
     ut::expect(!hpp::proto::read_proto(value, "\x1b\x00\x01\x1c"sv).ok());
     // skip group with incomplete field
-    ut::expect(!hpp::proto::read_proto(value, "\x1b\x10"sv).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x1b\x08"sv).ok());
     // skip group with invalid field
-    ut::expect(!hpp::proto::read_proto(value, "\x1b\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
+    ut::expect(!hpp::proto::read_proto(value, "\x1b\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
   };
 };
 
@@ -807,12 +835,15 @@ const ut::suite test_string_example = [] {
       ut::expect(!hpp::proto::write_proto(v).has_value());
     };
 
-    "invalid_string_length"_test = [] {
+    "invalid_string"_test = [] {
       string_example<Traits> v;
       std::pmr::monotonic_buffer_resource mr;
+      // invalid_string_length
       ut::expect(!hpp::proto::read_proto(v, "\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x74\x65"sv,
                                          hpp::proto::alloc_from(mr))
                       .ok());
+      // invalid tag type
+      ut::expect(!hpp::proto::read_proto(v, "\x11\x04\x74\x65\x73\x74"sv, hpp::proto::alloc_from(mr)).ok());
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 };

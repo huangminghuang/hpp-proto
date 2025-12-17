@@ -73,6 +73,7 @@ tag_testall_repeated_int32="\xf8\x01"
 tag_testall_repeated_int64="\x80\x02"
 tag_testall_repeated_string="\xe2\x02"
 tag_testall_repeated_bytes="\xea\x02"
+tag_testall_repeated_nested_enum="\x98\x03"
 
 # Oneof fields (proto2/proto3 share numbers)
 tag_testall_oneof_uint32="\xf8\x06"

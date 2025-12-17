@@ -10,6 +10,11 @@
 #include <ranges>
 #include <variant>
 
+#include <google/protobuf/map_unittest.glz.hpp>
+#include <google/protobuf/unittest.glz.hpp>
+#include <google/protobuf/unittest_proto3.glz.hpp>
+#include <hpp_proto/dynamic_message_json.hpp>
+
 std::string read_file(const char *filename);
 
 static hpp::proto::dynamic_message_factory factory;
@@ -67,6 +72,35 @@ static std::string_view message_name(const auto &message) {
   return type_url.substr(slash_pos + 1);
 }
 
+namespace concepts {
+template <typename T>
+concept use_non_owning_traits =
+    requires { requires std::same_as<typename T::hpp_proto_traits_type, ::hpp::proto::non_owning_traits>; };
+}; // namespace concepts
+
+template <typename T>
+void round_trip_test(const T &in_message, T &&out_message) {
+  std::vector<char> buffer1, buffer2;
+  assert(hpp::proto::write_proto(in_message, buffer1).ok());
+  // Skip comparing the serialized buffer to the raw input because unknown fields are dropped on parse.
+  // Skip structural comparison of messages; NaN payloads make equality fail even when bitwise identical.
+  std::pmr::monotonic_buffer_resource mr;
+  if constexpr (concepts::use_non_owning_traits<T>) {
+    assert(hpp::proto::read_proto(out_message, buffer1, hpp::proto::alloc_from(mr)).ok());
+  } else {
+    assert(hpp::proto::read_proto(out_message, buffer1).ok());
+  }
+  assert(hpp::proto::write_proto(out_message, buffer2).ok());
+  assert(std::ranges::equal(buffer1, buffer2));
+  // if (!std::ranges::equal(buffer1, buffer2)) {
+  //   auto [in1, in2] = std::ranges::mismatch(buffer1, buffer2);
+
+  //   auto offset = in2 - buffer2.begin();
+  //   std::cerr << "offset = " << offset << "\n";
+  //   std::cerr << "*in1 = " << *in1 << ", *in2 = " << *in2 << "\n";
+  // }
+}
+
 extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   FuzzedDataProvider provider(data, size);
 
@@ -91,30 +125,39 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
         [&](auto &non_owning_message) {
           using non_owning_message_t = std::remove_reference_t<decltype(non_owning_message)>;
           using owning_message_t = decltype(hpp::proto::rebind_traits(non_owning_message));
+          auto msg_name = message_name(non_owning_message);
           owning_message_t owning_message;
-          auto dyn_message = factory.get_message(message_name(owning_message), mr).value();
+          hpp::proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
 
           auto non_owning_read_ok = hpp::proto::read_proto(non_owning_message, input, hpp::proto::alloc_from{mr}).ok();
           auto owning_read_ok = hpp::proto::read_proto(owning_message, input).ok();
           auto dyn_read_ok = hpp::proto::read_proto(dyn_message, input).ok();
 
+          // std::string non_owning_json;
+          // assert(hpp::proto::write_json(non_owning_message, non_owning_json).ok());
+          // std::string dyn_json;
+          // assert(hpp::proto::write_json(dyn_message.cref(), dyn_json).ok());
+
+          // std::cout << "1: " << non_owning_json << "\n";
+          // std::cout << "2: " << dyn_json << "\n";
+
+
+          // if constexpr (std::same_as<owning_message_t,proto3_unittest::TestAllTypes<> >) {
+          //   auto fix_repeated_enum = owning_message.repeated_nested_enum | std::ranges::views::transform([](auto x)
+          //   -> int32_t { return std::to_underlying(x); }); auto dyn_repeated_enum =
+          //   dyn_message.field_value_by_name<hpp::proto::enum_numbers_span>("repeated_nested_enum").value(); auto
+          //   [in1, in2] =  std::ranges::mismatch(fix_repeated_enum, dyn_repeated_enum);
+
+          //   auto offset = in2 - dyn_repeated_enum.begin();
+          //   std::cerr << "offset = " << offset << "\n";
+          //   std::cerr << "*in1 = " << *in1 << ", *in2 = " << *in2 << "\n";
+          // }
+
           assert(non_owning_read_ok == owning_read_ok && owning_read_ok == dyn_read_ok);
           if (dyn_read_ok) {
-            std::vector<char> intermediate_buffer;
-            assert(hpp::proto::write_proto(non_owning_message, intermediate_buffer).ok());
-            assert(buffer_equal(intermediate_buffer, input));
-
-            intermediate_buffer.resize(0);
-            assert(hpp::proto::write_proto(owning_message, intermediate_buffer).ok());
-            if (message_type_index != 2) {
-              // The output can only be stable when there are no map fields; otherwise,
-              // the field elements would be reordered.
-              assert(buffer_equal(intermediate_buffer, input));
-            }
-
-            intermediate_buffer.resize(0);
-            assert(hpp::proto::write_proto(dyn_message, intermediate_buffer).ok());
-            assert(buffer_equal(intermediate_buffer, input));
+            round_trip_test(non_owning_message, non_owning_message_t{});
+            round_trip_test(owning_message, owning_message_t{});
+            round_trip_test(dyn_message, factory.get_message(msg_name, mr).value());
           }
           return dyn_read_ok ? 0 : -1;
         },

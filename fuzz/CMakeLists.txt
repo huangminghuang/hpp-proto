@@ -26,6 +26,14 @@ if(Python3_FOUND)
   endif()
 endif()
 
+# Copy static seed corpus files into the binary dir.
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/pb_seed_corpus)
+file(GLOB pb_seed_corpus_files ${CMAKE_CURRENT_SOURCE_DIR}/pb_seed_corpus/*)
+foreach(seed_file IN LISTS pb_seed_corpus_files)
+  get_filename_component(seed_name ${seed_file} NAME)
+  configure_file(${seed_file} ${CMAKE_CURRENT_BINARY_DIR}/pb_seed_corpus/${seed_name} COPYONLY)
+endforeach()
+
 function(add_fuzz_target target source)
   add_executable(${target} ${source} read_file.cpp)
   target_link_libraries(${target} PRIVATE hpp_proto::libhpp_proto unittest_proto_lib)

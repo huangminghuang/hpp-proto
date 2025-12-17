@@ -86,6 +86,160 @@ const boost::ut::suite dynamic_message_test = [] {
                                "protobuf_unittest.TestMap",          "protobuf_unittest.TestUnpackedTypes",
                                "protobuf_unittest.TestAllTypesLite", "protobuf_unittest.TestPackedTypesLite"};
 
+  "basic_serialization"_test = [&factory] {
+    using namespace std::string_view_literals;
+    auto roundtrip = [&](std::string_view msg_name, std::string_view data, auto verify) {
+      std::pmr::monotonic_buffer_resource mr1;
+      auto msg1 = expect_ok(factory.get_message(msg_name, mr1));
+      expect(::hpp::proto::read_proto(msg1, data).ok());
+      verify(msg1);
+
+      std::string out;
+      expect(::hpp::proto::write_proto(msg1.cref(), out).ok());
+
+      std::pmr::monotonic_buffer_resource mr2;
+      auto msg2 = expect_ok(factory.get_message(msg_name, mr2));
+      expect(::hpp::proto::read_proto(msg2, out).ok());
+      verify(msg2);
+    };
+
+    auto expect_invalid = [&](std::string_view data) {
+      std::pmr::monotonic_buffer_resource mr;
+      auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
+      expect(!::hpp::proto::read_proto(msg, data).ok());
+    };
+
+    "optional_int32"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\x08\x01"sv, [](const ::hpp::proto::message_value_mref &m) {
+        expect(1 == m.field_value_by_name<int32_t>("optional_int32"));
+      });
+      expect_invalid("\x09\x01"sv);
+    };
+    "optional_fixed32"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\x3d\x01\x00\x00\x00"sv,
+                [](const ::hpp::proto::message_value_mref &m) {
+                  expect(1U == m.field_value_by_name<std::uint32_t>("optional_fixed32"));
+                });
+      expect_invalid("\x3e\x01\x00\x00\x00"sv);
+    };
+    "optional_string"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\x72\x01\x65"sv, [](const ::hpp::proto::message_value_mref &m) {
+        expect("e"sv == m.field_value_by_name<std::string_view>("optional_string"));
+      });
+      expect_invalid("\x70\x01\x65"sv);
+    };
+    "optional_bytes"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\x7a\x01\x65"sv, [](const ::hpp::proto::message_value_mref &m) {
+        expect("e"_bytes == m.field_value_by_name<hpp::proto::bytes_view>("optional_bytes"));
+      });
+      expect_invalid("\x7b\x01\x65"sv);
+    };
+    "optional_nested_enum"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\xa8\x01\x01"sv, [](const ::hpp::proto::message_value_mref &m) {
+        expect(1 == m.field_value_by_name<hpp::proto::enum_number>("optional_nested_enum"));
+      });
+      roundtrip("protobuf_unittest.TestAllTypes", "\xa8\x01\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
+                [](const ::hpp::proto::message_value_mref &m) {
+                  expect(-1 == m.field_value_by_name<hpp::proto::enum_number>("optional_nested_enum"));
+                });
+      expect_invalid("\xa9\x01\x01"sv);
+    };
+    "optional_nested_message"_test = [&] {
+      roundtrip(
+          "protobuf_unittest.TestAllTypes", "\x92\x01\x02\x08\x01"sv, [](const ::hpp::proto::message_value_mref &m) {
+            auto nested = expect_ok(m.typed_ref_by_name<hpp::proto::message_field_mref>("optional_nested_message"));
+            expect(nested.has_value());
+            expect(1 == nested->field_value_by_name<std::int32_t>("bb"));
+          });
+      expect_invalid("\x91\x01\x02\x08\x01"sv);
+    };
+    "OptionalGroup"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\x83\x01\x88\x01\x01\x84\x01"sv,
+                [](const ::hpp::proto::message_value_mref &m) {
+                  auto group_field = expect_ok(m.typed_ref_by_name<hpp::proto::message_field_mref>("optionalgroup"));
+                  expect(group_field.has_value());
+                  expect(1 == group_field->field_value_by_name<std::int32_t>("a"));
+                });
+      expect_invalid("\x84\x01\x88\x01\x01\x84\x01"sv);
+      expect_invalid("\x83\x01\x88\x01\x01\x83\x01"sv);
+    };
+    "repeated_int32"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\xf8\x01\x01"sv, [](const ::hpp::proto::message_value_mref &m) {
+        auto vals = expect_ok(m.field_value_by_name<std::span<const std::int32_t>>("repeated_int32"));
+        expect(eq(vals.size(), 1));
+        expect(eq(vals[0], 1));
+      });
+      expect_invalid("\xf9\x01\x01"sv);
+    };
+    "repeated_int64"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\x80\x02\x01"sv, [](const ::hpp::proto::message_value_mref &m) {
+        auto vals = expect_ok(m.field_value_by_name<std::span<const std::int64_t>>("repeated_int64"));
+        expect(eq(vals.size(), 1));
+        expect(eq(vals[0], 1));
+      });
+      expect_invalid("\x81\x02\x01"sv);
+    };
+    "repeated_string"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\xe2\x02\x01\x65"sv, [](const ::hpp::proto::message_value_mref &m) {
+        auto vals = expect_ok(m.field_value_by_name<std::span<const std::string_view>>("repeated_string"));
+        expect(eq(vals.size(), 1));
+        expect(eq(vals[0], "e"sv));
+      });
+      expect_invalid("\xe1\x02\x01\x65"sv);
+    };
+    "repeated_bytes"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\xea\x02\x01\x65"sv, [](const ::hpp::proto::message_value_mref &m) {
+        auto vals = expect_ok(m.field_value_by_name<std::span<const hpp::proto::bytes_view>>("repeated_bytes"));
+        expect(eq(vals.size(), 1));
+        expect(eq(vals[0], "e"_bytes));
+      });
+      expect_invalid("\xeb\x02\x01\x65"sv);
+    };
+    "repeated_nested_enum"_test = [&] {
+      roundtrip("protobuf_unittest.TestAllTypes", "\x98\x03\x01\x98\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
+                [](const ::hpp::proto::message_value_mref &m) {
+                  auto vals = expect_ok(m.field_value_by_name<hpp::proto::enum_numbers_span>("repeated_nested_enum"));
+                  expect(eq(vals.size(), 2));
+                  expect(eq(vals[0], 1));
+                  expect(eq(vals[1], -1));
+                });
+      "skip_unknown_value"_test = [&] {
+        std::pmr::monotonic_buffer_resource mr1;
+        auto msg1 = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr1));
+        expect(::hpp::proto::read_proto(msg1, "\x98\x03\x05"sv).ok());
+        auto vals = expect_ok(msg1.field_value_by_name<hpp::proto::enum_numbers_span>("repeated_nested_enum"));
+        expect(vals.empty());
+      };
+    };
+    "packed_int32"_test = [&] {
+      roundtrip("protobuf_unittest.TestPackedTypes", "\xd2\x05\x02\x01\x02"sv,
+                [&](const ::hpp::proto::message_value_mref &m) {
+                  auto vals = expect_ok(m.field_value_by_name<std::span<const int32_t>>("packed_int32"));
+                  expect(std::ranges::equal(vals, std::array<std::int32_t, 2>{1, 2}));
+                });
+
+      std::pmr::monotonic_buffer_resource mr1;
+      auto msg1 = expect_ok(factory.get_message("protobuf_unittest.TestPackedTypes", mr1));
+
+      "unpacked read"_test = [&] {
+        expect(::hpp::proto::read_proto(msg1, "\xd0\x05\x01\xd0\x05\x02").ok());
+        auto vals = expect_ok(msg1.field_value_by_name<std::span<const int32_t>>("packed_int32"));
+        expect(std::ranges::equal(vals, std::array<std::int32_t, 2>{1, 2}));
+      };
+
+      "packed_int32 invalid tag type"_test = [&] {
+        expect(!::hpp::proto::read_proto(msg1, "\xd1\x05\x02\x01\x02"sv).ok());
+      };
+    };
+    "packed_enum"_test = [&] {
+      roundtrip("protobuf_unittest.TestPackedTypes", "\xba\x06\x02\x01\x02"sv,
+                [&](const ::hpp::proto::message_value_mref &m) {
+                  auto vals = expect_ok(m.field_value_by_name<hpp::proto::enum_numbers_span>("packed_enum"));
+                  expect(std::ranges::equal(vals, std::array<std::int32_t, 2>{1, 2}));
+                });
+    };
+  };
+
   "default_value"_test = [&factory]() {
     using namespace std::string_view_literals;
     std::pmr::monotonic_buffer_resource memory_resource;
