@@ -1347,9 +1347,13 @@ constexpr status deserialize(auto &item, concepts::segmented_byte_range auto con
                          std::span{patch_buffer.data(), patch_buffer.size()});
     } else {
 #ifdef _WIN32
-      std::unique_ptr<byte_type, freea> patch_buffer_ptr{static_cast<byte_type *>(_malloca(patch_buffer_bytes_count))};
+      struct freea_deleter {
+        void operator()(void *ptr) const noexcept { _freea(ptr); }
+      };
+      std::unique_ptr<byte_type, freea_deleter> patch_buffer_ptr{
+          static_cast<byte_type *>(_malloca(patch_buffer_bytes_count))};
       auto patch_buffer = std::span{patch_buffer_ptr.get(), patch_buffer_bytes_count};
-      std::unique_ptr<input_buffer_region<byte_type>, freea> regions_ptr{
+      std::unique_ptr<input_buffer_region<byte_type>, freea_deleter> regions_ptr{
           static_cast<input_buffer_region<byte_type> *>(_malloca(regions_bytes_count))};
       auto regions = std::span{regions_ptr.get(), num_regions};
 #else
