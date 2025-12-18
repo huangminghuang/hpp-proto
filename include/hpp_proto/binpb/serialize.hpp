@@ -77,9 +77,11 @@ struct basic_out {
     using value_type = typename type::value_type;
     static_assert(concepts::byte_serializable<value_type>);
     if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(value_type) == 1)) {
-      auto bytes_to_copy = item.size() * sizeof(value_type);
-      std::memcpy(_data.data(), item.data(), bytes_to_copy);
-      _data = _data.subspan(bytes_to_copy);
+      if (!item.empty()) {
+        auto bytes_to_copy = item.size() * sizeof(value_type);
+        std::memcpy(_data.data(), item.data(), bytes_to_copy);
+        _data = _data.subspan(bytes_to_copy);
+      }
       return true;
     } else {
       return std::ranges::all_of(item, [this](auto e) { return this->serialize(e); });
