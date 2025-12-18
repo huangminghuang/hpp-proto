@@ -32,12 +32,14 @@
 #include <cstdint>
 #include <cstring>
 #include <hpp_proto/field_types.hpp>
+#include <memory>
+#include <ranges>
 #include <utility>
 
 #include <hpp_proto/binpb/concepts.hpp>
 #include <hpp_proto/binpb/varint.hpp>
 
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #define HPP_PROTO_INLINE [[gnu::always_inline]] inline
 #elifdef _MSC_VER
 #pragma warning(error : 4714)
@@ -90,7 +92,8 @@ public:
     auto r = (varint_encoding::zig_zag == T::encoding)
                  ? (v >> 1U) ^ static_cast<uint64_t>(-static_cast<int64_t>(v & 1U))
                  : v;
-    *res++ = static_cast<Result>(r); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    *res = static_cast<Result>(r);
+    res = std::next(res);
   }
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -144,18 +147,24 @@ public:
   }
 
   auto parse_partial(concepts::contiguous_byte_range auto const &r) -> decltype(std::ranges::cdata(r)) {
-    auto begin = std::ranges::cdata(r);
+    auto begin = std::ranges::cbegin(r);
     auto end = std::ranges::cend(r);
-    end -= (std::ranges::size(r) % mask_length);
-    for (; begin < end; begin += mask_length) {
+    const auto total_bytes = std::ranges::size(r);
+    const auto remainder = total_bytes % mask_length;
+    const auto chunk_bytes = total_bytes - remainder;
+    using diff_t = std::ranges::range_difference_t<decltype(r)>;
+    auto chunk_end = std::ranges::next(begin, static_cast<diff_t>(chunk_bytes), end);
+    auto current = begin;
+    while (current != chunk_end) {
       uint64_t word = 0;
-      std::memcpy(&word, begin, mask_length);
+      std::memcpy(&word, std::to_address(current), mask_length);
       auto mval = pext_u64(word, word_mask);
       if (!parse_word(mval, word, std::make_index_sequence<1U << mask_length>())) {
         return nullptr;
       }
+      current = std::ranges::next(current, static_cast<diff_t>(mask_length), chunk_end);
     }
-    return begin;
+    return std::to_address(chunk_end);
   }
 
   auto parse(concepts::contiguous_byte_range auto const &r) -> decltype(std::ranges::cdata(r)) {
