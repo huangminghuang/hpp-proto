@@ -7,7 +7,7 @@
 #include <grpc/byte_buffer_reader.h>
 #include <grpcpp/impl/call_op_set.h>
 #include <grpcpp/impl/serialization_traits.h>
-#include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/binpb.hpp>
 
 namespace hpp::proto::grpc {
 class byte_buffer_access;
@@ -42,7 +42,7 @@ concept with_pb_context = requires { typename std::decay_t<T>::is_with_pb_contex
 
 namespace grpc {
 
-::grpc::Status write_proto(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer) {
+::grpc::Status write_binpb(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer) {
   class slice_arena {
     ::grpc::ByteBuffer *buffer_;
     ::grpc::Slice slice_;
@@ -66,14 +66,14 @@ namespace grpc {
   } pool{buffer};
   std::span<const std::byte> buf;
   // TODO: consider writing to a chain of bounded slices
-  if (::hpp::proto::write_proto(message, buf, ::hpp::proto::alloc_from{pool}).ok()) [[likely]] {
+  if (::hpp::proto::write_binpb(message, buf, ::hpp::proto::alloc_from{pool}).ok()) [[likely]] {
     return ::grpc::Status::OK;
   }
 
   return {::grpc::StatusCode::INTERNAL, "Failed to serialize message"};
 }
 
-::grpc::Status read_proto(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
+::grpc::Status read_binpb(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
                           ::hpp::proto::concepts::is_pb_context auto &context) {
 
   using slice_span = std::span<const uint8_t>;
@@ -109,7 +109,7 @@ namespace grpc {
   auto *c_buffer = ::grpc::internal::CallOpRecvMessage<::hpp::proto::grpc::byte_buffer_access>::c_buffer(buffer);
   auto deserialize_by_slices = [&](auto &storage) -> ::grpc::Status {
     slices_view buffers{c_buffer, storage};
-    if (::hpp::proto::read_proto(message, buffers, context).ok()) [[likely]] {
+    if (::hpp::proto::read_binpb(message, buffers, context).ok()) [[likely]] {
       return ::grpc::Status::OK;
     }
     return {::grpc::StatusCode::INTERNAL, "Failed to deserialize message"};
@@ -126,11 +126,11 @@ namespace grpc {
   }
 }
 
-::grpc::Status read_proto(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
+::grpc::Status read_binpb(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
                           ::hpp::proto::concepts::is_option_type auto &&...option) {
 
   pb_context context{option...};
-  return read_proto(message, buffer, context);
+  return read_binpb(message, buffer, context);
 }
 } // namespace grpc
 
@@ -143,11 +143,11 @@ class SerializationTraits<T> {
 public:
   static Status Serialize(const T &msg_with_context, ByteBuffer *bb, bool *own_buffer) {
     *own_buffer = true;
-    return ::hpp::proto::grpc::write_proto(msg_with_context.message, *bb);
+    return ::hpp::proto::grpc::write_binpb(msg_with_context.message, *bb);
   }
 
   static Status Deserialize(ByteBuffer *buffer, T *msg_with_context) {
-    auto status = ::hpp::proto::grpc::read_proto(msg_with_context->message, *buffer, msg_with_context->context);
+    auto status = ::hpp::proto::grpc::read_binpb(msg_with_context->message, *buffer, msg_with_context->context);
     buffer->Clear();
     return status;
   }

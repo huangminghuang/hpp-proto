@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <fstream>
-#include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/binpb.hpp>
 #include <ranges>
 #include <span>
 #include <string>

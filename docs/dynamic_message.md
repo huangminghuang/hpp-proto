@@ -23,7 +23,7 @@ This command will create `addressbook_proto3.desc.binpb`, a binary file containi
 The `hpp::proto::dynamic_message_factory` is responsible for owning and managing the loaded descriptors. Individual dynamic messages created by the factory will borrow a caller-owned `std::pmr::monotonic_buffer_resource` for their allocations.
 
 ```cpp
-#include <hpp_proto/dynamic_message.hpp>
+#include <hpp_proto/dynamic_message/binpb.hpp>
 #include <fstream>
 #include <vector>
 #include <string>
@@ -341,10 +341,10 @@ For instance, adding a new person to an address book might look like this:
 
     // Binary serialization/deserialization also works
     std::string binary_data;
-    hpp::proto::write_proto(address_book_msg, binary_data).value();
+    hpp::proto::write_binpb(address_book_msg, binary_data).value();
 
     hpp::proto::message_value_mref deserialized_address_book = *factory.get_message("tutorial.AddressBook", mr);
-    hpp::proto::read_proto(deserialized_address_book, binary_data).value();
+    hpp::proto::read_binpb(deserialized_address_book, binary_data).value();
     
     std::cout << "\nDeserialized dynamic AddressBook content:" << std::endl;
     std::cout << hpp::proto::write_json(deserialized_address_book).value() << std::endl;

@@ -1,6 +1,7 @@
 #include "test_util.hpp"
 #include <boost/ut.hpp>
-#include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/binpb.hpp>
+#include <hpp_proto/merge.hpp>
 
 template <typename Traits = hpp::proto::default_traits>
 struct ForeignMessage {

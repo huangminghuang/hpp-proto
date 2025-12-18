@@ -32,7 +32,7 @@ public:
   template <typename Traits>
   ::grpc::Status get(typename Method::template request_t<Traits> &request,
                      hpp::proto::concepts::is_option_type auto &&...option) const {
-    return ::hpp::proto::grpc::read_proto(request, *req_buf_, std::forward<decltype(option)>(option)...);
+    return ::hpp::proto::grpc::read_binpb(request, *req_buf_, std::forward<decltype(option)>(option)...);
   }
 
   [[nodiscard]] const ::grpc::ByteBuffer *get() const { return req_buf_; }
@@ -64,7 +64,7 @@ public:
 
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply, ::grpc::Status s = ::grpc::Status{}) {
-    auto result = ::hpp::proto::grpc::write_proto(reply, *resp_buf_);
+    auto result = ::hpp::proto::grpc::write_binpb(reply, *resp_buf_);
     this->Finish(result.ok() ? std::move(result) : std::move(s));
   }
 
@@ -94,7 +94,7 @@ public:
 
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply) {
-    auto result = ::hpp::proto::grpc::write_proto(reply, *resp_buf_);
+    auto result = ::hpp::proto::grpc::write_binpb(reply, *resp_buf_);
     this->Finish(std::move(result));
   }
 
@@ -118,7 +118,7 @@ public:
   template <typename Traits>
   void write(const typename Method::template response_t<Traits> &reply,
              ::grpc::WriteOptions options = ::grpc::WriteOptions{}) {
-    auto result = ::hpp::proto::grpc::write_proto(reply, response_);
+    auto result = ::hpp::proto::grpc::write_binpb(reply, response_);
     if (result.ok()) {
       this->StartWrite(&response_, options);
     } else {
@@ -134,7 +134,7 @@ public:
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply,
               ::grpc::WriteOptions options = ::grpc::WriteOptions{}, ::grpc::Status s = ::grpc::Status{}) {
-    auto result = ::hpp::proto::grpc::write_proto(reply, response_);
+    auto result = ::hpp::proto::grpc::write_binpb(reply, response_);
     if (result.ok()) {
       this->StartWriteAndFinish(&response_, options, std::move(s));
     } else {
@@ -170,7 +170,7 @@ public:
   template <typename Traits>
   void write(const typename Method::template response_t<Traits> &reply,
              ::grpc::WriteOptions options = ::grpc::WriteOptions{}) {
-    auto result = ::hpp::proto::grpc::write_proto(reply, response_);
+    auto result = ::hpp::proto::grpc::write_binpb(reply, response_);
     if (result.ok()) {
       this->StartWrite(&response_, options);
     } else {
@@ -186,7 +186,7 @@ public:
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply,
               ::grpc::WriteOptions options = ::grpc::WriteOptions{}, ::grpc::Status s = ::grpc::Status{}) {
-    auto result = ::hpp::proto::grpc::write_proto(reply, response_);
+    auto result = ::hpp::proto::grpc::write_binpb(reply, response_);
     if (result.ok()) {
       this->StartWriteAndFinish(&response_, options, std::move(s));
     } else {

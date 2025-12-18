@@ -1197,7 +1197,7 @@ struct hpp_meta_generator : code_generator {
     syntax = descriptor.syntax;
     fmt::format_to(target,
                    "#pragma once\n\n"
-                   "#include <hpp_proto/pb_serializer.hpp>\n"
+                   "#include <hpp_proto/binpb.hpp>\n"
                    "#include \"{}.msg.hpp\"\n",
                    basename(descriptor.proto().name, directory_prefix));
     for (const auto &d : descriptor.proto().dependency) {
@@ -1445,7 +1445,7 @@ struct glaze_meta_generator : code_generator {
 
     if (sole_message_name != "google.protobuf.Any") {
       fmt::format_to(target, "#pragma once\n\n"
-                             "#include <hpp_proto/json_serializer.hpp>\n");
+                             "#include <hpp_proto/json.hpp>\n");
 
       for (const auto &d : descriptor.proto().dependency) {
         fmt::format_to(target, "#include \"{}.glz.hpp\"\n", basename(d, directory_prefix));
@@ -1454,7 +1454,7 @@ struct glaze_meta_generator : code_generator {
       fmt::format_to(target, "#include \"{}.msg.hpp\"\n\n", basename(descriptor.proto().name, directory_prefix));
 
       if (!sole_message_name.empty() && well_known_codecs.contains(sole_message_name)) {
-        fmt::format_to(target, "#include <hpp_proto/{}.hpp>\n\n", well_known_codecs.at(sole_message_name));
+        fmt::format_to(target, "#include <hpp_proto/json/{}.hpp>\n\n", well_known_codecs.at(sole_message_name));
       }
     } else {
       fmt::format_to(target,
@@ -1779,7 +1779,7 @@ struct desc_hpp_generator : code_generator {
     fmt::format_to(target, "\nnamespace {} {{\n\n", ns);
 
     std::vector<std::uint8_t> buf;
-    (void)::hpp::proto::write_proto(descriptor.proto(), buf);
+    (void)::hpp::proto::write_binpb(descriptor.proto(), buf);
 
     fmt::format_to(target,
                    "using namespace std::literals::string_view_literals;\n"
@@ -1906,7 +1906,7 @@ int main(int argc, const char **argv) {
 
   google::protobuf::compiler::CodeGeneratorRequest<traits_type> request;
 
-  if (auto ec = ::hpp::proto::read_proto(request, request_data); !ec.ok()) {
+  if (auto ec = ::hpp::proto::read_binpb(request, request_data); !ec.ok()) {
     (void)fputs("hpp decode error", stderr);
     return 1;
   }
@@ -1968,7 +1968,7 @@ int main(int argc, const char **argv) {
   }
 
   std::vector<char> data;
-  if (auto ec = ::hpp::proto::write_proto(response, data); !ec.ok()) {
+  if (auto ec = ::hpp::proto::write_binpb(response, data); !ec.ok()) {
     (void)fputs("hpp encode error", stderr);
     return 1;
   }

@@ -23,10 +23,12 @@
 #pragma once
 #include <cassert>
 #include <expected>
-#include <google/protobuf/descriptor.pb.hpp>
-#include <hpp_proto/file_descriptor_pb.hpp>
 #include <iostream>
 #include <unordered_set>
+
+#include <google/protobuf/descriptor.pb.hpp>
+#include <hpp_proto/file_descriptor_pb.hpp>
+#include <hpp_proto/merge.hpp>
 namespace hpp::proto {
 
 struct deref_pointer {
@@ -425,7 +427,7 @@ public:
     files.resize(std::ranges::size(unique_descs));
     std::size_t i = 0;
     for (const auto &desc : unique_descs) {
-      if (auto ec = read_proto(files[i++], desc.value, ctx); !ec.ok()) {
+      if (auto ec = read_binpb(files[i++], desc.value, ctx); !ec.ok()) {
         return std::unexpected(ec);
       }
     }

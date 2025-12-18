@@ -36,7 +36,7 @@
 #include <hpp_proto/dynamic_message/scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/string_fields.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
-#include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/binpb.hpp>
 
 namespace hpp::proto {
 

@@ -126,13 +126,4 @@ public:
   }
 };
 
-inline expected_message_mref dynamic_message_factory::get_message(std::string_view name,
-                                                                  std::pmr::monotonic_buffer_resource &mr) const {
-  const auto *desc = pool_.get_message_descriptor(name);
-  if (desc != nullptr) {
-    return expected_message_mref{message_value_mref{*desc, mr}};
-  }
-  return expected_message_mref{std::unexpected(dynamic_message_errc::unknown_message_name)};
-}
-
 } // namespace hpp::proto

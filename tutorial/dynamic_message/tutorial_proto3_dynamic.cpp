@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include <hpp_proto/dynamic_message.hpp>
+#include <hpp_proto/dynamic_message/binpb.hpp>
 #ifndef HPP_PROTO_DISABLE_GLAZE
 #include <hpp_proto/dynamic_message/json.hpp>
 #endif
@@ -111,12 +111,12 @@ int main() {
   // Serialize to proto
   std::string binary;
   auto msg = *expected_msg;
-  expect(hpp::proto::write_proto(msg, binary).ok());
+  expect(hpp::proto::write_binpb(msg, binary).ok());
 
   // Deserialize to a new dynamic message
   std::pmr::monotonic_buffer_resource mr2;
   auto address_book2 = factory.get_message("tutorial.AddressBook", mr2).value();
-  expect(hpp::proto::read_proto(address_book2, binary).ok());
+  expect(hpp::proto::read_binpb(address_book2, binary).ok());
 
   // check fields
   auto people2_expected = address_book2.typed_ref_by_name<hpp::proto::repeated_message_field_mref>("people");

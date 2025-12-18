@@ -29,14 +29,11 @@
 #include <string_view>
 #include <utility>
 
-#include <hpp_proto/descriptor_pool.hpp>
+#include <hpp_proto/dynamic_message/expected_message_mref.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
-#include <hpp_proto/dynamic_message/types.hpp>
-#include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/binpb.hpp>
 
 namespace hpp::proto {
-class expected_message_mref;
-class message_value_mref;
 
 /**
  * @brief Factory that builds dynamic message instances from descriptor sets.
@@ -46,7 +43,6 @@ class message_value_mref;
  * monotonic_buffer_resource. It also exposes access to the loaded file descriptors.
  */
 class dynamic_message_factory {
-  using descriptor_pool_t = descriptor_pool<dynamic_message_factory_addons>;
   std::pmr::monotonic_buffer_resource memory_resource_;
   descriptor_pool_t pool_;
 
@@ -57,11 +53,7 @@ class dynamic_message_factory {
 
 public:
   using FileDescriptorSet = ::google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
-  using field_descriptor_t = typename descriptor_pool_t::field_descriptor_t;
-  using enum_descriptor_t = typename descriptor_pool_t::enum_descriptor_t;
-  using oneof_descriptor_t = typename descriptor_pool_t::oneof_descriptor_t;
-  using message_descriptor_t = typename descriptor_pool_t::message_descriptor_t;
-  using file_descriptor_t = typename descriptor_pool_t::file_descriptor_t;
+  
 
   /// enable to pass dynamic_message_factory as an option to read_json()/write_json()
   using option_type = std::reference_wrapper<dynamic_message_factory>;
@@ -117,7 +109,7 @@ public:
    *          ::google::protobuf::FileDescriptorSet.
    */
   bool init(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb) {
-    return ::hpp::proto::read_proto<FileDescriptorSet>(file_descriptor_set_binpb, alloc_from(memory_resource_))
+    return ::hpp::proto::read_binpb<FileDescriptorSet>(file_descriptor_set_binpb, alloc_from(memory_resource_))
         .and_then([this](auto &&fileset) -> std::expected<void, std::errc> {
           this->init(std::forward<decltype(fileset)>(fileset));
           return {};
@@ -138,11 +130,6 @@ public:
   expected_message_mref get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const;
   [[nodiscard]] std::span<const file_descriptor_t> files() const { return pool_.files(); }
 };
-
-using field_descriptor_t = dynamic_message_factory::field_descriptor_t;
-using enum_descriptor_t = dynamic_message_factory::enum_descriptor_t;
-using oneof_descriptor_t = dynamic_message_factory::oneof_descriptor_t;
-using message_descriptor_t = dynamic_message_factory::message_descriptor_t;
 
 inline void dynamic_message_factory::setup_storage_slots() {
   for (auto &message : pool_.messages()) {
@@ -219,6 +206,15 @@ inline void dynamic_message_factory::init() {
   setup_storage_slots();
   setup_wellknown_types();
   setup_enum_field_default_value();
+}
+
+inline expected_message_mref dynamic_message_factory::get_message(std::string_view name,
+                                                                  std::pmr::monotonic_buffer_resource &mr) const {
+  const auto *desc = pool_.get_message_descriptor(name);
+  if (desc != nullptr) {
+    return expected_message_mref{message_value_mref{*desc, mr}};
+  }
+  return expected_message_mref{std::unexpected(dynamic_message_errc::unknown_message_name)};
 }
 
 } // namespace hpp::proto

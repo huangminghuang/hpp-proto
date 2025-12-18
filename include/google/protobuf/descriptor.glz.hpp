@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <hpp_proto/json_serializer.hpp>
+#include <hpp_proto/json.hpp>
 #include "google/protobuf/descriptor.msg.hpp"
 
 template <typename Traits>

@@ -45,7 +45,7 @@
 #include <google/protobuf/wrappers.desc.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 #include <hpp_proto/field_types.hpp>
-
+#include <hpp_proto/descriptor_pool.hpp>
 namespace hpp::proto {
 struct dynamic_message_factory_addons {
   using traits_type = non_owning_traits;
@@ -225,11 +225,18 @@ struct dynamic_message_factory_addons {
 
       if (auto itr = wellknown_type_pbs.find(derived.proto().name); itr != wellknown_type_pbs.end()) {
         std::string pb;
-        [[maybe_unused]] auto status = write_proto(derived.proto(), pb);
+        [[maybe_unused]] auto status = write_binpb(derived.proto(), pb);
         assert(status.ok());
         wellknown_validated_ = (pb == itr->second.value);
       }
     }
   };
 };
+
+using descriptor_pool_t = descriptor_pool<dynamic_message_factory_addons>;
+using field_descriptor_t = typename descriptor_pool_t::field_descriptor_t;
+using enum_descriptor_t = typename descriptor_pool_t::enum_descriptor_t;
+using oneof_descriptor_t = typename descriptor_pool_t::oneof_descriptor_t;
+using message_descriptor_t = typename descriptor_pool_t::message_descriptor_t;
+using file_descriptor_t = typename descriptor_pool_t::file_descriptor_t;
 } // namespace hpp::proto

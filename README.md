@@ -135,13 +135,13 @@ int main() {
 
     // --- Binary Serialization ---
     std::string binary_buffer;
-    if (!hpp::proto::write_proto(p, binary_buffer).ok()) {
+    if (!hpp::proto::write_binpb(p, binary_buffer).ok()) {
         std::cerr << "Binary serialization failed!" << std::endl;
         return 1;
     }
 
     Person p_from_binary;
-    if (!hpp::proto::read_proto(p_from_binary, binary_buffer).ok()) {
+    if (!hpp::proto::read_binpb(p_from_binary, binary_buffer).ok()) {
         std::cerr << "Binary deserialization failed!" << std::endl;
         return 1;
     }
@@ -217,7 +217,7 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
   
   std::pmr::monotonic_buffer_resource mr;
   // When deserializing non-owning types, provide the memory resource.
-  auto result = hpp::proto::read_proto<PmrPerson>(buffer, hpp::proto::alloc_from{mr});
+  auto result = hpp::proto::read_binpb<PmrPerson>(buffer, hpp::proto::alloc_from{mr});
   ```
 
 ## Limitations

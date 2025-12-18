@@ -149,7 +149,7 @@ public:
     requires(rpc_type == RpcType::NORMAL_RPC)
   void prepare(const Stub &stub, ::grpc::ClientContext &context,
                const typename Method::template request_t<Traits> &req) {
-    auto result = ::hpp::proto::grpc::write_proto(req, request_);
+    auto result = ::hpp::proto::grpc::write_binpb(req, request_);
     if (result.ok()) {
       ::grpc::internal::ClientCallbackUnaryFactory::Create<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
           stub.channel_.get(), stub.template grpc_method<Method>(), &context, &request_, &response_, this);
@@ -169,7 +169,7 @@ public:
     requires(rpc_type == RpcType::SERVER_STREAMING)
   void prepare(const Stub &stub, ::grpc::ClientContext &context,
                const typename Method::template request_t<Traits> &req) {
-    auto result = ::hpp::proto::grpc::write_proto(req, request_);
+    auto result = ::hpp::proto::grpc::write_binpb(req, request_);
     if (result.ok()) {
       ::grpc::internal::ClientCallbackReaderFactory<::grpc::ByteBuffer>::Create(
           stub.channel_.get(), stub.template grpc_method<Method>(), &context, &request_, this);
@@ -197,7 +197,7 @@ public:
                        ::grpc::WriteOptions options = ::grpc::WriteOptions{})
     requires Method::client_streaming
   {
-    auto result = ::hpp::proto::grpc::write_proto(req, request_);
+    auto result = ::hpp::proto::grpc::write_binpb(req, request_);
     if (result.ok()) {
       this->StartWrite(&request_, options);
     }
@@ -233,13 +233,13 @@ public:
   template <typename Traits>
   ::grpc::Status get_response(typename Method::template response_t<Traits> &response,
                               hpp::proto::concepts::is_option_type auto &&...option) {
-    return ::hpp::proto::grpc::read_proto(response, response_, std::forward<decltype(option)>(option)...);
+    return ::hpp::proto::grpc::read_binpb(response, response_, std::forward<decltype(option)>(option)...);
   }
 
   template <typename Traits>
   ::grpc::Status get_response(typename Method::template response_t<Traits> &response,
                               hpp::proto::concepts::is_pb_context auto &context) {
-    return ::hpp::proto::grpc::read_proto(response, response_, context);
+    return ::hpp::proto::grpc::read_binpb(response, response_, context);
   }
 
   ::grpc::ByteBuffer &response() { return response_; }

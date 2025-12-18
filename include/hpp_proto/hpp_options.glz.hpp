@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <hpp_proto/json_serializer.hpp>
+#include <hpp_proto/json.hpp>
 #include "google/protobuf/descriptor.glz.hpp"
 #include "hpp_proto/hpp_options.msg.hpp"
 

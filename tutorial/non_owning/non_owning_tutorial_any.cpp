@@ -2,7 +2,7 @@
 #include <memory_resource>
 #include <source_location>
 
-#include "addressbook_proto3.pb.hpp" // required for write_proto() and read_proto()
+#include "addressbook_proto3.pb.hpp" // required for write_binpb() and read_binpb()
 #include "any_demo.pb.hpp"
 
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
@@ -37,9 +37,9 @@ int main() {
   expect(hpp::proto::pack_any(message.any_value.emplace(), alex, hpp::proto::alloc_from{pool}).ok());
 
   std::pmr::vector<std::byte> buffer{&pool};
-  expect(hpp::proto::write_proto(message, buffer).ok());
+  expect(hpp::proto::write_binpb(message, buffer).ok());
 
-  auto any_demo = hpp::proto::read_proto<AnyDemo>(buffer, hpp::proto::alloc_from{pool});
+  auto any_demo = hpp::proto::read_binpb<AnyDemo>(buffer, hpp::proto::alloc_from{pool});
   expect(any_demo.has_value());
 
   auto unpacked_result =

@@ -3,9 +3,10 @@
 #include <google/protobuf/field_mask.glz.hpp>
 #include <google/protobuf/struct.msg.hpp>
 #include <google/protobuf/timestamp.glz.hpp>
-#include <hpp_proto/json_serializer.hpp>
-
-#include <hpp_proto/dynamic_message.hpp>
+#include <hpp_proto/json.hpp>
+#include <hpp_proto/dynamic_message/field_visit.hpp>
+#include <hpp_proto/dynamic_message/factory.hpp>
+#include <hpp_proto/dynamic_message/binpb.hpp>
 
 namespace glz {
 
@@ -831,7 +832,7 @@ template <auto Opts>
 static std::expected<void, const char *> message_to_json(::hpp::proto::message_value_mref message,
                                                          const auto &any_value, is_context auto &ctx, auto &b,
                                                          auto &ix) {
-  if (hpp::proto::read_proto(message, any_value).ok()) {
+  if (hpp::proto::read_binpb(message, any_value).ok()) {
     to<JSON, hpp::proto::message_value_cref>::template op<Opts>(message, ctx, b, ix);
     if (bool(ctx.error)) [[unlikely]] {
       return {};
@@ -933,7 +934,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
             from<JSON, ::hpp::proto::message_value_mref>::template op<opening_handled<Opts>()>(message, ctx, it, end);
           }
 
-          if (!hpp::proto::write_proto(message, any_value).ok()) {
+          if (!hpp::proto::write_binpb(message, any_value).ok()) {
             return std::unexpected("unable to serialize the value for google.protobuf.Any message");
           }
           return {};
@@ -950,7 +951,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
 
 namespace hpp::proto {
 
-json_status json_to_pb(const dynamic_message_factory &factory, std::string_view message_name, const char *json_view,
+json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name, const char *json_view,
                        concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
   auto opt_msg = factory.get_message(message_name, mr);
@@ -958,7 +959,7 @@ json_status json_to_pb(const dynamic_message_factory &factory, std::string_view 
     auto msg = *opt_msg;
     auto err = ::glz::read<::glz::opts{}>(msg, json_view);
     if (!err) {
-      if (write_proto(msg, buffer).ok()) [[likely]] {
+      if (write_binpb(msg, buffer).ok()) [[likely]] {
         return {};
       } else {
         return {.ctx = {.ec = ::glz::error_code::syntax_error, .custom_error_message = "protobuf encoding error"}};
@@ -975,7 +976,7 @@ json_status json_to_pb(const dynamic_message_factory &factory, std::string_view 
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-json_status json_to_pb(const dynamic_message_factory &factory, std::string_view message_name,
+json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name,
                        std::string_view json_view, concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
 
@@ -984,7 +985,7 @@ json_status json_to_pb(const dynamic_message_factory &factory, std::string_view 
     auto msg = *opt_msg;
     auto err = ::glz::read<glz::opts{.null_terminated = false}>(msg, json_view);
     if (!err) {
-      if (write_proto(msg, buffer).ok()) [[likely]] {
+      if (write_binpb(msg, buffer).ok()) [[likely]] {
         return {};
       } else {
         return {.ctx = {.ec = ::glz::error_code::syntax_error, .custom_error_message = "protobuf encoding error"}};
@@ -1000,14 +1001,14 @@ json_status json_to_pb(const dynamic_message_factory &factory, std::string_view 
   }
 }
 
-status pb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
+status binpb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
                   concepts::contiguous_byte_range auto const &pb_encoded_stream,
                   concepts::resizable_contiguous_byte_container auto &buffer, concepts::glz_opts_t auto opts) {
   std::pmr::monotonic_buffer_resource mr;
   auto opt_msg = factory.get_message(message_name, mr);
   if (opt_msg.has_value()) {
     auto msg = *opt_msg;
-    if (auto r = read_proto(msg, pb_encoded_stream); !r.ok()) {
+    if (auto r = read_binpb(msg, pb_encoded_stream); !r.ok()) {
       return r;
     }
     if (::glz::write<decltype(opts)::glz_opts_value>(msg, buffer)) [[unlikely]] {
@@ -1019,10 +1020,10 @@ status pb_to_json(const dynamic_message_factory &factory, std::string_view messa
   }
 }
 
-status pb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
+status binpb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
                   concepts::contiguous_byte_range auto const &pb_encoded_stream,
                   concepts::resizable_contiguous_byte_container auto &buffer) {
-  return pb_to_json(factory, message_name, pb_encoded_stream, buffer, glz_opts_t<glz::opts{}>{});
+  return binpb_to_json(factory, message_name, pb_encoded_stream, buffer, glz_opts_t<glz::opts{}>{});
 }
 
 } // namespace hpp::proto

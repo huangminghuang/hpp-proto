@@ -26,7 +26,7 @@
 #include <memory_resource>
 #include <span>
 
-#include <hpp_proto/dynamic_message/factory.hpp>
+#include <hpp_proto/dynamic_message/factory_addons.hpp>
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 

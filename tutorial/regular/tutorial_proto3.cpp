@@ -2,7 +2,7 @@
 #include <source_location>
 
 #include "addressbook_proto3.glz.hpp" // required for write_json() and read_json()
-#include "addressbook_proto3.pb.hpp"  // required for write_proto() and read_proto()
+#include "addressbook_proto3.pb.hpp"  // required for write_binpb() and read_binpb()
 
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
@@ -32,10 +32,10 @@ int main() {
                   .map_string_nested_message = {},
                   .oneof_field = {}}}};
 
-  auto write_result = hpp::proto::write_proto(address_book);
+  auto write_result = hpp::proto::write_binpb(address_book);
   expect(write_result.has_value());
 
-  auto read_result = hpp::proto::read_proto<AddressBook>(write_result.value());
+  auto read_result = hpp::proto::read_binpb<AddressBook>(write_result.value());
   expect(address_book == read_result.value());
 
   std::vector<Person> &people = address_book.people;

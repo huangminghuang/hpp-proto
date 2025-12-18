@@ -3,7 +3,7 @@
 #include <source_location>
 
 #include "addressbook_proto2.glz.hpp" // required for write_json() and read_json()
-#include "addressbook_proto2.pb.hpp"  // required for write_proto() and read_proto()
+#include "addressbook_proto2.pb.hpp"  // required for write_binpb() and read_binpb()
 
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
@@ -54,9 +54,9 @@ int main() {
 
   std::pmr::vector<std::byte> buffer{&pool};
 
-  expect(hpp::proto::write_proto(address_book, buffer).ok());
+  expect(hpp::proto::write_binpb(address_book, buffer).ok());
 
-  auto read_result = hpp::proto::read_proto<AddressBook>(buffer, hpp::proto::alloc_from{pool});
+  auto read_result = hpp::proto::read_binpb<AddressBook>(buffer, hpp::proto::alloc_from{pool});
   expect(read_result.has_value());
   expect(address_book == read_result.value());
 

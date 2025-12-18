@@ -26,10 +26,10 @@ const suite test_any = [] {
     expect(hpp::proto::pack_any(message.any_value.emplace(), fm, ::hpp::proto::alloc_from(mr)).ok());
 
     std::vector<char> buf;
-    expect(hpp::proto::write_proto(message, buf).ok());
+    expect(hpp::proto::write_binpb(message, buf).ok());
 
     ::protobuf_unittest::TestAny<Traits> message2;
-    expect(hpp::proto::read_proto(message2, buf, ::hpp::proto::alloc_from(mr)).ok());
+    expect(hpp::proto::read_binpb(message2, buf, ::hpp::proto::alloc_from(mr)).ok());
     ::google::protobuf::FieldMask<Traits> fm2;
     expect(hpp::proto::unpack_any(message2.any_value.value(), fm2, ::hpp::proto::alloc_from(mr)).ok());
     expect(std::ranges::equal(paths, fm2.paths));
@@ -92,14 +92,14 @@ const suite test_dynamic_message_any = [] {
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234}})";
 
     std::string result;
-    expect(pb_to_json(message_factory, message_name, data, result).ok());
+    expect(binpb_to_json(message_factory, message_name, data, result).ok());
     expect(eq(expected_json, result));
 
     std::vector<char> serialized;
-    expect(json_to_pb(message_factory, message_name, expected_json, serialized).ok());
+    expect(json_to_binpb(message_factory, message_name, expected_json, serialized).ok());
     expect(std::ranges::equal(data, serialized));
 
-    expect(pb_to_json(message_factory, message_name, data, result, hpp::proto::indent_level<3>).ok());
+    expect(binpb_to_json(message_factory, message_name, data, result, hpp::proto::indent_level<3>).ok());
     const char *expected_json_indented = R"({
    "anyValue": {
       "@type": "type.googleapis.com/proto3_unittest.ForeignMessage",
@@ -113,7 +113,7 @@ const suite test_dynamic_message_any = [] {
     hpp::proto::dynamic_message_factory message_factory;
     expect(message_factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_any_test_proto()));
     std::string result;
-    expect(!pb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
+    expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
   };
 
   "bad_message"_test = [&] {
@@ -126,9 +126,9 @@ const suite test_dynamic_message_any = [] {
         "\x65\x73\x73\x61\x67\x65\x12\x03\x08\xd2\x89\x80\x80\x80\x80\x80\x80\x80\x90\10";
     std::string result;
 
-    expect(!pb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
+    expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
     using namespace std::string_view_literals;
-    expect(!pb_to_json(message_factory, "protobuf_unittest.TestAny", "\x12\x04\x0a\x02\xc0\xcd"sv, result).ok());
+    expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", "\x12\x04\x0a\x02\xc0\xcd"sv, result).ok());
   };
 };
 

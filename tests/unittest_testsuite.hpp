@@ -1063,7 +1063,7 @@ struct TestSuite {
 
   static void ExpectClear(const TestAllExtensions_t &message) {
     std::vector<std::byte> data;
-    expect(hpp::proto::write_proto(message, data).ok());
+    expect(hpp::proto::write_binpb(message, data).ok());
     expect(eq(0, data.size()));
 
     std::pmr::monotonic_buffer_resource mr;
@@ -1298,8 +1298,8 @@ struct TestSuite {
       ExpectAllSet(message2);
 
       std::vector<std::byte> data;
-      expect(hpp::proto::write_proto(message2, data).ok());
-      expect(hpp::proto::read_proto(message3, data, hpp::proto::alloc_from{mr}).ok());
+      expect(hpp::proto::write_binpb(message2, data).ok());
+      expect(hpp::proto::read_binpb(message3, data, hpp::proto::alloc_from{mr}).ok());
 
       ExpectAllSet(message3);
     } | typename mapping_t::protobuf_test_types{};
@@ -1314,10 +1314,10 @@ struct TestSuite {
       SetAll(&original, hpp::proto::alloc_from{mr});
 
       std::vector<char> data;
-      expect(hpp::proto::write_proto(original, data).ok());
+      expect(hpp::proto::write_binpb(original, data).ok());
 
       auto original_json =
-          gpb_based::pb_to_json(unittest_descriptorset, hpp::proto::message_name(original), {data.data(), data.size()});
+          gpb_based::binpb_to_json(unittest_descriptorset, hpp::proto::message_name(original), {data.data(), data.size()});
       expect(fatal(!original_json.empty()));
       auto generated_json = hpp::proto::write_json(original);
 

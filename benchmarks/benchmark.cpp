@@ -146,7 +146,7 @@ void hpp_proto_deserialize_regular(benchmark::State &state) {
   size_t total = 0;
   for (auto _ : state) {
     Message message;
-    auto r = hpp::proto::read_proto(message, data);
+    auto r = hpp::proto::read_binpb(message, data);
     total += data.size();
     benchmark::DoNotOptimize(r);
   }
@@ -164,7 +164,7 @@ void hpp_proto_deserialize_nonowning(benchmark::State &state) {
   for (auto _ : state) {
     std::pmr::monotonic_buffer_resource memory_resource(buf.data(), buf.size());
     Message message;
-    auto r = hpp::proto::read_proto(message, data, hpp::proto::alloc_from{memory_resource});
+    auto r = hpp::proto::read_binpb(message, data, hpp::proto::alloc_from{memory_resource});
     total += data.size();
     benchmark::DoNotOptimize(r);
   }
@@ -250,7 +250,7 @@ void hpp_proto_set_message_and_serialize_regular(benchmark::State &state) {
     Message message;
     set_message_hpp(message);
     std::vector<char> buffer;
-    auto r = hpp::proto::write_proto(message, buffer);
+    auto r = hpp::proto::write_binpb(message, buffer);
     total += buffer.size();
     benchmark::DoNotOptimize(r);
   }
@@ -266,7 +266,7 @@ void hpp_proto_set_message_and_serialize_nonowning(benchmark::State &state) {
     Message message;
     set_message_hpp(message);
     std::vector<char> buffer;
-    auto r = hpp::proto::write_proto(message, buffer);
+    auto r = hpp::proto::write_binpb(message, buffer);
     total += buffer.size();
     benchmark::DoNotOptimize(r);
   }

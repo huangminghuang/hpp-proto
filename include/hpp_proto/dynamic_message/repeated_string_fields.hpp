@@ -28,7 +28,7 @@
 #include <span>
 #include <string_view>
 
-#include <hpp_proto/dynamic_message/factory.hpp>
+#include <hpp_proto/dynamic_message/factory_addons.hpp>
 #include <hpp_proto/dynamic_message/repeated_field_iterator.hpp>
 #include <hpp_proto/dynamic_message/repeated_scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/string_fields.hpp>

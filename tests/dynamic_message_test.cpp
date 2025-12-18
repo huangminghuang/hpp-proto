@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <array>
 #include <boost/ut.hpp>
-#include <hpp_proto/dynamic_message.hpp>
+#include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/json.hpp>
 #include <limits>
 #include <memory_resource>
@@ -56,11 +56,11 @@ const boost::ut::suite dynamic_message_test = [] {
     // would be unavailable.
     if (optional_msg.has_value()) {
       hpp::proto::message_value_mref message = expect_ok(optional_msg);
-      auto r = hpp::proto::read_proto(message, data);
+      auto r = hpp::proto::read_binpb(message, data);
       expect(fatal(r.ok()));
 
       std::string new_data;
-      r = hpp::proto::write_proto(message.cref(), new_data);
+      r = hpp::proto::write_binpb(message.cref(), new_data);
       expect(fatal(r.ok()));
       expect(eq(data, new_data));
 
@@ -92,22 +92,22 @@ const boost::ut::suite dynamic_message_test = [] {
     auto roundtrip = [&](std::string_view msg_name, std::string_view data, auto verify) {
       std::pmr::monotonic_buffer_resource mr1;
       auto msg1 = expect_ok(factory.get_message(msg_name, mr1));
-      expect(::hpp::proto::read_proto(msg1, data).ok());
+      expect(::hpp::proto::read_binpb(msg1, data).ok());
       verify(msg1);
 
       std::string out;
-      expect(::hpp::proto::write_proto(msg1.cref(), out).ok());
+      expect(::hpp::proto::write_binpb(msg1.cref(), out).ok());
 
       std::pmr::monotonic_buffer_resource mr2;
       auto msg2 = expect_ok(factory.get_message(msg_name, mr2));
-      expect(::hpp::proto::read_proto(msg2, out).ok());
+      expect(::hpp::proto::read_binpb(msg2, out).ok());
       verify(msg2);
     };
 
     auto expect_invalid = [&](std::string_view data) {
       std::pmr::monotonic_buffer_resource mr;
       auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
-      expect(!::hpp::proto::read_proto(msg, data).ok());
+      expect(!::hpp::proto::read_binpb(msg, data).ok());
     };
 
     "optional_int32"_test = [&] {
@@ -207,7 +207,7 @@ const boost::ut::suite dynamic_message_test = [] {
       "skip_unknown_value"_test = [&] {
         std::pmr::monotonic_buffer_resource mr1;
         auto msg1 = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr1));
-        expect(::hpp::proto::read_proto(msg1, "\x98\x03\x05"sv).ok());
+        expect(::hpp::proto::read_binpb(msg1, "\x98\x03\x05"sv).ok());
         auto vals = expect_ok(msg1.field_value_by_name<hpp::proto::enum_numbers_span>("repeated_nested_enum"));
         expect(vals.empty());
       };
@@ -223,13 +223,13 @@ const boost::ut::suite dynamic_message_test = [] {
       auto msg1 = expect_ok(factory.get_message("protobuf_unittest.TestPackedTypes", mr1));
 
       "unpacked read"_test = [&] {
-        expect(::hpp::proto::read_proto(msg1, "\xd0\x05\x01\xd0\x05\x02").ok());
+        expect(::hpp::proto::read_binpb(msg1, "\xd0\x05\x01\xd0\x05\x02").ok());
         auto vals = expect_ok(msg1.field_value_by_name<std::span<const int32_t>>("packed_int32"));
         expect(std::ranges::equal(vals, std::array<std::int32_t, 2>{1, 2}));
       };
 
       "packed_int32 invalid tag type"_test = [&] {
-        expect(!::hpp::proto::read_proto(msg1, "\xd1\x05\x02\x01\x02"sv).ok());
+        expect(!::hpp::proto::read_binpb(msg1, "\xd1\x05\x02\x01\x02"sv).ok());
       };
     };
     "packed_enum"_test = [&] {

@@ -404,10 +404,10 @@ fm.paths = {"/usr/share", "/usr/local/share"};
 assert(hpp::proto::pack_any(message.any_value.emplace(), fm).ok());
 
 std::vector<char> buf;
-assert(hpp::proto::write_proto(message, buf).ok());
+assert(hpp::proto::write_binpb(message, buf).ok());
 
 TestAny round_trip;
-assert(hpp::proto::read_proto(round_trip, buf).ok());
+assert(hpp::proto::read_binpb(round_trip, buf).ok());
 google::protobuf::FieldMask<> fm2;
 assert(hpp::proto::unpack_any(round_trip.any_value.value(), fm2).ok());
 ```
@@ -431,10 +431,10 @@ fm.paths = paths;
 assert(hpp::proto::pack_any(message.any_value.emplace(), fm, ctx).ok());
 
 std::vector<char> buf;
-assert(hpp::proto::write_proto(message, buf).ok());
+assert(hpp::proto::write_binpb(message, buf).ok());
 
 TestAnyView round_trip;
-assert(hpp::proto::read_proto(round_trip, buf, ctx).ok());
+assert(hpp::proto::read_binpb(round_trip, buf, ctx).ok());
 google::protobuf::FieldMask<hpp::proto::non_owning_traits> fm2;
 assert(hpp::proto::unpack_any(round_trip.any_value.value(), fm2, ctx).ok());
 ```

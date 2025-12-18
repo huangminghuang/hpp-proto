@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/binpb.hpp>
 #include "google/protobuf/descriptor.msg.hpp"
 
 

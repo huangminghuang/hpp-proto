@@ -1,7 +1,7 @@
 #include <iostream>
 #include <source_location>
 
-#include "addressbook_proto3.pb.hpp" // required for write_proto() and read_proto()
+#include "addressbook_proto3.pb.hpp" // required for write_binpb() and read_binpb()
 #include "any_demo.pb.hpp"
 
 using Person = tutorial::Person<>;
@@ -28,12 +28,12 @@ int main() {
   expect(hpp::proto::pack_any(message.any_value.emplace(), alex).ok());
 
   std::vector<std::byte> buffer;
-  expect(hpp::proto::write_proto(message, buffer).ok());
+  expect(hpp::proto::write_binpb(message, buffer).ok());
 
-  auto write_result = hpp::proto::write_proto(message);
+  auto write_result = hpp::proto::write_binpb(message);
   expect(write_result.has_value());
 
-  auto any_demo = hpp::proto::read_proto<AnyDemo>(write_result.value());
+  auto any_demo = hpp::proto::read_binpb<AnyDemo>(write_result.value());
   expect(any_demo.has_value());
   // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
   auto unpacked_result = hpp::proto::unpack_any<Person>(any_demo.value().any_value.value());

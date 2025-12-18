@@ -1,5 +1,5 @@
 /**
- * @file dynamic_message.hpp
+ * @file dynamic_message/binpb.hpp
  * @brief Runtime facilities for parsing, building, and serializing protobuf messages using descriptors only.
  *
  * The dynamic message layer exposes:
@@ -22,21 +22,21 @@
 #include <hpp_proto/dynamic_message/pb_serializer_ext.hpp>
 namespace hpp::proto {
 
-[[nodiscard]] status read_proto(message_value_mref msg, auto &&buffer) {
+[[nodiscard]] status read_binpb(message_value_mref msg, auto &&buffer) {
   msg.reset();
   auto context = pb_context{alloc_from(msg.memory_resource())};
   return pb_serializer::deserialize(msg, std::forward<decltype(buffer)>(buffer), context);
 }
 
 template <std::size_t N>
-[[nodiscard]] status read_proto(message_value_mref msg, const char (&buffer)[N]) {
+[[nodiscard]] status read_binpb(message_value_mref msg, const char (&buffer)[N]) {
   constexpr auto span_size = N == 0 ? 0 : N - 1;
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,-warnings-as-errors)
   auto span = std::span<const char>{buffer, span_size};
-  return read_proto(msg, span);
+  return read_binpb(msg, span);
 }
 
-[[nodiscard]] status write_proto(const message_value_cref &msg, concepts::contiguous_byte_range auto &buffer,
+[[nodiscard]] status write_binpb(const message_value_cref &msg, concepts::contiguous_byte_range auto &buffer,
                                  concepts::is_option_type auto &&...option) {
   pb_context ctx{std::forward<decltype(option)>(option)...};
   decltype(auto) v = detail::as_modifiable(ctx, buffer);

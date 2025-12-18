@@ -23,7 +23,7 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
-#include <hpp_proto/json_serializer.hpp>
+#include <hpp_proto/json.hpp>
 #include <iterator>
 
 namespace hpp::proto {
