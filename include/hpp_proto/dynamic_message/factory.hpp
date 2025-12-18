@@ -29,9 +29,9 @@
 #include <string_view>
 #include <utility>
 
+#include <hpp_proto/binpb.hpp>
 #include <hpp_proto/dynamic_message/expected_message_mref.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
-#include <hpp_proto/binpb.hpp>
 
 namespace hpp::proto {
 
@@ -53,7 +53,6 @@ class dynamic_message_factory {
 
 public:
   using FileDescriptorSet = ::google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
-  
 
   /// enable to pass dynamic_message_factory as an option to read_json()/write_json()
   using option_type = std::reference_wrapper<dynamic_message_factory>;

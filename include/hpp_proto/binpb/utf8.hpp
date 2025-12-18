@@ -46,4 +46,3 @@ constexpr bool utf8_validation_failed(auto meta, const auto &str) {
 }
 
 } // namespace hpp::proto
-

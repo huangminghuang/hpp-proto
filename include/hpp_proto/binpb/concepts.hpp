@@ -22,8 +22,8 @@
 
 #pragma once
 
-#include <cstddef>
 #include <concepts>
+#include <cstddef>
 #include <ranges>
 #include <span>
 #include <string_view>
@@ -32,8 +32,8 @@
 #include <utility>
 #include <variant>
 
-#include <hpp_proto/memory_resource_utils.hpp>
 #include <hpp_proto/binpb/varint.hpp>
+#include <hpp_proto/memory_resource_utils.hpp>
 namespace hpp::proto::concepts {
 
 template <typename T>
@@ -45,9 +45,9 @@ concept is_boolean = std::same_as<hpp::proto::boolean, T>;
 template <typename T>
 concept is_empty = std::is_empty_v<T>;
 
-
 template <typename T>
-concept associative_container = std::ranges::range<T> && requires(T container) { typename std::remove_cvref_t<T>::key_type; };
+concept associative_container =
+    std::ranges::range<T> && requires(T container) { typename std::remove_cvref_t<T>::key_type; };
 
 template <typename T>
 concept tuple = !std::ranges::range<T> && requires(T tuple) { sizeof(std::tuple_size<std::remove_cvref_t<T>>); };
@@ -170,7 +170,8 @@ template <typename T>
 concept is_basic_out = requires { typename T::is_basic_out; };
 
 template <typename Range>
-concept segmented_byte_range = std::ranges::random_access_range<Range> && contiguous_byte_range<std::ranges::range_value_t<Range>>;
+concept segmented_byte_range =
+    std::ranges::random_access_range<Range> && contiguous_byte_range<std::ranges::range_value_t<Range>>;
 
 template <typename Range>
 concept input_byte_range = segmented_byte_range<Range> || contiguous_byte_range<Range>;
@@ -194,7 +195,7 @@ template <typename T>
 concept string_view_or_bytes_view = std::same_as<T, bytes_view> || concepts::basic_string_view<T>;
 
 template <typename T>
-concept arithmetic_pair = is_pair<T> && std::is_arithmetic_v<typename T::first_type> && std::is_arithmetic_v<typename T::second_type>;
+concept arithmetic_pair =
+    is_pair<T> && std::is_arithmetic_v<typename T::first_type> && std::is_arithmetic_v<typename T::second_type>;
 
 } // namespace hpp::proto::concepts
-

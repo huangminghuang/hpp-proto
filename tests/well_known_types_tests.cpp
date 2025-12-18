@@ -109,7 +109,7 @@ const ut::suite test_timestamp = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.Timestamp",
-                                   "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
+                                      "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
                 .ok());
   };
 
@@ -188,7 +188,7 @@ const ut::suite test_wrapper = [] {
     expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
     // wrong value
     expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.Int64Value",
-                                   "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
+                                      "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
                 .ok());
     // skip unknown field
     expect(hpp::proto::binpb_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
@@ -254,7 +254,7 @@ const ut::suite test_value = [] {
     using namespace std::string_view_literals;
     // field name is not a valid utf8 string
     expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv,
-                                   json_buf)
+                                      json_buf)
                 .ok());
     // skip unknown field
     expect(hpp::proto::binpb_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
@@ -272,13 +272,14 @@ const ut::suite test_value = [] {
     using namespace std::string_view_literals;
 
     // list element is not a valid utf8 string
-    expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
+    expect(
+        !hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
     // skip first unknown element
     expect(hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x0a\x02\x38\x01"sv, json_buf).ok());
     expect(eq(json_buf, "[]"s));
     // skip middle unknown element
     expect(hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue",
-                                  "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
+                                     "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
                .ok());
     expect(eq(json_buf, "[true,false]"s));
     // TODO: we need to test the case where the unknown element in not in the beginning of the list

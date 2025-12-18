@@ -24,8 +24,8 @@
 #include <bit>
 #include <iterator>
 
-#include <hpp_proto/json/field_wrappers.hpp>
 #include <hpp_proto/json/base64.hpp>
+#include <hpp_proto/json/field_wrappers.hpp>
 #include <hpp_proto/json/util.hpp>
 
 namespace hpp::proto {

@@ -3,8 +3,8 @@
 
 #include <algorithm>
 #include <fstream>
-#include <hpp_proto/json.hpp>
 #include <hpp_proto/binpb.hpp>
+#include <hpp_proto/json.hpp>
 #include <ranges>
 #include <span>
 #include <string>

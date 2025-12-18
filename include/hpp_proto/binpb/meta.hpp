@@ -1,11 +1,11 @@
 #pragma once
-#include <type_traits>
 #include <system_error>
+#include <type_traits>
 #include <variant>
 
 namespace hpp::proto {
 
-    ///////////////////
+///////////////////
 
 enum class field_option : uint8_t {
   none = 0,

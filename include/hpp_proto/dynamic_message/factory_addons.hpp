@@ -43,9 +43,9 @@
 #include <google/protobuf/struct.desc.hpp>
 #include <google/protobuf/timestamp.desc.hpp>
 #include <google/protobuf/wrappers.desc.hpp>
+#include <hpp_proto/descriptor_pool.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 #include <hpp_proto/field_types.hpp>
-#include <hpp_proto/descriptor_pool.hpp>
 namespace hpp::proto {
 struct dynamic_message_factory_addons {
   using traits_type = non_owning_traits;

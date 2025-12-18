@@ -236,4 +236,3 @@ GLZ_ALWAYS_INLINE void parse_repeated(bool is_map, auto &&value, auto &ctx, auto
 }
 
 } // namespace glz::util
-

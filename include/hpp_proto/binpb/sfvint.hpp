@@ -24,13 +24,13 @@
 
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
 
+#include <algorithm>
+#include <bit>
 #include <climits>
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <bit>
-#include <compare>
-#include <algorithm>
 #include <hpp_proto/field_types.hpp>
 #include <utility>
 
@@ -87,7 +87,9 @@ public:
   }
 
   HPP_PROTO_INLINE void output(uint64_t v) {
-    auto r = (varint_encoding::zig_zag == T::encoding) ? (v >> 1U) ^ static_cast<uint64_t>(-static_cast<int64_t>(v & 1U)) : v;
+    auto r = (varint_encoding::zig_zag == T::encoding)
+                 ? (v >> 1U) ^ static_cast<uint64_t>(-static_cast<int64_t>(v & 1U))
+                 : v;
     *res++ = static_cast<Result>(r); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   }
 
@@ -206,4 +208,3 @@ constexpr bool sfvint_parser_allowed() {
 } // namespace hpp::proto
 #undef HPP_PROTO_INLINE
 #endif
-

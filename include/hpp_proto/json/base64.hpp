@@ -229,4 +229,3 @@ struct base64 {
 };
 
 } // namespace hpp::proto
-

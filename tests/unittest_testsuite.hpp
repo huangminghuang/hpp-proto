@@ -1316,8 +1316,8 @@ struct TestSuite {
       std::vector<char> data;
       expect(hpp::proto::write_binpb(original, data).ok());
 
-      auto original_json =
-          gpb_based::binpb_to_json(unittest_descriptorset, hpp::proto::message_name(original), {data.data(), data.size()});
+      auto original_json = gpb_based::binpb_to_json(unittest_descriptorset, hpp::proto::message_name(original),
+                                                    {data.data(), data.size()});
       expect(fatal(!original_json.empty()));
       auto generated_json = hpp::proto::write_json(original);
 

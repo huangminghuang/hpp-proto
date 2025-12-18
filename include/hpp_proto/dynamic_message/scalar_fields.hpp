@@ -26,10 +26,10 @@
 #include <memory_resource>
 #include <type_traits>
 
+#include <hpp_proto/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
-#include <hpp_proto/binpb.hpp>
 
 namespace hpp::proto {
 using enum field_kind_t;

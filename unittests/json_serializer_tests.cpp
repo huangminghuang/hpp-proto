@@ -1,7 +1,7 @@
 #include "test_util.hpp"
 #include <boost/ut.hpp>
-#include <hpp_proto/json/duration_codec.hpp>
 #include <hpp_proto/json.hpp>
+#include <hpp_proto/json/duration_codec.hpp>
 #include <hpp_proto/json/timestamp_codec.hpp>
 
 template <typename T>

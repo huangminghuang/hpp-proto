@@ -26,6 +26,7 @@
 #include <string_view>
 #include <utility>
 
+#include <hpp_proto/binpb.hpp>
 #include <hpp_proto/dynamic_message/bytes_fields.hpp>
 #include <hpp_proto/dynamic_message/message_fields.hpp>
 #include <hpp_proto/dynamic_message/repeated_bytes_fields.hpp>
@@ -36,7 +37,6 @@
 #include <hpp_proto/dynamic_message/scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/string_fields.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
-#include <hpp_proto/binpb.hpp>
 
 namespace hpp::proto {
 

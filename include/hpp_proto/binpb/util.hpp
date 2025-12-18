@@ -47,4 +47,3 @@ void append_range(T &v, const Range &range) {
 }
 
 } // namespace hpp::proto::util
-

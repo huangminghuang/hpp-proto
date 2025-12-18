@@ -41,8 +41,8 @@
 #include <hpp_proto/binpb/concepts.hpp>
 #include <hpp_proto/binpb/meta.hpp>
 #include <hpp_proto/binpb/sfvint.hpp>
-#include <hpp_proto/binpb/util.hpp>
 #include <hpp_proto/binpb/utf8.hpp>
+#include <hpp_proto/binpb/util.hpp>
 #include <hpp_proto/binpb/varint.hpp>
 
 #ifdef __GNUC__
@@ -2104,7 +2104,6 @@ struct extension_base {
     }
   }
 };
-
 
 status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg) {
   any.type_url = message_type_url(msg);
