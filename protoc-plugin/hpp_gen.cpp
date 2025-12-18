@@ -29,6 +29,7 @@
 #include <hpp_proto/descriptor_pool.hpp>
 #include <hpp_proto/hpp_options.pb.hpp>
 #include <iostream>
+#include <map>
 #include <numeric>
 #include <set>
 #include <unordered_map>
@@ -555,7 +556,7 @@ using hpp_gen_descriptor_pool = ::hpp::proto::descriptor_pool<hpp_addons>;
 using traits_type = typename hpp_gen_descriptor_pool::traits_type;
 using CodeGeneratorResponse = google::protobuf::compiler::CodeGeneratorResponse<traits_type>;
 
-const static std::map<std::string, std::string> well_known_codecs = {{"google.protobuf.Duration", "duration_codec"},
+const static hpp::proto::flat_map<std::string, std::string> well_known_codecs = {{"google.protobuf.Duration", "duration_codec"},
                                                                      {"google.protobuf.Timestamp", "timestamp_codec"},
                                                                      {"google.protobuf.FieldMask", "field_mask_codec"}};
 

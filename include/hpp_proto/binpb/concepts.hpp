@@ -34,7 +34,10 @@
 
 #include <hpp_proto/binpb/varint.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
-namespace hpp::proto::concepts {
+namespace hpp::proto {
+template <template <typename Traits> class Message, typename Traits>
+auto rebind_traits(Message<Traits>) -> Message<default_traits>;
+namespace concepts {
 
 template <typename T>
 concept is_enum = std::is_enum_v<T> && !std::same_as<std::byte, T>;
@@ -197,5 +200,5 @@ concept string_view_or_bytes_view = std::same_as<T, bytes_view> || concepts::bas
 template <typename T>
 concept arithmetic_pair =
     is_pair<T> && std::is_arithmetic_v<typename T::first_type> && std::is_arithmetic_v<typename T::second_type>;
-
-} // namespace hpp::proto::concepts
+} // namespace concepts
+} // namespace hpp::proto

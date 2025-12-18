@@ -4,6 +4,7 @@
 #include <iterator>
 #include <numeric>
 #include <ostream>
+#include <map>
 #include <unordered_map>
 
 namespace ut = boost::ut;
