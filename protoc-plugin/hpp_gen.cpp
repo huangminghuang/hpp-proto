@@ -556,9 +556,10 @@ using hpp_gen_descriptor_pool = ::hpp::proto::descriptor_pool<hpp_addons>;
 using traits_type = typename hpp_gen_descriptor_pool::traits_type;
 using CodeGeneratorResponse = google::protobuf::compiler::CodeGeneratorResponse<traits_type>;
 
-const static hpp::proto::flat_map<std::string, std::string> well_known_codecs = {{"google.protobuf.Duration", "duration_codec"},
-                                                                     {"google.protobuf.Timestamp", "timestamp_codec"},
-                                                                     {"google.protobuf.FieldMask", "field_mask_codec"}};
+const static hpp::proto::flat_map<std::string, std::string> well_known_codecs = {
+    {"google.protobuf.Duration", "duration_codec"},
+    {"google.protobuf.Timestamp", "timestamp_codec"},
+    {"google.protobuf.FieldMask", "field_mask_codec"}};
 
 struct code_generator {
 

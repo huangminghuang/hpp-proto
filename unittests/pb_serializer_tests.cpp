@@ -2,9 +2,9 @@
 #include <boost/ut.hpp>
 #include <hpp_proto/binpb.hpp>
 #include <iterator>
+#include <map>
 #include <numeric>
 #include <ostream>
-#include <map>
 #include <unordered_map>
 
 namespace ut = boost::ut;

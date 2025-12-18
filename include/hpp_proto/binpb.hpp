@@ -23,8 +23,8 @@
 #pragma once
 #include <expected>
 
-#include <hpp_proto/binpb/serialize.hpp>
 #include <hpp_proto/binpb/deserialize.hpp>
+#include <hpp_proto/binpb/serialize.hpp>
 
 namespace hpp::proto {
 using std::expected;
