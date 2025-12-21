@@ -289,6 +289,10 @@ public:
     assign_range(std::span{first, last});
   }
 
+  constexpr void assign(pointer data, std::size_t size) {
+    assign_range(std::span{data, size});
+  }
+
   template <std::ranges::sized_range R>
   constexpr void append_range(const R &r) {
     auto old_size = view_.size();

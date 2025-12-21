@@ -150,7 +150,7 @@ struct size_cache_counter<T> {
       return util::transform_accumulate(item, [](const auto &elem) constexpr { return count(elem, Meta{}); });
     } else {
       using element_type =
-          std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
+          std::conditional_t<std::same_as<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
                              value_type, typename Meta::type>;
 
       if constexpr (std::is_enum_v<element_type> || concepts::varint<element_type>) {
@@ -347,7 +347,7 @@ struct message_size_calculator<T> {
             item, [&cache_itr](const auto &elem) constexpr { return field_size(elem, Meta{}, cache_itr); });
       } else {
         using element_type =
-            std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
+            std::conditional_t<std::same_as<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
                                value_type, typename Meta::type>;
 
         if constexpr (concepts::byte_serializable<element_type>) {
@@ -528,7 +528,7 @@ template <typename Meta>
   using type = std::remove_cvref_t<decltype(item)>;
   using value_type = typename std::ranges::range_value_t<type>;
   using element_type =
-      std::conditional_t<std::is_same_v<typename Meta::type, void> || concepts::contiguous_byte_range<type>, value_type,
+      std::conditional_t<std::same_as<typename Meta::type, void> || concepts::contiguous_byte_range<type>, value_type,
                          typename Meta::type>;
 
   if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {

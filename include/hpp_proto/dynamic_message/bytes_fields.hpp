@@ -45,11 +45,8 @@ public:
   template <typename U>
   static constexpr bool gettable_to_v = std::same_as<U, bytes_view>;
 
-  bytes_field_cref(const field_descriptor_t &descriptor, const bytes_storage_t &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {}
   bytes_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : bytes_field_cref(descriptor, storage.of_bytes) {}
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   bytes_field_cref(const bytes_field_cref &) noexcept = default;
   bytes_field_cref(bytes_field_cref &&) noexcept = default;
@@ -57,7 +54,7 @@ public:
   bytes_field_cref &operator=(bytes_field_cref &&) noexcept = default;
   ~bytes_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->of_bytes.selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] bytes_view value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
@@ -66,7 +63,7 @@ public:
       auto bspan = std::as_bytes(sval);
       return {bspan.data(), bspan.size()};
     }
-    return {storage_->content, storage_->size};
+    return {storage_->of_bytes.content, storage_->of_bytes.size};
   }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
@@ -84,7 +81,7 @@ public:
 private:
   friend class bytes_field_mref;
   const field_descriptor_t *descriptor_;
-  const bytes_storage_t *storage_;
+  const value_storage *storage_;
 };
 
 /**

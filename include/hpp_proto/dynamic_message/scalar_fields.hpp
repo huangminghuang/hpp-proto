@@ -52,12 +52,8 @@ public:
   template <typename U>
   static constexpr bool gettable_to_v = std::same_as<U, value_type>;
 
-  scalar_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {}
-
   scalar_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : scalar_field_cref(descriptor, reinterpret_cast<const storage_type &>(storage)) {}
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   scalar_field_cref(const scalar_field_cref &) noexcept = default;
   scalar_field_cref(scalar_field_cref &&) noexcept = default;
@@ -65,13 +61,13 @@ public:
   scalar_field_cref &operator=(scalar_field_cref &&) noexcept = default;
   ~scalar_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept { return access_storage().selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
       return std::get<value_type>(descriptor_->default_value);
     }
-    return storage_->content;
+    return access_storage().content;
   }
 
   template <typename U>
@@ -89,8 +85,25 @@ private:
   template <typename, field_kind_t>
   friend class scalar_field_mref;
 
+  [[nodiscard]] const storage_type &access_storage() const noexcept {
+    if constexpr (std::same_as<value_type, int64_t>) {
+      return storage_->of_int64;
+    } else if constexpr (std::same_as<value_type, uint64_t>) {
+      return storage_->of_uint64;
+    } else if constexpr (std::same_as<value_type, int32_t>) {
+      return storage_->of_int32;
+    } else if constexpr (std::same_as<value_type, uint32_t>) {
+      return storage_->of_uint32;
+    } else if constexpr (std::same_as<value_type, double>) {
+      return storage_->of_double;
+    } else if constexpr (std::same_as<value_type, float>) {
+      return storage_->of_float;
+    } else if constexpr (std::same_as<value_type, bool>) {
+      return storage_->of_bool;
+    }
+  }
   const field_descriptor_t *descriptor_;
-  const storage_type *storage_;
+  const value_storage *storage_;
 };
 
 /**
@@ -134,7 +147,7 @@ public:
   void alias_from(const scalar_field_cref<T, Kind> &other) const noexcept { set(other.value()); }
   void clone_from(scalar_field_cref<T, Kind> other) const noexcept { set(other.value()); }
 
-  [[nodiscard]] cref_type cref() const noexcept { return {*descriptor_, access_storage()}; }
+  [[nodiscard]] cref_type cref() const noexcept { return {*descriptor_, *storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator cref_type() const noexcept { return cref(); }
 
@@ -147,19 +160,19 @@ public:
 
 private:
   [[nodiscard]] storage_type &access_storage() const noexcept {
-    if constexpr (std::is_same_v<value_type, int64_t>) {
+    if constexpr (std::same_as<value_type, int64_t>) {
       return storage_->of_int64;
-    } else if constexpr (std::is_same_v<value_type, uint64_t>) {
+    } else if constexpr (std::same_as<value_type, uint64_t>) {
       return storage_->of_uint64;
-    } else if constexpr (std::is_same_v<value_type, int32_t>) {
+    } else if constexpr (std::same_as<value_type, int32_t>) {
       return storage_->of_int32;
-    } else if constexpr (std::is_same_v<value_type, uint32_t>) {
+    } else if constexpr (std::same_as<value_type, uint32_t>) {
       return storage_->of_uint32;
-    } else if constexpr (std::is_same_v<value_type, double>) {
+    } else if constexpr (std::same_as<value_type, double>) {
       return storage_->of_double;
-    } else if constexpr (std::is_same_v<value_type, float>) {
+    } else if constexpr (std::same_as<value_type, float>) {
       return storage_->of_float;
-    } else if constexpr (std::is_same_v<value_type, bool>) {
+    } else if constexpr (std::same_as<value_type, bool>) {
       return storage_->of_bool;
     }
   }

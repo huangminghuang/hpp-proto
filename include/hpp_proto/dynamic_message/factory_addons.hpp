@@ -83,7 +83,7 @@ struct dynamic_message_factory_addons {
         std::string buffer(value);
         char *conv_end = nullptr;
         errno = 0;
-        if constexpr (std::is_same_v<T, float>) {
+        if constexpr (std::same_as<T, float>) {
           parsed = std::strtof(buffer.c_str(), &conv_end);
         } else {
           parsed = std::strtod(buffer.c_str(), &conv_end);

@@ -104,7 +104,7 @@ struct optional_ref {
   auto operator*() const -> decltype(deref(val)) { return deref(val); }
 
   void reset() {
-    if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
+    if constexpr (std::same_as<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
       if constexpr (requires { val.clear(); }) {
         val.clear();
       } else {

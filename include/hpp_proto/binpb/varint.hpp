@@ -55,7 +55,7 @@ struct varint {
   varint() = default;
   using value_type = Type;
   using encode_type =
-      std::conditional_t<std::is_same_v<Type, int32_t> && Encoding == varint_encoding::normal, int64_t, value_type>;
+      std::conditional_t<std::same_as<Type, int32_t> && Encoding == varint_encoding::normal, int64_t, value_type>;
   static constexpr auto encoding = Encoding;
   // NOLINTBEGIN(hicpp-explicit-conversions)
   constexpr varint(Type value) : value(value) {}

@@ -40,7 +40,7 @@ using enum field_kind_t;
 
 class repeated_message_field_cref : std::ranges::view_interface<repeated_message_field_cref> {
   const field_descriptor_t *descriptor_;
-  const repeated_storage_base<value_storage> *storage_;
+  const value_storage *storage_;
   [[nodiscard]] std::size_t num_slots() const { return message_descriptor().num_slots; }
   friend class repeated_message_field_mref;
 
@@ -60,12 +60,8 @@ public:
   static constexpr bool gettable_to_v = false;
 
   repeated_message_field_cref(const field_descriptor_t &descriptor,
-                              const repeated_storage_base<value_storage> &storage) noexcept
+                              const value_storage &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
-
-  repeated_message_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : repeated_message_field_cref(descriptor, storage.of_repeated_message) {}
 
   repeated_message_field_cref(const repeated_message_field_cref &) noexcept = default;
   repeated_message_field_cref(repeated_message_field_cref &&) noexcept = default;
@@ -73,18 +69,18 @@ public:
   repeated_message_field_cref &operator=(repeated_message_field_cref &&) noexcept = default;
   ~repeated_message_field_cref() noexcept = default;
 
-  [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
+  [[nodiscard]] bool empty() const noexcept { return storage_->of_repeated_message.size == 0; }
+  [[nodiscard]] std::size_t size() const noexcept { return storage_->of_repeated_message.size; }
   [[nodiscard]] message_value_cref operator[](std::size_t index) const noexcept {
     assert(index < size());
     const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
-    return {message_descriptor(), std::next(storage_->content, offset)};
+    return {message_descriptor(), *std::next(storage_->of_repeated_message.content, offset)};
   }
 
   [[nodiscard]] message_value_cref at(std::size_t index) const {
     if (index < size()) {
       const auto offset = static_cast<std::ptrdiff_t>(index * num_slots());
-      return {message_descriptor(), std::next(storage_->content, offset)};
+      return {message_descriptor(), *std::next(storage_->of_repeated_message.content, offset)};
     }
     throw std::out_of_range("");
   }
@@ -141,7 +137,7 @@ public:
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   [[nodiscard]] repeated_message_field_cref cref() const noexcept {
-    return {*descriptor_, storage_->of_repeated_message};
+    return {*descriptor_, *storage_};
   }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator repeated_message_field_cref() const noexcept { return cref(); }

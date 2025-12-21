@@ -877,7 +877,7 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
 
   decltype(auto) v = detail::as_modifiable(archive.context, item);
   if (tag_type(tag) !=
-      tag_type<std::conditional_t<std::is_same_v<typename Meta::type, void>, value_type, typename Meta::type>>()) {
+      tag_type<std::conditional_t<std::same_as<typename Meta::type, void>, value_type, typename Meta::type>>()) {
     return std::errc::bad_message;
   }
 
@@ -1056,7 +1056,7 @@ template <typename Meta>
 constexpr status deserialize_field(concepts::oneof_type auto &item, Meta, uint32_t tag,
                                    concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
-  static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
+  static_assert(std::same_as<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
   return deserialize_oneof<0, typename Meta::alternatives_meta>(tag, item, archive, unknown_fields);
 }
 
@@ -1065,7 +1065,7 @@ constexpr status deserialize_field(concepts::arithmetic auto &item, Meta meta, u
                                    concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
   using serialize_type = typename util::get_serialize_type<Meta, type>::type;
-  if constexpr (!std::is_same_v<type, serialize_type>) {
+  if constexpr (!std::same_as<type, serialize_type>) {
     serialize_type value;
     if (auto result = deserialize_field(value, meta, tag, archive, unknown_fields); !result.ok()) [[unlikely]] {
       return result;

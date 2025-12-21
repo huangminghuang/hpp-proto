@@ -72,7 +72,20 @@ struct json_codec<use_base64> {
 } // namespace hpp::proto
 
 namespace glz {
-
+namespace detail {
+template <auto Opts>
+void from_json(auto &&v, auto &ctx, auto &it, auto &end) {
+  using type = std::decay_t<decltype(v)>;
+  if constexpr (std::same_as<type, std::string_view>) {
+    decltype(auto) mutable_v = hpp::proto::detail::as_modifiable(ctx, v);
+    from<JSON, decltype(mutable_v)>::template op<Opts>(mutable_v, ctx, it, end);
+  } else if constexpr (::hpp::proto::concepts::integral_64_bits<type>) {
+    from<JSON, glz::quoted_t<type>>::template op<Opts>(glz::quoted_t<type>{v}, ctx, it, end);
+  } else {
+    from<JSON, type>::template op<Opts>(std::forward<decltype(v)>(v), ctx, it, end);
+  }
+}
+} // namespace detail
 using base64 = hpp::proto::base64;
 
 template <hpp::proto::concepts::has_codec T>
@@ -167,21 +180,11 @@ template <typename Type, auto Default>
 struct from<JSON, hpp::proto::optional<Type, Default>> {
   template <auto Options, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &value, Args &&...args) noexcept {
-    auto do_from_json = [](auto &&v, auto &&...args) noexcept {
-      using type = std::remove_cvref_t<decltype(v)>;
-      constexpr bool requires_quote = ::hpp::proto::concepts::integral_64_bits<type>;
-      if constexpr (requires_quote) {
-        from<JSON, glz::quoted_t<type>>::template op<Options>(glz::quoted_t<type>{v}, std::forward<Args>(args)...);
-      } else {
-        from<JSON, type>::template op<Options>(v, std::forward<Args>(args)...);
-      }
-    };
-
     if constexpr (requires { value.emplace(); }) {
-      do_from_json(value.emplace(), std::forward<Args>(args)...);
+      detail::from_json<Options>(value.emplace(), std::forward<Args>(args)...);
     } else {
       Type v;
-      do_from_json(v, std::forward<Args>(args)...);
+      detail::from_json<Options>(v, std::forward<Args>(args)...);
       value = v;
     }
   }
@@ -191,9 +194,9 @@ template <typename Type, auto Default>
 struct to<JSON, hpp::proto::optional_ref<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    if constexpr (std::is_same_v<Type, uint64_t>) {
+    if constexpr (std::same_as<Type, uint64_t>) {
       static_assert(
-          std::is_same_v<std::decay_t<decltype(*value)>, glz::opts_wrapper_t<const uint64_t, &glz::opts::quoted_num>>);
+          std::same_as<std::decay_t<decltype(*value)>, glz::opts_wrapper_t<const uint64_t, &glz::opts::quoted_num>>);
     }
     if (bool(value)) {
       to<JSON, std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
@@ -206,12 +209,12 @@ struct from<JSON, hpp::proto::optional_ref<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     if constexpr (requires { value.emplace(); }) {
-      parse<JSON>::template op<Opts>(value.emplace(), std::forward<decltype(args)>(args)...);
+      detail::from_json<Opts>(value.emplace(), std::forward<decltype(args)>(args)...);
     } else if constexpr (::hpp::proto::concepts::is_map<Type> && resizable<Type>) {
       hpp::proto::map_wrapper<std::decay_t<decltype(*value)>> wrapped{*value};
       parse<JSON>::template op<Opts>(wrapped, std::forward<decltype(args)>(args)...);
     } else {
-      parse<JSON>::template op<Opts>(*value, std::forward<decltype(args)>(args)...);
+      detail::from_json<Opts>(*value, std::forward<decltype(args)>(args)...);
     }
   }
 };
@@ -244,15 +247,14 @@ struct to<JSON, hpp::proto::oneof_wrapper<Type, Index>> {
 
 template <typename Type, std::size_t Index>
 struct from<JSON, hpp::proto::oneof_wrapper<Type, Index>> {
-  template <auto Options, class... Args>
+  template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     using alt_type = std::variant_alternative_t<Index, Type>;
     if constexpr (requires { value.value->template emplace<Index>(); }) {
-      auto &v = value.value->template emplace<Index>();
-      from<JSON, alt_type>::template op<Options>(v, std::forward<Args>(args)...);
+      detail::from_json<Opts>(value.value->template emplace<Index>(), std::forward<Args>(args)...);
     } else {
       *value.value = alt_type{};
-      from<JSON, alt_type>::template op<Options>(std::get<Index>(*value.value), std::forward<Args>(args)...);
+      detail::from_json<Opts>(std::get<Index>(*value.value), std::forward<Args>(args)...);
     }
   }
 };

@@ -59,8 +59,8 @@ class message_value_cref {
 
 public:
   constexpr static bool is_mutable = false;
-  message_value_cref(const message_descriptor_t &descriptor, const value_storage *storage) noexcept
-      : descriptor_(&descriptor), storage_(storage) {}
+  message_value_cref(const message_descriptor_t &descriptor, const value_storage &storage) noexcept
+      : descriptor_(&descriptor), storage_(&storage) {}
   message_value_cref(const message_value_cref &) noexcept = default;
   message_value_cref(message_value_cref &&) noexcept = default;
   message_value_cref &operator=(const message_value_cref &) noexcept = default;
@@ -240,7 +240,7 @@ public:
   [[nodiscard]] const message_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
-  [[nodiscard]] message_value_cref cref() const noexcept { return {*descriptor_, storage_}; }
+  [[nodiscard]] message_value_cref cref() const noexcept { return {*descriptor_, *storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator message_value_cref() const noexcept { return cref(); }
 
@@ -499,12 +499,8 @@ public:
   constexpr static field_kind_t field_kind = KIND_MESSAGE;
   constexpr static bool is_mutable = false;
 
-  message_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {}
-
   message_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : message_field_cref(descriptor, storage.of_message) {}
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   message_field_cref(const message_field_cref &) noexcept = default;
   message_field_cref(message_field_cref &&) noexcept = default;
@@ -512,16 +508,16 @@ public:
   message_field_cref &operator=(message_field_cref &&) noexcept = default;
   ~message_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->of_message.selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const {
     if (!has_value()) {
       throw std::bad_optional_access{};
     }
-    return {message_descriptor(), storage_->content};
+    return {message_descriptor(), *(storage_->of_message.content)};
   }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
-  [[nodiscard]] value_type operator*() const noexcept { return {message_descriptor(), storage_->content}; }
+  [[nodiscard]] value_type operator*() const noexcept { return {message_descriptor(), *(storage_->of_message.content)}; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
@@ -543,7 +539,7 @@ public:
 
 private:
   const field_descriptor_t *descriptor_;
-  const storage_type *storage_;
+  const value_storage *storage_;
   [[nodiscard]] std::size_t num_slots() const { return descriptor_->message_field_type_descriptor()->num_slots; }
 };
 

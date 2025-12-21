@@ -111,14 +111,14 @@ class optional { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
   static constexpr bool has_default_value = true;
   constexpr static T default_value() {
-    if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
+    if constexpr (std::same_as<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
       return T{};
     } else if constexpr (std::is_fundamental_v<T> || std::is_enum_v<T>) {
       return unwrap(Default);
     } else {
       static_assert(sizeof(typename T::value_type) == 1);
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      auto data = reinterpret_cast<const typename T::value_type *>(Default.data());
+      auto data = static_cast<const typename T::value_type *>(Default.data());
       return T{data, data + Default.size()}; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
   }
@@ -604,12 +604,12 @@ public:
 
 #ifdef _MSC_VER
   template <typename U>
-    requires(std::is_const_v<T> && std::is_same_v<std::remove_const_t<T>, std::remove_const_t<U>>)
+    requires(std::is_const_v<T> && std::same_as<std::remove_const_t<T>, std::remove_const_t<U>>)
   constexpr equality_comparable_span(std::initializer_list<U> init) noexcept
       : _data(init.begin()), _size(init.size()) {}
 #endif
   template <typename R>
-    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
+    requires(!std::same_as<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
              std::ranges::sized_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
   constexpr equality_comparable_span(R &&r) noexcept
       : equality_comparable_span(std::span<element_type>{std::forward<R>(r)}) {}
@@ -640,7 +640,7 @@ public:
 
 #ifdef _MSC_VER
   template <typename U>
-    requires(std::is_const_v<T> && std::is_same_v<std::remove_const_t<T>, std::remove_const_t<U>>)
+    requires(std::is_const_v<T> && std::same_as<std::remove_const_t<T>, std::remove_const_t<U>>)
   constexpr equality_comparable_span &operator=(std::initializer_list<U> init) noexcept {
     _data = init.begin();
     _size = init.size();
@@ -649,7 +649,7 @@ public:
 #endif
 
   template <typename R>
-    requires(!std::is_same_v<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
+    requires(!std::same_as<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
              std::ranges::sized_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
   constexpr equality_comparable_span &operator=(R &&r) noexcept {
     *this = std::span<element_type>{std::forward<R>(r)};
@@ -798,7 +798,7 @@ struct boolean {
 
 template <typename T, auto Default = std::monostate{}>
 constexpr bool is_default_value(const T &val) {
-  if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
+  if constexpr (std::same_as<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
     if constexpr (requires { val.empty(); }) {
       return val.empty();
     } else if constexpr (requires { val.has_value(); }) {

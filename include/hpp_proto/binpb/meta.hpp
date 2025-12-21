@@ -275,7 +275,7 @@ struct get_serialize_type;
 template <typename Meta, typename Type>
   requires requires { typename Meta::type; }
 struct get_serialize_type<Meta, Type> {
-  using type = std::conditional_t<std::is_same_v<typename Meta::type, void>, Type, typename Meta::type>;
+  using type = std::conditional_t<std::same_as<typename Meta::type, void>, Type, typename Meta::type>;
 };
 
 template <typename Meta, typename Type>

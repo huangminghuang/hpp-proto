@@ -46,11 +46,8 @@ public:
   template <typename U>
   static constexpr bool gettable_to_v = std::same_as<U, std::string_view>;
 
-  string_field_cref(const field_descriptor_t &descriptor, const string_storage_t &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {}
   string_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : string_field_cref(descriptor, storage.of_string) {}
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   string_field_cref(const string_field_cref &) noexcept = default;
   string_field_cref(string_field_cref &&) noexcept = default;
@@ -58,15 +55,15 @@ public:
   string_field_cref &operator=(string_field_cref &&) noexcept = default;
   ~string_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->of_string.selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
+  [[nodiscard]] std::size_t size() const noexcept { return storage_->of_string.size; }
 
   [[nodiscard]] std::string_view value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
       return descriptor_->proto().default_value;
     }
-    return {storage_->content, storage_->size};
+    return {storage_->of_string.content, storage_->of_string.size};
   }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
@@ -84,7 +81,7 @@ public:
 private:
   friend class string_field_mref;
   const field_descriptor_t *descriptor_;
-  const string_storage_t *storage_;
+  const value_storage *storage_;
 };
 
 /**

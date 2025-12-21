@@ -150,11 +150,8 @@ public:
   static constexpr bool gettable_to_v =
       std::same_as<U, enum_number> || std::same_as<U, enum_name> || std::same_as<U, enum_value>;
 
-  enum_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {}
   enum_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : enum_field_cref(descriptor, storage.of_int32) {}
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   enum_field_cref(const enum_field_cref &) noexcept = default;
   enum_field_cref(enum_field_cref &&) noexcept = default;
@@ -163,10 +160,10 @@ public:
 
   ~enum_field_cref() = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->of_int32.selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] enum_value value() const noexcept {
-    int32_t effective_value = storage_->content;
+    int32_t effective_value = storage_->of_int32.content;
     if (descriptor().explicit_presence() && !has_value()) {
       effective_value = std::get<int32_t>(descriptor_->default_value);
     }
@@ -197,7 +194,7 @@ public:
 
   [[nodiscard]] std::int32_t number() const {
     bool is_default = descriptor().explicit_presence() && !has_value();
-    return is_default ? std::get<int32_t>(descriptor_->default_value) : storage_->content;
+    return is_default ? std::get<int32_t>(descriptor_->default_value) : storage_->of_int32.content;
   }
 
   /**
@@ -208,7 +205,7 @@ public:
 private:
   friend class enum_field_mref;
   const field_descriptor_t *descriptor_;
-  const scalar_storage_base<int32_t> *storage_;
+  const value_storage *storage_;
 };
 
 class enum_field_mref {
@@ -236,7 +233,7 @@ public:
 
   void alias_from(const cref_type &other) const noexcept {
     assert(this->descriptor_ == &other.descriptor());
-    storage_->of_int32 = *other.storage_;
+    storage_->of_int32 = other.storage_->of_int32;
   }
 
   void clone_from(const cref_type &other) const noexcept {

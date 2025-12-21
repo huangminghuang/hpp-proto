@@ -56,11 +56,8 @@ public:
   template <typename U>
   static constexpr bool gettable_to_v = std::same_as<U, std::span<const value_type>>;
 
-  repeated_scalar_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
-      : descriptor_(&descriptor), storage_(&storage) {}
   repeated_scalar_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      : repeated_scalar_field_cref(descriptor, reinterpret_cast<const storage_type &>(storage)) {}
+      : descriptor_(&descriptor), storage_(&storage) {}
 
   repeated_scalar_field_cref(const repeated_scalar_field_cref &) noexcept = default;
   repeated_scalar_field_cref(repeated_scalar_field_cref &&) noexcept = default;
@@ -69,23 +66,23 @@ public:
   ~repeated_scalar_field_cref() noexcept = default;
 
   value_type operator[](std::size_t index) const noexcept {
-    assert(index < storage_->size);
-    return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
+    assert(index < access_storage().size);
+    return *std::next(access_storage().content, static_cast<std::ptrdiff_t>(index));
   }
 
   [[nodiscard]] value_type at(std::size_t index) const {
-    if (index < storage_->size) {
-      return *std::next(storage_->content, static_cast<std::ptrdiff_t>(index));
+    if (index < access_storage().size) {
+      return *std::next(access_storage().content, static_cast<std::ptrdiff_t>(index));
     }
     throw std::out_of_range("");
   }
 
-  [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
-  [[nodiscard]] const value_type *data() const noexcept { return storage_->content; }
-  [[nodiscard]] const value_type *begin() const noexcept { return storage_->content; }
+  [[nodiscard]] bool empty() const noexcept { return access_storage().size == 0; }
+  [[nodiscard]] std::size_t size() const noexcept { return access_storage().size; }
+  [[nodiscard]] const value_type *data() const noexcept { return access_storage().content; }
+  [[nodiscard]] const value_type *begin() const noexcept { return access_storage().content; }
   [[nodiscard]] const value_type *end() const noexcept {
-    return std::next(storage_->content, static_cast<std::ptrdiff_t>(storage_->size));
+    return std::next(access_storage().content, static_cast<std::ptrdiff_t>(access_storage().size));
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -93,7 +90,7 @@ public:
   template <typename U>
   [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
     if constexpr (std::same_as<U, std::span<const value_type>>) {
-      return std::span<const value_type>{storage_->content, storage_->size};
+      return std::span<const value_type>{access_storage().content, access_storage().size};
     } else {
       return std::unexpected(dynamic_message_errc::invalid_field_type);
     }
@@ -102,8 +99,30 @@ public:
 private:
   template <typename, field_kind_t>
   friend class repeated_scalar_field_mref;
+
+  [[nodiscard]] const storage_type &access_storage() const noexcept {
+    if constexpr (std::same_as<value_type, int64_t>) {
+      return storage_->of_repeated_int64;
+    } else if constexpr (std::same_as<value_type, uint64_t>) {
+      return storage_->of_repeated_uint64;
+    } else if constexpr (std::same_as<value_type, int32_t>) {
+      return storage_->of_repeated_int32;
+    } else if constexpr (std::same_as<value_type, uint32_t>) {
+      return storage_->of_repeated_uint32;
+    } else if constexpr (std::same_as<value_type, double>) {
+      return storage_->of_repeated_double;
+    } else if constexpr (std::same_as<value_type, float>) {
+      return storage_->of_repeated_float;
+    } else if constexpr (std::same_as<value_type, bool>) {
+      return storage_->of_repeated_bool;
+    } else if constexpr (std::same_as<value_type, std::string_view>) {
+      return storage_->of_repeated_string;
+    } else if constexpr (std::same_as<value_type, bytes_view>) {
+      return storage_->of_repeated_bytes;
+    }
+  }
   const field_descriptor_t *descriptor_;
-  const storage_type *storage_;
+  const value_storage *storage_;
 };
 
 /**
@@ -130,7 +149,7 @@ public:
 
   template <typename U>
   static constexpr bool settable_from_v =
-      std::ranges::sized_range<U> && std::is_same_v<range_value_or_void_t<U>, value_type>;
+      std::ranges::sized_range<U> && std::same_as<range_value_or_void_t<U>, value_type>;
 
   repeated_scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                              std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -243,19 +262,19 @@ public:
 
 private:
   [[nodiscard]] storage_type &access_storage() const noexcept {
-    if constexpr (std::is_same_v<value_type, int64_t>) {
+    if constexpr (std::same_as<value_type, int64_t>) {
       return storage_->of_repeated_int64;
-    } else if constexpr (std::is_same_v<value_type, uint64_t>) {
+    } else if constexpr (std::same_as<value_type, uint64_t>) {
       return storage_->of_repeated_uint64;
-    } else if constexpr (std::is_same_v<value_type, int32_t>) {
+    } else if constexpr (std::same_as<value_type, int32_t>) {
       return storage_->of_repeated_int32;
-    } else if constexpr (std::is_same_v<value_type, uint32_t>) {
+    } else if constexpr (std::same_as<value_type, uint32_t>) {
       return storage_->of_repeated_uint32;
-    } else if constexpr (std::is_same_v<value_type, double>) {
+    } else if constexpr (std::same_as<value_type, double>) {
       return storage_->of_repeated_double;
-    } else if constexpr (std::is_same_v<value_type, float>) {
+    } else if constexpr (std::same_as<value_type, float>) {
       return storage_->of_repeated_float;
-    } else if constexpr (std::is_same_v<value_type, bool>) {
+    } else if constexpr (std::same_as<value_type, bool>) {
       return storage_->of_repeated_bool;
     }
   }

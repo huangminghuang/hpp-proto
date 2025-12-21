@@ -122,12 +122,10 @@ public:
   template <typename U>
   static constexpr bool gettable_to_v = std::same_as<U, enum_numbers_span> || std::same_as<U, enum_names_view>;
 
-  repeated_enum_field_cref(const field_descriptor_t &descriptor, const storage_type &storage) noexcept
+  repeated_enum_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
 
-  repeated_enum_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-      : repeated_enum_field_cref(descriptor, storage.of_repeated_int32) {}
+
 
   repeated_enum_field_cref(const repeated_enum_field_cref &) noexcept = default;
   repeated_enum_field_cref(repeated_enum_field_cref &&) noexcept = default;
@@ -135,29 +133,29 @@ public:
   repeated_enum_field_cref &operator=(repeated_enum_field_cref &&) noexcept = default;
   ~repeated_enum_field_cref() = default;
 
-  [[nodiscard]] bool empty() const noexcept { return storage_->size == 0; }
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->size; }
+  [[nodiscard]] bool empty() const noexcept { return storage_->of_repeated_int32.size == 0; }
+  [[nodiscard]] std::size_t size() const noexcept { return storage_->of_repeated_int32.size; }
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
-  [[nodiscard]] iterator end() const noexcept { return {this, storage_->size}; }
-  [[nodiscard]] const int32_t *data() const noexcept { return storage_->content; }
+  [[nodiscard]] iterator end() const noexcept { return {this, storage_->of_repeated_int32.size}; }
+  [[nodiscard]] const int32_t *data() const noexcept { return storage_->of_repeated_int32.content; }
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
     return {*descriptor_->enum_field_type_descriptor(),
-            *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
+            *std::next(storage_->of_repeated_int32.content, static_cast<std::ptrdiff_t>(index))};
   }
 
   [[nodiscard]] reference at(std::size_t index) const {
     if (index < size()) {
       return {*descriptor_->enum_field_type_descriptor(),
-              *std::next(storage_->content, static_cast<std::ptrdiff_t>(index))};
+              *std::next(storage_->of_repeated_int32.content, static_cast<std::ptrdiff_t>(index))};
     }
     throw std::out_of_range("");
   }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
-  [[nodiscard]] std::span<const std::int32_t> numbers() const { return std::span{storage_->content, storage_->size}; }
+  [[nodiscard]] std::span<const std::int32_t> numbers() const { return std::span{storage_->of_repeated_int32.content, storage_->of_repeated_int32.size}; }
 
   /**
    * @brief Lazily maps stored enum numbers to their corresponding names.
@@ -179,7 +177,7 @@ public:
 
 private:
   const field_descriptor_t *descriptor_;
-  const storage_type *storage_;
+  const value_storage *storage_;
 };
 
 class repeated_enum_field_mref : public std::ranges::view_interface<repeated_enum_field_mref> {
@@ -215,7 +213,7 @@ public:
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   [[nodiscard]] repeated_enum_field_cref cref() const noexcept {
-    return repeated_enum_field_cref{*descriptor_, storage_->of_repeated_int32};
+    return repeated_enum_field_cref{*descriptor_, *storage_};
   }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator repeated_enum_field_cref() const noexcept { return cref(); }
