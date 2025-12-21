@@ -63,8 +63,10 @@ template <typename T>
 concept integral_64_bits = std::same_as<std::decay_t<T>, uint64_t> || std::same_as<std::decay_t<T>, int64_t>;
 
 template <typename T>
-concept map_with_integral_64_bits_mapped_type =
-    glz::writable_map_t<T> && integral_64_bits<typename T::value_type::second_type>;
+concept is_map = std::ranges::range<T> && glz::pair_t<std::ranges::range_value_t<T>>;
+
+template <typename T>
+concept map_with_integral_64_bits_mapped_type = is_map<T> && integral_64_bits<typename T::value_type::second_type>;
 
 template <typename T>
 concept jsonfy_need_quote =

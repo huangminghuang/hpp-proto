@@ -19,3 +19,4 @@ obj/
 *.swp
 .env
 .env.*
+fuzz/__pycache__/

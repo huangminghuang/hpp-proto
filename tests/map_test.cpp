@@ -10,22 +10,23 @@ const boost::ut::suite map_test = [] {
 
   auto map_unittest_descriptorset = read_file("unittest.desc.binpb");
 
-  "protobuf"_test = [] {
-    TestMap original;
+  "protobuf"_test = []<class Traits> {
+    protobuf_unittest::TestMap<Traits> original;
     SetMapFields(&original);
 
-    TestMap msg;
+    protobuf_unittest::TestMap<Traits> msg;
 
     std::vector<char> data;
     expect(hpp::proto::write_binpb(original, data).ok());
-    expect(hpp::proto::read_binpb(msg, data).ok());
+    std::pmr::monotonic_buffer_resource mr;
+    expect(hpp::proto::read_binpb(msg, data, hpp::proto::alloc_from(mr)).ok());
 
     ExpectMapFieldsSet(msg);
-  };
+  } | std::tuple<::hpp::proto::default_traits, ::hpp::proto::non_owning_traits>();
 
 #ifndef HPP_PROTO_DISABLE_GLAZE
-  "glaze"_test = [&] {
-    TestMap original;
+  "glaze"_test = [&]<class Traits> {
+    protobuf_unittest::TestMap<Traits> original;
     SetMapFields(&original);
 
     std::vector<char> data;
@@ -37,11 +38,15 @@ const boost::ut::suite map_test = [] {
 
     expect(eq(hpp::proto::write_json(original).value(), original_json));
 
-    TestMap msg;
-    expect(hpp::proto::read_json(msg, original_json).ok());
-
+    protobuf_unittest::TestMap<Traits> msg;
+    std::pmr::monotonic_buffer_resource mr;
+    expect(hpp::proto::read_json(msg, original_json, hpp::proto::alloc_from(mr)).ok());
     ExpectMapFieldsSet(msg);
-  };
+
+    std::vector<char> non_null_terminated_json{original_json.begin(), original_json.end()};
+    expect(hpp::proto::read_json(msg, non_null_terminated_json, hpp::proto::alloc_from(mr)).ok());
+    ExpectMapFieldsSet(msg);
+  } | std::tuple<::hpp::proto::default_traits, ::hpp::proto::non_owning_traits>();
 #endif
 };
 

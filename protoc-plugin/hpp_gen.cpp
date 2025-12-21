@@ -1682,10 +1682,7 @@ struct glaze_meta_generator : code_generator {
     using enum FieldDescriptorProto::Type;
     using enum FieldDescriptorProto::Label;
 
-    if (descriptor.is_cpp_optional && descriptor.proto().type != TYPE_BOOL) {
-      // we remove operator! from hpp::optional<bool> to make the interface less confusing; however, this
-      // make it unfulfilling the optional concept in glaze library; therefor, we need to apply as_optional_ref
-      // as a workaround.
+    if (descriptor.is_cpp_optional) {
       fmt::format_to(target, "    \"{}\", &T::{},\n", descriptor.proto().json_name, descriptor.cpp_name);
     } else if (descriptor.proto().label == LABEL_REQUIRED) {
       auto type = descriptor.proto().type;

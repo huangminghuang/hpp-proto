@@ -1,104 +1,129 @@
 #!/usr/bin/env python3
 
-import os
-import struct
-import sys
 import argparse
+import os
+import sys
 
-# This script appends a 1-byte trailer to existing protobuf binary files
-# so they can be consumed by the fuzzer in fuzz/fuzz_pb_serializer.cpp.
+# This script generates fuzzer seed corpora by appending a 1-byte `choice_options`
+# to existing test inputs under `tests/data/`.
+#
+# - For binpb fuzzing (`fuzz/fuzz_binpb.cpp`), the input is:
+#     [binpb bytes...][choice_options: uint8]
+#   where choice_options is in [0, variant_size*2-1] (message type + split flag). This script generates only
+#   the non-split variants (choice_options == message type index).
+#
+# - For json fuzzing (`fuzz/fuzz_json.cpp`), the input is:
+#     [json bytes...][choice_options: uint8]
+#   where choice_options is in [0, variant_size-1] (message type only).
 
-# The fuzzer's `FuzzedDataProvider` first consumes an integer `choice_options`
-# to select the message type to parse. We set this `choice_options` value
-# to be the index of the message type in the fuzzer's `message_variant_t`.
+def ensure_dir(path: str) -> None:
+    os.makedirs(path, exist_ok=True)
 
-def main():
-    """
-    Main function to process protobuf files and add the fuzzer prefix.
-    """
+
+def read_bytes_or_warn(path: str) -> bytes | None:
+    if not os.path.exists(path):
+        print(f"  - WARNING: Source file not found, skipping: {path}", file=sys.stderr)
+        return None
+    with open(path, "rb") as f:
+        return f.read()
+
+
+def write_seed(out_path: str, choice: int, payload: bytes) -> None:
+  if not (0 <= choice <= 255):
+    raise ValueError("choice_options must fit in uint8")
+  with open(out_path, "wb") as f:
+    f.write(payload)
+    f.write(bytes([choice]))
+
+
+def generate_seed_corpus(
+    *,
+    format_name: str,
+    ext: str,
+    output_root: str,
+    source_dir: str,
+    message_type_map: dict[str, int],
+) -> int:
+    out_dir = os.path.join(output_root, f"{format_name}_seed_corpus")
+    ensure_dir(out_dir)
+    print(f"\nGenerating {format_name} seed corpus: {out_dir}")
+
+    count = 0
+    for message_type, type_index in message_type_map.items():
+        filename = f"{message_type}.{ext}"
+        source_path = os.path.join(source_dir, filename)
+        payload = read_bytes_or_warn(source_path)
+        if payload is None:
+            continue
+        out_path = os.path.join(out_dir, filename)
+        write_seed(out_path, type_index, payload)
+        count += 1
+    return count
+
+
+def main() -> int:
     # --- Configuration ---
     parser = argparse.ArgumentParser(
-        description="Append fuzzer-specific trailers to protobuf binary files."
+        description="Generate fuzzer seed corpora by prefixing choice options."
     )
-    # The base directory of the repo is the parent of the script's directory
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     parser.add_argument(
-        "--output-dir",
+        "--output-root",
         type=str,
-        # Default to a directory inside the fuzz directory
         default=os.path.join(base_dir, "fuzz", "prefixed_corpus"),
-        help="Directory where the fuzzer-ready corpus will be saved."
+        help="Output root where *seed_corpus directories will be created.",
+    )
+    parser.add_argument(
+        "--formats",
+        type=str,
+        default="binpb,json",
+        help="Comma-separated list: binpb,json",
     )
     args = parser.parse_args()
 
     # Mapping from protobuf message type name to the index in the fuzzer's variant.
-    # See `message_variant_t` in `fuzz/fuzz_pb_serializer.cpp`.
+    # See `message_variant_t` in `fuzz/fuzz_binpb.cpp` and `fuzz/fuzz_json.cpp`.
     message_type_map = {
         "proto3_unittest.TestAllTypes": 0,
         "protobuf_unittest.TestAllTypes": 1,
         "protobuf_unittest.TestMap": 2,
     }
-
-    # Directory containing the source .binpb files
     source_dir = os.path.join(base_dir, "tests", "data")
-
-    # Directory where the new fuzzer-ready corpus will be saved
-    output_dir = args.output_dir
 
     # --- Execution ---
 
     print(f"Source directory: {source_dir}")
-    print(f"Output directory: {output_dir}")
+    print(f"Output root: {args.output_root}")
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        print(f"Created output directory.")
+    formats = {f.strip() for f in args.formats.split(",") if f.strip()}
+    unknown = formats - {"binpb", "json"}
+    if unknown:
+        print(f"ERROR: Unknown formats: {sorted(unknown)}", file=sys.stderr)
+        return 2
 
-    # Map filename to its corresponding message type index
-    file_to_index_map = {
-        "proto3_unittest.TestAllTypes.binpb": message_type_map["proto3_unittest.TestAllTypes"],
-        "protobuf_unittest.TestAllTypes.binpb": message_type_map["protobuf_unittest.TestAllTypes"],
-        "protobuf_unittest.TestMap.binpb": message_type_map["protobuf_unittest.TestMap"],
-    }
-
-    print("\nProcessing files (appending type index as trailing byte)...")
     processed_count = 0
-    for filename, type_index in file_to_index_map.items():
-        source_path = os.path.join(source_dir, filename)
-        output_path = os.path.join(output_dir, filename)
 
-        if not os.path.exists(source_path):
-            print(f"  - WARNING: Source file not found, skipping: {source_path}", file=sys.stderr)
-            continue
+    if "binpb" in formats:
+        processed_count += generate_seed_corpus(
+            format_name="binpb",
+            ext="binpb",
+            output_root=args.output_root,
+            source_dir=source_dir,
+            message_type_map=message_type_map,
+        )
 
-        try:
-            # Read the original binary protobuf data
-            with open(source_path, "rb") as f:
-                protobuf_data = f.read()
+    if "json" in formats:
+        processed_count += generate_seed_corpus(
+            format_name="json",
+            ext="json",
+            output_root=args.output_root,
+            source_dir=source_dir,
+            message_type_map=message_type_map,
+        )
 
-            # Pack the type index as a 1-byte unsigned integer.
-            # This will be consumed by `provider.ConsumeIntegralInRange<unsigned>(...)`
-            # which reads from the end of the buffer first.
-            suffix = struct.pack("<B", type_index)  # <B means little-endian unsigned char (uint8_t)
-
-            # Write the new file with the original data followed by the suffix
-            with open(output_path, "wb") as f:
-                f.write(protobuf_data)
-                f.write(suffix)
-
-            # Determine the relative path for cleaner logging
-            try:
-                rel_path = os.path.relpath(output_path, base_dir)
-            except ValueError:
-                rel_path = output_path # Handle cases where paths are on different drives (Windows)
-            print(f"  - Created {rel_path} (type index: {type_index})")
-            processed_count += 1
-
-        except Exception as e:
-            print(f"  - ERROR: Could not process {source_path}: {e}", file=sys.stderr)
-
-    print(f"\nSuccessfully processed {processed_count} files.")
+    print(f"\nSuccessfully generated {processed_count} seed files.")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

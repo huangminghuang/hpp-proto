@@ -301,6 +301,41 @@ const ut::suite test_bytes = [] {
   };
 };
 
+template <typename Traits>
+struct string_example {
+  ::hpp::proto::optional<typename Traits::string_t> optional_string;
+
+  enum oneof_field_oneof_case : int { oneof_uint32 = 1, oneof_string = 3, oneof_bytes = 4 };
+
+  static constexpr std::array<std::uint32_t, 5> oneof_field_oneof_numbers{0U, 111U, 112U, 113U, 114U};
+  std::variant<std::monostate, std::uint32_t, typename Traits::string_t, typename Traits::bytes_t> oneof_field;
+};
+
+// clang-format off
+template <typename Traits>
+struct glz::meta<string_example<Traits>> {
+  using T = string_example<Traits>;
+  static constexpr auto value =
+      object("optionalString", &T::optional_string, 
+             "oneofUint32", ::hpp::proto::as_oneof_member<&T::oneof_field, 1>,
+             "oneofString", ::hpp::proto::as_oneof_member<&T::oneof_field, 2>, 
+             "oneofBytes", ::hpp::proto::as_oneof_member<&T::oneof_field, 3>);
+};
+// clang-format on
+
+const ut::suite test_string_json = [] {
+  // string_example<hpp::proto::non_owning_traits> message;
+  // using namespace std::string_view_literals;
+  // using namespace boost::ut;
+  // const auto json = R"({"optionalString":"te\t","oneofString":"te\t"})"sv;
+  // std::vector<char> in{json.begin(), json.end()};
+  // std::string out;
+  // std::pmr::monotonic_buffer_resource mr;
+  // expect(hpp::proto::read_json(message, in, hpp::proto::alloc_from(mr)).ok());
+  // expect(hpp::proto::write_json(message, out).ok());
+  // expect(eq(json, out));
+};
+
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
 
 const ut::suite test_optional_json = [] {
@@ -349,7 +384,10 @@ const ut::suite test_explicit_optional_uint64 = [] {
   verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{.field = 32}, R"({"field":"32"})");
 };
 
-const ut::suite test_oneof = [] { verify<oneof_example>(oneof_example{.value = "abc"}, R"({"string_field":"abc"})"); };
+const ut::suite test_oneof = [] {
+  verify<oneof_example>(oneof_example{.value = "abc"}, R"({"string_field":"abc"})");
+  verify<oneof_example>(oneof_example{.value = "tes\t"}, R"({"string_field":"tes\t"})");
+};
 
 const ut::suite test_indent_level = [] {
   using namespace boost::ut;

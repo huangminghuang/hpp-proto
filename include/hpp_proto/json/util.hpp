@@ -142,6 +142,7 @@ template <auto Opts>
   if (*it == stop_token) [[unlikely]] {
     return 0;
   }
+  
   size_t count = 1;
   while (true) {
     switch (*it) {
@@ -187,6 +188,12 @@ template <auto Opts>
         return count;
       }
       ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    }
+    if constexpr (!Opts.null_terminated) {
+      if (it == end) {
+        ctx.error = error_code::end_reached;
+        return {};
+      }
     }
   }
   unreachable();

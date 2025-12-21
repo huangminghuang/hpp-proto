@@ -101,10 +101,6 @@ template <typename T>
 concept requires_custom_read = string_mref<T> || bytes_mref<T> || repeated_mref<T>;
 
 template <typename T>
-concept eight_bytes_integer = std::same_as<T, std::int64_t> || std::same_as<T, std::uint64_t> ||
-                              (::hpp::proto::concepts::varint<T> && sizeof(T) == 8);
-
-template <typename T>
 concept map_key_mref = std::same_as<T, ::hpp::proto::string_field_mref> ||
                        (std::same_as<T, ::hpp::proto::scalar_field_mref<typename T::encode_type, T::field_kind>> &&
                         !std::is_floating_point_v<typename T::value_type>);
@@ -521,7 +517,7 @@ struct to<JSON, hpp::proto::scalar_field_cref<T, Kind>> {
 
     if (value.has_value()) {
       using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
-      constexpr bool need_quote = (concepts::eight_bytes_integer<T> || (Opts.quoted_num));
+      constexpr bool need_quote = (::hpp::proto::concepts::integral_64_bits<value_type> || (Opts.quoted_num));
       to<JSON, value_type>::template op<set_opt<Opts, &opts::quoted_num>(need_quote)>(
           value.value(), std::forward<decltype(args)>(args)...);
     }
@@ -534,7 +530,8 @@ struct to<JSON, hpp::proto::repeated_scalar_field_cref<T, Kind>> {
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::repeated_scalar_field_cref<T, Kind> &value, auto &&...args) {
     if (!value.empty()) {
       auto range = std::span{value.data(), value.size()};
-      constexpr bool need_quote = concepts::eight_bytes_integer<T>;
+      using value_type = hpp::proto::repeated_scalar_field_cref<T, Kind>::value_type;
+      constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<value_type>;
       to<JSON, decltype(range)>::template op<set_opt<Opts, &opts::quoted_num>(need_quote)>(
           range, std::forward<decltype(args)>(args)...);
     }
@@ -663,7 +660,7 @@ struct from<JSON, hpp::proto::scalar_field_mref<T, Kind>> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_mref<T, Kind> &value, auto &&...args) {
     using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
-    constexpr bool need_quote = concepts::eight_bytes_integer<T> || (Opts.quoted_num);
+    constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<value_type> || (Opts.quoted_num);
     value_type v = {};
     from<JSON, value_type>::template op<set_opt<Opts, &opts::quoted_num>(need_quote)>(
         v, std::forward<decltype(args)>(args)...);
@@ -770,8 +767,9 @@ struct from<JSON, hpp::proto::message_value_mref> {
           } else {
             using key_value_type = typename key_mref_type::value_type;
             key_value_type v;
-            from<JSON, key_value_type>::template op<Opts>(v, ctx, std::to_address(key_str.begin()),
-                                                          std::to_address(key_str.end()));
+            constexpr auto new_opt = opts{.internal = uint32_t(opts_internal::ws_handled)};
+            from<JSON, key_value_type>::template op<new_opt>(v, ctx, std::to_address(key_str.begin()),
+                                                             std::to_address(key_str.end()));
             if (bool(ctx.error)) [[unlikely]] {
               return;
             }
@@ -820,7 +818,7 @@ struct from<JSON, T> {
         std::same_as<T, ::hpp::proto::repeated_message_field_mref> ? value.descriptor().is_map_entry() : false;
 
     util::parse_repeated<Opts>(is_map, value, ctx, it, end, [](auto &&element, auto &ctx, auto &it, auto &end) {
-      constexpr bool need_quote = concepts::eight_bytes_integer<typename T::value_type>;
+      constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<typename T::value_type>;
       constexpr auto ElementOpts = set_opt<Opts, &opts::quoted_num>(need_quote);
       from<JSON, std::remove_reference_t<typename T::reference>>::template op<ElementOpts>(
           std::forward<decltype(element)>(element), ctx, it, end);
@@ -951,47 +949,21 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
 
 namespace hpp::proto {
 
-json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name, const char *json_view,
+json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name, auto&& json_view,
                           concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
   auto opt_msg = factory.get_message(message_name, mr);
   if (opt_msg.has_value()) {
     auto msg = *opt_msg;
-    auto err = ::glz::read<::glz::opts{}>(msg, json_view);
-    if (!err) {
+    auto status = read_json(msg, std::forward<decltype(json_view)>(json_view));
+    if (status.ok()) [[likely]] {
       if (write_binpb(msg, buffer).ok()) [[likely]] {
         return {};
       } else {
         return {.ctx = {.ec = ::glz::error_code::syntax_error, .custom_error_message = "protobuf encoding error"}};
       }
     } else {
-      return {.ctx = err};
-    }
-  } else {
-    return {.ctx = {.ec = ::glz::error_code::get_wrong_type,
-                    .custom_error_message = "unknown message name",
-                    .location = {},
-                    .includer_error = {}}};
-  }
-}
-
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name,
-                          std::string_view json_view, concepts::contiguous_byte_range auto &buffer) {
-  std::pmr::monotonic_buffer_resource mr;
-
-  auto opt_msg = factory.get_message(message_name, mr);
-  if (opt_msg.has_value()) {
-    auto msg = *opt_msg;
-    auto err = ::glz::read<glz::opts{.null_terminated = false}>(msg, json_view);
-    if (!err) {
-      if (write_binpb(msg, buffer).ok()) [[likely]] {
-        return {};
-      } else {
-        return {.ctx = {.ec = ::glz::error_code::syntax_error, .custom_error_message = "protobuf encoding error"}};
-      }
-    } else {
-      return {.ctx = err};
+      return status;
     }
   } else {
     return {.ctx = {.ec = ::glz::error_code::get_wrong_type,

@@ -893,4 +893,23 @@ template <typename BaseTraits>
 struct keep_unknown_fields : BaseTraits {
   using unknown_fields_range_t = BaseTraits::template repeated_t<std::byte>;
 };
+
+struct [[nodiscard]] status {
+  std::errc ec = {};
+
+  constexpr status() noexcept = default;
+  constexpr ~status() noexcept = default;
+  constexpr status(const status &) noexcept = default;
+  constexpr status(status &&) noexcept = default;
+
+  // NOLINTBEGIN(hicpp-explicit-conversions)
+  constexpr status(std::errc e) noexcept : ec(e) {}
+  constexpr operator std::errc() const noexcept { return ec; }
+  // NOLINTEND(hicpp-explicit-conversions)
+
+  constexpr status &operator=(const status &) noexcept = default;
+  constexpr status &operator=(status &&) noexcept = default;
+
+  [[nodiscard]] constexpr bool ok() const noexcept { return ec == std::errc{}; }
+};
 } // namespace hpp::proto
