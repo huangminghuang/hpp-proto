@@ -1,0 +1,20 @@
+diff --git a/include/glaze/core/context.hpp b/include/glaze/core/context.hpp
+index 16318b02..f79b5a26 100644
+--- a/include/glaze/core/context.hpp
++++ b/include/glaze/core/context.hpp
+@@ -111,7 +111,7 @@ namespace glz
+ 
+    // Runtime context for configuration
+    // We do not template the context on iterators so that it can be easily shared across buffer implementations
+-   struct context final
++   struct context
+    {
+       error_code error{};
+       std::string_view custom_error_message;
+@@ -126,5 +126,5 @@ namespace glz
+    };
+ 
+    template <class T>
+-   concept is_context = std::same_as<std::decay_t<T>, context>;
++   concept is_context = std::derived_from<std::decay_t<T>, context>;
+ }

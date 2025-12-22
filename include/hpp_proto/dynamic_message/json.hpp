@@ -725,7 +725,7 @@ struct from<JSON, hpp::proto::enum_value_mref> {
     }
     it = std::next(it);
     const auto start = it;
-    skip_string_view<Opts>(ctx, it, end);
+    skip_string_view(ctx, it, end);
     if (bool(ctx.error)) [[unlikely]] {
       return;
     }
