@@ -102,8 +102,6 @@ struct oneof_field_meta {
   static alternatives_meta alternatives() { return alternatives_meta{}; }
 };
 
-
-
 enum class wire_type : uint8_t {
   varint = 0,
   fixed_64 = 1,

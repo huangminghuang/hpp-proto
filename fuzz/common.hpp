@@ -4,8 +4,8 @@
 #include <functional>
 #include <fuzzer/FuzzedDataProvider.h>
 
-#include <hpp_proto/dynamic_message/factory.hpp>
 #include <hpp_proto/dynamic_message/binpb.hpp>
+#include <hpp_proto/dynamic_message/factory.hpp>
 
 std::vector<char> read_file(const char *filename);
 

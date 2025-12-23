@@ -65,11 +65,11 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           auto dyn_read_status = hpp::proto::read_json(dyn_message, input);
 
           bool all_status_same = (non_owning_read_status.ok() == owning_read_status.ok() &&
-                     owning_read_status.ok() == dyn_read_status.ok());
+                                  owning_read_status.ok() == dyn_read_status.ok());
           if (!all_status_same) {
             auto print_error = [&input](std::string_view name, auto status) {
               if (!status.ok()) {
-                std::cerr << name <<  " failed:" << status.message(input) << "\n";
+                std::cerr << name << " failed:" << status.message(input) << "\n";
               }
             };
             print_error("non-owning", non_owning_read_status);

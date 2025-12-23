@@ -517,7 +517,9 @@ public:
     return {message_descriptor(), *(storage_->of_message.content)};
   }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
-  [[nodiscard]] value_type operator*() const noexcept { return {message_descriptor(), *(storage_->of_message.content)}; }
+  [[nodiscard]] value_type operator*() const noexcept {
+    return {message_descriptor(), *(storage_->of_message.content)};
+  }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {

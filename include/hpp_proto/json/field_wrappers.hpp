@@ -94,7 +94,7 @@ struct optional_ref {
   T &val;
   operator bool() const { return !is_default_value<T, Default>(val); }
 
-  auto operator*() const -> T& { return val; }
+  auto operator*() const -> T & { return val; }
 
   void reset() {
     if constexpr (std::same_as<std::remove_cvref_t<decltype(Default)>, std::monostate>) {

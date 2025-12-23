@@ -151,8 +151,8 @@ struct from<JSON, hpp::proto::bytes> {
 
 template <>
 struct from<JSON, hpp::proto::bytes_view> {
-template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(auto& v, auto& ctx, auto& it, auto& end) {
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto &v, auto &ctx, auto &it, auto &end) {
     decltype(auto) mutable_v = hpp::proto::detail::as_modifiable(ctx, v);
     from<JSON, hpp::proto::use_base64>::template op<Opts>(mutable_v, ctx, it, end);
   }
@@ -214,8 +214,6 @@ void from_json(T &v, auto &ctx, auto &it, auto &end) {
   }
 }
 } // namespace detail
-
-
 
 template <typename Type, auto Default>
 struct to<JSON, hpp::proto::optional<Type, Default>> {

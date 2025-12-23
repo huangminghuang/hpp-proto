@@ -125,8 +125,6 @@ public:
   repeated_enum_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
 
-
-
   repeated_enum_field_cref(const repeated_enum_field_cref &) noexcept = default;
   repeated_enum_field_cref(repeated_enum_field_cref &&) noexcept = default;
   repeated_enum_field_cref &operator=(const repeated_enum_field_cref &) noexcept = default;
@@ -155,7 +153,9 @@ public:
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
-  [[nodiscard]] std::span<const std::int32_t> numbers() const { return std::span{storage_->of_repeated_int32.content, storage_->of_repeated_int32.size}; }
+  [[nodiscard]] std::span<const std::int32_t> numbers() const {
+    return std::span{storage_->of_repeated_int32.content, storage_->of_repeated_int32.size};
+  }
 
   /**
    * @brief Lazily maps stored enum numbers to their corresponding names.

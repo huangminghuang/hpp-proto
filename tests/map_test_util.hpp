@@ -30,10 +30,12 @@ struct init_list {
 };
 
 template <typename Traits>
-const std::initializer_list<std::pair<typename Traits::string_t, typename Traits::string_t>> init_list<Traits>::map_string_string{{"0", "0"}, {"1", "1"}};
+const std::initializer_list<std::pair<typename Traits::string_t, typename Traits::string_t>>
+    init_list<Traits>::map_string_string{{"0", "0"}, {"1", "1"}};
 
 template <typename Traits>
-const std::initializer_list<std::pair<std::int32_t, typename Traits::bytes_t>> init_list<Traits>::map_int32_bytes{{0, "0"_bytes}, {1, "1"_bytes}};
+const std::initializer_list<std::pair<std::int32_t, typename Traits::bytes_t>> init_list<Traits>::map_int32_bytes{
+    {0, "0"_bytes}, {1, "1"_bytes}};
 
 template <typename Traits>
 inline void SetMapFields(protobuf_unittest::TestMap<Traits> *message) {
