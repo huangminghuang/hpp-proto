@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #pragma once
-#include <system_error>
 
 #include <hpp_proto/binpb/concepts.hpp>
 #include <hpp_proto/binpb/meta.hpp>

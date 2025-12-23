@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <functional>
 #include <initializer_list>
+#include <system_error>
 #ifdef __cpp_lib_flat_map
 #include <flat_map>
 #else
