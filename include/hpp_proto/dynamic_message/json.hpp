@@ -949,7 +949,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
 
 namespace hpp::proto {
 
-json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name, auto&& json_view,
+json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name, auto &&json_view,
                           concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
   auto opt_msg = factory.get_message(message_name, mr);

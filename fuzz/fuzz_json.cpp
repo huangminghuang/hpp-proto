@@ -23,10 +23,10 @@ void round_trip_test(const T &in_message, T &&out_message) {
     assert(hpp::proto::read_json(out_message, buffer1).ok());
   }
   assert(hpp::proto::write_json(out_message, buffer2).ok());
-  if (buffer1 != buffer2){
+  if (buffer1 != buffer2) {
     auto [it1, it2] = std::ranges::mismatch(buffer1, buffer2);
-    auto sw1 = std::string_view{it1-20, buffer1.end()};
-    auto sw2 = std::string_view{it2-20, buffer2.end()};
+    auto sw1 = std::string_view{it1 - 20, buffer1.end()};
+    auto sw2 = std::string_view{it2 - 20, buffer2.end()};
     std::cerr << sw1 << "\n" << sw2 << "\n";
   }
 }
@@ -59,7 +59,8 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           auto owning_read_status = hpp::proto::read_json(owning_message, input);
           auto dyn_read_status = hpp::proto::read_json(dyn_message, input);
 
-          assert(non_owning_read_status.ok() == owning_read_status.ok() && owning_read_status.ok() == dyn_read_status.ok());
+          assert(non_owning_read_status.ok() == owning_read_status.ok() &&
+                 owning_read_status.ok() == dyn_read_status.ok());
           if (dyn_read_status.ok()) {
             round_trip_test(non_owning_message, non_owning_message_t{});
             round_trip_test(owning_message, owning_message_t{});

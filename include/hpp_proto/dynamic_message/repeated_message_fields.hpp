@@ -59,8 +59,7 @@ public:
   template <typename U>
   static constexpr bool gettable_to_v = false;
 
-  repeated_message_field_cref(const field_descriptor_t &descriptor,
-                              const value_storage &storage) noexcept
+  repeated_message_field_cref(const field_descriptor_t &descriptor, const value_storage &storage) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
 
   repeated_message_field_cref(const repeated_message_field_cref &) noexcept = default;
@@ -136,9 +135,7 @@ public:
 
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
-  [[nodiscard]] repeated_message_field_cref cref() const noexcept {
-    return {*descriptor_, *storage_};
-  }
+  [[nodiscard]] repeated_message_field_cref cref() const noexcept { return {*descriptor_, *storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator repeated_message_field_cref() const noexcept { return cref(); }
 

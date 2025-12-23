@@ -1727,10 +1727,10 @@ struct glaze_meta_generator : code_generator {
 
       indent_num += 4;
       std::size_t index = 0;
-      std::vector<const google::protobuf::EnumValueDescriptorProto<>*> values;
+      std::vector<const google::protobuf::EnumValueDescriptorProto<> *> values;
       values.resize(descriptor.proto().value.size());
-      std::ranges::transform(descriptor.proto().value, values.begin(), [](const auto& v) { return &v; });
-      std::ranges::sort(values, {}, [](auto* v){ return v->number;});
+      std::ranges::transform(descriptor.proto().value, values.begin(), [](const auto &v) { return &v; });
+      std::ranges::sort(values, {}, [](auto *v) { return v->number; });
       for (const auto *e : values) {
         const char *sep = (index++ == values.size() - 1) ? ");" : ",";
         fmt::format_to(target, "{0}\"{1}\", {1}{2}\n", indent(), resolve_keyword(e->name), sep);

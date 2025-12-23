@@ -6,7 +6,6 @@
 
 #include "common.hpp"
 
-
 // Define the variant of all message types we fuzz
 using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits>,
                                        protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits>,
