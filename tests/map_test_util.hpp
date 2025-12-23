@@ -43,7 +43,6 @@ const std::array<std::pair<std::int32_t, typename Traits::bytes_t>, 2> init_list
     {1, typename Traits::bytes_t("1"_bytes)},
 }};
 
-
 template <typename T>
 void set_map(T &map, const auto &init_values) {
   if constexpr (requires { T{init_values}; }) {
@@ -79,14 +78,10 @@ inline void SetMapFields(protobuf_unittest::TestMap<Traits> *message) {
 }
 
 struct pair_equal {
-    bool operator()(const auto& lhs, const auto& rhs) const {
-        return lhs.first == rhs.first && lhs.second == rhs.second;
-    }
+  bool operator()(const auto &lhs, const auto &rhs) const { return lhs.first == rhs.first && lhs.second == rhs.second; }
 };
 
-bool map_equal(const auto& lhs, const auto& rhs) {
-    return std::ranges::equal(lhs, rhs, pair_equal{});
-}
+bool map_equal(const auto &lhs, const auto &rhs) { return std::ranges::equal(lhs, rhs, pair_equal{}); }
 
 template <typename Traits>
 inline void ExpectMapFieldsSet(const protobuf_unittest::TestMap<Traits> &message) {

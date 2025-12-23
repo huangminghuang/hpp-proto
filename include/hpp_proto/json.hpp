@@ -267,10 +267,9 @@ struct from<JSON, hpp::proto::optional_ref<Type, Default>> {
     } else if constexpr (hpp::proto::concepts::repeated_or_map<Type>) {
       constexpr bool is_map = pair_t<std::ranges::range_value_t<Type>>;
       decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, *value);
-      util::parse_repeated<Opts>(is_map, v, ctx, it, end,
-                                 [](auto &element, auto &ctx, auto &it, auto &end) {
-                                   detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);
-                                 });
+      util::parse_repeated<Opts>(is_map, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {
+        detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);
+      });
     } else {
       detail::from_json<Opts>(*value, ctx, it, end);
     }
@@ -412,8 +411,7 @@ constexpr auto get_glz_opts() {
 } // namespace detail
 
 template <uint8_t width = 3>
-constexpr auto indent_level = glz_opts_t<glz::opts{
-    glz::opts{.prettify = (width > 0), .indentation_width = width}}>{};
+constexpr auto indent_level = glz_opts_t<glz::opts{glz::opts{.prettify = (width > 0), .indentation_width = width}}>{};
 
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
