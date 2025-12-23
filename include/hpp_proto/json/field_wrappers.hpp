@@ -66,6 +66,9 @@ template <typename T>
 concept is_map = std::ranges::range<T> && glz::pair_t<std::ranges::range_value_t<T>>;
 
 template <typename T>
+concept repeated_or_map = std::ranges::range<T> && !byte_type<std::ranges::range_value_t<T>>;
+
+template <typename T>
 concept map_with_integral_64_bits_mapped_type = is_map<T> && integral_64_bits<typename T::value_type::second_type>;
 
 template <typename T>
@@ -90,18 +93,8 @@ struct optional_ref {
   using value_type = std::decay_t<T>;
   T &val;
   operator bool() const { return !is_default_value<T, Default>(val); }
-  template <typename U>
-  static U &deref(U &v) {
-    // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
-    return v;
-  }
 
-  template <concepts::jsonfy_need_quote U>
-  static glz::opts_wrapper_t<U, &glz::opts::quoted_num> deref(U &v) {
-    return glz::opts_wrapper_t<U, &glz::opts::quoted_num>{v};
-  }
-
-  auto operator*() const -> decltype(deref(val)) { return deref(val); }
+  auto operator*() const -> T & { return val; }
 
   void reset() {
     if constexpr (std::same_as<std::remove_cvref_t<decltype(Default)>, std::monostate>) {

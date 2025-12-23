@@ -226,14 +226,18 @@ struct generic_message_json_serializer {
       if (util::match_ending_or_consume_comma<Opts>(ws_start, ws_size, first, ctx, it, end)) {
         return;
       }
-
-      auto key = util::parse_key_and_colon<Opts>(ctx, it, end);
+      std::string_view key;
+      util::parse_key_and_colon<Opts>(key, ctx, it, end);
       if (bool(ctx.error)) [[unlikely]] {
         return;
       }
 
       const auto *desc = value.field_descriptor_by_json_name(key);
       if (desc == nullptr) {
+        if constexpr (Opts.error_on_unknown_keys) {
+          ctx.error = error_code::unknown_key;
+          return;
+        }
         skip_value<JSON>::template op<Opts>(ctx, it, end);
       } else {
         from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.field(*desc), ctx, it, end);
@@ -675,11 +679,13 @@ struct meta<T> {
 template <concepts::string_mref T>
 struct from<JSON, T> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, auto &it, auto &end) {
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
     std::string_view v;
-    from<JSON, std::string_view>::template op<Opts>(v, ctx, it, end);
+    hpp::proto::pb_context pb_ctx{hpp::proto::alloc_from(value.memory_resource())};
+    decltype(auto) m = hpp::proto::detail::as_modifiable(pb_ctx, v);
+    from<JSON, decltype(m)>::template op<Opts>(m, ctx, it, end);
     if (!bool(ctx.error)) [[likely]] {
-      value.set(v);
+      value.adopt(v);
     }
   }
 };
@@ -687,7 +693,7 @@ struct from<JSON, T> {
 template <concepts::bytes_mref T>
 struct from<JSON, T> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, auto &it, auto &end) {
+  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
     std::string_view encoded;
     from<JSON, std::string_view>::template op<Opts>(encoded, ctx, it, end);
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
@@ -757,23 +763,9 @@ struct from<JSON, hpp::proto::message_value_mref> {
       value.fields()[0].visit([&](auto key_mref) {
         using key_mref_type = decltype(key_mref);
         if constexpr (concepts::map_key_mref<key_mref_type>) {
-          auto key_str = util::parse_key_and_colon<Opts>(ctx, it, end);
+          util::parse_key_and_colon<opt_true<Opts, &opts::quoted_num>>(key_mref, ctx, it, end);
           if (bool(ctx.error)) [[unlikely]] {
             return;
-          }
-
-          if constexpr (std::same_as<key_mref_type, ::hpp::proto::string_field_mref>) {
-            key_mref.set(key_str);
-          } else {
-            using key_value_type = typename key_mref_type::value_type;
-            key_value_type v;
-            constexpr auto new_opt = opts{.internal = uint32_t(opts_internal::ws_handled)};
-            from<JSON, key_value_type>::template op<new_opt>(v, ctx, std::to_address(key_str.begin()),
-                                                             std::to_address(key_str.end()));
-            if (bool(ctx.error)) [[unlikely]] {
-              return;
-            }
-            key_mref.set(v);
           }
           from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[1], ctx, it, end);
         } else {
@@ -891,7 +883,8 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
   if (skip_ws<Opts>(ctx, it, end)) {
     return;
   }
-  auto key = util::parse_key_and_colon<Opts>(ctx, it, end);
+  std::string_view key;
+  util::parse_key_and_colon<Opts>(key, ctx, it, end);
   if (bool(ctx.error)) [[unlikely]] {
     return;
   }
@@ -918,7 +911,8 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
         .and_then(build_message)
         .and_then([&](auto message) -> std::expected<void, const char *> {
           if (message.descriptor().wellknown != ::hpp::proto::wellknown_types_t::NONE) {
-            auto key = util::parse_key_and_colon<Opts>(ctx, it, end);
+            std::string_view key;
+            util::parse_key_and_colon<Opts>(key, ctx, it, end);
             if (bool(ctx.error)) [[unlikely]] {
               return {};
             }
@@ -927,6 +921,18 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
             }
             // parse the the json into a new dynamic_message
             from<JSON, ::hpp::proto::message_value_mref>::template op<Opts>(message, ctx, it, end);
+            if (bool(ctx.error)) [[unlikely]] {
+              return {};
+            }
+            if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
+              return {};
+            }
+            if (match_invalid_end<'}', Opts>(ctx, it, end)) {
+              return {};
+            }
+            if constexpr (not Opts.null_terminated) {
+              --ctx.indentation_level;
+            }
           } else {
             // parse the the json into a new dynamic_message with opening handled
             from<JSON, ::hpp::proto::message_value_mref>::template op<opening_handled<Opts>()>(message, ctx, it, end);

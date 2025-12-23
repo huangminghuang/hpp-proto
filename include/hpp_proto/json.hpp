@@ -22,6 +22,7 @@
 
 #pragma once
 #include <bit>
+#include <cctype>
 #include <iterator>
 
 #include <hpp_proto/json/base64.hpp>
@@ -72,20 +73,7 @@ struct json_codec<use_base64> {
 } // namespace hpp::proto
 
 namespace glz {
-namespace detail {
-template <auto Opts>
-void from_json(auto &&v, auto &ctx, auto &it, auto &end) {
-  using type = std::decay_t<decltype(v)>;
-  if constexpr (std::same_as<type, std::string_view>) {
-    decltype(auto) mutable_v = hpp::proto::detail::as_modifiable(ctx, v);
-    from<JSON, decltype(mutable_v)>::template op<Opts>(mutable_v, ctx, it, end);
-  } else if constexpr (::hpp::proto::concepts::integral_64_bits<type>) {
-    from<JSON, glz::quoted_t<type>>::template op<Opts>(glz::quoted_t<type>{v}, ctx, it, end);
-  } else {
-    from<JSON, type>::template op<Opts>(std::forward<decltype(v)>(v), ctx, it, end);
-  }
-}
-} // namespace detail
+
 using base64 = hpp::proto::base64;
 
 template <hpp::proto::concepts::has_codec T>
@@ -161,16 +149,81 @@ struct from<JSON, hpp::proto::bytes> {
   }
 };
 
+template <>
+struct from<JSON, hpp::proto::bytes_view> {
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto &v, auto &ctx, auto &it, auto &end) {
+    decltype(auto) mutable_v = hpp::proto::detail::as_modifiable(ctx, v);
+    from<JSON, hpp::proto::use_base64>::template op<Opts>(mutable_v, ctx, it, end);
+  }
+};
+
+namespace detail {
+
+template <auto Opts, typename T>
+  requires std::is_enum_v<T>
+void from_json(T &v, auto &ctx, auto &it, auto &end) {
+  if constexpr (!check_ws_handled(Opts)) {
+    if (skip_ws<Opts>(ctx, it, end)) {
+      return;
+    }
+  }
+  auto parse_enum = [&](bool is_number) {
+    if (is_number) {
+      int32_t number = 0;
+      from<JSON, int32_t>::template op<ws_handled<Opts>()>(number, ctx, it, end);
+      v = static_cast<T>(number);
+    } else {
+      from<JSON, T>::template op<ws_handled<Opts>()>(v, ctx, it, end);
+    }
+  };
+
+  if constexpr (!Opts.quoted_num) {
+    parse_enum(*it != '"');
+  } else {
+    // For map keys, enums may be quoted as a name or as a number.
+    // Peek past the opening quote to decide which parser to use.
+
+    if constexpr (!Opts.null_terminated) {
+      if (std::next(it) == end) {
+        ctx.error = error_code::end_reached;
+        return;
+      }
+    }
+
+    parse_enum(std::isdigit(*std::next(it)));
+  }
+}
+
+template <auto Opts, typename T>
+  requires(!std::is_enum_v<T>)
+void from_json(T &v, auto &ctx, auto &it, auto &end) {
+  if constexpr (std::same_as<T, std::string_view>) {
+    decltype(auto) mutable_v = hpp::proto::detail::as_modifiable(ctx, v);
+    from<JSON, decltype(mutable_v)>::template op<Opts>(mutable_v, ctx, it, end);
+  } else if constexpr (::hpp::proto::concepts::integral_64_bits<T>) {
+    from<JSON, T>::template op<opt_true<Opts, &opts::quoted_num>>(v, ctx, it, end);
+  } else if constexpr (pair_t<T>) {
+    util::parse_key_and_colon<Opts>(::hpp::proto::detail::as_modifiable(ctx, v.first), ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
+    }
+    from_json<Opts>(v.second, ctx, it, end);
+  } else {
+    from<JSON, T>::template op<Opts>(v, ctx, it, end);
+  }
+}
+} // namespace detail
+
 template <typename Type, auto Default>
 struct to<JSON, hpp::proto::optional<Type, Default>> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto const &value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto const &value, auto &ctx, auto &it, auto &end) noexcept {
     if (value.has_value()) {
       if constexpr (::hpp::proto::concepts::integral_64_bits<Type>) {
-        to<JSON, glz::quoted_t<const Type>>::template op<Opts>(glz::quoted_t<const Type>{*value},
-                                                               std::forward<Args>(args)...);
+        to<JSON, Type>::template op<opt_true<Opts, &opts::quoted_num>>(*value, ctx, it, end);
       } else {
-        to<JSON, Type>::template op<Opts>(*value, std::forward<Args>(args)...);
+        to<JSON, Type>::template op<Opts>(*value, ctx, it, end);
       }
     }
   }
@@ -194,12 +247,13 @@ template <typename Type, auto Default>
 struct to<JSON, hpp::proto::optional_ref<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    if constexpr (std::same_as<Type, uint64_t>) {
-      static_assert(
-          std::same_as<std::decay_t<decltype(*value)>, glz::opts_wrapper_t<const uint64_t, &glz::opts::quoted_num>>);
-    }
     if (bool(value)) {
-      to<JSON, std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
+      if constexpr (::hpp::proto::concepts::jsonfy_need_quote<Type>) {
+        to<JSON, std::decay_t<decltype(*value)>>::template op<opt_true<Opts, &opts::quoted_num>>(
+            *value, std::forward<Args>(args)...);
+      } else {
+        to<JSON, std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
+      }
     }
   }
 };
@@ -207,14 +261,17 @@ struct to<JSON, hpp::proto::optional_ref<Type, Default>> {
 template <typename Type, auto Default>
 struct from<JSON, hpp::proto::optional_ref<Type, Default>> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &&value, auto &ctx, auto &it, auto &end) noexcept {
     if constexpr (requires { value.emplace(); }) {
-      detail::from_json<Opts>(value.emplace(), std::forward<decltype(args)>(args)...);
-    } else if constexpr (::hpp::proto::concepts::is_map<Type> && resizable<Type>) {
-      hpp::proto::map_wrapper<std::decay_t<decltype(*value)>> wrapped{*value};
-      parse<JSON>::template op<Opts>(wrapped, std::forward<decltype(args)>(args)...);
+      detail::from_json<Opts>(value.emplace(), ctx, it, end);
+    } else if constexpr (hpp::proto::concepts::repeated_or_map<Type>) {
+      constexpr bool is_map = pair_t<std::ranges::range_value_t<Type>>;
+      decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, *value);
+      util::parse_repeated<Opts>(is_map, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {
+        detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);
+      });
     } else {
-      detail::from_json<Opts>(*value, std::forward<decltype(args)>(args)...);
+      detail::from_json<Opts>(*value, ctx, it, end);
     }
   }
 };
@@ -275,65 +332,6 @@ struct from<JSON, hpp::proto::boolean> {
   }
 };
 
-template <typename Type>
-struct from<JSON, hpp::proto::equality_comparable_span<Type>> {
-  template <auto Options>
-  GLZ_ALWAYS_INLINE static void op(hpp::proto::equality_comparable_span<Type> &value,
-                                   hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
-    auto v = hpp::proto::detail::as_modifiable(ctx, value);
-    if constexpr (hpp::proto::concepts::byte_type<Type>) {
-      from<JSON, hpp::proto::use_base64>::template op<Options>(v, ctx, it, end);
-    } else if constexpr (pair_t<std::remove_cvref_t<Type>>) {
-      hpp::proto::map_wrapper<decltype(v)> wrapped{v};
-      parse<JSON>::template op<Options>(wrapped, ctx, it, end);
-    } else {
-      from<JSON, decltype(v)>::template op<Options>(v, ctx, it, end);
-    }
-  }
-};
-
-template <typename T>
-struct to<JSON, hpp::proto::map_wrapper<const T>> {
-  template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto v, Args &&...args) noexcept {
-    using mapped_type = typename T::value_type::second_type;
-    constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<mapped_type>;
-    to<JSON, T>::template op<set_opt<Opts, &opts::quoted_num>(need_quote)>(v.value, std::forward<Args>(args)...);
-  }
-};
-
-template <typename T>
-struct from<JSON, hpp::proto::map_wrapper<T>> {
-
-  template <auto Options>
-  static void op(auto &v, is_context auto &ctx, auto &it, auto &end) {
-    util::parse_repeated<Options>(true, v.value, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {
-      constexpr auto Opts = ws_handled_off<Options>();
-
-      auto key_str = util::parse_key_and_colon<Opts>(ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]] {
-        return;
-      }
-      using element_type = std::decay_t<decltype(element)>;
-      using k_t = typename element_type::first_type;
-      if constexpr (std::is_arithmetic_v<k_t>) {
-        constexpr auto new_opt = opts{.internal = uint32_t(opts_internal::ws_handled)};
-        from<JSON, k_t>::template op<new_opt>(element.first, ctx, std::to_address(key_str.begin()),
-                                              std::to_address(key_str.end()));
-        if (bool(ctx.error)) [[unlikely]] {
-          return;
-        }
-      } else {
-        decltype(auto) mkey = ::hpp::proto::detail::as_modifiable(ctx, element.first);
-        mkey.assign(key_str.begin(), key_str.end());
-      }
-      constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<typename element_type::second_type>;
-      from<JSON, typename element_type::second_type>::template op<set_opt<Opts, &opts::quoted_num>(need_quote)>(
-          element.second, ctx, it, end);
-    });
-  }
-};
-
 template <typename T>
 struct from<JSON, hpp::proto::optional_message_view_ref<T>> {
 
@@ -364,23 +362,17 @@ struct to<JSON, hpp::proto::optional_message_view_ref<Type>> {
 
 namespace hpp::proto {
 
-struct proto_json_opts : glz::opts {
-  constexpr proto_json_opts() : glz::opts{.error_on_unknown_keys = false} {}
-  constexpr proto_json_opts(glz::opts op) : glz::opts(op) {}
-  bool append_arrays = true;
-};
-
-template <proto_json_opts options>
+template <auto options>
 struct glz_opts_t {
   using option_type = glz_opts_t<options>;
-  static constexpr proto_json_opts glz_opts_value = options;
+  static constexpr glz::opts glz_opts_value = options;
 };
 
 class message_value_cref;
 class message_value_mref;
 namespace concepts {
 template <typename T>
-concept glz_opts_t = requires { requires std::same_as<std::decay_t<decltype(T::glz_opts_value)>, proto_json_opts>; };
+concept glz_opts_t = requires { requires std::derived_from<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
 
 template <typename T>
 concept write_json_supported = glz::write_supported<T, glz::JSON>;
@@ -405,7 +397,7 @@ constexpr auto get_glz_opts_impl() {
   } else if constexpr (sizeof...(Rest)) {
     return get_glz_opts_impl<Rest...>();
   } else {
-    return proto_json_opts{};
+    return glz::opts{};
   }
 }
 
@@ -414,13 +406,12 @@ constexpr auto get_glz_opts() {
   if constexpr (sizeof...(Context)) {
     return get_glz_opts_impl<Context...>();
   }
-  return proto_json_opts{};
+  return glz::opts{};
 }
 } // namespace detail
 
 template <uint8_t width = 3>
-constexpr auto indent_level = glz_opts_t<proto_json_opts{
-    glz::opts{.error_on_unknown_keys = false, .prettify = (width > 0), .indentation_width = width}}>{};
+constexpr auto indent_level = glz_opts_t<glz::opts{glz::opts{.prettify = (width > 0), .indentation_width = width}}>{};
 
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
