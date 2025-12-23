@@ -249,7 +249,7 @@ template <typename Bytes>
 struct bytes_example {
   Bytes field0;
   std::optional<Bytes> field1;
-  hpp::proto::optional<Bytes, hpp::proto::string_literal<"test">{}> field2;
+  hpp::proto::optional<Bytes, hpp::proto::bytes_literal<"test">{}> field2;
   Bytes field3;
   bool operator==(const bytes_example &) const = default;
 };

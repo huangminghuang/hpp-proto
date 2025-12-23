@@ -201,6 +201,10 @@ struct Proto3Tests {
                                                     {data.data(), data.size()});
 
       expect(fatal(!original_json.empty()));
+      expect(eq(r->size(), original_json.size()));
+      auto [i1, i2] = std::ranges::mismatch(*r, original_json);
+      auto s = std::distance(r->begin(), i1);
+      std::cout << s << "\n";
       expect(eq(*r, original_json));
 #endif
     };
