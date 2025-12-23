@@ -921,6 +921,18 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
             }
             // parse the the json into a new dynamic_message
             from<JSON, ::hpp::proto::message_value_mref>::template op<Opts>(message, ctx, it, end);
+            if (bool(ctx.error)) [[unlikely]] {
+              return {};
+            }
+            if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
+              return {};
+            }
+            if (match_invalid_end<'}', Opts>(ctx, it, end)) {
+              return {};
+            }
+            if constexpr (not Opts.null_terminated) {
+              --ctx.indentation_level;
+            }
           } else {
             // parse the the json into a new dynamic_message with opening handled
             from<JSON, ::hpp::proto::message_value_mref>::template op<opening_handled<Opts>()>(message, ctx, it, end);
