@@ -309,7 +309,8 @@ struct string_example {
   ::hpp::proto::optional<typename Traits::string_t> optional_string;
   Traits::template repeated_t<typename Traits::string_t> repeated_string;
 
-  enum oneof_field_oneof_case : int { oneof_uint32 = 1, oneof_string = 3, oneof_bytes = 4 };
+  // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
+  enum oneof_field_oneof_case : uint8_t { oneof_uint32 = 1, oneof_string = 3, oneof_bytes = 4 };
 
   static constexpr std::array<std::uint32_t, 5> oneof_field_oneof_numbers{0U, 111U, 112U, 113U, 114U};
   std::variant<std::monostate, std::uint32_t, typename Traits::string_t, typename Traits::bytes_t> oneof_field;

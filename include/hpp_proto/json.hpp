@@ -170,7 +170,7 @@ void from_json(T &v, auto &ctx, auto &it, auto &end) {
   }
   auto parse_enum = [&](bool is_number) {
     if (is_number) {
-      int32_t number;
+      int32_t number = 0;
       from<JSON, int32_t>::template op<ws_handled<Opts>()>(number, ctx, it, end);
       v = static_cast<T>(number);
     } else {
@@ -266,7 +266,8 @@ struct from<JSON, hpp::proto::optional_ref<Type, Default>> {
       detail::from_json<Opts>(value.emplace(), ctx, it, end);
     } else if constexpr (hpp::proto::concepts::repeated_or_map<Type>) {
       constexpr bool is_map = pair_t<std::ranges::range_value_t<Type>>;
-      util::parse_repeated<Opts>(is_map, hpp::proto::detail::as_modifiable(ctx, *value), ctx, it, end,
+      decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, *value);
+      util::parse_repeated<Opts>(is_map, v, ctx, it, end,
                                  [](auto &element, auto &ctx, auto &it, auto &end) {
                                    detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);
                                  });
@@ -362,23 +363,17 @@ struct to<JSON, hpp::proto::optional_message_view_ref<Type>> {
 
 namespace hpp::proto {
 
-struct proto_json_opts : glz::opts {
-  constexpr proto_json_opts() : glz::opts{} {}
-  constexpr proto_json_opts(glz::opts op) : glz::opts(op) {}
-  bool append_arrays = true;
-};
-
-template <proto_json_opts options>
+template <auto options>
 struct glz_opts_t {
   using option_type = glz_opts_t<options>;
-  static constexpr proto_json_opts glz_opts_value = options;
+  static constexpr glz::opts glz_opts_value = options;
 };
 
 class message_value_cref;
 class message_value_mref;
 namespace concepts {
 template <typename T>
-concept glz_opts_t = requires { requires std::same_as<std::decay_t<decltype(T::glz_opts_value)>, proto_json_opts>; };
+concept glz_opts_t = requires { requires std::derived_from<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
 
 template <typename T>
 concept write_json_supported = glz::write_supported<T, glz::JSON>;
@@ -403,7 +398,7 @@ constexpr auto get_glz_opts_impl() {
   } else if constexpr (sizeof...(Rest)) {
     return get_glz_opts_impl<Rest...>();
   } else {
-    return proto_json_opts{};
+    return glz::opts{};
   }
 }
 
@@ -412,13 +407,13 @@ constexpr auto get_glz_opts() {
   if constexpr (sizeof...(Context)) {
     return get_glz_opts_impl<Context...>();
   }
-  return proto_json_opts{};
+  return glz::opts{};
 }
 } // namespace detail
 
 template <uint8_t width = 3>
-constexpr auto indent_level = glz_opts_t<proto_json_opts{
-    glz::opts{.error_on_unknown_keys = false, .prettify = (width > 0), .indentation_width = width}}>{};
+constexpr auto indent_level = glz_opts_t<glz::opts{
+    glz::opts{.prettify = (width > 0), .indentation_width = width}}>{};
 
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;

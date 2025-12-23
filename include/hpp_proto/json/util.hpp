@@ -197,7 +197,7 @@ template <auto Opts>
 
 template <auto Options, typename T>
   requires(!::hpp::proto::concepts::associative_container<T>)
-void parse_repeated(bool is_map, T &&value, auto &ctx, auto &it, auto &end, const auto &element_parser) {
+void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end, const auto &element_parser) {
   constexpr auto Opts = ws_handled_off<Options>();
 
   const auto opening_token = is_map ? '{' : '[';
@@ -246,7 +246,7 @@ void parse_repeated(bool is_map, T &&value, auto &ctx, auto &it, auto &end, cons
 }
 
 template <auto Options, ::hpp::proto::concepts::associative_container T>
-void parse_repeated(bool, T &&value, auto &ctx, auto &it, auto &end, const auto &element_parser) {
+void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end, const auto &element_parser) {
   constexpr auto Opts = ws_handled_off<Options>();
 
   constexpr auto opening_token = '{';
