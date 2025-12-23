@@ -17,16 +17,21 @@ void round_trip_test(const T &in_message, T &&out_message) {
   // Skip comparing the serialized buffer to the raw input because unknown fields are dropped on parse.
   // Skip structural comparison of messages; NaN payloads make equality fail even when bitwise identical.
   std::pmr::monotonic_buffer_resource mr;
+  hpp::proto::json_status status;
   if constexpr (concepts::use_non_owning_traits<T>) {
-    assert(hpp::proto::read_json(out_message, buffer1, hpp::proto::alloc_from(mr)).ok());
+    status = hpp::proto::read_json(out_message, buffer1, hpp::proto::alloc_from(mr));
   } else {
-    assert(hpp::proto::read_json(out_message, buffer1).ok());
+    status = hpp::proto::read_json(out_message, buffer1);
   }
+  if (!status.ok()) {
+    std::cerr << "roundtrip read failed:" << status.message(buffer1) << "\n";
+  }
+  assert(status.ok());
   assert(hpp::proto::write_json(out_message, buffer2).ok());
-  if (buffer1 != buffer2){
+  if (buffer1 != buffer2) {
     auto [it1, it2] = std::ranges::mismatch(buffer1, buffer2);
-    auto sw1 = std::string_view{it1-20, buffer1.end()};
-    auto sw2 = std::string_view{it2-20, buffer2.end()};
+    auto sw1 = std::string_view{it1 - 20, buffer1.end()};
+    auto sw2 = std::string_view{it2 - 20, buffer2.end()};
     std::cerr << sw1 << "\n" << sw2 << "\n";
   }
 }
@@ -59,7 +64,19 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           auto owning_read_status = hpp::proto::read_json(owning_message, input);
           auto dyn_read_status = hpp::proto::read_json(dyn_message, input);
 
-          assert(non_owning_read_status.ok() == owning_read_status.ok() && owning_read_status.ok() == dyn_read_status.ok());
+          bool all_status_same = (non_owning_read_status.ok() == owning_read_status.ok() &&
+                     owning_read_status.ok() == dyn_read_status.ok());
+          if (!all_status_same) {
+            auto print_error = [&input](std::string_view name, auto status) {
+              if (!status.ok()) {
+                std::cerr << name <<  " failed:" << status.message(input) << "\n";
+              }
+            };
+            print_error("non-owning", non_owning_read_status);
+            print_error("owning", owning_read_status);
+            print_error("dyn", dyn_read_status);
+          }
+          assert(all_status_same);
           if (dyn_read_status.ok()) {
             round_trip_test(non_owning_message, non_owning_message_t{});
             round_trip_test(owning_message, owning_message_t{});

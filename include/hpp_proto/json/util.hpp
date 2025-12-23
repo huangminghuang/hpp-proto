@@ -24,6 +24,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <hpp_proto/binpb/concepts.hpp>
 #include <string_view>
 
 #ifdef __GNUC__
@@ -64,8 +65,8 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
 }
 
 template <auto Opts> // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-GLZ_ALWAYS_INLINE bool parse_opening(char c, glz::is_context auto &ctx, auto &it,
-                                     auto &end) { // NOLINT(readability-function-cognitive-complexity)
+bool parse_opening(char c, glz::is_context auto &ctx, auto &it,
+                   auto &end) { // NOLINT(readability-function-cognitive-complexity)
   assert(c == '{' || c == '[');
 
   if constexpr (!check_opening_handled(Opts)) {
@@ -119,17 +120,12 @@ bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto &) {
 }
 
 template <auto Opts>
-std::string_view parse_key_and_colon(glz::is_context auto &ctx, auto &it, auto &end) {
-  std::string_view key;
-  parse<JSON>::op<Opts>(key, ctx, it, end);
+void parse_key_and_colon(auto &&key, glz::is_context auto &ctx, auto &it, auto &end) {
+  parse<JSON>::op<opt_true<ws_handled<Opts>(), &opts::quoted_num>>(key, ctx, it, end);
   if (bool(ctx.error)) [[unlikely]] {
-    return {};
+    return;
   }
-
-  if (parse_ws_colon<Opts>(ctx, it, end)) {
-    return {};
-  }
-  return key;
+  parse_ws_colon<Opts>(ctx, it, end);
 }
 
 template <auto Opts>
@@ -142,7 +138,7 @@ template <auto Opts>
   if (*it == stop_token) [[unlikely]] {
     return 0;
   }
-  
+
   size_t count = 1;
   while (true) {
     switch (*it) {
@@ -199,9 +195,9 @@ template <auto Opts>
   unreachable();
 }
 
-template <auto Options>
-GLZ_ALWAYS_INLINE void parse_repeated(bool is_map, auto &&value, auto &ctx, auto &it, auto &end,
-                                      const auto &element_parser) {
+template <auto Options, typename T>
+  requires(!::hpp::proto::concepts::associative_container<T>)
+void parse_repeated(bool is_map, T &&value, auto &ctx, auto &it, auto &end, const auto &element_parser) {
   constexpr auto Opts = ws_handled_off<Options>();
 
   const auto opening_token = is_map ? '{' : '[';
@@ -219,11 +215,18 @@ GLZ_ALWAYS_INLINE void parse_repeated(bool is_map, auto &&value, auto &ctx, auto
   if (bool(ctx.error)) [[unlikely]] {
     return;
   }
-  value.resize(n);
-  size_t i = 0;
 
-  for (auto &&x : value) {
-    element_parser(x, ctx, it, end);
+  auto old_size = value.size();
+  const std::size_t new_size = value.size() + n;
+  value.resize(new_size);
+
+  for (auto i = old_size; i < new_size; ++i) {
+
+    element_parser(value[i], ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
+    }
+
     if (bool(ctx.error)) [[unlikely]] {
       return;
     }
@@ -231,14 +234,73 @@ GLZ_ALWAYS_INLINE void parse_repeated(bool is_map, auto &&value, auto &ctx, auto
     if (skip_ws<Opts>(ctx, it, end)) {
       return;
     }
+
+    if (i < new_size - 1) {
+      if (match_invalid_end<',', Opts>(ctx, it, end)) {
+        return;
+      }
+    }
+  }
+
+  util::match_ending<Opts>(ending_token, ctx, it, end);
+}
+
+template <auto Options, ::hpp::proto::concepts::associative_container T>
+void parse_repeated(bool, T &&value, auto &ctx, auto &it, auto &end, const auto &element_parser) {
+  constexpr auto Opts = ws_handled_off<Options>();
+
+  constexpr auto opening_token = '{';
+  constexpr auto ending_token = '}';
+
+  if (!util::parse_opening<Options>(opening_token, ctx, it, end)) {
+    return;
+  }
+
+  if (skip_ws<Opts>(ctx, it, end)) {
+    return;
+  }
+
+  const auto n = util::number_of_elements<Opts>(ending_token, ctx, it, end);
+  if (bool(ctx.error)) [[unlikely]] {
+    return;
+  }
+
+  const std::size_t new_size = value.size() + n;
+
+  if constexpr (::hpp::proto::concepts::flat_map<T>) {
+    ::hpp::proto::reserve(value, new_size);
+  } else if constexpr (requires { value.reserve(new_size); }) {
+    value.reserve(new_size);
+  }
+
+  for (auto i = 0U; i < n; ++i) {
+    using type = std::decay_t<T>;
+    std::pair<typename type::key_type, typename type::mapped_type> element;
+    element_parser(element, ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
+    }
+
+    if constexpr (requires { value.insert_or_assign(std::move(element.first), std::move(element.second)); }) {
+      value.insert_or_assign(std::move(element.first), std::move(element.second));
+    } else { // pre-C++23 std::map
+      value[std::move(element.first)] = std::move(element.second);
+    }
+
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
+    }
+
+    if (skip_ws<Opts>(ctx, it, end)) {
+      return;
+    }
+
     if (i < n - 1) {
       if (match_invalid_end<',', Opts>(ctx, it, end)) {
         return;
       }
     }
-    ++i;
   }
-
   util::match_ending<Opts>(ending_token, ctx, it, end);
 }
 

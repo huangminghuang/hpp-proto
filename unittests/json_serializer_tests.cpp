@@ -7,6 +7,9 @@
 template <typename T>
 constexpr auto non_owning = false;
 
+template <template <typename Traits> class Message>
+constexpr auto non_owning<Message<hpp::proto::non_owning_traits>> = true;
+
 struct byte_span_example {
   hpp::proto::equality_comparable_span<const std::byte> field;
   bool operator==(const byte_span_example &other) const = default;
@@ -304,11 +307,13 @@ const ut::suite test_bytes = [] {
 template <typename Traits>
 struct string_example {
   ::hpp::proto::optional<typename Traits::string_t> optional_string;
+  Traits::template repeated_t<typename Traits::string_t> repeated_string;
 
   enum oneof_field_oneof_case : int { oneof_uint32 = 1, oneof_string = 3, oneof_bytes = 4 };
 
   static constexpr std::array<std::uint32_t, 5> oneof_field_oneof_numbers{0U, 111U, 112U, 113U, 114U};
   std::variant<std::monostate, std::uint32_t, typename Traits::string_t, typename Traits::bytes_t> oneof_field;
+  bool operator==(const string_example &) const = default;
 };
 
 // clang-format off
@@ -317,24 +322,22 @@ struct glz::meta<string_example<Traits>> {
   using T = string_example<Traits>;
   static constexpr auto value =
       object("optionalString", &T::optional_string, 
+             "repeatedString", ::hpp::proto::as_optional_ref<&T::repeated_string>,
              "oneofUint32", ::hpp::proto::as_oneof_member<&T::oneof_field, 1>,
              "oneofString", ::hpp::proto::as_oneof_member<&T::oneof_field, 2>, 
              "oneofBytes", ::hpp::proto::as_oneof_member<&T::oneof_field, 3>);
 };
 // clang-format on
 
-const ut::suite test_string_json = [] {
-  // string_example<hpp::proto::non_owning_traits> message;
-  // using namespace std::string_view_literals;
-  // using namespace boost::ut;
-  // const auto json = R"({"optionalString":"te\t","oneofString":"te\t"})"sv;
-  // std::vector<char> in{json.begin(), json.end()};
-  // std::string out;
-  // std::pmr::monotonic_buffer_resource mr;
-  // expect(hpp::proto::read_json(message, in, hpp::proto::alloc_from(mr)).ok());
-  // expect(hpp::proto::write_json(message, out).ok());
-  // expect(eq(json, out));
-};
+// const ut::suite test_string_json = [] {
+//   using namespace boost::ut;
+//   "test_escape"_test = []<class Traits> {
+//     verify(string_example<Traits>{.optional_string = "te\t"}, R"({"optionalString":"te\t"})");
+//   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+
+//   string_example<hpp::proto::default_traits> msg;
+//   expect(hpp::proto::read_json(msg, "{\"repeatedString\":[\"a\rsdfads\"],\"optionalString\":\"abc\"}").ok());
+// };
 
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
 
