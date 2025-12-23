@@ -121,7 +121,7 @@ bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto &) {
 
 template <auto Opts>
 void parse_key_and_colon(auto &&key, glz::is_context auto &ctx, auto &it, auto &end) {
-  parse<JSON>::op<opt_true<ws_handled<Opts>(), &opts::quoted_num>>(key, ctx, it, end);
+  parse<JSON>::op<opt_true<Opts, &opts::quoted_num>>(key, ctx, it, end);
   if (bool(ctx.error)) [[unlikely]] {
     return;
   }
