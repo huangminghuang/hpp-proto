@@ -44,9 +44,7 @@ struct oneof_wrapper {
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   operator bool() const { return value->index() == Index; }
   auto &operator*() const { return std::get<Index>(*value); }
-  void reset() {
-    value->template emplace<0>();
-  }
+  void reset() { value->template emplace<0>(); }
 };
 
 template <std::size_t Index, typename T>
