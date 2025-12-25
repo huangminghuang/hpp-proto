@@ -13,7 +13,7 @@ The library leverages modern C++ features and a trait-based design to generate c
 *   **Header-Only Core**: The core serialization library is header-only (with one external dependency for UTF-8 validation), simplifying integration into any build system.
 *   **JSON Support**: First-class serialization and deserialization to and from the canonical ProtoJSON format, powered by the high-performance [glaze](https://github.com/stephenberry/glaze) library.
 *   **Trait-Based Customization**: A unique trait-based system allows you to customize the generated types without modifying the generated code. Easily swap in custom containers, allocators (like `std::pmr`), or string types to perfectly match your application's memory management strategy.
-*   **Non-Owning (Zero-Copy) Deserialization**: Supports a "non-owning" mode that deserializes into views (`std::string_view`, `std::span`), drastically reducing allocations and memory copies.
+*   **Non-Owning Deserialization**: Supports a "non-owning" mode that deserializes into views (`std::string_view`, `std::span`), drastically reducing allocations and memory copies.
 *   **gRPC Integration**: A built-in adapter allows you to use `hpp-proto` generated messages directly in your gRPC client and server applications. ([docs/grpc-adapter.md](docs/grpc-adapter.md)).
 *   **Dynamic Messages**: A descriptor-driven API allows for runtime processing of messages (including JSON/proto I/O) without needing the compile-time generated types. ([docs/dynamic_message.md](docs/dynamic_message.md)).
 *   **Minimal Code Size**: Generates significantly smaller binary sizes compared to libprotobuf.
@@ -34,7 +34,7 @@ Hpp-proto is optimized for scenarios where messages are built or modified and th
   </tr>
 </table>
 
-For more details, see the [benchmarks](benchmarks/) directory.
+For more details, see the [benchmarks](benchmarks/ReadMe.md) directory.
 
 ## Getting Started
 
