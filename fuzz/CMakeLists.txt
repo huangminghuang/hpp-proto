@@ -41,6 +41,13 @@ function(add_fuzz_target type source)
   target_compile_options(${target} PRIVATE "-fsanitize=fuzzer,address,undefined;-fno-sanitize-recover=all" "-UNDEBUG")
   target_link_options(${target} PRIVATE "-fsanitize=fuzzer,address,undefined")
 
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # libclang_rt.fuzzer on Linux is built against libstdc++ (std::__cxx11 symbols).
+    # Force libstdc++ for fuzzers to avoid libc++/libstdc++ ABI mismatch.
+    target_compile_options(${target} PRIVATE "-stdlib=libstdc++")
+    target_link_options(${target} PRIVATE "-stdlib=libstdc++")
+  endif()
+
 
   file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${type}_corpus")
   add_test(NAME ${target} COMMAND ${target} ${type}_corpus ${type}_seed_corpus -dict=${target}.dict -rss_limit_mb=4096 -timeout=3600 -runs=100000)
