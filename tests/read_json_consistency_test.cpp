@@ -10,7 +10,7 @@
 
 using namespace boost::ut;
 
-enum test_status : uint8_t { fail = 0, ok = 1 };
+enum struct test_status : uint8_t { fail = 0, ok = 1 };
 
 template <template <typename Traits> class Message>
 void test_read(hpp::proto::dynamic_message_factory &factory, std::string_view input, test_status expected) {
@@ -23,7 +23,7 @@ void test_read(hpp::proto::dynamic_message_factory &factory, std::string_view in
   auto msg_name = message_name(non_owning_message);
   hpp::proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
 
-  auto expect_status_match = [&](std::string kind, auto status) {
+  auto expect_status_match = [&](const std::string& kind, auto status) {
     bool s = static_cast<bool>(expected);
     using namespace std::string_literals;
     expect(status.ok() == s) <<
