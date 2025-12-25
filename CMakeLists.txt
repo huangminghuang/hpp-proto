@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.25)
 message("CMake Version: ${CMAKE_VERSION}")
 project(hpp_proto
   VERSION 0.9.0

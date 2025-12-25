@@ -85,7 +85,7 @@ message AddressBook {
 Create a `CMakeLists.txt` file. We recommend using `FetchContent` to integrate `hpp-proto` seamlessly.
 
 ```cmake
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.25)
 project(hpp_proto_tutorial LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
