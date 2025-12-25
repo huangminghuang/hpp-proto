@@ -10,6 +10,9 @@ constexpr auto non_owning = false;
 template <template <typename Traits> class Message>
 constexpr auto non_owning<Message<hpp::proto::non_owning_traits>> = true;
 
+using optional_string_t = hpp::proto::optional<std::string>;
+static_assert(glz::nullable_t<optional_string_t> && not glz::custom_read<optional_string_t>);
+
 struct byte_span_example {
   hpp::proto::equality_comparable_span<const std::byte> field;
   bool operator==(const byte_span_example &other) const = default;
@@ -73,7 +76,7 @@ constexpr auto message_type_url(const explicit_optional_bool_example &) {
 template <>
 struct glz::meta<explicit_optional_bool_example> {
   using T = explicit_optional_bool_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
+  static constexpr auto value = object("field", &T::field);
 };
 
 struct explicit_optional_uint64_example {
@@ -330,15 +333,16 @@ struct glz::meta<string_example<Traits>> {
 };
 // clang-format on
 
-// const ut::suite test_string_json = [] {
-//   using namespace boost::ut;
-//   "test_escape"_test = []<class Traits> {
-//     verify(string_example<Traits>{.optional_string = "te\t"}, R"({"optionalString":"te\t"})");
-//   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+const ut::suite test_string_json = [] {
+  using namespace boost::ut;
+  // "test_escape"_test = []<class Traits> {
+  //   verify(string_example<Traits>{.optional_string = "te\t"}, R"({"optionalString":"te\t"})");
+  // } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 
-//   string_example<hpp::proto::default_traits> msg;
-//   expect(hpp::proto::read_json(msg, "{\"repeatedString\":[\"a\rsdfads\"],\"optionalString\":\"abc\"}").ok());
-// };
+  string_example<hpp::proto::default_traits> msg;
+  expect(hpp::proto::read_json(msg, "{\"optionalString\":null}").ok());
+  // expect(hpp::proto::read_json(msg, "{\"repeatedString\":[\"a\rsdfads\"],\"optionalString\":\"abc\"}").ok());
+};
 
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
 

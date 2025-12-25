@@ -34,23 +34,20 @@ foreach(seed_file IN LISTS binpb_seed_corpus_files)
   configure_file(${seed_file} ${CMAKE_CURRENT_BINARY_DIR}/binpb_seed_corpus/${seed_name} COPYONLY)
 endforeach()
 
-configure_file(fuzz_binpb.sh fuzz_binpb.sh COPYONLY)
-configure_file(fuzz_json.sh fuzz_json.sh COPYONLY)
-
-
-function(add_fuzz_target target source)
+function(add_fuzz_target type source)
+  set(target fuzz_${type})
   add_executable(${target} ${source} read_file.cpp)
   target_link_libraries(${target} PRIVATE hpp_proto::libhpp_proto unittest_proto_lib)
-  target_compile_options(${target} PRIVATE ${HPP_PROTO_FUZZ_CXX_FLAGS})
-  target_link_options(${target} PRIVATE ${HPP_PROTO_FUZZ_LINKER_FLAGS})
+  target_compile_options(${target} PRIVATE "-fsanitize=fuzzer,address,undefined;-fno-sanitize-recover=all" "-UNDEBUG")
+  target_link_options(${target} PRIVATE "-fsanitize=fuzzer,address,undefined")
 
-  if(DEFINED HPP_PROTO_FUZZ_CXX_FLAGS)
-    add_executable(${target}_debug_case ${source} fuzz_case_main.cpp read_file.cpp)
-    target_link_libraries(${target}_debug_case PRIVATE hpp_proto::libhpp_proto unittest_proto_lib)
-  endif()
+
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${type}_corpus")
+  add_test(NAME ${target} COMMAND ${target} ${type}_corpus ${type}_seed_corpus -dict=${target}.dict -rss_limit_mb=4096 -timeout=3600 -runs=100000)
 
   configure_file(${target}.dict ${target}.dict COPYONLY)
+  configure_file(${target}.sh ${target}.sh COPYONLY)
 endfunction()
 
-add_fuzz_target(fuzz_binpb fuzz_binpb.cpp)
-add_fuzz_target(fuzz_json fuzz_json.cpp)
+add_fuzz_target(binpb fuzz_binpb.cpp)
+add_fuzz_target(json fuzz_json.cpp)

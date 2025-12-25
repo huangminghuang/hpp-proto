@@ -168,30 +168,12 @@ void from_json(T &v, auto &ctx, auto &it, auto &end) {
       return;
     }
   }
-  auto parse_enum = [&](bool is_number) {
-    if (is_number) {
-      int32_t number = 0;
-      from<JSON, int32_t>::template op<ws_handled<Opts>()>(number, ctx, it, end);
-      v = static_cast<T>(number);
-    } else {
-      from<JSON, T>::template op<ws_handled<Opts>()>(v, ctx, it, end);
-    }
-  };
-
-  if constexpr (!Opts.quoted_num) {
-    parse_enum(*it != '"');
+  if (*it != '"') {
+    int32_t number = 0;
+    from<JSON, int32_t>::template op<ws_handled<Opts>()>(number, ctx, it, end);
+    v = static_cast<T>(number);
   } else {
-    // For map keys, enums may be quoted as a name or as a number.
-    // Peek past the opening quote to decide which parser to use.
-
-    if constexpr (!Opts.null_terminated) {
-      if (std::next(it) == end) {
-        ctx.error = error_code::end_reached;
-        return;
-      }
-    }
-
-    parse_enum(std::isdigit(*std::next(it)));
+    from<JSON, T>::template op<ws_handled<Opts>()>(v, ctx, it, end);
   }
 }
 
@@ -202,13 +184,19 @@ void from_json(T &v, auto &ctx, auto &it, auto &end) {
     decltype(auto) mutable_v = hpp::proto::detail::as_modifiable(ctx, v);
     from<JSON, decltype(mutable_v)>::template op<Opts>(mutable_v, ctx, it, end);
   } else if constexpr (::hpp::proto::concepts::integral_64_bits<T>) {
-    from<JSON, T>::template op<opt_true<Opts, &opts::quoted_num>>(v, ctx, it, end);
+    if constexpr (!check_ws_handled(Opts)) {
+      if (skip_ws<Opts>(ctx, it, end)) {
+        return;
+      }
+    }
+
+    from<JSON, T>::template op<opt_true<ws_handled<Opts>(), &opts::quoted_num>>(v, ctx, it, end);
   } else if constexpr (pair_t<T>) {
     util::parse_key_and_colon<Opts>(::hpp::proto::detail::as_modifiable(ctx, v.first), ctx, it, end);
     if (bool(ctx.error)) [[unlikely]] {
       return;
     }
-    from_json<Opts>(v.second, ctx, it, end);
+    from_json<ws_handled<Opts>()>(v.second, ctx, it, end);
   } else {
     from<JSON, T>::template op<Opts>(v, ctx, it, end);
   }
@@ -217,7 +205,7 @@ void from_json(T &v, auto &ctx, auto &it, auto &end) {
 
 template <typename Type, auto Default>
 struct to<JSON, hpp::proto::optional<Type, Default>> {
-  template <auto Opts, class... Args>
+  template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(auto const &value, auto &ctx, auto &it, auto &end) noexcept {
     if (value.has_value()) {
       if constexpr (::hpp::proto::concepts::integral_64_bits<Type>) {
@@ -231,14 +219,16 @@ struct to<JSON, hpp::proto::optional<Type, Default>> {
 
 template <typename Type, auto Default>
 struct from<JSON, hpp::proto::optional<Type, Default>> {
-  template <auto Options, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &value, Args &&...args) noexcept {
-    if constexpr (requires { value.emplace(); }) {
-      detail::from_json<Options>(value.emplace(), std::forward<Args>(args)...);
-    } else {
-      Type v;
-      detail::from_json<Options>(v, std::forward<Args>(args)...);
-      value = v;
+  template <auto Options>
+  GLZ_ALWAYS_INLINE static void op(auto &value, auto &ctx, auto &it, auto &end) noexcept {
+    if (!util::parse_null<Options>(value, ctx, it, end)) {
+      if constexpr (requires { value.emplace(); }) {
+        detail::from_json<Options>(value.emplace(), ctx, it, end);
+      } else {
+        Type v;
+        detail::from_json<Options>(v, ctx, it, end);
+        value = v;
+      }
     }
   }
 };
@@ -260,18 +250,20 @@ struct to<JSON, hpp::proto::optional_ref<Type, Default>> {
 
 template <typename Type, auto Default>
 struct from<JSON, hpp::proto::optional_ref<Type, Default>> {
-  template <auto Opts, class... Args>
+  template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(auto &&value, auto &ctx, auto &it, auto &end) noexcept {
-    if constexpr (requires { value.emplace(); }) {
-      detail::from_json<Opts>(value.emplace(), ctx, it, end);
-    } else if constexpr (hpp::proto::concepts::repeated_or_map<Type>) {
-      constexpr bool is_map = pair_t<std::ranges::range_value_t<Type>>;
-      decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, *value);
-      util::parse_repeated<Opts>(is_map, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {
-        detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);
-      });
-    } else {
-      detail::from_json<Opts>(*value, ctx, it, end);
+    if (!util::parse_null<Opts>(value, ctx, it, end)) {
+      if constexpr (requires { value.emplace(); }) {
+        detail::from_json<Opts>(value.emplace(), ctx, it, end);
+      } else if constexpr (hpp::proto::concepts::repeated_or_map<Type>) {
+        constexpr bool is_map = pair_t<std::ranges::range_value_t<Type>>;
+        decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, *value);
+        util::parse_repeated<Opts>(is_map, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {
+          detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);
+        });
+      } else {
+        detail::from_json<Opts>(*value, ctx, it, end);
+      }
     }
   }
 };
@@ -304,14 +296,16 @@ struct to<JSON, hpp::proto::oneof_wrapper<Type, Index>> {
 
 template <typename Type, std::size_t Index>
 struct from<JSON, hpp::proto::oneof_wrapper<Type, Index>> {
-  template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    using alt_type = std::variant_alternative_t<Index, Type>;
-    if constexpr (requires { value.value->template emplace<Index>(); }) {
-      detail::from_json<Opts>(value.value->template emplace<Index>(), std::forward<Args>(args)...);
-    } else {
-      *value.value = alt_type{};
-      detail::from_json<Opts>(std::get<Index>(*value.value), std::forward<Args>(args)...);
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, auto &ctx, auto &it, auto &end) noexcept {
+    if (!util::parse_null<Opts>(value, ctx, it, end)) {
+      using alt_type = std::variant_alternative_t<Index, Type>;
+      if constexpr (requires { value.value->template emplace<Index>(); }) {
+        detail::from_json<Opts>(value.value->template emplace<Index>(), ctx, it, end);
+      } else {
+        *value.value = alt_type{};
+        detail::from_json<Opts>(std::get<Index>(*value.value), ctx, it, end);
+      }
     }
   }
 };

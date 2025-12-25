@@ -125,13 +125,14 @@
             "name": "Fuzz",
             "inherits": [
                 "default",
-                "fuzz"
+                "clang"
             ],
             "displayName": "Fuzz",
             "description": "Fuzz Build",
             "binaryDir": "${sourceDir}/build/fuzz",
             "cacheVariables": {
-                "HPP_PROTO_PROTOC": "find"
+                "HPP_PROTO_PROTOC": "find",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
         }
     ],

@@ -58,15 +58,20 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
     if (bool(ctx.error)) [[unlikely]] {
       return true;
     }
-    value.set_null();
+
+    if constexpr (requires { value.set_null(); }) {
+      value.set_null();
+    } else {
+      value.reset();
+    }
     return true;
   }
   return false;
 }
 
 template <auto Opts> // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-bool parse_opening(char c, glz::is_context auto &ctx, auto &it,
-                   auto &end) { // NOLINT(readability-function-cognitive-complexity)
+[[nodiscard]] bool parse_opening(char c, glz::is_context auto &ctx, auto &it,
+                                 auto &end) { // NOLINT(readability-function-cognitive-complexity)
   assert(c == '{' || c == '[');
 
   if constexpr (!check_opening_handled(Opts)) {
@@ -121,7 +126,13 @@ bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto &) {
 
 template <auto Opts>
 void parse_key_and_colon(auto &&key, glz::is_context auto &ctx, auto &it, auto &end) {
-  parse<JSON>::op<opt_true<Opts, &opts::quoted_num>>(key, ctx, it, end);
+  if constexpr (!check_ws_handled(Opts)) {
+    if (skip_ws<Opts>(ctx, it, end)) {
+      return;
+    }
+  }
+
+  parse<JSON>::op<opt_true<ws_handled<Opts>(), &opts::quoted_num>>(key, ctx, it, end);
   if (bool(ctx.error)) [[unlikely]] {
     return;
   }

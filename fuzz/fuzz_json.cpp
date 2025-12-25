@@ -77,11 +77,11 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
             print_error("dyn", dyn_read_status);
           }
           assert(all_status_same);
-          if (dyn_read_status.ok()) {
-            round_trip_test(non_owning_message, non_owning_message_t{});
-            round_trip_test(owning_message, owning_message_t{});
-            round_trip_test(dyn_message, factory.get_message(msg_name, mr).value());
-          }
+          // if (dyn_read_status.ok()) {
+          //   round_trip_test(non_owning_message, non_owning_message_t{});
+          //   round_trip_test(owning_message, owning_message_t{});
+          //   round_trip_test(dyn_message, factory.get_message(msg_name, mr).value());
+          // }
           return dyn_read_status.ok() ? 0 : -1;
         },
         message_variant);

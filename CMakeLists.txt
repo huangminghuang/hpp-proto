@@ -13,7 +13,6 @@ option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 
-option(HPP_PROTO_BUILD_FUZZ "Build fuzz target" OFF)
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
 set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
@@ -104,7 +103,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     add_subdirectory(tests)
     add_subdirectory(tutorial)
 
-    if(HPP_PROTO_BUILD_FUZZ AND (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
       add_subdirectory(fuzz)
     endif()
   endif()

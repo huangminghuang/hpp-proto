@@ -127,8 +127,7 @@ struct from<JSON, hpp::proto::field_mref> {
     if (!util::parse_null<Options>(value, ctx, it, end)) {
       value.visit([&](auto v) {
         using T = std::remove_cvref_t<decltype(v)>;
-        constexpr auto Opts = ws_handled_off<Options>();
-        from<JSON, T>::template op<Opts>(v, ctx, it, end);
+        from<JSON, T>::template op<Options>(v, ctx, it, end);
       });
     }
   }
@@ -215,7 +214,9 @@ struct generic_message_json_serializer {
     //  };
     static constexpr auto Opts = opening_handled_off<ws_handled_off<Options>()>();
 
-    util::parse_opening<Options>('{', ctx, it, end);
+    if (!util::parse_opening<Options>('{', ctx, it, end)) [[unlikely]] {
+      return;
+    }
     const auto ws_start = it;
     if (skip_ws<Opts>(ctx, it, end)) {
       return;
@@ -238,9 +239,9 @@ struct generic_message_json_serializer {
           ctx.error = error_code::unknown_key;
           return;
         }
-        skip_value<JSON>::template op<Opts>(ctx, it, end);
+        skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it, end);
       } else {
-        from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.field(*desc), ctx, it, end);
+        from<JSON, ::hpp::proto::field_mref>::template op<ws_handled<Opts>()>(value.field(*desc), ctx, it, end);
       }
 
       if (bool(ctx.error)) [[unlikely]] {
@@ -662,12 +663,20 @@ void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is
 template <typename T, hpp::proto::field_kind_t Kind>
 struct from<JSON, hpp::proto::scalar_field_mref<T, Kind>> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_mref<T, Kind> &value, auto &&...args) {
+  GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_mref<T, Kind> &value, auto &ctx, auto &it,
+                                   auto &end) {
     using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
-    constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<value_type> || (Opts.quoted_num);
     value_type v = {};
-    from<JSON, value_type>::template op<set_opt<Opts, &opts::quoted_num>(need_quote)>(
-        v, std::forward<decltype(args)>(args)...);
+    if constexpr (::hpp::proto::concepts::integral_64_bits<value_type> || (Opts.quoted_num)) {
+      if constexpr (!check_ws_handled(Opts)) {
+        if (skip_ws<Opts>(ctx, it, end)) {
+          return;
+        }
+      }
+      from<JSON, value_type>::template op<opt_true<ws_handled<Opts>(), &opts::quoted_num>>(v, ctx, it, end);
+    } else {
+      from<JSON, value_type>::template op<Opts>(v, ctx, it, end);
+    }
     value.set(v);
   }
 };
@@ -756,6 +765,27 @@ struct from<JSON, hpp::proto::enum_value_mref> {
 
 template <>
 struct from<JSON, hpp::proto::message_value_mref> {
+  template <auto Options>
+  static void parse_mapped(hpp::proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
+
+    const auto *msg_descriptor = value.descriptor().message_field_type_descriptor();
+    bool is_wellknown_value =
+        msg_descriptor != nullptr && msg_descriptor->wellknown == hpp::proto::wellknown_types_t::VALUE;
+
+    if (util::parse_null<Options>(value, ctx, it, end)) {
+      if (!is_wellknown_value) {
+        ctx.error = error_code::syntax_error;
+      }
+      return;
+    }
+
+    value.visit([&](auto v) {
+      using T = std::remove_cvref_t<decltype(v)>;
+      constexpr auto Opts = ws_handled_off<Options>();
+      from<JSON, T>::template op<Opts>(v, ctx, it, end);
+    });
+  }
+
   template <auto Opts>
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
@@ -767,7 +797,7 @@ struct from<JSON, hpp::proto::message_value_mref> {
           if (bool(ctx.error)) [[unlikely]] {
             return;
           }
-          from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[1], ctx, it, end);
+          parse_mapped<ws_handled<Opts>()>(value.fields()[1], ctx, it, end);
         } else {
           ctx.error = error_code::syntax_error;
         }
@@ -810,10 +840,17 @@ struct from<JSON, T> {
         std::same_as<T, ::hpp::proto::repeated_message_field_mref> ? value.descriptor().is_map_entry() : false;
 
     util::parse_repeated<Opts>(is_map, value, ctx, it, end, [](auto &&element, auto &ctx, auto &it, auto &end) {
-      constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<typename T::value_type>;
-      constexpr auto ElementOpts = set_opt<Opts, &opts::quoted_num>(need_quote);
-      from<JSON, std::remove_reference_t<typename T::reference>>::template op<ElementOpts>(
-          std::forward<decltype(element)>(element), ctx, it, end);
+      if constexpr (::hpp::proto::concepts::integral_64_bits<typename T::value_type>) {
+        if (skip_ws<Opts>(ctx, it, end)) {
+          return;
+        }
+        from<JSON, std::remove_reference_t<typename T::reference>>::template op<
+            opt_true<ws_handled<Opts>(), &opts::quoted_num>>(std::forward<decltype(element)>(element), ctx, it, end);
+
+      } else {
+        from<JSON, std::remove_reference_t<typename T::reference>>::template op<ws_handled_off<Opts>()>(
+            std::forward<decltype(element)>(element), ctx, it, end);
+      }
     });
   }
 };
@@ -891,7 +928,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
 
   if (key == "@type") {
     std::string_view type_url;
-    from<JSON, std::string_view>::template op<Opts>(type_url, ctx, it, end);
+    from<JSON, std::string_view>::template op<ws_handled<Opts>()>(type_url, ctx, it, end);
     if (bool(ctx.error)) [[unlikely]] {
       return;
     }
@@ -920,7 +957,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
               return std::unexpected("value key not found in google.protobuf.Any message");
             }
             // parse the the json into a new dynamic_message
-            from<JSON, ::hpp::proto::message_value_mref>::template op<Opts>(message, ctx, it, end);
+            from<JSON, ::hpp::proto::message_value_mref>::template op<ws_handled<Opts>()>(message, ctx, it, end);
             if (bool(ctx.error)) [[unlikely]] {
               return {};
             }

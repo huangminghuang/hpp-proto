@@ -25,13 +25,11 @@
             }
         },
         {
-            "name": "fuzz",
-            "hidden": true,
+            "name": "clang",
+            "displayName": "clang",
             "cacheVariables": {
-                "HPP_PROTO_FUZZ_CXX_FLAGS": "-g;-O2;-fsanitize=fuzzer,address,undefined;-fno-sanitize-recover=all",
-                "HPP_PROTO_FUZZ_LINKER_FLAGS": "-fsanitize=fuzzer,address,undefined",
-                "HPP_PROTO_BUILD_FUZZ": "ON",
-                "HPP_PROTO_TESTS": "ON"
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++"
             }
         }
     ]

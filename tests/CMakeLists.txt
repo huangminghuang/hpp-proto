@@ -66,7 +66,7 @@ else()
 
     add_test(NAME proto3_test
         COMMAND proto3_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}) 
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_library(unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
     target_include_directories(unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
@@ -93,7 +93,7 @@ else()
     add_test(NAME map_test
         COMMAND map_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        )
+    )
 
     if(Protobuf_INCLUDE_DIRS)
         add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
@@ -102,7 +102,6 @@ else()
             TARGET any_test_lib
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
         target_link_libraries(any_test_lib INTERFACE well_known_types)
-
 
         add_executable(any_test any_test.cpp)
         target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib)
@@ -125,21 +124,23 @@ else()
     add_executable(proto3_decode proto3_decode.cpp)
     target_link_libraries(proto3_decode PRIVATE unittest_proto3_proto_lib)
 
-
     add_executable(dynamic_message_test dynamic_message_test.cpp)
     target_link_libraries(dynamic_message_test PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
     add_test(NAME dynamic_message_test COMMAND dynamic_message_test WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-
     add_library(hpp_options_test_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/hpp_options_test.proto")
     protobuf_generate_hpp(
-            TARGET hpp_options_test_lib
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+        TARGET hpp_options_test_lib
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+        PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     target_include_directories(hpp_options_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 
     add_executable(hpp_options_test hpp_options_test.cpp)
     target_link_libraries(hpp_options_test PRIVATE hpp_options_test_lib)
+
+    add_executable(read_json_consistency_test read_json_consistency_test.cpp)
+    target_link_libraries(read_json_consistency_test unittest_proto_lib unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze)
+    add_test(NAME read_json_consistency_test COMMAND read_json_consistency_test WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     if(edition_support)
         add_library(unittest_lite_proto_lib INTERFACE
