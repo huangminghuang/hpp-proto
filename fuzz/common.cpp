@@ -1,6 +1,6 @@
+#include "common.hpp"
 #include <fstream>
 #include <vector>
-#include "common.hpp"
 
 std::vector<char> read_file(const char *filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
