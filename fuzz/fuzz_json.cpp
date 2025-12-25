@@ -11,8 +11,9 @@ using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp::proto:
                                        protobuf_unittest::TestMap<hpp::proto::non_owning_traits>>;
 
 template <typename T>
-void round_trip_test(const T &in_message, T &&out_message) {
-  std::string buffer1, buffer2;
+void round_trip_test(const T &in_message, T &&out_message) { // NOLINT(cppcoreguidelines-missing-std-forward)
+  std::string buffer1;
+  std::string buffer2;
   assert(hpp::proto::write_json(in_message, buffer1).ok());
   // Skip comparing the serialized buffer to the raw input because unknown fields are dropped on parse.
   // Skip structural comparison of messages; NaN payloads make equality fail even when bitwise identical.
@@ -42,7 +43,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
   // choice_options encodes message type and whether to split input.
   // Maximum choice_options will be (std::variant_size_v<message_variant_t> - 1).
   // Using uint8_t will consume 1 byte for this option.
-  uint8_t choice_options = provider.ConsumeIntegralInRange<uint8_t>(0, std::variant_size_v<message_variant_t> - 1);
+  auto choice_options = provider.ConsumeIntegralInRange<uint8_t>(0, std::variant_size_v<message_variant_t> - 1);
 
   std::pmr::monotonic_buffer_resource mr; // Needs to be alive during read_binpb
   message_variant_t message_variant;      // Holds the deserialized message
@@ -53,10 +54,10 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
 
   auto do_read = [&](std::string_view input) {
     return std::visit(
-        [&](auto &non_owning_message) {
+        [&](auto &non_owning_message) -> int {
           using non_owning_message_t = std::remove_reference_t<decltype(non_owning_message)>;
           using owning_message_t = decltype(hpp::proto::rebind_traits(non_owning_message));
-          auto msg_name = message_name(non_owning_message);
+          std::string_view msg_name = message_name(non_owning_message);
           owning_message_t owning_message;
           hpp::proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
 

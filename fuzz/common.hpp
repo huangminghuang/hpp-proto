@@ -7,13 +7,8 @@
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory.hpp>
 
-std::vector<char> read_file(const char *filename);
-
-static hpp::proto::dynamic_message_factory factory;
-
-extern "C" __attribute__((visibility("default"))) int LLVMFuzzerInitialize(int *argc, char ***argv) {
-  return factory.init(read_file("../tests/unittest.desc.binpb")) ? 0 : -1;
-}
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,misc-use-anonymous-namespace)
+extern hpp::proto::dynamic_message_factory factory;
 
 // Helper function to set variant by runtime index
 template <typename... Ts>
@@ -27,7 +22,7 @@ void set_variant_by_index(std::variant<Ts...> &v, size_t index) {
     return std::array<void (*)(VariantType &), Size>{// Expand a lambda for every index I
                                                      [](VariantType &var) { var.template emplace<Is>(); }...};
   }(std::make_index_sequence<Size>{});
-  table[index](v);
+  table[index](v); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 }
 
 static std::string_view message_name(const auto &message) {

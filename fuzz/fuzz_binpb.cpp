@@ -29,8 +29,10 @@ std::vector<std::vector<char>> split_input(FuzzedDataProvider &provider) {
 }
 
 template <typename T>
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
 void round_trip_test(const T &in_message, T &&out_message) {
-  std::vector<char> buffer1, buffer2;
+  std::vector<char> buffer1;
+  std::vector<char> buffer2;
   assert(hpp::proto::write_binpb(in_message, buffer1).ok());
   // Skip comparing the serialized buffer to the raw input because unknown fields are dropped on parse.
   // Skip structural comparison of messages; NaN payloads make equality fail even when bitwise identical.
@@ -50,7 +52,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
   // choice_options encodes message type and whether to split input.
   // Maximum choice_options will be (std::variant_size_v<message_variant_t> * 2 - 1).
   // Using uint8_t will consume 1 byte for this option.
-  uint8_t choice_options = provider.ConsumeIntegralInRange<uint8_t>(0, std::variant_size_v<message_variant_t> * 2 - 1);
+  auto choice_options = provider.ConsumeIntegralInRange<uint8_t>(0, (std::variant_size_v<message_variant_t> * 2) - 1);
 
   std::pmr::monotonic_buffer_resource mr; // Needs to be alive during read_binpb
   message_variant_t message_variant;      // Holds the deserialized message
@@ -58,7 +60,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
   auto message_type_index = choice_options % std::variant_size_v<message_variant_t>;
 
   // Extract further options from choice_options
-  bool to_split = (choice_options / std::variant_size_v<message_variant_t>) % 2;
+  bool to_split = static_cast<bool>((choice_options / std::variant_size_v<message_variant_t>) % 2);
 
   set_variant_by_index(message_variant, message_type_index);
 

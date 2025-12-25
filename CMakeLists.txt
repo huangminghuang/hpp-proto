@@ -100,13 +100,12 @@ if(HPP_PROTO_PROTOC_PLUGIN)
       set_property(TEST ${name} PROPERTY ENVIRONMENT "${HPP_PROTO_TEST_ENVIRONMENT}")
     endfunction(add_hpp_proto_test)
 
+    include(cmake/grpc_check.cmake)
+
     add_subdirectory(tests)
     add_subdirectory(tutorial)
-
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-      add_subdirectory(fuzz)
-    endif()
-  endif()
+    add_subdirectory(fuzz)
+ endif()    
 
   if(HPP_PROTO_BENCHMARKS)
     add_subdirectory(benchmarks)

@@ -3,27 +3,8 @@ if(HPP_PROTO_PROTOC STREQUAL "compile")
     return()
 endif()
 
-find_package(gRPC CONFIG 1.51)
-find_package(Python3 COMPONENTS Interpreter)
-
-if(NOT gRPC_FOUND)
-    message(WARNING "gRPC not found, skipping grpc_tests target")
-    return()
-endif()
-
-include(CheckCXXSourceCompiles)
-set(CMAKE_REQUIRED_LIBRARIES gRPC::grpc++)
-check_cxx_source_compiles("
-      #include <grpcpp/grpcpp.h>
-      int main() {
-        grpc::CreateChannel(\"127.0.0.0:1234\", grpc::InsecureChannelCredentials());
-        return 0;
-      }
-    " HPP_PROTO_GRPC_TESTS_COMPILE)
-set(CMAKE_REQUIRED_LIBRARIES)
-
-if(NOT HPP_PROTO_GRPC_TESTS_COMPILE)
-    message(WARNING "gRPC headers found but compilation failed, skipping grpc tests targets")
+if(NOT GRPC_SUPPORT)
+    message(STATUS "gRPC not supported, skipping grpc test targets")
     return()
 endif()
 
@@ -83,6 +64,7 @@ else()
 endif()
 
 if(GRPC_OFFICIAL_PROTO_AVAILABLE)
+    find_package(Python3 COMPONENTS Interpreter)
     if(NOT Python3_Interpreter_FOUND)
         message(WARNING "Python3 interpreter not found, skipping grpc_tests target")
         return()
