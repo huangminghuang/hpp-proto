@@ -67,7 +67,7 @@ if(HPP_PROTO_PROTOC STREQUAL "find")
         get_target_property(Protobuf_INCLUDE_DIRS protobuf::libprotobuf INTERFACE_INCLUDE_DIRECTORIES)
     endif()
 elseif(HPP_PROTO_PROTOC STREQUAL "compile")
-    set(Protobuf_VERSION 33.0)
+    set(Protobuf_VERSION 33.2)
     CPMAddPackage(
         NAME protobuf
         VERSION ${Protobuf_VERSION}
@@ -88,6 +88,14 @@ elseif(HPP_PROTO_PROTOC STREQUAL "compile")
     )
     add_executable(protobuf::protoc ALIAS protoc)
     set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
+    # Protobuf's source tree keeps utf8_validity.h under third_party/utf8_range.
+    # Add it to the exported include dirs so dependent targets can compile.
+    if(TARGET libprotobuf)
+        target_include_directories(libprotobuf INTERFACE ${protobuf_SOURCE_DIR}/third_party/utf8_range)
+    endif()
+    if(TARGET libprotobuf-lite)
+        target_include_directories(libprotobuf-lite INTERFACE ${protobuf_SOURCE_DIR}/third_party/utf8_range)
+    endif()
 else()
     message(FATAL_ERROR "HPP_PROTO_PROTOC must be set to 'find' or 'compile'")
 endif()
@@ -109,7 +117,7 @@ if(HPP_PROTO_BENCHMARKS)
     CPMAddPackage(
         NAME benchmark
         GITHUB_REPOSITORY google/benchmark
-        VERSION 1.8.3
+        VERSION 1.9.4
         OPTIONS
         "BENCHMARK_ENABLE_TESTING OFF"
         "BENCHMARK_ENABLE_INSTALL OFF"
