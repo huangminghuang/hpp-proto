@@ -356,10 +356,16 @@ struct to<JSON, hpp::proto::optional_message_view_ref<Type>> {
 
 namespace hpp::proto {
 
+struct proto_json_opts : glz::opts {
+  constexpr proto_json_opts() : glz::opts{} {}
+  constexpr proto_json_opts(glz::opts op) : glz::opts(op) {}
+  bool escape_control_characters = true;
+};
+
 template <auto options>
 struct glz_opts_t {
   using option_type = glz_opts_t<options>;
-  static constexpr glz::opts glz_opts_value = options;
+  static constexpr proto_json_opts glz_opts_value{options};
 };
 
 class message_value_cref;
@@ -391,7 +397,7 @@ constexpr auto get_glz_opts_impl() {
   } else if constexpr (sizeof...(Rest)) {
     return get_glz_opts_impl<Rest...>();
   } else {
-    return glz::opts{};
+    return proto_json_opts{};
   }
 }
 
@@ -400,12 +406,12 @@ constexpr auto get_glz_opts() {
   if constexpr (sizeof...(Context)) {
     return get_glz_opts_impl<Context...>();
   }
-  return glz::opts{};
+  return proto_json_opts{};
 }
 } // namespace detail
 
 template <uint8_t width = 3>
-constexpr auto indent_level = glz_opts_t<glz::opts{glz::opts{.prettify = (width > 0), .indentation_width = width}}>{};
+constexpr auto indent_level = glz_opts_t<glz::opts{.prettify = (width > 0), .indentation_width = width}>{};
 
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
