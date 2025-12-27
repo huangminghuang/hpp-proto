@@ -143,6 +143,10 @@ public:
     }
     [[nodiscard]] bool is_required() const { return has_mask(field_option_bitset_, field_option_mask::MASK_REQUIRED); }
 
+    void set_explicit_presence() {
+      field_option_bitset_ |= mask(field_option_mask::MASK_EXPLICIT_PRESENCE);
+    }
+
   private:
     void setup_presence() {
       if (proto_.label == FieldDescriptorProto::Label::LABEL_OPTIONAL) {
@@ -796,6 +800,9 @@ private:
     descriptor.fields_.reserve(descriptor.proto_.field.size());
     for (auto &proto : descriptor.proto_.field) {
       auto &field = fields_.emplace_back(proto, &descriptor, descriptor.options_);
+      if (descriptor.is_map_entry()) {
+        field.set_explicit_presence();
+      }
       descriptor.fields_.push_back(&field);
       if (proto.oneof_index.has_value()) {
         descriptor.oneofs_[static_cast<std::size_t>(*proto.oneof_index)]->fields_.push_back(&field);

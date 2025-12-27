@@ -91,6 +91,8 @@ public:
   [[nodiscard]] const message_descriptor_t &message_descriptor() const noexcept {
     return *descriptor_->message_field_type_descriptor();
   }
+
+  [[nodiscard]] bool is_present_or_explicit_default() const noexcept { return !empty(); }
 };
 
 static_assert(std::ranges::range<repeated_message_field_cref>);

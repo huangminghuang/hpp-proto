@@ -65,6 +65,17 @@ public:
     }
     return {storage_->of_bytes.content, storage_->of_bytes.size};
   }
+
+  [[nodiscard]] bool is_present_or_explicit_default() const noexcept {
+    if (has_value()) {
+      auto val = std::span{storage_->of_bytes.content, storage_->of_bytes.size};
+      auto default_val = std::as_bytes(std::span{descriptor_->proto().default_value});
+      return descriptor().explicit_presence() || !std::ranges::equal(val, default_val);
+    } else {
+      return false;
+    }
+  }
+
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   template <typename U>

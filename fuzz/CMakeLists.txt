@@ -2,16 +2,17 @@
 set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all)
 set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,address,undefined)
 
+
+unset(FUZZER_SUPPORT CACHE)
 try_compile(FUZZER_SUPPORT
   ${CMAKE_CURRENT_BINARY_DIR}/fuzzer_check
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzzer_check.cpp
-  CMAKE_FLAGS
-  -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} ${HPP_PROTO_FUZZ_COMPILE_OPTIONS}"
-  -DCMAKE_EXE_LINKER_FLAGS="${HPP_PROTO_FUZZ_LINK_OPTIONS}"
+  CMAKE_FLAGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS};"${HPP_PROTO_FUZZ_COMPILE_OPTIONS}"
+  LINK_OPTIONS "${HPP_PROTO_FUZZ_LINK_OPTIONS}"
 )
 
 if(NOT FUZZER_SUPPORT)
-  message(STATUS "Fuzzer sanitizer not supported, skipping fuzzer targets")
+  message(WARNING "Fuzzer sanitizer not supported, skipping fuzzer targets")
   return()
 endif()
 

@@ -516,6 +516,9 @@ public:
     }
     return {message_descriptor(), *(storage_->of_message.content)};
   }
+
+  [[nodiscard]] bool is_present_or_explicit_default() const noexcept { return has_value(); }
+
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
   [[nodiscard]] value_type operator*() const noexcept {
     return {message_descriptor(), *(storage_->of_message.content)};

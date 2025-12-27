@@ -47,6 +47,10 @@ concept non_owning_string_or_bytes = std::same_as<T, std::string_view> || std::s
 
 namespace pb_serializer {
 
+inline bool is_present_or_explicit_default(field_cref f) noexcept {
+  return f.visit([](auto field) { return field.is_present_or_explicit_default(); });
+}
+
 template <concepts::is_basic_in Archive>
 struct field_deserializer {
   uint32_t tag;
@@ -319,7 +323,8 @@ struct size_cache_counter<message_value_cref> {
   static std::size_t count(message_value_cref f) {
     auto fields = f.fields();
     return util::transform_accumulate(fields, [](field_cref nested_field) {
-      return nested_field.has_value() ? nested_field.visit(size_cache_counter<message_value_cref>{}) : 0;
+      return is_present_or_explicit_default(nested_field) ? nested_field.visit(size_cache_counter<message_value_cref>{})
+                                                          : 0;
     });
   }
 
@@ -418,7 +423,7 @@ struct message_size_calculator<message_value_cref> {
 
     uint32_t operator()(message_value_cref msg) {
       return narrow_size(util::transform_accumulate(
-          msg.fields(), [this](field_cref f) { return f.has_value() ? f.visit(*this) : 0; }));
+          msg.fields(), [this](field_cref f) { return is_present_or_explicit_default(f) ? f.visit(*this) : 0; }));
     }
 
     uint32_t operator()(message_field_cref v) {
@@ -559,7 +564,8 @@ struct field_serializer {
   }
 
   bool operator()(message_value_cref item) {
-    return std::ranges::all_of(item.fields(), [&](field_cref f) { return !f.has_value() || f.visit(*this); });
+    return std::ranges::all_of(item.fields(),
+                               [&](field_cref f) { return !is_present_or_explicit_default(f) || f.visit(*this); });
   }
 
   struct message_tag_writer {

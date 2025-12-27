@@ -169,6 +169,16 @@ public:
     }
     return {enum_descriptor(), effective_value};
   }
+
+  [[nodiscard]] bool is_present_or_explicit_default() const noexcept {
+    if (has_value()) {
+      return descriptor().explicit_presence() ||
+             storage_->of_int32.content != std::get<int32_t>(descriptor_->default_value);
+    } else {
+      return false;
+    }
+  }
+
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }

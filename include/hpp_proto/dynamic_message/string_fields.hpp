@@ -65,6 +65,16 @@ public:
     }
     return {storage_->of_string.content, storage_->of_string.size};
   }
+
+  [[nodiscard]] bool is_present_or_explicit_default() const noexcept {
+    if (has_value()) {
+      auto val = std::string_view{storage_->of_string.content, storage_->of_string.size};
+      return descriptor().explicit_presence() || !std::ranges::equal(val, descriptor_->proto().default_value);
+    } else {
+      return false;
+    }
+  }
+
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   template <typename U>

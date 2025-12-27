@@ -85,6 +85,8 @@ public:
     return std::next(access_storage().content, static_cast<std::ptrdiff_t>(access_storage().size));
   }
 
+  [[nodiscard]] bool is_present_or_explicit_default() const noexcept { return !empty(); }
+
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
   template <typename U>

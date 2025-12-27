@@ -113,6 +113,8 @@ public:
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->of_repeated_string.size}; }
   [[nodiscard]] std::string_view *data() const noexcept { return storage_->of_repeated_string.content; }
 
+  [[nodiscard]] bool is_present_or_explicit_default() const noexcept { return !empty(); }
+
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     auto values = content_span();
     assert(index < values.size());

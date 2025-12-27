@@ -70,6 +70,15 @@ public:
     return access_storage().content;
   }
 
+  [[nodiscard]] bool is_present_or_explicit_default() const noexcept {
+    if (has_value()) {
+      return descriptor().explicit_presence() ||
+             access_storage().content != std::get<value_type>(descriptor_->default_value);
+    } else {
+      return false;
+    }
+  }
+
   template <typename U>
   [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
     if constexpr (std::same_as<U, value_type>) {

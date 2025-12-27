@@ -137,6 +137,8 @@ public:
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->of_repeated_int32.size}; }
   [[nodiscard]] const int32_t *data() const noexcept { return storage_->of_repeated_int32.content; }
 
+  [[nodiscard]] bool is_present_or_explicit_default() const noexcept { return !empty(); }
+
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
     return {*descriptor_->enum_field_type_descriptor(),
