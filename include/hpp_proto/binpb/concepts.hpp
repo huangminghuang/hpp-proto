@@ -66,6 +66,9 @@ template <typename T>
 concept string_value_type = std::same_as<T, char> || std::same_as<T, char8_t>;
 
 template <typename T>
+concept char_or_byte = std::same_as<T, char> || std::same_as<T, char8_t> || std::same_as<T, std::byte>; 
+
+template <typename T>
 concept repeated = std::ranges::contiguous_range<T> && !byte_type<typename T::value_type>;
 
 template <typename T>
@@ -109,7 +112,13 @@ template <typename T>
 concept arithmetic = std::is_arithmetic_v<T> || concepts::varint<T>;
 
 template <typename T>
-concept singular = arithmetic<T> || is_enum<T> || basic_string<T> || contiguous_byte_range<T>;
+concept singular = arithmetic<T> || is_enum<T> || std::same_as<T, boolean> || basic_string<T> || contiguous_byte_range<T>;
+
+template <typename T>
+concept maybe_packed_value_type = arithmetic<T> || is_enum<T> || char_or_byte<T> || std::same_as<T, boolean>;
+
+template <typename T>
+concept maybe_packed_type = std::ranges::range<T> && maybe_packed_value_type<std::ranges::range_value_t<T>>;
 
 template <typename T>
 concept is_map_entry = requires {
@@ -194,11 +203,5 @@ concept is_any = requires(T &obj) {
   { obj.value } -> concepts::contiguous_byte_range;
 };
 
-template <typename T>
-concept string_view_or_bytes_view = std::same_as<T, bytes_view> || concepts::basic_string_view<T>;
-
-template <typename T>
-concept arithmetic_pair =
-    is_pair<T> && std::is_arithmetic_v<typename T::first_type> && std::is_arithmetic_v<typename T::second_type>;
 } // namespace concepts
 } // namespace hpp::proto

@@ -56,12 +56,14 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->of_bytes.selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
+  [[nodiscard]] bytes_view default_value() const noexcept {
+    const auto &v = descriptor_->proto().default_value;
+    auto bspan = std::as_bytes(std::span{v.data(), v.size()});
+    return {bspan.data(), bspan.size()};
+  }
   [[nodiscard]] bytes_view value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
-      const auto &default_value = descriptor_->proto().default_value;
-      auto sval = std::span<const char>(default_value.data(), default_value.size());
-      auto bspan = std::as_bytes(sval);
-      return {bspan.data(), bspan.size()};
+      return default_value();
     }
     return {storage_->of_bytes.content, storage_->of_bytes.size};
   }
@@ -158,8 +160,11 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
+  [[nodiscard]] bytes_view default_value() const noexcept { return cref().default_value(); }
   [[nodiscard]] bytes_view value() const noexcept { return cref().value(); }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
+
+  void set_as_default() const noexcept { adopt(default_value()); }
 
   void reset() const noexcept {
     storage_->of_bytes.size = 0;

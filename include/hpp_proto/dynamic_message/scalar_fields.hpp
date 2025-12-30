@@ -63,9 +63,10 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return access_storage().selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
+  [[nodiscard]] value_type default_value() const noexcept { return std::get<value_type>(descriptor_->default_value); }
   [[nodiscard]] value_type value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
-      return std::get<value_type>(descriptor_->default_value);
+      return default_value();
     }
     return access_storage().content;
   }
@@ -162,8 +163,15 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
+  [[nodiscard]] value_type default_value() const noexcept { return cref().default_value(); }
   [[nodiscard]] value_type value() const noexcept { return cref().value(); }
   void reset() noexcept { access_storage().selection = 0; }
+  void set_as_default() const noexcept { set(default_value()); }
+
+  value_type &emplace() const noexcept { // NOLINT(modernize-use-nodiscard)
+    set_as_default();
+    return access_storage().content;
+  }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 

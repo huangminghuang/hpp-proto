@@ -85,6 +85,7 @@ public:
   ~enum_value() noexcept = default;
 
   [[nodiscard]] explicit operator int32_t() const noexcept { return number_; }
+  [[nodiscard]] operator enum_number() const noexcept { return enum_number{number_}; } // NOLINT
 
   [[nodiscard]] int32_t number() const noexcept { return number_; }
   /**
@@ -119,6 +120,7 @@ public:
   ~enum_value_mref() noexcept = default;
 
   [[nodiscard]] operator enum_value() const noexcept { return {*descriptor_, *number_}; } // NOLINT
+  [[nodiscard]] operator enum_number() const noexcept { return enum_number{*number_}; } // NOLINT
 
   void set(int32_t number) const noexcept { *number_ = number; }
 
@@ -162,12 +164,15 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->of_int32.selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
+  [[nodiscard]] enum_value default_value() const noexcept {
+    return { enum_descriptor(), std::get<int32_t>(descriptor_->default_value) };
+  }
+
   [[nodiscard]] enum_value value() const noexcept {
-    int32_t effective_value = storage_->of_int32.content;
     if (descriptor().explicit_presence() && !has_value()) {
-      effective_value = std::get<int32_t>(descriptor_->default_value);
+      return default_value();
     }
-    return {enum_descriptor(), effective_value};
+    return {enum_descriptor(), storage_->of_int32.content};
   }
 
   [[nodiscard]] bool is_present_or_explicit_default() const noexcept {
@@ -257,6 +262,7 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
+  [[nodiscard]] enum_value default_value() const noexcept { return cref().default_value(); }
   [[nodiscard]] enum_value_mref value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
       storage_->of_int32.content = std::get<int32_t>(descriptor_->default_value);
@@ -264,11 +270,6 @@ public:
     return {*descriptor_->enum_field_type_descriptor(), storage_->of_int32.content};
   }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
-
-  [[nodiscard]] enum_value_mref emplace() const noexcept {
-    storage_->of_int32.selection = descriptor_->oneof_ordinal;
-    return {*descriptor_->enum_field_type_descriptor(), storage_->of_int32.content};
-  }
 
   void reset() const noexcept { storage_->of_int32.selection = 0; }
 
@@ -299,6 +300,13 @@ public:
 
     set(enum_number{*pval});
     return {};
+  }
+
+  void set_as_default() const noexcept { set(enum_number{default_value().number()}); }
+
+  enum_value_mref emplace() const noexcept { // NOLINT(modernize-use-nodiscard)
+    set_as_default();
+    return {*descriptor_->enum_field_type_descriptor(), storage_->of_int32.content};
   }
 
 private:

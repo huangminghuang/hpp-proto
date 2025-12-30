@@ -27,6 +27,10 @@ std::vector<char> round_trip_test(const T &in_message, T &&out_message) {
   std::vector<char> buffer1;
   std::vector<char> buffer2;
   assert(hpp::proto::write_binpb(in_message, buffer1).ok());
+  // std::string dyn_json;
+  // assert(hpp::proto::write_json(in_message, dyn_json).ok());
+  // std::cout << "in_message: " << dyn_json << "\n";
+  
   // Skip comparing the serialized buffer to the raw input because unknown fields are dropped on parse.
   // Skip structural comparison of messages; NaN payloads make equality fail even when bitwise identical.
   std::pmr::monotonic_buffer_resource mr;
@@ -35,6 +39,9 @@ std::vector<char> round_trip_test(const T &in_message, T &&out_message) {
   } else {
     assert(hpp::proto::read_binpb(out_message, buffer1).ok());
   }
+
+  // assert(hpp::proto::write_json(out_message, dyn_json).ok());
+  // std::cout << "out_message: " << dyn_json << "\n";
   assert(hpp::proto::write_binpb(out_message, buffer2).ok());
   assert(std::ranges::equal(buffer1, buffer2));
   return buffer1;

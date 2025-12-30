@@ -58,6 +58,7 @@ public:
   [[nodiscard]] bool has_value() const noexcept { return storage_->of_string.selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] std::size_t size() const noexcept { return storage_->of_string.size; }
+  [[nodiscard]] std::string_view default_value() const noexcept { return descriptor_->proto().default_value; }
 
   [[nodiscard]] std::string_view value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
@@ -157,8 +158,11 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
+  [[nodiscard]] std::string_view default_value() const noexcept { return cref().default_value(); }
   [[nodiscard]] std::string_view value() const noexcept { return cref().value(); }
   [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
+
+  void set_as_default() const noexcept { adopt(default_value()); }
 
   void reset() const noexcept {
     storage_->of_string.size = 0;

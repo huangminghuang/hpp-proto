@@ -191,7 +191,7 @@ struct map_entry {
   struct mutable_type {
     typename serialize_type<KeyType>::type key = {};
     typename serialize_type<MappedType>::type value = {};
-    constexpr static bool allow_inline_visit_members_lambda = true;
+    constexpr static bool is_map_entry() { return true; }
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
@@ -217,7 +217,7 @@ struct map_entry {
   struct read_only_type {
     typename serialize_type<KeyType>::read_type key;
     typename serialize_type<MappedType>::read_type value;
-    constexpr static bool allow_inline_visit_members_lambda = true;
+    constexpr static bool is_map_entry() { return true; }
 
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     constexpr read_only_type(auto &k, auto &v)

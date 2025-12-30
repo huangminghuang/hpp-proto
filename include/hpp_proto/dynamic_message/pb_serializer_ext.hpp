@@ -93,10 +93,15 @@ struct field_deserializer {
   }
 
   status operator()(enum_field_mref mref) {
-    auto ec = deserialize(mref.emplace(), mref.descriptor());
-    if (ec == std::errc::result_out_of_range) [[unlikely]] {
-      mref.reset();
-      return std::errc{};
+    int32_t number = 0;
+    enum_value_mref tmp{mref.enum_descriptor(), number};
+    auto ec = deserialize(tmp, mref.descriptor());
+    if (ec.ok()) [[likely]] {
+      mref.set(tmp);
+      return {};
+    } else if (ec == std::errc::result_out_of_range) {
+      // out of range enum should be placed in the unknown fields
+      return {};
     }
     return ec;
   }
@@ -170,7 +175,19 @@ struct field_deserializer {
 
   status deserialize(message_value_mref v, const field_descriptor_t &desc) {
     if (!desc.is_delimited() && tag_type(tag) == wire_type::length_delimited) [[likely]] {
-      return deserialize_sized(v, archive);
+      auto r = deserialize_sized(v, archive);
+      if (v.descriptor().is_map_entry()) {
+        // make sure the mapped field is set even it is not present
+        auto mapped_field = v.fields()[1];
+        mapped_field.visit([](auto f) {
+          if constexpr (requires { f.set_as_default(); }) {
+            if (!f.has_value()) {
+              f.set_as_default();
+            }
+          }
+        });
+      }
+      return r;
     } else if (desc.is_delimited() && tag_type(tag) == wire_type::sgroup) {
       return deserialize_group(tag_number(tag), v, archive);
     } else {
@@ -262,7 +279,7 @@ struct field_deserializer {
   status operator()(repeated_scalar_field_mref<T, Kind> mref) {
     if (tag_type(tag) == tag_type<T>()) {
       return deserialize_unpacked_repeated(mref);
-    } else if (mref.descriptor().is_packed() && tag_type(tag) == wire_type::length_delimited) {
+    } else if (tag_type(tag) == wire_type::length_delimited) {
       return deserialize_packed_repeated<T>(mref);
     } else {
       return std::errc::bad_message;
@@ -272,11 +289,17 @@ struct field_deserializer {
   status operator()(repeated_enum_field_mref mref) {
     if (tag_type(tag) == wire_type::varint) {
       return deserialize_unpacked_repeated(mref);
-    } else if (mref.descriptor().is_packed() && tag_type(tag) == wire_type::length_delimited) {
-      std::span<int32_t> content;
+    } else if (tag_type(tag) == wire_type::length_delimited) {
+      auto content = mref.numbers();
       pb_context ctx{alloc_from{mref.memory_resource()}};
       if (auto r = deserialize_packed_repeated<vint64_t>(detail::as_modifiable(ctx, content)); !r.ok()) {
         return r;
+      }
+      if (mref.enum_descriptor().is_closed()) {
+        // packed enum can be closed
+        auto [ret, _] = std::ranges::remove_if(
+            content, [desc = &mref.enum_descriptor()](auto v) { return !desc->valid_enum_value(v); });
+        content = {content.begin(), ret};
       }
       mref.adopt(content);
       return {};

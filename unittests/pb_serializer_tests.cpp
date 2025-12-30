@@ -143,24 +143,33 @@ auto pb_meta(const example_optional_type &)
     -> std::tuple<
         hpp::proto::field_meta<1, &example_optional_type::i, field_option::explicit_presence, hpp::proto::vint64_t>>;
 
-enum class test_mode : uint8_t { decode_encode, decode_only };
-
 template <typename T>
-void verify(auto encoded_data, const T &expected_value, test_mode mode = test_mode::decode_encode) {
+void expect_roundtrip_ok(auto encoded_data, const T &expected_value) {
   std::remove_cvref_t<T> value;
 
   std::pmr::monotonic_buffer_resource mr;
   ut::expect(hpp::proto::read_binpb(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
   ut::expect(ut::fatal(value == expected_value));
 
-  if (mode == test_mode::decode_only) {
-    return;
-  }
-
   std::vector<char> new_data;
   ut::expect(hpp::proto::write_binpb(value, new_data).ok());
-
   ut::expect(std::ranges::equal(encoded_data, new_data));
+}
+
+template <typename T>
+void expect_read_ok(auto encoded_data, const T &expected_value) {
+  std::remove_cvref_t<T> value;
+
+  std::pmr::monotonic_buffer_resource mr;
+  ut::expect(hpp::proto::read_binpb(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
+  ut::expect(ut::fatal(value == expected_value));
+}
+
+template <typename T>
+void expect_read_fail(auto encoded_data, const T &) {
+  std::remove_cvref_t<T> value;
+  std::pmr::monotonic_buffer_resource mr;
+  ut::expect(!hpp::proto::read_binpb(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
 }
 
 struct bool_example {
@@ -171,12 +180,12 @@ struct bool_example {
 auto pb_meta(const bool_example &) -> std::tuple<hpp::proto::field_meta<1, &bool_example::b, field_option::none>>;
 
 const ut::suite test_bool = [] {
-  "bool"_test = [] { verify("\x08\x01"sv, bool_example{.b = true}); };
+  "bool"_test = [] { expect_roundtrip_ok("\x08\x01"sv, bool_example{.b = true}); };
 
   "invalid_bool"_test = [] {
     bool_example value;
-    ut::expect(!hpp::proto::read_binpb(value, "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
-    ut::expect(!hpp::proto::read_binpb(value, "\x09\x01"sv).ok());
+    expect_read_fail("\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv, value);
+    expect_read_fail("\x09\x01"sv, value);
   };
 };
 
@@ -230,69 +239,70 @@ const ut::suite test_repeated_vint = [] {
   "invalid_repeated_sint32"_test = [] {
     repeated_sint32<> value;
     // last element unterminated
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x03\xa8\x96\xb1"sv).ok());
-    ut::expect(
-        !hpp::proto::read_binpb(value, "\x0a\x10\x08\x16\x21\x30\x40\x50\x60\x70\x80\x90\xa1\xb2\xc3\xd4\xe5\xf6"sv)
-             .ok());
+    expect_read_fail("\x0a\x03\xa8\x96\xb1"sv, value);
+    expect_read_fail("\x0a\x10\x08\x16\x21\x30\x40\x50\x60\x70\x80\x90\xa1\xb2\xc3\xd4\xe5\xf6"sv, value);
 
     // overlong element in the middle
-    ut::expect(
-        !hpp::proto::read_binpb(value, "\x0a\x10\x08\xF6\xF1\xF0\xF0\xF0\xF0\xF0\x80\x90\xa1\xb2\xc3\xd4\xe5\x06"sv)
-             .ok());
+    expect_read_fail("\x0a\x10\x08\xF6\xF1\xF0\xF0\xF0\xF0\xF0\x80\x90\xa1\xb2\xc3\xd4\xe5\x06"sv, value);
     // overlong element in the middle
-    ut::expect(
-        !hpp::proto::read_binpb(value, "\x0a\x11\x08\x16\x21\x30\x40\x50\x80\xF0\x80\x90\xa1\xb2\xc3\xd4\xe5\x85\x06"sv)
-             .ok());
+    expect_read_fail("\x0a\x11\x08\x16\x21\x30\x40\x50\x80\xF0\x80\x90\xa1\xb2\xc3\xd4\xe5\x85\x06"sv, value);
     // zero length
     ut::expect(hpp::proto::read_binpb(value, "\x0a\x00"sv).ok());
     // invalid length
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv).ok());
+    expect_read_fail("\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, value);
     // skip invalid length
-    ut::expect(!hpp::proto::read_binpb(value, "\x1a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv).ok());
+    expect_read_fail("\x1a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, value);
 
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x00\xa8\x96\x01"sv).ok());
+    expect_read_fail("\x0a\x00\xa8\x96\x01"sv, value);
     // encoded size longer than available data
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x04\xa8\x96\x01"sv).ok());
+    expect_read_fail("\x0a\x04\xa8\x96\x01"sv, value);
     // invalid tag
-    ut::expect(!hpp::proto::read_binpb(value, "\x8a\x84\xa8\x96\x81\x0a\x84\xa8\x96\x01"sv).ok());
+    expect_read_fail("\x8a\x84\xa8\x96\x81\x0a\x84\xa8\x96\x01"sv, value);
   };
 
   "invalid_repeated_sint32_unpacked"_test = [] {
     repeated_sint32_unpacked<> value;
     // invalid element
-    ut::expect(!hpp::proto::read_binpb(value, "\x08\x02\x08\x94\x88\xa6\xb8\xc8\xd8\xe0"sv).ok());
+    expect_read_fail("\x08\x02\x08\x94\x88\xa6\xb8\xc8\xd8\xe0"sv, value);
     // wrong tag type
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x02"sv).ok());
+    expect_read_fail("\x0a\x02"sv, value);
   };
 
   "overlong integer"_test = [] {
     repeated_uint64<> value;
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x0d\x01\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x02"sv).ok());
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x0d\x01\x02\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10"sv).ok());
+    expect_read_fail("\x0a\x0d\x01\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x02"sv, value);
+    expect_read_fail("\x0a\x0d\x01\x02\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10"sv, value);
   };
 
   "normal_cases"_test = []<class Traits> {
     "repeated_sint32_case"_test = [] {
-      verify("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv,
-             repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{0, 1, 2, 3, 4, -1, -2, -3, -4}});
+      expect_roundtrip_ok(
+          "\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv,
+          repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{0, 1, 2, 3, 4, -1, -2, -3, -4}});
     };
 
     "repeated_sint32_unpacked_case"_test = [] {
-      verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-             repeated_sint32_unpacked<Traits>{
-                 .integers = std::initializer_list<hpp::proto::vsint32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+      expect_roundtrip_ok("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
+                          repeated_sint32_unpacked<Traits>{
+                              .integers = std::initializer_list<hpp::proto::vsint32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
     };
 
     "repeated_sint32_unpacked_decode"_test = [] {
-      verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-             repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}},
-             test_mode::decode_only);
+      expect_read_ok(
+          "\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
+          repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
     };
 
     "repeated_sint32_unpacked_explicit_type_case"_test = [] {
-      verify("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-             repeated_sint32_unpacked_explicit_type<Traits>{
-                 .integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+      expect_roundtrip_ok("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
+                          repeated_sint32_unpacked_explicit_type<Traits>{
+                              .integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+
+      "repeated_sint32_append"_test = [] {
+        expect_read_ok(
+            "\x0a\x05\x00\x02\x04\x06\x08\x0a\x04\x01\x03\x05\x07"sv,
+            repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{0, 1, 2, 3, 4, -1, -2, -3, -4}});
+      };
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 };
@@ -308,12 +318,11 @@ auto pb_meta(const non_owing_nested_example &)
 
 const ut::suite test_non_owning_nested_example = [] {
   example const ex{.i = 150};
-  verify("\x0a\x03\x08\x96\x01"sv, non_owing_nested_example{.nested = &ex});
+  expect_roundtrip_ok("\x0a\x03\x08\x96\x01"sv, non_owing_nested_example{.nested = &ex});
 
-  std::pmr::monotonic_buffer_resource mr;
   non_owing_nested_example value;
   // invalid tag type
-  ut::expect(!hpp::proto::read_binpb(value, "\x08\x03\x08\x96\x01"sv, hpp::proto::alloc_from(mr)).ok());
+  expect_read_fail("\x08\x03\x08\x96\x01"sv, value);
 };
 
 template <typename Traits = hpp::proto::default_traits>
@@ -363,8 +372,8 @@ const ut::suite test_repeated_fixed = [] {
   using namespace boost::ut::operators;
   "invalid_repeated_fixed"_test = [] {
     repeated_fixed<> value;
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x08\x08\x96\x01"sv).ok());
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x03\x08\x96\x01"sv).ok());
+    expect_read_fail("\x0a\x08\x08\x96\x01"sv, value);
+    expect_read_fail("\x0a\x03\x08\x96\x01"sv, value);
   };
 
   "zero_length_repeated_fixed"_test = [] {
@@ -374,37 +383,37 @@ const ut::suite test_repeated_fixed = [] {
 
   "normal_cases"_test = []<class Traits> {
     "repeated_fixed_case"_test = [] {
-      verify(
+      expect_roundtrip_ok(
           "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
           repeated_fixed<Traits>{{1, 2, 3}});
     };
 
     "repeated_fixed_explicit_type_case"_test = [] {
-      verify(
+      expect_roundtrip_ok(
           "\x0a\x18\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00"sv,
           repeated_fixed_explicit_type<Traits>{{1, 2, 3}});
     };
 
     "repeated_fixed_unpacked_case"_test = [] {
-      verify(
+      expect_roundtrip_ok(
           "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
           repeated_fixed_unpacked<Traits>{{1, 2, 3}});
     };
 
     "repeated_fixed_unpacked_decode"_test = [] {
-      verify(
+      expect_read_ok(
           "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
-          repeated_fixed<Traits>{{1, 2, 3}}, test_mode::decode_only);
+          repeated_fixed<Traits>{{1, 2, 3}});
     };
 
     "repeated_fixed_unpacked_explicit_type_decode"_test = [] {
-      verify(
+      expect_read_ok(
           "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
-          repeated_fixed_explicit_type<Traits>{{1, 2, 3}}, test_mode::decode_only);
+          repeated_fixed_explicit_type<Traits>{{1, 2, 3}});
     };
 
     "repeated_fixed_unpacked_explicit_type_case"_test = [] {
-      verify(
+      expect_roundtrip_ok(
           "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
           repeated_fixed_unpacked_explicit_type<Traits>{{1, 2, 3}});
     };
@@ -437,37 +446,36 @@ const ut::suite test_repeated_bool = [] {
   using namespace boost::ut::operators;
 
   "normal_cases"_test = []<class Traits>() {
-    "repeated_bool_case"_test = [] { verify("\x0a\x03\x01\x00\x01"sv, repeated_bool<Traits>{{true, false, true}}); };
+    "repeated_bool_case"_test = [] {
+      expect_roundtrip_ok("\x0a\x03\x01\x00\x01"sv, repeated_bool<Traits>{{true, false, true}});
+    };
 
     "repeated packed overlong bool"_test = [] {
-      std::pmr::monotonic_buffer_resource mr;
-      repeated_bool<Traits> value;
-      ut::expect(hpp::proto::read_binpb(value, "\x0a\x0d\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01"sv,
-                                        hpp::proto::alloc_from{mr})
-                     .ok());
-      ut::expect(value ==
-                 repeated_bool<Traits>{{true, true, true, true, true, true, true, true, true, true, true, true}});
+      expect_read_ok("\x0a\x0d\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01"sv,
+                     repeated_bool<Traits>{{true, true, true, true, true, true, true, true, true, true, true, true}});
     };
 
     "repeated_bool_unpacked_case"_test = [] {
-      verify("\x08\x01\x08\x00\x08\x01"sv, repeated_bool_unpacked<Traits>{{true, false, true}});
+      expect_roundtrip_ok("\x08\x01\x08\x00\x08\x01"sv, repeated_bool_unpacked<Traits>{{true, false, true}});
     };
 
     "repeated_overlong_bool_unpacked"_test = [] {
-      std::pmr::monotonic_buffer_resource mr;
-      repeated_bool_unpacked<Traits> value;
-      ut::expect(
-          hpp::proto::read_binpb(value, "\x08\x01\x08\x00\x08\x01\x08\x81\x00"sv, hpp::proto::alloc_from{mr}).ok());
-      ut::expect(value == repeated_bool_unpacked<Traits>{{true, false, true, true}});
+      expect_read_ok("\x08\x01\x08\x00\x08\x01\x08\x81\x00"sv,
+                     repeated_bool_unpacked<Traits>{{true, false, true, true}});
+    };
+
+    "repeated packed duplicated"_test = [] {
+      expect_read_ok("\x0a\x02\x01\x00\x0a\x02\x01\x00"sv, repeated_bool<Traits>{{true, false, true, false}});
+    };
+
+    "repeated packed + repeated unpacked"_test = [] {
+      expect_read_ok("\x0a\x02\x01\x00\x08\x01\x08\x00"sv, repeated_bool<Traits>{{true, false, true, false}});
     };
 
     "invalid_repeated_bool"_test = [] {
-      std::pmr::monotonic_buffer_resource mr;
       repeated_bool<Traits> value;
-      ut::expect(!hpp::proto::read_binpb(value, "\x0a\x03\x01\x00\x81"sv, hpp::proto::alloc_from{mr}).ok());
-      ut::expect(!hpp::proto::read_binpb(value, "\x0a\x0e\x01\x80\x81\x80\x81\x80\x81\x80\x81\x80\x81\x80\x81\x00"sv,
-                                         hpp::proto::alloc_from{mr})
-                      .ok());
+      expect_read_fail("\x0a\x03\x01\x00\x81"sv, value);
+      expect_read_fail("\x0a\x0e\x01\x80\x81\x80\x81\x80\x81\x80\x81\x80\x81\x80\x81\x00"sv, value);
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 };
@@ -518,27 +526,37 @@ const ut::suite test_enums = [] {
   using namespace boost::ut::operators;
   using enum ForeignEnumEx;
   "enum_message"_test = [] {
-    verify("\x10\x01"sv, open_enum_message<hpp::proto::default_traits>{.foreign_enum_field = FOO});
+    expect_roundtrip_ok("\x10\x01"sv, open_enum_message<hpp::proto::default_traits>{.foreign_enum_field = FOO});
   };
 
   "invalid_enum_message"_test = [] {
     open_enum_message<hpp::proto::default_traits> value = {};
-    ut::expect(!hpp::proto::read_binpb(value, "\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
+    expect_read_fail("\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv, value);
     // invalid tag type
-    ut::expect(!hpp::proto::read_binpb(value, "\x11\x01"sv).ok());
+    expect_read_fail("\x11\x01"sv, value);
   };
 
   "repeated_open_enum"_test = []<class Traits> {
     "repeated_enum_packed"_test = [] {
-      verify(
+      expect_roundtrip_ok(
           "\x1a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
           open_enum_message<Traits>{.packed_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
     };
 
     "repeated_enum_unpacked"_test = [] {
-      verify("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
-             open_enum_message<Traits>{.expanded_repeated_field =
-                                           std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
+      expect_roundtrip_ok("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
+                          open_enum_message<Traits>{.expanded_repeated_field =
+                                                        std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
+    };
+
+    "repeated_enum packed + repeated_enum unpacked"_test = [] {
+      expect_read_ok("\x1a\x02\x01\x02\x18\x03"sv, open_enum_message<Traits>{.packed_repeated_field =
+                                                        std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ}});
+    };
+
+    "repeated_enum unpacked + repeated_enum packed"_test = [] {
+      expect_read_ok("\x08\x01\x08\x02\x0a\x01\x03"sv, open_enum_message<Traits>{.expanded_repeated_field =
+                                                        std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ}});
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 
@@ -603,16 +621,16 @@ const ut::suite test_repeated_example = [] {
 
   "repeated_message_examples_case"_test = [&]<class Traits> {
     repeated_message_examples<Traits> const expected{.examples = {{1}, {2}, {3}, {4}, {-1}, {-2}, {-3}, {-4}}};
-    verify(encoded, expected);
+    expect_roundtrip_ok(encoded, expected);
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 
   "invalid_repeated_example"_test = [] {
     repeated_message_examples<hpp::proto::default_traits> value;
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x02\x08\x01\x0a\x02\x08\xa2"sv).ok());
+    expect_read_fail("\x0a\x02\x08\x01\x0a\x02\x08\xa2"sv, value);
     // invalid message tag type
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x02\x09\x01"sv).ok());
+    expect_read_fail("\x0a\x02\x09\x01"sv, value);
     // invalid length delimited tag type
-    ut::expect(!hpp::proto::read_binpb(value, "\x0b\x02\x08\x01"sv).ok());
+    expect_read_fail("\x0b\x02\x08\x01"sv, value);
   };
 };
 
@@ -632,12 +650,12 @@ struct nested_group {
 auto pb_meta(const nested_group &) -> std::tuple<hpp::proto::field_meta<1, &nested_group::nested, field_option::group>>;
 
 const ut::suite test_nested_group = [] {
-  "nested_group_case"_test = [] { verify("\x0b\x08\x01\x0c"sv, nested_group{.nested = {.i = 1}}); };
+  "nested_group_case"_test = [] { expect_roundtrip_ok("\x0b\x08\x01\x0c"sv, nested_group{.nested = {.i = 1}}); };
   nested_group value;
   // invalid group start tag type
-  ut::expect(!::hpp::proto::read_binpb(value, "\x0a\x08\x01\x0c"sv).ok());
+  expect_read_fail("\x0a\x08\x01\x0c"sv, value);
   // invalid group end tag type
-  ut::expect(!::hpp::proto::read_binpb(value, "\x0b\x08\x01\x0a"sv).ok());
+  expect_read_fail("\x0b\x08\x01\x0a"sv, value);
 };
 
 struct repeated_group {
@@ -653,24 +671,24 @@ const ut::suite test_repeated_group = [] {
 
   "repeated_group_case"_test = [&] {
     const repeated_group expected{.repeatedgroup = {{1}, {2}}};
-    verify(encoded, expected);
+    expect_roundtrip_ok(encoded, expected);
   };
 
   "invalid_repeated_group"_test = [] {
     repeated_group value;
-    ut::expect(!hpp::proto::read_binpb(value, "\x0b\x08\x01\x0c\x0b"sv).ok());
+    expect_read_fail("\x0b\x08\x01\x0c\x0b"sv, value);
     // invalid tag
-    ut::expect(!hpp::proto::read_binpb(value, "\x1f\x08\x01\x0c\x0b"sv).ok());
+    expect_read_fail("\x1f\x08\x01\x0c\x0b"sv, value);
     // group with zero tag field
-    ut::expect(!hpp::proto::read_binpb(value, "\x0b\x00\x01\x1c"sv).ok());
+    expect_read_fail("\x0b\x00\x01\x1c"sv, value);
     // group with incomplete field
-    ut::expect(!hpp::proto::read_binpb(value, "\x0b\x08"sv).ok());
+    expect_read_fail("\x0b\x08"sv, value);
     // skip group with zero tag field
-    ut::expect(!hpp::proto::read_binpb(value, "\x1b\x00\x01\x1c"sv).ok());
+    expect_read_fail("\x1b\x00\x01\x1c"sv, value);
     // skip group with incomplete field
-    ut::expect(!hpp::proto::read_binpb(value, "\x1b\x08"sv).ok());
+    expect_read_fail("\x1b\x08"sv, value);
     // skip group with invalid field
-    ut::expect(!hpp::proto::read_binpb(value, "\x1b\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
+    expect_read_fail("\x1b\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv, value);
   };
 };
 
@@ -738,28 +756,28 @@ const ut::suite test_map_example = [] {
   auto encoded = "\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"sv;
 
   "map_example"_test = [&] {
-    verify(encoded, map_example{{{1, color_t::red}, {2, color_t::blue}, {3, color_t::green}}});
+    expect_roundtrip_ok(encoded, map_example{{{1, color_t::red}, {2, color_t::blue}, {3, color_t::green}}});
   };
 
   "flat_map_example"_test = [&] {
-    verify(encoded, flat_map_example{{{1, color_t::red}, {2, color_t::blue}, {3, color_t::green}}});
+    expect_roundtrip_ok(encoded, flat_map_example{{{1, color_t::red}, {2, color_t::blue}, {3, color_t::green}}});
   };
 
   "sequential_map_example"_test = [&] {
-    verify(encoded, sequential_map_example{{{1, color_t::red}, {2, color_t::blue}, {3, color_t::green}}});
+    expect_roundtrip_ok(encoded, sequential_map_example{{{1, color_t::red}, {2, color_t::blue}, {3, color_t::green}}});
   };
 
   "non_owning_map_example"_test = [&] {
     using value_type = std::pair<int32_t, color_t>;
     std::array<value_type, 3> x = {value_type{1, color_t::red}, value_type{2, color_t::blue},
                                    value_type{3, color_t::green}};
-    verify(encoded, non_owning_map_example{x});
+    expect_roundtrip_ok(encoded, non_owning_map_example{x});
   };
 
   "string_key_map_example"_test = [&] {
     string_key_map_example const expected{
         .dict = {{"red", color_t::red}, {"blue", color_t::blue}, {"green", color_t::green}}};
-    verify(
+    expect_roundtrip_ok(
         "\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00"sv,
         expected);
     string_key_map_example value{.dict = {{"\xc0\xdf", color_t::red}}};
@@ -785,15 +803,30 @@ const ut::suite test_map_example = [] {
 
   "invalid_map_entry"_test = [] {
     map_example value;
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x04\x08\x01\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv).ok());
+    expect_read_fail("\x0a\x04\x08\x01\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv, value);
+
+    // no key and mapped
+    expect_read_fail("\x0a\x00"sv, value);
+    // no key only
+    expect_read_fail("\x0a\x02\x10\x01"sv, value);
+
+    // has key only
+    value.dict[1] = color_t::red;
+    expect_read_ok("\x0a\x02\x08\x01"sv, value);
   };
 
   "invalid_non_owning_map_entry"_test = [] {
     non_owning_map_example value;
-    std::pmr::monotonic_buffer_resource mr;
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x04\x08\x01\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv,
-                                       hpp::proto::alloc_from(mr))
-                    .ok());
+    expect_read_fail("\x0a\x04\x08\x01\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv, value);
+
+    // no key and mapped
+    expect_read_fail("\x0a\x00"sv, value);
+    // no key only
+    expect_read_fail("\x0a\x02\x10\x01"sv, value);
+    // has key only
+    std::array<std::pair<int32_t, color_t>, 1> dict = {std::pair{1, color_t::red}};
+    value.dict = dict;
+    expect_read_ok("\x0a\x02\x08\x01"sv, value);
   };
 };
 
@@ -820,15 +853,21 @@ auto pb_meta(const string_required &)
 
 const ut::suite test_string_example = [] {
   using namespace boost::ut::operators;
-  "string_required"_test = [] { verify("\x0a\x00"sv, string_required{}); };
+  "string_required"_test = [] { expect_roundtrip_ok("\x0a\x00"sv, string_required{}); };
   "string"_test = []<class Traits> {
-    "empty_string_feild"_test = [] { verify(""sv, string_example<Traits>{}); };
-    "string_field"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, string_example<Traits>{.field = "test"}); };
+    "empty_string_feild"_test = [] { expect_roundtrip_ok(""sv, string_example<Traits>{}); };
+    "string_field"_test = [] {
+      expect_roundtrip_ok("\x0a\x04\x74\x65\x73\x74"sv, string_example<Traits>{.field = "test"});
+    };
 
     "optional_string_field"_test = [] {
       string_example<Traits> const v;
       ut::expect(v.optional_field.value() == "test");
-      verify("\x12\x04\x74\x65\x73\x74"sv, string_example<Traits>{.optional_field = "test"});
+      expect_roundtrip_ok("\x12\x04\x74\x65\x73\x74"sv, string_example<Traits>{.optional_field = "test"});
+    };
+
+    "string_field_override"_test = [] {
+      expect_read_ok("\x0a\x04\x74\x65\x73\x74\x0a\x01\x61"sv, string_example<Traits>{.field = "a"});
     };
 
     "invalid_utf8"_test = [] {
@@ -838,13 +877,10 @@ const ut::suite test_string_example = [] {
 
     "invalid_string"_test = [] {
       string_example<Traits> v;
-      std::pmr::monotonic_buffer_resource mr;
       // invalid_string_length
-      ut::expect(!hpp::proto::read_binpb(v, "\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x74\x65"sv,
-                                         hpp::proto::alloc_from(mr))
-                      .ok());
+      expect_read_fail("\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x74\x65"sv, v);
       // invalid tag type
-      ut::expect(!hpp::proto::read_binpb(v, "\x11\x04\x74\x65\x73\x74"sv, hpp::proto::alloc_from(mr)).ok());
+      expect_read_fail("\x11\x04\x74\x65\x73\x74"sv, v);
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 };
@@ -871,19 +907,19 @@ auto pb_meta(const bytes_explicit_presence &)
 
 const ut::suite test_bytes = [] {
   using namespace boost::ut::operators;
-  const auto verified_value =
-      std::initializer_list<std::byte>{std::byte{'t'}, std::byte{'e'}, std::byte{'s'}, std::byte{'t'}};
-  static_assert(std::is_convertible_v<std::vector<std::byte>, hpp::proto::equality_comparable_span<const std::byte>>);
+  const auto verified_value = "test"_bytes;
 
   "bytes_explicit_presence"_test = [&] {
-    verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_explicit_presence{.value = verified_value});
+    expect_roundtrip_ok("\x0a\x04\x74\x65\x73\x74"sv, bytes_explicit_presence{.value = verified_value});
   };
 
   "bytes_example_case"_test = [&]<class Traits>() {
-    "field"_test = [&] { verify("\x0a\x04\x74\x65\x73\x74"sv, bytes_example<Traits>{.field = verified_value}); };
+    "field"_test = [&] {
+      expect_roundtrip_ok("\x0a\x04\x74\x65\x73\x74"sv, bytes_example<Traits>{.field = verified_value});
+    };
 
     "optional_field"_test = [&] {
-      verify("\x12\x04\x74\x65\x73\x74"sv, bytes_example<Traits>{.optional_field = verified_value});
+      expect_roundtrip_ok("\x12\x04\x74\x65\x73\x74"sv, bytes_example<Traits>{.optional_field = verified_value});
     };
 
     bytes_example<Traits> const v;
@@ -955,7 +991,7 @@ const ut::suite test_segmented_byte_range = [] {
     std::vector<char> encoded;
     ut::expect(hpp::proto::write_binpb(value, encoded).ok());
 
-    verify(encoded, value);
+    expect_roundtrip_ok(encoded, value);
     verify_segmented_input(encoded, value, {90, 10, 70});
   };
 
@@ -964,16 +1000,12 @@ const ut::suite test_segmented_byte_range = [] {
 
     using namespace std::string_literals;
     // invalid int32 in the middle
-    ut::expect(
-        !hpp::proto::read_binpb(
-             value, split("\x0a\x13\x01\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x01\x01\x01\x81\x81\x81\x00"s, 18))
-             .ok());
+    expect_read_fail(split("\x0a\x13\x01\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x01\x01\x01\x81\x81\x81\x00"s, 18),
+                     value);
 
     // no valid int32 in slope area
-    ut::expect(
-        !hpp::proto::read_binpb(
-             value, split("\x0a\x13\x81\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x00"s, 18))
-             .ok());
+    expect_read_fail(split("\x0a\x13\x81\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x00"s, 18),
+                     value);
   };
 
   "packed_sint32_with_segmented_input"_test = [] {
@@ -984,39 +1016,31 @@ const ut::suite test_segmented_byte_range = [] {
     std::vector<char> encoded;
     ut::expect(hpp::proto::write_binpb(value, encoded).ok());
 
-    verify(encoded, value);
+    expect_roundtrip_ok(encoded, value);
     const int len = static_cast<int>(encoded.size());
     const int s = (len - 10) / 2;
     verify_segmented_input(encoded, value, {s, 10, len - 10 - s});
   };
 
   "packed_overlong_bool_with_segmented_input"_test = [] {
-    repeated_bool<> value;
     auto encoded = "\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x01"sv;
-    ut::expect(hpp::proto::read_binpb(value, split(encoded, 18)).ok());
-    auto expected_value =
-        repeated_bool{{true, true, false, true, true, true, true, true, true, true, true, true, true, true}};
-    ut::expect(value == expected_value);
+    expect_read_ok(split(encoded, 18), repeated_bool{{true, true, false, true, true, true, true, true, true, true, true,
+                                                      true, true, true}});
   };
 
   "invalid_packed_bool_with_segmented_input"_test = [] {
     repeated_bool<> value;
     using namespace std::string_literals;
     // non-terminated packed bool
-    ut::expect(
-        !hpp::proto::read_binpb(
-             value, split("\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x81"s, 18))
-             .ok());
+    expect_read_fail(split("\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x81"s, 18),
+                     value);
+
     // invalid bool in the middle
-    ut::expect(
-        !hpp::proto::read_binpb(
-             value, split("\x0a\x13\x01\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x01\x01\x01\x81\x81\x81\x00"s, 18))
-             .ok());
+    expect_read_fail(split("\x0a\x13\x01\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x01\x01\x01\x81\x81\x81\x00"s, 18),
+                     value);
     // no valid bool in slope area
-    ut::expect(
-        !hpp::proto::read_binpb(
-             value, split("\x0a\x13\x81\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x00"s, 18))
-             .ok());
+    expect_read_fail(split("\x0a\x13\x81\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x00"s, 18),
+                     value);
   };
 
   "skip_group"_test = [] {
@@ -1029,13 +1053,11 @@ const ut::suite test_segmented_byte_range = [] {
                 "\x1b\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00\x1c"s,
                 18))
             .ok());
-    ut::expect(
-        !hpp::proto::read_binpb(
-             value,
-             split(
-                 "\x1b\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00"s,
-                 18))
-             .ok());
+    expect_read_fail(
+        split(
+            "\x1b\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00"s,
+            18),
+        value);
   };
 };
 
@@ -1055,8 +1077,8 @@ const ut::suite test_repeated_strings = [] {
   using namespace boost::ut::operators;
   "invalid_repeated_strings"_test = [] {
     repeated_strings<hpp::proto::default_traits> value;
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x03\x61\x62"sv).ok());
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x02\xc0\xdf"sv).ok());
+    expect_read_fail("\x0a\x03\x61\x62"sv, value);
+    expect_read_fail("\x0a\x02\xc0\xdf"sv, value);
 
     value.values.emplace_back("\xc0\xdf");
     ut::expect(!hpp::proto::write_binpb(value).has_value());
@@ -1064,8 +1086,8 @@ const ut::suite test_repeated_strings = [] {
 
   "repeated_strings_case"_test = []<class Traits> {
     using element_type = typename Traits::string_t;
-    verify("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv,
-           repeated_strings<Traits>{.values = std::initializer_list<element_type>{"abc", "def"}});
+    expect_roundtrip_ok("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv,
+                        repeated_strings<Traits>{.values = std::initializer_list<element_type>{"abc", "def"}});
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 };
 
@@ -1083,15 +1105,15 @@ auto pb_meta(const optional_bools &)
 const ut::suite test_optional_bools = [] {
   "empty_optional_bools"_test = [] {
     std::vector<char> const data;
-    verify(data, optional_bools{});
+    expect_roundtrip_ok(data, optional_bools{});
   };
 
   "optional_bools_all_true"_test = [] {
-    verify("\x08\x01\x10\x01"sv, optional_bools{.false_defaulted = true, .true_defaulted = true});
+    expect_roundtrip_ok("\x08\x01\x10\x01"sv, optional_bools{.false_defaulted = true, .true_defaulted = true});
   };
 
   "optional_bools_all_false"_test = [] {
-    verify("\x08\x00\x10\x00"sv, optional_bools{.false_defaulted = false, .true_defaulted = false});
+    expect_roundtrip_ok("\x08\x00\x10\x00"sv, optional_bools{.false_defaulted = false, .true_defaulted = false});
   };
 };
 
@@ -1107,14 +1129,16 @@ auto pb_meta(const oneof_example &)
         hpp::proto::field_meta<3, 3, field_option::explicit_presence>>>;
 
 const ut::suite test_oneof = [] {
-  "empty_oneof_example"_test = [] { verify(""sv, oneof_example{}); };
+  "empty_oneof_example"_test = [] { expect_roundtrip_ok(""sv, oneof_example{}); };
 
-  "string_oneof_example"_test = [] { verify("\x0a\x04\x74\x65\x73\x74"sv, oneof_example{.value = "test"}); };
+  "string_oneof_example"_test = [] {
+    expect_roundtrip_ok("\x0a\x04\x74\x65\x73\x74"sv, oneof_example{.value = "test"});
+  };
 
-  "integer_oneof_example_5"_test = [] { verify("\x10\x05"sv, oneof_example{.value = 5}); };
-  "integer_oneof_example_0"_test = [] { verify("\x10\x00"sv, oneof_example{.value = 0}); };
+  "integer_oneof_example_5"_test = [] { expect_roundtrip_ok("\x10\x05"sv, oneof_example{.value = 5}); };
+  "integer_oneof_example_0"_test = [] { expect_roundtrip_ok("\x10\x00"sv, oneof_example{.value = 0}); };
 
-  "enum_oneof_example"_test = [] { verify("\x18\x02"sv, oneof_example{.value = color_t::green}); };
+  "enum_oneof_example"_test = [] { expect_roundtrip_ok("\x18\x02"sv, oneof_example{.value = color_t::green}); };
 };
 
 template <typename Traits = hpp::proto::default_traits>
@@ -1292,7 +1316,7 @@ const ut::suite test_extensions = [] {
 
   "invalid_extension"_test = [] {
     extension_example<hpp::proto::default_traits> value;
-    ut::expect(!hpp::proto::read_binpb(value, "\x08\x96\x01\x50\x81\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv).ok());
+    expect_read_fail("\x08\x96\x01\x50\x81\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, value);
   };
 
   "read_invalid_extension"_test = [] {
@@ -1483,7 +1507,7 @@ const ut::suite recursive_types = [] {
     recursive_type1 value;
     value.child = child;
     value.payload = 1;
-    verify("\x0a\x02\x10\x02\x10\x01"sv, value);
+    expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
   };
   "recursive_type2"_test = [] {
     recursive_type2 child;
@@ -1492,22 +1516,19 @@ const ut::suite recursive_types = [] {
     value.children.push_back(child);
     value.payload = 1;
 
-    verify("\x0a\x02\x10\x02\x10\x01"sv, value);
+    expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
   };
 
   "non_owning_recursive_type1"_test = [] {
     non_owning_recursive_type1 child{nullptr, 2};
     non_owning_recursive_type1 const value{&child, 1};
 
-    verify("\x0a\x02\x10\x02\x10\x01"sv, value);
+    expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
   };
 
   "invalid_non_owning_recursive_type1"_test = [] {
     non_owning_recursive_type1 value;
-    std::pmr::monotonic_buffer_resource mr;
-    ut::expect(!hpp::proto::read_binpb(value, "\x0a\x0c\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x10\x01"sv,
-                                       hpp::proto::alloc_from{mr})
-                    .ok());
+    expect_read_fail("\x0a\x0c\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x10\x01"sv, value);
   };
 
   "non_owning_recursive_type2"_test = [] {
@@ -1517,7 +1538,7 @@ const ut::suite recursive_types = [] {
     value.children = child;
     value.payload = 1;
 
-    verify("\x0a\x02\x10\x02\x10\x01"sv, value);
+    expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
   };
 };
 // NOLINTEND(misc-no-recursion)

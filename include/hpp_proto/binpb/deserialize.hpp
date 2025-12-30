@@ -111,7 +111,7 @@ struct input_buffer_region : input_span<Byte> {
       // we have at least a non-terminated varint, just return a empty range to indicate error.
       auto slope_area = std::span{_slope_begin, this->_end};
       auto it = std::ranges::find_if(slope_area | std::views::reverse,
-                                     [](auto v) { return std::bit_cast<std::int8_t>(v) > 0; });
+                                     [](auto v) { return std::bit_cast<std::int8_t>(v) >= 0; });
       if (it == slope_area.rend()) {
         return {};
       }
@@ -137,27 +137,33 @@ struct basic_in {
   using byte_type = Byte;
   input_buffer_region<Byte> current;
   input_span<input_buffer_region<Byte>> rest;
-  ptrdiff_t size_exclude_current = 0; // the remaining size excluding those in current
+  ptrdiff_t size_exclude_current = 0; // the remaining size excluding those in current region without slope area
   Context &context;                   // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 
   constexpr static bool endian_swapped = std::endian::little != std::endian::native;
 
   constexpr void set_current_region(const input_buffer_region<Byte> &next_region) {
     current._begin = next_region._begin;
-    current._end = next_region._end;
-    size_exclude_current += (next_region.slope_distance());
-    if (size_exclude_current < 0) {
-      current._end += size_exclude_current;
-      size_exclude_current = 0;
+    if (size_exclude_current + next_region.slope_distance() >= 0) {
+      current._end = next_region._end;
+      size_exclude_current += next_region.slope_distance();
+      current._slope_begin = std::min(next_region._slope_begin, current._end);
+    } else {
+      current._end = current._begin + size_exclude_current;
+      current._slope_begin = std::min(next_region._slope_begin, current._end);
+      size_exclude_current = std::distance(current._slope_begin, current._end);
     }
-    current._slope_begin = std::min(next_region._slope_begin, current._end);
   }
 
   constexpr void maybe_advance_region() {
     std::ptrdiff_t offset = 0;
     while ((offset = current.slope_distance()) > 0 && !rest.empty()) {
+      [[maybe_unused]] auto current_in_avail = in_avail();
       set_current_region(rest.next());
       current.consume(static_cast<std::size_t>(offset));
+      if (!std::is_constant_evaluated()) {
+        assert(current_in_avail == in_avail());
+      }
     }
   }
 
@@ -223,7 +229,11 @@ public:
       regions[region_index]._slope_begin = patch_buffer;
       std::fill_n(patch_buffer, slope_size, Byte{0});
       rest = input_span{regions.data(), region_index + 1};
-      set_current_region(rest.next());
+      auto &next_region = rest.next();
+      current._begin = next_region._begin;
+      current._end = next_region._end;
+      size_exclude_current += (next_region.slope_distance());
+      current._slope_begin = std::min(next_region._slope_begin, current._end);
     }
   }
 
@@ -362,8 +372,10 @@ public:
 #endif // x64
   template <typename Item>
   constexpr status deserialize_packed_boolean(std::size_t size, Item &item) {
-    item.resize(size);
-    for (auto &v : item) {
+    auto old_size = item.size();
+    item.resize(old_size + size);
+    std::span new_region{item.begin() + static_cast<std::ptrdiff_t>(old_size), item.end()};
+    for (auto &v : new_region) {
       if constexpr (!contiguous) {
         maybe_advance_region();
       }
@@ -409,12 +421,14 @@ public:
 
   template <concepts::varint T, typename Item>
   constexpr status deserialize_packed_varint([[maybe_unused]] std::uint32_t bytes_count, std::size_t size, Item &item) {
-    item.resize(size);
+    auto old_size = static_cast<std::ptrdiff_t>(item.size());
+    item.resize(item.size() + size);
+    std::span new_region{std::next(item.begin(), old_size), item.end()};
 #if defined(__x86_64__) || defined(_M_AMD64) // x64
     if constexpr (sfvint_parser_allowed<Context>()) {
       if (!std::is_constant_evaluated() && has_bmi2()) {
         using value_type = typename Item::value_type;
-        sfvint_parser<T, value_type> parser(item.data());
+        sfvint_parser<T, value_type> parser(new_region.data());
         if constexpr (!contiguous) {
           while (bytes_count > region_size()) {
             auto saved_begin = current.begin();
@@ -438,9 +452,9 @@ public:
 #endif
 
     if constexpr (contiguous) {
-      return parse_packed_varints_in_a_region<T>(current.consume(bytes_count), item.data());
+      return parse_packed_varints_in_a_region<T>(current.consume(bytes_count), new_region.data());
     } else {
-      return parse_packed_varints_in_regions<T>(bytes_count, item);
+      return parse_packed_varints_in_regions<T>(bytes_count, new_region);
     }
   }
 
@@ -476,30 +490,28 @@ public:
   // object as the second half.
   constexpr auto split(std::size_t length) {
     assert(std::cmp_greater_equal(in_avail(), length));
-    auto new_slope_distance = current.slope_distance() + static_cast<std::ptrdiff_t>(length);
+    auto new_begin = current._begin;
+    const Byte *new_end = nullptr;
+    const Byte *new_slope_begin = nullptr;
     std::ptrdiff_t new_size_exclude_current = 0;
-    if constexpr (contiguous) {
-      if (new_slope_distance > 0) {
-        new_size_exclude_current = new_slope_distance;
-      }
-      const auto *new_slope_begin = std::min(current._begin + length, current._slope_begin);
-      return basic_in<byte_type, Context, contiguous>{
-          input_buffer_region<Byte>{current.consume(length), new_slope_begin}, rest, new_size_exclude_current, context};
+
+    if (current.size() >= length) {
+      new_end = current._begin + length;
+      new_slope_begin = std::min(new_end, current._slope_begin);
+      new_size_exclude_current = std::distance(new_slope_begin, new_end);
     } else {
-      if (new_slope_distance > 0) {
-        if (std::cmp_less_equal(new_slope_distance, slope_size)) {
-          new_size_exclude_current = new_slope_distance;
-        } else {
-          new_size_exclude_current = size_exclude_current - new_slope_distance;
-        }
-      }
-      auto new_begin = current._begin;
-      auto new_end = std::min(current._end, current._begin + length);
-      auto new_slope_begin = std::min(new_end, current._slope_begin);
-      current.consume(length);
-      auto new_region = input_buffer_region<Byte>{{new_begin, new_end}, new_slope_begin};
-      return basic_in<byte_type, Context, contiguous>{new_region, rest, new_size_exclude_current, context};
+      new_end = current._end;
+      new_slope_begin = current._slope_begin;
+      new_size_exclude_current = static_cast<std::ptrdiff_t>(length) + current.slope_distance();
     }
+
+    current.consume(length);
+    auto new_region = input_buffer_region<Byte>{{new_begin, new_end}, new_slope_begin};
+    auto result = basic_in<byte_type, Context, contiguous>{new_region, rest, new_size_exclude_current, context};
+    if (!std::is_constant_evaluated()) {
+      assert(std::cmp_equal(result.in_avail(), length));
+    }
+    return result;
   }
 
   template <concepts::non_owning_bytes T>
@@ -800,8 +812,8 @@ constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_bas
   using value_type = typename type::value_type;
 
   using encode_type =
-      std::conditional_t<std::same_as<typename Meta::type, void> || std::same_as<value_type, char> ||
-                             std::same_as<value_type, std::byte> || std::same_as<typename Meta::type, type>,
+      std::conditional_t<std::same_as<typename Meta::type, void> || concepts::char_or_byte<value_type> ||
+                             std::same_as<typename Meta::type, type>,
                          value_type, typename Meta::type>;
 
   vuint32_t byte_count;
@@ -809,6 +821,10 @@ constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_bas
     return result;
   }
   if (byte_count == 0) {
+    if constexpr (concepts::char_or_byte<value_type>) {
+      // for string or bytes, override existing value
+      item = {};
+    }
     return {};
   }
 
@@ -817,6 +833,9 @@ constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_bas
     [[maybe_unused]] auto old_size = std::ssize(v);
     auto result = deserialize_packed_repeated_with_byte_count<encode_type>(v, byte_count, archive);
     if constexpr (Meta::closed_enum()) {
+      if (!result.ok()) [[unlikely]] {
+        return result;
+      }
       auto start_itr = std::next(v.begin(), old_size);
       auto itr = std::remove_if(start_itr, v.end(), [&](auto v) {
         if (!Meta::valid_enum_value(v)) {
@@ -847,8 +866,10 @@ constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable
   std::size_t size = *n;
   if constexpr (std::same_as<EncodeType, boolean> || std::same_as<EncodeType, bool>) {
     return archive.deserialize_packed_boolean(size, v);
-  } else if constexpr (concepts::byte_deserializable<EncodeType>) {
+  } else if constexpr (concepts::char_or_byte<EncodeType>) {
     v.resize(0);
+    return archive.deserialize_packed(size, v);
+  } else if constexpr (concepts::byte_deserializable<EncodeType>) {
     return archive.deserialize_packed(size, v);
   } else if constexpr (concepts::is_enum<EncodeType>) {
     return archive.template deserialize_packed_varint<vint64_t>(byte_count, size, v);
@@ -1114,7 +1135,7 @@ constexpr status deserialize_field(std::ranges::range auto &item, Meta meta, uin
     // repeated group
     return deserialize_repeated_group(meta, tag, item, archive);
   } else { // repeated non-group
-    if constexpr (meta.is_packed()) {
+    if constexpr (concepts::maybe_packed_type<type>) {
       if (tag_type(tag) == wire_type::length_delimited) [[likely]] {
         return deserialize_packed_repeated(meta, item, archive, unknown_fields);
       }
@@ -1212,6 +1233,17 @@ constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is
 }
 
 constexpr status deserialize(auto &&item, concepts::is_basic_in auto &archive) {
+
+  if constexpr (requires { item.is_map_entry(); }) {
+    if (item.is_map_entry() && archive.in_avail() > 0) {
+      // Map entries must start with field number 1 (the key), matching protobuf validation.
+      auto tag = std::bit_cast<uint8_t>(*archive.data());
+      if (tag_number(tag) != 1) {
+        return std::errc::bad_message;
+      }
+    }
+  }
+
   decltype(auto) unknown_fields = get_unknown_fields(item);
   decltype(auto) modifiable_unknown_fields = detail::as_modifiable(archive.context, unknown_fields);
   while (archive.in_avail() > 0) {
@@ -1226,8 +1258,16 @@ constexpr status deserialize(auto &&item, concepts::is_basic_in auto &archive) {
 
 constexpr status deserialize_sized(auto &&item, concepts::is_basic_in auto &archive) {
   vuint32_t len;
-  if (auto result = archive(len); !result.ok() || len == 0) [[unlikely]] {
+  if (auto result = archive(len); !result.ok()) [[unlikely]] {
     return result;
+  }
+  if (len == 0) [[unlikely]] {
+    if constexpr (requires { item.is_map_entry(); }) {
+      if (item.is_map_entry()) {
+        return std::errc::bad_message;
+      }
+    }
+    return {};
   }
 
   if (len < archive.in_avail()) [[likely]] {

@@ -33,6 +33,10 @@
 #include <hpp_proto/dynamic_message/types.hpp>
 
 namespace hpp::proto {
+namespace pb_serializer {
+template <concepts::is_basic_in Archive>
+struct field_deserializer;
+}
 using enum field_kind_t;
 
 /**
@@ -267,8 +271,7 @@ public:
   void push_back(enum_number number) const {
     auto idx = size();
     resize(idx + 1);
-    auto values = std::span{storage_->of_repeated_int32.content, storage_->of_repeated_int32.size};
-    values[idx] = number.value;
+    numbers()[idx] = number.value;
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> push_back(enum_name name) const {
@@ -311,7 +314,7 @@ public:
   [[nodiscard]] std::expected<void, dynamic_message_errc> set(Range const &r) const {
     resize(std::ranges::size(r));
     std::size_t i = 0;
-    auto values = std::span{storage_->of_repeated_int32.content, storage_->of_repeated_int32.size};
+    auto values = numbers();
     for (std::string_view name : r) {
       const auto *pval = enum_descriptor().value_of(name);
       if (pval) [[likely]] {
@@ -347,6 +350,12 @@ public:
   }
 
 private:
+  template <concepts::is_basic_in Archive>
+  friend struct pb_serializer::field_deserializer;
+  [[nodiscard]] std::span<std::int32_t> numbers() const {
+    return std::span{storage_->of_repeated_int32.content, storage_->of_repeated_int32.size};
+  }
+
   const field_descriptor_t *descriptor_;
   value_storage *storage_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
