@@ -55,10 +55,10 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
 
   std::pmr::monotonic_buffer_resource mr; // Needs to be alive during read_binpb
   message_variant_t message_variant;      // Holds the deserialized message
-  auto message_type_index = data[size - 1] % std::variant_size_v<message_variant_t>; //NOLINT
+  auto message_type_index = data[size - 1] % std::variant_size_v<message_variant_t>; // NOLINT
 
   set_variant_by_index(message_variant, message_type_index);
-  
+
   // NOLINTNEXTLINE(readability-function-cognitive-complexity)
   auto do_read = [&](const auto &input) -> std::expected<std::vector<char>, std::errc> {
     return std::visit(

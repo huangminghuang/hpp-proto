@@ -165,7 +165,7 @@ void expect_read_ok(const auto &encoded_data, const T &expected_value) {
 }
 
 template <typename T>
-void expect_read_fail(const auto& encoded_data, const T &) {
+void expect_read_fail(const auto &encoded_data, const T &) {
   std::remove_cvref_t<T> value;
   std::pmr::monotonic_buffer_resource mr;
   ut::expect(!hpp::proto::read_binpb(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
