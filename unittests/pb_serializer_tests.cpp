@@ -550,13 +550,15 @@ const ut::suite test_enums = [] {
     };
 
     "repeated_enum packed + repeated_enum unpacked"_test = [] {
-      expect_read_ok("\x1a\x02\x01\x02\x18\x03"sv, open_enum_message<Traits>{.packed_repeated_field =
-                                                        std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ}});
+      expect_read_ok(
+          "\x1a\x02\x01\x02\x18\x03"sv,
+          open_enum_message<Traits>{.packed_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ}});
     };
 
     "repeated_enum unpacked + repeated_enum packed"_test = [] {
-      expect_read_ok("\x08\x01\x08\x02\x0a\x01\x03"sv, open_enum_message<Traits>{.expanded_repeated_field =
-                                                        std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ}});
+      expect_read_ok(
+          "\x08\x01\x08\x02\x0a\x01\x03"sv,
+          open_enum_message<Traits>{.expanded_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ}});
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 

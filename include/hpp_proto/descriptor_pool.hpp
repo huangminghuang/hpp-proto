@@ -143,9 +143,7 @@ public:
     }
     [[nodiscard]] bool is_required() const { return has_mask(field_option_bitset_, field_option_mask::MASK_REQUIRED); }
 
-    void set_explicit_presence() {
-      field_option_bitset_ |= mask(field_option_mask::MASK_EXPLICIT_PRESENCE);
-    }
+    void set_explicit_presence() { field_option_bitset_ |= mask(field_option_mask::MASK_EXPLICIT_PRESENCE); }
 
   private:
     void setup_presence() {

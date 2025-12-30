@@ -120,7 +120,7 @@ public:
   ~enum_value_mref() noexcept = default;
 
   [[nodiscard]] operator enum_value() const noexcept { return {*descriptor_, *number_}; } // NOLINT
-  [[nodiscard]] operator enum_number() const noexcept { return enum_number{*number_}; } // NOLINT
+  [[nodiscard]] operator enum_number() const noexcept { return enum_number{*number_}; }   // NOLINT
 
   void set(int32_t number) const noexcept { *number_ = number; }
 
@@ -165,7 +165,7 @@ public:
   [[nodiscard]] bool has_value() const noexcept { return storage_->of_int32.selection == descriptor().oneof_ordinal; }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] enum_value default_value() const noexcept {
-    return { enum_descriptor(), std::get<int32_t>(descriptor_->default_value) };
+    return {enum_descriptor(), std::get<int32_t>(descriptor_->default_value)};
   }
 
   [[nodiscard]] enum_value value() const noexcept {

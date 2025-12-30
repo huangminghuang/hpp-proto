@@ -66,7 +66,7 @@ template <typename T>
 concept string_value_type = std::same_as<T, char> || std::same_as<T, char8_t>;
 
 template <typename T>
-concept char_or_byte = std::same_as<T, char> || std::same_as<T, char8_t> || std::same_as<T, std::byte>; 
+concept char_or_byte = std::same_as<T, char> || std::same_as<T, char8_t> || std::same_as<T, std::byte>;
 
 template <typename T>
 concept repeated = std::ranges::contiguous_range<T> && !byte_type<typename T::value_type>;
@@ -112,7 +112,8 @@ template <typename T>
 concept arithmetic = std::is_arithmetic_v<T> || concepts::varint<T>;
 
 template <typename T>
-concept singular = arithmetic<T> || is_enum<T> || std::same_as<T, boolean> || basic_string<T> || contiguous_byte_range<T>;
+concept singular =
+    arithmetic<T> || is_enum<T> || std::same_as<T, boolean> || basic_string<T> || contiguous_byte_range<T>;
 
 template <typename T>
 concept maybe_packed_value_type = arithmetic<T> || is_enum<T> || char_or_byte<T> || std::same_as<T, boolean>;

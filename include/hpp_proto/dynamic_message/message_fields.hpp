@@ -67,10 +67,8 @@ public:
   message_value_cref &operator=(message_value_cref &&) noexcept = default;
   ~message_value_cref() noexcept = default;
   [[nodiscard]] const message_descriptor_t &descriptor() const noexcept { return *descriptor_; }
-  
-  [[nodiscard]] bool is_map_entry() const noexcept {
-    return descriptor().is_map_entry();
-  }
+
+  [[nodiscard]] bool is_map_entry() const noexcept { return descriptor().is_map_entry(); }
 
   /**
    * Look up a field descriptor by proto name.
@@ -248,9 +246,7 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   [[nodiscard]] operator message_value_cref() const noexcept { return cref(); }
 
-  [[nodiscard]] bool is_map_entry() const noexcept {
-    return cref().is_map_entry();
-  }
+  [[nodiscard]] bool is_map_entry() const noexcept { return cref().is_map_entry(); }
 
   [[nodiscard]] const field_descriptor_t *field_descriptor_by_name(std::string_view name) const noexcept {
     return cref().field_descriptor_by_name(name);

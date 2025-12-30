@@ -30,7 +30,7 @@ std::vector<char> round_trip_test(const T &in_message, T &&out_message) {
   // std::string dyn_json;
   // assert(hpp::proto::write_json(in_message, dyn_json).ok());
   // std::cout << "in_message: " << dyn_json << "\n";
-  
+
   // Skip comparing the serialized buffer to the raw input because unknown fields are dropped on parse.
   // Skip structural comparison of messages; NaN payloads make equality fail even when bitwise identical.
   std::pmr::monotonic_buffer_resource mr;
