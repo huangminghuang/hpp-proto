@@ -17,7 +17,7 @@ using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp::proto:
 std::vector<std::span<const uint8_t>> split_input(std::span<const uint8_t> input) {
   std::vector<std::span<const uint8_t>> result{2};
   result[0] = std::span{input.data(), input.size() / 2};
-  result[1] = std::span{input.begin() + result[0].size(), input.end()};
+  result[1] = std::span{input.begin() + static_cast<std::ptrdiff_t>(result[0].size()), input.end()};
   return result;
 }
 
@@ -47,6 +47,7 @@ std::vector<char> round_trip_test(const T &in_message, T &&out_message) {
   return buffer1;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size == 0) {
     return 0;
@@ -54,10 +55,11 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
 
   std::pmr::monotonic_buffer_resource mr; // Needs to be alive during read_binpb
   message_variant_t message_variant;      // Holds the deserialized message
-  auto message_type_index = data[size - 1] % std::variant_size_v<message_variant_t>;
+  auto message_type_index = data[size - 1] % std::variant_size_v<message_variant_t>; //NOLINT
 
   set_variant_by_index(message_variant, message_type_index);
-
+  
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity)
   auto do_read = [&](const auto &input) -> std::expected<std::vector<char>, std::errc> {
     return std::visit(
         [&](auto &non_owning_message) -> std::expected<std::vector<char>, std::errc> {

@@ -358,7 +358,7 @@ namespace hpp::proto {
 
 struct proto_json_opts : glz::opts {
   constexpr proto_json_opts() : glz::opts{} {}
-  constexpr proto_json_opts(glz::opts op) : glz::opts(op) {}
+  constexpr explicit proto_json_opts(glz::opts op) : glz::opts(op) {}
   bool escape_control_characters = true;
 };
 

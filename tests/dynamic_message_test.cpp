@@ -110,6 +110,7 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(!::hpp::proto::read_binpb(msg, data).ok());
     };
 
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     auto expect_read_ok = [&](std::string_view msg_name, std::string_view data, auto verify) {
       std::pmr::monotonic_buffer_resource mr1;
       auto msg1 = expect_ok(factory.get_message(msg_name, mr1));
