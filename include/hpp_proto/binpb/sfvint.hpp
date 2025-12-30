@@ -92,7 +92,14 @@ public:
     auto r = (varint_encoding::zig_zag == T::encoding)
                  ? (v >> 1U) ^ static_cast<uint64_t>(-static_cast<int64_t>(v & 1U))
                  : v;
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#endif
     *res = static_cast<Result>(r);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
     res = std::next(res);
   }
 

@@ -127,6 +127,11 @@
                 "default",
                 "clang"
             ],
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
             "displayName": "Fuzz",
             "description": "Fuzz Build",
             "binaryDir": "${sourceDir}/build/fuzz",

@@ -22,6 +22,10 @@
         {
             "name": "ubsan",
             "hidden": true
+        },
+        {
+            "name": "clang",
+            "hidden": true
         }
     ]
 }

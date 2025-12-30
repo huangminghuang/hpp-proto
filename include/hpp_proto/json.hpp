@@ -356,11 +356,15 @@ struct to<JSON, hpp::proto::optional_message_view_ref<Type>> {
 
 namespace hpp::proto {
 
+#ifdef _MSC_VER
+using proto_json_opts = glz::opts;
+#else
 struct proto_json_opts : glz::opts {
   constexpr proto_json_opts() : glz::opts{} {}
   constexpr explicit proto_json_opts(glz::opts op) : glz::opts(op) {}
   bool escape_control_characters = true;
 };
+#endif
 
 template <auto options>
 struct glz_opts_t {
