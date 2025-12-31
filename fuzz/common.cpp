@@ -27,7 +27,7 @@ hpp::proto::dynamic_message_factory factory;
 extern "C" __attribute__((visibility("default"))) int LLVMFuzzerInitialize(int *, char ***) {
   std::filesystem::path desc_path = "unittest.desc.binpb";
   if (const char *out = std::getenv("OUT"); out != nullptr) {
-    desc_path = std::filesystem::path(out)/desc_path;
+    desc_path = std::filesystem::path(out) / desc_path;
   }
 
   if (!std::filesystem::exists(desc_path)) {
