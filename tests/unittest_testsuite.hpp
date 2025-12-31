@@ -1229,7 +1229,6 @@ struct TestSuite {
   // -------------------------------------------------------------------
 
   static void SetAll(TestPackedExtensions_t *message, auto &&mr) {
-
     auto expect_set_extension_ok = [&](auto &&ext) {
       expect(message->set_extension(ext, hpp::proto::alloc_from{mr}).ok());
     };
@@ -1330,6 +1329,5 @@ struct TestSuite {
     } | typename mapping_t::interoperability_test_types{};
 #endif
   }
-
 }; // struct TestSuite
 // NOLINTEND(clang-diagnostic-missing-designated-field-initializers)

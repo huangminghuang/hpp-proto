@@ -37,7 +37,6 @@ public:
   }
 
   void SayHelloStreamReply(const std::string &user) {
-
     class SayHelloStreamReplyReactor
         : public ::hpp::proto::grpc::ClientCallbackReactor<::helloworld::Greeter::SayHelloStreamReply> {
       std::mutex mu_;
@@ -97,7 +96,6 @@ public:
         }
         cv_.notify_one();
       }
-
     } reactor;
     helloworld::HelloRequest<hpp::proto::non_owning_traits> request;
     request.name = user;

@@ -332,7 +332,6 @@ public:
 
 template <typename Derived, typename Methods>
 class CallbackService : public ::grpc::Service {
-
   template <typename Method>
   void add_method(Method method) {
     if constexpr (requires { std::declval<Derived>().handle(method); }) {

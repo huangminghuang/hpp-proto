@@ -42,7 +42,6 @@ using enum field_kind_t;
  */
 template <typename T, field_kind_t Kind>
 class repeated_scalar_field_cref : public std::ranges::view_interface<repeated_scalar_field_cref<T, Kind>> {
-
 public:
   using encode_type = T;
   using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
@@ -136,7 +135,6 @@ private:
  */
 template <typename T, field_kind_t Kind>
 class repeated_scalar_field_mref : public std::ranges::view_interface<repeated_scalar_field_mref<T, Kind>> {
-
 public:
   using encode_type = T;
   using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;

@@ -328,7 +328,6 @@ struct from<JSON, hpp::proto::boolean> {
 
 template <typename T>
 struct from<JSON, hpp::proto::optional_message_view_ref<T>> {
-
   template <auto Options>
   static void op(auto value, hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
     if (!util::parse_null<Options>(value, ctx, it, end)) {
@@ -444,7 +443,6 @@ inline json_status read_json(concepts::read_json_supported auto &value,
 
 inline json_status read_json(concepts::read_json_supported auto &value, const char *str,
                              concepts::is_option_type auto &&...option) {
-
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
     value = {};
   }

@@ -134,7 +134,6 @@ struct from<JSON, hpp::proto::field_mref> {
 };
 
 struct generic_message_json_serializer {
-
   template <auto Opts>
   static void serialize_regular_field(hpp::proto::field_cref field, is_context auto &ctx, auto &b, auto &ix) {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
@@ -355,7 +354,6 @@ struct any_message_json_serializer {
   }
 };
 struct timestamp_message_json_serializer {
-
   template <auto Opts>
   static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
@@ -519,7 +517,6 @@ template <typename T, hpp::proto::field_kind_t Kind>
 struct to<JSON, hpp::proto::scalar_field_cref<T, Kind>> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_cref<T, Kind> &value, auto &&...args) {
-
     if (value.has_value()) {
       using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
       constexpr bool need_quote = (::hpp::proto::concepts::integral_64_bits<value_type> || (Opts.quoted_num));
@@ -723,7 +720,6 @@ struct from<JSON, hpp::proto::enum_value_mref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value_mref &value, is_context auto &ctx, auto &it,
                                    auto &end) {
-
     if constexpr (!check_ws_handled(Opts)) {
       if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
         return;
@@ -767,7 +763,6 @@ template <>
 struct from<JSON, hpp::proto::message_value_mref> {
   template <auto Options>
   static void parse_mapped(hpp::proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
-
     const auto *msg_descriptor = value.descriptor().message_field_type_descriptor();
     bool is_wellknown_value =
         msg_descriptor != nullptr && msg_descriptor->wellknown == hpp::proto::wellknown_types_t::VALUE;
@@ -874,7 +869,6 @@ static std::expected<void, const char *> message_to_json(::hpp::proto::message_v
 template <auto Opts>
 void any_message_json_serializer::to_json_impl(auto &&build_message, const auto &any_type_url, const auto &any_value,
                                                is_context auto &ctx, auto &b, auto &ix) {
-
   util::dump_opening_brace<Opts>(ctx, b, ix);
 
   dump<"\"@type\":">(b, ix);

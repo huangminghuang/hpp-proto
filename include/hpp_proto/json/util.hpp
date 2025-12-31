@@ -232,7 +232,6 @@ void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end, const
   value.resize(new_size);
 
   for (auto i = old_size; i < new_size; ++i) {
-
     element_parser(value[i], ctx, it, end);
     if (bool(ctx.error)) [[unlikely]] {
       return;

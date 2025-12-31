@@ -62,7 +62,6 @@ class ClientCallbackReactor;
 
 template <typename ServiceMethods>
 class Stub {
-
   class GrpcMethod : public ::grpc::internal::RpcMethod {
   public:
     GrpcMethod() : ::grpc::internal::RpcMethod(nullptr, RpcType::NORMAL_RPC) {}
@@ -282,7 +281,6 @@ template <typename Method, typename Request, typename Response, typename Callbac
 void Stub<ServiceMethods>::async_call(::grpc::ClientContext &context, const Request &request, Response &response,
                                       CallbackFunction &&f,
                                       hpp::proto::concepts::is_option_type auto &&...response_option) {
-
   using CallbackReactorType =
       CallbackUnaryCall<Method, CallbackFunction, Response,
                         hpp::proto::pb_context<std::remove_cvref_t<decltype(response_option)>...>>;

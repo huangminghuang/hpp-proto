@@ -857,7 +857,6 @@ constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_bas
 template <typename EncodeType>
 constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable auto &&v, vuint32_t byte_count,
                                                              concepts::is_basic_in auto &archive) {
-
   // packed repeated vector,
   auto n = count_packed_elements<EncodeType>(static_cast<uint32_t>(byte_count), archive);
   if (!n.has_value()) {
@@ -1233,7 +1232,6 @@ constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is
 }
 
 constexpr status deserialize(auto &&item, concepts::is_basic_in auto &archive) {
-
   if constexpr (requires { item.is_map_entry(); }) {
     if (item.is_map_entry() && archive.in_avail() > 0) {
       // Map entries must start with field number 1 (the key), matching protobuf validation.

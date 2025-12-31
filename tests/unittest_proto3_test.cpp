@@ -26,7 +26,6 @@ using bytes_literal = hpp::proto::bytes_literal<cts>;
 
 template <typename Traits>
 struct Proto3Tests {
-
   using TestAllTypes = proto3_unittest::TestAllTypes<Traits>;
   using ForeignMessage = proto3_unittest::ForeignMessage<Traits>;
   using TestUnpackedTypes = proto3_unittest::TestUnpackedTypes<Traits>;

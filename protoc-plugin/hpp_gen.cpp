@@ -402,7 +402,6 @@ struct hpp_addons {
 
     void set_bytes_default_value(const FieldDescriptorProto &proto) {
       if (!proto.default_value.empty()) {
-
         default_value_template_arg =
             std::format("::hpp::proto::bytes_literal<\"{}\">{{}}", cpp_escape(proto.default_value));
         default_value = default_value_template_arg;
@@ -577,7 +576,6 @@ const static hpp::proto::flat_map<std::string, std::string> well_known_codecs = 
     {"google.protobuf.FieldMask", "field_mask_codec"}};
 
 struct code_generator {
-
   static std::filesystem::path plugin_name;
   static std::string plugin_parameters;
   static std::vector<std::string> proto2_explicit_presences;
@@ -1365,7 +1363,6 @@ struct hpp_meta_generator : code_generator {
   }
 
   void format_extension(code_generator::field_descriptor_t &descriptor) {
-
     auto cpp_name = (descriptor.parent_message() == nullptr)
                         ? descriptor.cpp_name
                         : descriptor.parent_message()->cpp_name + "<Traits>::" + descriptor.cpp_name;
@@ -1730,7 +1727,6 @@ struct glaze_meta_generator : code_generator {
   }
 
   void process(enum_descriptor_t &descriptor) {
-
     if (descriptor.cpp_name != "NullValue" || descriptor.parent_file()->proto().package != "google.protobuf") {
       format_to(target,
                 "template <>\n"

@@ -14,7 +14,6 @@ enum struct test_status : uint8_t { fail = 0, ok = 1 };
 
 template <template <typename Traits> class Message>
 void test_read(hpp::proto::dynamic_message_factory &factory, std::string_view input, test_status expected) {
-
   std::pmr::monotonic_buffer_resource mr; // Needs to be alive during read_binpb
 
   Message<hpp::proto::default_traits> owning_message;

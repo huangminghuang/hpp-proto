@@ -128,7 +128,6 @@ namespace grpc {
 
 ::grpc::Status read_binpb(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
                           ::hpp::proto::concepts::is_option_type auto &&...option) {
-
   pb_context context{option...};
   return read_binpb(message, buffer, context);
 }
