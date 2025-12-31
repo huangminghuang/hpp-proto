@@ -1,6 +1,15 @@
 # Detect available libfuzz support using try_compile.
 set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all)
 set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,address,undefined)
+if(DEFINED ENV{SANITIZER})
+  if("$ENV{SANITIZER}" STREQUAL "address")
+    set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer,address -fno-sanitize-recover=all)
+    set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,address)
+  elseif("$ENV{SANITIZER}" STREQUAL "undefined")
+    set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer,undefined -fno-sanitize-recover=all)
+    set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,undefined)
+  endif()
+endif()
 
 
 unset(FUZZER_SUPPORT CACHE)
@@ -42,6 +51,18 @@ else()
   message(FATAL_ERROR "Failed to run corpus generation script ${corpus_script}:\n${script_output}")
 endif()
 
+# Copy unittest.desc.binpb from the tests build into the fuzz build dir.
+set(unittest_desc_src ${CMAKE_CURRENT_BINARY_DIR}/../tests/unittest.desc.binpb)
+set(unittest_desc_dst ${CMAKE_CURRENT_BINARY_DIR}/unittest.desc.binpb)
+add_custom_command(
+  OUTPUT ${unittest_desc_dst}
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/fuzz
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${unittest_desc_src} ${unittest_desc_dst}
+  DEPENDS unittest.desc.binpb.target
+  COMMENT "Copying unittest.desc.binpb into fuzz build directory"
+)
+add_custom_target(fuzz_unittest_desc ALL DEPENDS ${unittest_desc_dst})
+
 # Copy static seed corpus files into the binary dir.
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/binpb_seed_corpus)
 file(GLOB binpb_seed_corpus_files ${CMAKE_CURRENT_SOURCE_DIR}/binpb_seed_corpus/*)
@@ -55,6 +76,7 @@ function(add_fuzz_target type source)
   set(target fuzz_${type})
   add_executable(${target} ${source} common.cpp)
   target_link_libraries(${target} PRIVATE hpp_proto::libhpp_proto unittest_proto_lib)
+  add_dependencies(${target} fuzz_unittest_desc)
 
   target_compile_options(${target} PRIVATE ${HPP_PROTO_FUZZ_COMPILE_OPTIONS} -UNDEBUG)
   target_link_options(${target} PRIVATE ${HPP_PROTO_FUZZ_LINK_OPTIONS})
@@ -65,6 +87,5 @@ function(add_fuzz_target type source)
   configure_file(${target}.dict ${target}.dict COPYONLY)
   configure_file(${target}.sh ${target}.sh COPYONLY)
 endfunction()
-
 add_fuzz_target(binpb fuzz_binpb.cpp)
 add_fuzz_target(json fuzz_json.cpp)

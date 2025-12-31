@@ -13,3 +13,6 @@ cmake --build build
 
 # Copy the fuzzing binaries to the output directory.
 cp build/fuzz/fuzz_* $OUT/
+
+# Ensure the descriptor is available next to the fuzzers at runtime.
+cp tests/unittest.desc.binpb $OUT/unittest.desc.binpb
