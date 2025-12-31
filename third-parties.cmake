@@ -104,7 +104,7 @@ if(HPP_PROTO_TESTS)
     CPMAddPackage(
         NAME ut
         GITHUB_REPOSITORY boost-ext/ut
-        VERSION 2.3.0
+        VERSION 2.3.1
         DOWNLOAD_ONLY ON
     )
     add_library(Boost::ut INTERFACE IMPORTED)
