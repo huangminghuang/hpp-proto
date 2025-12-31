@@ -63,17 +63,7 @@ const std::unordered_set<std::string_view> keywords = {
     "co_return",     "co_yield",     "requires",
 };
 // NOLINTEND(cert-err58-cpp)
-
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 namespace {
-
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
-
-template <typename... Args>
-void format_to(std::string &out, std::string_view fmt, Args &&...args) {
-  std::vformat_to(std::back_inserter(out), fmt, std::make_format_args(std::forward<Args>(args)...));
-}
-
 inline void append_to(std::back_insert_iterator<std::string> out, std::string_view s) { std::ranges::copy(s, out); }
 
 template <typename Range>
