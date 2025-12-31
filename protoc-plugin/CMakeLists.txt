@@ -2,7 +2,7 @@ add_compile_options(${HPP_PROTO_COMPILE_OPTIONS})
 
 add_executable(protoc-gen-hpp hpp_gen.cpp)
 add_executable(hpp_proto::protoc-gen-hpp ALIAS protoc-gen-hpp)
-target_link_libraries(protoc-gen-hpp PRIVATE hpp_proto::libhpp_proto fmt::fmt)
+target_link_libraries(protoc-gen-hpp PRIVATE hpp_proto::libhpp_proto)
 
 set_target_properties(protoc-gen-hpp
     PROPERTIES
