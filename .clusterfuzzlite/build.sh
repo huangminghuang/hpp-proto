@@ -17,3 +17,7 @@ cp build/fuzz/fuzz_* $OUT/
 # Ensure the descriptor is available next to the fuzzers at runtime.
 # It is generated into the build tree by tests and copied into build/fuzz.
 cp build/fuzz/unittest.desc.binpb $OUT/unittest.desc.binpb
+mkdir -p $OUT/../cifuzz-corpus/fuzz_json
+mkdir -p $OUT/../cifuzz-corpus/fuzz_binpb
+cp build/fuzz/json_corpus/* $OUT/../cifuzz-corpus/fuzz_json
+cp build/fuzz/binpb_corpus/* $OUT/../cifuzz-corpus/fuzz_binpb
