@@ -34,7 +34,7 @@
             - build_type: Debug
               sanitize: "address,undefined"
             - build_type: Coverage
-              compiler: clang-19
+              compiler: gcc-13
               protoc: find
               sanitize: OFF
               # extra_cmake_configure_flags: "-DCMAKE_CXX_CLANG_TIDY=clang-tidy-18\\;-warnings-as-errors=*"
