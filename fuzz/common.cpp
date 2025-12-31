@@ -25,5 +25,15 @@ std::vector<char> read_file(const std::filesystem::path &path) {
 hpp::proto::dynamic_message_factory factory;
 
 extern "C" __attribute__((visibility("default"))) int LLVMFuzzerInitialize(int *, char ***) {
-  return factory.init(read_file("unittest.desc.binpb")) ? 0 : -1;
+  std::filesystem::path desc_path = "unittest.desc.binpb";
+  if (const char *out = std::getenv("OUT"); out != nullptr) {
+    desc_path = std::filesystem::path(out)/desc_path;
+  }
+
+  if (!std::filesystem::exists(desc_path)) {
+    std::cerr << "Could not find " << desc_path.c_str() << "\n";
+    return -1;
+  }
+
+  return factory.init(read_file(desc_path)) ? 0 : -1;
 }
