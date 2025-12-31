@@ -45,7 +45,7 @@ using namespace std::string_literals;
 template <typename T>
 void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, std::string_view json,
             std::optional<std::string_view> pretty_json = std::nullopt) {
-  = expect(eq(json, hpp::proto::write_json(msg).value()));
+  expect(eq(json, hpp::proto::write_json(msg).value()));
 
   if (pretty_json && !pretty_json->empty()) {
     expect(eq(*pretty_json, hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value()));
