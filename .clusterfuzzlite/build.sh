@@ -15,4 +15,5 @@ cmake --build build
 cp build/fuzz/fuzz_* $OUT/
 
 # Ensure the descriptor is available next to the fuzzers at runtime.
-cp tests/unittest.desc.binpb $OUT/unittest.desc.binpb
+# It is generated into the build tree by tests and copied into build/fuzz.
+cp build/fuzz/unittest.desc.binpb $OUT/unittest.desc.binpb

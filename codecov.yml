@@ -1,0 +1,5 @@
+# Align Codecov with local lcov --remove filters.
+ignore:
+  - "build/**"
+  - "cpm_modules/**"
+  - "include/google/protobuf/**"
