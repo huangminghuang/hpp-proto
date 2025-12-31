@@ -702,8 +702,7 @@ private:
                                                 .default_symbol_visibility = DefaultSymbolVisibility::EXPORT_TOP_LEVEL,
                                                 .unknown_fields_ = {}},
              .fixed_features = {},
-             .unknown_fields_ = {}}
-        };
+             .unknown_fields_ = {}}};
     return {.defaults = default_feature_set,
             .minimum_edition = google::protobuf::Edition::EDITION_PROTO2,
             .maximum_edition = google::protobuf::Edition::EDITION_2024,
