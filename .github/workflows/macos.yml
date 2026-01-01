@@ -67,11 +67,11 @@ jobs:
         if: matrix.build_type == 'Coverage'
         run: |
           lcov --capture --directory build --output-file build/coverage.info \
-            --ignore-errors inconsistent,unsupported \
+            --ignore-errors inconsistent,unsupported,format \
             --rc derive_function_end_line=0
           lcov --remove build/coverage.info 'build/**' 'cpm_modules/**' 'include/google/protobuf/**' \
             --output-file build/coverage.filtered.info \
-            --ignore-errors inconsistent,unsupported \
+            --ignore-errors inconsistent,unsupported,format,unused \
             --rc derive_function_end_line=0
 
       - name: Upload coverage to Codecov
