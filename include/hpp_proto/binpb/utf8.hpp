@@ -33,8 +33,8 @@ namespace hpp::proto {
 
 constexpr bool utf8_validation_failed(auto meta, const auto &str) {
 #if HPP_PROTO_NO_UTF8_VALIDATION
-  [[maybe_unused]] meta;
-  [[maybe_unused]] str;
+  static_cast<void>(meta);
+  static_cast<void>(str);
 #else
   if constexpr (meta.requires_utf8_validation()) {
     if (!std::is_constant_evaluated()) {
