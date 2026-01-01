@@ -45,8 +45,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
   // Using uint8_t will consume 1 byte for this option.
   constexpr auto kVariantCount = std::variant_size_v<message_variant_t>;
   static_assert(kVariantCount > 0);
-  auto choice_options =
-      provider.ConsumeIntegralInRange<uint8_t>(0, static_cast<uint8_t>(kVariantCount - 1));
+  auto choice_options = provider.ConsumeIntegralInRange<uint8_t>(0, static_cast<uint8_t>(kVariantCount - 1));
 
   std::pmr::monotonic_buffer_resource mr; // Needs to be alive during read_binpb
   message_variant_t message_variant;      // Holds the deserialized message
