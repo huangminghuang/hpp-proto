@@ -26,14 +26,9 @@ hpp::proto::dynamic_message_factory factory;
 
 extern "C" __attribute__((visibility("default"))) int LLVMFuzzerInitialize(int *, char ***) {
 
-  std::array<const char*,2> search_paths = {
-    "unittest.desc.binpb",
-    "/github/workspace/unittest.desc.binpb"
-  };
-  
-  auto itr = std::ranges::find_if(search_paths, [](const char* path) {
-    return std::filesystem::exists(path);
-  });
+  std::array<const char *, 2> search_paths = {"unittest.desc.binpb", "/github/workspace/unittest.desc.binpb"};
+
+  auto itr = std::ranges::find_if(search_paths, [](const char *path) { return std::filesystem::exists(path); });
 
   if (itr == search_paths.end()) {
     std::cerr << "cannot find unittest.desc.binpb\n";
