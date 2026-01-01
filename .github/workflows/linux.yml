@@ -91,6 +91,11 @@
           if: matrix.protoc == 'find'
           run: |
             sudo apt install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
+
+        - name: install lcov
+          if: matrix.build_type == 'Coverage'
+          run: |
+            sudo apt install -y lcov
             
         - name: configure
           run: |
@@ -109,9 +114,18 @@
           run: |
             ctest --build-config ${{ matrix.build_type }} --output-on-failure
 
+        - name: capture coverage
+          if: matrix.build_type == 'Coverage'
+          run: |
+            lcov --capture --directory build --output-file build/coverage.info
+            lcov --remove build/coverage.info 'build/**' 'cpm_modules/**' 'include/google/protobuf/**' --output-file build/coverage.filtered.info
+
         - name: Upload coverage to Codecov
           uses: codecov/codecov-action@v5
           if: matrix.build_type == 'Coverage'
           with:
             token: ${{ secrets.CODECOV_TOKEN }}
+            files: build/coverage.filtered.info
+            flags: linux,ci
+            name: linux-coverage
             verbose: true

@@ -3,3 +3,14 @@ ignore:
   - "build/**"
   - "cpm_modules/**"
   - "include/google/protobuf/**"
+
+flag_management:
+  default_rules:
+    carryforward: true
+
+coverage:
+  status:
+    project:
+      default:
+        flags:
+          - ci
