@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package hpp.proto.grpc;
+
+message EchoRequest {
+  string message = 1;
+  int32 sequence = 2;
+}
+
+message EchoResponse {
+  string message = 1;
+  int32 sequence = 2;
+}
+
+message StreamSummary {
+  int32 total_messages = 1;
+  string last_message = 2;
+}
+
+service EchoStreamService {
+  rpc UnaryEcho(EchoRequest) returns (EchoResponse);
+  rpc ClientStreamAggregate(stream EchoRequest) returns (StreamSummary);
+  rpc ServerStreamFanout(EchoRequest) returns (stream EchoResponse);
+  rpc BidiStreamChat(stream EchoRequest) returns (stream EchoResponse);
+}

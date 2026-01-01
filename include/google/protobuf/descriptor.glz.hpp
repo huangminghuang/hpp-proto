@@ -8,117 +8,119 @@
 
 #pragma once
 
-#include <hpp_proto/json_serializer.hpp>
+#include <hpp_proto/json.hpp>
 #include "google/protobuf/descriptor.msg.hpp"
 
-template <>
-struct glz::meta<google::protobuf::FileDescriptorSet> {
-  using T = google::protobuf::FileDescriptorSet;
+template <typename Traits>
+struct glz::meta<google::protobuf::FileDescriptorSet<Traits>> {
+  using T = google::protobuf::FileDescriptorSet<Traits>;
   static constexpr auto value = object(
-    "file", hpp::proto::as_optional_ref<&T::file>);
+    "file", ::hpp::proto::as_optional_ref<&T::file>);
 };
 
-template <>
-struct glz::meta<google::protobuf::FileDescriptorProto> {
-  using T = google::protobuf::FileDescriptorProto;
+template <typename Traits>
+struct glz::meta<google::protobuf::FileDescriptorProto<Traits>> {
+  using T = google::protobuf::FileDescriptorProto<Traits>;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>,
-    "package", hpp::proto::as_optional_ref<&T::package>,
-    "dependency", hpp::proto::as_optional_ref<&T::dependency>,
-    "publicDependency", hpp::proto::as_optional_ref<&T::public_dependency>,
-    "weakDependency", hpp::proto::as_optional_ref<&T::weak_dependency>,
-    "messageType", hpp::proto::as_optional_ref<&T::message_type>,
-    "enumType", hpp::proto::as_optional_ref<&T::enum_type>,
-    "service", hpp::proto::as_optional_ref<&T::service>,
-    "extension", hpp::proto::as_optional_ref<&T::extension>,
+    "name", ::hpp::proto::as_optional_ref<&T::name>,
+    "package", ::hpp::proto::as_optional_ref<&T::package>,
+    "dependency", ::hpp::proto::as_optional_ref<&T::dependency>,
+    "publicDependency", ::hpp::proto::as_optional_ref<&T::public_dependency>,
+    "weakDependency", ::hpp::proto::as_optional_ref<&T::weak_dependency>,
+    "optionDependency", ::hpp::proto::as_optional_ref<&T::option_dependency>,
+    "messageType", ::hpp::proto::as_optional_ref<&T::message_type>,
+    "enumType", ::hpp::proto::as_optional_ref<&T::enum_type>,
+    "service", ::hpp::proto::as_optional_ref<&T::service>,
+    "extension", ::hpp::proto::as_optional_ref<&T::extension>,
     "options", &T::options,
     "sourceCodeInfo", &T::source_code_info,
-    "syntax", hpp::proto::as_optional_ref<&T::syntax>,
-    "edition", hpp::proto::as_optional_ref<&T::edition, ::google::protobuf::Edition::EDITION_UNKNOWN>);
+    "syntax", ::hpp::proto::as_optional_ref<&T::syntax>,
+    "edition", ::hpp::proto::as_optional_ref<&T::edition, google::protobuf::Edition::EDITION_UNKNOWN>);
 };
 
-template <>
-struct glz::meta<google::protobuf::DescriptorProto> {
-  using T = google::protobuf::DescriptorProto;
+template <typename Traits>
+struct glz::meta<google::protobuf::DescriptorProto<Traits>> {
+  using T = google::protobuf::DescriptorProto<Traits>;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>,
-    "field", hpp::proto::as_optional_ref<&T::field>,
-    "extension", hpp::proto::as_optional_ref<&T::extension>,
-    "nestedType", hpp::proto::as_optional_ref<&T::nested_type>,
-    "enumType", hpp::proto::as_optional_ref<&T::enum_type>,
-    "extensionRange", hpp::proto::as_optional_ref<&T::extension_range>,
-    "oneofDecl", hpp::proto::as_optional_ref<&T::oneof_decl>,
+    "name", ::hpp::proto::as_optional_ref<&T::name>,
+    "field", ::hpp::proto::as_optional_ref<&T::field>,
+    "extension", ::hpp::proto::as_optional_ref<&T::extension>,
+    "nestedType", ::hpp::proto::as_optional_ref<&T::nested_type>,
+    "enumType", ::hpp::proto::as_optional_ref<&T::enum_type>,
+    "extensionRange", ::hpp::proto::as_optional_ref<&T::extension_range>,
+    "oneofDecl", ::hpp::proto::as_optional_ref<&T::oneof_decl>,
     "options", &T::options,
-    "reservedRange", hpp::proto::as_optional_ref<&T::reserved_range>,
-    "reservedName", hpp::proto::as_optional_ref<&T::reserved_name>);
+    "reservedRange", ::hpp::proto::as_optional_ref<&T::reserved_range>,
+    "reservedName", ::hpp::proto::as_optional_ref<&T::reserved_name>,
+    "visibility", ::hpp::proto::as_optional_ref<&T::visibility, google::protobuf::SymbolVisibility::VISIBILITY_UNSET>);
 };
 
-template <>
-struct glz::meta<google::protobuf::DescriptorProto::ExtensionRange> {
-  using T = google::protobuf::DescriptorProto::ExtensionRange;
+template <typename Traits>
+struct glz::meta<google::protobuf::DescriptorProto_::ExtensionRange<Traits>> {
+  using T = google::protobuf::DescriptorProto_::ExtensionRange<Traits>;
   static constexpr auto value = object(
-    "start", hpp::proto::as_optional_ref<&T::start>,
-    "end", hpp::proto::as_optional_ref<&T::end>,
+    "start", ::hpp::proto::as_optional_ref<&T::start>,
+    "end", ::hpp::proto::as_optional_ref<&T::end>,
     "options", &T::options);
 };
 
-template <>
-struct glz::meta<google::protobuf::DescriptorProto::ReservedRange> {
-  using T = google::protobuf::DescriptorProto::ReservedRange;
+template <typename Traits>
+struct glz::meta<google::protobuf::DescriptorProto_::ReservedRange<Traits>> {
+  using T = google::protobuf::DescriptorProto_::ReservedRange<Traits>;
   static constexpr auto value = object(
-    "start", hpp::proto::as_optional_ref<&T::start>,
-    "end", hpp::proto::as_optional_ref<&T::end>);
+    "start", ::hpp::proto::as_optional_ref<&T::start>,
+    "end", ::hpp::proto::as_optional_ref<&T::end>);
 };
 
-template <>
-struct glz::meta<google::protobuf::ExtensionRangeOptions> {
-  using T = google::protobuf::ExtensionRangeOptions;
+template <typename Traits>
+struct glz::meta<google::protobuf::ExtensionRangeOptions<Traits>> {
+  using T = google::protobuf::ExtensionRangeOptions<Traits>;
   static constexpr auto value = object(
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>,
-    "declaration", hpp::proto::as_optional_ref<&T::declaration>,
+    "uninterpretedOption", ::hpp::proto::as_optional_ref<&T::uninterpreted_option>,
+    "declaration", ::hpp::proto::as_optional_ref<&T::declaration>,
     "features", &T::features,
-    "verification", hpp::proto::as_optional_ref<&T::verification, ::google::protobuf::ExtensionRangeOptions::VerificationState::UNVERIFIED>);
+    "verification", ::hpp::proto::as_optional_ref<&T::verification, google::protobuf::ExtensionRangeOptions_::VerificationState::UNVERIFIED>);
 };
 
-template <>
-struct glz::meta<google::protobuf::ExtensionRangeOptions::Declaration> {
-  using T = google::protobuf::ExtensionRangeOptions::Declaration;
+template <typename Traits>
+struct glz::meta<google::protobuf::ExtensionRangeOptions_::Declaration<Traits>> {
+  using T = google::protobuf::ExtensionRangeOptions_::Declaration<Traits>;
   static constexpr auto value = object(
-    "number", hpp::proto::as_optional_ref<&T::number>,
-    "fullName", hpp::proto::as_optional_ref<&T::full_name>,
-    "type", hpp::proto::as_optional_ref<&T::type>,
-    "reserved", hpp::proto::as_optional_ref<&T::reserved>,
-    "repeated", hpp::proto::as_optional_ref<&T::repeated>);
+    "number", ::hpp::proto::as_optional_ref<&T::number>,
+    "fullName", ::hpp::proto::as_optional_ref<&T::full_name>,
+    "type", ::hpp::proto::as_optional_ref<&T::type>,
+    "reserved", ::hpp::proto::as_optional_ref<&T::reserved>,
+    "repeated", ::hpp::proto::as_optional_ref<&T::repeated>);
 };
 
 template <>
-struct glz::meta<google::protobuf::ExtensionRangeOptions::VerificationState> {
-  using enum google::protobuf::ExtensionRangeOptions::VerificationState;
+struct glz::meta<google::protobuf::ExtensionRangeOptions_::VerificationState> {
+  using enum google::protobuf::ExtensionRangeOptions_::VerificationState;
   static constexpr auto value = enumerate(
     "DECLARATION", DECLARATION,
     "UNVERIFIED", UNVERIFIED);
 };
 
-template <>
-struct glz::meta<google::protobuf::FieldDescriptorProto> {
-  using T = google::protobuf::FieldDescriptorProto;
+template <typename Traits>
+struct glz::meta<google::protobuf::FieldDescriptorProto<Traits>> {
+  using T = google::protobuf::FieldDescriptorProto<Traits>;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>,
-    "number", hpp::proto::as_optional_ref<&T::number>,
-    "label", hpp::proto::as_optional_ref<&T::label, ::google::protobuf::FieldDescriptorProto::Label::LABEL_OPTIONAL>,
-    "type", hpp::proto::as_optional_ref<&T::type, ::google::protobuf::FieldDescriptorProto::Type::TYPE_DOUBLE>,
-    "typeName", hpp::proto::as_optional_ref<&T::type_name>,
-    "extendee", hpp::proto::as_optional_ref<&T::extendee>,
-    "defaultValue", hpp::proto::as_optional_ref<&T::default_value>,
+    "name", ::hpp::proto::as_optional_ref<&T::name>,
+    "number", ::hpp::proto::as_optional_ref<&T::number>,
+    "label", ::hpp::proto::as_optional_ref<&T::label, google::protobuf::FieldDescriptorProto_::Label::LABEL_OPTIONAL>,
+    "type", ::hpp::proto::as_optional_ref<&T::type, google::protobuf::FieldDescriptorProto_::Type::TYPE_DOUBLE>,
+    "typeName", ::hpp::proto::as_optional_ref<&T::type_name>,
+    "extendee", ::hpp::proto::as_optional_ref<&T::extendee>,
+    "defaultValue", ::hpp::proto::as_optional_ref<&T::default_value>,
     "oneofIndex", &T::oneof_index,
-    "jsonName", hpp::proto::as_optional_ref<&T::json_name>,
+    "jsonName", ::hpp::proto::as_optional_ref<&T::json_name>,
     "options", &T::options,
-    "proto3Optional", hpp::proto::as_optional_ref<&T::proto3_optional>);
+    "proto3Optional", ::hpp::proto::as_optional_ref<&T::proto3_optional>);
 };
 
 template <>
-struct glz::meta<google::protobuf::FieldDescriptorProto::Type> {
-  using enum google::protobuf::FieldDescriptorProto::Type;
+struct glz::meta<google::protobuf::FieldDescriptorProto_::Type> {
+  using enum google::protobuf::FieldDescriptorProto_::Type;
   static constexpr auto value = enumerate(
     "TYPE_DOUBLE", TYPE_DOUBLE,
     "TYPE_FLOAT", TYPE_FLOAT,
@@ -141,161 +143,162 @@ struct glz::meta<google::protobuf::FieldDescriptorProto::Type> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FieldDescriptorProto::Label> {
-  using enum google::protobuf::FieldDescriptorProto::Label;
+struct glz::meta<google::protobuf::FieldDescriptorProto_::Label> {
+  using enum google::protobuf::FieldDescriptorProto_::Label;
   static constexpr auto value = enumerate(
     "LABEL_OPTIONAL", LABEL_OPTIONAL,
     "LABEL_REPEATED", LABEL_REPEATED,
     "LABEL_REQUIRED", LABEL_REQUIRED);
 };
 
-template <>
-struct glz::meta<google::protobuf::OneofDescriptorProto> {
-  using T = google::protobuf::OneofDescriptorProto;
+template <typename Traits>
+struct glz::meta<google::protobuf::OneofDescriptorProto<Traits>> {
+  using T = google::protobuf::OneofDescriptorProto<Traits>;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>,
+    "name", ::hpp::proto::as_optional_ref<&T::name>,
     "options", &T::options);
 };
 
-template <>
-struct glz::meta<google::protobuf::EnumDescriptorProto> {
-  using T = google::protobuf::EnumDescriptorProto;
+template <typename Traits>
+struct glz::meta<google::protobuf::EnumDescriptorProto<Traits>> {
+  using T = google::protobuf::EnumDescriptorProto<Traits>;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>,
-    "value", hpp::proto::as_optional_ref<&T::value>,
+    "name", ::hpp::proto::as_optional_ref<&T::name>,
+    "value", ::hpp::proto::as_optional_ref<&T::value>,
     "options", &T::options,
-    "reservedRange", hpp::proto::as_optional_ref<&T::reserved_range>,
-    "reservedName", hpp::proto::as_optional_ref<&T::reserved_name>);
+    "reservedRange", ::hpp::proto::as_optional_ref<&T::reserved_range>,
+    "reservedName", ::hpp::proto::as_optional_ref<&T::reserved_name>,
+    "visibility", ::hpp::proto::as_optional_ref<&T::visibility, google::protobuf::SymbolVisibility::VISIBILITY_UNSET>);
 };
 
-template <>
-struct glz::meta<google::protobuf::EnumDescriptorProto::EnumReservedRange> {
-  using T = google::protobuf::EnumDescriptorProto::EnumReservedRange;
+template <typename Traits>
+struct glz::meta<google::protobuf::EnumDescriptorProto_::EnumReservedRange<Traits>> {
+  using T = google::protobuf::EnumDescriptorProto_::EnumReservedRange<Traits>;
   static constexpr auto value = object(
-    "start", hpp::proto::as_optional_ref<&T::start>,
-    "end", hpp::proto::as_optional_ref<&T::end>);
+    "start", ::hpp::proto::as_optional_ref<&T::start>,
+    "end", ::hpp::proto::as_optional_ref<&T::end>);
 };
 
-template <>
-struct glz::meta<google::protobuf::EnumValueDescriptorProto> {
-  using T = google::protobuf::EnumValueDescriptorProto;
+template <typename Traits>
+struct glz::meta<google::protobuf::EnumValueDescriptorProto<Traits>> {
+  using T = google::protobuf::EnumValueDescriptorProto<Traits>;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>,
-    "number", hpp::proto::as_optional_ref<&T::number>,
+    "name", ::hpp::proto::as_optional_ref<&T::name>,
+    "number", ::hpp::proto::as_optional_ref<&T::number>,
     "options", &T::options);
 };
 
-template <>
-struct glz::meta<google::protobuf::ServiceDescriptorProto> {
-  using T = google::protobuf::ServiceDescriptorProto;
+template <typename Traits>
+struct glz::meta<google::protobuf::ServiceDescriptorProto<Traits>> {
+  using T = google::protobuf::ServiceDescriptorProto<Traits>;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>,
-    "method", hpp::proto::as_optional_ref<&T::method>,
+    "name", ::hpp::proto::as_optional_ref<&T::name>,
+    "method", ::hpp::proto::as_optional_ref<&T::method>,
     "options", &T::options);
 };
 
-template <>
-struct glz::meta<google::protobuf::MethodDescriptorProto> {
-  using T = google::protobuf::MethodDescriptorProto;
+template <typename Traits>
+struct glz::meta<google::protobuf::MethodDescriptorProto<Traits>> {
+  using T = google::protobuf::MethodDescriptorProto<Traits>;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>,
-    "inputType", hpp::proto::as_optional_ref<&T::input_type>,
-    "outputType", hpp::proto::as_optional_ref<&T::output_type>,
+    "name", ::hpp::proto::as_optional_ref<&T::name>,
+    "inputType", ::hpp::proto::as_optional_ref<&T::input_type>,
+    "outputType", ::hpp::proto::as_optional_ref<&T::output_type>,
     "options", &T::options,
-    "clientStreaming", hpp::proto::as_optional_ref<&T::client_streaming, false>,
-    "serverStreaming", hpp::proto::as_optional_ref<&T::server_streaming, false>);
+    "clientStreaming", ::hpp::proto::as_optional_ref<&T::client_streaming, false>,
+    "serverStreaming", ::hpp::proto::as_optional_ref<&T::server_streaming, false>);
 };
 
-template <>
-struct glz::meta<google::protobuf::FileOptions> {
-  using T = google::protobuf::FileOptions;
+template <typename Traits>
+struct glz::meta<google::protobuf::FileOptions<Traits>> {
+  using T = google::protobuf::FileOptions<Traits>;
   static constexpr auto value = object(
-    "javaPackage", hpp::proto::as_optional_ref<&T::java_package>,
-    "javaOuterClassname", hpp::proto::as_optional_ref<&T::java_outer_classname>,
-    "javaMultipleFiles", hpp::proto::as_optional_ref<&T::java_multiple_files, false>,
-    "javaGenerateEqualsAndHash", hpp::proto::as_optional_ref<&T::java_generate_equals_and_hash>,
-    "javaStringCheckUtf8", hpp::proto::as_optional_ref<&T::java_string_check_utf8, false>,
-    "optimizeFor", hpp::proto::as_optional_ref<&T::optimize_for, ::google::protobuf::FileOptions::OptimizeMode::SPEED>,
-    "goPackage", hpp::proto::as_optional_ref<&T::go_package>,
-    "ccGenericServices", hpp::proto::as_optional_ref<&T::cc_generic_services, false>,
-    "javaGenericServices", hpp::proto::as_optional_ref<&T::java_generic_services, false>,
-    "pyGenericServices", hpp::proto::as_optional_ref<&T::py_generic_services, false>,
-    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>,
-    "ccEnableArenas", hpp::proto::as_optional_ref<&T::cc_enable_arenas, true>,
-    "objcClassPrefix", hpp::proto::as_optional_ref<&T::objc_class_prefix>,
-    "csharpNamespace", hpp::proto::as_optional_ref<&T::csharp_namespace>,
-    "swiftPrefix", hpp::proto::as_optional_ref<&T::swift_prefix>,
-    "phpClassPrefix", hpp::proto::as_optional_ref<&T::php_class_prefix>,
-    "phpNamespace", hpp::proto::as_optional_ref<&T::php_namespace>,
-    "phpMetadataNamespace", hpp::proto::as_optional_ref<&T::php_metadata_namespace>,
-    "rubyPackage", hpp::proto::as_optional_ref<&T::ruby_package>,
+    "javaPackage", ::hpp::proto::as_optional_ref<&T::java_package>,
+    "javaOuterClassname", ::hpp::proto::as_optional_ref<&T::java_outer_classname>,
+    "javaMultipleFiles", ::hpp::proto::as_optional_ref<&T::java_multiple_files, false>,
+    "javaGenerateEqualsAndHash", ::hpp::proto::as_optional_ref<&T::java_generate_equals_and_hash>,
+    "javaStringCheckUtf8", ::hpp::proto::as_optional_ref<&T::java_string_check_utf8, false>,
+    "optimizeFor", ::hpp::proto::as_optional_ref<&T::optimize_for, google::protobuf::FileOptions_::OptimizeMode::SPEED>,
+    "goPackage", ::hpp::proto::as_optional_ref<&T::go_package>,
+    "ccGenericServices", ::hpp::proto::as_optional_ref<&T::cc_generic_services, false>,
+    "javaGenericServices", ::hpp::proto::as_optional_ref<&T::java_generic_services, false>,
+    "pyGenericServices", ::hpp::proto::as_optional_ref<&T::py_generic_services, false>,
+    "deprecated", ::hpp::proto::as_optional_ref<&T::deprecated, false>,
+    "ccEnableArenas", ::hpp::proto::as_optional_ref<&T::cc_enable_arenas, true>,
+    "objcClassPrefix", ::hpp::proto::as_optional_ref<&T::objc_class_prefix>,
+    "csharpNamespace", ::hpp::proto::as_optional_ref<&T::csharp_namespace>,
+    "swiftPrefix", ::hpp::proto::as_optional_ref<&T::swift_prefix>,
+    "phpClassPrefix", ::hpp::proto::as_optional_ref<&T::php_class_prefix>,
+    "phpNamespace", ::hpp::proto::as_optional_ref<&T::php_namespace>,
+    "phpMetadataNamespace", ::hpp::proto::as_optional_ref<&T::php_metadata_namespace>,
+    "rubyPackage", ::hpp::proto::as_optional_ref<&T::ruby_package>,
     "features", &T::features,
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
+    "uninterpretedOption", ::hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
 template <>
-struct glz::meta<google::protobuf::FileOptions::OptimizeMode> {
-  using enum google::protobuf::FileOptions::OptimizeMode;
+struct glz::meta<google::protobuf::FileOptions_::OptimizeMode> {
+  using enum google::protobuf::FileOptions_::OptimizeMode;
   static constexpr auto value = enumerate(
     "SPEED", SPEED,
     "CODE_SIZE", CODE_SIZE,
     "LITE_RUNTIME", LITE_RUNTIME);
 };
 
-template <>
-struct glz::meta<google::protobuf::MessageOptions> {
-  using T = google::protobuf::MessageOptions;
+template <typename Traits>
+struct glz::meta<google::protobuf::MessageOptions<Traits>> {
+  using T = google::protobuf::MessageOptions<Traits>;
   static constexpr auto value = object(
-    "messageSetWireFormat", hpp::proto::as_optional_ref<&T::message_set_wire_format, false>,
-    "noStandardDescriptorAccessor", hpp::proto::as_optional_ref<&T::no_standard_descriptor_accessor, false>,
-    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>,
-    "mapEntry", hpp::proto::as_optional_ref<&T::map_entry>,
-    "deprecatedLegacyJsonFieldConflicts", hpp::proto::as_optional_ref<&T::deprecated_legacy_json_field_conflicts>,
+    "messageSetWireFormat", ::hpp::proto::as_optional_ref<&T::message_set_wire_format, false>,
+    "noStandardDescriptorAccessor", ::hpp::proto::as_optional_ref<&T::no_standard_descriptor_accessor, false>,
+    "deprecated", ::hpp::proto::as_optional_ref<&T::deprecated, false>,
+    "mapEntry", ::hpp::proto::as_optional_ref<&T::map_entry>,
+    "deprecatedLegacyJsonFieldConflicts", ::hpp::proto::as_optional_ref<&T::deprecated_legacy_json_field_conflicts>,
     "features", &T::features,
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
+    "uninterpretedOption", ::hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
-template <>
-struct glz::meta<google::protobuf::FieldOptions> {
-  using T = google::protobuf::FieldOptions;
+template <typename Traits>
+struct glz::meta<google::protobuf::FieldOptions<Traits>> {
+  using T = google::protobuf::FieldOptions<Traits>;
   static constexpr auto value = object(
-    "ctype", hpp::proto::as_optional_ref<&T::ctype, ::google::protobuf::FieldOptions::CType::STRING>,
-    "packed", hpp::proto::as_optional_ref<&T::packed>,
-    "jstype", hpp::proto::as_optional_ref<&T::jstype, ::google::protobuf::FieldOptions::JSType::JS_NORMAL>,
-    "lazy", hpp::proto::as_optional_ref<&T::lazy, false>,
-    "unverifiedLazy", hpp::proto::as_optional_ref<&T::unverified_lazy, false>,
-    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>,
-    "weak", hpp::proto::as_optional_ref<&T::weak, false>,
-    "debugRedact", hpp::proto::as_optional_ref<&T::debug_redact, false>,
-    "retention", hpp::proto::as_optional_ref<&T::retention, ::google::protobuf::FieldOptions::OptionRetention::RETENTION_UNKNOWN>,
-    "targets", hpp::proto::as_optional_ref<&T::targets>,
-    "editionDefaults", hpp::proto::as_optional_ref<&T::edition_defaults>,
+    "ctype", ::hpp::proto::as_optional_ref<&T::ctype, google::protobuf::FieldOptions_::CType::STRING>,
+    "packed", ::hpp::proto::as_optional_ref<&T::packed>,
+    "jstype", ::hpp::proto::as_optional_ref<&T::jstype, google::protobuf::FieldOptions_::JSType::JS_NORMAL>,
+    "lazy", ::hpp::proto::as_optional_ref<&T::lazy, false>,
+    "unverifiedLazy", ::hpp::proto::as_optional_ref<&T::unverified_lazy, false>,
+    "deprecated", ::hpp::proto::as_optional_ref<&T::deprecated, false>,
+    "weak", ::hpp::proto::as_optional_ref<&T::weak, false>,
+    "debugRedact", ::hpp::proto::as_optional_ref<&T::debug_redact, false>,
+    "retention", ::hpp::proto::as_optional_ref<&T::retention, google::protobuf::FieldOptions_::OptionRetention::RETENTION_UNKNOWN>,
+    "targets", ::hpp::proto::as_optional_ref<&T::targets>,
+    "editionDefaults", ::hpp::proto::as_optional_ref<&T::edition_defaults>,
     "features", &T::features,
     "featureSupport", &T::feature_support,
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
+    "uninterpretedOption", ::hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
-template <>
-struct glz::meta<google::protobuf::FieldOptions::EditionDefault> {
-  using T = google::protobuf::FieldOptions::EditionDefault;
+template <typename Traits>
+struct glz::meta<google::protobuf::FieldOptions_::EditionDefault<Traits>> {
+  using T = google::protobuf::FieldOptions_::EditionDefault<Traits>;
   static constexpr auto value = object(
-    "edition", hpp::proto::as_optional_ref<&T::edition, ::google::protobuf::Edition::EDITION_UNKNOWN>,
-    "value", hpp::proto::as_optional_ref<&T::value>);
+    "edition", ::hpp::proto::as_optional_ref<&T::edition, google::protobuf::Edition::EDITION_UNKNOWN>,
+    "value", ::hpp::proto::as_optional_ref<&T::value>);
 };
 
-template <>
-struct glz::meta<google::protobuf::FieldOptions::FeatureSupport> {
-  using T = google::protobuf::FieldOptions::FeatureSupport;
+template <typename Traits>
+struct glz::meta<google::protobuf::FieldOptions_::FeatureSupport<Traits>> {
+  using T = google::protobuf::FieldOptions_::FeatureSupport<Traits>;
   static constexpr auto value = object(
-    "editionIntroduced", hpp::proto::as_optional_ref<&T::edition_introduced, ::google::protobuf::Edition::EDITION_UNKNOWN>,
-    "editionDeprecated", hpp::proto::as_optional_ref<&T::edition_deprecated, ::google::protobuf::Edition::EDITION_UNKNOWN>,
-    "deprecationWarning", hpp::proto::as_optional_ref<&T::deprecation_warning>,
-    "editionRemoved", hpp::proto::as_optional_ref<&T::edition_removed, ::google::protobuf::Edition::EDITION_UNKNOWN>);
+    "editionIntroduced", ::hpp::proto::as_optional_ref<&T::edition_introduced, google::protobuf::Edition::EDITION_UNKNOWN>,
+    "editionDeprecated", ::hpp::proto::as_optional_ref<&T::edition_deprecated, google::protobuf::Edition::EDITION_UNKNOWN>,
+    "deprecationWarning", ::hpp::proto::as_optional_ref<&T::deprecation_warning>,
+    "editionRemoved", ::hpp::proto::as_optional_ref<&T::edition_removed, google::protobuf::Edition::EDITION_UNKNOWN>);
 };
 
 template <>
-struct glz::meta<google::protobuf::FieldOptions::CType> {
-  using enum google::protobuf::FieldOptions::CType;
+struct glz::meta<google::protobuf::FieldOptions_::CType> {
+  using enum google::protobuf::FieldOptions_::CType;
   static constexpr auto value = enumerate(
     "STRING", STRING,
     "CORD", CORD,
@@ -303,8 +306,8 @@ struct glz::meta<google::protobuf::FieldOptions::CType> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FieldOptions::JSType> {
-  using enum google::protobuf::FieldOptions::JSType;
+struct glz::meta<google::protobuf::FieldOptions_::JSType> {
+  using enum google::protobuf::FieldOptions_::JSType;
   static constexpr auto value = enumerate(
     "JS_NORMAL", JS_NORMAL,
     "JS_STRING", JS_STRING,
@@ -312,8 +315,8 @@ struct glz::meta<google::protobuf::FieldOptions::JSType> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FieldOptions::OptionRetention> {
-  using enum google::protobuf::FieldOptions::OptionRetention;
+struct glz::meta<google::protobuf::FieldOptions_::OptionRetention> {
+  using enum google::protobuf::FieldOptions_::OptionRetention;
   static constexpr auto value = enumerate(
     "RETENTION_UNKNOWN", RETENTION_UNKNOWN,
     "RETENTION_RUNTIME", RETENTION_RUNTIME,
@@ -321,8 +324,8 @@ struct glz::meta<google::protobuf::FieldOptions::OptionRetention> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FieldOptions::OptionTargetType> {
-  using enum google::protobuf::FieldOptions::OptionTargetType;
+struct glz::meta<google::protobuf::FieldOptions_::OptionTargetType> {
+  using enum google::protobuf::FieldOptions_::OptionTargetType;
   static constexpr auto value = enumerate(
     "TARGET_TYPE_UNKNOWN", TARGET_TYPE_UNKNOWN,
     "TARGET_TYPE_FILE", TARGET_TYPE_FILE,
@@ -336,100 +339,120 @@ struct glz::meta<google::protobuf::FieldOptions::OptionTargetType> {
     "TARGET_TYPE_METHOD", TARGET_TYPE_METHOD);
 };
 
-template <>
-struct glz::meta<google::protobuf::OneofOptions> {
-  using T = google::protobuf::OneofOptions;
+template <typename Traits>
+struct glz::meta<google::protobuf::OneofOptions<Traits>> {
+  using T = google::protobuf::OneofOptions<Traits>;
   static constexpr auto value = object(
     "features", &T::features,
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
+    "uninterpretedOption", ::hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
-template <>
-struct glz::meta<google::protobuf::EnumOptions> {
-  using T = google::protobuf::EnumOptions;
+template <typename Traits>
+struct glz::meta<google::protobuf::EnumOptions<Traits>> {
+  using T = google::protobuf::EnumOptions<Traits>;
   static constexpr auto value = object(
-    "allowAlias", hpp::proto::as_optional_ref<&T::allow_alias>,
-    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>,
-    "deprecatedLegacyJsonFieldConflicts", hpp::proto::as_optional_ref<&T::deprecated_legacy_json_field_conflicts>,
+    "allowAlias", ::hpp::proto::as_optional_ref<&T::allow_alias>,
+    "deprecated", ::hpp::proto::as_optional_ref<&T::deprecated, false>,
+    "deprecatedLegacyJsonFieldConflicts", ::hpp::proto::as_optional_ref<&T::deprecated_legacy_json_field_conflicts>,
     "features", &T::features,
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
+    "uninterpretedOption", ::hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
-template <>
-struct glz::meta<google::protobuf::EnumValueOptions> {
-  using T = google::protobuf::EnumValueOptions;
+template <typename Traits>
+struct glz::meta<google::protobuf::EnumValueOptions<Traits>> {
+  using T = google::protobuf::EnumValueOptions<Traits>;
   static constexpr auto value = object(
-    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>,
+    "deprecated", ::hpp::proto::as_optional_ref<&T::deprecated, false>,
     "features", &T::features,
-    "debugRedact", hpp::proto::as_optional_ref<&T::debug_redact, false>,
+    "debugRedact", ::hpp::proto::as_optional_ref<&T::debug_redact, false>,
     "featureSupport", &T::feature_support,
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
+    "uninterpretedOption", ::hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
-template <>
-struct glz::meta<google::protobuf::ServiceOptions> {
-  using T = google::protobuf::ServiceOptions;
+template <typename Traits>
+struct glz::meta<google::protobuf::ServiceOptions<Traits>> {
+  using T = google::protobuf::ServiceOptions<Traits>;
   static constexpr auto value = object(
     "features", &T::features,
-    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>,
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
+    "deprecated", ::hpp::proto::as_optional_ref<&T::deprecated, false>,
+    "uninterpretedOption", ::hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
-template <>
-struct glz::meta<google::protobuf::MethodOptions> {
-  using T = google::protobuf::MethodOptions;
+template <typename Traits>
+struct glz::meta<google::protobuf::MethodOptions<Traits>> {
+  using T = google::protobuf::MethodOptions<Traits>;
   static constexpr auto value = object(
-    "deprecated", hpp::proto::as_optional_ref<&T::deprecated, false>,
-    "idempotencyLevel", hpp::proto::as_optional_ref<&T::idempotency_level, ::google::protobuf::MethodOptions::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>,
+    "deprecated", ::hpp::proto::as_optional_ref<&T::deprecated, false>,
+    "idempotencyLevel", ::hpp::proto::as_optional_ref<&T::idempotency_level, google::protobuf::MethodOptions_::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>,
     "features", &T::features,
-    "uninterpretedOption", hpp::proto::as_optional_ref<&T::uninterpreted_option>);
+    "uninterpretedOption", ::hpp::proto::as_optional_ref<&T::uninterpreted_option>);
 };
 
 template <>
-struct glz::meta<google::protobuf::MethodOptions::IdempotencyLevel> {
-  using enum google::protobuf::MethodOptions::IdempotencyLevel;
+struct glz::meta<google::protobuf::MethodOptions_::IdempotencyLevel> {
+  using enum google::protobuf::MethodOptions_::IdempotencyLevel;
   static constexpr auto value = enumerate(
     "IDEMPOTENCY_UNKNOWN", IDEMPOTENCY_UNKNOWN,
     "NO_SIDE_EFFECTS", NO_SIDE_EFFECTS,
     "IDEMPOTENT", IDEMPOTENT);
 };
 
-template <>
-struct glz::meta<google::protobuf::UninterpretedOption> {
-  using T = google::protobuf::UninterpretedOption;
+template <typename Traits>
+struct glz::meta<google::protobuf::UninterpretedOption<Traits>> {
+  using T = google::protobuf::UninterpretedOption<Traits>;
   static constexpr auto value = object(
-    "name", hpp::proto::as_optional_ref<&T::name>,
-    "identifierValue", hpp::proto::as_optional_ref<&T::identifier_value>,
-    "positiveIntValue", hpp::proto::as_optional_ref<&T::positive_int_value>,
-    "negativeIntValue", hpp::proto::as_optional_ref<&T::negative_int_value>,
-    "doubleValue", hpp::proto::as_optional_ref<&T::double_value>,
-    "stringValue", hpp::proto::as_optional_ref<&T::string_value>,
-    "aggregateValue", hpp::proto::as_optional_ref<&T::aggregate_value>);
+    "name", ::hpp::proto::as_optional_ref<&T::name>,
+    "identifierValue", ::hpp::proto::as_optional_ref<&T::identifier_value>,
+    "positiveIntValue", ::hpp::proto::as_optional_ref<&T::positive_int_value>,
+    "negativeIntValue", ::hpp::proto::as_optional_ref<&T::negative_int_value>,
+    "doubleValue", ::hpp::proto::as_optional_ref<&T::double_value>,
+    "stringValue", ::hpp::proto::as_optional_ref<&T::string_value>,
+    "aggregateValue", ::hpp::proto::as_optional_ref<&T::aggregate_value>);
 };
 
-template <>
-struct glz::meta<google::protobuf::UninterpretedOption::NamePart> {
-  using T = google::protobuf::UninterpretedOption::NamePart;
+template <typename Traits>
+struct glz::meta<google::protobuf::UninterpretedOption_::NamePart<Traits>> {
+  using T = google::protobuf::UninterpretedOption_::NamePart<Traits>;
   static constexpr auto value = object(
     "namePart", &T::name_part,
     "isExtension", &T::is_extension);
 };
 
-template <>
-struct glz::meta<google::protobuf::FeatureSet> {
-  using T = google::protobuf::FeatureSet;
+template <typename Traits>
+struct glz::meta<google::protobuf::FeatureSet<Traits>> {
+  using T = google::protobuf::FeatureSet<Traits>;
   static constexpr auto value = object(
-    "fieldPresence", hpp::proto::as_optional_ref<&T::field_presence, ::google::protobuf::FeatureSet::FieldPresence::FIELD_PRESENCE_UNKNOWN>,
-    "enumType", hpp::proto::as_optional_ref<&T::enum_type, ::google::protobuf::FeatureSet::EnumType::ENUM_TYPE_UNKNOWN>,
-    "repeatedFieldEncoding", hpp::proto::as_optional_ref<&T::repeated_field_encoding, ::google::protobuf::FeatureSet::RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN>,
-    "utf8Validation", hpp::proto::as_optional_ref<&T::utf8_validation, ::google::protobuf::FeatureSet::Utf8Validation::UTF8_VALIDATION_UNKNOWN>,
-    "messageEncoding", hpp::proto::as_optional_ref<&T::message_encoding, ::google::protobuf::FeatureSet::MessageEncoding::MESSAGE_ENCODING_UNKNOWN>,
-    "jsonFormat", hpp::proto::as_optional_ref<&T::json_format, ::google::protobuf::FeatureSet::JsonFormat::JSON_FORMAT_UNKNOWN>);
+    "fieldPresence", ::hpp::proto::as_optional_ref<&T::field_presence, google::protobuf::FeatureSet_::FieldPresence::FIELD_PRESENCE_UNKNOWN>,
+    "enumType", ::hpp::proto::as_optional_ref<&T::enum_type, google::protobuf::FeatureSet_::EnumType::ENUM_TYPE_UNKNOWN>,
+    "repeatedFieldEncoding", ::hpp::proto::as_optional_ref<&T::repeated_field_encoding, google::protobuf::FeatureSet_::RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN>,
+    "utf8Validation", ::hpp::proto::as_optional_ref<&T::utf8_validation, google::protobuf::FeatureSet_::Utf8Validation::UTF8_VALIDATION_UNKNOWN>,
+    "messageEncoding", ::hpp::proto::as_optional_ref<&T::message_encoding, google::protobuf::FeatureSet_::MessageEncoding::MESSAGE_ENCODING_UNKNOWN>,
+    "jsonFormat", ::hpp::proto::as_optional_ref<&T::json_format, google::protobuf::FeatureSet_::JsonFormat::JSON_FORMAT_UNKNOWN>,
+    "enforceNamingStyle", ::hpp::proto::as_optional_ref<&T::enforce_naming_style, google::protobuf::FeatureSet_::EnforceNamingStyle::ENFORCE_NAMING_STYLE_UNKNOWN>,
+    "defaultSymbolVisibility", ::hpp::proto::as_optional_ref<&T::default_symbol_visibility, google::protobuf::FeatureSet_::VisibilityFeature_::DefaultSymbolVisibility::DEFAULT_SYMBOL_VISIBILITY_UNKNOWN>);
+};
+
+template <typename Traits>
+struct glz::meta<google::protobuf::FeatureSet_::VisibilityFeature<Traits>> {
+  using T = google::protobuf::FeatureSet_::VisibilityFeature<Traits>;
+  static constexpr auto value = object(
+);
 };
 
 template <>
-struct glz::meta<google::protobuf::FeatureSet::FieldPresence> {
-  using enum google::protobuf::FeatureSet::FieldPresence;
+struct glz::meta<google::protobuf::FeatureSet_::VisibilityFeature_::DefaultSymbolVisibility> {
+  using enum google::protobuf::FeatureSet_::VisibilityFeature_::DefaultSymbolVisibility;
+  static constexpr auto value = enumerate(
+    "DEFAULT_SYMBOL_VISIBILITY_UNKNOWN", DEFAULT_SYMBOL_VISIBILITY_UNKNOWN,
+    "EXPORT_ALL", EXPORT_ALL,
+    "EXPORT_TOP_LEVEL", EXPORT_TOP_LEVEL,
+    "LOCAL_ALL", LOCAL_ALL,
+    "STRICT", STRICT);
+};
+
+template <>
+struct glz::meta<google::protobuf::FeatureSet_::FieldPresence> {
+  using enum google::protobuf::FeatureSet_::FieldPresence;
   static constexpr auto value = enumerate(
     "FIELD_PRESENCE_UNKNOWN", FIELD_PRESENCE_UNKNOWN,
     "EXPLICIT", EXPLICIT,
@@ -438,8 +461,8 @@ struct glz::meta<google::protobuf::FeatureSet::FieldPresence> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FeatureSet::EnumType> {
-  using enum google::protobuf::FeatureSet::EnumType;
+struct glz::meta<google::protobuf::FeatureSet_::EnumType> {
+  using enum google::protobuf::FeatureSet_::EnumType;
   static constexpr auto value = enumerate(
     "ENUM_TYPE_UNKNOWN", ENUM_TYPE_UNKNOWN,
     "OPEN", OPEN,
@@ -447,8 +470,8 @@ struct glz::meta<google::protobuf::FeatureSet::EnumType> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FeatureSet::RepeatedFieldEncoding> {
-  using enum google::protobuf::FeatureSet::RepeatedFieldEncoding;
+struct glz::meta<google::protobuf::FeatureSet_::RepeatedFieldEncoding> {
+  using enum google::protobuf::FeatureSet_::RepeatedFieldEncoding;
   static constexpr auto value = enumerate(
     "REPEATED_FIELD_ENCODING_UNKNOWN", REPEATED_FIELD_ENCODING_UNKNOWN,
     "PACKED", PACKED,
@@ -456,8 +479,8 @@ struct glz::meta<google::protobuf::FeatureSet::RepeatedFieldEncoding> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FeatureSet::Utf8Validation> {
-  using enum google::protobuf::FeatureSet::Utf8Validation;
+struct glz::meta<google::protobuf::FeatureSet_::Utf8Validation> {
+  using enum google::protobuf::FeatureSet_::Utf8Validation;
   static constexpr auto value = enumerate(
     "UTF8_VALIDATION_UNKNOWN", UTF8_VALIDATION_UNKNOWN,
     "VERIFY", VERIFY,
@@ -465,8 +488,8 @@ struct glz::meta<google::protobuf::FeatureSet::Utf8Validation> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FeatureSet::MessageEncoding> {
-  using enum google::protobuf::FeatureSet::MessageEncoding;
+struct glz::meta<google::protobuf::FeatureSet_::MessageEncoding> {
+  using enum google::protobuf::FeatureSet_::MessageEncoding;
   static constexpr auto value = enumerate(
     "MESSAGE_ENCODING_UNKNOWN", MESSAGE_ENCODING_UNKNOWN,
     "LENGTH_PREFIXED", LENGTH_PREFIXED,
@@ -474,8 +497,8 @@ struct glz::meta<google::protobuf::FeatureSet::MessageEncoding> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FeatureSet::JsonFormat> {
-  using enum google::protobuf::FeatureSet::JsonFormat;
+struct glz::meta<google::protobuf::FeatureSet_::JsonFormat> {
+  using enum google::protobuf::FeatureSet_::JsonFormat;
   static constexpr auto value = enumerate(
     "JSON_FORMAT_UNKNOWN", JSON_FORMAT_UNKNOWN,
     "ALLOW", ALLOW,
@@ -483,62 +506,71 @@ struct glz::meta<google::protobuf::FeatureSet::JsonFormat> {
 };
 
 template <>
-struct glz::meta<google::protobuf::FeatureSetDefaults> {
-  using T = google::protobuf::FeatureSetDefaults;
-  static constexpr auto value = object(
-    "defaults", hpp::proto::as_optional_ref<&T::defaults>,
-    "minimumEdition", hpp::proto::as_optional_ref<&T::minimum_edition, ::google::protobuf::Edition::EDITION_UNKNOWN>,
-    "maximumEdition", hpp::proto::as_optional_ref<&T::maximum_edition, ::google::protobuf::Edition::EDITION_UNKNOWN>);
+struct glz::meta<google::protobuf::FeatureSet_::EnforceNamingStyle> {
+  using enum google::protobuf::FeatureSet_::EnforceNamingStyle;
+  static constexpr auto value = enumerate(
+    "ENFORCE_NAMING_STYLE_UNKNOWN", ENFORCE_NAMING_STYLE_UNKNOWN,
+    "STYLE2024", STYLE2024,
+    "STYLE_LEGACY", STYLE_LEGACY);
 };
 
-template <>
-struct glz::meta<google::protobuf::FeatureSetDefaults::FeatureSetEditionDefault> {
-  using T = google::protobuf::FeatureSetDefaults::FeatureSetEditionDefault;
+template <typename Traits>
+struct glz::meta<google::protobuf::FeatureSetDefaults<Traits>> {
+  using T = google::protobuf::FeatureSetDefaults<Traits>;
   static constexpr auto value = object(
-    "edition", hpp::proto::as_optional_ref<&T::edition, ::google::protobuf::Edition::EDITION_UNKNOWN>,
+    "defaults", ::hpp::proto::as_optional_ref<&T::defaults>,
+    "minimumEdition", ::hpp::proto::as_optional_ref<&T::minimum_edition, google::protobuf::Edition::EDITION_UNKNOWN>,
+    "maximumEdition", ::hpp::proto::as_optional_ref<&T::maximum_edition, google::protobuf::Edition::EDITION_UNKNOWN>);
+};
+
+template <typename Traits>
+struct glz::meta<google::protobuf::FeatureSetDefaults_::FeatureSetEditionDefault<Traits>> {
+  using T = google::protobuf::FeatureSetDefaults_::FeatureSetEditionDefault<Traits>;
+  static constexpr auto value = object(
+    "edition", ::hpp::proto::as_optional_ref<&T::edition, google::protobuf::Edition::EDITION_UNKNOWN>,
     "overridableFeatures", &T::overridable_features,
     "fixedFeatures", &T::fixed_features);
 };
 
-template <>
-struct glz::meta<google::protobuf::SourceCodeInfo> {
-  using T = google::protobuf::SourceCodeInfo;
+template <typename Traits>
+struct glz::meta<google::protobuf::SourceCodeInfo<Traits>> {
+  using T = google::protobuf::SourceCodeInfo<Traits>;
   static constexpr auto value = object(
-    "location", hpp::proto::as_optional_ref<&T::location>);
+    "location", ::hpp::proto::as_optional_ref<&T::location>);
+};
+
+template <typename Traits>
+struct glz::meta<google::protobuf::SourceCodeInfo_::Location<Traits>> {
+  using T = google::protobuf::SourceCodeInfo_::Location<Traits>;
+  static constexpr auto value = object(
+    "path", ::hpp::proto::as_optional_ref<&T::path>,
+    "span", ::hpp::proto::as_optional_ref<&T::span>,
+    "leadingComments", ::hpp::proto::as_optional_ref<&T::leading_comments>,
+    "trailingComments", ::hpp::proto::as_optional_ref<&T::trailing_comments>,
+    "leadingDetachedComments", ::hpp::proto::as_optional_ref<&T::leading_detached_comments>);
+};
+
+template <typename Traits>
+struct glz::meta<google::protobuf::GeneratedCodeInfo<Traits>> {
+  using T = google::protobuf::GeneratedCodeInfo<Traits>;
+  static constexpr auto value = object(
+    "annotation", ::hpp::proto::as_optional_ref<&T::annotation>);
+};
+
+template <typename Traits>
+struct glz::meta<google::protobuf::GeneratedCodeInfo_::Annotation<Traits>> {
+  using T = google::protobuf::GeneratedCodeInfo_::Annotation<Traits>;
+  static constexpr auto value = object(
+    "path", ::hpp::proto::as_optional_ref<&T::path>,
+    "sourceFile", ::hpp::proto::as_optional_ref<&T::source_file>,
+    "begin", ::hpp::proto::as_optional_ref<&T::begin>,
+    "end", ::hpp::proto::as_optional_ref<&T::end>,
+    "semantic", ::hpp::proto::as_optional_ref<&T::semantic, google::protobuf::GeneratedCodeInfo_::Annotation_::Semantic::NONE>);
 };
 
 template <>
-struct glz::meta<google::protobuf::SourceCodeInfo::Location> {
-  using T = google::protobuf::SourceCodeInfo::Location;
-  static constexpr auto value = object(
-    "path", hpp::proto::as_optional_ref<&T::path>,
-    "span", hpp::proto::as_optional_ref<&T::span>,
-    "leadingComments", hpp::proto::as_optional_ref<&T::leading_comments>,
-    "trailingComments", hpp::proto::as_optional_ref<&T::trailing_comments>,
-    "leadingDetachedComments", hpp::proto::as_optional_ref<&T::leading_detached_comments>);
-};
-
-template <>
-struct glz::meta<google::protobuf::GeneratedCodeInfo> {
-  using T = google::protobuf::GeneratedCodeInfo;
-  static constexpr auto value = object(
-    "annotation", hpp::proto::as_optional_ref<&T::annotation>);
-};
-
-template <>
-struct glz::meta<google::protobuf::GeneratedCodeInfo::Annotation> {
-  using T = google::protobuf::GeneratedCodeInfo::Annotation;
-  static constexpr auto value = object(
-    "path", hpp::proto::as_optional_ref<&T::path>,
-    "sourceFile", hpp::proto::as_optional_ref<&T::source_file>,
-    "begin", hpp::proto::as_optional_ref<&T::begin>,
-    "end", hpp::proto::as_optional_ref<&T::end>,
-    "semantic", hpp::proto::as_optional_ref<&T::semantic, ::google::protobuf::GeneratedCodeInfo::Annotation::Semantic::NONE>);
-};
-
-template <>
-struct glz::meta<google::protobuf::GeneratedCodeInfo::Annotation::Semantic> {
-  using enum google::protobuf::GeneratedCodeInfo::Annotation::Semantic;
+struct glz::meta<google::protobuf::GeneratedCodeInfo_::Annotation_::Semantic> {
+  using enum google::protobuf::GeneratedCodeInfo_::Annotation_::Semantic;
   static constexpr auto value = enumerate(
     "NONE", NONE,
     "SET", SET,
@@ -561,6 +593,15 @@ struct glz::meta<google::protobuf::Edition> {
     "EDITION_99998_TEST_ONLY", EDITION_99998_TEST_ONLY,
     "EDITION_99999_TEST_ONLY", EDITION_99999_TEST_ONLY,
     "EDITION_MAX", EDITION_MAX);
+};
+
+template <>
+struct glz::meta<google::protobuf::SymbolVisibility> {
+  using enum google::protobuf::SymbolVisibility;
+  static constexpr auto value = enumerate(
+    "VISIBILITY_UNSET", VISIBILITY_UNSET,
+    "VISIBILITY_LOCAL", VISIBILITY_LOCAL,
+    "VISIBILITY_EXPORT", VISIBILITY_EXPORT);
 };
 
 // clang-format on

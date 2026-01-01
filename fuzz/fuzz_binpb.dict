@@ -1,0 +1,138 @@
+# Protobuf Fuzzer Dictionary
+# This file contains common protobuf binary wire format tokens to guide the fuzzer.
+
+# --- Common Wire Types ---
+# Varint (0)
+# Fixed64 (1)
+# Length-delimited (2)
+# Start group (3) - deprecated, but useful to fuzz
+# End group (4) - deprecated, but useful to fuzz
+# Fixed32 (5)
+
+# --- Common Field Tags (Field Number << 3 | Wire Type) ---
+# Field 1, Wire Type 0 (Varint)
+tag_1_varint="\x08"
+# Field 1, Wire Type 1 (Fixed64)
+tag_1_fixed64="\x09"
+# Field 1, Wire Type 2 (Length-delimited)
+tag_1_length_delimited="\x0a"
+# Field 1, Wire Type 3 (Start Group)
+tag_1_start_group="\x0b"
+# Field 1, Wire Type 4 (End Group)
+tag_1_end_group="\x0c"
+# Field 1, Wire Type 5 (Fixed32)
+tag_1_fixed32="\x0d"
+
+# Field 2, Wire Type 0 (Varint)
+tag_2_varint="\x10"
+# Field 2, Wire Type 2 (Length-delimited)
+tag_2_length_delimited="\x12"
+
+# Field 3, Wire Type 0 (Varint)
+tag_3_varint="\x18"
+# Field 3, Wire Type 2 (Length-delimited)
+tag_3_length_delimited="\x1a"
+
+# Field 15, Wire Type 0 (Varint) - common for `id` fields
+tag_15_varint="\x78"
+# Field 15, Wire Type 2 (Length-delimited)
+tag_15_length_delimited="\x7a"
+
+# --- TestAllTypes Field Tags (proto2 & proto3) ---
+# Singular optionals (field numbers 1–15 map to same wire types in both protos)
+tag_testall_optional_int32="\x08"
+tag_testall_optional_int64="\x10"
+tag_testall_optional_uint32="\x18"
+tag_testall_optional_uint64="\x20"
+tag_testall_optional_sint32="\x28"
+tag_testall_optional_sint64="\x30"
+tag_testall_optional_fixed32="\x3d"
+tag_testall_optional_fixed64="\x41"
+tag_testall_optional_sfixed32="\x4d"
+tag_testall_optional_sfixed64="\x51"
+tag_testall_optional_float="\x5d"
+tag_testall_optional_double="\x61"
+tag_testall_optional_bool="\x68"
+tag_testall_optional_string="\x72"
+tag_testall_optional_bytes="\x7a"
+
+# Messages / enums around the midrange field numbers
+tag_testall_optional_nested_message="\x92\x01"
+tag_testall_optional_foreign_message="\x9a\x01"
+tag_testall_optional_import_message="\xa2\x01"
+tag_testall_optional_nested_enum="\xa8\x01"
+tag_testall_optional_foreign_enum="\xb0\x01"
+tag_testall_optional_string_piece="\xc2\x01"
+tag_testall_optional_cord="\xca\x01"
+tag_testall_optional_public_import_message="\xd2\x01"
+tag_testall_optional_lazy_message="\xda\x01"
+tag_testall_optional_lazy_import_message="\x9a\x07"
+
+# Repeated collections in TestAllTypes (common hot spots)
+tag_testall_repeated_int32="\xf8\x01"
+tag_testall_repeated_int64="\x80\x02"
+tag_testall_repeated_string="\xe2\x02"
+tag_testall_repeated_bytes="\xea\x02"
+tag_testall_repeated_nested_enum="\x98\x03"
+
+# Oneof fields (proto2/proto3 share numbers)
+tag_testall_oneof_uint32="\xf8\x06"
+tag_testall_oneof_nested_message="\x82\x07"
+tag_testall_oneof_string="\x8a\x07"
+tag_testall_oneof_bytes="\x92\x07"
+
+# --- Common Varint Values ---
+# Zero
+varint_0="\x00"
+# One
+varint_1="\x01"
+# Max 1-byte varint
+varint_127="\x7f"
+# Min 2-byte varint
+varint_128="\x80\x01"
+# Max 2-byte varint
+varint_16383="\xff\x7f"
+# Min 3-byte varint
+varint_16384="\x80\x80\x01"
+
+# --- Common ZigZag Encoded Values (sint32/sint64) ---
+# 0 -> 0
+zigzag_0="\x00"
+# -1 -> 1
+zigzag_minus_1="\x01"
+# 1 -> 2
+zigzag_1="\x02"
+# -2 -> 3
+zigzag_minus_2="\x03"
+# Max int32_t -> 2^31-1 -> (2^32-2)
+zigzag_max_int32="\xfe\xff\xff\xff\x07"
+# Min int32_t -> -2^31 -> (2^32-1)
+zigzag_min_int32="\xff\xff\xff\xff\x07"
+
+# --- Common Length Prefixes for Length-Delimited Fields ---
+# Length 0
+length_0="\x00"
+# Length 1
+length_1="\x01"
+# Length 7
+length_7="\x07"
+# Length 15
+length_15="\x0f"
+# Length 127
+length_127="\x7f"
+# Length 128
+length_128="\x80\x01"
+
+# --- Common String/Byte Sequences ---
+short_string="a"
+word_string="test"
+common_word="message"
+utf8_invalid_start_byte="\xc0"
+utf8_invalid_continuation="\xe0\x80"
+utf8_overlong="\xf0\x80\x80\x80"
+control_char="\x01"
+null_byte="\x00"
+sequence_a="AAAA"
+sequence_b="BBBB"
+sequence_c="CCCC"
+sequence_long="This is a somewhat longer string to test buffer boundaries and reallocation."

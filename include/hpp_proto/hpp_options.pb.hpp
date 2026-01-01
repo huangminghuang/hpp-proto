@@ -8,40 +8,25 @@
 
 #pragma once
 
-#include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/binpb.hpp>
 #include "hpp_proto/hpp_options.msg.hpp"
 #include "google/protobuf/descriptor.pb.hpp"
 
 
 namespace hpp::proto {
 
-auto pb_meta(const FileOptions &) -> std::tuple<
-  hpp::proto::field_meta<1, &FileOptions::non_owning, hpp::proto::field_option::explicit_presence, bool>,
-  hpp::proto::field_meta<2, &FileOptions::namespace_prefix, hpp::proto::field_option::explicit_presence>,
-  hpp::proto::field_meta<3, &FileOptions::string_keyed_map, hpp::proto::field_option::explicit_presence>,
-  hpp::proto::field_meta<4, &FileOptions::numeric_keyed_map, hpp::proto::field_option::explicit_presence>>;
+template <typename Traits>
+auto pb_meta(const FileOptions<Traits> &) -> std::tuple<
+  ::hpp::proto::field_meta<2, &FileOptions<Traits>::namespace_prefix, ::hpp::proto::field_option::explicit_presence>,
+  ::hpp::proto::field_meta<UINT32_MAX, &FileOptions<Traits>::unknown_fields_>>;
 
-auto pb_meta(const MessageOptions &) -> std::tuple<
-  hpp::proto::field_meta<1, &MessageOptions::non_owning, hpp::proto::field_option::explicit_presence, bool>,
-  hpp::proto::field_meta<3, &MessageOptions::string_keyed_map, hpp::proto::field_option::explicit_presence>,
-  hpp::proto::field_meta<4, &MessageOptions::numeric_keyed_map, hpp::proto::field_option::explicit_presence>>;
-
-auto pb_meta(const FieldOptions &) -> std::tuple<
-  hpp::proto::field_meta<1, &FieldOptions::non_owning, hpp::proto::field_option::explicit_presence, bool>,
-  hpp::proto::field_meta<3, &FieldOptions::string_keyed_map, hpp::proto::field_option::explicit_presence>,
-  hpp::proto::field_meta<4, &FieldOptions::numeric_keyed_map, hpp::proto::field_option::explicit_presence>>;
-
-constexpr auto hpp_file_opts() {
-  return hpp::proto::extension_meta<::google::protobuf::FileOptions, 8964, hpp::proto::field_option::none, ::hpp::proto::FileOptions, ::hpp::proto::FileOptions>{};
-}
-
-constexpr auto hpp_message_opts() {
-  return hpp::proto::extension_meta<::google::protobuf::MessageOptions, 8964, hpp::proto::field_option::none, ::hpp::proto::MessageOptions, ::hpp::proto::MessageOptions>{};
-}
-
-constexpr auto hpp_field_opts() {
-  return hpp::proto::extension_meta<::google::protobuf::FieldOptions, 8964, hpp::proto::field_option::none, ::hpp::proto::FieldOptions, ::hpp::proto::FieldOptions>{};
-}
+template <typename Traits = ::hpp::proto::default_traits>
+struct hpp_file_opts
+    : ::hpp::proto::extension_base<hpp_file_opts<Traits>, google::protobuf::FileOptions> {
+  using value_type=hpp::proto::FileOptions<Traits>;
+  value_type value = {};
+  using pb_meta = std::tuple<::hpp::proto::field_meta<8964, &hpp_file_opts<Traits>::value, ::hpp::proto::field_option::none, void, std::monostate{}>>;
+};
 
 } // namespace hpp::proto
 // clang-format on

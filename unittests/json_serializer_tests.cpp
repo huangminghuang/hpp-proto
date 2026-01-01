@@ -1,11 +1,17 @@
 #include "test_util.hpp"
 #include <boost/ut.hpp>
-#include <hpp_proto/duration_codec.hpp>
-#include <hpp_proto/json_serializer.hpp>
-#include <hpp_proto/timestamp_codec.hpp>
+#include <hpp_proto/json.hpp>
+#include <hpp_proto/json/duration_codec.hpp>
+#include <hpp_proto/json/timestamp_codec.hpp>
 
 template <typename T>
 constexpr auto non_owning = false;
+
+template <template <typename Traits> class Message>
+constexpr auto non_owning<Message<hpp::proto::non_owning_traits>> = true;
+
+using optional_string_t = hpp::proto::optional<std::string>;
+static_assert(glz::nullable_t<optional_string_t> && not glz::custom_read<optional_string_t>);
 
 struct byte_span_example {
   hpp::proto::equality_comparable_span<const std::byte> field;
@@ -70,7 +76,7 @@ constexpr auto message_type_url(const explicit_optional_bool_example &) {
 template <>
 struct glz::meta<explicit_optional_bool_example> {
   using T = explicit_optional_bool_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
+  static constexpr auto value = object("field", &T::field);
 };
 
 struct explicit_optional_uint64_example {
@@ -199,6 +205,7 @@ const ut::suite test_base64 = [] {
   verify("light work.", "bGlnaHQgd29yay4=");
   verify("light work", "bGlnaHQgd29yaw==");
   verify("light wor", "bGlnaHQgd29y");
+  verify("abcdefghijklmnopqrstuvwxyz", "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXo=");
 
   verify("f", "Zg==");
   verify("fo", "Zm8=");
@@ -206,6 +213,22 @@ const ut::suite test_base64 = [] {
   verify("foob", "Zm9vYg==");
   verify("fooba", "Zm9vYmE=");
   verify("foobar", "Zm9vYmFy");
+
+  using namespace boost::ut;
+
+  "invalid_decode"_test = [] {
+    using namespace boost::ut;
+    using namespace std::literals::string_view_literals;
+    std::string result;
+    // The decoder should reject invalid base64 strings.
+    // 1. Invalid characters
+    expect(!hpp::proto::base64::decode("bGlnaHQgd29yay4-"sv, result));
+    // 2. Padding in the middle
+    expect(!hpp::proto::base64::decode("Zg==YWJj"sv, result));
+    // 3. Incorrect padding
+    expect(!hpp::proto::base64::decode("Zm9vYg="sv, result));   // "foob" is "Zm9vYg=="
+    expect(!hpp::proto::base64::decode("Zm9vYmE=="sv, result)); // "fooba" is "Zm9vYmE="
+  };
 };
 
 using source_location = boost::ut::reflection::source_location;
@@ -232,7 +255,7 @@ template <typename Bytes>
 struct bytes_example {
   Bytes field0;
   std::optional<Bytes> field1;
-  hpp::proto::optional<Bytes, hpp::proto::string_literal<"test">{}> field2;
+  hpp::proto::optional<Bytes, hpp::proto::bytes_literal<"test">{}> field2;
   Bytes field3;
   bool operator==(const bytes_example &) const = default;
 };
@@ -276,12 +299,49 @@ const ut::suite test_bytes = [] {
   };
   "non_ownning_bytes"_test = [] {
     verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{}, R"({"field0":""})");
-    verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{.field0 = "foo"_bytes_view,
-                                                                                .field1 = "light work."_bytes_view,
-                                                                                .field2 = "light work"_bytes_view,
-                                                                                .field3 = "light wor"_bytes_view},
+    verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{.field0 = "foo"_bytes,
+                                                                                .field1 = "light work."_bytes,
+                                                                                .field2 = "light work"_bytes,
+                                                                                .field3 = "light wor"_bytes},
            R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
   };
+};
+
+template <typename Traits>
+struct string_example {
+  ::hpp::proto::optional<typename Traits::string_t> optional_string;
+  Traits::template repeated_t<typename Traits::string_t> repeated_string;
+
+  // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
+  enum oneof_field_oneof_case : uint8_t { oneof_uint32 = 1, oneof_string = 3, oneof_bytes = 4 };
+
+  static constexpr std::array<std::uint32_t, 5> oneof_field_oneof_numbers{0U, 111U, 112U, 113U, 114U};
+  std::variant<std::monostate, std::uint32_t, typename Traits::string_t, typename Traits::bytes_t> oneof_field;
+  bool operator==(const string_example &) const = default;
+};
+
+// clang-format off
+template <typename Traits>
+struct glz::meta<string_example<Traits>> {
+  using T = string_example<Traits>;
+  static constexpr auto value =
+      object("optionalString", &T::optional_string, 
+             "repeatedString", ::hpp::proto::as_optional_ref<&T::repeated_string>,
+             "oneofUint32", ::hpp::proto::as_oneof_member<&T::oneof_field, 1>,
+             "oneofString", ::hpp::proto::as_oneof_member<&T::oneof_field, 2>, 
+             "oneofBytes", ::hpp::proto::as_oneof_member<&T::oneof_field, 3>);
+};
+// clang-format on
+
+const ut::suite test_string_json = [] {
+  using namespace boost::ut;
+  // "test_escape"_test = []<class Traits> {
+  //   verify(string_example<Traits>{.optional_string = "te\t"}, R"({"optionalString":"te\t"})");
+  // } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+
+  string_example<hpp::proto::default_traits> msg;
+  expect(hpp::proto::read_json(msg, "{\"optionalString\":null}").ok());
+  // expect(hpp::proto::read_json(msg, "{\"repeatedString\":[\"a\rsdfads\"],\"optionalString\":\"abc\"}").ok());
 };
 
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
@@ -332,7 +392,10 @@ const ut::suite test_explicit_optional_uint64 = [] {
   verify<explicit_optional_uint64_example>(explicit_optional_uint64_example{.field = 32}, R"({"field":"32"})");
 };
 
-const ut::suite test_oneof = [] { verify<oneof_example>(oneof_example{.value = "abc"}, R"({"string_field":"abc"})"); };
+const ut::suite test_oneof = [] {
+  verify<oneof_example>(oneof_example{.value = "abc"}, R"({"string_field":"abc"})");
+  verify<oneof_example>(oneof_example{.value = "tes\t"}, R"({"string_field":"tes\t"})");
+};
 
 const ut::suite test_indent_level = [] {
   using namespace boost::ut;

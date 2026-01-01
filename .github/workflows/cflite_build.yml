@@ -8,34 +8,30 @@ jobs:
   PR:
     runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-${{ matrix.sanitizer }}-${{ github.ref }}
+      group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
-    strategy:
-      fail-fast: false
-      matrix:
-        sanitizer:
-        - address
-        - undefined
-        - memory
     steps:
-    - name: Build Fuzzers (${{ matrix.sanitizer }})
+    - name: Build Fuzzers (address+undefined)
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+      env:
+        CFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CXXFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
       with:
         language: c++ 
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        sanitizer: ${{ matrix.sanitizer }}
+        sanitizer: address
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
-    - name: Run Fuzzers (${{ matrix.sanitizer }})
+    - name: Run Fuzzers (address+undefined)
       id: run
       uses: google/clusterfuzzlite/actions/run_fuzzers@v1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         fuzz-seconds: 300
         mode: 'code-change'
-        sanitizer: ${{ matrix.sanitizer }}
+        sanitizer: address
         output-sarif: true
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"

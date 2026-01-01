@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.25)
 message("CMake Version: ${CMAKE_VERSION}")
 project(hpp_proto
   VERSION 0.9.0
@@ -13,8 +13,6 @@ option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 
-option(HPP_PROTO_ENABLE_SANITIZERS "The sanitizer to enable" OFF)
-option(HPP_PROTO_BUILD_FUZZ "Build fuzz target" OFF)
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
 set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
@@ -63,17 +61,7 @@ endif()
 
 include(third-parties.cmake)
 
-if(HPP_PROTO_ENABLE_SANITIZERS)
-  if(MSVC)
-    # add_compile_options("/fsanitize=address")
-    # add_link_options("/fsanitize=address")
-  else()
-    add_compile_options("-fsanitize=${HPP_PROTO_ENABLE_SANITIZERS}" "-fno-omit-frame-pointer")
-    add_link_options("-fsanitize=${HPP_PROTO_ENABLE_SANITIZERS}")
-  endif()
-endif()
-
-set(CMAKE_CXX_FLAGS_COVERAGE "-g -O0 --coverage -fprofile-arcs -ftest-coverage")
+set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} -g -O0 --coverage -fprofile-arcs -ftest-coverage")
 
 if(HPP_PROTO_DISABLE_GLAZE)
   add_compile_definitions(BOOST_UT_DISABLE_MODULE HPP_PROTO_DISABLE_GLAZE)
@@ -86,7 +74,7 @@ target_include_directories(libhpp_proto INTERFACE
   $<INSTALL_INTERFACE:include>)
 target_include_directories(libhpp_proto SYSTEM INTERFACE
   $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>)
-target_compile_features(libhpp_proto INTERFACE cxx_std_20)
+target_compile_features(libhpp_proto INTERFACE cxx_std_23)
 target_link_libraries(libhpp_proto INTERFACE is_utf8)
 
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
@@ -112,12 +100,12 @@ if(HPP_PROTO_PROTOC_PLUGIN)
       set_property(TEST ${name} PROPERTY ENVIRONMENT "${HPP_PROTO_TEST_ENVIRONMENT}")
     endfunction(add_hpp_proto_test)
 
+    include(cmake/grpc_check.cmake)
+
     add_subdirectory(tests)
     add_subdirectory(tutorial)
-    if (HPP_PROTO_BUILD_FUZZ AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-      add_subdirectory(fuzz)
-    endif()
-  endif()
+    add_subdirectory(fuzz)
+ endif()    
 
   if(HPP_PROTO_BENCHMARKS)
     add_subdirectory(benchmarks)
@@ -141,7 +129,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     install(TARGETS protoc EXPORT hpp_proto-targets)
   endif()
 
-  install(TARGETS libhpp_proto well_known_types EXPORT hpp_proto-targets)
+  install(TARGETS libhpp_proto EXPORT hpp_proto-targets)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
@@ -169,3 +157,36 @@ if(HPP_PROTO_PROTOC_PLUGIN)
   export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake
     NAMESPACE hpp_proto::)
 endif(HPP_PROTO_PROTOC_PLUGIN)
+
+if(CMAKE_CONFIGURATION_TYPES)
+  list(FIND CMAKE_CONFIGURATION_TYPES "Coverage" _coverage_config_index)
+else()
+  set(_coverage_config_index -1)
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Coverage" OR _coverage_config_index GREATER_EQUAL 0)
+  find_program(LCOV_EXECUTABLE lcov)
+  find_program(GENHTML_EXECUTABLE genhtml)
+
+  if(LCOV_EXECUTABLE AND GENHTML_EXECUTABLE)
+    set(COVERAGE_EXCLUDE_PATTERNS
+      "/usr/include/*"
+      "${CMAKE_SOURCE_DIR}/include/google/protobuf"
+      "${CMAKE_BINARY_DIR}/*"
+      "$ENV{CPM_SOURCE_CACHE}/*"
+    )
+
+    add_custom_target(coverage_html
+      COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+      COMMAND ${LCOV_EXECUTABLE} --capture --directory ${CMAKE_BINARY_DIR} --output-file ${CMAKE_BINARY_DIR}/coverage.info
+      COMMAND ${LCOV_EXECUTABLE} --remove ${CMAKE_BINARY_DIR}/coverage.info
+      ${COVERAGE_EXCLUDE_PATTERNS}
+      --output-file ${CMAKE_BINARY_DIR}/coverage.filtered.info
+      COMMAND ${GENHTML_EXECUTABLE} ${CMAKE_BINARY_DIR}/coverage.filtered.info
+      --output-directory ${CMAKE_BINARY_DIR}/coverage-report
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      COMMENT "Generating coverage HTML report"
+      VERBATIM
+    )
+  endif()
+endif()

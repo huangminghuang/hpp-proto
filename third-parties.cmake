@@ -8,9 +8,9 @@ endif()
 
 CPMAddPackage(
     NAME glaze
-    GIT_TAG v2.9.5
+    GIT_TAG v6.4.1
     GITHUB_REPOSITORY stephenberry/glaze
-    PATCH_COMMAND ${GIT_EXECUTABLE} apply --ignore-space-change --ignore-whitespace ${CMAKE_CURRENT_SOURCE_DIR}/glaze-2.9.5.patch
+    PATCH_COMMAND ${GIT_EXECUTABLE} apply --3way --ignore-space-change --ignore-whitespace ${CMAKE_CURRENT_SOURCE_DIR}/glaze.patch
     UPDATE_DISCONNECTED ON
     ${system_package}
 )
@@ -28,10 +28,9 @@ if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
     message(FATAL_ERROR "is_utf8 is not compatible with address sanitizer")
 endif()
 
-CPMAddPackage("gh:fmtlib/fmt#10.1.0")
-set_target_properties(is_utf8 fmt PROPERTIES CXX_CLANG_TIDY "")
+set_target_properties(is_utf8 PROPERTIES CXX_CLANG_TIDY "")
 
-
+if (HPP_PROTO_PROTOC_PLUGIN)
 if(HPP_PROTO_PROTOC STREQUAL "find")
     find_package(Protobuf CONFIG)
     if(NOT Protobuf_FOUND)
@@ -67,13 +66,14 @@ if(HPP_PROTO_PROTOC STREQUAL "find")
         get_target_property(Protobuf_INCLUDE_DIRS protobuf::libprotobuf INTERFACE_INCLUDE_DIRECTORIES)
     endif()
 elseif(HPP_PROTO_PROTOC STREQUAL "compile")
-    set(Protobuf_VERSION 29.3)
+    set(Protobuf_VERSION 33.2)
     CPMAddPackage(
         NAME protobuf
         VERSION ${Protobuf_VERSION}
         GITHUB_REPOSITORY protocolbuffers/protobuf
         SYSTEM ON
         OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
+        "protobuf_FORCE_FETCH_DEPENDENCIES ON"
         "protobuf_INSTALL OFF"
         "protobuf_BUILD_TESTS OFF"
         "protobuf_BUILD_PROTOBUF_BINARIES ON"
@@ -87,15 +87,24 @@ elseif(HPP_PROTO_PROTOC STREQUAL "compile")
     )
     add_executable(protobuf::protoc ALIAS protoc)
     set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src)
+    # Protobuf's source tree keeps utf8_validity.h under third_party/utf8_range.
+    # Add it to the exported include dirs so dependent targets can compile.
+    if(TARGET libprotobuf)
+        target_include_directories(libprotobuf INTERFACE ${protobuf_SOURCE_DIR}/third_party/utf8_range)
+    endif()
+    if(TARGET libprotobuf-lite)
+        target_include_directories(libprotobuf-lite INTERFACE ${protobuf_SOURCE_DIR}/third_party/utf8_range)
+    endif()
 else()
     message(FATAL_ERROR "HPP_PROTO_PROTOC must be set to 'find' or 'compile'")
+endif()
 endif()
 
 if(HPP_PROTO_TESTS)
     CPMAddPackage(
         NAME ut
         GITHUB_REPOSITORY boost-ext/ut
-        VERSION 2.3.0
+        VERSION 2.3.1
         DOWNLOAD_ONLY ON
     )
     add_library(Boost::ut INTERFACE IMPORTED)
@@ -107,7 +116,7 @@ if(HPP_PROTO_BENCHMARKS)
     CPMAddPackage(
         NAME benchmark
         GITHUB_REPOSITORY google/benchmark
-        VERSION 1.8.3
+        VERSION 1.9.4
         OPTIONS
         "BENCHMARK_ENABLE_TESTING OFF"
         "BENCHMARK_ENABLE_INSTALL OFF"

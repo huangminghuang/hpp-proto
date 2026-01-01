@@ -1,0 +1,53 @@
+name: Clang-Tidy 21
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - dev/**
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - '**.md'
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: "**/cpm_modules"
+          key: clang-tidy-${{ runner.os }}-${{ hashFiles('**/third-party.cmake') }}
+
+      - name: Install LLVM 21 and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget ninja-build protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-tidy-21
+          echo "CC=clang-21" >> $GITHUB_ENV
+          echo "CXX=clang++-21" >> $GITHUB_ENV
+
+      - name: Configure (clang-tidy enforced)
+        run: |
+          cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
+                -DHPP_PROTO_PROTOC=find \
+                -DCMAKE_C_COMPILER=clang-21 \
+                -DCMAKE_CXX_COMPILER=clang++-21 \
+                -DCMAKE_C_CLANG_TIDY="clang-tidy-21;-warnings-as-errors=*" \
+                -DCMAKE_CXX_CLANG_TIDY="clang-tidy-21;-warnings-as-errors=*"
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"

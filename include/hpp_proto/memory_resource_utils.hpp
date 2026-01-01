@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2024 Huang-Ming Huang
+// Copyright (c) Huang-Ming Huang
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 #pragma once
 
 #include <concepts>
+#include <cstring>
 #include <hpp_proto/field_types.hpp>
 #include <memory_resource>
 #include <ranges>
@@ -42,8 +43,8 @@ concept has_memory_resource =
 
 template <typename T>
 concept resizable = requires {
-  std::declval<T &>().resize(1);
-  std::declval<T>()[0];
+  std::declval<T &>().resize(std::size_t{1});
+  std::declval<T>()[std::size_t{}];
 };
 
 template <typename T>
@@ -183,7 +184,10 @@ public:
   }
 
   [[nodiscard]] constexpr iterator begin() const { return iterator{base.data()}; }
-  [[nodiscard]] constexpr iterator end() const { return iterator{base.data() + base.size()}; }
+  [[nodiscard]] constexpr iterator end() const {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return iterator{base.data() + base.size()};
+  }
 };
 
 template <typename T, concepts::contiguous_byte_range Bytes>
@@ -229,13 +233,14 @@ public:
 
   constexpr void resize(std::size_t n) {
     if (capacity_ < n) [[likely]] {
-      data_ = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
+      auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       if (view_.size() < n) [[likely]] {
-        std::uninitialized_copy(view_.begin(), view_.end(), data_);
-        std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
+        std::uninitialized_copy(view_.begin(), view_.end(), new_data);
+        std::uninitialized_default_construct(new_data + view_.size(), new_data + n);
       } else {
-        std::uninitialized_copy(view_.begin(), view_.begin() + static_cast<std::ptrdiff_t>(n), data_);
+        std::uninitialized_copy(view_.begin(), view_.begin() + static_cast<std::ptrdiff_t>(n), new_data);
       }
+      data_ = new_data;
       capacity_ = n;
     } else if (n > view_.size()) {
       std::uninitialized_default_construct(data_ + view_.size(), data_ + n);
@@ -273,13 +278,33 @@ public:
     capacity_ = 0;
   }
 
-  constexpr void assign_range(const View &r) { assign_range_with_size(r, std::ranges::size(r)); }
+  template <std::ranges::sized_range R>
+    requires std::same_as<value_type, std::ranges::range_value_t<R>>
+  constexpr void assign_range(const R &r) {
+    assign_range_with_size(r, std::ranges::size(r));
+  }
 
-  constexpr void append_range(const View &r) {
+  template <typename It>
+  constexpr void assign(It first, It last) {
+    assign_range(std::span{first, last});
+  }
+
+  constexpr void assign(pointer data, std::size_t size) { assign_range(std::span{data, size}); }
+
+  template <std::ranges::sized_range R>
+  constexpr void append_range(const R &r) {
     auto old_size = view_.size();
     auto n = std::ranges::size(r);
     assign_range_with_size(view_, old_size + n);
     std::ranges::uninitialized_copy(r, std::span{data_ + old_size, n});
+  }
+
+  template <typename Iterator>
+  constexpr void append_range(Iterator first, Iterator last) {
+    auto old_size = view_.size();
+    auto n = std::distance(first, last);
+    assign_range_with_size(view_, old_size + n);
+    std::uninitialized_copy(first, last, std::span{data_ + old_size, n});
   }
 
   constexpr void reserve(std::size_t n) {
@@ -311,7 +336,7 @@ private:
   value_type *data_ = nullptr;
   std::size_t capacity_ = 0;
 
-  constexpr void assign_range_with_size(const View &r, std::size_t n) {
+  constexpr void assign_range_with_size(std::ranges::sized_range auto const &r, std::size_t n) {
     if (capacity_ < n) {
       auto new_data = static_cast<value_type *>(mr.allocate(n * sizeof(value_type), alignof(value_type)));
       std::ranges::uninitialized_copy(r, std::span{new_data, n});
@@ -333,11 +358,10 @@ arena_vector(View &view, Context &ctx)
 constexpr auto as_modifiable(concepts::is_pb_context auto &context, concepts::dynamic_sized_view auto &view) {
   return detail::arena_vector{view, context};
 }
-
 template <typename T>
   requires(!concepts::dynamic_sized_view<T>)
-constexpr T &as_modifiable(const auto & /* unused */, T &view) {
-  return view;
+constexpr auto as_modifiable(const auto & /* unused */, T &&view) -> decltype(std::forward<T>(view)) {
+  return std::forward<T>(view);
 }
 
 } // namespace detail

@@ -3,15 +3,19 @@
 
 #include <algorithm>
 #include <fstream>
-#include <hpp_proto/json_serializer.hpp>
-#include <hpp_proto/pb_serializer.hpp>
+#include <hpp_proto/binpb.hpp>
+#include <hpp_proto/json.hpp>
 #include <ranges>
 #include <span>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 inline std::string read_file(const std::string &filename) {
   std::ifstream in(filename.c_str(), std::ios::in | std::ios::binary);
+  if (!in) { // Checks if the stream is in a failed state
+    throw std::system_error{std::make_error_code(std::errc::no_such_file_or_directory), filename};
+  }
   std::string contents;
   in.seekg(0, std::ios::end);
   contents.resize(static_cast<std::string::size_type>(in.tellg()));
@@ -39,21 +43,15 @@ std::string to_hex(hpp::proto::concepts::contiguous_byte_range auto const &data)
 }
 
 template <hpp::proto::compile_time_string str>
-constexpr auto operator""_bytes_view() {
-  hpp::proto::bytes_literal<str> data;
-  return hpp::proto::bytes_view{data.data(), data.size()};
-}
-
-template <hpp::proto::compile_time_string str>
 constexpr auto operator""_bytes() {
-  return static_cast<std::vector<std::byte>>(hpp::proto::bytes_literal<str>{});
+  return hpp::proto::bytes_literal<str>{};
 }
 
 // NOLINTBEGIN(cert-dcl58-cpp)
 namespace std {
-template <glz::detail::glaze_t T>
+template <glz::glaze_t T>
 inline std::ostream &operator<<(ostream &os, const T &v) {
-#if !defined(HPP_PROTO_DISABLE_GLAZE)
+#ifndef HPP_PROTO_DISABLE_GLAZE
   return os << hpp::proto::write_json(v).value();
 #else
   return os;
@@ -73,5 +71,50 @@ inline std::ostream &operator<<(ostream &os, const vector<T> &c) {
   return os;
 }
 
+template <typename Enum>
+  requires std::is_enum_v<Enum>
+inline std::ostream &operator<<(std::ostream &os, Enum value) {
+  return os << static_cast<int64_t>(static_cast<std::underlying_type_t<Enum>>(value));
+}
+
+template <typename T, std::size_t ExtentL, typename U, std::size_t ExtentR>
+inline bool operator==(std::span<T, ExtentL> lhs, std::span<U, ExtentR> rhs) {
+  if (lhs.size() != rhs.size()) {
+    return false;
+  }
+  return std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
 } // namespace std
+
+namespace hpp::proto {
+template <compile_time_string cts>
+std::ostream &operator<<(std::ostream &os, bytes_literal<cts> v) {
+  return os << std::span<const std::byte>(v);
+}
+
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const equality_comparable_span<T> &span) {
+  os << '[';
+  bool first = true;
+  for (const auto &value : span) {
+    if (!first) {
+      os << ", ";
+    }
+    first = false;
+    os << value;
+  }
+  os << ']';
+  return os;
+}
+} // namespace hpp::proto
+
 // NOLINTEND(cert-dcl58-cpp)
+
+#ifdef __GNUC__
+#ifdef __apple_build_version__
+#pragma clang diagnostic ignored "-Wmissing-designated-field-initializers"
+#else
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+#endif

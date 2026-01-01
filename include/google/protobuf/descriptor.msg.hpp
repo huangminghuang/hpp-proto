@@ -30,26 +30,54 @@ enum class Edition {
   EDITION_MAX = 2147483647 
 };
 
-struct UninterpretedOption {
+constexpr bool is_valid(Edition value){
+  int v = static_cast<int>(value);
+  constexpr std::array<int, 12> valid_values{0,1,2,900,998,999,1000,1001,99997,99998,99999,2147483647};
+  return std::ranges::any_of(valid_values, [v](int u){ return u==v; });
+}
+
+enum class SymbolVisibility {
+  VISIBILITY_UNSET = 0,
+  VISIBILITY_LOCAL = 1,
+  VISIBILITY_EXPORT = 2 
+};
+
+constexpr bool is_valid(SymbolVisibility value){
+  int v = static_cast<int>(value);
+  return v >= 0 && v <= 2;
+}
+
+namespace UninterpretedOption_ {
+  template <typename Traits = ::hpp::proto::default_traits>
   struct NamePart {
-    std::string name_part;
+    using hpp_proto_traits_type = Traits;
+    typename Traits::string_t name_part;
     bool is_extension = {};
 
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const NamePart&) const = default;
   };
 
-  std::vector<NamePart> name;
-  std::string identifier_value;
+} //namespace UninterpretedOption_
+
+template <typename Traits = ::hpp::proto::default_traits>
+struct UninterpretedOption {
+  using hpp_proto_traits_type = Traits;
+  using NamePart = UninterpretedOption_::NamePart<Traits>;
+
+  Traits::template repeated_t<NamePart> name;
+  typename Traits::string_t identifier_value;
   std::uint64_t positive_int_value = {};
   std::int64_t negative_int_value = {};
   double double_value = {};
-  hpp::proto::bytes string_value;
-  std::string aggregate_value;
+  typename Traits::bytes_t string_value;
+  typename Traits::string_t aggregate_value;
 
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const UninterpretedOption&) const = default;
 };
 
-struct FeatureSet {
+namespace FeatureSet_ {
   enum class FieldPresence {
     FIELD_PRESENCE_UNKNOWN = 0,
     EXPLICIT = 1,
@@ -57,11 +85,21 @@ struct FeatureSet {
     LEGACY_REQUIRED = 3 
   };
 
+  constexpr bool is_valid(FieldPresence value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 3;
+  }
+
   enum class EnumType {
     ENUM_TYPE_UNKNOWN = 0,
     OPEN = 1,
     CLOSED = 2 
   };
+
+  constexpr bool is_valid(EnumType value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 2;
+  }
 
   enum class RepeatedFieldEncoding {
     REPEATED_FIELD_ENCODING_UNKNOWN = 0,
@@ -69,11 +107,22 @@ struct FeatureSet {
     EXPANDED = 2 
   };
 
+  constexpr bool is_valid(RepeatedFieldEncoding value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 2;
+  }
+
   enum class Utf8Validation {
     UTF8_VALIDATION_UNKNOWN = 0,
     VERIFY = 2,
     NONE = 3 
   };
+
+  constexpr bool is_valid(Utf8Validation value){
+    int v = static_cast<int>(value);
+    constexpr std::array<int, 3> valid_values{0,2,3};
+    return std::ranges::any_of(valid_values, [v](int u){ return u==v; });
+  }
 
   enum class MessageEncoding {
     MESSAGE_ENCODING_UNKNOWN = 0,
@@ -81,11 +130,71 @@ struct FeatureSet {
     DELIMITED = 2 
   };
 
+  constexpr bool is_valid(MessageEncoding value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 2;
+  }
+
   enum class JsonFormat {
     JSON_FORMAT_UNKNOWN = 0,
     ALLOW = 1,
     LEGACY_BEST_EFFORT = 2 
   };
+
+  constexpr bool is_valid(JsonFormat value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 2;
+  }
+
+  enum class EnforceNamingStyle {
+    ENFORCE_NAMING_STYLE_UNKNOWN = 0,
+    STYLE2024 = 1,
+    STYLE_LEGACY = 2 
+  };
+
+  constexpr bool is_valid(EnforceNamingStyle value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 2;
+  }
+
+  namespace VisibilityFeature_ {
+    enum class DefaultSymbolVisibility {
+      DEFAULT_SYMBOL_VISIBILITY_UNKNOWN = 0,
+      EXPORT_ALL = 1,
+      EXPORT_TOP_LEVEL = 2,
+      LOCAL_ALL = 3,
+      STRICT = 4 
+    };
+
+    constexpr bool is_valid(DefaultSymbolVisibility value){
+      int v = static_cast<int>(value);
+      return v >= 0 && v <= 4;
+    }
+
+  } //namespace VisibilityFeature_
+
+  template <typename Traits = ::hpp::proto::default_traits>
+  struct VisibilityFeature {
+    using hpp_proto_traits_type = Traits;
+    using DefaultSymbolVisibility = google::protobuf::FeatureSet_::VisibilityFeature_::DefaultSymbolVisibility;
+
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+    bool operator == (const VisibilityFeature&) const = default;
+  };
+
+} //namespace FeatureSet_
+
+template <typename Traits = ::hpp::proto::default_traits>
+struct FeatureSet {
+  using hpp_proto_traits_type = Traits;
+  using FieldPresence = google::protobuf::FeatureSet_::FieldPresence;
+  using EnumType = google::protobuf::FeatureSet_::EnumType;
+  using RepeatedFieldEncoding = google::protobuf::FeatureSet_::RepeatedFieldEncoding;
+  using Utf8Validation = google::protobuf::FeatureSet_::Utf8Validation;
+  using MessageEncoding = google::protobuf::FeatureSet_::MessageEncoding;
+  using JsonFormat = google::protobuf::FeatureSet_::JsonFormat;
+  using EnforceNamingStyle = google::protobuf::FeatureSet_::EnforceNamingStyle;
+  using VisibilityFeature = FeatureSet_::VisibilityFeature<Traits>;
 
   FieldPresence field_presence = FieldPresence::FIELD_PRESENCE_UNKNOWN;
   EnumType enum_type = EnumType::ENUM_TYPE_UNKNOWN;
@@ -93,242 +202,253 @@ struct FeatureSet {
   Utf8Validation utf8_validation = Utf8Validation::UTF8_VALIDATION_UNKNOWN;
   MessageEncoding message_encoding = MessageEncoding::MESSAGE_ENCODING_UNKNOWN;
   JsonFormat json_format = JsonFormat::JSON_FORMAT_UNKNOWN;
+  EnforceNamingStyle enforce_naming_style = EnforceNamingStyle::ENFORCE_NAMING_STYLE_UNKNOWN;
+  VisibilityFeature::DefaultSymbolVisibility default_symbol_visibility = VisibilityFeature::DefaultSymbolVisibility::DEFAULT_SYMBOL_VISIBILITY_UNKNOWN;
 
-  struct extension_t {
-    using pb_extension = FeatureSet;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const FeatureSet&) const = default;
 };
 
-struct SourceCodeInfo {
+namespace SourceCodeInfo_ {
+  template <typename Traits = ::hpp::proto::default_traits>
   struct Location {
-    std::vector<std::int32_t> path;
-    std::vector<std::int32_t> span;
-    std::string leading_comments;
-    std::string trailing_comments;
-    std::vector<std::string> leading_detached_comments;
+    using hpp_proto_traits_type = Traits;
+    Traits::template repeated_t<std::int32_t> path;
+    Traits::template repeated_t<std::int32_t> span;
+    typename Traits::string_t leading_comments;
+    typename Traits::string_t trailing_comments;
+    Traits::template repeated_t<typename Traits::string_t> leading_detached_comments;
 
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const Location&) const = default;
   };
 
-  std::vector<Location> location;
+} //namespace SourceCodeInfo_
 
-  struct extension_t {
-    using pb_extension = SourceCodeInfo;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+template <typename Traits = ::hpp::proto::default_traits>
+struct SourceCodeInfo {
+  using hpp_proto_traits_type = Traits;
+  using Location = SourceCodeInfo_::Location<Traits>;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  Traits::template repeated_t<Location> location;
+
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
+
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const SourceCodeInfo&) const = default;
 };
 
-struct GeneratedCodeInfo {
-  struct Annotation {
+namespace GeneratedCodeInfo_ {
+  namespace Annotation_ {
     enum class Semantic {
       NONE = 0,
       SET = 1,
       ALIAS = 2 
     };
 
-    std::vector<std::int32_t> path;
-    std::string source_file;
+    constexpr bool is_valid(Semantic value){
+      int v = static_cast<int>(value);
+      return v >= 0 && v <= 2;
+    }
+
+  } //namespace Annotation_
+
+  template <typename Traits = ::hpp::proto::default_traits>
+  struct Annotation {
+    using hpp_proto_traits_type = Traits;
+    using Semantic = google::protobuf::GeneratedCodeInfo_::Annotation_::Semantic;
+    Traits::template repeated_t<std::int32_t> path;
+    typename Traits::string_t source_file;
     std::int32_t begin = {};
     std::int32_t end = {};
     Semantic semantic = Semantic::NONE;
 
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const Annotation&) const = default;
   };
 
-  std::vector<Annotation> annotation;
+} //namespace GeneratedCodeInfo_
 
+template <typename Traits = ::hpp::proto::default_traits>
+struct GeneratedCodeInfo {
+  using hpp_proto_traits_type = Traits;
+  using Annotation = GeneratedCodeInfo_::Annotation<Traits>;
+
+  Traits::template repeated_t<Annotation> annotation;
+
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const GeneratedCodeInfo&) const = default;
 };
 
-struct FeatureSetDefaults {
+namespace FeatureSetDefaults_ {
+  template <typename Traits = ::hpp::proto::default_traits>
   struct FeatureSetEditionDefault {
-    Edition edition = Edition::EDITION_UNKNOWN;
-    std::optional<FeatureSet> overridable_features;
-    std::optional<FeatureSet> fixed_features;
+    using hpp_proto_traits_type = Traits;
+    google::protobuf::Edition edition = google::protobuf::Edition::EDITION_UNKNOWN;
+    std::optional<google::protobuf::FeatureSet<Traits>> overridable_features;
+    std::optional<google::protobuf::FeatureSet<Traits>> fixed_features;
 
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const FeatureSetEditionDefault&) const = default;
   };
 
-  std::vector<FeatureSetEditionDefault> defaults;
-  Edition minimum_edition = Edition::EDITION_UNKNOWN;
-  Edition maximum_edition = Edition::EDITION_UNKNOWN;
+} //namespace FeatureSetDefaults_
 
+template <typename Traits = ::hpp::proto::default_traits>
+struct FeatureSetDefaults {
+  using hpp_proto_traits_type = Traits;
+  using FeatureSetEditionDefault = FeatureSetDefaults_::FeatureSetEditionDefault<Traits>;
+
+  Traits::template repeated_t<FeatureSetEditionDefault> defaults;
+  google::protobuf::Edition minimum_edition = google::protobuf::Edition::EDITION_UNKNOWN;
+  google::protobuf::Edition maximum_edition = google::protobuf::Edition::EDITION_UNKNOWN;
+
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const FeatureSetDefaults&) const = default;
 };
 
-struct MethodOptions {
+namespace MethodOptions_ {
   enum class IdempotencyLevel {
     IDEMPOTENCY_UNKNOWN = 0,
     NO_SIDE_EFFECTS = 1,
     IDEMPOTENT = 2 
   };
 
+  constexpr bool is_valid(IdempotencyLevel value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 2;
+  }
+
+} //namespace MethodOptions_
+
+template <typename Traits = ::hpp::proto::default_traits>
+struct MethodOptions {
+  using hpp_proto_traits_type = Traits;
+  using IdempotencyLevel = google::protobuf::MethodOptions_::IdempotencyLevel;
   bool deprecated = false;
   IdempotencyLevel idempotency_level = IdempotencyLevel::IDEMPOTENCY_UNKNOWN;
-  std::optional<FeatureSet> features;
-  std::vector<UninterpretedOption> uninterpreted_option;
+  std::optional<google::protobuf::FeatureSet<Traits>> features;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = MethodOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const MethodOptions&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct ServiceOptions {
-  std::optional<FeatureSet> features;
+  using hpp_proto_traits_type = Traits;
+  std::optional<google::protobuf::FeatureSet<Traits>> features;
   bool deprecated = false;
-  std::vector<UninterpretedOption> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = ServiceOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const ServiceOptions&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct EnumOptions {
+  using hpp_proto_traits_type = Traits;
   bool allow_alias = {};
   bool deprecated = false;
   bool deprecated_legacy_json_field_conflicts = {};
-  std::optional<FeatureSet> features;
-  std::vector<UninterpretedOption> uninterpreted_option;
+  std::optional<google::protobuf::FeatureSet<Traits>> features;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = EnumOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const EnumOptions&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct OneofOptions {
-  std::optional<FeatureSet> features;
-  std::vector<UninterpretedOption> uninterpreted_option;
+  using hpp_proto_traits_type = Traits;
+  std::optional<google::protobuf::FeatureSet<Traits>> features;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = OneofOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const OneofOptions&) const = default;
 };
 
-struct FieldOptions {
+namespace FieldOptions_ {
   enum class CType {
     STRING = 0,
     CORD = 1,
     STRING_PIECE = 2 
   };
+
+  constexpr bool is_valid(CType value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 2;
+  }
 
   enum class JSType {
     JS_NORMAL = 0,
@@ -336,11 +456,21 @@ struct FieldOptions {
     JS_NUMBER = 2 
   };
 
+  constexpr bool is_valid(JSType value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 2;
+  }
+
   enum class OptionRetention {
     RETENTION_UNKNOWN = 0,
     RETENTION_RUNTIME = 1,
     RETENTION_SOURCE = 2 
   };
+
+  constexpr bool is_valid(OptionRetention value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 2;
+  }
 
   enum class OptionTargetType {
     TARGET_TYPE_UNKNOWN = 0,
@@ -355,24 +485,48 @@ struct FieldOptions {
     TARGET_TYPE_METHOD = 9 
   };
 
-  struct EditionDefault {
-    Edition edition = Edition::EDITION_UNKNOWN;
-    std::string value;
+  constexpr bool is_valid(OptionTargetType value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 9;
+  }
 
+  template <typename Traits = ::hpp::proto::default_traits>
+  struct EditionDefault {
+    using hpp_proto_traits_type = Traits;
+    google::protobuf::Edition edition = google::protobuf::Edition::EDITION_UNKNOWN;
+    typename Traits::string_t value;
+
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const EditionDefault&) const = default;
   };
 
+  template <typename Traits = ::hpp::proto::default_traits>
   struct FeatureSupport {
-    Edition edition_introduced = Edition::EDITION_UNKNOWN;
-    Edition edition_deprecated = Edition::EDITION_UNKNOWN;
-    std::string deprecation_warning;
-    Edition edition_removed = Edition::EDITION_UNKNOWN;
+    using hpp_proto_traits_type = Traits;
+    google::protobuf::Edition edition_introduced = google::protobuf::Edition::EDITION_UNKNOWN;
+    google::protobuf::Edition edition_deprecated = google::protobuf::Edition::EDITION_UNKNOWN;
+    typename Traits::string_t deprecation_warning;
+    google::protobuf::Edition edition_removed = google::protobuf::Edition::EDITION_UNKNOWN;
 
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const FeatureSupport&) const = default;
   };
 
+} //namespace FieldOptions_
+
+template <typename Traits = ::hpp::proto::default_traits>
+struct FieldOptions {
+  using hpp_proto_traits_type = Traits;
+  using CType = google::protobuf::FieldOptions_::CType;
+  using JSType = google::protobuf::FieldOptions_::JSType;
+  using OptionRetention = google::protobuf::FieldOptions_::OptionRetention;
+  using OptionTargetType = google::protobuf::FieldOptions_::OptionTargetType;
+  using EditionDefault = FieldOptions_::EditionDefault<Traits>;
+
+  using FeatureSupport = FieldOptions_::FeatureSupport<Traits>;
+
   CType ctype = CType::STRING;
-  hpp::proto::optional<bool> packed;
+  ::hpp::proto::optional<bool> packed;
   JSType jstype = JSType::JS_NORMAL;
   bool lazy = false;
   bool unverified_lazy = false;
@@ -380,152 +534,147 @@ struct FieldOptions {
   bool weak = false;
   bool debug_redact = false;
   OptionRetention retention = OptionRetention::RETENTION_UNKNOWN;
-  std::vector<OptionTargetType> targets;
-  std::vector<EditionDefault> edition_defaults;
-  std::optional<FeatureSet> features;
+  Traits::template repeated_t<OptionTargetType> targets;
+  Traits::template repeated_t<EditionDefault> edition_defaults;
+  std::optional<google::protobuf::FeatureSet<Traits>> features;
   std::optional<FeatureSupport> feature_support;
-  std::vector<UninterpretedOption> uninterpreted_option;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = FieldOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const FieldOptions&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct MessageOptions {
+  using hpp_proto_traits_type = Traits;
   bool message_set_wire_format = false;
   bool no_standard_descriptor_accessor = false;
   bool deprecated = false;
   bool map_entry = {};
   bool deprecated_legacy_json_field_conflicts = {};
-  std::optional<FeatureSet> features;
-  std::vector<UninterpretedOption> uninterpreted_option;
+  std::optional<google::protobuf::FeatureSet<Traits>> features;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = MessageOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const MessageOptions&) const = default;
 };
 
-struct FileOptions {
+namespace FileOptions_ {
   enum class OptimizeMode {
     SPEED = 1,
     CODE_SIZE = 2,
     LITE_RUNTIME = 3 
   };
 
-  std::string java_package;
-  std::string java_outer_classname;
+  constexpr bool is_valid(OptimizeMode value){
+    int v = static_cast<int>(value);
+    return v >= 1 && v <= 3;
+  }
+
+} //namespace FileOptions_
+
+template <typename Traits = ::hpp::proto::default_traits>
+struct FileOptions {
+  using hpp_proto_traits_type = Traits;
+  using OptimizeMode = google::protobuf::FileOptions_::OptimizeMode;
+  typename Traits::string_t java_package;
+  typename Traits::string_t java_outer_classname;
   bool java_multiple_files = false;
   bool java_generate_equals_and_hash = {};
   bool java_string_check_utf8 = false;
   OptimizeMode optimize_for = OptimizeMode::SPEED;
-  std::string go_package;
+  typename Traits::string_t go_package;
   bool cc_generic_services = false;
   bool java_generic_services = false;
   bool py_generic_services = false;
   bool deprecated = false;
   bool cc_enable_arenas = true;
-  std::string objc_class_prefix;
-  std::string csharp_namespace;
-  std::string swift_prefix;
-  std::string php_class_prefix;
-  std::string php_namespace;
-  std::string php_metadata_namespace;
-  std::string ruby_package;
-  std::optional<FeatureSet> features;
-  std::vector<UninterpretedOption> uninterpreted_option;
+  typename Traits::string_t objc_class_prefix;
+  typename Traits::string_t csharp_namespace;
+  typename Traits::string_t swift_prefix;
+  typename Traits::string_t php_class_prefix;
+  typename Traits::string_t php_namespace;
+  typename Traits::string_t php_metadata_namespace;
+  typename Traits::string_t ruby_package;
+  std::optional<google::protobuf::FeatureSet<Traits>> features;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = FileOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const FileOptions&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct MethodDescriptorProto {
-  std::string name;
-  std::string input_type;
-  std::string output_type;
-  std::optional<MethodOptions> options;
+  using hpp_proto_traits_type = Traits;
+  typename Traits::string_t name;
+  typename Traits::string_t input_type;
+  typename Traits::string_t output_type;
+  std::optional<google::protobuf::MethodOptions<Traits>> options;
   bool client_streaming = false;
   bool server_streaming = false;
 
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const MethodDescriptorProto&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct ServiceDescriptorProto {
-  std::string name;
-  std::vector<MethodDescriptorProto> method;
-  std::optional<ServiceOptions> options;
+  using hpp_proto_traits_type = Traits;
+  typename Traits::string_t name;
+  Traits::template repeated_t<google::protobuf::MethodDescriptorProto<Traits>> method;
+  std::optional<google::protobuf::ServiceOptions<Traits>> options;
 
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const ServiceDescriptorProto&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct OneofDescriptorProto {
-  std::string name;
-  std::optional<OneofOptions> options;
+  using hpp_proto_traits_type = Traits;
+  typename Traits::string_t name;
+  std::optional<google::protobuf::OneofOptions<Traits>> options;
 
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const OneofDescriptorProto&) const = default;
 };
 
-struct FieldDescriptorProto {
+namespace FieldDescriptorProto_ {
   enum class Type {
     TYPE_DOUBLE = 1,
     TYPE_FLOAT = 2,
@@ -547,343 +696,321 @@ struct FieldDescriptorProto {
     TYPE_SINT64 = 18 
   };
 
+  constexpr bool is_valid(Type value){
+    int v = static_cast<int>(value);
+    return v >= 1 && v <= 18;
+  }
+
   enum class Label {
     LABEL_OPTIONAL = 1,
     LABEL_REPEATED = 3,
     LABEL_REQUIRED = 2 
   };
 
-  std::string name;
+  constexpr bool is_valid(Label value){
+    int v = static_cast<int>(value);
+    return v >= 1 && v <= 3;
+  }
+
+} //namespace FieldDescriptorProto_
+
+template <typename Traits = ::hpp::proto::default_traits>
+struct FieldDescriptorProto {
+  using hpp_proto_traits_type = Traits;
+  using Type = google::protobuf::FieldDescriptorProto_::Type;
+  using Label = google::protobuf::FieldDescriptorProto_::Label;
+  typename Traits::string_t name;
   std::int32_t number = {};
   Label label = Label::LABEL_OPTIONAL;
   Type type = Type::TYPE_DOUBLE;
-  std::string type_name;
-  std::string extendee;
-  std::string default_value;
-  hpp::proto::optional<std::int32_t> oneof_index;
-  std::string json_name;
-  std::optional<FieldOptions> options;
+  typename Traits::string_t type_name;
+  typename Traits::string_t extendee;
+  typename Traits::string_t default_value;
+  ::hpp::proto::optional<std::int32_t> oneof_index;
+  typename Traits::string_t json_name;
+  std::optional<google::protobuf::FieldOptions<Traits>> options;
   bool proto3_optional = {};
 
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const FieldDescriptorProto&) const = default;
 };
 
-struct ExtensionRangeOptions {
+namespace ExtensionRangeOptions_ {
   enum class VerificationState {
     DECLARATION = 0,
     UNVERIFIED = 1 
   };
 
+  constexpr bool is_valid(VerificationState value){
+    int v = static_cast<int>(value);
+    return v >= 0 && v <= 1;
+  }
+
+  template <typename Traits = ::hpp::proto::default_traits>
   struct Declaration {
+    using hpp_proto_traits_type = Traits;
     std::int32_t number = {};
-    std::string full_name;
-    std::string type;
+    typename Traits::string_t full_name;
+    typename Traits::string_t type;
     bool reserved = {};
     bool repeated = {};
 
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const Declaration&) const = default;
   };
 
-  std::vector<UninterpretedOption> uninterpreted_option;
-  std::vector<Declaration> declaration;
-  std::optional<FeatureSet> features;
+} //namespace ExtensionRangeOptions_
+
+template <typename Traits = ::hpp::proto::default_traits>
+struct ExtensionRangeOptions {
+  using hpp_proto_traits_type = Traits;
+  using VerificationState = google::protobuf::ExtensionRangeOptions_::VerificationState;
+  using Declaration = ExtensionRangeOptions_::Declaration<Traits>;
+
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
+  Traits::template repeated_t<Declaration> declaration;
+  std::optional<google::protobuf::FeatureSet<Traits>> features;
   VerificationState verification = VerificationState::UNVERIFIED;
 
-  struct extension_t {
-    using pb_extension = ExtensionRangeOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const ExtensionRangeOptions&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct EnumValueOptions {
+  using hpp_proto_traits_type = Traits;
   bool deprecated = false;
-  std::optional<FeatureSet> features;
+  std::optional<google::protobuf::FeatureSet<Traits>> features;
   bool debug_redact = false;
-  std::optional<FieldOptions::FeatureSupport> feature_support;
-  std::vector<UninterpretedOption> uninterpreted_option;
+  std::optional<google::protobuf::FieldOptions_::FeatureSupport<Traits>> feature_support;
+  Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
-  struct extension_t {
-    using pb_extension = EnumValueOptions;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const EnumValueOptions&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct EnumValueDescriptorProto {
-  std::string name;
+  using hpp_proto_traits_type = Traits;
+  typename Traits::string_t name;
   std::int32_t number = {};
-  std::optional<EnumValueOptions> options;
+  std::optional<google::protobuf::EnumValueOptions<Traits>> options;
 
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const EnumValueDescriptorProto&) const = default;
 };
 
-struct EnumDescriptorProto {
+namespace EnumDescriptorProto_ {
+  template <typename Traits = ::hpp::proto::default_traits>
   struct EnumReservedRange {
+    using hpp_proto_traits_type = Traits;
     std::int32_t start = {};
     std::int32_t end = {};
 
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const EnumReservedRange&) const = default;
   };
 
-  std::string name;
-  std::vector<EnumValueDescriptorProto> value;
-  std::optional<EnumOptions> options;
-  std::vector<EnumReservedRange> reserved_range;
-  std::vector<std::string> reserved_name;
+} //namespace EnumDescriptorProto_
 
+template <typename Traits = ::hpp::proto::default_traits>
+struct EnumDescriptorProto {
+  using hpp_proto_traits_type = Traits;
+  using EnumReservedRange = EnumDescriptorProto_::EnumReservedRange<Traits>;
+
+  typename Traits::string_t name;
+  Traits::template repeated_t<google::protobuf::EnumValueDescriptorProto<Traits>> value;
+  std::optional<google::protobuf::EnumOptions<Traits>> options;
+  Traits::template repeated_t<EnumReservedRange> reserved_range;
+  Traits::template repeated_t<typename Traits::string_t> reserved_name;
+  google::protobuf::SymbolVisibility visibility = google::protobuf::SymbolVisibility::VISIBILITY_UNSET;
+
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const EnumDescriptorProto&) const = default;
 };
 
-struct DescriptorProto {
+namespace DescriptorProto_ {
+  template <typename Traits = ::hpp::proto::default_traits>
   struct ExtensionRange {
+    using hpp_proto_traits_type = Traits;
     std::int32_t start = {};
     std::int32_t end = {};
-    std::optional<ExtensionRangeOptions> options;
+    std::optional<google::protobuf::ExtensionRangeOptions<Traits>> options;
 
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const ExtensionRange&) const = default;
   };
 
+  template <typename Traits = ::hpp::proto::default_traits>
   struct ReservedRange {
+    using hpp_proto_traits_type = Traits;
     std::int32_t start = {};
     std::int32_t end = {};
 
+    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const ReservedRange&) const = default;
   };
 
-  std::string name;
-  std::vector<FieldDescriptorProto> field;
-  std::vector<FieldDescriptorProto> extension;
-  std::vector<DescriptorProto> nested_type;
-  std::vector<EnumDescriptorProto> enum_type;
-  std::vector<ExtensionRange> extension_range;
-  std::vector<OneofDescriptorProto> oneof_decl;
-  std::optional<MessageOptions> options;
-  std::vector<ReservedRange> reserved_range;
-  std::vector<std::string> reserved_name;
+} //namespace DescriptorProto_
 
+template <typename Traits = ::hpp::proto::default_traits>
+struct DescriptorProto {
+  using hpp_proto_traits_type = Traits;
+  using ExtensionRange = DescriptorProto_::ExtensionRange<Traits>;
+
+  using ReservedRange = DescriptorProto_::ReservedRange<Traits>;
+
+  typename Traits::string_t name;
+  Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> field;
+  Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> extension;
+  Traits::template repeated_t<DescriptorProto> nested_type;
+  Traits::template repeated_t<google::protobuf::EnumDescriptorProto<Traits>> enum_type;
+  Traits::template repeated_t<ExtensionRange> extension_range;
+  Traits::template repeated_t<google::protobuf::OneofDescriptorProto<Traits>> oneof_decl;
+  std::optional<google::protobuf::MessageOptions<Traits>> options;
+  Traits::template repeated_t<ReservedRange> reserved_range;
+  Traits::template repeated_t<typename Traits::string_t> reserved_name;
+  google::protobuf::SymbolVisibility visibility = google::protobuf::SymbolVisibility::VISIBILITY_UNSET;
+
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const DescriptorProto&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct FileDescriptorProto {
-  std::string name;
-  std::string package;
-  std::vector<std::string> dependency;
-  std::vector<std::int32_t> public_dependency;
-  std::vector<std::int32_t> weak_dependency;
-  std::vector<DescriptorProto> message_type;
-  std::vector<EnumDescriptorProto> enum_type;
-  std::vector<ServiceDescriptorProto> service;
-  std::vector<FieldDescriptorProto> extension;
-  std::optional<FileOptions> options;
-  std::optional<SourceCodeInfo> source_code_info;
-  std::string syntax;
-  Edition edition = Edition::EDITION_UNKNOWN;
+  using hpp_proto_traits_type = Traits;
+  typename Traits::string_t name;
+  typename Traits::string_t package;
+  Traits::template repeated_t<typename Traits::string_t> dependency;
+  Traits::template repeated_t<std::int32_t> public_dependency;
+  Traits::template repeated_t<std::int32_t> weak_dependency;
+  Traits::template repeated_t<typename Traits::string_t> option_dependency;
+  Traits::template repeated_t<google::protobuf::DescriptorProto<Traits>> message_type;
+  Traits::template repeated_t<google::protobuf::EnumDescriptorProto<Traits>> enum_type;
+  Traits::template repeated_t<google::protobuf::ServiceDescriptorProto<Traits>> service;
+  Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> extension;
+  std::optional<google::protobuf::FileOptions<Traits>> options;
+  std::optional<google::protobuf::SourceCodeInfo<Traits>> source_code_info;
+  typename Traits::string_t syntax;
+  google::protobuf::Edition edition = google::protobuf::Edition::EDITION_UNKNOWN;
 
+  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const FileDescriptorProto&) const = default;
 };
 
+template <typename Traits = ::hpp::proto::default_traits>
 struct FileDescriptorSet {
-  std::vector<FileDescriptorProto> file;
+  using hpp_proto_traits_type = Traits;
+  Traits::template repeated_t<google::protobuf::FileDescriptorProto<Traits>> file;
 
-  struct extension_t {
-    using pb_extension = FileDescriptorSet;
-    hpp::proto::flat_map<uint32_t, std::vector<std::byte>> fields;
-    bool operator==(const extension_t &other) const = default;
-  } extensions;
+  ::hpp::proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] auto get_extension(auto meta) const {
-    return meta.read(extensions);
+  [[nodiscard]] ::hpp::proto::status get_extension(auto &ext, ::hpp::proto::concepts::is_option_type auto && ...option) const {
+    return ext.get_from(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  [[nodiscard]] auto set_extension(Meta meta, typename Meta::set_value_type &&value) {
-    return meta.write(extensions, std::move(value));
+  [[nodiscard]] auto set_extension(const auto &ext,
+                                   ::hpp::proto::concepts::is_option_type auto &&...option) {
+    return ext.set_to(*this, std::forward<decltype(option)>(option)...);
   }
-  template<typename Meta>
-  requires Meta::is_repeated
-  [[nodiscard]] auto set_extension(Meta meta, std::initializer_list<typename Meta::element_type> value) {
-    return meta.write(extensions, std::span<const typename Meta::element_type>{value.begin(), value.end()});
-  }
-  [[nodiscard]] bool has_extension(auto meta) const {
-    return meta.element_of(extensions);
+  [[nodiscard]] bool has_extension(const auto &ext) const {
+    return ext.in(*this);
   }
 
   bool operator == (const FileDescriptorSet&) const = default;
 };
 
-
-constexpr bool is_valid(Edition value){
-  int v = static_cast<int>(value);
-  constexpr std::array<int, 12> valid_values{0,1,2,900,998,999,1000,1001,99997,99998,99999,2147483647};
-  return std::ranges::any_of(valid_values, [v](int u){ return u==v; });
-}
-
-constexpr auto message_type_url(const UninterpretedOption::NamePart&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption.NamePart">{}; }
-constexpr auto message_type_url(const UninterpretedOption&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption">{}; }
-
-constexpr bool is_valid(FeatureSet::FieldPresence value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 3;
-}
-
-
-constexpr bool is_valid(FeatureSet::EnumType value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 2;
-}
-
-
-constexpr bool is_valid(FeatureSet::RepeatedFieldEncoding value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 2;
-}
-
-
-constexpr bool is_valid(FeatureSet::Utf8Validation value){
-  int v = static_cast<int>(value);
-  constexpr std::array<int, 3> valid_values{0,2,3};
-  return std::ranges::any_of(valid_values, [v](int u){ return u==v; });
-}
-
-
-constexpr bool is_valid(FeatureSet::MessageEncoding value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 2;
-}
-
-
-constexpr bool is_valid(FeatureSet::JsonFormat value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 2;
-}
-
-constexpr auto message_type_url(const FeatureSet&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSet">{}; }
-constexpr auto message_type_url(const SourceCodeInfo::Location&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo.Location">{}; }
-constexpr auto message_type_url(const SourceCodeInfo&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo">{}; }
-
-constexpr bool is_valid(GeneratedCodeInfo::Annotation::Semantic value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 2;
-}
-
-constexpr auto message_type_url(const GeneratedCodeInfo::Annotation&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo.Annotation">{}; }
-constexpr auto message_type_url(const GeneratedCodeInfo&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo">{}; }
-constexpr auto message_type_url(const FeatureSetDefaults::FeatureSetEditionDefault&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults.FeatureSetEditionDefault">{}; }
-constexpr auto message_type_url(const FeatureSetDefaults&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults">{}; }
-
-constexpr bool is_valid(MethodOptions::IdempotencyLevel value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 2;
-}
-
-constexpr auto message_type_url(const MethodOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.MethodOptions">{}; }
-constexpr auto message_type_url(const ServiceOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ServiceOptions">{}; }
-constexpr auto message_type_url(const EnumOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumOptions">{}; }
-constexpr auto message_type_url(const OneofOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.OneofOptions">{}; }
-
-constexpr bool is_valid(FieldOptions::CType value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 2;
-}
-
-
-constexpr bool is_valid(FieldOptions::JSType value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 2;
-}
-
-
-constexpr bool is_valid(FieldOptions::OptionRetention value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 2;
-}
-
-
-constexpr bool is_valid(FieldOptions::OptionTargetType value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 9;
-}
-
-constexpr auto message_type_url(const FieldOptions::EditionDefault&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.EditionDefault">{}; }
-constexpr auto message_type_url(const FieldOptions::FeatureSupport&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.FeatureSupport">{}; }
-constexpr auto message_type_url(const FieldOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions">{}; }
-constexpr auto message_type_url(const MessageOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.MessageOptions">{}; }
-
-constexpr bool is_valid(FileOptions::OptimizeMode value){
-  int v = static_cast<int>(value);
-  return v >= 1 && v <= 3;
-}
-
-constexpr auto message_type_url(const FileOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileOptions">{}; }
-constexpr auto message_type_url(const MethodDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.MethodDescriptorProto">{}; }
-constexpr auto message_type_url(const ServiceDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ServiceDescriptorProto">{}; }
-constexpr auto message_type_url(const OneofDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.OneofDescriptorProto">{}; }
-
-constexpr bool is_valid(FieldDescriptorProto::Type value){
-  int v = static_cast<int>(value);
-  return v >= 1 && v <= 18;
-}
-
-
-constexpr bool is_valid(FieldDescriptorProto::Label value){
-  int v = static_cast<int>(value);
-  return v >= 1 && v <= 3;
-}
-
-constexpr auto message_type_url(const FieldDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldDescriptorProto">{}; }
-
-constexpr bool is_valid(ExtensionRangeOptions::VerificationState value){
-  int v = static_cast<int>(value);
-  return v >= 0 && v <= 1;
-}
-
-constexpr auto message_type_url(const ExtensionRangeOptions::Declaration&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions.Declaration">{}; }
-constexpr auto message_type_url(const ExtensionRangeOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions">{}; }
-constexpr auto message_type_url(const EnumValueOptions&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumValueOptions">{}; }
-constexpr auto message_type_url(const EnumValueDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumValueDescriptorProto">{}; }
-constexpr auto message_type_url(const EnumDescriptorProto::EnumReservedRange&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumDescriptorProto.EnumReservedRange">{}; }
-constexpr auto message_type_url(const EnumDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumDescriptorProto">{}; }
-constexpr auto message_type_url(const DescriptorProto::ExtensionRange&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto.ExtensionRange">{}; }
-constexpr auto message_type_url(const DescriptorProto::ReservedRange&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto.ReservedRange">{}; }
-constexpr auto message_type_url(const DescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto">{}; }
-constexpr auto message_type_url(const FileDescriptorProto&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorProto">{}; }
-constexpr auto message_type_url(const FileDescriptorSet&) { return hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorSet">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const UninterpretedOption_::NamePart<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption.NamePart">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const UninterpretedOption<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FeatureSet_::VisibilityFeature<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSet.VisibilityFeature">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FeatureSet<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSet">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const SourceCodeInfo_::Location<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo.Location">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const SourceCodeInfo<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const GeneratedCodeInfo_::Annotation<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo.Annotation">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const GeneratedCodeInfo<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FeatureSetDefaults_::FeatureSetEditionDefault<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults.FeatureSetEditionDefault">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FeatureSetDefaults<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const MethodOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.MethodOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const ServiceOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ServiceOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const EnumOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const OneofOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.OneofOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FieldOptions_::EditionDefault<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.EditionDefault">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FieldOptions_::FeatureSupport<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.FeatureSupport">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FieldOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const MessageOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.MessageOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FileOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const MethodDescriptorProto<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.MethodDescriptorProto">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const ServiceDescriptorProto<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ServiceDescriptorProto">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const OneofDescriptorProto<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.OneofDescriptorProto">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FieldDescriptorProto<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FieldDescriptorProto">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const ExtensionRangeOptions_::Declaration<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions.Declaration">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const ExtensionRangeOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const EnumValueOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumValueOptions">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const EnumValueDescriptorProto<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumValueDescriptorProto">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const EnumDescriptorProto_::EnumReservedRange<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumDescriptorProto.EnumReservedRange">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const EnumDescriptorProto<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.EnumDescriptorProto">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const DescriptorProto_::ExtensionRange<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto.ExtensionRange">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const DescriptorProto_::ReservedRange<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto.ReservedRange">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const DescriptorProto<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FileDescriptorProto<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorProto">{}; }
+template <typename Traits>
+constexpr auto message_type_url(const FileDescriptorSet<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorSet">{}; }
 // NOLINTEND(performance-enum-size)
 } // namespace google::protobuf
 // clang-format on

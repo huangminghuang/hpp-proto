@@ -1,17 +1,14 @@
 #include "benchmark_messages_proto2.pb.h"
-#include "non_owning/benchmark_messages_proto2.pb.hpp"
-#include "owning/benchmark_messages_proto2.pb.hpp"
+#include "hpp/benchmark_messages_proto2.pb.hpp"
 #include <benchmark/benchmark.h>
 #include <fstream>
 #include <memory_resource>
 #include <random>
 
 #include "benchmark_messages_proto3.pb.h"
-#include "non_owning/benchmark_messages_proto3.pb.hpp"
-#include "owning/benchmark_messages_proto3.pb.hpp"
+#include "hpp/benchmark_messages_proto3.pb.hpp"
 
-#include "non_owning/packed_repeated_message.pb.hpp"
-#include "owning/packed_repeated_message.pb.hpp"
+#include "hpp/packed_repeated_message.pb.hpp"
 #include "packed_repeated_message.pb.h"
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
@@ -69,12 +66,12 @@ std::span<char> get_GoogleMessage1_data() {
 
 std::span<char> get_data(benchmarks::proto2::GoogleMessage1 * /*unused*/) { return get_GoogleMessage1_data(); }
 std::span<char> get_data(benchmarks::proto3::GoogleMessage1 * /*unused*/) { return get_GoogleMessage1_data(); }
-std::span<char> get_data(owning::benchmarks::proto2::GoogleMessage1 * /*unused*/) { return get_GoogleMessage1_data(); }
-std::span<char> get_data(owning::benchmarks::proto3::GoogleMessage1 * /*unused*/) { return get_GoogleMessage1_data(); }
-std::span<char> get_data(non_owning::benchmarks::proto2::GoogleMessage1 * /*unused*/) {
+std::span<char> get_data(hpp::benchmarks::proto2::GoogleMessage1<> * /*unused*/) { return get_GoogleMessage1_data(); }
+std::span<char> get_data(hpp::benchmarks::proto3::GoogleMessage1<> * /*unused*/) { return get_GoogleMessage1_data(); }
+std::span<char> get_data(hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits> * /*unused*/) {
   return get_GoogleMessage1_data();
 }
-std::span<char> get_data(non_owning::benchmarks::proto3::GoogleMessage1 * /*unused*/) {
+std::span<char> get_data(hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits> * /*unused*/) {
   return get_GoogleMessage1_data();
 }
 
@@ -105,8 +102,10 @@ std::span<char> get_packed_repeated_data() {
 }
 
 std::span<char> get_data(repeated_packed::TestMessage * /*unused*/) { return get_packed_repeated_data(); }
-std::span<char> get_data(owning::repeated_packed::TestMessage * /*unused*/) { return get_packed_repeated_data(); }
-std::span<char> get_data(non_owning::repeated_packed::TestMessage * /*unused*/) { return get_packed_repeated_data(); }
+std::span<char> get_data(hpp::repeated_packed::TestMessage<> * /*unused*/) { return get_packed_repeated_data(); }
+std::span<char> get_data(hpp::repeated_packed::TestMessage<hpp::proto::non_owning_traits> * /*unused*/) {
+  return get_packed_repeated_data();
+}
 
 template <typename Message>
 void google_deserialize_regular(benchmark::State &state) {
@@ -147,14 +146,14 @@ void hpp_proto_deserialize_regular(benchmark::State &state) {
   size_t total = 0;
   for (auto _ : state) {
     Message message;
-    auto r = hpp::proto::read_proto(message, data);
+    auto r = hpp::proto::read_binpb(message, data);
     total += data.size();
     benchmark::DoNotOptimize(r);
   }
   state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(hpp_proto_deserialize_regular<owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_proto_deserialize_regular<owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_deserialize_regular<hpp::benchmarks::proto2::GoogleMessage1<>>);
+BENCHMARK(hpp_proto_deserialize_regular<hpp::benchmarks::proto3::GoogleMessage1<>>);
 
 template <typename Message>
 void hpp_proto_deserialize_nonowning(benchmark::State &state) {
@@ -165,14 +164,14 @@ void hpp_proto_deserialize_nonowning(benchmark::State &state) {
   for (auto _ : state) {
     std::pmr::monotonic_buffer_resource memory_resource(buf.data(), buf.size());
     Message message;
-    auto r = hpp::proto::read_proto(message, data, hpp::proto::alloc_from{memory_resource});
+    auto r = hpp::proto::read_binpb(message, data, hpp::proto::alloc_from{memory_resource});
     total += data.size();
     benchmark::DoNotOptimize(r);
   }
   state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(hpp_proto_deserialize_nonowning<non_owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_proto_deserialize_nonowning<non_owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_deserialize_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>);
+BENCHMARK(hpp_proto_deserialize_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>);
 
 template <typename Message>
 void google_set_message_regular(benchmark::State &state) {
@@ -206,8 +205,8 @@ void hpp_proto_set_message_regular(benchmark::State &state) {
     benchmark::DoNotOptimize(message);
   }
 }
-BENCHMARK(hpp_proto_set_message_regular<owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_proto_set_message_regular<owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_regular<hpp::benchmarks::proto2::GoogleMessage1<>>);
+BENCHMARK(hpp_proto_set_message_regular<hpp::benchmarks::proto3::GoogleMessage1<>>);
 
 template <typename Message>
 void google_set_message_and_serialize_regular(benchmark::State &state) {
@@ -251,14 +250,14 @@ void hpp_proto_set_message_and_serialize_regular(benchmark::State &state) {
     Message message;
     set_message_hpp(message);
     std::vector<char> buffer;
-    auto r = hpp::proto::write_proto(message, buffer);
+    auto r = hpp::proto::write_binpb(message, buffer);
     total += buffer.size();
     benchmark::DoNotOptimize(r);
   }
   state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(hpp_proto_set_message_and_serialize_regular<owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_proto_set_message_and_serialize_regular<owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_and_serialize_regular<hpp::benchmarks::proto2::GoogleMessage1<>>);
+BENCHMARK(hpp_proto_set_message_and_serialize_regular<hpp::benchmarks::proto3::GoogleMessage1<>>);
 
 template <typename Message>
 void hpp_proto_set_message_and_serialize_nonowning(benchmark::State &state) {
@@ -267,14 +266,16 @@ void hpp_proto_set_message_and_serialize_nonowning(benchmark::State &state) {
     Message message;
     set_message_hpp(message);
     std::vector<char> buffer;
-    auto r = hpp::proto::write_proto(message, buffer);
+    auto r = hpp::proto::write_binpb(message, buffer);
     total += buffer.size();
     benchmark::DoNotOptimize(r);
   }
   state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<non_owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<non_owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<
+          hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>);
+BENCHMARK(hpp_proto_set_message_and_serialize_nonowning<
+          hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>);
 
 template <typename Message>
 void hpp_proto_set_message_nonowning(benchmark::State &state) {
@@ -285,13 +286,13 @@ void hpp_proto_set_message_nonowning(benchmark::State &state) {
   }
 }
 
-BENCHMARK(hpp_proto_set_message_nonowning<non_owning::benchmarks::proto2::GoogleMessage1>);
-BENCHMARK(hpp_proto_set_message_nonowning<non_owning::benchmarks::proto3::GoogleMessage1>);
+BENCHMARK(hpp_proto_set_message_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>);
+BENCHMARK(hpp_proto_set_message_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>);
 
 BENCHMARK(google_deserialize_regular<repeated_packed::TestMessage>);
 BENCHMARK(google_deserialize_arena<repeated_packed::TestMessage>);
-BENCHMARK(hpp_proto_deserialize_regular<owning::repeated_packed::TestMessage>);
-BENCHMARK(hpp_proto_deserialize_nonowning<non_owning::repeated_packed::TestMessage>);
+BENCHMARK(hpp_proto_deserialize_regular<hpp::repeated_packed::TestMessage<>>);
+BENCHMARK(hpp_proto_deserialize_nonowning<hpp::repeated_packed::TestMessage<hpp::proto::non_owning_traits>>);
 
 BENCHMARK_MAIN();
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)

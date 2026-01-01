@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2024 Huang-Ming Huang
+// Copyright (c) Huang-Ming Huang
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -25,9 +25,16 @@
 #include <algorithm>
 #include <bit>
 #include <cassert>
+#include <concepts>
 #include <cstdint>
 #include <functional>
+#include <initializer_list>
+#include <system_error>
+#ifdef __cpp_lib_flat_map
+#include <flat_map>
+#else
 #include <hpp_proto/flat_map.hpp>
+#endif
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -38,8 +45,13 @@
 #include <variant>
 #include <vector>
 namespace hpp::proto {
+#ifdef __cpp_lib_flat_map
+using std::flat_map;
+using std::sorted_unique;
+#else
 using stdext::flat_map;
 using stdext::sorted_unique;
+#endif
 } // namespace hpp::proto
 
 namespace hpp::proto {
@@ -56,7 +68,7 @@ struct float_wrapper {
 };
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
-#if defined(__clang__)
+#ifdef __clang__
 #define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
   hpp::proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
 #define HPP_PROTO_WRAP_DOUBLE(v)                                                                                       \
@@ -100,14 +112,14 @@ class optional { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
   static constexpr bool has_default_value = true;
   constexpr static T default_value() {
-    if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
+    if constexpr (std::same_as<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
       return T{};
     } else if constexpr (std::is_fundamental_v<T> || std::is_enum_v<T>) {
       return unwrap(Default);
     } else {
       static_assert(sizeof(typename T::value_type) == 1);
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      auto data = reinterpret_cast<const typename T::value_type *>(Default.data());
+      auto data = static_cast<const typename T::value_type *>(Default.data());
       return T{data, data + Default.size()}; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
   }
@@ -232,7 +244,7 @@ public:
   constexpr T &operator*() & noexcept { return value(); }
   constexpr const T &operator*() const & noexcept { return value(); }
 
-  constexpr T &&operator*() && noexcept { return value(); }
+  constexpr T &&operator*() && noexcept { return std::move(_value); }
   constexpr const T &&operator*() const && noexcept { return value(); }
 
   template <typename... Args>
@@ -293,9 +305,9 @@ public:
   constexpr auto transform(F &&f) & {
     using U = std::remove_cv_t<std::invoke_result_t<F, T &>>;
     if (has_value()) {
-      return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
+      return optional<U>{std::invoke(std::forward<F>(f), _value)};
     } else {
-      return std::optional<U>{};
+      return optional<U>{};
     }
   }
 
@@ -303,9 +315,9 @@ public:
   constexpr auto transform(F &&f) const & {
     using U = std::remove_cv_t<std::invoke_result_t<F, const T &>>;
     if (has_value()) {
-      return std::optional<U>{std::invoke(std::forward<F>(f), _value)};
+      return optional<U>{std::invoke(std::forward<F>(f), _value)};
     } else {
-      return std::optional<U>{};
+      return optional<U>{};
     }
   }
 
@@ -313,9 +325,9 @@ public:
   constexpr auto transform(F &&f) && {
     using U = std::remove_cv_t<std::invoke_result_t<F, T>>;
     if (has_value()) {
-      return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
+      return optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
     } else {
-      return std::optional<U>{};
+      return optional<U>{};
     }
   }
 
@@ -323,9 +335,9 @@ public:
   constexpr auto transform(F &&f) const && {
     using U = std::remove_cv_t<std::invoke_result_t<F, const T>>;
     if (has_value()) {
-      return std::optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
+      return optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
     } else {
-      return std::optional<U>{};
+      return optional<U>{};
     }
   }
 
@@ -578,49 +590,70 @@ public:
 
   constexpr equality_comparable_span() noexcept = default;
   constexpr ~equality_comparable_span() noexcept = default;
-  constexpr equality_comparable_span(const equality_comparable_span &other) noexcept = default;
-  constexpr equality_comparable_span(equality_comparable_span &&other) noexcept = default;
-  constexpr equality_comparable_span &operator=(const equality_comparable_span &other) noexcept = default;
-  constexpr equality_comparable_span &operator=(equality_comparable_span &&other) noexcept = default;
+  constexpr equality_comparable_span(const equality_comparable_span &other) noexcept
+      : _data(other._data), _size(other._size) {}
+  constexpr equality_comparable_span(equality_comparable_span &&) noexcept = default;
+  constexpr equality_comparable_span &operator=(const equality_comparable_span &) noexcept = default;
+  constexpr equality_comparable_span &operator=(equality_comparable_span &&) noexcept = default;
 
   constexpr equality_comparable_span(T *data, std::size_t size) noexcept : _data(data), _size(size) {}
   constexpr equality_comparable_span(std::span<T> other) noexcept : _data(other.data()), _size(other.size()) {}
 
+  template <typename U>
+    requires std::is_convertible_v<U (*)[], T (*)[]>
+  constexpr equality_comparable_span(std::span<U> other) noexcept : _data(other.data()), _size(other.size()) {}
+
+#ifdef _MSC_VER
+  template <typename U>
+    requires(std::is_const_v<T> && std::same_as<std::remove_const_t<T>, std::remove_const_t<U>>)
+  constexpr equality_comparable_span(std::initializer_list<U> init) noexcept
+      : _data(init.begin()), _size(init.size()) {}
+#endif
   template <typename R>
-    requires requires(R &r) {
-      { std::ranges::data(r) } -> std::convertible_to<const T *>;
-    }
-  constexpr equality_comparable_span(R &other) noexcept
-      : equality_comparable_span(std::ranges::data(other), std::ranges::size(other)) {}
+    requires(!std::same_as<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
+             std::ranges::sized_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
+  constexpr equality_comparable_span(R &&r) noexcept
+      : equality_comparable_span(std::span<element_type>{std::forward<R>(r)}) {}
 
   template <std::contiguous_iterator It>
-    requires std::assignable_from<T *, decltype(&(*std::declval<It>()))>
-  constexpr equality_comparable_span(It first, std::size_t size) noexcept : _data(&(*first)), _size(size) {}
+    requires std::convertible_to<decltype(std::to_address(std::declval<It &>())), T *>
+  constexpr equality_comparable_span(It first, std::size_t size) noexcept
+      : _data(std::to_address(first)), _size(size) {}
 
   template <std::contiguous_iterator It, class End>
     requires std::constructible_from<std::span<T>, It, End>
   constexpr equality_comparable_span(It first, End last) noexcept
       : equality_comparable_span(std::span<T>(first, last)) {}
 
-  operator std::span<T>() const noexcept { return std::span<T>(_data, _size); }
+  constexpr operator std::span<T>() const noexcept { return std::span<T>(_data, _size); }
 
   [[nodiscard]] constexpr T *data() const noexcept { return _data; }
   [[nodiscard]] constexpr size_type size() const noexcept { return _size; }
   [[nodiscard]] constexpr size_type size_bytes() const noexcept { return _size * sizeof(T); }
 
-  constexpr equality_comparable_span &operator=(std::span<element_type> other) noexcept {
-    _data = other.data();
-    _size = other.size();
+  template <class U>
+    requires std::is_convertible_v<U (*)[], T (*)[]>
+  constexpr equality_comparable_span &operator=(std::span<U> s) noexcept {
+    _data = s.data();
+    _size = s.size();
     return *this;
   }
 
+#ifdef _MSC_VER
+  template <typename U>
+    requires(std::is_const_v<T> && std::same_as<std::remove_const_t<T>, std::remove_const_t<U>>)
+  constexpr equality_comparable_span &operator=(std::initializer_list<U> init) noexcept {
+    _data = init.begin();
+    _size = init.size();
+    return *this;
+  }
+#endif
+
   template <typename R>
-    requires requires(R &r) {
-      { std::ranges::data(r) } -> std::convertible_to<const T *>;
-    }
-  // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
-  constexpr equality_comparable_span &operator=(R &other) noexcept {
-    operator=(std::span<T>(other));
+    requires(!std::same_as<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
+             std::ranges::sized_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
+  constexpr equality_comparable_span &operator=(R &&r) noexcept {
+    *this = std::span<element_type>{std::forward<R>(r)};
     return *this;
   }
 
@@ -640,24 +673,27 @@ public:
     if (idx >= _size) {
       throw std::out_of_range("equality_comparable_span::at");
     }
-    return _data[idx]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return _data[idx];
   }
-
-  [[nodiscard]] constexpr reference front() const noexcept { return *_data; }
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  [[nodiscard]] constexpr reference back() const noexcept { return *(_data + _size - 1); }
-
   [[nodiscard]] constexpr bool empty() const noexcept { return _size == 0; }
 
-  [[nodiscard]] constexpr equality_comparable_span<element_type> first(size_type count) const {
-    return {data(), count};
+  [[nodiscard]] constexpr reference front() const noexcept {
+    assert(!_size);
+    return *_data;
   }
-  [[nodiscard]] constexpr equality_comparable_span<element_type> last(size_type count) const {
-    return {(data() + size() - count), count};
+  [[nodiscard]] constexpr reference back() const noexcept { return (*this)[_size - 1]; }
+  [[nodiscard]] constexpr equality_comparable_span first(size_type count) const {
+    assert(count <= _size);
+    return {_data, count};
   }
-
-  [[nodiscard]] constexpr equality_comparable_span<element_type> subspan(size_type offset) const {
-    return {data() + offset, size() - offset};
+  [[nodiscard]] constexpr equality_comparable_span last(size_type count) const {
+    assert(count <= _size);
+    return {_data + (_size - count), count};
+  }
+  [[nodiscard]] constexpr equality_comparable_span subspan(size_type off) const {
+    assert(off <= _size);
+    return {_data + off, _size - off};
   }
 
   friend constexpr bool operator==(const equality_comparable_span<T> &lhs, const equality_comparable_span<T> &rhs) {
@@ -698,9 +734,13 @@ struct bytes_literal {
   constexpr operator equality_comparable_span<const std::byte>() const {
     return equality_comparable_span<const std::byte>{data(), size()};
   }
-  explicit operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
+  operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
 
   friend constexpr bool operator==(const bytes_literal &lhs, const equality_comparable_span<const std::byte> &rhs) {
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+  }
+
+  friend constexpr bool operator==(const bytes_literal &lhs, const std::vector<std::byte> &rhs) {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
   }
 };
@@ -714,7 +754,11 @@ template <typename Type>
 concept flat_map = requires {
   typename Type::key_type;
   typename Type::mapped_type;
-  requires std::same_as<Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type>>;
+  typename Type::key_container_type;
+  typename Type::mapped_container_type;
+  requires std::same_as<
+      Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type,
+                                   typename Type::key_container_type, typename Type::mapped_container_type>>;
 };
 }; // namespace concepts
 
@@ -725,6 +769,7 @@ struct string_literal {
   [[nodiscard]] constexpr const char *data() const { return str.data(); }
   [[nodiscard]] constexpr const char *c_str() const { return str.data(); }
   [[nodiscard]] constexpr const char *begin() const { return str.data(); }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] constexpr const char *end() const { return str.data() + size(); }
 
   explicit operator std::string() const { return std::string{data()}; }
@@ -747,12 +792,14 @@ struct boolean {
   constexpr boolean() = default;
   constexpr boolean(bool v) : value(v) {}
   constexpr operator bool() const { return value; }
+  friend constexpr bool operator==(boolean, boolean) = default;
 };
+
 // NOLINTEND(hicpp-explicit-conversions)
 
 template <typename T, auto Default = std::monostate{}>
 constexpr bool is_default_value(const T &val) {
-  if constexpr (std::is_same_v<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
+  if constexpr (std::same_as<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
     if constexpr (requires { val.empty(); }) {
       return val.empty();
     } else if constexpr (requires { val.has_value(); }) {
@@ -778,10 +825,92 @@ inline const char *message_name(auto &&v)
 
 template <concepts::flat_map T>
 constexpr static void reserve(T &mut, std::size_t size) {
-  typename T::key_container_type keys;
-  typename T::mapped_container_type values;
-  keys.reserve(size);
-  values.reserve(size);
-  mut.replace(std::move(keys), std::move(values));
+  if (size > mut.keys().capacity() || size > mut.values().capacity()) {
+    typename T::key_container_type keys(mut.keys().begin(), mut.keys().end());
+    typename T::mapped_container_type values(mut.values().begin(), mut.values().end());
+    keys.reserve(size);
+    values.reserve(size);
+    mut.replace(std::move(keys), std::move(values));
+  }
 }
+template <typename Traits>
+struct pb_unknown_fields {
+  using unknown_fields_range_t = typename Traits::unknown_fields_range_t;
+  [[no_unique_address]] typename Traits::unknown_fields_range_t fields;
+  bool operator==(const pb_unknown_fields &) const = default;
+};
+
+template <typename Traits>
+struct pb_extensions {
+  using unknown_fields_range_t = Traits::template map_t<uint32_t, typename Traits::bytes_t>;
+  unknown_fields_range_t fields;
+  bool operator==(const pb_extensions &) const = default;
+};
+
+template <typename T>
+struct vector_trait {
+  using type = std::vector<T>;
+};
+
+template <>
+struct vector_trait<bool> {
+  using type = std::vector<hpp::proto::boolean>;
+};
+struct default_traits {
+  template <typename T>
+  using repeated_t = vector_trait<T>::type;
+  using string_t = std::string;
+  using bytes_t = std::vector<std::byte>;
+
+  template <typename T>
+  using optional_recursive_t = hpp::proto::heap_based_optional<T>;
+
+  template <typename Key, typename Mapped>
+  using map_t = hpp::proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
+                                     std::less<Key>, repeated_t<Key>, repeated_t<Mapped>>;
+  struct unknown_fields_range_t {
+    bool operator==(const unknown_fields_range_t &) const = default;
+  };
+};
+
+struct non_owning_traits {
+  template <typename T>
+  using repeated_t = equality_comparable_span<const T>;
+  using string_t = std::string_view;
+  using bytes_t = equality_comparable_span<const std::byte>;
+
+  template <typename T>
+  using optional_recursive_t = hpp::proto::optional_message_view<T>;
+
+  template <typename Key, typename Mapped>
+  using map_t = equality_comparable_span<const std::pair<Key, Mapped>>;
+
+  struct unknown_fields_range_t {
+    bool operator==(const unknown_fields_range_t &) const = default;
+  };
+};
+
+template <typename BaseTraits>
+struct keep_unknown_fields : BaseTraits {
+  using unknown_fields_range_t = BaseTraits::template repeated_t<std::byte>;
+};
+
+struct [[nodiscard]] status {
+  std::errc ec = {};
+
+  constexpr status() noexcept = default;
+  constexpr ~status() noexcept = default;
+  constexpr status(const status &) noexcept = default;
+  constexpr status(status &&) noexcept = default;
+
+  // NOLINTBEGIN(hicpp-explicit-conversions)
+  constexpr status(std::errc e) noexcept : ec(e) {}
+  constexpr operator std::errc() const noexcept { return ec; }
+  // NOLINTEND(hicpp-explicit-conversions)
+
+  constexpr status &operator=(const status &) noexcept = default;
+  constexpr status &operator=(status &&) noexcept = default;
+
+  [[nodiscard]] constexpr bool ok() const noexcept { return ec == std::errc{}; }
+};
 } // namespace hpp::proto

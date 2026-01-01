@@ -37,6 +37,7 @@ Checks: "*,
         -misc-use-internal-linkage,
         -modernize-use-designated-initializers,
         -readability-avoid-unconditional-preprocessor-if,
+        -portability-avoid-pragma-once,
         -boost-*     
 "
 WarningsAsErrors: ''

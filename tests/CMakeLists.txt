@@ -68,45 +68,6 @@ else()
         COMMAND proto3_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-
-    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/non_owning")
-
-    add_library(non_owning_unittest_proto3_proto_lib INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto"
-        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto"
-        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto")
-
-    target_include_directories(non_owning_unittest_proto3_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-    protobuf_generate_hpp(
-        TARGET non_owning_unittest_proto3_proto_lib
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-        PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-        PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
-        PLUGIN_OPTIONS "non_owning,namespace_prefix=non_owning,directory_prefix=non_owning")
-
-    add_executable(non_owning_proto3_test non_owning_proto3_test.cpp)
-    target_link_libraries(non_owning_proto3_test PRIVATE Boost::ut glaze::glaze non_owning_unittest_proto3_proto_lib gpb_proto_json)
-    target_include_directories(non_owning_proto3_test SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_test(NAME non_owning_proto3_test
-        COMMAND non_owning_proto3_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_library(non_owning_unittest_proto2_proto_lib INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
-    target_include_directories(non_owning_unittest_proto2_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-    protobuf_generate_hpp(
-        TARGET non_owning_unittest_proto2_proto_lib
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-        PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-        PLUGIN_OPTIONS "non_owning,namespace_prefix=non_owning,directory_prefix=non_owning")
-
-    add_executable(non_owning_proto2_test non_owning_proto2_test.cpp)
-    target_link_libraries(non_owning_proto2_test Boost::ut glaze::glaze non_owning_unittest_proto2_proto_lib gpb_proto_json)
-    add_test(NAME non_owning_proto2_test
-        COMMAND non_owning_proto2_test
-        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-
     add_library(unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
     target_include_directories(unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
     protobuf_generate_hpp(
@@ -115,7 +76,6 @@ else()
 
     add_executable(proto2_test unittest_proto2_test.cpp)
     target_link_libraries(proto2_test PRIVATE unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
-
     add_test(NAME proto2_test
         COMMAND proto2_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -132,16 +92,8 @@ else()
 
     add_test(NAME map_test
         COMMAND map_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_library(non_owning_map_unittest_proto_lib INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
-    target_include_directories(non_owning_map_unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-    protobuf_generate_hpp(
-        TARGET non_owning_map_unittest_proto_lib
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-        PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-        PLUGIN_OPTIONS "non_owning,namespace_prefix=non_owning,directory_prefix=non_owning")
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
 
     if(Protobuf_INCLUDE_DIRS)
         add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
@@ -151,51 +103,12 @@ else()
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
         target_link_libraries(any_test_lib INTERFACE well_known_types)
 
-        add_library(non_owning_any_lib INTERFACE
-            "${Protobuf_INCLUDE_DIRS}/google/protobuf/any.proto"
-            "${Protobuf_INCLUDE_DIRS}/google/protobuf/field_mask.proto")
-
-        target_include_directories(non_owning_any_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-        protobuf_generate_hpp(
-            TARGET non_owning_any_lib
-            IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
-            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-            PLUGIN_OPTIONS "non_owning,namespace_prefix=non_owning,directory_prefix=non_owning")
-
-        add_library(non_owning_any_test_lib INTERFACE
-            "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto")
-
-        target_include_directories(non_owning_any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-        protobuf_generate_hpp(
-            TARGET non_owning_any_test_lib
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/non_owning"
-            PLUGIN_OPTIONS "non_owning,namespace_prefix=non_owning,directory_prefix=non_owning")
-
-        target_link_libraries(non_owning_any_test_lib INTERFACE non_owning_any_lib well_known_types)
-
         add_executable(any_test any_test.cpp)
-        target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib non_owning_any_test_lib)
+        target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib)
 
         add_test(NAME any_test
             COMMAND any_test
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-        add_executable(dynamic_serializer_tests dynamic_serializer_tests.cpp)
-
-        if(edition_support)
-            target_compile_definitions(dynamic_serializer_tests PRIVATE EDITION_SUPPORT)
-        endif()
-
-        target_link_libraries(dynamic_serializer_tests PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
-
-        add_test(NAME dynamic_serializer_tests
-            COMMAND dynamic_serializer_tests
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-        add_executable(dynamic_serializer_coverage_tests dynamic_serializer_coverage_tests.cpp)
-        target_link_libraries(dynamic_serializer_coverage_tests PRIVATE hpp_proto::libhpp_proto Boost::ut glaze::glaze unittest_proto3_proto_lib)
-        add_hpp_proto_test(dynamic_serializer_coverage_tests)
 
         add_executable(well_known_types_tests well_known_types_tests.cpp)
         target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
@@ -211,15 +124,23 @@ else()
     add_executable(proto3_decode proto3_decode.cpp)
     target_link_libraries(proto3_decode PRIVATE unittest_proto3_proto_lib)
 
+    add_executable(dynamic_message_test dynamic_message_test.cpp)
+    target_link_libraries(dynamic_message_test PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
+    add_test(NAME dynamic_message_test COMMAND dynamic_message_test WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_library(hpp_options_test_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/hpp_options_test.proto")
     protobuf_generate_hpp(
-            TARGET hpp_options_test_lib
-            IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+        TARGET hpp_options_test_lib
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+        PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     target_include_directories(hpp_options_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 
     add_executable(hpp_options_test hpp_options_test.cpp)
     target_link_libraries(hpp_options_test PRIVATE hpp_options_test_lib)
+
+    add_executable(read_json_consistency_test read_json_consistency_test.cpp)
+    target_link_libraries(read_json_consistency_test unittest_proto_lib unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze)
+    add_test(NAME read_json_consistency_test COMMAND read_json_consistency_test WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     if(edition_support)
         add_library(unittest_lite_proto_lib INTERFACE
@@ -253,7 +174,7 @@ else()
         protobuf_generate_hpp(
             TARGET basic_test_proto2_lib
             IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,numeric_keyed_map=std.map,string_keyed_map=std.unordered_map")
+            PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,namespace_prefix=test")
 
         add_executable(basic_test_proto2 basic_test_proto2.cpp)
         target_link_libraries(basic_test_proto2 PRIVATE basic_test_proto2_lib)
@@ -263,3 +184,5 @@ else()
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     endif()
 endif()
+
+add_subdirectory(grpc)

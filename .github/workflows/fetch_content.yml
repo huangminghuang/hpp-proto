@@ -25,7 +25,7 @@ jobs:
 
     strategy:
       matrix:
-        gcc: [12]
+        gcc: [13]
 
     env:
       CC: gcc-${{ matrix.gcc }}

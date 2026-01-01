@@ -1,45 +1,27 @@
 # Hpp-proto
 ![linux](https://github.com/huangminghuang/hpp-proto/actions/workflows/linux.yml/badge.svg)![macos](https://github.com/huangminghuang/hpp-proto/actions/workflows/macos.yml/badge.svg)![windows](https://github.com/huangminghuang/hpp-proto/actions/workflows/windows.yml/badge.svg)
-[![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC)](https://codecov.io/github/huangminghuang/hpp-proto)[![Codacy Badge](https://app.codacy.com/project/badge/Grade/c629f1cf7a7c45b3b3640362da4ac95a)](https://app.codacy.com/gh/huangminghuang/hpp-proto/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC&flag=ci)](https://codecov.io/github/huangminghuang/hpp-proto)[![Codacy Badge](https://app.codacy.com/project/badge/Grade/c629f1cf7a7c45b3b3640362da4ac95a)](https://app.codacy.com/gh/huangminghuang/hpp-proto/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-Hpp-proto is a lightweight, high-performance Protocol Buffers implementation in C++20. It maps Protocol Buffers messages directly to simple C++ aggregates, using only C++ built-in or standard library types. Apart from UTF-8 validation, the serialization code for these mapped aggregates is entirely header-only, ensuring minimal dependencies and efficient performance.
+Hpp-proto is a modern, high-performance, and header-only C++23 implementation of Google's Protocol Buffers. It is designed from the ground up for extreme performance and minimal code size, making it an ideal choice for resource-constrained environments, real-time systems, and performance-critical applications.
 
-Compared to Google’s implementation, hpp-proto adopts a minimalistic design that greatly reduces code size while offering superior performance in benchmarks where runtime reflection is unnecessary. Additionally, hpp-proto supports a non-owning mode, mapping all variable-length fields to lightweight types such as std::string_view or equality_comparable_span. This mode allows users to customize memory management during deserialization, further enhancing efficiency. These features make hpp-proto an excellent choice for performance-critical, real-time, or resource-constrained environments.
-# Features
-* Supports Protocol Buffers syntax 2 and 3 and [editions](https://protobuf.dev/editions/overview/).
-* Supports the serialization of [ProtoJSON format](https://protobuf.dev/programming-guides/json/), utilizing a slightly modified version of the [glaze](https://github.com/stephenberry/glaze) library.
-* Significantly smaller code size compared to Google's C++ implementation.
-* Faster performance than Google's C++ implementation.
-* Maps all Protocol Buffers message definitions to simple C++ aggregates using standard C++ library types.
-* Aside from [UTF-8 validation](https://github.com/simdutf/is_utf8), all generated code and the core library are header-only.
-* Each generated C++ aggregate is associated with static C++ reflection data for efficient Protocol Buffers encoding and decoding.
-* All generated message types are equality-comparable, making them useful in unit testing.
-* Completely exception-free.
-* Supports non-owning mode code generation, mapping string and repeated fields to `std::string_view` and `hpp::proto::equality_comparable_span` which derives from `std::span` and adds the equality comparator. 
-Non-owning mode can be enabled globally via [protoc plugin options](docs/Code_Generation_Guide.md##plugin-options) 
-or selectively using [protobuf extensions](docs/Code_Generation_Guide.md#non-owning-mode-only-for-specific-files-messages-or-fields).
-* Enables compile-time serialization.
+The library leverages modern C++ features and a trait-based design to generate clean, efficient, and highly customizable C++ aggregates from your `.proto` files. It provides first-class support for both binary and JSON serialization, gRPC integration, and dynamic messages.
 
-## Limitations
-* Lacks runtime reflection support.
-* Lacks support for extra json print options in the google C++ protobuf implementation like `always_print_fields_with_no_presence`, `always_print_enums_as_ints`,
-  `preserve_proto_field_names` or`unquote_int64_if_possible`.
-* Unknown fields are always discarded during deserialization.
+## Key Features
 
-## Comparison with google protobuf C++ implementation
-### System Configuration
+*   **High Performance**: Outperforms the official Google Protobuf library in many common use cases, especially in combined "set and serialize" operations.
+*   **Modern C++23 Design**: Uses concepts, `consteval`, `std::span`, and other modern features for maximum type safety and performance. The generated code is clean, idiomatic, and easy to work with.
+*   **Header-Only Core**: The core serialization library is header-only (with one external dependency for UTF-8 validation), simplifying integration into any build system.
+*   **JSON Support**: First-class serialization and deserialization to and from the canonical ProtoJSON format, powered by the high-performance [glaze](https://github.com/stephenberry/glaze) library.
+*   **Trait-Based Customization**: A unique trait-based system allows you to customize the generated types without modifying the generated code. Easily swap in custom containers, allocators (like `std::pmr`), or string types to perfectly match your application's memory management strategy.
+*   **Non-Owning Deserialization**: Supports a "non-owning" mode that deserializes into views (`std::string_view`, `std::span`), drastically reducing allocations and memory copies.
+*   **gRPC Integration**: A built-in adapter allows you to use `hpp-proto` generated messages directly in your gRPC client and server applications. ([docs/grpc-adapter.md](docs/grpc-adapter.md)).
+*   **Dynamic Messages**: A descriptor-driven API allows for runtime processing of messages (including JSON/proto I/O) without needing the compile-time generated types. ([docs/dynamic_message.md](docs/dynamic_message.md)).
+*   **Minimal Code Size**: Generates significantly smaller binary sizes compared to libprotobuf.
+*   **Supports Editions, Proto2, and Proto3**: Fully compatible with modern Protobuf features.
 
-| Platform |      Mac           |            Linux                |
-|----------|--------------------|---------------------------------|
-|    OS    |    MacOS 15.3.1    |         Ubuntu 22.04            |
-|   CPU    | M1 Pro/MK193LL/A   |  Intel Core i9-11950H @ 2.60GHz |
-| Compiler | Apple clang 16.0.0 |           gcc 12.3.0            |
+## Performance Highlights
 
-Google protobuf version 29.3
-
-### Runtime Performance 
-
-We measured the runtime performance using the dataset and the benchmarks.proto definition from Google Protocol Buffers version 3.6.0. The benchmarks focus on three core operations: deserialization, setting a message (set_message), and setting a message combined with serialization (set_message and serialize). The performance was evaluated on two implementations: Google Protocol Buffers and hpp-proto, with regular and arena/non-owning modes being tested for each operation. 
+Hpp-proto is optimized for scenarios where messages are built or modified and then serialized. While Google's library may be faster in raw serialization of already-constructed objects, hpp-proto shows superior overall performance in combined set-and-serialize benchmarks.
 
 <table>
   <tr>
@@ -52,46 +34,21 @@ We measured the runtime performance using the dataset and the benchmarks.proto d
   </tr>
 </table>
 
-The performance benchmarks clearly demonstrate the overall efficiency of the hpp_proto library compared to Google’s implementation across deserialization, setting a message, and setting a message with serialization operations. However, for the serialization operation alone, Google’s implementation may be faster than hpp-proto. This comes at the expense of the set_message operation, where hpp_proto significantly outperforms Google’s implementation.
-
-It’s important to note that in real-world applications, setting a message is a prerequisite before serialization can take place. While Google’s implementation may offer faster serialization times, the combined time required for both setting a message and serializing shows that hpp_proto delivers better performance overall.
-
-
-[Benchmark code is available here](benchmarks/benchmark.cpp)
-### Code Size
-We compared the code sizes of three equivalent programs: [hpp_proto_decode_encode](benchmarks/hpp_proto_decode_encode.cpp), [google_decode_encode](benchmarks/google_decode_encode.cpp) and [google_decode_encode_lite](benchmarks/google_decode_encode_lite.cpp). These programs are responsible for decoding and encoding messages defined in [benchmarks.proto](https://github.com/protocolbuffers/protobuf/blob/v3.6.0/benchmarks/benchmarks.proto), using the hpp-proto and Google Protocol Buffers implementations. The google_decode_encode program is statically linked with libprotobuf, while google_decode_encode_lite is linked with libprotobuf-lite.
-
-<table>
-  <tr>
-    <td>
-      <a href="benchmarks/Mac_sizes.json"><img src="benchmarks/Mac_sizes.png" alt="Mac Size Comparison" width="400"></a>
-    </td>
-    <td>
-      <a href="benchmarks/Linux_sizes.json"><img src="benchmarks/Linux_sizes.png" alt="Linux Size Comparison" width="400"></a>
-    </td>
-  </tr>
-</table>
- 
+For more details, see the [benchmarks](benchmarks/ReadMe.md) directory.
 
 ## Getting Started
-This section provides a quick introduction to the basic usage of hpp-proto to help you get started with minimal setup. It covers the essential steps required to integrate hpp-proto into your project and begin working with Protocol Buffers. For more advanced usage scenarios, optimizations, and additional features, please refer to the detailed examples in the [tutorial](tutorial) directory and [code generation guide](docs/Code_Generation_Guide.md) of the repository.
 
-### Install google protoc 
-If you haven’t installed the `protoc` compiler, [download the package](https://protobuf.dev/downloads) and follow the instructions in the README.
+This guide will walk you through creating a simple application using `hpp-proto` with CMake.
 
-### [optional] Install hpp-proto
+### Prerequisites
 
-The hpp-proto library can be directly installed locally then use cmake `find_package` to solve the dependency,  or it can be used via cmake `FetchContent` mechanism.
+*   A C++23 compatible compiler (e.g., Clang 19+, GCC 13+).
+*   CMake (version 3.24 or newer).
+*   The `protoc` compiler. You can download it from the [official Protocol Buffers releases page](https://protobuf.dev/downloads).
 
-```bash
-git clone https://github.com/huangminghuang/hpp-proto.git 
-cd hpp-proto
-# use installed protoc by default or specify '-DHPP_PROTO_PROTOC=compile' to download google protobuf and compile protoc from source
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/local -Bbuild -S .
-cmake --build build --target install
-```
+### Step 1: Define Your Protocol Format 
 
-### Defining Your Protocol Format 
+Create a file named `addressbook.proto`:
 
 ```protobuf
 // addressbook.proto
@@ -121,351 +78,152 @@ message Person {
 message AddressBook {
   repeated Person people = 1;
 }
-
 ```
 
-### Code generation 
+### Step 2: Set Up Your CMake Project
 
-```bash
-    export PATH=$PATH:/path/to/protoc-gen-hpp
-    protoc -I=$SRC_DIR --hpp_out=$DST_DIR $SRC_DIR/addressbook.proto
-```
-
-This generates the following files in your specified destination directory:
-
-- `addressbook.msg.hpp`, the header which declares your generated messages.
-- `addressbook.pb.hpp`, which contains the overloaded functions required for protobuf decoding/encoding.
-- `addressbook.glz.hpp`, which contains the template specializations for JSON decoding/encoding.
-- `addressbook.desc.hpp`, which contains the protobuf descriptors of the generated messages.
-
-
-#### Code generation with CMake
-<details open><summary> find_package  </summary>
-<p>
+Create a `CMakeLists.txt` file. We recommend using `FetchContent` to integrate `hpp-proto` seamlessly.
 
 ```cmake
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.25)
+project(hpp_proto_tutorial LANGUAGES CXX)
 
-project(hpp_proto_tutorial 
-        VERSION 1.0.0
-        LANGUAGES CXX)
-
-find_package(hpp_proto CONFIG REQUIRED)
-
-add_library(addressbook_lib INTERFACE addressbook.proto)
-target_include_directories(addressbook_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate_hpp(TARGET addressbook_lib
-# uncomment the next line for non-owning mode                 
-#                 PLUGIN_OPTIONS non_owning 
-)
-
-add_executable(tutorial_proto addressbook.cpp)
-target_link_libraries(tutorial_proto PRIVATE addressbook_lib)
-```
-</p>
-</details>
-
-<details open><summary> FetchContent  </summary>
-<p>
-
-```cmake
-cmake_minimum_required(VERSION 3.24)
-
-project(hpp_proto_tutorial 
-        VERSION 1.0.0
-        LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
-
 FetchContent_Declare(
   hpp_proto
-  GIT_REPOSITORY https://github.com/huangminghuang/hpp-proto.git 
+  GIT_REPOSITORY https://github.com/huangminghuang/hpp-proto.git
   GIT_TAG main
   GIT_SHALLOW TRUE
 )
-
 FetchContent_MakeAvailable(hpp_proto)
+
+# Create a library from our .proto file.
+# The generated headers will be available to targets that link against it.
 add_library(addressbook_lib INTERFACE addressbook.proto)
 target_include_directories(addressbook_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate_hpp(TARGET addressbook_lib
-# uncomment the next line for non-owning mode  
-#                     PLUGIN_OPTIONS non_owning 
-)
+protobuf_generate_hpp(TARGET addressbook_lib)
 
-add_executable(tutorial_proto addressbook.cpp)
+# Create our main executable
+add_executable(tutorial_proto main.cpp)
+
+# Link the generated code and hpp-proto to our executable
 target_link_libraries(tutorial_proto PRIVATE addressbook_lib)
 ```
-</p>
-</details>
 
-## The hpp-proto API
+### Step 3: Write the C++ Code
 
-The mapping from proto messages to their C++ message types is straight forward, as shown in the following generated code. 
-Notice that the `*.msg.hpp` only contains the minimum message definitions and avoid the inclusion of headers related to the protobuf/JSON 
-encoding/decoding facilities. This makes those generated structures easier to be used as basic vocabulary types among modules without incurring unnecessary dependencies. 
-
-Below are the examples of the generated code for the `addressbook.proto` file in regular and non-owning modes.
-<details><summary> Regular Mode </summary>
-<p>
+Create a `main.cpp` file to define a `Person`, serialize it to binary and JSON, and then deserialize it back.
 
 ```cpp
-// addressbook.msg.hpp
-namespace tutorial {
+#include "addressbook.pb.hpp"   // For binary serialization
+#include "addressbook.glz.hpp"  // For JSON serialization
+#include <iostream>
+#include <cassert>
 
-using namespace hpp::proto::literals;
-struct Person {
-  enum class PhoneType {
-    MOBILE = 0,
-    HOME = 1,
-    WORK = 2 
+// By default, generated messages use std::string, std::vector, etc.
+using Person = tutorial::Person<>;
+
+int main() {
+    Person p;
+    p.id = 1234;
+    p.name = "John Doe";
+    p.email = "jdoe@example.com";
+    p.phones.push_back({.number = "555-4321", .type = Person::PhoneType::HOME});
+
+    // --- Binary Serialization ---
+    std::string binary_buffer;
+    if (!hpp::proto::write_binpb(p, binary_buffer).ok()) {
+        std::cerr << "Binary serialization failed!" << std::endl;
+        return 1;
+    }
+
+    Person p_from_binary;
+    if (!hpp::proto::read_binpb(p_from_binary, binary_buffer).ok()) {
+        std::cerr << "Binary deserialization failed!" << std::endl;
+        return 1;
+    }
+    assert(p == p_from_binary);
+    std::cout << "Binary round-trip successful!" << std::endl;
+
+    // --- JSON Serialization ---
+    std::string json_buffer;
+    // Use indent<2> for pretty-printing
+    if (!hpp::proto::write_json(p, json_buffer, hpp::proto::indent<2>).ok()) {
+        std::cerr << "JSON serialization failed!" << std::endl;
+        return 1;
+    }
+    std::cout << "\nSerialized JSON:\n" << json_buffer << std::endl;
+
+    Person p_from_json;
+    if (!hpp::proto::read_json(p_from_json, json_buffer).ok()) {
+        std::cerr << "JSON deserialization failed!" << std::endl;
+        return 1;
+    }
+    assert(p == p_from_json);
+    std::cout << "\nJSON round-trip successful!" << std::endl;
+
+    return 0;
+}
+```
+
+### Step 4: Build and Run
+
+From your project directory:
+
+```bash
+cmake -B build
+cmake --build build
+./build/tutorial_proto
+```
+
+You should see output indicating that both binary and JSON round-trips were successful.
+
+## Advanced Usage & Concepts
+
+### Trait-Based Design
+
+One of `hpp-proto`'s most powerful features is its trait-based design, which decouples the generated message layout from specific container types. This lets you tailor the memory-management strategy (value-owning, arena-backed, view-only) for your messages without regenerating code.
+
+*   **What Traits Customize**:
+    *   `string_t`, `bytes_t`: Swap `std::string`/`std::vector<std::byte>` for `std::pmr::string`, `std::string_view`, or other string/byte containers.
+    *   `repeated_t<T>`: Choose storage for repeated fields, like `std::pmr::vector`, `small_vector`, or `std::span`.
+    *   `map_t<Key, Value>`: Use custom map-like containers (`flat_map`, `btree`, etc.).
+    *   `optional_recursive_t<T>`: Control lifetimes for recursive messages.
+    *   `unknown_fields_range_t`: Define how unknown fields are stored.
+
+*   **Supplied Traits**:
+    *   `hpp::proto::default_traits`: The default. Uses standard STL containers (`std::string`, `std::vector`).
+    *   `hpp::proto::non_owning_traits`: Zero-copy views using `std::string_view` and `hpp::proto::equality_comparable_span`. Ideal for performance-critical parsing where you can guarantee the backing buffer outlives the message view.
+    *   `hpp::proto::keep_unknown_fields<Base>`: A mixin to enable unknown-field retention for any base trait.
+
+*   **Example: Using PMR Allocators**
+
+  Simply define a new traits struct and use it as a template argument for your message.
+  ```cpp
+  #include <memory_resource>
+
+  struct pmr_traits : hpp::proto::default_traits {
+    using string_t = std::pmr::string;
+    using bytes_t = std::pmr::vector<std::byte>;
+    template <typename T>
+    using repeated_t = std::pmr::vector<T>;
   };
 
-  struct PhoneNumber {
-    std::string number = {};
-    PhoneType type = PhoneType::MOBILE;
+  // This person will use PMR containers
+  using PmrPerson = tutorial::Person<pmr_traits>;
+  
+  std::pmr::monotonic_buffer_resource mr;
+  // When deserializing non-owning types, provide the memory resource.
+  auto result = hpp::proto::read_binpb<PmrPerson>(buffer, hpp::proto::alloc_from{mr});
+  ```
 
-    bool operator == (const PhoneNumber&) const = default;
-  };
+## Limitations
 
-  std::string name = {};
-  int32_t id = {};
-  std::string email = {};
-  std::vector<PhoneNumber> phones;
+*   **JSON Options**: Lacks support for some of the extended JSON print options found in Google's C++ implementation, like `always_print_fields_with_no_presence` or `preserve_proto_field_names`.
 
-  bool operator == (const Person&) const = default;
-};
+---
 
-struct AddressBook {
-  std::vector<Person> people;
-
-  bool operator == (const AddressBook&) const = default;
-};
-}
-
-// addressbook.pb.hpp
-#include "addressbook.msg.hpp"
-namespace tutorial {
-  auto pb_meta(const Person &) -> std::tuple<...> ;
-  auto pb_meta(const Person::PhoneNumber &) -> std::tuple<...> ;
-  auto pb_meta(const AddressBook &) -> std::tuple<...>;
-}
-```
-</p>
-</details>
-<details><summary> Non-owning Mode </summary>
-<p>
-
-```cpp
-// addressbook.msg.hpp
-namespace tutorial {
-
-using namespace hpp::proto::literals;
-struct Person {
-  enum class PhoneType {
-    MOBILE = 0,
-    HOME = 1,
-    WORK = 2 
-  };
-
-  struct PhoneNumber {
-    std::string_view number = {};
-    PhoneType type = PhoneType::MOBILE;
-
-    bool operator == (const PhoneNumber&) const = default;
-  };
-
-  std::string_view name = {};
-  int32_t id = {};
-  std::string_view email = {};
-  hpp::proto::equality_comparable_span<const PhoneNumber> phones;
-
-  bool operator == (const Person&) const = default;
-};
-
-struct AddressBook {
-  hpp::proto::equality_comparable_span<const Person> people;
-
-  bool operator == (const AddressBook&) const = default;
-};
-}
-
-// addressbook.pb.hpp
-#include "addressbook.msg.hpp"
-namespace tutorial {
-  auto pb_meta(const Person &) -> std::tuple<...> ;
-  auto pb_meta(const Person::PhoneNumber &) -> std::tuple<...> ;
-  auto pb_meta(const AddressBook &) -> std::tuple<...>;
-}
-```
-</p>
-</details>
-
-### Protobuf encoding/decoding APIs
-
-The hpp-proto library provides an efficient and convenient interface for encoding and decoding Protobuf messages in C++. The two core functions are:
-
--	`write_proto()`: Serializes a generated C++ message object into the binary Protobuf format.
--	`read_proto()`: Deserializes a binary Protobuf-encoded buffer back into the corresponding C++ message object.
-
-These APIs offer flexible usage with overloads for returning either a status or an std::expected object (containing the result or an error). Below are demonstrations of their usage in both regular and non-owning modes.
-
-<details> 
-<summary>Regular mode APIs</summary>
-<p>
-
-```cpp
-#include <addressbook.pb.hpp> // Include "*.pb.hpp" for Protobuf APIs
-
-// ....
-tutorial::Person in_msg, out_msg;
-msg1.name = "john";
-
-std::string out_buffer;
-using namespace hpp::proto;
-// Serialize using the status return API
-if (!write_proto(in_msg, out_buffer).ok()) {
-  // Handle error
-}
-assert(out_buffer == "\x0a\x04john");
-
-// Serialize using the expected return API
-expected<std::string, std::errc> write_result = write_proto<std::string>(in_msg);
-assert(write_result.value() == "\x0a\x04john");
-
-std::string_view in_buffer = "\x0a\x04john";
-// Deserialize using the status return API
-if (!read_proto(out_msg, in_buffer).ok()) {
-  // Handle error
-}
-assert(out_msg.name == "john");
-
-// Deserialize using the expected return API
-expected<Person, std::errc> read_result = read_proto<Person>(in_msg);
-assert(read_result.value().name == "john");
-```
-</p>
-</details>
-<details> <summary>Non-owning mode APIs</summary>
-<p>
-In non-owning mode, variable-length fields in messages are mapped to lightweight types such as `std::string_view` or `equality_comparable_span`. Instead of copying values, non-owning messages provide views to the original data, requiring careful lifetime management of referenced memory to avoid invalid access.
-
-#### Key Differences in Non-Owning Mode
-
-- `write_proto()`: No difference between regular and non-owning modes.
-- `read_proto()`: Requires an option object containing a memory resource for managing allocations.
-
-The memory resource must have an `allocate()` member function equivalent to [std::pmr::memory_resource::allocate](https://en.cppreference.com/w/cpp/memory/memory_resource/allocate), ensuring it returns at least the requested amount of memory and *never* indicates an error by returning `nullptr`. Errors should only be communicated through exceptions. 
-Additionally, all allocated memory must be properly released when the memory resource is destroyed. 
-For most use cases, [std::pmr::monotonic_buffer_resource](https://en.cppreference.com/w/cpp/memory/monotonic_buffer_resource) is recommended.
-
-
-#### Providing Memory Resource to `read_proto()`
-
-The option object allows you to specify memory resources for `read_proto()`:
--	`alloc_from`: All memory used by the deserialized value is allocated from the provided memory resource.
-
-```cpp
-#include <addressbook.pb.hpp> // Include "*.pb.hpp" for Protobuf APIs
-
-// ....
-tutorial::Person in_msg, out_msg;
-msg1.name = "john";
-
-std::string out_buffer;
-using namespace hpp::proto;
-// Serialize using the status return API
-if (!write_proto(in_msg, out_buffer).ok()) {
-  // Handle error
-}
-assert(out_buffer == "\x0a\x04john");
-
-// Serialize using the expected return API
-expected<std::string, std::errc> write_result = write_proto<std::string>(in_msg);
-assert(write_result.value() == "\x0a\x04john");
-
-std::pmr::monotonic_buffer_resource pool;
-std::string_view in_buffer = "\x0a\x04john";
-// Deserialize using the status return API
-if (!read_proto(out_msg, in_buffer, alloc_from{pool}).ok()) {
-  // Handle error
-}
-assert(out_msg.name == "john");
-
-// Deserialize using the expected return API
-expected<Person, std::errc> read_result = read_proto<Person>(in_msg, alloc_from{pool});
-assert(read_result.value().name == "john");
-```
-</p>
-</details>
-
-
-### JSON encoding/decoding APIs
-The hpp-proto library also supports encoding and decoding the C++ message objects to and from [canonical JSON encoding](https://protobuf.dev/programming-guides/proto3/#json) using the modified (glaze)[https://github.com/stephenberry/glaze] library. This ensures compatibility with the canonical JSON encoding of Protobuf messages. The key functions are:
-
--	`write_json()`: Serialize  a C++ message object into a JSON string.
--	`read_json()`: Deserialize a JSON string back into the corresponding C++ message object.
-
-Similar to Protobuf APIs, the JSON APIs provide overloads that return either a status or an expected object.
-In addition, `write_json()` can take an additional `indent` object for pretty printing. 
-Below is a demonstration of how to use these functions for encoding and decoding in regular and non-owning modes.
-
-<details><summary> Regular Mode </summary>
-<p>
-
-```cpp
-
-#include "addressbook.glz.hpp" // Include the "*.glz.hpp" for JSON APIs
-
-// ....
-std::string out_json;
-tutorial::Person in_msg;
-in_msg.name = "john";
-using namespace hpp::proto;
-// Serialize using the status return API
-if (!write_json(in_msg, out_json).ok()) {
-    // Handle error
-}
-
-// Serialize using the expected return API
-auto write_result = write_json(in_msg);
-assert(write_result.value() == out_json);
-
-// Pretty printing with 3 spaces indent
-if (!write_json(in_msg, out_json, indent<3>{}).ok()) {
-    // Handle error
-}
-
-tutorial::Person out_msg;
-// Deserialize using the status return API
-if (!read_json(out_msg, json).ok()) {
-    // Handle error
-}
-
-// Deserialize using the expected return API
-auto read_result = read_json<tutorial::Person>(json);
-assert(read_result.value() == out_msg);
-```
-</p>
-</details>
-<details><summary> Non-owning Mode </summary>
-<p>
-
-```cpp
-
-#include "addressbook.glz.hpp" // Include the "*.glz.hpp" for JSON APIs
-
-// ....
-std::pmr::monotonic_buffer_resource pool;
-
-std::string in_json = R"({"name":"john"})";
-tutorial::Person out_person;
-if (!read_json(out_person, in_json, alloc_from{pool}).ok()) {
-    // Handle error
-}
-
-// alternatively, use the overload returning an expected object
-auto read_result = read_json<tutorial::Person>(in_json, alloc_from{pool});
-assert(read_result.value() == out_person);
-```
-</p>
-</details>
+For more examples and advanced use cases, please see the [tutorial](tutorial) directory.
