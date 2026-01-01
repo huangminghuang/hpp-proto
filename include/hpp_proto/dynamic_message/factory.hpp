@@ -134,23 +134,23 @@ inline void dynamic_message_factory::setup_storage_slots() {
   for (auto &message : pool_.messages()) {
     hpp::proto::optional<std::int32_t> prev_oneof_index;
     uint16_t oneof_ordinal = 1;
-    uint32_t cur_slot = UINT32_MAX;
+    uint32_t cur_slot = 0;
     for (auto &f : message.fields()) {
       if (f.proto().oneof_index.has_value()) {
         if (f.proto().oneof_index != prev_oneof_index) {
-          f.storage_slot = ++cur_slot;
+          f.storage_slot = cur_slot++;
         } else {
-          f.storage_slot = cur_slot;
+          f.storage_slot = cur_slot - 1;
         }
         f.oneof_ordinal = ++oneof_ordinal;
       } else {
-        f.storage_slot = ++cur_slot;
+        f.storage_slot = cur_slot++;
         f.oneof_ordinal = f.is_repeated() ? 0 : 1;
         oneof_ordinal = 1;
       }
       prev_oneof_index = f.proto().oneof_index;
     }
-    message.num_slots = cur_slot + 1;
+    message.num_slots = cur_slot;
   }
 }
 
