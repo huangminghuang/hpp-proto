@@ -87,11 +87,13 @@ template <uint32_t Number, auto Accessor, auto FieldOptions = option_mask(field_
           auto DefaultValue = std::monostate{}>
 struct field_meta : field_meta_base<Number, static_cast<uint8_t>(FieldOptions), Type, DefaultValue> {
   constexpr static auto access = accessor_type<Accessor>{};
+  constexpr static auto get = accessor_type<Accessor>{};
 };
 
 template <auto Accessor, typename... AlternativeMeta>
 struct oneof_field_meta {
   constexpr static auto access = accessor_type<Accessor>{};
+  constexpr static auto get = accessor_type<Accessor>{};
   constexpr static bool explicit_presence() { return false; }
   using alternatives_meta = std::tuple<AlternativeMeta...>;
   using type = void;

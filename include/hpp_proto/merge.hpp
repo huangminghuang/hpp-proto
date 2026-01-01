@@ -58,7 +58,7 @@ struct message_merger {
     return std::apply(
         [this, &dest, &source](auto &&...metas) {
           // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
-          (this->perform(metas, metas.first.access(dest), metas.second.access(std::forward<U>(source))), ...);
+          (this->perform(metas, metas.first.get(dest), metas.second.get(std::forward<U>(source))), ...);
         },
         detail::zip_tuples(typename util::meta_of<T>::type{}, typename util::meta_of<std::decay_t<U>>::type{}));
   }

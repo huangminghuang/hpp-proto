@@ -485,8 +485,8 @@ struct message_size_calculator<message_value_cref> {
 
 bool utf8_validation_failed(const field_descriptor_t &desc, const auto &str) {
 #if HPP_PROTO_NO_UTF8_VALIDATION
-  [[maybe_unused]] desc;
-  [[maybe_unused]] str;
+  static_cast<void>(desc);
+  static_cast<void>(str);
 #else
   if (desc.requires_utf8_validation()) {
     return !::is_utf8(str.data(), str.size());

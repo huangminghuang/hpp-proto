@@ -122,7 +122,7 @@ struct size_cache_counter<T> {
     } else {
       return std::apply(
           [&item](auto &&...meta) constexpr {
-            return ((meta.omit_value(meta.access(item)) ? 0 : count(meta.access(item), meta)) + ...);
+            return ((meta.omit_value(meta.get(item)) ? 0 : count(meta.get(item), meta)) + ...);
           },
           meta_type{});
     }
@@ -240,7 +240,7 @@ struct message_size_calculator<T> {
         [&item, &cache_itr](auto &&...meta) {
           // we cannot directly use fold expression with '+' operator because it has undefined evaluation order.
           field_size_accumulator accumulator(cache_itr);
-          (accumulator(meta.access(item), meta), ...);
+          (accumulator(meta.get(item), meta), ...);
           return accumulator.sum;
         },
         typename util::meta_of<type>::type{});
@@ -451,7 +451,7 @@ template <concepts::has_meta T>
   using type = std::remove_cvref_t<decltype(item)>;
   using metas = typename util::meta_of<type>::type;
   auto serialize_field_if_not_empty = [&](auto meta) {
-    return meta.omit_value(meta.access(item)) || serialize_field(meta.access(item), meta, cache_itr, archive);
+    return meta.omit_value(meta.get(item)) || serialize_field(meta.get(item), meta, cache_itr, archive);
   };
   return std::apply([&](auto... meta) { return (serialize_field_if_not_empty(meta) && ...); }, metas{});
 }

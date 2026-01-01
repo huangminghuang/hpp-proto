@@ -17,7 +17,9 @@ std::vector<char> read_file(const std::filesystem::path &path) {
   }
   contents.resize(static_cast<std::size_t>(size));
   in.seekg(0, std::ios::beg);
-  in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
+  if (!in.read(contents.data(), static_cast<std::streamsize>(contents.size()))) {
+    return {};
+  }
   return contents;
 }
 

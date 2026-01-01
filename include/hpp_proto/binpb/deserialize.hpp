@@ -1180,7 +1180,7 @@ constexpr status deserialize_field_by_index(uint32_t tag, concepts::has_meta aut
   if constexpr (Index != UINT32_MAX) {
     using type = std::remove_reference_t<decltype(item)>;
     using Meta = typename util::field_meta_of<type, Index>::type;
-    return deserialize_field(Meta::access(item), Meta(), tag, archive, unknown_fields);
+    return deserialize_field(Meta::get(item), Meta(), tag, archive, unknown_fields);
   } else if (archive.in_avail() > 0) {
     return skip_field(tag, archive, unknown_fields);
   } else {

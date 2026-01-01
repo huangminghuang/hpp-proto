@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-import subprocess
+import subprocess  # nosec B404
 import sys
 import tempfile
 import threading
@@ -15,6 +15,26 @@ def _drain_stream(stream, buffer: list[str]) -> None:
         buffer.append(line)
     stream.close()
 
+def _resolve_executable(path: Path, label: str) -> Path:
+    try:
+        resolved = path.resolve(strict=True)
+    except FileNotFoundError as ex:
+        raise ValueError(f"{label} binary not found: {path}") from ex
+    if not resolved.is_file():
+        raise ValueError(f"{label} binary is not a file: {resolved}")
+    if not os.access(resolved, os.X_OK):
+        raise ValueError(f"{label} binary is not executable: {resolved}")
+    return resolved
+
+def _validate_args(args: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for arg in args:
+        text = str(arg)
+        if "\x00" in text:
+            raise ValueError("invalid argument contains NUL byte")
+        normalized.append(text)
+    return normalized
+
 
 def main() -> int:
     if len(sys.argv) < 3:
@@ -24,18 +44,23 @@ def main() -> int:
         )
         return 1
 
-    server_bin = Path(sys.argv[1])
-    client_bin = Path(sys.argv[2])
-    client_args = sys.argv[3:]
+    try:
+        server_bin = _resolve_executable(Path(sys.argv[1]), "server")
+        client_bin = _resolve_executable(Path(sys.argv[2]), "client")
+        client_args = _validate_args(sys.argv[3:])
+    except ValueError as ex:
+        print(f"Invalid command arguments: {ex}", file=sys.stderr)
+        return 1
 
     with tempfile.NamedTemporaryFile(delete=False) as port_tmp:
         port_file = Path(port_tmp.name)
 
     server_cmd = [str(server_bin), str(port_file)]
-    server_proc = subprocess.Popen(
+    server_proc = subprocess.Popen(  # nosec B603
         server_cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        shell=False,
         text=True,
         universal_newlines=True,
     )
@@ -76,7 +101,7 @@ def main() -> int:
     env["HPP_PROTO_GRPC_TEST_ENDPOINT"] = endpoint
     client_cmd = [str(client_bin), *client_args]
     try:
-        client_result = subprocess.run(client_cmd, env=env, check=False)
+        client_result = subprocess.run(client_cmd, env=env, check=False, shell=False)  # nosec B603
         return_code = client_result.returncode
     finally:
         server_proc.terminate()

@@ -19,11 +19,20 @@ inline void expect(bool condition, const std::source_location location = std::so
 
 inline std::string read_file(const char *filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
+  if (!in.is_open()) {
+    return {};
+  }
   std::string contents;
   in.seekg(0, std::ios::end);
-  contents.resize(in.tellg());
+  auto size = in.tellg();
+  if (size <= 0) {
+    return {};
+  }
+  contents.resize(static_cast<std::size_t>(size));
   in.seekg(0, std::ios::beg);
-  in.read(contents.data(), static_cast<std::streamsize>(contents.size()));
+  if (!in.read(contents.data(), static_cast<std::streamsize>(contents.size()))) {
+    return {};
+  }
   return contents;
 }
 

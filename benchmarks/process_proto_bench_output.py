@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-import re,sys,json,os,platform,subprocess,shutil,shlex
+import re
+import sys
+import json
+import os
+import platform
+import subprocess  # nosec B404
+import shutil
+import shlex
 import argparse
 import matplotlib.pyplot as plt
 
@@ -35,14 +42,34 @@ def _compiler_from_cache(cache_path):
     )
     if not compiler:
         return None
-    def _read_compiler_version(compiler_path):
+    def _validate_compiler_args(compiler_path):
         compiler_args = shlex.split(compiler_path) if isinstance(compiler_path, str) else [compiler_path]
-        result = subprocess.run(
+        if not compiler_args:
+            return None
+        for arg in compiler_args:
+            if "\x00" in str(arg):
+                return None
+        compiler_exe = compiler_args[0]
+        resolved = shutil.which(compiler_exe)
+        if not resolved and os.path.isabs(compiler_exe):
+            if os.path.isfile(compiler_exe) and os.access(compiler_exe, os.X_OK):
+                resolved = compiler_exe
+        if not resolved:
+            return None
+        compiler_args[0] = resolved
+        return compiler_args
+
+    def _read_compiler_version(compiler_path):
+        compiler_args = _validate_compiler_args(compiler_path)
+        if not compiler_args:
+            return ""
+        result = subprocess.run(  # nosec B603
             compiler_args + ["-v"],
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=False,
+            shell=False,
         )
         return result.stdout
 
@@ -62,27 +89,29 @@ def _os_string(platform_name):
                 for line in f:
                     if line.startswith("PRETTY_NAME="):
                         return line.strip().split("=", 1)[1].strip('"')
-        except Exception:
-            pass
+        except OSError:
+            return "Linux"
         return "Linux"
     return None
 
 def _cpu_string(platform_name):
     if platform_name == "Mac":
         try:
-            output = subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"], text=True).strip()
+            output = subprocess.check_output(  # nosec B603
+                ["sysctl", "-n", "machdep.cpu.brand_string"], text=True
+            ).strip()
             if output:
                 return output
-        except Exception:
-            pass
+        except (OSError, subprocess.SubprocessError):
+            output = None
     if platform_name == "Linux":
         try:
             with open("/proc/cpuinfo", "r") as f:
                 for line in f:
                     if line.startswith("model name"):
                         return line.split(":", 1)[1].strip()
-        except Exception:
-            pass
+        except OSError:
+            return None
     return platform.processor() or platform.machine()
 
 def _replace_cell(cell_text, new_value):
