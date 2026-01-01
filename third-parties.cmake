@@ -78,6 +78,7 @@ elseif(HPP_PROTO_PROTOC STREQUAL "compile")
         "protobuf_BUILD_TESTS OFF"
         "protobuf_BUILD_PROTOBUF_BINARIES ON"
         "protobuf_BUILD_PROTOC_BINARIES ON"
+        "protobuf_MSVC_STATIC_RUNTIME OFF"
         "EXCLUDE_FROM_ALL"
         ${system_package}
     )
