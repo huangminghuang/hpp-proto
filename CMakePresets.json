@@ -40,6 +40,32 @@
                 "default",
                 "asan"
             ],
+            "condition": {
+                "type": "notEquals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "displayName": "Developer Mode",
+            "description": "Debug build and test against google protobuf implementation",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "HPP_PROTO_TEST_USE_PROTOBUF": true,
+                "HPP_PROTO_PROTOC": "compile"
+            }
+        },
+        {
+            "name": "linux-dev",
+            "inherits": [
+                "default",
+                "asan",
+                "clang"
+            ],
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
             "displayName": "Developer Mode",
             "description": "Debug build and test against google protobuf implementation",
             "binaryDir": "${sourceDir}/build/debug",
