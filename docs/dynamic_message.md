@@ -65,28 +65,11 @@ Once the factory is initialized, you can create dynamic message instances. Each 
 ```cpp
 // ... (inside main after factory initialization)
 
-    // Helper function to convert error enum to string
-    auto to_string = [](hpp::proto::dynamic_message_errc err) {
-        using enum  hpp::proto::dynamic_message_errc;
-        switch (err) {
-            case no_error: return "no error";
-            case no_such_field: return "no such field";
-            case no_such_value: return "no such value";
-            case invalid_field_type: return "invalid field type";
-            case invalid_enum_name: return "invalid enum name";
-            case unknown_enum_value: return "unknown enum value";
-            case wrong_message_type: return "wrong message type";
-            case unknown_message_name: return "unknown message name";
-            default: return "unknown error";
-        }
-    };
-
     std::pmr::monotonic_buffer_resource mr; // Arena for this message instance
     auto em_expected = factory.get_message("tutorial.Person", mr); // Using the package.MessageName
     
     if (!em_expected) {
-        std::cerr << "Error: Unknown message name or failed to create message: "
-                  << to_string(em_expected.error()) << std::endl;
+        std::cerr << "Error: Unknown message name or failed to create message\n";
         return 1;
     }
     
@@ -124,7 +107,7 @@ Once the factory is initialized, you can create dynamic message instances. Each 
     try {
         int id_val = msg.field_value_by_number<std::int32_t>(2).value();
         std::cout << "Person ID (untyped access, exception style): " << id_val << std::endl;
-    } catch (const std::bad_optional_access& e) {
+    } catch (const std::bad_expected_access& e) {
         std::cerr << "Error getting ID: " << e.what() << std::endl;
     }
 
@@ -313,7 +296,7 @@ For instance, adding a new person to an address book might look like this:
 // ... (from tutorial/dynamic_message/tutorial_proto3_dynamic.cpp)
 
     std::pmr::monotonic_buffer_resource mr;
-    auto address_book_expected = factory.get_message("tutorial.AddressBook", mr);
+    hpp::proto::expected_message_mref address_book_expected = factory.get_message("tutorial.AddressBook", mr);
     if (!address_book_expected) {
         // Handle error
         return 1;
@@ -321,7 +304,7 @@ For instance, adding a new person to an address book might look like this:
     hpp::proto::message_value_mref address_book_msg = *address_book_expected;
 
     // Use expected_message_mref for fluent chaining with error propagation
-    hpp::proto::expected_message_mref{address_book_msg}
+    address_book_expected
         .mutate_field_by_name("people", [&](hpp::proto::repeated_message_field_mref people) {
             return hpp::proto::expected_message_mref{people.emplace_back()}
                 .set_field_by_name("name", "Alex")
