@@ -45,6 +45,10 @@ jobs:
         with:
           key: ${{ github.workflow }}-${{ matrix.protoc }}
 
+      - name: install lcov
+        if: matrix.build_type == 'Coverage'
+        run: brew install lcov
+
       - name: configure
         shell: bash
         run: |
@@ -59,9 +63,6 @@ jobs:
         run: |
           ctest --build-config ${{ matrix.build_type }} --output-on-failure
 
-      - name: install lcov
-        if: matrix.build_type == 'Coverage'
-        run: brew install lcov
 
       - name: capture coverage
         if: matrix.build_type == 'Coverage'
