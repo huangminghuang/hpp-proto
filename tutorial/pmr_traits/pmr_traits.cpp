@@ -34,7 +34,6 @@ int main() {
   std::pmr::monotonic_buffer_resource pool{buffer.data(), buffer.size()};
   std::pmr::set_default_resource(&pool);
 
-
   // Create an address book that allocates from the pool
   PmrAddressBook address_book;
 
@@ -44,7 +43,7 @@ int main() {
   person.id = 1234;
   person.email = "jdoe@example.com";
   person.phones.push_back({.number = "555-4321", .type = PmrPerson::PhoneType::PHONE_TYPE_HOME});
-  
+
   address_book.people.push_back(std::move(person));
 
   // Serialize to binary
@@ -55,7 +54,7 @@ int main() {
   // Deserialize from binary into a new object using the same pool
   PmrAddressBook read_book;
   auto read_result = hpp::proto::read_binpb(read_book, binary_data, hpp::proto::alloc_from(pool));
-  
+
   expect(read_result.ok());
   expect(address_book == read_book);
   expect(read_book.people[0].name == "John Doe");
@@ -63,19 +62,19 @@ int main() {
   // Demonstrate that memory was allocated from the pool
   expect(read_book.people.get_allocator().resource() == &pool);
   expect(read_book.people[0].name.get_allocator().resource() == &pool);
-  
+
   std::cout << "Successfully serialized and deserialized using PMR traits!" << std::endl;
 
 #ifndef HPP_PROTO_DISABLE_GLAZE
   // JSON serialization works with PMR traits too
   auto json_result = hpp::proto::write_json(address_book);
   expect(json_result.has_value());
-  
+
   PmrAddressBook json_read_book;
   auto json_read_result = hpp::proto::read_json(json_read_book, json_result.value(), hpp::proto::alloc_from(pool));
   expect(json_read_result.ok());
   expect(address_book == json_read_book);
-  
+
   // Demonstrate that memory was allocated from the pool
   expect(json_read_book.people.get_allocator().resource() == &pool);
   expect(json_read_book.people[0].name.get_allocator().resource() == &pool);
