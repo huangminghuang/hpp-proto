@@ -45,6 +45,10 @@ jobs:
         with:
           key: ${{ github.workflow }}-${{ matrix.protoc }}
 
+      - name: install lcov
+        if: matrix.build_type == 'Coverage'
+        run: brew install lcov
+
       - name: configure
         shell: bash
         run: |
@@ -59,20 +63,11 @@ jobs:
         run: |
           ctest --build-config ${{ matrix.build_type }} --output-on-failure
 
-      - name: install lcov
-        if: matrix.build_type == 'Coverage'
-        run: brew install lcov
 
       - name: capture coverage
         if: matrix.build_type == 'Coverage'
         run: |
-          lcov --capture --directory build --output-file build/coverage.info \
-            --ignore-errors inconsistent,unsupported,format \
-            --rc derive_function_end_line=0
-          lcov --remove build/coverage.info 'build/**' 'cpm_modules/**' 'include/google/protobuf/**' \
-            --output-file build/coverage.filtered.info \
-            --ignore-errors inconsistent,unsupported,format,unused \
-            --rc derive_function_end_line=0
+          cmake --build build --target coverage_filtered_info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

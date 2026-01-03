@@ -87,62 +87,6 @@ constexpr void constexpr_verify(auto buffer, auto object_fun) {
   static_assert(object_fun() == hpp::proto::read_binpb<decltype(object_fun())>(buffer()).value());
 }
 
-struct empty {
-  bool operator==(const empty &) const = default;
-};
-
-auto pb_meta(const empty &) -> std::tuple<>;
-
-struct example {
-  int32_t i = 0; // field number == 1
-
-  constexpr bool operator==(const example &) const = default;
-};
-auto pb_meta(const example &)
-    -> std::tuple<hpp::proto::field_meta<1, &example::i, field_option::none, hpp::proto::vint64_t>>;
-
-struct nested_example {
-  example nested; // field number == 1
-  constexpr bool operator==(const nested_example &) const = default;
-};
-auto pb_meta(const nested_example &) -> std::tuple<hpp::proto::field_meta<1, &nested_example::nested>>;
-
-struct example_explicit_presence {
-  int32_t i; // field number == 1
-
-  constexpr bool operator==(const example_explicit_presence &) const = default;
-};
-
-auto pb_meta(const example_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta<1, &example_explicit_presence::i, field_option::explicit_presence,
-                                         hpp::proto::vint64_t>>;
-
-struct example_default_type {
-  int32_t i = 1; // field number == 1
-
-  constexpr bool operator==(const example_default_type &) const = default;
-};
-
-auto pb_meta(const example_default_type &)
-    -> std::tuple<hpp::proto::field_meta<1, &example_default_type::i, field_option::none, hpp::proto::vint64_t, 1>>;
-
-const ut::suite test_example_default_type = [] {
-  example_default_type const v;
-  std::vector<char> data;
-  ut::expect(hpp::proto::write_binpb(v, data).ok());
-  ut::expect(data.empty());
-};
-
-struct example_optional_type {
-  hpp::proto::optional<int32_t, 1> i; // field number == 1
-
-  constexpr bool operator==(const example_optional_type &) const = default;
-};
-
-auto pb_meta(const example_optional_type &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &example_optional_type::i, field_option::explicit_presence, hpp::proto::vint64_t>>;
-
 template <typename T>
 void expect_roundtrip_ok(auto encoded_data, const T &expected_value) {
   std::remove_cvref_t<T> value;
@@ -171,6 +115,81 @@ void expect_read_fail(const auto &encoded_data, const T &) {
   ut::expect(!hpp::proto::read_binpb(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
 }
 
+struct empty {
+  bool operator==(const empty &) const = default;
+};
+
+auto pb_meta(const empty &) -> std::tuple<>;
+
+struct example {
+  int32_t i = 0; // field number == 1
+  int32_t j = 0;
+
+  constexpr bool operator==(const example &) const = default;
+};
+auto pb_meta(const example &)
+    -> std::tuple<hpp::proto::field_meta<1, &example::i, field_option::none, hpp::proto::vint64_t>,
+                  hpp::proto::field_meta<2, &example::j, field_option::none, hpp::proto::vint64_t>>;
+
+struct nested_example {
+  std::optional<example> nested; // field number == 1
+  constexpr bool operator==(const nested_example &) const = default;
+};
+
+auto pb_meta(const nested_example &) -> std::tuple<hpp::proto::field_meta<1, &nested_example::nested>>;
+
+const ut::suite test_nested_example = [] {
+  expect_roundtrip_ok("\x0a\x02\x08\x01"sv, nested_example{.nested = example{.i = 1}});
+  expect_roundtrip_ok("\x0a\x02\x10\x02"sv, nested_example{.nested = example{.j = 2}});
+  expect_read_ok("\x0a\x02\x08\x01\x0a\x02\x10\x02"sv, nested_example{.nested = example{.i = 1, .j = 2}});
+};
+
+struct example_explicit_presence {
+  int32_t i; // field number == 1
+
+  constexpr bool operator==(const example_explicit_presence &) const = default;
+};
+
+auto pb_meta(const example_explicit_presence &)
+    -> std::tuple<hpp::proto::field_meta<1, &example_explicit_presence::i, field_option::explicit_presence,
+                                         hpp::proto::vint64_t>>;
+
+struct example_default_type {
+  int32_t i = 1; // field number == 1
+
+  constexpr bool operator==(const example_default_type &) const = default;
+};
+
+auto pb_meta(const example_default_type &)
+    -> std::tuple<hpp::proto::field_meta<1, &example_default_type::i, field_option::none, hpp::proto::vint64_t, 1>>;
+
+const ut::suite test_example_default_type = [] {
+  example_default_type const v;
+  std::vector<char> data;
+  ut::expect(hpp::proto::write_binpb(v, data).ok());
+  ut::expect(data.empty());
+};
+
+struct non_owing_nested_example {
+  hpp::proto::optional_message_view<example> nested; // field number == 1
+
+  constexpr bool operator==(const non_owing_nested_example &) const = default;
+};
+
+auto pb_meta(const non_owing_nested_example &)
+    -> std::tuple<hpp::proto::field_meta<1, &non_owing_nested_example::nested, field_option::none>>;
+
+const ut::suite test_non_owning_nested_example = [] {
+  example const ex1{.i = 150};
+  expect_roundtrip_ok("\x0a\x03\x08\x96\x01"sv, non_owing_nested_example{.nested = &ex1});
+
+  example const ex2{.i = 1, .j = 2};
+  expect_read_ok("\x0a\x02\x08\x01\x0a\x02\x10\x02"sv, non_owing_nested_example{.nested = &ex2});
+
+  non_owing_nested_example value;
+  // invalid tag type
+  expect_read_fail("\x08\x03\x08\x96\x01"sv, value);
+};
 struct bool_example {
   bool b = false; // field number == 1
   constexpr bool operator==(const bool_example &) const = default;
@@ -304,24 +323,6 @@ const ut::suite test_repeated_vint = [] {
       };
     };
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
-};
-
-struct non_owing_nested_example {
-  hpp::proto::optional_message_view<example> nested; // field number == 1
-
-  constexpr bool operator==(const non_owing_nested_example &) const = default;
-};
-
-auto pb_meta(const non_owing_nested_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owing_nested_example::nested, field_option::none>>;
-
-const ut::suite test_non_owning_nested_example = [] {
-  example const ex{.i = 150};
-  expect_roundtrip_ok("\x0a\x03\x08\x96\x01"sv, non_owing_nested_example{.nested = &ex});
-
-  non_owing_nested_example value;
-  // invalid tag type
-  expect_read_fail("\x08\x03\x08\x96\x01"sv, value);
 };
 
 template <typename Traits = hpp::proto::default_traits>
@@ -634,14 +635,6 @@ const ut::suite test_repeated_example = [] {
     expect_read_fail("\x0b\x02\x08\x01"sv, value);
   };
 };
-
-// struct group {
-//   uint32_t a;
-//   bool operator==(const group &) const = default;
-// };
-
-// auto pb_meta(const group &)
-//     -> std::tuple<hpp::proto::field_meta<2, &group::a, field_option::none, hpp::proto::vint64_t>>;
 
 struct nested_group {
   example nested;
@@ -1119,7 +1112,7 @@ const ut::suite test_optional_bools = [] {
 };
 
 struct oneof_example {
-  std::variant<std::monostate, std::string, int32_t, color_t> value;
+  std::variant<std::monostate, std::string, int32_t, color_t, example> value;
   bool operator==(const oneof_example &) const = default;
 };
 
@@ -1127,7 +1120,8 @@ auto pb_meta(const oneof_example &)
     -> std::tuple<hpp::proto::oneof_field_meta<
         &oneof_example::value, hpp::proto::field_meta<1, 1, field_option::explicit_presence>,
         hpp::proto::field_meta<2, 2, field_option::explicit_presence, hpp::proto::vint64_t>,
-        hpp::proto::field_meta<3, 3, field_option::explicit_presence>>>;
+        hpp::proto::field_meta<3, 3, field_option::explicit_presence>,
+        hpp::proto::field_meta<4, 4, field_option::explicit_presence>>>;
 
 const ut::suite test_oneof = [] {
   "empty_oneof_example"_test = [] { expect_roundtrip_ok(""sv, oneof_example{}); };
@@ -1140,6 +1134,10 @@ const ut::suite test_oneof = [] {
   "integer_oneof_example_0"_test = [] { expect_roundtrip_ok("\x10\x00"sv, oneof_example{.value = 0}); };
 
   "enum_oneof_example"_test = [] { expect_roundtrip_ok("\x18\x02"sv, oneof_example{.value = color_t::green}); };
+  "oneof_message_example"_test = [] {
+    expect_roundtrip_ok("\x22\x02\x08\x01"s, oneof_example{.value = example{.i = 1}});
+    expect_read_ok("\x22\x02\x08\x01\x22\x02\x10\x02"s, oneof_example{.value = example{.i = 1, .j = 2}});
+  };
 };
 
 template <typename Traits = hpp::proto::default_traits>

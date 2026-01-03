@@ -1898,6 +1898,14 @@ void split(std::string_view str, char deliminator, auto &&callback) {
 } // namespace
 int main(int argc, const char **argv) {
   std::span<const char *> args{argv, static_cast<std::size_t>(argc)};
+  if (std::ranges::find_if(args, [](auto arg) { return std::string_view(arg) == "--version"; }) != args.end()) {
+#ifdef HPP_PROTO_VERSION
+    std::cout << "hpp-proto version " << HPP_PROTO_VERSION << "\n";
+#else
+    std::cout << "hpp-proto version unknown\n";
+#endif
+    return 0;
+  }
   code_generator::plugin_name = args[0];
   std::vector<char> request_data;
 
