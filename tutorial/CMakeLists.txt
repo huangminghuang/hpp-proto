@@ -35,7 +35,6 @@ target_include_directories(addressbook_proto3 SYSTEM INTERFACE ${CMAKE_CURRENT_B
 protobuf_generate_hpp(
     TARGET addressbook_proto3
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-    PLUGIN_OPTIONS "export_request=addressbook_proto3.request.bin"
 )
 
 add_library(addressbook_proto2 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/addressbook_proto2.proto)
