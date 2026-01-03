@@ -360,8 +360,19 @@ constexpr auto as_modifiable(concepts::is_pb_context auto &context, concepts::dy
 }
 template <typename T>
   requires(!concepts::dynamic_sized_view<T>)
-constexpr auto as_modifiable(const auto & /* unused */, T &&view) -> decltype(std::forward<T>(view)) {
-  return std::forward<T>(view);
+constexpr auto as_modifiable([[maybe_unused]] const auto &ctx, T &obj) -> T & {
+  if constexpr (std::constructible_from<T, const std::pmr::polymorphic_allocator<T> &> &&
+                requires { ctx.memory_resource(); }) {
+    if (obj.get_allocator().resource() == &ctx.memory_resource()) {
+      return obj;
+    } else {
+      T tmp{&ctx.memory_resource()};
+      obj.swap(tmp);
+      return obj;
+    }
+  } else {
+    return obj;
+  }
 }
 
 } // namespace detail
