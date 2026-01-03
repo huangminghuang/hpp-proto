@@ -196,8 +196,9 @@ struct field_deserializer {
   }
 
   status operator()(message_field_mref mref) {
-    if (!mref.has_value())
+    if (!mref.has_value()) {
       return deserialize(mref.emplace(), mref.descriptor());
+    }
     return deserialize(*mref, mref.descriptor());
   }
 
