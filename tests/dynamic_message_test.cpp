@@ -207,6 +207,23 @@ const boost::ut::suite dynamic_message_test = [] {
       expect_invalid("protobuf_unittest.TestAllTypes", "\x91\x01\x02\x08\x01"sv);
     };
 
+    "optional_foreign_message"_test = [&] {
+      expect_roundtrip_ok(
+          "protobuf_unittest.TestAllTypes", "\x9a\x01\02\x08\x01"sv, [](const ::hpp::proto::message_value_mref &m) {
+            auto foreign = expect_ok(m.typed_ref_by_name<hpp::proto::message_field_mref>("optional_foreign_message"));
+            expect(foreign.has_value());
+            expect(1 == foreign->field_value_by_name<std::int32_t>("c"));
+          });
+      expect_read_ok("protobuf_unittest.TestAllTypes", "\x9a\x01\02\x08\x01\x9a\x01\02\x10\x02"sv,
+                     [](const ::hpp::proto::message_value_mref &m) {
+                       auto foreign =
+                           expect_ok(m.typed_ref_by_name<hpp::proto::message_field_mref>("optional_foreign_message"));
+                       expect(foreign.has_value());
+                       expect(1 == foreign->field_value_by_name<std::int32_t>("c"));
+                       expect(2 == foreign->field_value_by_name<std::int32_t>("d"));
+                     });
+    };
+
     "OptionalGroup"_test = [&] {
       expect_roundtrip_ok("protobuf_unittest.TestAllTypes", "\x83\x01\x88\x01\x01\x84\x01"sv,
                           [](const ::hpp::proto::message_value_mref &m) {
