@@ -29,6 +29,11 @@
 namespace hpp::proto {
 using std::expected;
 using std::unexpected;
+
+/// @brief Consteval function to serialize a message at compile-time.
+/// @tparam F A callable that returns a message object.
+/// @param make_object A function that constructs the message to be serialized.
+/// @return A std::array or std::span containing the serialized binary data.
 template <typename F>
   requires std::regular_invocable<F>
 consteval auto write_binpb(F make_object) {
@@ -46,18 +51,37 @@ consteval auto write_binpb(F make_object) {
   }
 }
 
+/// @brief Serializes a message into a provided buffer using a given context.
+/// @tparam T Type of the message, must satisfy concepts::has_meta.
+/// @tparam Buffer A contiguous byte range.
+/// @param msg The message to serialize.
+/// @param buffer The buffer to write the serialized data into.
+/// @param ctx The protobuf serialization context.
+/// @return status indicating success or failure.
 template <concepts::has_meta T, concepts::contiguous_byte_range Buffer>
 status write_binpb(T &&msg, Buffer &buffer, concepts::is_pb_context auto &ctx) {
   decltype(auto) v = detail::as_modifiable(ctx, buffer);
   return pb_serializer::serialize(std::forward<T>(msg), v, ctx);
 }
 
+/// @brief Serializes a message into a provided buffer with optional configuration.
+/// @tparam T Type of the message, must satisfy concepts::has_meta.
+/// @tparam Buffer A contiguous byte range.
+/// @param msg The message to serialize.
+/// @param buffer The buffer to write the serialized data into.
+/// @param option Optional configuration parameters (e.g., alloc_from, max_size_cache_on_stack).
+/// @return status indicating success or failure.
 template <concepts::has_meta T, concepts::contiguous_byte_range Buffer>
 status write_binpb(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...option) {
   pb_context ctx{std::forward<decltype(option)>(option)...};
   return write_binpb(std::forward<T>(msg), buffer, ctx);
 }
 
+/// @brief Serializes a message and returns the resulting buffer.
+/// @tparam Buffer The container type for the serialized data, defaults to std::vector<std::byte>.
+/// @param msg The message to serialize.
+/// @param option Optional configuration parameters.
+/// @return A std::expected containing the buffer on success, or an error code on failure.
 template <concepts::contiguous_byte_range Buffer = std::vector<std::byte>>
 expected<Buffer, std::errc> write_binpb(concepts::has_meta auto const &msg, concepts::is_option_type auto &&...option) {
   Buffer buffer;
@@ -76,6 +100,11 @@ status append_proto(T &&msg, concepts::resizable_contiguous_byte_container auto 
   return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer, ctx);
 }
 
+/// @brief Deserializes a message from a byte range and returns the message object.
+/// @tparam T Type of the message to deserialize, must satisfy concepts::has_meta.
+/// @param buffer The input byte range containing serialized data.
+/// @param option Optional configuration parameters (e.g., alloc_from).
+/// @return A std::expected containing the deserialized message on success, or an error code on failure.
 template <concepts::has_meta T>
 constexpr static expected<T, std::errc> read_binpb(concepts::input_byte_range auto const &buffer,
                                                    concepts::is_option_type auto &&...option) {
@@ -87,12 +116,25 @@ constexpr static expected<T, std::errc> read_binpb(concepts::input_byte_range au
   return msg;
 }
 
+/// @brief Deserializes a message from a byte range into an existing message object using a context.
+/// @tparam T Type of the message, must satisfy concepts::has_meta.
+/// @tparam Buffer Input byte range type.
+/// @param msg The message object to deserialize into.
+/// @param buffer The input byte range.
+/// @param ctx The protobuf serialization context.
+/// @return status indicating success or failure.
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status read_binpb(T &msg, const Buffer &buffer, concepts::is_pb_context auto &ctx) {
   msg = {};
   return pb_serializer::deserialize(msg, buffer, ctx);
 }
 
+/// @brief Deserializes a message from a character array (e.g., a string literal).
+/// @tparam T Type of the message.
+/// @tparam N Size of the character array.
+/// @param buffer The character array.
+/// @param option Optional configuration parameters.
+/// @return A std::expected containing the deserialized message on success, or an error code on failure.
 template <concepts::has_meta T, std::size_t N>
 constexpr static expected<T, std::errc> read_binpb(const char (&buffer)[N], concepts::is_option_type auto &&...option) {
   constexpr auto span_size = N == 0 ? 0 : N - 1;
@@ -100,6 +142,13 @@ constexpr static expected<T, std::errc> read_binpb(const char (&buffer)[N], conc
   return read_binpb<T>(span, std::forward<decltype(option)>(option)...);
 }
 
+/// @brief Deserializes a message from a character array into an existing message object.
+/// @tparam T Type of the message.
+/// @tparam N Size of the character array.
+/// @param msg The message object to deserialize into.
+/// @param buffer The character array.
+/// @param option Optional configuration parameters.
+/// @return status indicating success or failure.
 template <concepts::has_meta T, std::size_t N>
 status read_binpb(T &msg, const char (&buffer)[N], concepts::is_option_type auto &&...option) {
   constexpr auto span_size = N == 0 ? 0 : N - 1;
@@ -107,6 +156,13 @@ status read_binpb(T &msg, const char (&buffer)[N], concepts::is_option_type auto
   return read_binpb(msg, span, std::forward<decltype(option)>(option)...);
 }
 
+/// @brief Deserializes a message from a byte range into an existing message object with optional configuration.
+/// @tparam T Type of the message.
+/// @tparam Buffer Input byte range type.
+/// @param msg The message object to deserialize into.
+/// @param buffer The input byte range.
+/// @param option Optional configuration parameters.
+/// @return status indicating success or failure.
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status read_binpb(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {
   pb_context ctx{std::forward<decltype(option)>(option)...};

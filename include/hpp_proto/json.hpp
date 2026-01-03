@@ -423,6 +423,12 @@ struct [[nodiscard]] json_status final {
 };
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+/// @brief Deserializes a JSON string into a message object.
+/// @tparam T Type of the message to deserialize, must satisfy concepts::read_json_supported.
+/// @param value The message object to populate.
+/// @param buffer The input buffer containing the JSON string.
+/// @param option Optional configuration parameters.
+/// @return json_status indicating success or failure.
 inline json_status read_json(concepts::read_json_supported auto &value,
                              concepts::contiguous_byte_range auto const &buffer,
                              concepts::is_option_type auto &&...option) {
@@ -441,6 +447,12 @@ inline json_status read_json(concepts::read_json_supported auto &value,
   return {glz::read<opts>(value, std::forward<decltype(buffer)>(buffer), ctx)};
 }
 
+/// @brief Deserializes a JSON C-string into a message object.
+/// @tparam T Type of the message to deserialize.
+/// @param value The message object to populate.
+/// @param str The null-terminated C-string containing the JSON.
+/// @param option Optional configuration parameters.
+/// @return json_status indicating success or failure.
 inline json_status read_json(concepts::read_json_supported auto &value, const char *str,
                              concepts::is_option_type auto &&...option) {
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
@@ -451,6 +463,11 @@ inline json_status read_json(concepts::read_json_supported auto &value, const ch
   return {glz::read<opts>(value, str, ctx)};
 }
 
+/// @brief Deserializes a JSON string and returns the message object.
+/// @tparam T Type of the message to deserialize, must satisfy concepts::read_json_supported.
+/// @param buffer The input buffer containing the JSON string.
+/// @param option Optional configuration parameters.
+/// @return A std::expected containing the deserialized message on success, or a json_status on failure.
 template <concepts::read_json_supported T>
 inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) -> std::expected<T, json_status> {
   T value;
@@ -462,6 +479,11 @@ inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) 
   }
 }
 
+/// @brief Serializes a message object to a JSON string in the provided buffer.
+/// @param value The message object to serialize.
+/// @param buffer The buffer to write the JSON string into.
+/// @param option Optional configuration parameters.
+/// @return json_status indicating success or failure.
 inline json_status write_json(concepts::write_json_supported auto const &value,
                               concepts::contiguous_byte_range auto &buffer,
                               concepts::is_option_type auto &&...option) noexcept {
@@ -470,6 +492,11 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
   return {glz::write<opts>(value, detail::as_modifiable(ctx, buffer), ctx)};
 }
 
+/// @brief Serializes a message object to a JSON string and returns the buffer.
+/// @tparam Buffer The type of the buffer to return, defaults to std::string.
+/// @param value The message object to serialize.
+/// @param option Optional configuration parameters.
+/// @return A std::expected containing the buffer on success, or a json_status on failure.
 template <concepts::contiguous_byte_range Buffer = std::string>
 inline auto write_json(concepts::write_json_supported auto const &value,
                        concepts::is_option_type auto &&...option) noexcept -> std::expected<Buffer, json_status> {
