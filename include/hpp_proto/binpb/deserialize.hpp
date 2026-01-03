@@ -1038,13 +1038,18 @@ constexpr status deserialize_field(concepts::optional_message_view auto &item, a
   using context_t = std::decay_t<decltype(archive.context)>;
   static_assert(concepts::has_memory_resource<context_t>, "memory resource is required");
   using element_type = std::remove_cvref_t<decltype(*item)>;
-  void *buffer = archive.context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
-  auto loaded = new (buffer) element_type; // NOLINT(cppcoreguidelines-owning-memory)
-  if (auto result = deserialize_field(*loaded, meta, tag, archive, unknown_fields); !result.ok()) [[unlikely]] {
-    return result;
+  if (item.has_value()) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    return deserialize_field(const_cast<element_type &>(*item), meta, tag, archive, unknown_fields);
+  } else {
+    void *buffer = archive.context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
+    auto loaded = new (buffer) element_type; // NOLINT(cppcoreguidelines-owning-memory)
+    if (auto result = deserialize_field(*loaded, meta, tag, archive, unknown_fields); !result.ok()) [[unlikely]] {
+      return result;
+    }
+    item = loaded;
+    return {};
   }
-  item = loaded;
-  return {};
 }
 
 template <concepts::optional T>
@@ -1061,9 +1066,11 @@ constexpr status deserialize_field(T &item, auto meta, uint32_t tag, concepts::i
     } else if (result == std::errc::value_too_large) {
       return {};
     }
-  } else if constexpr (requires { item.emplace(); }) {
+  } else if constexpr (concepts::singular<typename type::value_type>) {
     result = deserialize_field(item.emplace(), meta, tag, archive, unknown_fields);
-
+  } else if constexpr (requires { item.emplace(); }) {
+    decltype(auto) value = item.has_value() ? *item : item.emplace();
+    result = deserialize_field(value, meta, tag, archive, unknown_fields);
   } else {
     item = typename type::value_type{};
     result = deserialize_field(*item, meta, tag, archive, unknown_fields);
@@ -1160,9 +1167,12 @@ constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic
         }
         return result;
       } else if constexpr (requires { item.template emplace<Index + 1>(); }) {
-        return deserialize_field(item.template emplace<Index + 1>(), meta{}, tag, archive, unknown_fields);
+        auto &v = (item.index() == Index + 1) ? std::get<Index + 1>(item) : item.template emplace<Index + 1>();
+        return deserialize_field(v, meta{}, tag, archive, unknown_fields);
       } else {
-        item = std::variant_alternative_t<Index + 1, std::decay_t<decltype(item)>>{};
+        if (item.index() != Index + 1) {
+          item = std::variant_alternative_t<Index + 1, std::decay_t<decltype(item)>>{};
+        }
         return deserialize_field(std::get<Index + 1>(item), meta{}, tag, archive, unknown_fields);
       }
     } else {
