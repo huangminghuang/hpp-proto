@@ -46,11 +46,11 @@ We compared the code sizes of three equivalent programs: [hpp_proto_decode_encod
 
 ### Running the Benchmarks
 
-To run the benchmarks and update the results on your local machine, configure the project with `HPP_PROTO_BENCHMARKS=ON` and build the `report` target:
+To run the benchmarks and update the results on your local machine, configure the project with `HPP_PROTO_BENCHMARKS=ON` and build the `benchmarks` target:
 
 ```bash
 cmake -B build -DHPP_PROTO_BENCHMARKS=ON
-cmake --build build --target report
+cmake --build build --target benchmarks
 ```
 
 This will generate and update the `.json` and `.png` files in the `benchmarks` directory.

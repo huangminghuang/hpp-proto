@@ -356,6 +356,7 @@ struct to<JSON, hpp::proto::optional_message_view_ref<Type>> {
 namespace hpp::proto {
 
 #ifdef _MSC_VER
+// MSVC has edge-case failures with derived aggregate NTTPs; avoid for now.
 using proto_json_opts = glz::opts;
 #else
 struct proto_json_opts : glz::opts {
