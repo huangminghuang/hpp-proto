@@ -69,8 +69,18 @@ add_custom_command(
     DEPENDS gen_sizes.py hpp_proto_decode_encode google_decode_encode google_decode_encode_lite
 )
 
-add_custom_target(report
+add_custom_target(benchmarks
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.json
             ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.png
             ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_sizes.json
             ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_sizes.png)
+
+add_custom_target(clean_benchmarks
+    COMMAND ${CMAKE_COMMAND} -E remove
+        ${CMAKE_CURRENT_BINARY_DIR}/bench.result
+        ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.json
+        ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.png
+        ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_sizes.json
+        ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_sizes.png
+    COMMENT "Cleaning generated benchmark files"
+)

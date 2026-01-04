@@ -30,7 +30,7 @@ inline void expect(bool condition, const std::source_location location = std::so
 
 int main() {
   // Create a monotonic buffer resource on the stack
-  std::array<std::byte, 4096> buffer;
+  std::array<std::byte, 4096> buffer{};
   std::pmr::monotonic_buffer_resource pool{buffer.data(), buffer.size()};
   std::pmr::set_default_resource(&pool);
 
@@ -63,7 +63,7 @@ int main() {
   expect(read_book.people.get_allocator().resource() == &pool);
   expect(read_book.people[0].name.get_allocator().resource() == &pool);
 
-  std::cout << "Successfully serialized and deserialized using PMR traits!" << std::endl;
+  std::cout << "Successfully serialized and deserialized using PMR traits!\n";
 
 #ifndef HPP_PROTO_DISABLE_GLAZE
   // JSON serialization works with PMR traits too
@@ -78,7 +78,7 @@ int main() {
   // Demonstrate that memory was allocated from the pool
   expect(json_read_book.people.get_allocator().resource() == &pool);
   expect(json_read_book.people[0].name.get_allocator().resource() == &pool);
-  std::cout << "Successfully serialized and deserialized JSON using PMR traits!" << std::endl;
+  std::cout << "Successfully serialized and deserialized JSON using PMR traits!\n";
 #endif
 
   return 0;

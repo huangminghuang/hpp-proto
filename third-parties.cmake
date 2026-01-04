@@ -10,7 +10,7 @@ CPMAddPackage(
     NAME glaze
     GIT_TAG v6.4.1
     GITHUB_REPOSITORY stephenberry/glaze
-    PATCH_COMMAND ${GIT_EXECUTABLE} apply --3way --ignore-space-change --ignore-whitespace ${CMAKE_CURRENT_SOURCE_DIR}/glaze.patch
+    PATCH_COMMAND ${GIT_EXECUTABLE} apply --3way --ignore-space-change --ignore-whitespace ${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/glaze.patch
     UPDATE_DISCONNECTED ON
     ${system_package}
 )

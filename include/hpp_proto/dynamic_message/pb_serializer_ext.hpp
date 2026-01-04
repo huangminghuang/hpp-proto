@@ -195,7 +195,12 @@ struct field_deserializer {
     }
   }
 
-  status operator()(message_field_mref mref) { return deserialize(mref.emplace(), mref.descriptor()); }
+  status operator()(message_field_mref mref) {
+    if (!mref.has_value()) {
+      return deserialize(mref.emplace(), mref.descriptor());
+    }
+    return deserialize(*mref, mref.descriptor());
+  }
 
   status deserialize_unpacked_repeated(repeated_enum_field_mref mref) {
     size_t count = 0;
