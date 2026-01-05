@@ -10,6 +10,7 @@ permissions: read-all
 jobs:
   PR:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
@@ -41,7 +42,7 @@ jobs:
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
   scheduled:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
     - name: Build Fuzzers (address+undefined)
       id: build
