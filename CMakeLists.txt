@@ -12,12 +12,22 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
+option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
 
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
 set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
 set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS
   "find" "compile")
+
+if(HPP_PROTO_FUZZER_ONLY)
+  if(NOT HPP_PROTO_PROTOC_PLUGIN)
+    message(FATAL_ERROR "HPP_PROTO_FUZZER_ONLY requires HPP_PROTO_PROTOC_PLUGIN=ON")
+  endif()
+
+  set(HPP_PROTO_TESTS OFF CACHE BOOL "Enable HPP_PROTO tests" FORCE)
+  set(HPP_PROTO_BENCHMARKS OFF CACHE BOOL "Enable building benchmarks" FORCE)
+endif()
 
 if(APPLE)
   set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
@@ -83,7 +93,7 @@ if(MSVC)
   target_compile_options(libhpp_proto INTERFACE "/Zc:preprocessor")
 endif()
 
-if(HPP_PROTO_TESTS)
+if(HPP_PROTO_TESTS OR HPP_PROTO_FUZZER_ONLY)
   enable_testing()
   add_subdirectory(unittests)
   include(CTest)
@@ -95,21 +105,13 @@ if(HPP_PROTO_PROTOC_PLUGIN)
   add_subdirectory(protoc-plugin)
 
   if(HPP_PROTO_TESTS)
-    function(add_hpp_proto_test name)
-      add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-      set_property(TEST ${name} PROPERTY ENVIRONMENT "${HPP_PROTO_TEST_ENVIRONMENT}")
-    endfunction(add_hpp_proto_test)
-
     include(cmake/grpc_check.cmake)
-
-    add_subdirectory(tests)
-    add_subdirectory(tutorial)
-    add_subdirectory(fuzz)
   endif()
 
-  if(HPP_PROTO_BENCHMARKS)
-    add_subdirectory(benchmarks)
-  endif()
+  add_subdirectory(tests)
+  add_subdirectory(tutorial)
+  add_subdirectory(fuzz)
+  add_subdirectory(benchmarks)
 
   write_basic_package_version_file(
     lib/cmake/hpp_proto/hpp_proto-config-version.cmake

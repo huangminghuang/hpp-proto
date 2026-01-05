@@ -28,6 +28,8 @@ if(PROJECT_IS_TOP_LEVEL)
     find_package(hpp_proto CONFIG REQUIRED)
   endif()
   include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/grpc_check.cmake)
+elseif(NOT HPP_PROTO_TESTS)
+  return()
 endif()
 
 add_library(addressbook_proto3 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/addressbook_proto3.proto)

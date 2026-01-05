@@ -5,8 +5,8 @@
 cmake -G Ninja -B build -S . \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DHPP_PROTO_PROTOC=find \
-  -DHPP_PROTO_TESTS=ON \
-  -DHPP_PROTO_BENCHMARKS=OFF
+  -DHPP_PROTO_BENCHMARKS=OFF \
+  -DHPP_PROTO_FUZZER_ONLY=ON
 
 # Build the targets.
 cmake --build build

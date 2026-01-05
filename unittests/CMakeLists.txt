@@ -1,4 +1,7 @@
 
+if (NOT HPP_PROTO_TESTS)
+    return()
+endif()
 
 add_executable(pb_serializer_tests pb_serializer_tests.cpp)
 target_link_libraries(pb_serializer_tests PRIVATE hpp_proto::libhpp_proto Boost::ut)

@@ -1,8 +1,18 @@
 
+
+if(HPP_PROTO_TEST_USE_PROTOBUF)
+  if((TARGET protobuf::libprotoc) AND("${Protobuf_VERSION}" VERSION_GREATER_EQUAL "22.0"))
+    set(use_libprotobuf ON)
+  else()
+    message(WARNING "libprotobuf 22.0 and above is required to generate test data")
+  endif()
+endif()
+
 if(use_libprotobuf)
   if(NOT TARGET absl::status)
     find_package(absl REQUIRED)
   endif()
+
   message("use_libprotobuf")
   add_library(gpb_proto_json SHARED gpb_proto_json.cpp)
   target_link_libraries(gpb_proto_json PUBLIC protobuf::libprotobuf protobuf::libprotoc absl::status)
