@@ -3,6 +3,9 @@ on:
   pull_request:
     paths-ignore:
       - '**.md'
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 permissions: read-all
 jobs:
   PR:
@@ -33,6 +36,44 @@ jobs:
         mode: 'code-change'
         sanitizer: address
         output-sarif: true
+        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo-branch: main   # Optional. Defaults to "main"
+        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+  scheduled:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - name: Build Fuzzers (address+undefined)
+      id: build
+      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+      env:
+        CFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CXXFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+      with:
+        language: c++
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        sanitizer: address
+        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo-branch: main   # Optional. Defaults to "main"
+        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+    - name: Run Fuzzers (batch)
+      id: run
+      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        fuzz-seconds: 600
+        mode: 'batch'
+        sanitizer: address
+        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo-branch: main   # Optional. Defaults to "main"
+        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+    - name: Generate Coverage
+      id: coverage
+      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        mode: 'coverage'
+        sanitizer: address
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".

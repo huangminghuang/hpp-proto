@@ -69,6 +69,15 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           owning_message_t owning_message;
           hpp::proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
 
+          // Google's parser can accept bytes that serialize differently for map fields. Example schema:
+          // ```
+          // message TestMap {
+          //   map<int32, int32> field = 4;
+          // }
+          // ```
+          // The bytes "\x22\x04\x28\x00\x10\x01" may parse yet re-encode as "\x22\x04\x08\x00\x10\x01".
+          // Hpp-proto does not show this behavior, so raw parse results are not directly comparable.
+
           auto non_owning_read_ok = hpp::proto::read_binpb(non_owning_message, input, hpp::proto::alloc_from{mr}).ok();
           auto owning_read_ok = hpp::proto::read_binpb(owning_message, input).ok();
           auto dyn_read_ok = hpp::proto::read_binpb(dyn_message, input).ok();
@@ -80,7 +89,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
             auto dyn_write = round_trip_test(dyn_message, factory.get_message(msg_name, mr).value());
 
             if (msg_name != message_name(protobuf_unittest::TestMap<hpp::proto::non_owning_traits>{})) {
-              // Map field reads reorder entries, so protobuf re-encoding is not stable.
+              // Map fields can reorder entries on read, so encoded bytes may differ.
               assert(non_owning_write == owning_write);
             }
             if (non_owning_write != dyn_write) {
