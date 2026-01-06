@@ -2,6 +2,16 @@
 
 BUILD_DIR=${BUILD_DIR:-build}
 
+if ! command -v ccache &> /dev/null; then
+    echo "ccache not found. Installing..."
+    apt-get update && apt-get install -y ccache
+fi
+
+echo "CCACHE Config:"
+ccache -p
+echo "CCACHE Stats (Before):"
+ccache -s
+
 # Configure the build explicitly instead of using presets because the
 # OSS-Fuzz base image ships an older CMake that doesn't support our preset version.
 cmake -G Ninja -B "$BUILD_DIR" -S . \
@@ -14,6 +24,9 @@ cmake -G Ninja -B "$BUILD_DIR" -S . \
 
 # Build the targets.
 cmake --build "$BUILD_DIR"
+
+echo "CCACHE Stats (After):"
+ccache -s
 
 # Copy the fuzzing binaries to the output directory.
 cp "$BUILD_DIR"/fuzz/fuzz_binpb $OUT/
