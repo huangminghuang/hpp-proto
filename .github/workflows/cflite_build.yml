@@ -17,26 +17,18 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-    - name: Cache ccache
-      uses: actions/cache@v4
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2.14
       with:
-        path: /tmp/ccache
-        key: ccache-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
-        restore-keys: |
-          ccache-${{ runner.os }}-${{ github.ref }}-
-          ccache-${{ runner.os }}-
-    - name: Install ccache
-      run: sudo apt-get update && sudo apt-get install -y ccache
+        max-size: 2G
     - name: Build Fuzzers (address+undefined)
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       env:
         CFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CXXFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CCACHE_DIR: /tmp/ccache
-        CCACHE_COMPRESS: "true"
-        CCACHE_MAXSIZE: 2G
         CCACHE_BASEDIR: ${{ github.workspace }}
+        BUILD_DIR: build
       with:
         language: c++ 
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -60,26 +52,18 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
-    - name: Cache ccache
-      uses: actions/cache@v4
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2.14
       with:
-        path: /tmp/ccache
-        key: ccache-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
-        restore-keys: |
-          ccache-${{ runner.os }}-${{ github.ref }}-
-          ccache-${{ runner.os }}-
-    - name: Install ccache
-      run: sudo apt-get update && sudo apt-get install -y ccache
+        max-size: 2G
     - name: Build Fuzzers (address+undefined)
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       env:
         CFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CXXFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CCACHE_DIR: /tmp/ccache
-        CCACHE_COMPRESS: "true"
-        CCACHE_MAXSIZE: 2G
         CCACHE_BASEDIR: ${{ github.workspace }}
+        BUILD_DIR: build
       with:
         language: c++
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -104,10 +88,8 @@ jobs:
       env:
         CFLAGS: -O0 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CXXFLAGS: -O0 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CCACHE_DIR: /tmp/ccache
-        CCACHE_COMPRESS: "true"
-        CCACHE_MAXSIZE: 2G
         CCACHE_BASEDIR: ${{ github.workspace }}
+        BUILD_DIR: build_coverage
       with:
         language: c++
         github-token: ${{ secrets.GITHUB_TOKEN }}
