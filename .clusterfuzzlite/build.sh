@@ -4,6 +4,7 @@ BUILD_DIR=${BUILD_DIR:-build}
 
 WORKSPACE_DIR=$OUT/..
 export CCACHE_DIR="${WORKSPACE_DIR}"/.ccache
+export CCACHE_BASEDIR="$PWD"
 
 echo "Current working directory: $PWD"
 echo "Using CCACHE_DIR: $CCACHE_DIR"
@@ -15,17 +16,10 @@ if ! command -v ccache &> /dev/null; then
     apt-get update && apt-get install -y ccache
 fi
 
-echo "CCACHE Config:"
-ccache -p
-echo "CCACHE Stats (Before):"
-ccache -s
-
-echo "CXXFLAGS: ${CXXFLAGS}"
-
 # Configure the build explicitly instead of using presets because the
 # OSS-Fuzz base image ships an older CMake that doesn't support our preset version.
 cmake -G Ninja -B "$BUILD_DIR" -S . \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
   -DHPP_PROTO_PROTOC=find \
   -DHPP_PROTO_BENCHMARKS=OFF \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -34,9 +28,6 @@ cmake -G Ninja -B "$BUILD_DIR" -S . \
 
 # Build the targets.
 cmake --build "$BUILD_DIR"
-
-echo "CCACHE Stats (After):"
-ccache -s
 
 # Copy the fuzzing binaries to the output directory.
 cp "$BUILD_DIR"/fuzz/fuzz_binpb $OUT/
