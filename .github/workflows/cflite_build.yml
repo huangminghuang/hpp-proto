@@ -19,6 +19,8 @@ jobs:
     steps:
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2.14
+      env:
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
       with:
         max-size: 2G
     - name: Build Fuzzers (address+undefined)
@@ -29,7 +31,7 @@ jobs:
         CXXFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CCACHE_BASEDIR: ${{ github.workspace }}
         BUILD_DIR: build
-        CCACHE_DIR: ${{ env.CCACHE_DIR }}
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
       with:
         language: c++ 
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -55,6 +57,8 @@ jobs:
     steps:
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2.14
+      env:
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
       with:
         max-size: 2G
     - name: Build Fuzzers (address+undefined)
@@ -65,7 +69,7 @@ jobs:
         CXXFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CCACHE_BASEDIR: ${{ github.workspace }}
         BUILD_DIR: build
-        CCACHE_DIR: ${{ env.CCACHE_DIR }}
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
       with:
         language: c++
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -92,7 +96,7 @@ jobs:
         CXXFLAGS: -O0 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CCACHE_BASEDIR: ${{ github.workspace }}
         BUILD_DIR: build_coverage
-        CCACHE_DIR: ${{ env.CCACHE_DIR }}_coverage
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
       with:
         language: c++
         github-token: ${{ secrets.GITHUB_TOKEN }}
