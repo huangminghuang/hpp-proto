@@ -13,7 +13,7 @@ endif()
 
 include(test_descriptors.cmake)
 
-if (HPP_PROTO_FUZZER_ONLY)
+if (NOT HPP_PROTO_TESTS)
     return()
 endif()
 
