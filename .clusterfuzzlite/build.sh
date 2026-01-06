@@ -2,6 +2,8 @@
 
 BUILD_DIR=${BUILD_DIR:-build}
 
+export CCACHE_DIR=$(pwd)/.ccache
+
 if ! command -v ccache &> /dev/null; then
     echo "ccache not found. Installing..."
     apt-get update && apt-get install -y ccache
