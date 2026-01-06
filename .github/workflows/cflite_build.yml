@@ -6,7 +6,9 @@ on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
-permissions: read-all
+permissions:
+  contents: read
+  security-events: write
 jobs:
   PR:
     runs-on: ubuntu-latest
@@ -15,26 +17,18 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-    - name: Cache ccache
-      uses: actions/cache@v4
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2.14
       with:
-        path: /tmp/ccache
-        key: ccache-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
-        restore-keys: |
-          ccache-${{ runner.os }}-${{ github.ref }}-
-          ccache-${{ runner.os }}-
-    - name: Install ccache
-      run: sudo apt-get update && sudo apt-get install -y ccache
+        max-size: 2G
     - name: Build Fuzzers (address+undefined)
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       env:
-        CFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CXXFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CCACHE_DIR: /tmp/ccache
-        CCACHE_COMPRESS: "true"
-        CCACHE_MAXSIZE: 2G
+        CFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CXXFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CCACHE_BASEDIR: ${{ github.workspace }}
+        BUILD_DIR: build
       with:
         language: c++ 
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -58,26 +52,18 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
-    - name: Cache ccache
-      uses: actions/cache@v4
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2.14
       with:
-        path: /tmp/ccache
-        key: ccache-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
-        restore-keys: |
-          ccache-${{ runner.os }}-${{ github.ref }}-
-          ccache-${{ runner.os }}-
-    - name: Install ccache
-      run: sudo apt-get update && sudo apt-get install -y ccache
+        max-size: 2G
     - name: Build Fuzzers (address+undefined)
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       env:
-        CFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CXXFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CCACHE_DIR: /tmp/ccache
-        CCACHE_COMPRESS: "true"
-        CCACHE_MAXSIZE: 2G
+        CFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CXXFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CCACHE_BASEDIR: ${{ github.workspace }}
+        BUILD_DIR: build
       with:
         language: c++
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -96,13 +82,28 @@ jobs:
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+    - name: Build Fuzzers (coverage)
+      id: build-coverage
+      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+      env:
+        CFLAGS: -O0 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CXXFLAGS: -O0 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CCACHE_BASEDIR: ${{ github.workspace }}
+        BUILD_DIR: build_coverage
+      with:
+        language: c++
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        sanitizer: coverage
+        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo-branch: main   # Optional. Defaults to "main"
+        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
     - name: Generate Coverage
       id: coverage
       uses: google/clusterfuzzlite/actions/run_fuzzers@v1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         mode: 'coverage'
-        sanitizer: address
+        sanitizer: coverage
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
