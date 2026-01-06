@@ -2,7 +2,13 @@
 
 BUILD_DIR=${BUILD_DIR:-build}
 
-export CCACHE_DIR=$(pwd)/.ccache
+# Use PWD to ensure we write to the mounted volume, regardless of its path in the container.
+export CCACHE_DIR="${PWD}/.ccache"
+
+echo "Current working directory: $PWD"
+echo "Using CCACHE_DIR: $CCACHE_DIR"
+mkdir -p "$CCACHE_DIR"
+ls -ld "$CCACHE_DIR"
 
 if ! command -v ccache &> /dev/null; then
     echo "ccache not found. Installing..."
