@@ -44,19 +44,25 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          version: "28.x"
+          version: "33.x"
+
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2.14
+        with:
+          key: ${{ github.workflow }}-${{ matrix.protoc }}
 
       - name: configure
         shell: bash
         run: |
-          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DHPP_PROTO_TEST_USE_PROTOBUF=OFF
+          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DHPP_PROTO_TEST_USE_PROTOBUF=OFF \
+             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -GNinja
 
       - name: build
         shell: bash
-        run: cmake --build build --config Release -j4
+        run: cmake --build build
 
       - name: test
         shell: bash
         run: |
           cd build
-          ctest --build-config Release --output-on-failure
+          ctest --output-on-failure
