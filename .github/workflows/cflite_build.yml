@@ -6,7 +6,9 @@ on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
-permissions: read-all
+permissions:
+  contents: read
+  security-events: write
 jobs:
   PR:
     runs-on: ubuntu-latest
@@ -29,8 +31,8 @@ jobs:
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       env:
-        CFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CXXFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CXXFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CCACHE_DIR: /tmp/ccache
         CCACHE_COMPRESS: "true"
         CCACHE_MAXSIZE: 2G
@@ -72,8 +74,8 @@ jobs:
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       env:
-        CFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CXXFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CXXFLAGS: -O2 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
         CCACHE_DIR: /tmp/ccache
         CCACHE_COMPRESS: "true"
         CCACHE_MAXSIZE: 2G
@@ -96,13 +98,30 @@ jobs:
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+    - name: Build Fuzzers (coverage)
+      id: build-coverage
+      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+      env:
+        CFLAGS: -O0 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CXXFLAGS: -O0 -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
+        CCACHE_DIR: /tmp/ccache
+        CCACHE_COMPRESS: "true"
+        CCACHE_MAXSIZE: 2G
+        CCACHE_BASEDIR: ${{ github.workspace }}
+      with:
+        language: c++
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        sanitizer: coverage
+        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo-branch: main   # Optional. Defaults to "main"
+        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
     - name: Generate Coverage
       id: coverage
       uses: google/clusterfuzzlite/actions/run_fuzzers@v1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         mode: 'coverage'
-        sanitizer: address
+        sanitizer: coverage
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
