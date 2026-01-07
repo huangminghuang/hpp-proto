@@ -26,11 +26,6 @@ jobs:
     - name: Build Fuzzers (address+undefined)
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
-      env:
-        CFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CXXFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        BUILD_TYPE: RelWithDebInfo
-        BUILD_DIR: build
       with:
         language: c++ 
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -63,11 +58,6 @@ jobs:
     - name: Build Fuzzers (address+undefined)
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
-      env:
-        CFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CXXFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        BUILD_TYPE: RelWithDebInfo
-        BUILD_DIR: build
       with:
         language: c++
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -89,11 +79,6 @@ jobs:
     - name: Build Fuzzers (coverage)
       id: build-coverage
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
-      env:
-        CFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        CXXFLAGS: -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow
-        BUILD_TYPE: Debug
-        BUILD_DIR: build_coverage
       with:
         language: c++
         github-token: ${{ secrets.GITHUB_TOKEN }}

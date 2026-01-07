@@ -2,6 +2,27 @@
 
 BUILD_DIR=${BUILD_DIR:-build}
 
+# Common safety flags for all builds
+UBSAN_OPTIONS="-fsanitize=undefined -fno-sanitize=unsigned-integer-overflow -fno-sanitize-recover=all"
+
+if [ "${SANITIZER:-}" = "coverage" ]; then
+  BUILD_TYPE="Debug"
+  # For coverage, we use fuzzer-no-link to instrument without linking the engine.
+  # We also include UBSan.
+  # Note: 'coverage' sanitizer usually implies source-based coverage flags handled by the compiler wrapper,
+  # but we explicitly add fuzzer-no-link here as per previous setup.
+  FUZZ_COMPILE_OPTIONS="${UBSAN_OPTIONS} -fsanitize=fuzzer-no-link"
+  FUZZ_LINK_OPTIONS="-fsanitize=undefined -fsanitize=fuzzer-no-link"
+else
+  BUILD_TYPE="RelWithDebInfo"
+  # Default to address sanitizer if not specified
+  SAN="${SANITIZER:-address}"
+  
+  # For fuzzing, we need the sanitizer (e.g. address) AND fuzzer instrumentation.
+  FUZZ_COMPILE_OPTIONS="${UBSAN_OPTIONS} -fsanitize=${SAN},fuzzer"
+  FUZZ_LINK_OPTIONS="-fsanitize=undefined,${SAN},fuzzer"
+fi
+
 WORKSPACE_DIR=$OUT/..
 export CCACHE_DIR="${WORKSPACE_DIR}"/.ccache
 export CCACHE_BASEDIR="$PWD"
@@ -20,6 +41,8 @@ fi
 # OSS-Fuzz base image ships an older CMake that doesn't support our preset version.
 cmake -G Ninja -B "$BUILD_DIR" -S . \
   -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+  -DHPP_PROTO_FUZZ_COMPILE_OPTIONS="$FUZZ_COMPILE_OPTIONS" \
+  -DHPP_PROTO_FUZZ_LINK_OPTIONS="$FUZZ_LINK_OPTIONS" \
   -DHPP_PROTO_PROTOC=find \
   -DHPP_PROTO_BENCHMARKS=OFF \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache \

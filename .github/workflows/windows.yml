@@ -26,9 +26,21 @@ jobs:
     strategy:
         matrix:
           protoc: ["find"]
+          compiler_env: [msvc, mingw]
+          include:
+            - compiler_env: msvc
+              shell: pwsh
+            - compiler_env: mingw
+              shell: bash
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: ${{ matrix.compiler_env == 'msvc' }}
 
       - uses: actions/cache@v4
         with:
@@ -49,20 +61,16 @@ jobs:
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.14
         with:
-          key: ${{ github.workflow }}-${{ matrix.protoc }}
+          key: ${{ github.workflow }}-${{ matrix.protoc }}-${{ matrix.compiler_env }}
 
       - name: configure
-        shell: bash
         run: |
-          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DHPP_PROTO_TEST_USE_PROTOBUF=OFF \
-             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -GNinja
+          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DHPP_PROTO_TEST_USE_PROTOBUF=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -GNinja
 
       - name: build
-        shell: bash
         run: cmake --build build
 
       - name: test
-        shell: bash
         run: |
           cd build
           ctest --output-on-failure
