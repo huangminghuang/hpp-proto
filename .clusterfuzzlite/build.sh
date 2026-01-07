@@ -1,6 +1,8 @@
 #!/bin/bash -eu
 
 BUILD_DIR=${BUILD_DIR:-build}
+echo "WORK=$WORK"
+echo "CXXFLAGS=$CXXFLAGS"
 
 # # Common safety flags for all builds
 NOSAN_OPTIONS="-fno-sanitize=unsigned-integer-overflow;-fno-sanitize-recover=all"
@@ -11,13 +13,13 @@ if [ "${SANITIZER}" = "coverage" ]; then
   # We also include UBSan.
   # Note: 'coverage' sanitizer usually implies source-based coverage flags handled by the compiler wrapper,
   # but we explicitly add fuzzer-no-link here as per previous setup.
-  FUZZ_COMPILE_OPTIONS="-fsanitize=fuzzer-no-link;${NOSAN_OPTIONS}"
-  FUZZ_LINK_OPTIONS="-fsanitize=undefined;-fsanitize=fuzzer-no-link"
+  FUZZ_COMPILE_OPTIONS="-fsanitize=address,undefined;${NOSAN_OPTIONS}"
+  FUZZ_LINK_OPTIONS="-fsanitize=address,undefined"
 else
   BUILD_TYPE="RelWithDebInfo"
   # For fuzzing, we need the sanitizer (e.g. address) AND fuzzer instrumentation.
-  FUZZ_COMPILE_OPTIONS="-fsanitize=${SANITIZER},fuzzer;${NOSAN_OPTIONS}"
-  FUZZ_LINK_OPTIONS="-fsanitize=${SANITIZER},fuzzer"
+  FUZZ_COMPILE_OPTIONS="-fsanitize=${SANITIZER},undefined,fuzzer;${NOSAN_OPTIONS}"
+  FUZZ_LINK_OPTIONS="-fsanitize=${SANITIZER},undefined,fuzzer"
 fi
 
 WORKSPACE_DIR=$OUT/..
