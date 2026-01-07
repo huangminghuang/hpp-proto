@@ -6,6 +6,9 @@ if(NOT DEFINED HPP_PROTO_FUZZ_LINK_OPTIONS)
   set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,address,undefined)
 endif()
 
+# Convert space-separated strings to CMake lists if necessary
+separate_arguments(HPP_PROTO_FUZZ_COMPILE_OPTIONS)
+separate_arguments(HPP_PROTO_FUZZ_LINK_OPTIONS)
 
 unset(FUZZER_SUPPORT CACHE)
 try_compile(FUZZER_SUPPORT
