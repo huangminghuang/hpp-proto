@@ -1,32 +1,24 @@
 #!/bin/bash -eu
 
 BUILD_DIR=${BUILD_DIR:-build}
-echo "SANITIZER=${SANITIZER}"
-
-FUZZ_COMPILE_OPTIONS="-fsanitize=fuzzer,address;-fno-sanitize-recover=all"
-FUZZ_LINK_OPTIONS="-fsanitize=fuzzer,address"
-
 
 # # Common safety flags for all builds
-# UBSAN_OPTIONS="-fsanitize=undefined -fno-sanitize=unsigned-integer-overflow -fno-sanitize-recover=all"
+NOSAN_OPTIONS="-fsanitize=undefined;-fno-sanitize=unsigned-integer-overflow;-fno-sanitize-recover=all"
 
-# if [ "${SANITIZER:-}" = "coverage" ]; then
-#   BUILD_TYPE="Debug"
-#   # For coverage, we use fuzzer-no-link to instrument without linking the engine.
-#   # We also include UBSan.
-#   # Note: 'coverage' sanitizer usually implies source-based coverage flags handled by the compiler wrapper,
-#   # but we explicitly add fuzzer-no-link here as per previous setup.
-#   FUZZ_COMPILE_OPTIONS="${UBSAN_OPTIONS} -fsanitize=fuzzer-no-link"
-#   FUZZ_LINK_OPTIONS="-fsanitize=undefined -fsanitize=fuzzer-no-link"
-# else
-#   BUILD_TYPE="RelWithDebInfo"
-#   # Default to address sanitizer if not specified
-#   SAN="${SANITIZER:-address}"
-  
-#   # For fuzzing, we need the sanitizer (e.g. address) AND fuzzer instrumentation.
-#   FUZZ_COMPILE_OPTIONS="${UBSAN_OPTIONS} -fsanitize=${SAN},fuzzer"
-#   FUZZ_LINK_OPTIONS="-fsanitize=undefined,${SAN},fuzzer"
-# fi
+if [ "${SANITIZER}" = "coverage" ]; then
+  BUILD_TYPE="Debug"
+  # For coverage, we use fuzzer-no-link to instrument without linking the engine.
+  # We also include UBSan.
+  # Note: 'coverage' sanitizer usually implies source-based coverage flags handled by the compiler wrapper,
+  # but we explicitly add fuzzer-no-link here as per previous setup.
+  FUZZ_COMPILE_OPTIONS="-fsanitize=fuzzer-no-link;${NOSAN_OPTIONS}"
+  FUZZ_LINK_OPTIONS="-fsanitize=undefined;-fsanitize=fuzzer-no-link"
+else
+  BUILD_TYPE="RelWithDebInfo"
+  # For fuzzing, we need the sanitizer (e.g. address) AND fuzzer instrumentation.
+  FUZZ_COMPILE_OPTIONS="-fsanitize=undefined,${SANITIZER},fuzzer;${NOSAN_OPTIONS}"
+  FUZZ_LINK_OPTIONS="-fsanitize=undefined,${SANITIZER},fuzzer"
+fi
 
 WORKSPACE_DIR=$OUT/..
 export CCACHE_DIR="${WORKSPACE_DIR}"/.ccache

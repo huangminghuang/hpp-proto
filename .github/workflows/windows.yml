@@ -27,11 +27,6 @@ jobs:
         matrix:
           protoc: ["find"]
           compiler_env: [msvc, mingw]
-          include:
-            - compiler_env: msvc
-              shell: pwsh
-            - compiler_env: mingw
-              shell: bash
 
     steps:
       - uses: actions/checkout@v4
