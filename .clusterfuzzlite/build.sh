@@ -3,7 +3,7 @@
 BUILD_DIR=${BUILD_DIR:-build}
 
 # # Common safety flags for all builds
-NOSAN_OPTIONS="-fsanitize=undefined;-fno-sanitize=unsigned-integer-overflow;-fno-sanitize-recover=all"
+NOSAN_OPTIONS="-fno-sanitize=unsigned-integer-overflow;-fno-sanitize-recover=all"
 
 if [ "${SANITIZER}" = "coverage" ]; then
   BUILD_TYPE="Debug"
@@ -16,8 +16,8 @@ if [ "${SANITIZER}" = "coverage" ]; then
 else
   BUILD_TYPE="RelWithDebInfo"
   # For fuzzing, we need the sanitizer (e.g. address) AND fuzzer instrumentation.
-  FUZZ_COMPILE_OPTIONS="-fsanitize=undefined,${SANITIZER},fuzzer;${NOSAN_OPTIONS}"
-  FUZZ_LINK_OPTIONS="-fsanitize=undefined,${SANITIZER},fuzzer"
+  FUZZ_COMPILE_OPTIONS="${SANITIZER},fuzzer;${NOSAN_OPTIONS}"
+  FUZZ_LINK_OPTIONS="${SANITIZER},fuzzer"
 fi
 
 WORKSPACE_DIR=$OUT/..
