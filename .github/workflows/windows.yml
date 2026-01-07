@@ -32,9 +32,6 @@ jobs:
               shell: pwsh
             - compiler_env: mingw
               shell: bash
-    defaults:
-      run:
-        shell: ${{ matrix.shell }}
 
     steps:
       - uses: actions/checkout@v4
