@@ -16,8 +16,8 @@ if [ "${SANITIZER}" = "coverage" ]; then
 else
   BUILD_TYPE="RelWithDebInfo"
   # For fuzzing, we need the sanitizer (e.g. address) AND fuzzer instrumentation.
-  FUZZ_COMPILE_OPTIONS="${SANITIZER},fuzzer;${NOSAN_OPTIONS}"
-  FUZZ_LINK_OPTIONS="${SANITIZER},fuzzer"
+  FUZZ_COMPILE_OPTIONS="-fsanitize=${SANITIZER},fuzzer;${NOSAN_OPTIONS}"
+  FUZZ_LINK_OPTIONS="-fsanitize=${SANITIZER},fuzzer"
 fi
 
 WORKSPACE_DIR=$OUT/..
