@@ -1,29 +1,14 @@
 #!/bin/bash -eu
 
-BUILD_DIR=${BUILD_DIR:-build}
-echo "WORK=$WORK"
-echo "CXXFLAGS=$CXXFLAGS"
+FUZZ_COMPILE_OPTIONS=""
 
-# # Common safety flags for all builds
-NOSAN_OPTIONS="-fno-sanitize=unsigned-integer-overflow;-fno-sanitize-recover=all"
-
-if [ "${SANITIZER}" = "coverage" ]; then
-  BUILD_TYPE="Debug"
-  # For coverage, we use fuzzer-no-link to instrument without linking the engine.
-  # We also include UBSan.
-  # Note: 'coverage' sanitizer usually implies source-based coverage flags handled by the compiler wrapper,
-  # but we explicitly add fuzzer-no-link here as per previous setup.
-  FUZZ_COMPILE_OPTIONS="-fsanitize=address,undefined;${NOSAN_OPTIONS}"
-  FUZZ_LINK_OPTIONS="-fsanitize=address,undefined"
-else
-  BUILD_TYPE="RelWithDebInfo"
-  # For fuzzing, we need the sanitizer (e.g. address) AND fuzzer instrumentation.
-  FUZZ_COMPILE_OPTIONS="-fsanitize=${SANITIZER},undefined,fuzzer;${NOSAN_OPTIONS}"
-  FUZZ_LINK_OPTIONS="-fsanitize=${SANITIZER},undefined,fuzzer"
+if [ "${SANITIZER}" = "undefined" ]; then
+  FUZZ_COMPILE_OPTIONS="-fno-sanitize=unsigned-integer-overflow"
 fi
 
-WORKSPACE_DIR=$OUT/..
-export CCACHE_DIR="${WORKSPACE_DIR}"/.ccache
+FUZZ_LINK_OPTIONS="$LIB_FUZZING_ENGINE"
+
+export CCACHE_DIR="${WORK}"/.ccache
 export CCACHE_BASEDIR="$PWD"
 
 echo "Current working directory: $PWD"
@@ -36,10 +21,11 @@ if ! command -v ccache &> /dev/null; then
     apt-get update && apt-get install -y ccache
 fi
 
+BUILD_DIR=build
+
 # Configure the build explicitly instead of using presets because the
 # OSS-Fuzz base image ships an older CMake that doesn't support our preset version.
 cmake -G Ninja -B "$BUILD_DIR" -S . \
-  -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
   -DHPP_PROTO_FUZZ_COMPILE_OPTIONS="$FUZZ_COMPILE_OPTIONS" \
   -DHPP_PROTO_FUZZ_LINK_OPTIONS="$FUZZ_LINK_OPTIONS" \
   -DHPP_PROTO_PROTOC=find \
@@ -58,7 +44,7 @@ cp "$BUILD_DIR"/fuzz/fuzz_json $OUT/
 
 # Ensure the descriptor is available next to the fuzzers at runtime.
 # It is generated into the build tree by tests and copied into build/fuzz.
-cp "$BUILD_DIR"/fuzz/unittest.desc.binpb "${WORKSPACE_DIR}"/unittest.desc.binpb
+cp "$BUILD_DIR"/fuzz/unittest.desc.binpb "${OUT}"/unittest.desc.binpb
 
 zip -j $OUT/fuzz_binpb_seed_corpus.zip "$BUILD_DIR"/fuzz/binpb_seed_corpus/*
 zip -j $OUT/fuzz_json_seed_corpus.zip "$BUILD_DIR"/fuzz/json_seed_corpus/*

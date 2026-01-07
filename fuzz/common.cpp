@@ -26,17 +26,13 @@ std::vector<char> read_file(const std::filesystem::path &path) {
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,misc-use-anonymous-namespace)
 hpp::proto::dynamic_message_factory factory;
 
-extern "C" __attribute__((visibility("default"))) int LLVMFuzzerInitialize(int *, char ***) {
-
-  std::array<const char *, 2> search_paths = {"unittest.desc.binpb", "/github/workspace/unittest.desc.binpb"};
-
-  // NOLINTNEXTLINE(readability-qualified-auto)
-  auto itr = std::ranges::find_if(search_paths, [](const char *path) { return std::filesystem::exists(path); });
-
-  if (itr == search_paths.end()) {
+extern "C" __attribute__((visibility("default"))) int LLVMFuzzerInitialize(int *pargc, char ***pargv) {
+  std::span<char *> args(*pargv, *pargc);
+  auto desc_file = std::filesystem::path(args[0]).parent_path() / "unittest.desc.binpb";
+  if (!std::filesystem::exists(desc_file)) {
     std::cerr << "cannot find unittest.desc.binpb\n";
     return -1;
   }
 
-  return factory.init(read_file(*itr)) ? 0 : -1;
+  return factory.init(read_file(desc_file)) ? 0 : -1;
 }
