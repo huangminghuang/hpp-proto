@@ -1,0 +1,39 @@
+name: ClusterFuzzLite batch fuzzing
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main  # Use your actual default branch here.
+  schedule:
+    - cron: '0 3 * * *'
+permissions: read-all
+jobs:
+  BatchFuzzing:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined]  # Override this with the sanitizers you want.
+    steps:
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2.14
+      env:
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
+      with:
+        max-size: 2G
+    - name: Build Fuzzers (${{ matrix.sanitizer }})
+      id: build
+      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+      with:
+        sanitizer: ${{ matrix.sanitizer }}
+    - name: Run Fuzzers (${{ matrix.sanitizer }})
+      id: run
+      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        fuzz-seconds: 600
+        mode: 'batch'
+        sanitizer: ${{ matrix.sanitizer }}
+        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo-branch: main   # Optional. Defaults to "main"
+        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".

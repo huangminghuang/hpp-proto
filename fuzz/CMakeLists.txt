@@ -1,17 +1,9 @@
 # Detect available libfuzz support using try_compile.
-set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all)
-set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,address,undefined)
-if(DEFINED ENV{SANITIZER})
-  if("$ENV{SANITIZER}" STREQUAL "address")
-    set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer,address -fno-sanitize-recover=all)
-    set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,address)
-  elseif("$ENV{SANITIZER}" STREQUAL "undefined")
-    set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer,undefined -fno-sanitize-recover=all)
-    set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,undefined)
-  elseif("$ENV{SANITIZER}" STREQUAL "coverage")
-    set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer-no-link)
-    set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer-no-link)
-  endif()
+if(NOT DEFINED HPP_PROTO_FUZZ_COMPILE_OPTIONS)
+  set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all)
+endif()
+if(NOT DEFINED HPP_PROTO_FUZZ_LINK_OPTIONS)
+  set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,address,undefined)
 endif()
 
 

@@ -356,7 +356,7 @@ public:
   // workaround for C++20 doesn't support static in constexpr function
   static bool has_bmi2() {
     auto check = [] {
-#ifdef _WIN32
+#if defined(_MSC_VER) && !defined(__clang__)
       int cpuInfo[4];
       __cpuidex(cpuInfo, 7, 0);
       return (cpuInfo[1] & (1 << 8)) != 0; // Check BMI2 bit
