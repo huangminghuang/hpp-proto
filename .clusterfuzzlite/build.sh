@@ -4,6 +4,8 @@ FUZZ_COMPILE_OPTIONS=""
 
 if [ "${SANITIZER}" = "undefined" ]; then
   FUZZ_COMPILE_OPTIONS="-fno-sanitize=unsigned-integer-overflow"
+elif [ "${SANITIZER}" = "coverage" ]; then
+  FUZZ_COMPILE_OPTIONS="-O0"
 fi
 
 FUZZ_LINK_OPTIONS="$LIB_FUZZING_ENGINE"
