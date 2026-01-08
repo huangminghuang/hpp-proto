@@ -26,6 +26,7 @@ std::vector<char> read_file(const std::filesystem::path &path) {
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,misc-use-anonymous-namespace)
 hpp::proto::dynamic_message_factory factory;
 
+// NOLINTNEXTLINE(readability-non-const-parameter)
 extern "C" __attribute__((visibility("default"))) int LLVMFuzzerInitialize(int *pargc, char ***pargv) {
   std::span<char *> args(*pargv, *pargc);
   auto desc_file = std::filesystem::path(args[0]).parent_path() / "unittest.desc.binpb";

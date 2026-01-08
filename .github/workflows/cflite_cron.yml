@@ -1,0 +1,53 @@
+name: ClusterFuzzLite cron tasks
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *'  # Once a day.
+permissions: read-all
+jobs:
+  Coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2.14
+      env:
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
+      with:
+        max-size: 2G
+    - name: Build Fuzzers
+      id: build
+      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+      with:
+        sanitizer: coverage
+    - name: Run Fuzzers
+      id: run
+      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        fuzz-seconds: 600
+        mode: 'coverage'
+        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo-branch: main   # Optional. Defaults to "main"
+        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+  Pruning:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2.14
+      env:
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
+      with:
+        max-size: 2G
+    - name: Build Fuzzers
+      id: build
+      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+    - name: Run Fuzzers
+      id: run
+      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        fuzz-seconds: 600
+        mode: 'prune'
+        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo-branch: main   # Optional. Defaults to "main"
+        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
