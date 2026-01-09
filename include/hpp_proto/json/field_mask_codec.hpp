@@ -49,17 +49,18 @@ struct field_mask_codec {
   }
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-  static bool decode(auto const &json, auto &value) {
+  static bool decode(auto const &json, auto &value, auto& ctx) {
     if (json.empty()) {
       return true;
     }
     auto is_comma = [](auto c) { return c == ','; };
     auto num_commas = std::count_if(json.begin(), json.end(), is_comma);
-    value.paths.resize(static_cast<std::size_t>(num_commas + 1));
+    decltype(auto) mpaths = hpp::proto::detail::as_modifiable(ctx, value.paths);
+    mpaths.resize(static_cast<std::size_t>(num_commas + 1));
     auto cur = json.begin();
-    for (auto &p : value.paths) {
+    for (auto &p : mpaths) {
       auto comma_pos = std::find_if(cur, json.end(), is_comma);
-      auto &path = hpp::proto::detail::as_modifiable(value, p);
+      decltype(auto) path = hpp::proto::detail::as_modifiable(ctx, p);
       path.assign(cur, comma_pos);
       if (comma_pos != json.end()) {
         cur = std::next(comma_pos);

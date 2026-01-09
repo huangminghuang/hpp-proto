@@ -46,9 +46,6 @@ template <typename T>
 concept is_boolean = std::same_as<hpp::proto::boolean, T>;
 
 template <typename T>
-concept is_empty = std::is_empty_v<T>;
-
-template <typename T>
 concept associative_container =
     std::ranges::range<T> && requires(T container) { typename std::remove_cvref_t<T>::key_type; };
 
@@ -98,6 +95,9 @@ concept has_explicit_meta = concepts::tuple<decltype(pb_meta(std::declval<T>()))
 
 template <typename T>
 concept has_meta = has_local_meta<T> || has_explicit_meta<T>;
+
+template <typename T>
+concept is_empty = std::is_empty_v<T> && !has_meta<T>;
 
 template <typename T>
 concept dereferenceable = requires(T item) { *item; };
@@ -174,7 +174,7 @@ concept has_unknown_fields_or_extensions = has_meta<T> && requires(T value) {
 
 template <typename T>
 concept no_cached_size = is_enum<T> || byte_serializable<T> || concepts::varint<T> || pb_unknown_fields<T> ||
-                         pb_extensions<T> || std::is_empty_v<T>;
+                         pb_extensions<T> || is_empty<T>;
 
 template <typename T>
 concept is_basic_in = requires { typename T::is_basic_in; };

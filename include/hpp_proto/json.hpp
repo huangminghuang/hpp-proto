@@ -134,7 +134,7 @@ struct from<JSON, T> {
     }
 
     using codec = typename hpp::proto::json_codec<T>::type;
-    if (!codec::decode(encoded, hpp::proto::detail::as_modifiable(ctx, value))) {
+    if (!codec::decode(encoded, value, ctx)) {
       ctx.error = error_code::syntax_error;
       return;
     }

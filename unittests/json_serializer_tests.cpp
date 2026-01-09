@@ -197,7 +197,8 @@ const ut::suite test_base64 = [] {
     auto encoded_size = hpp::proto::base64::encode(data, result);
     result.resize(encoded_size);
     expect(eq(encoded, result));
-    expect(hpp::proto::base64::decode(encoded, result));
+    hpp::proto::json_context ctx;
+    expect(hpp::proto::base64::decode(encoded, result, ctx));
     expect(eq(data, result));
   };
 
@@ -219,15 +220,16 @@ const ut::suite test_base64 = [] {
   "invalid_decode"_test = [] {
     using namespace boost::ut;
     using namespace std::literals::string_view_literals;
+    hpp::proto::json_context ctx;
     std::string result;
     // The decoder should reject invalid base64 strings.
     // 1. Invalid characters
-    expect(!hpp::proto::base64::decode("bGlnaHQgd29yay4-"sv, result));
+    expect(!hpp::proto::base64::decode("bGlnaHQgd29yay4-"sv, result, ctx));
     // 2. Padding in the middle
-    expect(!hpp::proto::base64::decode("Zg==YWJj"sv, result));
+    expect(!hpp::proto::base64::decode("Zg==YWJj"sv, result, ctx));
     // 3. Incorrect padding
-    expect(!hpp::proto::base64::decode("Zm9vYg="sv, result));   // "foob" is "Zm9vYg=="
-    expect(!hpp::proto::base64::decode("Zm9vYmE=="sv, result)); // "fooba" is "Zm9vYmE="
+    expect(!hpp::proto::base64::decode("Zm9vYg="sv, result, ctx));   // "foob" is "Zm9vYg=="
+    expect(!hpp::proto::base64::decode("Zm9vYmE=="sv, result, ctx)); // "fooba" is "Zm9vYmE="
   };
 };
 

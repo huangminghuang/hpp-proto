@@ -705,8 +705,9 @@ struct from<JSON, T> {
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
       return;
     }
-    std::pmr::vector<std::byte> decoded{&value.memory_resource()};
-    if (::hpp::proto::base64::decode(encoded, decoded)) [[likely]] {
+    hpp::proto::pb_context pb_ctx{hpp::proto::alloc_from{value.memory_resource()}};
+    hpp::proto::bytes_view decoded;
+    if (::hpp::proto::base64::decode(encoded, decoded, pb_ctx)) [[likely]] {
       value.adopt(decoded);
     } else {
       ctx.error = error_code::syntax_error;

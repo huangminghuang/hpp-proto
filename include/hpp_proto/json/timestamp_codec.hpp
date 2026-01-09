@@ -80,7 +80,7 @@ struct timestamp_codec {
     return std::distance(static_cast<char *>(std::data(b)), buf);
   }
 
-  static bool decode(auto &&json, auto &&value) {
+  static bool decode(auto &&json, auto &&value, [[maybe_unused]] auto& ctx) {
     std::string_view sv = json;
     if (sv.empty() || sv.back() != 'Z') [[unlikely]] {
       return false;
