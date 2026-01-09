@@ -22,7 +22,6 @@ struct pmr_traits : hpp::proto::default_traits {
   };
 };
 
-
 template <typename Traits>
 struct WellKnownTypesTests {
   using TestWellKnownTypes = proto2_unittest::TestWellKnownTypes<Traits>;
