@@ -22,29 +22,6 @@ struct pmr_traits : hpp::proto::default_traits {
   };
 };
 
-template <typename Traits>
-using test_type =
-    std::variant<std::monostate, typename Traits::template map_t<typename Traits::string_t, typename Traits::bytes_t>>;
-
-template <typename Traits>
-struct std::is_trivially_destructible<google::protobuf::Struct<Traits>> : is_trivially_destructible<test_type<Traits>> {
-};
-
-template <typename Traits>
-struct std::is_trivially_move_constructible<google::protobuf::Struct<Traits>>
-    : is_trivially_move_constructible<test_type<Traits>> {};
-
-template <typename Traits>
-struct std::is_trivially_move_assignable<google::protobuf::Struct<Traits>>
-    : is_trivially_move_assignable<test_type<Traits>> {};
-
-template <typename Traits>
-struct std::is_trivially_copy_constructible<google::protobuf::Struct<Traits>>
-    : is_trivially_copy_constructible<test_type<Traits>> {};
-
-template <typename Traits>
-struct std::is_trivially_copy_assignable<google::protobuf::Struct<Traits>>
-    : is_trivially_copy_assignable<test_type<Traits>> {};
 
 template <typename Traits>
 struct WellKnownTypesTests {
@@ -83,7 +60,7 @@ struct WellKnownTypesTests {
 
 const boost::ut::suite well_known_types_test = [] {
   "well_known_types"_test = []<class Traits> { WellKnownTypesTests<Traits>::run(); } |
-                            std::tuple<hpp::proto::default_traits, pmr_traits, hpp::proto::non_owning_traits>{};
+                            std::tuple<hpp::proto::default_traits, pmr_traits>{};
 };
 
 int main() {

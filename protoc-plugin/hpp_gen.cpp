@@ -746,10 +746,12 @@ struct msg_code_generator : code_generator {
   std::string syntax;
   std::string out_of_class_data;
   std::back_insert_iterator<std::string> out_of_class_target;
+  std::string out_of_ns_data;
+  std::back_insert_iterator<std::string> out_of_ns_target;
   using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
 
   explicit msg_code_generator(std::vector<CodeGeneratorResponse::File> &files)
-      : code_generator(files), out_of_class_target(out_of_class_data) {}
+      : code_generator(files), out_of_class_target(out_of_class_data), out_of_ns_target(out_of_ns_data) {}
 
   static std::string namespace_prefix_of(const auto &d) { return d.parent_file()->namespace_prefix; }
 
@@ -953,9 +955,11 @@ struct msg_code_generator : code_generator {
     if (!ns.empty()) {
       format_to(target,
                 "// NOLINTEND(performance-enum-size)\n"
-                "}} // namespace {}\n"
-                "// clang-format on\n",
+                "}} // namespace {}\n",
                 ns);
+
+      std::ranges::copy(out_of_ns_data, target);
+      format_to(target, "// clang-format on\n", ns);
     }
   }
 
@@ -1190,9 +1194,29 @@ struct msg_code_generator : code_generator {
     indent_num -= 2;
     format_to(target, "{}}};\n\n", indent());
     if (descriptor.pb_name == "google.protobuf.Struct") {
-      format_to(out_of_class_target, "template <typename Traits>\n"
+      format_to(out_of_class_target, "#ifdef __clang__\n"
+                                     "template <typename Traits>\n"
                                      "using _test_Struct = std::variant<std::monostate, typename Traits::template "
-                                     "map_t<typename Traits::string_t, typename Traits::bytes_t>>;\n");
+                                     "map_t<typename Traits::string_t, typename Traits::bytes_t>>;\n"
+                                     "#endif\n\n");
+      format_to(out_of_ns_target,
+                "#ifdef __clang__\n"
+                "template <typename Traits>\n"
+                "struct std::is_trivially_destructible<google::protobuf::Struct<Traits>>\n"
+                "    : is_trivially_destructible<google::protobuf::_test_Struct<Traits>> {{}};\n"
+                "template <typename Traits>\n"
+                "struct std::is_trivially_move_constructible<google::protobuf::Struct<Traits>>\n"
+                "    : is_trivially_move_constructible<google::protobuf::_test_Struct<Traits>> {{}};\n"
+                "template <typename Traits>\n"
+                "struct std::is_trivially_move_assignable<google::protobuf::Struct<Traits>>\n"
+                "    : is_trivially_move_assignable<google::protobuf::_test_Struct<Traits>> {{}};\n"
+                "template <typename Traits>\n"
+                "struct std::is_trivially_copy_constructible<google::protobuf::Struct<Traits>>\n"
+                "    : is_trivially_copy_constructible<google::protobuf::_test_Struct<Traits>> {{}};\n"
+                "template <typename Traits>\n"
+                "struct std::is_trivially_copy_assignable<google::protobuf::Struct<Traits>>\n"
+                "    : is_trivially_copy_assignable<google::protobuf::_test_Struct<Traits>> {{}};\n"
+                "#endif\n\n");
     }
     std::string_view qualified_name = descriptor.no_namespace_qualified_name;
     format_to(out_of_class_target,
