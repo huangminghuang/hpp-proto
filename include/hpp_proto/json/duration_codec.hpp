@@ -55,7 +55,7 @@ struct duration_codec {
   }
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-  static bool decode(auto const &json, auto &value, [[maybe_unused]] auto& ctx) {
+  static bool decode(auto const &json, auto &value, [[maybe_unused]] auto &ctx) {
     std::string_view s = json;
     if (s.empty() || s.back() != 's') {
       return false;

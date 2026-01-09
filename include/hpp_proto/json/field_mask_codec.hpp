@@ -49,7 +49,7 @@ struct field_mask_codec {
   }
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-  static bool decode(auto const &json, auto &value, auto& ctx) {
+  static bool decode(auto const &json, auto &value, auto &ctx) {
     if (json.empty()) {
       return true;
     }

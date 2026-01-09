@@ -123,7 +123,7 @@ struct base64 {
     return static_cast<int64_t>(ix);
   }
 
-  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &value, auto& ctx) {
+  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &value, auto &ctx) {
     std::size_t n = source.size();
     decltype(auto) mref = hpp::proto::detail::as_modifiable(ctx, value);
     if (n == 0) {

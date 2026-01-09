@@ -46,8 +46,6 @@ template <typename Traits>
 struct std::is_trivially_copy_assignable<google::protobuf::Struct<Traits>>
     : is_trivially_copy_assignable<test_type<Traits>> {};
 
-
-
 template <typename Traits>
 struct WellKnownTypesTests {
   using TestWellKnownTypes = proto2_unittest::TestWellKnownTypes<Traits>;
