@@ -49,7 +49,7 @@ struct timestamp_codec {
         digits += 3;
       }
       uint32_t ms_component = nanos / 1'000'000;
-      glz::to_chars_u64_len_4(std::next(buf, - 1), ms_component);
+      glz::to_chars_u64_len_4(std::next(buf, -1), ms_component);
       *std::next(buf, -1) = '.';
       digits += 3;
       buf = std::next(buf, digits);

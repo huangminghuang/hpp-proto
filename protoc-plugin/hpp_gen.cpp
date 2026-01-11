@@ -1822,7 +1822,7 @@ struct desc_hpp_generator : code_generator {
 
     std::vector<std::uint8_t> buf;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-    auto& proto = const_cast<google::protobuf::FileDescriptorProto<>&>(descriptor.proto());
+    auto &proto = const_cast<google::protobuf::FileDescriptorProto<> &>(descriptor.proto());
     proto.source_code_info.reset();
     (void)::hpp::proto::write_binpb(proto, buf);
 

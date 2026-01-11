@@ -52,7 +52,7 @@ struct duration_codec {
       }
       uint32_t us_component = (nanos % 1'000'000);
       if (us_component > 0) {
-        glz::to_chars_u64_len_4(std::next(pos, 3), us_component/1000);
+        glz::to_chars_u64_len_4(std::next(pos, 3), us_component / 1000);
         digits += 3;
       }
       uint32_t ms_component = nanos / 1'000'000;

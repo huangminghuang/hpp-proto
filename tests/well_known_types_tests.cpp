@@ -94,7 +94,8 @@ const ut::suite test_timestamp = [] {
   };
 
   "verify Timestamp 1970-01-01T00:16:40.100100Z"_test = [&factory] {
-    verify<timestamp_t>(factory, timestamp_t{.seconds = 1000, .nanos = 100'100'000}, R"("1970-01-01T00:16:40.100100Z")");
+    verify<timestamp_t>(factory, timestamp_t{.seconds = 1000, .nanos = 100'100'000},
+                        R"("1970-01-01T00:16:40.100100Z")");
   };
 
   "verify Timestamp 1970-01-01T00:16:40.000000020Z"_test = [&factory] {
@@ -102,7 +103,8 @@ const ut::suite test_timestamp = [] {
   };
 
   "verify Timestamp 1970-01-01T00:16:40.100000020Z"_test = [&factory] {
-    verify<timestamp_t>(factory, timestamp_t{.seconds = 1000, .nanos = 100'000'020}, R"("1970-01-01T00:16:40.100000020Z")");
+    verify<timestamp_t>(factory, timestamp_t{.seconds = 1000, .nanos = 100'000'020},
+                        R"("1970-01-01T00:16:40.100000020Z")");
   };
 
   timestamp_t msg;
