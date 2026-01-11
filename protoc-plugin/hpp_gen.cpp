@@ -1821,7 +1821,10 @@ struct desc_hpp_generator : code_generator {
     format_to(target, "\nnamespace {} {{\n\n", ns);
 
     std::vector<std::uint8_t> buf;
-    (void)::hpp::proto::write_binpb(descriptor.proto(), buf);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    auto& proto = const_cast<google::protobuf::FileDescriptorProto<>&>(descriptor.proto());
+    proto.source_code_info.reset();
+    (void)::hpp::proto::write_binpb(proto, buf);
 
     append_to(target, "using namespace std::literals::string_view_literals;\n");
     append_to(target, "constexpr file_descriptor_pb _desc_");

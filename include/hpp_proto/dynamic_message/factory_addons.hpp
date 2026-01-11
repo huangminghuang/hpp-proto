@@ -225,7 +225,14 @@ struct dynamic_message_factory_addons {
 
       if (auto itr = wellknown_type_pbs.find(derived.proto().name); itr != wellknown_type_pbs.end()) {
         std::string pb;
-        [[maybe_unused]] auto status = write_binpb(derived.proto(), pb);
+        hpp::proto::status status;
+        if (derived.proto().source_code_info.has_value()) {
+          auto proto_no_source_info = derived.proto();
+          proto_no_source_info.source_code_info.reset();
+          status = write_binpb(proto_no_source_info, pb);
+        } else {
+          status = write_binpb(derived.proto(), pb);
+        }
         assert(status.ok());
         wellknown_validated_ = (pb == itr->second.value);
       }

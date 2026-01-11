@@ -89,8 +89,20 @@ const ut::suite test_timestamp = [] {
     verify<timestamp_t>(factory, timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
   };
 
+  "verify Timestamp 1970-01-01T00:16:40.100Z"_test = [&factory] {
+    verify<timestamp_t>(factory, timestamp_t{.seconds = 1000, .nanos = 100'000'000}, R"("1970-01-01T00:16:40.100Z")");
+  };
+
+  "verify Timestamp 1970-01-01T00:16:40.100100Z"_test = [&factory] {
+    verify<timestamp_t>(factory, timestamp_t{.seconds = 1000, .nanos = 100'100'000}, R"("1970-01-01T00:16:40.100100Z")");
+  };
+
   "verify Timestamp 1970-01-01T00:16:40.000000020Z"_test = [&factory] {
     verify<timestamp_t>(factory, timestamp_t{.seconds = 1000, .nanos = 20}, R"("1970-01-01T00:16:40.000000020Z")");
+  };
+
+  "verify Timestamp 1970-01-01T00:16:40.100000020Z"_test = [&factory] {
+    verify<timestamp_t>(factory, timestamp_t{.seconds = 1000, .nanos = 100'000'020}, R"("1970-01-01T00:16:40.100000020Z")");
   };
 
   timestamp_t msg;
@@ -131,8 +143,20 @@ const ut::suite test_duration = [] {
     verify<duration_t>(factory, duration_t{.seconds = -1000, .nanos = 0}, R"("-1000s")");
   };
 
+  "verify Duration 1000.100s"_test = [&factory] {
+    verify<duration_t>(factory, duration_t{.seconds = 1000, .nanos = 100'000'000}, R"("1000.100s")");
+  };
+
+  "verify Duration 1000.100100s"_test = [&factory] {
+    verify<duration_t>(factory, duration_t{.seconds = 1000, .nanos = 100'100'000}, R"("1000.100100s")");
+  };
+
   "verify Duration 1000.000000020s"_test = [&factory] {
     verify<duration_t>(factory, duration_t{.seconds = 1000, .nanos = 20}, R"("1000.000000020s")");
+  };
+
+  "verify Duration 1000.100000020s"_test = [&factory] {
+    verify<duration_t>(factory, duration_t{.seconds = 1000, .nanos = 100'000'020}, R"("1000.100000020s")");
   };
 
   "verify Duration -1000.000000020s"_test = [&factory] {

@@ -42,13 +42,24 @@ struct duration_codec {
     auto ix = static_cast<std::size_t>(std::distance(buf, glz::to_chars(buf, value.seconds)));
 
     if (value.nanos != 0) {
-      int32_t nanos = std::abs(value.nanos);
-      glz::dump<'.'>(b, ix);
-      const auto hi = nanos / 100000000;
-      b[ix++] = '0' + hi;
+      uint32_t nanos = static_cast<uint32_t>(std::abs(value.nanos));
       auto *pos = std::next(buf, static_cast<std::ptrdiff_t>(ix));
-      glz::to_chars_u64_len_8(pos, uint32_t(nanos % 100000000));
-      ix += 8;
+      uint32_t ns_component = nanos % 1'000;
+      uint32_t digits = 0;
+      if (ns_component > 0) {
+        glz::to_chars_u64_len_4(std::next(pos, 6), ns_component);
+        digits += 3;
+      }
+      uint32_t us_component = (nanos % 1'000'000);
+      if (us_component > 0) {
+        glz::to_chars_u64_len_4(std::next(pos, 3), us_component/1000);
+        digits += 3;
+      }
+      uint32_t ms_component = nanos / 1'000'000;
+      pos = glz::to_chars_u64_len_4(pos, ms_component);
+      glz::dump<'.'>(b, ix);
+      digits += 3;
+      ix += digits;
     }
     glz::dump<'s'>(b, ix);
     return static_cast<int64_t>(ix);

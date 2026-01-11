@@ -24,13 +24,71 @@ struct pmr_traits : hpp::proto::default_traits {
 
 template <typename Traits>
 struct WellKnownTypesTests {
+  using string_t = typename Traits::string_t;
+  using bytes_t = typename Traits::bytes_t;
+  using value_t = typename google::protobuf::Value<Traits>;
+  using any_t = typename google::protobuf::Any<Traits>;
+  using field_mask_t = typename google::protobuf::FieldMask<Traits>;
+  using duration_t = typename google::protobuf::Duration<Traits>;
+  using timestamp_t = typename google::protobuf::Timestamp<Traits>;
   using TestWellKnownTypes = proto2_unittest::TestWellKnownTypes<Traits>;
+  std::pmr::monotonic_buffer_resource pool;
+  static std::initializer_list<string_t> field_mask_paths_init_list;
+  static std::initializer_list<std::pair<string_t, value_t>> struct_fields_init_lit;
 
-  static void SetAllFields([[maybe_unused]] TestWellKnownTypes *m) {}
+  void SetAllFields(TestWellKnownTypes *m) {
+    expect(hpp::proto::pack_any(m->any_field.emplace(), field_mask_t{.paths = field_mask_paths_init_list},
+                                hpp::proto::alloc_from{pool})
+               .ok());
 
-  static void ExpectAllFieldsSet([[maybe_unused]] const TestWellKnownTypes &m) {}
+    m->api_field.emplace().name = string_t{"test_api"};
+    m->duration_field.emplace() = {.seconds = 1000, .nanos = 100'000'000};
+    m->empty_field.emplace();
+    m->field_mask_field.emplace().paths = field_mask_paths_init_list;
+    m->source_context_field.emplace();
+    m->struct_field.emplace().fields = struct_fields_init_lit;
+    m->timestamp_field.emplace() = {.seconds = 2000, .nanos = 200000000};
+    m->type_field.emplace().name = string_t{"test_type"};
 
-  static void run() {
+    m->double_field.emplace().value = 3.14;
+    m->float_field.emplace().value = 2.718F;
+    m->int64_field.emplace().value = 40LL;
+    m->uint64_field.emplace().value = 41;
+    m->int32_field.emplace().value = 42;
+    m->uint32_field.emplace().value = 43;
+    m->bool_field.emplace().value = true;
+    m->string_field.emplace().value = "abc";
+    m->bytes_field.emplace().value = "def"_bytes;
+    m->value_field.emplace().kind = string_t{"xyz"};
+  }
+
+  void ExpectAllFieldsSet([[maybe_unused]] const TestWellKnownTypes &m) {
+    std::pmr::monotonic_buffer_resource mr;
+    field_mask_t fm;
+    expect(m.any_field.has_value() &&
+           hpp::proto::unpack_any(m.any_field.value(), fm, ::hpp::proto::alloc_from(mr)).ok());
+    expect(std::ranges::equal(field_mask_paths_init_list, fm.paths));
+
+    expect(m.api_field.has_value() && m.api_field->name == string_t{"test_api"});
+    expect(m.duration_field.has_value() && *m.duration_field == duration_t{.seconds = 1000, .nanos = 100000000});
+    expect(m.empty_field.has_value());
+    expect(m.field_mask_field.has_value() && std::ranges::equal(m.field_mask_field->paths, field_mask_paths_init_list));
+    expect(m.struct_field.has_value() && std::ranges::equal(m.struct_field->fields, struct_fields_init_lit));
+    expect(m.timestamp_field.has_value() && *m.timestamp_field == timestamp_t{.seconds = 2000, .nanos = 200000000});
+    expect(m.type_field.has_value() && m.type_field->name == string_t{"test_type"});
+
+    expect(m.double_field.has_value() && m.double_field->value == 3.14);
+    expect(m.float_field.has_value() && m.float_field->value == 2.718F);
+    expect(m.int64_field.has_value() && m.int64_field->value == 40LL);
+    expect(m.uint64_field.has_value() && m.uint64_field->value == 41ULL);
+    expect(m.int32_field.has_value() && m.int32_field->value == 42);
+    expect(m.uint32_field.has_value() && m.uint32_field->value == 43);
+    expect(m.bool_field.has_value() && m.bool_field->value);
+    expect(m.string_field.has_value() && m.string_field->value == string_t{"abc"});
+    expect(m.bytes_field.has_value() && m.bytes_field->value == "def"_bytes);
+  }
+
+  void run() {
     auto unittest_descriptorset = read_file("unittest.desc.binpb");
 
     "glaze"_test = [&] {
@@ -47,7 +105,8 @@ struct WellKnownTypesTests {
 
       ::hpp::proto::dynamic_message_factory message_factory;
       expect(message_factory.init(unittest_descriptorset));
-      expect(hpp::proto::write_json(original, message_factory).value() == original_json);
+      auto my_json = hpp::proto::write_json(original, message_factory).value();
+      expect(eq(my_json, original_json));
 
       TestWellKnownTypes msg;
       expect(hpp::proto::read_json(msg, original_json, message_factory, hpp::proto::alloc_from{mr}).ok());
@@ -57,9 +116,19 @@ struct WellKnownTypesTests {
   }
 };
 
+template <typename Traits>
+std::initializer_list<typename Traits::string_t> WellKnownTypesTests<Traits>::field_mask_paths_init_list{
+    string_t{"/usr/share"}, string_t{"/usr/local/share"}};
+
+template <typename Traits>
+std::initializer_list<std::pair<typename Traits::string_t, typename google::protobuf::Value<Traits>>>
+    WellKnownTypesTests<Traits>::struct_fields_init_lit{{"abc", value_t{.kind = 1.0}}};
+
 const boost::ut::suite well_known_types_test = [] {
-  "well_known_types"_test = []<class Traits> { WellKnownTypesTests<Traits>::run(); } |
-                            std::tuple<hpp::proto::default_traits, pmr_traits>{};
+  "well_known_types"_test = []<class Traits> {
+    WellKnownTypesTests<Traits> test;
+    test.run();
+  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 };
 
 int main() {
