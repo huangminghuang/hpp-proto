@@ -7,19 +7,10 @@
 #include "addressbook_proto3.pb.hpp"
 
 // Define custom traits that use std::pmr containers
-struct pmr_traits : hpp::proto::default_traits {
-  using string_t = std::pmr::string;
-  using bytes_t = std::pmr::vector<std::byte>;
 
-  template <typename T>
-  using repeated_t = std::pmr::vector<T>;
 
-  template <typename Key, typename Value>
-  using map_t = std::pmr::map<Key, Value>;
-};
-
-using PmrAddressBook = tutorial::AddressBook<pmr_traits>;
-using PmrPerson = tutorial::Person<pmr_traits>;
+using PmrAddressBook = tutorial::AddressBook<hpp::proto::pmr_traits>;
+using PmrPerson = tutorial::Person<hpp::proto::pmr_traits>;
 
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
@@ -53,7 +44,7 @@ int main() {
 
   // Deserialize from binary into a new object using the same pool
   PmrAddressBook read_book;
-  auto read_result = hpp::proto::read_binpb(read_book, binary_data, hpp::proto::alloc_from(pool));
+  auto read_result = hpp::proto::read_binpb(read_book, binary_data);
 
   expect(read_result.ok());
   expect(address_book == read_book);
@@ -71,7 +62,7 @@ int main() {
   expect(json_result.has_value());
 
   PmrAddressBook json_read_book;
-  auto json_read_result = hpp::proto::read_json(json_read_book, json_result.value(), hpp::proto::alloc_from(pool));
+  auto json_read_result = hpp::proto::read_json(json_read_book, json_result.value());
   expect(json_read_result.ok());
   expect(address_book == json_read_book);
 

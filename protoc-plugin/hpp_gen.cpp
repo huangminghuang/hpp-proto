@@ -972,7 +972,7 @@ struct msg_code_generator : code_generator {
     }
     if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
       if (descriptor.is_recursive) {
-        return "Traits::template optional_recursive_t";
+        return "Traits::template optional_indirect_t";
       } else if (descriptor.is_cpp_optional) {
         return "std::optional";
       }

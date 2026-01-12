@@ -17,6 +17,7 @@ struct Proto2TypeMapping {
   using NestedMessage_t = typename TestAllTypes_t::NestedMessage;
   using RepeatedGroup_t = typename TestAllTypes_t::RepeatedGroup;
   using RepeatedGroup_extension_t = protobuf_unittest::RepeatedGroup_extension<Traits>;
+  using TestMutualRecursionA_t = protobuf_unittest::TestMutualRecursionA<Traits>;
 
   using oneof_uint32_extension_t = protobuf_unittest::oneof_uint32_extension;
   using oneof_nested_message_extension_t = protobuf_unittest::oneof_nested_message_extension<Traits>;
@@ -154,7 +155,7 @@ struct Proto2TypeMapping {
 
 const boost::ut::suite proto2_test = [] {
   "proto2"_test = []<class Traits> { TestSuite<Traits, Proto2TypeMapping>::run(); } |
-                  std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+                  std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits, hpp::proto::pmr_traits>{};
 
   "empty"_test = [] {
     protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits> message;

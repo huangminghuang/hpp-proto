@@ -358,21 +358,11 @@ arena_vector(View &view, Context &ctx)
 constexpr auto as_modifiable(concepts::is_pb_context auto &context, concepts::dynamic_sized_view auto &view) {
   return detail::arena_vector{view, context};
 }
+
 template <typename T>
   requires(!concepts::dynamic_sized_view<T>)
 constexpr auto as_modifiable([[maybe_unused]] const auto &ctx, T &obj) -> T & {
-  if constexpr (std::constructible_from<T, const std::pmr::polymorphic_allocator<T> &> &&
-                requires { ctx.memory_resource(); }) {
-    if (obj.get_allocator().resource() == &ctx.memory_resource()) {
-      return obj;
-    } else {
-      T tmp{&ctx.memory_resource()};
-      obj.swap(tmp);
-      return obj;
-    }
-  } else {
-    return obj;
-  }
+  return obj;
 }
 
 } // namespace detail

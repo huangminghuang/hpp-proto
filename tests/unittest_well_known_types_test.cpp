@@ -91,6 +91,21 @@ struct WellKnownTypesTests {
   void run() {
     auto unittest_descriptorset = read_file("unittest.desc.binpb");
 
+    "protobuf"_test = [&] {
+      TestWellKnownTypes original;
+      SetAllFields(&original);
+
+      TestWellKnownTypes msg;
+
+      std::pmr::monotonic_buffer_resource mr;
+      std::vector<std::byte> data;
+
+      expect(hpp::proto::write_binpb(original, data).ok());
+      expect(hpp::proto::read_binpb(msg, data, hpp::proto::alloc_from{mr}).ok());
+
+      ExpectAllFieldsSet(msg);
+    };
+
     "glaze"_test = [&] {
       TestWellKnownTypes original;
       SetAllFields(&original);
@@ -128,7 +143,7 @@ const boost::ut::suite well_known_types_test = [] {
   "well_known_types"_test = []<class Traits> {
     WellKnownTypesTests<Traits> test;
     test.run();
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp::proto::default_traits, hpp::proto::pmr_traits>{};
 };
 
 int main() {

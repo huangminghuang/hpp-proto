@@ -191,7 +191,7 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
     *   `string_t`, `bytes_t`: Swap `std::string`/`std::vector<std::byte>` for `std::pmr::string`, `std::string_view`, or other string/byte containers.
     *   `repeated_t<T>`: Choose storage for repeated fields, like `std::pmr::vector`, `small_vector`, or `std::span`.
     *   `map_t<Key, Value>`: Use custom map-like containers (`flat_map`, `btree`, etc.).
-    *   `optional_recursive_t<T>`: Control lifetimes for recursive messages.
+    *   `optional_indirect_t<T>`: Control lifetimes for recursive messages.
     *   `unknown_fields_range_t`: Define how unknown fields are stored.
 
 *   **Supplied Traits**:

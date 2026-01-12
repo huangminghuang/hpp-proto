@@ -1033,7 +1033,7 @@ constexpr status deserialize_field(concepts::is_enum auto &item, Meta, uint32_t 
   return {};
 }
 
-constexpr status deserialize_field(concepts::optional_message_view auto &item, auto meta, uint32_t tag,
+constexpr status deserialize_field(concepts::optional_indirect_view auto &item, auto meta, uint32_t tag,
                                    concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using context_t = std::decay_t<decltype(archive.context)>;
   static_assert(concepts::has_memory_resource<context_t>, "memory resource is required");
@@ -1053,7 +1053,7 @@ constexpr status deserialize_field(concepts::optional_message_view auto &item, a
 }
 
 template <concepts::optional T>
-  requires(!concepts::optional_message_view<T>)
+  requires(!concepts::optional_indirect_view<T>)
 constexpr status deserialize_field(T &item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive,
                                    auto &unknown_fields) {
   status result;

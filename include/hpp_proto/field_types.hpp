@@ -35,6 +35,7 @@
 #else
 #include <hpp_proto/flat_map.hpp>
 #endif
+#include <hpp_proto/optional_indirect.hpp>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -42,6 +43,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 namespace hpp::proto {
@@ -265,92 +267,6 @@ public:
     _present = false;
   }
 
-  template <class F>
-  constexpr auto and_then(F &&f) & {
-    if (has_value()) {
-      return std::invoke(std::forward<F>(f), _value);
-    } else {
-      return std::remove_cvref_t<std::invoke_result_t<F, T &>>{};
-    }
-  }
-
-  template <class F>
-  constexpr auto and_then(F &&f) const & {
-    if (has_value()) {
-      return std::invoke(std::forward<F>(f), _value);
-    } else {
-      return std::remove_cvref_t<std::invoke_result_t<F, const T &>>{};
-    }
-  }
-
-  template <class F>
-  constexpr auto and_then(F &&f) && {
-    if (has_value()) {
-      return std::invoke(std::forward<F>(f), std::move(_value));
-    } else {
-      return std::remove_cvref_t<std::invoke_result_t<F, const T>>{};
-    }
-  }
-
-  template <class F>
-  constexpr auto and_then(F &&f) const && {
-    if (has_value()) {
-      return std::invoke(std::forward<F>(f), std::move(_value));
-    } else {
-      return std::remove_cvref_t<std::invoke_result_t<F, const T>>{};
-    }
-  }
-
-  template <class F>
-  constexpr auto transform(F &&f) & {
-    using U = std::remove_cv_t<std::invoke_result_t<F, T &>>;
-    if (has_value()) {
-      return optional<U>{std::invoke(std::forward<F>(f), _value)};
-    } else {
-      return optional<U>{};
-    }
-  }
-
-  template <class F>
-  constexpr auto transform(F &&f) const & {
-    using U = std::remove_cv_t<std::invoke_result_t<F, const T &>>;
-    if (has_value()) {
-      return optional<U>{std::invoke(std::forward<F>(f), _value)};
-    } else {
-      return optional<U>{};
-    }
-  }
-
-  template <class F>
-  constexpr auto transform(F &&f) && {
-    using U = std::remove_cv_t<std::invoke_result_t<F, T>>;
-    if (has_value()) {
-      return optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
-    } else {
-      return optional<U>{};
-    }
-  }
-
-  template <class F>
-  constexpr auto transform(F &&f) const && {
-    using U = std::remove_cv_t<std::invoke_result_t<F, const T>>;
-    if (has_value()) {
-      return optional<U>{std::invoke(std::forward<F>(f), std::move(_value))};
-    } else {
-      return optional<U>{};
-    }
-  }
-
-  template <class F>
-  constexpr optional or_else(F &&f) const & {
-    return has_value() ? _value : std::forward<F>(f)();
-  }
-
-  template <class F>
-  constexpr optional or_else(F &&f) && {
-    return has_value() ? std::move(_value) : std::forward<F>(f)();
-  }
-
   constexpr bool operator==(const optional &other) const = default;
 };
 
@@ -405,166 +321,6 @@ public:
 
   constexpr void swap(optional &other) noexcept { std::swap(impl, other.impl); }
   constexpr void reset() noexcept { impl = default_state; }
-
-  template <class F>
-  constexpr auto and_then(F &&f) const {
-    if (has_value()) {
-      return std::invoke(std::forward<F>(f), value());
-    } else {
-      return std::remove_cvref_t<std::invoke_result_t<F, bool>>{};
-    }
-  }
-
-  template <class F>
-  constexpr auto transform(F &&f) const {
-    using U = std::remove_cv_t<std::invoke_result_t<F, bool>>;
-    if (has_value()) {
-      return std::optional<U>{std::invoke(std::forward<F>(f), value())};
-    } else {
-      return std::optional<U>{};
-    }
-  }
-};
-
-template <typename T>
-class heap_based_optional {
-  std::unique_ptr<T> obj;
-
-public:
-  using value_type = T;
-  constexpr heap_based_optional() noexcept = default;
-  constexpr ~heap_based_optional() noexcept = default;
-
-  constexpr heap_based_optional(std::nullopt_t /* unused */) noexcept {};
-
-  constexpr heap_based_optional(const T &object) : obj(new T(object)) {}
-  constexpr heap_based_optional(heap_based_optional &&other) noexcept : obj(std::move(other)) {}
-  constexpr heap_based_optional(const heap_based_optional &other) : obj(other.obj ? new T(*other.obj) : nullptr) {}
-
-  template <class... Args>
-  constexpr explicit heap_based_optional(std::in_place_t, Args &&...args)
-      : obj(new T{std::forward<Args &&>(args)...}) {}
-
-  constexpr heap_based_optional &operator=(heap_based_optional &&other) noexcept {
-    obj = std::move(other.obj);
-    return *this;
-  }
-
-  constexpr heap_based_optional &operator=(const heap_based_optional &other) {
-    heap_based_optional tmp(other);
-    obj = std::move(tmp.obj);
-    return *this;
-  }
-
-  [[nodiscard]] constexpr bool has_value() const noexcept { return static_cast<bool>(obj); }
-  constexpr operator bool() const noexcept { return has_value(); }
-
-  constexpr T &value() {
-    if (!has_value()) {
-      throw std::bad_optional_access();
-    }
-    return *obj;
-  }
-  [[nodiscard]] constexpr const T &value() const {
-    if (!has_value()) {
-      throw std::bad_optional_access();
-    }
-    return *obj;
-  }
-
-  constexpr T &operator*() noexcept { return *obj; }
-  constexpr const T &operator*() const noexcept { return *obj; }
-
-  constexpr T *operator->() noexcept { return *obj; }
-  constexpr const T *operator->() const noexcept { return *obj; }
-
-  constexpr T &emplace() {
-    obj = std::make_unique<T>();
-    return *obj;
-  }
-
-  constexpr void swap(heap_based_optional &other) noexcept { std::swap(obj, other.obj); }
-  constexpr void reset() noexcept { obj.reset(); }
-
-  constexpr bool operator==(const T &rhs) const {
-    if (has_value()) {
-      return **this == rhs;
-    } else {
-      return false;
-    }
-  }
-
-  constexpr bool operator==(const heap_based_optional &rhs) const {
-    if (has_value()) {
-      return rhs.has_value() && *obj == *rhs.obj;
-    } else {
-      return !rhs.has_value();
-    }
-  }
-
-  constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
-};
-
-/// Used for recursive non-owning message types
-template <typename T>
-class optional_message_view {
-  const T *obj = nullptr;
-
-public:
-  using value_type = T;
-  constexpr optional_message_view() noexcept = default;
-  constexpr ~optional_message_view() noexcept = default;
-
-  constexpr optional_message_view(std::nullptr_t /* unused */) noexcept {};
-
-  constexpr optional_message_view(const T *object) : obj(object) {}
-  constexpr optional_message_view(optional_message_view &&other) noexcept : obj(other.obj) {}
-  constexpr optional_message_view(const optional_message_view &other) noexcept : obj(other.obj) {}
-
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
-  constexpr optional_message_view &operator=(optional_message_view &&other) noexcept {
-    obj = other.obj;
-    return *this;
-  }
-
-  constexpr optional_message_view &operator=(const optional_message_view &other) noexcept = default;
-
-  constexpr optional_message_view &operator=(const T *other) noexcept {
-    obj = other;
-    return *this;
-  }
-
-  constexpr optional_message_view &operator=(std::nullptr_t /* unused */) noexcept {
-    obj = nullptr;
-    return *this;
-  }
-
-  [[nodiscard]] constexpr bool has_value() const noexcept { return static_cast<bool>(obj); }
-  constexpr operator bool() const noexcept { return has_value(); }
-
-  [[nodiscard]] constexpr const T &value() const {
-    if (!has_value()) {
-      throw std::bad_optional_access();
-    }
-    return *obj;
-  }
-
-  constexpr const T &operator*() const noexcept { return *obj; }
-
-  constexpr const T *operator->() const noexcept { return obj; }
-
-  constexpr void swap(optional_message_view &other) noexcept { std::swap(obj, other.obj); }
-  constexpr void reset() noexcept { obj = nullptr; }
-
-  constexpr bool operator==(const optional_message_view &rhs) const {
-    if (has_value() && rhs.has_value()) {
-      return *obj == *rhs.obj;
-    } else {
-      return has_value() == rhs.has_value();
-    }
-  }
-
-  constexpr bool operator==(std::nullptr_t /* unused */) const { return !has_value(); }
 };
 
 /// equality_comparable_span<T> provides a span-like interface that is equality comparable and can be used when T is a
@@ -735,6 +491,7 @@ struct bytes_literal {
     return equality_comparable_span<const std::byte>{data(), size()};
   }
   operator std::vector<std::byte>() const { return std::vector<std::byte>{begin(), end()}; }
+  operator std::pmr::vector<std::byte>() const { return std::pmr::vector<std::byte>{begin(), end()}; }
 
   friend constexpr bool operator==(const bytes_literal &lhs, const equality_comparable_span<const std::byte> &rhs) {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
@@ -751,14 +508,11 @@ concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<s
                     std::same_as<std::remove_cv_t<Type>, std::byte>;
 
 template <typename Type>
-concept flat_map = requires {
+concept flat_map = requires(Type t) {
   typename Type::key_type;
   typename Type::mapped_type;
-  typename Type::key_container_type;
-  typename Type::mapped_container_type;
-  requires std::same_as<
-      Type, ::hpp::proto::flat_map<typename Type::key_type, typename Type::mapped_type,
-                                   typename Type::key_container_type, typename Type::mapped_container_type>>;
+  t.keys();
+  t.values();
 };
 }; // namespace concepts
 
@@ -847,23 +601,25 @@ struct pb_extensions {
   bool operator==(const pb_extensions &) const = default;
 };
 
-template <typename T>
+template <typename T, template <typename> class Allocator>
 struct vector_trait {
-  using type = std::vector<T>;
+  using type = std::vector<T, Allocator<T>>;
 };
 
-template <>
-struct vector_trait<bool> {
-  using type = std::vector<hpp::proto::boolean>;
+template <template <typename> class Allocator>
+struct vector_trait<bool, Allocator> {
+  using type = std::vector<hpp::proto::boolean, Allocator<hpp::proto::boolean>>;
 };
-struct default_traits {
+
+template <template <typename> class Allocator>
+struct basic_default_traits {
   template <typename T>
-  using repeated_t = vector_trait<T>::type;
-  using string_t = std::string;
-  using bytes_t = std::vector<std::byte>;
+  using repeated_t = typename vector_trait<T, Allocator>::type;
+  using string_t = std::basic_string<char, std::char_traits<char>, Allocator<char>>;
+  using bytes_t = typename vector_trait<std::byte, Allocator>::type;
 
   template <typename T>
-  using optional_recursive_t = hpp::proto::heap_based_optional<T>;
+  using optional_indirect_t = hpp::proto::optional_indirect<T, Allocator<T>>;
 
   template <typename Key, typename Mapped>
   using map_t = hpp::proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
@@ -873,6 +629,9 @@ struct default_traits {
   };
 };
 
+using default_traits = basic_default_traits<std::allocator>;
+using pmr_traits = basic_default_traits<std::pmr::polymorphic_allocator>;
+
 struct non_owning_traits {
   template <typename T>
   using repeated_t = equality_comparable_span<const T>;
@@ -880,7 +639,7 @@ struct non_owning_traits {
   using bytes_t = equality_comparable_span<const std::byte>;
 
   template <typename T>
-  using optional_recursive_t = hpp::proto::optional_message_view<T>;
+  using optional_indirect_t = hpp::proto::optional_indirect_view<T>;
 
   template <typename Key, typename Mapped>
   using map_t = equality_comparable_span<const std::pair<Key, Mapped>>;

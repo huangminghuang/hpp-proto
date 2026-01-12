@@ -115,6 +115,14 @@ struct to<JSON, hpp::proto::bytes_view> {
 };
 
 template <>
+struct to<JSON, std::pmr::vector<std::byte>> {
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto &&...args) noexcept {
+    to<JSON, hpp::proto::use_base64>::template op<Opts>(std::forward<decltype(args)>(args)...);
+  }
+};
+
+template <>
 struct to<JSON, hpp::proto::bytes> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(auto &&...args) noexcept {
@@ -143,6 +151,14 @@ struct from<JSON, T> {
 
 template <>
 struct from<JSON, hpp::proto::bytes> {
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto &&...args) {
+    from<JSON, hpp::proto::use_base64>::template op<Opts>(std::forward<decltype(args)>(args)...);
+  }
+};
+
+template <>
+struct from<JSON, std::pmr::vector<std::byte>> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(auto &&...args) {
     from<JSON, hpp::proto::use_base64>::template op<Opts>(std::forward<decltype(args)>(args)...);
@@ -268,23 +284,6 @@ struct from<JSON, hpp::proto::optional_ref<Type, Default>> {
   }
 };
 
-template <typename Type>
-struct to<JSON, hpp::proto::heap_based_optional<Type>> {
-  template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto const &value, Args &&...args) noexcept {
-    to<JSON, Type>::template op<Opts>(*value, std::forward<Args>(args)...);
-  }
-};
-
-template <typename Type>
-struct from<JSON, hpp::proto::heap_based_optional<Type>> {
-  template <auto Options, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &value, Args &&...args) noexcept {
-    value.emplace();
-    from<JSON, Type>::template op<Options>(*value, std::forward<Args>(args)...);
-  }
-};
-
 template <typename Type, std::size_t Index>
 struct to<JSON, hpp::proto::oneof_wrapper<Type, Index>> {
   template <auto Opts, class... Args>
@@ -327,7 +326,7 @@ struct from<JSON, hpp::proto::boolean> {
 };
 
 template <typename T>
-struct from<JSON, hpp::proto::optional_message_view_ref<T>> {
+struct from<JSON, hpp::proto::optional_indirect_view_ref<T>> {
   template <auto Options>
   static void op(auto value, hpp::proto::concepts::is_non_owning_context auto &ctx, auto &it, auto &end) {
     if (!util::parse_null<Options>(value, ctx, it, end)) {
@@ -342,7 +341,7 @@ struct from<JSON, hpp::proto::optional_message_view_ref<T>> {
 };
 
 template <typename Type>
-struct to<JSON, hpp::proto::optional_message_view_ref<Type>> {
+struct to<JSON, hpp::proto::optional_indirect_view_ref<Type>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto value, Args &&...args) noexcept {
     if (value.ref.has_value()) {

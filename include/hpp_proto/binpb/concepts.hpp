@@ -103,7 +103,7 @@ template <typename T>
 concept dereferenceable = requires(T item) { *item; };
 
 template <typename T>
-concept optional_message_view = std::same_as<T, ::hpp::proto::optional_message_view<typename T::value_type>>;
+concept optional_indirect_view = std::same_as<T, ::hpp::proto::optional_indirect_view<typename T::value_type>>;
 
 template <typename T>
 concept oneof_type = concepts::variant<T>;

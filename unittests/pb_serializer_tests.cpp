@@ -171,7 +171,7 @@ const ut::suite test_example_default_type = [] {
 };
 
 struct non_owing_nested_example {
-  hpp::proto::optional_message_view<example> nested; // field number == 1
+  hpp::proto::optional_indirect_view<example> nested; // field number == 1
 
   constexpr bool operator==(const non_owing_nested_example &) const = default;
 };
@@ -490,7 +490,7 @@ struct open_enum_message {
   typename Traits::template repeated_t<ForeignEnumEx> expanded_repeated_field;
   ForeignEnumEx foreign_enum_field = ForeignEnumEx::ZERO;
   typename Traits::template repeated_t<ForeignEnumEx> packed_repeated_field;
-  std::optional<example> optional_message_field;
+  std::optional<example> optional_indirect_field;
   [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator==(const open_enum_message &) const = default;
 };
@@ -500,7 +500,7 @@ auto pb_meta(const open_enum_message<Traits> &)
     -> std::tuple<hpp::proto::field_meta<1, &open_enum_message<Traits>::expanded_repeated_field, field_option::none>,
                   hpp::proto::field_meta<2, &open_enum_message<Traits>::foreign_enum_field, field_option::none>,
                   hpp::proto::field_meta<3, &open_enum_message<Traits>::packed_repeated_field, field_option::is_packed>,
-                  hpp::proto::field_meta<4, &open_enum_message<Traits>::optional_message_field, field_option::none>,
+                  hpp::proto::field_meta<4, &open_enum_message<Traits>::optional_indirect_field, field_option::none>,
                   hpp::proto::field_meta<UINT32_MAX, &open_enum_message<Traits>::unknown_fields_>>;
 
 template <typename Traits = hpp::proto::default_traits>
@@ -569,7 +569,7 @@ const ut::suite test_enums = [] {
         auto repeated_fields = std::initializer_list<ForeignEnumEx>{FOO, BAR, EXTRA, BAZ};
         msg.expanded_repeated_field = repeated_fields;
         msg.packed_repeated_field = repeated_fields;
-        msg.optional_message_field.emplace().i = 1;
+        msg.optional_indirect_field.emplace().i = 1;
         std::vector<std::byte> buffer;
         ut::expect(hpp::proto::write_binpb(msg, buffer).ok());
 
@@ -597,7 +597,7 @@ const ut::suite test_enums = [] {
                                         std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, EXTRA}));
           ut::expect(std::ranges::equal(restored_msg.packed_repeated_field,
                                         std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, EXTRA}));
-          ut::expect(restored_msg.optional_message_field.has_value() && restored_msg.optional_message_field->i == 1);
+          ut::expect(restored_msg.optional_indirect_field.has_value() && restored_msg.optional_indirect_field->i == 1);
         }
       } |
       std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits,
@@ -1443,97 +1443,72 @@ const ut::suite test_non_owning_extensions = [] {
 };
 
 // NOLINTBEGIN(misc-no-recursion)
+template <typename Traits>
 struct recursive_type1 {
-  hpp::proto::heap_based_optional<recursive_type1> child;
+  Traits::template optional_indirect_t<recursive_type1<Traits>> child;
   uint32_t payload = {};
 
   bool operator==(const recursive_type1 &) const = default;
 };
 
-auto pb_meta(const recursive_type1 &)
-    -> std::tuple<hpp::proto::field_meta<1, &recursive_type1::child>,
-                  hpp::proto::field_meta<2, &recursive_type1::payload, field_option::none, hpp::proto::vint64_t>>;
+template <typename Traits>
+auto pb_meta(const recursive_type1<Traits> &)
+    -> std::tuple<
+        hpp::proto::field_meta<1, &recursive_type1<Traits>::child>,
+        hpp::proto::field_meta<2, &recursive_type1<Traits>::payload, field_option::none, hpp::proto::vint64_t>>;
 
+template <typename Traits>
 struct recursive_type2 {
-  std::vector<recursive_type2> children;
+  Traits::template repeated_t<recursive_type2<Traits>> children;
   int32_t payload = {};
 
   bool operator==(const recursive_type2 &) const = default;
 };
 
-auto pb_meta(const recursive_type2 &)
-    -> std::tuple<hpp::proto::field_meta<1, &recursive_type2::children, field_option::none>,
-                  hpp::proto::field_meta<2, &recursive_type2::payload, field_option::none, hpp::proto::vint64_t>>;
-
-struct non_owning_recursive_type1 {
-  hpp::proto::optional_message_view<non_owning_recursive_type1> child;
-  uint32_t payload = {};
-
-  bool operator==(const non_owning_recursive_type1 &) const = default;
-};
-
-auto pb_meta(const non_owning_recursive_type1 &)
+template <typename Traits>
+auto pb_meta(const recursive_type2<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_recursive_type1::child>,
-        hpp::proto::field_meta<2, &non_owning_recursive_type1::payload, field_option::none, hpp::proto::vint64_t>>;
-
-// NOLINTBEGIN(cppcoreguidelines-special-member-functions)
-struct non_owning_recursive_type2 {
-  hpp::proto::equality_comparable_span<const non_owning_recursive_type2> children;
-  int32_t payload = {};
-#ifdef __clang__
-  constexpr non_owning_recursive_type2() noexcept = default;
-  constexpr ~non_owning_recursive_type2() noexcept = default;
-  constexpr non_owning_recursive_type2(const non_owning_recursive_type2 &other) noexcept
-      : children(other.children.data(), other.children.size()), payload(other.payload) {
-    // clang libc++ has trouble to copy the span when non_owning_recursive_type2 is not a complete type
-  }
-  constexpr non_owning_recursive_type2 &operator=(const non_owning_recursive_type2 &other) noexcept = default;
-#endif
-  bool operator==(const non_owning_recursive_type2 &) const = default;
-};
-// NOLINTEND(cppcoreguidelines-special-member-functions)
-
-auto pb_meta(const non_owning_recursive_type2 &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &non_owning_recursive_type2::children, field_option::none>,
-        hpp::proto::field_meta<2, &non_owning_recursive_type2::payload, field_option::none, hpp::proto::vint64_t>>;
+        hpp::proto::field_meta<1, &recursive_type2<Traits>::children, field_option::none>,
+        hpp::proto::field_meta<2, &recursive_type2<Traits>::payload, field_option::none, hpp::proto::vint64_t>>;
 
 const ut::suite recursive_types = [] {
-  "recursive_type1"_test = [] {
-    recursive_type1 child;
-    child.payload = 2;
-    recursive_type1 value;
-    value.child = child;
-    value.payload = 1;
-    expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
-  };
-  "recursive_type2"_test = [] {
-    recursive_type2 child;
-    child.payload = 2;
-    recursive_type2 value;
-    value.children.push_back(child);
-    value.payload = 1;
+  using namespace boost::ut;
+  "recursive"_test = []<class Traits>() {
+    "recursive_type1"_test = [] {
+      recursive_type1<Traits> child;
+      child.payload = 2;
+      recursive_type1<Traits> value;
+      value.child = child;
+      value.payload = 1;
+      expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
+    };
+    "recursive_type2"_test = [] {
+      recursive_type2<Traits> child;
+      child.payload = 2;
+      recursive_type2<Traits> value;
+      value.children.push_back(child);
+      value.payload = 1;
 
-    expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
-  };
+      expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
+    };
+
+    "invalid_recursive_type1"_test = [] {
+      recursive_type1<Traits> value;
+      expect_read_fail("\x0a\x0c\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x10\x01"sv, value);
+    };
+  } | std::tuple<hpp::proto::default_traits, hpp::proto::pmr_traits>{};
 
   "non_owning_recursive_type1"_test = [] {
-    non_owning_recursive_type1 child{nullptr, 2};
-    non_owning_recursive_type1 const value{&child, 1};
+    recursive_type1<hpp::proto::non_owning_traits> child{nullptr, 2};
+    recursive_type1<hpp::proto::non_owning_traits> const value{&child, 1};
 
     expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
-  };
-
-  "invalid_non_owning_recursive_type1"_test = [] {
-    non_owning_recursive_type1 value;
-    expect_read_fail("\x0a\x0c\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x10\x01"sv, value);
   };
 
   "non_owning_recursive_type2"_test = [] {
-    non_owning_recursive_type2 child[1];
+    recursive_type2<hpp::proto::non_owning_traits> child[1];
     child[0].payload = 2;
-    non_owning_recursive_type2 value;
+    recursive_type2<hpp::proto::non_owning_traits> value;
     value.children = child;
     value.payload = 1;
 

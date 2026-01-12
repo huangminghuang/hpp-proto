@@ -41,7 +41,7 @@ struct MessageName { /* ... */ };
 | `Traits::string_t`, `Traits::bytes_t` | Storage for string/bytes fields |
 | `Traits::template repeated_t<T>` | Storage for repeated fields |
 | `Traits::template map_t<Key, Value>` | Storage for map fields |
-| `Traits::template optional_recursive_t<T>` | Holder for recursive optional embedded messages |
+| `Traits::template optional_indirect_t<T>` | Holder for recursive optional embedded messages |
 | `Traits::unknown_fields_range_t` | Unknown-field preservation policy |
 
 Bundled traits:
@@ -269,10 +269,10 @@ std::optional<Bar<Traits>> foo;
 When a message references itself (directly or transitively), the generator switches to the trait-provided recursive holder:
 
 ```cpp
-Traits::template optional_recursive_t<MyMessage<Traits>> child;
+Traits::template optional_indirect_t<MyMessage<Traits>> child;
 ```
 
-`optional_recursive_t` defaults to `hpp::proto::heap_based_optional` in owning mode and `hpp::proto::optional_message_view` for non-owning traits. This pattern appears in generated code such as `TestRecursiveMessage` from `google/protobuf/unittest.proto`.
+`optional_indirect_t` defaults to `hpp::proto::optional_indirect` in owning mode and `hpp::proto::optional_indirect_view` for non-owning traits. This pattern appears in generated code such as `TestRecursiveMessage` from `google/protobuf/unittest.proto`.
 
 ### Repeated Fields
 
