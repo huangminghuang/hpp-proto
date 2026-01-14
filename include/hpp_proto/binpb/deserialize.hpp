@@ -1374,11 +1374,11 @@ constexpr status deserialize(auto &item, concepts::segmented_byte_range auto con
   const auto num_segments = std::size(buffer);
   const auto num_regions = num_segments * 2;
   const auto patch_buffer_bytes_count = num_segments * patch_buffer_size;
-  const auto regions_bytes_count = num_regions * sizeof(input_buffer_region<char>);
   using buffer_type = std::remove_cvref_t<decltype(buffer)>;
   using segment_type = std::ranges::range_value_t<buffer_type>;
   using byte_type = std::ranges::range_value_t<segment_type>;
 
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::array<std::byte, 1024> tmp_buffer;
   std::pmr::monotonic_buffer_resource mr{tmp_buffer.data(), tmp_buffer.size()};
   

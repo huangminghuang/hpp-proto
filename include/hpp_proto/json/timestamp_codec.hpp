@@ -36,7 +36,7 @@ struct timestamp_codec {
     static_assert(Len == 2 || Len == 4 || Len == 9);
     assert(val >= 0);
     if constexpr (Len == 9) {
-      uint32_t nanos = static_cast<uint32_t>(val);
+      auto nanos = static_cast<uint32_t>(val);
       uint32_t ns_component = nanos % 1'000;
       uint32_t digits = 0;
       if (ns_component > 0) {

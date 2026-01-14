@@ -424,6 +424,7 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
     std::vector<uint32_t> cache(n);
     return do_serialize(cache);
   } else {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     std::array<std::byte, max_stack_cache_size> cache_storage;
     std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size()};
     std::pmr::vector<uint32_t> cache(n, &mr);

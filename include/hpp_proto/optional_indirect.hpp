@@ -29,10 +29,11 @@ public:
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc) noexcept : alloc_(alloc) {}
   constexpr ~optional_indirect() noexcept { reset(); }
 
-  constexpr optional_indirect(std::nullopt_t /* unused */) noexcept {};
+  constexpr explicit optional_indirect(std::nullopt_t /* unused */) noexcept {};
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, std::nullopt_t /* unused */) noexcept
       : alloc_(alloc) {}
 
+  // NOLINTNEXTLINE
   constexpr optional_indirect(const T &object) { emplace(object); }
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, const T &object) : alloc_(alloc) {
     emplace(object);
@@ -47,26 +48,25 @@ public:
   }
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, const optional_indirect &other)
       : alloc_(alloc) {
-    if constexpr (allocator_traits::is_always_equal::value) {
-      if (other.obj_) {
-        emplace(*other.raw_ptr());
-      }
-    } else if (other.obj_) {
+    if (other.obj_) {
       emplace(*other.raw_ptr());
     }
   }
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, optional_indirect &&other) : alloc_(alloc) {
     if constexpr (allocator_traits::is_always_equal::value) {
       obj_ = std::exchange(other.obj_, nullptr);
-    } else if (alloc_ == other.alloc_) {
-      obj_ = std::exchange(other.obj_, nullptr);
-    } else if (other.obj_) {
-      emplace(std::move(*other.raw_ptr()));
+    } else {
+      if (alloc_ == other.alloc_) {
+        obj_ = std::exchange(other.obj_, nullptr);
+      } else if (other.obj_) {
+        emplace(std::move(*other.raw_ptr()));
+      }
     }
   }
 
   template <class... Args>
-  constexpr explicit optional_indirect(std::in_place_t, Args &&...args) : alloc_{} {
+  constexpr explicit optional_indirect(std::in_place_t, Args &&...args) {
     emplace(std::forward<Args>(args)...);
   }
   template <class... Args>
@@ -127,7 +127,7 @@ public:
   }
 
   [[nodiscard]] constexpr bool has_value() const noexcept { return obj_ != nullptr; }
-  constexpr operator bool() const noexcept { return has_value(); }
+  constexpr explicit operator bool() const noexcept { return has_value(); }
 
   constexpr T &value() {
     if (!has_value()) {
@@ -169,12 +169,15 @@ public:
       return;
     }
     using std::swap;
+    if constexpr (allocator_traits::is_always_equal::value) {
+      swap(obj_, other.obj_);
+      return;
+    }
+
     if constexpr (allocator_traits::propagate_on_container_swap::value) {
       swap(alloc_, other.alloc_);
     }
-    if constexpr (allocator_traits::is_always_equal::value) {
-      swap(obj_, other.obj_);
-    } else if (alloc_ == other.alloc_) {
+    if (alloc_ == other.alloc_) {
       swap(obj_, other.obj_);
     } else if (obj_ && other.obj_) {
       swap(*raw_ptr(), *other.raw_ptr());
@@ -303,8 +306,8 @@ public:
   }
 
 private:
-  constexpr T *raw_ptr() noexcept { return std::to_address(obj_); }
-  constexpr const T *raw_ptr() const noexcept { return std::to_address(obj_); }
+  [[nodiscard]] constexpr T *raw_ptr() noexcept { return std::to_address(obj_); }
+  [[nodiscard]] constexpr const T *raw_ptr() const noexcept { return std::to_address(obj_); }
 };
 
 /// Used for recursive non-owning message types
@@ -317,8 +320,8 @@ public:
   constexpr optional_indirect_view() noexcept = default;
   constexpr ~optional_indirect_view() noexcept = default;
 
-  constexpr optional_indirect_view(std::nullptr_t /* unused */) noexcept {};
-
+  constexpr explicit optional_indirect_view(std::nullptr_t /* unused */) noexcept {};
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   constexpr optional_indirect_view(const T *object) : obj(object) {}
   constexpr optional_indirect_view(optional_indirect_view &&other) noexcept : obj(other.obj) {}
   constexpr optional_indirect_view(const optional_indirect_view &other) noexcept : obj(other.obj) {}
@@ -342,7 +345,7 @@ public:
   }
 
   [[nodiscard]] constexpr bool has_value() const noexcept { return static_cast<bool>(obj); }
-  constexpr operator bool() const noexcept { return has_value(); }
+  constexpr explicit operator bool() const noexcept { return has_value(); }
 
   [[nodiscard]] constexpr const T &value() const {
     if (!has_value()) {

@@ -42,7 +42,7 @@ struct duration_codec {
     auto ix = static_cast<std::size_t>(std::distance(buf, glz::to_chars(buf, value.seconds)));
 
     if (value.nanos != 0) {
-      uint32_t nanos = static_cast<uint32_t>(std::abs(value.nanos));
+      auto nanos = static_cast<uint32_t>(std::abs(value.nanos));
       auto *pos = std::next(buf, static_cast<std::ptrdiff_t>(ix));
       uint32_t ns_component = nanos % 1'000;
       uint32_t digits = 0;

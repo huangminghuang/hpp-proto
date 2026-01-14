@@ -438,7 +438,7 @@ inline json_status read_json(concepts::read_json_supported auto &value,
                 "temporary buffer cannot be used for non-owning object parsing");
 
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
-    value = {};
+    value = std::decay_t<decltype(value)>{};
   }
   constexpr auto opts = ::glz::set_opt<detail::get_glz_opts<decltype(option)...>(), &glz::opts::null_terminated>(
       concepts::null_terminated_str<decltype(buffer)>);
