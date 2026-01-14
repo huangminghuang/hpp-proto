@@ -8,7 +8,6 @@
 
 // Define custom traits that use std::pmr containers
 
-
 using PmrAddressBook = tutorial::AddressBook<hpp::proto::pmr_traits>;
 using PmrPerson = tutorial::Person<hpp::proto::pmr_traits>;
 

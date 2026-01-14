@@ -273,7 +273,6 @@ constexpr auto non_owning<std::string_view> = true;
 template <typename T>
 constexpr auto non_owning<hpp::proto::equality_comparable_span<const T>> = true;
 
-
 template <typename Traits>
 struct glz::meta<bytes_example<Traits>> {
   using T = bytes_example<Traits>;
@@ -292,11 +291,11 @@ const ut::suite test_bytes = [] {
   "bytes"_test = []<class Traits> {
     verify(bytes_example<Traits>{}, R"({"field0":""})");
     verify(bytes_example<Traits>{.field0 = "foo"_bytes,
-                                                 .field1 = "light work."_bytes,
-                                                 .field2 = "light work"_bytes,
-                                                 .field3 = "light wor"_bytes},
+                                 .field1 = "light work."_bytes,
+                                 .field2 = "light work"_bytes,
+                                 .field3 = "light wor"_bytes},
            R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits, hpp::proto::pmr_traits>{}; 
+  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits, hpp::proto::pmr_traits>{};
 };
 
 template <typename Traits>

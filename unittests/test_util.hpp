@@ -55,8 +55,8 @@ std::ostream &operator<<(std::ostream &os, hpp::proto::bytes_literal<cts> v) {
 template <hpp::proto::concepts::flat_map Map>
 std::ostream &operator<<(std::ostream &os, const Map &map) {
   os << "{";
-  bool is_first = true; 
-  for (const auto& entry : map) {
+  bool is_first = true;
+  for (const auto &entry : map) {
     if (!is_first) {
       os << ", ";
       is_first = false;

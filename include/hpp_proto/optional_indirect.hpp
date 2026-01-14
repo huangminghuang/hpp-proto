@@ -75,9 +75,9 @@ public:
     emplace(std::forward<Args>(args)...);
   }
 
-  constexpr optional_indirect &operator=(optional_indirect &&other) noexcept(
-      allocator_traits::propagate_on_container_move_assignment::value ||
-      allocator_traits::is_always_equal::value) {
+  constexpr optional_indirect &
+  operator=(optional_indirect &&other) noexcept(allocator_traits::propagate_on_container_move_assignment::value ||
+                                                allocator_traits::is_always_equal::value) {
     if (this == &other) {
       return *this;
     }
@@ -163,8 +163,8 @@ public:
     return *raw_ptr();
   }
 
-  constexpr void swap(optional_indirect &other) noexcept(
-      allocator_traits::propagate_on_container_swap::value || allocator_traits::is_always_equal::value) {
+  constexpr void swap(optional_indirect &other) noexcept(allocator_traits::propagate_on_container_swap::value ||
+                                                         allocator_traits::is_always_equal::value) {
     if (this == &other) {
       return;
     }

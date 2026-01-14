@@ -5,7 +5,6 @@
 #include <hpp_proto/field_types.hpp>
 #include <hpp_proto/json.hpp>
 
-
 template <typename Traits = ::hpp::proto::default_traits>
 struct TestRecursiveMessage {
   using hpp_proto_traits_type = Traits;
@@ -19,9 +18,7 @@ struct TestRecursiveMessage {
 template <typename Traits>
 struct glz::meta<TestRecursiveMessage<Traits>> {
   using T = TestRecursiveMessage<Traits>;
-  static constexpr auto value = object(
-    "a", &T::a,
-    "i", &T::i);
+  static constexpr auto value = object("a", &T::a, "i", &T::i);
 };
 
 const boost::ut::suite optional_indirect_tests = [] {
@@ -272,7 +269,7 @@ const boost::ut::suite optional_indirect_tests = [] {
       expect(hpp::proto::write_json(msg, json).ok());
       std::string expected_json = R"({"a":{"i":10},"i":100})";
       expect(eq(expected_json, json));
-      
+
       Message msg1;
       expect(hpp::proto::read_json(msg1, expected_json).ok());
       expect(msg == msg1);

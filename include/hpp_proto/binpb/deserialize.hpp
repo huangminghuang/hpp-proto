@@ -1381,11 +1381,11 @@ constexpr status deserialize(auto &item, concepts::segmented_byte_range auto con
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::array<std::byte, 1024> tmp_buffer;
   std::pmr::monotonic_buffer_resource mr{tmp_buffer.data(), tmp_buffer.size()};
-  
+
   std::pmr::vector<byte_type> patch_buffer(patch_buffer_bytes_count, &mr);
   std::pmr::vector<input_buffer_region<byte_type>> regions(num_regions, &mr);
   return deserialize(item, context, buffer, std::span{regions.data(), regions.size()},
-                         std::span{patch_buffer.data(), patch_buffer.size()});
+                     std::span{patch_buffer.data(), patch_buffer.size()});
 }
 } // namespace pb_serializer
 } // namespace hpp::proto
