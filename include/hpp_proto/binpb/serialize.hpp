@@ -412,37 +412,22 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
   };
 
   using context_type = decltype(context);
-  constexpr std::size_t max_stack_cache_count = [] {
+  constexpr std::size_t max_stack_cache_size = [] {
     if constexpr (requires { context_type::max_size_cache_on_stack; }) {
       return context_type::max_size_cache_on_stack;
     } else {
       return hpp::proto::max_size_cache_on_stack<>.max_size_cache_on_stack;
     }
-  }() / sizeof(uint32_t);
+  }();
 
-  if (std::is_constant_evaluated() || n > max_stack_cache_count) {
-    if constexpr (concepts::has_memory_resource<decltype(context)>) {
-      auto cache = std::span{
-          static_cast<uint32_t *>(context.memory_resource().allocate(n * sizeof(uint32_t), sizeof(uint32_t))), n};
-      return do_serialize(cache);
-    } else {
-      std::vector<uint32_t> cache(n);
-      return do_serialize(cache);
-    }
-  } else if (n > 0) {
-#ifdef _WIN32
-    std::unique_ptr<uint32_t, freea> ptr{static_cast<uint32_t *>(_malloca(n * sizeof(uint32_t)))};
-    auto *cache = ptr.get();
-#elifdef __GNUC__
-    auto *cache =
-        static_cast<uint32_t *>(__builtin_alloca_with_align(n * sizeof(uint32_t), CHAR_BIT * sizeof(uint32_t)));
-#else
-    uint32_t cache[max_stack_cache_count];
-#endif
-    return do_serialize({cache, n});
+  if (std::is_constant_evaluated()) {
+    std::vector<uint32_t> cache(n);
+    return do_serialize(cache);
   } else {
-    uint32_t *cache = nullptr;
-    return do_serialize({cache, n});
+    std::array<std::byte, max_stack_cache_size> cache_storage;
+    std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size()};
+    std::pmr::vector<uint32_t> cache(n, &mr);
+    return do_serialize(cache);
   }
 }
 

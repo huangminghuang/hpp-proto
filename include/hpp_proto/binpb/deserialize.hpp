@@ -1379,39 +1379,13 @@ constexpr status deserialize(auto &item, concepts::segmented_byte_range auto con
   using segment_type = std::ranges::range_value_t<buffer_type>;
   using byte_type = std::ranges::range_value_t<segment_type>;
 
-  if constexpr (requires { context.memory_resource(); }) {
-    auto patch_buffer =
-        std::span{static_cast<byte_type *>(context.memory_resource().allocate(patch_buffer_bytes_count, 1)),
-                  patch_buffer_bytes_count};
-    auto regions = std::span{static_cast<input_buffer_region<byte_type> *>(context.memory_resource().allocate(
-                                 regions_bytes_count, alignof(input_buffer_region<byte_type>))),
-                             num_regions};
-    return deserialize(item, context, buffer, regions, patch_buffer);
-  } else {
-    if (num_segments > stack_segment_threshold) {
-      std::vector<byte_type> patch_buffer(patch_buffer_bytes_count);
-      std::vector<input_buffer_region<byte_type>> regions(num_regions);
-      return deserialize(item, context, buffer, std::span{regions.data(), regions.size()},
+  std::array<std::byte, 1024> tmp_buffer;
+  std::pmr::monotonic_buffer_resource mr{tmp_buffer.data(), tmp_buffer.size()};
+  
+  std::pmr::vector<byte_type> patch_buffer(patch_buffer_bytes_count, &mr);
+  std::pmr::vector<input_buffer_region<byte_type>> regions(num_regions, &mr);
+  return deserialize(item, context, buffer, std::span{regions.data(), regions.size()},
                          std::span{patch_buffer.data(), patch_buffer.size()});
-    } else {
-#ifdef _WIN32
-      struct freea_deleter {
-        void operator()(void *ptr) const noexcept { _freea(ptr); }
-      };
-      std::unique_ptr<byte_type, freea_deleter> patch_buffer_ptr{
-          static_cast<byte_type *>(_malloca(patch_buffer_bytes_count))};
-      auto patch_buffer = std::span{patch_buffer_ptr.get(), patch_buffer_bytes_count};
-      std::unique_ptr<input_buffer_region<byte_type>, freea_deleter> regions_ptr{
-          static_cast<input_buffer_region<byte_type> *>(_malloca(regions_bytes_count))};
-      auto regions = std::span{regions_ptr.get(), num_regions};
-#else
-      auto patch_buffer =
-          std::span{static_cast<byte_type *>(alloca(patch_buffer_bytes_count)), patch_buffer_bytes_count};
-      auto regions = std::span{static_cast<input_buffer_region<byte_type> *>(alloca(regions_bytes_count)), num_regions};
-#endif
-      return deserialize(item, context, buffer, regions, patch_buffer);
-    }
-  }
 }
 } // namespace pb_serializer
 } // namespace hpp::proto
