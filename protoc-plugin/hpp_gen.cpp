@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include <algorithm>
+#include <any>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -508,6 +509,7 @@ struct hpp_addons {
     std::vector<void *> used_by_fields;
     std::set<Derived *> dependencies;
     std::set<Derived *> forward_messages;
+    std::vector<Derived *> ordered_messages;
     std::string qualified_name;
     std::string no_namespace_qualified_name;
     bool has_recursive_map_field = false;
@@ -523,6 +525,7 @@ struct hpp_addons {
   template <typename Derived>
   struct file_descriptor {
     std::vector<std::string> dependency_names;
+    std::any ordered_messages;
 
     std::string syntax;
     std::string cpp_namespace;
@@ -589,6 +592,7 @@ struct code_generator {
   using oneof_descriptor_t = hpp_gen_descriptor_pool::oneof_descriptor_t;
   using field_descriptor_t = hpp_gen_descriptor_pool::field_descriptor_t;
   using file_descriptor_t = hpp_gen_descriptor_pool::file_descriptor_t;
+  using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
 
   static message_descriptor_t *parent_message_of(auto *desc) { return desc->parent_message(); }
 
@@ -630,6 +634,8 @@ struct code_generator {
       for (auto *f : depended->used_by_fields) {
         auto *field = static_cast<field_descriptor_t *>(f);
         auto *message = parent_message_of(field);
+        if (message->parent_file() != depended->parent_file())
+          continue;
         if (std::ranges::find(unresolved, message) != unresolved.end()) {
           used_by_messages[message] |=
               (field->proto().label != hpp_gen_descriptor_pool::FieldDescriptorProto::Label::LABEL_REPEATED);
@@ -651,6 +657,8 @@ struct code_generator {
       for (auto *f : depended->used_by_fields) {
         auto *field = static_cast<field_descriptor_t *>(f);
         auto *message = parent_message_of(field);
+        if (message->parent_file() != depended->parent_file())
+          continue;
         if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry()) {
           used_by_messages[message] |= !(message->is_map_entry());
           field->is_recursive = true;
@@ -735,25 +743,6 @@ struct code_generator {
     return descriptor.proto().dependency |
            std::views::filter([](const auto &dep) { return dep != "hpp_proto/hpp_options.proto"; });
   }
-};
-
-std::filesystem::path code_generator::plugin_name;
-std::string code_generator::plugin_parameters;
-std::vector<std::string> code_generator::proto2_explicit_presences;
-std::string code_generator::directory_prefix;
-
-struct msg_code_generator : code_generator {
-  std::string syntax;
-  std::string out_of_class_data;
-  std::back_insert_iterator<std::string> out_of_class_target;
-  std::string out_of_ns_data;
-  std::back_insert_iterator<std::string> out_of_ns_target;
-  using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
-
-  explicit msg_code_generator(std::vector<CodeGeneratorResponse::File> &files)
-      : code_generator(files), out_of_class_target(out_of_class_data), out_of_ns_target(out_of_ns_data) {}
-
-  static std::string namespace_prefix_of(const auto &d) { return d.parent_file()->namespace_prefix; }
 
   static void set_field_cpp_type(field_descriptor_t &field, std::string_view relative_type_name, bool is_nested) {
     using enum FieldDescriptorProto::Type;
@@ -895,6 +884,13 @@ struct msg_code_generator : code_generator {
     }
   }
 
+  static void order_messages(message_descriptor_t& descriptor) {
+    descriptor.ordered_messages = order_messages(descriptor.messages());
+    for (auto* msg: descriptor.ordered_messages) {
+      order_messages(*msg);
+    }
+  }
+
   static void resolve_message_dependencies(hpp_gen_descriptor_pool &pool) {
     for (auto &file : pool.files()) {
       for (auto &msg : file.messages()) {
@@ -919,7 +915,35 @@ struct msg_code_generator : code_generator {
         break;
       };
     }
+
+    for (auto &file : pool.files()) {
+      auto file_name = file.proto().name;
+      auto ordered = order_messages(file.messages());
+      for (auto* msg : ordered) {
+        order_messages(*msg);
+      }
+
+      file.ordered_messages.emplace<std::vector<message_descriptor_t*>>(std::move(ordered));
+    }
   }
+};
+
+std::filesystem::path code_generator::plugin_name;
+std::string code_generator::plugin_parameters;
+std::vector<std::string> code_generator::proto2_explicit_presences;
+std::string code_generator::directory_prefix;
+
+struct msg_code_generator : code_generator {
+  std::string syntax;
+  std::string out_of_class_data;
+  std::back_insert_iterator<std::string> out_of_class_target;
+  std::string out_of_ns_data;
+  std::back_insert_iterator<std::string> out_of_ns_target;
+
+  explicit msg_code_generator(std::vector<CodeGeneratorResponse::File> &files)
+      : code_generator(files), out_of_class_target(out_of_class_data), out_of_ns_target(out_of_ns_data) {}
+
+  static std::string namespace_prefix_of(const auto &d) { return d.parent_file()->namespace_prefix; }
 
   void process(file_descriptor_t &descriptor) {
     syntax = descriptor.syntax;
@@ -946,7 +970,9 @@ struct msg_code_generator : code_generator {
       process(e);
     }
 
-    for (auto *m : order_messages(descriptor.messages())) {
+    auto& ordered_message = std::any_cast<std::vector<message_descriptor_t*>&>(descriptor.ordered_messages);
+
+    for (auto *m : ordered_message) {
       process(*m, descriptor.proto().package);
     }
 
@@ -971,7 +997,7 @@ struct msg_code_generator : code_generator {
       return "Traits::template repeated_t";
     }
     if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
-      if (descriptor.is_recursive) {
+      if (descriptor.is_recursive || descriptor.message_field_type_descriptor()->has_recursive_map_field) {
         return "Traits::template optional_indirect_t";
       } else if (descriptor.is_cpp_optional) {
         return "std::optional";
@@ -1123,7 +1149,7 @@ struct msg_code_generator : code_generator {
         process(e);
       }
 
-      for (auto *m : order_messages(descriptor.messages())) {
+      for (auto *m : descriptor.ordered_messages) {
         process(*m, descriptor.pb_name);
       }
 
@@ -1193,31 +1219,6 @@ struct msg_code_generator : code_generator {
 
     indent_num -= 2;
     format_to(target, "{}}};\n\n", indent());
-    if (descriptor.pb_name == "google.protobuf.Struct") {
-      format_to(out_of_class_target, "#ifdef __clang__\n"
-                                     "template <typename Traits>\n"
-                                     "using _test_Struct = std::variant<std::monostate, typename Traits::template "
-                                     "map_t<typename Traits::string_t, typename Traits::bytes_t>>;\n"
-                                     "#endif\n\n");
-      format_to(out_of_ns_target,
-                "#ifdef __clang__\n"
-                "template <typename Traits>\n"
-                "struct std::is_trivially_destructible<google::protobuf::Struct<Traits>>\n"
-                "    : is_trivially_destructible<google::protobuf::_test_Struct<Traits>> {{}};\n"
-                "template <typename Traits>\n"
-                "struct std::is_trivially_move_constructible<google::protobuf::Struct<Traits>>\n"
-                "    : is_trivially_move_constructible<google::protobuf::_test_Struct<Traits>> {{}};\n"
-                "template <typename Traits>\n"
-                "struct std::is_trivially_move_assignable<google::protobuf::Struct<Traits>>\n"
-                "    : is_trivially_move_assignable<google::protobuf::_test_Struct<Traits>> {{}};\n"
-                "template <typename Traits>\n"
-                "struct std::is_trivially_copy_constructible<google::protobuf::Struct<Traits>>\n"
-                "    : is_trivially_copy_constructible<google::protobuf::_test_Struct<Traits>> {{}};\n"
-                "template <typename Traits>\n"
-                "struct std::is_trivially_copy_assignable<google::protobuf::Struct<Traits>>\n"
-                "    : is_trivially_copy_assignable<google::protobuf::_test_Struct<Traits>> {{}};\n"
-                "#endif\n\n");
-    }
     std::string_view qualified_name = descriptor.no_namespace_qualified_name;
     format_to(out_of_class_target,
               "template <typename Traits>\n"
@@ -1999,11 +2000,11 @@ int main(int argc, const char **argv) {
   response.minimum_edition = static_cast<int32_t>(google::protobuf::Edition::EDITION_PROTO2);
   response.maximum_edition = static_cast<int32_t>(google::protobuf::Edition::EDITION_2024);
 
+  code_generator::resolve_message_dependencies(pool);
   for (const auto &file_name : request.file_to_generate) {
     auto &descriptor = *pool.get_file_descriptor(file_name);
 
     msg_code_generator msg_code(response.file);
-    msg_code.resolve_message_dependencies(pool);
     msg_code.process(descriptor);
 
     hpp_meta_generator hpp_meta_code(response.file);
