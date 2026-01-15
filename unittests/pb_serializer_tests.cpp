@@ -746,6 +746,17 @@ auto pb_meta(const unordered_map_example &)
                                hpp::proto::map_entry<std::string, color_t, hpp::proto::field_option::utf8_validation,
                                                      hpp::proto::field_option::none>>>;
 
+struct indirect_map_example {
+  hpp::proto::flat_map<std::string, hpp::proto::indirect<example>> fields;
+  bool operator==(const indirect_map_example &) const = default;
+};
+
+auto pb_meta(const indirect_map_example &)
+    -> std::tuple<
+        hpp::proto::field_meta<1, &indirect_map_example::fields, field_option::none,
+                               hpp::proto::map_entry<std::string, hpp::proto::indirect<example>, hpp::proto::field_option::utf8_validation,
+                                                     hpp::proto::field_option::none>>>;
+
 const ut::suite test_map_example = [] {
   auto encoded = "\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"sv;
 
@@ -793,6 +804,13 @@ const ut::suite test_map_example = [] {
     ut::expect(hpp::proto::read_binpb(another, buffer).ok());
     value = unordered_map_example{.dict{another.dict.begin(), another.dict.end()}};
     ut::expect(value == msg);
+  };
+
+  "indirect_map_example"_test = [&] {
+    indirect_map_example const expected{.fields = {{"one", example{.i = 1}}, {"two", example{.i = 2}}}};
+    expect_roundtrip_ok(
+        "\x0a\x09\x0a\x03one\x12\x02\x08\x01\x0a\x09\x0a\x03two\x12\x02\x08\x02"sv,
+        expected);
   };
 
   "invalid_map_entry"_test = [] {

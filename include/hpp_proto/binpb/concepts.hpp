@@ -106,6 +106,15 @@ template <typename T>
 concept optional_indirect_view = std::same_as<T, ::hpp::proto::optional_indirect_view<typename T::value_type>>;
 
 template <typename T>
+concept indirect =
+    requires {
+      typename std::remove_cvref_t<T>::value_type;
+      typename std::remove_cvref_t<T>::allocator_type;
+    } && std::same_as<std::remove_cvref_t<T>,
+                      ::hpp::proto::indirect<typename std::remove_cvref_t<T>::value_type,
+                                             typename std::remove_cvref_t<T>::allocator_type>>;
+
+template <typename T>
 concept oneof_type = concepts::variant<T>;
 
 template <typename T>

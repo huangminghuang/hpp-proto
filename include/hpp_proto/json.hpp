@@ -350,6 +350,22 @@ struct to<JSON, hpp::proto::optional_indirect_view_ref<Type>> {
   }
 };
 
+template <typename Type, typename Alloc>
+struct from<JSON, hpp::proto::indirect<Type, Alloc>> {
+  template <auto Opts>
+  static void op(auto& value, auto &ctx, auto &it, auto &end) {
+    from<JSON, Type>::template op<Opts>(*value, ctx, it, end);
+  }
+};
+
+template <typename Type, typename Alloc>
+struct to<JSON, hpp::proto::indirect<Type, Alloc>> {
+  template <auto Opts, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto&& value, Args &&...args) noexcept {
+    to<JSON, Type>::template op<Opts>(*value, std::forward<Args>(args)...);
+  }
+};
+
 } // namespace glz
 
 namespace hpp::proto {

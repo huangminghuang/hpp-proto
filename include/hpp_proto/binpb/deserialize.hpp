@@ -1052,6 +1052,11 @@ constexpr status deserialize_field(concepts::optional_indirect_view auto &item, 
   }
 }
 
+constexpr status deserialize_field(concepts::indirect auto &item, auto meta, uint32_t tag,
+                                   concepts::is_basic_in auto &archive, auto &unknown_fields) {
+  return deserialize_field(*item, meta, tag, archive, unknown_fields);
+}
+
 template <concepts::optional T>
   requires(!concepts::optional_indirect_view<T>)
 constexpr status deserialize_field(T &item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive,

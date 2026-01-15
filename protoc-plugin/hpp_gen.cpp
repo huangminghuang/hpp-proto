@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #include <algorithm>
-#include <any>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -509,7 +508,6 @@ struct hpp_addons {
     std::vector<void *> used_by_fields;
     std::set<Derived *> dependencies;
     std::set<Derived *> forward_messages;
-    std::vector<Derived *> ordered_messages;
     std::string qualified_name;
     std::string no_namespace_qualified_name;
     bool has_recursive_map_field = false;
@@ -525,7 +523,6 @@ struct hpp_addons {
   template <typename Derived>
   struct file_descriptor {
     std::vector<std::string> dependency_names;
-    std::any ordered_messages;
 
     std::string syntax;
     std::string cpp_namespace;
@@ -627,51 +624,69 @@ struct code_generator {
   }
   // NOLINTEND(misc-no-recursion)
 
+  static message_descriptor_t *resolve_repeated_dependency_cycle(
+      std::vector<message_descriptor_t *> &unresolved, message_descriptor_t *depended) {
+    std::map<message_descriptor_t *, bool> used_by_messages;
+    for (auto *f : depended->used_by_fields) {
+      auto *field = static_cast<field_descriptor_t *>(f);
+      auto *message = parent_message_of(field);
+      if (message->parent_file() != depended->parent_file()) {
+        continue;
+      }
+      if (std::ranges::find(unresolved, message) != unresolved.end()) {
+        used_by_messages[message] |=
+            (field->proto().label != hpp_gen_descriptor_pool::FieldDescriptorProto::Label::LABEL_REPEATED);
+        field->is_recursive = true;
+      }
+    }
+
+    for (auto [m, no_non_repeated_usage] : used_by_messages) {
+      if (!no_non_repeated_usage && !m->is_map_entry()) {
+        m->dependencies.erase(depended);
+        m->forward_messages.insert(depended);
+        return m;
+      }
+    }
+    return nullptr;
+  }
+
+  static message_descriptor_t *resolve_map_dependency_cycle(std::vector<message_descriptor_t *> &unresolved,
+                                                            message_descriptor_t *depended) {
+    std::map<message_descriptor_t *, bool> used_by_messages;
+    for (auto *f : depended->used_by_fields) {
+      auto *field = static_cast<field_descriptor_t *>(f);
+      auto *message = parent_message_of(field);
+      if (message->parent_file() != depended->parent_file()) {
+        continue;
+      }
+      if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry()) {
+        used_by_messages[message] |= !(message->is_map_entry());
+        field->is_recursive = true;
+      }
+    }
+
+    for (auto [m, no_non_map_usage] : used_by_messages) {
+      if (!no_non_map_usage) {
+        m->parent_message()->has_recursive_map_field = true;
+        m->parent_message()->dependencies.erase(depended);
+        m->parent_message()->forward_messages.insert(depended);
+        return m->parent_message();
+      }
+    }
+    return nullptr;
+  }
+
   static message_descriptor_t *resolve_container_dependency_cycle(std::vector<message_descriptor_t *> &unresolved) {
     // First, find the dependency which used the by repeated field
     for (auto *depended : unresolved) {
-      std::map<message_descriptor_t *, bool> used_by_messages;
-      for (auto *f : depended->used_by_fields) {
-        auto *field = static_cast<field_descriptor_t *>(f);
-        auto *message = parent_message_of(field);
-        if (message->parent_file() != depended->parent_file())
-          continue;
-        if (std::ranges::find(unresolved, message) != unresolved.end()) {
-          used_by_messages[message] |=
-              (field->proto().label != hpp_gen_descriptor_pool::FieldDescriptorProto::Label::LABEL_REPEATED);
-          field->is_recursive = true;
-        }
-      }
-
-      for (auto [m, no_non_repeated_usage] : used_by_messages) {
-        if (!no_non_repeated_usage && !m->is_map_entry()) {
-          m->dependencies.erase(depended);
-          m->forward_messages.insert(depended);
-          return m;
-        }
+      if (auto *resolved = resolve_repeated_dependency_cycle(unresolved, depended)) {
+        return resolved;
       }
     }
     // find the dependency which used the by map field
     for (auto *depended : unresolved) {
-      std::map<message_descriptor_t *, bool> used_by_messages;
-      for (auto *f : depended->used_by_fields) {
-        auto *field = static_cast<field_descriptor_t *>(f);
-        auto *message = parent_message_of(field);
-        if (message->parent_file() != depended->parent_file())
-          continue;
-        if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry()) {
-          used_by_messages[message] |= !(message->is_map_entry());
-          field->is_recursive = true;
-        }
-      }
-
-      for (auto [m, no_non_map_usage] : used_by_messages) {
-        if (!no_non_map_usage) {
-          m->parent_message()->has_recursive_map_field = true;
-          m->parent_message()->dependencies.erase(depended);
-          m->parent_message()->forward_messages.insert(depended);
-          return m->parent_message();
-        }
+      if (auto *resolved = resolve_map_dependency_cycle(unresolved, depended)) {
+        return resolved;
       }
     }
     return nullptr;
@@ -884,12 +899,6 @@ struct code_generator {
     }
   }
 
-  static void order_messages(message_descriptor_t& descriptor) {
-    descriptor.ordered_messages = order_messages(descriptor.messages());
-    for (auto* msg: descriptor.ordered_messages) {
-      order_messages(*msg);
-    }
-  }
 
   static void resolve_message_dependencies(hpp_gen_descriptor_pool &pool) {
     for (auto &file : pool.files()) {
@@ -914,16 +923,6 @@ struct code_generator {
       default:
         break;
       };
-    }
-
-    for (auto &file : pool.files()) {
-      auto file_name = file.proto().name;
-      auto ordered = order_messages(file.messages());
-      for (auto* msg : ordered) {
-        order_messages(*msg);
-      }
-
-      file.ordered_messages.emplace<std::vector<message_descriptor_t*>>(std::move(ordered));
     }
   }
 };
@@ -970,9 +969,7 @@ struct msg_code_generator : code_generator {
       process(e);
     }
 
-    auto& ordered_message = std::any_cast<std::vector<message_descriptor_t*>&>(descriptor.ordered_messages);
-
-    for (auto *m : ordered_message) {
+    for (auto *m : order_messages(descriptor.messages())) {
       process(*m, descriptor.proto().package);
     }
 
@@ -997,7 +994,7 @@ struct msg_code_generator : code_generator {
       return "Traits::template repeated_t";
     }
     if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
-      if (descriptor.is_recursive || descriptor.message_field_type_descriptor()->has_recursive_map_field) {
+      if (descriptor.is_recursive) {
         return "Traits::template optional_indirect_t";
       } else if (descriptor.is_cpp_optional) {
         return "std::optional";
@@ -1011,8 +1008,13 @@ struct msg_code_generator : code_generator {
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.is_map_entry()) {
       auto *type_desc = descriptor.message_field_type_descriptor();
-      return std::format("Traits::template map_t<{}, {}>", type_desc->fields().front().cpp_field_type,
-                         type_desc->fields()[1].cpp_field_type);
+      if (type_desc->fields()[1].is_recursive) {
+        return std::format("Traits::template map_t<{}, typename Traits::template indirect_t<{}>>", type_desc->fields().front().cpp_field_type,
+                           type_desc->fields()[1].cpp_field_type);
+      } else {
+        return std::format("Traits::template map_t<{}, {}>", type_desc->fields().front().cpp_field_type,
+                           type_desc->fields()[1].cpp_field_type);
+      }
     }
 
     auto wrapper = field_type_wrapper(descriptor);
@@ -1149,7 +1151,7 @@ struct msg_code_generator : code_generator {
         process(e);
       }
 
-      for (auto *m : descriptor.ordered_messages) {
+      for (auto *m : order_messages(descriptor.messages())) {
         process(*m, descriptor.pb_name);
       }
 
@@ -1360,10 +1362,18 @@ struct hpp_meta_generator : code_generator {
         return field.cpp_meta_type == "void" ? field.qualified_cpp_field_type : field.cpp_meta_type;
       };
       auto *type_desc = descriptor.message_field_type_descriptor();
-      descriptor.cpp_meta_type = std::format(
-          "::hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
-          get_meta_type(type_desc->fields()[1]), join_to_string(meta_options(type_desc->fields()[0]), " | "),
-          join_to_string(meta_options(type_desc->fields()[1]), " | "));
+      if (type_desc->fields()[1].is_recursive) {
+        descriptor.cpp_meta_type = std::format(
+            "::hpp::proto::map_entry<{}, typename Traits::template indirect_t<{}>, {}, {}>",
+            get_meta_type(type_desc->fields()[0]), get_meta_type(type_desc->fields()[1]),
+            join_to_string(meta_options(type_desc->fields()[0]), " | "),
+            join_to_string(meta_options(type_desc->fields()[1]), " | "));
+      } else {
+        descriptor.cpp_meta_type = std::format(
+            "::hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
+            get_meta_type(type_desc->fields()[1]), join_to_string(meta_options(type_desc->fields()[0]), " | "),
+            join_to_string(meta_options(type_desc->fields()[1]), " | "));
+      }
     }
 
     std::string default_value;

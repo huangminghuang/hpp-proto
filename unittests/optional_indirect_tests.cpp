@@ -9,7 +9,7 @@ template <typename Traits = ::hpp::proto::default_traits>
 struct TestRecursiveMessage {
   using hpp_proto_traits_type = Traits;
   Traits::template optional_indirect_t<TestRecursiveMessage> a;
-  std::int32_t i;
+  std::int32_t i{};
 
   [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator==(const TestRecursiveMessage &) const = default;
@@ -89,7 +89,7 @@ const boost::ut::suite optional_indirect_tests = [] {
       Message msg;
       msg.i = 1;
       Optional original(msg);
-      Optional copy(original);
+      Optional copy(original); // NOLINT(performance-unnecessary-copy-initialization)
       expect(copy.has_value());
       expect(copy->i == 1);
     };
@@ -134,7 +134,7 @@ const boost::ut::suite optional_indirect_tests = [] {
         Optional moved(std::allocator_arg, alloc2, std::move(original));
         expect(moved.has_value());
         expect(moved->i == 5);
-        expect(original.has_value()); // different allocators: move leaves original intact
+        expect(original.has_value()); // NOLINT different allocators: move leaves original intact
       } else {
         expect(true);
       }

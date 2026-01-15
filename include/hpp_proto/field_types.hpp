@@ -35,6 +35,7 @@
 #else
 #include <hpp_proto/flat_map.hpp>
 #endif
+#include <hpp_proto/indirect.hpp>
 #include <hpp_proto/optional_indirect.hpp>
 #include <memory>
 #include <optional>
@@ -620,6 +621,9 @@ struct basic_default_traits {
 
   template <typename T>
   using optional_indirect_t = hpp::proto::optional_indirect<T, Allocator<T>>;
+
+  template <typename T>
+  using indirect_t = hpp::proto::indirect<T, Allocator<T>>;
 
   template <typename Key, typename Mapped>
   using map_t = hpp::proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,

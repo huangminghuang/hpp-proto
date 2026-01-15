@@ -33,10 +33,15 @@ public:
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, std::nullopt_t /* unused */) noexcept
       : alloc_(alloc) {}
 
-  // NOLINTNEXTLINE
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
   constexpr optional_indirect(const T &object) { emplace(object); }
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, const T &object) : alloc_(alloc) {
     emplace(object);
+  }
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
+  constexpr optional_indirect(T &&object) { emplace(std::move(object)); }
+  constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, T &&object) : alloc_(alloc) {
+    emplace(std::move(object));
   }
   constexpr optional_indirect(optional_indirect &&other) noexcept
       : alloc_(std::move(other.alloc_)), obj_(std::exchange(other.obj_, nullptr)) {}
@@ -105,6 +110,16 @@ public:
       }
     } else {
       reset();
+    }
+    return *this;
+  }
+
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
+  constexpr optional_indirect &operator=(T &&other) {
+    if (obj_) {
+      *raw_ptr() = std::move(other);
+    } else {
+      emplace(std::move(other));
     }
     return *this;
   }

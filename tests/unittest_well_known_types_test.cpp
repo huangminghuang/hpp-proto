@@ -7,34 +7,37 @@
 
 using namespace boost::ut;
 
-struct pmr_traits : hpp::proto::default_traits {
-  using string_t = std::pmr::string;
-  using bytes_t = std::pmr::vector<std::byte>;
-
-  template <typename T>
-  using repeated_t = std::pmr::vector<T>;
-
-  template <typename Key, typename Value>
-  using map_t = std::pmr::map<Key, Value>;
-
-  struct unknown_fields_range_t {
-    bool operator==(const unknown_fields_range_t &) const = default;
-  };
-};
-
 template <typename Traits>
 struct WellKnownTypesTests {
   using string_t = typename Traits::string_t;
   using bytes_t = typename Traits::bytes_t;
   using value_t = typename google::protobuf::Value<Traits>;
+  using struct_t = typename google::protobuf::Struct<Traits>;
+  using struct_fields_t = decltype(std::declval<struct_t>().fields);
   using any_t = typename google::protobuf::Any<Traits>;
   using field_mask_t = typename google::protobuf::FieldMask<Traits>;
   using duration_t = typename google::protobuf::Duration<Traits>;
   using timestamp_t = typename google::protobuf::Timestamp<Traits>;
   using TestWellKnownTypes = proto2_unittest::TestWellKnownTypes<Traits>;
+
   std::pmr::monotonic_buffer_resource pool;
   static std::initializer_list<string_t> field_mask_paths_init_list;
-  static std::initializer_list<std::pair<string_t, value_t>> struct_fields_init_lit;
+
+  static auto struct_fields_init()
+    requires(!std::same_as<Traits, hpp::proto::non_owning_traits>)
+  {
+    struct_fields_t fields;
+    fields.emplace(string_t{"abc"}, value_t{.kind = 1.0});
+    return fields;
+  }
+
+  static auto struct_fields_init()
+    requires(std::same_as<Traits, hpp::proto::non_owning_traits>)
+  {
+    static auto init_list =
+        std::initializer_list<typename struct_fields_t::value_type>{{string_t{"abc"}, value_t{.kind = 1.0}}};
+    return struct_fields_t{init_list};
+  }
 
   void SetAllFields(TestWellKnownTypes *m) {
     expect(hpp::proto::pack_any(m->any_field.emplace(), field_mask_t{.paths = field_mask_paths_init_list},
@@ -46,12 +49,12 @@ struct WellKnownTypesTests {
     m->empty_field.emplace();
     m->field_mask_field.emplace().paths = field_mask_paths_init_list;
     m->source_context_field.emplace();
-    m->struct_field.emplace().fields = struct_fields_init_lit;
+    m->struct_field.emplace().fields = struct_fields_init();
     m->timestamp_field.emplace() = {.seconds = 2000, .nanos = 200000000};
     m->type_field.emplace().name = string_t{"test_type"};
 
     m->double_field.emplace().value = 3.14;
-    m->float_field.emplace().value = 2.718F;
+    m->float_field.emplace().value = 2.718F; // NOLINT
     m->int64_field.emplace().value = 40LL;
     m->uint64_field.emplace().value = 41;
     m->int32_field.emplace().value = 42;
@@ -73,12 +76,12 @@ struct WellKnownTypesTests {
     expect(m.duration_field.has_value() && *m.duration_field == duration_t{.seconds = 1000, .nanos = 100000000});
     expect(m.empty_field.has_value());
     expect(m.field_mask_field.has_value() && std::ranges::equal(m.field_mask_field->paths, field_mask_paths_init_list));
-    expect(m.struct_field.has_value() && std::ranges::equal(m.struct_field->fields, struct_fields_init_lit));
+    expect(m.struct_field.has_value() && m.struct_field->fields == struct_fields_init());
     expect(m.timestamp_field.has_value() && *m.timestamp_field == timestamp_t{.seconds = 2000, .nanos = 200000000});
     expect(m.type_field.has_value() && m.type_field->name == string_t{"test_type"});
 
     expect(m.double_field.has_value() && m.double_field->value == 3.14);
-    expect(m.float_field.has_value() && m.float_field->value == 2.718F);
+    expect(m.float_field.has_value() && m.float_field->value == 2.718F); // NOLINT
     expect(m.int64_field.has_value() && m.int64_field->value == 40LL);
     expect(m.uint64_field.has_value() && m.uint64_field->value == 41ULL);
     expect(m.int32_field.has_value() && m.int32_field->value == 42);
@@ -135,14 +138,24 @@ template <typename Traits>
 std::initializer_list<typename Traits::string_t> WellKnownTypesTests<Traits>::field_mask_paths_init_list{
     string_t{"/usr/share"}, string_t{"/usr/local/share"}};
 
-template <typename Traits>
-std::initializer_list<std::pair<typename Traits::string_t, typename google::protobuf::Value<Traits>>>
-    WellKnownTypesTests<Traits>::struct_fields_init_lit{{"abc", value_t{.kind = 1.0}}};
-
 const boost::ut::suite well_known_types_test = [] {
-  "well_known_types"_test = []<class Traits> {
+  "TestWellKnownTypes"_test = []<class Traits> {
     WellKnownTypesTests<Traits> test;
     test.run();
+  } | std::tuple<hpp::proto::default_traits, hpp::proto::pmr_traits>{};
+};
+
+const boost::ut::suite map_well_know_types_test = [] {
+  "MapWellKnownTypes"_test = []<class Traits> {
+    proto2_unittest::MapWellKnownTypes<Traits> msg;
+    using value_t = typename google::protobuf::Value<Traits>;
+    msg.struct_field[1].fields["abc"] = value_t{3.0};
+
+    std::pmr::monotonic_buffer_resource mr;
+    std::vector<std::byte> data;
+
+    expect(hpp::proto::write_binpb(msg, data).ok());
+    expect(hpp::proto::read_binpb(msg, data, hpp::proto::alloc_from{mr}).ok());
   } | std::tuple<hpp::proto::default_traits, hpp::proto::pmr_traits>{};
 };
 
