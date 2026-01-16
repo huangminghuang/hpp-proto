@@ -91,27 +91,27 @@ public:
       alloc_ = std::move(other.alloc_);
       obj_ = std::exchange(other.obj_, nullptr);
       return *this;
-    }
-    if constexpr (allocator_traits::is_always_equal::value) {
+    } else if constexpr (allocator_traits::is_always_equal::value) {
       reset();
       obj_ = std::exchange(other.obj_, nullptr);
       return *this;
-    }
-    if (alloc_ == other.alloc_) {
-      reset();
-      obj_ = std::exchange(other.obj_, nullptr);
-      return *this;
-    }
-    if (other.obj_) {
-      if (obj_) {
-        *raw_ptr() = std::move(*other.raw_ptr());
-      } else {
-        emplace(std::move(*other.raw_ptr()));
-      }
     } else {
-      reset();
+      if (alloc_ == other.alloc_) {
+        reset();
+        obj_ = std::exchange(other.obj_, nullptr);
+        return *this;
+      }
+      if (other.obj_) {
+        if (obj_) {
+          *raw_ptr() = std::move(*other.raw_ptr());
+        } else {
+          emplace(std::move(*other.raw_ptr()));
+        }
+      } else {
+        reset();
+      }
+      return *this;
     }
-    return *this;
   }
 
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
@@ -144,21 +144,35 @@ public:
   [[nodiscard]] constexpr bool has_value() const noexcept { return obj_ != nullptr; }
   constexpr explicit operator bool() const noexcept { return has_value(); }
 
-  constexpr T &value() {
+  constexpr T &value() & {
     if (!has_value()) {
       throw std::bad_optional_access();
     }
     return *raw_ptr();
   }
-  [[nodiscard]] constexpr const T &value() const {
+  [[nodiscard]] constexpr const T &value() const & {
     if (!has_value()) {
       throw std::bad_optional_access();
     }
     return *raw_ptr();
+  }
+  [[nodiscard]] constexpr T &&value() && {
+    if (!has_value()) {
+      throw std::bad_optional_access();
+    }
+    return std::move(*raw_ptr());
+  }
+  [[nodiscard]] constexpr const T &&value() const && {
+    if (!has_value()) {
+      throw std::bad_optional_access();
+    }
+    return std::move(*raw_ptr());
   }
 
-  constexpr T &operator*() noexcept { return *raw_ptr(); }
-  constexpr const T &operator*() const noexcept { return *raw_ptr(); }
+  constexpr T &operator*() & noexcept { return *raw_ptr(); }
+  constexpr const T &operator*() const & noexcept { return *raw_ptr(); }
+  constexpr T &&operator*() && noexcept { return std::move(*raw_ptr()); }
+  constexpr const T &&operator*() const && noexcept { return std::move(*raw_ptr()); }
 
   constexpr T *operator->() noexcept { return raw_ptr(); }
   constexpr const T *operator->() const noexcept { return raw_ptr(); }

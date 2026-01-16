@@ -214,6 +214,36 @@ const boost::ut::suite optional_indirect_tests = [] {
       expect(a == msg);
     };
 
+    "nullopt_comparison"_test = [] {
+      Optional opt;
+      expect(opt == std::nullopt);
+      opt.emplace();
+      expect(opt != std::nullopt);
+    };
+
+    "value_assignment"_test = [] {
+      Optional opt;
+      Message msg;
+      msg.i = 55;
+      opt = msg; // Lvalue assignment
+      expect(opt->i == 55);
+
+      msg.i = 66;
+      opt = std::move(msg); // Rvalue assignment
+      expect(opt->i == 66);
+    };
+
+    "rvalue_accessors"_test = [] {
+      Optional opt;
+      opt.emplace().i = 42;
+      // Verify rvalue ref qualification
+      static_assert(std::is_rvalue_reference_v<decltype(std::move(opt).value())>);
+      static_assert(std::is_rvalue_reference_v<decltype(*std::move(opt))>);
+
+      Message msg = std::move(opt).value();
+      expect(msg.i == 42);
+    };
+
     "monadic_and_then"_test = [] {
       Optional opt;
       auto none = opt.and_then([](const Message &) { return Optional{}; });
@@ -227,6 +257,15 @@ const boost::ut::suite optional_indirect_tests = [] {
       });
       expect(some.has_value());
       expect(some->i == 22);
+
+      // Test rvalue overload
+      auto some_rvalue = std::move(opt).and_then([](Message &&m) {
+        Optional out;
+        out.emplace().i = m.i + 2;
+        return out;
+      });
+      expect(some_rvalue.has_value());
+      expect(some_rvalue->i == 23);
     };
 
     "monadic_transform"_test = [] {
@@ -238,6 +277,11 @@ const boost::ut::suite optional_indirect_tests = [] {
       auto some = opt.transform([](const Message &m) { return m.i + 2; });
       expect(some.has_value());
       expect(some.value() == 32);
+
+      // Test rvalue overload
+      auto some_rvalue = std::move(opt).transform([](Message &&m) { return m.i + 3; });
+      expect(some_rvalue.has_value());
+      expect(some_rvalue.value() == 33);
     };
 
     "monadic_or_else"_test = [] {
@@ -258,6 +302,15 @@ const boost::ut::suite optional_indirect_tests = [] {
       });
       expect(some.has_value());
       expect(some->i == 41);
+
+      // Test rvalue overload
+      auto some_rvalue = std::move(opt).or_else([] {
+        Optional out;
+        out.emplace().i = 43;
+        return out;
+      });
+      expect(some_rvalue.has_value());
+      expect(some_rvalue->i == 41);
     };
 
     "json"_test = [] {

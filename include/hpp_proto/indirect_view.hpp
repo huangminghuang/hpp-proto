@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 #include <compare>
 
 namespace hpp::proto {
@@ -21,7 +22,7 @@ private:
 public:
   constexpr indirect_view() : obj_(default_object()) {}
   // NOLINTNEXTLINE
-  constexpr indirect_view(pointer obj) : obj_(obj) {}
+  constexpr indirect_view(pointer obj) : obj_(obj) { assert(obj != nullptr); }
   constexpr indirect_view(const indirect_view &) = default;
   constexpr indirect_view(indirect_view &&) = default;
   ~indirect_view() = default;
@@ -29,6 +30,7 @@ public:
   constexpr indirect_view &operator=(indirect_view &&) = default;
   constexpr indirect_view &operator=(const indirect_view &) = default;
   constexpr indirect_view &operator=(pointer obj) {
+    assert(obj != nullptr);
     obj_ = obj;
     return *this;
   }

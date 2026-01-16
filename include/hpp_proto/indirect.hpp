@@ -100,19 +100,19 @@ public:
       alloc_ = std::move(other.alloc_);
       obj_ = std::exchange(other.obj_, nullptr);
       return *this;
-    }
-    if constexpr (allocator_traits::is_always_equal::value) {
+    } else if constexpr (allocator_traits::is_always_equal::value) {
       destroy();
       obj_ = std::exchange(other.obj_, nullptr);
       return *this;
-    }
-    if (alloc_ == other.alloc_) {
-      destroy();
-      obj_ = std::exchange(other.obj_, nullptr);
+    } else {
+      if (alloc_ == other.alloc_) {
+        destroy();
+        obj_ = std::exchange(other.obj_, nullptr);
+        return *this;
+      }
+      *raw_ptr() = std::move(*other.raw_ptr());
       return *this;
     }
-    *raw_ptr() = std::move(*other.raw_ptr());
-    return *this;
   }
 
   [[nodiscard]] constexpr T &value() & { return *raw_ptr(); }
