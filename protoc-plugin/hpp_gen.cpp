@@ -624,8 +624,8 @@ struct code_generator {
   }
   // NOLINTEND(misc-no-recursion)
 
-  static message_descriptor_t *resolve_repeated_dependency_cycle(
-      std::vector<message_descriptor_t *> &unresolved, message_descriptor_t *depended) {
+  static message_descriptor_t *resolve_repeated_dependency_cycle(std::vector<message_descriptor_t *> &unresolved,
+                                                                 message_descriptor_t *depended) {
     std::map<message_descriptor_t *, bool> used_by_messages;
     for (auto *f : depended->used_by_fields) {
       auto *field = static_cast<field_descriptor_t *>(f);
@@ -899,7 +899,6 @@ struct code_generator {
     }
   }
 
-
   static void resolve_message_dependencies(hpp_gen_descriptor_pool &pool) {
     for (auto &file : pool.files()) {
       for (auto &msg : file.messages()) {
@@ -1009,8 +1008,8 @@ struct msg_code_generator : code_generator {
     if (descriptor.is_map_entry()) {
       auto *type_desc = descriptor.message_field_type_descriptor();
       if (type_desc->fields()[1].is_recursive) {
-        return std::format("Traits::template map_t<{}, typename Traits::template indirect_t<{}>>", type_desc->fields().front().cpp_field_type,
-                           type_desc->fields()[1].cpp_field_type);
+        return std::format("Traits::template map_t<{}, typename Traits::template indirect_t<{}>>",
+                           type_desc->fields().front().cpp_field_type, type_desc->fields()[1].cpp_field_type);
       } else {
         return std::format("Traits::template map_t<{}, {}>", type_desc->fields().front().cpp_field_type,
                            type_desc->fields()[1].cpp_field_type);
@@ -1363,11 +1362,11 @@ struct hpp_meta_generator : code_generator {
       };
       auto *type_desc = descriptor.message_field_type_descriptor();
       if (type_desc->fields()[1].is_recursive) {
-        descriptor.cpp_meta_type = std::format(
-            "::hpp::proto::map_entry<{}, typename Traits::template indirect_t<{}>, {}, {}>",
-            get_meta_type(type_desc->fields()[0]), get_meta_type(type_desc->fields()[1]),
-            join_to_string(meta_options(type_desc->fields()[0]), " | "),
-            join_to_string(meta_options(type_desc->fields()[1]), " | "));
+        descriptor.cpp_meta_type =
+            std::format("::hpp::proto::map_entry<{}, typename Traits::template indirect_t<{}>, {}, {}>",
+                        get_meta_type(type_desc->fields()[0]), get_meta_type(type_desc->fields()[1]),
+                        join_to_string(meta_options(type_desc->fields()[0]), " | "),
+                        join_to_string(meta_options(type_desc->fields()[1]), " | "));
       } else {
         descriptor.cpp_meta_type = std::format(
             "::hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),

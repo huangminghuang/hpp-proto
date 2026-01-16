@@ -35,8 +35,7 @@ struct WellKnownTypesTests {
     requires(std::same_as<Traits, hpp::proto::non_owning_traits>)
   {
     static value_t v = value_t{.kind = 1.0};
-    static auto init_list =
-        std::initializer_list<typename struct_fields_t::value_type>{{string_t{"abc"}, &v}};
+    static auto init_list = std::initializer_list<typename struct_fields_t::value_type>{{string_t{"abc"}, &v}};
     return struct_fields_t{init_list};
   }
 

@@ -254,8 +254,9 @@ const ut::suite test_value = [] {
   };
 
   "verify Value struct"_test = [&factory] {
-    
-    verify<Value>(factory, Value{.kind = Struct{.fields = {Struct_value_t{"f1", Value{.kind = true}}, Struct_value_t{"f2", Value{.kind = 1.0}}}}},
+    verify<Value>(factory,
+                  Value{.kind = Struct{.fields = {Struct_value_t{"f1", Value{.kind = true}},
+                                                  Struct_value_t{"f2", Value{.kind = 1.0}}}}},
                   R"({"f1":true,"f2":1})");
   };
 

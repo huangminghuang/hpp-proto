@@ -168,7 +168,7 @@ struct size_cache_counter<T> {
 
     static_assert(concepts::is_map_entry<serialize_type>);
     using mapped_type = typename serialize_type::mapped_type;
-    if constexpr(requires { *item.second; }) {
+    if constexpr (requires { *item.second; }) {
       return count(*item.second) + 2;
     } else if constexpr (concepts::has_meta<mapped_type>) {
       return count(item.second) + 2;

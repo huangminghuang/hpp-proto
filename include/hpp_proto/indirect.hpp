@@ -40,7 +40,7 @@ public:
 
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   constexpr indirect(const T &object) : obj_(allocate_construct(object)) {}
-  
+
   constexpr indirect(allocator_arg_t, const allocator_type &alloc, T &&object)
       : alloc_(alloc), obj_(allocate_construct(std::move(object))) {}
 
@@ -52,7 +52,7 @@ public:
 
   constexpr indirect(allocator_arg_t, const allocator_type &alloc, const indirect &other)
       : alloc_(alloc), obj_(allocate_construct(*other.raw_ptr())) {}
-      
+
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   constexpr indirect(allocator_arg_t, const allocator_type &alloc, indirect &&other) : alloc_(alloc) {
     if constexpr (allocator_traits::is_always_equal::value) {
@@ -89,9 +89,9 @@ public:
     return *this;
   }
 
-  constexpr indirect &operator=(indirect &&other) noexcept(
-      allocator_traits::propagate_on_container_move_assignment::value ||
-      allocator_traits::is_always_equal::value) {
+  constexpr indirect &
+  operator=(indirect &&other) noexcept(allocator_traits::propagate_on_container_move_assignment::value ||
+                                       allocator_traits::is_always_equal::value) {
     if (this == &other) {
       return *this;
     }
@@ -134,8 +134,8 @@ public:
   constexpr auto operator<=>(const T &rhs) const { return *raw_ptr() <=> rhs; }
   constexpr auto operator<=>(const indirect &rhs) const { return *raw_ptr() <=> *rhs.raw_ptr(); }
 
-  constexpr void swap(indirect &other) noexcept(
-      allocator_traits::propagate_on_container_swap::value || allocator_traits::is_always_equal::value) {
+  constexpr void swap(indirect &other) noexcept(allocator_traits::propagate_on_container_swap::value ||
+                                                allocator_traits::is_always_equal::value) {
     using std::swap;
     if constexpr (allocator_traits::propagate_on_container_swap::value) {
       swap(alloc_, other.alloc_);
