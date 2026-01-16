@@ -261,7 +261,8 @@ const boost::ut::suite optional_indirect_tests = [] {
       // Test rvalue overload
       auto some_rvalue = std::move(opt).and_then([](Message &&m) {
         Optional out;
-        out.emplace().i = m.i + 2;
+        out.emplace(std::move(m));
+        out->i += 2;
         return out;
       });
       expect(some_rvalue.has_value());
@@ -279,7 +280,7 @@ const boost::ut::suite optional_indirect_tests = [] {
       expect(some.value() == 32);
 
       // Test rvalue overload
-      auto some_rvalue = std::move(opt).transform([](Message &&m) { return m.i + 3; });
+      auto some_rvalue = std::move(opt).transform([](Message &&m) { return std::move(m).i + 3; });
       expect(some_rvalue.has_value());
       expect(some_rvalue.value() == 33);
     };
