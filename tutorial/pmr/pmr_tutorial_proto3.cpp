@@ -12,7 +12,7 @@ using PmrPhoneNumber = PmrPerson::PhoneNumber;
 
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
-    std::cerr << "assertion failure at " <<  location.file_name() << ":" << location.line() << "\n";
+    std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
     exit(1);
   }
 }
@@ -42,7 +42,7 @@ int main() {
   expect(write_result.ok());
 
   // Deserialize from binary into a new object using the same pool
-  PmrAddressBook* read_book = alloc.new_object<PmrAddressBook>();
+  PmrAddressBook *read_book = alloc.new_object<PmrAddressBook>();
   auto read_result = hpp::proto::read_binpb(*read_book, binary_data);
 
   expect(read_result.ok());
@@ -56,7 +56,7 @@ int main() {
   auto json_result = hpp::proto::write_json(*address_book);
   expect(json_result.has_value());
 
-  PmrAddressBook* json_read_book = alloc.new_object<PmrAddressBook>();
+  PmrAddressBook *json_read_book = alloc.new_object<PmrAddressBook>();
   auto json_read_result = hpp::proto::read_json(*json_read_book, json_result.value());
   expect(json_read_result.ok());
   expect(*address_book == *json_read_book);
