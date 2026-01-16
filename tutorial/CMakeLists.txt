@@ -57,7 +57,7 @@ add_subdirectory(regular)
 add_subdirectory(non_owning)
 add_subdirectory(dynamic_message)
 add_subdirectory(compile_time_serialization)
-add_subdirectory(pmr_traits)
+add_subdirectory(pmr)
 
 if (NOT HPP_PROTO_PROTOC STREQUAL "compile")
   add_subdirectory(grpc)
