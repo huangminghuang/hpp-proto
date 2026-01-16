@@ -353,7 +353,7 @@ struct to<JSON, hpp::proto::optional_indirect_view_ref<Type>> {
 template <typename Type, typename Alloc>
 struct from<JSON, hpp::proto::indirect<Type, Alloc>> {
   template <auto Opts>
-  static void op(auto& value, auto &ctx, auto &it, auto &end) {
+  static void op(auto &value, auto &ctx, auto &it, auto &end) {
     from<JSON, Type>::template op<Opts>(*value, ctx, it, end);
   }
 };
@@ -361,7 +361,26 @@ struct from<JSON, hpp::proto::indirect<Type, Alloc>> {
 template <typename Type, typename Alloc>
 struct to<JSON, hpp::proto::indirect<Type, Alloc>> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto&& value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
+    to<JSON, Type>::template op<Opts>(*value, std::forward<Args>(args)...);
+  }
+};
+
+template <typename Type>
+struct from<JSON, hpp::proto::indirect_view<Type>> {
+  template <auto Opts>
+  static void op(auto &value, auto &ctx, auto &it, auto &end) {
+    void *addr = ctx.memory_resource().allocate(sizeof(Type), alignof(Type));
+    auto *obj = new (addr) Type; // NOLINT(cppcoreguidelines-owning-memory)
+    value = obj;
+    from<JSON, Type>::template op<Opts>(*obj, ctx, it, end);
+  }
+};
+
+template <typename Type>
+struct to<JSON, hpp::proto::indirect_view<Type>> {
+  template <auto Opts, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     to<JSON, Type>::template op<Opts>(*value, std::forward<Args>(args)...);
   }
 };

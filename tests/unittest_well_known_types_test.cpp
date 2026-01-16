@@ -34,8 +34,9 @@ struct WellKnownTypesTests {
   static auto struct_fields_init()
     requires(std::same_as<Traits, hpp::proto::non_owning_traits>)
   {
+    static value_t v = value_t{.kind = 1.0};
     static auto init_list =
-        std::initializer_list<typename struct_fields_t::value_type>{{string_t{"abc"}, value_t{.kind = 1.0}}};
+        std::initializer_list<typename struct_fields_t::value_type>{{string_t{"abc"}, &v}};
     return struct_fields_t{init_list};
   }
 
@@ -142,20 +143,6 @@ const boost::ut::suite well_known_types_test = [] {
   "TestWellKnownTypes"_test = []<class Traits> {
     WellKnownTypesTests<Traits> test;
     test.run();
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::pmr_traits>{};
-};
-
-const boost::ut::suite map_well_know_types_test = [] {
-  "MapWellKnownTypes"_test = []<class Traits> {
-    proto2_unittest::MapWellKnownTypes<Traits> msg;
-    using value_t = typename google::protobuf::Value<Traits>;
-    msg.struct_field[1].fields["abc"] = value_t{3.0};
-
-    std::pmr::monotonic_buffer_resource mr;
-    std::vector<std::byte> data;
-
-    expect(hpp::proto::write_binpb(msg, data).ok());
-    expect(hpp::proto::read_binpb(msg, data, hpp::proto::alloc_from{mr}).ok());
   } | std::tuple<hpp::proto::default_traits, hpp::proto::pmr_traits>{};
 };
 

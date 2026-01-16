@@ -35,8 +35,6 @@
 #else
 #include <hpp_proto/flat_map.hpp>
 #endif
-#include <hpp_proto/indirect.hpp>
-#include <hpp_proto/optional_indirect.hpp>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -47,6 +45,11 @@
 #include <utility>
 #include <variant>
 #include <vector>
+
+#include <hpp_proto/indirect.hpp>
+#include <hpp_proto/indirect_view.hpp>
+#include <hpp_proto/optional_indirect.hpp>
+
 namespace hpp::proto {
 #ifdef __cpp_lib_flat_map
 using std::flat_map;
@@ -644,6 +647,9 @@ struct non_owning_traits {
 
   template <typename T>
   using optional_indirect_t = hpp::proto::optional_indirect_view<T>;
+
+  template <typename T>
+  using indirect_t = hpp::proto::indirect_view<T>;
 
   template <typename Key, typename Mapped>
   using map_t = equality_comparable_span<const std::pair<Key, Mapped>>;
