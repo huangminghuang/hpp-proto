@@ -73,6 +73,9 @@ const boost::ut::suite indirect_tests = [] {
       expect(copy->i == 46);
       expect(original->i == 46);
       expect(copy == original);
+      copy->i = 47;
+      expect(copy->i == 47);
+      expect(original->i == 46);
     };
 
     "allocator_copy_ctor"_test = [&] {
@@ -153,8 +156,8 @@ const boost::ut::suite indirect_tests = [] {
       expect(a == b);
       expect(a != c);
       expect(a == TestMessage{90});
-      expect(a <=> b == 0);
-      expect(a <=> c < 0);
+      expect((a <=> b) == 0);
+      expect((a <=> c) < 0);
     };
   };
 
@@ -208,8 +211,8 @@ const boost::ut::suite indirect_tests = [] {
       expect(v1 == v2);
       expect(v1 != v3);
       expect(v1 == msg1);
-      expect(v1 <=> v2 == 0);
-      expect(v1 <=> v3 < 0);
+      expect((v1 <=> v2) == 0);
+      expect((v1 <=> v3) < 0);
     };
 
     "swap"_test = [] {
