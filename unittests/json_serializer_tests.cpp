@@ -197,7 +197,7 @@ const ut::suite test_base64 = [] {
     auto encoded_size = hpp::proto::base64::encode(data, result);
     result.resize(encoded_size);
     expect(eq(encoded, result));
-    hpp::proto::json_context ctx;
+    hpp::proto::json_context<> ctx;
     expect(hpp::proto::base64::decode(encoded, result, ctx));
     expect(eq(data, result));
   };
@@ -220,7 +220,7 @@ const ut::suite test_base64 = [] {
   "invalid_decode"_test = [] {
     using namespace boost::ut;
     using namespace std::literals::string_view_literals;
-    hpp::proto::json_context ctx;
+    hpp::proto::json_context<> ctx;
     std::string result;
     // The decoder should reject invalid base64 strings.
     // 1. Invalid characters
