@@ -134,7 +134,7 @@ const boost::ut::suite indirect_tests = [] {
       // Rvalue accessors
       static_assert(std::is_rvalue_reference_v<decltype(std::move(ind).value())>);
       static_assert(std::is_rvalue_reference_v<decltype(*std::move(ind))>);
-      
+
       expect(std::move(ind).value().i == 60);
     };
 
@@ -160,7 +160,7 @@ const boost::ut::suite indirect_tests = [] {
 
   "indirect_view"_test = [] {
     using View = hpp::proto::indirect_view<TestMessage>;
-    
+
     "default_ctor"_test = [] {
       View v;
       // Default constructed view points to a static default object
