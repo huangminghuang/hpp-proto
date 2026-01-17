@@ -152,19 +152,20 @@ template <auto MemPtr, int Index>
 constexpr auto as_oneof_member = as_oneof_member_impl<MemPtr, Index>();
 
 template <typename T>
-struct optional_message_view_ref {
+struct optional_indirect_view_ref {
   static constexpr auto glaze_reflect = false;
   T &ref; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
   void set_null() { ref.reset(); }
 };
 
 template <auto MemPtr>
-constexpr decltype(auto) as_optional_message_view_ref_impl() noexcept {
-  return
-      [](auto &&val) { return optional_message_view_ref<std::remove_reference_t<decltype(val.*MemPtr)>>{val.*MemPtr}; };
+constexpr decltype(auto) as_optional_indirect_view_ref_impl() noexcept {
+  return [](auto &&val) {
+    return optional_indirect_view_ref<std::remove_reference_t<decltype(val.*MemPtr)>>{val.*MemPtr};
+  };
 }
 
 template <auto MemPtr>
-constexpr auto as_optional_message_view_ref = as_optional_message_view_ref_impl<MemPtr>();
+constexpr auto as_optional_indirect_view_ref = as_optional_indirect_view_ref_impl<MemPtr>();
 
 } // namespace hpp::proto

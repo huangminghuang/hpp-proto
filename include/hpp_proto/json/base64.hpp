@@ -123,10 +123,11 @@ struct base64 {
     return static_cast<int64_t>(ix);
   }
 
-  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &value) {
+  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &value, auto &ctx) {
     std::size_t n = source.size();
+    decltype(auto) mref = hpp::proto::detail::as_modifiable(ctx, value);
     if (n == 0) {
-      value.resize(0);
+      mref.resize(0);
       return true;
     }
 
@@ -141,7 +142,7 @@ struct base64 {
     if (static_cast<char>(source[n - 2]) == '=') {
       len--;
     }
-    value.resize(len);
+    mref.resize(len);
     constexpr unsigned char decode_table[] = {
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55,
@@ -179,7 +180,7 @@ struct base64 {
       }
 
       uint32_t const triple = (a << 18U) + (b << 12U) + (c << 6U) + d;
-      write_decoded_bytes(triple, value, j, len);
+      write_decoded_bytes(triple, mref, j, len);
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
     return j == len;

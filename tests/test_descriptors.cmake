@@ -12,6 +12,7 @@ set(unittest_desc_pb_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_proto3.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_well_known_types.proto
 )
 
 if(edition_support)
@@ -55,3 +56,11 @@ protobuf_generate_hpp(
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 target_link_libraries(map_unittest_proto_lib INTERFACE unittest_proto_lib)
+
+add_library(unittest_well_known_types_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_well_known_types.proto")
+target_include_directories(unittest_well_known_types_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(unittest_well_known_types_proto_lib INTERFACE unittest_proto_lib)
+protobuf_generate_hpp(
+    TARGET unittest_well_known_types_proto_lib
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+)

@@ -158,7 +158,7 @@ struct glz::meta<object_span_example> {
 };
 
 struct non_owning_nested_example {
-  hpp::proto::optional_message_view<optional_example> nested;
+  hpp::proto::optional_indirect_view<optional_example> nested;
   bool operator==(const non_owning_nested_example &) const = default;
 };
 constexpr auto message_type_url(const non_owning_nested_example &) {
@@ -171,7 +171,7 @@ constexpr auto non_owning<non_owning_nested_example> = true;
 template <>
 struct glz::meta<non_owning_nested_example> {
   using T = non_owning_nested_example;
-  static constexpr auto value = object("nested", hpp::proto::as_optional_message_view_ref<&T::nested>);
+  static constexpr auto value = object("nested", hpp::proto::as_optional_indirect_view_ref<&T::nested>);
 };
 
 struct oneof_example {
@@ -197,7 +197,8 @@ const ut::suite test_base64 = [] {
     auto encoded_size = hpp::proto::base64::encode(data, result);
     result.resize(encoded_size);
     expect(eq(encoded, result));
-    expect(hpp::proto::base64::decode(encoded, result));
+    hpp::proto::json_context<> ctx;
+    expect(hpp::proto::base64::decode(encoded, result, ctx));
     expect(eq(data, result));
   };
 
@@ -219,15 +220,16 @@ const ut::suite test_base64 = [] {
   "invalid_decode"_test = [] {
     using namespace boost::ut;
     using namespace std::literals::string_view_literals;
+    hpp::proto::json_context<> ctx;
     std::string result;
     // The decoder should reject invalid base64 strings.
     // 1. Invalid characters
-    expect(!hpp::proto::base64::decode("bGlnaHQgd29yay4-"sv, result));
+    expect(!hpp::proto::base64::decode("bGlnaHQgd29yay4-"sv, result, ctx));
     // 2. Padding in the middle
-    expect(!hpp::proto::base64::decode("Zg==YWJj"sv, result));
+    expect(!hpp::proto::base64::decode("Zg==YWJj"sv, result, ctx));
     // 3. Incorrect padding
-    expect(!hpp::proto::base64::decode("Zm9vYg="sv, result));   // "foob" is "Zm9vYg=="
-    expect(!hpp::proto::base64::decode("Zm9vYmE=="sv, result)); // "fooba" is "Zm9vYmE="
+    expect(!hpp::proto::base64::decode("Zm9vYg="sv, result, ctx));   // "foob" is "Zm9vYg=="
+    expect(!hpp::proto::base64::decode("Zm9vYmE=="sv, result, ctx)); // "fooba" is "Zm9vYmE="
   };
 };
 
@@ -251,12 +253,12 @@ void verify(const T &msg, std::string_view json, const source_location &from_loc
   }
 }
 
-template <typename Bytes>
+template <typename Traits>
 struct bytes_example {
-  Bytes field0;
-  std::optional<Bytes> field1;
-  hpp::proto::optional<Bytes, hpp::proto::bytes_literal<"test">{}> field2;
-  Bytes field3;
+  typename Traits::bytes_t field0;
+  hpp::proto::optional<typename Traits::bytes_t> field1;
+  hpp::proto::optional<typename Traits::bytes_t, hpp::proto::bytes_literal<"test">{}> field2;
+  typename Traits::bytes_t field3;
   bool operator==(const bytes_example &) const = default;
 };
 
@@ -271,12 +273,9 @@ constexpr auto non_owning<std::string_view> = true;
 template <typename T>
 constexpr auto non_owning<hpp::proto::equality_comparable_span<const T>> = true;
 
-template <typename Bytes>
-constexpr auto non_owning<bytes_example<Bytes>> = non_owning<Bytes>;
-
-template <typename Bytes>
-struct glz::meta<bytes_example<Bytes>> {
-  using T = bytes_example<Bytes>;
+template <typename Traits>
+struct glz::meta<bytes_example<Traits>> {
+  using T = bytes_example<Traits>;
   // clang-format off
   static constexpr auto value = object("field0", &T::field0,
                                        "field1", &T::field1, 
@@ -289,22 +288,14 @@ const ut::suite test_bytes = [] {
   using namespace boost::ut::literals;
   using namespace boost::ut;
 
-  "bytes"_test = [] {
-    verify(bytes_example<std::vector<std::byte>>{}, R"({"field0":""})");
-    verify(bytes_example<std::vector<std::byte>>{.field0 = "foo"_bytes,
-                                                 .field1 = "light work."_bytes,
-                                                 .field2 = "light work"_bytes,
-                                                 .field3 = "light wor"_bytes},
+  "bytes"_test = []<class Traits> {
+    verify(bytes_example<Traits>{}, R"({"field0":""})");
+    verify(bytes_example<Traits>{.field0 = "foo"_bytes,
+                                 .field1 = "light work."_bytes,
+                                 .field2 = "light work"_bytes,
+                                 .field3 = "light wor"_bytes},
            R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
-  };
-  "non_ownning_bytes"_test = [] {
-    verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{}, R"({"field0":""})");
-    verify(bytes_example<hpp::proto::equality_comparable_span<const std::byte>>{.field0 = "foo"_bytes,
-                                                                                .field1 = "light work."_bytes,
-                                                                                .field2 = "light work"_bytes,
-                                                                                .field3 = "light wor"_bytes},
-           R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
-  };
+  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits, hpp::proto::pmr_traits>{};
 };
 
 template <typename Traits>

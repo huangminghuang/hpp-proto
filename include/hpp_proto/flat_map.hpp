@@ -327,10 +327,6 @@ class flat_map {
                                                                              std::declval<const Key &>())),
                                     bool>::value,
                 "");
-#if defined(__cpp_lib_is_swappable)
-  static_assert(std::is_nothrow_swappable<KeyContainer>::value, "");
-  static_assert(std::is_nothrow_swappable<MappedContainer>::value, "");
-#endif
 
 public:
   using key_type = Key;

@@ -34,13 +34,25 @@ struct timestamp_codec {
   template <int Len, char sep>
   static char *fixed_len_to_chars(char *buf, auto val) {
     static_assert(Len == 2 || Len == 4 || Len == 9);
-
     assert(val >= 0);
     if constexpr (Len == 9) {
-      const int hi = val / 100000000;
-      assert(hi < 10);
-      *buf = static_cast<char>('0' + static_cast<uint8_t>(hi));
-      buf = glz::to_chars_u64_len_8(std::next(buf), uint32_t(val % 100000000));
+      auto nanos = static_cast<uint32_t>(val);
+      uint32_t ns_component = nanos % 1'000;
+      uint32_t digits = 0;
+      if (ns_component > 0) {
+        glz::to_chars_u64_len_4(std::next(buf, 5), ns_component);
+        digits += 3;
+      }
+      uint32_t us_component = (nanos % 1'000'000);
+      if (us_component > 0) {
+        glz::to_chars_u64_len_4(std::next(buf, 2), us_component / 1000);
+        digits += 3;
+      }
+      uint32_t ms_component = nanos / 1'000'000;
+      glz::to_chars_u64_len_4(std::next(buf, -1), ms_component);
+      *std::next(buf, -1) = '.';
+      digits += 3;
+      buf = std::next(buf, digits);
     } else if constexpr (Len == 4) {
       buf = glz::to_chars_u64_len_4(buf, uint32_t(val));
     } else if constexpr (Len == 2) {
@@ -80,7 +92,7 @@ struct timestamp_codec {
     return std::distance(static_cast<char *>(std::data(b)), buf);
   }
 
-  static bool decode(auto &&json, auto &&value) {
+  static bool decode(auto &&json, auto &&value, [[maybe_unused]] auto &ctx) {
     std::string_view sv = json;
     if (sv.empty() || sv.back() != 'Z') [[unlikely]] {
       return false;

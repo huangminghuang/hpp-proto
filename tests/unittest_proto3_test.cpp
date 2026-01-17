@@ -234,7 +234,7 @@ struct Proto3Tests {
 
 const boost::ut::suite proto3_test = [] {
   "proto3"_test = []<class Traits> { Proto3Tests<Traits>::run(); } |
-                  std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+                  std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits, hpp::proto::pmr_traits>{};
 };
 
 int main() {

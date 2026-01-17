@@ -42,6 +42,13 @@ add_test(NAME map_test
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+add_executable(unittest_well_known_types_test unittest_well_known_types_test.cpp)
+target_link_libraries(unittest_well_known_types_test PRIVATE unittest_well_known_types_proto_lib Boost::ut glaze::glaze gpb_proto_json)
+
+add_test(NAME unittest_well_known_types_test
+    COMMAND unittest_well_known_types_test
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
 if(Protobuf_INCLUDE_DIRS)
     add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
     target_include_directories(any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)

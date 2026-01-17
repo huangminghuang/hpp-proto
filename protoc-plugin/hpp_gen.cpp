@@ -589,6 +589,7 @@ struct code_generator {
   using oneof_descriptor_t = hpp_gen_descriptor_pool::oneof_descriptor_t;
   using field_descriptor_t = hpp_gen_descriptor_pool::field_descriptor_t;
   using file_descriptor_t = hpp_gen_descriptor_pool::file_descriptor_t;
+  using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
 
   static message_descriptor_t *parent_message_of(auto *desc) { return desc->parent_message(); }
 
@@ -623,47 +624,69 @@ struct code_generator {
   }
   // NOLINTEND(misc-no-recursion)
 
+  static message_descriptor_t *resolve_repeated_dependency_cycle(std::vector<message_descriptor_t *> &unresolved,
+                                                                 message_descriptor_t *depended) {
+    std::map<message_descriptor_t *, bool> used_by_messages;
+    for (auto *f : depended->used_by_fields) {
+      auto *field = static_cast<field_descriptor_t *>(f);
+      auto *message = parent_message_of(field);
+      if (message->parent_file() != depended->parent_file()) {
+        continue;
+      }
+      if (std::ranges::find(unresolved, message) != unresolved.end()) {
+        used_by_messages[message] |=
+            (field->proto().label != hpp_gen_descriptor_pool::FieldDescriptorProto::Label::LABEL_REPEATED);
+        field->is_recursive = true;
+      }
+    }
+
+    for (auto [m, no_non_repeated_usage] : used_by_messages) {
+      if (!no_non_repeated_usage && !m->is_map_entry()) {
+        m->dependencies.erase(depended);
+        m->forward_messages.insert(depended);
+        return m;
+      }
+    }
+    return nullptr;
+  }
+
+  static message_descriptor_t *resolve_map_dependency_cycle(std::vector<message_descriptor_t *> &unresolved,
+                                                            message_descriptor_t *depended) {
+    std::map<message_descriptor_t *, bool> used_by_messages;
+    for (auto *f : depended->used_by_fields) {
+      auto *field = static_cast<field_descriptor_t *>(f);
+      auto *message = parent_message_of(field);
+      if (message->parent_file() != depended->parent_file()) {
+        continue;
+      }
+      if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry()) {
+        used_by_messages[message] |= !(message->is_map_entry());
+        field->is_recursive = true;
+      }
+    }
+
+    for (auto [m, no_non_map_usage] : used_by_messages) {
+      if (!no_non_map_usage) {
+        m->parent_message()->has_recursive_map_field = true;
+        m->parent_message()->dependencies.erase(depended);
+        m->parent_message()->forward_messages.insert(depended);
+        return m->parent_message();
+      }
+    }
+    return nullptr;
+  }
+
   static message_descriptor_t *resolve_container_dependency_cycle(std::vector<message_descriptor_t *> &unresolved) {
     // First, find the dependency which used the by repeated field
     for (auto *depended : unresolved) {
-      std::map<message_descriptor_t *, bool> used_by_messages;
-      for (auto *f : depended->used_by_fields) {
-        auto *field = static_cast<field_descriptor_t *>(f);
-        auto *message = parent_message_of(field);
-        if (std::ranges::find(unresolved, message) != unresolved.end()) {
-          used_by_messages[message] |=
-              (field->proto().label != hpp_gen_descriptor_pool::FieldDescriptorProto::Label::LABEL_REPEATED);
-          field->is_recursive = true;
-        }
-      }
-
-      for (auto [m, no_non_repeated_usage] : used_by_messages) {
-        if (!no_non_repeated_usage && !m->is_map_entry()) {
-          m->dependencies.erase(depended);
-          m->forward_messages.insert(depended);
-          return m;
-        }
+      if (auto *resolved = resolve_repeated_dependency_cycle(unresolved, depended)) {
+        return resolved;
       }
     }
     // find the dependency which used the by map field
     for (auto *depended : unresolved) {
-      std::map<message_descriptor_t *, bool> used_by_messages;
-      for (auto *f : depended->used_by_fields) {
-        auto *field = static_cast<field_descriptor_t *>(f);
-        auto *message = parent_message_of(field);
-        if (std::ranges::find(unresolved, message) != unresolved.end() || message->is_map_entry()) {
-          used_by_messages[message] |= !(message->is_map_entry());
-          field->is_recursive = true;
-        }
-      }
-
-      for (auto [m, no_non_map_usage] : used_by_messages) {
-        if (!no_non_map_usage) {
-          m->parent_message()->has_recursive_map_field = true;
-          m->parent_message()->dependencies.erase(depended);
-          m->parent_message()->forward_messages.insert(depended);
-          return m->parent_message();
-        }
+      if (auto *resolved = resolve_map_dependency_cycle(unresolved, depended)) {
+        return resolved;
       }
     }
     return nullptr;
@@ -735,23 +758,6 @@ struct code_generator {
     return descriptor.proto().dependency |
            std::views::filter([](const auto &dep) { return dep != "hpp_proto/hpp_options.proto"; });
   }
-};
-
-std::filesystem::path code_generator::plugin_name;
-std::string code_generator::plugin_parameters;
-std::vector<std::string> code_generator::proto2_explicit_presences;
-std::string code_generator::directory_prefix;
-
-struct msg_code_generator : code_generator {
-  std::string syntax;
-  std::string out_of_class_data;
-  std::back_insert_iterator<std::string> out_of_class_target;
-  using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
-
-  explicit msg_code_generator(std::vector<CodeGeneratorResponse::File> &files)
-      : code_generator(files), out_of_class_target(out_of_class_data) {}
-
-  static std::string namespace_prefix_of(const auto &d) { return d.parent_file()->namespace_prefix; }
 
   static void set_field_cpp_type(field_descriptor_t &field, std::string_view relative_type_name, bool is_nested) {
     using enum FieldDescriptorProto::Type;
@@ -918,6 +924,24 @@ struct msg_code_generator : code_generator {
       };
     }
   }
+};
+
+std::filesystem::path code_generator::plugin_name;
+std::string code_generator::plugin_parameters;
+std::vector<std::string> code_generator::proto2_explicit_presences;
+std::string code_generator::directory_prefix;
+
+struct msg_code_generator : code_generator {
+  std::string syntax;
+  std::string out_of_class_data;
+  std::back_insert_iterator<std::string> out_of_class_target;
+  std::string out_of_ns_data;
+  std::back_insert_iterator<std::string> out_of_ns_target;
+
+  explicit msg_code_generator(std::vector<CodeGeneratorResponse::File> &files)
+      : code_generator(files), out_of_class_target(out_of_class_data), out_of_ns_target(out_of_ns_data) {}
+
+  static std::string namespace_prefix_of(const auto &d) { return d.parent_file()->namespace_prefix; }
 
   void process(file_descriptor_t &descriptor) {
     syntax = descriptor.syntax;
@@ -953,9 +977,11 @@ struct msg_code_generator : code_generator {
     if (!ns.empty()) {
       format_to(target,
                 "// NOLINTEND(performance-enum-size)\n"
-                "}} // namespace {}\n"
-                "// clang-format on\n",
+                "}} // namespace {}\n",
                 ns);
+
+      std::ranges::copy(out_of_ns_data, target);
+      format_to(target, "// clang-format on\n", ns);
     }
   }
 
@@ -968,7 +994,7 @@ struct msg_code_generator : code_generator {
     }
     if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
       if (descriptor.is_recursive) {
-        return "Traits::template optional_recursive_t";
+        return "Traits::template optional_indirect_t";
       } else if (descriptor.is_cpp_optional) {
         return "std::optional";
       }
@@ -981,8 +1007,13 @@ struct msg_code_generator : code_generator {
   static std::string field_type(field_descriptor_t &descriptor) {
     if (descriptor.is_map_entry()) {
       auto *type_desc = descriptor.message_field_type_descriptor();
-      return std::format("Traits::template map_t<{}, {}>", type_desc->fields().front().cpp_field_type,
-                         type_desc->fields()[1].cpp_field_type);
+      if (type_desc->fields()[1].is_recursive) {
+        return std::format("Traits::template map_t<{}, typename Traits::template indirect_t<{}>>",
+                           type_desc->fields().front().cpp_field_type, type_desc->fields()[1].cpp_field_type);
+      } else {
+        return std::format("Traits::template map_t<{}, {}>", type_desc->fields().front().cpp_field_type,
+                           type_desc->fields()[1].cpp_field_type);
+      }
     }
 
     auto wrapper = field_type_wrapper(descriptor);
@@ -1330,10 +1361,18 @@ struct hpp_meta_generator : code_generator {
         return field.cpp_meta_type == "void" ? field.qualified_cpp_field_type : field.cpp_meta_type;
       };
       auto *type_desc = descriptor.message_field_type_descriptor();
-      descriptor.cpp_meta_type = std::format(
-          "::hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
-          get_meta_type(type_desc->fields()[1]), join_to_string(meta_options(type_desc->fields()[0]), " | "),
-          join_to_string(meta_options(type_desc->fields()[1]), " | "));
+      if (type_desc->fields()[1].is_recursive) {
+        descriptor.cpp_meta_type =
+            std::format("::hpp::proto::map_entry<{}, typename Traits::template indirect_t<{}>, {}, {}>",
+                        get_meta_type(type_desc->fields()[0]), get_meta_type(type_desc->fields()[1]),
+                        join_to_string(meta_options(type_desc->fields()[0]), " | "),
+                        join_to_string(meta_options(type_desc->fields()[1]), " | "));
+      } else {
+        descriptor.cpp_meta_type = std::format(
+            "::hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
+            get_meta_type(type_desc->fields()[1]), join_to_string(meta_options(type_desc->fields()[0]), " | "),
+            join_to_string(meta_options(type_desc->fields()[1]), " | "));
+      }
     }
 
     std::string default_value;
@@ -1576,9 +1615,11 @@ struct glaze_meta_generator : code_generator {
                      "    }} else if (*it == 't' || *it == 'f') {{\n"
                      "      parse<JSON>::op<Opts>(value.kind.template emplace<bool>(), ctx, it, end);\n"
                      "    }} else if (*it == '{{') {{\n"
-                     "      parse<JSON>::op<Opts>(value.kind.template emplace<{0}::kind_oneof_case::struct_value>().fields, ctx, it, end);\n"
+                     "      auto& fields = value.kind.template emplace<{0}::kind_oneof_case::struct_value>().fields;\n"
+                     "      parse<JSON>::op<Opts>(hpp::proto::detail::as_modifiable(ctx, fields), ctx, it, end);\n"
                      "    }} else if (*it == '[') {{\n"
-                     "      parse<JSON>::op<Opts>(value.kind.template emplace<{0}::kind_oneof_case::list_value>().values, ctx, it, end);\n"
+                     "      auto& values = value.kind.template emplace<{0}::kind_oneof_case::list_value>().values;\n"
+                     "      parse<JSON>::op<Opts>(hpp::proto::detail::as_modifiable(ctx, values), ctx, it, end);\n"
                      "    }}\n"
                      "  }}\n"
                      "}};\n"
@@ -1623,33 +1664,32 @@ struct glaze_meta_generator : code_generator {
                 "struct from<JSON, google::protobuf::Struct<Traits>> {{\n"
                 "  template <auto Options>\n"
                 "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
-                "    using fields_t = std::remove_cvref_t<decltype(value.fields)>;\n"
-                "    from<JSON, fields_t>::template op<Options>(value.fields, ctx, it, end);\n"
+                "    parse<JSON>::op<Options>(hpp::proto::detail::as_modifiable(ctx, value.fields), ctx, it, end);\n"
                 "  }}\n"
                 "}};\n"
                 "}} // namespace glz\n");
     } else if (descriptor.pb_name == "google.protobuf.ListValue") {
-      format_to(target,
-                "namespace glz {{\n"
-                "\n"
-                "template <typename Traits>\n"
-                "struct to<JSON, google::protobuf::ListValue<Traits>> {{\n"
-                "  template <auto Opts>\n"
-                "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
-                "    using values_t = std::remove_cvref_t<decltype(value.values)>;\n"
-                "    to<JSON, values_t>::template op<Opts>(value.values, ctx, b, ix);\n"
-                "  }}\n"
-                "}};\n"
-                "\n"
-                "template <typename Traits>\n"
-                "struct from<JSON, google::protobuf::ListValue<Traits>> {{\n"
-                "  template <auto Options>\n"
-                "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
-                "    using values_t = std::remove_cvref_t<decltype(value.values)>;\n"
-                "    from<JSON, values_t>::template op<Options>(value.values, ctx, it, end);\n"
-                "  }}\n"
-                "}};\n"
-                "}} // namespace glz\n");
+      format_to(
+          target,
+          "namespace glz {{\n"
+          "\n"
+          "template <typename Traits>\n"
+          "struct to<JSON, google::protobuf::ListValue<Traits>> {{\n"
+          "  template <auto Opts>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
+          "    using values_t = std::remove_cvref_t<decltype(value.values)>;\n"
+          "    to<JSON, values_t>::template op<Opts>(value.values, ctx, b, ix);\n"
+          "  }}\n"
+          "}};\n"
+          "\n"
+          "template <typename Traits>\n"
+          "struct from<JSON, google::protobuf::ListValue<Traits>> {{\n"
+          "  template <auto Options>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
+          "    parse<JSON>::template op<Options>(hpp::proto::detail::as_modifiable(ctx, value.values), ctx, it, end);\n"
+          "  }}\n"
+          "}};\n"
+          "}} // namespace glz\n");
     } else {
       format_to(target,
                 "template <typename Traits>\n"
@@ -1791,7 +1831,10 @@ struct desc_hpp_generator : code_generator {
     format_to(target, "\nnamespace {} {{\n\n", ns);
 
     std::vector<std::uint8_t> buf;
-    (void)::hpp::proto::write_binpb(descriptor.proto(), buf);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    auto &proto = const_cast<google::protobuf::FileDescriptorProto<> &>(descriptor.proto());
+    proto.source_code_info.reset();
+    (void)::hpp::proto::write_binpb(proto, buf);
 
     append_to(target, "using namespace std::literals::string_view_literals;\n");
     append_to(target, "constexpr file_descriptor_pb _desc_");
@@ -1966,11 +2009,11 @@ int main(int argc, const char **argv) {
   response.minimum_edition = static_cast<int32_t>(google::protobuf::Edition::EDITION_PROTO2);
   response.maximum_edition = static_cast<int32_t>(google::protobuf::Edition::EDITION_2024);
 
+  code_generator::resolve_message_dependencies(pool);
   for (const auto &file_name : request.file_to_generate) {
     auto &descriptor = *pool.get_file_descriptor(file_name);
 
     msg_code_generator msg_code(response.file);
-    msg_code.resolve_message_dependencies(pool);
     msg_code.process(descriptor);
 
     hpp_meta_generator hpp_meta_code(response.file);

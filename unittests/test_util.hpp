@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <fstream>
 #include <hpp_proto/binpb.hpp>
+#include <ostream>
 #include <ranges>
 #include <span>
 #include <string>
@@ -49,4 +50,18 @@ constexpr auto operator""_bytes() {
 template <hpp::proto::compile_time_string cts>
 std::ostream &operator<<(std::ostream &os, hpp::proto::bytes_literal<cts> v) {
   return os << std::span<const std::byte>(v);
+}
+
+template <hpp::proto::concepts::flat_map Map>
+std::ostream &operator<<(std::ostream &os, const Map &map) {
+  os << "{";
+  bool is_first = true;
+  for (const auto &entry : map) {
+    if (!is_first) {
+      os << ", ";
+      is_first = false;
+    }
+    os << entry.first << ": " << entry.second;
+  }
+  return os;
 }
