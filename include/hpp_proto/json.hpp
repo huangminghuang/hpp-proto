@@ -505,13 +505,13 @@ inline json_status read_json(concepts::read_json_supported auto &value, const ch
 /// @return A std::expected containing the deserialized message on success, or a json_status on failure.
 template <concepts::read_json_supported T>
 inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) -> std::expected<T, json_status> {
-  T value;
-  if (auto result = read_json(value, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);
-      !result.ok()) {
-    return std::unexpected(result);
-  } else {
-    return value;
+  std::expected<T, json_status> result;
+  if (auto status =
+          read_json(*result, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);
+      !status.ok()) {
+    result = std::unexpected(status);
   }
+  return result;
 }
 
 /// @brief Serializes a message object to a JSON string in the provided buffer.
@@ -535,12 +535,12 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
 template <concepts::contiguous_byte_range Buffer = std::string>
 inline auto write_json(concepts::write_json_supported auto const &value,
                        concepts::is_option_type auto &&...option) noexcept -> std::expected<Buffer, json_status> {
-  Buffer buffer;
-  auto ec = write_json(value, buffer, std::forward<decltype(option)>(option)...);
+  std::expected<Buffer, json_status> result;
+  auto ec = write_json(value, *result, std::forward<decltype(option)>(option)...);
   if (!ec.ok()) {
-    return std::unexpected(ec);
+    result = std::unexpected(ec);
   }
-  return buffer;
+  return result;
 }
 
 } // namespace hpp::proto

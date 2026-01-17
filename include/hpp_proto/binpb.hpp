@@ -84,12 +84,11 @@ status write_binpb(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...o
 /// @return A std::expected containing the buffer on success, or an error code on failure.
 template <concepts::contiguous_byte_range Buffer = std::vector<std::byte>>
 expected<Buffer, std::errc> write_binpb(concepts::has_meta auto const &msg, concepts::is_option_type auto &&...option) {
-  Buffer buffer;
-  if (auto result = write_binpb(msg, buffer, std::forward<decltype(option)>(option)...); !result.ok()) {
-    return unexpected(result.ec);
-  } else {
-    return buffer;
+  expected<Buffer, std::errc> result;
+  if (auto status = write_binpb(msg, *result, std::forward<decltype(option)>(option)...); !status.ok()) [[unlikely]] {
+    result = unexpected(status.ec);
   }
+  return result;
 }
 
 /// @brief serialize a message to the end of the supplied buffer
@@ -108,12 +107,12 @@ status append_proto(T &&msg, concepts::resizable_contiguous_byte_container auto 
 template <concepts::has_meta T>
 constexpr static expected<T, std::errc> read_binpb(concepts::input_byte_range auto const &buffer,
                                                    concepts::is_option_type auto &&...option) {
-  T msg{};
+  expected<T, std::errc> result;
   pb_context ctx{std::forward<decltype(option)>(option)...};
-  if (auto result = pb_serializer::deserialize(msg, buffer, ctx); !result.ok()) {
-    return unexpected(result.ec);
+  if (auto status = pb_serializer::deserialize(*result, buffer, ctx); !status.ok()) [[unlikely]] {
+    result = unexpected(status.ec);
   }
-  return msg;
+  return result;
 }
 
 /// @brief Deserializes a message from a byte range into an existing message object using a context.
@@ -251,12 +250,11 @@ status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg
 
 template <concepts::has_meta T>
 expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is_option_type auto &&...option) {
-  T msg;
-  if (auto result = unpack_any(any, msg, std::forward<decltype(option)>(option)...); !result.ok()) {
-    return unexpected(result.ec);
-  } else {
-    return msg;
+  expected<T, std::errc> result;
+  if (auto status = unpack_any(any, *result, std::forward<decltype(option)>(option)...); !status.ok()) [[unlikely]] {
+    result = unexpected(status.ec);
   }
+  return result;
 }
 
 } // namespace hpp::proto
