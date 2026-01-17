@@ -1,6 +1,7 @@
 #include <google/protobuf/map_unittest.pb.hpp>
 #include <google/protobuf/unittest.pb.hpp>
 #include <google/protobuf/unittest_proto3.pb.hpp>
+#include <google/protobuf/unittest_well_known_types.pb.hpp>
 
 #include <google/protobuf/map_unittest.glz.hpp>
 #include <google/protobuf/unittest.glz.hpp>
@@ -12,7 +13,9 @@
 // Define the variant of all message types we fuzz
 using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits>,
                                        protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits>,
-                                       protobuf_unittest::TestMap<hpp::proto::non_owning_traits>>;
+                                       protobuf_unittest::TestMap<hpp::proto::non_owning_traits>
+                                       ,proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_traits>
+                                       >;
 
 std::vector<std::span<const uint8_t>> split_input(std::span<const uint8_t> input) {
   std::vector<std::span<const uint8_t>> result{2};

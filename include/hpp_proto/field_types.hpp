@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <bit>
 #include <cassert>
+#include <compare>
 #include <concepts>
 #include <cstdint>
 #include <functional>

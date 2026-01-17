@@ -39,11 +39,27 @@ public:
   constexpr const T &operator*() const noexcept { return *obj_; }
   constexpr const T *operator->() const noexcept { return obj_; }
 
-  constexpr bool operator==(const T &rhs) const { return *obj_ == rhs; }
-  constexpr bool operator==(const indirect_view &rhs) const { return *obj_ == *rhs.obj_; }
+  constexpr bool operator==(const T &rhs) const
+    requires requires { *obj_ == rhs; }
+  {
+    return *obj_ == rhs;
+  }
+  constexpr bool operator==(const indirect_view &rhs) const
+    requires requires { *obj_ == *rhs.obj_; }
+  {
+    return *obj_ == *rhs.obj_;
+  }
 
-  constexpr auto operator<=>(const T &rhs) const { return *obj_ <=> rhs; }
-  constexpr auto operator<=>(const indirect_view &rhs) const { return *obj_ <=> *rhs.obj_; }
+  constexpr auto operator<=>(const T &rhs) const
+    requires requires { *obj_ <=> rhs; }
+  {
+    return *obj_ <=> rhs;
+  }
+  constexpr auto operator<=>(const indirect_view &rhs) const
+    requires requires { *obj_ <=> *rhs.obj_; }
+  {
+    return *obj_ <=> *rhs.obj_;
+  }
 
   constexpr void swap(indirect_view &other) noexcept { std::swap(obj_, other.obj_); }
 };

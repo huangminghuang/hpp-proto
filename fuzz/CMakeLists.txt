@@ -2,10 +2,10 @@
 if(NOT DEFINED HPP_PROTO_FUZZ_COMPILE_OPTIONS)
   set(HPP_PROTO_FUZZ_COMPILE_OPTIONS -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all)
 endif()
+
 if(NOT DEFINED HPP_PROTO_FUZZ_LINK_OPTIONS)
   set(HPP_PROTO_FUZZ_LINK_OPTIONS -fsanitize=fuzzer,address,undefined)
 endif()
-
 
 unset(FUZZER_SUPPORT CACHE)
 try_compile(FUZZER_SUPPORT
@@ -30,21 +30,43 @@ set(corpus_script ${CMAKE_CURRENT_SOURCE_DIR}/append_fuzz_suffix.py)
 # Define the output root for generated corpora inside the build tree.
 set(script_output_root ${CMAKE_CURRENT_BINARY_DIR})
 
-message(STATUS "Generating fuzzer corpus by running script: ${corpus_script}")
+function(copy_and_append_byte input_file dest_dir byte_value)
+  get_filename_component(_name "${input_file}" NAME)
+  set(_output "${dest_dir}/${_name}")
 
-execute_process(
-  COMMAND ${Python3_EXECUTABLE} ${corpus_script} --output-root=${script_output_root} --formats=binpb,json
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  RESULT_VARIABLE script_result
-  OUTPUT_VARIABLE script_output
-  ERROR_VARIABLE script_output # Capture both stdout and stderr
-)
+  add_custom_command(
+    OUTPUT "${_output}"
+    COMMAND ${Python3_EXECUTABLE} -c
+            "from pathlib import Path; data = Path(r'${input_file}').read_bytes(); Path(r'${_output}').write_bytes(data + bytes([${byte_value}]))"
+    DEPENDS "${input_file}"
+    COMMENT "Copying ${input_file} and appending one byte"
+    VERBATIM
+  )
 
-if(script_result EQUAL 0)
-  message(STATUS "Corpus generation script output:\n${script_output}")
-else()
-  message(FATAL_ERROR "Failed to run corpus generation script ${corpus_script}:\n${script_output}")
-endif()
+  add_custom_target(seed_${_name} ALL
+    DEPENDS "${_output}"
+  )
+endfunction()
+
+function(gen_seed_corpus data_dir file_list type)
+  set(_output_dir "${CMAKE_CURRENT_BINARY_DIR}/${type}_seed_corpus")
+  file(MAKE_DIRECTORY ${_output_dir})
+
+  set(_index 0)
+  foreach(_file IN LISTS file_list)
+    copy_and_append_byte("${data_dir}/${_file}.${type}" "${_output_dir}" "${_index}")
+    math(EXPR _index "${_index} + 1")
+  endforeach()
+endfunction()
+
+set(seed_list "proto3_unittest.TestAllTypes"
+  "protobuf_unittest.TestAllTypes"
+  "protobuf_unittest.TestMap"
+  "proto2_unittest.TestWellKnownTypes")
+
+set(data_dir ${CMAKE_CURRENT_SOURCE_DIR}/../tests/data)
+gen_seed_corpus("${data_dir}" "${seed_list}" binpb)
+gen_seed_corpus("${data_dir}" "${seed_list}" json)
 
 # Copy unittest.desc.binpb from the tests build into the fuzz build dir.
 set(unittest_desc_src ${CMAKE_CURRENT_BINARY_DIR}/../tests/unittest.desc.binpb)
@@ -82,5 +104,6 @@ function(add_fuzz_target type source)
   configure_file(${target}.dict ${target}.dict COPYONLY)
   configure_file(${target}.sh ${target}.sh COPYONLY)
 endfunction()
+
 add_fuzz_target(binpb fuzz_binpb.cpp)
 add_fuzz_target(json fuzz_json.cpp)
