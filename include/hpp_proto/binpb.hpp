@@ -85,8 +85,7 @@ status write_binpb(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...o
 template <concepts::contiguous_byte_range Buffer = std::vector<std::byte>>
 expected<Buffer, std::errc> write_binpb(concepts::has_meta auto const &msg, concepts::is_option_type auto &&...option) {
   expected<Buffer, std::errc> result;
-  if (auto status = write_binpb(msg, *result, std::forward<decltype(option)>(option)...); !status.ok())
-      [[unlikely]] {
+  if (auto status = write_binpb(msg, *result, std::forward<decltype(option)>(option)...); !status.ok()) [[unlikely]] {
     result = unexpected(status.ec);
   }
   return result;
@@ -252,8 +251,7 @@ status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg
 template <concepts::has_meta T>
 expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is_option_type auto &&...option) {
   expected<T, std::errc> result;
-  if (auto status = unpack_any(any, *result, std::forward<decltype(option)>(option)...); !status.ok())
-      [[unlikely]] {
+  if (auto status = unpack_any(any, *result, std::forward<decltype(option)>(option)...); !status.ok()) [[unlikely]] {
     result = unexpected(status.ec);
   }
   return result;

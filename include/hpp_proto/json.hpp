@@ -506,7 +506,8 @@ inline json_status read_json(concepts::read_json_supported auto &value, const ch
 template <concepts::read_json_supported T>
 inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) -> std::expected<T, json_status> {
   std::expected<T, json_status> result;
-  if (auto status = read_json(*result, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);
+  if (auto status =
+          read_json(*result, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);
       !status.ok()) {
     result = std::unexpected(status);
   }
