@@ -167,9 +167,15 @@
             }
         }
     ],
+    "buildPresets": [
+        {
+            "name": "dev",
+            "configurePreset": "dev"
+        }
+    ],
     "testPresets": [
         {
-            "name": "all",
+            "name": "dev",
             "displayName": "Automated Tests",
             "configurePreset": "dev",
             "output": {

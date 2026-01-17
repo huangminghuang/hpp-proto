@@ -423,17 +423,18 @@ public:
   static std::expected<FileDescriptorSet, status>
   make_file_descriptor_set(concepts::file_descriptor_pb_range auto const &unique_descs, distinct_file_tag_t,
                            concepts::is_option_type auto &&...option) {
-    FileDescriptorSet fileset;
+    std::expected<FileDescriptorSet, status> result;
     pb_context ctx{std::forward<decltype(option)>(option)...};
-    decltype(auto) files = detail::as_modifiable(ctx, fileset.file);
+    decltype(auto) files = detail::as_modifiable(ctx, result->file);
     files.resize(std::ranges::size(unique_descs));
     std::size_t i = 0;
     for (const auto &desc : unique_descs) {
       if (auto ec = read_binpb(files[i++], desc.value, ctx); !ec.ok()) {
-        return std::unexpected(ec);
+        result = std::unexpected(ec);
+        return result;
       }
     }
-    return fileset;
+    return result;
   }
 
   template <std::ranges::forward_range Range>
