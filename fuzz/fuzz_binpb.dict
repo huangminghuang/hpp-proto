@@ -136,3 +136,24 @@ sequence_a="AAAA"
 sequence_b="BBBB"
 sequence_c="CCCC"
 sequence_long="This is a somewhat longer string to test buffer boundaries and reallocation."
+
+# --- TestWellKnownTypes Field Tags (Wire Type 2 - Length Delimited) ---
+tag_wkt_any="\x0a"             # field 1
+tag_wkt_api="\x12"             # field 2
+tag_wkt_duration="\x1a"        # field 3
+tag_wkt_empty="\x22"           # field 4
+tag_wkt_field_mask="\x2a"      # field 5
+tag_wkt_source_context="\x32"  # field 6
+tag_wkt_struct="\x3a"          # field 7
+tag_wkt_timestamp="\x42"       # field 8
+tag_wkt_type="\x4a"            # field 9
+tag_wkt_double="\x52"          # field 10
+tag_wkt_float="\x5a"           # field 11
+tag_wkt_int64="\x62"           # field 12
+tag_wkt_uint64="\x6a"          # field 13
+tag_wkt_int32="\x72"           # field 14
+tag_wkt_uint32="\x7a"          # field 15
+tag_wkt_bool="\x82\x01"        # field 16
+tag_wkt_string="\x8a\x01"      # field 17
+tag_wkt_bytes="\x92\x01"       # field 18
+tag_wkt_value="\x9a\x01"       # field 19
