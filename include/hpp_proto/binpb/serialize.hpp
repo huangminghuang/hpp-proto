@@ -398,10 +398,19 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
       return std::errc::not_enough_memory;
     }
 
-    basic_out archive{buffer, context};
-    auto cache_itr = cache.begin();
-    if (!serialize(item, cache_itr, archive)) {
-      return std::errc::bad_message;
+    if (std::is_constant_evaluated()) {
+      basic_out archive{buffer, context};
+      auto cache_itr = cache.begin();
+      if (!serialize(item, cache_itr, archive)) {
+        return std::errc::bad_message;
+      }
+    } else {
+      basic_out archive{std::as_writable_bytes(std::span{std::ranges::data(buffer), std::ranges::size(buffer)}),
+                        context};
+      auto cache_itr = cache.begin();
+      if (!serialize(item, cache_itr, archive)) {
+        return std::errc::bad_message;
+      }
     }
     return {};
   };
