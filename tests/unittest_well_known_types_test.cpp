@@ -122,12 +122,14 @@ struct WellKnownTypesTests {
       expect(fatal(!original_json.empty()));
 
       ::hpp::proto::dynamic_message_factory message_factory;
+      using hpp::proto::use_factory;
+      using hpp::proto::alloc_from;
       expect(message_factory.init(unittest_descriptorset));
-      auto my_json = hpp::proto::write_json(original, message_factory).value();
+      auto my_json = hpp::proto::write_json(original, use_factory{message_factory}).value();
       expect(eq(my_json, original_json));
 
       TestWellKnownTypes msg;
-      expect(hpp::proto::read_json(msg, original_json, message_factory, hpp::proto::alloc_from{mr}).ok());
+      expect(hpp::proto::read_json(msg, original_json, use_factory{message_factory}, alloc_from{mr}).ok());
 
       ExpectAllFieldsSet(msg);
     };

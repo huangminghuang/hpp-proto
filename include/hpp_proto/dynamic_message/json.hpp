@@ -327,7 +327,7 @@ struct any_message_json_serializer {
 
   static auto msg_builder(std::pmr::monotonic_buffer_resource &mr, ::hpp::proto::concepts::is_json_context auto &ctx) {
     return [&](auto message_name) -> std::expected<::hpp::proto::message_value_mref, const char *> {
-      auto &msg_factory = ctx.template get<::hpp::proto::dynamic_message_factory>();
+      auto &msg_factory = ctx.get_dynamic_message_factory();
       auto opt_msg = msg_factory.get_message(message_name, mr);
       if (opt_msg.has_value()) {
         return *opt_msg;

@@ -130,6 +130,14 @@ public:
   [[nodiscard]] std::span<const file_descriptor_t> files() const { return pool_.files(); }
 };
 
+class use_factory {
+  dynamic_message_factory* factory_;
+public:
+  using option_type = use_factory;
+  explicit use_factory(dynamic_message_factory &f) : factory_(&f) {}
+  dynamic_message_factory& get_dynamic_message_factory() const { return *factory_; }
+};
+
 inline void dynamic_message_factory::setup_storage_slots() {
   for (auto &message : pool_.messages()) {
     hpp::proto::optional<std::int32_t> prev_oneof_index;

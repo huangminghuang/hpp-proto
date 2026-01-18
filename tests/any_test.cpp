@@ -53,14 +53,14 @@ const suite test_dynamic_message_any = [] {
     const std::string_view expected_json =
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/local/share"}})";
     std::string buf;
-    expect(hpp::proto::write_json(message, buf, message_factory).ok());
+    expect(hpp::proto::write_json(message, buf, hpp::proto::use_factory{message_factory}).ok());
     expect(eq(buf, expected_json));
 
     ::protobuf_unittest::TestAny<> message2;
-    expect(hpp::proto::read_json(message2, expected_json, message_factory).ok());
+    expect(hpp::proto::read_json(message2, expected_json, hpp::proto::use_factory{message_factory}).ok());
     expect(message == message2);
 
-    expect(hpp::proto::write_json(message, buf, message_factory, hpp::proto::indent_level<3>).ok());
+    expect(hpp::proto::write_json(message, buf, hpp::proto::use_factory{message_factory}, hpp::proto::indent_level<3>).ok());
     using namespace std::string_literals;
     expect(eq(buf, R"({
    "anyValue": {
