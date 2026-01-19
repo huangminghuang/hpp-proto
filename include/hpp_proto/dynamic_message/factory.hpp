@@ -108,7 +108,10 @@ public:
    *          ::google::protobuf::FileDescriptorSet.
    */
   bool init(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb) {
-    return ::hpp::proto::read_binpb<FileDescriptorSet>(file_descriptor_set_binpb, alloc_from(memory_resource_))
+    return ::hpp::proto::read_binpb<FileDescriptorSet>(
+               std::as_bytes(std::span{std::ranges::data(file_descriptor_set_binpb),
+                                       std::ranges::size(file_descriptor_set_binpb)}),
+               alloc_from(memory_resource_))
         .and_then([this](auto &&fileset) -> std::expected<void, std::errc> {
           this->init(std::forward<decltype(fileset)>(fileset));
           return {};
@@ -131,11 +134,12 @@ public:
 };
 
 class use_factory {
-  dynamic_message_factory* factory_;
+  dynamic_message_factory *factory_;
+
 public:
   using option_type = use_factory;
   explicit use_factory(dynamic_message_factory &f) : factory_(&f) {}
-  dynamic_message_factory& get_dynamic_message_factory() const { return *factory_; }
+  dynamic_message_factory &get_dynamic_message_factory() const { return *factory_; }
 };
 
 inline void dynamic_message_factory::setup_storage_slots() {

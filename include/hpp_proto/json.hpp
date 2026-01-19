@@ -23,7 +23,10 @@
 #pragma once
 #include <bit>
 #include <cctype>
+#include <cstddef>
 #include <iterator>
+#include <ranges>
+#include <string>
 
 #include <hpp_proto/json/base64.hpp>
 #include <hpp_proto/json/field_wrappers.hpp>
@@ -408,6 +411,26 @@ struct glz_opts_t {
 
 class message_value_cref;
 class message_value_mref;
+
+class null_terminated_string_view {
+  const char *data = nullptr;
+  std::size_t size = 0;
+
+public:
+  constexpr null_terminated_string_view() = default;
+  constexpr null_terminated_string_view(const char *str)
+      : data(str), size(str ? std::char_traits<char>::length(str) : 0) {}
+  constexpr null_terminated_string_view(const std::string &str) : data(str.c_str()), size(str.size()) {}
+  constexpr null_terminated_string_view(const char *str, std::size_t length) : data(str), size(length) {}
+
+  template <typename T>
+    requires std::convertible_to<T, const char *>
+  constexpr null_terminated_string_view(T str) : null_terminated_string_view(static_cast<const char *>(str)) {}
+
+  constexpr const char *c_str() const noexcept { return data; }
+  constexpr operator std::string_view() const noexcept { return {data, size}; }
+};
+
 namespace concepts {
 template <typename T>
 concept glz_opts_t = requires { requires std::derived_from<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
@@ -419,14 +442,14 @@ template <typename T>
 concept read_json_supported = glz::read_supported<T, glz::JSON>;
 
 template <typename T>
-concept null_terminated_str =
-    // Case 1: Raw pointers (const char*) or String Literals (const char[N])
-    std::convertible_to<T, const char *> ||
-    // Case 2: Classes with a .c_str() member function
-    requires(const T &t) {
-      { t.c_str() } -> std::convertible_to<const char *>;
-    };
+concept null_terminated_str = std::convertible_to<T, null_terminated_string_view>;
+
+template <typename T>
+concept non_null_terminated_str =
+    std::ranges::contiguous_range<T> && std::same_as<std::remove_cvref_t<std::ranges::range_value_t<T>>, char> &&
+    (!null_terminated_str<T>);
 } // namespace concepts
+
 namespace detail {
 template <typename Context, typename... Rest>
 constexpr auto get_glz_opts_impl() {
@@ -457,45 +480,38 @@ struct [[nodiscard]] json_status final {
   [[nodiscard]] std::string message(const auto &buffer) const { return glz::format_error(ctx, buffer); }
 };
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-/// @brief Deserializes a JSON string into a message object.
+/// @brief Deserializes JSON from a contiguous, non-null-terminated buffer into a message object.
 /// @tparam T Type of the message to deserialize, must satisfy concepts::read_json_supported.
 /// @param value The message object to populate.
-/// @param buffer The input buffer containing the JSON string.
+/// @param buffer The input buffer containing JSON bytes (not necessarily null-terminated).
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
 inline json_status read_json(concepts::read_json_supported auto &value,
-                             concepts::contiguous_byte_range auto const &buffer,
+                             concepts::non_null_terminated_str auto const &buffer,
                              concepts::is_option_type auto &&...option) {
-  using buffer_type = std::remove_cvref_t<decltype(buffer)>;
-  static_assert(std::is_trivially_destructible_v<buffer_type> || std::is_lvalue_reference_v<decltype(buffer)> ||
-                    ((concepts::has_memory_resource<decltype(option)> || ...)),
-                "temporary buffer cannot be used for non-owning object parsing");
-
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
     value = std::decay_t<decltype(value)>{};
   }
-  constexpr auto opts = ::glz::set_opt<detail::get_glz_opts<decltype(option)...>(), &glz::opts::null_terminated>(
-      concepts::null_terminated_str<decltype(buffer)>);
+  constexpr auto opts = ::glz::set_opt<detail::get_glz_opts<decltype(option)...>(), &glz::opts::null_terminated>(false);
 
   json_context ctx{std::forward<decltype(option)>(option)...};
-  return {glz::read<opts>(value, std::forward<decltype(buffer)>(buffer), ctx)};
+  return {glz::read<opts>(value, std::string_view{std::ranges::data(buffer), std::ranges::size(buffer)}, ctx)};
 }
 
-/// @brief Deserializes a JSON C-string into a message object.
+/// @brief Deserializes JSON from a null-terminated string view into a message object.
 /// @tparam T Type of the message to deserialize.
 /// @param value The message object to populate.
-/// @param str The null-terminated C-string containing the JSON.
+/// @param str The null-terminated string view containing the JSON.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
-inline json_status read_json(concepts::read_json_supported auto &value, const char *str,
+inline json_status read_json(concepts::read_json_supported auto &value, null_terminated_string_view str,
                              concepts::is_option_type auto &&...option) {
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
     value = {};
   }
   constexpr auto opts = ::glz::set_opt<detail::get_glz_opts<decltype(option)...>(), &glz::opts::null_terminated>(true);
   json_context ctx{std::forward<decltype(option)>(option)...};
-  return {glz::read<opts>(value, str, ctx)};
+  return {glz::read<opts>(value, std::string_view{str}, ctx)};
 }
 
 /// @brief Deserializes a JSON string and returns the message object.

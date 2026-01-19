@@ -1410,7 +1410,7 @@ status deserialize(auto &item, concepts::segmented_byte_range auto const &buffer
   std::pmr::vector<std::byte> patch_buffer(patch_buffer_bytes_count, &mr);
   std::pmr::vector<input_buffer_region<std::byte>> regions(num_regions, &mr);
 
-  std::ranges::transform(buffer, regions.begin() + num_segments, [](const auto &b) {
+  std::ranges::transform(buffer, std::next(regions.begin(), static_cast<ssize_t>(num_segments)), [](const auto &b) {
     return input_buffer_region<std::byte>{std::as_bytes(std::span{std::ranges::data(b), std::ranges::size(b)})};
   });
 
