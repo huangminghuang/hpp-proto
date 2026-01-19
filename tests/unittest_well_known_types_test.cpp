@@ -72,23 +72,62 @@ struct WellKnownTypesTests {
            hpp::proto::unpack_any(m.any_field.value(), fm, ::hpp::proto::alloc_from(mr)).ok());
     expect(std::ranges::equal(field_mask_paths_init_list, fm.paths));
 
-    expect(m.api_field.has_value() && m.api_field->name == string_t{"test_api"});
+    expect(m.api_field.has_value());
+    if (m.api_field) {
+      expect(m.api_field->name == string_t{"test_api"});
+    }
     expect(m.duration_field.has_value() && *m.duration_field == duration_t{.seconds = 1000, .nanos = 100000000});
     expect(m.empty_field.has_value());
-    expect(m.field_mask_field.has_value() && std::ranges::equal(m.field_mask_field->paths, field_mask_paths_init_list));
-    expect(m.struct_field.has_value() && m.struct_field->fields == struct_fields_init());
+    expect(m.field_mask_field.has_value());
+    if (m.field_mask_field) {
+      expect(std::ranges::equal(m.field_mask_field->paths, field_mask_paths_init_list));
+    }
+    expect(m.struct_field.has_value());
+    if (m.struct_field) {
+      expect(m.struct_field->fields == struct_fields_init());
+    }
     expect(m.timestamp_field.has_value() && *m.timestamp_field == timestamp_t{.seconds = 2000, .nanos = 200000000});
-    expect(m.type_field.has_value() && m.type_field->name == string_t{"test_type"});
+    expect(m.type_field.has_value());
+    if (m.type_field) {
+      expect(m.type_field->name == string_t{"test_type"});
+    }
 
-    expect(m.double_field.has_value() && m.double_field->value == 3.14);
-    expect(m.float_field.has_value() && m.float_field->value == 2.718F); // NOLINT
-    expect(m.int64_field.has_value() && m.int64_field->value == 40LL);
-    expect(m.uint64_field.has_value() && m.uint64_field->value == 41ULL);
-    expect(m.int32_field.has_value() && m.int32_field->value == 42);
-    expect(m.uint32_field.has_value() && m.uint32_field->value == 43);
-    expect(m.bool_field.has_value() && m.bool_field->value);
-    expect(m.string_field.has_value() && m.string_field->value == string_t{"abc"});
-    expect(m.bytes_field.has_value() && m.bytes_field->value == "def"_bytes);
+    expect(m.double_field.has_value());
+    if (m.double_field) {
+      expect(m.double_field->value == 3.14);
+    }
+    expect(m.float_field.has_value());
+    if (m.float_field) {
+      expect(m.float_field->value == 2.718F); // NOLINT
+    }
+    expect(m.int64_field.has_value());
+    if (m.int64_field) {
+      expect(m.int64_field->value == 40LL);
+    }
+    expect(m.uint64_field.has_value());
+    if (m.uint64_field) {
+      expect(m.uint64_field->value == 41ULL);
+    }
+    expect(m.int32_field.has_value());
+    if (m.int32_field) {
+      expect(m.int32_field->value == 42);
+    }
+    expect(m.uint32_field.has_value());
+    if (m.uint32_field) {
+      expect(m.uint32_field->value == 43);
+    }
+    expect(m.bool_field.has_value());
+    if (m.bool_field) {
+      expect(m.bool_field->value);
+    }
+    expect(m.string_field.has_value());
+    if (m.string_field) {
+      expect(m.string_field->value == string_t{"abc"});
+    }
+    expect(m.bytes_field.has_value());
+    if (m.bytes_field) {
+      expect(m.bytes_field->value == "def"_bytes);
+    }
   }
 
   void run() {

@@ -415,22 +415,23 @@ class message_value_cref;
 class message_value_mref;
 
 class null_terminated_string_view {
-  const char *data = nullptr;
-  std::size_t size = 0;
+  std::string_view data;
 
 public:
   constexpr null_terminated_string_view() = default;
+
+  // NOLINTBEGIN(hicpp-explicit-conversions)
   constexpr null_terminated_string_view(const char *str)
-      : data(str), size(str ? std::char_traits<char>::length(str) : 0) {}
-  constexpr null_terminated_string_view(const std::string &str) : data(str.c_str()), size(str.size()) {}
-  constexpr null_terminated_string_view(const char *str, std::size_t length) : data(str), size(length) {}
+      : data(str != nullptr ? std::string_view{str} : std::string_view{}) {}
+  constexpr null_terminated_string_view(const std::string &str) : data(str) {}
+  constexpr null_terminated_string_view(const char *str, std::size_t length) : data(str, length) {}
 
   template <typename T>
     requires std::convertible_to<T, const char *>
   constexpr null_terminated_string_view(T str) : null_terminated_string_view(static_cast<const char *>(str)) {}
-
-  constexpr const char *c_str() const noexcept { return data; }
-  constexpr operator std::string_view() const noexcept { return {data, size}; }
+  // NOLINTEND(hicpp-explicit-conversions)
+  [[nodiscard]] constexpr const char *c_str() const noexcept { return data.data(); }
+  constexpr explicit operator std::string_view() const noexcept { return data; }
 };
 
 namespace concepts {

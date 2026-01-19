@@ -16,7 +16,7 @@ status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg
 
 status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg, std::span<const std::byte> input,
                   hpp::proto::alloc_option_t option) {
-  return hpp::proto::read_binpb(msg, input, std::move(option));
+  return hpp::proto::read_binpb(msg, input, option);
 }
 
 status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
@@ -26,7 +26,7 @@ status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg
 
 status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                   std::span<std::span<const std::byte>> input, hpp::proto::alloc_option_t option) {
-  return hpp::proto::read_binpb(msg, input, std::move(option));
+  return hpp::proto::read_binpb(msg, input, option);
 }
 
 status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg, std::span<const std::byte> input) {
@@ -35,7 +35,7 @@ status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &m
 
 status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg, std::span<const std::byte> input,
                   hpp::proto::alloc_option_t option) {
-  return hpp::proto::read_binpb(msg, input, std::move(option));
+  return hpp::proto::read_binpb(msg, input, option);
 }
 
 status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
@@ -45,7 +45,7 @@ status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &m
 
 status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                   std::span<std::span<const std::byte>> input, hpp::proto::alloc_option_t option) {
-  return hpp::proto::read_binpb(msg, input, std::move(option));
+  return hpp::proto::read_binpb(msg, input, option);
 }
 
 status read_binpb(protobuf_unittest::TestMap<hpp::proto::default_traits> &msg, std::span<const std::byte> input) {
@@ -54,7 +54,7 @@ status read_binpb(protobuf_unittest::TestMap<hpp::proto::default_traits> &msg, s
 
 status read_binpb(protobuf_unittest::TestMap<hpp::proto::non_owning_traits> &msg, std::span<const std::byte> input,
                   hpp::proto::alloc_option_t option) {
-  return hpp::proto::read_binpb(msg, input, std::move(option));
+  return hpp::proto::read_binpb(msg, input, option);
 }
 
 status read_binpb(protobuf_unittest::TestMap<hpp::proto::default_traits> &msg,
@@ -64,7 +64,7 @@ status read_binpb(protobuf_unittest::TestMap<hpp::proto::default_traits> &msg,
 
 status read_binpb(protobuf_unittest::TestMap<hpp::proto::non_owning_traits> &msg,
                   std::span<std::span<const std::byte>> input, hpp::proto::alloc_option_t option) {
-  return hpp::proto::read_binpb(msg, input, std::move(option));
+  return hpp::proto::read_binpb(msg, input, option);
 }
 
 status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
@@ -74,7 +74,7 @@ status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits
 
 status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_traits> &msg,
                   std::span<const std::byte> input, hpp::proto::alloc_option_t option) {
-  return hpp::proto::read_binpb(msg, input, std::move(option));
+  return hpp::proto::read_binpb(msg, input, option);
 }
 
 status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
@@ -84,7 +84,7 @@ status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits
 
 status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_traits> &msg,
                   std::span<std::span<const std::byte>> input, hpp::proto::alloc_option_t option) {
-  return hpp::proto::read_binpb(msg, input, std::move(option));
+  return hpp::proto::read_binpb(msg, input, option);
 }
 
 status read_binpb(hpp::proto::message_value_mref &msg, std::span<const std::byte> input) {

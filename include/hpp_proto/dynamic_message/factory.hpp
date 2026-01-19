@@ -139,7 +139,7 @@ class use_factory {
 public:
   using option_type = use_factory;
   explicit use_factory(dynamic_message_factory &f) : factory_(&f) {}
-  dynamic_message_factory &get_dynamic_message_factory() const { return *factory_; }
+  [[nodiscard]] dynamic_message_factory &get_dynamic_message_factory() const { return *factory_; }
 };
 
 inline void dynamic_message_factory::setup_storage_slots() {
