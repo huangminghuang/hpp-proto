@@ -3,6 +3,7 @@
 # - protobuf_unittest.TestAllTypes (proto2)   in tests/google/protobuf/unittest.proto
 # - proto3_unittest.TestAllTypes (proto3)    in tests/google/protobuf/unittest_proto3.proto
 # - protobuf_unittest.TestMap (maps)         in tests/google/protobuf/map_unittest.proto
+# - proto2_unittest.TestWellKnownTypes       in tests/google/protobuf/unittest_well_known_types.proto
 #
 # Notes:
 # - ProtoJSON uses `json_name` (lowerCamelCase) keys by default.
@@ -192,3 +193,36 @@ map_entry_str="\"k\":\"v\""
 map_entry_bool="\"true\":false"
 map_entry_b64="\"1\":\"AQ==\""
 map_entry_enum="\"1\":\"MAP_ENUM_FOO\""
+
+# --- TestWellKnownTypes keys (ProtoJSON json_name / lowerCamelCase) ---
+key_anyField="\"anyField\":"
+key_apiField="\"apiField\":"
+key_durationField="\"durationField\":"
+key_emptyField="\"emptyField\":"
+key_fieldMaskField="\"fieldMaskField\":"
+key_sourceContextField="\"sourceContextField\":"
+key_structField="\"structField\":"
+key_timestampField="\"timestampField\":"
+key_typeField="\"typeField\":"
+key_doubleField="\"doubleField\":"
+key_floatField="\"floatField\":"
+key_int64Field="\"int64Field\":"
+key_uint64Field="\"uint64Field\":"
+key_int32Field="\"int32Field\":"
+key_uint32Field="\"uint32Field\":"
+key_boolField="\"boolField\":"
+key_stringField="\"stringField\":"
+key_bytesField="\"bytesField\":"
+key_valueField="\"valueField\":"
+
+# --- Well-known type JSON helpers ---
+key_any_type="\"@type\":"
+key_any_value="\"value\":"
+fieldmask_sample="\"/usr/share,/usr/local/share\""
+duration_sample="\"1.000s\""
+timestamp_sample="\"1970-01-01T00:00:00Z\""
+struct_empty="\"structField\":{}"
+struct_simple="\"structField\":{\"fields\":{\"abc\":{\"stringValue\":\"xyz\"}}}"
+any_fieldmask="\"anyField\":{\"@type\":\"type.googleapis.com/google.protobuf.FieldMask\",\"value\":\"/usr/share,/usr/local/share\"}"
+any_struct="\"anyField\":{\"@type\":\"type.googleapis.com/google.protobuf.Struct\",\"value\":{\"fields\":{\"k\":{\"stringValue\":\"v\"}}}}"
+
