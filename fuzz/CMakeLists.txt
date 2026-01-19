@@ -75,7 +75,7 @@ add_custom_command(
   OUTPUT ${unittest_desc_dst}
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/fuzz
   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${unittest_desc_src} ${unittest_desc_dst}
-  DEPENDS unittest.desc.binpb.target
+  DEPENDS ${unittest_desc_src} unittest.desc.binpb.target
   COMMENT "Copying unittest.desc.binpb into fuzz build directory"
 )
 add_custom_target(fuzz_unittest_desc ALL DEPENDS ${unittest_desc_dst})
