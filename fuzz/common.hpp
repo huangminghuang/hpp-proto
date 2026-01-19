@@ -7,6 +7,7 @@
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory.hpp>
 
+
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,misc-use-anonymous-namespace)
 extern hpp::proto::dynamic_message_factory factory;
 
@@ -36,3 +37,7 @@ template <typename T>
 concept use_non_owning_traits =
     requires { requires std::same_as<typename T::hpp_proto_traits_type, ::hpp::proto::non_owning_traits>; };
 }; // namespace concepts
+
+std::span<const std::byte> to_bytes(hpp::proto::concepts::contiguous_byte_range auto const& data) {
+  return std::as_bytes(std::span{std::ranges::data(data), std::ranges::size(data)});
+}
