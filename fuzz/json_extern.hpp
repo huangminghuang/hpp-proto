@@ -17,7 +17,6 @@ using alloc_option_t = alloc_from<std::pmr::monotonic_buffer_resource>;
 
 } // namespace hpp::proto
 
-
 namespace util {
 // Non-template overloads keep JSON template instantiations in json_extern.cpp only,
 // avoiding glz.hpp-driven codegen in other translation units.

@@ -7,7 +7,6 @@
 #include <hpp_proto/binpb.hpp>
 #include <hpp_proto/dynamic_message/binpb.hpp>
 
-
 namespace util {
 using hpp::proto::status;
 

@@ -29,10 +29,10 @@
 #include <string>
 #include <type_traits>
 
+#include <hpp_proto/field_types.hpp>
 #include <hpp_proto/json/base64.hpp>
 #include <hpp_proto/json/field_wrappers.hpp>
 #include <hpp_proto/json/util.hpp>
-#include <hpp_proto/field_types.hpp>
 
 namespace hpp::proto {
 namespace concepts {
