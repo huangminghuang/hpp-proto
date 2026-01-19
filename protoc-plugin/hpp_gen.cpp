@@ -1226,6 +1226,10 @@ struct msg_code_generator : code_generator {
               "constexpr auto message_type_url(const {0}{1}&) {{ return "
               "::hpp::proto::string_literal<\"type.googleapis.com/{2}\">{{}}; }}\n",
               qualified_name.ends_with('>') ? "" : "typename ", qualified_name, descriptor.pb_name);
+    format_to(out_of_ns_target,
+              "template <typename Traits>\n"
+              "struct hpp::proto::is_hpp_generated<{0}{1}> : std::true_type {{}};\n",
+              qualified_name.ends_with('>') ? "" : "typename ", descriptor.qualified_name);
   }
 
   // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
@@ -1728,6 +1732,11 @@ struct glaze_meta_generator : code_generator {
         process(e);
       }
     }
+
+    format_to(target,
+              "template <typename Traits>\n"
+              "struct hpp::proto::has_glz<{0}> : std::true_type {{}};\n",
+              qualified_name);
   }
   // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
 

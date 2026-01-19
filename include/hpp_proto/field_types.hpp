@@ -52,6 +52,12 @@
 #include <hpp_proto/optional_indirect.hpp>
 
 namespace hpp::proto {
+template <typename T>
+struct is_hpp_generated : std::false_type {};
+
+template <typename T>
+struct has_glz : std::false_type {};
+
 #ifdef __cpp_lib_flat_map
 using std::flat_map;
 using std::sorted_unique;
@@ -519,6 +525,10 @@ concept flat_map = requires(Type t) {
   t.keys();
   t.values();
 };
+
+template <typename T>
+concept is_option_type = requires { typename std::decay_t<T>::option_type; };
+
 }; // namespace concepts
 
 template <compile_time_string cts>

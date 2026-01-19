@@ -27,10 +27,12 @@
 #include <iterator>
 #include <ranges>
 #include <string>
+#include <type_traits>
 
 #include <hpp_proto/json/base64.hpp>
 #include <hpp_proto/json/field_wrappers.hpp>
 #include <hpp_proto/json/util.hpp>
+#include <hpp_proto/field_types.hpp>
 
 namespace hpp::proto {
 namespace concepts {
@@ -489,6 +491,9 @@ struct [[nodiscard]] json_status final {
 inline json_status read_json(concepts::read_json_supported auto &value,
                              concepts::non_null_terminated_str auto const &buffer,
                              concepts::is_option_type auto &&...option) {
+  using value_type = std::remove_cvref_t<decltype(value)>;
+  static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
+                "glz.hpp is required for hpp_gen messages; include the generated .glz.hpp header");
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
     value = std::decay_t<decltype(value)>{};
   }
@@ -506,6 +511,9 @@ inline json_status read_json(concepts::read_json_supported auto &value,
 /// @return json_status indicating success or failure.
 inline json_status read_json(concepts::read_json_supported auto &value, null_terminated_string_view str,
                              concepts::is_option_type auto &&...option) {
+  using value_type = std::remove_cvref_t<decltype(value)>;
+  static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
+                "the generated .glz.hpp is required for hpp_gen messages");
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
     value = {};
   }
@@ -538,6 +546,9 @@ inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) 
 inline json_status write_json(concepts::write_json_supported auto const &value,
                               concepts::contiguous_byte_range auto &buffer,
                               concepts::is_option_type auto &&...option) noexcept {
+  using value_type = std::remove_cvref_t<decltype(value)>;
+  static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
+                "the generated .glz.hpp is required for hpp_gen messages");
   constexpr auto opts = detail::get_glz_opts<decltype(option)...>();
   json_context ctx{std::forward<decltype(option)>(option)...};
   return {glz::write<opts>(value, detail::as_modifiable(ctx, buffer), ctx)};
