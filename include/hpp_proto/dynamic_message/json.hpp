@@ -12,11 +12,12 @@
 namespace glz {
 
 namespace util {
-template <auto Opts>
+template <auto Opts, bool ConsumeEnd = true>
 /**
  * @brief Match an object end or consume a field separator, skipping whitespace as needed.
  *
  * @tparam Opts Glaze parsing options controlling whitespace, comments, and termination behavior.
+ * @tparam ConsumeEnd Whether to consume the closing '}' via match_ending.
  * @param ws_start Iterator to the start of the initial whitespace after the opening '{'.
  * @param ws_size Size of that initial whitespace span; reused for a fast-path skip when unchanged.
  * @param first Tracks whether this is the first field in the object.
@@ -27,7 +28,7 @@ template <auto Opts>
  */
 bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, glz::is_context auto &ctx, auto &it,
                                    auto &end) {
-  if (util::match_ending<Opts>('}', ctx, it, end)) {
+  if (util::match_ending<Opts, ConsumeEnd>('}', ctx, it, end)) {
     if constexpr (not Opts.null_terminated) {
       if (it == end) {
         ctx.error = error_code::end_reached;
@@ -94,12 +95,7 @@ void scan_object_fields(glz::is_context auto &ctx, auto &it, auto &end, auto &&o
       ctx.error = error_code::unexpected_end;
       return;
     }
-    if constexpr (!ConsumeEnd) {
-      if (*it == '}') {
-        return;
-      }
-    }
-    if (util::match_ending_or_consume_comma<Opts>(ws_start, ws_size, first, ctx, it, end)) {
+    if (util::match_ending_or_consume_comma<Opts, ConsumeEnd>(ws_start, ws_size, first, ctx, it, end)) {
       return;
     }
     on_key_start(it, end);

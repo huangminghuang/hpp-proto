@@ -112,12 +112,14 @@ template <auto Opts> // NOLINTNEXTLINE(readability-function-cognitive-complexity
   return true;
 }
 
-template <auto Opts>
+template <auto Opts, bool ConsumeEnd = true>
 bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto &) {
   if (*it == c) {
-    ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    if constexpr (not Opts.null_terminated) {
-      --ctx.indentation_level;
+    if constexpr (ConsumeEnd) {
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      if constexpr (not Opts.null_terminated) {
+        --ctx.indentation_level;
+      }
     }
     return true;
   }
