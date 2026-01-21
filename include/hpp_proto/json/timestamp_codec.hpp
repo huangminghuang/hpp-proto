@@ -22,8 +22,8 @@
 
 #pragma once
 #include <algorithm>
-#include <cstdint>
 #include <chrono>
+#include <cstdint>
 #include <iterator>
 #include <ranges>
 #include <span>
