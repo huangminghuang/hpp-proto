@@ -253,6 +253,7 @@ public:
   [[nodiscard]] constexpr value_type *data() const { return data_; }
   constexpr reference operator[](std::size_t n) { return data_[n]; }
   [[nodiscard]] constexpr std::size_t size() const { return view_.size(); }
+  [[nodiscard]] constexpr bool empty() const { return view_.empty(); }
   [[nodiscard]] constexpr value_type *begin() const { return data_; }
   [[nodiscard]] constexpr value_type *end() const { return data_ + size(); }
 

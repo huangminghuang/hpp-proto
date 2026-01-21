@@ -3,6 +3,7 @@
 #include <google/protobuf/field_mask.glz.hpp>
 #include <google/protobuf/struct.msg.hpp>
 #include <google/protobuf/timestamp.glz.hpp>
+#include <hpp_proto/binpb/utf8.hpp>
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory.hpp>
 #include <hpp_proto/dynamic_message/field_visit.hpp>
@@ -12,6 +13,18 @@ namespace glz {
 
 namespace util {
 template <auto Opts>
+/**
+ * @brief Match an object end or consume a field separator, skipping whitespace as needed.
+ *
+ * @tparam Opts Glaze parsing options controlling whitespace, comments, and termination behavior.
+ * @param ws_start Iterator to the start of the initial whitespace after the opening '{'.
+ * @param ws_size Size of that initial whitespace span; reused for a fast-path skip when unchanged.
+ * @param first Tracks whether this is the first field in the object.
+ * @param ctx Parsing context for error reporting.
+ * @param it Current input iterator.
+ * @param end Input end iterator.
+ * @return true if the object ended or a terminal/error condition was encountered; false to continue parsing fields.
+ */
 bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, glz::is_context auto &ctx, auto &it,
                                    auto &end) {
   if (util::match_ending<Opts>('}', ctx, it, end)) {
@@ -45,6 +58,67 @@ bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, g
     }
   }
   return false;
+}
+
+/**
+ * @brief Scan an object field list, invoking callbacks around each key.
+ *
+ * @tparam Opts Glaze parsing options controlling whitespace, comments, and termination behavior.
+ * @tparam ConsumeEnd Whether to consume the closing '}' via match_ending_or_consume_comma.
+ * @param ws_start Iterator to the start of the initial whitespace after the opening '{'.
+ * @param ws_size Size of that initial whitespace span; reused for a fast-path skip when unchanged.
+ * @param ctx Parsing context for error reporting.
+ * @param it Current input iterator.
+ * @param end Input end iterator.
+ * @param on_key_start Invoked before key parsing; can update iterator-related state.
+ * @param on_key Invoked with the key and iterators; return true to terminate scanning.
+ * @param on_after_ws Invoked after trailing whitespace is skipped.
+ * @return None; scanning stops by returning from the function.
+ */
+template <auto Options, bool ConsumeEnd>
+void scan_object_fields(glz::is_context auto &ctx, auto &it, auto &end, auto &&on_key_start, auto &&on_key,
+                        auto &&on_after_ws) {
+  if (!util::parse_opening<Options>('{', ctx, it, end)) [[unlikely]] {
+    return;
+  }
+
+  static constexpr auto Opts = opening_handled_off<ws_handled_off<Options>()>();
+  const auto ws_start = it; // Snapshot of initial whitespace after '{' for later fast-path skipping.
+  if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
+    return;
+  }
+  const auto ws_size = size_t(it - ws_start);
+  bool first = true;
+  while (true) {
+    if (it == end) [[unlikely]] {
+      ctx.error = error_code::unexpected_end;
+      return;
+    }
+    if constexpr (!ConsumeEnd) {
+      if (*it == '}') {
+        return;
+      }
+    }
+    if (util::match_ending_or_consume_comma<Opts>(ws_start, ws_size, first, ctx, it, end)) {
+      return;
+    }
+    on_key_start(it, end);
+    std::string_view key;
+    util::parse_key_and_colon<Opts>(key, ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
+    }
+    if (on_key(key, it, end)) {
+      return;
+    }
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
+    }
+    if (skip_ws<Opts>(ctx, it, end)) {
+      return;
+    }
+    on_after_ws(it, end);
+  }
 }
 
 template <auto Opts>
@@ -213,48 +287,56 @@ struct generic_message_json_serializer {
     //  };
     static constexpr auto Opts = opening_handled_off<ws_handled_off<Options>()>();
 
-    if (!util::parse_opening<Options>('{', ctx, it, end)) [[unlikely]] {
-      return;
-    }
-    const auto ws_start = it;
-    if (skip_ws<Opts>(ctx, it, end)) {
-      return;
-    }
-    const auto ws_size = size_t(it - ws_start);
-    bool first = true;
-    while (true) {
-      if (util::match_ending_or_consume_comma<Opts>(ws_start, ws_size, first, ctx, it, end)) {
-        return;
-      }
-      std::string_view key;
-      util::parse_key_and_colon<Opts>(key, ctx, it, end);
-      if (bool(ctx.error)) [[unlikely]] {
-        return;
-      }
-
-      const auto *desc = value.field_descriptor_by_json_name(key);
-      if (desc == nullptr) {
-        if constexpr (Opts.error_on_unknown_keys) {
-          ctx.error = error_code::unknown_key;
-          return;
-        }
-        skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it, end);
-      } else {
-        from<JSON, ::hpp::proto::field_mref>::template op<ws_handled<Opts>()>(value.field(*desc), ctx, it, end);
-      }
-
-      if (bool(ctx.error)) [[unlikely]] {
-        return;
-      }
-
-      if (skip_ws<Opts>(ctx, it, end)) {
-        return;
-      }
-    }
+    util::scan_object_fields<Options, true>(
+        ctx, it, end, [](auto &, auto &) {},
+        [&](std::string_view key, auto &it_ref, auto &end_ref) {
+          const auto *desc = value.field_descriptor_by_json_name(key);
+          if (desc == nullptr) {
+            if constexpr (Opts.error_on_unknown_keys) {
+              ctx.error = error_code::unknown_key;
+              return true;
+            }
+            skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it_ref, end_ref);
+          } else {
+            from<JSON, ::hpp::proto::field_mref>::template op<ws_handled<Opts>()>(value.field(*desc), ctx, it_ref,
+                                                                                  end_ref);
+          }
+          return bool(ctx.error);
+        },
+        [](auto &, auto &) {});
   }
 };
 
 struct any_message_json_serializer {
+  template <auto Opts>
+  static bool handle_any_type_key(std::string_view key, glz::is_context auto &ctx, auto &it, auto &end,
+                                  std::string_view &type_url, bool &is_type_key_first) {
+    if (key == "@type") {
+      if (!type_url.empty()) {
+        ctx.error = error_code::syntax_error;
+        ctx.custom_error_message = "duplicate @type field in google.protobuf.Any";
+        return true;
+      }
+      from<JSON, std::string_view>::template op<ws_handled<Opts>()>(type_url, ctx, it, end);
+      if (bool(ctx.error)) [[unlikely]] {
+        return true;
+      }
+      if (type_url.empty()) {
+        ctx.error = error_code::syntax_error;
+        ctx.custom_error_message = "empty @type field in google.protobuf.Any";
+        return true;
+      }
+      if (!::is_utf8(type_url.data(), type_url.size())) {
+        ctx.error = error_code::syntax_error;
+        ctx.custom_error_message = "invalid utf8 @type field in google.protobuf.Any";
+        return true;
+      }
+    } else {
+      is_type_key_first = false;
+      skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it, end);
+    }
+    return bool(ctx.error);
+  }
 
   static std::expected<std::string_view, const char *> to_message_name(std::string_view type_url) {
     auto slash_pos = type_url.find('/');
@@ -302,6 +384,54 @@ struct any_message_json_serializer {
     ctx.custom_error_message = "invalid google.protobuf.Any descriptor";
   }
 
+  template <auto Options>
+  /**
+   * @brief Scan a JSON object for the "@type" field and adjust the input iterator for follow-up parsing.
+   *
+   * The function walks the object, returning the "@type" string when found and reporting errors for duplicates
+   * (or empty values). The caller's iterator is advanced to the start of the first key after leading whitespace;
+   * if "@type" is the first key, it is further advanced to the start of the next field when present (comma and
+   * whitespace consumed), otherwise to the position after the "@type" value and trailing whitespace.
+   *
+   * @tparam Options Glaze parsing options controlling whitespace and termination behavior.
+   * @param ctx Parsing context for error reporting.
+   * @param input_it Iterator to the start of the object; updated for subsequent parsing.
+   * @param end Input end iterator.
+   * @return The parsed "@type" value on success, or an error message on failure.
+   */
+  static std::expected<std::string_view, const char *> get_type_url(is_context auto &ctx, auto &input_it, auto &end) {
+    auto it = input_it;
+    std::string_view type_url;
+    static constexpr auto Opts = opening_handled_off<ws_handled_off<Options>()>();
+
+    bool is_type_key_first = true;
+    bool is_first_iteration = true;
+    util::scan_object_fields<opening_handled_off<Options>(), false>(
+        ctx, it, end,
+        [&](auto &it_ref, auto &) {
+          if (is_first_iteration || is_type_key_first) {
+            input_it = it_ref;
+            is_first_iteration = false;
+          }
+        },
+        [&](std::string_view key, auto &it_ref, auto &end_ref) {
+          return handle_any_type_key<Opts>(key, ctx, it_ref, end_ref, type_url, is_type_key_first);
+        },
+        [&](auto &it_ref, auto &) {
+          if (is_type_key_first) {
+            input_it = it_ref;
+          }
+        });
+
+    if (bool(ctx.error)) [[unlikely]] {
+      return std::unexpected("");
+    }
+    if (type_url.empty()) {
+      return std::unexpected("@type key not found in google.protobuf.Any message");
+    }
+    return type_url;
+  }
+
   template <auto Opts>
   static void from_json(::hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.Any");
@@ -336,6 +466,10 @@ struct any_message_json_serializer {
       }
     };
   }
+
+  template <auto Opts>
+  static std::expected<void, const char *> parse_wellknown_any_value(::hpp::proto::message_value_mref &message,
+                                                                     is_context auto &ctx, auto &it, auto &end);
 
   template <auto Opts>
   static void to_json(const ::hpp::proto::concepts::is_any auto &any, ::hpp::proto::concepts::is_json_context auto &ctx,
@@ -868,6 +1002,51 @@ static std::expected<void, const char *> message_to_json(::hpp::proto::message_v
 };
 
 template <auto Opts>
+std::expected<void, const char *>
+any_message_json_serializer::parse_wellknown_any_value(::hpp::proto::message_value_mref &message, is_context auto &ctx,
+                                                       auto &it, auto &end) {
+  bool seen_value = false;
+  const char *local_error = nullptr;
+  util::scan_object_fields<opening_handled<Opts>(), true>(
+      ctx, it, end, [](auto &, auto &) {},
+      [&](std::string_view key, auto &it_ref, auto &end_ref) {
+        if (key == "value") {
+          if (seen_value) {
+            local_error = "duplicate value field in google.protobuf.Any message";
+            return true;
+          }
+          seen_value = true;
+          // parse the the json into a new dynamic_message
+          from<JSON, ::hpp::proto::message_value_mref>::template op<ws_handled<Opts>()>(message, ctx, it_ref, end_ref);
+          if (bool(ctx.error)) [[unlikely]] {
+            return true;
+          }
+        } else if (key == "@type") {
+          // Consume the already-parsed @type field to enforce no extra keys.
+          skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it_ref, end_ref);
+          if (bool(ctx.error)) [[unlikely]] {
+            return true;
+          }
+        } else {
+          local_error = "unknown key in google.protobuf.Any message";
+          return true;
+        }
+        return bool(ctx.error);
+      },
+      [](auto &, auto &) {});
+  if (bool(ctx.error)) [[unlikely]] {
+    return {};
+  }
+  if (local_error != nullptr) {
+    return std::unexpected(local_error);
+  }
+  if (!seen_value) {
+    return std::unexpected("value key not found in google.protobuf.Any message");
+  }
+  return {};
+}
+
+template <auto Opts>
 void any_message_json_serializer::to_json_impl(auto &&build_message, const auto &any_type_url, const auto &any_value,
                                                is_context auto &ctx, auto &b, auto &ix) {
   util::dump_opening_brace<Opts>(ctx, b, ix);
@@ -909,78 +1088,33 @@ template <auto Opts>
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&any_type_url, auto &&any_value,
                                                  is_context auto &ctx, auto &it, auto &end) {
-  if (!util::parse_opening<Opts>('{', ctx, it, end)) [[unlikely]] {
-    return;
-  }
-  if (skip_ws<Opts>(ctx, it, end)) {
-    return;
-  }
-  std::string_view key;
-  util::parse_key_and_colon<Opts>(key, ctx, it, end);
-  if (bool(ctx.error)) [[unlikely]] {
-    return;
-  }
+  (void)get_type_url<Opts>(ctx, it, end)
+      .and_then([&](std::string_view type_url) {
+        any_type_url = type_url;
+        return to_message_name(type_url).and_then(build_message);
+      })
+      .and_then([&](auto message) -> std::expected<void, const char *> {
+        if (message.descriptor().wellknown != ::hpp::proto::wellknown_types_t::NONE) {
+          parse_wellknown_any_value<Opts>(message, ctx, it, end);
+        } else {
+          // parse the the json into a new dynamic_message with opening handled
+          from<JSON, ::hpp::proto::message_value_mref>::template op<opening_handled<Opts>()>(message, ctx, it, end);
+        }
 
-  if (key == "@type") {
-    std::string_view type_url;
-    from<JSON, std::string_view>::template op<ws_handled<Opts>()>(type_url, ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]] {
-      return;
-    }
-    any_type_url = type_url;
-
-    if (match_invalid_end<',', Opts>(ctx, it, end)) {
-      return;
-    }
-    if constexpr (not Opts.null_terminated) {
-      if (it == end) [[unlikely]] {
-        ctx.error = error_code::unexpected_end;
-        return;
-      }
-    }
-
-    (void)to_message_name(type_url)
-        .and_then(build_message)
-        .and_then([&](auto message) -> std::expected<void, const char *> {
-          if (message.descriptor().wellknown != ::hpp::proto::wellknown_types_t::NONE) {
-            std::string_view key;
-            util::parse_key_and_colon<Opts>(key, ctx, it, end);
-            if (bool(ctx.error)) [[unlikely]] {
-              return {};
-            }
-            if (key != "value") {
-              return std::unexpected("value key not found in google.protobuf.Any message");
-            }
-            // parse the the json into a new dynamic_message
-            from<JSON, ::hpp::proto::message_value_mref>::template op<ws_handled<Opts>()>(message, ctx, it, end);
-            if (bool(ctx.error)) [[unlikely]] {
-              return {};
-            }
-            if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
-              return {};
-            }
-            if (match_invalid_end<'}', Opts>(ctx, it, end)) {
-              return {};
-            }
-            if constexpr (not Opts.null_terminated) {
-              --ctx.indentation_level;
-            }
-          } else {
-            // parse the the json into a new dynamic_message with opening handled
-            from<JSON, ::hpp::proto::message_value_mref>::template op<opening_handled<Opts>()>(message, ctx, it, end);
-          }
-
-          if (!hpp::proto::write_binpb(message, any_value).ok()) {
-            return std::unexpected("unable to serialize the value for google.protobuf.Any message");
-          }
-          return {};
-        })
-        .transform_error([&](const char *error_msg) {
+        if (!hpp::proto::write_binpb(message, any_value).ok()) {
+          return std::unexpected("unable to serialize the value for google.protobuf.Any message");
+        }
+        return {};
+      })
+      .transform_error([&](const char *error_msg) {
+        if (!bool(ctx.error)) {
           ctx.error = error_code::syntax_error;
-          ctx.custom_error_message = error_msg;
-          return 0;
-        });
-  }
+          if (error_msg && *error_msg) {
+            ctx.custom_error_message = error_msg;
+          }
+        }
+        return 0;
+      });
 }
 
 } // namespace glz

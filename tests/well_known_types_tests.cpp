@@ -52,8 +52,9 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
   }
 
   T msg2{};
+  std::pmr::monotonic_buffer_resource mr;
 
-  expect(fatal((hpp::proto::read_json(msg2, json).ok())));
+  expect(fatal((hpp::proto::read_json(msg2, json, hpp::proto::alloc_from(mr)).ok())));
   expect(msg == msg2);
 
   hpp::proto::bytes pb;
@@ -196,6 +197,11 @@ const ut::suite test_field_mask = [] {
 
   "verify FieldMask abc def"_test = [&factory] {
     verify<FieldMask>(factory, FieldMask{.paths = {"abc", "def"}}, R"("abc,def")");
+    // field mask json format does not escape control code
+    verify<FieldMask>(factory, google::protobuf::FieldMask<>{.paths = {"a\x00c"s, "def"s}}, "\"a\x00c,def\"");
+    std::array<std::string_view, 2> paths{"a\x00c", "def"};
+    verify<google::protobuf::FieldMask<hpp::proto::non_owning_traits>>(
+        factory, google::protobuf::FieldMask<hpp::proto::non_owning_traits>{.paths = paths}, "\"a\x00c,def\"");
   };
 };
 
