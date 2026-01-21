@@ -46,11 +46,11 @@ template <typename T>
 void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, std::string_view json,
             std::optional<std::string_view> pretty_json = std::nullopt) {
   expect(eq(json, hpp::proto::write_json(msg).value()));
-
+#ifndef HPP_PROTO_INDENT_LEVEL_UNSUPPORTED
   if (pretty_json && !pretty_json->empty()) {
     expect(eq(*pretty_json, hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value()));
   }
-
+#endif
   T msg2{};
   std::pmr::monotonic_buffer_resource mr;
 
@@ -69,6 +69,7 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
   expect(hpp::proto::binpb_to_json(factory, message_name, pb_buf1, json_buf1).ok());
   expect(eq(json, json_buf1));
 
+#ifndef HPP_PROTO_INDENT_LEVEL_UNSUPPORTED
   if (pretty_json && !pretty_json->empty()) {
     hpp::proto::bytes pb_buf2;
     std::string json_buf2;
@@ -77,6 +78,7 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
     expect(hpp::proto::json_to_binpb(factory, message_name, *pretty_json, pb_buf2).ok());
     expect(std::ranges::equal(pb, pb_buf2));
   }
+#endif
 }
 
 // NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)

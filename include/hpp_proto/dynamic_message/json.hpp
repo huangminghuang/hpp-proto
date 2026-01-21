@@ -122,18 +122,18 @@ template <auto Opts>
 void dump_opening_brace(is_context auto &ctx, auto &b, auto &ix) {
   glz::dump<'{'>(b, ix);
   if constexpr (Opts.prettify) {
-    ctx.indentation_level += Opts.indentation_width;
+    ctx.depth += glz::check_indentation_width(Opts);
     glz::dump<'\n'>(b, ix);
-    glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
   }
 }
 
 template <auto Opts>
 void dump_closing_brace(is_context auto &ctx, auto &b, auto &ix) {
   if constexpr (Opts.prettify) {
-    ctx.indentation_level -= Opts.indentation_width;
+    ctx.depth -= glz::check_indentation_width(Opts);
     glz::dump<'\n'>(b, ix);
-    glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
   }
   glz::dump<'}'>(b, ix);
 }
@@ -144,7 +144,7 @@ void dump_field_separator(bool is_map_entry, is_context auto &ctx, auto &b, auto
   if constexpr (Opts.prettify) {
     if (!is_map_entry) {
       glz::dump<'\n'>(b, ix);
-      glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+      glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
     } else {
       glz::dump<' '>(b, ix);
     }
@@ -227,8 +227,9 @@ struct generic_message_json_serializer {
       if (need_extra_quote) {
         glz::dump<'"'>(b, ix);
       }
-      field.visit(
-          [&](auto v) { to<JSON, decltype(v)>::template op<opt_true<field_opts, &opts::quoted_num>>(v, ctx, b, ix); });
+      field.visit([&](auto v) {
+        to<JSON, decltype(v)>::template op<opt_true<field_opts, quoted_num_opt_tag{}>>(v, ctx, b, ix);
+      });
       if (need_extra_quote) {
         glz::dump<'"'>(b, ix);
       }
@@ -696,8 +697,8 @@ struct to<JSON, hpp::proto::scalar_field_cref<T, Kind>> {
   GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_cref<T, Kind> &value, auto &&...args) {
     if (value.has_value()) {
       using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
-      constexpr bool need_quote = (::hpp::proto::concepts::integral_64_bits<value_type> || (Opts.quoted_num));
-      to<JSON, value_type>::template op<set_opt<Opts, &opts::quoted_num>(need_quote)>(
+      constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts);
+      to<JSON, value_type>::template op<set_opt<Opts, quoted_num_opt_tag{}>(need_quote)>(
           value.value(), std::forward<decltype(args)>(args)...);
     }
   }
@@ -711,7 +712,7 @@ struct to<JSON, hpp::proto::repeated_scalar_field_cref<T, Kind>> {
       auto range = std::span{value.data(), value.size()};
       using value_type = hpp::proto::repeated_scalar_field_cref<T, Kind>::value_type;
       constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<value_type>;
-      to<JSON, decltype(range)>::template op<set_opt<Opts, &opts::quoted_num>(need_quote)>(
+      to<JSON, decltype(range)>::template op<set_opt<Opts, quoted_num_opt_tag{}>(need_quote)>(
           range, std::forward<decltype(args)>(args)...);
     }
   }
@@ -795,9 +796,9 @@ void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is
     glz::dump<'['>(b, ix);
   }
   if constexpr (Opts.prettify) {
-    ctx.indentation_level += Opts.indentation_width;
+    ctx.depth += glz::check_indentation_width(Opts);
     glz::dump<'\n'>(b, ix);
-    glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
   }
 
   char separator = '\0';
@@ -809,7 +810,7 @@ void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is
       glz::dump<','>(b, ix);
       if (Opts.prettify) {
         glz::dump<'\n'>(b, ix);
-        glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+        glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
       }
     }
     auto pre_element_ix = ix;
@@ -823,9 +824,9 @@ void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is
   }
 
   if constexpr (Opts.prettify) {
-    ctx.indentation_level -= Opts.indentation_width;
+    ctx.depth -= glz::check_indentation_width(Opts);
     glz::dump<'\n'>(b, ix);
-    glz::dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
   }
   if (value.descriptor().is_map_entry()) {
     glz::dump<'}'>(b, ix);
@@ -841,13 +842,13 @@ struct from<JSON, hpp::proto::scalar_field_mref<T, Kind>> {
                                    auto &end) {
     using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
     value_type v = {};
-    if constexpr (::hpp::proto::concepts::integral_64_bits<value_type> || (Opts.quoted_num)) {
+    if constexpr (::hpp::proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts)) {
       if constexpr (!check_ws_handled(Opts)) {
         if (skip_ws<Opts>(ctx, it, end)) {
           return;
         }
       }
-      from<JSON, value_type>::template op<opt_true<ws_handled<Opts>(), &opts::quoted_num>>(v, ctx, it, end);
+      from<JSON, value_type>::template op<opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(v, ctx, it, end);
     } else {
       from<JSON, value_type>::template op<Opts>(v, ctx, it, end);
     }
@@ -966,7 +967,7 @@ struct from<JSON, hpp::proto::message_value_mref> {
       value.fields()[0].visit([&](auto key_mref) {
         using key_mref_type = decltype(key_mref);
         if constexpr (concepts::map_key_mref<key_mref_type>) {
-          util::parse_key_and_colon<opt_true<Opts, &opts::quoted_num>>(key_mref, ctx, it, end);
+          util::parse_key_and_colon<opt_true<Opts, quoted_num_opt_tag{}>>(key_mref, ctx, it, end);
           if (bool(ctx.error)) [[unlikely]] {
             return;
           }
@@ -1018,7 +1019,7 @@ struct from<JSON, T> {
           return;
         }
         from<JSON, std::remove_reference_t<typename T::reference>>::template op<
-            opt_true<ws_handled<Opts>(), &opts::quoted_num>>(std::forward<decltype(element)>(element), ctx, it, end);
+            opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(std::forward<decltype(element)>(element), ctx, it, end);
 
       } else {
         from<JSON, std::remove_reference_t<typename T::reference>>::template op<ws_handled_off<Opts>()>(
@@ -1124,7 +1125,7 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
   dump<','>(b, ix);
   if (Opts.prettify) {
     dump<'\n'>(b, ix);
-    dumpn<Opts.indentation_char>(ctx.indentation_level, b, ix);
+    dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
   }
 
   (void)to_message_name(any_type_url)
@@ -1198,10 +1199,7 @@ json_status json_to_binpb(const dynamic_message_factory &factory, std::string_vi
       return status;
     }
   } else {
-    return {.ctx = {.ec = ::glz::error_code::get_wrong_type,
-                    .custom_error_message = "unknown message name",
-                    .location = {},
-                    .includer_error = {}}};
+    return {.ctx = {.ec = ::glz::error_code::get_wrong_type, .custom_error_message = "unknown message name"}};
   }
 }
 
@@ -1227,7 +1225,7 @@ status binpb_to_json(const dynamic_message_factory &factory, std::string_view me
 status binpb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
                      concepts::contiguous_byte_range auto const &pb_encoded_stream,
                      concepts::resizable_contiguous_byte_container auto &buffer) {
-  return binpb_to_json(factory, message_name, pb_encoded_stream, buffer, glz_opts_t<glz::opts{}>{});
+  return binpb_to_json(factory, message_name, pb_encoded_stream, buffer, glz_opts_t<proto_json_opts{}>{});
 }
 
 } // namespace hpp::proto

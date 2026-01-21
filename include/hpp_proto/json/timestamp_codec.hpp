@@ -22,6 +22,7 @@
 
 #pragma once
 #include <algorithm>
+#include <cstdint>
 #include <chrono>
 #include <iterator>
 #include <ranges>
@@ -37,30 +38,35 @@ struct timestamp_codec {
     assert(val >= 0);
     if constexpr (Len == 9) {
       auto nanos = static_cast<uint32_t>(val);
-      uint32_t ns_component = nanos % 1'000;
-      uint32_t digits = 0;
-      if (ns_component > 0) {
-        glz::to_chars_u64_len_4(std::next(buf, 5), ns_component);
-        digits += 3;
-      }
-      uint32_t us_component = (nanos % 1'000'000);
-      if (us_component > 0) {
-        glz::to_chars_u64_len_4(std::next(buf, 2), us_component / 1000);
-        digits += 3;
-      }
+      const auto write_3_digits = [](char *out, uint32_t v) {
+        out[0] = static_cast<char>('0' + (v / 100));
+        out[1] = static_cast<char>('0' + ((v / 10) % 10));
+        out[2] = static_cast<char>('0' + (v % 10));
+        return out + 3;
+      };
       uint32_t ms_component = nanos / 1'000'000;
-      glz::to_chars_u64_len_4(std::next(buf, -1), ms_component);
-      *std::next(buf, -1) = '.';
-      digits += 3;
-      buf = std::next(buf, digits);
+      uint32_t us_component = (nanos / 1'000) % 1'000;
+      uint32_t ns_component = nanos % 1'000;
+      auto *pos = buf;
+      pos = write_3_digits(pos, ms_component);
+      if (ns_component != 0) {
+        pos = write_3_digits(pos, us_component);
+        pos = write_3_digits(pos, ns_component);
+      } else if (us_component != 0) {
+        pos = write_3_digits(pos, us_component);
+      }
+      buf = pos;
     } else if constexpr (Len == 4) {
-      buf = glz::to_chars_u64_len_4(buf, uint32_t(val));
+      const auto v = static_cast<uint32_t>(val);
+      buf[0] = static_cast<char>('0' + (v / 1000));
+      buf[1] = static_cast<char>('0' + ((v / 100) % 10));
+      buf[2] = static_cast<char>('0' + ((v / 10) % 10));
+      buf[3] = static_cast<char>('0' + (v % 10));
+      buf = std::next(buf, 4);
     } else if constexpr (Len == 2) {
-      assert(val < 100);
-      const auto offset = static_cast<std::size_t>(val) * 2;
-      std::span digits{glz::char_table};
-      const auto slice = digits.subspan(offset, 2);
-      std::ranges::copy(slice, buf);
+      const auto v = static_cast<uint32_t>(val);
+      buf[0] = static_cast<char>('0' + (v / 10));
+      buf[1] = static_cast<char>('0' + (v % 10));
       buf = std::next(buf, 2);
     }
     *buf = sep;

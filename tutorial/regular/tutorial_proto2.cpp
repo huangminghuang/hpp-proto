@@ -71,10 +71,11 @@ int main() {
   auto read_json_result = hpp::proto::read_json<AddressBook>(write_json_result.value());
   expect(address_book == read_json_result.value());
 
+#ifndef HPP_PROTO_INDENT_LEVEL_UNSUPPORTED
   // pretty print json, with indent level 3
   write_json_result = hpp::proto::write_json(address_book, hpp::proto::indent_level<3>);
   expect(write_json_result.has_value());
   std::cout << write_json_result.value() << "\n";
-
+#endif
   return 0;
 }

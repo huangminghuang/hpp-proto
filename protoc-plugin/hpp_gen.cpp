@@ -1544,7 +1544,7 @@ struct glaze_meta_generator : code_generator {
     if (well_known_wrapper_types.contains(descriptor.pb_name)) {
       std::string opts = "Opts";
       if (descriptor.pb_name == "google.protobuf.Int64Value" || descriptor.pb_name == "google.protobuf.UInt64Value") {
-        opts = "opt_true<Opts, &opts::quoted_num>";
+        opts = "opt_true<Opts, quoted_num_opt_tag{}>";
       }
       format_to(target,
                 "namespace glz {{\n"

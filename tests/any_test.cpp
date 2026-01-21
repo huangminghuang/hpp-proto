@@ -70,6 +70,7 @@ const suite test_dynamic_message_any = [] {
     expect(hpp::proto::read_json(message2, expected_json, hpp::proto::use_factory{message_factory}).ok());
     expect(message == message2);
 
+#ifndef HPP_PROTO_INDENT_LEVEL_UNSUPPORTED
     expect(hpp::proto::write_json(message, buf, hpp::proto::use_factory{message_factory}, hpp::proto::indent_level<3>)
                .ok());
     using namespace std::string_literals;
@@ -79,6 +80,7 @@ const suite test_dynamic_message_any = [] {
       "value": "/usr/share,/usr/local/share"
    }
 })"s));
+#endif
   };
 
   std::string_view data =
@@ -113,6 +115,7 @@ const suite test_dynamic_message_any = [] {
     expect(json_to_binpb(message_factory, message_name, expected_json, serialized).ok());
     expect(std::ranges::equal(data, serialized));
 
+#ifndef HPP_PROTO_INDENT_LEVEL_UNSUPPORTED
     expect(binpb_to_json(message_factory, message_name, data, result, hpp::proto::indent_level<3>).ok());
     const char *expected_json_indented = R"({
    "anyValue": {
@@ -121,6 +124,7 @@ const suite test_dynamic_message_any = [] {
    }
 })";
     expect(eq(expected_json_indented, result));
+#endif
   };
 
   "any_json_edge_cases"_test = [&] {

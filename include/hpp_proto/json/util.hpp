@@ -106,7 +106,7 @@ template <auto Opts> // NOLINTNEXTLINE(readability-function-cognitive-complexity
     }
 
     if constexpr (not Opts.null_terminated) {
-      ++ctx.indentation_level;
+      ++ctx.depth;
     }
   }
   return true;
@@ -118,7 +118,7 @@ bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto &) {
     if constexpr (ConsumeEnd) {
       ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       if constexpr (not Opts.null_terminated) {
-        --ctx.indentation_level;
+        --ctx.depth;
       }
     }
     return true;
@@ -134,7 +134,7 @@ void parse_key_and_colon(auto &&key, glz::is_context auto &ctx, auto &it, auto &
     }
   }
 
-  parse<JSON>::op<opt_true<ws_handled<Opts>(), &opts::quoted_num>>(key, ctx, it, end);
+  parse<JSON>::op<opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(key, ctx, it, end);
   if (bool(ctx.error)) [[unlikely]] {
     return;
   }

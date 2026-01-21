@@ -211,7 +211,7 @@ void from_json(T &v, auto &ctx, auto &it, auto &end) {
       }
     }
 
-    from<JSON, T>::template op<opt_true<ws_handled<Opts>(), &opts::quoted_num>>(v, ctx, it, end);
+    from<JSON, T>::template op<opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(v, ctx, it, end);
   } else if constexpr (pair_t<T>) {
     util::parse_key_and_colon<Opts>(::hpp::proto::detail::as_modifiable(ctx, v.first), ctx, it, end);
     if (bool(ctx.error)) [[unlikely]] {
@@ -230,7 +230,7 @@ struct to<JSON, hpp::proto::optional<Type, Default>> {
   GLZ_ALWAYS_INLINE static void op(auto const &value, auto &ctx, auto &it, auto &end) noexcept {
     if (value.has_value()) {
       if constexpr (::hpp::proto::concepts::integral_64_bits<Type>) {
-        to<JSON, Type>::template op<opt_true<Opts, &opts::quoted_num>>(*value, ctx, it, end);
+        to<JSON, Type>::template op<opt_true<Opts, quoted_num_opt_tag{}>>(*value, ctx, it, end);
       } else {
         to<JSON, Type>::template op<Opts>(*value, ctx, it, end);
       }
@@ -260,7 +260,7 @@ struct to<JSON, hpp::proto::optional_ref<Type, Default>> {
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
     if (bool(value)) {
       if constexpr (::hpp::proto::concepts::jsonfy_need_quote<Type>) {
-        to<JSON, std::decay_t<decltype(*value)>>::template op<opt_true<Opts, &opts::quoted_num>>(
+        to<JSON, std::decay_t<decltype(*value)>>::template op<opt_true<Opts, quoted_num_opt_tag{}>>(
             *value, std::forward<Args>(args)...);
       } else {
         to<JSON, std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
@@ -399,16 +399,19 @@ namespace hpp::proto {
 using proto_json_opts = glz::opts;
 #else
 struct proto_json_opts : glz::opts {
-  constexpr proto_json_opts() : glz::opts{} {}
-  constexpr explicit proto_json_opts(glz::opts op) : glz::opts(op) {}
   bool escape_control_characters = true;
+};
+struct proto_json_indent_opts : glz::opts {
+  bool escape_control_characters = true;
+  uint8_t indentation_width = 3;
+  char indentation_char = ' ';
 };
 #endif
 
 template <auto options>
 struct glz_opts_t {
   using option_type = glz_opts_t<options>;
-  static constexpr proto_json_opts glz_opts_value{options};
+  static constexpr auto glz_opts_value = options;
 };
 
 class message_value_cref;
@@ -454,11 +457,18 @@ concept non_null_terminated_str =
 } // namespace concepts
 
 namespace detail {
+template <typename Context>
+constexpr auto get_glz_opts_impl()
+  requires requires { std::decay_t<Context>::glz_opts_value; }
+{
+  return std::decay_t<Context>::glz_opts_value;
+}
+
 template <typename Context, typename... Rest>
-constexpr auto get_glz_opts_impl() {
-  if constexpr (requires { std::decay_t<Context>::glz_opts_value; }) {
-    return std::decay_t<Context>::glz_opts_value;
-  } else if constexpr (sizeof...(Rest)) {
+constexpr auto get_glz_opts_impl()
+  requires(!requires { std::decay_t<Context>::glz_opts_value; })
+{
+  if constexpr (sizeof...(Rest)) {
     return get_glz_opts_impl<Rest...>();
   } else {
     return proto_json_opts{};
@@ -469,13 +479,24 @@ template <typename... Context>
 constexpr auto get_glz_opts() {
   if constexpr (sizeof...(Context)) {
     return get_glz_opts_impl<Context...>();
+  } else {
+    return proto_json_opts{};
   }
-  return proto_json_opts{};
 }
 } // namespace detail
 
 template <uint8_t width = 3>
-constexpr auto indent_level = glz_opts_t<glz::opts{.prettify = (width > 0), .indentation_width = width}>{};
+#ifndef _MSC_VER
+
+constexpr auto indent_level = glz_opts_t<[]() constexpr {
+  proto_json_indent_opts opts{};
+  opts.prettify = (width > 0);
+  opts.indentation_width = width;
+  return opts;
+}()>{};
+#else
+#define HPP_PROTO_INDENT_LEVEL_UNSUPPORTED
+#endif
 
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
