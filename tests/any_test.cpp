@@ -21,7 +21,6 @@
 
 #include <hpp_proto/dynamic_message/json.hpp>
 
-
 using namespace boost::ut;
 using namespace std::string_view_literals;
 
@@ -145,9 +144,9 @@ const suite test_dynamic_message_any = [] {
       expect(status.ok());
     };
 
-    expect_read_fail(R"({"anyValue":{"value":"/usr/share"}})"); // missing @type
-    expect_read_fail(R"({"anyValue":{"@type":"","c":1}})");     // empty @type
-    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com","c":1}})"); // invalid formatted @type
+    expect_read_fail(R"({"anyValue":{"value":"/usr/share"}})");                               // missing @type
+    expect_read_fail(R"({"anyValue":{"@type":"","c":1}})");                                   // empty @type
+    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com","c":1}})");                // invalid formatted @type
     expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/does.not.Exist","c":1}})"); // unknown type_url
     expect_read_fail(
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1}})"); // duplicate @type
@@ -157,7 +156,10 @@ const suite test_dynamic_message_any = [] {
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","value":"/usr/local"}})"); // duplicate value
     expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask"}})"); // missing value
     expect_read_fail_strict(
-        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1,"unknown":2}})"); // unknown key with strict option
+        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1,"unknown":2}})"); // unknown
+                                                                                                             // key with
+                                                                                                             // strict
+                                                                                                             // option
 
     std::string bad_utf8 = "{\"anyValue\":{\"@type\":\"\xC0\",\"c\":1}}";
     expect_read_fail(bad_utf8); // invalid utf8 @type
@@ -180,7 +182,9 @@ const suite test_dynamic_message_any = [] {
 
     std::string result;
     expect(hpp::proto::write_json(message, result, hpp::proto::use_factory{message_factory}).ok());
-    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Timestamp","value":"1970-01-01T00:16:40Z"}})"sv));
+    expect(eq(
+        result,
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Timestamp","value":"1970-01-01T00:16:40Z"}})"sv));
 
     ::protobuf_unittest::TestAny<> message2;
     expect(hpp::proto::read_json(message2, result, hpp::proto::use_factory{message_factory}).ok());
