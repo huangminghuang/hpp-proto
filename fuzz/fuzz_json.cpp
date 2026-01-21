@@ -27,6 +27,7 @@ void round_trip_test(const T &in_message, T &&out_message) { // NOLINT(cppcoregu
     auto sw1 = std::string_view{it1 - 20, buffer1.end()};
     auto sw2 = std::string_view{it2 - 20, buffer2.end()};
     std::cerr << sw1 << "\n" << sw2 << "\n";
+    assert(false);
   }
 }
 

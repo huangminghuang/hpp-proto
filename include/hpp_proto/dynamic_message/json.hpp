@@ -304,7 +304,55 @@ struct generic_message_json_serializer {
 };
 
 struct any_message_json_serializer {
+  /**
+   * @brief Read a JSON string into a view while rejecting control characters.
+   *
+   * @tparam Opts Glaze parsing options controlling whitespace and termination behavior.
+   * @param value Output view of the parsed string contents.
+   * @param ctx Parsing context for error reporting.
+   * @param it Current input iterator (at or before the opening quote).
+   * @param end Input end iterator.
+   */
   template <auto Opts>
+  static void read_checked_string_view(std::string_view &value, glz::is_context auto &ctx, auto &it, auto &end) {
+    if constexpr (!check_opening_handled(Opts)) {
+      if constexpr (!check_ws_handled(Opts)) {
+        if (skip_ws<Opts>(ctx, it, end)) {
+          return;
+        }
+      }
+      if (match_invalid_end<'"', Opts>(ctx, it, end)) {
+        return;
+      }
+    }
+
+    auto start = it;
+    constexpr auto skip_opts = skip_string_opts{check_is_padded(Opts), true, true};
+    skip_string<skip_opts>(ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
+    }
+    value = {start, static_cast<size_t>((it - 1) - start)};
+    if constexpr (not Opts.null_terminated) {
+      if (it == end) {
+        ctx.error = error_code::end_reached;
+      }
+    }
+  }
+
+  template <auto Opts>
+  /**
+   * @brief Handle the @type field when reading google.protobuf.Any from JSON.
+   *
+   * @tparam Opts Glaze parsing options controlling whitespace and termination behavior.
+   * @param key Current JSON field name.
+   * @param ctx Parsing context for error reporting.
+   * @param it Current input iterator.
+   * @param end Input end iterator.
+   * @param type_url Storage for the parsed @type value.
+   * @param is_type_key_first Tracks whether @type was encountered before other fields.
+   * @return true if parsing should stop due to error or termination, false to continue.
+   */
   static bool handle_any_type_key(std::string_view key, glz::is_context auto &ctx, auto &it, auto &end,
                                   std::string_view &type_url, bool &is_type_key_first) {
     if (key == "@type") {
@@ -313,7 +361,7 @@ struct any_message_json_serializer {
         ctx.custom_error_message = "duplicate @type field in google.protobuf.Any";
         return true;
       }
-      from<JSON, std::string_view>::template op<ws_handled<Opts>()>(type_url, ctx, it, end);
+      read_checked_string_view<ws_handled<Opts>()>(type_url, ctx, it, end);
       if (bool(ctx.error)) [[unlikely]] {
         return true;
       }
