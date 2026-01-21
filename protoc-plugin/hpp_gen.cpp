@@ -1544,8 +1544,17 @@ struct glaze_meta_generator : code_generator {
     if (well_known_wrapper_types.contains(descriptor.pb_name)) {
       std::string opts = "Opts";
       if (descriptor.pb_name == "google.protobuf.Int64Value" || descriptor.pb_name == "google.protobuf.UInt64Value") {
-        opts = "opt_true<Opts, quoted_num_opt_tag{}>";
+        opts = "opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>";
       }
+
+      std::string parse_operation;
+      if (descriptor.pb_name == "google.protobuf.StringValue") {
+        parse_operation = "    decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, value.value);\n"
+                          "    parse<JSON>::template op<Opts>(v, ctx, it, end);";
+      } else {
+        parse_operation = std::format("    parse<JSON>::template op<{0}>(value.value, ctx, it, end);", opts);
+      }
+
       format_to(target,
                 "namespace glz {{\n"
                 "template <typename Traits>\n"
@@ -1559,13 +1568,12 @@ struct glaze_meta_generator : code_generator {
                 "template <typename Traits>\n"
                 "struct from<JSON, {0}> {{\n"
                 "template <auto Opts>\n"
-                "  GLZ_ALWAYS_INLINE static void op(auto &value, auto&& ...args) {{\n"
-                "    parse<JSON>::template op<{1}>(value.value, "
-                "std::forward<decltype(args)>(args)...);\n"
+                "  GLZ_ALWAYS_INLINE static void op(auto &value, auto& ctx, auto& it, auto& end) {{\n"
+                "{2}\n"
                 "  }}\n"
                 "}};\n"
                 "}} // namespace glz\n\n",
-                qualified_name, opts);
+                qualified_name, opts, parse_operation);
     } else if (well_known_codecs.contains(descriptor.pb_name)) {
       format_to(target,
                 "template <typename Traits>\n"
@@ -1671,9 +1679,12 @@ struct glaze_meta_generator : code_generator {
                 "\n"
                 "template <typename Traits>\n"
                 "struct from<JSON, google::protobuf::Struct<Traits>> {{\n"
-                "  template <auto Options>\n"
+                "  template <auto Opts>\n"
                 "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
-                "    parse<JSON>::op<Options>(hpp::proto::detail::as_modifiable(ctx, value.fields), ctx, it, end);\n"
+                "    decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, value.fields);\n"
+                "    util::parse_repeated<Opts>(true, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {{\n"
+                "      detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);\n"
+                "    }});\n"
                 "  }}\n"
                 "}};\n"
                 "}} // namespace glz\n");
