@@ -121,15 +121,17 @@ const suite test_dynamic_message_any = [] {
     };
 
     expect_read_fail(R"({"anyValue":{"value":"/usr/share"}})"); // missing @type
-    expect_read_fail(R"({"anyValue":{"@type":"","c":1}})"); // empty @type
-    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1}})"); // duplicate @type
-    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","extra":1}})"); // unknown key in well-known
-    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","value":"/usr/local"}})"); // duplicate value
+    expect_read_fail(R"({"anyValue":{"@type":"","c":1}})");     // empty @type
+    expect_read_fail(
+        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1}})"); // duplicate @type
+    expect_read_fail(
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","extra":1}})"); // unknown key in well-known
+    expect_read_fail(
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","value":"/usr/local"}})"); // duplicate value
     expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask"}})"); // missing value
 
     std::string bad_utf8 = "{\"anyValue\":{\"@type\":\"\xC0\",\"c\":1}}";
     expect_read_fail(bad_utf8); // invalid utf8 @type
-
   };
 
   "type_not_found"_test = [data] {
