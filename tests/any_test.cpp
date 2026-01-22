@@ -70,6 +70,13 @@ const suite test_dynamic_message_any = [] {
     expect(hpp::proto::read_json(message2, expected_json, hpp::proto::use_factory{message_factory}).ok());
     expect(message == message2);
 
+    std::pmr::monotonic_buffer_resource mr;
+    ::protobuf_unittest::TestAny<hpp::proto::non_owning_traits> message3;
+    expect(hpp::proto::read_json(message3, expected_json, hpp::proto::alloc_from{mr}, hpp::proto::use_factory{message_factory}).ok());
+    expect(fatal(message3.any_value.has_value()));
+    expect(message.any_value->type_url == message3.any_value->type_url);
+    expect(std::ranges::equal(message.any_value->value, message3.any_value->value));
+
 #ifndef HPP_PROTO_INDENT_LEVEL_UNSUPPORTED
     expect(hpp::proto::write_json(message, buf, hpp::proto::use_factory{message_factory}, hpp::proto::indent_level<3>)
                .ok());

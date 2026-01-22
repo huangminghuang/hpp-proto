@@ -325,44 +325,6 @@ struct generic_message_json_serializer {
 };
 
 struct any_message_json_serializer {
-  /**
-   * @brief Read a JSON string into a view while rejecting control characters.
-   *
-   * @tparam Opts Glaze parsing options controlling whitespace and termination behavior.
-   * @param value Output view of the parsed string contents.
-   * @param ctx Parsing context for error reporting.
-   * @param it Current input iterator (at or before the opening quote).
-   * @param end Input end iterator.
-   */
-  template <auto Opts>
-  static bool read_checked_string_view(std::string_view &value, glz::is_context auto &ctx, auto &it, auto &end) {
-    if constexpr (!check_opening_handled(Opts)) {
-      if constexpr (!check_ws_handled(Opts)) {
-        if (skip_ws<Opts>(ctx, it, end)) {
-          return false;
-        }
-      }
-      if (match_invalid_end<'"', Opts>(ctx, it, end)) {
-        return false;
-      }
-    }
-
-    auto start = it;
-    constexpr auto skip_opts = skip_string_opts{check_is_padded(Opts), true, true};
-    skip_string<skip_opts>(ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]] {
-      return false;
-    }
-    const auto len = static_cast<size_t>(std::distance(start, it));
-    value = {start, len - 1};
-    if constexpr (not Opts.null_terminated) {
-      if (it == end) {
-        ctx.error = error_code::end_reached;
-      }
-    }
-    return !bool(ctx.error);
-  }
-
   template <auto Opts>
   /**
    * @brief Handle the @type field when reading google.protobuf.Any from JSON.
@@ -376,20 +338,21 @@ struct any_message_json_serializer {
    * @param is_type_key_first Tracks whether @type was encountered before other fields.
    * @return true if parsing should stop due to error or termination, false to continue.
    */
-  static bool handle_any_type_key(std::string_view key, glz::is_context auto &ctx, auto &it, auto &end,
-                                  std::string_view &type_url, bool &is_type_key_first) {
+  static bool handle_any_type_key(std::string_view key, glz::is_context auto &ctx, auto &it, auto &end, auto &type_url,
+                                  bool &is_type_key_first) {
+
     if (key == "@type") {
       if (!type_url.empty()) {
         ctx.error = error_code::syntax_error;
         ctx.custom_error_message = "duplicate @type field in google.protobuf.Any";
-      } else if (!read_checked_string_view<ws_handled<Opts>()>(type_url, ctx, it, end)) [[unlikely]] {
-        return true;
-      } else if (type_url.empty()) {
-        ctx.error = error_code::syntax_error;
-        ctx.custom_error_message = "empty @type field in google.protobuf.Any";
-      } else if (!::is_utf8(type_url.data(), type_url.size())) {
-        ctx.error = error_code::syntax_error;
-        ctx.custom_error_message = "invalid utf8 @type field in google.protobuf.Any";
+      } else {
+        parse<JSON>::template op<ws_handled<Opts>()>(type_url, ctx, it, end);
+        if (bool(ctx.error)) [[unlikely]] {
+          return true;
+        } else if (type_url.empty()) {
+          ctx.error = error_code::syntax_error;
+          ctx.custom_error_message = "empty @type field in google.protobuf.Any";
+        } 
       }
     } else {
       is_type_key_first = false;
@@ -454,15 +417,15 @@ struct any_message_json_serializer {
    * whitespace consumed), otherwise to the position after the "@type" value and trailing whitespace.
    *
    * @tparam Options Glaze parsing options controlling whitespace and termination behavior.
+   * @param any_type_url Storage for parsed any type_url.
    * @param ctx Parsing context for error reporting.
    * @param input_it Iterator to the start of the object; updated for subsequent parsing.
    * @param end Input end iterator.
    * @return The parsed "@type" value on success, or an error message on failure.
    */
-  static std::expected<std::string_view, const char *> get_type_url(is_context auto &ctx, auto &input_it, auto &end) {
+  static std::expected<std::string_view, const char *> get_type_url(auto &any_type_url, is_context auto &ctx,
+                                                                    auto &input_it, auto &end) {
     auto it = input_it;
-    std::string_view type_url;
-
     bool is_type_key_first = true;
     bool is_first_iteration = true;
     util::scan_object_fields<opening_handled_off<Options>(), false>(
@@ -475,7 +438,7 @@ struct any_message_json_serializer {
         },
         [&](std::string_view key, auto &it_ref, auto &end_ref) {
           return handle_any_type_key<opening_handled_off<ws_handled_off<Options>()>()>(key, ctx, it_ref, end_ref,
-                                                                                       type_url, is_type_key_first);
+                                                                                       any_type_url, is_type_key_first);
         },
         [&](auto &it_ref, auto &) {
           if (is_type_key_first) {
@@ -486,10 +449,10 @@ struct any_message_json_serializer {
     if (bool(ctx.error)) [[unlikely]] {
       return std::unexpected("");
     }
-    if (type_url.empty()) {
+    if (any_type_url.empty()) {
       return std::unexpected("@type key not found in google.protobuf.Any message");
     }
-    return type_url;
+    return std::string_view{any_type_url};
   }
 
   template <auto Opts>
@@ -1174,9 +1137,8 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
 template <auto Opts>
 void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&any_type_url, auto &&any_value,
                                                  is_context auto &ctx, auto &it, auto &end) {
-  (void)get_type_url<Opts>(ctx, it, end)
+  (void)get_type_url<Opts>(any_type_url, ctx, it, end)
       .and_then([&](std::string_view type_url) {
-        any_type_url = type_url;
         return to_message_name(type_url).and_then(build_message);
       })
       .and_then([&](auto message) -> std::expected<void, const char *> {
