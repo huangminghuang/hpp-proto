@@ -174,6 +174,37 @@ const suite test_dynamic_message_any = [] {
         R"({"anyValue":{"c":1234,"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})"); // @type not first
   };
 
+  "any_json_empty_value_skips_field"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    ::protobuf_unittest::TestAny<> message;
+    auto &any_value = message.any_value.emplace();
+    any_value.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
+    any_value.value.clear();
+
+    std::string result;
+    expect(hpp::proto::write_json(message, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(result, "{}"sv));
+  };
+
+  "any_json_empty_value_skips_field_dynamic"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    ::protobuf_unittest::TestAny<> message;
+    auto &any_value = message.any_value.emplace();
+    any_value.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
+    any_value.value.clear();
+
+    std::vector<char> pb;
+    expect(hpp::proto::write_binpb(message, pb).ok());
+
+    std::string result;
+    expect(binpb_to_json(message_factory, "protobuf_unittest.TestAny", pb, result).ok());
+    expect(eq(result, "{}"sv));
+  };
+
   "any_json_wellknown_types"_test = [&] {
     ::hpp::proto::dynamic_message_factory message_factory;
     expect(message_factory.init(protos));

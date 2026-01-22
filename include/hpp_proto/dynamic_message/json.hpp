@@ -243,6 +243,23 @@ struct generic_message_json_serializer {
     bool is_wellknown_type = (value.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE);
     bool is_map_entry = value.descriptor().is_map_entry();
     const bool dump_brace = !check_opening_handled(Opts) && !is_map_entry && !is_wellknown_type;
+    const auto should_skip_any_field = [](hpp::proto::field_cref field) -> bool {
+      using namespace ::hpp::proto;
+      const auto msg_field = field.to<message_field_cref>();
+      if (!msg_field.has_value()) {
+        return false;
+      }
+      const auto msg = msg_field->value();
+      if (msg.descriptor().wellknown != ::hpp::proto::wellknown_types_t::ANY) {
+        return false;
+      }
+      const auto type_url_field = msg.fields()[0].to<string_field_cref>();
+      const auto value_field = msg.fields()[1].to<bytes_field_cref>();
+      if (!type_url_field.has_value() || !value_field.has_value()) {
+        return false;
+      }
+      return !type_url_field->value().empty() && value_field->value().empty();
+    };
 
     if (dump_brace) {
       util::dump_opening_brace<Opts>(ctx, b, ix);
@@ -252,6 +269,9 @@ struct generic_message_json_serializer {
 
     for (auto field : value.fields()) {
       if (!field.has_value()) {
+        continue;
+      }
+      if (should_skip_any_field(field)) {
         continue;
       }
 
@@ -518,8 +538,10 @@ struct any_message_json_serializer {
   template <auto Opts>
   static void to_json(const ::hpp::proto::concepts::is_any auto &any, ::hpp::proto::concepts::is_json_context auto &ctx,
                       auto &b, auto &ix) {
-    std::pmr::monotonic_buffer_resource mr;
-    to_json_impl<Opts>(msg_builder(mr, ctx), any.type_url, any.value, ctx, b, ix);
+    if (!any.type_url.empty() && !any.value.empty()) {
+      std::pmr::monotonic_buffer_resource mr;
+      to_json_impl<Opts>(msg_builder(mr, ctx), any.type_url, any.value, ctx, b, ix);
+    }
   }
 
   template <auto Opts>

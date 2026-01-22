@@ -1760,10 +1760,13 @@ struct glaze_meta_generator : code_generator {
     using enum FieldDescriptorProto::Type;
     using enum FieldDescriptorProto::Label;
 
-    if (descriptor.is_cpp_optional) {
+    auto type = descriptor.proto().type;
+    const bool is_google_any =
+        (type == TYPE_MESSAGE && descriptor.proto().type_name == ".google.protobuf.Any");
+    if (descriptor.is_cpp_optional && !is_google_any) {
       format_to(target, "    \"{}\", &T::{},\n", descriptor.proto().json_name, descriptor.cpp_name);
     } else if (descriptor.proto().label == LABEL_REQUIRED) {
-      auto type = descriptor.proto().type;
+
       if (type == TYPE_INT64 || type == TYPE_UINT64 || type == TYPE_FIXED64 || type == TYPE_SFIXED64 ||
           type == TYPE_SINT64) {
         format_to(target, "    \"{}\", glz::quoted_num<&T::{}>,\n", descriptor.proto().json_name, descriptor.cpp_name);
