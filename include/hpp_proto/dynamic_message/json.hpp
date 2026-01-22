@@ -352,7 +352,7 @@ struct any_message_json_serializer {
         } else if (type_url.empty()) {
           ctx.error = error_code::syntax_error;
           ctx.custom_error_message = "empty @type field in google.protobuf.Any";
-        } 
+        }
       }
     } else {
       is_type_key_first = false;
@@ -1138,9 +1138,7 @@ template <auto Opts>
 void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&any_type_url, auto &&any_value,
                                                  is_context auto &ctx, auto &it, auto &end) {
   (void)get_type_url<Opts>(any_type_url, ctx, it, end)
-      .and_then([&](std::string_view type_url) {
-        return to_message_name(type_url).and_then(build_message);
-      })
+      .and_then([&](std::string_view type_url) { return to_message_name(type_url).and_then(build_message); })
       .and_then([&](auto message) -> std::expected<void, const char *> {
         const bool ok = message.descriptor().wellknown != ::hpp::proto::wellknown_types_t::NONE
                             ? parse_wellknown_any_value<Opts>(message, ctx, it, end)

@@ -72,7 +72,9 @@ const suite test_dynamic_message_any = [] {
 
     std::pmr::monotonic_buffer_resource mr;
     ::protobuf_unittest::TestAny<hpp::proto::non_owning_traits> message3;
-    expect(hpp::proto::read_json(message3, expected_json, hpp::proto::alloc_from{mr}, hpp::proto::use_factory{message_factory}).ok());
+    expect(hpp::proto::read_json(message3, expected_json, hpp::proto::alloc_from{mr},
+                                 hpp::proto::use_factory{message_factory})
+               .ok());
     expect(fatal(message3.any_value.has_value()));
     expect(message.any_value->type_url == message3.any_value->type_url);
     expect(std::ranges::equal(message.any_value->value, message3.any_value->value));
