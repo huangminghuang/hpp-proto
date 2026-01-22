@@ -22,7 +22,6 @@
 
 #pragma once
 #include <cstddef>
-#include <hpp_proto/binpb/concepts.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
 #include <tuple>
 
@@ -132,24 +131,6 @@ struct optional_ref<const hpp::proto::optional<bool, Default>, std::monostate{}>
   const hpp::proto::optional<bool, Default> &val;
   operator bool() const { return val.has_value(); }
   bool operator*() const { return *val; }
-};
-
-template <concepts::is_any Any>
-struct optional_ref<std::optional<Any>, std::monostate{}> {
-  static constexpr auto glaze_reflect = false;
-  std::optional<Any> &val;
-  operator bool() const { return val.has_value() && (!val->type_url.empty() && !val->value.empty()); }
-  Any &emplace() const { return val.emplace(); }
-  void reset() const { return val.reset(); }
-  Any &operator*() const { return *val; }
-};
-
-template <concepts::is_any Any>
-struct optional_ref<const std::optional<Any>, std::monostate{}> {
-  static constexpr auto glaze_reflect = false;
-  const std::optional<Any> &val;
-  operator bool() const { return val.has_value() && (!val->type_url.empty() && !val->value.empty()); }
-  const Any &operator*() const { return *val; }
 };
 // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members,hicpp-explicit-conversions,modernize-use-nodiscard)
 

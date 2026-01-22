@@ -1662,7 +1662,23 @@ struct glaze_meta_generator : code_generator {
                 "    any_message_json_serializer::from_json<Opts>(value, ctx, it, end);\n"
                 "  }}\n"
                 "}};\n"
-                "}} // namespace glz\n",
+                "}} // namespace glz\n\n"
+                "template <typename Traits>\n"
+                "struct hpp::proto::optional_ref<std::optional<{0}>, std::monostate{{}}> {{\n"
+                "  static constexpr auto glaze_reflect = false;\n"
+                "  std::optional<{0}> &val;\n"
+                "  operator bool() const {{ return val.has_value() && (!val->type_url.empty() && !val->value.empty()); }}\n"
+                "  {0} &emplace() const {{ return val.emplace(); }}\n"
+                "  void reset() const {{ return val.reset(); }}\n"
+                "  {0} &operator*() const {{ return *val; }}\n"
+                "}};\n"
+                "template <typename Traits>\n"
+                "struct hpp::proto::optional_ref<const std::optional<{0}>, std::monostate{{}}> {{\n"
+                "  static constexpr auto glaze_reflect = false;\n"
+                "  const std::optional<{0}> &val;\n"
+                "  operator bool() const {{ return val.has_value() && (!val->type_url.empty() && !val->value.empty()); }}\n"
+                "  const {0} &operator*() const {{ return *val; }}\n"
+                "}};\n",
                 qualified_name);
     } else if (descriptor.pb_name == "google.protobuf.Struct") {
       format_to(

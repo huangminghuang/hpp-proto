@@ -354,6 +354,7 @@ arena_vector(View &view, Context &ctx)
     -> arena_vector<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
 
 constexpr auto as_modifiable(concepts::is_pb_context auto &context, concepts::dynamic_sized_view auto &view) {
+  static_assert(requires { context.memory_resource(); }, "requires hpp::proto::alloc_from{memory_resource}");
   return detail::arena_vector{view, context};
 }
 
