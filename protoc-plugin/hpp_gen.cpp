@@ -1761,8 +1761,7 @@ struct glaze_meta_generator : code_generator {
     using enum FieldDescriptorProto::Label;
 
     auto type = descriptor.proto().type;
-    const bool is_google_any =
-        (type == TYPE_MESSAGE && descriptor.proto().type_name == ".google.protobuf.Any");
+    const bool is_google_any = (type == TYPE_MESSAGE && descriptor.proto().type_name == ".google.protobuf.Any");
     if (descriptor.is_cpp_optional && !is_google_any) {
       format_to(target, "    \"{}\", &T::{},\n", descriptor.proto().json_name, descriptor.cpp_name);
     } else if (descriptor.proto().label == LABEL_REQUIRED) {
