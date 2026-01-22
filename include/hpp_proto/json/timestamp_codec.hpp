@@ -33,44 +33,42 @@ namespace hpp::proto {
 struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
   template <int Len, char sep>
-  static char *fixed_len_to_chars(char *buf, auto val) {
+  static void fixed_len_to_chars(std::span<char> buf, std::size_t &pos, auto val) {
     static_assert(Len == 2 || Len == 4 || Len == 9);
     assert(val >= 0);
     if constexpr (Len == 9) {
       auto nanos = static_cast<uint32_t>(val);
-      const auto write_3_digits = [](char *out, uint32_t v) {
-        out[0] = static_cast<char>('0' + (v / 100));
-        out[1] = static_cast<char>('0' + ((v / 10) % 10));
-        out[2] = static_cast<char>('0' + (v % 10));
-        return out + 3;
+      const auto write_3_digits = [](std::span<char> out, std::size_t &pos, uint32_t v) {
+        out[pos] = static_cast<char>('0' + (v / 100));
+        out[pos + 1] = static_cast<char>('0' + ((v / 10) % 10));
+        out[pos + 2] = static_cast<char>('0' + (v % 10));
+        pos += 3;
       };
       uint32_t ms_component = nanos / 1'000'000;
       uint32_t us_component = (nanos / 1'000) % 1'000;
       uint32_t ns_component = nanos % 1'000;
-      auto *pos = buf;
-      pos = write_3_digits(pos, ms_component);
+      write_3_digits(buf, pos, ms_component);
       if (ns_component != 0) {
-        pos = write_3_digits(pos, us_component);
-        pos = write_3_digits(pos, ns_component);
+        write_3_digits(buf, pos, us_component);
+        write_3_digits(buf, pos, ns_component);
       } else if (us_component != 0) {
-        pos = write_3_digits(pos, us_component);
+        write_3_digits(buf, pos, us_component);
       }
-      buf = pos;
     } else if constexpr (Len == 4) {
       const auto v = static_cast<uint32_t>(val);
-      buf[0] = static_cast<char>('0' + (v / 1000));
-      buf[1] = static_cast<char>('0' + ((v / 100) % 10));
-      buf[2] = static_cast<char>('0' + ((v / 10) % 10));
-      buf[3] = static_cast<char>('0' + (v % 10));
-      buf = std::next(buf, 4);
+      buf[pos] = static_cast<char>('0' + (v / 1000));
+      buf[pos + 1] = static_cast<char>('0' + ((v / 100) % 10));
+      buf[pos + 2] = static_cast<char>('0' + ((v / 10) % 10));
+      buf[pos + 3] = static_cast<char>('0' + (v % 10));
+      pos += 4;
     } else if constexpr (Len == 2) {
       const auto v = static_cast<uint32_t>(val);
-      buf[0] = static_cast<char>('0' + (v / 10));
-      buf[1] = static_cast<char>('0' + (v % 10));
-      buf = std::next(buf, 2);
+      buf[pos] = static_cast<char>('0' + (v / 10));
+      buf[pos + 1] = static_cast<char>('0' + (v % 10));
+      pos += 2;
     }
-    *buf = sep;
-    return std::next(buf);
+    buf[pos] = sep;
+    ++pos;
   }
 
   static int64_t encode(auto &&value, auto &&b) noexcept {
@@ -82,20 +80,21 @@ struct timestamp_codec {
     auto ymd = year_month_day{floor<days>(tp)};
     auto hms = hh_mm_ss{floor<seconds>(tp) - floor<days>(tp)};
 
-    char *buf = static_cast<char *>(std::data(b));
-    buf = fixed_len_to_chars<4, '-'>(buf, (int)ymd.year());
-    buf = fixed_len_to_chars<2, '-'>(buf, (unsigned)ymd.month());
-    buf = fixed_len_to_chars<2, 'T'>(buf, (unsigned)ymd.day());
-    buf = fixed_len_to_chars<2, ':'>(buf, hms.hours().count());
-    buf = fixed_len_to_chars<2, ':'>(buf, hms.minutes().count());
+    auto buffer = std::span<char>(static_cast<char *>(std::data(b)), b.size());
+    std::size_t pos = 0;
+    fixed_len_to_chars<4, '-'>(buffer, pos, (int)ymd.year());
+    fixed_len_to_chars<2, '-'>(buffer, pos, (unsigned)ymd.month());
+    fixed_len_to_chars<2, 'T'>(buffer, pos, (unsigned)ymd.day());
+    fixed_len_to_chars<2, ':'>(buffer, pos, hms.hours().count());
+    fixed_len_to_chars<2, ':'>(buffer, pos, hms.minutes().count());
 
     if (value.nanos > 0) {
-      buf = fixed_len_to_chars<2, '.'>(buf, hms.seconds().count());
-      buf = fixed_len_to_chars<9, 'Z'>(buf, value.nanos);
+      fixed_len_to_chars<2, '.'>(buffer, pos, hms.seconds().count());
+      fixed_len_to_chars<9, 'Z'>(buffer, pos, value.nanos);
     } else {
-      buf = fixed_len_to_chars<2, 'Z'>(buf, hms.seconds().count());
+      fixed_len_to_chars<2, 'Z'>(buffer, pos, hms.seconds().count());
     }
-    return std::distance(static_cast<char *>(std::data(b)), buf);
+    return static_cast<int64_t>(pos);
   }
 
   static bool decode(auto &&json, auto &&value, [[maybe_unused]] auto &ctx) {

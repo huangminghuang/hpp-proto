@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <hpp_proto/json.hpp>
 #include <iterator>
+#include <span>
 
 namespace hpp::proto {
 struct duration_codec {
@@ -40,32 +41,30 @@ struct duration_codec {
 
     auto *buf = std::data(b);
     auto ix = static_cast<std::size_t>(std::distance(buf, glz::to_chars(buf, value.seconds)));
+    auto buffer = std::span<char>(buf, b.size());
 
     if (value.nanos != 0) {
       auto nanos = static_cast<uint32_t>(std::abs(value.nanos));
-      const auto write_3_digits = [](char *out, uint32_t val) {
-        out[0] = static_cast<char>('0' + (val / 100));
-        out[1] = static_cast<char>('0' + ((val / 10) % 10));
-        out[2] = static_cast<char>('0' + (val % 10));
-        return out + 3;
+      const auto write_3_digits = [](std::span<char> out, std::size_t &pos, uint32_t val) {
+        out[pos] = static_cast<char>('0' + (val / 100));
+        out[pos + 1] = static_cast<char>('0' + ((val / 10) % 10));
+        out[pos + 2] = static_cast<char>('0' + (val % 10));
+        pos += 3;
       };
       uint32_t ms_component = nanos / 1'000'000;
       uint32_t us_component = (nanos / 1'000) % 1'000;
       uint32_t ns_component = nanos % 1'000;
 
       glz::dump<'.'>(b, ix);
-      auto *pos = std::next(buf, static_cast<std::ptrdiff_t>(ix));
-      pos = write_3_digits(pos, ms_component);
+      std::size_t pos = ix;
+      write_3_digits(buffer, pos, ms_component);
       if (ns_component != 0) {
-        pos = write_3_digits(pos, us_component);
-        pos = write_3_digits(pos, ns_component);
-        ix += 9;
+        write_3_digits(buffer, pos, us_component);
+        write_3_digits(buffer, pos, ns_component);
       } else if (us_component != 0) {
-        pos = write_3_digits(pos, us_component);
-        ix += 6;
-      } else {
-        ix += 3;
+        write_3_digits(buffer, pos, us_component);
       }
+      ix = pos;
     }
     glz::dump<'s'>(b, ix);
     return static_cast<int64_t>(ix);
