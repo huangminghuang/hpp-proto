@@ -393,25 +393,9 @@ struct to<JSON, hpp::proto::indirect_view<Type>> {
 } // namespace glz
 
 namespace hpp::proto {
-
-#ifdef _MSC_VER
-// MSVC has edge-case failures with derived aggregate NTTPs; avoid for now.
-using proto_json_opts = glz::opts;
-#else
-struct proto_json_opts : glz::opts {
+struct json_opts : glz::opts {
   bool escape_control_characters = true;
-};
-struct proto_json_indent_opts : glz::opts {
-  bool escape_control_characters = true;
-  uint8_t indentation_width = 3;
-  char indentation_char = ' ';
-};
-#endif
-
-template <auto options>
-struct glz_opts_t {
-  using option_type = glz_opts_t<options>;
-  static constexpr auto glz_opts_value = options;
+  bool prettify = false;
 };
 
 class message_value_cref;
@@ -439,9 +423,6 @@ public:
 
 namespace concepts {
 template <typename T>
-concept glz_opts_t = requires { requires std::derived_from<std::decay_t<decltype(T::glz_opts_value)>, glz::opts>; };
-
-template <typename T>
 concept write_json_supported = glz::write_supported<T, glz::JSON>;
 
 template <typename T>
@@ -456,48 +437,6 @@ concept non_null_terminated_str =
     (!null_terminated_str<T>);
 } // namespace concepts
 
-namespace detail {
-template <typename Context>
-constexpr auto get_glz_opts_impl()
-  requires requires { std::decay_t<Context>::glz_opts_value; }
-{
-  return std::decay_t<Context>::glz_opts_value;
-}
-
-template <typename Context, typename... Rest>
-constexpr auto get_glz_opts_impl()
-  requires(!requires { std::decay_t<Context>::glz_opts_value; })
-{
-  if constexpr (sizeof...(Rest)) {
-    return get_glz_opts_impl<Rest...>();
-  } else {
-    return proto_json_opts{};
-  }
-}
-
-template <typename... Context>
-constexpr auto get_glz_opts() {
-  if constexpr (sizeof...(Context)) {
-    return get_glz_opts_impl<Context...>();
-  } else {
-    return proto_json_opts{};
-  }
-}
-} // namespace detail
-
-template <uint8_t width = 3>
-#ifndef _MSC_VER
-
-constexpr auto indent_level = glz_opts_t<[]() constexpr {
-  proto_json_indent_opts opts{};
-  opts.prettify = (width > 0);
-  opts.indentation_width = width;
-  return opts;
-}()>{};
-#else
-#define HPP_PROTO_INDENT_LEVEL_UNSUPPORTED
-#endif
-
 struct [[nodiscard]] json_status final {
   glz::error_ctx ctx;
   [[nodiscard]] bool ok() const { return !static_cast<bool>(ctx); }
@@ -505,32 +444,32 @@ struct [[nodiscard]] json_status final {
 };
 
 /// @brief Deserializes JSON from a contiguous, non-null-terminated buffer into a message object.
-/// @tparam T Type of the message to deserialize, must satisfy concepts::read_json_supported.
 /// @param value The message object to populate.
 /// @param buffer The input buffer containing JSON bytes (not necessarily null-terminated).
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
+template <auto Opts = glz::opts{}>
 inline json_status read_json(concepts::read_json_supported auto &value,
                              concepts::non_null_terminated_str auto const &buffer,
                              concepts::is_option_type auto &&...option) {
   using value_type = std::remove_cvref_t<decltype(value)>;
   static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
-                "glz.hpp is required for hpp_gen messages; include the generated .glz.hpp header");
+                "the generated .glz.hpp is required for hpp_gen messages");
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
     value = std::decay_t<decltype(value)>{};
   }
-  constexpr auto opts = ::glz::set_opt<detail::get_glz_opts<decltype(option)...>(), &glz::opts::null_terminated>(false);
+  constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(false);
 
   json_context ctx{std::forward<decltype(option)>(option)...};
   return {glz::read<opts>(value, std::string_view{std::ranges::data(buffer), std::ranges::size(buffer)}, ctx)};
 }
 
 /// @brief Deserializes JSON from a null-terminated string view into a message object.
-/// @tparam T Type of the message to deserialize.
 /// @param value The message object to populate.
 /// @param str The null-terminated string view containing the JSON.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
+template <auto Opts = glz::opts{}>
 inline json_status read_json(concepts::read_json_supported auto &value, null_terminated_string_view str,
                              concepts::is_option_type auto &&...option) {
   using value_type = std::remove_cvref_t<decltype(value)>;
@@ -539,9 +478,8 @@ inline json_status read_json(concepts::read_json_supported auto &value, null_ter
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
     value = {};
   }
-  constexpr auto opts = ::glz::set_opt<detail::get_glz_opts<decltype(option)...>(), &glz::opts::null_terminated>(true);
   json_context ctx{std::forward<decltype(option)>(option)...};
-  return {glz::read<opts>(value, std::string_view{str}, ctx)};
+  return {glz::read<Opts>(value, std::string_view{str}, ctx)};
 }
 
 /// @brief Deserializes a JSON string and returns the message object.
@@ -549,11 +487,11 @@ inline json_status read_json(concepts::read_json_supported auto &value, null_ter
 /// @param buffer The input buffer containing the JSON string.
 /// @param option Optional configuration parameters.
 /// @return A std::expected containing the deserialized message on success, or a json_status on failure.
-template <concepts::read_json_supported T>
+template <auto Opts = glz::opts{}, concepts::read_json_supported T>
 inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) -> std::expected<T, json_status> {
   std::expected<T, json_status> result;
   if (auto status =
-          read_json(*result, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);
+          read_json<Opts>(*result, std::forward<decltype(buffer)>(buffer), std::forward<decltype(option)>(option)...);
       !status.ok()) {
     result = std::unexpected(status);
   }
@@ -565,15 +503,15 @@ inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) 
 /// @param buffer The buffer to write the JSON string into.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
+template <auto Opts = json_opts{}>
 inline json_status write_json(concepts::write_json_supported auto const &value,
                               concepts::contiguous_byte_range auto &buffer,
                               concepts::is_option_type auto &&...option) noexcept {
   using value_type = std::remove_cvref_t<decltype(value)>;
   static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
                 "the generated .glz.hpp is required for hpp_gen messages");
-  constexpr auto opts = detail::get_glz_opts<decltype(option)...>();
   json_context ctx{std::forward<decltype(option)>(option)...};
-  return {glz::write<opts>(value, detail::as_modifiable(ctx, buffer), ctx)};
+  return {glz::write<Opts>(value, detail::as_modifiable(ctx, buffer), ctx)};
 }
 
 /// @brief Serializes a message object to a JSON string and returns the buffer.
@@ -581,11 +519,11 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
 /// @param value The message object to serialize.
 /// @param option Optional configuration parameters.
 /// @return A std::expected containing the buffer on success, or a json_status on failure.
-template <concepts::contiguous_byte_range Buffer = std::string>
+template <auto Opts=json_opts{}, concepts::contiguous_byte_range Buffer = std::string>
 inline auto write_json(concepts::write_json_supported auto const &value,
                        concepts::is_option_type auto &&...option) noexcept -> std::expected<Buffer, json_status> {
   std::expected<Buffer, json_status> result;
-  auto ec = write_json(value, *result, std::forward<decltype(option)>(option)...);
+  auto ec = write_json<Opts>(value, *result, std::forward<decltype(option)>(option)...);
   if (!ec.ok()) {
     result = std::unexpected(ec);
   }

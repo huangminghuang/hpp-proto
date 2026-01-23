@@ -1185,9 +1185,10 @@ json_status json_to_binpb(const dynamic_message_factory &factory, std::string_vi
   }
 }
 
+template <auto Opts = json_opts{}>
 status binpb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
                      concepts::contiguous_byte_range auto const &pb_encoded_stream,
-                     concepts::resizable_contiguous_byte_container auto &buffer, concepts::glz_opts_t auto opts) {
+                     concepts::resizable_contiguous_byte_container auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
   auto opt_msg = factory.get_message(message_name, mr);
   if (opt_msg.has_value()) {
@@ -1195,19 +1196,13 @@ status binpb_to_json(const dynamic_message_factory &factory, std::string_view me
     if (auto r = read_binpb(msg, pb_encoded_stream); !r.ok()) {
       return r;
     }
-    if (::glz::write<decltype(opts)::glz_opts_value>(msg, buffer)) [[unlikely]] {
+    if (::glz::write<Opts>(msg, buffer)) [[unlikely]] {
       return std::errc::io_error;
     }
     return {};
   } else {
     return std::errc::invalid_argument;
   }
-}
-
-status binpb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
-                     concepts::contiguous_byte_range auto const &pb_encoded_stream,
-                     concepts::resizable_contiguous_byte_container auto &buffer) {
-  return binpb_to_json(factory, message_name, pb_encoded_stream, buffer, glz_opts_t<proto_json_opts{}>{});
 }
 
 } // namespace hpp::proto

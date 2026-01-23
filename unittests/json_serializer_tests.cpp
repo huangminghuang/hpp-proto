@@ -388,21 +388,19 @@ const ut::suite test_oneof = [] {
   verify<oneof_example>(oneof_example{.value = "tes\t"}, R"({"string_field":"tes\t"})");
 };
 
-const ut::suite test_indent_level = [] {
+const ut::suite test_prettify = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   using namespace std::string_literals;
 
-#ifndef HPP_PROTO_INDENT_LEVEL_UNSUPPORTED
-  "indent_level"_test = [] {
+  "prettify"_test = [] {
     optional_example msg{.field2 = 123U, .field3 = 456};
-    auto json = hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value();
+    auto json = hpp::proto::write_json<hpp::proto::json_opts{.prettify = true}>(msg).value();
     expect(eq(json, R"({
    "field2": "123",
    "field3": 456
 })"s));
   };
-#endif
 };
 
 int main() {
