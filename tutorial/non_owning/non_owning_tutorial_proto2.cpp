@@ -77,7 +77,8 @@ int main() {
 
   auto write_json_result = hpp::proto::write_json(address_book);
   expect(write_json_result.has_value());
-  auto read_json_result = hpp::proto::read_json<glz::opts{},AddressBook>(write_json_result.value(), hpp::proto::alloc_from{pool});
+  auto read_json_result =
+      hpp::proto::read_json<glz::opts{}, AddressBook>(write_json_result.value(), hpp::proto::alloc_from{pool});
   expect(address_book == read_json_result.value());
 
   return 0;

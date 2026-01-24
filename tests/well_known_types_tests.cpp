@@ -297,7 +297,6 @@ const ut::suite test_value = [] {
                                                           {"f3", make_indirect(string_value)},
                                                           {"f4", make_indirect(null_value)}};
 
-
       Value struct_value{.kind = Struct{.fields = fields}};
 
       verify<Value>(factory, struct_value, R"({"f1":true,"f2":1,"f3":"abc","f4":null})",

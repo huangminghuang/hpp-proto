@@ -79,7 +79,8 @@ const suite test_dynamic_message_any = [] {
     expect(message.any_value->type_url == message3.any_value->type_url);
     expect(std::ranges::equal(message.any_value->value, message3.any_value->value));
 
-    expect(hpp::proto::write_json<hpp::proto::json_opts{.prettify=true}>(message, buf, hpp::proto::use_factory{message_factory})
+    expect(hpp::proto::write_json<hpp::proto::json_opts{.prettify = true}>(message, buf,
+                                                                           hpp::proto::use_factory{message_factory})
                .ok());
     using namespace std::string_literals;
     expect(eq(buf, R"({
@@ -122,7 +123,7 @@ const suite test_dynamic_message_any = [] {
     expect(json_to_binpb(message_factory, message_name, expected_json, serialized).ok());
     expect(std::ranges::equal(data, serialized));
 
-    expect(binpb_to_json<hpp::proto::json_opts{.prettify=true}>(message_factory, message_name, data, result).ok());
+    expect(binpb_to_json<hpp::proto::json_opts{.prettify = true}>(message_factory, message_name, data, result).ok());
     const char *expected_json_indented = R"({
    "anyValue": {
       "@type": "type.googleapis.com/proto3_unittest.ForeignMessage",
@@ -143,7 +144,8 @@ const suite test_dynamic_message_any = [] {
     };
     auto expect_read_fail_strict = [&](std::string_view json) {
       ::protobuf_unittest::TestAny<> message;
-      auto status = hpp::proto::read_json<glz::opts{.error_on_unknown_keys = true}>(message, json, hpp::proto::use_factory{message_factory});
+      auto status = hpp::proto::read_json<glz::opts{.error_on_unknown_keys = true}>(
+          message, json, hpp::proto::use_factory{message_factory});
       expect(!status.ok());
     };
     auto expect_read_ok = [&](std::string_view json) {
