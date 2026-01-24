@@ -43,7 +43,7 @@ struct duration_codec {
     bool is_negative = (value.nanos < 0 || value.seconds < 0);
 
     auto buffer = std::span<char>(std::data(b), b.size());
-    auto* it = buffer.data();
+    auto *it = buffer.data();
     if (is_negative) {
       buffer[0] = '-';
       it = std::next(it);
