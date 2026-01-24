@@ -148,8 +148,8 @@ key_oneofNestedMessage="\"oneofNestedMessage\":{"
 key_oneofString="\"oneofString\":"
 key_oneofBytes="\"oneofBytes\":"
 
-key_optionalGroup="\"optionalGroup\":{"
-key_repeatedGroup="\"repeatedGroup\":["
+key_optionalGroup="\"optionalgroup\":{"
+key_repeatedGroup="\"repeatedgroup\":["
 
 # --- Enums (as strings) ---
 enum_FOO="\"FOO\""

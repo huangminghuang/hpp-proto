@@ -254,48 +254,61 @@ const ut::suite test_value = [] {
   hpp::proto::dynamic_message_factory factory;
   expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
 
-  using Value = google::protobuf::Value<>;
-  using NullValue = google::protobuf::NullValue;
-  using ListValue = google::protobuf::ListValue<>;
-  using Struct = google::protobuf::Struct<>;
-  using Struct_value_t = typename decltype(std::declval<Struct>().fields)::value_type;
-  "verify Value null"_test = [&factory] { verify<Value>(factory, Value{.kind = NullValue{}}, "null"); };
+  "value"_test = [&factory]<class Traits>() {
+    using string_t = Traits::string_t;
+    using Value = google::protobuf::Value<Traits>;
+    using NullValue = google::protobuf::NullValue;
+    using ListValue = google::protobuf::ListValue<Traits>;
+    using Struct = google::protobuf::Struct<Traits>;
+    using Struct_value_t = typename decltype(std::declval<Struct>().fields)::value_type;
+    "verify Value null"_test = [&factory] { verify<Value>(factory, Value{.kind = NullValue{}}, "null"); };
 
-  "verify Value true"_test = [&factory] { verify<Value>(factory, Value{.kind = true}, "true"); };
+    "verify Value true"_test = [&factory] { verify<Value>(factory, Value{.kind = true}, "true"); };
 
-  "verify Value false"_test = [&factory] { verify<Value>(factory, Value{.kind = false}, "false"); };
+    "verify Value false"_test = [&factory] { verify<Value>(factory, Value{.kind = false}, "false"); };
 
-  "verify Value number"_test = [&factory] { verify<Value>(factory, Value{.kind = 1.0}, "1"); };
+    "verify Value number"_test = [&factory] { verify<Value>(factory, Value{.kind = 1.0}, "1"); };
 
-  "verify Value string"_test = [&factory] { verify<Value>(factory, Value{.kind = "abc"}, R"("abc")"); };
+    "verify Value string"_test = [&factory] { verify<Value>(factory, Value{.kind = string_t{"abc"}}, R"("abc")"); };
+    "verify ListValue"_test = [&factory] {
+      auto values = std::initializer_list<Value>{Value{.kind = true}, Value{.kind = 1.0}};
+      verify<ListValue>(factory, ListValue{.values = values}, "[true,1]", "[\n   true,\n   1\n]");
+    };
 
-  "verify Value list"_test = [&factory] {
-    verify<Value>(factory, Value{.kind = ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}}, "[true,1]");
-  };
+    "verify Struct empty"_test = [&factory] { verify<Struct>(factory, Struct{}, "{}"); };
+    "verify ListValue empty"_test = [&factory] { verify<ListValue>(factory, ListValue{}, "[]"); };
 
-  "verify Value struct"_test = [&factory] {
-    verify<Value>(factory,
-                  Value{.kind = Struct{.fields = {Struct_value_t{"f1", Value{.kind = true}},
-                                                  Struct_value_t{"f2", Value{.kind = 1.0}}}}},
-                  R"({"f1":true,"f2":1})");
-  };
+    "verify Value struct"_test = [&factory] {
+      Value true_value{.kind = true};
+      Value double_value{.kind = 1.0};
+      Value string_value{.kind = string_t{"abc"}};
+      Value null_value{.kind = NullValue{}};
 
-  "verify Struct empty"_test = [&factory] { verify<Struct>(factory, Struct{}, "{}"); };
+      auto make_indirect = [](Value &v) {
+        if constexpr (std::same_as<Traits, hpp::proto::non_owning_traits>) {
+          return hpp::proto::indirect_view<Value>(&v);
+        } else {
+          return hpp::proto::indirect<Value>(v);
+        }
+      };
 
-  "verify Struct with null"_test = [&factory] {
-    verify<Struct>(factory, Struct{.fields = {Struct_value_t{"f1", Value{.kind = NullValue{}}}}}, R"({"f1":null})");
-  };
+      auto fields = std::initializer_list<Struct_value_t>{{"f1", make_indirect(true_value)},
+                                                          {"f2", make_indirect(double_value)},
+                                                          {"f3", make_indirect(string_value)},
+                                                          {"f4", make_indirect(null_value)}};
 
-  "verify Struct populated"_test = [&factory] {
-    verify<Struct>(
-        factory,
-        Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}, {"f3", Value{.kind = NullValue{}}}}},
-        R"({"f1":true,"f2":1,"f3":null})", R"({
+
+      Value struct_value{.kind = Struct{.fields = fields}};
+
+      verify<Value>(factory, struct_value, R"({"f1":true,"f2":1,"f3":"abc","f4":null})",
+                    R"({
    "f1": true,
    "f2": 1,
-   "f3": null
+   "f3": "abc",
+   "f4": null
 })");
-  };
+    };
+  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>();
 
   "struct invalid cases"_test = [&factory] {
     std::string json_buf;
@@ -306,13 +319,6 @@ const ut::suite test_value = [] {
                 .ok());
     // skip unknown field
     expect(hpp::proto::binpb_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
-  };
-
-  "verify ListValue empty"_test = [&factory] { verify<ListValue>(factory, ListValue{}, "[]"); };
-
-  "verify ListValue populated"_test = [&factory] {
-    verify<ListValue>(factory, ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}, "[true,1]",
-                      "[\n   true,\n   1\n]");
   };
 
   "list invalid cases"_test = [&factory] {
@@ -330,8 +336,6 @@ const ut::suite test_value = [] {
                                      "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
                .ok());
     expect(eq(json_buf, "[true,false]"s));
-    // TODO: we need to test the case where the unknown element in not in the beginning of the list
-
     // skip unknown field
     expect(hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x10\x01"sv, json_buf).ok());
   };
