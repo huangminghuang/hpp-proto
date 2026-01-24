@@ -72,11 +72,11 @@ struct timestamp_codec {
   }
 
   static int64_t encode(auto &&value, auto &&b) noexcept {
-    if (value.nanos > 999999999 || value.nanos < 0) [[unlikely]] {
+    if (value.nanos > 999'999'999 || value.nanos < 0) [[unlikely]] {
       return -1;
     }
 
-    if (value.seconds < -62135596800 || value.seconds > 253402300799) {
+    if (value.seconds < -62'135'596'800LL || value.seconds > 253'402'300'799LL) {
       return -1;
     }
 

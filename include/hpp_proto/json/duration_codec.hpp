@@ -34,8 +34,8 @@ struct duration_codec {
   static int64_t encode(auto const &value, auto &&b) noexcept {
     auto has_same_sign = [](auto x, auto y) { return x == 0 || y == 0 || ((x > 0) == (y > 0)); };
 
-    if (!has_same_sign(value.seconds, value.nanos) || std::abs(value.seconds) > 315576000000 ||
-        std::abs(value.nanos) > 999999999) {
+    if (!has_same_sign(value.seconds, value.nanos) || std::abs(value.seconds) > 315'576'000'000LL ||
+        std::abs(value.nanos) > 999'999'999) {
       return -1;
     }
 
@@ -106,7 +106,7 @@ struct duration_codec {
       return false;
     }
 
-    if (value.seconds > 315576000000) {
+    if (value.seconds > 315'576'000'000LL) {
       return false;
     }
 
