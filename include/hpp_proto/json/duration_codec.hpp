@@ -32,16 +32,26 @@ struct duration_codec {
   constexpr static std::size_t max_encode_size(const auto &) noexcept { return 32; }
 
   static int64_t encode(auto const &value, auto &&b) noexcept {
-    auto has_same_sign = [](auto x, auto y) { return y == 0 || (x < 0) == (y < 0); };
-    if (value.nanos > 999999999 || !has_same_sign(value.seconds, value.nanos)) [[unlikely]] {
+    auto has_same_sign = [](auto x, auto y) { return x == 0 || y == 0 || ((x > 0) == (y > 0)); };
+
+    if (!has_same_sign(value.seconds, value.nanos) || std::abs(value.seconds) > 315576000000 ||
+        std::abs(value.nanos) > 999999999) {
       return -1;
     }
 
     assert(b.size() >= max_encode_size(value));
+    bool is_negative = (value.nanos < 0 || value.seconds < 0);
 
-    auto *buf = std::data(b);
-    auto ix = static_cast<std::size_t>(std::distance(buf, glz::to_chars(buf, value.seconds)));
-    auto buffer = std::span<char>(buf, b.size());
+    auto buffer = std::span<char>(std::data(b), b.size());
+    auto it = buffer.data();
+    if (is_negative) {
+      buffer[0] = '-';
+      it = std::next(it);
+    }
+
+    auto positive_seconds = static_cast<uint64_t>(std::abs(value.seconds));
+    it = glz::to_chars(it, positive_seconds);
+    auto ix = static_cast<std::size_t>(std::distance(buffer.data(), it));
 
     if (value.nanos != 0) {
       auto nanos = static_cast<uint32_t>(std::abs(value.nanos));
@@ -93,6 +103,10 @@ struct duration_codec {
 
     auto point_pos = s.find('.');
     if (!from_str_view(s.substr(0, point_pos), value.seconds)) {
+      return false;
+    }
+
+    if (value.seconds > 315576000000) {
       return false;
     }
 

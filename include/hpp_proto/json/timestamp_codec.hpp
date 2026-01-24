@@ -75,6 +75,11 @@ struct timestamp_codec {
     if (value.nanos > 999999999 || value.nanos < 0) [[unlikely]] {
       return -1;
     }
+
+    if (value.seconds < -62135596800 || value.seconds > 253402300799) {
+      return -1;
+    }
+
     using namespace std::chrono;
     auto tp = sys_seconds{seconds(value.seconds)};
     auto ymd = year_month_day{floor<days>(tp)};
@@ -137,6 +142,10 @@ struct timestamp_codec {
       return false;
     }
 
+    if (yy == 0) {
+      return false;
+    }
+
     using namespace std::chrono;
     value.seconds =
         (sys_days(year_month_day(year(yy), month(static_cast<unsigned>(mm)), day(static_cast<unsigned>(dd)))) +
@@ -166,7 +175,7 @@ struct timestamp_codec {
       return r.ptr == end && r.ec == std::errc();
     };
 
-    if (!from_str_view(nanos_sv, value.nanos)) [[unlikely]] {
+    if (!from_str_view(nanos_sv, value.nanos) || value.nanos < 0) [[unlikely]] {
       return false;
     }
 

@@ -47,7 +47,7 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
             std::optional<std::string_view> pretty_json = std::nullopt) {
   expect(eq(json, hpp::proto::write_json(msg).value()));
   if (pretty_json && !pretty_json->empty()) {
-    expect(eq(*pretty_json, hpp::proto::write_json<hpp::proto::json_opts{.prettify=true}>(msg).value()));
+    expect(eq(*pretty_json, hpp::proto::write_json<hpp::proto::json_opts{.prettify = true}>(msg).value()));
   }
   T msg2{};
   std::pmr::monotonic_buffer_resource mr;
@@ -70,7 +70,8 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
   if (pretty_json && !pretty_json->empty()) {
     hpp::proto::bytes pb_buf2;
     std::string json_buf2;
-    expect(hpp::proto::binpb_to_json<hpp::proto::json_opts{.prettify=true}>(factory, message_name, pb, json_buf2).ok());
+    expect(
+        hpp::proto::binpb_to_json<hpp::proto::json_opts{.prettify = true}>(factory, message_name, pb, json_buf2).ok());
     expect(eq(*pretty_json, json_buf2));
     expect(hpp::proto::json_to_binpb(factory, message_name, *pretty_json, pb_buf2).ok());
     expect(std::ranges::equal(pb, pb_buf2));
@@ -114,8 +115,13 @@ const ut::suite test_timestamp = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:33:20.-200Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("10000-01-01T00:00:00.00000000000Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("0000-01-01T00:00:00.00000000000Z")").ok());
 
   ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = -62135596801, .nanos = 0}).has_value());
+  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 253402300800, .nanos = 0}).has_value());
 
   "timestamp_second_overlong"_test = [&factory] {
     std::string json_buf;
@@ -163,6 +169,9 @@ const ut::suite test_duration = [] {
   "verify Duration -1000.000000020s"_test = [&factory] {
     verify<duration_t>(factory, duration_t{.seconds = -1000, .nanos = -20}, R"("-1000.000000020s")");
   };
+  "verify Duration -0.0100s"_test = [&factory] {
+    verify<duration_t>(factory, duration_t{.seconds = 0, .nanos = -100000000}, R"("-0.100s")");
+  };
 
   duration_t msg;
   ut::expect(hpp::proto::read_json(msg, R"("1000.2s")").ok());
@@ -181,8 +190,15 @@ const ut::suite test_duration = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("-1000.-10000000s")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("-1000. 10000000s")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("1000.0000000000000000s")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("315576000001s")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("-315576000001s")").ok());
 
-  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 0, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 0, .nanos = -1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 315576000001, .nanos = 0}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = -315576000001, .nanos = 0}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 1, .nanos = -1}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = -1, .nanos = 1}).has_value());
 };
 
 const ut::suite test_field_mask = [] {
@@ -318,6 +334,10 @@ const ut::suite test_value = [] {
 
     // skip unknown field
     expect(hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x10\x01"sv, json_buf).ok());
+  };
+  "Struct invalid cases"_test = [] {
+    google::protobuf::Struct<> msg;
+    expect(!hpp::proto::read_json(msg, R"({"f1":})").ok());
   };
 };
 
