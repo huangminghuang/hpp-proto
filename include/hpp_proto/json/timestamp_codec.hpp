@@ -32,6 +32,7 @@ namespace hpp::proto {
 
 struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
+
 private:
   struct separator {
     char value;
@@ -61,9 +62,12 @@ private:
   static bool parse_datetime(const char *&ptr, const char *end, int32_t &yy, int32_t &mm, int32_t &dd, int32_t &hh,
                              int32_t &mn, int32_t &ss) {
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    return parse_with_separator(ptr, end, yy, 4, separator{'-'}) && parse_with_separator(ptr, end, mm, 2, separator{'-'}) &&
-           parse_with_separator(ptr, end, dd, 2, separator{'T'}) && parse_with_separator(ptr, end, hh, 2, separator{':'}) &&
-           parse_with_separator(ptr, end, mn, 2, separator{':'}) && parse_with_separator(ptr, end, ss, 2, separator{'\0'});
+    return parse_with_separator(ptr, end, yy, 4, separator{'-'}) &&
+           parse_with_separator(ptr, end, mm, 2, separator{'-'}) &&
+           parse_with_separator(ptr, end, dd, 2, separator{'T'}) &&
+           parse_with_separator(ptr, end, hh, 2, separator{':'}) &&
+           parse_with_separator(ptr, end, mn, 2, separator{':'}) &&
+           parse_with_separator(ptr, end, ss, 2, separator{'\0'});
   }
 
   static bool validate_datetime(int32_t yy, int32_t mm, int32_t dd, int32_t hh, int32_t mn, int32_t ss) {
