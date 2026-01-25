@@ -282,17 +282,18 @@ public:
 };
 
 class bool_proxy {
-    uint8_t* impl;
-    public:
-    bool_proxy(uint8_t& v): impl(&v){}
-    bool_proxy(const bool_proxy&) = default;
-    operator bool() const { return static_cast<bool>(*impl); }
-    bool_proxy& operator=(const bool_proxy&) = default;
-    bool_proxy& operator=(bool v) {
-      *impl = v;
-      return *this;
-    }
-  };
+  uint8_t *impl;
+
+public:
+  bool_proxy(uint8_t &v) : impl(&v) {}
+  bool_proxy(const bool_proxy &) = default;
+  operator bool() const { return static_cast<bool>(*impl); }
+  bool_proxy &operator=(const bool_proxy &) = default;
+  bool_proxy &operator=(bool v) {
+    *impl = v;
+    return *this;
+  }
+};
 // remove the implicit conversions for optional<bool> because those are very error-prone to use.
 template <auto Default>
 class optional<bool, Default> {
@@ -302,8 +303,6 @@ class optional<bool, Default> {
 public:
   static constexpr bool has_default_value = true;
   static constexpr bool default_value() { return as_bool(Default); }
-
-  
 
 private:
   static constexpr std::uint8_t default_state = 0x80U | std::uint8_t(default_value()); // use 0x80 to denote empty state
