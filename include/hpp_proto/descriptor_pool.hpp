@@ -660,8 +660,7 @@ private:
 
   class default_resource_guard {
   public:
-    explicit default_resource_guard(std::pmr::memory_resource &resource)
-        : prev_(std::pmr::get_default_resource()) {
+    explicit default_resource_guard(std::pmr::memory_resource &resource) : prev_(std::pmr::get_default_resource()) {
       std::pmr::set_default_resource(&resource);
     }
     ~default_resource_guard() { std::pmr::set_default_resource(prev_); }

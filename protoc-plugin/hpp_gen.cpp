@@ -2069,8 +2069,8 @@ int main(int argc, const char **argv) {
   }
 
   hpp_gen_descriptor_pool pool;
-  if (auto init_status = pool.init(google::protobuf::FileDescriptorSet<>{.file = std::move(request.proto_file),
-                                                                         .unknown_fields_ = {}});
+  if (auto init_status = pool.init(
+          google::protobuf::FileDescriptorSet<>{.file = std::move(request.proto_file), .unknown_fields_ = {}});
       !init_status.ok()) {
     (void)fputs("hpp descriptor pool init error", stderr);
     return 1;

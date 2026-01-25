@@ -2,10 +2,10 @@
 #include <algorithm>
 #include <array>
 #include <boost/ut.hpp>
-#include <hpp_proto/dynamic_message/binpb.hpp>
-#include <hpp_proto/dynamic_message/json.hpp>
-#include <hpp_proto/dynamic_message/factory_addons.hpp>
 #include <hpp_proto/descriptor_pool.hpp>
+#include <hpp_proto/dynamic_message/binpb.hpp>
+#include <hpp_proto/dynamic_message/factory_addons.hpp>
+#include <hpp_proto/dynamic_message/json.hpp>
 #include <limits>
 #include <memory_resource>
 #include <span>
