@@ -526,93 +526,6 @@ public:
 
 private:
   friend class dynamic_message_factory;
-  status init() {
-    const descriptor_counter counter(fileset_);
-    files_.reserve(counter.files);
-    messages_.reserve(counter.messages);
-    enums_.reserve(counter.enums);
-    oneofs_.reserve(counter.oneofs);
-    fields_.reserve(counter.fields);
-    if constexpr (concepts::flat_map<map_t<std::string_view, message_descriptor_t *>>) {
-      reserve(file_map_, counter.files);
-      reserve(message_map_, counter.messages);
-      reserve(enum_map_, counter.enums);
-    }
-
-    for (const auto &proto : fileset_.file) {
-      if (!proto.name.empty() && file_map_.count(proto.name) == 0) {
-        auto features = select_features(proto);
-        if (!features.has_value()) {
-          return features.error();
-        }
-        build(files_.emplace_back(proto, std::move(features).value()));
-      }
-    }
-
-    for (auto &file : files_) {
-      file.descriptor_pool_ = this;
-      file.dependencies_.resize(file.proto().dependency.size());
-      std::transform(file.proto().dependency.begin(), file.proto().dependency.end(), file.dependencies_.begin(),
-                     [this](auto &dep) { return this->get_file_descriptor(dep); });
-    }
-
-    for (auto [name, msg] : message_map_) {
-      if (auto result = build_fields(*msg); !result.ok()) {
-        return result;
-      }
-      build_extensions(*msg);
-    }
-
-    for (auto [name, f] : file_map_) {
-      build_extensions(*f);
-    }
-
-    for (auto &f : fields_) {
-      if (f.proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
-          f.proto_.type == FieldDescriptorProto::Type::TYPE_GROUP) {
-        auto desc = find_type(message_map_, f.proto_.type_name.substr(1));
-        if (!desc) {
-          return std::errc::bad_message;
-        }
-        f.type_descriptor_ = desc;
-        if (desc->is_map_entry()) {
-          f.field_option_bitset_ |= mask(field_option_mask::MASK_MAP_ENTRY);
-        }
-      } else if (f.proto_.type == FieldDescriptorProto::Type::TYPE_ENUM) {
-        auto desc = find_type(enum_map_, f.proto_.type_name.substr(1));
-        if (!desc) {
-          return std::errc::bad_message;
-        }
-        f.type_descriptor_ = desc;
-      }
-
-      if (!f.proto_.extendee.empty()) {
-        auto desc = find_type(message_map_, f.proto_.extendee.substr(1));
-        if (!desc) {
-          return std::errc::bad_message;
-        }
-        f.extendee_descriptor_ = desc;
-      }
-    }
-
-    assert(messages_.size() == counter.messages);
-    return {};
-  }
-
-  static FeatureSet merge_features(FeatureSet features, const auto &options) {
-    if (options.has_value()) {
-      const auto &overriding_features = options->features;
-      if (overriding_features.has_value()) {
-        if constexpr (std::is_trivially_destructible_v<FeatureSet>) {
-          hpp::proto::merge(features, *options->features, hpp::proto::alloc_from(*std::pmr::get_default_resource()));
-        } else {
-          hpp::proto::merge(features, *options->features);
-        }
-      }
-    }
-    return features;
-  }
-
   struct descriptor_counter {
     std::size_t files = 0;
     std::size_t messages = 0;
@@ -646,6 +559,123 @@ private:
     }
   };
 
+  status init() {
+    const descriptor_counter counter(fileset_);
+    reserve_storage(counter);
+    if (auto result = build_files_from_fileset(); !result.ok()) {
+      return result;
+    }
+    link_file_dependencies();
+    if (auto result = build_message_fields_and_extensions(); !result.ok()) {
+      return result;
+    }
+    build_file_extensions();
+    if (auto result = resolve_field_types(); !result.ok()) {
+      return result;
+    }
+
+    assert(messages_.size() == counter.messages);
+    return {};
+  }
+
+  void reserve_storage(const descriptor_counter &counter) {
+    files_.reserve(counter.files);
+    messages_.reserve(counter.messages);
+    enums_.reserve(counter.enums);
+    oneofs_.reserve(counter.oneofs);
+    fields_.reserve(counter.fields);
+    if constexpr (concepts::flat_map<map_t<std::string_view, message_descriptor_t *>>) {
+      reserve(file_map_, counter.files);
+      reserve(message_map_, counter.messages);
+      reserve(enum_map_, counter.enums);
+    }
+  }
+
+  status build_files_from_fileset() {
+    for (const auto &proto : fileset_.file) {
+      if (!proto.name.empty() && file_map_.count(proto.name) == 0) {
+        auto features = select_features(proto);
+        if (!features.has_value()) {
+          return features.error();
+        }
+        build(files_.emplace_back(proto, std::move(features).value()));
+      }
+    }
+    return {};
+  }
+
+  void link_file_dependencies() {
+    for (auto &file : files_) {
+      file.descriptor_pool_ = this;
+      file.dependencies_.resize(file.proto().dependency.size());
+      std::transform(file.proto().dependency.begin(), file.proto().dependency.end(), file.dependencies_.begin(),
+                     [this](auto &dep) { return this->get_file_descriptor(dep); });
+    }
+  }
+
+  status build_message_fields_and_extensions() {
+    for (auto &entry : message_map_) {
+      auto *msg = entry.second;
+      if (auto result = build_fields(*msg); !result.ok()) {
+        return result;
+      }
+      build_extensions(*msg);
+    }
+    return {};
+  }
+
+  void build_file_extensions() {
+    for (auto &entry : file_map_) {
+      auto *f = entry.second;
+      build_extensions(*f);
+    }
+  }
+
+  status resolve_field_types() {
+    for (auto &f : fields_) {
+      if (f.proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
+          f.proto_.type == FieldDescriptorProto::Type::TYPE_GROUP) {
+        auto desc = find_type(message_map_, f.proto_.type_name.substr(1));
+        if (!desc) {
+          return std::errc::bad_message;
+        }
+        f.type_descriptor_ = desc;
+        if (desc->is_map_entry()) {
+          f.field_option_bitset_ |= mask(field_option_mask::MASK_MAP_ENTRY);
+        }
+      } else if (f.proto_.type == FieldDescriptorProto::Type::TYPE_ENUM) {
+        auto desc = find_type(enum_map_, f.proto_.type_name.substr(1));
+        if (!desc) {
+          return std::errc::bad_message;
+        }
+        f.type_descriptor_ = desc;
+      }
+
+      if (!f.proto_.extendee.empty()) {
+        auto desc = find_type(message_map_, f.proto_.extendee.substr(1));
+        if (!desc) {
+          return std::errc::bad_message;
+        }
+        f.extendee_descriptor_ = desc;
+      }
+    }
+    return {};
+  }
+
+  static FeatureSet merge_features(FeatureSet features, const auto &options) {
+    if (options.has_value()) {
+      const auto &overriding_features = options->features;
+      if (overriding_features.has_value()) {
+        if constexpr (std::is_trivially_destructible_v<FeatureSet>) {
+          hpp::proto::merge(features, *options->features, hpp::proto::alloc_from(*std::pmr::get_default_resource()));
+        } else {
+          hpp::proto::merge(features, *options->features);
+        }
+      }
+    }
+    return features;
+  }
+
   FileDescriptorSet fileset_;
   vector_t<file_descriptor_t> files_;
   vector_t<message_descriptor_t> messages_;
@@ -666,6 +696,8 @@ private:
     ~default_resource_guard() { std::pmr::set_default_resource(prev_); }
     default_resource_guard(const default_resource_guard &) = delete;
     default_resource_guard &operator=(const default_resource_guard &) = delete;
+    default_resource_guard(default_resource_guard &&) = delete;
+    default_resource_guard &operator=(default_resource_guard &&) = delete;
 
   private:
     std::pmr::memory_resource *prev_;
