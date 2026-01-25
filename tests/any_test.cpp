@@ -5,6 +5,8 @@
 #include <google/protobuf/duration.desc.hpp>
 #include <google/protobuf/duration.glz.hpp>
 #include <google/protobuf/duration.pb.hpp>
+#include <google/protobuf/empty.desc.hpp>
+#include <google/protobuf/empty.pb.hpp>
 #include <google/protobuf/field_mask.desc.hpp>
 #include <google/protobuf/field_mask.pb.hpp>
 #include <google/protobuf/timestamp.desc.hpp>
@@ -102,6 +104,7 @@ const suite test_dynamic_message_any = [] {
       ::hpp::proto::file_descriptors::_desc_google_protobuf_unittest_proto3_proto,
       ::hpp::proto::file_descriptors::_desc_google_protobuf_any_proto,
       ::hpp::proto::file_descriptors::_desc_google_protobuf_any_test_proto,
+      ::hpp::proto::file_descriptors::_desc_google_protobuf_empty_proto,
       ::hpp::proto::file_descriptors::_desc_google_protobuf_timestamp_proto,
       ::hpp::proto::file_descriptors::_desc_google_protobuf_duration_proto,
       ::hpp::proto::file_descriptors::_desc_google_protobuf_wrappers_proto,
@@ -192,6 +195,33 @@ const suite test_dynamic_message_any = [] {
     std::string result;
     expect(hpp::proto::write_json(message, result, hpp::proto::use_factory{message_factory}).ok());
     expect(eq(result, "{}"sv));
+  };
+
+  "any_json_empty_wellknown_value_skips_field"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    ::protobuf_unittest::TestAny<> message;
+    ::google::protobuf::Empty<> empty;
+    expect(hpp::proto::pack_any(message.any_value.emplace(), empty).ok());
+
+    std::string result;
+    expect(hpp::proto::write_json(message, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(result, "{}"sv));
+  };
+
+  "any_json_empty_embedded_message"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    ::protobuf_unittest::TestAny<> message;
+    auto &any_value = message.any_value.emplace();
+    any_value.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
+    any_value.value = hpp::proto::bytes{std::byte{0x10}, std::byte{0x01}};
+
+    std::string result;
+    expect(hpp::proto::write_json(message, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})"sv));
   };
 
   "any_json_empty_value_skips_field_dynamic"_test = [&] {

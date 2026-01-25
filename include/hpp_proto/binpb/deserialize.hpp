@@ -1068,6 +1068,16 @@ constexpr status deserialize_field(indirect_view<T> &item, auto meta, uint32_t t
   return deserialize_field(*loaded, meta, tag, archive, unknown_fields);
 }
 
+constexpr status deserialize_field(bool_proxy item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive,
+                                   auto &unknown_fields) {
+  bool v; // NOLINT(cppcoreguidelines-init-variables)
+  if (auto result = deserialize_field(v, meta, tag, archive, unknown_fields); !result.ok()) [[unlikely]] {
+    return result;
+  }
+  item = v;
+  return {};
+}
+
 template <concepts::optional T>
   requires(!concepts::optional_indirect_view<T>)
 constexpr status deserialize_field(T &item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive,

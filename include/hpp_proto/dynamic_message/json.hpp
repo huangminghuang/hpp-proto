@@ -1015,16 +1015,16 @@ struct from<JSON, T> {
 };
 
 template <auto Opts>
-static std::expected<void, const char *> message_to_json(::hpp::proto::message_value_mref message,
+static std::expected<bool, const char *> message_to_json(::hpp::proto::message_value_mref message,
                                                          const auto &any_value, is_context auto &ctx, auto &b,
                                                          auto &ix) {
   if (hpp::proto::read_binpb(message, any_value).ok()) {
+    const auto pre_ix = ix;
     to<JSON, hpp::proto::message_value_cref>::template op<Opts>(message, ctx, b, ix);
     if (bool(ctx.error)) [[unlikely]] {
-      return {};
+      return false;
     }
-    util::dump_closing_brace<Opts>(ctx, b, ix);
-    return {};
+    return ix != pre_ix;
   } else {
     return std::unexpected("unable to deserialize value in google.protobuf.Any message");
   }
@@ -1107,25 +1107,42 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
   }
 
   glz::to<glz::JSON, std::string_view>::template op<Opts>(std::string_view{any_type_url}, ctx, b, ix);
-  dump<','>(b, ix);
-  if (Opts.prettify) {
-    dump<'\n'>(b, ix);
-    dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
-  }
 
   (void)to_message_name(any_type_url)
       .and_then(build_message)
       .and_then([&](::hpp::proto::message_value_mref message) -> std::expected<void, const char *> {
         if (message.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE) {
+          dump<','>(b, ix);
+          if (Opts.prettify) {
+            dump<'\n'>(b, ix);
+            dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
+          }
           dump<R"("value":)">(b, ix);
           if constexpr (Opts.prettify) {
             dump<' '>(b, ix);
           }
 
-          return message_to_json<Opts>(message, any_value, ctx, b, ix);
+          auto wrote = message_to_json<Opts>(message, any_value, ctx, b, ix);
+          if (!wrote.has_value()) {
+            return std::unexpected(wrote.error());
+          }
         } else {
-          return message_to_json<opening_handled<Opts>()>(message, any_value, ctx, b, ix);
+          const auto sep_ix = ix;
+          dump<','>(b, ix);
+          if (Opts.prettify) {
+            dump<'\n'>(b, ix);
+            dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
+          }
+          auto wrote = message_to_json<opening_handled<Opts>()>(message, any_value, ctx, b, ix);
+          if (!wrote.has_value()) {
+            return std::unexpected(wrote.error());
+          }
+          if (!*wrote) {
+            ix = sep_ix;
+          }
         }
+        util::dump_closing_brace<Opts>(ctx, b, ix);
+        return {};
       })
       .transform_error([&](const char *err_msg) {
         ctx.error = error_code::syntax_error;

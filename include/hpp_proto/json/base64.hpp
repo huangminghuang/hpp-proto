@@ -28,6 +28,7 @@
 #include <cstring>
 #include <iterator>
 #include <ranges>
+#include <vector>
 
 #include <hpp_proto/memory_resource_utils.hpp>
 
@@ -142,7 +143,9 @@ struct base64 {
     if (static_cast<char>(source[n - 2]) == '=') {
       len--;
     }
-    mref.resize(len);
+    using byte_type = std::ranges::range_value_t<decltype(mref)>;
+    std::vector<byte_type> decoded;
+    decoded.resize(len);
     constexpr unsigned char decode_table[] = {
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55,
@@ -180,10 +183,15 @@ struct base64 {
       }
 
       uint32_t const triple = (a << 18U) + (b << 12U) + (c << 6U) + d;
-      write_decoded_bytes(triple, mref, j, len);
+      write_decoded_bytes(triple, decoded, j, len);
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
-    return j == len;
+    if (j != len) {
+      return false;
+    }
+    mref.resize(len);
+    std::ranges::copy(decoded, mref.begin());
+    return true;
   }
 
   // Helper function to validate and decode a single base64 quartet

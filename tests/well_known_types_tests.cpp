@@ -115,6 +115,12 @@ const ut::suite test_timestamp = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-13-01T00:00:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-00-01T00:00:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-32T00:00:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T24:00:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:60:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:00:60Z")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:33:20.-200Z")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("10000-01-01T00:00:00.00000000000Z")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("0000-01-01T00:00:00.00000000000Z")").ok());
@@ -216,6 +222,13 @@ const ut::suite test_field_mask = [] {
     std::array<std::string_view, 2> paths{"a\x00c", "def"};
     verify<google::protobuf::FieldMask<hpp::proto::non_owning_traits>>(
         factory, google::protobuf::FieldMask<hpp::proto::non_owning_traits>{.paths = paths}, "\"a\x00c,def\"");
+  };
+
+  "field_mask_empty_clears"_test = [] {
+    google::protobuf::FieldMask<> msg;
+    msg.paths = {"abc", "def"};
+    ut::expect(hpp::proto::read_json(msg, R"("")").ok());
+    ut::expect(msg.paths.empty());
   };
 };
 

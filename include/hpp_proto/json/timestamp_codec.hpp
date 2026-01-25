@@ -142,16 +142,20 @@ struct timestamp_codec {
       return false;
     }
 
-    if (yy == 0) {
+    if (yy == 0 || mm <= 0 || dd <= 0 || hh < 0 || mn < 0 || ss < 0) {
+      return false;
+    }
+
+    if (mm > 12 || hh > 23 || mn > 59 || ss > 59) {
       return false;
     }
 
     using namespace std::chrono;
-    value.seconds =
-        (sys_days(year_month_day(year(yy), month(static_cast<unsigned>(mm)), day(static_cast<unsigned>(dd)))) +
-         hours(hh) + minutes(mn) + seconds(ss))
-            .time_since_epoch()
-            .count();
+    const auto ymd = year_month_day(year(yy), month(static_cast<unsigned>(mm)), day(static_cast<unsigned>(dd)));
+    if (!ymd.ok()) {
+      return false;
+    }
+    value.seconds = (sys_days(ymd) + hours(hh) + minutes(mn) + seconds(ss)).time_since_epoch().count();
 
     if (ptr == end) {
       value.nanos = 0;

@@ -138,6 +138,7 @@ public:
   void reset() const noexcept {
     storage_->of_repeated_string.content = nullptr;
     storage_->of_repeated_string.size = 0;
+    storage_->of_repeated_string.capacity = 0;
   }
 
   void clear() const noexcept { storage_->of_repeated_string.size = 0; }

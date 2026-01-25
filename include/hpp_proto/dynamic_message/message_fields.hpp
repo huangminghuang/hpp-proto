@@ -46,7 +46,7 @@ class message_value_cref {
   }
 
   static const value_storage &empty_storage() noexcept {
-    const static value_storage empty;
+    const static value_storage empty{};
     return empty;
   }
 
@@ -265,14 +265,8 @@ public:
   }
 
   void reset() const noexcept {
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wclass-memaccess"
-#endif
-    std::memset(storage_, 0, sizeof(value_storage) * num_slots());
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
+    using diff_t = std::iter_difference_t<value_storage *>;
+    std::ranges::fill_n(storage_, static_cast<diff_t>(num_slots()), value_storage{});
   }
 
   [[nodiscard]] field_mref field(const field_descriptor_t &desc) const noexcept {

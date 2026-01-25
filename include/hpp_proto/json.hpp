@@ -180,6 +180,12 @@ struct from<JSON, hpp::proto::bytes_view> {
 };
 
 namespace detail {
+template <auto Opts>
+void from_json(hpp::proto::bool_proxy value, auto &ctx, auto &it, auto &end) {
+  bool v; // NOLINT(cppcoreguidelines-init-variables)
+  parse<JSON>::op<Opts>(v, ctx, it, end);
+  value = v;
+}
 
 template <auto Opts, typename T>
   requires std::is_enum_v<T>
@@ -455,12 +461,12 @@ inline json_status read_json(concepts::read_json_supported auto &value,
   using value_type = std::remove_cvref_t<decltype(value)>;
   static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
                 "the generated .glz.hpp is required for hpp_gen messages");
-  if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
-    value = std::decay_t<decltype(value)>{};
-  }
   constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(false);
 
   json_context ctx{std::forward<decltype(option)>(option)...};
+  if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
+    value = std::decay_t<decltype(value)>{};
+  }
   return {glz::read<opts>(value, std::string_view{std::ranges::data(buffer), std::ranges::size(buffer)}, ctx)};
 }
 
@@ -475,10 +481,10 @@ inline json_status read_json(concepts::read_json_supported auto &value, null_ter
   using value_type = std::remove_cvref_t<decltype(value)>;
   static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
                 "the generated .glz.hpp is required for hpp_gen messages");
+  json_context ctx{std::forward<decltype(option)>(option)...};
   if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
     value = {};
   }
-  json_context ctx{std::forward<decltype(option)>(option)...};
   return {glz::read<Opts>(value, std::string_view{str}, ctx)};
 }
 
