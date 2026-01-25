@@ -27,6 +27,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 
 #include <hpp_proto/binpb.hpp>
@@ -45,6 +46,7 @@ namespace hpp::proto {
 class dynamic_message_factory {
   std::pmr::monotonic_buffer_resource memory_resource_;
   descriptor_pool_t pool_;
+  bool initialized_ = false;
 
   void setup_storage_slots();
   void setup_wellknown_types();
@@ -72,10 +74,16 @@ public:
 
   /**
    * @brief Initialize the object from a FileDescriptorSet
+   *
+   * On failure, the factory remains uninitialized and `get_message()` returns
+   * `dynamic_message_errc::unknown_message_name`.
    */
-
   void init(FileDescriptorSet &&fileset) {
-    pool_.init(std::move(fileset), memory_resource_);
+    if (auto result = pool_.init(std::move(fileset), memory_resource_); !result.ok()) {
+      initialized_ = false;
+      return;
+    }
+    initialized_ = true;
     init();
   }
 
@@ -96,6 +104,9 @@ public:
                alloc_from(memory_resource_))
         .and_then([this](auto &&fileset) -> std::expected<void, status> {
           this->init(std::forward<decltype(fileset)>(fileset));
+          if (!initialized_) {
+            return std::unexpected(status{std::errc::bad_message});
+          }
           return {};
         })
         .has_value();
@@ -114,6 +125,9 @@ public:
                alloc_from(memory_resource_))
         .and_then([this](auto &&fileset) -> std::expected<void, std::errc> {
           this->init(std::forward<decltype(fileset)>(fileset));
+          if (!initialized_) {
+            return std::unexpected(std::errc::bad_message);
+          }
           return {};
         })
         .has_value();
@@ -221,6 +235,9 @@ inline void dynamic_message_factory::init() {
 
 inline expected_message_mref dynamic_message_factory::get_message(std::string_view name,
                                                                   std::pmr::monotonic_buffer_resource &mr) const {
+  if (!initialized_) {
+    return expected_message_mref{std::unexpected(dynamic_message_errc::unknown_message_name)};
+  }
   const auto *desc = pool_.get_message_descriptor(name);
   if (desc != nullptr) {
     return expected_message_mref{message_value_mref{*desc, mr}};

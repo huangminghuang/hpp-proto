@@ -4,9 +4,12 @@
 #include <boost/ut.hpp>
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/json.hpp>
+#include <hpp_proto/dynamic_message/factory_addons.hpp>
+#include <hpp_proto/descriptor_pool.hpp>
 #include <limits>
 #include <memory_resource>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -37,6 +40,109 @@ const boost::ut::suite parse_default_value_tests = [] {
         [] { (void)hpp::proto::dynamic_message_factory_addons::parse_default_value<int32_t>("999999999999"); }));
     expect(throws<std::out_of_range>(
         [] { (void)hpp::proto::dynamic_message_factory_addons::parse_default_value<double>("1e400"); }));
+  };
+};
+
+const boost::ut::suite descriptor_pool_gap_tests = [] {
+  using descriptor_pool_t = hpp::proto::descriptor_pool<hpp::proto::dynamic_message_factory_addons>;
+  using OwningFileDescriptorProto = google::protobuf::FileDescriptorProto<>;
+
+  auto make_fileset = [&](const OwningFileDescriptorProto &proto, std::pmr::memory_resource &mr) {
+    std::string buffer;
+    expect(hpp::proto::write_binpb(proto, buffer).ok());
+    std::array<hpp::proto::file_descriptor_pb, 1> descs{hpp::proto::file_descriptor_pb{buffer}};
+    return expect_ok(
+        descriptor_pool_t::make_file_descriptor_set(descs, hpp::proto::distinct_file_tag, hpp::proto::alloc_from(mr)));
+  };
+
+  auto make_invalid_edition_fileset = [] {
+    OwningFileDescriptorProto file;
+    file.name = "invalid_edition.proto";
+    file.syntax = "editions";
+    file.edition = static_cast<google::protobuf::Edition>(0x7fffffff);
+    return file;
+  };
+
+  auto make_missing_type_fileset = [] {
+    OwningFileDescriptorProto file;
+    file.name = "missing_type.proto";
+    auto &message = file.message_type.emplace_back();
+    message.name = "Root";
+    auto &field = message.field.emplace_back();
+    field.name = "missing";
+    field.number = 1;
+    field.label = decltype(field.label)::LABEL_OPTIONAL;
+    field.type = decltype(field.type)::TYPE_MESSAGE;
+    field.type_name = ".MissingType";
+    return file;
+  };
+
+  auto make_invalid_oneof_fileset = [] {
+    OwningFileDescriptorProto file;
+    file.name = "invalid_oneof.proto";
+    auto &message = file.message_type.emplace_back();
+    message.name = "Root";
+    auto &field = message.field.emplace_back();
+    field.name = "bad_oneof";
+    field.number = 1;
+    field.label = decltype(field.label)::LABEL_OPTIONAL;
+    field.type = decltype(field.type)::TYPE_INT32;
+    field.oneof_index = 0;
+    return file;
+  };
+
+  auto make_missing_extendee_fileset = [] {
+    OwningFileDescriptorProto file;
+    file.name = "missing_extendee.proto";
+    auto &field = file.extension.emplace_back();
+    field.name = "bad_ext";
+    field.number = 100;
+    field.label = decltype(field.label)::LABEL_OPTIONAL;
+    field.type = decltype(field.type)::TYPE_INT32;
+    field.extendee = ".MissingExtendee";
+    return file;
+  };
+
+  "unsupported_edition_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset(make_invalid_edition_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "missing_message_type_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset(make_missing_type_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "invalid_oneof_index_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset(make_invalid_oneof_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "missing_extendee_type_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset(make_missing_extendee_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "pmr_default_resource_restored_on_error"_test = [&] {
+    auto *old_resource = std::pmr::get_default_resource();
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset(make_invalid_edition_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+
+    auto *current_resource = std::pmr::get_default_resource();
+    if (current_resource != old_resource) {
+      std::pmr::set_default_resource(old_resource);
+    }
+    expect(current_resource == old_resource);
   };
 };
 

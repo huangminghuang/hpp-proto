@@ -2019,7 +2019,12 @@ int main(int argc, const char **argv) {
   using namespace std::string_view_literals;
 
   if (args.size() == 2) {
-    read_file(std::ifstream(args[1], std::ios_base::binary));
+    std::ifstream in(args[1], std::ios_base::binary);
+    if (!in) {
+      (void)fputs("hpp input file open error", stderr);
+      return 1;
+    }
+    read_file(in);
   } else {
     read_file(std::cin);
   }
@@ -2033,7 +2038,8 @@ int main(int argc, const char **argv) {
 
   code_generator::plugin_parameters = request.parameter;
 
-  split(request.parameter, ',', [&request_data](auto opt) {
+  bool option_error = false;
+  split(request.parameter, ',', [&request_data, &option_error](auto opt) {
     auto equal_sign_pos = opt.find("=");
     auto opt_key = opt.substr(0, equal_sign_pos);
     auto opt_value = equal_sign_pos != std::string_view::npos ? opt.substr(equal_sign_pos + 1) : std::string_view{};
@@ -2046,16 +2052,29 @@ int main(int argc, const char **argv) {
       code_generator::proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "export_request") {
       std::ofstream out{std::string(opt_value), std::ios::binary};
+      if (!out) {
+        (void)fputs("hpp export_request open error", stderr);
+        option_error = true;
+        return;
+      }
       std::ranges::copy(request_data, std::ostreambuf_iterator<char>(out));
     }
   });
+  if (option_error) {
+    return 1;
+  }
 
   if (code_generator::proto2_explicit_presences.empty()) {
     code_generator::proto2_explicit_presences.emplace_back(".");
   }
 
-  hpp_gen_descriptor_pool pool(
-      google::protobuf::FileDescriptorSet<>{.file = std::move(request.proto_file), .unknown_fields_ = {}});
+  hpp_gen_descriptor_pool pool;
+  if (auto init_status = pool.init(google::protobuf::FileDescriptorSet<>{.file = std::move(request.proto_file),
+                                                                         .unknown_fields_ = {}});
+      !init_status.ok()) {
+    (void)fputs("hpp descriptor pool init error", stderr);
+    return 1;
+  }
 
   CodeGeneratorResponse response;
   using enum CodeGeneratorResponse::Feature;
@@ -2067,24 +2086,28 @@ int main(int argc, const char **argv) {
 
   code_generator::resolve_message_dependencies(pool);
   for (const auto &file_name : request.file_to_generate) {
-    auto &descriptor = *pool.get_file_descriptor(file_name);
+    auto *descriptor = pool.get_file_descriptor(file_name);
+    if (descriptor == nullptr) {
+      (void)fputs("hpp file_to_generate not found", stderr);
+      return 1;
+    }
 
     msg_code_generator msg_code(response.file);
-    msg_code.process(descriptor);
+    msg_code.process(*descriptor);
 
     hpp_meta_generator hpp_meta_code(response.file);
-    hpp_meta_code.process(descriptor);
+    hpp_meta_code.process(*descriptor);
 
     glaze_meta_generator glz_meta_code(response.file);
-    glz_meta_code.process(descriptor);
+    glz_meta_code.process(*descriptor);
 
-    if (!descriptor.messages().empty()) {
+    if (!descriptor->messages().empty()) {
       desc_hpp_generator desc_hpp_code(response.file);
-      desc_hpp_code.process(descriptor);
+      desc_hpp_code.process(*descriptor);
     }
 
     service_generator service_code(response.file);
-    service_code.process(descriptor);
+    service_code.process(*descriptor);
   }
 
   std::vector<char> data;
