@@ -605,6 +605,7 @@ public:
 
   constexpr std::uint32_t read_tag() {
     maybe_advance_region();
+    // Safety invariant: input regions provide at least 10 readable bytes (slope/patch buffer).
     std::int64_t res; // NOLINT(cppcoreguidelines-init-variables)
     if (auto p = shift_mix_parse_varint<std::uint32_t, 4>(current, res); p <= current._end) {
       current.advance_to(p);

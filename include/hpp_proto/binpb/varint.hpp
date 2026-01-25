@@ -110,7 +110,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // This function is adapted from
 // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/varint_shuffle.h
 //
-// It requires the input to be at least 10 valid bytes. If it is an unterminated varint,
+// It requires the input to be at least 10 valid bytes (see input buffer slope/patch invariant).
+// If it is an unterminated varint,
 // the function return `std::ranges::cdata(input) + std::ranges::size(input) +1`; otherwise, the function returns the
 // pointer passed the consumed input data.
 // NOLINTBEGIN
