@@ -32,6 +32,80 @@ namespace hpp::proto {
 
 struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
+private:
+  struct separator {
+    char value;
+  };
+
+  static bool parse_with_separator(const char *&ptr, const char *end, int32_t &val, std::ptrdiff_t width,
+                                   separator sep) {
+    const auto remaining = std::distance(ptr, end);
+    if (remaining < width) {
+      return false;
+    }
+    const auto *const next = std::next(ptr, width);
+    auto res = std::from_chars(ptr, next, val);
+    if (res.ec != std::errc{} || res.ptr != next) {
+      return false;
+    }
+    ptr = next;
+    if (sep.value != '\0') {
+      if (ptr >= end || *ptr != sep.value) {
+        return false;
+      }
+      ptr = std::next(ptr);
+    }
+    return true;
+  }
+
+  static bool parse_datetime(const char *&ptr, const char *end, int32_t &yy, int32_t &mm, int32_t &dd, int32_t &hh,
+                             int32_t &mn, int32_t &ss) {
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    return parse_with_separator(ptr, end, yy, 4, separator{'-'}) && parse_with_separator(ptr, end, mm, 2, separator{'-'}) &&
+           parse_with_separator(ptr, end, dd, 2, separator{'T'}) && parse_with_separator(ptr, end, hh, 2, separator{':'}) &&
+           parse_with_separator(ptr, end, mn, 2, separator{':'}) && parse_with_separator(ptr, end, ss, 2, separator{'\0'});
+  }
+
+  static bool validate_datetime(int32_t yy, int32_t mm, int32_t dd, int32_t hh, int32_t mn, int32_t ss) {
+    if (yy == 0 || mm <= 0 || dd <= 0 || hh < 0 || mn < 0 || ss < 0) {
+      return false;
+    }
+    if (mm > 12 || hh > 23 || mn > 59 || ss > 59) {
+      return false;
+    }
+    return true;
+  }
+
+  static bool parse_fractional_nanos(const char *ptr, const char *end, int32_t &nanos) {
+    if (ptr == end) {
+      nanos = 0;
+      return true;
+    }
+    if (*ptr != '.') {
+      return false;
+    }
+    ptr = std::next(ptr);
+
+    std::string_view nanos_sv{ptr, static_cast<std::size_t>(std::distance(ptr, end))};
+    if (nanos_sv.empty() || nanos_sv.length() > 9) {
+      return false;
+    }
+
+    const auto *begin = nanos_sv.data();
+    const auto *parse_end = std::next(begin, static_cast<std::ptrdiff_t>(nanos_sv.size()));
+    auto r = std::from_chars(begin, parse_end, nanos);
+    if (r.ptr != parse_end || r.ec != std::errc() || nanos < 0) {
+      return false;
+    }
+
+    // Scale nanos to 9 digits
+    for (size_t i = nanos_sv.length(); i < 9; ++i) {
+      nanos *= 10;
+    }
+    return true;
+  }
+
+public:
   template <int Len, char sep>
   static void fixed_len_to_chars(std::span<char> buf, std::size_t &pos, auto val) {
     static_assert(Len == 2 || Len == 4 || Len == 9);
@@ -115,38 +189,11 @@ struct timestamp_codec {
     // NOLINTNEXTLINE(readability-isolate-declaration,cppcoreguidelines-init-variables)
     int32_t yy, mm, dd, hh, mn, ss;
 
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    auto parse_with_separator = [&](int32_t &val, std::ptrdiff_t width, char sep) -> bool {
-      const auto remaining = std::distance(ptr, end);
-      if (remaining < width) {
-        return false;
-      }
-      const auto *const next = std::next(ptr, width);
-      auto res = std::from_chars(ptr, next, val);
-      if (res.ec != std::errc{} || res.ptr != next) {
-        return false;
-      }
-      ptr = next;
-      if (sep != '\0') {
-        if (ptr >= end || *ptr != sep) {
-          return false;
-        }
-        ptr = std::next(ptr);
-      }
-      return true;
-    };
-
-    if (!parse_with_separator(yy, 4, '-') || !parse_with_separator(mm, 2, '-') || !parse_with_separator(dd, 2, 'T') ||
-        !parse_with_separator(hh, 2, ':') || !parse_with_separator(mn, 2, ':') || !parse_with_separator(ss, 2, '\0'))
-        [[unlikely]] {
+    if (!parse_datetime(ptr, end, yy, mm, dd, hh, mn, ss)) [[unlikely]] {
       return false;
     }
 
-    if (yy == 0 || mm <= 0 || dd <= 0 || hh < 0 || mn < 0 || ss < 0) {
-      return false;
-    }
-
-    if (mm > 12 || hh > 23 || mn > 59 || ss > 59) {
+    if (!validate_datetime(yy, mm, dd, hh, mn, ss)) {
       return false;
     }
 
@@ -157,38 +204,7 @@ struct timestamp_codec {
     }
     value.seconds = (sys_days(ymd) + hours(hh) + minutes(mn) + seconds(ss)).time_since_epoch().count();
 
-    if (ptr == end) {
-      value.nanos = 0;
-      return true;
-    }
-
-    if (*ptr != '.') [[unlikely]] {
-      return false;
-    }
-    ptr = std::next(ptr);
-
-    std::string_view nanos_sv{ptr, static_cast<std::size_t>(std::distance(ptr, end))};
-    if (nanos_sv.empty() || nanos_sv.length() > 9) [[unlikely]] {
-      return false;
-    }
-
-    auto from_str_view = [](std::string_view s, auto &value) noexcept {
-      const auto *begin = s.data();
-      const auto *end = std::next(begin, static_cast<std::ptrdiff_t>(s.size()));
-      auto r = std::from_chars(begin, end, value);
-      return r.ptr == end && r.ec == std::errc();
-    };
-
-    if (!from_str_view(nanos_sv, value.nanos) || value.nanos < 0) [[unlikely]] {
-      return false;
-    }
-
-    // Scale nanos to 9 digits
-    for (size_t i = nanos_sv.length(); i < 9; ++i) {
-      value.nanos *= 10;
-    }
-
-    return true;
+    return parse_fractional_nanos(ptr, end, value.nanos);
   }
 };
 

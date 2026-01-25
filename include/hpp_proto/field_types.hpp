@@ -287,10 +287,13 @@ class bool_proxy {
 public:
   bool_proxy(uint8_t &v) : impl(&v) {}
   bool_proxy(const bool_proxy &) = default;
+  bool_proxy(bool_proxy &&) = default;
+  ~bool_proxy() = default;
   operator bool() const { return static_cast<bool>(*impl); }
   bool_proxy &operator=(const bool_proxy &) = default;
+  bool_proxy &operator=(bool_proxy &&) = default;
   bool_proxy &operator=(bool v) {
-    *impl = v;
+    *impl = static_cast<uint8_t>(v);
     return *this;
   }
 };

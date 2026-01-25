@@ -202,7 +202,7 @@ const suite test_dynamic_message_any = [] {
     expect(message_factory.init(protos));
 
     ::protobuf_unittest::TestAny<> message;
-    ::google::protobuf::Empty<> empty;
+    ::google::protobuf::Empty<> empty{};
     expect(hpp::proto::pack_any(message.any_value.emplace(), empty).ok());
 
     std::string result;
