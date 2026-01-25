@@ -1423,9 +1423,10 @@ status deserialize(auto &item, concepts::segmented_byte_range auto const &buffer
   std::pmr::vector<std::byte> patch_buffer(patch_buffer_bytes_count, &mr);
   std::pmr::vector<input_buffer_region<std::byte>> regions(num_regions, &mr);
 
-  std::ranges::transform(buffer, std::next(regions.begin(), static_cast<std::ptrdiff_t>(num_segments)), [](const auto &b) {
-    return input_buffer_region<std::byte>{std::as_bytes(std::span{std::ranges::data(b), std::ranges::size(b)})};
-  });
+  std::ranges::transform(
+      buffer, std::next(regions.begin(), static_cast<std::ptrdiff_t>(num_segments)), [](const auto &b) {
+        return input_buffer_region<std::byte>{std::as_bytes(std::span{std::ranges::data(b), std::ranges::size(b)})};
+      });
 
   constexpr bool is_contiguous = false;
   auto archive = basic_in<std::byte, std::decay_t<decltype(context)>, is_contiguous>(
