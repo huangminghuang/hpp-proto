@@ -10,7 +10,6 @@ CPMAddPackage(
     NAME glaze
     GIT_TAG v7.0.1
     GITHUB_REPOSITORY stephenberry/glaze
-    UPDATE_DISCONNECTED ON
     ${system_package}
 )
 
