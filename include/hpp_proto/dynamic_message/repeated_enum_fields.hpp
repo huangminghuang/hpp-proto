@@ -286,6 +286,7 @@ public:
   void reset() noexcept {
     storage_->of_repeated_int32.content = nullptr;
     storage_->of_repeated_int32.size = 0;
+    storage_->of_repeated_int32.capacity = 0;
   }
 
   void clear() noexcept { storage_->of_repeated_int32.size = 0; }

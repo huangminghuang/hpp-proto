@@ -46,14 +46,13 @@ template <typename T>
 void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, std::string_view json,
             std::optional<std::string_view> pretty_json = std::nullopt) {
   expect(eq(json, hpp::proto::write_json(msg).value()));
-
   if (pretty_json && !pretty_json->empty()) {
-    expect(eq(*pretty_json, hpp::proto::write_json(msg, hpp::proto::indent_level<3>).value()));
+    expect(eq(*pretty_json, hpp::proto::write_json<hpp::proto::json_opts{.prettify = true}>(msg).value()));
   }
-
   T msg2{};
+  std::pmr::monotonic_buffer_resource mr;
 
-  expect(fatal((hpp::proto::read_json(msg2, json).ok())));
+  expect(fatal((hpp::proto::read_json(msg2, json, hpp::proto::alloc_from(mr)).ok())));
   expect(msg == msg2);
 
   hpp::proto::bytes pb;
@@ -71,7 +70,8 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
   if (pretty_json && !pretty_json->empty()) {
     hpp::proto::bytes pb_buf2;
     std::string json_buf2;
-    expect(hpp::proto::binpb_to_json(factory, message_name, pb, json_buf2, hpp::proto::indent_level<3>).ok());
+    expect(
+        hpp::proto::binpb_to_json<hpp::proto::json_opts{.prettify = true}>(factory, message_name, pb, json_buf2).ok());
     expect(eq(*pretty_json, json_buf2));
     expect(hpp::proto::json_to_binpb(factory, message_name, *pretty_json, pb_buf2).ok());
     expect(std::ranges::equal(pb, pb_buf2));
@@ -115,8 +115,19 @@ const ut::suite test_timestamp = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-13-01T00:00:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-00-01T00:00:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-32T00:00:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T24:00:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:60:00Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:00:60Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:33:20.-200Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("10000-01-01T00:00:00.00000000000Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("0000-01-01T00:00:00.00000000000Z")").ok());
 
   ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = -62135596801, .nanos = 0}).has_value());
+  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 253402300800, .nanos = 0}).has_value());
 
   "timestamp_second_overlong"_test = [&factory] {
     std::string json_buf;
@@ -164,6 +175,9 @@ const ut::suite test_duration = [] {
   "verify Duration -1000.000000020s"_test = [&factory] {
     verify<duration_t>(factory, duration_t{.seconds = -1000, .nanos = -20}, R"("-1000.000000020s")");
   };
+  "verify Duration -0.0100s"_test = [&factory] {
+    verify<duration_t>(factory, duration_t{.seconds = 0, .nanos = -100000000}, R"("-0.100s")");
+  };
 
   duration_t msg;
   ut::expect(hpp::proto::read_json(msg, R"("1000.2s")").ok());
@@ -182,8 +196,15 @@ const ut::suite test_duration = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("-1000.-10000000s")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("-1000. 10000000s")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("1000.0000000000000000s")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("315576000001s")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("-315576000001s")").ok());
 
-  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 0, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 0, .nanos = -1000000000}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 315576000001, .nanos = 0}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = -315576000001, .nanos = 0}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 1, .nanos = -1}).has_value());
+  ut::expect(!hpp::proto::write_json(duration_t{.seconds = -1, .nanos = 1}).has_value());
 };
 
 const ut::suite test_field_mask = [] {
@@ -196,6 +217,18 @@ const ut::suite test_field_mask = [] {
 
   "verify FieldMask abc def"_test = [&factory] {
     verify<FieldMask>(factory, FieldMask{.paths = {"abc", "def"}}, R"("abc,def")");
+    // field mask json format does not escape control code
+    verify<FieldMask>(factory, google::protobuf::FieldMask<>{.paths = {"a\x00c"s, "def"s}}, "\"a\x00c,def\"");
+    std::array<std::string_view, 2> paths{"a\x00c", "def"};
+    verify<google::protobuf::FieldMask<hpp::proto::non_owning_traits>>(
+        factory, google::protobuf::FieldMask<hpp::proto::non_owning_traits>{.paths = paths}, "\"a\x00c,def\"");
+  };
+
+  "field_mask_empty_clears"_test = [] {
+    google::protobuf::FieldMask<> msg;
+    msg.paths = {"abc", "def"};
+    ut::expect(hpp::proto::read_json(msg, R"("")").ok());
+    ut::expect(msg.paths.empty());
   };
 };
 
@@ -234,48 +267,60 @@ const ut::suite test_value = [] {
   hpp::proto::dynamic_message_factory factory;
   expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
 
-  using Value = google::protobuf::Value<>;
-  using NullValue = google::protobuf::NullValue;
-  using ListValue = google::protobuf::ListValue<>;
-  using Struct = google::protobuf::Struct<>;
-  using Struct_value_t = typename decltype(std::declval<Struct>().fields)::value_type;
-  "verify Value null"_test = [&factory] { verify<Value>(factory, Value{.kind = NullValue{}}, "null"); };
+  "value"_test = [&factory]<class Traits>() {
+    using string_t = Traits::string_t;
+    using Value = google::protobuf::Value<Traits>;
+    using NullValue = google::protobuf::NullValue;
+    using ListValue = google::protobuf::ListValue<Traits>;
+    using Struct = google::protobuf::Struct<Traits>;
+    using Struct_value_t = typename decltype(std::declval<Struct>().fields)::value_type;
+    "verify Value null"_test = [&factory] { verify<Value>(factory, Value{.kind = NullValue{}}, "null"); };
 
-  "verify Value true"_test = [&factory] { verify<Value>(factory, Value{.kind = true}, "true"); };
+    "verify Value true"_test = [&factory] { verify<Value>(factory, Value{.kind = true}, "true"); };
 
-  "verify Value false"_test = [&factory] { verify<Value>(factory, Value{.kind = false}, "false"); };
+    "verify Value false"_test = [&factory] { verify<Value>(factory, Value{.kind = false}, "false"); };
 
-  "verify Value number"_test = [&factory] { verify<Value>(factory, Value{.kind = 1.0}, "1"); };
+    "verify Value number"_test = [&factory] { verify<Value>(factory, Value{.kind = 1.0}, "1"); };
 
-  "verify Value string"_test = [&factory] { verify<Value>(factory, Value{.kind = "abc"}, R"("abc")"); };
+    "verify Value string"_test = [&factory] { verify<Value>(factory, Value{.kind = string_t{"abc"}}, R"("abc")"); };
+    "verify ListValue"_test = [&factory] {
+      auto values = std::initializer_list<Value>{Value{.kind = true}, Value{.kind = 1.0}};
+      verify<ListValue>(factory, ListValue{.values = values}, "[true,1]", "[\n   true,\n   1\n]");
+    };
 
-  "verify Value list"_test = [&factory] {
-    verify<Value>(factory, Value{.kind = ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}}, "[true,1]");
-  };
+    "verify Struct empty"_test = [&factory] { verify<Struct>(factory, Struct{}, "{}"); };
+    "verify ListValue empty"_test = [&factory] { verify<ListValue>(factory, ListValue{}, "[]"); };
 
-  "verify Value struct"_test = [&factory] {
-    verify<Value>(factory,
-                  Value{.kind = Struct{.fields = {Struct_value_t{"f1", Value{.kind = true}},
-                                                  Struct_value_t{"f2", Value{.kind = 1.0}}}}},
-                  R"({"f1":true,"f2":1})");
-  };
+    "verify Value struct"_test = [&factory] {
+      Value true_value{.kind = true};
+      Value double_value{.kind = 1.0};
+      Value string_value{.kind = string_t{"abc"}};
+      Value null_value{.kind = NullValue{}};
 
-  "verify Struct empty"_test = [&factory] { verify<Struct>(factory, Struct{}, "{}"); };
+      auto make_indirect = [](Value &v) {
+        if constexpr (std::same_as<Traits, hpp::proto::non_owning_traits>) {
+          return hpp::proto::indirect_view<Value>(&v);
+        } else {
+          return hpp::proto::indirect<Value>(v);
+        }
+      };
 
-  "verify Struct with null"_test = [&factory] {
-    verify<Struct>(factory, Struct{.fields = {Struct_value_t{"f1", Value{.kind = NullValue{}}}}}, R"({"f1":null})");
-  };
+      auto fields = std::initializer_list<Struct_value_t>{{"f1", make_indirect(true_value)},
+                                                          {"f2", make_indirect(double_value)},
+                                                          {"f3", make_indirect(string_value)},
+                                                          {"f4", make_indirect(null_value)}};
 
-  "verify Struct populated"_test = [&factory] {
-    verify<Struct>(
-        factory,
-        Struct{.fields = {{"f1", Value{.kind = true}}, {"f2", Value{.kind = 1.0}}, {"f3", Value{.kind = NullValue{}}}}},
-        R"({"f1":true,"f2":1,"f3":null})", R"({
+      Value struct_value{.kind = Struct{.fields = fields}};
+
+      verify<Value>(factory, struct_value, R"({"f1":true,"f2":1,"f3":"abc","f4":null})",
+                    R"({
    "f1": true,
    "f2": 1,
-   "f3": null
+   "f3": "abc",
+   "f4": null
 })");
-  };
+    };
+  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>();
 
   "struct invalid cases"_test = [&factory] {
     std::string json_buf;
@@ -286,13 +331,6 @@ const ut::suite test_value = [] {
                 .ok());
     // skip unknown field
     expect(hpp::proto::binpb_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
-  };
-
-  "verify ListValue empty"_test = [&factory] { verify<ListValue>(factory, ListValue{}, "[]"); };
-
-  "verify ListValue populated"_test = [&factory] {
-    verify<ListValue>(factory, ListValue{.values = {Value{.kind = true}, Value{.kind = 1.0}}}, "[true,1]",
-                      "[\n   true,\n   1\n]");
   };
 
   "list invalid cases"_test = [&factory] {
@@ -310,10 +348,12 @@ const ut::suite test_value = [] {
                                      "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
                .ok());
     expect(eq(json_buf, "[true,false]"s));
-    // TODO: we need to test the case where the unknown element in not in the beginning of the list
-
     // skip unknown field
     expect(hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x10\x01"sv, json_buf).ok());
+  };
+  "Struct invalid cases"_test = [] {
+    google::protobuf::Struct<> msg;
+    expect(!hpp::proto::read_json(msg, R"({"f1":})").ok());
   };
 };
 

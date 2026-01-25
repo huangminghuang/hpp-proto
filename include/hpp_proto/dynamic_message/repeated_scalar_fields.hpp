@@ -229,6 +229,7 @@ public:
     auto &s = access_storage();
     s.content = nullptr;
     s.size = 0;
+    s.capacity = 0;
   }
   void clear() const noexcept { access_storage().size = 0; }
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
@@ -237,6 +238,7 @@ public:
     auto &storage = access_storage();
     storage.content = s.data();
     storage.size = static_cast<uint32_t>(s.size());
+    storage.capacity = storage.size;
   }
 
   template <std::ranges::sized_range Range>

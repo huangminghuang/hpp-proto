@@ -64,7 +64,7 @@ int main() {
 #ifndef HPP_PROTO_DISABLE_GLAZE
   auto write_json_result = hpp::proto::write_json(address_book);
   expect(write_json_result.has_value());
-  auto read_json_result = hpp::proto::read_json<AddressBook>(write_json_result.value());
+  auto read_json_result = hpp::proto::read_json<glz::opts{}, AddressBook>(write_json_result.value());
   expect(address_book == read_json_result.value());
 #endif
   return 0;

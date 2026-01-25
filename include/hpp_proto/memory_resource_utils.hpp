@@ -64,9 +64,6 @@ template <typename T>
 concept is_pb_context = requires { typename std::decay_t<T>::is_pb_context; };
 
 template <typename T>
-concept is_option_type = requires { typename std::decay_t<T>::option_type; };
-
-template <typename T>
 concept dynamic_sized_view = std::derived_from<T, std::span<typename T::element_type>> ||
                              std::same_as<T, hpp::proto::equality_comparable_span<typename T::element_type>> ||
                              std::same_as<T, std::string_view>;
@@ -256,6 +253,7 @@ public:
   [[nodiscard]] constexpr value_type *data() const { return data_; }
   constexpr reference operator[](std::size_t n) { return data_[n]; }
   [[nodiscard]] constexpr std::size_t size() const { return view_.size(); }
+  [[nodiscard]] constexpr bool empty() const { return view_.empty(); }
   [[nodiscard]] constexpr value_type *begin() const { return data_; }
   [[nodiscard]] constexpr value_type *end() const { return data_ + size(); }
 
@@ -356,6 +354,7 @@ arena_vector(View &view, Context &ctx)
     -> arena_vector<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
 
 constexpr auto as_modifiable(concepts::is_pb_context auto &context, concepts::dynamic_sized_view auto &view) {
+  static_assert(requires { context.memory_resource(); }, "requires hpp::proto::alloc_from{memory_resource}");
   return detail::arena_vector{view, context};
 }
 

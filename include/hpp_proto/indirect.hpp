@@ -128,11 +128,27 @@ public:
   constexpr T *operator->() noexcept { return raw_ptr(); }
   constexpr const T *operator->() const noexcept { return raw_ptr(); }
 
-  constexpr bool operator==(const T &rhs) const { return *raw_ptr() == rhs; }
-  constexpr bool operator==(const indirect &rhs) const { return *raw_ptr() == *rhs.raw_ptr(); }
+  constexpr bool operator==(const T &rhs) const
+    requires requires { *obj_ == rhs; }
+  {
+    return *raw_ptr() == rhs;
+  }
+  constexpr bool operator==(const indirect &rhs) const
+    requires requires { *obj_ == *rhs.obj_; }
+  {
+    return *raw_ptr() == *rhs.raw_ptr();
+  }
 
-  constexpr auto operator<=>(const T &rhs) const { return *raw_ptr() <=> rhs; }
-  constexpr auto operator<=>(const indirect &rhs) const { return *raw_ptr() <=> *rhs.raw_ptr(); }
+  constexpr auto operator<=>(const T &rhs) const
+    requires requires { *obj_ <=> rhs; }
+  {
+    return *raw_ptr() <=> rhs;
+  }
+  constexpr auto operator<=>(const indirect &rhs) const
+    requires requires { *obj_ <=> *rhs.obj_; }
+  {
+    return *raw_ptr() <=> *rhs.raw_ptr();
+  }
 
   constexpr void swap(indirect &other) noexcept(allocator_traits::propagate_on_container_swap::value ||
                                                 allocator_traits::is_always_equal::value) {

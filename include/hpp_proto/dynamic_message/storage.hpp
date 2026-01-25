@@ -69,8 +69,6 @@ union value_storage {
   repeated_storage_base<std::string_view> of_repeated_string;
   repeated_storage_base<value_storage> of_repeated_message;
 
-  value_storage() : of_int64{0ULL, 0U, 0U} {}
-
   [[nodiscard]] bool has_value() const noexcept {
     // This implementation relies on a layout hack where the 'selection' field of
     // scalar types and the 'size' field of repeated types are at the same

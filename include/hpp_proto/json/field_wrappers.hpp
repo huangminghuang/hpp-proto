@@ -22,9 +22,8 @@
 
 #pragma once
 #include <cstddef>
-#include <tuple>
-
 #include <hpp_proto/memory_resource_utils.hpp>
+#include <tuple>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push

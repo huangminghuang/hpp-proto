@@ -93,9 +93,11 @@ int main() {
   }
 
 #ifndef HPP_PROTO_DISABLE_GLAZE
-  auto write_json_result = hpp::proto::write_json<std::pmr::string>(address_book, hpp::proto::alloc_from{pool});
+  auto write_json_result =
+      hpp::proto::write_json<hpp::proto::json_opts{}, std::pmr::string>(address_book, hpp::proto::alloc_from{pool});
   expect(write_json_result.has_value());
-  auto read_json_result = hpp::proto::read_json<AddressBook>(write_json_result.value(), hpp::proto::alloc_from{pool});
+  auto read_json_result =
+      hpp::proto::read_json<glz::opts{}, AddressBook>(write_json_result.value(), hpp::proto::alloc_from{pool});
   expect(address_book == read_json_result.value());
 #endif
   return 0;

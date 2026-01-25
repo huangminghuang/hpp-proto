@@ -21,15 +21,16 @@ int main() {
   // Create a monotonic buffer resource on the stack
   std::array<std::byte, 4096> buffer{};
   std::pmr::monotonic_buffer_resource pool{buffer.data(), buffer.size()};
+
+  // This is the only way to propagate the memory resource to nested objects.
+  // Do not change the default resource until all mutations are complete.
+  std::pmr::set_default_resource(&pool);
+
   std::pmr::polymorphic_allocator<> alloc{&pool};
 
   // Create an address book that allocates from the pool and deliberately skip its destructor
   // to avoid unnecessary overhead.
   auto *address_book = alloc.new_object<PmrAddressBook>();
-
-  // This is the only way to propagate the memory resource to nested objects.
-  // Do not change the default resource until all mutations are complete.
-  std::pmr::set_default_resource(&pool);
 
   // Add a person
   address_book->people.emplace_back(

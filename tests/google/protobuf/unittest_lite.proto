@@ -259,8 +259,6 @@ extend TestAllExtensionsLite {
       23;
   string optional_string_piece_extension_lite = 24 [ctype = STRING_PIECE];
 
-  // TODO: ctype=CORD is not supported for extension. Add
-  // ctype=CORD option back after it is supported.
   string optional_cord_extension_lite = 25;
   bytes optional_bytes_cord_extension_lite = 86;
   protobuf_unittest_import.PublicImportMessageLite
@@ -303,8 +301,6 @@ extend TestAllExtensionsLite {
   repeated string repeated_string_piece_extension_lite = 54
       [ctype = STRING_PIECE];
 
-  // TODO: ctype=CORD is not supported for extension. Add
-  // ctype=CORD option back after it is supported.
   repeated string repeated_cord_extension_lite = 55;
   repeated TestAllTypesLite.NestedMessage repeated_lazy_message_extension_lite =
       57 [lazy = true];
@@ -352,8 +348,6 @@ extend TestAllExtensionsLite {
   string default_string_piece_extension_lite = 84
       [ctype = STRING_PIECE, default = "abc"];
 
-  // TODO: ctype=CORD is not supported for extension. Add
-  // ctype=CORD option back after it is supported.
   string default_cord_extension_lite = 85 [default = "123"];
 
   // For oneof test

@@ -2,10 +2,21 @@
 #include <google/protobuf/any_test.desc.hpp>
 #include <google/protobuf/any_test.glz.hpp>
 #include <google/protobuf/any_test.pb.hpp>
+#include <google/protobuf/duration.desc.hpp>
+#include <google/protobuf/duration.glz.hpp>
+#include <google/protobuf/duration.pb.hpp>
+#include <google/protobuf/empty.desc.hpp>
+#include <google/protobuf/empty.pb.hpp>
 #include <google/protobuf/field_mask.desc.hpp>
 #include <google/protobuf/field_mask.pb.hpp>
+#include <google/protobuf/timestamp.desc.hpp>
+#include <google/protobuf/timestamp.glz.hpp>
+#include <google/protobuf/timestamp.pb.hpp>
 #include <google/protobuf/unittest_proto3.desc.hpp>
 #include <google/protobuf/unittest_proto3.pb.hpp>
+#include <google/protobuf/wrappers.desc.hpp>
+#include <google/protobuf/wrappers.glz.hpp>
+#include <google/protobuf/wrappers.pb.hpp>
 
 #include "test_util.hpp"
 #include <boost/ut.hpp>
@@ -13,6 +24,7 @@
 #include <hpp_proto/dynamic_message/json.hpp>
 
 using namespace boost::ut;
+using namespace std::string_view_literals;
 
 const suite test_any = [] {
   "any"_test = []<class Traits>() {
@@ -53,14 +65,25 @@ const suite test_dynamic_message_any = [] {
     const std::string_view expected_json =
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/local/share"}})";
     std::string buf;
-    expect(hpp::proto::write_json(message, buf, message_factory).ok());
+    expect(hpp::proto::write_json(message, buf, hpp::proto::use_factory{message_factory}).ok());
     expect(eq(buf, expected_json));
 
     ::protobuf_unittest::TestAny<> message2;
-    expect(hpp::proto::read_json(message2, expected_json, message_factory).ok());
+    expect(hpp::proto::read_json(message2, expected_json, hpp::proto::use_factory{message_factory}).ok());
     expect(message == message2);
 
-    expect(hpp::proto::write_json(message, buf, message_factory, hpp::proto::indent_level<3>).ok());
+    std::pmr::monotonic_buffer_resource mr;
+    ::protobuf_unittest::TestAny<hpp::proto::non_owning_traits> message3;
+    expect(hpp::proto::read_json(message3, expected_json, hpp::proto::alloc_from{mr},
+                                 hpp::proto::use_factory{message_factory})
+               .ok());
+    expect(fatal(message3.any_value.has_value()));
+    expect(message.any_value->type_url == message3.any_value->type_url);
+    expect(std::ranges::equal(message.any_value->value, message3.any_value->value));
+
+    expect(hpp::proto::write_json<hpp::proto::json_opts{.prettify = true}>(message, buf,
+                                                                           hpp::proto::use_factory{message_factory})
+               .ok());
     using namespace std::string_literals;
     expect(eq(buf, R"({
    "anyValue": {
@@ -81,6 +104,10 @@ const suite test_dynamic_message_any = [] {
       ::hpp::proto::file_descriptors::_desc_google_protobuf_unittest_proto3_proto,
       ::hpp::proto::file_descriptors::_desc_google_protobuf_any_proto,
       ::hpp::proto::file_descriptors::_desc_google_protobuf_any_test_proto,
+      ::hpp::proto::file_descriptors::_desc_google_protobuf_empty_proto,
+      ::hpp::proto::file_descriptors::_desc_google_protobuf_timestamp_proto,
+      ::hpp::proto::file_descriptors::_desc_google_protobuf_duration_proto,
+      ::hpp::proto::file_descriptors::_desc_google_protobuf_wrappers_proto,
   };
 
   "any_json"_test = [&] {
@@ -99,7 +126,7 @@ const suite test_dynamic_message_any = [] {
     expect(json_to_binpb(message_factory, message_name, expected_json, serialized).ok());
     expect(std::ranges::equal(data, serialized));
 
-    expect(binpb_to_json(message_factory, message_name, data, result, hpp::proto::indent_level<3>).ok());
+    expect(binpb_to_json<hpp::proto::json_opts{.prettify = true}>(message_factory, message_name, data, result).ok());
     const char *expected_json_indented = R"({
    "anyValue": {
       "@type": "type.googleapis.com/proto3_unittest.ForeignMessage",
@@ -107,6 +134,169 @@ const suite test_dynamic_message_any = [] {
    }
 })";
     expect(eq(expected_json_indented, result));
+  };
+
+  "any_json_edge_cases"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    auto expect_read_fail = [&](std::string_view json) {
+      ::protobuf_unittest::TestAny<> message;
+      auto status = hpp::proto::read_json(message, json, hpp::proto::use_factory{message_factory});
+      expect(!status.ok());
+    };
+    auto expect_read_fail_strict = [&](std::string_view json) {
+      ::protobuf_unittest::TestAny<> message;
+      auto status = hpp::proto::read_json<glz::opts{.error_on_unknown_keys = true}>(
+          message, json, hpp::proto::use_factory{message_factory});
+      expect(!status.ok());
+    };
+    auto expect_read_ok = [&](std::string_view json) {
+      ::protobuf_unittest::TestAny<> message;
+      auto status = hpp::proto::read_json(message, json, hpp::proto::use_factory{message_factory});
+      expect(status.ok());
+    };
+
+    expect_read_fail(R"({"anyValue":{"value":"/usr/share"}})");                               // missing @type
+    expect_read_fail(R"({"anyValue":{"@type":"","c":1}})");                                   // empty @type
+    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com","c":1}})");                // invalid formatted @type
+    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/does.not.Exist","c":1}})"); // unknown type_url
+    expect_read_fail(
+        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1}})"); // duplicate @type
+    expect_read_fail(
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","extra":1}})"); // unknown key in well-known
+    expect_read_fail(
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","value":"/usr/local"}})"); // duplicate value
+    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask"}})"); // missing value
+    expect_read_fail_strict(
+        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1,"unknown":2}})"); // unknown
+                                                                                                             // key with
+                                                                                                             // strict
+                                                                                                             // option
+
+    std::string bad_utf8 = "{\"anyValue\":{\"@type\":\"\xC0\",\"c\":1}}";
+    expect_read_fail(bad_utf8); // invalid utf8 @type
+    std::string bad_control = "{\"anyValue\":{\"@type\":\"\x01\",\"c\":1}}";
+    expect_read_fail(bad_control); // invalid control character in @type
+
+    expect_read_ok(
+        R"({"anyValue":{"c":1234,"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})"); // @type not first
+  };
+
+  "any_json_empty_value_skips_field"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    ::protobuf_unittest::TestAny<> message;
+    auto &any_value = message.any_value.emplace();
+    any_value.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
+    any_value.value.clear();
+
+    std::string result;
+    expect(hpp::proto::write_json(message, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(result, "{}"sv));
+  };
+
+  "any_json_empty_wellknown_value_skips_field"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    ::protobuf_unittest::TestAny<> message;
+    ::google::protobuf::Empty<> empty{};
+    expect(hpp::proto::pack_any(message.any_value.emplace(), empty).ok());
+
+    std::string result;
+    expect(hpp::proto::write_json(message, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(result, "{}"sv));
+  };
+
+  "any_json_empty_embedded_message"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    ::protobuf_unittest::TestAny<> message;
+    auto &any_value = message.any_value.emplace();
+    any_value.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
+    any_value.value = hpp::proto::bytes{std::byte{0x10}, std::byte{0x01}};
+
+    std::string result;
+    expect(hpp::proto::write_json(message, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})"sv));
+  };
+
+  "any_json_empty_value_skips_field_dynamic"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    ::protobuf_unittest::TestAny<> message;
+    auto &any_value = message.any_value.emplace();
+    any_value.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
+    any_value.value.clear();
+
+    std::vector<char> pb;
+    expect(hpp::proto::write_binpb(message, pb).ok());
+
+    std::string result;
+    expect(binpb_to_json(message_factory, "protobuf_unittest.TestAny", pb, result).ok());
+    expect(eq(result, "{}"sv));
+  };
+
+  "any_json_wellknown_types"_test = [&] {
+    ::hpp::proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(protos));
+
+    ::protobuf_unittest::TestAny<> message;
+    ::google::protobuf::Timestamp<> ts;
+    ts.seconds = 1000;
+    ts.nanos = 0;
+    expect(hpp::proto::pack_any(message.any_value.emplace(), ts).ok());
+
+    std::string result;
+    expect(hpp::proto::write_json(message, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(
+        result,
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Timestamp","value":"1970-01-01T00:16:40Z"}})"sv));
+
+    ::protobuf_unittest::TestAny<> message2;
+    expect(hpp::proto::read_json(message2, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(message == message2);
+
+    ::protobuf_unittest::TestAny<> message3;
+    ::google::protobuf::Duration<> duration;
+    duration.seconds = 1000;
+    duration.nanos = 0;
+    expect(hpp::proto::pack_any(message3.any_value.emplace(), duration).ok());
+
+    expect(hpp::proto::write_json(message3, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Duration","value":"1000s"}})"sv));
+
+    ::protobuf_unittest::TestAny<> message4;
+    expect(hpp::proto::read_json(message4, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(message3 == message4);
+
+    ::protobuf_unittest::TestAny<> message5;
+    ::google::protobuf::Int64Value<> int64_value;
+    int64_value.value = 1000;
+    expect(hpp::proto::pack_any(message5.any_value.emplace(), int64_value).ok());
+
+    expect(hpp::proto::write_json(message5, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Int64Value","value":"1000"}})"sv));
+
+    ::protobuf_unittest::TestAny<> message6;
+    expect(hpp::proto::read_json(message6, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(message5 == message6);
+
+    ::protobuf_unittest::TestAny<> message7;
+    ::google::protobuf::Int32Value<> int32_value;
+    int32_value.value = 42;
+    expect(hpp::proto::pack_any(message7.any_value.emplace(), int32_value).ok());
+
+    expect(hpp::proto::write_json(message7, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Int32Value","value":42}})"sv));
+
+    ::protobuf_unittest::TestAny<> message8;
+    expect(hpp::proto::read_json(message8, result, hpp::proto::use_factory{message_factory}).ok());
+    expect(message7 == message8);
   };
 
   "type_not_found"_test = [data] {

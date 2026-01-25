@@ -1226,6 +1226,10 @@ struct msg_code_generator : code_generator {
               "constexpr auto message_type_url(const {0}{1}&) {{ return "
               "::hpp::proto::string_literal<\"type.googleapis.com/{2}\">{{}}; }}\n",
               qualified_name.ends_with('>') ? "" : "typename ", qualified_name, descriptor.pb_name);
+    format_to(out_of_ns_target,
+              "template <typename Traits>\n"
+              "struct hpp::proto::is_hpp_generated<{0}{1}> : std::true_type {{}};\n",
+              qualified_name.ends_with('>') ? "" : "typename ", descriptor.qualified_name);
   }
 
   // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
@@ -1540,8 +1544,17 @@ struct glaze_meta_generator : code_generator {
     if (well_known_wrapper_types.contains(descriptor.pb_name)) {
       std::string opts = "Opts";
       if (descriptor.pb_name == "google.protobuf.Int64Value" || descriptor.pb_name == "google.protobuf.UInt64Value") {
-        opts = "opt_true<Opts, &opts::quoted_num>";
+        opts = "opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>";
       }
+
+      std::string parse_operation;
+      if (descriptor.pb_name == "google.protobuf.StringValue") {
+        parse_operation = "    decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, value.value);\n"
+                          "    parse<JSON>::template op<Opts>(v, ctx, it, end);";
+      } else {
+        parse_operation = std::format("    parse<JSON>::template op<{0}>(value.value, ctx, it, end);", opts);
+      }
+
       format_to(target,
                 "namespace glz {{\n"
                 "template <typename Traits>\n"
@@ -1555,13 +1568,12 @@ struct glaze_meta_generator : code_generator {
                 "template <typename Traits>\n"
                 "struct from<JSON, {0}> {{\n"
                 "template <auto Opts>\n"
-                "  GLZ_ALWAYS_INLINE static void op(auto &value, auto&& ...args) {{\n"
-                "    parse<JSON>::template op<{1}>(value.value, "
-                "std::forward<decltype(args)>(args)...);\n"
+                "  GLZ_ALWAYS_INLINE static void op(auto &value, auto& ctx, auto& it, auto& end) {{\n"
+                "{2}\n"
                 "  }}\n"
                 "}};\n"
                 "}} // namespace glz\n\n",
-                qualified_name, opts);
+                qualified_name, opts, parse_operation);
     } else if (well_known_codecs.contains(descriptor.pb_name)) {
       format_to(target,
                 "template <typename Traits>\n"
@@ -1611,15 +1623,24 @@ struct glaze_meta_generator : code_generator {
                      "    }} else if ((*it >= '0' && *it <= '9') || *it == '-') {{\n"
                      "      parse<JSON>::op<Opts>(value.kind.template emplace<double>(), ctx, it, end);\n"
                      "    }} else if (*it == '\"') {{\n"
-                     "      parse<JSON>::op<Opts>(value.kind.template emplace<{0}::kind_oneof_case::string_value>(), ctx, it, end);\n"
+                     "      decltype(auto) str = hpp::proto::detail::as_modifiable(ctx, value.kind.template emplace<google::protobuf::Value<Traits>::kind_oneof_case::string_value>());\n"
+                     "      parse<JSON>::op<Opts>(str, ctx, it, end);\n"
                      "    }} else if (*it == 't' || *it == 'f') {{\n"
                      "      parse<JSON>::op<Opts>(value.kind.template emplace<bool>(), ctx, it, end);\n"
                      "    }} else if (*it == '{{') {{\n"
                      "      auto& fields = value.kind.template emplace<{0}::kind_oneof_case::struct_value>().fields;\n"
-                     "      parse<JSON>::op<Opts>(hpp::proto::detail::as_modifiable(ctx, fields), ctx, it, end);\n"
+                     "      decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, fields);\n"
+                     "      util::parse_repeated<Opts>(true, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {{\n"
+                     "        detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);\n"
+                     "      }});\n"                       
                      "    }} else if (*it == '[') {{\n"
                      "      auto& values = value.kind.template emplace<{0}::kind_oneof_case::list_value>().values;\n"
-                     "      parse<JSON>::op<Opts>(hpp::proto::detail::as_modifiable(ctx, values), ctx, it, end);\n"
+                     "      decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, values);\n"
+                     "      util::parse_repeated<Opts>(false, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {{\n"
+                     "        detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);\n"
+                     "      }});\n"                     
+                     "    }} else {{\n"
+                     "      ctx.error = error_code::syntax_error;\n"
                      "    }}\n"
                      "  }}\n"
                      "}};\n"
@@ -1627,69 +1648,97 @@ struct glaze_meta_generator : code_generator {
                 // clang-format on
                 qualified_name, descriptor.parent_file()->cpp_namespace);
     } else if (descriptor.pb_name == "google.protobuf.Any") {
-      format_to(target,
-                "namespace glz {{\n"
-                "template <typename Traits>\n"
-                "struct to<JSON, {0}> {{\n"
-                "  template <auto Opts>"
-                "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto "
-                "&ctx, auto &b, auto &ix) {{\n"
-                "    any_message_json_serializer::to_json<Opts>(value, ctx, b, ix);\n"
-                "  }}\n"
-                "}};\n\n"
-                "template <typename Traits>\n"
-                "struct from<JSON, {0}> {{\n"
-                "  template <auto Opts>\n"
-                "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto "
-                "&ctx, auto &it, auto &end) {{\n"
-                "    any_message_json_serializer::from_json<Opts>(value, ctx, it, end);\n"
-                "  }}\n"
-                "}};\n"
-                "}} // namespace glz\n",
-                qualified_name);
+      format_to(
+          target,
+          "namespace glz {{\n"
+          "template <typename Traits>\n"
+          "struct to<JSON, {0}> {{\n"
+          "  template <auto Opts>"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto "
+          "&ctx, auto &b, auto &ix) {{\n"
+          "    static_assert(requires {{ ctx.get_dynamic_message_factory(); }}, \"write_json() for Any requires "
+          "use_factory{{dynamic_message_factory}} argument\");\n"
+          "    any_message_json_serializer::to_json<Opts>(value, ctx, b, ix);\n"
+          "  }}\n"
+          "}};\n\n"
+          "template <typename Traits>\n"
+          "struct from<JSON, {0}> {{\n"
+          "  template <auto Opts>\n"
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto "
+          "&ctx, auto &it, auto &end) {{\n"
+          "    static_assert(requires {{ ctx.get_dynamic_message_factory(); }}, \"read_json() for Any requires "
+          "use_factory{{dynamic_message_factory}} argument\");\n"
+          "    any_message_json_serializer::from_json<Opts>(value, ctx, it, end);\n"
+          "  }}\n"
+          "}};\n"
+          "}} // namespace glz\n\n"
+          "template <typename Traits>\n"
+          "struct hpp::proto::optional_ref<std::optional<{0}>, std::monostate{{}}> {{\n"
+          "  static constexpr auto glaze_reflect = false;\n"
+          "  std::optional<{0}> &val;\n"
+          "  operator bool() const {{ return val.has_value() && (!val->type_url.empty() && !val->value.empty()); }}\n"
+          "  {0} &emplace() const {{ return val.emplace(); }}\n"
+          "  void reset() const {{ return val.reset(); }}\n"
+          "  {0} &operator*() const {{ return *val; }}\n"
+          "}};\n"
+          "template <typename Traits>\n"
+          "struct hpp::proto::optional_ref<const std::optional<{0}>, std::monostate{{}}> {{\n"
+          "  static constexpr auto glaze_reflect = false;\n"
+          "  const std::optional<{0}> &val;\n"
+          "  operator bool() const {{ return val.has_value() && (!val->type_url.empty() && !val->value.empty()); }}\n"
+          "  const {0} &operator*() const {{ return *val; }}\n"
+          "}};\n",
+          qualified_name);
     } else if (descriptor.pb_name == "google.protobuf.Struct") {
-      format_to(target,
-                "namespace glz {{\n"
-                "\n"
-                "template <typename Traits>\n"
-                "struct to<JSON, google::protobuf::Struct<Traits>> {{\n"
-                "  template <auto Opts>\n"
-                "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
-                "    using fields_t = std::remove_cvref_t<decltype(value.fields)>;\n"
-                "    to<JSON, fields_t>::template op<Opts>(value.fields, ctx, b, ix);\n"
-                "  }}\n"
-                "}};\n"
-                "\n"
-                "template <typename Traits>\n"
-                "struct from<JSON, google::protobuf::Struct<Traits>> {{\n"
-                "  template <auto Options>\n"
-                "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
-                "    parse<JSON>::op<Options>(hpp::proto::detail::as_modifiable(ctx, value.fields), ctx, it, end);\n"
-                "  }}\n"
-                "}};\n"
-                "}} // namespace glz\n");
-    } else if (descriptor.pb_name == "google.protobuf.ListValue") {
       format_to(
           target,
           "namespace glz {{\n"
           "\n"
           "template <typename Traits>\n"
-          "struct to<JSON, google::protobuf::ListValue<Traits>> {{\n"
+          "struct to<JSON, google::protobuf::Struct<Traits>> {{\n"
           "  template <auto Opts>\n"
           "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
-          "    using values_t = std::remove_cvref_t<decltype(value.values)>;\n"
-          "    to<JSON, values_t>::template op<Opts>(value.values, ctx, b, ix);\n"
+          "    using fields_t = std::remove_cvref_t<decltype(value.fields)>;\n"
+          "    to<JSON, fields_t>::template op<Opts>(value.fields, ctx, b, ix);\n"
           "  }}\n"
           "}};\n"
           "\n"
           "template <typename Traits>\n"
-          "struct from<JSON, google::protobuf::ListValue<Traits>> {{\n"
-          "  template <auto Options>\n"
+          "struct from<JSON, google::protobuf::Struct<Traits>> {{\n"
+          "  template <auto Opts>\n"
           "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
-          "    parse<JSON>::template op<Options>(hpp::proto::detail::as_modifiable(ctx, value.values), ctx, it, end);\n"
+          "    decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, value.fields);\n"
+          "    util::parse_repeated<Opts>(true, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {{\n"
+          "      detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);\n"
+          "    }});\n"
           "  }}\n"
           "}};\n"
           "}} // namespace glz\n");
+    } else if (descriptor.pb_name == "google.protobuf.ListValue") {
+      format_to(target,
+                "namespace glz {{\n"
+                "\n"
+                "template <typename Traits>\n"
+                "struct to<JSON, google::protobuf::ListValue<Traits>> {{\n"
+                "  template <auto Opts>\n"
+                "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&b, auto &&ix) {{\n"
+                "    using values_t = std::remove_cvref_t<decltype(value.values)>;\n"
+                "    to<JSON, values_t>::template op<Opts>(value.values, ctx, b, ix);\n"
+                "  }}\n"
+                "}};\n"
+                "\n"
+                "template <typename Traits>\n"
+                "struct from<JSON, google::protobuf::ListValue<Traits>> {{\n"
+                "  template <auto Opts>\n"
+                "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
+                "    decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, value.values);\n"
+                "    util::parse_repeated<Opts>(false, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto "
+                "&end) {{\n"
+                "      detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);\n"
+                "    }});\n"
+                "  }}\n"
+                "}};\n"
+                "}} // namespace glz\n");
     } else {
       format_to(target,
                 "template <typename Traits>\n"
@@ -1726,6 +1775,11 @@ struct glaze_meta_generator : code_generator {
         process(e);
       }
     }
+
+    format_to(target,
+              "template <typename Traits>\n"
+              "struct hpp::proto::has_glz<{0}> : std::true_type {{}};\n",
+              qualified_name);
   }
   // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
 
@@ -1734,10 +1788,12 @@ struct glaze_meta_generator : code_generator {
     using enum FieldDescriptorProto::Type;
     using enum FieldDescriptorProto::Label;
 
-    if (descriptor.is_cpp_optional) {
+    auto type = descriptor.proto().type;
+    const bool is_google_any = (type == TYPE_MESSAGE && descriptor.proto().type_name == ".google.protobuf.Any");
+    if (descriptor.is_cpp_optional && !is_google_any) {
       format_to(target, "    \"{}\", &T::{},\n", descriptor.proto().json_name, descriptor.cpp_name);
     } else if (descriptor.proto().label == LABEL_REQUIRED) {
-      auto type = descriptor.proto().type;
+
       if (type == TYPE_INT64 || type == TYPE_UINT64 || type == TYPE_FIXED64 || type == TYPE_SFIXED64 ||
           type == TYPE_SINT64) {
         format_to(target, "    \"{}\", glz::quoted_num<&T::{}>,\n", descriptor.proto().json_name, descriptor.cpp_name);

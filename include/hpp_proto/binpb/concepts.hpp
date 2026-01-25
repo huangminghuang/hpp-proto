@@ -35,8 +35,8 @@
 #include <hpp_proto/binpb/varint.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
 namespace hpp::proto {
-template <template <typename Traits> class Message, typename Traits>
-auto rebind_traits(Message<Traits>) -> Message<default_traits>;
+template <typename TargetTraits = default_traits, template <typename Traits> class Message, typename Traits>
+auto rebind_traits(Message<Traits>) -> Message<TargetTraits>;
 namespace concepts {
 
 template <typename T>

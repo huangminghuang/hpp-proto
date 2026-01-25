@@ -197,6 +197,23 @@ struct bool_example {
 
 auto pb_meta(const bool_example &) -> std::tuple<hpp::proto::field_meta<1, &bool_example::b, field_option::none>>;
 
+struct varint_example {
+  int32_t i = 0; // field number == 1
+  constexpr bool operator==(const varint_example &) const = default;
+};
+
+auto pb_meta(const varint_example &)
+    -> std::tuple<hpp::proto::field_meta<1, &varint_example::i, field_option::none, hpp::proto::vint64_t>>;
+
+struct fixed_example {
+  uint32_t a = 0; // field number == 1
+  uint64_t b = 0; // field number == 2
+  constexpr bool operator==(const fixed_example &) const = default;
+};
+
+auto pb_meta(const fixed_example &)
+    -> std::tuple<hpp::proto::field_meta<1, &fixed_example::a>, hpp::proto::field_meta<2, &fixed_example::b>>;
+
 const ut::suite test_bool = [] {
   "bool"_test = [] { expect_roundtrip_ok("\x08\x01"sv, bool_example{.b = true}); };
 
@@ -204,6 +221,23 @@ const ut::suite test_bool = [] {
     bool_example value;
     expect_read_fail("\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv, value);
     expect_read_fail("\x09\x01"sv, value);
+  };
+};
+
+const ut::suite test_truncated_inputs = [] {
+  "truncated_varint"_test = [] {
+    varint_example value;
+    expect_read_fail("\x08"sv, value);
+  };
+
+  "truncated_fixed32"_test = [] {
+    fixed_example value;
+    expect_read_fail("\x0d\x01\x02\x03"sv, value);
+  };
+
+  "truncated_fixed64"_test = [] {
+    fixed_example value;
+    expect_read_fail("\x11\x01\x02\x03\x04\x05\x06\x07"sv, value);
   };
 };
 
@@ -1051,6 +1085,12 @@ const ut::suite test_segmented_byte_range = [] {
     // no valid bool in slope area
     expect_read_fail(split("\x0a\x13\x81\x82\x80\x80\x80\x81\x80\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81\x00"s, 18),
                      value);
+  };
+
+  "unterminated_varint_with_segmented_input"_test = [] {
+    varint_example value;
+    std::array<std::vector<char>, 2> segments{std::vector<char>{'\x08', '\x80'}, std::vector<char>{}};
+    expect_read_fail(segments, value);
   };
 
   "skip_group"_test = [] {

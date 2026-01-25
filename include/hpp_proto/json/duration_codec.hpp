@@ -25,41 +25,56 @@
 #include <cstdlib>
 #include <hpp_proto/json.hpp>
 #include <iterator>
+#include <span>
 
 namespace hpp::proto {
 struct duration_codec {
   constexpr static std::size_t max_encode_size(const auto &) noexcept { return 32; }
 
   static int64_t encode(auto const &value, auto &&b) noexcept {
-    auto has_same_sign = [](auto x, auto y) { return y == 0 || (x < 0) == (y < 0); };
-    if (value.nanos > 999999999 || !has_same_sign(value.seconds, value.nanos)) [[unlikely]] {
+    auto has_same_sign = [](auto x, auto y) { return x == 0 || y == 0 || ((x > 0) == (y > 0)); };
+
+    if (!has_same_sign(value.seconds, value.nanos) || std::abs(value.seconds) > 315'576'000'000LL ||
+        std::abs(value.nanos) > 999'999'999) {
       return -1;
     }
 
     assert(b.size() >= max_encode_size(value));
+    bool is_negative = (value.nanos < 0 || value.seconds < 0);
 
-    auto *buf = std::data(b);
-    auto ix = static_cast<std::size_t>(std::distance(buf, glz::to_chars(buf, value.seconds)));
+    auto buffer = std::span<char>(std::data(b), b.size());
+    auto *it = buffer.data();
+    if (is_negative) {
+      buffer[0] = '-';
+      it = std::next(it);
+    }
+
+    auto positive_seconds = static_cast<uint64_t>(std::abs(value.seconds));
+    it = glz::to_chars(it, positive_seconds);
+    auto ix = static_cast<std::size_t>(std::distance(buffer.data(), it));
 
     if (value.nanos != 0) {
       auto nanos = static_cast<uint32_t>(std::abs(value.nanos));
-      auto *pos = std::next(buf, static_cast<std::ptrdiff_t>(ix));
-      uint32_t ns_component = nanos % 1'000;
-      uint32_t digits = 0;
-      if (ns_component > 0) {
-        glz::to_chars_u64_len_4(std::next(pos, 6), ns_component);
-        digits += 3;
-      }
-      uint32_t us_component = (nanos % 1'000'000);
-      if (us_component > 0) {
-        glz::to_chars_u64_len_4(std::next(pos, 3), us_component / 1000);
-        digits += 3;
-      }
+      const auto write_3_digits = [](std::span<char> out, std::size_t &pos, uint32_t val) {
+        out[pos] = static_cast<char>('0' + (val / 100));
+        out[pos + 1] = static_cast<char>('0' + ((val / 10) % 10));
+        out[pos + 2] = static_cast<char>('0' + (val % 10));
+        pos += 3;
+      };
       uint32_t ms_component = nanos / 1'000'000;
-      pos = glz::to_chars_u64_len_4(pos, ms_component);
+      uint32_t us_component = (nanos / 1'000) % 1'000;
+      uint32_t ns_component = nanos % 1'000;
+
       glz::dump<'.'>(b, ix);
-      digits += 3;
-      ix += digits;
+      std::size_t pos = ix;
+      write_3_digits(buffer, pos, ms_component);
+      if (ns_component != 0) {
+        write_3_digits(buffer, pos, us_component);
+        write_3_digits(buffer, pos, ns_component);
+      } else if (us_component != 0) {
+        write_3_digits(buffer, pos, us_component);
+      }
+      ix = pos;
     }
     glz::dump<'s'>(b, ix);
     return static_cast<int64_t>(ix);
@@ -88,6 +103,10 @@ struct duration_codec {
 
     auto point_pos = s.find('.');
     if (!from_str_view(s.substr(0, point_pos), value.seconds)) {
+      return false;
+    }
+
+    if (value.seconds > 315'576'000'000LL) {
       return false;
     }
 

@@ -533,31 +533,34 @@ public:
   flat_map(const flat_map &m, const Alloc &a)
       : c_{KeyContainer(m.c_.keys, a), MappedContainer(m.c_.values, a)}, compare_{m.compare_} {}
 
-  flat_map(std::initializer_list<value_type> &&il, const Compare &comp = Compare()) : flat_map(il, comp) {}
+  flat_map(std::initializer_list<value_type> il, const Compare &comp = Compare())
+      : flat_map(il.begin(), il.end(), comp) {}
 
   template <class Alloc, typename std::enable_if<std::uses_allocator<KeyContainer, Alloc>::value &&
                                                      std::uses_allocator<MappedContainer, Alloc>::value,
                                                  int>::type = 0>
-  flat_map(std::initializer_list<value_type> &&il, const Compare &comp, const Alloc &a) : flat_map(il, comp, a) {}
+  flat_map(std::initializer_list<value_type> il, const Compare &comp, const Alloc &a)
+      : flat_map(il.begin(), il.end(), comp, a) {}
 
   template <class Alloc, typename std::enable_if<std::uses_allocator<KeyContainer, Alloc>::value &&
                                                      std::uses_allocator<MappedContainer, Alloc>::value,
                                                  int>::type = 0>
-  flat_map(std::initializer_list<value_type> &&il, const Alloc &a) : flat_map(il, Compare(), a) {}
+  flat_map(std::initializer_list<value_type> il, const Alloc &a) : flat_map(il.begin(), il.end(), Compare(), a) {}
 
-  flat_map(sorted_unique_t s, std::initializer_list<value_type> &&il, const Compare &comp = Compare())
-      : flat_map(s, il, comp) {}
-
-  template <class Alloc, typename std::enable_if<std::uses_allocator<KeyContainer, Alloc>::value &&
-                                                     std::uses_allocator<MappedContainer, Alloc>::value,
-                                                 int>::type = 0>
-  flat_map(sorted_unique_t s, std::initializer_list<value_type> &&il, const Compare &comp, const Alloc &a)
-      : flat_map(s, il, comp, a) {}
+  flat_map(sorted_unique_t s, std::initializer_list<value_type> il, const Compare &comp = Compare())
+      : flat_map(s, il.begin(), il.end(), comp) {}
 
   template <class Alloc, typename std::enable_if<std::uses_allocator<KeyContainer, Alloc>::value &&
                                                      std::uses_allocator<MappedContainer, Alloc>::value,
                                                  int>::type = 0>
-  flat_map(sorted_unique_t s, std::initializer_list<value_type> &&il, const Alloc &a) : flat_map(s, il, Compare(), a) {}
+  flat_map(sorted_unique_t s, std::initializer_list<value_type> il, const Compare &comp, const Alloc &a)
+      : flat_map(s, il.begin(), il.end(), comp, a) {}
+
+  template <class Alloc, typename std::enable_if<std::uses_allocator<KeyContainer, Alloc>::value &&
+                                                     std::uses_allocator<MappedContainer, Alloc>::value,
+                                                 int>::type = 0>
+  flat_map(sorted_unique_t s, std::initializer_list<value_type> il, const Alloc &a)
+      : flat_map(s, il.begin(), il.end(), Compare(), a) {}
 
   // ========================================================== OTHER MEMBERS
 

@@ -137,6 +137,7 @@ public:
   void reset() const noexcept {
     storage_->of_repeated_bytes.content = nullptr;
     storage_->of_repeated_bytes.size = 0;
+    storage_->of_repeated_bytes.capacity = 0;
   }
 
   void clear() const noexcept { storage_->of_repeated_bytes.size = 0; }

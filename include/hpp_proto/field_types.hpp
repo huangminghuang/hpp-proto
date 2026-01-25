@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <bit>
 #include <cassert>
+#include <compare>
 #include <concepts>
 #include <cstdint>
 #include <functional>
@@ -51,6 +52,12 @@
 #include <hpp_proto/optional_indirect.hpp>
 
 namespace hpp::proto {
+template <typename T>
+struct is_hpp_generated : std::false_type {};
+
+template <typename T>
+struct has_glz : std::false_type {};
+
 #ifdef __cpp_lib_flat_map
 using std::flat_map;
 using std::sorted_unique;
@@ -274,6 +281,22 @@ public:
   constexpr bool operator==(const optional &other) const = default;
 };
 
+class bool_proxy {
+  uint8_t *impl;
+
+public:
+  bool_proxy(uint8_t &v) : impl(&v) {}
+  bool_proxy(const bool_proxy &) = default;
+  bool_proxy(bool_proxy &&) = default;
+  ~bool_proxy() = default;
+  operator bool() const { return static_cast<bool>(*impl); }
+  bool_proxy &operator=(const bool_proxy &) = default;
+  bool_proxy &operator=(bool_proxy &&) = default;
+  bool_proxy &operator=(bool v) {
+    *impl = static_cast<uint8_t>(v);
+    return *this;
+  }
+};
 // remove the implicit conversions for optional<bool> because those are very error-prone to use.
 template <auto Default>
 class optional<bool, Default> {
@@ -286,9 +309,9 @@ public:
 
 private:
   static constexpr std::uint8_t default_state = 0x80U | std::uint8_t(default_value()); // use 0x80 to denote empty state
-  bool &deref() {
+  bool_proxy deref() {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    return reinterpret_cast<bool &>(impl);
+    return bool_proxy{impl};
   }
   uint8_t impl = default_state;
 
@@ -305,12 +328,12 @@ public:
   [[nodiscard]] constexpr bool has_value() const noexcept { return (impl & 0x80U) == 0; }
   constexpr bool operator*() const noexcept { return value(); }
 
-  bool &emplace() noexcept {
+  bool_proxy emplace() noexcept {
     impl = std::uint8_t(default_value());
     return deref();
   }
 
-  bool &emplace(bool v) noexcept {
+  bool_proxy emplace(bool v) noexcept {
     impl = std::uint8_t(v);
     return deref();
   }
@@ -518,6 +541,10 @@ concept flat_map = requires(Type t) {
   t.keys();
   t.values();
 };
+
+template <typename T>
+concept is_option_type = requires { typename std::decay_t<T>::option_type; };
+
 }; // namespace concepts
 
 template <compile_time_string cts>

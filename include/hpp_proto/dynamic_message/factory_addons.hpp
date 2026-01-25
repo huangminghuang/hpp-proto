@@ -224,7 +224,7 @@ struct dynamic_message_factory_addons {
           {"google/protobuf/wrappers.proto", _desc_google_protobuf_wrappers_proto}};
 
       if (auto itr = wellknown_type_pbs.find(derived.proto().name); itr != wellknown_type_pbs.end()) {
-        std::string pb;
+        std::vector<std::byte> pb;
         hpp::proto::status status;
         if (derived.proto().source_code_info.has_value()) {
           auto proto_no_source_info = derived.proto();
@@ -234,7 +234,8 @@ struct dynamic_message_factory_addons {
           status = write_binpb(derived.proto(), pb);
         }
         assert(status.ok());
-        wellknown_validated_ = (pb == itr->second.value);
+        auto expected_binpb = std::as_bytes(std::span{itr->second.value.data(), itr->second.value.size()});
+        wellknown_validated_ = std::ranges::equal(pb, expected_binpb);
       }
     }
   };
