@@ -500,17 +500,23 @@ inline json_status read_json(concepts::read_json_supported auto &value,
 template <auto Opts = glz::opts{}>
 inline json_status read_json(concepts::read_json_supported auto &value, concepts::null_terminated_str auto const &str,
                              concepts::is_option_type auto &&...option) {
+  using buffer_type = std::remove_cvref_t<decltype(str)>;
   constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(true);
-  if constexpr (requires { str.c_str(); }) {
-    using char_type = std::remove_cvref_t<decltype(*str.c_str())>;
+  if constexpr (std::is_array_v<buffer_type>) {
+    using char_type = std::remove_extent_t<buffer_type>;
+    constexpr std::size_t size = std::extent_v<buffer_type>;
+    std::basic_string_view<char_type> view{str, size > 0 ? size - 1 : 0};
+    return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
+  } else if constexpr (requires { str.c_str(); }) {
+    using char_type = typename buffer_type::value_type;
     std::basic_string_view<char_type> view{str};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
-  } else if constexpr (std::is_pointer_v<std::remove_cvref_t<decltype(str)>>) {
-    using char_type = std::remove_cv_t<std::remove_pointer_t<std::remove_cvref_t<decltype(str)>>>;
+  } else if constexpr (std::is_pointer_v<buffer_type>) {
+    using char_type = std::remove_const_t<std::remove_pointer_t<buffer_type>>;
     std::basic_string_view<char_type> view{str};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   } else {
-    using char_type = std::remove_cvref_t<std::ranges::range_value_t<decltype(str)>>;
+    using char_type = std::remove_cvref_t<std::ranges::range_value_t<buffer_type>>;
     std::basic_string_view<char_type> view{std::ranges::data(str), std::ranges::size(str)};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   }
