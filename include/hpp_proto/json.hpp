@@ -141,7 +141,13 @@ struct from<JSON, T> {
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, It &it, End &end) {
     std::string_view encoded;
-    from<JSON, std::string_view>::op<opt_true<Opts, &opts::null_terminated>>(encoded, ctx, it, end);
+    from<JSON, std::string_view>::op<Opts>(encoded, ctx, it, end);
+    if constexpr (not Opts.null_terminated) {
+      if (ctx.error == error_code::end_reached) {
+        ctx.error = error_code::none;
+      }
+    }
+
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
       return;
     }

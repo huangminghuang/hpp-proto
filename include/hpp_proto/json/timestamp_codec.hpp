@@ -71,7 +71,7 @@ private:
   }
 
   static bool validate_datetime(int32_t yy, int32_t mm, int32_t dd, int32_t hh, int32_t mn, int32_t ss) {
-    if (yy == 0 || mm <= 0 || dd <= 0 || hh < 0 || mn < 0 || ss < 0) {
+    if (yy <= 0 || mm <= 0 || dd <= 0 || hh < 0 || mn < 0 || ss < 0) {
       return false;
     }
     if (mm > 12 || hh > 23 || mn > 59 || ss > 59) {
