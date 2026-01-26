@@ -124,6 +124,7 @@ const ut::suite test_timestamp = [] {
   ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:33:20.-200Z")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("10000-01-01T00:00:00.00000000000Z")").ok());
   ut::expect(!hpp::proto::read_json(msg, R"("0000-01-01T00:00:00.00000000000Z")").ok());
+  ut::expect(!hpp::proto::read_json(msg, R"("-197-01-01T00:00:00.00000000000Z")").ok());
 
   ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
   ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = -62135596801, .nanos = 0}).has_value());
