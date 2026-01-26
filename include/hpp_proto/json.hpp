@@ -498,15 +498,15 @@ inline json_status read_json(concepts::read_json_supported auto &value,
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
 template <auto Opts = glz::opts{}>
-inline json_status read_json(concepts::read_json_supported auto &value, concepts::null_terminated_str auto str,
+inline json_status read_json(concepts::read_json_supported auto &value, concepts::null_terminated_str auto const& str,
                              concepts::is_option_type auto &&...option) {
   constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(true);
   if constexpr (requires { str.c_str(); }) {
     using char_type = std::remove_cvref_t<decltype(*str.c_str())>;
-    std::basic_string_view<char_type> view{str.c_str()};
+    std::basic_string_view<char_type> view{str};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   } else if constexpr (std::is_pointer_v<std::remove_cvref_t<decltype(str)>>) {
-    using char_type = std::remove_pointer_t<std::remove_cvref_t<decltype(str)>>;
+    using char_type = std::remove_cv_t<std::remove_pointer_t<std::remove_cvref_t<decltype(str)>>>;
     std::basic_string_view<char_type> view{str};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   } else {
