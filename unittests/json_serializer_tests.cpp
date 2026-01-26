@@ -3,6 +3,7 @@
 #include <hpp_proto/json.hpp>
 #include <hpp_proto/json/duration_codec.hpp>
 #include <hpp_proto/json/timestamp_codec.hpp>
+#include <string_view>
 
 template <typename T>
 constexpr auto non_owning = false;
@@ -117,6 +118,26 @@ struct pair_vector_example {
 constexpr auto message_type_url(const pair_vector_example &) {
   return hpp::proto::string_literal<"type.googleapis.com/pair_vector_example">{};
 }
+
+struct json_overload_example {
+  int value = 0;
+  bool operator==(const json_overload_example &) const = default;
+};
+
+template <>
+struct glz::meta<json_overload_example> {
+  using T = json_overload_example;
+  static constexpr auto value = object("value", &T::value);
+};
+
+static_assert(hpp::proto::concepts::null_terminated_str<const char *>);
+static_assert(hpp::proto::concepts::null_terminated_str<decltype("x")>);
+static_assert(hpp::proto::concepts::null_terminated_str<const char8_t *>);
+static_assert(hpp::proto::concepts::null_terminated_str<decltype(u8"x")>);
+static_assert(hpp::proto::concepts::null_terminated_str<std::string>);
+static_assert(hpp::proto::concepts::null_terminated_str<std::u8string>);
+static_assert(hpp::proto::concepts::non_null_terminated_str<std::string_view>);
+static_assert(hpp::proto::concepts::non_null_terminated_str<std::basic_string_view<char8_t>>);
 
 template <>
 struct glz::meta<pair_vector_example> {
@@ -326,13 +347,13 @@ struct glz::meta<string_example<Traits>> {
 
 const ut::suite test_string_json = [] {
   using namespace boost::ut;
-  // "test_escape"_test = []<class Traits> {
-  //   verify(string_example<Traits>{.optional_string = "te\t"}, R"({"optionalString":"te\t"})");
-  // } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  "test_escape"_test = []<class Traits> {
+    verify(string_example<Traits>{.optional_string = "te\t"}, R"({"optionalString":"te\t"})");
+  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
 
   string_example<hpp::proto::default_traits> msg;
   expect(hpp::proto::read_json(msg, "{\"optionalString\":null}").ok());
-  // expect(hpp::proto::read_json(msg, "{\"repeatedString\":[\"a\rsdfads\"],\"optionalString\":\"abc\"}").ok());
+  expect(!hpp::proto::read_json(msg, "{\"repeatedString\":[\"a\rsdfads\"],\"optionalString\":\"abc\"}").ok());
 };
 
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
@@ -392,6 +413,7 @@ const ut::suite test_prettify = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   using namespace std::string_literals;
+  using namespace std::string_view_literals;
 
   "prettify"_test = [] {
     optional_example msg{.field2 = 123U, .field3 = 456};
@@ -400,6 +422,48 @@ const ut::suite test_prettify = [] {
    "field2": "123",
    "field3": 456
 })"s));
+  };
+};
+
+const ut::suite test_read_json_overloads = [] {
+  using namespace boost::ut;
+  using namespace boost::ut::literals;
+
+  auto expect_read = [](auto &&buffer) {
+    json_overload_example msg{};
+    auto status = hpp::proto::read_json(msg, buffer);
+    expect(status.ok());
+    expect(eq(msg.value, 1_i));
+  };
+
+  "read_json_accepts_char_inputs"_test = [&] {
+    expect_read(R"({"value":1})");
+    expect_read(std::string{R"({"value":1})"});
+    expect_read(std::string_view{R"({"value":1})"});
+  };
+
+  "read_json_accepts_char8_inputs"_test = [&] {
+    expect_read(u8R"({"value":1})");
+    expect_read(std::u8string{u8R"({"value":1})"});
+    expect_read(std::basic_string_view<char8_t>{u8R"({"value":1})"});
+  };
+};
+
+const ut::suite test_read_json_full_buffer = [] {
+  using namespace boost::ut;
+  using namespace boost::ut::literals;
+  using namespace std::string_view_literals;
+
+  "read_json_rejects_trailing_non_whitespace"_test = [] {
+    json_overload_example msg{};
+    auto status = hpp::proto::read_json(msg, R"({"value":1}) trailing)");
+    expect(!status.ok());
+  };
+
+  "read_json_accepts_trailing_whitespace"_test = [] {
+    json_overload_example msg{};
+    auto status = hpp::proto::read_json(msg, R"({"value":1}  )");
+    expect(status.ok());
   };
 };
 

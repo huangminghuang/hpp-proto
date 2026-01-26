@@ -27,6 +27,7 @@
 #include <iterator>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include <hpp_proto/field_types.hpp>
@@ -413,26 +414,6 @@ struct json_opts : glz::opts {
 class message_value_cref;
 class message_value_mref;
 
-class null_terminated_string_view {
-  std::string_view data;
-
-public:
-  constexpr null_terminated_string_view() = default;
-
-  // NOLINTBEGIN(hicpp-explicit-conversions)
-  constexpr null_terminated_string_view(const char *str)
-      : data(str != nullptr ? std::string_view{str} : std::string_view{}) {}
-  constexpr null_terminated_string_view(const std::string &str) : data(str) {}
-  constexpr null_terminated_string_view(const char *str, std::size_t length) : data(str, length) {}
-
-  template <typename T>
-    requires std::convertible_to<T, const char *>
-  constexpr null_terminated_string_view(T str) : null_terminated_string_view(static_cast<const char *>(str)) {}
-  // NOLINTEND(hicpp-explicit-conversions)
-  [[nodiscard]] constexpr const char *c_str() const noexcept { return data.data(); }
-  constexpr explicit operator std::string_view() const noexcept { return data; }
-};
-
 namespace concepts {
 template <typename T>
 concept write_json_supported = glz::write_supported<T, glz::JSON>;
@@ -441,12 +422,18 @@ template <typename T>
 concept read_json_supported = glz::read_supported<T, glz::JSON>;
 
 template <typename T>
-concept null_terminated_str = std::convertible_to<T, null_terminated_string_view>;
+concept null_terminated_str =
+    std::convertible_to<T, const char *> || std::convertible_to<T, const char8_t *> || requires(T value) {
+      { value.c_str() } -> std::convertible_to<const char *>;
+    } || requires(T value) {
+      { value.c_str() } -> std::convertible_to<const char8_t *>;
+    };
 
 template <typename T>
-concept non_null_terminated_str =
-    std::ranges::contiguous_range<T> && std::same_as<std::remove_cvref_t<std::ranges::range_value_t<T>>, char> &&
-    (!null_terminated_str<T>);
+concept non_null_terminated_str = std::ranges::contiguous_range<T> &&
+                                  (std::same_as<std::remove_cvref_t<std::ranges::range_value_t<T>>, char> ||
+                                   std::same_as<std::remove_cvref_t<std::ranges::range_value_t<T>>, char8_t>) &&
+                                  (!null_terminated_str<T>);
 } // namespace concepts
 
 struct [[nodiscard]] json_status final {
@@ -455,46 +442,89 @@ struct [[nodiscard]] json_status final {
   [[nodiscard]] std::string message(const auto &buffer) const { return glz::format_error(ctx, buffer); }
 };
 
-/// @brief Deserializes JSON from a contiguous, non-null-terminated buffer into a message object.
+/// @brief Deserializes JSON from a buffer into a message object.
+/// @details Compared to glz::read, this wrapper:
+///          - initializes aggregate types with default values before parsing
+///          - uses hpp::proto::json_context options
+///          - validates that the full buffer is consumed (trailing non-whitespace becomes syntax_error)
 /// @param value The message object to populate.
-/// @param buffer The input buffer containing JSON bytes (not necessarily null-terminated).
+/// @param buffer The input buffer containing JSON bytes.
+/// @param option Optional configuration parameters.
+/// @return json_status indicating success or failure.
+template <auto Opts>
+inline json_status read_json_buffer(concepts::read_json_supported auto &value, auto const &buffer,
+                                    concepts::is_option_type auto &&...option) {
+  using value_type = std::remove_cvref_t<decltype(value)>;
+  static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
+                "the generated .glz.hpp is required for hpp_gen messages");
+
+  json_context ctx{std::forward<decltype(option)>(option)...};
+  if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
+    value = std::decay_t<decltype(value)>{};
+  }
+  json_status status = {glz::read<Opts>(value, buffer, ctx)};
+  if (status.ok() && status.ctx.count < buffer.size()) {
+    auto it = std::next(buffer.begin(), static_cast<std::ptrdiff_t>(status.ctx.count));
+    glz::context ctx;
+    glz::skip_ws<Opts>(ctx, it, buffer.end());
+    status.ctx.count = static_cast<std::size_t>(std::distance(buffer.begin(), it));
+    if (it < buffer.end()) {
+      status.ctx.ec = glz::error_code::syntax_error;
+    }
+  }
+  return status;
+}
+
+/// @brief Deserializes JSON from a contiguous char/char8_t range that is not null-terminated.
+/// @details Unlike glz::read, this wrapper forces null_terminated=false and validates full-buffer consumption.
+/// @param value The message object to populate.
+/// @param buffer Contiguous range of char or char8_t that is not null-terminated.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
 template <auto Opts = glz::opts{}>
 inline json_status read_json(concepts::read_json_supported auto &value,
                              concepts::non_null_terminated_str auto const &buffer,
                              concepts::is_option_type auto &&...option) {
-  using value_type = std::remove_cvref_t<decltype(value)>;
-  static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
-                "the generated .glz.hpp is required for hpp_gen messages");
   constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(false);
-
-  json_context ctx{std::forward<decltype(option)>(option)...};
-  if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
-    value = std::decay_t<decltype(value)>{};
-  }
-  return {glz::read<opts>(value, std::string_view{std::ranges::data(buffer), std::ranges::size(buffer)}, ctx)};
+  using char_type = std::remove_cvref_t<std::ranges::range_value_t<decltype(buffer)>>;
+  auto view = std::basic_string_view<char_type>{std::ranges::data(buffer), std::ranges::size(buffer)};
+  return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
 }
 
-/// @brief Deserializes JSON from a null-terminated string view into a message object.
+/// @brief Deserializes JSON from a null-terminated string or pointer into a message object.
+/// @details Unlike glz::read, this wrapper forces null_terminated=true and validates full-buffer consumption.
 /// @param value The message object to populate.
-/// @param str The null-terminated string view containing the JSON.
+/// @param str The null-terminated string or pointer containing the JSON.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
 template <auto Opts = glz::opts{}>
-inline json_status read_json(concepts::read_json_supported auto &value, null_terminated_string_view str,
+inline json_status read_json(concepts::read_json_supported auto &value, concepts::null_terminated_str auto const &str,
                              concepts::is_option_type auto &&...option) {
-  using value_type = std::remove_cvref_t<decltype(value)>;
-  static_assert(!hpp::proto::is_hpp_generated<value_type>::value || hpp::proto::has_glz<value_type>::value,
-                "the generated .glz.hpp is required for hpp_gen messages");
-  json_context ctx{std::forward<decltype(option)>(option)...};
-  if constexpr (std::is_aggregate_v<std::decay_t<decltype(value)>>) {
-    value = {};
+  using buffer_type = std::remove_cvref_t<decltype(str)>;
+  constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(true);
+  if constexpr (std::is_array_v<buffer_type>) {
+    using char_type = std::remove_extent_t<buffer_type>;
+    constexpr std::size_t size = std::extent_v<buffer_type>;
+    std::basic_string_view<char_type> view{std::ranges::data(str), size > 0 ? size - 1 : 0};
+    return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
+  } else if constexpr (requires { str.c_str(); }) {
+    using char_type = typename buffer_type::value_type;
+    std::basic_string_view<char_type> view{str};
+    return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
+  } else if constexpr (std::is_pointer_v<buffer_type>) {
+    using char_type = std::remove_const_t<std::remove_pointer_t<buffer_type>>;
+    std::basic_string_view<char_type> view{str};
+    return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
+  } else {
+    using char_type = std::remove_cvref_t<std::ranges::range_value_t<buffer_type>>;
+    std::basic_string_view<char_type> view{std::ranges::data(str), std::ranges::size(str)};
+    return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   }
-  return {glz::read<Opts>(value, std::string_view{str}, ctx)};
 }
 
 /// @brief Deserializes a JSON string and returns the message object.
+/// @details Unlike glz::read, this wrapper returns std::expected with json_status on failure and validates full-buffer
+///          consumption.
 /// @tparam T Type of the message to deserialize, must satisfy concepts::read_json_supported.
 /// @param buffer The input buffer containing the JSON string.
 /// @param option Optional configuration parameters.
@@ -511,6 +541,8 @@ inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) 
 }
 
 /// @brief Serializes a message object to a JSON string in the provided buffer.
+/// @details Compared to glz::write, this wrapper uses json_context, writes via detail::as_modifiable, and defaults to
+///          json_opts (escape_control_characters=true) instead of glz::opts.
 /// @param value The message object to serialize.
 /// @param buffer The buffer to write the JSON string into.
 /// @param option Optional configuration parameters.
@@ -527,6 +559,8 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
 }
 
 /// @brief Serializes a message object to a JSON string and returns the buffer.
+/// @details Unlike glz::write, this wrapper returns std::expected with json_status on failure and defaults to
+///          json_opts (escape_control_characters=true) instead of glz::opts.
 /// @tparam Buffer The type of the buffer to return, defaults to std::string.
 /// @param value The message object to serialize.
 /// @param option Optional configuration parameters.
