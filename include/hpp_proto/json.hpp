@@ -423,11 +423,9 @@ concept read_json_supported = glz::read_supported<T, glz::JSON>;
 
 template <typename T>
 concept null_terminated_str =
-    std::convertible_to<T, const char *> || std::convertible_to<T, const char8_t *> ||
-    requires(T value) {
+    std::convertible_to<T, const char *> || std::convertible_to<T, const char8_t *> || requires(T value) {
       { value.c_str() } -> std::convertible_to<const char *>;
-    } ||
-    requires(T value) {
+    } || requires(T value) {
       { value.c_str() } -> std::convertible_to<const char8_t *>;
     };
 
