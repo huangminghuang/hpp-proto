@@ -93,12 +93,13 @@ public:
       return;
     }
 
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
     if (c_buffer->type == GRPC_BB_RAW && c_buffer->data.raw.compression == GRPC_COMPRESS_NONE) {
       size_t count = c_buffer->data.raw.slice_buffer.count;
       slices_.reserve(count);
       spans_.reserve(count);
     }
+    // NOLINTEND(cppcoreguidelines-pro-type-union-access)
 
     grpc_byte_buffer_reader reader;
     if (grpc_byte_buffer_reader_init(&reader, c_buffer) != 0) {
