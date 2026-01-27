@@ -22,7 +22,8 @@ set(GRPC_TEST_CASES
     unary_tests.cpp
     client_stream_tests.cpp
     server_stream_tests.cpp
-    bidi_stream_tests.cpp)
+    bidi_stream_tests.cpp
+    server_failure_tests.cpp)
 
 add_executable(grpc_test_server
     grpc_test_server.cpp)
@@ -54,6 +55,21 @@ foreach(test_src IN LISTS GRPC_TEST_CASES)
         COMMAND $<TARGET_FILE:${target_name}>
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endforeach()
+
+add_executable(grpc_serialization_tests
+    grpc_tests.cpp
+    grpc_serialization_tests.cpp)
+target_link_libraries(grpc_serialization_tests PRIVATE
+    grpc_proto_lib
+    hpp_proto::libhpp_proto
+    Boost::ut
+    glaze::glaze
+    gRPC::grpc++)
+target_include_directories(grpc_serialization_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME grpc_serialization_tests
+    COMMAND $<TARGET_FILE:grpc_serialization_tests>
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 set(GRPC_OFFICIAL_PROTO_AVAILABLE OFF)
 

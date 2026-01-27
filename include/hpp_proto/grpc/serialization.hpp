@@ -73,57 +73,75 @@ namespace grpc {
   return {::grpc::StatusCode::INTERNAL, "Failed to serialize message"};
 }
 
+class slices_view {
+public:
+  using slice_span = std::span<const uint8_t>;
+
+  slices_view(const slices_view &) = delete;
+  slices_view &operator=(const slices_view &) = delete;
+  slices_view(slices_view &&) = delete;
+  slices_view &operator=(slices_view &&) = delete;
+  ~slices_view() = default;
+
+  explicit slices_view(const ::grpc::ByteBuffer &buffer)
+      : resource_(buffer_.data(), buffer_.size()), // 2. Init resource with stack buffer
+        slices_(&resource_),                       // 3. Init vectors with resource
+        spans_(&resource_) {
+    auto *c_buffer = ::grpc::internal::CallOpRecvMessage<::hpp::proto::grpc::byte_buffer_access>::c_buffer(buffer);
+    if (c_buffer == nullptr) {
+      return;
+    }
+
+    if (c_buffer->type != GRPC_BB_RAW || c_buffer->data.raw.compression != GRPC_COMPRESS_NONE) {
+      supported_ = false;
+      return;
+    }
+
+    size_t slice_count = c_buffer->data.raw.slice_buffer.count;
+    slices_.reserve(slice_count);
+    spans_.reserve(slice_count);
+
+    grpc_byte_buffer_reader reader;
+    if (grpc_byte_buffer_reader_init(&reader, c_buffer)) {
+      grpc_slice s;
+      while (grpc_byte_buffer_reader_next(&reader, &s)) {
+        slices_.emplace_back(s, ::grpc::Slice::STEAL_REF);
+      }
+      grpc_byte_buffer_reader_destroy(&reader);
+    }
+
+    if (spans_.capacity() < slices_.size()) {
+      spans_.reserve(slices_.size());
+    }
+
+    for (const auto &slice : slices_) {
+      spans_.emplace_back(slice.begin(), slice.size());
+    }
+  }
+
+  [[nodiscard]] std::span<slice_span> get() { return std::span<slice_span>(spans_); }
+  [[nodiscard]] bool supported() const { return supported_; }
+
+private:
+  static constexpr size_t kStackBufferSize = 16 * 1024;
+  alignas(std::max_align_t) std::array<std::byte, kStackBufferSize> buffer_;
+  std::pmr::monotonic_buffer_resource resource_;
+  std::pmr::vector<::grpc::Slice> slices_;
+  std::pmr::vector<slice_span> spans_;
+  bool supported_ = true;
+};
+
 ::grpc::Status read_binpb(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
                           ::hpp::proto::concepts::is_pb_context auto &context) {
 
-  using slice_span = std::span<const uint8_t>;
-  class slices_view {
-    std::span<const slice_span> slices_;
-
-  public:
-    slices_view(grpc_byte_buffer *c_buffer, std::span<slice_span> storage) {
-      grpc_byte_buffer_reader reader;
-      grpc_byte_buffer_reader_init(&reader, c_buffer);
-
-      grpc_slice *slice = nullptr;
-      std::size_t slice_count = 0;
-      while (grpc_byte_buffer_reader_peek(&reader, &slice) != 0) {
-        auto *start_ptr = GRPC_SLICE_START_PTR(*slice);
-        auto len = GRPC_SLICE_LENGTH(*slice);
-        slice_span current{start_ptr, len};
-        storage[slice_count++] = current;
-      }
-
-      grpc_byte_buffer_reader_destroy(&reader);
-      slices_ = std::span<const slice_span>{storage.data(), slice_count};
-    }
-
-    [[nodiscard]] std::size_t size() const { return slices_.size(); }
-    [[nodiscard]] const slice_span *data() const { return slices_.data(); }
-    [[nodiscard]] auto cbegin() const { return std::cbegin(slices_); }
-    [[nodiscard]] auto cend() const { return std::cend(slices_); }
-    [[nodiscard]] auto begin() const { return slices_.begin(); }
-    [[nodiscard]] auto end() const { return slices_.end(); }
-  };
-
-  auto *c_buffer = ::grpc::internal::CallOpRecvMessage<::hpp::proto::grpc::byte_buffer_access>::c_buffer(buffer);
-  auto deserialize_by_slices = [&](auto &storage) -> ::grpc::Status {
-    slices_view buffers{c_buffer, storage};
-    if (::hpp::proto::read_binpb(message, buffers, context).ok()) [[likely]] {
-      return ::grpc::Status::OK;
-    }
-    return {::grpc::StatusCode::INTERNAL, "Failed to deserialize message"};
-  };
-
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-  std::size_t num_slices = c_buffer->data.raw.slice_buffer.count;
-  if (num_slices <= ::hpp::proto::pb_serializer::stack_segment_threshold) [[likely]] {
-    std::array<slice_span, ::hpp::proto::pb_serializer::stack_segment_threshold> storage;
-    return deserialize_by_slices(storage);
-  } else {
-    std::vector<slice_span> storage(num_slices);
-    return deserialize_by_slices(storage);
+  slices_view buffers{buffer};
+  if (!buffers.supported()) {
+    return {::grpc::StatusCode::INVALID_ARGUMENT, "Unsupported ByteBuffer compression"};
   }
+  if (::hpp::proto::read_binpb(message, buffers.get(), context).ok()) [[likely]] {
+    return ::grpc::Status::OK;
+  }
+  return {::grpc::StatusCode::INTERNAL, "Failed to deserialize message"};
 }
 
 ::grpc::Status read_binpb(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
