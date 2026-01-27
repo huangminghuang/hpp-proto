@@ -37,10 +37,11 @@ const boost::ut::suite grpc_serialization_tests = [] {
   };
 
   "read_binpb_rejects_compressed_byte_buffer"_test = [] {
-    constexpr std::array<unsigned char, 6> payload = {
-        0x0A, 0x80, 0x80, 0x80, 0x80, 0x10,
+    constexpr std::array<char, 6> payload = {
+        static_cast<char>(0x0A), static_cast<char>(0x80), static_cast<char>(0x80),
+        static_cast<char>(0x80), static_cast<char>(0x80), static_cast<char>(0x10),
     };
-    grpc_slice slice = grpc_slice_from_copied_buffer(reinterpret_cast<const char *>(payload.data()), payload.size());
+    grpc_slice slice = grpc_slice_from_copied_buffer(payload.data(), payload.size());
     grpc_byte_buffer *raw = grpc_raw_compressed_byte_buffer_create(&slice, 1, GRPC_COMPRESS_GZIP);
     grpc_slice_unref(slice);
 

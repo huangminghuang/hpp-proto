@@ -83,6 +83,7 @@ public:
   slices_view &operator=(slices_view &&) = delete;
   ~slices_view() = default;
 
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   explicit slices_view(const ::grpc::ByteBuffer &buffer)
       : resource_(buffer_.data(), buffer_.size()), // 2. Init resource with stack buffer
         slices_(&resource_),                       // 3. Init vectors with resource
@@ -92,22 +93,16 @@ public:
       return;
     }
 
-    if (c_buffer->type != GRPC_BB_RAW || c_buffer->data.raw.compression != GRPC_COMPRESS_NONE) {
-      supported_ = false;
-      return;
-    }
-
-    size_t slice_count = c_buffer->data.raw.slice_buffer.count;
-    slices_.reserve(slice_count);
-    spans_.reserve(slice_count);
-
     grpc_byte_buffer_reader reader;
-    if (grpc_byte_buffer_reader_init(&reader, c_buffer)) {
+    if (grpc_byte_buffer_reader_init(&reader, c_buffer) != 0) {
       grpc_slice s;
-      while (grpc_byte_buffer_reader_next(&reader, &s)) {
+      while (grpc_byte_buffer_reader_next(&reader, &s) != 0) {
         slices_.emplace_back(s, ::grpc::Slice::STEAL_REF);
       }
       grpc_byte_buffer_reader_destroy(&reader);
+    } else {
+      supported_ = false;
+      return;
     }
 
     if (spans_.capacity() < slices_.size()) {
@@ -119,11 +114,12 @@ public:
     }
   }
 
-  [[nodiscard]] std::span<slice_span> get() { return std::span<slice_span>(spans_); }
+  [[nodiscard]] std::span<slice_span> get() { return {spans_}; }
   [[nodiscard]] bool supported() const { return supported_; }
 
 private:
-  static constexpr size_t kStackBufferSize = 16 * 1024;
+  static constexpr size_t kStackBufferSize = size_t{16} * 1024;
+  // NOLINTNEXTLINE(cppcoreguidelines-use-default-member-init,modernize-use-default-member-init)
   alignas(std::max_align_t) std::array<std::byte, kStackBufferSize> buffer_;
   std::pmr::monotonic_buffer_resource resource_;
   std::pmr::vector<::grpc::Slice> slices_;

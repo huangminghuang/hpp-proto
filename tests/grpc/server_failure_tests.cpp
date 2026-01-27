@@ -32,6 +32,11 @@ class FailureHarness {
 public:
   using stub_type = ::hpp::proto::grpc::Stub<EchoMethods>;
 
+  FailureHarness(const FailureHarness &) = delete;
+  FailureHarness &operator=(const FailureHarness &) = delete;
+  FailureHarness(FailureHarness &&) = delete;
+  FailureHarness &operator=(FailureHarness &&) = delete;
+
   FailureHarness() {
     ::grpc::ServerBuilder builder;
     int selected_port = 0;
