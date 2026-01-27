@@ -41,8 +41,7 @@ const boost::ut::suite grpc_serialization_tests = [] {
         0x0A, 0x80, 0x80, 0x80, 0x80, 0x10,
     };
     grpc_slice slice = grpc_slice_from_copied_buffer(reinterpret_cast<const char *>(payload.data()), payload.size());
-    grpc_byte_buffer *raw =
-        grpc_raw_compressed_byte_buffer_create(&slice, 1, GRPC_COMPRESS_GZIP);
+    grpc_byte_buffer *raw = grpc_raw_compressed_byte_buffer_create(&slice, 1, GRPC_COMPRESS_GZIP);
     grpc_slice_unref(slice);
 
     ::grpc::ByteBuffer buffer;
