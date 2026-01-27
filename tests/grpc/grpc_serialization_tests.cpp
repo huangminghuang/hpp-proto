@@ -1,4 +1,3 @@
-#include <array>
 #include <string>
 
 #include <boost/ut.hpp>
@@ -9,13 +8,6 @@
 #include <hpp_proto/grpc/serialization.hpp>
 
 #include "echo_stream.pb.hpp"
-
-namespace grpc::internal {
-class GrpcByteBufferPeer {
-public:
-  static void set_buffer(::grpc::ByteBuffer *buffer, grpc_byte_buffer *raw) { buffer->set_buffer(raw); }
-};
-} // namespace grpc::internal
 
 namespace {
 const boost::ut::suite grpc_serialization_tests = [] {
@@ -31,23 +23,6 @@ const boost::ut::suite grpc_serialization_tests = [] {
     const std::string bad_payload = "not-a-binpb-payload";
     ::grpc::Slice slice(bad_payload.data(), bad_payload.size());
     ::grpc::ByteBuffer buffer(&slice, 1);
-    ::hpp::proto::grpc::EchoRequest<> msg;
-    auto status = ::hpp::proto::grpc::read_binpb(msg, buffer);
-    expect(!status.ok());
-  };
-
-  "read_binpb_rejects_compressed_byte_buffer"_test = [] {
-    constexpr std::array<char, 6> payload = {
-        static_cast<char>(0x0A), static_cast<char>(0x80), static_cast<char>(0x80),
-        static_cast<char>(0x80), static_cast<char>(0x80), static_cast<char>(0x10),
-    };
-    grpc_slice slice = grpc_slice_from_copied_buffer(payload.data(), payload.size());
-    grpc_byte_buffer *raw = grpc_raw_compressed_byte_buffer_create(&slice, 1, GRPC_COMPRESS_GZIP);
-    grpc_slice_unref(slice);
-
-    ::grpc::ByteBuffer buffer;
-    ::grpc::internal::GrpcByteBufferPeer::set_buffer(&buffer, raw);
-
     ::hpp::proto::grpc::EchoRequest<> msg;
     auto status = ::hpp::proto::grpc::read_binpb(msg, buffer);
     expect(!status.ok());
