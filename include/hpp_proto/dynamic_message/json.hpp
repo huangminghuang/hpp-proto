@@ -286,6 +286,10 @@ struct generic_message_json_serializer {
         serialize_map_entry_field<Opts>(field, separator == nullptr, ctx, b, ix);
         separator = ":";
       }
+
+      if (bool(ctx.error)) {
+        return;
+      }
     }
 
     if (dump_brace) {
@@ -538,9 +542,8 @@ struct timestamp_message_json_serializer {
     assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
     google::protobuf::Timestamp<> v;
     from<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, it, end);
-    if (!bool(ctx.error) && value.fields().size() == 2 &&
-        (v.seconds == 0 || value.fields()[0].set(v.seconds).has_value()) &&
-        (v.nanos == 0 || value.fields()[1].set(v.nanos).has_value())) [[likely]] {
+    if (!bool(ctx.error) && value.fields().size() == 2 && (value.fields()[0].set(v.seconds).has_value()) &&
+        (value.fields()[1].set(v.nanos).has_value())) [[likely]] {
       return;
     }
     ctx.error = error_code::syntax_error;
@@ -570,9 +573,8 @@ struct duration_message_json_serializer {
     assert(value.descriptor().full_name() == "google.protobuf.Duration");
     google::protobuf::Duration<> v;
     from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
-    if (!bool(ctx.error) && value.fields().size() == 2 &&
-        (v.seconds == 0 || value.fields()[0].set(v.seconds).has_value()) &&
-        (v.nanos == 0 || value.fields()[1].set(v.nanos).has_value())) [[likely]] {
+    if (!bool(ctx.error) && value.fields().size() == 2 && (value.fields()[0].set(v.seconds).has_value()) &&
+        (value.fields()[1].set(v.nanos).has_value())) [[likely]] {
       return;
     }
     ctx.error = error_code::syntax_error;
