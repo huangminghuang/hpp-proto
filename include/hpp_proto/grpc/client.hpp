@@ -105,10 +105,10 @@ public:
   template <typename Method, typename Request, typename Response>
     requires(concepts::unary_method_check<Method, Request, Response>)::grpc::Status
   call(::grpc::ClientContext &context, const Request &request, Response &response,
-       hpp::proto::concepts::is_option_type auto &&...response_option) {
-    hpp::proto::with_pb_context request_with_context{request, hpp::proto::pb_context{}};
-    hpp::proto::with_pb_context response_with_context{
-        response, hpp::proto::pb_context{std::forward<decltype(response_option)>(response_option)...}};
+       hpp::proto::concepts::is_option_type auto &&...option) {
+    pb_context ctx{std::forward<decltype(option)>(option)...};
+    hpp::proto::with_pb_context request_with_context{request, ctx};
+    hpp::proto::with_pb_context response_with_context{response, ctx};
 
     return ::grpc::internal::BlockingUnaryCallImpl{this->channel_.get(), grpc_method<Method>(), &context,
                                                    request_with_context, &response_with_context}
@@ -146,9 +146,9 @@ public:
 
   template <typename Stub, typename Traits>
     requires(rpc_type == RpcType::NORMAL_RPC)
-  void prepare(const Stub &stub, ::grpc::ClientContext &context,
-               const typename Method::template request_t<Traits> &req) {
-    auto result = ::hpp::proto::grpc::write_binpb(req, request_);
+  void prepare(const Stub &stub, ::grpc::ClientContext &context, const typename Method::template request_t<Traits> &req,
+               hpp::proto::concepts::is_option_type auto &&...option) {
+    auto result = ::hpp::proto::grpc::write_binpb(req, request_, std::forward<decltype(option)>(option)...);
     if (result.ok()) {
       ::grpc::internal::ClientCallbackUnaryFactory::Create<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
           stub.channel_.get(), stub.template grpc_method<Method>(), &context, &request_, &response_, this);
@@ -166,9 +166,9 @@ public:
 
   template <typename Stub, typename Traits>
     requires(rpc_type == RpcType::SERVER_STREAMING)
-  void prepare(const Stub &stub, ::grpc::ClientContext &context,
-               const typename Method::template request_t<Traits> &req) {
-    auto result = ::hpp::proto::grpc::write_binpb(req, request_);
+  void prepare(const Stub &stub, ::grpc::ClientContext &context, const typename Method::template request_t<Traits> &req,
+               hpp::proto::concepts::is_option_type auto &&...option) {
+    auto result = ::hpp::proto::grpc::write_binpb(req, request_, std::forward<decltype(option)>(option)...);
     if (result.ok()) {
       ::grpc::internal::ClientCallbackReaderFactory<::grpc::ByteBuffer>::Create(
           stub.channel_.get(), stub.template grpc_method<Method>(), &context, &request_, this);
@@ -192,11 +192,11 @@ public:
   }
 
   template <typename Traits>
-  ::grpc::Status write(typename Method::template request_t<Traits> &req,
-                       ::grpc::WriteOptions options = ::grpc::WriteOptions{})
+  ::grpc::Status write(typename Method::template request_t<Traits> &req, ::grpc::WriteOptions options,
+                       hpp::proto::concepts::is_option_type auto &&...ser_option)
     requires Method::client_streaming
   {
-    auto result = ::hpp::proto::grpc::write_binpb(req, request_);
+    auto result = ::hpp::proto::grpc::write_binpb(req, request_, std::forward<decltype(ser_option)>(ser_option)...);
     if (result.ok()) {
       this->StartWrite(&request_, options);
     }
@@ -204,11 +204,20 @@ public:
   }
 
   template <typename Traits>
-  ::grpc::Status write_last(typename Method::template request_t<Traits> &req, ::grpc::WriteOptions options)
+  ::grpc::Status write(typename Method::template request_t<Traits> &req,
+                       hpp::proto::concepts::is_option_type auto &&...ser_option)
+    requires Method::client_streaming
+  {
+    return this->write(req, ::grpc::WriteOptions{}, std::forward<decltype(ser_option)>(ser_option)...);
+  }
+
+  template <typename Traits>
+  ::grpc::Status write_last(typename Method::template request_t<Traits> &req, ::grpc::WriteOptions options,
+                            hpp::proto::concepts::is_option_type auto &&...ser_option)
     requires Method::client_streaming
   {
     options.set_last_message();
-    return write(req, options);
+    return write(req, options, std::forward<decltype(ser_option)>(ser_option)...);
   }
 
   void write_done()

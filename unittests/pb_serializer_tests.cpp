@@ -980,7 +980,7 @@ auto pb_meta(const repeated_int32 &)
     -> std::tuple<hpp::proto::field_meta<1, &repeated_int32::integers, field_option::is_packed, hpp::proto::vint32_t>>;
 
 template <typename T>
-void verify_segmented_input(auto &encoded, const T &value, const std::vector<int> &sizes) {
+void verify_chunked_input(auto &encoded, const T &value, const std::vector<int> &sizes) {
   std::vector<std::vector<char>> segments;
   segments.resize(sizes.size());
   std::size_t len = 0;
@@ -1001,14 +1001,14 @@ auto split(auto data, int pos) {
                                           std::vector<char>{midpoint, data.end()}};
 };
 
-const ut::suite test_segmented_byte_range = [] {
-  "empty_with_segmented_input"_test = [] {
+const ut::suite test_chunked_byte_range = [] {
+  "empty_with_chunked_input"_test = [] {
     empty value;
     std::vector<std::span<char>> segments;
     ut::expect(hpp::proto::read_binpb(value, segments).ok());
   };
 
-  "bytes_with_segmented_input"_test = [] {
+  "bytes_with_chunked_input"_test = [] {
     bytes_example<hpp::proto::default_traits> value;
     value.field.resize(128);
     for (int i = 0; i < 128; ++i) {
@@ -1019,15 +1019,15 @@ const ut::suite test_segmented_byte_range = [] {
     ut::expect(hpp::proto::write_binpb(value, encoded).ok());
     ut::expect(encoded.size() == 131);
 
-    verify_segmented_input(encoded, value, {48, 48, 25, 10});
-    verify_segmented_input(encoded, value, {48, 0, 48, 25, 10});
-    verify_segmented_input(encoded, value, {10, 48, 25, 48});
-    verify_segmented_input(encoded, value, {25, 48, 10, 48});
-    verify_segmented_input(encoded, value, {48, 25, 10, 48});
-    verify_segmented_input(encoded, value, {10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 31});
+    verify_chunked_input(encoded, value, {48, 48, 25, 10});
+    verify_chunked_input(encoded, value, {48, 0, 48, 25, 10});
+    verify_chunked_input(encoded, value, {10, 48, 25, 48});
+    verify_chunked_input(encoded, value, {25, 48, 10, 48});
+    verify_chunked_input(encoded, value, {48, 25, 10, 48});
+    verify_chunked_input(encoded, value, {10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 31});
   };
 
-  "packed_int32_with_segmented_input"_test = [] {
+  "packed_int32_with_chunked_input"_test = [] {
     repeated_int32 value;
     value.integers.resize(32);
     // NOLINTNEXTLINE(modernize-use-ranges)
@@ -1036,10 +1036,10 @@ const ut::suite test_segmented_byte_range = [] {
     ut::expect(hpp::proto::write_binpb(value, encoded).ok());
 
     expect_roundtrip_ok(encoded, value);
-    verify_segmented_input(encoded, value, {90, 10, 70});
+    verify_chunked_input(encoded, value, {90, 10, 70});
   };
 
-  "invalid_packed_int32_with_segmented_input"_test = [] {
+  "invalid_packed_int32_with_chunked_input"_test = [] {
     repeated_int32 value;
 
     using namespace std::string_literals;
@@ -1052,7 +1052,7 @@ const ut::suite test_segmented_byte_range = [] {
                      value);
   };
 
-  "packed_sint32_with_segmented_input"_test = [] {
+  "packed_sint32_with_chunked_input"_test = [] {
     repeated_sint32<> value;
     value.integers.resize(32);
     std::iota(value.integers.begin(), value.integers.begin() + 16, INT32_MAX - 16);
@@ -1063,16 +1063,16 @@ const ut::suite test_segmented_byte_range = [] {
     expect_roundtrip_ok(encoded, value);
     const int len = static_cast<int>(encoded.size());
     const int s = (len - 10) / 2;
-    verify_segmented_input(encoded, value, {s, 10, len - 10 - s});
+    verify_chunked_input(encoded, value, {s, 10, len - 10 - s});
   };
 
-  "packed_overlong_bool_with_segmented_input"_test = [] {
+  "packed_overlong_bool_with_chunked_input"_test = [] {
     auto encoded = "\x0a\x12\x01\x02\x00\x80\x10\x81\x00\x01\x01\x01\x01\x01\x01\x01\x01\x81\x81\x01"sv;
     expect_read_ok(split(encoded, 18), repeated_bool{{true, true, false, true, true, true, true, true, true, true, true,
                                                       true, true, true}});
   };
 
-  "invalid_packed_bool_with_segmented_input"_test = [] {
+  "invalid_packed_bool_with_chunked_input"_test = [] {
     repeated_bool<> value;
     using namespace std::string_literals;
     // non-terminated packed bool
@@ -1087,7 +1087,7 @@ const ut::suite test_segmented_byte_range = [] {
                      value);
   };
 
-  "unterminated_varint_with_segmented_input"_test = [] {
+  "unterminated_varint_with_chunked_input"_test = [] {
     varint_example value;
     std::array<std::vector<char>, 2> segments{std::vector<char>{'\x08', '\x80'}, std::vector<char>{}};
     expect_read_fail(segments, value);
@@ -1616,6 +1616,26 @@ struct monster {
       hpp::proto::field_meta<10, &monster::boss>, hpp::proto::field_meta<UINT32_MAX, &monster::unknown_fields_>>;
 };
 
+monster make_test_monster() {
+  return {.pos = {1.0, 2.0, 3.0},
+          .mana = 200,
+          .hp = 1000,
+          .name = "mushroom",
+          .inventory = {1, 2, 3},
+          .color = monster::blue,
+          .weapons =
+              {
+                  monster::weapon{.name = "sword", .damage = 55},
+                  monster::weapon{.name = "spear", .damage = 150},
+              },
+          .equipped =
+              {
+                  monster::weapon{.name = "none", .damage = 15},
+              },
+          .path = {monster::vec3{2.0, 3.0, 4.0}, monster::vec3{5.0, 6.0, 7.0}},
+          .boss = true};
+}
+
 struct monster_with_optional {
   using enum color_t;
   using vec3 = monster::vec3;
@@ -1721,25 +1741,87 @@ std::ostream &operator<<(std::ostream &os, person_map::phone_type type) {
   return os << static_cast<int>(type);
 }
 
+struct test_out_sink {
+  using slice_type = std::byte;
+  std::vector<std::byte> storage_;
+  std::size_t offset_ = 0;
+  std::size_t remaining_total_ = 0;
+  std::size_t set_message_size_calls_ = 0;
+  std::size_t next_chunk_calls_ = 0;
+  std::size_t max_grant_ = 0;
+  std::size_t message_size_ = 0;
+  std::size_t chunk_limit_ = 0;
+
+  explicit test_out_sink(std::size_t max_chunk) : chunk_limit_(max_chunk) {}
+
+  void set_message_size(std::size_t size) {
+    ++set_message_size_calls_;
+    message_size_ = size;
+    remaining_total_ = size;
+    offset_ = 0;
+    next_chunk_calls_ = 0;
+    max_grant_ = 0;
+    storage_.assign(size, std::byte{});
+  }
+
+  std::span<std::byte> next_chunk() {
+    ++next_chunk_calls_;
+    if (remaining_total_ == 0) {
+      return {};
+    }
+    const auto remaining_storage = storage_.size() - offset_;
+    const auto granted = std::min({remaining_storage, chunk_limit_, remaining_total_});
+    max_grant_ = std::max(max_grant_, granted);
+    offset_ += granted;
+    remaining_total_ -= granted;
+    return std::span<std::byte>(storage_.data() + (offset_ - granted), granted);
+  }
+
+  std::size_t chunk_size() const { return chunk_limit_;}
+
+  std::span<const std::byte> written() const { return std::span<const std::byte>(storage_.data(), message_size_); }
+};
+
+const ut::suite out_sink_serialization_modes = [] {
+  "write_binpb_out_sink_adaptive_mode"_test = [] {
+    monster m = make_test_monster();
+    test_out_sink sink(std::numeric_limits<std::size_t>::max());
+    ut::expect(hpp::proto::write_binpb(m, sink).ok());
+    ut::expect(sink.set_message_size_calls_ == 1);
+    ut::expect(sink.next_chunk_calls_ >= 1);
+    monster decoded{};
+    ut::expect(hpp::proto::read_binpb(decoded, sink.written()).ok());
+    ut::expect(decoded == m);
+  };
+
+  "write_binpb_out_sink_contiguous_mode"_test = [] {
+    monster m = make_test_monster();
+    test_out_sink sink(std::numeric_limits<std::size_t>::max());
+    ut::expect(hpp::proto::write_binpb(m, sink, hpp::proto::contiguous_mode).ok());
+    ut::expect(sink.set_message_size_calls_ == 1);
+    ut::expect(sink.next_chunk_calls_ == 1);
+    ut::expect(sink.max_grant_ >= sink.message_size_);
+    monster decoded{};
+    ut::expect(hpp::proto::read_binpb(decoded, sink.written()).ok());
+    ut::expect(decoded == m);
+  };
+
+  "write_binpb_out_sink_chunked_mode"_test = [] {
+    monster m = make_test_monster();
+    test_out_sink sink(7);
+    ut::expect(hpp::proto::write_binpb(m, sink, hpp::proto::chunked_mode).ok());
+    ut::expect(sink.set_message_size_calls_ == 1);
+    ut::expect(sink.next_chunk_calls_ > 1);
+    ut::expect(sink.max_grant_ <= sink.chunk_limit_);
+    monster decoded{};
+    ut::expect(hpp::proto::read_binpb(decoded, sink.written()).ok());
+    ut::expect(decoded == m);
+  };
+};
+
 const ut::suite composite_type = [] {
   "monster"_test = [] {
-    monster const m = {.pos = {1.0, 2.0, 3.0},
-                       .mana = 200,
-                       .hp = 1000,
-                       .name = "mushroom",
-                       .inventory = {1, 2, 3},
-                       .color = monster::blue,
-                       .weapons =
-                           {
-                               monster::weapon{.name = "sword", .damage = 55},
-                               monster::weapon{.name = "spear", .damage = 150},
-                           },
-                       .equipped =
-                           {
-                               monster::weapon{.name = "none", .damage = 15},
-                           },
-                       .path = {monster::vec3{2.0, 3.0, 4.0}, monster::vec3{5.0, 6.0, 7.0}},
-                       .boss = true};
+    monster const m = make_test_monster();
 
     std::vector<char> data;
     ut::expect(hpp::proto::write_binpb(m, data).ok());

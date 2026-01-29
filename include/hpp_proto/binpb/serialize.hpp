@@ -28,6 +28,12 @@
 #include <hpp_proto/binpb/util.hpp>
 #include <hpp_proto/binpb/varint.hpp>
 
+#include <limits>
+
+namespace hpp::proto {
+enum class serialization_mode { contiguous, adaptive, chunked };
+} // namespace hpp::proto
+
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 namespace hpp::proto::pb_serializer {
 
@@ -40,34 +46,33 @@ constexpr decltype(auto) consume_size_cache_entry(Iterator &iterator) {
 }
 
 template <typename Byte, typename Context>
-struct basic_out {
+struct contiguous_out {
   using byte_type = Byte;
-  using is_basic_out = void;
   constexpr static bool endian_swapped = std::endian::little != std::endian::native;
-  std::span<byte_type> _data;
-  Context &_context;
+  std::span<byte_type> data_;
+  Context &context_;
 
-  constexpr basic_out(std::span<byte_type> data, Context &context) : _data(data), _context(context) {}
-  constexpr ~basic_out() = default;
-  basic_out(const basic_out &) = delete;
-  basic_out(basic_out &&) = delete;
-  basic_out &operator=(const basic_out &) = delete;
-  basic_out &operator=(basic_out &&) = delete;
+  constexpr contiguous_out(std::span<byte_type> data, Context &context) : data_(data), context_(context) {}
+  constexpr ~contiguous_out() = default;
+  contiguous_out(const contiguous_out &) = delete;
+  contiguous_out(contiguous_out &&) = delete;
+  contiguous_out &operator=(const contiguous_out &) = delete;
+  contiguous_out &operator=(contiguous_out &&) = delete;
 
   constexpr bool serialize(concepts::byte_serializable auto item) {
     auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
     if constexpr (endian_swapped && sizeof(item) != 1) {
-      std::copy(value.rbegin(), value.rend(), _data.begin());
+      std::copy(value.rbegin(), value.rend(), data_.begin());
     } else {
-      std::copy(value.begin(), value.end(), _data.begin());
+      std::copy(value.begin(), value.end(), data_.begin());
     }
-    _data = _data.subspan(sizeof(item));
+    data_ = data_.subspan(sizeof(item));
     return true;
   }
 
   constexpr bool serialize(concepts::varint auto item) {
-    auto p = unchecked_pack_varint(item, _data.data());
-    _data = _data.subspan(static_cast<std::size_t>(std::distance(_data.data(), p)));
+    auto p = unchecked_pack_varint(item, data_.data());
+    data_ = data_.subspan(static_cast<std::size_t>(std::distance(data_.data(), p)));
     return true;
   }
 
@@ -79,8 +84,8 @@ struct basic_out {
     if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(value_type) == 1)) {
       if (!item.empty()) {
         auto bytes_to_copy = item.size() * sizeof(value_type);
-        std::memcpy(_data.data(), item.data(), bytes_to_copy);
-        _data = _data.subspan(bytes_to_copy);
+        std::memcpy(data_.data(), item.data(), bytes_to_copy);
+        data_ = data_.subspan(bytes_to_copy);
       }
       return true;
     } else {
@@ -97,7 +102,98 @@ struct basic_out {
 };
 
 template <concepts::contiguous_byte_range Range, typename Context>
-basic_out(Range &&, Context &) -> basic_out<std::ranges::range_value_t<Range>, Context>;
+contiguous_out(Range &&, Context &) -> contiguous_out<std::ranges::range_value_t<Range>, Context>;
+
+template <concepts::out_sink Sink, typename Context>
+struct chunked_out {
+  using byte_type = std::byte;
+  using is_chunked_out = void;
+  constexpr static bool endian_swapped = std::endian::little != std::endian::native;
+  Sink &sink_;
+  Context &context_;
+
+  chunked_out(Sink &sink, Context &context) : sink_(sink), context_(context) {}
+  ~chunked_out() = default;
+  chunked_out(const chunked_out &) = delete;
+  chunked_out(chunked_out &&) = delete;
+  chunked_out &operator=(const chunked_out &) = delete;
+  chunked_out &operator=(chunked_out &&) = delete;
+
+  bool serialize(concepts::byte_serializable auto item) {
+    auto value = std::bit_cast<std::array<std::byte, sizeof(item)>>(item);
+    if constexpr (endian_swapped && sizeof(item) != 1) {
+      std::reverse(value.begin(), value.end());
+    }
+    return write_all(std::span<const std::byte>(value.data(), value.size()));
+  }
+
+  bool serialize(concepts::varint auto item) {
+    constexpr std::size_t max_varint_bytes = 10;
+    auto out = chunk_remaining_.empty() ? sink_.next_chunk() : chunk_remaining_;
+    if (out.size() >= max_varint_bytes) {
+      auto *p = unchecked_pack_varint(item, out.data());
+      chunk_remaining_ = out.subspan(static_cast<std::size_t>(std::distance(out.data(), p)));
+      return true;
+    }
+    chunk_remaining_ = out;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+    std::array<std::byte, max_varint_bytes> buffer;
+    auto *p = unchecked_pack_varint(item, buffer.data());
+    auto size = static_cast<std::size_t>(std::distance(buffer.data(), p));
+    return write_all(std::span<const std::byte>(buffer.data(), size));
+  }
+
+  template <std::ranges::contiguous_range T>
+  bool serialize(const T &item) {
+    using type = std::remove_cvref_t<T>;
+    using value_type = typename type::value_type;
+    static_assert(concepts::byte_serializable<value_type>);
+    if (!endian_swapped || sizeof(value_type) == 1) {
+      auto bytes = std::as_bytes(std::span(item.data(), item.size()));
+      return write_all(bytes);
+    } else {
+      return std::ranges::all_of(item, [this](auto e) { return this->serialize(e); });
+    }
+  }
+
+  bool serialize(concepts::is_enum auto item) { return serialize(varint{static_cast<int64_t>(item)}); }
+
+  template <typename... Args>
+  bool operator()(Args &&...item) {
+    return (serialize(std::forward<Args>(item)) && ...);
+  }
+
+private:
+  std::span<std::byte> chunk_remaining_{};
+
+  bool write_all(std::span<const std::byte> data) {
+    while (!data.empty()) {
+      auto out = chunk_remaining_.empty() ? sink_.next_chunk() : chunk_remaining_;
+      if (out.size() >= data.size()) {
+        std::memcpy(out.data(), data.data(), data.size());
+        chunk_remaining_ = out.subspan(data.size());
+        return true;
+      }
+      if (out.empty()) {
+        return false;
+      }
+      auto to_copy = std::min(out.size(), data.size());
+      std::memcpy(out.data(), data.data(), to_copy);
+      chunk_remaining_ = out.subspan(to_copy);
+      data = data.subspan(to_copy);
+    }
+    return true;
+  }
+};
+
+template <typename Context>
+constexpr std::size_t max_stack_cache_size_for_context() {
+  if constexpr (requires { Context::max_size_cache_on_stack; }) {
+    return Context::max_size_cache_on_stack;
+  } else {
+    return hpp::proto::max_size_cache_on_stack<>.max_size_cache_on_stack;
+  }
+}
 
 constexpr std::size_t len_size(std::size_t len) { return varint_size(len) + len; }
 
@@ -399,14 +495,14 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
     }
 
     if (std::is_constant_evaluated()) {
-      basic_out archive{buffer, context};
+      contiguous_out archive{buffer, context};
       auto cache_itr = cache.begin();
       if (!serialize(item, cache_itr, archive)) {
         return std::errc::bad_message;
       }
     } else {
-      basic_out archive{std::as_writable_bytes(std::span{std::ranges::data(buffer), std::ranges::size(buffer)}),
-                        context};
+      contiguous_out archive{std::as_writable_bytes(std::span{std::ranges::data(buffer), std::ranges::size(buffer)}),
+                             context};
       auto cache_itr = cache.begin();
       if (!serialize(item, cache_itr, archive)) {
         return std::errc::bad_message;
@@ -415,15 +511,7 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
     return {};
   };
 
-  using context_type = decltype(context);
-  constexpr std::size_t max_stack_cache_size = [] {
-    if constexpr (requires { context_type::max_size_cache_on_stack; }) {
-      return context_type::max_size_cache_on_stack;
-    } else {
-      return hpp::proto::max_size_cache_on_stack<>.max_size_cache_on_stack;
-    }
-  }();
-
+  constexpr std::size_t max_stack_cache_size = max_stack_cache_size_for_context<decltype(context)>();
   if (std::is_constant_evaluated()) {
     std::vector<uint32_t> cache(n);
     return do_serialize(cache);
@@ -434,6 +522,73 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
     std::pmr::vector<uint32_t> cache(n, &mr);
     return do_serialize(cache);
   }
+}
+
+template <typename Context>
+consteval serialization_mode serialization_mode_for_context() {
+  if constexpr (requires { Context::serialization_mode; }) {
+    return Context::serialization_mode;
+  } else {
+    return hpp::proto::serialization_mode::contiguous;
+  }
+}
+
+template <serialization_mode Mode, typename SliceType>
+struct slice_buffer_resource {
+  static constexpr std::size_t chunk_size =
+      Mode == serialization_mode::contiguous ? std::numeric_limits<std::size_t>::max() : 1024 * 1024;
+  static constexpr std::size_t buffer_size = Mode == serialization_mode::contiguous ? 3 * sizeof(SliceType) : 4096;
+
+  alignas(std::max_align_t) std::array<std::byte, buffer_size> buffer{};
+  std::pmr::monotonic_buffer_resource resource{buffer.data(), buffer.size()};
+};
+
+template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
+status serialize(const T &item, Sink &sink, Context &context) {
+  std::size_t n = size_cache_counter<T>::count(item);
+
+  auto do_serialize = [&item, &sink, &context](std::span<uint32_t> cache) -> status {
+    std::size_t msg_sz = message_size_calculator<T>::message_size(item, cache);
+    constexpr auto mode = serialization_mode_for_context<Context>();
+    sink.set_message_size(msg_sz);
+
+    if constexpr (mode == serialization_mode::contiguous) {
+      auto out = sink.next_chunk();
+      contiguous_out archive{out.first(msg_sz), context};
+      auto cache_itr = cache.begin();
+      if (!serialize(item, cache_itr, archive)) {
+        return std::errc::bad_message;
+      }
+    } else {
+      if constexpr (mode == serialization_mode::adaptive) {
+        if (msg_sz <= sink.chunk_size()) {
+          auto out = sink.next_chunk();
+          if (out.size() >= msg_sz) {
+            contiguous_out archive{out.first(msg_sz), context};
+            auto cache_itr = cache.begin();
+            if (!serialize(item, cache_itr, archive)) {
+              return std::errc::bad_message;
+            }
+            return {};
+          }
+        }
+      }
+
+      chunked_out archive{sink, context};
+      auto cache_itr = cache.begin();
+      if (!serialize(item, cache_itr, archive)) {
+        return std::errc::bad_message;
+      }
+    }
+    return {};
+  };
+
+  constexpr std::size_t max_stack_cache_size = max_stack_cache_size_for_context<Context>();
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+  std::array<std::byte, max_stack_cache_size> cache_storage;
+  std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size()};
+  std::pmr::vector<uint32_t> cache(n, &mr);
+  return do_serialize(cache);
 }
 
 template <concepts::has_meta T>

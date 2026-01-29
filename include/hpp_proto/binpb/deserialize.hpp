@@ -1402,7 +1402,7 @@ constexpr status deserialize(auto &item, concepts::contiguous_byte_range auto co
   }
 }
 
-status deserialize(auto &item, concepts::is_pb_context auto &context, concepts::segmented_byte_range auto const &buffer,
+status deserialize(auto &item, concepts::is_pb_context auto &context, concepts::chunked_byte_range auto const &buffer,
                    std::span<input_buffer_region<const std::byte>> regions, std::span<std::byte> patch_buffer_cache) {
   constexpr bool is_contiguous = false;
   auto archive =
@@ -1410,7 +1410,7 @@ status deserialize(auto &item, concepts::is_pb_context auto &context, concepts::
   return deserialize(item, archive);
 }
 
-status deserialize(auto &item, concepts::segmented_byte_range auto const &buffer,
+status deserialize(auto &item, concepts::chunked_byte_range auto const &buffer,
                    concepts::is_pb_context auto &context) {
   const auto num_segments = std::size(buffer);
   const auto num_regions = num_segments * 2;

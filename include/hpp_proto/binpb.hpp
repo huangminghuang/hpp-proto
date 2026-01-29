@@ -29,6 +29,68 @@
 namespace hpp::proto {
 using std::expected;
 using std::unexpected;
+template <auto Mode>
+struct serialization_option_t {
+  using option_type = serialization_option_t<Mode>;
+  static constexpr auto serialization_mode = Mode;
+};
+
+/// @brief Serialization option to enforce contiguous buffer usage.
+///
+/// @details This mode assumes or requires that the serialization happens into a single
+/// contiguous memory block.
+/// This option only affects out_sink-based write_binpb() APIs. Buffer-based serialization
+/// always uses contiguous output and ignores these mode options.
+///
+/// **Pros:**
+/// - **Highest Performance:** Eliminates bound checking overhead for individual fields
+///   during serialization, as space is validated or allocated upfront.
+///
+/// **Cons:**
+/// - **High Memory Requirement:** Requires a single contiguous buffer large enough to
+///   hold the entire serialized message.
+/// - **Potential Allocation Failure:** For very large messages, allocating a single
+///   large buffer might fail or trigger expensive reallocations.
+constexpr auto contiguous_mode = serialization_option_t<serialization_mode::contiguous>{};
+
+/// @brief Serialization option for adaptive behavior (Speed Optimized).
+///
+/// @details This is the default mode. It attempts to determine the most efficient
+/// strategy based on the message size and available buffer space.
+/// This option only affects out_sink-based write_binpb() APIs. Buffer-based serialization
+/// always uses contiguous output and ignores these mode options.
+///
+/// **Pros:**
+/// - **Balanced Performance:** Uses the fast contiguous path if the message fits within
+///   the current chunk or buffer, avoiding per-field bound checks.
+/// - **Safety:** Automatically falls back to chunked serialization if the message exceeds
+///   the contiguous space, ensuring data integrity without manual intervention.
+///
+/// **Cons:**
+/// - **Slight Overhead:** Involves a minimal overhead to calculate sizes and check
+///   buffer capacity before deciding on the strategy.
+/// - **Higher Object Code Size:** Includes both contiguous and chunked serialization
+///   paths, which can increase compiled code size compared to fixed-mode builds.
+constexpr auto adaptive_mode = serialization_option_t<serialization_mode::adaptive>{};
+
+/// @brief Serialization option to enforce chunked serialization (Size/Memory Optimized).
+///
+/// @details This mode forces the serializer to write data in chunks, using bound checking
+/// for every write operation.
+/// This option only affects out_sink-based write_binpb() APIs. Buffer-based serialization
+/// always uses contiguous output and ignores these mode options.
+///
+/// **Pros:**
+/// - **Low Memory Footprint:** Minimizes peak memory usage by streaming data into
+///   smaller chunks, ideal for memory-constrained environments.
+/// - **Handles Large Messages:** Can serialize messages that are larger than any single
+///   available contiguous memory block.
+///
+/// **Cons:**
+/// - **Lower Performance:** The constant bound checking and state management for chunks
+///   incur a CPU performance penalty compared to contiguous serialization.
+constexpr auto chunked_mode = serialization_option_t<serialization_mode::chunked>{};
+
 
 /// @brief Consteval function to serialize a message at compile-time.
 /// @tparam F A callable that returns a message object.
@@ -64,6 +126,18 @@ status write_binpb(T &&msg, Buffer &buffer, concepts::is_pb_context auto &ctx) {
   return pb_serializer::serialize(std::forward<T>(msg), v, ctx);
 }
 
+/// @brief Serializes a message into a provided sink using a given context.
+/// @tparam T Type of the message, must satisfy concepts::has_meta.
+/// @tparam Sink A chunked output sink.
+/// @param msg The message to serialize.
+/// @param sink The sink to write the serialized data into.
+/// @param ctx The protobuf serialization context.
+/// @return status indicating success or failure.
+template <concepts::has_meta T, concepts::out_sink Sink>
+status write_binpb(T &&msg, Sink &sink, concepts::is_pb_context auto &ctx) {
+  return pb_serializer::serialize(std::forward<T>(msg), sink, ctx);
+}
+
 /// @brief Serializes a message into a provided buffer with optional configuration.
 /// @tparam T Type of the message, must satisfy concepts::has_meta.
 /// @tparam Buffer A contiguous byte range.
@@ -77,6 +151,18 @@ status write_binpb(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...o
   return write_binpb(std::forward<T>(msg), buffer, ctx);
 }
 
+/// @brief Serializes a message into a provided sink with optional configuration.
+/// @tparam T Type of the message, must satisfy concepts::has_meta.
+/// @tparam Sink A chunked output sink.
+/// @param msg The message to serialize.
+/// @param sink The sink to write the serialized data into.
+/// @param option Optional configuration parameters (e.g., max_size_cache_on_stack).
+/// @return status indicating success or failure.
+template <concepts::has_meta T, concepts::out_sink Sink>
+status write_binpb(T &&msg, Sink &sink, concepts::is_option_type auto &&...option) {
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  return write_binpb(std::forward<T>(msg), sink, ctx);
+}
 /// @brief Serializes a message and returns the resulting buffer.
 /// @tparam Buffer The container type for the serialized data, defaults to std::vector<std::byte>.
 /// @param msg The message to serialize.
@@ -93,7 +179,7 @@ expected<Buffer, std::errc> write_binpb(concepts::has_meta auto const &msg, conc
 
 /// @brief serialize a message to the end of the supplied buffer
 template <concepts::has_meta T>
-status append_proto(T &&msg, concepts::resizable_contiguous_byte_container auto &buffer) {
+status append_binpb(T &&msg, concepts::resizable_contiguous_byte_container auto &buffer) {
   constexpr bool overwrite_buffer = false;
   pb_context<> ctx;
   return pb_serializer::serialize<overwrite_buffer>(std::forward<T>(msg), buffer, ctx);

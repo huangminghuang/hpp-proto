@@ -28,6 +28,19 @@ const boost::ut::suite grpc_serialization_tests = [] {
     expect(!status.ok());
   };
 
+  "write_read_binpb_roundtrip"_test = []<class Mode> {
+    ::hpp::proto::grpc::EchoRequest<> msg;
+    msg.message = "hello grpc";
+    ::grpc::ByteBuffer buffer;
+    auto write_status = ::hpp::proto::grpc::write_binpb(msg, buffer, Mode{});
+    expect(write_status.ok());
+
+    ::hpp::proto::grpc::EchoRequest<> decoded;
+    auto read_status = ::hpp::proto::grpc::read_binpb(decoded, buffer);
+    expect(read_status.ok());
+    expect(decoded.message == msg.message);
+  } | std::make_tuple(hpp::proto::contiguous_mode, hpp::proto::adaptive_mode, hpp::proto::chunked_mode);
+
 #if !HPP_PROTO_NO_UTF8_VALIDATION
   "write_binpb_failure_returns_internal"_test = [] {
     ::grpc::ByteBuffer buffer;

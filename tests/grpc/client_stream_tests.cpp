@@ -99,7 +99,7 @@ private:
       request_t sentinel;
       sentinel.message = "final";
       sentinel.sequence = kTerminalSequence;
-      auto status = this->write(sentinel);
+      auto status = this->write(sentinel, hpp::proto::contiguous_mode);
       if (!status.ok()) {
         OnDone(status);
       }
@@ -110,7 +110,7 @@ private:
     request.message = payloads_[next_message_];
     request.sequence = static_cast<int32_t>(next_message_);
     ++next_message_;
-    auto status = this->write(request);
+    auto status = this->write(request, hpp::proto::contiguous_mode);
     if (!status.ok()) {
       OnDone(status);
     }

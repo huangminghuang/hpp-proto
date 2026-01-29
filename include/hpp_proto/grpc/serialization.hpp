@@ -1,10 +1,14 @@
 #pragma once
+#include <algorithm>
 #include <array>
+#include <cassert>
+#include <memory_resource>
 #include <span>
 #include <vector>
 
 #include <grpc/byte_buffer.h>
 #include <grpc/byte_buffer_reader.h>
+#include <grpc/slice.h>
 #include <grpcpp/impl/call_op_set.h>
 #include <grpcpp/impl/serialization_traits.h>
 #include <hpp_proto/binpb.hpp>
@@ -31,8 +35,8 @@ struct with_pb_context {
   using is_with_pb_context = void;
   // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   Message &message;
-  [[no_unique_address]] Context context;
-  explicit with_pb_context(Message &m, Context &&ctx) : message(m), context(std::move(ctx)) {}
+  [[no_unique_address]] Context& context;
+  explicit with_pb_context(Message &m, Context &ctx) : message(m), context(ctx) {}
 };
 
 namespace concepts {
@@ -42,35 +46,74 @@ concept with_pb_context = requires { typename std::decay_t<T>::is_with_pb_contex
 
 namespace grpc {
 
-::grpc::Status write_binpb(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer) {
-  class slice_arena {
-    ::grpc::ByteBuffer *buffer_;
-    ::grpc::Slice slice_;
+class byte_buffer_sink {
+public:
+  using byte_type = std::byte;
+  using slice_type = ::grpc::Slice;
 
-  public:
-    explicit slice_arena(::grpc::ByteBuffer &buffer) : buffer_(&buffer) {}
-    slice_arena(const slice_arena &) = delete;
-    slice_arena(slice_arena &&) = delete;
-    slice_arena &operator=(const slice_arena &) = delete;
-    slice_arena &operator=(slice_arena &&) = delete;
-    ~slice_arena() {
-      ::grpc::ByteBuffer tmp(&slice_, 1);
-      buffer_->Swap(&tmp);
-    }
+  explicit byte_buffer_sink(std::pmr::memory_resource &mr, std::size_t chunk_size)
+      : slices_(&mr), chunk_size_(chunk_size) {}
+  byte_buffer_sink(const byte_buffer_sink &) = delete;
+  byte_buffer_sink(byte_buffer_sink &&) = delete;
+  byte_buffer_sink &operator=(const byte_buffer_sink &) = delete;
+  byte_buffer_sink &operator=(byte_buffer_sink &&) = delete;
+  ~byte_buffer_sink() = default;
 
-    void *allocate(std::size_t size, std::size_t) {
-      std::construct_at(&slice_, size);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
-      return const_cast<uint8_t *>(slice_.begin());
+  void set_message_size(std::size_t message_size) {
+    slices_.clear();
+    if (message_size != 0) {
+      const auto num_slices = chunk_size_ == std::numeric_limits<std::size_t>::max()
+                                  ? std::size_t{1}
+                                  : (message_size + chunk_size_ - 1) / chunk_size_;
+      slices_.reserve(num_slices);
     }
-  } pool{buffer};
-  std::span<const std::byte> buf;
-  // TODO: consider writing to a chain of bounded slices
-  if (::hpp::proto::write_binpb(message, buf, ::hpp::proto::alloc_from{pool}).ok()) [[likely]] {
+    remaining_total_ = message_size;
+  }
+
+  std::span<std::byte> next_chunk() {
+    if (remaining_total_ == 0) {
+      return {};
+    }
+    const auto reserve_size = std::min(chunk_size_, remaining_total_);
+    auto &slice = slices_.emplace_back(reserve_size);
+    remaining_total_ -= reserve_size;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    auto bytes = std::span<uint8_t>(const_cast<uint8_t *>(slice.begin()), slice.size());
+    return std::as_writable_bytes(bytes);
+  }
+
+  void finalize(::grpc::ByteBuffer &buffer) {
+    ::grpc::ByteBuffer tmp(slices_.data(), slices_.size());
+    buffer.Swap(&tmp);
+  }
+  std::size_t chunk_size() const { return chunk_size_; }
+
+private:
+  std::pmr::vector<::grpc::Slice> slices_;
+  std::size_t remaining_total_ = 0;
+  std::size_t chunk_size_ = 0;
+};
+
+::grpc::Status write_binpb(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer,
+                           ::hpp::proto::concepts::is_pb_context auto &ctx) {
+  constexpr bool is_contiguous = ::hpp::proto::pb_serializer::serialization_mode_for_context<decltype(ctx)>() ==
+                                 ::hpp::proto::serialization_mode::contiguous;
+  constexpr std::size_t kStackBufferSize = is_contiguous ? sizeof(::grpc::Slice) : 4096;
+  alignas(std::max_align_t) std::array<std::byte, kStackBufferSize> stack_buffer{};
+  std::pmr::monotonic_buffer_resource mr{stack_buffer.data(), stack_buffer.size()};
+  byte_buffer_sink sink{mr, is_contiguous ? std::numeric_limits<std::size_t>::max() : 1024 * 1024};
+  if (::hpp::proto::write_binpb(message, sink, ctx).ok()) [[likely]] {
+    sink.finalize(buffer);
     return ::grpc::Status::OK;
   }
 
   return {::grpc::StatusCode::INTERNAL, "Failed to serialize message"};
+}
+
+::grpc::Status write_binpb(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer,
+                           ::hpp::proto::concepts::is_option_type auto &&...option) {
+  pb_context context{option...};
+  return write_binpb(message, buffer, context);
 }
 
 class slices_view {
@@ -85,9 +128,7 @@ public:
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   explicit slices_view(const ::grpc::ByteBuffer &buffer)
-      : resource_(buffer_.data(), buffer_.size()), // 2. Init resource with stack buffer
-        slices_(&resource_),                       // 3. Init vectors with resource
-        spans_(&resource_) {
+      : resource_(buffer_.data(), buffer_.size()), slices_(&resource_), spans_(&resource_) {
     auto *c_buffer = ::grpc::internal::CallOpRecvMessage<::hpp::proto::grpc::byte_buffer_access>::c_buffer(buffer);
     if (c_buffer == nullptr) {
       return;
@@ -164,7 +205,7 @@ class SerializationTraits<T> {
 public:
   static Status Serialize(const T &msg_with_context, ByteBuffer *bb, bool *own_buffer) {
     *own_buffer = true;
-    return ::hpp::proto::grpc::write_binpb(msg_with_context.message, *bb);
+    return ::hpp::proto::grpc::write_binpb(msg_with_context.message, *bb, msg_with_context.context);
   }
 
   static Status Deserialize(ByteBuffer *buffer, T *msg_with_context) {
