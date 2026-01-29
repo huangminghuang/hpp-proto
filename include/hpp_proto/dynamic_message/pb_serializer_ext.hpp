@@ -370,7 +370,6 @@ struct message_size_calculator<message_value_cref> {
   struct field_visitor {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     size_cache::iterator &cache_itr;
-    uint32_t result = 0;
 
     explicit field_visitor(size_cache::iterator &itr) : cache_itr{itr} {}
 
@@ -386,24 +385,28 @@ struct message_size_calculator<message_value_cref> {
     }
 
     template <concepts::varint T, field_kind_t Kind>
-    uint32_t operator()(scalar_field_cref<T, Kind> v) {
+    std::optional<uint32_t> operator()(scalar_field_cref<T, Kind> v) {
       return narrow_size(tag_size(v) + T{v.value()}.encode_size());
     }
 
     template <typename T, field_kind_t Kind>
       requires std::is_arithmetic_v<T>
-    uint32_t operator()(scalar_field_cref<T, Kind> v) {
+    std::optional<uint32_t> operator()(scalar_field_cref<T, Kind> v) {
       return narrow_size(tag_size(v) + sizeof(T));
     }
 
-    uint32_t operator()(enum_field_cref v) {
+    std::optional<uint32_t> operator()(enum_field_cref v) {
       return narrow_size(tag_size(v) + varint_size(int64_t{v.value().number()}));
     }
-    uint32_t operator()(string_field_cref v) { return narrow_size(tag_size(v) + len_size(v.value().size())); }
-    uint32_t operator()(bytes_field_cref v) { return narrow_size(tag_size(v) + len_size(v.value().size())); }
+    std::optional<uint32_t> operator()(string_field_cref v) {
+      return narrow_size(tag_size(v) + len_size(v.value().size()));
+    }
+    std::optional<uint32_t> operator()(bytes_field_cref v) {
+      return narrow_size(tag_size(v) + len_size(v.value().size()));
+    }
 
     template <concepts::varint T, field_kind_t Kind>
-    uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
+    std::optional<uint32_t> operator()(repeated_scalar_field_cref<T, Kind> v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
         auto s = util::transform_accumulate(v, [](auto e) { return T{e}.encode_size(); });
@@ -416,7 +419,7 @@ struct message_size_calculator<message_value_cref> {
 
     template <typename T, field_kind_t Kind>
       requires std::is_arithmetic_v<T>
-    uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
+    std::optional<uint32_t> operator()(repeated_scalar_field_cref<T, Kind> v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
         return narrow_size(ts + len_size(v.size() * sizeof(T)));
@@ -425,7 +428,7 @@ struct message_size_calculator<message_value_cref> {
       }
     }
 
-    uint32_t operator()(repeated_enum_field_cref v) {
+    std::optional<uint32_t> operator()(repeated_enum_field_cref v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
         auto s = util::transform_accumulate(v, [](enum_value e) { return varint_size(int64_t{e.number()}); });
@@ -437,54 +440,90 @@ struct message_size_calculator<message_value_cref> {
       }
     }
 
-    uint32_t operator()(repeated_string_field_cref v) {
+    std::optional<uint32_t> operator()(repeated_string_field_cref v) {
       auto ts = tag_size(v);
       return narrow_size(
           util::transform_accumulate(v, [ts](const std::string_view e) { return ts + len_size(e.size()); }));
     }
 
-    uint32_t operator()(repeated_bytes_field_cref v) {
+    std::optional<uint32_t> operator()(repeated_bytes_field_cref v) {
       auto ts = tag_size(v);
       // NOLINTNEXTLINE(performance-unnecessary-value-param)
       return narrow_size(util::transform_accumulate(v, [ts](const bytes_view e) { return ts + len_size(e.size()); }));
     }
 
-    uint32_t operator()(message_value_cref msg) {
-      return narrow_size(util::transform_accumulate(
-          msg.fields(), [this](field_cref f) { return is_present_or_explicit_default(f) ? f.visit(*this) : 0; }));
+    std::optional<uint32_t> operator()(message_value_cref msg) {
+      std::size_t total = 0;
+      for (auto f : msg.fields()) {
+        if (is_present_or_explicit_default(f)) {
+          auto s = f.visit(*this);
+          if (!s) {
+            return std::nullopt;
+          }
+          total += *s;
+          if (total > std::numeric_limits<uint32_t>::max()) {
+            return std::nullopt;
+          }
+        }
+      }
+      return static_cast<uint32_t>(total);
     }
 
-    uint32_t operator()(message_field_cref v) {
+    std::optional<uint32_t> operator()(message_field_cref v) {
       if (v.descriptor().is_delimited()) {
-        return narrow_size((2 * tag_size(v)) + (*this)(*v));
+        auto s = (*this)(*v);
+        if (!s) {
+          return std::nullopt;
+        }
+        return narrow_size((2 * tag_size(v)) + *s);
       } else {
         decltype(auto) msg_size = *cache_itr++;
         auto s = (*this)(*v);
-        msg_size = s;
-        return narrow_size(tag_size(v) + len_size(s));
+        if (!s) {
+          return std::nullopt;
+        }
+        msg_size = *s;
+        return narrow_size(tag_size(v) + len_size(*s));
       }
     }
 
-    uint32_t operator()(repeated_message_field_cref v) {
+    std::optional<uint32_t> operator()(repeated_message_field_cref v) {
       auto ts = tag_size(v);
+      std::size_t total = 0;
+
       if (v.descriptor().is_delimited()) {
-        return narrow_size(
-            util::transform_accumulate(v, [this, ts](message_value_cref msg) { return (2 * ts) + (*this)(msg); }));
+        for (auto msg : v) {
+          auto s = (*this)(msg);
+          if (!s) {
+            return std::nullopt;
+          }
+          total += (2 * ts) + *s;
+          if (total > std::numeric_limits<uint32_t>::max()) {
+            return std::nullopt;
+          }
+        }
       } else {
-        return narrow_size(util::transform_accumulate(v, [this, ts](message_value_cref msg) {
+        for (auto msg : v) {
           decltype(auto) msg_size = *cache_itr++;
           auto s = (*this)(msg);
-          msg_size = s;
-          return ts + len_size(s);
-        }));
+          if (!s) {
+            return std::nullopt;
+          }
+          msg_size = *s;
+          total += ts + len_size(*s);
+          if (total > std::numeric_limits<uint32_t>::max()) {
+            return std::nullopt;
+          }
+        }
       }
+      return static_cast<uint32_t>(total);
     }
   };
 
-  [[nodiscard]] static std::size_t message_size(const message_value_cref &item, size_cache cache) {
+  [[nodiscard]] static std::optional<std::size_t> message_size(const message_value_cref &item, size_cache cache) {
     auto itr = cache.begin();
     field_visitor calc{itr};
-    return calc(item);
+    return calc(item).transform([](uint32_t s) { return static_cast<std::size_t>(s); });
   }
 };
 

@@ -99,16 +99,21 @@ template <typename F>
   requires std::regular_invocable<F>
 consteval auto write_binpb(F make_object) {
   constexpr auto obj = make_object();
-  constexpr auto sz = pb_serializer::message_size_calculator<decltype(obj)>::message_size(obj);
-  if constexpr (sz == 0) {
-    return std::span<std::byte>{};
+  constexpr auto sz_opt = pb_serializer::message_size_calculator<decltype(obj)>::message_size(obj);
+  if constexpr (!sz_opt) {
+     throw std::length_error("Message size too large");
   } else {
-    pb_context<> ctx;
-    std::array<std::byte, sz> buffer = {};
-    if (auto result = pb_serializer::serialize(obj, buffer, ctx); !result.ok()) {
-      throw std::system_error(std::make_error_code(result.ec));
+    constexpr auto sz = *sz_opt;
+    if constexpr (sz == 0) {
+      return std::span<std::byte>{};
+    } else {
+      pb_context<> ctx;
+      std::array<std::byte, sz> buffer = {};
+      if (auto result = pb_serializer::serialize(obj, buffer, ctx); !result.ok()) {
+        throw std::system_error(std::make_error_code(result.ec));
+      }
+      return buffer;
     }
-    return buffer;
   }
 }
 
