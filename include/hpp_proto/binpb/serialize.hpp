@@ -465,14 +465,13 @@ struct message_size_calculator<T> {
   }
 
   template <typename Meta, typename Range>
-  constexpr static std::optional<uint32_t> range_packed_size(Range const &item, Meta,
-                                                             concepts::is_size_cache_iterator auto &cache_itr,
-                                                             uint32_t tag_size) {
+  constexpr static std::optional<uint32_t>
+  range_packed_size(Range const &item, Meta, concepts::is_size_cache_iterator auto &cache_itr, uint32_t tag_size) {
     using type = std::remove_cvref_t<Range>;
     using value_type = typename std::ranges::range_value_t<type>;
     using element_type =
-        std::conditional_t<std::same_as<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
-                           value_type, typename Meta::type>;
+        std::conditional_t<std::same_as<typename Meta::type, void> || concepts::contiguous_byte_range<type>, value_type,
+                           typename Meta::type>;
 
     if constexpr (concepts::byte_serializable<element_type>) {
       return tag_size + len_size(item.size() * sizeof(value_type));
@@ -591,10 +590,9 @@ template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
 }
 
 template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
-[[nodiscard]] constexpr std::optional<status> try_serialize_contiguous_if_fit(const T &item, Sink &sink,
-                                                                              Context &context,
-                                                                              std::span<uint32_t> cache,
-                                                                              std::size_t msg_sz) {
+[[nodiscard]] constexpr std::optional<status>
+try_serialize_contiguous_if_fit(const T &item, Sink &sink, Context &context, std::span<uint32_t> cache,
+                                std::size_t msg_sz) {
   if (msg_sz > sink.chunk_size()) {
     return std::nullopt;
   }
@@ -619,8 +617,8 @@ template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
 }
 
 template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
-[[nodiscard]] constexpr status serialize_to_sink(const T &item, Sink &sink, Context &context,
-                                                 std::span<uint32_t> cache, std::size_t msg_sz) {
+[[nodiscard]] constexpr status serialize_to_sink(const T &item, Sink &sink, Context &context, std::span<uint32_t> cache,
+                                                 std::size_t msg_sz) {
   constexpr auto mode = serialization_mode_for_context<Context>();
   sink.set_message_size(msg_sz);
 
@@ -644,9 +642,7 @@ status serialize(const T &item, Sink &sink, Context &context) {
 
   auto do_serialize = [&item, &sink, &context](std::span<uint32_t> cache) -> status {
     return message_size_calculator<T>::message_size(item, cache)
-        .transform([&](std::size_t msg_sz) -> status {
-          return serialize_to_sink(item, sink, context, cache, msg_sz);
-        })
+        .transform([&](std::size_t msg_sz) -> status { return serialize_to_sink(item, sink, context, cache, msg_sz); })
         .value_or(std::errc::value_too_large);
   };
 
