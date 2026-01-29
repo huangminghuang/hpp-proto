@@ -31,7 +31,7 @@
 #include <limits>
 
 namespace hpp::proto {
-enum class serialization_mode { contiguous, adaptive, chunked };
+enum class serialization_mode : uint8_t { contiguous, adaptive, chunked };
 } // namespace hpp::proto
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
@@ -164,7 +164,7 @@ struct chunked_out {
   }
 
 private:
-  std::span<std::byte> chunk_remaining_{};
+  std::span<std::byte> chunk_remaining_;
 
   bool write_all(std::span<const std::byte> data) {
     while (!data.empty()) {
@@ -536,14 +536,15 @@ consteval serialization_mode serialization_mode_for_context() {
 template <serialization_mode Mode, typename SliceType>
 struct slice_buffer_resource {
   static constexpr std::size_t chunk_size =
-      Mode == serialization_mode::contiguous ? std::numeric_limits<std::size_t>::max() : 1024 * 1024;
-  static constexpr std::size_t buffer_size = Mode == serialization_mode::contiguous ? 3 * sizeof(SliceType) : 4096;
+      Mode == serialization_mode::contiguous ? std::numeric_limits<std::size_t>::max() : 1024ULL * 1024ULL;
+  static constexpr std::size_t buffer_size = Mode == serialization_mode::contiguous ? sizeof(SliceType) : 4096;
 
   alignas(std::max_align_t) std::array<std::byte, buffer_size> buffer{};
   std::pmr::monotonic_buffer_resource resource{buffer.data(), buffer.size()};
 };
 
 template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 status serialize(const T &item, Sink &sink, Context &context) {
   std::size_t n = size_cache_counter<T>::count(item);
 

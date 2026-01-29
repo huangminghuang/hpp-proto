@@ -33,9 +33,11 @@ namespace hpp::proto {
 template <typename Message, typename Context>
 struct with_pb_context {
   using is_with_pb_context = void;
-  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+  // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
   Message &message;
   [[no_unique_address]] Context &context;
+  // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
+
   explicit with_pb_context(Message &m, Context &ctx) : message(m), context(ctx) {}
 };
 
@@ -86,7 +88,7 @@ public:
     ::grpc::ByteBuffer tmp(slices_.data(), slices_.size());
     buffer.Swap(&tmp);
   }
-  std::size_t chunk_size() const { return chunk_size_; }
+  [[nodiscard]] std::size_t chunk_size() const { return chunk_size_; }
 
 private:
   std::pmr::vector<::grpc::Slice> slices_;
@@ -101,7 +103,7 @@ private:
   constexpr std::size_t kStackBufferSize = is_contiguous ? sizeof(::grpc::Slice) : 4096;
   alignas(std::max_align_t) std::array<std::byte, kStackBufferSize> stack_buffer{};
   std::pmr::monotonic_buffer_resource mr{stack_buffer.data(), stack_buffer.size()};
-  byte_buffer_sink sink{mr, is_contiguous ? std::numeric_limits<std::size_t>::max() : 1024 * 1024};
+  byte_buffer_sink sink{mr, is_contiguous ? std::numeric_limits<std::size_t>::max() : 1024ULL * 1024ULL};
   if (::hpp::proto::write_binpb(message, sink, ctx).ok()) [[likely]] {
     sink.finalize(buffer);
     return ::grpc::Status::OK;

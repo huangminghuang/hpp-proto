@@ -1774,12 +1774,16 @@ struct test_out_sink {
     max_grant_ = std::max(max_grant_, granted);
     offset_ += granted;
     remaining_total_ -= granted;
-    return std::span<std::byte>(storage_.data() + (offset_ - granted), granted);
+    auto view = std::span<std::byte>(storage_);
+    return view.subspan(offset_ - granted, granted);
   }
 
-  std::size_t chunk_size() const { return chunk_limit_; }
+  [[nodiscard]] std::size_t chunk_size() const { return chunk_limit_; }
 
-  std::span<const std::byte> written() const { return std::span<const std::byte>(storage_.data(), message_size_); }
+  [[nodiscard]] std::span<const std::byte> written() const {
+    auto view = std::span<const std::byte>(storage_);
+    return view.subspan(0, message_size_);
+  }
 };
 
 const ut::suite out_sink_serialization_modes = [] {

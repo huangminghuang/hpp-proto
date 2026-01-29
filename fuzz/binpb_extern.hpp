@@ -37,13 +37,17 @@ struct fuzz_out_sink {
     const auto granted = std::min({remaining_storage, chunk_size_value, remaining_total});
     offset += granted;
     remaining_total -= granted;
-    return std::span<std::byte>(storage.data() + (offset - granted), granted);
+    auto view = std::span<std::byte>(storage);
+    return view.subspan(offset - granted, granted);
   }
 
-  std::size_t chunk_size() const { return chunk_size_value; }
+  [[nodiscard]] std::size_t chunk_size() const { return chunk_size_value; }
   void finalize() {}
 
-  std::span<const std::byte> written() const { return std::span<const std::byte>(storage.data(), storage.size()); }
+  [[nodiscard]] std::span<const std::byte> written() const {
+    auto view = std::span<const std::byte>(storage);
+    return view;
+  }
 };
 
 // Non-template overloads keep binpb template instantiations in binpb_extern.cpp only.
