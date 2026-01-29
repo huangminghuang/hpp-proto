@@ -427,7 +427,7 @@ struct message_size_calculator<T> {
         return static_cast<uint32_t>(tag_size + len_size(s));
       });
     } else {
-      return message_size(item, cache_itr).transform([tag_size](uint32_t s) { return (2 * tag_size) + s; });
+      return message_size(item, cache_itr).transform([](uint32_t s) { return (2 * tag_size) + s; });
     }
   }
 
@@ -447,6 +447,50 @@ struct message_size_calculator<T> {
     });
   }
 
+  template <typename Meta, typename Range>
+  constexpr static std::optional<uint32_t> range_unpacked_size(Range const &item, Meta,
+                                                               concepts::is_size_cache_iterator auto &cache_itr) {
+    std::size_t total = 0;
+    for (const auto &elem : item) {
+      auto s = field_size(elem, Meta{}, cache_itr);
+      if (!s) {
+        return std::nullopt;
+      }
+      total += *s;
+      if (total > std::numeric_limits<uint32_t>::max()) {
+        return std::nullopt;
+      }
+    }
+    return static_cast<uint32_t>(total);
+  }
+
+  template <typename Meta, typename Range>
+  constexpr static std::optional<uint32_t> range_packed_size(Range const &item, Meta,
+                                                             concepts::is_size_cache_iterator auto &cache_itr,
+                                                             uint32_t tag_size) {
+    using type = std::remove_cvref_t<Range>;
+    using value_type = typename std::ranges::range_value_t<type>;
+    using element_type =
+        std::conditional_t<std::same_as<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
+                           value_type, typename Meta::type>;
+
+    if constexpr (concepts::byte_serializable<element_type>) {
+      return tag_size + len_size(item.size() * sizeof(value_type));
+    } else {
+      auto s = util::transform_accumulate(item, [](auto elem) constexpr {
+        if constexpr (concepts::is_enum<element_type>) {
+          return varint_size(static_cast<int64_t>(elem));
+        } else {
+          static_assert(concepts::varint<element_type>);
+          return element_type(elem).encode_size();
+        }
+      });
+      decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
+      msg_size = static_cast<uint32_t>(s);
+      return tag_size + len_size(s);
+    }
+  }
+
   template <typename Meta>
   constexpr static std::optional<uint32_t> field_size(std::ranges::input_range auto const &item, Meta meta,
                                                       concepts::is_size_cache_iterator auto &cache_itr) {
@@ -457,38 +501,9 @@ struct message_size_calculator<T> {
     } else {
       using value_type = typename std::ranges::range_value_t<type>;
       if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
-        std::size_t total = 0;
-        for (const auto &elem : item) {
-          auto s = field_size(elem, Meta{}, cache_itr);
-          if (!s) {
-            return std::nullopt;
-          }
-          total += *s;
-          if (total > std::numeric_limits<uint32_t>::max()) {
-            return std::nullopt;
-          }
-        }
-        return static_cast<uint32_t>(total);
+        return range_unpacked_size(item, meta, cache_itr);
       } else {
-        using element_type =
-            std::conditional_t<std::same_as<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
-                               value_type, typename Meta::type>;
-
-        if constexpr (concepts::byte_serializable<element_type>) {
-          return tag_size + len_size(item.size() * sizeof(value_type));
-        } else {
-          auto s = util::transform_accumulate(item, [](auto elem) constexpr {
-            if constexpr (concepts::is_enum<element_type>) {
-              return varint_size(static_cast<int64_t>(elem));
-            } else {
-              static_assert(concepts::varint<element_type>);
-              return element_type(elem).encode_size();
-            }
-          });
-          decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
-          msg_size = static_cast<uint32_t>(s);
-          return tag_size + len_size(s);
-        }
+        return range_packed_size(item, meta, cache_itr, tag_size);
       }
     }
   }
@@ -563,15 +578,64 @@ consteval serialization_mode serialization_mode_for_context() {
   }
 }
 
-template <serialization_mode Mode, typename SliceType>
-struct slice_buffer_resource {
-  static constexpr std::size_t chunk_size =
-      Mode == serialization_mode::contiguous ? std::numeric_limits<std::size_t>::max() : 1024ULL * 1024ULL;
-  static constexpr std::size_t buffer_size = Mode == serialization_mode::contiguous ? sizeof(SliceType) : 4096;
+template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
+[[nodiscard]] constexpr status serialize_contiguous_to_sink(const T &item, Sink &sink, Context &context,
+                                                            std::span<uint32_t> cache, std::size_t msg_sz) {
+  auto out = sink.next_chunk();
+  contiguous_out archive{out.first(msg_sz), context};
+  auto cache_itr = cache.begin();
+  if (!serialize(item, cache_itr, archive)) {
+    return std::errc::bad_message;
+  }
+  return {};
+}
 
-  alignas(std::max_align_t) std::array<std::byte, buffer_size> buffer{};
-  std::pmr::monotonic_buffer_resource resource{buffer.data(), buffer.size()};
-};
+template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
+[[nodiscard]] constexpr std::optional<status> try_serialize_contiguous_if_fit(const T &item, Sink &sink,
+                                                                              Context &context,
+                                                                              std::span<uint32_t> cache,
+                                                                              std::size_t msg_sz) {
+  if (msg_sz > sink.chunk_size()) {
+    return std::nullopt;
+  }
+  auto out = sink.next_chunk();
+  contiguous_out archive{out.first(msg_sz), context};
+  auto cache_itr = cache.begin();
+  if (!serialize(item, cache_itr, archive)) {
+    return std::errc::bad_message;
+  }
+  return status{};
+}
+
+template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
+[[nodiscard]] constexpr status serialize_chunked_to_sink(const T &item, Sink &sink, Context &context,
+                                                         std::span<uint32_t> cache) {
+  chunked_out archive{sink, context};
+  auto cache_itr = cache.begin();
+  if (!serialize(item, cache_itr, archive)) {
+    return std::errc::bad_message;
+  }
+  return {};
+}
+
+template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
+[[nodiscard]] constexpr status serialize_to_sink(const T &item, Sink &sink, Context &context,
+                                                 std::span<uint32_t> cache, std::size_t msg_sz) {
+  constexpr auto mode = serialization_mode_for_context<Context>();
+  sink.set_message_size(msg_sz);
+
+  if constexpr (mode == serialization_mode::contiguous) {
+    return serialize_contiguous_to_sink(item, sink, context, cache, msg_sz);
+  }
+
+  if constexpr (mode == serialization_mode::adaptive) {
+    if (auto s = try_serialize_contiguous_if_fit(item, sink, context, cache, msg_sz)) {
+      return *s;
+    }
+  }
+
+  return serialize_chunked_to_sink(item, sink, context, cache);
+}
 
 template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
@@ -581,38 +645,7 @@ status serialize(const T &item, Sink &sink, Context &context) {
   auto do_serialize = [&item, &sink, &context](std::span<uint32_t> cache) -> status {
     return message_size_calculator<T>::message_size(item, cache)
         .transform([&](std::size_t msg_sz) -> status {
-          constexpr auto mode = serialization_mode_for_context<Context>();
-          sink.set_message_size(msg_sz);
-
-          if constexpr (mode == serialization_mode::contiguous) {
-            auto out = sink.next_chunk();
-            contiguous_out archive{out.first(msg_sz), context};
-            auto cache_itr = cache.begin();
-            if (!serialize(item, cache_itr, archive)) {
-              return std::errc::bad_message;
-            }
-          } else {
-            if constexpr (mode == serialization_mode::adaptive) {
-              if (msg_sz <= sink.chunk_size()) {
-                auto out = sink.next_chunk();
-                if (out.size() >= msg_sz) {
-                  contiguous_out archive{out.first(msg_sz), context};
-                  auto cache_itr = cache.begin();
-                  if (!serialize(item, cache_itr, archive)) {
-                    return std::errc::bad_message;
-                  }
-                  return {};
-                }
-              }
-            }
-
-            chunked_out archive{sink, context};
-            auto cache_itr = cache.begin();
-            if (!serialize(item, cache_itr, archive)) {
-              return std::errc::bad_message;
-            }
-          }
-          return {};
+          return serialize_to_sink(item, sink, context, cache, msg_sz);
         })
         .value_or(std::errc::value_too_large);
   };
