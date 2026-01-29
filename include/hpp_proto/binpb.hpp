@@ -101,7 +101,7 @@ consteval auto write_binpb(F make_object) {
   constexpr auto obj = make_object();
   constexpr auto sz_opt = pb_serializer::message_size_calculator<decltype(obj)>::message_size(obj);
   if constexpr (!sz_opt) {
-     throw std::length_error("Message size too large");
+    throw std::length_error("Message size too large");
   } else {
     constexpr auto sz = *sz_opt;
     if constexpr (sz == 0) {
