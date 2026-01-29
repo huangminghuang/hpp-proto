@@ -23,7 +23,6 @@ template <typename T>
 // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
 std::vector<std::byte> round_trip_test(const T &in_message, T &&out_message) {
   std::vector<std::byte> buffer1;
-  std::vector<std::byte> buffer2;
   assert(util::write_binpb(in_message, buffer1).ok());
   // std::string dyn_json;
   // assert(hpp::proto::write_json(in_message, dyn_json).ok());
@@ -40,8 +39,9 @@ std::vector<std::byte> round_trip_test(const T &in_message, T &&out_message) {
 
   // assert(hpp::proto::write_json(out_message, dyn_json).ok());
   // std::cout << "out_message: " << dyn_json << "\n";
-  assert(util::write_binpb(out_message, buffer2).ok());
-  assert(std::ranges::equal(buffer1, buffer2));
+  util::fuzz_out_sink sink;
+  assert(util::write_binpb(out_message, sink).ok());
+  assert(std::ranges::equal(buffer1, sink.written()));
   return buffer1;
 }
 

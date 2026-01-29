@@ -168,6 +168,29 @@ int main() {
 
 The adapter also provides powerful, low-level callback reactors for handling client, server, and bidirectional streams.
 
+## Serialization Modes (out_sink only)
+
+`hpp-proto` supports three serialization modes that trade off speed vs. memory when using the gRPC adapter. These modes
+apply only to out_sink-based serialization (i.e., when the gRPC adapter writes into `grpc::ByteBuffer`). Buffer-based
+serialization is always contiguous and ignores these options.
+
+- **Contiguous** (`hpp::proto::contiguous_mode`): serialize into a single contiguous slice when possible. Fastest, but
+  requires a full contiguous buffer.
+- **Adaptive** (`hpp::proto::adaptive_mode`): default behavior; tries contiguous first and falls back to chunked when
+  the message doesn't fit.
+- **Chunked** (`hpp::proto::chunked_mode`): always emit chunked output. Lowest peak memory, but more overhead.
+
+At the gRPC adapter layer, pass the mode as an option to your request/response handling:
+
+```cpp
+// Server side: choose mode when finishing a response.
+rpc.finish(reply, hpp::proto::contiguous_mode);
+
+// Client side: choose mode for a unary call.
+auto status = stub.call<helloworld::Greeter::SayHello>(
+    context, request, reply, hpp::proto::adaptive_mode);
+```
+
 ### Streaming Best Practices
 The gRPC callback reactors enforce sequencing rules:
 - **Client streaming**: Only one `write()` or `write_last()` can be in flight. Wait for `OnWriteDone()` before issuing the next write. If you call `write_last()`, do **not** call `write_done()` afterward—`write_last` already marks completion. (See `tests/grpc/client_stream_tests.cpp`.)

@@ -137,4 +137,41 @@ status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::non_own
 status write_binpb(const hpp::proto::message_value_mref &msg, std::vector<std::byte> &buffer) {
   return hpp::proto::write_binpb(msg, buffer);
 }
+
+status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg, fuzz_out_sink &sink) {
+  return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
+}
+
+status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg, fuzz_out_sink &sink) {
+  return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
+}
+
+status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg, fuzz_out_sink &sink) {
+  return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
+}
+
+status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg, fuzz_out_sink &sink) {
+  return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
+}
+
+status write_binpb(const protobuf_unittest::TestMap<hpp::proto::default_traits> &msg, fuzz_out_sink &sink) {
+  return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
+}
+
+status write_binpb(const protobuf_unittest::TestMap<hpp::proto::non_owning_traits> &msg, fuzz_out_sink &sink) {
+  return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
+}
+
+status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg, fuzz_out_sink &sink) {
+  return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
+}
+
+status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_traits> &msg, fuzz_out_sink &sink) {
+  return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
+}
+
+status write_binpb(const hpp::proto::message_value_mref &msg, fuzz_out_sink &sink) {
+  return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
+}
+
 } // namespace util

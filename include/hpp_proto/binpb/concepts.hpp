@@ -188,14 +188,19 @@ template <typename T>
 concept is_basic_in = requires { typename T::is_basic_in; };
 
 template <typename T>
-concept is_basic_out = requires { typename T::is_basic_out; };
+concept out_sink = requires(T sink, std::span<std::byte> data, std::size_t n) {
+  typename T::slice_type;
+  { sink.set_message_size(n) } -> std::same_as<void>;
+  { sink.next_chunk() } -> std::same_as<std::span<std::byte>>;
+  { sink.chunk_size() } -> std::same_as<std::size_t>;
+};
 
 template <typename Range>
-concept segmented_byte_range =
+concept chunked_byte_range =
     std::ranges::random_access_range<Range> && contiguous_byte_range<std::ranges::range_value_t<Range>>;
 
 template <typename Range>
-concept input_byte_range = segmented_byte_range<Range> || contiguous_byte_range<Range>;
+concept input_byte_range = chunked_byte_range<Range> || contiguous_byte_range<Range>;
 
 template <typename R>
 concept uint32_pair_contiguous_range = std::ranges::contiguous_range<R> && is_pair<std::ranges::range_value_t<R>> &&

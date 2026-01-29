@@ -150,8 +150,8 @@ int main() {
 
     // --- JSON Serialization ---
     std::string json_buffer;
-    // Use indent<2> for pretty-printing
-    if (!hpp::proto::write_json(p, json_buffer, hpp::proto::indent<2>).ok()) {
+    // Use json_opts{.prettify=true} for pretty-printing
+    if (!hpp::proto::write_json<hpp::proto::json_opts{.prettify=true}>(p, json_buffer).ok()) {
         std::cerr << "JSON serialization failed!" << std::endl;
         return 1;
     }
@@ -192,10 +192,12 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
     *   `repeated_t<T>`: Choose storage for repeated fields, like `std::pmr::vector`, `small_vector`, or `std::span`.
     *   `map_t<Key, Value>`: Use custom map-like containers (`flat_map`, `btree`, etc.).
     *   `optional_indirect_t<T>`: Control lifetimes for recursive messages.
+    *   `indirect_t<T>`: Control lifetimes for recursive mapped type of map field.
     *   `unknown_fields_range_t`: Define how unknown fields are stored.
 
 *   **Supplied Traits**:
     *   `hpp::proto::default_traits`: The default. Uses standard STL containers (`std::string`, `std::vector`).
+    *   `hpp::proto::pmr_traits`: Uses standard STL PMR containers (`std::pmr::string`, `std::pmr::vector`).
     *   `hpp::proto::non_owning_traits`: Zero-copy views using `std::string_view` and `hpp::proto::equality_comparable_span`. Ideal for performance-critical parsing where you can guarantee the backing buffer outlives the message view.
     *   `hpp::proto::keep_unknown_fields<Base>`: A mixin to enable unknown-field retention for any base trait.
 

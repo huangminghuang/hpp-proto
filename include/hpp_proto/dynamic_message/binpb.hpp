@@ -42,4 +42,10 @@ template <std::size_t N>
   decltype(auto) v = detail::as_modifiable(ctx, buffer);
   return pb_serializer::serialize(msg, v, ctx);
 }
+
+[[nodiscard]] status write_binpb(const message_value_cref &msg, concepts::out_sink auto &sink,
+                                 concepts::is_option_type auto &&...option) {
+  pb_context ctx{std::forward<decltype(option)>(option)...};
+  return pb_serializer::serialize(msg, sink, ctx);
+}
 } // namespace hpp::proto
