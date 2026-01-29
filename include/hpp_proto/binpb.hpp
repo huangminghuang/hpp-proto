@@ -91,7 +91,6 @@ constexpr auto adaptive_mode = serialization_option_t<serialization_mode::adapti
 ///   incur a CPU performance penalty compared to contiguous serialization.
 constexpr auto chunked_mode = serialization_option_t<serialization_mode::chunked>{};
 
-
 /// @brief Consteval function to serialize a message at compile-time.
 /// @tparam F A callable that returns a message object.
 /// @param make_object A function that constructs the message to be serialized.

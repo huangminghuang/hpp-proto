@@ -1777,7 +1777,7 @@ struct test_out_sink {
     return std::span<std::byte>(storage_.data() + (offset_ - granted), granted);
   }
 
-  std::size_t chunk_size() const { return chunk_limit_;}
+  std::size_t chunk_size() const { return chunk_limit_; }
 
   std::span<const std::byte> written() const { return std::span<const std::byte>(storage_.data(), message_size_); }
 };

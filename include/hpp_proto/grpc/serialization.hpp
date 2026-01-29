@@ -35,7 +35,7 @@ struct with_pb_context {
   using is_with_pb_context = void;
   // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   Message &message;
-  [[no_unique_address]] Context& context;
+  [[no_unique_address]] Context &context;
   explicit with_pb_context(Message &m, Context &ctx) : message(m), context(ctx) {}
 };
 

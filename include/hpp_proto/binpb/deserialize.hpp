@@ -1410,8 +1410,7 @@ status deserialize(auto &item, concepts::is_pb_context auto &context, concepts::
   return deserialize(item, archive);
 }
 
-status deserialize(auto &item, concepts::chunked_byte_range auto const &buffer,
-                   concepts::is_pb_context auto &context) {
+status deserialize(auto &item, concepts::chunked_byte_range auto const &buffer, concepts::is_pb_context auto &context) {
   const auto num_segments = std::size(buffer);
   const auto num_regions = num_segments * 2;
   const auto patch_buffer_bytes_count = num_segments * patch_buffer_size;
