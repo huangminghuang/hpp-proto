@@ -338,7 +338,7 @@ struct message_size_calculator<T> {
 
   // Post-condition: <= UINT64_MAX
   constexpr static uint64_t message_size(concepts::has_meta auto const &item,
-                                            concepts::is_size_cache_iterator auto &cache_itr) {
+                                         concepts::is_size_cache_iterator auto &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
     return std::apply(
         [&item, &cache_itr](auto &&...meta) {
@@ -352,18 +352,18 @@ struct message_size_calculator<T> {
 
   template <typename Meta>
   constexpr static uint64_t field_size(concepts::oneof_type auto const &item, Meta,
-                                          concepts::is_size_cache_iterator auto &cache_itr) {
+                                       concepts::is_size_cache_iterator auto &cache_itr) {
     return oneof_size<0, typename Meta::alternatives_meta>(item, cache_itr);
   }
 
   constexpr static uint64_t field_size(concepts::pb_extensions auto const &item, auto,
-                                          concepts::is_size_cache_iterator auto &) {
+                                       concepts::is_size_cache_iterator auto &) {
     const auto sz = util::transform_accumulate(item.fields, [](const auto &e) constexpr { return e.second.size(); });
     return sz;
   }
 
   constexpr static uint64_t field_size(concepts::pb_unknown_fields auto const &item, auto,
-                                          concepts::is_size_cache_iterator auto &) {
+                                       concepts::is_size_cache_iterator auto &) {
     using range_t = typename std::remove_reference_t<decltype(item)>::unknown_fields_range_t;
     if constexpr (requires { item.fields.size(); }) {
       return item.fields.size();
@@ -374,20 +374,19 @@ struct message_size_calculator<T> {
     }
   }
 
-  constexpr static uint64_t field_size(concepts::is_empty auto const &, auto,
-                                          concepts::is_size_cache_iterator auto &) {
+  constexpr static uint64_t field_size(concepts::is_empty auto const &, auto, concepts::is_size_cache_iterator auto &) {
     return 0;
   }
 
   constexpr static uint64_t field_size(concepts::is_enum auto item, auto meta,
-                                          concepts::is_size_cache_iterator auto &) {
+                                       concepts::is_size_cache_iterator auto &) {
     using type = decltype(item);
     return varint_size(meta.number << 3U) + varint_size(static_cast<int64_t>(std::underlying_type_t<type>(item)));
   }
 
   template <typename Meta>
   constexpr static uint64_t field_size(concepts::byte_serializable auto item, Meta meta,
-                                          concepts::is_size_cache_iterator auto &) {
+                                       concepts::is_size_cache_iterator auto &) {
     using type = decltype(item);
     using serialize_type = typename util::get_serialize_type<Meta, type>::type;
 
@@ -400,19 +399,18 @@ struct message_size_calculator<T> {
     }
   }
 
-  constexpr static uint64_t field_size(concepts::varint auto item, auto meta,
-                                          concepts::is_size_cache_iterator auto &) {
+  constexpr static uint64_t field_size(concepts::varint auto item, auto meta, concepts::is_size_cache_iterator auto &) {
     return static_cast<uint64_t>(varint_size(meta.number << 3U)) + item.encode_size();
   }
 
   constexpr static uint64_t field_size(concepts::dereferenceable auto const &item, auto meta,
-                                          concepts::is_size_cache_iterator auto &cache_itr) {
+                                       concepts::is_size_cache_iterator auto &cache_itr) {
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return field_size(*item, meta, cache_itr);
   }
 
   constexpr static uint64_t field_size(concepts::has_meta auto const &item, auto meta,
-                                          concepts::is_size_cache_iterator auto &cache_itr) {
+                                       concepts::is_size_cache_iterator auto &cache_itr) {
     constexpr auto tag_size = static_cast<uint64_t>(varint_size(meta.number << 3U));
     if constexpr (!meta.is_delimited()) {
       decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
@@ -426,7 +424,7 @@ struct message_size_calculator<T> {
 
   template <typename Meta>
   constexpr static uint64_t field_size(concepts::is_pair auto const &item, Meta meta,
-                                          concepts::is_size_cache_iterator auto &cache_itr) {
+                                       concepts::is_size_cache_iterator auto &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = typename util::get_serialize_type<Meta, type>::type;
     using value_type = typename serialize_type::read_only_type;
@@ -441,7 +439,7 @@ struct message_size_calculator<T> {
 
   template <typename Meta>
   constexpr static uint64_t field_size(std::ranges::input_range auto const &item, Meta meta,
-                                          concepts::is_size_cache_iterator auto &cache_itr) {
+                                       concepts::is_size_cache_iterator auto &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto tag_size = static_cast<uint64_t>(varint_size(meta.number << 3U));
     if constexpr (concepts::contiguous_byte_range<type>) {
@@ -501,7 +499,7 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
     }
     std::size_t old_size = overwrite_buffer ? 0 : buffer.size();
     if (msg_sz > std::numeric_limits<std::size_t>::max() - old_size) {
-       return std::errc::not_enough_memory;
+      return std::errc::not_enough_memory;
     }
     std::size_t new_size = old_size + static_cast<std::size_t>(msg_sz);
     if constexpr (requires { buffer.resize(1); }) {

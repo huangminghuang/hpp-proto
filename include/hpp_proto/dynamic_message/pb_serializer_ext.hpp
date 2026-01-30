@@ -402,9 +402,9 @@ struct message_size_calculator<message_value_cref> {
     }
 
     uint64_t operator()(enum_field_cref v) { return tag_size(v) + varint_size(int64_t{v.value().number()}); }
-    
+
     uint64_t operator()(string_field_cref v) { return tag_size(v) + len_size(v.value().size()); }
-    
+
     uint64_t operator()(bytes_field_cref v) { return tag_size(v) + len_size(v.value().size()); }
 
     template <concepts::varint T, field_kind_t Kind>
