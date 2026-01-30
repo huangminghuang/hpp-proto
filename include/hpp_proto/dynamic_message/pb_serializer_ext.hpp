@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <limits>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -370,118 +371,124 @@ struct message_size_calculator<message_value_cref> {
   struct field_visitor {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     size_cache::iterator &cache_itr;
-    uint32_t result = 0;
 
     explicit field_visitor(size_cache::iterator &itr) : cache_itr{itr} {}
 
-    static constexpr uint32_t narrow_size(std::size_t value) { return static_cast<uint32_t>(value); }
-
-    static uint32_t tag_size(const auto &v) {
-      return narrow_size(varint_size(static_cast<uint32_t>(v.descriptor().proto().number) << 3U));
+    static uint64_t tag_size(const auto &v) {
+      return static_cast<uint64_t>(varint_size(static_cast<uint32_t>(v.descriptor().proto().number) << 3U));
     }
 
-    void cache_size(uint32_t s) {
+    void cache_size(uint64_t s) {
       decltype(auto) msg_size = *cache_itr++;
-      msg_size = s;
+      // Cache size is uint32_t, so we clamp if it overflows.
+      // This is acceptable because the cache is only used for writing the length prefix.
+      // The actual write will check the total size at the entry point.
+      // BUT: If s > UINT32_MAX, writing a length prefix of UINT32_MAX is technically wrong for the data.
+      // However, since we return the FULL size (s) from this function, the top-level serialize()
+      // will see that msg_sz > 2GB and abort with value_too_large BEFORE any writing happens.
+      // So this clamp is just to satisfy the type system for the cache write.
+      msg_size = saturate_to_max_message_size(s);
     }
 
     template <concepts::varint T, field_kind_t Kind>
-    uint32_t operator()(scalar_field_cref<T, Kind> v) {
-      return narrow_size(tag_size(v) + T{v.value()}.encode_size());
+    uint64_t operator()(scalar_field_cref<T, Kind> v) {
+      return tag_size(v) + T{v.value()}.encode_size();
     }
 
     template <typename T, field_kind_t Kind>
       requires std::is_arithmetic_v<T>
-    uint32_t operator()(scalar_field_cref<T, Kind> v) {
-      return narrow_size(tag_size(v) + sizeof(T));
+    uint64_t operator()(scalar_field_cref<T, Kind> v) {
+      return tag_size(v) + sizeof(T);
     }
 
-    uint32_t operator()(enum_field_cref v) {
-      return narrow_size(tag_size(v) + varint_size(int64_t{v.value().number()}));
-    }
-    uint32_t operator()(string_field_cref v) { return narrow_size(tag_size(v) + len_size(v.value().size())); }
-    uint32_t operator()(bytes_field_cref v) { return narrow_size(tag_size(v) + len_size(v.value().size())); }
+    uint64_t operator()(enum_field_cref v) { return tag_size(v) + varint_size(int64_t{v.value().number()}); }
+    
+    uint64_t operator()(string_field_cref v) { return tag_size(v) + len_size(v.value().size()); }
+    
+    uint64_t operator()(bytes_field_cref v) { return tag_size(v) + len_size(v.value().size()); }
 
     template <concepts::varint T, field_kind_t Kind>
-    uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
+    uint64_t operator()(repeated_scalar_field_cref<T, Kind> v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
         auto s = util::transform_accumulate(v, [](auto e) { return T{e}.encode_size(); });
-        cache_size(narrow_size(s));
-        return narrow_size(ts + len_size(s));
+        cache_size(s);
+        return ts + len_size(s);
       } else {
-        return narrow_size(util::transform_accumulate(v, [ts](auto e) { return ts + T{e}.encode_size(); }));
+        return util::transform_accumulate(v, [ts](auto e) { return ts + T{e}.encode_size(); });
       }
     }
 
     template <typename T, field_kind_t Kind>
       requires std::is_arithmetic_v<T>
-    uint32_t operator()(repeated_scalar_field_cref<T, Kind> v) {
+    uint64_t operator()(repeated_scalar_field_cref<T, Kind> v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
-        return narrow_size(ts + len_size(v.size() * sizeof(T)));
+        return ts + len_size(static_cast<uint64_t>(v.size()) * sizeof(T));
       } else {
-        return narrow_size(v.size() * (ts + sizeof(T)));
+        return static_cast<uint64_t>(v.size()) * (ts + sizeof(T));
       }
     }
 
-    uint32_t operator()(repeated_enum_field_cref v) {
+    uint64_t operator()(repeated_enum_field_cref v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
         auto s = util::transform_accumulate(v, [](enum_value e) { return varint_size(int64_t{e.number()}); });
-        cache_size(narrow_size(s));
-        return narrow_size(ts + len_size(s));
+        cache_size(s);
+        return ts + len_size(s);
       } else {
-        return narrow_size(
-            util::transform_accumulate(v, [ts](enum_value e) { return ts + varint_size(int64_t{e.number()}); }));
+        return util::transform_accumulate(v, [ts](enum_value e) { return ts + varint_size(int64_t{e.number()}); });
       }
     }
 
-    uint32_t operator()(repeated_string_field_cref v) {
+    uint64_t operator()(repeated_string_field_cref v) {
       auto ts = tag_size(v);
-      return narrow_size(
-          util::transform_accumulate(v, [ts](const std::string_view e) { return ts + len_size(e.size()); }));
+      return util::transform_accumulate(v, [ts](const std::string_view e) { return ts + len_size(e.size()); });
     }
 
-    uint32_t operator()(repeated_bytes_field_cref v) {
+    uint64_t operator()(repeated_bytes_field_cref v) {
       auto ts = tag_size(v);
       // NOLINTNEXTLINE(performance-unnecessary-value-param)
-      return narrow_size(util::transform_accumulate(v, [ts](const bytes_view e) { return ts + len_size(e.size()); }));
+      return util::transform_accumulate(v, [ts](const bytes_view e) { return ts + len_size(e.size()); });
     }
 
-    uint32_t operator()(message_value_cref msg) {
-      return narrow_size(util::transform_accumulate(
-          msg.fields(), [this](field_cref f) { return is_present_or_explicit_default(f) ? f.visit(*this) : 0; }));
+    uint64_t operator()(message_value_cref msg) {
+      return util::transform_accumulate(msg.fields(), [this](field_cref f) {
+        return is_present_or_explicit_default(f) ? f.visit(*this) : uint64_t{};
+      });
     }
 
-    uint32_t operator()(message_field_cref v) {
+    uint64_t operator()(message_field_cref v) {
       if (v.descriptor().is_delimited()) {
-        return narrow_size((2 * tag_size(v)) + (*this)(*v));
+        return (2 * tag_size(v)) + (*this)(*v);
       } else {
         decltype(auto) msg_size = *cache_itr++;
         auto s = (*this)(*v);
-        msg_size = s;
-        return narrow_size(tag_size(v) + len_size(s));
+        // Post-condition: s <= UINT32_MAX (dynamic_message size fields are stored as uint32_t).
+        // Caveat: larger sizes are truncated when stored in value_storage.
+        msg_size = saturate_to_max_message_size(s);
+        return tag_size(v) + len_size(s);
       }
     }
 
-    uint32_t operator()(repeated_message_field_cref v) {
+    uint64_t operator()(repeated_message_field_cref v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_delimited()) {
-        return narrow_size(
-            util::transform_accumulate(v, [this, ts](message_value_cref msg) { return (2 * ts) + (*this)(msg); }));
+        return util::transform_accumulate(v, [this, ts](message_value_cref msg) { return (2 * ts) + (*this)(msg); });
       } else {
-        return narrow_size(util::transform_accumulate(v, [this, ts](message_value_cref msg) {
+        return util::transform_accumulate(v, [this, ts](message_value_cref msg) {
           decltype(auto) msg_size = *cache_itr++;
           auto s = (*this)(msg);
-          msg_size = s;
+          // Post-condition: s <= UINT32_MAX (dynamic_message size fields are stored as uint32_t).
+          // Caveat: larger sizes are truncated when stored in value_storage.
+          msg_size = saturate_to_max_message_size(s);
           return ts + len_size(s);
-        }));
+        });
       }
     }
   };
 
-  [[nodiscard]] static std::size_t message_size(const message_value_cref &item, size_cache cache) {
+  [[nodiscard]] static uint64_t message_size(const message_value_cref &item, size_cache cache) {
     auto itr = cache.begin();
     field_visitor calc{itr};
     return calc(item);

@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include <cassert>
+#include <limits>
 #include <ranges>
 #include <span>
 #include <variant>
@@ -225,6 +227,7 @@ public:
   [[nodiscard]] operator repeated_enum_field_cref() const noexcept { return cref(); }
 
   void reserve(std::size_t n) const {
+    assert(n <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &s = storage_->of_repeated_int32;
     if (s.capacity < n) {
       auto *new_data = static_cast<int32_t *>(memory_resource_->allocate(n * sizeof(int32_t), alignof(int32_t)));
@@ -235,6 +238,7 @@ public:
   }
 
   void resize(std::size_t n) const {
+    assert(n <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &s = storage_->of_repeated_int32;
     const auto old_size = s.size;
     if (s.capacity < n) {
