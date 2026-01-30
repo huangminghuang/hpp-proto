@@ -1204,7 +1204,6 @@ const boost::ut::suite dynamic_message_test = [] {
   };
 
   "serialize_dynamic_huge_message_fails_safely"_test = [&factory] {
-
     std::pmr::monotonic_buffer_resource mr;
     auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
     auto bytes_field = expect_ok(msg.typed_ref_by_name<hpp::proto::bytes_field_mref>("optional_bytes"));

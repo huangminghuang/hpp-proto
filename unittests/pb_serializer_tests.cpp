@@ -1202,16 +1202,16 @@ const boost::ut::suite overflow_tests = [] {
     bytes_example<hpp::proto::non_owning_traits> msg;
     const auto max_size = static_cast<std::size_t>(std::numeric_limits<int32_t>::max());
     msg.field = hpp::proto::bytes_view{static_cast<const std::byte *>(nullptr), max_size};
-    
+
     std::vector<std::byte> buffer;
-    
+
     // Attempt serialization
     auto result = write_binpb(msg, buffer);
-    
+
     // Expect failure due to value_too_large (message > 2GB)
     expect(!result.ok());
     expect(result == std::errc::value_too_large);
-    
+
     // Ensure buffer was not resized/touched
     expect(buffer.empty());
   };
