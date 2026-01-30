@@ -474,7 +474,11 @@ struct message_size_calculator<T> {
                            typename Meta::type>;
 
     if constexpr (concepts::byte_serializable<element_type>) {
-      return tag_size + len_size(item.size() * sizeof(value_type));
+      const std::size_t total = tag_size + len_size(item.size() * sizeof(value_type));
+      if (total > std::numeric_limits<uint32_t>::max()) {
+        return std::nullopt;
+      }
+      return static_cast<uint32_t>(total);
     } else {
       auto s = util::transform_accumulate(item, [](auto elem) constexpr {
         if constexpr (concepts::is_enum<element_type>) {
@@ -486,7 +490,11 @@ struct message_size_calculator<T> {
       });
       decltype(auto) msg_size = consume_size_cache_entry(cache_itr);
       msg_size = static_cast<uint32_t>(s);
-      return tag_size + len_size(s);
+      const std::size_t total = tag_size + len_size(s);
+      if (total > std::numeric_limits<uint32_t>::max()) {
+        return std::nullopt;
+      }
+      return static_cast<uint32_t>(total);
     }
   }
 
@@ -496,7 +504,11 @@ struct message_size_calculator<T> {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto tag_size = static_cast<uint32_t>(varint_size(meta.number << 3U));
     if constexpr (concepts::contiguous_byte_range<type>) {
-      return tag_size + len_size(item.size());
+      const std::size_t total = tag_size + len_size(item.size());
+      if (total > std::numeric_limits<uint32_t>::max()) {
+        return std::nullopt;
+      }
+      return static_cast<uint32_t>(total);
     } else {
       using value_type = typename std::ranges::range_value_t<type>;
       if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
