@@ -488,53 +488,64 @@ struct message_size_calculator<T> {
   }
 };
 
+template <bool overwrite_buffer = true, concepts::contiguous_byte_range Buffer>
+[[nodiscard]] constexpr status resize_contiguous_buffer(Buffer &buffer, std::size_t msg_sz) {
+  const std::size_t old_size = overwrite_buffer ? 0 : buffer.size();
+  if (msg_sz > std::numeric_limits<std::size_t>::max() - old_size) {
+    return std::errc::not_enough_memory;
+  }
+  const std::size_t new_size = old_size + msg_sz;
+  if constexpr (requires { buffer.resize(1); }) {
+    buffer.resize(new_size);
+  } else if (new_size > buffer.size()) {
+    return std::errc::not_enough_memory;
+  }
+  return {};
+}
+
+template <bool overwrite_buffer = true, typename T, concepts::contiguous_byte_range Buffer, typename Context>
+[[nodiscard]] constexpr status serialize_contiguous_buffer_with_cache(const T &item, Buffer &buffer, Context &context,
+                                                                      std::span<uint32_t> cache) {
+  const uint64_t msg_sz = message_size_calculator<T>::message_size(item, cache);
+  if (msg_sz >= max_message_size) {
+    return std::errc::value_too_large;
+  }
+  if (auto resize_status = resize_contiguous_buffer<overwrite_buffer>(buffer, static_cast<std::size_t>(msg_sz));
+      !resize_status.ok()) {
+    return resize_status;
+  }
+
+  if (std::is_constant_evaluated()) {
+    contiguous_out archive{buffer, context};
+    auto cache_itr = cache.begin();
+    if (!serialize(item, cache_itr, archive)) {
+      return std::errc::bad_message;
+    }
+  } else {
+    contiguous_out archive{std::as_writable_bytes(std::span{std::ranges::data(buffer), std::ranges::size(buffer)}),
+                           context};
+    auto cache_itr = cache.begin();
+    if (!serialize(item, cache_itr, archive)) {
+      return std::errc::bad_message;
+    }
+  }
+  return {};
+}
+
 template <bool overwrite_buffer = true, typename T, concepts::contiguous_byte_range Buffer>
 constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] concepts::is_pb_context auto &context) {
-  std::size_t n = size_cache_counter<T>::count(item);
-
-  auto do_serialize = [&item, &buffer, &context](std::span<uint32_t> cache) constexpr -> status {
-    uint64_t msg_sz = message_size_calculator<T>::message_size(item, cache);
-    if (msg_sz >= max_message_size) {
-      return std::errc::value_too_large;
-    }
-    std::size_t old_size = overwrite_buffer ? 0 : buffer.size();
-    if (msg_sz > std::numeric_limits<std::size_t>::max() - old_size) {
-      return std::errc::not_enough_memory;
-    }
-    std::size_t new_size = old_size + static_cast<std::size_t>(msg_sz);
-    if constexpr (requires { buffer.resize(1); }) {
-      buffer.resize(new_size);
-    } else if (new_size > buffer.size()) {
-      return std::errc::not_enough_memory;
-    }
-
-    if (std::is_constant_evaluated()) {
-      contiguous_out archive{buffer, context};
-      auto cache_itr = cache.begin();
-      if (!serialize(item, cache_itr, archive)) {
-        return std::errc::bad_message;
-      }
-    } else {
-      contiguous_out archive{std::as_writable_bytes(std::span{std::ranges::data(buffer), std::ranges::size(buffer)}),
-                             context};
-      auto cache_itr = cache.begin();
-      if (!serialize(item, cache_itr, archive)) {
-        return std::errc::bad_message;
-      }
-    }
-    return {};
-  };
+  const std::size_t n = size_cache_counter<T>::count(item);
 
   constexpr std::size_t max_stack_cache_size = max_stack_cache_size_for_context<decltype(context)>();
   if (std::is_constant_evaluated()) {
     std::vector<uint32_t> cache(n);
-    return do_serialize(cache);
+    return serialize_contiguous_buffer_with_cache<overwrite_buffer>(item, buffer, context, cache);
   } else {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     std::array<std::byte, max_stack_cache_size> cache_storage;
     std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size()};
     std::pmr::vector<uint32_t> cache(n, &mr);
-    return do_serialize(cache);
+    return serialize_contiguous_buffer_with_cache<overwrite_buffer>(item, buffer, context, cache);
   }
 }
 
@@ -547,66 +558,70 @@ consteval serialization_mode serialization_mode_for_context() {
   }
 }
 
-template <serialization_mode Mode, typename SliceType>
-struct slice_buffer_resource {
-  static constexpr std::size_t chunk_size =
-      Mode == serialization_mode::contiguous ? std::numeric_limits<std::size_t>::max() : 1024ULL * 1024ULL;
-  static constexpr std::size_t buffer_size = Mode == serialization_mode::contiguous ? sizeof(SliceType) : 4096;
-
-  alignas(std::max_align_t) std::array<std::byte, buffer_size> buffer{};
-  std::pmr::monotonic_buffer_resource resource{buffer.data(), buffer.size()};
-};
+template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
+[[nodiscard]] constexpr status serialize_contiguous_sink(const T &item, Sink &sink, Context &context,
+                                                         std::span<uint32_t> cache, std::size_t msg_sz) {
+  auto out = sink.next_chunk();
+  contiguous_out archive{out.first(msg_sz), context};
+  auto cache_itr = cache.begin();
+  if (!serialize(item, cache_itr, archive)) {
+    return std::errc::bad_message;
+  }
+  return {};
+}
 
 template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+[[nodiscard]] constexpr std::optional<status> try_serialize_adaptive_sink(const T &item, Sink &sink, Context &context,
+                                                                          std::span<uint32_t> cache,
+                                                                          std::size_t msg_sz) {
+  if (msg_sz > sink.chunk_size()) {
+    return std::nullopt;
+  }
+  auto out = sink.next_chunk();
+  if (out.size() < msg_sz) {
+    return std::nullopt;
+  }
+  return serialize_contiguous_sink(item, sink, context, cache, msg_sz);
+}
+
+template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
+[[nodiscard]] constexpr status serialize_chunked_sink(const T &item, Sink &sink, Context &context,
+                                                      std::span<uint32_t> cache) {
+  chunked_out archive{sink, context};
+  auto cache_itr = cache.begin();
+  if (!serialize(item, cache_itr, archive)) {
+    return std::errc::bad_message;
+  }
+  return {};
+}
+
+template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
 status serialize(const T &item, Sink &sink, Context &context) {
-  std::size_t n = size_cache_counter<T>::count(item);
-
-  auto do_serialize = [&item, &sink, &context](std::span<uint32_t> cache) -> status {
-    uint64_t msg_sz = message_size_calculator<T>::message_size(item, cache);
-    if (msg_sz >= max_message_size) {
-      return std::errc::value_too_large;
-    }
-    constexpr auto mode = serialization_mode_for_context<Context>();
-    sink.set_message_size(static_cast<std::size_t>(msg_sz));
-
-    if constexpr (mode == serialization_mode::contiguous) {
-      auto out = sink.next_chunk();
-      contiguous_out archive{out.first(static_cast<std::size_t>(msg_sz)), context};
-      auto cache_itr = cache.begin();
-      if (!serialize(item, cache_itr, archive)) {
-        return std::errc::bad_message;
-      }
-    } else {
-      if constexpr (mode == serialization_mode::adaptive) {
-        if (msg_sz <= sink.chunk_size()) {
-          auto out = sink.next_chunk();
-          if (out.size() >= msg_sz) {
-            contiguous_out archive{out.first(static_cast<std::size_t>(msg_sz)), context};
-            auto cache_itr = cache.begin();
-            if (!serialize(item, cache_itr, archive)) {
-              return std::errc::bad_message;
-            }
-            return {};
-          }
-        }
-      }
-
-      chunked_out archive{sink, context};
-      auto cache_itr = cache.begin();
-      if (!serialize(item, cache_itr, archive)) {
-        return std::errc::bad_message;
-      }
-    }
-    return {};
-  };
+  const std::size_t n = size_cache_counter<T>::count(item);
 
   constexpr std::size_t max_stack_cache_size = max_stack_cache_size_for_context<Context>();
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::array<std::byte, max_stack_cache_size> cache_storage;
   std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size()};
   std::pmr::vector<uint32_t> cache(n, &mr);
-  return do_serialize(cache);
+  const std::size_t msg_sz = message_size_calculator<T>::message_size(item, cache);
+  if (msg_sz >= max_message_size) {
+    return std::errc::value_too_large;
+  }
+  constexpr auto mode = serialization_mode_for_context<Context>();
+  sink.set_message_size(msg_sz);
+
+  if constexpr (mode == serialization_mode::contiguous) {
+    return serialize_contiguous_sink(item, sink, context, cache, msg_sz);
+  }
+
+  if constexpr (mode == serialization_mode::adaptive) {
+    if (auto result = try_serialize_adaptive_sink(item, sink, context, cache, msg_sz)) {
+      return *result;
+    }
+  }
+
+  return serialize_chunked_sink(item, sink, context, cache);
 }
 
 template <concepts::has_meta T>
