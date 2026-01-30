@@ -560,28 +560,14 @@ consteval serialization_mode serialization_mode_for_context() {
 
 template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
 [[nodiscard]] constexpr status serialize_contiguous_sink(const T &item, Sink &sink, Context &context,
-                                                         std::span<uint32_t> cache, std::size_t msg_sz) {
+                                                         std::span<uint32_t> cache) {
   auto out = sink.next_chunk();
-  contiguous_out archive{out.first(msg_sz), context};
+  contiguous_out archive{out, context};
   auto cache_itr = cache.begin();
   if (!serialize(item, cache_itr, archive)) {
     return std::errc::bad_message;
   }
   return {};
-}
-
-template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
-[[nodiscard]] constexpr std::optional<status> try_serialize_adaptive_sink(const T &item, Sink &sink, Context &context,
-                                                                          std::span<uint32_t> cache,
-                                                                          std::size_t msg_sz) {
-  if (msg_sz > sink.chunk_size()) {
-    return std::nullopt;
-  }
-  auto out = sink.next_chunk();
-  if (out.size() < msg_sz) {
-    return std::nullopt;
-  }
-  return serialize_contiguous_sink(item, sink, context, cache, msg_sz);
 }
 
 template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
@@ -612,12 +598,12 @@ status serialize(const T &item, Sink &sink, Context &context) {
   sink.set_message_size(msg_sz);
 
   if constexpr (mode == serialization_mode::contiguous) {
-    return serialize_contiguous_sink(item, sink, context, cache, msg_sz);
+    return serialize_contiguous_sink(item, sink, context, cache);
   }
 
   if constexpr (mode == serialization_mode::adaptive) {
-    if (auto result = try_serialize_adaptive_sink(item, sink, context, cache, msg_sz)) {
-      return *result;
+    if (msg_sz <= sink.chunk_size()) {
+      return serialize_contiguous_sink(item, sink, context, cache);
     }
   }
 
