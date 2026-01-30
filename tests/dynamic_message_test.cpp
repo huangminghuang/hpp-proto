@@ -1202,6 +1202,23 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(!em_bad.done().has_value());
     };
   };
+
+  "serialize_dynamic_huge_message_fails_safely"_test = [&factory] {
+
+    std::pmr::monotonic_buffer_resource mr;
+    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
+    auto bytes_field = expect_ok(msg.typed_ref_by_name<hpp::proto::bytes_field_mref>("optional_bytes"));
+
+    const auto max_size = static_cast<std::size_t>(std::numeric_limits<int32_t>::max());
+    auto huge_bytes = hpp::proto::bytes_view{static_cast<const std::byte *>(nullptr), max_size};
+    bytes_field.adopt(huge_bytes);
+
+    std::vector<std::byte> buffer;
+    auto result = hpp::proto::write_binpb(msg.cref(), buffer);
+    expect(!result.ok());
+    expect(result == std::errc::value_too_large);
+    expect(buffer.empty());
+  };
 };
 
 int main() {
