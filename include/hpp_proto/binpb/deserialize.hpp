@@ -1307,6 +1307,11 @@ constexpr status deserialize_sized(auto &&item, concepts::is_basic_in auto &arch
     return {};
   }
 
+  util::recursion_guard guard{archive.context};
+  if (!guard.ok()) {
+    return std::errc::value_too_large; // maximum recursion reached
+  }
+
   if (len < archive.in_avail()) [[likely]] {
     auto new_archive = archive.split(len);
     return deserialize(item, new_archive);

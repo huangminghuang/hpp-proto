@@ -117,6 +117,15 @@ struct pb_context : T::option_type... {
       return static_cast<const std::reference_wrapper<U> &>(*this).get();
     }
   }
+
+  uint32_t recursion_depth = 0;
+  constexpr uint32_t get_max_recursion_depth() const {
+    if constexpr (requires { this->max_recursion_depth; }) {
+      return this->max_recursion_depth;
+    } else {
+      return 100;
+    }
+  }
 };
 
 template <typename... U>

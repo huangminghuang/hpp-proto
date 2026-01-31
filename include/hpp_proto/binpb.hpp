@@ -91,6 +91,15 @@ constexpr auto adaptive_mode = serialization_option_t<serialization_mode::adapti
 ///   incur a CPU performance penalty compared to contiguous serialization.
 constexpr auto chunked_mode = serialization_option_t<serialization_mode::chunked>{};
 
+template <uint32_t N>
+struct recursion_limit_t {
+  using option_type = recursion_limit_t<N>;
+  static constexpr uint32_t max_recursion_depth = N;
+};
+
+template <uint32_t N>
+constexpr auto recursion_limit = recursion_limit_t<N>{};
+
 /// @brief Consteval function to serialize a message at compile-time.
 /// @tparam F A callable that returns a message object.
 /// @param make_object A function that constructs the message to be serialized.

@@ -45,4 +45,26 @@ void append_range(T &v, const Range &range) {
   }
 }
 
+template <concepts::is_pb_context Context>
+struct recursion_guard {
+  Context &ctx;
+  bool allowed = false;
+
+  constexpr recursion_guard(Context &context) : ctx(context) {
+    if (ctx.recursion_depth < ctx.get_max_recursion_depth()) {
+      ctx.recursion_depth++;
+      allowed = true;
+    }
+  }
+
+  constexpr ~recursion_guard() {
+    if (allowed) {
+      ctx.recursion_depth--;
+    }
+  }
+
+  constexpr bool ok() const { return allowed; }
+};
+
+
 } // namespace hpp::proto::util
