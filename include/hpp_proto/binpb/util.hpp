@@ -66,5 +66,4 @@ struct recursion_guard {
   constexpr bool ok() const { return allowed; }
 };
 
-
 } // namespace hpp::proto::util
