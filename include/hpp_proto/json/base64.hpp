@@ -143,9 +143,8 @@ struct base64 {
     if (static_cast<char>(source[n - 2]) == '=') {
       len--;
     }
-    using byte_type = std::ranges::range_value_t<decltype(mref)>;
-    std::vector<byte_type> decoded;
-    decoded.resize(len);
+    mref.resize(len);
+    std::span decoded{mref.data(), mref.size()};
     constexpr unsigned char decode_table[] = {
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55,
@@ -189,8 +188,7 @@ struct base64 {
     if (j != len) {
       return false;
     }
-    mref.resize(len);
-    std::ranges::copy(decoded, mref.begin());
+    
     return true;
   }
 
