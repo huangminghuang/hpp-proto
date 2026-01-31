@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include <cassert>
+#include <limits>
 #include <memory>
 #include <memory_resource>
 #include <ranges>
@@ -83,6 +85,7 @@ public:
   [[nodiscard]] operator repeated_bytes_field_cref() const noexcept { return cref(); }
 
   void reserve(std::size_t n) const {
+    assert(n <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &s = storage_->of_repeated_bytes;
     if (s.capacity < n) {
       auto *new_data =
@@ -94,6 +97,7 @@ public:
   }
 
   void resize(std::size_t n) const {
+    assert(n <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &s = storage_->of_repeated_bytes;
     auto old_size = s.size;
     if (s.capacity < n) {

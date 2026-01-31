@@ -23,6 +23,8 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
+#include <limits>
 #include <memory_resource>
 #include <span>
 #include <string_view>
@@ -129,12 +131,14 @@ public:
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   void adopt(std::string_view v) const noexcept {
+    assert(v.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     storage_->of_string.content = v.data();
     storage_->of_string.size = static_cast<uint32_t>(v.size());
     storage_->of_string.selection = descriptor_->oneof_ordinal;
   }
 
   void set(std::string_view v) const {
+    assert(v.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
     std::ranges::copy(v, dest);
     storage_->of_string.content = dest;
@@ -189,6 +193,7 @@ public:
   void adopt(std::string_view v) const noexcept { *data_ = v; }
 
   void set(std::string_view v) const noexcept {
+    assert(v.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto *dest = static_cast<char *>(memory_resource_->allocate(v.size(), 1));
     std::ranges::copy(v, dest);
     adopt(std::string_view{dest, v.size()});

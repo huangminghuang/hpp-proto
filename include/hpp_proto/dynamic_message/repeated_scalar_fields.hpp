@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include <cassert>
+#include <limits>
 #include <ranges>
 #include <span>
 #include <type_traits>
@@ -190,6 +192,7 @@ public:
   }
 
   void reserve(std::size_t n) const {
+    assert(n <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &s = access_storage();
     if (s.capacity < n) {
       auto new_data =
@@ -203,6 +206,7 @@ public:
   }
 
   void resize(std::size_t n) const {
+    assert(n <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &s = access_storage();
     const auto old_size = s.size;
     if (s.capacity < n) {

@@ -23,6 +23,8 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
+#include <limits>
 #include <memory_resource>
 #include <span>
 
@@ -131,12 +133,14 @@ public:
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
   void adopt(std::span<const std::byte> v) const noexcept {
+    assert(v.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     storage_->of_bytes.content = v.data();
     storage_->of_bytes.size = static_cast<uint32_t>(v.size());
     storage_->of_bytes.selection = descriptor_->oneof_ordinal;
   }
 
   void set(concepts::contiguous_std_byte_range auto const &v) const {
+    assert(v.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     storage_->of_bytes.content = dest;
@@ -190,6 +194,7 @@ public:
   void adopt(const hpp::proto::bytes_view &v) const noexcept { *data_ = v; }
 
   void set(concepts::contiguous_std_byte_range auto const &v) const {
+    assert(v.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
     adopt(hpp::proto::bytes_view{dest, v.size()});

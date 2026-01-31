@@ -23,6 +23,7 @@
 #pragma once
 
 #include <cassert>
+#include <limits>
 #include <memory>
 #include <memory_resource>
 #include <ranges>
@@ -142,6 +143,7 @@ public:
   operator repeated_message_field_cref() const noexcept { return cref(); }
 
   void reserve(std::size_t n) const {
+    assert(n <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &s = storage_->of_repeated_message;
     if (s.capacity < n) {
       auto *new_data = static_cast<value_storage *>(
@@ -165,6 +167,7 @@ public:
   }
 
   void resize(std::size_t n) const {
+    assert(n <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &s = storage_->of_repeated_message;
     auto old_size = s.size;
     if (s.capacity < n) {

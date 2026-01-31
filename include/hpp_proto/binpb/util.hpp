@@ -29,12 +29,11 @@
 namespace hpp::proto::util {
 
 template <typename Range, typename UnaryOperation>
-constexpr uint32_t transform_accumulate(const Range &range, const UnaryOperation &unary_op) {
+constexpr uint64_t transform_accumulate(const Range &range, const UnaryOperation &unary_op) {
   // **DO NOT** use std::transform_reduce() because it would apply unary_op in **unspecified** order
-  auto total =
-      std::accumulate(range.begin(), range.end(), std::size_t{0},
-                      [&unary_op](std::size_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
-  return static_cast<uint32_t>(total);
+  auto total = std::accumulate(range.begin(), range.end(), uint64_t{0},
+                               [&unary_op](uint64_t acc, const auto &elem) constexpr { return acc + unary_op(elem); });
+  return total;
 }
 
 template <typename T, typename Range>
