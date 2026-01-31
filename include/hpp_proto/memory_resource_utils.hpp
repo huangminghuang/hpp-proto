@@ -119,7 +119,7 @@ struct pb_context : T::option_type... {
   }
 
   uint32_t recursion_depth = 0;
-  constexpr uint32_t get_max_recursion_depth() const {
+  [[nodiscard]] constexpr uint32_t get_max_recursion_depth() const {
     if constexpr (requires { this->max_recursion_depth; }) {
       return this->max_recursion_depth;
     } else {
