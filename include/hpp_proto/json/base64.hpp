@@ -188,7 +188,7 @@ struct base64 {
     if (j != len) {
       return false;
     }
-    
+
     return true;
   }
 
