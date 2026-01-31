@@ -1209,7 +1209,7 @@ const boost::ut::suite dynamic_message_test = [] {
     auto bytes_field = expect_ok(msg.typed_ref_by_name<hpp::proto::bytes_field_mref>("optional_bytes"));
 
     const auto max_size = static_cast<std::size_t>(std::numeric_limits<int32_t>::max());
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
     const auto *fake_ptr = reinterpret_cast<const std::byte *>(static_cast<uintptr_t>(16));
     auto huge_bytes = hpp::proto::bytes_view{fake_ptr, max_size};
     bytes_field.adopt(huge_bytes);

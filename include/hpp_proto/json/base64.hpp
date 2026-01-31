@@ -185,11 +185,7 @@ struct base64 {
       write_decoded_bytes(triple, decoded, j, len);
     }
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
-    if (j != len) {
-      return false;
-    }
-
-    return true;
+    return j == len;
   }
 
   // Helper function to validate and decode a single base64 quartet
