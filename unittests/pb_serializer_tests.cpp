@@ -1594,6 +1594,46 @@ const ut::suite recursive_types = [] {
 };
 // NOLINTEND(misc-no-recursion)
 
+// NOLINTNEXTLINE(misc-no-recursion)
+template <typename Traits>
+recursive_type1<Traits> make_recursive_chain(uint32_t depth) {
+  recursive_type1<Traits> node{};
+  node.payload = depth;
+  if (depth > 1) {
+    node.child = make_recursive_chain<Traits>(depth - 1);
+  }
+  return node;
+}
+
+const ut::suite recursion_limit_tests = [] {
+  using namespace boost::ut;
+  "serialize_respects_recursion_limit"_test = [] {
+    std::array<recursive_type1<hpp::proto::non_owning_traits>, 3> nodes{};
+    nodes[0].payload = 3;
+    nodes[1].payload = 2;
+    nodes[2].payload = 1;
+    nodes[0].child = &nodes[1];
+    nodes[1].child = &nodes[2];
+    nodes[2].child = nullptr;
+    std::vector<std::byte> buffer;
+
+    auto status = hpp::proto::write_binpb(nodes[0], buffer, hpp::proto::recursion_limit<1>);
+    ut::expect(!status.ok());
+    ut::expect(status.ec == std::errc::bad_message);
+  };
+
+  "deserialize_respects_recursion_limit"_test = [] {
+    auto value = make_recursive_chain<hpp::proto::default_traits>(3);
+    std::vector<std::byte> buffer;
+    ut::expect(hpp::proto::write_binpb(value, buffer).ok());
+
+    recursive_type1<hpp::proto::default_traits> out;
+    auto status = hpp::proto::read_binpb(out, buffer, hpp::proto::recursion_limit<1>);
+    ut::expect(!status.ok());
+    ut::expect(status.ec == std::errc::value_too_large);
+  };
+};
+
 struct monster {
   using enum color_t;
   struct vec3 {

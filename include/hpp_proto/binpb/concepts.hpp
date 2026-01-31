@@ -106,6 +106,9 @@ template <typename T>
 concept optional_indirect_view = std::same_as<T, ::hpp::proto::optional_indirect_view<typename T::value_type>>;
 
 template <typename T>
+concept indirect_view = std::same_as<T, ::hpp::proto::indirect_view<typename T::value_type>>;
+
+template <typename T>
 concept indirect =
     requires {
       typename std::remove_cvref_t<T>::value_type;

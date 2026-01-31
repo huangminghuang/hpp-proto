@@ -668,10 +668,20 @@ template <typename Meta>
   return !utf8_validation_failed(meta, item) && archive(make_tag<type>(meta), varint{item.size()}, item);
 }
 
-[[nodiscard]] constexpr bool serialize_field(concepts::dereferenceable auto const &item, auto meta,
-                                             concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
-  // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-  return serialize_field(*item, meta, cache_itr, archive);
+template <concepts::dereferenceable T>
+[[nodiscard]] constexpr bool serialize_field(const T &item, auto meta, concepts::is_size_cache_iterator auto &cache_itr,
+                                             auto &archive) {
+  if constexpr (concepts::optional_indirect_view<T> || concepts::indirect_view<T>) {
+    util::recursion_guard guard{archive.context_};
+    if (!guard.ok()) {
+      return false; // recursion limit reached
+    }
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    return serialize_field(*item, meta, cache_itr, archive);
+  } else {
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    return serialize_field(*item, meta, cache_itr, archive);
+  }
 }
 
 [[nodiscard]] constexpr bool serialize_field(concepts::has_meta auto const &item, auto meta,
