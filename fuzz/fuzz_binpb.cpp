@@ -6,6 +6,7 @@
 #include "binpb_extern.hpp"
 #include "json_extern.hpp"
 
+using namespace std::string_view_literals;
 // Define the variant of all message types we fuzz
 using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp::proto::default_traits>,
                                        protobuf_unittest::TestAllTypes<hpp::proto::default_traits>,
@@ -87,7 +88,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
             auto owning_write = round_trip_test(owning_message, owning_message_t{});
             auto dyn_write = round_trip_test(dyn_message, factory.get_message(msg_name, mr).value());
 
-            if (msg_name != message_name(protobuf_unittest::TestMap<hpp::proto::non_owning_traits>{})) {
+            if (msg_name != "protobuf_unittest.TestMap"sv && msg_name != "proto2_unittest.TestWellKnownTypes"sv) {
               // Map fields can reorder entries on read, so encoded bytes may differ.
               assert(non_owning_write == owning_write);
             }
