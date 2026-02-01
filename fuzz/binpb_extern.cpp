@@ -10,7 +10,7 @@
 namespace util {
 using hpp::proto::status;
 
-status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg, std::span<const std::byte> input) {
+status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg, std::span<const std::byte> input) {
   return hpp::proto::read_binpb(msg, input);
 }
 
@@ -19,7 +19,7 @@ status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits> &
   return hpp::proto::read_binpb(msg, input, option);
 }
 
-status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                   std::span<std::span<const std::byte>> input) {
   return hpp::proto::read_binpb(msg, input);
 }
@@ -29,7 +29,7 @@ status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits> &
   return hpp::proto::read_binpb(msg, input, option);
 }
 
-status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg, std::span<const std::byte> input) {
+status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg, std::span<const std::byte> input) {
   return hpp::proto::read_binpb(msg, input);
 }
 
@@ -38,7 +38,7 @@ status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits>
   return hpp::proto::read_binpb(msg, input, option);
 }
 
-status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                   std::span<std::span<const std::byte>> input) {
   return hpp::proto::read_binpb(msg, input);
 }
@@ -48,7 +48,7 @@ status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits>
   return hpp::proto::read_binpb(msg, input, option);
 }
 
-status read_binpb(protobuf_unittest::TestMap<hpp::proto::default_traits> &msg, std::span<const std::byte> input) {
+status read_binpb(protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg, std::span<const std::byte> input) {
   return hpp::proto::read_binpb(msg, input);
 }
 
@@ -57,7 +57,7 @@ status read_binpb(protobuf_unittest::TestMap<hpp::proto::non_owning_traits> &msg
   return hpp::proto::read_binpb(msg, input, option);
 }
 
-status read_binpb(protobuf_unittest::TestMap<hpp::proto::default_traits> &msg,
+status read_binpb(protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg,
                   std::span<std::span<const std::byte>> input) {
   return hpp::proto::read_binpb(msg, input);
 }
@@ -67,7 +67,7 @@ status read_binpb(protobuf_unittest::TestMap<hpp::proto::non_owning_traits> &msg
   return hpp::proto::read_binpb(msg, input, option);
 }
 
-status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
+status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg,
                   std::span<const std::byte> input) {
   return hpp::proto::read_binpb(msg, input);
 }
@@ -77,7 +77,7 @@ status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_tra
   return hpp::proto::read_binpb(msg, input, option);
 }
 
-status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
+status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg,
                   std::span<std::span<const std::byte>> input) {
   return hpp::proto::read_binpb(msg, input);
 }
@@ -95,7 +95,7 @@ status read_binpb(hpp::proto::message_value_mref &msg, std::span<std::span<const
   return hpp::proto::read_binpb(msg, input);
 }
 
-status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                    std::vector<std::byte> &buffer) {
   return hpp::proto::write_binpb(msg, buffer);
 }
@@ -105,7 +105,7 @@ status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::non_owning_tr
   return hpp::proto::write_binpb(msg, buffer);
 }
 
-status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                    std::vector<std::byte> &buffer) {
   return hpp::proto::write_binpb(msg, buffer);
 }
@@ -115,7 +115,7 @@ status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::non_owning_
   return hpp::proto::write_binpb(msg, buffer);
 }
 
-status write_binpb(const protobuf_unittest::TestMap<hpp::proto::default_traits> &msg, std::vector<std::byte> &buffer) {
+status write_binpb(const protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg, std::vector<std::byte> &buffer) {
   return hpp::proto::write_binpb(msg, buffer);
 }
 
@@ -124,7 +124,7 @@ status write_binpb(const protobuf_unittest::TestMap<hpp::proto::non_owning_trait
   return hpp::proto::write_binpb(msg, buffer);
 }
 
-status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
+status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg,
                    std::vector<std::byte> &buffer) {
   return hpp::proto::write_binpb(msg, buffer);
 }
@@ -138,7 +138,7 @@ status write_binpb(const hpp::proto::message_value_mref &msg, std::vector<std::b
   return hpp::proto::write_binpb(msg, buffer);
 }
 
-status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg, fuzz_out_sink &sink) {
+status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg, fuzz_out_sink &sink) {
   return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
 }
 
@@ -146,7 +146,7 @@ status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::non_owning_tr
   return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
 }
 
-status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg, fuzz_out_sink &sink) {
+status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg, fuzz_out_sink &sink) {
   return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
 }
 
@@ -154,7 +154,7 @@ status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::non_owning_
   return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
 }
 
-status write_binpb(const protobuf_unittest::TestMap<hpp::proto::default_traits> &msg, fuzz_out_sink &sink) {
+status write_binpb(const protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg, fuzz_out_sink &sink) {
   return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
 }
 
@@ -162,7 +162,7 @@ status write_binpb(const protobuf_unittest::TestMap<hpp::proto::non_owning_trait
   return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
 }
 
-status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg, fuzz_out_sink &sink) {
+status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg, fuzz_out_sink &sink) {
   return hpp::proto::write_binpb(msg, sink, hpp::proto::chunked_mode);
 }
 

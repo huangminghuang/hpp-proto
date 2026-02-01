@@ -648,7 +648,7 @@ struct stable_map_trait {
   template <typename T>
   using repeated_t = typename vector_trait<T, Allocator>::type;
   using type = hpp::proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
-                                    std::less<Key>, repeated_t<Key>, repeated_t<Mapped>>;
+                                    std::less<Key>, repeated_t<Key>, repeated_t<Mapped>>; // NOLINT(modernize-use-transparent-functors)
 };
 
 template <typename Key, typename Mapped, template <typename> class Allocator>
@@ -658,6 +658,7 @@ template <typename Key, typename Mapped, template <typename> class Allocator>
   requires(!std::is_integral_v<Key>)
 struct basic_map_trait<Key, Mapped, Allocator> {
   using type =
+      // NOLINTNEXTLINE(modernize-use-transparent-functors)
       std::unordered_map<Key, Mapped, std::hash<Key>, std::equal_to<Key>, Allocator<std::pair<const Key, Mapped>>>;
 };
 

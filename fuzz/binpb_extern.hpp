@@ -51,38 +51,38 @@ struct fuzz_out_sink {
 };
 
 // Non-template overloads keep binpb template instantiations in binpb_extern.cpp only.
-hpp::proto::status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                               std::span<const std::byte> input);
 hpp::proto::status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                               std::span<const std::byte> input, hpp::proto::alloc_option_t option);
-hpp::proto::status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                               std::span<std::span<const std::byte>> input);
 hpp::proto::status read_binpb(proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                               std::span<std::span<const std::byte>> input, hpp::proto::alloc_option_t option);
 
-hpp::proto::status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                               std::span<const std::byte> input);
 hpp::proto::status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                               std::span<const std::byte> input, hpp::proto::alloc_option_t option);
-hpp::proto::status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                               std::span<std::span<const std::byte>> input);
 hpp::proto::status read_binpb(protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                               std::span<std::span<const std::byte>> input, hpp::proto::alloc_option_t option);
 
-hpp::proto::status read_binpb(protobuf_unittest::TestMap<hpp::proto::default_traits> &msg,
+hpp::proto::status read_binpb(protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg,
                               std::span<const std::byte> input);
 hpp::proto::status read_binpb(protobuf_unittest::TestMap<hpp::proto::non_owning_traits> &msg,
                               std::span<const std::byte> input, hpp::proto::alloc_option_t option);
-hpp::proto::status read_binpb(protobuf_unittest::TestMap<hpp::proto::default_traits> &msg,
+hpp::proto::status read_binpb(protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg,
                               std::span<std::span<const std::byte>> input);
 hpp::proto::status read_binpb(protobuf_unittest::TestMap<hpp::proto::non_owning_traits> &msg,
                               std::span<std::span<const std::byte>> input, hpp::proto::alloc_option_t option);
 
-hpp::proto::status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg,
                               std::span<const std::byte> input);
 hpp::proto::status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_traits> &msg,
                               std::span<const std::byte> input, hpp::proto::alloc_option_t option);
-hpp::proto::status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg,
                               std::span<std::span<const std::byte>> input);
 hpp::proto::status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_traits> &msg,
                               std::span<std::span<const std::byte>> input, hpp::proto::alloc_option_t option);
@@ -90,36 +90,36 @@ hpp::proto::status read_binpb(proto2_unittest::TestWellKnownTypes<hpp::proto::no
 hpp::proto::status read_binpb(hpp::proto::message_value_mref &msg, std::span<const std::byte> input);
 hpp::proto::status read_binpb(hpp::proto::message_value_mref &msg, std::span<std::span<const std::byte>> input);
 
-hpp::proto::status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                                std::vector<std::byte> &buffer);
 hpp::proto::status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                                std::vector<std::byte> &buffer);
-hpp::proto::status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                                std::vector<std::byte> &buffer);
 hpp::proto::status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                                std::vector<std::byte> &buffer);
-hpp::proto::status write_binpb(const protobuf_unittest::TestMap<hpp::proto::default_traits> &msg,
+hpp::proto::status write_binpb(const protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg,
                                std::vector<std::byte> &buffer);
 hpp::proto::status write_binpb(const protobuf_unittest::TestMap<hpp::proto::non_owning_traits> &msg,
                                std::vector<std::byte> &buffer);
-hpp::proto::status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg,
                                std::vector<std::byte> &buffer);
 hpp::proto::status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_traits> &msg,
                                std::vector<std::byte> &buffer);
 hpp::proto::status write_binpb(const hpp::proto::message_value_mref &msg, std::vector<std::byte> &buffer);
 
-hpp::proto::status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                                fuzz_out_sink &sink);
 hpp::proto::status write_binpb(const proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                                fuzz_out_sink &sink);
-hpp::proto::status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                                fuzz_out_sink &sink);
 hpp::proto::status write_binpb(const protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits> &msg,
                                fuzz_out_sink &sink);
-hpp::proto::status write_binpb(const protobuf_unittest::TestMap<hpp::proto::default_traits> &msg, fuzz_out_sink &sink);
+hpp::proto::status write_binpb(const protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg, fuzz_out_sink &sink);
 hpp::proto::status write_binpb(const protobuf_unittest::TestMap<hpp::proto::non_owning_traits> &msg,
                                fuzz_out_sink &sink);
-hpp::proto::status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
+hpp::proto::status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg,
                                fuzz_out_sink &sink);
 hpp::proto::status write_binpb(const proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_traits> &msg,
                                fuzz_out_sink &sink);
