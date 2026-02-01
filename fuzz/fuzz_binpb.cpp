@@ -8,10 +8,10 @@
 
 using namespace std::string_view_literals;
 // Define the variant of all message types we fuzz
-using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp::proto::default_traits>,
-                                       protobuf_unittest::TestAllTypes<hpp::proto::default_traits>,
-                                       protobuf_unittest::TestMap<hpp::proto::default_traits>,
-                                       proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits>>;
+using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp::proto::stable_traits>,
+                                       protobuf_unittest::TestAllTypes<hpp::proto::stable_traits>,
+                                       protobuf_unittest::TestMap<hpp::proto::stable_traits>,
+                                       proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits>>;
 
 std::vector<std::span<const std::byte>> split_input(std::span<const std::byte> input) {
   std::vector<std::span<const std::byte>> result{2};

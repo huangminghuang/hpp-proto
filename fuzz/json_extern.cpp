@@ -9,7 +9,7 @@
 
 namespace util {
 using hpp::proto::json_status;
-json_status read_json(proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg, std::string_view json_view,
+json_status read_json(proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg, std::string_view json_view,
                       hpp::proto::alloc_option_t) {
   return hpp::proto::read_json(msg, json_view);
 }
@@ -19,7 +19,7 @@ json_status read_json(proto3_unittest::TestAllTypes<hpp::proto::non_owning_trait
   return hpp::proto::read_json(msg, json_view, option);
 }
 
-json_status write_json(const proto3_unittest::TestAllTypes<hpp::proto::default_traits> &msg, std::string &json_buffer) {
+json_status write_json(const proto3_unittest::TestAllTypes<hpp::proto::stable_traits> &msg, std::string &json_buffer) {
   return hpp::proto::write_json(msg, json_buffer);
 }
 
@@ -28,7 +28,7 @@ json_status write_json(const proto3_unittest::TestAllTypes<hpp::proto::non_ownin
   return hpp::proto::write_json(msg, json_buffer);
 }
 
-json_status read_json(protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg, std::string_view json_view,
+json_status read_json(protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg, std::string_view json_view,
                       hpp::proto::alloc_option_t) {
   return hpp::proto::read_json(msg, json_view);
 }
@@ -38,7 +38,7 @@ json_status read_json(protobuf_unittest::TestAllTypes<hpp::proto::non_owning_tra
   return hpp::proto::read_json(msg, json_view, option);
 }
 
-json_status write_json(const protobuf_unittest::TestAllTypes<hpp::proto::default_traits> &msg,
+json_status write_json(const protobuf_unittest::TestAllTypes<hpp::proto::stable_traits> &msg,
                        std::string &json_buffer) {
   return hpp::proto::write_json(msg, json_buffer);
 }
@@ -48,7 +48,7 @@ json_status write_json(const protobuf_unittest::TestAllTypes<hpp::proto::non_own
   return hpp::proto::write_json(msg, json_buffer);
 }
 
-json_status read_json(protobuf_unittest::TestMap<hpp::proto::default_traits> &msg, std::string_view json_view,
+json_status read_json(protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg, std::string_view json_view,
                       hpp::proto::alloc_option_t) {
   return hpp::proto::read_json(msg, json_view);
 }
@@ -58,7 +58,7 @@ json_status read_json(protobuf_unittest::TestMap<hpp::proto::non_owning_traits> 
   return hpp::proto::read_json(msg, json_view, option);
 }
 
-json_status write_json(const protobuf_unittest::TestMap<hpp::proto::default_traits> &msg, std::string &json_buffer) {
+json_status write_json(const protobuf_unittest::TestMap<hpp::proto::stable_traits> &msg, std::string &json_buffer) {
   return hpp::proto::write_json(msg, json_buffer);
 }
 
@@ -66,7 +66,7 @@ json_status write_json(const protobuf_unittest::TestMap<hpp::proto::non_owning_t
   return hpp::proto::write_json(msg, json_buffer);
 }
 
-json_status read_json(proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg, std::string_view json_view,
+json_status read_json(proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg, std::string_view json_view,
                       hpp::proto::alloc_option_t) {
   return hpp::proto::read_json(msg, json_view, hpp::proto::use_factory{factory});
 }
@@ -76,7 +76,7 @@ json_status read_json(proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning
   return hpp::proto::read_json(msg, json_view, option, hpp::proto::use_factory{factory});
 }
 
-json_status write_json(const proto2_unittest::TestWellKnownTypes<hpp::proto::default_traits> &msg,
+json_status write_json(const proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits> &msg,
                        std::string &json_buffer) {
   return hpp::proto::write_json(msg, json_buffer, hpp::proto::use_factory{factory});
 }

@@ -328,7 +328,7 @@ const boost::ut::suite optional_indirect_tests = [] {
       expect(hpp::proto::read_json(msg1, expected_json).ok());
       expect(msg == msg1);
     };
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::pmr_traits>{};
+  } | std::tuple<hpp::proto::stable_traits, hpp::proto::pmr_stable_traits>{};
 };
 
 int main() {

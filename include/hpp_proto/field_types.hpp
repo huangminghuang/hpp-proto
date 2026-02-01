@@ -43,6 +43,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -642,6 +643,26 @@ struct vector_trait<bool, Allocator> {
   using type = std::vector<hpp::proto::boolean, Allocator<hpp::proto::boolean>>;
 };
 
+template <typename Key, typename Mapped, template <typename> class Allocator>
+struct stable_map_trait {
+  template <typename T>
+  using repeated_t = typename vector_trait<T, Allocator>::type;
+  using type = hpp::proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
+                                    std::less<Key>, repeated_t<Key>, // NOLINT(modernize-use-transparent-functors)
+                                    repeated_t<Mapped>>;
+};
+
+template <typename Key, typename Mapped, template <typename> class Allocator>
+struct basic_map_trait : stable_map_trait<Key, Mapped, Allocator> {};
+
+template <typename Key, typename Mapped, template <typename> class Allocator>
+  requires(!std::is_integral_v<Key>)
+struct basic_map_trait<Key, Mapped, Allocator> {
+  using type =
+      // NOLINTNEXTLINE(modernize-use-transparent-functors)
+      std::unordered_map<Key, Mapped, std::hash<Key>, std::equal_to<Key>, Allocator<std::pair<const Key, Mapped>>>;
+};
+
 template <template <typename> class Allocator>
 struct basic_default_traits {
   template <typename T>
@@ -656,15 +677,22 @@ struct basic_default_traits {
   using indirect_t = hpp::proto::indirect<T, Allocator<T>>;
 
   template <typename Key, typename Mapped>
-  using map_t = hpp::proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
-                                     std::less<Key>, repeated_t<Key>, repeated_t<Mapped>>;
+  using map_t = typename basic_map_trait<Key, Mapped, Allocator>::type;
   struct unknown_fields_range_t {
     bool operator==(const unknown_fields_range_t &) const = default;
   };
 };
 
+template <template <typename> class Allocator>
+struct basic_stable_traits : basic_default_traits<Allocator> {
+  template <typename Key, typename Mapped>
+  using map_t = typename stable_map_trait<Key, Mapped, Allocator>::type;
+};
+
 using default_traits = basic_default_traits<std::allocator>;
+using stable_traits = basic_stable_traits<std::allocator>;
 using pmr_traits = basic_default_traits<std::pmr::polymorphic_allocator>;
+using pmr_stable_traits = basic_stable_traits<std::pmr::polymorphic_allocator>;
 
 struct non_owning_traits {
   template <typename T>

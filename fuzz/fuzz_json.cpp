@@ -52,7 +52,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
     return std::visit(
         [&](auto &non_owning_message) -> int {
           using non_owning_message_t = std::remove_reference_t<decltype(non_owning_message)>;
-          using owning_message_t = decltype(hpp::proto::rebind_traits(non_owning_message));
+          using owning_message_t = decltype(hpp::proto::rebind_traits<hpp::proto::stable_traits>(non_owning_message));
           std::string_view msg_name = message_name(non_owning_message);
           owning_message_t owning_message;
           hpp::proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();

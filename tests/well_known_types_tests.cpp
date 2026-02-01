@@ -321,7 +321,7 @@ const ut::suite test_value = [] {
    "f4": null
 })");
     };
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>();
+  } | std::tuple<hpp::proto::stable_traits, hpp::proto::non_owning_traits>();
 
   "struct invalid cases"_test = [&factory] {
     std::string json_buf;

@@ -197,6 +197,7 @@ status append_binpb(T &&msg, concepts::resizable_contiguous_byte_container auto 
 /// @tparam T Type of the message to deserialize, must satisfy concepts::has_meta.
 /// @param buffer The input byte range containing serialized data.
 /// @param option Optional configuration parameters (e.g., alloc_from).
+/// @details This API does not catch std::bad_alloc thrown by standard containers.
 /// @return A std::expected containing the deserialized message on success, or an error code on failure.
 template <concepts::has_meta T>
 constexpr static expected<T, std::errc> read_binpb(concepts::input_byte_range auto const &buffer,
@@ -215,6 +216,7 @@ constexpr static expected<T, std::errc> read_binpb(concepts::input_byte_range au
 /// @param msg The message object to deserialize into.
 /// @param buffer The input byte range.
 /// @param ctx The protobuf serialization context.
+/// @details This API does not catch std::bad_alloc thrown by standard containers.
 /// @return status indicating success or failure.
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status read_binpb(T &msg, const Buffer &buffer, concepts::is_pb_context auto &ctx) {
@@ -227,6 +229,7 @@ status read_binpb(T &msg, const Buffer &buffer, concepts::is_pb_context auto &ct
 /// @tparam N Size of the character array.
 /// @param buffer The character array.
 /// @param option Optional configuration parameters.
+/// @details This API does not catch std::bad_alloc thrown by standard containers.
 /// @return A std::expected containing the deserialized message on success, or an error code on failure.
 template <concepts::has_meta T, std::size_t N>
 constexpr static expected<T, std::errc> read_binpb(const char (&buffer)[N], concepts::is_option_type auto &&...option) {
