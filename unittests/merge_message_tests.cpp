@@ -106,9 +106,20 @@ auto pb_meta(const TestMessage<Traits> &)
             hpp::proto::field_meta<113, 3, hpp::proto::field_option::explicit_presence>,
             hpp::proto::field_meta<114, 4, hpp::proto::field_option::explicit_presence>>>;
 
+template <typename Traits = hpp::proto::default_traits>
+struct MoveRepeatedMessage {
+  typename Traits::template repeated_t<typename Traits::string_t> values;
+  bool operator==(const MoveRepeatedMessage &) const = default;
+};
+
+template <typename Traits>
+auto pb_meta(const MoveRepeatedMessage<Traits> &)
+    -> std::tuple<hpp::proto::field_meta<1, &MoveRepeatedMessage<Traits>::values, hpp::proto::field_option::none>>;
+
 const boost::ut::suite merge_test_suite = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
+  using namespace std::string_view_literals;
 
   static_assert(hpp::proto::concepts::repeated<hpp::proto::equality_comparable_span<const int>>);
 
@@ -347,6 +358,38 @@ const boost::ut::suite merge_test_suite = [] {
                  std::pair<hpp::proto::non_owning_traits, hpp::proto::non_owning_traits>,
                  std::pair<hpp::proto::non_owning_traits, hpp::proto::default_traits>,
                  std::pair<hpp::proto::default_traits, hpp::proto::non_owning_traits>>{};
+
+  "merge_repeated_move_optimization"_test = [] {
+    MoveRepeatedMessage<> dest;
+    MoveRepeatedMessage<> source;
+    source.values = {"abc", "def"};
+
+    hpp::proto::merge(dest, std::move(source));
+
+    expect(eq(dest.values.size(), 2U));
+    expect(dest.values[0] == "abc"sv);
+    // Since dest was empty, it should have used the container move assignment.
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
+    expect(source.values.empty());
+  };
+
+  "merge_repeated_move_append"_test = [] {
+    MoveRepeatedMessage<> dest;
+    dest.values = {"123"};
+    MoveRepeatedMessage<> source;
+    source.values = {"abc", "def"};
+
+    hpp::proto::merge(dest, std::move(source));
+
+    expect(eq(dest.values.size(), 3U));
+    expect(dest.values[1] == "abc"sv);
+    // Since dest was not empty, it should have moved elements one by one.
+    // std::string elements should be in a moved-from state (typically empty).
+    // NOLINTBEGIN(bugprone-use-after-move,hicpp-invalid-access-moved)
+    expect(source.values[0].empty());
+    expect(source.values[1].empty());
+    // NOLINTEND(bugprone-use-after-move,hicpp-invalid-access-moved)
+  };
 };
 
 int main() {

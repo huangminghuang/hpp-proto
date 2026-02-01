@@ -24,6 +24,7 @@
 
 #include <concepts>
 #include <cstddef>
+#include <iterator>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -129,6 +130,29 @@ struct message_merger {
       if (source.has_value()) {
         perform(dest.emplace(), *std::forward<U>(source));
       }
+    }
+  }
+
+  template <concepts::repeated T, typename U>
+    requires(std::assignable_from<typename T::value_type &, typename U::value_type> && !std::is_lvalue_reference_v<U>)
+  constexpr void perform(T &dest, U &&source) {
+    if constexpr (std::ranges::contiguous_range<U>) {
+      if (dest.empty()) {
+        if constexpr (std::assignable_from<T &, U>) {
+          dest = std::forward<U>(source);
+        } else {
+          dest.assign(std::make_move_iterator(source.begin()), std::make_move_iterator(source.end()));
+        }
+        return;
+      }
+    }
+    decltype(auto) v = detail::as_modifiable(ctx, dest);
+    auto first = std::make_move_iterator(source.begin());
+    auto last = std::make_move_iterator(source.end());
+    if constexpr (requires { v.insert(v.end(), first, last); }) {
+      v.insert(v.end(), first, last);
+    } else {
+      v.append_range(first, last);
     }
   }
 

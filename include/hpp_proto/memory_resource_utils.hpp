@@ -303,15 +303,15 @@ public:
     auto old_size = view_.size();
     auto n = std::ranges::size(r);
     assign_range_with_size(view_, old_size + n);
-    std::ranges::uninitialized_copy(r, std::span{data_ + old_size, n});
+    std::uninitialized_copy(std::ranges::begin(r), std::ranges::end(r), data_ + old_size);
   }
 
   template <typename Iterator>
   constexpr void append_range(Iterator first, Iterator last) {
     auto old_size = view_.size();
-    auto n = std::distance(first, last);
+    auto n = static_cast<std::size_t>(std::distance(first, last));
     assign_range_with_size(view_, old_size + n);
-    std::uninitialized_copy(first, last, std::span{data_ + old_size, n});
+    std::uninitialized_copy(first, last, data_ + old_size);
   }
 
   constexpr void reserve(std::size_t n) {
