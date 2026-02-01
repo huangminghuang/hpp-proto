@@ -11,12 +11,12 @@ inline void expect(bool condition, const std::source_location location = std::so
   }
 }
 
-using Person = tutorial::Person<>;
-using AddressBook = tutorial::AddressBook<>;
+using Person = tutorial::Person<::hpp::proto::stable_traits>;
+using AddressBook = tutorial::AddressBook<::hpp::proto::stable_traits>;
 
 int main() {
   using enum Person::PhoneType;
-  tutorial::AddressBook address_book{
+  AddressBook address_book{
       .people = {{.name = "Alex",
                   .id = 1,
                   .email = "alex@email.com",

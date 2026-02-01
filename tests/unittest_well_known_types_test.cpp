@@ -183,7 +183,7 @@ const boost::ut::suite well_known_types_test = [] {
   "TestWellKnownTypes"_test = []<class Traits> {
     WellKnownTypesTests<Traits> test;
     test.run();
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::pmr_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp::proto::stable_traits, hpp::proto::pmr_stable_traits, hpp::proto::non_owning_traits>{};
 };
 
 int main() {

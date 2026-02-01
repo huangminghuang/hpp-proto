@@ -47,6 +47,9 @@ struct MessageName { /* ... */ };
 Bundled traits:
 
 - `hpp::proto::default_traits`: owning containers built from the STL.
+- `hpp::proto::pmr_traits`: owning containers built from the STL PMR types.
+- `hpp::proto::stable_traits`: owning containers with flat-map-backed map fields.
+- `hpp::proto::pmr_stable_traits`: PMR-backed containers with flat-map-backed map fields.
 - `hpp::proto::non_owning_traits`: lightweight views (`std::string_view`, `hpp::proto::equality_comparable_span`).
 - `hpp::proto::keep_unknown_fields<BaseTraits>`: decorator that records unknown fields for the chosen base traits.
 
@@ -362,7 +365,7 @@ struct TestMap {
 };
 ```
 
-`default_traits` maps to `hpp::proto::flat_map`, while `non_owning_traits` exposes `hpp::proto::equality_comparable_span<const std::pair<Key, Value>>`. For `non_owning_traits`, key deduplication is the caller's responsibility; when duplicates appear during parsing, only the final entry should be treated as valid.
+`default_traits` maps map fields to `flat_map` for integral keys and `std::unordered_map` for string keys. `stable_traits` and `pmr_stable_traits` always use `flat_map`. `non_owning_traits` exposes `hpp::proto::equality_comparable_span<const std::pair<Key, Value>>`. For `non_owning_traits`, key deduplication is the caller's responsibility; when duplicates appear during parsing, only the final entry should be treated as valid.
 
 ### Any Type
 
@@ -411,6 +414,8 @@ assert(hpp::proto::read_binpb(round_trip, buf).ok());
 google::protobuf::FieldMask<> fm2;
 assert(hpp::proto::unpack_any(round_trip.any_value.value(), fm2).ok());
 ```
+
+`read_binpb`/`read_json` return `std::expected` but do not catch `std::bad_alloc` thrown by standard containers. If allocation failures are possible on your target platform, handle `std::bad_alloc` explicitly.
 
 </p>
 </details>
