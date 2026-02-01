@@ -134,8 +134,7 @@ struct message_merger {
   }
 
   template <concepts::repeated T, typename U>
-    requires(std::assignable_from<typename T::value_type &, typename U::value_type> &&
-             !std::is_lvalue_reference_v<U>)
+    requires(std::assignable_from<typename T::value_type &, typename U::value_type> && !std::is_lvalue_reference_v<U>)
   constexpr void perform(T &dest, U &&source) {
     if constexpr (std::ranges::contiguous_range<U>) {
       if (dest.empty()) {
