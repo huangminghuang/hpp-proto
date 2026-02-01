@@ -603,7 +603,12 @@ struct field_mask_message_json_serializer {
   static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.FieldMask");
     std::string_view encoded;
-    from<JSON, std::string_view>::template op<opt_true<Opts, &opts::null_terminated>>(encoded, ctx, it, end);
+    from<JSON, std::string_view>::template op<Opts>(encoded, ctx, it, end);
+    if constexpr (not Opts.null_terminated) {
+      if (ctx.error == error_code::end_reached) {
+        ctx.error = error_code::none;
+      }
+    }
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
       return;
     }
@@ -666,8 +671,7 @@ struct value_message_json_serializer {
     } else if (*it == 'f' || *it == 't') {
       from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[bool_value - 1], ctx, it, end);
     } else if (*it == '"') {
-      from<JSON, ::hpp::proto::field_mref>::template op<opt_true<Opts, &opts::null_terminated>>(
-          value.fields()[string_value - 1], ctx, it, end);
+      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[string_value - 1], ctx, it, end);
     } else if (*it == '[') {
       from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[list_value - 1], ctx, it, end);
     } else if (*it == '{') {
@@ -855,6 +859,11 @@ struct from<JSON, T> {
     hpp::proto::pb_context pb_ctx{hpp::proto::alloc_from(value.memory_resource())};
     decltype(auto) m = hpp::proto::detail::as_modifiable(pb_ctx, v);
     from<JSON, decltype(m)>::template op<Opts>(m, ctx, it, end);
+    if constexpr (not Opts.null_terminated) {
+      if (ctx.error == error_code::end_reached) {
+        ctx.error = error_code::none;
+      }
+    }
     if (!bool(ctx.error)) [[likely]] {
       value.adopt(v);
     }

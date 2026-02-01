@@ -1201,7 +1201,11 @@ const boost::ut::suite overflow_tests = [] {
   "serialize_huge_message_fails_safely"_test = [] {
     bytes_example<hpp::proto::non_owning_traits> msg;
     const auto max_size = static_cast<std::size_t>(std::numeric_limits<int32_t>::max());
-    msg.field = hpp::proto::bytes_view{static_cast<const std::byte *>(nullptr), max_size};
+    // Use a non-null pointer to avoid UBSan error "applying non-zero offset to null pointer"
+    // The pointer is invalid but shouldn't be dereferenced if the size check fails early.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
+    const auto *fake_ptr = reinterpret_cast<const std::byte *>(static_cast<uintptr_t>(16));
+    msg.field = hpp::proto::bytes_view{fake_ptr, max_size};
 
     std::vector<std::byte> buffer;
 
