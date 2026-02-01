@@ -366,9 +366,10 @@ const boost::ut::suite merge_test_suite = [] {
 
     hpp::proto::merge(dest, std::move(source));
 
-    expect(eq(dest.values.size(), 2u));
+    expect(eq(dest.values.size(), 2U));
     expect(dest.values[0] == "abc"sv);
     // Since dest was empty, it should have used the container move assignment.
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
     expect(source.values.empty());
   };
 
@@ -380,12 +381,14 @@ const boost::ut::suite merge_test_suite = [] {
 
     hpp::proto::merge(dest, std::move(source));
 
-    expect(eq(dest.values.size(), 3u));
+    expect(eq(dest.values.size(), 3U));
     expect(dest.values[1] == "abc"sv);
     // Since dest was not empty, it should have moved elements one by one.
     // std::string elements should be in a moved-from state (typically empty).
+    // NOLINTBEGIN(bugprone-use-after-move,hicpp-invalid-access-moved)
     expect(source.values[0].empty());
     expect(source.values[1].empty());
+    // NOLINTEND(bugprone-use-after-move,hicpp-invalid-access-moved)
   };
 };
 

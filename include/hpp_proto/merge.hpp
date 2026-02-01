@@ -139,7 +139,7 @@ struct message_merger {
     if constexpr (std::ranges::contiguous_range<U>) {
       if (dest.empty()) {
         if constexpr (std::assignable_from<T &, U>) {
-          dest = std::move(source);
+          dest = std::forward<U>(source);
         } else {
           dest.assign(std::make_move_iterator(source.begin()), std::make_move_iterator(source.end()));
         }
