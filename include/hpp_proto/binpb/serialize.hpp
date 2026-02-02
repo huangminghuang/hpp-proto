@@ -241,6 +241,9 @@ struct size_cache_counter<T> {
   template <typename Meta>
   constexpr static std::size_t count(std::ranges::input_range auto const &item, Meta meta) {
     using type = std::remove_cvref_t<decltype(item)>;
+    if constexpr (concepts::contiguous_byte_range<type>) {
+      return 0;
+    }
     using value_type = typename std::ranges::range_value_t<type>;
     if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
       return util::transform_accumulate(item, [](const auto &elem) constexpr { return count(elem, Meta{}); });
