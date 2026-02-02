@@ -46,9 +46,17 @@ jobs:
           tag: v1.12.1
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          version: "33.x"
+        shell: pwsh
+        run: |
+          $version = "33.5"
+          $zip = "protoc-$version-win64.zip"
+          $url = "https://github.com/protocolbuffers/protobuf/releases/download/v$version/$zip"
+          $dest = "$env:RUNNER_TEMP\protoc"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Invoke-WebRequest -Uri $url -OutFile "$dest\$zip"
+          Expand-Archive -Path "$dest\$zip" -DestinationPath $dest -Force
+          Add-Content -Path $env:GITHUB_PATH -Value "$dest\bin"
+          Add-Content -Path $env:GITHUB_ENV -Value "PROTOC_BIN=$dest\bin"
 
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.14
@@ -57,7 +65,7 @@ jobs:
 
       - name: configure
         run: |
-          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=Release -DHPP_PROTO_TEST_USE_PROTOBUF=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -GNinja
+          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_PROGRAM_PATH="$env:PROTOC_BIN" -DCMAKE_BUILD_TYPE=Release -DHPP_PROTO_TEST_USE_PROTOBUF=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -GNinja
 
       - name: build
         run: cmake --build build
