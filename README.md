@@ -206,26 +206,50 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
     
     `default_traits` uses `flat_map` for integral keys and `std::unordered_map` for string keys. `stable_traits` and `pmr_stable_traits` always use `flat_map` for maps.
 
-*   **Example: Using PMR Allocators**
+*   **Example: Customizing Containers**
 
-  Simply define a new traits struct and use it as a template argument for your message.
+  You can easily integrate third-party containers by defining a custom traits struct.
   ```cpp
-  #include <memory_resource>
+  #include <boost/container/small_vector.hpp>
 
-  struct pmr_traits : hpp::proto::default_traits {
-    using string_t = std::pmr::string;
-    using bytes_t = std::pmr::vector<std::byte>;
+  struct my_custom_traits : hpp::proto::default_traits {
+    // Use small_vector for all repeated fields to reduce heap allocations
     template <typename T>
-    using repeated_t = std::pmr::vector<T>;
+    using repeated_t = boost::container::small_vector<T, 8>;
   };
 
-  // This person will use PMR containers
-  using PmrPerson = tutorial::Person<pmr_traits>;
-  
-  std::pmr::monotonic_buffer_resource mr;
-  // When deserializing non-owning types, provide the memory resource.
-  auto result = hpp::proto::read_binpb<PmrPerson>(buffer, hpp::proto::alloc_from{mr});
+  // This message will now use small_vector internally
+  using OptimizedMessage = my_package::MyMessage<my_custom_traits>;
   ```
+
+### Optimizing Deserialization with Padded Input
+
+For scenarios requiring maximum deserialization speed, `hpp-proto` supports a `padded_input` mode. By providing a buffer with at least **16 bytes of extra padding** past the end of the valid protobuf data, the parser can skip boundary checks in its inner loops (e.g., when parsing varints or tags).
+
+**Preconditions:**
+1.  The input range passed to `read_binpb` must represent *only* the valid payload data.
+2.  The underlying memory block must be accessible for at least 16 bytes beyond the end of that range.
+3.  The **first byte of the padding must be `0`**. This acts as a sentinel to ensure correct termination of certain parsing loops.
+
+**Zero-Copy with Non-Owning Traits:**
+When `padded_input` is used in conjunction with `non_owning_traits`, `string` and `bytes` fields in the deserialized message will point directly to the data in the input buffer rather than allocating new memory. This achieves true zero-copy deserialization but requires the user to ensure the **input buffer remains valid** for the lifetime of the message.
+
+**Example:**
+```cpp
+// Ensure buffer has extra capacity for padding
+std::vector<std::byte> buffer = load_data(); 
+auto data_size = buffer.size();
+buffer.resize(data_size + 16); 
+buffer[data_size] = std::byte{0}; // First padding byte MUST be 0
+
+// Pass the valid data range and the padded_input tag
+MyMessage msg;
+auto result = hpp::proto::read_binpb(
+    msg, 
+    std::span{buffer.data(), data_size}, 
+    hpp::proto::padded_input
+);
+```
 
 ## Limitations
 

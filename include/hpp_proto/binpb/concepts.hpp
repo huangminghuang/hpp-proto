@@ -142,10 +142,7 @@ template <typename T>
 concept is_pair = std::same_as<T, std::pair<typename T::first_type, typename T::second_type>>;
 
 template <typename T>
-concept span = requires {
-  typename T::element_type;
-  requires std::derived_from<T, std::span<typename T::element_type>> || concepts::basic_string_view<T>;
-};
+concept string_or_bytes_view = concepts::basic_string_view<T> || std::same_as<T, hpp::proto::bytes_view>;
 
 template <typename T>
 concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
