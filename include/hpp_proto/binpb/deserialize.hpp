@@ -817,6 +817,13 @@ constexpr status count_groups(uint32_t input_tag, std::size_t &count, concepts::
   return {};
 }
 
+template <typename Meta, typename Archive, typename Item>
+constexpr status deserialize_packed_repeated_padded(Meta meta, Item &&item, Archive &archive, vuint32_t byte_count);
+
+template <typename Meta, typename EncodeType, typename Archive, typename Item, typename UnknownFields>
+constexpr status deserialize_packed_repeated_unpadded(Meta meta, Item &&item, Archive &archive, vuint32_t byte_count,
+                                                      UnknownFields &unknown_fields);
+
 template <typename Meta, concepts::is_basic_in Archive>
 constexpr status deserialize_packed_repeated(Meta meta, auto &&item, Archive &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
@@ -833,45 +840,59 @@ constexpr status deserialize_packed_repeated(Meta meta, auto &&item, Archive &ar
   }
 
   if constexpr (Archive::is_padded_input && concepts::string_or_bytes_view<type>) {
-    auto r = archive.read_bytes(byte_count, item);
-    if constexpr (concepts::basic_string_view<type>) {
-      return !r.ok() || utf8_validation_failed(meta, item) ? std::errc::bad_message : std::errc{};
-    }
-    return r;
+    return deserialize_packed_repeated_padded(meta, item, archive, byte_count);
   } else {
+    return deserialize_packed_repeated_unpadded<Meta, encode_type>(meta, item, archive, byte_count, unknown_fields);
+  }
+}
 
-    if (byte_count == 0) {
-      if constexpr (concepts::char_or_byte<value_type>) {
-        // for string or bytes, override existing value
-        item = {};
-      }
-      return {};
+template <typename Meta, typename Archive, typename Item>
+constexpr status deserialize_packed_repeated_padded(Meta meta, Item &&item, Archive &archive, vuint32_t byte_count) {
+  using type = std::remove_reference_t<Item>;
+  auto result = archive.read_bytes(byte_count, item);
+  if constexpr (concepts::basic_string_view<type>) {
+    return !result.ok() || utf8_validation_failed(meta, item) ? std::errc::bad_message : std::errc{};
+  }
+  return result;
+}
+
+template <typename Meta, typename EncodeType, typename Archive, typename Item, typename UnknownFields>
+constexpr status deserialize_packed_repeated_unpadded(Meta, Item &&item, Archive &archive, vuint32_t byte_count,
+                                                      UnknownFields &unknown_fields) {
+  using type = std::remove_reference_t<Item>;
+  using value_type = typename type::value_type;
+
+  if (byte_count == 0) {
+    if constexpr (concepts::char_or_byte<value_type>) {
+      // for string or bytes, override existing value
+      item = {};
     }
+    return {};
+  }
 
-    decltype(auto) v = detail::as_modifiable(archive.context, item);
-    if constexpr (requires { v.resize(1); }) {
-      [[maybe_unused]] auto old_size = std::ssize(v);
-      auto result = deserialize_packed_repeated_with_byte_count<encode_type>(v, byte_count, archive);
-      if constexpr (Meta::closed_enum()) {
-        if (!result.ok()) [[unlikely]] {
-          return result;
+  decltype(auto) v = detail::as_modifiable(archive.context, item);
+  if constexpr (requires { v.resize(1); }) {
+    [[maybe_unused]] auto old_size = std::ssize(v);
+    auto result = deserialize_packed_repeated_with_byte_count<EncodeType>(v, byte_count, archive);
+    if constexpr (Meta::closed_enum()) {
+      if (!result.ok()) [[unlikely]] {
+        return result;
+      }
+      auto start_itr = std::next(v.begin(), old_size);
+      auto itr = std::remove_if(start_itr, v.end(), [&](auto v) {
+        if (!Meta::valid_enum_value(v)) {
+          deserialize_unknown_enum(unknown_fields, Meta::number, std::to_underlying(v), archive);
+          return true;
         }
-        auto start_itr = std::next(v.begin(), old_size);
-        auto itr = std::remove_if(start_itr, v.end(), [&](auto v) {
-          if (!Meta::valid_enum_value(v)) {
-            deserialize_unknown_enum(unknown_fields, Meta::number, std::to_underlying(v), archive);
-            return true;
-          }
-          return false;
-        });
-        v.resize(static_cast<std::size_t>(std::distance(v.begin(), itr)));
-      }
-      return result;
-    } else {
-      using context_t = std::decay_t<decltype(archive.context)>;
-      static_assert(concepts::has_memory_resource<context_t>, "memory resource is required");
-      return {};
+        return false;
+      });
+      v.resize(static_cast<std::size_t>(std::distance(v.begin(), itr)));
     }
+    return result;
+  } else {
+    using context_t = std::decay_t<decltype(archive.context)>;
+    static_assert(concepts::has_memory_resource<context_t>, "memory resource is required");
+    return {};
   }
 }
 
@@ -898,6 +919,7 @@ constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable
     return archive.template deserialize_packed_varint<EncodeType>(byte_count, size, v);
   }
 }
+
 
 template <typename MetaType, typename ValueType>
 struct deserialize_element_type {
