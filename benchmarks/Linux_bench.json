@@ -1,30 +1,30 @@
 {
     "google protobuf": {
         "deserialize": {
-            "regular": 239.0,
-            "arena/non_owning": 248.0
+            "regular": 242.0,
+            "arena/non_owning": 240.0
         },
         "set_message": {
-            "regular": 109.0,
-            "arena/non_owning": 109.0
+            "regular": 114.0,
+            "arena/non_owning": 105.0
         },
         "set_message_and_serialize": {
-            "regular": 216.0,
-            "arena/non_owning": 229.0
+            "regular": 219.0,
+            "arena/non_owning": 221.0
         }
     },
     "hpp-proto": {
         "deserialize": {
-            "regular": 218.0,
-            "arena/non_owning": 192.0
+            "regular": 199.0,
+            "arena/non_owning": 157.0
         },
         "set_message": {
-            "regular": 33.9,
-            "arena/non_owning": 11.1
+            "regular": 36.1,
+            "arena/non_owning": 10.5
         },
         "set_message_and_serialize": {
-            "regular": 154.0,
-            "arena/non_owning": 130.0
+            "regular": 157.0,
+            "arena/non_owning": 136.0
         }
     }
 }
