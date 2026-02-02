@@ -12,7 +12,6 @@ using hpp::proto::field_option;
 using namespace boost::ut::literals;
 using namespace std::string_view_literals;
 
-
 const ut::suite bit_cast_view_test = [] {
   "bit_cast_view"_test = [] {
     constexpr auto data_size = 10;
