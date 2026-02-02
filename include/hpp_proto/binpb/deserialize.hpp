@@ -46,6 +46,11 @@ namespace hpp::proto {
 #endif
 }
 
+namespace concepts {
+template <typename T>
+concept is_padded_input_context = is_pb_context<T> && requires { typename T::padded_input; };
+}; // namespace concepts
+
 namespace pb_serializer {
 template <typename T>
 struct input_span {
@@ -160,19 +165,21 @@ struct basic_in {
   }
 
   constexpr void maybe_advance_region() {
-    std::ptrdiff_t offset = 0;
-    while ((offset = current.slope_distance()) > 0 && !rest.empty()) {
-      [[maybe_unused]] auto current_in_avail = in_avail();
-      set_current_region(rest.next());
-      current.consume(static_cast<std::size_t>(offset));
-      if (!std::is_constant_evaluated()) {
-        assert(current_in_avail == in_avail());
+    if constexpr (!concepts::is_padded_input_context<Context>) {
+      std::ptrdiff_t offset = 0;
+      while ((offset = current.slope_distance()) > 0 && !rest.empty()) {
+        [[maybe_unused]] auto current_in_avail = in_avail();
+        set_current_region(rest.next());
+        current.consume(static_cast<std::size_t>(offset));
+        if (!std::is_constant_evaluated()) {
+          assert(current_in_avail == in_avail());
+        }
       }
     }
   }
 
-public:
   using is_basic_in = void;
+  constexpr static bool is_padded_input = concepts::is_padded_input_context<Context>;
   constexpr static bool contiguous = Contiguous;
   [[nodiscard]] constexpr ptrdiff_t region_size() const { return current._end - current._begin; }
   [[nodiscard]] constexpr ptrdiff_t in_avail() const {
@@ -184,7 +191,7 @@ public:
   }
   [[nodiscard]] constexpr const byte_type *data() const { return current.data(); }
 
-  constexpr basic_in(input_buffer_region<Byte> cur, const input_span<input_buffer_region<Byte>> &rest,
+  constexpr basic_in(input_buffer_region<Byte> cur, input_span<input_buffer_region<Byte>> rest,
                      ptrdiff_t size_exclude_current, Context &ctx)
       : current(cur), rest(rest), size_exclude_current(size_exclude_current), context(ctx) {}
 
@@ -810,9 +817,15 @@ constexpr status count_groups(uint32_t input_tag, std::size_t &count, concepts::
   return {};
 }
 
-template <typename Meta>
-constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_basic_in auto &archive,
-                                             auto &unknown_fields) {
+template <typename Meta, typename Archive, typename Item>
+constexpr status deserialize_packed_repeated_padded(Meta meta, Item &item, Archive &archive, vuint32_t byte_count);
+
+template <typename Meta, typename EncodeType, typename Archive, typename Item, typename UnknownFields>
+constexpr status deserialize_packed_repeated_unpadded(Meta meta, Item &item, Archive &archive, vuint32_t byte_count,
+                                                      UnknownFields &unknown_fields);
+
+template <typename Meta, concepts::is_basic_in Archive>
+constexpr status deserialize_packed_repeated(Meta meta, auto &&item, Archive &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
   using value_type = typename type::value_type;
 
@@ -825,6 +838,30 @@ constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_bas
   if (auto result = archive(byte_count); !result.ok()) [[unlikely]] {
     return result;
   }
+
+  if constexpr (Archive::is_padded_input && concepts::string_or_bytes_view<type>) {
+    return deserialize_packed_repeated_padded(meta, item, archive, byte_count);
+  } else {
+    return deserialize_packed_repeated_unpadded<Meta, encode_type>(meta, item, archive, byte_count, unknown_fields);
+  }
+}
+
+template <typename Meta, typename Archive, typename Item>
+constexpr status deserialize_packed_repeated_padded(Meta meta, Item &item, Archive &archive, vuint32_t byte_count) {
+  using type = std::remove_reference_t<Item>;
+  auto result = archive.read_bytes(byte_count, item);
+  if constexpr (concepts::basic_string_view<type>) {
+    return !result.ok() || utf8_validation_failed(meta, item) ? std::errc::bad_message : std::errc{};
+  }
+  return result;
+}
+
+template <typename Meta, typename EncodeType, typename Archive, typename Item, typename UnknownFields>
+constexpr status deserialize_packed_repeated_unpadded(Meta, Item &item, Archive &archive, vuint32_t byte_count,
+                                                      UnknownFields &unknown_fields) {
+  using type = std::remove_reference_t<Item>;
+  using value_type = typename type::value_type;
+
   if (byte_count == 0) {
     if constexpr (concepts::char_or_byte<value_type>) {
       // for string or bytes, override existing value
@@ -836,13 +873,13 @@ constexpr status deserialize_packed_repeated(Meta, auto &&item, concepts::is_bas
   decltype(auto) v = detail::as_modifiable(archive.context, item);
   if constexpr (requires { v.resize(1); }) {
     [[maybe_unused]] auto old_size = std::ssize(v);
-    auto result = deserialize_packed_repeated_with_byte_count<encode_type>(v, byte_count, archive);
+    auto result = deserialize_packed_repeated_with_byte_count<EncodeType>(v, byte_count, archive);
     if constexpr (Meta::closed_enum()) {
       if (!result.ok()) [[unlikely]] {
         return result;
       }
-      auto start_itr = std::next(v.begin(), old_size);
-      auto itr = std::remove_if(start_itr, v.end(), [&](auto v) {
+      auto start_itr = std::next(v.begin(), old_size);            // NOLINT(readability-qualified-auto)
+      auto itr = std::remove_if(start_itr, v.end(), [&](auto v) { // NOLINT(readability-qualified-auto)
         if (!Meta::valid_enum_value(v)) {
           deserialize_unknown_enum(unknown_fields, Meta::number, std::to_underlying(v), archive);
           return true;
@@ -1347,31 +1384,19 @@ constexpr status extract_length_delimited_field(uint32_t number, bytes_view &byt
   return archive.in_avail() == 0 ? std::errc{} : std::errc::bad_message;
 }
 
-template <typename Context, typename Byte>
+template <typename Byte>
 struct contiguous_input_archive_base {
   std::array<Byte, patch_buffer_size> patch_buffer;
   std::array<input_buffer_region<Byte>, 2> regions = {};
-  constexpr explicit contiguous_input_archive_base(const auto &buffer, Context &) {
-    regions[1] = input_buffer_region<Byte>{std::span{std::ranges::data(buffer), std::ranges::size(buffer)}};
-  }
-};
-
-// when memory resource is used, the patch buffer must come from it because
-// the decoded string or bytes may refer to the memory in patch buffer
-template <concepts::has_memory_resource Context, typename Byte>
-struct contiguous_input_archive_base<Context, Byte> {
-  std::span<Byte> patch_buffer;
-  std::array<input_buffer_region<Byte>, 2> regions = {};
-  constexpr explicit contiguous_input_archive_base(const auto &buffer, Context &context)
-      : patch_buffer(static_cast<Byte *>(context.memory_resource().allocate(patch_buffer_size, 1)), patch_buffer_size) {
+  constexpr explicit contiguous_input_archive_base(const auto &buffer) {
     regions[1] = input_buffer_region<Byte>{std::span{std::ranges::data(buffer), std::ranges::size(buffer)}};
   }
 };
 
 template <concepts::is_pb_context Context, typename Byte>
-struct contiguous_input_archive : contiguous_input_archive_base<Context, Byte>, basic_in<Byte, Context, true> {
+struct contiguous_input_archive : contiguous_input_archive_base<Byte>, basic_in<Byte, Context, true> {
   constexpr contiguous_input_archive(const auto &buffer, Context &context) noexcept
-      : contiguous_input_archive_base<Context, Byte>(buffer, context),
+      : contiguous_input_archive_base<Byte>(buffer),
         basic_in<Byte, Context, true>(this->regions, this->patch_buffer, context) {}
 
   constexpr ~contiguous_input_archive() noexcept = default;
@@ -1381,14 +1406,25 @@ struct contiguous_input_archive : contiguous_input_archive_base<Context, Byte>, 
   contiguous_input_archive &operator=(contiguous_input_archive &&) = delete;
 };
 
+template <typename Byte>
+struct padded_input_archive_base {
+  input_buffer_region<Byte> region;
+  constexpr explicit padded_input_archive_base(const auto &buffer)
+      : region{input_span<Byte>{std::ranges::data(buffer), std::ranges::size(buffer)},
+               std::next(std::ranges::data(buffer), static_cast<std::ptrdiff_t>(std::ranges::size(buffer)))} {}
+};
+
+template <concepts::is_padded_input_context Context, typename Byte>
+struct contiguous_input_archive<Context, Byte> : padded_input_archive_base<Byte>, basic_in<Byte, Context, true> {
+  constexpr contiguous_input_archive(const auto &buffer, Context &context) noexcept
+      : padded_input_archive_base<Byte>(buffer), basic_in<Byte, Context, true>(this->region, {}, 0, context) {
+    assert(*std::ranges::end(buffer) == Byte{0});
+  }
+};
+
 template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
 contiguous_input_archive(const Buffer &,
                          Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
-
-constexpr status deserialize(auto &item, concepts::contiguous_byte_range auto const &buffer) {
-  pb_context<> ctx;
-  return deserialize(item, buffer, ctx);
-}
 
 constexpr status deserialize(auto &item, std::span<const std::byte> buffer, concepts::is_pb_context auto &context) {
   contiguous_input_archive archive{buffer, context};
@@ -1401,18 +1437,8 @@ constexpr status deserialize(auto &item, concepts::contiguous_byte_range auto co
     contiguous_input_archive archive{buffer, context};
     return deserialize(item, archive);
   } else {
-    contiguous_input_archive archive{std::as_bytes(std::span{std::ranges::data(buffer), std::ranges::size(buffer)}),
-                                     context};
-    return deserialize(item, archive);
+    return deserialize(item, std::as_bytes(std::span{std::ranges::data(buffer), std::ranges::size(buffer)}), context);
   }
-}
-
-status deserialize(auto &item, concepts::is_pb_context auto &context, concepts::chunked_byte_range auto const &buffer,
-                   std::span<input_buffer_region<const std::byte>> regions, std::span<std::byte> patch_buffer_cache) {
-  constexpr bool is_contiguous = false;
-  auto archive =
-      basic_in<std::byte, std::decay_t<decltype(context)>, is_contiguous>(buffer, regions, patch_buffer_cache, context);
-  return deserialize(item, archive);
 }
 
 status deserialize(auto &item, concepts::chunked_byte_range auto const &buffer, concepts::is_pb_context auto &context) {

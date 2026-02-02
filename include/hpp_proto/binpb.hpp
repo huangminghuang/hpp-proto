@@ -100,6 +100,13 @@ struct recursion_limit_t {
 template <uint32_t N>
 constexpr auto recursion_limit = recursion_limit_t<N>{};
 
+struct padded_input_t {
+  using option_type = padded_input_t;
+  using padded_input = void;
+};
+
+constexpr auto padded_input = padded_input_t{};
+
 /// @brief Consteval function to serialize a message at compile-time.
 /// @tparam F A callable that returns a message object.
 /// @param make_object A function that constructs the message to be serialized.

@@ -914,9 +914,23 @@ const ut::suite test_string_example = [] {
       expect_read_ok("\x0a\x04\x74\x65\x73\x74\x0a\x01\x61"sv, string_example<Traits>{.field = "a"});
     };
 
+    "padded_input"_test = [] {
+      const auto *input = "\x0a\x04\x74\x65\x73\x74";
+      string_example<hpp::proto::non_owning_traits> msg;
+      ut::expect(read_binpb(msg, std::string_view{input}, hpp::proto::padded_input).ok());
+      ut::expect(msg.field.data() == std::next(input, 2));
+      ut::expect(msg.field.size() == 4);
+    };
+
     "invalid_utf8"_test = [] {
-      string_example<Traits> v{.field = "\xC0\xDF"};
+      string_example<Traits> v{.field = "\xc0\xdf"};
       ut::expect(!hpp::proto::write_binpb(v).has_value());
+    };
+
+    "padded_input_invalid_utf8"_test = [] {
+      const auto *input = "\x0a\x02\xc0\xdf";
+      string_example<hpp::proto::non_owning_traits> msg;
+      ut::expect(!read_binpb(msg, std::string_view{input}, hpp::proto::padded_input).ok());
     };
 
     "invalid_string"_test = [] {
@@ -969,6 +983,14 @@ const ut::suite test_bytes = [] {
     bytes_example<Traits> const v;
     ut::expect(std::ranges::equal(v.optional_field.value(), verified_value));
   } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+
+  "padded_input"_test = [] {
+    auto input = "\x0a\x04\x74\x65\x73\x74"_bytes;
+    bytes_example<hpp::proto::non_owning_traits> msg;
+    ut::expect(read_binpb(msg, input, hpp::proto::padded_input).ok());
+    ut::expect(msg.field.data() == std::next(input.data(), 2));
+    ut::expect(msg.field.size() == 4);
+  };
 };
 
 struct repeated_int32 {
