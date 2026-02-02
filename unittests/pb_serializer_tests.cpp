@@ -915,7 +915,7 @@ const ut::suite test_string_example = [] {
     };
 
     "padded_input"_test = [] {
-      const auto* input = "\x0a\x04\x74\x65\x73\x74";
+      const auto *input = "\x0a\x04\x74\x65\x73\x74";
       string_example<hpp::proto::non_owning_traits> msg;
       ut::expect(read_binpb(msg, std::string_view{input}, hpp::proto::padded_input).ok());
       ut::expect(msg.field.data() == std::next(input, 2));
@@ -928,7 +928,7 @@ const ut::suite test_string_example = [] {
     };
 
     "padded_input_invalid_utf8"_test = [] {
-      const auto* input = "\x0a\x02\xc0\xdf";
+      const auto *input = "\x0a\x02\xc0\xdf";
       string_example<hpp::proto::non_owning_traits> msg;
       ut::expect(!read_binpb(msg, std::string_view{input}, hpp::proto::padded_input).ok());
     };

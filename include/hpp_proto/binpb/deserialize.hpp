@@ -878,7 +878,7 @@ constexpr status deserialize_packed_repeated_unpadded(Meta, Item &item, Archive 
       if (!result.ok()) [[unlikely]] {
         return result;
       }
-      auto start_itr = std::next(v.begin(), old_size); // NOLINT(readability-qualified-auto)
+      auto start_itr = std::next(v.begin(), old_size);            // NOLINT(readability-qualified-auto)
       auto itr = std::remove_if(start_itr, v.end(), [&](auto v) { // NOLINT(readability-qualified-auto)
         if (!Meta::valid_enum_value(v)) {
           deserialize_unknown_enum(unknown_fields, Meta::number, std::to_underlying(v), archive);
