@@ -818,10 +818,10 @@ constexpr status count_groups(uint32_t input_tag, std::size_t &count, concepts::
 }
 
 template <typename Meta, typename Archive, typename Item>
-constexpr status deserialize_packed_repeated_padded(Meta meta, Item &&item, Archive &archive, vuint32_t byte_count);
+constexpr status deserialize_packed_repeated_padded(Meta meta, Item &item, Archive &archive, vuint32_t byte_count);
 
 template <typename Meta, typename EncodeType, typename Archive, typename Item, typename UnknownFields>
-constexpr status deserialize_packed_repeated_unpadded(Meta meta, Item &&item, Archive &archive, vuint32_t byte_count,
+constexpr status deserialize_packed_repeated_unpadded(Meta meta, Item &item, Archive &archive, vuint32_t byte_count,
                                                       UnknownFields &unknown_fields);
 
 template <typename Meta, concepts::is_basic_in Archive>
@@ -847,7 +847,7 @@ constexpr status deserialize_packed_repeated(Meta meta, auto &&item, Archive &ar
 }
 
 template <typename Meta, typename Archive, typename Item>
-constexpr status deserialize_packed_repeated_padded(Meta meta, Item &&item, Archive &archive, vuint32_t byte_count) {
+constexpr status deserialize_packed_repeated_padded(Meta meta, Item &item, Archive &archive, vuint32_t byte_count) {
   using type = std::remove_reference_t<Item>;
   auto result = archive.read_bytes(byte_count, item);
   if constexpr (concepts::basic_string_view<type>) {
@@ -857,7 +857,7 @@ constexpr status deserialize_packed_repeated_padded(Meta meta, Item &&item, Arch
 }
 
 template <typename Meta, typename EncodeType, typename Archive, typename Item, typename UnknownFields>
-constexpr status deserialize_packed_repeated_unpadded(Meta, Item &&item, Archive &archive, vuint32_t byte_count,
+constexpr status deserialize_packed_repeated_unpadded(Meta, Item &item, Archive &archive, vuint32_t byte_count,
                                                       UnknownFields &unknown_fields) {
   using type = std::remove_reference_t<Item>;
   using value_type = typename type::value_type;
@@ -878,8 +878,8 @@ constexpr status deserialize_packed_repeated_unpadded(Meta, Item &&item, Archive
       if (!result.ok()) [[unlikely]] {
         return result;
       }
-      auto start_itr = std::next(v.begin(), old_size);
-      auto itr = std::remove_if(start_itr, v.end(), [&](auto v) {
+      auto start_itr = std::next(v.begin(), old_size); // NOLINT(readability-qualified-auto)
+      auto itr = std::remove_if(start_itr, v.end(), [&](auto v) { // NOLINT(readability-qualified-auto)
         if (!Meta::valid_enum_value(v)) {
           deserialize_unknown_enum(unknown_fields, Meta::number, std::to_underlying(v), archive);
           return true;
