@@ -920,7 +920,6 @@ constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable
   }
 }
 
-
 template <typename MetaType, typename ValueType>
 struct deserialize_element_type {
   using type = ValueType;
