@@ -49,10 +49,10 @@ template <typename Byte, typename Context>
 struct contiguous_out {
   using byte_type = Byte;
   constexpr static bool endian_swapped = std::endian::little != std::endian::native;
-  std::span<byte_type> data_;
+  byte_type *curr_;
   Context &context_;
 
-  constexpr contiguous_out(std::span<byte_type> data, Context &context) : data_(data), context_(context) {}
+  constexpr contiguous_out(std::span<byte_type> data, Context &context) : curr_(data.data()), context_(context) {}
   constexpr ~contiguous_out() = default;
   contiguous_out(const contiguous_out &) = delete;
   contiguous_out(contiguous_out &&) = delete;
@@ -62,17 +62,17 @@ struct contiguous_out {
   constexpr bool serialize(concepts::byte_serializable auto item) {
     auto value = std::bit_cast<std::array<std::remove_const_t<byte_type>, sizeof(item)>>(item);
     if constexpr (endian_swapped && sizeof(item) != 1) {
-      std::copy(value.rbegin(), value.rend(), data_.begin());
+      std::copy(value.rbegin(), value.rend(), curr_);
     } else {
-      std::copy(value.begin(), value.end(), data_.begin());
+      std::copy(value.begin(), value.end(), curr_);
     }
-    data_ = data_.subspan(sizeof(item));
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    curr_ += sizeof(item);
     return true;
   }
 
   constexpr bool serialize(concepts::varint auto item) {
-    auto p = unchecked_pack_varint(item, data_.data());
-    data_ = data_.subspan(static_cast<std::size_t>(std::distance(data_.data(), p)));
+    curr_ = unchecked_pack_varint(item, curr_);
     return true;
   }
 
@@ -84,8 +84,9 @@ struct contiguous_out {
     if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(value_type) == 1)) {
       if (!item.empty()) {
         auto bytes_to_copy = item.size() * sizeof(value_type);
-        std::memcpy(data_.data(), item.data(), bytes_to_copy);
-        data_ = data_.subspan(bytes_to_copy);
+        std::memcpy(curr_, item.data(), bytes_to_copy);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        curr_ += bytes_to_copy;
       }
       return true;
     } else {
