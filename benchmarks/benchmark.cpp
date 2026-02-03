@@ -36,8 +36,7 @@ inline void set_message_google(auto &message) {
 }
 
 inline std::string make_big_string(std::size_t size) {
-  static constexpr std::string_view alphabet =
-      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-";
+  static constexpr std::string_view alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-";
   std::string out;
   out.reserve(size);
   for (std::size_t i = 0; i < size; ++i) {
@@ -467,8 +466,7 @@ void hpp_proto_deserialize_padded_nonowning(benchmark::State &state) {
   for (auto _ : state) {
     std::pmr::monotonic_buffer_resource memory_resource(buf.data(), buf.size());
     Message message;
-    auto r = hpp::proto::read_binpb(message, data, hpp::proto::padded_input,
-                                    hpp::proto::alloc_from{memory_resource});
+    auto r = hpp::proto::read_binpb(message, data, hpp::proto::padded_input, hpp::proto::alloc_from{memory_resource});
     total += data.size();
     benchmark::DoNotOptimize(r);
   }
@@ -483,7 +481,6 @@ BENCHMARK(google_deserialize_regular<repeated_packed::TestMessage>);
 BENCHMARK(google_deserialize_arena<repeated_packed::TestMessage>);
 BENCHMARK(hpp_proto_deserialize_regular<hpp::repeated_packed::TestMessage<>>);
 BENCHMARK(hpp_proto_deserialize_nonowning<hpp::repeated_packed::TestMessage<hpp::proto::non_owning_traits>>);
-
 
 int main(int argc, char **argv) {
   benchmark::Initialize(&argc, argv);
