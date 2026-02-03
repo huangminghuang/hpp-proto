@@ -48,8 +48,8 @@ else()
 endif()
 
 add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/bench.result
-    COMMAND proto_bench > ${CMAKE_CURRENT_BINARY_DIR}/bench.result
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.result
+    COMMAND proto_bench > ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.result
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     DEPENDS proto_bench
 )
@@ -57,9 +57,9 @@ add_custom_command(
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.json
     ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.png
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/process_proto_bench_output.py --platform ${SYSTEM_NAME} --json --chart ${CMAKE_CURRENT_BINARY_DIR}/bench.result
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/process_proto_bench_output.py --platform ${SYSTEM_NAME} --json --chart ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.result
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bench.result process_proto_bench_output.py
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.result process_proto_bench_output.py
 )
 
 add_custom_command(
