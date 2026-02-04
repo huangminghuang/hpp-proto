@@ -25,7 +25,7 @@ jobs:
     runs-on: macos-latest
     strategy:
         matrix:
-          build_type: [Release, Debug, Coverage]
+          build_type: [Release, Coverage]
           protoc: ["find"]
 
     steps:

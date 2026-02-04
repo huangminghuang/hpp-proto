@@ -37,7 +37,9 @@
               compiler: gcc-13
               protoc: find
               sanitize: OFF
-              # extra_cmake_configure_flags: "-DCMAKE_CXX_CLANG_TIDY=clang-tidy-18\\;-warnings-as-errors=*"
+          exclude:
+            - compiler: gcc-13
+              build_type: Debug
 
       runs-on: ubuntu-24.04
       steps:
