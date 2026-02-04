@@ -78,7 +78,7 @@ add_custom_target(benchmarks
 
 add_custom_target(clean_benchmarks
     COMMAND ${CMAKE_COMMAND} -E remove
-    ${CMAKE_CURRENT_BINARY_DIR}/bench.result
+    ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.result
     ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.json
     ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_bench.png
     ${CMAKE_CURRENT_SOURCE_DIR}/${SYSTEM_NAME}_sizes.json

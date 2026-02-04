@@ -24,12 +24,34 @@ We measured the runtime performance using the dataset and the benchmarks.proto d
   </tr>
 </table>
 
-The performance benchmarks clearly demonstrate the overall efficiency of the hpp-proto library compared to Google’s implementation across deserialization, setting a message, and setting a message with serialization operations. However, for the serialization operation alone, Google’s implementation may be faster than hpp-proto. This comes at the expense of the set_message operation, where hpp_proto significantly outperforms Google’s implementation.
+[Raw benchmark outputs: Linux_bench.result](Linux_bench.result) • [Mac_bench.result](Mac_bench.result)
 
-It’s important to note that in real-world applications, setting a message is a prerequisite before serialization can take place. While Google’s implementation may offer faster serialization times, the combined time required for both setting a message and serializing shows that hpp_proto delivers better performance overall.
-
+The benchmarks show hpp-proto ahead of Google protobuf for deserialization, set_message, and set_message+serialize. The largest gains come from hpp-proto non-owning paths, which reduce allocations and copies.
 
 [Benchmark code is available here](benchmark.cpp)
+#### Detailed Observations (Linux numbers; Mac has the same shape)
+
+Key observations
+- hpp-proto is consistently faster than Google protobuf across deserialize, set_message, and set_message+serialize; biggest wins are in non-owning paths.
+- Proto3 is slower than proto2 for string-heavy decode, especially on big payloads, consistent with UTF-8 validation overheads.
+
+Deserialize: google vs hpp-proto
+- Regular: proto2 google 208 ns vs hpp-proto 202 ns; proto3 google 243 ns vs hpp-proto 203 ns.
+- Arena/non-owning: proto2 google 200 ns vs hpp-proto 141 ns; proto3 google 239 ns vs hpp-proto 160 ns.
+
+Deserialize: ownership vs non-owning (hpp-proto)
+- Non-owning deserialization is the largest gain: proto2 141 ns vs 202 ns; proto3 160 ns vs 203 ns.
+
+Deserialize: padded input + repeated_packed
+- Padded input: non-owning further reduces time (proto2 101 ns vs 188 ns; proto3 144 ns vs 192 ns).
+- repeated_packed: hpp-proto regular 2511 ns vs google regular 3852 ns; hpp-proto non-owning 2465 ns vs google arena 3941 ns.
+
+Serialize (set-message pipeline + pure serialize)
+- Set-message only: hpp-proto is faster than Google protobuf (regular proto2 54.5 ns vs 106 ns, proto3 33.1 ns vs 108 ns; arena/non-owning proto2 18.5 ns vs 98.6 ns, proto3 10.7 ns vs 104 ns).
+- Serialize-only: google proto2 64.5 ns vs hpp-proto 85.1 ns; google proto3 98.8 ns vs hpp-proto 102 ns.
+- Set-message+serialize: hpp-proto still leads (regular proto2 136 ns vs 181 ns, proto3 142 ns vs 215 ns; arena/non-owning proto2 98.8 ns vs 186 ns, proto3 119 ns vs 220 ns).
+- Google protobuf can be faster in serialize-only because it focuses on emission from already-constructed objects, while hpp-proto’s advantage shows up in the end-to-end pipeline where its message construction paths are cheaper; the message layout choice (bitmask presence vs optional field wrappers) can be the key factor.
+
 ### Code Size
 We compared the code sizes of three equivalent programs: [hpp_proto_decode_encode](hpp_proto_decode_encode.cpp), [google_decode_encode](google_decode_encode.cpp) and [google_decode_encode_lite](google_decode_encode_lite.cpp). These programs are responsible for decoding and encoding messages defined in [benchmarks.proto](https://github.com/protocolbuffers/protobuf/blob/v3.6.0/benchmarks/benchmarks.proto), using the hpp-proto and Google Protocol Buffers implementations. The google_decode_encode program is statically linked with libprotobuf, while google_decode_encode_lite is linked with libprotobuf-lite.
 
