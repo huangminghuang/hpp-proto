@@ -1,4 +1,5 @@
 # Hpp-proto
+
 ![linux](https://github.com/huangminghuang/hpp-proto/actions/workflows/linux.yml/badge.svg)![macos](https://github.com/huangminghuang/hpp-proto/actions/workflows/macos.yml/badge.svg)![windows](https://github.com/huangminghuang/hpp-proto/actions/workflows/windows.yml/badge.svg)
 [![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC&flag=ci)](https://codecov.io/github/huangminghuang/hpp-proto)[![Codacy Badge](https://app.codacy.com/project/badge/Grade/c629f1cf7a7c45b3b3640362da4ac95a)](https://app.codacy.com/gh/huangminghuang/hpp-proto/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
@@ -8,16 +9,16 @@ The library leverages modern C++ features and a trait-based design to generate c
 
 ## Key Features
 
-*   **High Performance**: Outperforms the official Google Protobuf library in many common use cases, especially in combined "set and serialize" operations.
-*   **Modern C++23 Design**: Uses concepts, `consteval`, `std::span`, and other modern features for maximum type safety and performance. The generated code is clean, idiomatic, and easy to work with.
-*   **Header-Only Core**: The core serialization library is header-only (with one external dependency for UTF-8 validation), simplifying integration into any build system.
-*   **JSON Support**: First-class serialization and deserialization to and from the canonical ProtoJSON format, powered by the high-performance [glaze](https://github.com/stephenberry/glaze) library.
-*   **Trait-Based Customization**: A unique trait-based system allows you to customize the generated types without modifying the generated code. Easily swap in custom containers, allocators (like `std::pmr`), or string types to perfectly match your application's memory management strategy.
-*   **Non-Owning Mode**: Supports a zero-copy mode that utilizes `std::string_view` and `std::span` to avoid unnecessary memory copies.
-*   **gRPC Integration**: A built-in adapter allows you to use `hpp-proto` generated messages directly in your gRPC client and server applications. ([docs/grpc-adapter.md](docs/grpc-adapter.md)).
-*   **Dynamic Messages**: A descriptor-driven API allows for runtime processing of messages (including JSON/proto I/O) without needing the compile-time generated types. ([docs/dynamic_message.md](docs/dynamic_message.md)).
-*   **Minimal Code Size**: Generates significantly smaller binary sizes compared to libprotobuf.
-*   **Supports Editions, Proto2, and Proto3**: Fully compatible with modern Protobuf features.
+* **High Performance**: Outperforms the official Google Protobuf library in many common use cases, especially in combined "set and serialize" operations.
+* **Modern C++23 Design**: Uses concepts, `consteval`, `std::span`, and other modern features for maximum type safety and performance. The generated code is clean, idiomatic, and easy to work with.
+* **Header-Only Core**: The core serialization library is header-only (with one external dependency for UTF-8 validation), simplifying integration into any build system.
+* **JSON Support**: First-class serialization and deserialization to and from the canonical ProtoJSON format, powered by the high-performance [glaze](https://github.com/stephenberry/glaze) library.
+* **Trait-Based Customization**: A unique trait-based system allows you to customize the generated types without modifying the generated code. Easily swap in custom containers, allocators (like `std::pmr`), or string types to perfectly match your application's memory management strategy.
+* **Non-Owning Mode**: Supports a zero-copy mode that utilizes `std::string_view` and `std::span` to avoid unnecessary memory copies.
+* **gRPC Integration**: A built-in adapter allows you to use `hpp-proto` generated messages directly in your gRPC client and server applications. ([docs/grpc-adapter.md](docs/grpc-adapter.md)).
+* **Dynamic Messages**: A descriptor-driven API allows for runtime processing of messages (including JSON/proto I/O) without needing the compile-time generated types. ([docs/dynamic_message.md](docs/dynamic_message.md)).
+* **Minimal Code Size**: Generates significantly smaller binary sizes compared to libprotobuf.
+* **Supports Editions, Proto2, and Proto3**: Fully compatible with modern Protobuf features.
 
 ## Performance Highlights
 
@@ -42,11 +43,11 @@ This guide will walk you through creating a simple application using `hpp-proto`
 
 ### Prerequisites
 
-*   A C++23 compatible compiler (e.g., Clang 19+, GCC 13+).
-*   CMake (version 3.24 or newer).
-*   The `protoc` compiler. You can download it from the [official Protocol Buffers releases page](https://protobuf.dev/downloads).
+* A C++23 compatible compiler (e.g., Clang 19+, GCC 13+).
+* CMake (version 3.24 or newer).
+* The `protoc` compiler. You can download it from the [official Protocol Buffers releases page](https://protobuf.dev/downloads).
 
-### Step 1: Define Your Protocol Format 
+### Step 1: Define Your Protocol Format
 
 Create a file named `addressbook.proto`:
 
@@ -188,27 +189,28 @@ You should see output indicating that both binary and JSON round-trips were succ
 
 One of `hpp-proto`'s most powerful features is its trait-based design, which decouples the generated message layout from specific container types. This lets you tailor the memory-management strategy (value-owning, arena-backed, view-only) for your messages without regenerating code.
 
-*   **What Traits Customize**:
-    *   `string_t`, `bytes_t`: Swap `std::string`/`std::vector<std::byte>` for `std::pmr::string`, `std::string_view`, or other string/byte containers.
-    *   `repeated_t<T>`: Choose storage for repeated fields, like `std::pmr::vector`, `small_vector`, or `std::span`.
-    *   `map_t<Key, Value>`: Use custom map-like containers (`flat_map`, `btree`, etc.).
-    *   `optional_indirect_t<T>`: Control lifetimes for recursive messages.
-    *   `indirect_t<T>`: Control lifetimes for recursive mapped type of map field.
-    *   `unknown_fields_range_t`: Define how unknown fields are stored.
+* **What Traits Customize**:
+  * `string_t`, `bytes_t`: Swap `std::string`/`std::vector<std::byte>` for `std::pmr::string`, `std::string_view`, or other string/byte containers.
+  * `repeated_t<T>`: Choose storage for repeated fields, like `std::pmr::vector`, `small_vector`, or `std::span`.
+  * `map_t<Key, Value>`: Use custom map-like containers (`flat_map`, `btree`, etc.).
+  * `optional_indirect_t<T>`: Control lifetimes for recursive messages.
+  * `indirect_t<T>`: Control lifetimes for recursive mapped type of map field.
+  * `unknown_fields_range_t`: Define how unknown fields are stored.
 
-*   **Supplied Traits**:
-    *   `hpp::proto::default_traits`: The default. Uses standard STL containers (`std::string`, `std::vector`).
-    *   `hpp::proto::pmr_traits`: Uses standard STL PMR containers (`std::pmr::string`, `std::pmr::vector`).
-    *   `hpp::proto::stable_traits`: Uses `flat_map` for map fields regardless of key type.
-    *   `hpp::proto::pmr_stable_traits`: PMR-backed containers with `flat_map` map fields.
-    *   `hpp::proto::non_owning_traits`: Zero-copy views using `std::string_view` and `hpp::proto::equality_comparable_span`. Ideal for performance-critical parsing where you can guarantee the backing buffer outlives the message view.
-    *   `hpp::proto::keep_unknown_fields<Base>`: A mixin to enable unknown-field retention for any base trait.
-    
+* **Supplied Traits**:
+  * `hpp::proto::default_traits`: The default. Uses standard STL containers (`std::string`, `std::vector`).
+  * `hpp::proto::pmr_traits`: Uses standard STL PMR containers (`std::pmr::string`, `std::pmr::vector`).
+  * `hpp::proto::stable_traits`: Uses `flat_map` for map fields regardless of key type.
+  * `hpp::proto::pmr_stable_traits`: PMR-backed containers with `flat_map` map fields.
+  * `hpp::proto::non_owning_traits`: Zero-copy views using `std::string_view` and `hpp::proto::equality_comparable_span`. Ideal for performance-critical parsing where you can guarantee the backing buffer outlives the message view.
+  * `hpp::proto::keep_unknown_fields<Base>`: A mixin to enable unknown-field retention for any base trait.
+
     `default_traits` uses `flat_map` for integral keys and `std::unordered_map` for string keys. `stable_traits` and `pmr_stable_traits` always use `flat_map` for maps.
 
-*   **Example: Customizing Containers**
+* **Example: Customizing Containers**
 
   You can easily integrate third-party containers by defining a custom traits struct.
+
   ```cpp
   #include <boost/container/small_vector.hpp>
 
@@ -216,6 +218,13 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
     // Use small_vector for all repeated fields to reduce heap allocations
     template <typename T>
     using repeated_t = boost::container::small_vector<T, 8>;
+    using bytes_t = boost::container::small_vector<std::bytes, 32>;
+
+    template <typename Key, typename Mapped>
+    using map_t = std::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
+                                    std::less<Key>, repeated_t<Key>, 
+                                    repeated_t<Mapped>>;
+
   };
 
   // This message will now use small_vector internally
@@ -227,14 +236,16 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
 For scenarios requiring maximum deserialization speed, `hpp-proto` supports a `padded_input` mode. By providing a buffer with at least **16 bytes of extra padding** past the end of the valid protobuf data, the parser can skip boundary checks in its inner loops (e.g., when parsing varints or tags).
 
 **Preconditions:**
-1.  The input range passed to `read_binpb` must represent *only* the valid payload data.
-2.  The underlying memory block must be accessible for at least 16 bytes beyond the end of that range.
-3.  The **first byte of the padding must be `0`**. This acts as a sentinel to ensure correct termination of certain parsing loops.
+
+1. The input range passed to `read_binpb` must represent *only* the valid payload data.
+2. The underlying memory block must be accessible for at least 16 bytes beyond the end of that range.
+3. The **first byte of the padding must be `0`**. This acts as a sentinel to ensure correct termination of certain parsing loops.
 
 **Zero-Copy with Non-Owning Traits:**
 When `padded_input` is used in conjunction with `non_owning_traits`, `string` and `bytes` fields in the deserialized message will point directly to the data in the input buffer rather than allocating new memory. This achieves true zero-copy deserialization but requires the user to ensure the **input buffer remains valid** for the lifetime of the message.
 
 **Example:**
+
 ```cpp
 // Ensure buffer has extra capacity for padding
 std::vector<std::byte> buffer = load_data(); 
@@ -253,7 +264,7 @@ auto result = hpp::proto::read_binpb(
 
 ## Limitations
 
-*   **JSON Options**: Lacks support for some of the extended JSON print options found in Google's C++ implementation, like `always_print_fields_with_no_presence` or `preserve_proto_field_names`.
+* **JSON Options**: Lacks support for some of the extended JSON print options found in Google's C++ implementation, like `always_print_fields_with_no_presence` or `preserve_proto_field_names`.
 
 ---
 
