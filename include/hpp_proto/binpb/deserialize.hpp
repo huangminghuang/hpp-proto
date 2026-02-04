@@ -26,7 +26,6 @@
 
 #include <hpp_proto/binpb/concepts.hpp>
 #include <hpp_proto/binpb/meta.hpp>
-#include <hpp_proto/binpb/sfvint.hpp>
 #include <hpp_proto/binpb/utf8.hpp>
 #include <hpp_proto/binpb/util.hpp>
 #include <hpp_proto/binpb/varint.hpp>
@@ -435,33 +434,6 @@ struct basic_in {
     auto old_size = static_cast<std::ptrdiff_t>(item.size());
     item.resize(item.size() + size);
     std::span new_region{std::next(item.begin(), old_size), item.end()};
-#if defined(__x86_64__) || defined(_M_AMD64) // x64
-    if constexpr (sfvint_parser_allowed<Context>()) {
-      if (!std::is_constant_evaluated() && has_bmi2()) {
-        using value_type = typename Item::value_type;
-        sfvint_parser<T, value_type> parser(new_region.data());
-        if constexpr (!contiguous) {
-          while (bytes_count > region_size()) {
-            auto saved_begin = current.begin();
-            auto p = parser.parse_partial(current);
-            if (p == nullptr) [[unlikely]] {
-              return std::errc::bad_message;
-            }
-            current.advance_to(p);
-            bytes_count -= static_cast<std::uint32_t>(current.begin() - saved_begin);
-            maybe_advance_region();
-          }
-        }
-        if (bytes_count > 0) {
-          if (parser.parse(current.consume(bytes_count)) == nullptr) [[unlikely]] {
-            return std::errc::bad_message;
-          }
-        }
-        return {};
-      }
-    }
-#endif
-
     if constexpr (contiguous) {
       return parse_packed_varints_in_a_region<T>(current.consume(bytes_count), new_region.data());
     } else {

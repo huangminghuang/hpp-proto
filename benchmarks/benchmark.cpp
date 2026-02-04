@@ -1,12 +1,14 @@
 #include "benchmark_messages_proto2.pb.h"
 #include "hpp/benchmark_messages_proto2.pb.hpp"
 #include <benchmark/benchmark.h>
-#include <fstream>
 #include <memory_resource>
 #include <random>
 
 #include "benchmark_messages_proto3.pb.h"
 #include "hpp/benchmark_messages_proto3.pb.hpp"
+#include <hpp_proto/binpb/serialize.hpp>
+#include <hpp_proto/binpb/utf8.hpp>
+#include <string_view>
 
 #include "hpp/packed_repeated_message.pb.hpp"
 #include "packed_repeated_message.pb.h"
@@ -31,6 +33,16 @@ inline void set_message_google(auto &message) {
   message.set_field18("{=Qwfe~#n{");
   message.set_field67(1591432);
   message.set_field100(31);
+}
+
+inline std::string make_big_string(std::size_t size) {
+  static constexpr std::string_view alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-";
+  std::string out;
+  out.reserve(size);
+  for (std::size_t i = 0; i < size; ++i) {
+    out.push_back(alphabet[i % alphabet.size()]);
+  }
+  return out;
 }
 
 inline void set_message_hpp(auto &message) {
@@ -64,6 +76,29 @@ std::span<char> get_GoogleMessage1_data() {
   return data;
 }
 
+std::span<char> get_GoogleMessage1_big_data() {
+  static std::span<char> data;
+  if (data.empty()) {
+    benchmarks::proto2::GoogleMessage1 msg;
+    set_message_google(msg);
+    // Inflate string fields so parsing does real heap allocations.
+    static const std::string big = make_big_string(512);
+    static const std::string huge = make_big_string(2048);
+    msg.set_field1(big);
+    msg.set_field4(big);
+    msg.set_field7(big);
+    msg.set_field9(huge);
+    msg.set_field18(big);
+    msg.set_field102(big);
+    msg.set_field103(big);
+    msg.set_field129(big);
+    msg.mutable_field15()->set_field15(huge);
+    static std::string storage = msg.SerializeAsString();
+    data = std::span{storage};
+  }
+  return data;
+}
+
 std::span<char> get_data(benchmarks::proto2::GoogleMessage1 * /*unused*/) { return get_GoogleMessage1_data(); }
 std::span<char> get_data(benchmarks::proto3::GoogleMessage1 * /*unused*/) { return get_GoogleMessage1_data(); }
 std::span<char> get_data(hpp::benchmarks::proto2::GoogleMessage1<> * /*unused*/) { return get_GoogleMessage1_data(); }
@@ -73,6 +108,21 @@ std::span<char> get_data(hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non
 }
 std::span<char> get_data(hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits> * /*unused*/) {
   return get_GoogleMessage1_data();
+}
+
+std::span<char> get_data_big(benchmarks::proto2::GoogleMessage1 * /*unused*/) { return get_GoogleMessage1_big_data(); }
+std::span<char> get_data_big(benchmarks::proto3::GoogleMessage1 * /*unused*/) { return get_GoogleMessage1_big_data(); }
+std::span<char> get_data_big(hpp::benchmarks::proto2::GoogleMessage1<> * /*unused*/) {
+  return get_GoogleMessage1_big_data();
+}
+std::span<char> get_data_big(hpp::benchmarks::proto3::GoogleMessage1<> * /*unused*/) {
+  return get_GoogleMessage1_big_data();
+}
+std::span<char> get_data_big(hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits> * /*unused*/) {
+  return get_GoogleMessage1_big_data();
+}
+std::span<char> get_data_big(hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits> * /*unused*/) {
+  return get_GoogleMessage1_big_data();
 }
 
 std::span<char> get_packed_repeated_data() {
@@ -123,10 +173,25 @@ BENCHMARK(google_deserialize_regular<benchmarks::proto2::GoogleMessage1>);
 BENCHMARK(google_deserialize_regular<benchmarks::proto3::GoogleMessage1>);
 
 template <typename Message>
+void google_deserialize_regular_big(benchmark::State &state) {
+  auto data = get_data_big((Message *)nullptr);
+  size_t total = 0;
+  for (auto _ : state) {
+    Message message;
+    auto r = message.ParseFromArray(data.data(), static_cast<int>(data.size()));
+    total += data.size();
+    benchmark::DoNotOptimize(r);
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
+}
+BENCHMARK(google_deserialize_regular_big<benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(google_deserialize_regular_big<benchmarks::proto3::GoogleMessage1>);
+
+template <typename Message>
 void google_deserialize_arena(benchmark::State &state) {
   auto data = get_data((Message *)nullptr);
-  google::protobuf::Arena arena;
   size_t total = 0;
+  google::protobuf::Arena arena;
   for (auto _ : state) {
     arena.Reset();
     auto *message = google::protobuf::Arena::Create<Message>(&arena);
@@ -136,9 +201,25 @@ void google_deserialize_arena(benchmark::State &state) {
   }
   state.SetBytesProcessed(static_cast<int64_t>(total));
 }
-
 BENCHMARK(google_deserialize_arena<benchmarks::proto2::GoogleMessage1>);
 BENCHMARK(google_deserialize_arena<benchmarks::proto3::GoogleMessage1>);
+
+template <typename Message>
+void google_deserialize_arena_big(benchmark::State &state) {
+  auto data = get_data_big((Message *)nullptr);
+  size_t total = 0;
+  google::protobuf::Arena arena;
+  for (auto _ : state) {
+    arena.Reset();
+    auto *message = google::protobuf::Arena::Create<Message>(&arena);
+    auto r = message->ParseFromArray(data.data(), static_cast<int>(data.size()));
+    total += data.size();
+    benchmark::DoNotOptimize(r);
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
+}
+BENCHMARK(google_deserialize_arena_big<benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(google_deserialize_arena_big<benchmarks::proto3::GoogleMessage1>);
 
 template <typename Message>
 void hpp_proto_deserialize_regular(benchmark::State &state) {
@@ -154,6 +235,21 @@ void hpp_proto_deserialize_regular(benchmark::State &state) {
 }
 BENCHMARK(hpp_proto_deserialize_regular<hpp::benchmarks::proto2::GoogleMessage1<>>);
 BENCHMARK(hpp_proto_deserialize_regular<hpp::benchmarks::proto3::GoogleMessage1<>>);
+
+template <typename Message>
+void hpp_proto_deserialize_regular_big(benchmark::State &state) {
+  auto data = get_data_big((Message *)nullptr);
+  size_t total = 0;
+  for (auto _ : state) {
+    Message message;
+    auto r = hpp::proto::read_binpb(message, data);
+    total += data.size();
+    benchmark::DoNotOptimize(r);
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
+}
+BENCHMARK(hpp_proto_deserialize_regular_big<hpp::benchmarks::proto2::GoogleMessage1<>>);
+BENCHMARK(hpp_proto_deserialize_regular_big<hpp::benchmarks::proto3::GoogleMessage1<>>);
 
 template <typename Message>
 void hpp_proto_deserialize_nonowning(benchmark::State &state) {
@@ -225,9 +321,25 @@ BENCHMARK(google_set_message_and_serialize_regular<benchmarks::proto2::GoogleMes
 BENCHMARK(google_set_message_and_serialize_regular<benchmarks::proto3::GoogleMessage1>);
 
 template <typename Message>
-void google_set_message_and_serialize_arena(benchmark::State &state) {
-  google::protobuf::Arena arena;
+void google_serialize_only(benchmark::State &state) {
+  Message message;
+  set_message_google(message);
   size_t total = 0;
+  for (auto _ : state) {
+    std::string buffer;
+    auto r = message.SerializeToString(&buffer);
+    total += buffer.size();
+    benchmark::DoNotOptimize(r);
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
+}
+BENCHMARK(google_serialize_only<benchmarks::proto2::GoogleMessage1>);
+BENCHMARK(google_serialize_only<benchmarks::proto3::GoogleMessage1>);
+
+template <typename Message>
+void google_set_message_and_serialize_arena(benchmark::State &state) {
+  size_t total = 0;
+  google::protobuf::Arena arena;
   for (auto _ : state) {
     arena.Reset();
     auto *message = google::protobuf::Arena::Create<Message>(&arena);
@@ -260,6 +372,23 @@ BENCHMARK(hpp_proto_set_message_and_serialize_regular<hpp::benchmarks::proto2::G
 BENCHMARK(hpp_proto_set_message_and_serialize_regular<hpp::benchmarks::proto3::GoogleMessage1<>>);
 
 template <typename Message>
+void hpp_proto_serialize_only(benchmark::State &state) {
+  Message message;
+  set_message_hpp(message);
+  hpp::proto::pb_context<> ctx;
+  size_t total = 0;
+  for (auto _ : state) {
+    std::vector<std::byte> buffer;
+    auto r = write_binpb(message, buffer);
+    benchmark::DoNotOptimize(r);
+    total += static_cast<std::size_t>(buffer.size());
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
+}
+BENCHMARK(hpp_proto_serialize_only<hpp::benchmarks::proto2::GoogleMessage1<>>);
+BENCHMARK(hpp_proto_serialize_only<hpp::benchmarks::proto3::GoogleMessage1<>>);
+
+template <typename Message>
 void hpp_proto_set_message_and_serialize_nonowning(benchmark::State &state) {
   size_t total = 0;
   for (auto _ : state) {
@@ -289,10 +418,63 @@ void hpp_proto_set_message_nonowning(benchmark::State &state) {
 BENCHMARK(hpp_proto_set_message_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>);
 BENCHMARK(hpp_proto_set_message_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>);
 
+template <typename Message>
+void hpp_proto_deserialize_padded(benchmark::State &state) {
+  auto data_src = get_data((Message *)nullptr);
+  std::vector<char> padded_data(data_src.size() + 16);
+  std::memcpy(padded_data.data(), data_src.data(), data_src.size());
+  padded_data[data_src.size()] = 0;
+
+  std::span<char> data{padded_data.data(), data_src.size()};
+
+  size_t total = 0;
+  for (auto _ : state) {
+    Message message;
+    auto r = hpp::proto::read_binpb(message, data, hpp::proto::padded_input);
+    total += data.size();
+    benchmark::DoNotOptimize(r);
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
+}
+BENCHMARK(hpp_proto_deserialize_padded<hpp::benchmarks::proto2::GoogleMessage1<>>);
+BENCHMARK(hpp_proto_deserialize_padded<hpp::benchmarks::proto3::GoogleMessage1<>>);
+
+template <typename Message>
+void hpp_proto_deserialize_padded_nonowning(benchmark::State &state) {
+  auto data_src = get_data((Message *)nullptr);
+  std::vector<char> padded_data(data_src.size() + 16);
+  std::memcpy(padded_data.data(), data_src.data(), data_src.size());
+  padded_data[data_src.size()] = 0;
+
+  std::span<char> data{padded_data.data(), data_src.size()};
+
+  std::vector<char> buf(16 * 1024ULL);
+  size_t total = 0;
+  for (auto _ : state) {
+    std::pmr::monotonic_buffer_resource memory_resource(buf.data(), buf.size());
+    Message message;
+    auto r = hpp::proto::read_binpb(message, data, hpp::proto::padded_input, hpp::proto::alloc_from{memory_resource});
+    total += data.size();
+    benchmark::DoNotOptimize(r);
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(total));
+}
+BENCHMARK(
+    hpp_proto_deserialize_padded_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>);
+BENCHMARK(
+    hpp_proto_deserialize_padded_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>);
+
 BENCHMARK(google_deserialize_regular<repeated_packed::TestMessage>);
 BENCHMARK(google_deserialize_arena<repeated_packed::TestMessage>);
 BENCHMARK(hpp_proto_deserialize_regular<hpp::repeated_packed::TestMessage<>>);
 BENCHMARK(hpp_proto_deserialize_nonowning<hpp::repeated_packed::TestMessage<hpp::proto::non_owning_traits>>);
 
-BENCHMARK_MAIN();
+int main(int argc, char **argv) {
+  benchmark::Initialize(&argc, argv);
+  if (benchmark::ReportUnrecognizedArguments(argc, argv)) {
+    return 1;
+  }
+  benchmark::RunSpecifiedBenchmarks();
+  return 0;
+}
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
