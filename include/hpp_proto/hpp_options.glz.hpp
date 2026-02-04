@@ -19,4 +19,6 @@ struct glz::meta<hpp::proto::FileOptions<Traits>> {
     "namespacePrefix", &T::namespace_prefix);
 };
 
+template <typename Traits>
+struct hpp::proto::has_glz<hpp::proto::FileOptions<Traits>> : std::true_type {};
 // clang-format on

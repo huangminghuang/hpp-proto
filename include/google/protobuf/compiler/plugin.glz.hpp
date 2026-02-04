@@ -23,6 +23,8 @@ struct glz::meta<google::protobuf::compiler::Version<Traits>> {
 };
 
 template <typename Traits>
+struct hpp::proto::has_glz<google::protobuf::compiler::Version<Traits>> : std::true_type {};
+template <typename Traits>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest<Traits>> {
   using T = google::protobuf::compiler::CodeGeneratorRequest<Traits>;
   static constexpr auto value = object(
@@ -33,6 +35,8 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest<Traits>> {
     "compilerVersion", &T::compiler_version);
 };
 
+template <typename Traits>
+struct hpp::proto::has_glz<google::protobuf::compiler::CodeGeneratorRequest<Traits>> : std::true_type {};
 template <typename Traits>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse<Traits>> {
   using T = google::protobuf::compiler::CodeGeneratorResponse<Traits>;
@@ -54,6 +58,8 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse_::File<Traits
     "generatedCodeInfo", &T::generated_code_info);
 };
 
+template <typename Traits>
+struct hpp::proto::has_glz<google::protobuf::compiler::CodeGeneratorResponse_::File<Traits>> : std::true_type {};
 template <>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse_::Feature> {
   using enum google::protobuf::compiler::CodeGeneratorResponse_::Feature;
@@ -63,4 +69,6 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse_::Feature> {
     "FEATURE_SUPPORTS_EDITIONS", FEATURE_SUPPORTS_EDITIONS);
 };
 
+template <typename Traits>
+struct hpp::proto::has_glz<google::protobuf::compiler::CodeGeneratorResponse<Traits>> : std::true_type {};
 // clang-format on

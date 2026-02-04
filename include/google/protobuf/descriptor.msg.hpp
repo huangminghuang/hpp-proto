@@ -22,6 +22,7 @@ enum class Edition {
   EDITION_PROTO3 = 999,
   EDITION_2023 = 1000,
   EDITION_2024 = 1001,
+  EDITION_UNSTABLE = 9999,
   EDITION_1_TEST_ONLY = 1,
   EDITION_2_TEST_ONLY = 2,
   EDITION_99997_TEST_ONLY = 99997,
@@ -32,7 +33,7 @@ enum class Edition {
 
 constexpr bool is_valid(Edition value){
   int v = static_cast<int>(value);
-  constexpr std::array<int, 12> valid_values{0,1,2,900,998,999,1000,1001,99997,99998,99999,2147483647};
+  constexpr std::array<int, 13> valid_values{0,1,2,900,998,999,1000,1001,9999,99997,99998,99999,2147483647};
   return std::ranges::any_of(valid_values, [v](int u){ return u==v; });
 }
 
@@ -887,7 +888,7 @@ struct DescriptorProto {
   typename Traits::string_t name;
   Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> field;
   Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> extension;
-  Traits::template repeated_t<DescriptorProto> nested_type;
+  Traits::template recursive_repeated_t<DescriptorProto> nested_type;
   Traits::template repeated_t<google::protobuf::EnumDescriptorProto<Traits>> enum_type;
   Traits::template repeated_t<ExtensionRange> extension_range;
   Traits::template repeated_t<google::protobuf::OneofDescriptorProto<Traits>> oneof_decl;
@@ -1013,4 +1014,72 @@ template <typename Traits>
 constexpr auto message_type_url(const FileDescriptorSet<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorSet">{}; }
 // NOLINTEND(performance-enum-size)
 } // namespace google::protobuf
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::UninterpretedOption_::NamePart<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::UninterpretedOption<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FeatureSet_::VisibilityFeature<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FeatureSet<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::SourceCodeInfo_::Location<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::SourceCodeInfo<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::GeneratedCodeInfo_::Annotation<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::GeneratedCodeInfo<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FeatureSetDefaults_::FeatureSetEditionDefault<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FeatureSetDefaults<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::MethodOptions<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::ServiceOptions<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::EnumOptions<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::OneofOptions<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FieldOptions_::EditionDefault<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FieldOptions_::FeatureSupport<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FieldOptions<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::MessageOptions<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FileOptions<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::MethodDescriptorProto<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::ServiceDescriptorProto<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::OneofDescriptorProto<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FieldDescriptorProto<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::ExtensionRangeOptions_::Declaration<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::ExtensionRangeOptions<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::EnumValueOptions<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::EnumValueDescriptorProto<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::EnumDescriptorProto_::EnumReservedRange<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::EnumDescriptorProto<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::DescriptorProto_::ExtensionRange<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::DescriptorProto_::ReservedRange<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::DescriptorProto<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FileDescriptorProto<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::FileDescriptorSet<Traits>> : std::true_type {};
 // clang-format on

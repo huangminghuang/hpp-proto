@@ -29,4 +29,6 @@ template <typename Traits>
 constexpr auto message_type_url(const FileOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/hpp.proto.FileOptions">{}; }
 // NOLINTEND(performance-enum-size)
 } // namespace hpp::proto
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<hpp::proto::FileOptions<Traits>> : std::true_type {};
 // clang-format on
