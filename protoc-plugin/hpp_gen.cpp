@@ -990,7 +990,7 @@ struct msg_code_generator : code_generator {
     using enum FieldDescriptorProto::Label;
     using enum FieldDescriptorProto::Type;
     if (proto.label == LABEL_REPEATED) {
-      return "Traits::template repeated_t";
+      return descriptor.is_recursive ? "Traits::template recursive_repeated_t" : "Traits::template repeated_t";
     }
     if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
       if (descriptor.is_recursive) {
