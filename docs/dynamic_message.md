@@ -33,7 +33,7 @@ The `hpp::proto::dynamic_message_factory` is responsible for owning and managing
 std::string read_file_into_string(const std::string& filename) {
     std::ifstream is(filename, std::ios::binary);
     if (!is) {
-        std::cerr << "Error: Could not open file " << filename << std::endl;
+        std::cerr << "Error: Could not open file " << filename << "\n";
         return {};
     }
     return std::string((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
@@ -43,13 +43,13 @@ int main() {
     // Load the generated FileDescriptorSet
     std::string filedescriptorset_binpb = read_file_into_string("addressbook_proto3.desc.binpb");
     if (filedescriptorset_binpb.empty()) {
-        std::cerr << "Error: Failed to load descriptor file." << std::endl;
+        std::cerr << "Error: Failed to load descriptor file.\n";
         return 1;
     }
 
     hpp::proto::dynamic_message_factory factory;
     if (!factory.init(filedescriptorset_binpb)) {
-        std::cerr << "Error: Factory initialization failed (bad descriptors)." << std::endl;
+        std::cerr << "Error: Factory initialization failed (bad descriptors).\n";
         return 1;
     }
 
@@ -88,27 +88,27 @@ Once the factory is initialized, you can create dynamic message instances. Each 
     // No-exception style: check the expected result
     auto result_set_name = msg.set_field_by_name("name", "John Doe");
     if (!result_set_name) {
-        std::cerr << "Error setting name: " << to_string(result_set_name.error()) << std::endl;
+        std::cerr << "Error setting name.\n";
     }
 
     auto result_set_id = msg.set_field_by_name("id", 1234);
     if (!result_set_id) {
-        std::cerr << "Error setting id: " << to_string(result_set_id.error()) << std::endl;
+        std::cerr << "Error setting id.\n";
     }
 
     auto name_expected = msg.field_value_by_name<std::string_view>("name");
     if (name_expected.has_value()) {
-        std::cout << "Person name (untyped access): " << *name_expected << std::endl;
+        std::cout << "Person name (untyped access): " << *name_expected << "\n";
     } else {
-        std::cerr << "Error getting name: " << to_string(name_expected.error()) << std::endl;
+        std::cerr << "Error getting name.\n";
     }
 
     // Exception style: use .value() if you're certain it won't fail or want exceptions
     try {
         int id_val = msg.field_value_by_number<std::int32_t>(2).value();
-        std::cout << "Person ID (untyped access, exception style): " << id_val << std::endl;
+        std::cout << "Person ID (untyped access, exception style): " << id_val << "\n";
     } catch (const std::bad_expected_access& e) {
-        std::cerr << "Error getting ID: " << e.what() << std::endl;
+        std::cerr << "Error getting ID: " << e.what() << "\n";
     }
 
     // Special notes:
@@ -124,36 +124,39 @@ For more robust and type-aware access, use typed field references (`_mref` for m
 // ... (inside main)
 
     using namespace std::string_view_literals;
-    using namespace hpp::proto::literals; // for "_bytes" literal
 
     // Accessing an int32 field
     if (auto int_ref_expected = msg.typed_ref_by_name<hpp::proto::int32_field_mref>("id")) {
         int_ref_expected->set(5678); // Exact type match is enforced
     } else {
-        std::cerr << "Error getting typed ref for id: " << to_string(int_ref_expected.error()) << std::endl;
+        std::cerr << "Error getting typed ref for id.\n";
     }
 
     // Accessing a string field
     if (auto str_ref_expected = msg.typed_ref_by_name<hpp::proto::string_field_mref>("email")) {
         str_ref_expected->set("dynamic@example.com"sv);
     } else {
-        std::cerr << "Error getting typed ref for email: " << to_string(str_ref_expected.error()) << std::endl;
+        std::cerr << "Error getting typed ref for email.\n";
     }
 
-    // Accessing an enum field
-    if (auto enum_ref_expected = msg.typed_ref_by_name<hpp::proto::enum_field_mref>("phones.type")) { // Access type of first phone
-        // Set by enum number
-        auto enum_set_result_num = enum_ref_expected->set(hpp::proto::enum_number{tutorial::Person::MOBILE});
-        if (!enum_set_result_num) {
-            std::cerr << "Error setting enum by number: " << to_string(enum_set_result_num.error()) << std::endl;
-        }
-        // Alternatively, set by enum name (string view)
-        auto enum_set_result_name = enum_ref_expected->set(hpp::proto::enum_name{"HOME"sv});
-        if (!enum_set_result_name) {
-            std::cerr << "Error setting enum by name: " << to_string(enum_set_result_name.error()) << std::endl;
+    // Accessing an enum field inside a repeated message field
+    if (auto phones_ref_expected = msg.typed_ref_by_name<hpp::proto::repeated_message_field_mref>("phones")) {
+        auto phones_list = *phones_ref_expected;
+        auto phone_msg = phones_list.emplace_back();
+        if (auto enum_ref_expected = phone_msg.typed_ref_by_name<hpp::proto::enum_field_mref>("type")) {
+            auto enum_set_result_num = enum_ref_expected->set(hpp::proto::enum_number{tutorial::Person::MOBILE});
+            if (!enum_set_result_num) {
+                std::cerr << "Error setting enum by number.\n";
+            }
+            auto enum_set_result_name = enum_ref_expected->set(hpp::proto::enum_name{"HOME"sv});
+            if (!enum_set_result_name) {
+                std::cerr << "Error setting enum by name.\n";
+            }
+        } else {
+            std::cerr << "Error getting typed ref for phone.type.\n";
         }
     } else {
-        std::cerr << "Error getting typed ref for phones.type: " << to_string(enum_ref_expected.error()) << std::endl;
+        std::cerr << "Error getting typed ref for phones.\n";
     }
 ```
 
@@ -166,7 +169,7 @@ For nested message fields, you must check their presence and then `emplace()` to
 
     auto address_book_expected = factory.get_message("tutorial.AddressBook", mr);
     if (!address_book_expected) {
-        std::cerr << "Error: Failed to create AddressBook message." << std::endl;
+        std::cerr << "Error: Failed to create AddressBook message.\n";
         return 1;
     }
     hpp::proto::message_value_mref address_book_msg = *address_book_expected;
@@ -191,7 +194,7 @@ For nested message fields, you must check their presence and then `emplace()` to
             new_phone.set_field_by_name("type", hpp::proto::enum_name{"WORK"sv}).value();
         }
     }
-    std::cout << "\nCreated dynamic AddressBook with a Person." << std::endl;
+    std::cout << "\nCreated dynamic AddressBook with a Person.\n";
 ```
 **Important:** Reading a message field without first checking its presence (e.g., calling `has_value()` on an optional message reference) might lead to undefined behavior. For scalar, string, bytes, and enum fields, a default value is typically returned when unset.
 
@@ -271,7 +274,7 @@ Every mutable reference (`_mref`) has a corresponding constant sibling (`_cref`)
             hpp::proto::message_value_cref first_person_cref = people_list_cref[0];
             auto name_cref_expected = first_person_cref.typed_ref_by_name<hpp::proto::string_field_cref>("name");
             if (name_cref_expected) {
-                std::cout << "First person's name (const access): " << name_cref_expected->value() << std::endl;
+                std::cout << "First person's name (const access): " << name_cref_expected->value() << "\n";
             }
         }
     }
@@ -319,8 +322,8 @@ For instance, adding a new person to an address book might look like this:
         })
         .done(); // End address book chain
 
-    std::cout << "\nDynamically created AddressBook content:" << std::endl;
-    std::cout << hpp::proto::write_json(address_book_msg).value() << std::endl;
+    std::cout << "\nDynamically created AddressBook content:\n";
+    std::cout << hpp::proto::write_json(address_book_msg).value() << "\n";
 
     // Binary serialization/deserialization also works
     std::string binary_data;
@@ -329,8 +332,8 @@ For instance, adding a new person to an address book might look like this:
     hpp::proto::message_value_mref deserialized_address_book = *factory.get_message("tutorial.AddressBook", mr);
     hpp::proto::read_binpb(deserialized_address_book, binary_data).value();
     
-    std::cout << "\nDeserialized dynamic AddressBook content:" << std::endl;
-    std::cout << hpp::proto::write_json(deserialized_address_book).value() << std::endl;
+    std::cout << "\nDeserialized dynamic AddressBook content:\n";
+    std::cout << hpp::proto::write_json(deserialized_address_book).value() << "\n";
 ```
 
 ## 8) Safety Reminders

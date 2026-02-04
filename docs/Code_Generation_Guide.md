@@ -415,7 +415,7 @@ google::protobuf::FieldMask<> fm2;
 assert(hpp::proto::unpack_any(round_trip.any_value.value(), fm2).ok());
 ```
 
-`read_binpb`/`read_json` return `std::expected` but do not catch `std::bad_alloc` thrown by standard containers. If allocation failures are possible on your target platform, handle `std::bad_alloc` explicitly.
+Regardless of return type (`std::expected` or status), `read_binpb`/`read_json` do not catch any exceptions thrown by standard containers. If allocation failures are possible on your target platform, catch `std::bad_alloc` explicitly.
 
 </p>
 </details>

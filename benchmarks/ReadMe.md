@@ -36,20 +36,20 @@ Key observations
 - Proto3 is slower than proto2 for string-heavy decode, especially on big payloads, consistent with UTF-8 validation overheads.
 
 Deserialize: google vs hpp-proto
-- Regular: proto2 google 208 ns vs hpp-proto 202 ns; proto3 google 243 ns vs hpp-proto 203 ns.
-- Arena/non-owning: proto2 google 200 ns vs hpp-proto 141 ns; proto3 google 239 ns vs hpp-proto 160 ns.
+- Regular: proto2 google 215 ns vs hpp-proto 210 ns; proto3 google 251 ns vs hpp-proto 212 ns.
+- Arena/non-owning: proto2 google 210 ns vs hpp-proto 141 ns; proto3 google 252 ns vs hpp-proto 160 ns.
 
 Deserialize: ownership vs non-owning (hpp-proto)
 - Non-owning deserialization is the largest gain: proto2 141 ns vs 202 ns; proto3 160 ns vs 203 ns.
 
 Deserialize: padded input + repeated_packed
-- Padded input: non-owning further reduces time (proto2 101 ns vs 188 ns; proto3 144 ns vs 192 ns).
-- repeated_packed: hpp-proto regular 2511 ns vs google regular 3852 ns; hpp-proto non-owning 2465 ns vs google arena 3941 ns.
+- Padded input: non-owning further reduces time (proto2 101 ns vs 190 ns; proto3 144 ns vs 194 ns).
+- repeated_packed: hpp-proto regular 2624 ns vs google regular 4164 ns; hpp-proto non-owning 2550 ns vs google arena 4263 ns.
 
 Serialize (set-message pipeline + pure serialize)
-- Set-message only: hpp-proto is faster than Google protobuf (regular proto2 54.5 ns vs 106 ns, proto3 33.1 ns vs 108 ns; arena/non-owning proto2 18.5 ns vs 98.6 ns, proto3 10.7 ns vs 104 ns).
+- Set-message only: hpp-proto is faster than Google protobuf (regular proto2 52.6 ns vs 108 ns, proto3 32.6 ns vs 108 ns; arena/non-owning proto2 16.6 ns vs 99.3 ns, proto3 9.23 ns vs 105 ns).
 - Serialize-only: google proto2 64.5 ns vs hpp-proto 85.1 ns; google proto3 98.8 ns vs hpp-proto 102 ns.
-- Set-message+serialize: hpp-proto still leads (regular proto2 136 ns vs 181 ns, proto3 142 ns vs 215 ns; arena/non-owning proto2 98.8 ns vs 186 ns, proto3 119 ns vs 220 ns).
+- Set-message+serialize: hpp-proto still leads (regular proto2 139 ns vs 185 ns, proto3 148 ns vs 219 ns; arena/non-owning proto2 99.6 ns vs 186 ns, proto3 121 ns vs 223 ns).
 - Google protobuf can be faster in serialize-only because it focuses on emission from already-constructed objects, while hpp-proto’s advantage shows up in the end-to-end pipeline where its message construction paths are cheaper; the message layout choice (bitmask presence vs optional field wrappers) can be the key factor.
 
 ### Code Size

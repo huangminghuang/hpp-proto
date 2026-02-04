@@ -218,7 +218,7 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
     // Use small_vector for all repeated fields to reduce heap allocations
     template <typename T>
     using repeated_t = boost::container::small_vector<T, 8>;
-    using bytes_t = boost::container::small_vector<std::bytes, 32>;
+    using bytes_t = boost::container::small_vector<std::byte, 32>;
 
     template <typename Key, typename Mapped>
     using map_t = std::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
