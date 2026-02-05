@@ -1,5 +1,6 @@
 from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
+import os
 from shutil import which
 
 
@@ -58,8 +59,12 @@ class HppProtoConan(ConanFile):
             protobuf = self.dependencies.build.get("protobuf")
         except KeyError:
             protobuf = None
-        if protobuf and protobuf.cpp_info.bindirs:
-            tc.variables["CMAKE_PROGRAM_PATH"] = ";".join(protobuf.cpp_info.bindirs)
+        if protobuf:
+            bindirs = list(protobuf.cpp_info.bindirs or [])
+            if not bindirs and protobuf.package_folder:
+                bindirs = [os.path.join(protobuf.package_folder, "bin")]
+            if bindirs:
+                tc.variables["CMAKE_PROGRAM_PATH"] = ";".join(bindirs)
         tc.generate()
 
     def build(self):
