@@ -93,4 +93,12 @@ template <typename Traits>
 constexpr auto message_type_url(const CodeGeneratorRequest<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest">{}; }
 // NOLINTEND(performance-enum-size)
 } // namespace google::protobuf::compiler
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::compiler::Version<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::compiler::CodeGeneratorResponse_::File<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::compiler::CodeGeneratorResponse<Traits>> : std::true_type {};
+template <typename Traits>
+struct hpp::proto::is_hpp_generated<google::protobuf::compiler::CodeGeneratorRequest<Traits>> : std::true_type {};
 // clang-format on

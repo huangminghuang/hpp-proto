@@ -667,6 +667,8 @@ template <template <typename> class Allocator>
 struct basic_default_traits {
   template <typename T>
   using repeated_t = typename vector_trait<T, Allocator>::type;
+  template <typename T>
+  using recursive_repeated_t = typename vector_trait<T, Allocator>::type;
   using string_t = std::basic_string<char, std::char_traits<char>, Allocator<char>>;
   using bytes_t = typename vector_trait<std::byte, Allocator>::type;
 
@@ -697,6 +699,9 @@ using pmr_stable_traits = basic_stable_traits<std::pmr::polymorphic_allocator>;
 struct non_owning_traits {
   template <typename T>
   using repeated_t = equality_comparable_span<const T>;
+  template <typename T>
+  using recursive_repeated_t = equality_comparable_span<const T>;
+
   using string_t = std::string_view;
   using bytes_t = equality_comparable_span<const std::byte>;
 

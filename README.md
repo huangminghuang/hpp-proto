@@ -1,7 +1,10 @@
-# Hpp-proto
+# hpp-proto
 
-![linux](https://github.com/huangminghuang/hpp-proto/actions/workflows/linux.yml/badge.svg)![macos](https://github.com/huangminghuang/hpp-proto/actions/workflows/macos.yml/badge.svg)![windows](https://github.com/huangminghuang/hpp-proto/actions/workflows/windows.yml/badge.svg)
-[![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC&flag=ci)](https://codecov.io/github/huangminghuang/hpp-proto)[![Codacy Badge](https://app.codacy.com/project/badge/Grade/c629f1cf7a7c45b3b3640362da4ac95a)](https://app.codacy.com/gh/huangminghuang/hpp-proto/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+![linux](https://github.com/huangminghuang/hpp-proto/actions/workflows/linux.yml/badge.svg)
+![macos](https://github.com/huangminghuang/hpp-proto/actions/workflows/macos.yml/badge.svg)
+![windows](https://github.com/huangminghuang/hpp-proto/actions/workflows/windows.yml/badge.svg)
+[![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC&flag=ci)](https://codecov.io/github/huangminghuang/hpp-proto)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/c629f1cf7a7c45b3b3640362da4ac95a)](https://app.codacy.com/gh/huangminghuang/hpp-proto/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
 Hpp-proto is a modern, high-performance, and header-only C++23 implementation of Google's Protocol Buffers. It is designed from the ground up for extreme performance and minimal code size, making it an ideal choice for resource-constrained environments, real-time systems, and performance-critical applications.
 
@@ -43,7 +46,7 @@ This guide will walk you through creating a simple application using `hpp-proto`
 
 ### Prerequisites
 
-* A C++23 compatible compiler (e.g., Clang 19+, GCC 13+).
+* A C++23-compatible compiler (e.g., Clang 19+, GCC 13+).
 * CMake (version 3.24 or newer).
 * The `protoc` compiler. You can download it from the [official Protocol Buffers releases page](https://protobuf.dev/downloads).
 
@@ -190,11 +193,12 @@ You should see output indicating that both binary and JSON round-trips were succ
 One of `hpp-proto`'s most powerful features is its trait-based design, which decouples the generated message layout from specific container types. This lets you tailor the memory-management strategy (value-owning, arena-backed, view-only) for your messages without regenerating code.
 
 * **What Traits Customize**:
-  * `string_t`, `bytes_t`: Swap `std::string`/`std::vector<std::byte>` for `std::pmr::string`, `std::string_view`, or other string/byte containers.
-  * `repeated_t<T>`: Choose storage for repeated fields, like `std::pmr::vector`, `small_vector`, or `std::span`.
-  * `map_t<Key, Value>`: Use custom map-like containers (`flat_map`, `btree`, etc.).
+  * `string_t`, `bytes_t`: Sequence containers for string/byte fields like `std::string`/`std::vector<std::byte>`.
+  * `repeated_t<T>`: Sequence container for repeated fields, like `std::vector`, `small_vector`.
+  * `recursive_repeated_t<T>`: Sequence container for recursive repeated fields, i.e., the container can be instantiated with an incomplete T.
+  * `map_t<Key, Value>`: Associative container or sequence container of std::pair for map fields (`flat_map`, `btree`, etc.).
   * `optional_indirect_t<T>`: Control lifetimes for recursive messages.
-  * `indirect_t<T>`: Control lifetimes for recursive mapped type of map field.
+  * `indirect_t<T>`: Control lifetimes for recursive mapped type of map fields.
   * `unknown_fields_range_t`: Define how unknown fields are stored.
 
 * **Supplied Traits**:
