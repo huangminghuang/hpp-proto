@@ -1,11 +1,6 @@
 name: ClusterFuzzLite batch fuzzing
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main  # Use your actual default branch here.
-  schedule:
-    - cron: '0 3 * * *'
+
+on: []
 permissions: read-all
 jobs:
   BatchFuzzing:
