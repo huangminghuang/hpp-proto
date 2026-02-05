@@ -13,6 +13,8 @@ option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
+option(HPP_PROTO_USE_SYSTEM_GLAZE "Use glaze from a package manager" OFF)
+option(HPP_PROTO_USE_SYSTEM_IS_UTF8 "Use is_utf8 from a package manager" OFF)
 
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
@@ -82,8 +84,14 @@ target_include_directories(libhpp_proto INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_include_directories(libhpp_proto SYSTEM INTERFACE
-  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>)
+# If glaze is provided by a package manager, link the imported target.
+# If glaze comes from CPM, keep it header-only via include dirs to avoid export errors.
+if(HPP_PROTO_USE_SYSTEM_GLAZE)
+  target_link_libraries(libhpp_proto INTERFACE glaze::glaze)
+else()
+  target_include_directories(libhpp_proto SYSTEM INTERFACE
+    $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>)
+endif()
 target_compile_features(libhpp_proto INTERFACE cxx_std_23)
 target_link_libraries(libhpp_proto INTERFACE is_utf8)
 
@@ -108,11 +116,18 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     include(cmake/grpc_check.cmake)
   endif()
 
-  add_subdirectory(tests)
-  add_subdirectory(tutorial)
-  add_subdirectory(fuzz)
-  add_subdirectory(benchmarks)
+  if(HPP_PROTO_TESTS)
+    add_subdirectory(tests)
+    add_subdirectory(tutorial)
+  endif()
+  if(HPP_PROTO_FUZZER_ONLY)
+    add_subdirectory(fuzz)
+  endif()
+  if(HPP_PROTO_BENCHMARKS)
+    add_subdirectory(benchmarks)
+  endif()
 
+  include(CMakePackageConfigHelpers)
   write_basic_package_version_file(
     lib/cmake/hpp_proto/hpp_proto-config-version.cmake
     COMPATIBILITY AnyNewerVersion
@@ -135,7 +150,9 @@ if(HPP_PROTO_PROTOC_PLUGIN)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
-  install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
+  if(glaze_ADDED)
+    install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
+  endif()
 
   configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"

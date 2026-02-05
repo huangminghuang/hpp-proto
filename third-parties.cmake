@@ -6,27 +6,40 @@ if (CMAKE_VERSION GREATER_EQUAL 3.25)
     set(system_package SYSTEM)
 endif()
 
-CPMAddPackage(
-    NAME glaze
-    GIT_TAG v7.0.1
-    GITHUB_REPOSITORY stephenberry/glaze
-    ${system_package}
-)
-
-CPMAddPackage(
-    NAME is_utf8
-    VERSION 1.4.1
-    GITHUB_REPOSITORY simdutf/is_utf8
-    DOWNLOAD_ONLY ON
-)
-add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
-target_compile_features(is_utf8 INTERFACE cxx_std_20)
-get_target_property(IS_UTF8_COMPILER_OPTIONS is_utf8 COMPILE_OPTIONS)
-if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
-    message(FATAL_ERROR "is_utf8 is not compatible with address sanitizer")
+if(HPP_PROTO_USE_SYSTEM_GLAZE)
+    find_package(glaze CONFIG REQUIRED)
+else()
+    CPMAddPackage(
+        NAME glaze
+        GIT_TAG v7.0.2
+        GITHUB_REPOSITORY stephenberry/glaze
+        ${system_package}
+    )
 endif()
 
-set_target_properties(is_utf8 PROPERTIES CXX_CLANG_TIDY "")
+if(HPP_PROTO_USE_SYSTEM_IS_UTF8)
+    find_package(is_utf8 CONFIG REQUIRED)
+    if(TARGET is_utf8::is_utf8 AND NOT TARGET is_utf8)
+        add_library(is_utf8 ALIAS is_utf8::is_utf8)
+    elseif(NOT TARGET is_utf8)
+        message(FATAL_ERROR "is_utf8 package found but no target (expected is_utf8 or is_utf8::is_utf8)")
+    endif()
+else()
+    CPMAddPackage(
+        NAME is_utf8
+        VERSION 1.4.1
+        GITHUB_REPOSITORY simdutf/is_utf8
+        DOWNLOAD_ONLY ON
+    )
+    add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
+    target_compile_features(is_utf8 INTERFACE cxx_std_20)
+    get_target_property(IS_UTF8_COMPILER_OPTIONS is_utf8 COMPILE_OPTIONS)
+    if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
+        message(FATAL_ERROR "is_utf8 is not compatible with address sanitizer")
+    endif()
+
+    set_target_properties(is_utf8 PROPERTIES CXX_CLANG_TIDY "")
+endif()
 
 if (HPP_PROTO_PROTOC_PLUGIN)
 if(HPP_PROTO_PROTOC STREQUAL "find")

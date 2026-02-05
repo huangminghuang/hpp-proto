@@ -1,4 +1,7 @@
 
+get_filename_component(_hpp_proto_module_dir "${CMAKE_CURRENT_LIST_DIR}" ABSOLUTE)
+get_filename_component(HPP_PROTO_ROOT_FROM_MODULE "${_hpp_proto_module_dir}/../../.." ABSOLUTE)
+
 if(NOT COMMAND protobuf_generate)
   function(protobuf_generate)
     include(CMakeParseArguments)
@@ -155,9 +158,16 @@ if(NOT COMMAND protobuf_generate)
         set(_comment "${_comment}, plugin-options: ${_plugin_options}")
       endif()
 
-      if(NOT TARGET protobuf::protoc)
+    if(NOT TARGET protobuf::protoc)
+      if(TARGET hpp_proto::protoc)
+        add_executable(protobuf::protoc ALIAS hpp_proto::protoc)
+      else()
+        find_program(PROTOC_PATH NAMES protoc REQUIRED)
+        add_executable(hpp_proto::protoc IMPORTED GLOBAL)
+        set_target_properties(hpp_proto::protoc PROPERTIES IMPORTED_LOCATION "${PROTOC_PATH}")
         add_executable(protobuf::protoc ALIAS hpp_proto::protoc)
       endif()
+    endif()
 
       add_custom_command(
         OUTPUT ${_generated_srcs}
@@ -181,11 +191,31 @@ if(NOT COMMAND protobuf_generate)
 endif()  
 
 function(protobuf_generate_hpp)
+  set(_hpp_proto_plugin_dep "")
+  if(TARGET hpp_proto::protoc-gen-hpp)
+    set(_hpp_proto_plugin "protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp>")
+    set(_hpp_proto_plugin_dep hpp_proto::protoc-gen-hpp)
+  else()
+    if(DEFINED HPP_PROTO_PROTOC_GEN_HPP_EXECUTABLE AND EXISTS "${HPP_PROTO_PROTOC_GEN_HPP_EXECUTABLE}")
+      set(_hpp_proto_candidate "${HPP_PROTO_PROTOC_GEN_HPP_EXECUTABLE}")
+    else()
+      if(DEFINED HPP_PROTO_ROOT)
+        set(_hpp_proto_candidate "${HPP_PROTO_ROOT}/bin/protoc-gen-hpp")
+      else()
+        set(_hpp_proto_candidate "${HPP_PROTO_ROOT_FROM_MODULE}/bin/protoc-gen-hpp")
+      endif()
+      if(NOT EXISTS "${_hpp_proto_candidate}")
+        find_program(_hpp_proto_candidate NAMES protoc-gen-hpp REQUIRED)
+      endif()
+    endif()
+    set(_hpp_proto_plugin "protoc-gen-hpp=${_hpp_proto_candidate}")
+  endif()
+
   protobuf_generate(${ARGN} 
                     LANGUAGE hpp
                     GENERATE_EXTENSIONS .msg.hpp .pb.hpp .glz.hpp .desc.hpp
-                    PLUGIN protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp>
-                    DEPENDENCIES hpp_proto::protoc-gen-hpp)
+                    PLUGIN "${_hpp_proto_plugin}"
+                    DEPENDENCIES ${_hpp_proto_plugin_dep})
 
   include(CMakeParseArguments)
   cmake_parse_arguments(protobuf_generate_hpp "" "TARGET;PLUGIN_OPTIONS;PROTOC_OUT_DIR" "" "${ARGN}")
