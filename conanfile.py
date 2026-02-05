@@ -65,6 +65,14 @@ class HppProtoConan(ConanFile):
                 bindirs = [os.path.join(protobuf.package_folder, "bin")]
             if bindirs:
                 tc.variables["CMAKE_PROGRAM_PATH"] = ";".join(bindirs)
+            builddirs = list(protobuf.cpp_info.builddirs or [])
+            if builddirs:
+                builddir = builddirs[0]
+                if protobuf.package_folder and not os.path.isabs(builddir):
+                    builddir = os.path.join(protobuf.package_folder, builddir)
+                tc.cache_variables["Protobuf_DIR"] = builddir
+            if protobuf.package_folder:
+                tc.cache_variables["CMAKE_PREFIX_PATH"] = protobuf.package_folder
         tc.generate()
 
     def build(self):
