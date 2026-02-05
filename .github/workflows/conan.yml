@@ -41,6 +41,7 @@ jobs:
 
       - name: create package
         run: |
+          source "$(conan buildenv --format=sh)"
           conan create . \
             -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
             --build=missing
@@ -54,6 +55,7 @@ jobs:
 
       - name: configure
         run: |
+          source tutorial-build/generators/conanbuild.sh
           cmake -S tutorial -B tutorial-build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=tutorial-build/conan_toolchain.cmake
