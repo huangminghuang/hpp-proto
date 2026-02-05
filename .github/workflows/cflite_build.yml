@@ -1,6 +1,8 @@
 name: ClusterFuzzLite continuous builds
 
-on: []
+on:
+  workflow_dispatch:
+
 permissions: read-all
 jobs:
   Build:

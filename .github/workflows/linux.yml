@@ -1,133 +1,120 @@
-on: []
 ---
-  name: Linux
-  
-  on:
-    push:
-      branches:
-        - main
-        - develop
-        - dev/**
-      paths-ignore:
-        - '**.md'
-    pull_request:
-      branches:
-        - main
-        - develop
-      paths-ignore:
-        - '**.md'
-  
-  env:
-    CTEST_OUTPUT_ON_FAILURE: 1
-    CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
-  
-  jobs:
-    build:
-      strategy:
-        fail-fast: false
-        matrix:
-          os: [ubuntu-24.04]
-          compiler: [gcc-13, clang-19]
-          build_type: [Release, Debug]
-          protoc: [find]
-          include:
-            - sanitize: OFF
-            - build_type: Debug
-              sanitize: "address,undefined"
-            - build_type: Coverage
-              compiler: gcc-13
-              protoc: find
-              sanitize: OFF
-          exclude:
-            - compiler: gcc-13
-              build_type: Debug
+name: Linux
 
-      runs-on: ubuntu-24.04
-      steps:
-        - name: Install Compiler and Set Environment
-          run: |
-            sudo apt-get update
+on:
+  workflow_dispatch:
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: 1
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        compiler: [gcc-13, clang-19]
+        build_type: [Release, Debug]
+        protoc: [find]
+        include:
+          - sanitize: OFF
+          - build_type: Debug
+            sanitize: "address,undefined"
+          - build_type: Coverage
+            compiler: gcc-13
+            protoc: find
+            sanitize: OFF
+        exclude:
+          - compiler: gcc-13
+            build_type: Debug
+
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install Compiler and Set Environment
+        run: |
+          sudo apt-get update
+          
+          # Get the version suffix (e.g., "-13", "-19")
+          VERSION_SUFFIX=$(echo "${{ matrix.compiler }}" | grep -oE -- '-[0-9]+$')
+
+          if [[ "${{ matrix.compiler }}" == gcc* ]]; then
+            echo "Installing GCC..."
+            sudo apt-get install -y ${{ matrix.compiler }} g++${VERSION_SUFFIX}
             
-            # Get the version suffix (e.g., "-13", "-19")
-            VERSION_SUFFIX=$(echo "${{ matrix.compiler }}" | grep -oE -- '-[0-9]+$')
-
-            if [[ "${{ matrix.compiler }}" == gcc* ]]; then
-              echo "Installing GCC..."
-              sudo apt-get install -y ${{ matrix.compiler }} g++${VERSION_SUFFIX}
+            echo "Setting GCC environment variables..."
+            echo "CC=${{ matrix.compiler }}" >> $GITHUB_ENV
+            echo "CXX=g++${VERSION_SUFFIX}" >> $GITHUB_ENV    
+          elif [[ "${{ matrix.compiler }}" == clang* ]]; then
+            echo "Installing Clang + libc++..."
+            sudo apt-get install -y \
+              ${{ matrix.compiler }} \
+              lld${VERSION_SUFFIX} \
+              libc++${VERSION_SUFFIX}-dev \
+              libc++abi${VERSION_SUFFIX}-dev
               
-              echo "Setting GCC environment variables..."
-              echo "CC=${{ matrix.compiler }}" >> $GITHUB_ENV
-              echo "CXX=g++${VERSION_SUFFIX}" >> $GITHUB_ENV    
-            elif [[ "${{ matrix.compiler }}" == clang* ]]; then
-              echo "Installing Clang + libc++..."
-              sudo apt-get install -y \
-                ${{ matrix.compiler }} \
-                lld${VERSION_SUFFIX} \
-                libc++${VERSION_SUFFIX}-dev \
-                libc++abi${VERSION_SUFFIX}-dev
-                
-              echo "Setting Clang environment variables..."
-              echo "CC=${{ matrix.compiler }}" >> $GITHUB_ENV
-              echo "CXX=clang++${VERSION_SUFFIX}" >> $GITHUB_ENV
-              
-              # Tell Clang to use libc++ (compile and link)
-              echo "CXXFLAGS=-stdlib=libc++" >> $GITHUB_ENV
-              echo "LDFLAGS=-stdlib=libc++" >> $GITHUB_ENV
-            fi
-        - uses: actions/checkout@v4
-  
-        - uses: actions/cache@v4
-          with:
-            path: "**/cpm_modules"
-            key: ${{ matrix.os }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
-  
-        - name: ccache
-          uses: hendrikmuhs/ccache-action@v1.2.14
-          with:
-            key: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
-
-        - name: install ninja
-          run: |
-            sudo apt install -y ninja-build
-
-        - name: install protoc
-          if: matrix.protoc == 'find'
-          run: |
-            sudo apt install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
-
-        - name: install lcov
-          if: matrix.build_type == 'Coverage'
-          run: |
-            sudo apt install -y lcov
+            echo "Setting Clang environment variables..."
+            echo "CC=${{ matrix.compiler }}" >> $GITHUB_ENV
+            echo "CXX=clang++${VERSION_SUFFIX}" >> $GITHUB_ENV
             
-        - name: configure
-          run: |
-            cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-                  -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
-                  -DHPP_PROTO_ENABLE_SANITIZERS=${{ matrix.sanitize }} \
-                  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-                  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-                  ${{ matrix.extra_cmake_configure_flags }}
-  
-        - name: build
-          run: cmake --build build -j${{env.nproc}}
-  
-        - name: test
-          working-directory: ./build
-          run: |
-            ctest --build-config ${{ matrix.build_type }} --output-on-failure
+            # Tell Clang to use libc++ (compile and link)
+            echo "CXXFLAGS=-stdlib=libc++" >> $GITHUB_ENV
+            echo "LDFLAGS=-stdlib=libc++" >> $GITHUB_ENV
+          fi
+      - uses: actions/checkout@v4
 
-        - name: capture coverage
-          if: matrix.build_type == 'Coverage'
-          run: |
-            cmake --build build --target coverage_filtered_info
+      - uses: actions/cache@v4
+        with:
+          path: "**/cpm_modules"
+          key: ${{ matrix.os }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
 
-        - name: Upload coverage to Codecov
-          uses: codecov/codecov-action@v5
-          if: matrix.build_type == 'Coverage'
-          with:
-            token: ${{ secrets.CODECOV_TOKEN }}
-            files: build/coverage.filtered.info
-            flags: linux,ci
-            name: linux-coverage
-            verbose: true
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2.14
+        with:
+          key: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
+
+      - name: install ninja
+        run: |
+          sudo apt install -y ninja-build
+
+      - name: install protoc
+        if: matrix.protoc == 'find'
+        run: |
+          sudo apt install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
+
+      - name: install lcov
+        if: matrix.build_type == 'Coverage'
+        run: |
+          sudo apt install -y lcov
+          
+      - name: configure
+        run: |
+          cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+                -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
+                -DHPP_PROTO_ENABLE_SANITIZERS=${{ matrix.sanitize }} \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                ${{ matrix.extra_cmake_configure_flags }}
+
+      - name: build
+        run: cmake --build build -j${{env.nproc}}
+
+      - name: test
+        working-directory: ./build
+        run: |
+          ctest --build-config ${{ matrix.build_type }} --output-on-failure
+
+      - name: capture coverage
+        if: matrix.build_type == 'Coverage'
+        run: |
+          cmake --build build --target coverage_filtered_info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        if: matrix.build_type == 'Coverage'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: build/coverage.filtered.info
+          flags: linux,ci
+          name: linux-coverage
+          verbose: true

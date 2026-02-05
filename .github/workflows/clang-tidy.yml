@@ -1,6 +1,8 @@
 name: Clang-Tidy 21
 
-on: []
+on:
+  workflow_dispatch:
+
 
 
 env:

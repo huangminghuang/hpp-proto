@@ -1,7 +1,9 @@
 ---
 name: MacOS
 
-on: []
+on:
+  workflow_dispatch:
+
 
 
 env:

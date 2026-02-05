@@ -1,7 +1,9 @@
 ---
 name: Install
 
-on: []
+on:
+  workflow_dispatch:
+
 
 
 env:

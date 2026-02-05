@@ -1,6 +1,8 @@
 name: ClusterFuzzLite batch fuzzing
 
-on: []
+on:
+  workflow_dispatch:
+
 permissions: read-all
 jobs:
   BatchFuzzing:
