@@ -56,7 +56,7 @@ jobs:
 
       - name: configure
         run: |
-          cmake -S tutorial -B tutorial-build \
+          cmake -S tutorial -B tutorial-build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=tutorial-build/build/Release/generators/conan_toolchain.cmake
 
