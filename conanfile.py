@@ -54,7 +54,10 @@ class HppProtoConan(ConanFile):
         tc.variables["HPP_PROTO_TESTS"] = "ON" if self.options.tests else "OFF"
         tc.variables["HPP_PROTO_PROTOC"] = "find"
         tc.variables["HPP_PROTO_USE_SYSTEM_GLAZE"] = "ON" if self.options.use_system_glaze else "OFF"
-        protobuf = self.dependencies.build.get("protobuf")
+        try:
+            protobuf = self.dependencies.build.get("protobuf")
+        except KeyError:
+            protobuf = None
         if protobuf and protobuf.cpp_info.bindirs:
             tc.variables["CMAKE_PROGRAM_PATH"] = ";".join(protobuf.cpp_info.bindirs)
         tc.generate()
