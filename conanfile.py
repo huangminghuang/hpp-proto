@@ -1,5 +1,6 @@
 from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.files import which
 
 
 class HppProtoConan(ConanFile):
@@ -39,7 +40,8 @@ class HppProtoConan(ConanFile):
             self.requires("glaze/7.0.2")
 
     def tool_requirements(self):
-        self.tool_requires("protobuf/[>=3.21.12]")
+        if not which("protoc"):
+            self.tool_requires("protobuf/[>=3.21.12]")
 
     def layout(self):
         cmake_layout(self)
@@ -52,6 +54,9 @@ class HppProtoConan(ConanFile):
         tc.variables["HPP_PROTO_TESTS"] = "ON" if self.options.tests else "OFF"
         tc.variables["HPP_PROTO_PROTOC"] = "find"
         tc.variables["HPP_PROTO_USE_SYSTEM_GLAZE"] = "ON" if self.options.use_system_glaze else "OFF"
+        protobuf = self.dependencies.build.get("protobuf")
+        if protobuf and protobuf.cpp_info.bindirs:
+            tc.variables["CMAKE_PROGRAM_PATH"] = ";".join(protobuf.cpp_info.bindirs)
         tc.generate()
 
     def build(self):
