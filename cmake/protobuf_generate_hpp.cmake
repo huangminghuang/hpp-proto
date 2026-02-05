@@ -1,7 +1,3 @@
-
-get_filename_component(_hpp_proto_module_dir "${CMAKE_CURRENT_LIST_DIR}" ABSOLUTE)
-get_filename_component(HPP_PROTO_ROOT_FROM_MODULE "${_hpp_proto_module_dir}/../../.." ABSOLUTE)
-
 if(NOT COMMAND protobuf_generate)
   function(protobuf_generate)
     include(CMakeParseArguments)
@@ -191,25 +187,8 @@ if(NOT COMMAND protobuf_generate)
 endif()  
 
 function(protobuf_generate_hpp)
-  set(_hpp_proto_plugin_dep "")
-  if(TARGET hpp_proto::protoc-gen-hpp)
-    set(_hpp_proto_plugin "protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp>")
-    set(_hpp_proto_plugin_dep hpp_proto::protoc-gen-hpp)
-  else()
-    if(DEFINED HPP_PROTO_PROTOC_GEN_HPP_EXECUTABLE AND EXISTS "${HPP_PROTO_PROTOC_GEN_HPP_EXECUTABLE}")
-      set(_hpp_proto_candidate "${HPP_PROTO_PROTOC_GEN_HPP_EXECUTABLE}")
-    else()
-      if(DEFINED HPP_PROTO_ROOT)
-        set(_hpp_proto_candidate "${HPP_PROTO_ROOT}/bin/protoc-gen-hpp")
-      else()
-        set(_hpp_proto_candidate "${HPP_PROTO_ROOT_FROM_MODULE}/bin/protoc-gen-hpp")
-      endif()
-      if(NOT EXISTS "${_hpp_proto_candidate}")
-        find_program(_hpp_proto_candidate NAMES protoc-gen-hpp REQUIRED)
-      endif()
-    endif()
-    set(_hpp_proto_plugin "protoc-gen-hpp=${_hpp_proto_candidate}")
-  endif()
+  set(_hpp_proto_plugin "protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp>")
+  set(_hpp_proto_plugin_dep hpp_proto::protoc-gen-hpp)
 
   protobuf_generate(${ARGN} 
                     LANGUAGE hpp

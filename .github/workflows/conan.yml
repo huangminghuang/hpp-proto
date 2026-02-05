@@ -41,35 +41,27 @@ jobs:
 
       - name: create package
         run: |
-          conan install . \
-            -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
-            --build=missing \
-            --build-require \
-            -g VirtualBuildEnv \
-            -of conan-env
-          source conan-env/build/Release/generators/conanbuild.sh
-          which protoc || true
-          protoc --version || true
           conan create . \
             -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
+            -c user.hpp_proto:protoc=download \
             --build=missing
 
       - name: install dependencies
         run: |
           conan install tutorial \
             -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
+            -c user.hpp_proto:protoc=download \
             --build=missing \
             -of tutorial-build
 
       - name: configure
         run: |
-          source tutorial-build/generators/conanbuild.sh
           cmake -S tutorial -B tutorial-build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=tutorial-build/conan_toolchain.cmake
+            -DCMAKE_TOOLCHAIN_FILE=tutorial-build/build/Release/generators/conan_toolchain.cmake
 
       - name: build
-        run: cmake --build tutorial-build --config Release -j4
+        run: cmake --build tutorial-build --config Release -j2
 
       - name: test
         run: |

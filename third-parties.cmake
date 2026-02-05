@@ -42,6 +42,7 @@ else()
 endif()
 
 if (HPP_PROTO_PROTOC_PLUGIN)
+    set(HPP_PROTO_PROTOC_VERSION "33.2" CACHE STRING "Protobuf/protoc version to use for compile or download")
 if(HPP_PROTO_PROTOC STREQUAL "find")
     find_package(Protobuf CONFIG)
     if(NOT Protobuf_FOUND)
@@ -76,8 +77,11 @@ if(HPP_PROTO_PROTOC STREQUAL "find")
     else()
         get_target_property(Protobuf_INCLUDE_DIRS protobuf::libprotobuf INTERFACE_INCLUDE_DIRECTORIES)
     endif()
+elseif(HPP_PROTO_PROTOC STREQUAL "download")
+    include(cmake/protoc_download.cmake)
+    hpp_proto_download_protoc()
 elseif(HPP_PROTO_PROTOC STREQUAL "compile")
-    set(Protobuf_VERSION 33.2)
+    set(Protobuf_VERSION "${HPP_PROTO_PROTOC_VERSION}")
     CPMAddPackage(
         NAME protobuf
         VERSION ${Protobuf_VERSION}

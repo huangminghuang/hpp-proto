@@ -40,8 +40,9 @@ class HppProtoConan(ConanFile):
         if self.options.use_system_glaze:
             self.requires("glaze/7.0.2")
 
-    def tool_requirements(self):
-        if not which("protoc"):
+    def build_requirements(self):
+        protoc_mode = self.conf.get("user.hpp_proto:protoc", default="find")
+        if protoc_mode != "download":
             self.tool_requires("protobuf/[>=3.21.12]")
 
     def layout(self):
@@ -53,7 +54,11 @@ class HppProtoConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["HPP_PROTO_PROTOC_PLUGIN"] = "ON"
         tc.variables["HPP_PROTO_TESTS"] = "ON" if self.options.tests else "OFF"
-        tc.variables["HPP_PROTO_PROTOC"] = "find"
+        protoc_mode = self.conf.get("user.hpp_proto:protoc", default="find")
+        tc.variables["HPP_PROTO_PROTOC"] = protoc_mode
+        protoc_version = self.conf.get("user.hpp_proto:protoc_version")
+        if protoc_version:
+            tc.variables["HPP_PROTO_PROTOC_VERSION"] = protoc_version
         tc.variables["HPP_PROTO_USE_SYSTEM_GLAZE"] = "ON" if self.options.use_system_glaze else "OFF"
         try:
             protobuf = self.dependencies.build.get("protobuf")
