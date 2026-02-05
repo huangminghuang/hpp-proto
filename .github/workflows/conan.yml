@@ -44,9 +44,12 @@ jobs:
           conan install . \
             -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
             --build=missing \
+            --build-require \
             -g VirtualBuildEnv \
             -of conan-env
           source conan-env/build/Release/generators/conanbuild.sh
+          which protoc || true
+          protoc --version || true
           conan create . \
             -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
             --build=missing
