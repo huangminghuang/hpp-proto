@@ -16,9 +16,9 @@ option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
 
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
-set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
+set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, 'compile' for compiling from source, or 'download' for downloading precompiled executable from github")
 set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS
-  "find" "compile")
+  "find" "compile" "download")
 
 if(HPP_PROTO_FUZZER_ONLY)
   if(NOT HPP_PROTO_PROTOC_PLUGIN)
@@ -82,8 +82,7 @@ target_include_directories(libhpp_proto INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_include_directories(libhpp_proto SYSTEM INTERFACE
-  $<BUILD_INTERFACE:${glaze_SOURCE_DIR}/include>)
+
 target_compile_features(libhpp_proto INTERFACE cxx_std_23)
 target_link_libraries(libhpp_proto INTERFACE is_utf8)
 
@@ -108,11 +107,18 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     include(cmake/grpc_check.cmake)
   endif()
 
-  add_subdirectory(tests)
-  add_subdirectory(tutorial)
-  add_subdirectory(fuzz)
-  add_subdirectory(benchmarks)
+  if(HPP_PROTO_TESTS)
+    add_subdirectory(tests)
+    add_subdirectory(tutorial)
+  endif()
+  if(HPP_PROTO_FUZZER_ONLY)
+    add_subdirectory(fuzz)
+  endif()
+  if(HPP_PROTO_BENCHMARKS)
+    add_subdirectory(benchmarks)
+  endif()
 
+  include(CMakePackageConfigHelpers)
   write_basic_package_version_file(
     lib/cmake/hpp_proto/hpp_proto-config-version.cmake
     COMPATIBILITY AnyNewerVersion
@@ -129,13 +135,24 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     endforeach()
 
     install(TARGETS protoc EXPORT hpp_proto-targets)
+  elseif(HPP_PROTO_PROTOC STREQUAL "download")
+    if(DEFINED HPP_PROTO_PROTOC_ZIP_PATH)
+      configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protoc_install.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/protoc_install.cmake"
+        @ONLY
+      )
+      install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/protoc_install.cmake")
+    endif()
   endif()
 
   install(TARGETS libhpp_proto EXPORT hpp_proto-targets)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
-  install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
+  if(glaze_ADDED)
+    install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
+  endif()
 
   configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"
@@ -160,53 +177,4 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     NAMESPACE hpp_proto::)
 endif(HPP_PROTO_PROTOC_PLUGIN)
 
-if(CMAKE_CONFIGURATION_TYPES)
-  list(FIND CMAKE_CONFIGURATION_TYPES "Coverage" _coverage_config_index)
-else()
-  set(_coverage_config_index -1)
-endif()
-
-if(CMAKE_BUILD_TYPE STREQUAL "Coverage" OR _coverage_config_index GREATER_EQUAL 0)
-  find_program(LCOV_EXECUTABLE lcov)
-  find_program(GENHTML_EXECUTABLE genhtml)
-
-  if(LCOV_EXECUTABLE)
-    set(COVERAGE_EXCLUDE_PATTERNS
-      "/usr/include/*"
-      "${CMAKE_CURRENT_SOURCE_DIR}/include/google/protobuf/*"
-      "${CMAKE_CURRENT_SOURCE_DIR}/tutorial/*"
-      "${CMAKE_CURRENT_SOURCE_DIR}/tests/*"
-      "${CMAKE_BINARY_DIR}/*"
-      "$ENV{CPM_SOURCE_CACHE}/*"
-    )
-    set(COVERAGE_LCOV_ARGS
-      --ignore-errors inconsistent,unsupported,format,unused
-      --rc derive_function_end_line=0
-    )
-
-    add_custom_target(coverage_filtered_info
-      COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-      COMMAND ${LCOV_EXECUTABLE} --capture --directory ${CMAKE_BINARY_DIR}
-      --output-file ${CMAKE_BINARY_DIR}/coverage.info
-      ${COVERAGE_LCOV_ARGS}
-      COMMAND ${LCOV_EXECUTABLE} --remove ${CMAKE_BINARY_DIR}/coverage.info
-      ${COVERAGE_EXCLUDE_PATTERNS}
-      --output-file ${CMAKE_BINARY_DIR}/coverage.filtered.info
-      ${COVERAGE_LCOV_ARGS}
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-      COMMENT "Generating coverage.filtered.info"
-      VERBATIM
-    )
-
-    if(GENHTML_EXECUTABLE)
-      add_custom_target(coverage_html
-        DEPENDS coverage_filtered_info
-        COMMAND ${GENHTML_EXECUTABLE} ${CMAKE_BINARY_DIR}/coverage.filtered.info
-        --output-directory ${CMAKE_BINARY_DIR}/coverage-report
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Generating coverage HTML report"
-        VERBATIM
-      )
-    endif()
-  endif()
-endif()
+include(cmake/coverage.cmake)

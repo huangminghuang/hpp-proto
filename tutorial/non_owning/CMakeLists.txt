@@ -1,6 +1,6 @@
 
 add_executable(non_owning_tutorial_proto3 non_owning_tutorial_proto3.cpp)
-target_link_libraries(non_owning_tutorial_proto3 PRIVATE addressbook_proto3)
+target_link_libraries(non_owning_tutorial_proto3 PRIVATE glaze::glaze addressbook_proto3)
 
 add_test(
     NAME non_owning_tutorial_proto3
@@ -9,7 +9,7 @@ add_test(
 
 
 add_executable(non_owning_tutorial_proto2 non_owning_tutorial_proto2.cpp)
-target_link_libraries(non_owning_tutorial_proto2 PRIVATE addressbook_proto2)
+target_link_libraries(non_owning_tutorial_proto2 PRIVATE glaze::glaze addressbook_proto2)
 
 add_test(NAME non_owning_tutorial_proto2
     COMMAND non_owning_tutorial_proto2

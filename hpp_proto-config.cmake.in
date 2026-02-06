@@ -14,5 +14,15 @@ if (HPP_PROTO_PROTOC STREQUAL "find")
     endif()
 endif()
 
+get_filename_component(_hpp_proto_prefix "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+set(HPP_PROTO_ROOT "${_hpp_proto_prefix}")
+
+# Provide protoc from the package if available.
+if(NOT TARGET hpp_proto::protoc AND EXISTS "${HPP_PROTO_ROOT}/bin/protoc")
+    add_executable(hpp_proto::protoc IMPORTED GLOBAL)
+    set_target_properties(hpp_proto::protoc PROPERTIES
+        IMPORTED_LOCATION "${HPP_PROTO_ROOT}/bin/protoc")
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/hpp_proto-targets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/protobuf_generate_hpp.cmake")
