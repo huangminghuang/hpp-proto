@@ -59,19 +59,17 @@ jobs:
             -c user.hpp_proto:protoc=download \
             --build=missing \
             -of tutorial-build
-          ls -la tutorial-build
-          ls -la tutorial-build/build || true
-          ls -la tutorial-build/build/Release || true
-          ls -la tutorial-build/build/Release/generators || true
 
       - name: configure
         run: |
           cmake -S tutorial --preset conan-release
 
       - name: build
-        run: cmake --build tutorial-build --config Release -j2
+        run: |
+          cd tutorial
+          cmake --build --preset conan-release -j2
 
       - name: test
         run: |
-          cd tutorial-build
-          ctest --build-config Release --output-on-failure
+          cd tutorial
+          ctest --preset conan-release --output-on-failure

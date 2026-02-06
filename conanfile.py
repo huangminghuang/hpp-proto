@@ -1,4 +1,5 @@
 from conan import ConanFile
+from conan.tools.files import copy
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 import os
 from shutil import which
@@ -41,8 +42,8 @@ class HppProtoConan(ConanFile):
             self.requires("glaze/7.0.2")
 
     def build_requirements(self):
-        protoc_mode = self.conf.get("user.hpp_proto:protoc", default="find")
-        if protoc_mode != "download":
+        self.protoc_mode = self.conf.get("user.hpp_proto:protoc", default="find")
+        if self.protoc_mode != "download":
             self.tool_requires("protobuf/[>=3.21.12]")
 
     def layout(self):
@@ -54,30 +55,11 @@ class HppProtoConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["HPP_PROTO_PROTOC_PLUGIN"] = "ON"
         tc.variables["HPP_PROTO_TESTS"] = "ON" if self.options.tests else "OFF"
-        protoc_mode = self.conf.get("user.hpp_proto:protoc", default="find")
-        tc.variables["HPP_PROTO_PROTOC"] = protoc_mode
+        tc.variables["HPP_PROTO_PROTOC"] = self.protoc_mode
         protoc_version = self.conf.get("user.hpp_proto:protoc_version")
         if protoc_version:
             tc.variables["HPP_PROTO_PROTOC_VERSION"] = protoc_version
         tc.variables["HPP_PROTO_USE_SYSTEM_GLAZE"] = "ON" if self.options.use_system_glaze else "OFF"
-        try:
-            protobuf = self.dependencies.build.get("protobuf")
-        except KeyError:
-            protobuf = None
-        if protobuf:
-            bindirs = list(protobuf.cpp_info.bindirs or [])
-            if not bindirs and protobuf.package_folder:
-                bindirs = [os.path.join(protobuf.package_folder, "bin")]
-            if bindirs:
-                tc.variables["CMAKE_PROGRAM_PATH"] = ";".join(bindirs)
-            builddirs = list(protobuf.cpp_info.builddirs or [])
-            if builddirs:
-                builddir = builddirs[0]
-                if protobuf.package_folder and not os.path.isabs(builddir):
-                    builddir = os.path.join(protobuf.package_folder, builddir)
-                tc.cache_variables["Protobuf_DIR"] = builddir
-            if protobuf.package_folder:
-                tc.cache_variables["CMAKE_PREFIX_PATH"] = protobuf.package_folder
         tc.generate()
 
     def build(self):
@@ -88,16 +70,23 @@ class HppProtoConan(ConanFile):
     def package(self):
         cmake = CMake(self)
         cmake.install()
+        cmake_config_folder = os.path.join(self.package_folder, "lib", "cmake", "hpp_proto")
+        src_cmake_folder = os.path.join(self.source_folder, "cmake")
+        copy(self, "conan_protoc_target.cmake", src=os.path.join(self.source_folder, "cmake"), dst=cmake_config_folder)
 
     def package_info(self):
-        self.cpp_info.set_property("cmake_file_name", "hpp_proto")
+        self.cpp_info.components["libhpp_proto"].libs = ["is_utf8"]
+        self.cpp_info.components["libhpp_proto"].includedirs = ["include"]
+        self.cpp_info.components["libhpp_proto"].libsdir = ["lib"]
+        self.cpp_info.components["libhpp_proto"].set_property("cmake_target_name", "hpp_proto::libhpp_proto")
+
+        if self.options.use_system_glaze:
+            self.cpp_info.components["libhpp_proto"].requires = ["glaze::glaze"] 
+
         self.cpp_info.set_property(
             "cmake_build_modules",
-            ["lib/cmake/hpp_proto/protobuf_generate_hpp.cmake"],
+            ["lib/cmake/hpp_proto/conan_protoc_target.cmake",
+             "lib/cmake/hpp_proto/protobuf_generate_hpp.cmake"],
         )
-        lib = self.cpp_info.components["libhpp_proto"]
-        lib.set_property("cmake_target_name", "hpp_proto::libhpp_proto")
-        lib.includedirs = ["include"]
-        if self.options.use_system_glaze:
-            lib.requires = ["glaze::glaze"]
-        lib.libs = ["is_utf8"]
+
+        self.cpp_info.set_property("cmake_file_name", "hpp_proto")

@@ -154,16 +154,9 @@ if(NOT COMMAND protobuf_generate)
         set(_comment "${_comment}, plugin-options: ${_plugin_options}")
       endif()
 
-    if(NOT TARGET protobuf::protoc)
-      if(TARGET hpp_proto::protoc)
-        add_executable(protobuf::protoc ALIAS hpp_proto::protoc)
-      else()
-        find_program(PROTOC_PATH NAMES protoc REQUIRED)
-        add_executable(hpp_proto::protoc IMPORTED GLOBAL)
-        set_target_properties(hpp_proto::protoc PROPERTIES IMPORTED_LOCATION "${PROTOC_PATH}")
+      if(NOT TARGET protobuf::protoc)
         add_executable(protobuf::protoc ALIAS hpp_proto::protoc)
       endif()
-    endif()
 
       add_custom_command(
         OUTPUT ${_generated_srcs}
@@ -187,14 +180,11 @@ if(NOT COMMAND protobuf_generate)
 endif()  
 
 function(protobuf_generate_hpp)
-  set(_hpp_proto_plugin "protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp>")
-  set(_hpp_proto_plugin_dep hpp_proto::protoc-gen-hpp)
-
   protobuf_generate(${ARGN} 
                     LANGUAGE hpp
                     GENERATE_EXTENSIONS .msg.hpp .pb.hpp .glz.hpp .desc.hpp
-                    PLUGIN "${_hpp_proto_plugin}"
-                    DEPENDENCIES ${_hpp_proto_plugin_dep})
+                    PLUGIN protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp>
+                    DEPENDENCIES hpp_proto::protoc-gen-hpp)
 
   include(CMakeParseArguments)
   cmake_parse_arguments(protobuf_generate_hpp "" "TARGET;PLUGIN_OPTIONS;PROTOC_OUT_DIR" "" "${ARGN}")

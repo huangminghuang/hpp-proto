@@ -1,0 +1,21 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y \
+        python3-venv \
+        python3-pip \
+        cmake \
+        git \
+        build-essential \
+        ninja-build \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a venv for Conan and keep it in PATH
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install -U pip \
+    && /opt/venv/bin/pip install conan
+
+ENV PATH="/opt/venv/bin:${PATH}"
+WORKDIR /work
