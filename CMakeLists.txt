@@ -150,9 +150,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
-  if(glaze_ADDED)
-    install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
-  endif()
+  
 
   configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"

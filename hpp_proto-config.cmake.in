@@ -1,6 +1,6 @@
 set(HPP_PROTO_PROTOC @HPP_PROTO_PROTOC@)
+include(CMakeFindDependencyMacro)
 if (HPP_PROTO_PROTOC STREQUAL "find")
-    include(CMakeFindDependencyMacro)
     find_dependency(Protobuf)
 
     if (NOT Protobuf_FOUND)
@@ -23,6 +23,6 @@ if(NOT TARGET hpp_proto::protoc AND EXISTS "${HPP_PROTO_ROOT}/bin/protoc")
     set_target_properties(hpp_proto::protoc PROPERTIES
         IMPORTED_LOCATION "${HPP_PROTO_ROOT}/bin/protoc")
 endif()
-
+find_dependency(glaze VERSION ${HPP_PROTO_GLAZE_VERSION} EXACT)
 include("${CMAKE_CURRENT_LIST_DIR}/hpp_proto-targets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/protobuf_generate_hpp.cmake")

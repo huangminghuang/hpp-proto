@@ -6,13 +6,16 @@ if(CMAKE_VERSION GREATER_EQUAL 3.25)
     set(system_package SYSTEM)
 endif()
 
-
+set(HPP_PROTO_GLAZE_VERSION 7.0.2)
 CPMAddPackage(
     NAME glaze
-    GIT_TAG v7.0.2
+    GIT_TAG v${HPP_PROTO_GLAZE_VERSION}
     GITHUB_REPOSITORY stephenberry/glaze
     ${system_package}
 )
+if(glaze_ADDED)
+    install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
+endif()
 
 CPMAddPackage(
     NAME is_utf8
