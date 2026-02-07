@@ -92,7 +92,7 @@ if(MSVC)
   target_compile_options(libhpp_proto INTERFACE "/Zc:preprocessor")
 endif()
 
-if(HPP_PROTO_TESTS OR HPP_PROTO_FUZZER_ONLY)
+if(HPP_PROTO_TESTS)
   enable_testing()
   add_subdirectory(unittests)
   include(CTest)

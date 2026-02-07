@@ -10,7 +10,7 @@ function(hpp_proto_find_protoc)
             OUTPUT_STRIP_TRAILING_WHITESPACE
         )
         string(REGEX MATCH "[0-9]+(\\.[0-9]+)*" Protobuf_VERSION "${protoc_version_output}")
-        message(Protobuf_VERSION=${Protobuf_VERSION})
+        set(Protobuf_VERSION ${Protobuf_VERSION} PARENT_SCOPE)
         get_filename_component(PROTOC_BASE_DIR ${PROTOC_PROGRAM} DIRECTORY)
         get_filename_component(PROTOBUF_INCLUDE_DIR "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
 

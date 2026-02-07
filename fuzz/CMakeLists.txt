@@ -90,7 +90,7 @@ foreach(seed_file IN LISTS binpb_seed_corpus_files)
 endforeach()
 
 add_library(fuzz_common common.cpp json_extern.cpp binpb_extern.cpp)
-target_link_libraries(fuzz_common PUBLIC hpp_proto::libhpp_proto unittest_proto_lib)
+target_link_libraries(fuzz_common PUBLIC glaze::glaze hpp_proto::libhpp_proto unittest_proto_lib)
 
 function(add_fuzz_target type source)
   set(target fuzz_${type})
