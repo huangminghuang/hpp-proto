@@ -11,7 +11,7 @@ function(hpp_proto_find_protoc)
         )
         string(REGEX MATCH "[0-9]+(\\.[0-9]+)*" Protobuf_VERSION "${protoc_version_output}")
         message(Protobuf_VERSION=${Protobuf_VERSION})
-        get_filename_component(PROTOC_BASE_DIR ${PROTOC_PATH} DIRECTORY)
+        get_filename_component(PROTOC_BASE_DIR ${PROTOC_PROGRAM} DIRECTORY)
         get_filename_component(PROTOBUF_INCLUDE_DIR "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
 
         if(EXISTS ${PROTOBUF_INCLUDE_DIR}/google/protobuf/any.proto)
