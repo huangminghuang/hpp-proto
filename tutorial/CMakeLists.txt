@@ -18,13 +18,7 @@ if(PROJECT_IS_TOP_LEVEL)
     )
 
     FetchContent_MakeAvailable(hpp_proto)
-
-    ## Due to the variable scope issue, the following is the most reliable way to get Protobuf_INCLUDE_DIRS properly set
-    ## when using FetchContent to declare hpp-proto as dependency.  
-    get_target_property(PROTOC_LOCATION hpp_proto::protoc IMPORTED_LOCATION)
-    get_filename_component(PROTOC_BASE_DIR ${PROTOC_LOCATION} DIRECTORY)
-    get_filename_component(Protobuf_INCLUDE_DIRS "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
-
+    set(WELLKNOWN_TARGET hpp_proto::well_known_types)
   else()
     find_package(hpp_proto CONFIG REQUIRED)
   endif()
