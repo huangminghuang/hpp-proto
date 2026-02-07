@@ -22,7 +22,7 @@ endif()
 add_custom_command(
     COMMENT "Generating unittest.desc.binpb"
     OUTPUT unittest.desc.binpb
-    COMMAND protobuf::protoc
+    COMMAND hpp_proto::protoc
     ARGS -I "${CMAKE_CURRENT_SOURCE_DIR}" ${PROTOC3_OPTIONAL_OPTION} --include_imports --descriptor_set_out=unittest.desc.binpb
     ${unittest_desc_pb_sources}
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"

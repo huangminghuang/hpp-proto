@@ -19,9 +19,9 @@ if(NOT TARGET hpp_proto::protoc)
     # (this is a feature of official FindProtobuf.cmake)
     set(Protobuf_PROTOC_EXECUTABLE ${PROTOC_PROGRAM} CACHE FILEPATH "The protoc compiler")
 
-    # Create executable imported target protobuf::protoc
-    add_executable(protobuf::protoc IMPORTED)
-    set_property(TARGET protobuf::protoc PROPERTY IMPORTED_LOCATION ${Protobuf_PROTOC_EXECUTABLE})
+    # Create executable imported target hpp_proto::protoc
+    add_executable(hpp_proto::protoc IMPORTED)
+    set_property(TARGET hpp_proto::protoc PROPERTY IMPORTED_LOCATION ${Protobuf_PROTOC_EXECUTABLE})
 endif()
 
 if(NOT TARGET hpp_proto::protoc-gen-hpp)

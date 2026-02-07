@@ -19,7 +19,7 @@ function(hpp_proto_compile_protoc)
         PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
-    add_executable(protobuf::protoc ALIAS protoc)
+    add_executable(hpp_proto::protoc ALIAS protoc)
     set(Protobuf_INCLUDE_DIRS ${protobuf_SOURCE_DIR}/src PARENT_SCOPE)
     # Protobuf's source tree keeps utf8_validity.h under third_party/utf8_range.
     # Add it to the exported include dirs so dependent targets can compile.

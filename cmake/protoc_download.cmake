@@ -56,7 +56,7 @@ function(hpp_proto_download_protoc)
         IMPORTED_LOCATION_RELEASE "${PROTOC_PATH}"
         IMPORTED_CONFIGURATIONS "Release"
     )
-    add_executable(protobuf::protoc ALIAS protoc)
+    add_executable(hpp_proto::protoc ALIAS protoc)
     set(Protobuf_VERSION "${_proto_ver}" PARENT_SCOPE)
     set(Protobuf_INCLUDE_DIRS "${_extract_dir}/include" PARENT_SCOPE)
 endfunction()

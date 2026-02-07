@@ -2,7 +2,7 @@
 add_custom_command(
     COMMENT "Generating addressbook_proto3.desc.binpb"
     OUTPUT addressbook_proto3.desc.binpb
-    COMMAND protobuf::protoc
+    COMMAND hpp_proto::protoc
     ARGS -I "${CMAKE_CURRENT_SOURCE_DIR}/.." --include_imports --descriptor_set_out=addressbook_proto3.desc.binpb
     addressbook_proto3.proto
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
