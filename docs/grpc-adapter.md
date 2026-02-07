@@ -70,7 +70,7 @@ public:
         SayHelloHandler(GreeterService&, ::hpp::proto::grpc::ServerRPC<Greeter::SayHello>& rpc,
                         ::hpp::proto::grpc::RequestToken<Greeter::SayHello> token) {
             
-            std::cout << "Server received SayHello RPC" << std::endl;
+            std::cout << "Server received SayHello RPC\n";
             
             HelloRequest request;
             auto status = token.get(request); // Deserialize request
@@ -108,7 +108,7 @@ void RunServer() {
     builder.RegisterService(&service); // Register the hpp-proto service
 
     std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
-    std::cout << "Server listening on " << server_address << std::endl;
+    std::cout << "Server listening on " << server_address << "\n";
     server->Wait();
 }
 
@@ -148,15 +148,15 @@ int main() {
     // The ClientContext allows you to set deadlines, metadata, etc.
     ::grpc::ClientContext context;
 
-    std::cout << "Client sending SayHello RPC to server..." << std::endl;
+    std::cout << "Client sending SayHello RPC to server...\n";
     
     // Make the unary RPC call
     auto status = stub.call<helloworld::Greeter::SayHello>(context, request, reply);
 
     if (status.ok()) {
-        std::cout << "Server replied: \"" << reply.message << "\"" << std::endl;
+        std::cout << "Server replied: \"" << reply.message << "\"\n";
     } else {
-        std::cerr << "RPC failed: " << status.error_code() << ": " << status.error_message() << std::endl;
+        std::cerr << "RPC failed: " << status.error_code() << ": " << status.error_message() << "\n";
         return 1;
     }
 

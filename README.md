@@ -140,35 +140,35 @@ int main() {
     // --- Binary Serialization ---
     std::string binary_buffer;
     if (!hpp::proto::write_binpb(p, binary_buffer).ok()) {
-        std::cerr << "Binary serialization failed!" << std::endl;
+        std::cerr << "Binary serialization failed!\n";
         return 1;
     }
 
     Person p_from_binary;
     if (!hpp::proto::read_binpb(p_from_binary, binary_buffer).ok()) {
-        std::cerr << "Binary deserialization failed!" << std::endl;
+        std::cerr << "Binary deserialization failed!\n";
         return 1;
     }
     // read_binpb/read_json do not catch std::bad_alloc. Handle allocation failures explicitly if needed.
     assert(p == p_from_binary);
-    std::cout << "Binary round-trip successful!" << std::endl;
+    std::cout << "Binary round-trip successful!\n";
 
     // --- JSON Serialization ---
     std::string json_buffer;
     // Use json_opts{.prettify=true} for pretty-printing
     if (!hpp::proto::write_json<hpp::proto::json_opts{.prettify=true}>(p, json_buffer).ok()) {
-        std::cerr << "JSON serialization failed!" << std::endl;
+        std::cerr << "JSON serialization failed!\n";
         return 1;
     }
-    std::cout << "\nSerialized JSON:\n" << json_buffer << std::endl;
+    std::cout << "\nSerialized JSON:\n" << json_buffer << "\n";
 
     Person p_from_json;
     if (!hpp::proto::read_json(p_from_json, json_buffer).ok()) {
-        std::cerr << "JSON deserialization failed!" << std::endl;
+        std::cerr << "JSON deserialization failed!\n";
         return 1;
     }
     assert(p == p_from_json);
-    std::cout << "\nJSON round-trip successful!" << std::endl;
+    std::cout << "\nJSON round-trip successful!\n";
 
     return 0;
 }
