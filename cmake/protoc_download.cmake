@@ -1,0 +1,62 @@
+function(hpp_proto_download_protoc)
+    set(_proto_ver "${HPP_PROTO_PROTOC_VERSION}")
+    if(APPLE)
+        set(_os "osx")
+    elseif(WIN32)
+        set(_os "win64")
+    elseif(UNIX)
+        set(_os "linux")
+    else()
+        message(FATAL_ERROR "Unsupported platform for protoc download")
+    endif()
+
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
+        set(_arch "aarch_64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64)$")
+        set(_arch "x86_64")
+    else()
+        message(FATAL_ERROR "Unsupported architecture for protoc download: ${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+
+    set(_pkg "protoc-${_proto_ver}-${_os}-${_arch}.zip")
+    set(_url "https://github.com/protocolbuffers/protobuf/releases/download/v${_proto_ver}/${_pkg}")
+    set(_dl_dir "${CMAKE_BINARY_DIR}/_deps/protoc-download")
+    set(_zip_path "${_dl_dir}/${_pkg}")
+    set(_extract_dir "${_dl_dir}/protoc-${_proto_ver}")
+    set(HPP_PROTO_PROTOC_ZIP_PATH "${_zip_path}" CACHE INTERNAL "Path to downloaded protoc zip")
+
+    file(MAKE_DIRECTORY "${_dl_dir}")
+    if(NOT EXISTS "${_zip_path}")
+        file(DOWNLOAD "${_url}" "${_zip_path}" SHOW_PROGRESS STATUS _dl_status)
+        list(GET _dl_status 0 _dl_code)
+        if(NOT _dl_code EQUAL 0)
+            list(GET _dl_status 1 _dl_msg)
+            message(FATAL_ERROR "Failed to download protoc from ${_url}: ${_dl_msg}")
+        endif()
+    endif()
+
+    if(NOT EXISTS "${_extract_dir}/bin")
+        file(ARCHIVE_EXTRACT INPUT "${_zip_path}" DESTINATION "${_extract_dir}")
+    endif()
+
+    if(WIN32)
+        set(_protoc_path "${_extract_dir}/bin/protoc.exe")
+    else()
+        set(_protoc_path "${_extract_dir}/bin/protoc")
+    endif()
+
+    if(NOT EXISTS "${_protoc_path}")
+        message(FATAL_ERROR "Downloaded protoc binary not found at ${_protoc_path}")
+    endif()
+    set(PROTOC_PATH "${_protoc_path}")
+
+    add_executable(protoc IMPORTED GLOBAL)
+    set_target_properties(protoc PROPERTIES
+        IMPORTED_LOCATION "${PROTOC_PATH}"
+        IMPORTED_LOCATION_RELEASE "${PROTOC_PATH}"
+        IMPORTED_CONFIGURATIONS "Release"
+    )
+    add_executable(hpp_proto::protoc ALIAS protoc)
+    set(Protobuf_VERSION "${_proto_ver}" PARENT_SCOPE)
+    set(Protobuf_INCLUDE_DIRS "${_extract_dir}/include" PARENT_SCOPE)
+endfunction()

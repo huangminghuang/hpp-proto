@@ -23,11 +23,11 @@ if(Protobuf_INCLUDE_DIRS)
 
     add_custom_target(gpb_descriptor
         COMMENT "processing ${descriptor_proto_files} hpp_proto/hpp_options.pb"
-        COMMAND protobuf::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include -I ${Protobuf_INCLUDE_DIRS}
+        COMMAND hpp_proto::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include -I ${Protobuf_INCLUDE_DIRS}
         --hpp_opt=proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed ${descriptor_proto_files}
-        COMMAND protobuf::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include -I ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        COMMAND hpp_proto::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${CMAKE_CURRENT_SOURCE_DIR}/../include -I ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_CURRENT_SOURCE_DIR}/../include/hpp_proto/hpp_options.proto
-        DEPENDS protobuf::protoc ${CMAKE_CURRENT_SOURCE_DIR}/../include/hpp_proto/hpp_options.proto
+        DEPENDS hpp_proto::protoc ${CMAKE_CURRENT_SOURCE_DIR}/../include/hpp_proto/hpp_options.proto
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         VERBATIM
     )

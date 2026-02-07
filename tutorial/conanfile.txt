@@ -1,0 +1,10 @@
+[requires]
+hpp_proto/1.0.0
+glaze/7.0.2
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout

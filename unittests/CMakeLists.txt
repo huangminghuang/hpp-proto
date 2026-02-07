@@ -20,7 +20,7 @@ add_test(NAME merge_message_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(optional_indirect_tests optional_indirect_tests.cpp)
-target_link_libraries(optional_indirect_tests PRIVATE hpp_proto::libhpp_proto Boost::ut)
+target_link_libraries(optional_indirect_tests PRIVATE hpp_proto::libhpp_proto glaze::glaze Boost::ut)
 add_test(NAME optional_indirect_tests
     COMMAND optional_indirect_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

@@ -5,6 +5,7 @@ project(hpp_proto_tutorial
   LANGUAGES CXX)
 
 if(PROJECT_IS_TOP_LEVEL)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/grpc_check.cmake)
   set(HPP_PROTO_GIT_TAG "" CACHE STRING "Use find_package(hpp-proto) if empty; otherwise the hpp-proto git tag for fetch_content")
   if(HPP_PROTO_GIT_TAG)
     include(FetchContent)
@@ -17,19 +18,14 @@ if(PROJECT_IS_TOP_LEVEL)
     )
 
     FetchContent_MakeAvailable(hpp_proto)
-
-    ## Due to the variable scope issue, the following is the most reliable way to get Protobuf_INCLUDE_DIRS properly set
-    ## when using FetchContent to declare hpp-proto as dependency.  
-    get_target_property(PROTOC_LOCATION protobuf::protoc IMPORTED_LOCATION)
-    get_filename_component(PROTOC_BASE_DIR ${PROTOC_LOCATION} DIRECTORY)
-    get_filename_component(Protobuf_INCLUDE_DIRS "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
-
+    set(WELLKNOWN_TARGET hpp_proto::well_known_types)
   else()
     find_package(hpp_proto CONFIG REQUIRED)
   endif()
-  include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/grpc_check.cmake)
 elseif(NOT HPP_PROTO_TESTS)
   return()
+else()
+  set(WELLKNOWN_TARGET hpp_proto::well_known_types)
 endif()
 
 add_library(addressbook_proto3 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/addressbook_proto3.proto)
@@ -48,7 +44,7 @@ protobuf_generate_hpp(
 
 add_library(any_demo INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/any_demo.proto)
 target_include_directories(any_demo INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(any_demo INTERFACE hpp_proto::well_known_types)
+target_link_libraries(any_demo INTERFACE ${WELLKNOWN_TARGET})
 protobuf_generate_hpp(
     TARGET any_demo
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
