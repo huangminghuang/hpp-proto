@@ -1,28 +1,25 @@
 set(HPP_PROTO_PROTOC @HPP_PROTO_PROTOC@)
 include(CMakeFindDependencyMacro)
-if (HPP_PROTO_PROTOC STREQUAL "find")
-    find_dependency(Protobuf)
-
-    if (NOT Protobuf_FOUND)
-        find_program(PROTOC_PATH protoc REQUIRED)
-        add_executable(protoc IMPORTED)
-        set_property(TARGET protoc PROPERTY
-                    IMPORTED_LOCATION ${PROTOC_PATH})
-        add_executable(protobuf::protoc ALIAS protoc)
-        get_filename_component(PROTOC_BASE_DIR ${PROTOC_PATH} DIRECTORY)
-        get_filename_component(Protobuf_INCLUDE_DIRS "${PROTOC_BASE_DIR}/../include" ABSOLUTE)
-    endif()
-endif()
 
 get_filename_component(_hpp_proto_prefix "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 set(HPP_PROTO_ROOT "${_hpp_proto_prefix}")
 
-# Provide protoc from the package if available.
-if(NOT TARGET hpp_proto::protoc AND EXISTS "${HPP_PROTO_ROOT}/bin/protoc")
-    add_executable(hpp_proto::protoc IMPORTED GLOBAL)
-    set_target_properties(hpp_proto::protoc PROPERTIES
-        IMPORTED_LOCATION "${HPP_PROTO_ROOT}/bin/protoc")
-endif()
-find_dependency(glaze VERSION ${HPP_PROTO_GLAZE_VERSION} EXACT)
+find_dependency(glaze)
 include("${CMAKE_CURRENT_LIST_DIR}/hpp_proto-targets.cmake")
+
+if(NOT TARGET hpp_proto::protoc)
+    if (EXISTS "${HPP_PROTO_ROOT}/bin/protoc")
+        set(PROTOC_PROGRAM "${HPP_PROTO_ROOT}/bin/protoc")    
+    else()
+        find_program(PROTOC_PROGRAM NAMES protoc)
+    endif()
+    get_filename_component(PROTOC_PROGRAM "${PROTOC_PROGRAM}" ABSOLUTE)
+    # Give opportunity to users to provide an external protoc executable
+    # (this is a feature of official FindProtobuf.cmake)
+    set(Protobuf_PROTOC_EXECUTABLE ${PROTOC_PROGRAM} CACHE FILEPATH "The protoc compiler")
+    # Create executable imported target hpp_proto::protoc
+    add_executable(hpp_proto::protoc IMPORTED)
+    set_property(TARGET hpp_proto::protoc PROPERTY IMPORTED_LOCATION ${Protobuf_PROTOC_EXECUTABLE})
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/protobuf_generate_hpp.cmake")

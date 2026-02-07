@@ -103,7 +103,7 @@ if(HPP_PROTO_PROTOC_PLUGIN)
 
   add_subdirectory(protoc-plugin)
 
-  if(HPP_PROTO_TESTS)
+  if(HPP_PROTO_TESTS AND NOT HPP_PROTO_PROTOC STREQUAL "compile")
     include(cmake/grpc_check.cmake)
   endif()
 
