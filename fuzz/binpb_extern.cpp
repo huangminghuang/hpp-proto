@@ -95,8 +95,7 @@ status read_binpb(hpp_proto::message_value_mref &msg, std::span<std::span<const 
   return hpp_proto::read_binpb(msg, input);
 }
 
-status write_binpb(const proto3_unittest::TestAllTypes<hpp_proto::stable_traits> &msg,
-                   std::vector<std::byte> &buffer) {
+status write_binpb(const proto3_unittest::TestAllTypes<hpp_proto::stable_traits> &msg, std::vector<std::byte> &buffer) {
   return hpp_proto::write_binpb(msg, buffer);
 }
 

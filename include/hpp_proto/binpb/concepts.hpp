@@ -114,7 +114,7 @@ concept indirect =
       typename std::remove_cvref_t<T>::value_type;
       typename std::remove_cvref_t<T>::allocator_type;
     } && std::same_as<std::remove_cvref_t<T>, ::hpp_proto::indirect<typename std::remove_cvref_t<T>::value_type,
-                                                                     typename std::remove_cvref_t<T>::allocator_type>>;
+                                                                    typename std::remove_cvref_t<T>::allocator_type>>;
 
 template <typename T>
 concept oneof_type = concepts::variant<T>;

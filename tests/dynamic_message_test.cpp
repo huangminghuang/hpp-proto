@@ -235,10 +235,9 @@ const boost::ut::suite dynamic_message_test = [] {
     };
 
     "optional_int32"_test = [&] {
-      expect_roundtrip_ok("protobuf_unittest.TestAllTypes", "\x08\x01"sv,
-                          [](const ::hpp_proto::message_value_mref &m) {
-                            expect(1 == m.field_value_by_name<int32_t>("optional_int32"));
-                          });
+      expect_roundtrip_ok("protobuf_unittest.TestAllTypes", "\x08\x01"sv, [](const ::hpp_proto::message_value_mref &m) {
+        expect(1 == m.field_value_by_name<int32_t>("optional_int32"));
+      });
       expect_invalid("protobuf_unittest.TestAllTypes", "\x09\x01"sv);
       // implicit defaulted value should not be serialized
       expect_write_empty("proto3_unittest.TestAllTypes", "\x08\x00"sv);
@@ -424,8 +423,8 @@ const boost::ut::suite dynamic_message_test = [] {
       "append"_test = [&] {
         expect_read_ok("protobuf_unittest.TestAllTypes", "\xea\x02\x01\x65\xea\x02\x01\x66"sv,
                        [](const ::hpp_proto::message_value_mref &m) {
-                         auto vals = expect_ok(
-                             m.field_value_by_name<std::span<const hpp_proto::bytes_view>>("repeated_bytes"));
+                         auto vals =
+                             expect_ok(m.field_value_by_name<std::span<const hpp_proto::bytes_view>>("repeated_bytes"));
                          expect(std::ranges::equal(vals, std::array<hpp_proto::bytes_view, 2>{"e"_bytes, "f"_bytes}));
                        });
       };
@@ -622,8 +621,7 @@ const boost::ut::suite dynamic_message_test = [] {
     expect(std::ranges::equal(nums, std::array<int32_t, 2>{1, 2}));
 
     // messages
-    auto msg_mref =
-        expect_ok(msg.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("repeated_nested_message"));
+    auto msg_mref = expect_ok(msg.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("repeated_nested_message"));
     msg_mref.clear();
     msg_mref.resize(2);
     expect(msg_mref[0].set_field_by_name("bb", 5).has_value());

@@ -35,8 +35,7 @@
 namespace hpp_proto {
 
 struct base64 {
-  constexpr static std::size_t
-  max_encode_size(hpp_proto::concepts::contiguous_byte_range auto const &source) noexcept {
+  constexpr static std::size_t max_encode_size(hpp_proto::concepts::contiguous_byte_range auto const &source) noexcept {
     std::size_t n = source.size();
     return (n / 3 + (n % 3 > 0 ? 1 : 0)) * 4;
   }

@@ -47,7 +47,7 @@ const suite test_any = [] {
     expect(std::ranges::equal(paths, fm2.paths));
 
     expect(!hpp_proto::unpack_any<::proto3_unittest::ForeignMessage<Traits>>(message2.any_value.value(),
-                                                                              ::hpp_proto::alloc_from(mr))
+                                                                             ::hpp_proto::alloc_from(mr))
                 .has_value());
   } | std::tuple<::hpp_proto::default_traits, ::hpp_proto::non_owning_traits>{};
 };
@@ -75,14 +75,14 @@ const suite test_dynamic_message_any = [] {
     std::pmr::monotonic_buffer_resource mr;
     ::protobuf_unittest::TestAny<hpp_proto::non_owning_traits> message3;
     expect(hpp_proto::read_json(message3, expected_json, hpp_proto::alloc_from{mr},
-                                 hpp_proto::use_factory{message_factory})
+                                hpp_proto::use_factory{message_factory})
                .ok());
     expect(fatal(message3.any_value.has_value()));
     expect(message.any_value->type_url == message3.any_value->type_url);
     expect(std::ranges::equal(message.any_value->value, message3.any_value->value));
 
     expect(hpp_proto::write_json<hpp_proto::json_opts{.prettify = true}>(message, buf,
-                                                                           hpp_proto::use_factory{message_factory})
+                                                                         hpp_proto::use_factory{message_factory})
                .ok());
     using namespace std::string_literals;
     expect(eq(buf, R"({

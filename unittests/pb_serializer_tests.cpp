@@ -151,8 +151,8 @@ struct example_explicit_presence {
 };
 
 auto pb_meta(const example_explicit_presence &)
-    -> std::tuple<hpp_proto::field_meta<1, &example_explicit_presence::i, field_option::explicit_presence,
-                                         hpp_proto::vint64_t>>;
+    -> std::tuple<
+        hpp_proto::field_meta<1, &example_explicit_presence::i, field_option::explicit_presence, hpp_proto::vint64_t>>;
 
 struct example_default_type {
   int32_t i = 1; // field number == 1
@@ -273,7 +273,7 @@ struct repeated_sint32_unpacked_explicit_type {
 template <typename Traits>
 auto pb_meta(const repeated_sint32_unpacked_explicit_type<Traits> &)
     -> std::tuple<hpp_proto::field_meta<1, &repeated_sint32_unpacked_explicit_type<Traits>::integers,
-                                         field_option::none, hpp_proto::vsint32_t>>;
+                                        field_option::none, hpp_proto::vsint32_t>>;
 
 template <typename Traits = hpp_proto::default_traits>
 struct repeated_uint64 {
@@ -399,8 +399,8 @@ struct repeated_fixed_unpacked_explicit_type {
 
 template <typename Traits>
 auto pb_meta(const repeated_fixed_unpacked_explicit_type<Traits> &)
-    -> std::tuple<hpp_proto::field_meta<1, &repeated_fixed_unpacked_explicit_type<Traits>::integers,
-                                         field_option::none, uint64_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_fixed_unpacked_explicit_type<Traits>::integers, field_option::none,
+                                        uint64_t>>;
 
 const ut::suite test_repeated_fixed = [] {
   using namespace boost::ut::operators;
@@ -551,9 +551,9 @@ auto pb_meta(const closed_enum_message<Traits> &)
     -> std::tuple<
         hpp_proto::field_meta<1, &closed_enum_message<Traits>::expanded_repeated_field, field_option::closed_enum>,
         hpp_proto::field_meta<2, &closed_enum_message<Traits>::foreign_enum_field,
-                               field_option::explicit_presence | field_option::closed_enum>,
+                              field_option::explicit_presence | field_option::closed_enum>,
         hpp_proto::field_meta<3, &closed_enum_message<Traits>::packed_repeated_field,
-                               field_option::is_packed | field_option::closed_enum>,
+                              field_option::is_packed | field_option::closed_enum>,
         hpp_proto::field_meta<UINT32_MAX, &closed_enum_message<Traits>::unknown_fields_>>;
 
 const ut::suite test_enums = [] {
@@ -729,7 +729,7 @@ struct map_example {
 
 auto pb_meta(const map_example &)
     -> std::tuple<hpp_proto::field_meta<1, &map_example::dict, field_option::none,
-                                         hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
+                                        hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
 
 struct flat_map_example {
   hpp_proto::flat_map<int32_t, color_t> dict;
@@ -738,7 +738,7 @@ struct flat_map_example {
 
 auto pb_meta(const flat_map_example &)
     -> std::tuple<hpp_proto::field_meta<1, &flat_map_example::dict, field_option::none,
-                                         hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
+                                        hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
 
 struct sequential_map_example {
   std::vector<std::pair<int32_t, color_t>> dict;
@@ -747,7 +747,7 @@ struct sequential_map_example {
 
 auto pb_meta(const sequential_map_example &)
     -> std::tuple<hpp_proto::field_meta<1, &sequential_map_example::dict, field_option::none,
-                                         hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
+                                        hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
 
 struct non_owning_map_example {
   hpp_proto::equality_comparable_span<const std::pair<int32_t, color_t>> dict;
@@ -756,7 +756,7 @@ struct non_owning_map_example {
 
 auto pb_meta(const non_owning_map_example &)
     -> std::tuple<hpp_proto::field_meta<1, &non_owning_map_example::dict, field_option::none,
-                                         hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
+                                        hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
 
 struct string_key_map_example {
   hpp_proto::flat_map<std::string, color_t> dict;
@@ -766,8 +766,8 @@ struct string_key_map_example {
 auto pb_meta(const string_key_map_example &)
     -> std::tuple<
         hpp_proto::field_meta<1, &string_key_map_example::dict, field_option::none,
-                               hpp_proto::map_entry<std::string, color_t, hpp_proto::field_option::utf8_validation,
-                                                     hpp_proto::field_option::none>>>;
+                              hpp_proto::map_entry<std::string, color_t, hpp_proto::field_option::utf8_validation,
+                                                   hpp_proto::field_option::none>>>;
 
 struct unordered_map_example {
   std::unordered_map<std::string, color_t> dict;
@@ -777,8 +777,8 @@ struct unordered_map_example {
 auto pb_meta(const unordered_map_example &)
     -> std::tuple<
         hpp_proto::field_meta<1, &unordered_map_example::dict, field_option::none,
-                               hpp_proto::map_entry<std::string, color_t, hpp_proto::field_option::utf8_validation,
-                                                     hpp_proto::field_option::none>>>;
+                              hpp_proto::map_entry<std::string, color_t, hpp_proto::field_option::utf8_validation,
+                                                   hpp_proto::field_option::none>>>;
 
 struct indirect_map_example {
   hpp_proto::flat_map<std::string, hpp_proto::indirect<example>> fields;
@@ -789,7 +789,7 @@ auto pb_meta(const indirect_map_example &)
     -> std::tuple<hpp_proto::field_meta<
         1, &indirect_map_example::fields, field_option::none,
         hpp_proto::map_entry<std::string, hpp_proto::indirect<example>, hpp_proto::field_option::utf8_validation,
-                              hpp_proto::field_option::none>>>;
+                             hpp_proto::field_option::none>>>;
 
 const ut::suite test_map_example = [] {
   auto encoded = "\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"sv;
@@ -885,7 +885,7 @@ template <typename Traits>
 auto pb_meta(const string_example<Traits> &)
     -> std::tuple<hpp_proto::field_meta<1, &string_example<Traits>::field, field_option::utf8_validation>,
                   hpp_proto::field_meta<2, &string_example<Traits>::optional_field,
-                                         field_option::explicit_presence | field_option::utf8_validation>>;
+                                        field_option::explicit_presence | field_option::utf8_validation>>;
 
 struct string_required {
   std::string value;
@@ -1195,11 +1195,11 @@ struct oneof_example {
 };
 
 auto pb_meta(const oneof_example &)
-    -> std::tuple<hpp_proto::oneof_field_meta<
-        &oneof_example::value, hpp_proto::field_meta<1, 1, field_option::explicit_presence>,
-        hpp_proto::field_meta<2, 2, field_option::explicit_presence, hpp_proto::vint64_t>,
-        hpp_proto::field_meta<3, 3, field_option::explicit_presence>,
-        hpp_proto::field_meta<4, 4, field_option::explicit_presence>>>;
+    -> std::tuple<
+        hpp_proto::oneof_field_meta<&oneof_example::value, hpp_proto::field_meta<1, 1, field_option::explicit_presence>,
+                                    hpp_proto::field_meta<2, 2, field_option::explicit_presence, hpp_proto::vint64_t>,
+                                    hpp_proto::field_meta<3, 3, field_option::explicit_presence>,
+                                    hpp_proto::field_meta<4, 4, field_option::explicit_presence>>>;
 
 const ut::suite test_oneof = [] {
   "empty_oneof_example"_test = [] { expect_roundtrip_ok(""sv, oneof_example{}); };
@@ -1249,8 +1249,7 @@ struct extension_example {
   int32_t int_value = {};
   hpp_proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] hpp_proto::status get_extension(auto &ext,
-                                                 hpp_proto::concepts::is_option_type auto &&...option) const {
+  [[nodiscard]] hpp_proto::status get_extension(auto &ext, hpp_proto::concepts::is_option_type auto &&...option) const {
     return ext.get_from(*this, option...);
   }
 
@@ -1281,8 +1280,9 @@ template <typename Traits = ::hpp_proto::default_traits>
 struct string_ext : ::hpp_proto::extension_base<string_ext<Traits>, extension_example> {
   using value_type = typename Traits::string_t;
   value_type value = {};
-  using pb_meta = std::tuple<::hpp_proto::field_meta<
-      11, &string_ext<Traits>::value, field_option::explicit_presence | ::hpp_proto::field_option::utf8_validation>>;
+  using pb_meta =
+      std::tuple<::hpp_proto::field_meta<11, &string_ext<Traits>::value,
+                                         field_option::explicit_presence | ::hpp_proto::field_option::utf8_validation>>;
 };
 
 template <typename Traits = ::hpp_proto::default_traits>
@@ -1290,23 +1290,22 @@ struct i32_defaulted_ext : ::hpp_proto::extension_base<i32_defaulted_ext<Traits>
   using value_type = std::int32_t;
   value_type value = 10;
   using pb_meta = std::tuple<::hpp_proto::field_meta<13, &i32_defaulted_ext<Traits>::value,
-                                                      field_option::explicit_presence, hpp_proto::vint64_t, 10>>;
+                                                     field_option::explicit_presence, hpp_proto::vint64_t, 10>>;
 };
 
 template <typename Traits = ::hpp_proto::default_traits>
 struct i32unset_ext : ::hpp_proto::extension_base<i32unset_ext<Traits>, extension_example> {
   using value_type = std::int32_t;
   value_type value = {};
-  using pb_meta = std::tuple<::hpp_proto::field_meta<14, &i32unset_ext<Traits>::value, field_option::explicit_presence,
-                                                      hpp_proto::vint64_t>>;
+  using pb_meta = std::tuple<
+      ::hpp_proto::field_meta<14, &i32unset_ext<Traits>::value, field_option::explicit_presence, hpp_proto::vint64_t>>;
 };
 
 template <typename Traits = ::hpp_proto::default_traits>
 struct example_ext : ::hpp_proto::extension_base<example_ext<Traits>, extension_example> {
   using value_type = example;
   value_type value = {};
-  using pb_meta =
-      std::tuple<::hpp_proto::field_meta<15, &example_ext<Traits>::value, field_option::explicit_presence>>;
+  using pb_meta = std::tuple<::hpp_proto::field_meta<15, &example_ext<Traits>::value, field_option::explicit_presence>>;
   ;
 };
 
@@ -1330,7 +1329,7 @@ struct repeated_packed_i32_ext : ::hpp_proto::extension_base<repeated_packed_i32
   using value_type = typename Traits::template repeated_t<std::int32_t>;
   value_type value;
   using pb_meta = std::tuple<::hpp_proto::field_meta<22, &repeated_packed_i32_ext<Traits>::value,
-                                                      field_option::is_packed, hpp_proto::vint64_t>>;
+                                                     field_option::is_packed, hpp_proto::vint64_t>>;
 };
 
 const ut::suite test_extensions = [] {
@@ -1534,12 +1533,12 @@ const ut::suite test_non_owning_extensions = [] {
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
-    ut::expect(value
-                   .set_extension(
-                       repeated_packed_i32_ext<hpp_proto::non_owning_traits>{
-                           .value = std::initializer_list<int32_t>{1, 2, 3}},
-                       hpp_proto::alloc_from{mr})
-                   .ok());
+    ut::expect(
+        value
+            .set_extension(
+                repeated_packed_i32_ext<hpp_proto::non_owning_traits>{.value = std::initializer_list<int32_t>{1, 2, 3}},
+                hpp_proto::alloc_from{mr})
+            .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 22);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };
@@ -1556,9 +1555,8 @@ struct recursive_type1 {
 
 template <typename Traits>
 auto pb_meta(const recursive_type1<Traits> &)
-    -> std::tuple<
-        hpp_proto::field_meta<1, &recursive_type1<Traits>::child>,
-        hpp_proto::field_meta<2, &recursive_type1<Traits>::payload, field_option::none, hpp_proto::vint64_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &recursive_type1<Traits>::child>,
+                  hpp_proto::field_meta<2, &recursive_type1<Traits>::payload, field_option::none, hpp_proto::vint64_t>>;
 
 template <typename Traits>
 struct recursive_type2 {
@@ -1570,9 +1568,8 @@ struct recursive_type2 {
 
 template <typename Traits>
 auto pb_meta(const recursive_type2<Traits> &)
-    -> std::tuple<
-        hpp_proto::field_meta<1, &recursive_type2<Traits>::children, field_option::none>,
-        hpp_proto::field_meta<2, &recursive_type2<Traits>::payload, field_option::none, hpp_proto::vint64_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &recursive_type2<Traits>::children, field_option::none>,
+                  hpp_proto::field_meta<2, &recursive_type2<Traits>::payload, field_option::none, hpp_proto::vint64_t>>;
 
 const ut::suite recursive_types = [] {
   using namespace boost::ut;
@@ -1697,10 +1694,10 @@ struct monster {
       hpp_proto::field_meta<1, &monster::pos>,
       hpp_proto::field_meta<2, &monster::mana, field_option::none, hpp_proto::vint64_t>,
       hpp_proto::field_meta<3, &monster::hp>, hpp_proto::field_meta<4, &monster::name>,
-      hpp_proto::field_meta<5, &monster::inventory, field_option::is_packed>,
-      hpp_proto::field_meta<6, &monster::color>, hpp_proto::field_meta<7, &monster::weapons, field_option::none>,
-      hpp_proto::field_meta<8, &monster::equipped>, hpp_proto::field_meta<9, &monster::path, field_option::none>,
-      hpp_proto::field_meta<10, &monster::boss>, hpp_proto::field_meta<UINT32_MAX, &monster::unknown_fields_>>;
+      hpp_proto::field_meta<5, &monster::inventory, field_option::is_packed>, hpp_proto::field_meta<6, &monster::color>,
+      hpp_proto::field_meta<7, &monster::weapons, field_option::none>, hpp_proto::field_meta<8, &monster::equipped>,
+      hpp_proto::field_meta<9, &monster::path, field_option::none>, hpp_proto::field_meta<10, &monster::boss>,
+      hpp_proto::field_meta<UINT32_MAX, &monster::unknown_fields_>>;
 };
 
 monster make_test_monster() {
@@ -1809,11 +1806,11 @@ struct person_map {
 
   hpp_proto::flat_map<std::string, phone_type> phones; // = 4
 
-  using pb_meta = std::tuple<hpp_proto::field_meta<1, &person_map::name>,
-                             hpp_proto::field_meta<2, &person_map::id, field_option::none, hpp_proto::vint64_t>,
-                             hpp_proto::field_meta<3, &person_map::email>,
-                             hpp_proto::field_meta<4, &person_map::phones, field_option::none,
-                                                    hpp_proto::map_entry<std::string, phone_type>>>;
+  using pb_meta = std::tuple<
+      hpp_proto::field_meta<1, &person_map::name>,
+      hpp_proto::field_meta<2, &person_map::id, field_option::none, hpp_proto::vint64_t>,
+      hpp_proto::field_meta<3, &person_map::email>,
+      hpp_proto::field_meta<4, &person_map::phones, field_option::none, hpp_proto::map_entry<std::string, phone_type>>>;
 };
 
 std::ostream &operator<<(std::ostream &os, person_map::phone_type type) {

@@ -73,8 +73,7 @@ int main() {
                                              [](hpp_proto::repeated_message_field_mref phones) {
                                                return expected_message_mref{phones.emplace_back()}
                                                    .set_field_by_name("number", "19890604"sv)
-                                                   .set_field_by_name("type",
-                                                                      hpp_proto::enum_name{"PHONE_TYPE_MOBILE"})
+                                                   .set_field_by_name("type", hpp_proto::enum_name{"PHONE_TYPE_MOBILE"})
                                                    .done();
                                              })
                        .modify_field_by_name(

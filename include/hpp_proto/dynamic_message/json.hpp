@@ -159,8 +159,7 @@ concept string_mref =
     (std::same_as<T, ::hpp_proto::string_field_mref> || std::same_as<T, ::hpp_proto::string_value_mref>);
 
 template <typename T>
-concept bytes_mref =
-    (std::same_as<T, ::hpp_proto::bytes_field_mref> || std::same_as<T, ::hpp_proto::bytes_value_mref>);
+concept bytes_mref = (std::same_as<T, ::hpp_proto::bytes_field_mref> || std::same_as<T, ::hpp_proto::bytes_value_mref>);
 
 template <typename T>
 concept repeated_mref = requires {
@@ -219,8 +218,8 @@ struct generic_message_json_serializer {
   }
 
   template <auto Opts>
-  static void serialize_map_entry_field(hpp_proto::field_cref field, bool is_first_field, is_context auto &ctx,
-                                        auto &b, auto &ix) {
+  static void serialize_map_entry_field(hpp_proto::field_cref field, bool is_first_field, is_context auto &ctx, auto &b,
+                                        auto &ix) {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
     if (is_first_field) {
       bool need_extra_quote = (field.field_kind() == hpp_proto::KIND_BOOL);
@@ -639,8 +638,8 @@ struct value_message_json_serializer {
     if (value.fields().size() > 0) {
       auto oneof_index = value.fields()[0].active_oneof_index();
       if (oneof_index >= 0 && std::cmp_less(oneof_index, value.fields().size())) {
-        to<JSON, ::hpp_proto::field_cref>::template op<Opts>(value.fields()[static_cast<std::size_t>(oneof_index)],
-                                                              ctx, b, ix);
+        to<JSON, ::hpp_proto::field_cref>::template op<Opts>(value.fields()[static_cast<std::size_t>(oneof_index)], ctx,
+                                                             b, ix);
       }
     }
   }
@@ -829,8 +828,7 @@ void to<JSON, hpp_proto::repeated_message_field_cref>::op(auto const &value, is_
 template <typename T, hpp_proto::field_kind_t Kind>
 struct from<JSON, hpp_proto::scalar_field_mref<T, Kind>> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp_proto::scalar_field_mref<T, Kind> &value, auto &ctx, auto &it,
-                                   auto &end) {
+  GLZ_ALWAYS_INLINE static void op(const hpp_proto::scalar_field_mref<T, Kind> &value, auto &ctx, auto &it, auto &end) {
     using value_type = hpp_proto::scalar_field_cref<T, Kind>::value_type;
     value_type v = {};
     if constexpr (::hpp_proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts)) {
@@ -893,8 +891,7 @@ struct from<JSON, T> {
 template <>
 struct from<JSON, hpp_proto::enum_value_mref> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp_proto::enum_value_mref &value, is_context auto &ctx, auto &it,
-                                   auto &end) {
+  GLZ_ALWAYS_INLINE static void op(const hpp_proto::enum_value_mref &value, is_context auto &ctx, auto &it, auto &end) {
     if constexpr (!check_ws_handled(Opts)) {
       if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
         return;
@@ -1026,9 +1023,8 @@ struct from<JSON, T> {
 };
 
 template <auto Opts>
-static std::expected<bool, const char *> message_to_json(::hpp_proto::message_value_mref message,
-                                                         const auto &any_value, is_context auto &ctx, auto &b,
-                                                         auto &ix) {
+static std::expected<bool, const char *> message_to_json(::hpp_proto::message_value_mref message, const auto &any_value,
+                                                         is_context auto &ctx, auto &b, auto &ix) {
   if (hpp_proto::read_binpb(message, any_value).ok()) {
     const auto pre_ix = ix;
     to<JSON, hpp_proto::message_value_cref>::template op<Opts>(message, ctx, b, ix);

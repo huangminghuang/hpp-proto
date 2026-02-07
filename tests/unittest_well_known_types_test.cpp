@@ -41,7 +41,7 @@ struct WellKnownTypesTests {
 
   void SetAllFields(TestWellKnownTypes *m) {
     expect(hpp_proto::pack_any(m->any_field.emplace(), field_mask_t{.paths = field_mask_paths_init_list},
-                                hpp_proto::alloc_from{pool})
+                               hpp_proto::alloc_from{pool})
                .ok());
 
     m->api_field.emplace().name = string_t{"test_api"};
@@ -68,8 +68,7 @@ struct WellKnownTypesTests {
   void ExpectAllFieldsSet([[maybe_unused]] const TestWellKnownTypes &m) {
     std::pmr::monotonic_buffer_resource mr;
     field_mask_t fm;
-    expect(m.any_field.has_value() &&
-           hpp_proto::unpack_any(m.any_field.value(), fm, ::hpp_proto::alloc_from(mr)).ok());
+    expect(m.any_field.has_value() && hpp_proto::unpack_any(m.any_field.value(), fm, ::hpp_proto::alloc_from(mr)).ok());
     expect(std::ranges::equal(field_mask_paths_init_list, fm.paths));
 
     expect(m.api_field.has_value());

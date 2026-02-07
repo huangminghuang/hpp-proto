@@ -69,36 +69,36 @@ template <typename Traits>
 auto pb_meta(const TestMessage<Traits> &)
     -> std::tuple<
         hpp_proto::field_meta<1, &TestMessage<Traits>::optional_int32, hpp_proto::field_option::explicit_presence,
-                               hpp_proto::vint64_t>,
+                              hpp_proto::vint64_t>,
         hpp_proto::field_meta<2, &TestMessage<Traits>::optional_int64, hpp_proto::field_option::explicit_presence,
-                               hpp_proto::vint64_t>,
+                              hpp_proto::vint64_t>,
         hpp_proto::field_meta<3, &TestMessage<Traits>::optional_uint32, hpp_proto::field_option::explicit_presence,
-                               hpp_proto::vuint32_t>,
+                              hpp_proto::vuint32_t>,
         hpp_proto::field_meta<4, &TestMessage<Traits>::optional_uint64, hpp_proto::field_option::explicit_presence,
-                               hpp_proto::vuint64_t>,
+                              hpp_proto::vuint64_t>,
         hpp_proto::field_meta<14, &TestMessage<Traits>::optional_string, hpp_proto::field_option::explicit_presence>,
         hpp_proto::field_meta<15, &TestMessage<Traits>::optional_bytes, hpp_proto::field_option::explicit_presence>,
         hpp_proto::field_meta<19, &TestMessage<Traits>::optional_foreign_message,
-                               hpp_proto::field_option::explicit_presence>,
+                              hpp_proto::field_option::explicit_presence>,
         hpp_proto::field_meta<31, &TestMessage<Traits>::repeated_int32, hpp_proto::field_option::none,
-                               hpp_proto::vint64_t>,
+                              hpp_proto::vint64_t>,
         hpp_proto::field_meta<32, &TestMessage<Traits>::repeated_int64, hpp_proto::field_option::none,
-                               hpp_proto::vint64_t>,
+                              hpp_proto::vint64_t>,
         hpp_proto::field_meta<33, &TestMessage<Traits>::repeated_uint32, hpp_proto::field_option::none,
-                               hpp_proto::vuint32_t>,
+                              hpp_proto::vuint32_t>,
         hpp_proto::field_meta<34, &TestMessage<Traits>::repeated_uint64, hpp_proto::field_option::none,
-                               hpp_proto::vuint64_t>,
+                              hpp_proto::vuint64_t>,
         hpp_proto::field_meta<61, &TestMessage<Traits>::default_int32, hpp_proto::field_option::explicit_presence,
-                               hpp_proto::vint64_t>,
+                              hpp_proto::vint64_t>,
         hpp_proto::field_meta<62, &TestMessage<Traits>::default_int64, hpp_proto::field_option::explicit_presence,
-                               hpp_proto::vint64_t>,
+                              hpp_proto::vint64_t>,
         hpp_proto::field_meta<63, &TestMessage<Traits>::default_uint32, hpp_proto::field_option::explicit_presence,
-                               hpp_proto::vuint32_t>,
+                              hpp_proto::vuint32_t>,
         hpp_proto::field_meta<64, &TestMessage<Traits>::default_uint64, hpp_proto::field_option::explicit_presence,
-                               hpp_proto::vuint64_t>,
+                              hpp_proto::vuint64_t>,
         hpp_proto::field_meta<71, &TestMessage<Traits>::map_int32_int32, hpp_proto::field_option::none,
-                               hpp_proto::map_entry<hpp_proto::vint64_t, hpp_proto::vint64_t,
-                                                     hpp_proto::field_option::none, hpp_proto::field_option::none>>,
+                              hpp_proto::map_entry<hpp_proto::vint64_t, hpp_proto::vint64_t,
+                                                   hpp_proto::field_option::none, hpp_proto::field_option::none>>,
         hpp_proto::oneof_field_meta<
             &TestMessage<Traits>::oneof_field,
             hpp_proto::field_meta<111, 1, hpp_proto::field_option::explicit_presence, hpp_proto::vuint32_t>,
@@ -279,7 +279,7 @@ const boost::ut::suite merge_test_suite = [] {
                 expect(expected == dest.map_int32_int32);
               } else {
                 expect(expected == hpp_proto::flat_map<int32_t, int32_t>{dest.map_int32_int32.rbegin(),
-                                                                          dest.map_int32_int32.rend()});
+                                                                         dest.map_int32_int32.rend()});
               }
             };
             then("merge rvalue reference should work") = [=]() mutable {
@@ -289,7 +289,7 @@ const boost::ut::suite merge_test_suite = [] {
                 expect(expected == dest.map_int32_int32);
               } else {
                 expect(expected == hpp_proto::flat_map<int32_t, int32_t>{dest.map_int32_int32.rbegin(),
-                                                                          dest.map_int32_int32.rend()});
+                                                                         dest.map_int32_int32.rend()});
               }
             };
           };

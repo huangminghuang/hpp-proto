@@ -38,8 +38,7 @@ json_status read_json(protobuf_unittest::TestAllTypes<hpp_proto::non_owning_trai
   return hpp_proto::read_json(msg, json_view, option);
 }
 
-json_status write_json(const protobuf_unittest::TestAllTypes<hpp_proto::stable_traits> &msg,
-                       std::string &json_buffer) {
+json_status write_json(const protobuf_unittest::TestAllTypes<hpp_proto::stable_traits> &msg, std::string &json_buffer) {
   return hpp_proto::write_json(msg, json_buffer);
 }
 

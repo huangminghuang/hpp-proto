@@ -70,8 +70,7 @@ void verify(const ::hpp_proto::dynamic_message_factory &factory, const T &msg, s
   if (pretty_json && !pretty_json->empty()) {
     hpp_proto::bytes pb_buf2;
     std::string json_buf2;
-    expect(
-        hpp_proto::binpb_to_json<hpp_proto::json_opts{.prettify = true}>(factory, message_name, pb, json_buf2).ok());
+    expect(hpp_proto::binpb_to_json<hpp_proto::json_opts{.prettify = true}>(factory, message_name, pb, json_buf2).ok());
     expect(eq(*pretty_json, json_buf2));
     expect(hpp_proto::json_to_binpb(factory, message_name, *pretty_json, pb_buf2).ok());
     expect(std::ranges::equal(pb, pb_buf2));
@@ -134,7 +133,7 @@ const ut::suite test_timestamp = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     expect(!hpp_proto::binpb_to_json(factory, "google.protobuf.Timestamp",
-                                      "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
+                                     "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
                 .ok());
   };
 
@@ -247,7 +246,7 @@ const ut::suite test_wrapper = [] {
     expect(!hpp_proto::binpb_to_json(factory, "google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
     // wrong value
     expect(!hpp_proto::binpb_to_json(factory, "google.protobuf.Int64Value",
-                                      "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
+                                     "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
                 .ok());
     // skip unknown field
     expect(hpp_proto::binpb_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
@@ -328,7 +327,7 @@ const ut::suite test_value = [] {
     using namespace std::string_view_literals;
     // field name is not a valid utf8 string
     expect(!hpp_proto::binpb_to_json(factory, "google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv,
-                                      json_buf)
+                                     json_buf)
                 .ok());
     // skip unknown field
     expect(hpp_proto::binpb_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
@@ -346,7 +345,7 @@ const ut::suite test_value = [] {
     expect(eq(json_buf, "[]"s));
     // skip middle unknown element
     expect(hpp_proto::binpb_to_json(factory, "google.protobuf.ListValue",
-                                     "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
+                                    "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
                .ok());
     expect(eq(json_buf, "[true,false]"s));
     // skip unknown field

@@ -65,16 +65,16 @@ public:
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply, ::grpc::Status s,
               hpp_proto::concepts::is_option_type auto &&...serialization_option) {
-    auto result = ::hpp_proto::grpc::write_binpb(
-        reply, *resp_buf_, std::forward<decltype(serialization_option)>(serialization_option)...);
+    auto result = ::hpp_proto::grpc::write_binpb(reply, *resp_buf_,
+                                                 std::forward<decltype(serialization_option)>(serialization_option)...);
     this->Finish(result.ok() ? std::move(s) : std::move(result));
   }
 
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply,
               hpp_proto::concepts::is_option_type auto &&...serialization_option) {
-    auto result = ::hpp_proto::grpc::write_binpb(
-        reply, *resp_buf_, std::forward<decltype(serialization_option)>(serialization_option)...);
+    auto result = ::hpp_proto::grpc::write_binpb(reply, *resp_buf_,
+                                                 std::forward<decltype(serialization_option)>(serialization_option)...);
     this->Finish(result.ok() ? ::grpc::Status{} : std::move(result));
   }
 
@@ -226,8 +226,8 @@ public:
   template <typename Traits>
   void finish(const typename Method::template response_t<Traits> &reply, ::grpc::WriteOptions options, ::grpc::Status s,
               hpp_proto::concepts::is_option_type auto &&...serialization_option) {
-    auto result = ::hpp_proto::grpc::write_binpb(
-        reply, response_, std::forward<decltype(serialization_option)>(serialization_option)...);
+    auto result = ::hpp_proto::grpc::write_binpb(reply, response_,
+                                                 std::forward<decltype(serialization_option)>(serialization_option)...);
     if (result.ok()) {
       this->StartWriteAndFinish(&response_, options, std::move(s));
     } else {
