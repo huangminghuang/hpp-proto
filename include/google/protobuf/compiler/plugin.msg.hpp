@@ -16,7 +16,7 @@
 namespace google::protobuf::compiler {
 //NOLINTBEGIN(performance-enum-size)
 
-template <typename Traits = ::hpp::proto::default_traits>
+template <typename Traits = ::hpp_proto::default_traits>
 struct Version {
   using hpp_proto_traits_type = Traits;
   std::int32_t major = {};
@@ -24,7 +24,7 @@ struct Version {
   std::int32_t patch = {};
   typename Traits::string_t suffix;
 
-  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const Version&) const = default;
 };
 
@@ -40,7 +40,7 @@ namespace CodeGeneratorResponse_ {
     return v >= 0 && v <= 2;
   }
 
-  template <typename Traits = ::hpp::proto::default_traits>
+  template <typename Traits = ::hpp_proto::default_traits>
   struct File {
     using hpp_proto_traits_type = Traits;
     typename Traits::string_t name;
@@ -48,13 +48,13 @@ namespace CodeGeneratorResponse_ {
     typename Traits::string_t content;
     std::optional<google::protobuf::GeneratedCodeInfo<Traits>> generated_code_info;
 
-    [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+    [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const File&) const = default;
   };
 
 } //namespace CodeGeneratorResponse_
 
-template <typename Traits = ::hpp::proto::default_traits>
+template <typename Traits = ::hpp_proto::default_traits>
 struct CodeGeneratorResponse {
   using hpp_proto_traits_type = Traits;
   using Feature = google::protobuf::compiler::CodeGeneratorResponse_::Feature;
@@ -66,11 +66,11 @@ struct CodeGeneratorResponse {
   std::int32_t maximum_edition = {};
   Traits::template repeated_t<File> file;
 
-  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const CodeGeneratorResponse&) const = default;
 };
 
-template <typename Traits = ::hpp::proto::default_traits>
+template <typename Traits = ::hpp_proto::default_traits>
 struct CodeGeneratorRequest {
   using hpp_proto_traits_type = Traits;
   Traits::template repeated_t<typename Traits::string_t> file_to_generate;
@@ -79,26 +79,26 @@ struct CodeGeneratorRequest {
   Traits::template repeated_t<google::protobuf::FileDescriptorProto<Traits>> source_file_descriptors;
   std::optional<google::protobuf::compiler::Version<Traits>> compiler_version;
 
-  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const CodeGeneratorRequest&) const = default;
 };
 
 template <typename Traits>
-constexpr auto message_type_url(const Version<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.Version">{}; }
+constexpr auto message_type_url(const Version<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.compiler.Version">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const CodeGeneratorResponse_::File<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse.File">{}; }
+constexpr auto message_type_url(const CodeGeneratorResponse_::File<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse.File">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const CodeGeneratorResponse<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse">{}; }
+constexpr auto message_type_url(const CodeGeneratorResponse<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const CodeGeneratorRequest<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest">{}; }
+constexpr auto message_type_url(const CodeGeneratorRequest<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest">{}; }
 // NOLINTEND(performance-enum-size)
 } // namespace google::protobuf::compiler
 template <typename Traits>
-struct hpp::proto::is_hpp_generated<google::protobuf::compiler::Version<Traits>> : std::true_type {};
+struct hpp_proto::is_hpp_generated<google::protobuf::compiler::Version<Traits>> : std::true_type {};
 template <typename Traits>
-struct hpp::proto::is_hpp_generated<google::protobuf::compiler::CodeGeneratorResponse_::File<Traits>> : std::true_type {};
+struct hpp_proto::is_hpp_generated<google::protobuf::compiler::CodeGeneratorResponse_::File<Traits>> : std::true_type {};
 template <typename Traits>
-struct hpp::proto::is_hpp_generated<google::protobuf::compiler::CodeGeneratorResponse<Traits>> : std::true_type {};
+struct hpp_proto::is_hpp_generated<google::protobuf::compiler::CodeGeneratorResponse<Traits>> : std::true_type {};
 template <typename Traits>
-struct hpp::proto::is_hpp_generated<google::protobuf::compiler::CodeGeneratorRequest<Traits>> : std::true_type {};
+struct hpp_proto::is_hpp_generated<google::protobuf::compiler::CodeGeneratorRequest<Traits>> : std::true_type {};
 // clang-format on

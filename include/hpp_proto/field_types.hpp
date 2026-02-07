@@ -52,7 +52,7 @@
 #include <hpp_proto/indirect_view.hpp>
 #include <hpp_proto/optional_indirect.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 template <typename T>
 struct is_hpp_generated : std::false_type {};
 
@@ -66,9 +66,9 @@ using std::sorted_unique;
 using stdext::flat_map;
 using stdext::sorted_unique;
 #endif
-} // namespace hpp::proto
+} // namespace hpp_proto
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 // workaround for clang not supporting floating-point types in non-type template
 // parameters as of clang-15
@@ -84,9 +84,9 @@ struct float_wrapper {
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #ifdef __clang__
 #define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
-  hpp::proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
+  hpp_proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
 #define HPP_PROTO_WRAP_DOUBLE(v)                                                                                       \
-  hpp::proto::double_wrapper<std::bit_cast<int64_t>(v)> {}
+  hpp_proto::double_wrapper<std::bit_cast<int64_t>(v)> {}
 #else
 #define HPP_PROTO_WRAP_FLOAT(v) v
 #define HPP_PROTO_WRAP_DOUBLE(v) v
@@ -640,14 +640,14 @@ struct vector_trait {
 
 template <template <typename> class Allocator>
 struct vector_trait<bool, Allocator> {
-  using type = std::vector<hpp::proto::boolean, Allocator<hpp::proto::boolean>>;
+  using type = std::vector<hpp_proto::boolean, Allocator<hpp_proto::boolean>>;
 };
 
 template <typename Key, typename Mapped, template <typename> class Allocator>
 struct stable_map_trait {
   template <typename T>
   using repeated_t = typename vector_trait<T, Allocator>::type;
-  using type = hpp::proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
+  using type = hpp_proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
                                     std::less<Key>, repeated_t<Key>, // NOLINT(modernize-use-transparent-functors)
                                     repeated_t<Mapped>>;
 };
@@ -673,10 +673,10 @@ struct basic_default_traits {
   using bytes_t = typename vector_trait<std::byte, Allocator>::type;
 
   template <typename T>
-  using optional_indirect_t = hpp::proto::optional_indirect<T, Allocator<T>>;
+  using optional_indirect_t = hpp_proto::optional_indirect<T, Allocator<T>>;
 
   template <typename T>
-  using indirect_t = hpp::proto::indirect<T, Allocator<T>>;
+  using indirect_t = hpp_proto::indirect<T, Allocator<T>>;
 
   template <typename Key, typename Mapped>
   using map_t = typename basic_map_trait<Key, Mapped, Allocator>::type;
@@ -706,10 +706,10 @@ struct non_owning_traits {
   using bytes_t = equality_comparable_span<const std::byte>;
 
   template <typename T>
-  using optional_indirect_t = hpp::proto::optional_indirect_view<T>;
+  using optional_indirect_t = hpp_proto::optional_indirect_view<T>;
 
   template <typename T>
-  using indirect_t = hpp::proto::indirect_view<T>;
+  using indirect_t = hpp_proto::indirect_view<T>;
 
   template <typename Key, typename Mapped>
   using map_t = equality_comparable_span<const std::pair<Key, Mapped>>;
@@ -742,4 +742,4 @@ struct [[nodiscard]] status {
 
   [[nodiscard]] constexpr bool ok() const noexcept { return ec == std::errc{}; }
 };
-} // namespace hpp::proto
+} // namespace hpp_proto

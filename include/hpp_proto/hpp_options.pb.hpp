@@ -13,20 +13,20 @@
 #include "google/protobuf/descriptor.pb.hpp"
 
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 template <typename Traits>
 auto pb_meta(const FileOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<2, &FileOptions<Traits>::namespace_prefix, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<UINT32_MAX, &FileOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<2, &FileOptions<Traits>::namespace_prefix, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<UINT32_MAX, &FileOptions<Traits>::unknown_fields_>>;
 
-template <typename Traits = ::hpp::proto::default_traits>
+template <typename Traits = ::hpp_proto::default_traits>
 struct hpp_file_opts
-    : ::hpp::proto::extension_base<hpp_file_opts<Traits>, google::protobuf::FileOptions> {
-  using value_type=hpp::proto::FileOptions<Traits>;
+    : ::hpp_proto::extension_base<hpp_file_opts<Traits>, google::protobuf::FileOptions> {
+  using value_type=hpp_proto::FileOptions<Traits>;
   value_type value = {};
-  using pb_meta = std::tuple<::hpp::proto::field_meta<8964, &hpp_file_opts<Traits>::value, ::hpp::proto::field_option::none, void, std::monostate{}>>;
+  using pb_meta = std::tuple<::hpp_proto::field_meta<8964, &hpp_file_opts<Traits>::value, ::hpp_proto::field_option::none, void, std::monostate{}>>;
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto
 // clang-format on

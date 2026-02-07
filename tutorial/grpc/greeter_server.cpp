@@ -13,7 +13,7 @@ static const ::grpc::Status name_not_specified_status{::grpc::StatusCode::INVALI
 
 namespace helloworld::Greeter {
 
-class Service : public ::hpp::proto::grpc::CallbackService<Service, _methods> {
+class Service : public ::hpp_proto::grpc::CallbackService<Service, _methods> {
   std::mutex mu_;
   std::condition_variable shutdown_cv_;
   bool done_ = false;
@@ -21,8 +21,8 @@ class Service : public ::hpp::proto::grpc::CallbackService<Service, _methods> {
 public:
   // define the callback handler for SayHello
   struct SayHelloHandler {
-    SayHelloHandler(Service &, ::hpp::proto::grpc::ServerRPC<SayHello> &rpc,
-                    ::hpp::proto::grpc::RequestToken<SayHello> token) {
+    SayHelloHandler(Service &, ::hpp_proto::grpc::ServerRPC<SayHello> &rpc,
+                    ::hpp_proto::grpc::RequestToken<SayHello> token) {
       std::cerr << "rpc_handler<SayHello> called\n";
       helloworld::HelloRequest request;
       auto status = token.get(request);
@@ -48,19 +48,19 @@ public:
     std::mutex mx;
     int count = 3;
     std::string message;
-    using rpc_t = ::hpp::proto::grpc::ServerRPC<SayHelloStreamReply>;
+    using rpc_t = ::hpp_proto::grpc::ServerRPC<SayHelloStreamReply>;
 
-    SayHelloStreamReplyHandler(Service &, rpc_t &rpc, ::hpp::proto::grpc::RequestToken<SayHelloStreamReply> token) {
+    SayHelloStreamReplyHandler(Service &, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<SayHelloStreamReply> token) {
       std::pmr::monotonic_buffer_resource mr;
-      helloworld::HelloRequest<hpp::proto::non_owning_traits> request;
-      auto status = token.get(request, hpp::proto::alloc_from(mr));
+      helloworld::HelloRequest<hpp_proto::non_owning_traits> request;
+      auto status = token.get(request, hpp_proto::alloc_from(mr));
       if (status.ok()) {
         if (request.name.empty()) {
           rpc.finish(name_not_specified_status);
         } else {
           std::unique_lock lock(mx);
           message = "Hello " + std::string{request.name};
-          using Reply = helloworld::HelloReply<hpp::proto::non_owning_traits>;
+          using Reply = helloworld::HelloReply<hpp_proto::non_owning_traits>;
           rpc.write(Reply{.message = this->message});
         }
       } else {
@@ -74,7 +74,7 @@ public:
       if (count == 0) {
         rpc.finish(::grpc::Status::OK);
       } else {
-        using Reply = helloworld::HelloReply<hpp::proto::non_owning_traits>;
+        using Reply = helloworld::HelloReply<hpp_proto::non_owning_traits>;
         rpc.write(Reply{.message = message});
       }
     }
@@ -95,8 +95,8 @@ public:
   // define the handler to handle Shutdown
   struct ShutdownHandler {
     Service *service;
-    explicit ShutdownHandler(Service &service, ::hpp::proto::grpc::ServerRPC<Shutdown> &rpc,
-                             [[maybe_unused]] ::hpp::proto::grpc::RequestToken<Shutdown>)
+    explicit ShutdownHandler(Service &service, ::hpp_proto::grpc::ServerRPC<Shutdown> &rpc,
+                             [[maybe_unused]] ::hpp_proto::grpc::RequestToken<Shutdown>)
         : service(&service) {
       rpc.finish(google::protobuf::Empty{});
     }

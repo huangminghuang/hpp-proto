@@ -18,8 +18,8 @@ inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buf
   return {buf, str.size()};
 }
 
-using Person = tutorial::Person<hpp::proto::non_owning_traits>;
-using AddressBook = tutorial::AddressBook<hpp::proto::non_owning_traits>;
+using Person = tutorial::Person<hpp_proto::non_owning_traits>;
+using AddressBook = tutorial::AddressBook<hpp_proto::non_owning_traits>;
 
 int main() {
   using enum Person::PhoneType;
@@ -54,9 +54,9 @@ int main() {
 
   std::pmr::vector<std::byte> buffer{&pool};
 
-  expect(hpp::proto::write_binpb(address_book, buffer).ok());
+  expect(hpp_proto::write_binpb(address_book, buffer).ok());
 
-  auto read_result = hpp::proto::read_binpb<AddressBook>(buffer, hpp::proto::alloc_from{pool});
+  auto read_result = hpp_proto::read_binpb<AddressBook>(buffer, hpp_proto::alloc_from{pool});
   expect(read_result.has_value());
   expect(address_book == read_result.value());
 
@@ -64,10 +64,10 @@ int main() {
     std::span<const Person> people = address_book.people;
     expect(people.size() == 2);
     const Person &alex = address_book.people[0];
-    const hpp::proto::optional<std::string_view> &alex_name = alex.name;
+    const hpp_proto::optional<std::string_view> &alex_name = alex.name;
     expect(alex_name.has_value());
     expect(*alex_name == "Alex");
-    const hpp::proto::optional<int32_t> &alex_id = alex.id;
+    const hpp_proto::optional<int32_t> &alex_id = alex.id;
     expect(alex_id.has_value());
     expect(*alex_id == 1);
     std::span<const Person::PhoneNumber> alex_phones = alex.phones;
@@ -75,10 +75,10 @@ int main() {
     expect(alex_phones[0].type == PHONE_TYPE_MOBILE);
   }
 
-  auto write_json_result = hpp::proto::write_json(address_book);
+  auto write_json_result = hpp_proto::write_json(address_book);
   expect(write_json_result.has_value());
   auto read_json_result =
-      hpp::proto::read_json<glz::opts{}, AddressBook>(write_json_result.value(), hpp::proto::alloc_from{pool});
+      hpp_proto::read_json<glz::opts{}, AddressBook>(write_json_result.value(), hpp_proto::alloc_from{pool});
   expect(address_book == read_json_result.value());
 
   return 0;

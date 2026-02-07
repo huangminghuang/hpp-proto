@@ -1,10 +1,10 @@
 #include "json_extern.hpp"
 
 // Define the variant of all message types we fuzz
-using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp::proto::non_owning_traits>,
-                                       protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits>,
-                                       protobuf_unittest::TestMap<hpp::proto::non_owning_traits>,
-                                       proto2_unittest::TestWellKnownTypes<hpp::proto::non_owning_traits>>;
+using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp_proto::non_owning_traits>,
+                                       protobuf_unittest::TestAllTypes<hpp_proto::non_owning_traits>,
+                                       protobuf_unittest::TestMap<hpp_proto::non_owning_traits>,
+                                       proto2_unittest::TestWellKnownTypes<hpp_proto::non_owning_traits>>;
 
 template <typename T>
 void round_trip_test(const T &in_message, T &&out_message) { // NOLINT(cppcoreguidelines-missing-std-forward)
@@ -14,8 +14,8 @@ void round_trip_test(const T &in_message, T &&out_message) { // NOLINT(cppcoregu
   // Skip comparing the serialized buffer to the raw input because unknown fields are dropped on parse.
   // Skip structural comparison of messages; NaN payloads make equality fail even when bitwise identical.
   std::pmr::monotonic_buffer_resource mr;
-  hpp::proto::json_status status;
-  status = util::read_json(out_message, std::string_view{buffer1}, hpp::proto::alloc_from(mr));
+  hpp_proto::json_status status;
+  status = util::read_json(out_message, std::string_view{buffer1}, hpp_proto::alloc_from(mr));
 
   if (!status.ok()) {
     std::cerr << "roundtrip read failed:" << status.message(buffer1) << "\n";
@@ -52,14 +52,14 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
     return std::visit(
         [&](auto &non_owning_message) -> int {
           using non_owning_message_t = std::remove_reference_t<decltype(non_owning_message)>;
-          using owning_message_t = decltype(hpp::proto::rebind_traits<hpp::proto::stable_traits>(non_owning_message));
+          using owning_message_t = decltype(hpp_proto::rebind_traits<hpp_proto::stable_traits>(non_owning_message));
           std::string_view msg_name = message_name(non_owning_message);
           owning_message_t owning_message;
-          hpp::proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
+          hpp_proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
 
-          auto non_owning_read_status = util::read_json(non_owning_message, input, hpp::proto::alloc_from{mr});
-          auto owning_read_status = util::read_json(owning_message, input, hpp::proto::alloc_from{mr});
-          auto dyn_read_status = util::read_json(dyn_message, input, hpp::proto::alloc_from{mr});
+          auto non_owning_read_status = util::read_json(non_owning_message, input, hpp_proto::alloc_from{mr});
+          auto owning_read_status = util::read_json(owning_message, input, hpp_proto::alloc_from{mr});
+          auto dyn_read_status = util::read_json(dyn_message, input, hpp_proto::alloc_from{mr});
 
           bool all_status_same = (non_owning_read_status.ok() == owning_read_status.ok() &&
                                   owning_read_status.ok() == dyn_read_status.ok());

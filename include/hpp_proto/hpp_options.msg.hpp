@@ -13,22 +13,22 @@
 // @@protoc_insertion_point(includes)
 
 
-namespace hpp::proto {
+namespace hpp_proto {
 //NOLINTBEGIN(performance-enum-size)
 
-template <typename Traits = ::hpp::proto::default_traits>
+template <typename Traits = ::hpp_proto::default_traits>
 struct FileOptions {
   using hpp_proto_traits_type = Traits;
-  ::hpp::proto::optional<typename Traits::string_t> namespace_prefix;
+  ::hpp_proto::optional<typename Traits::string_t> namespace_prefix;
 
-  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const FileOptions&) const = default;
 };
 
 template <typename Traits>
-constexpr auto message_type_url(const FileOptions<Traits>&) { return ::hpp::proto::string_literal<"type.googleapis.com/hpp.proto.FileOptions">{}; }
+constexpr auto message_type_url(const FileOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/hpp.proto.FileOptions">{}; }
 // NOLINTEND(performance-enum-size)
-} // namespace hpp::proto
+} // namespace hpp_proto
 template <typename Traits>
-struct hpp::proto::is_hpp_generated<hpp::proto::FileOptions<Traits>> : std::true_type {};
+struct hpp_proto::is_hpp_generated<hpp_proto::FileOptions<Traits>> : std::true_type {};
 // clang-format on

@@ -34,7 +34,7 @@
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using enum field_kind_t;
 /**
  * @brief Immutable enum value view (stores the value, not a reference).
@@ -317,4 +317,4 @@ using repeated_uint32_field_mref = repeated_scalar_field_mref<vuint32_t, KIND_RE
 using repeated_fixed32_field_mref = repeated_scalar_field_mref<uint32_t, KIND_REPEATED_FIXED32>;
 using repeated_bool_field_mref = repeated_scalar_field_mref<bool, KIND_REPEATED_BOOL>;
 
-} // namespace hpp::proto
+} // namespace hpp_proto

@@ -35,7 +35,7 @@
 #include <hpp_proto/dynamic_message/repeated_scalar_fields.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using enum field_kind_t;
 
 using repeated_bytes_field_cref = repeated_scalar_field_cref<bytes_view, KIND_REPEATED_BYTES>;
@@ -191,4 +191,4 @@ private:
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

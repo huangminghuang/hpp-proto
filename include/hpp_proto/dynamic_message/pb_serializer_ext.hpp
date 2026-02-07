@@ -39,7 +39,7 @@
 #include <hpp_proto/dynamic_message/string_fields.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 namespace concepts {
 template <typename T>
@@ -648,4 +648,4 @@ struct field_serializer {
 }
 } // namespace pb_serializer
 
-} // namespace hpp::proto
+} // namespace hpp_proto

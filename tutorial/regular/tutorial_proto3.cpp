@@ -11,8 +11,8 @@ inline void expect(bool condition, const std::source_location location = std::so
   }
 }
 
-using Person = tutorial::Person<::hpp::proto::stable_traits>;
-using AddressBook = tutorial::AddressBook<::hpp::proto::stable_traits>;
+using Person = tutorial::Person<::hpp_proto::stable_traits>;
+using AddressBook = tutorial::AddressBook<::hpp_proto::stable_traits>;
 
 int main() {
   using enum Person::PhoneType;
@@ -32,10 +32,10 @@ int main() {
                   .map_string_nested_message = {},
                   .oneof_field = {}}}};
 
-  auto write_result = hpp::proto::write_binpb(address_book);
+  auto write_result = hpp_proto::write_binpb(address_book);
   expect(write_result.has_value());
 
-  auto read_result = hpp::proto::read_binpb<AddressBook>(write_result.value());
+  auto read_result = hpp_proto::read_binpb<AddressBook>(write_result.value());
   expect(address_book == read_result.value());
 
   std::vector<Person> &people = address_book.people;
@@ -54,7 +54,7 @@ int main() {
   expect(alex_nested_message->bb == 89);
   // NOLINTEND(bugprone-unchecked-optional-access)
 
-  std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string, hpp::proto::bytes> &alex_oneof_field =
+  std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string, hpp_proto::bytes> &alex_oneof_field =
       alex.oneof_field;
 
   expect(alex_oneof_field.index() == Person::oneof_field_oneof_case::oneof_string);
@@ -62,9 +62,9 @@ int main() {
          "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
 
 #ifndef HPP_PROTO_DISABLE_GLAZE
-  auto write_json_result = hpp::proto::write_json(address_book);
+  auto write_json_result = hpp_proto::write_json(address_book);
   expect(write_json_result.has_value());
-  auto read_json_result = hpp::proto::read_json<glz::opts{}, AddressBook>(write_json_result.value());
+  auto read_json_result = hpp_proto::read_json<glz::opts{}, AddressBook>(write_json_result.value());
   expect(address_book == read_json_result.value());
 #endif
   return 0;

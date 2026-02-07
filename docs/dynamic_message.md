@@ -20,7 +20,7 @@ This command will create `addressbook_proto3.desc.binpb`, a binary file containi
 
 ## 1) Build a Factory
 
-The `hpp::proto::dynamic_message_factory` is responsible for owning and managing the loaded descriptors. Individual dynamic messages created by the factory will borrow a caller-owned `std::pmr::monotonic_buffer_resource` for their allocations.
+The `hpp_proto::dynamic_message_factory` is responsible for owning and managing the loaded descriptors. Individual dynamic messages created by the factory will borrow a caller-owned `std::pmr::monotonic_buffer_resource` for their allocations.
 
 ```cpp
 #include <hpp_proto/dynamic_message/binpb.hpp>
@@ -47,7 +47,7 @@ int main() {
         return 1;
     }
 
-    hpp::proto::dynamic_message_factory factory;
+    hpp_proto::dynamic_message_factory factory;
     if (!factory.init(filedescriptorset_binpb)) {
         std::cerr << "Error: Factory initialization failed (bad descriptors).\n";
         return 1;
@@ -73,7 +73,7 @@ Once the factory is initialized, you can create dynamic message instances. Each 
         return 1;
     }
     
-    hpp::proto::message_value_mref msg = *em_expected; // Mutable reference to the dynamic message
+    hpp_proto::message_value_mref msg = *em_expected; // Mutable reference to the dynamic message
 
     // ...
 ```
@@ -126,29 +126,29 @@ For more robust and type-aware access, use typed field references (`_mref` for m
     using namespace std::string_view_literals;
 
     // Accessing an int32 field
-    if (auto int_ref_expected = msg.typed_ref_by_name<hpp::proto::int32_field_mref>("id")) {
+    if (auto int_ref_expected = msg.typed_ref_by_name<hpp_proto::int32_field_mref>("id")) {
         int_ref_expected->set(5678); // Exact type match is enforced
     } else {
         std::cerr << "Error getting typed ref for id.\n";
     }
 
     // Accessing a string field
-    if (auto str_ref_expected = msg.typed_ref_by_name<hpp::proto::string_field_mref>("email")) {
+    if (auto str_ref_expected = msg.typed_ref_by_name<hpp_proto::string_field_mref>("email")) {
         str_ref_expected->set("dynamic@example.com"sv);
     } else {
         std::cerr << "Error getting typed ref for email.\n";
     }
 
     // Accessing an enum field inside a repeated message field
-    if (auto phones_ref_expected = msg.typed_ref_by_name<hpp::proto::repeated_message_field_mref>("phones")) {
+    if (auto phones_ref_expected = msg.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("phones")) {
         auto phones_list = *phones_ref_expected;
         auto phone_msg = phones_list.emplace_back();
-        if (auto enum_ref_expected = phone_msg.typed_ref_by_name<hpp::proto::enum_field_mref>("type")) {
-            auto enum_set_result_num = enum_ref_expected->set(hpp::proto::enum_number{tutorial::Person::MOBILE});
+        if (auto enum_ref_expected = phone_msg.typed_ref_by_name<hpp_proto::enum_field_mref>("type")) {
+            auto enum_set_result_num = enum_ref_expected->set(hpp_proto::enum_number{tutorial::Person::MOBILE});
             if (!enum_set_result_num) {
                 std::cerr << "Error setting enum by number.\n";
             }
-            auto enum_set_result_name = enum_ref_expected->set(hpp::proto::enum_name{"HOME"sv});
+            auto enum_set_result_name = enum_ref_expected->set(hpp_proto::enum_name{"HOME"sv});
             if (!enum_set_result_name) {
                 std::cerr << "Error setting enum by name.\n";
             }
@@ -172,26 +172,26 @@ For nested message fields, you must check their presence and then `emplace()` to
         std::cerr << "Error: Failed to create AddressBook message.\n";
         return 1;
     }
-    hpp::proto::message_value_mref address_book_msg = *address_book_expected;
+    hpp_proto::message_value_mref address_book_msg = *address_book_expected;
 
-    auto people_repeated_expected = address_book_msg.typed_ref_by_name<hpp::proto::repeated_message_field_mref>("people");
+    auto people_repeated_expected = address_book_msg.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("people");
     if (people_repeated_expected) {
         auto people_list = *people_repeated_expected;
         
         // Emplace a new Person message into the repeated field
-        hpp::proto::message_value_mref new_person = people_list.emplace_back();
+        hpp_proto::message_value_mref new_person = people_list.emplace_back();
         
         // Now set fields on the new_person message
         new_person.set_field_by_name("name", "Jane Doe").value();
         new_person.set_field_by_name("id", 100).value();
 
         // Access and add a phone number to new_person
-        auto phones_list_expected = new_person.typed_ref_by_name<hpp::proto::repeated_message_field_mref>("phones");
+        auto phones_list_expected = new_person.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("phones");
         if (phones_list_expected) {
             auto phones_list = *phones_list_expected;
-            hpp::proto::message_value_mref new_phone = phones_list.emplace_back();
+            hpp_proto::message_value_mref new_phone = phones_list.emplace_back();
             new_phone.set_field_by_name("number", "111-222-3333").value();
-            new_phone.set_field_by_name("type", hpp::proto::enum_name{"WORK"sv}).value();
+            new_phone.set_field_by_name("type", hpp_proto::enum_name{"WORK"sv}).value();
         }
     }
     std::cout << "\nCreated dynamic AddressBook with a Person.\n";
@@ -221,12 +221,12 @@ To add a new entry to a map, you `emplace_back` a new map entry message and then
 // }
 
 // ... inside main, assuming 'msg' is a dynamic message of type 'MyMessage'
-auto map_ref_expected = msg.typed_ref_by_name<hpp::proto::repeated_message_field_mref>("attributes");
+auto map_ref_expected = msg.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("attributes");
 if (map_ref_expected) {
     auto map_field = *map_ref_expected;
     
     // Add a new entry to the map
-    hpp::proto::message_value_mref new_entry = map_field.emplace_back();
+    hpp_proto::message_value_mref new_entry = map_field.emplace_back();
     
     // Set the key (field number 1)
     new_entry.set_field_by_number(1, "level"sv);
@@ -235,7 +235,7 @@ if (map_ref_expected) {
     new_entry.set_field_by_number(2, 42);
 
     // Add another entry
-    hpp::proto::message_value_mref another_entry = map_field.emplace_back();
+    hpp_proto::message_value_mref another_entry = map_field.emplace_back();
     another_entry.set_field_by_number(1, "power"sv).value();
     another_entry.set_field_by_number(2, 9001).value();
 }
@@ -245,13 +245,13 @@ if (map_ref_expected) {
 // ... (inside main, continuing from AddressBook example)
 
     // Accessing the "people" repeated field again
-    auto people_ref_expected = address_book_msg.typed_ref_by_name<hpp::proto::repeated_message_field_mref>("people");
+    auto people_ref_expected = address_book_msg.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("people");
     if (people_ref_expected) {
         auto people_list = *people_ref_expected;
         people_list.reserve(5); // Ensure capacity
         
         // Add another person
-        hpp::proto::message_value_mref another_person = people_list.emplace_back();
+        hpp_proto::message_value_mref another_person = people_list.emplace_back();
         another_person.set_field_by_name("name", "Alex Smith").value();
         another_person.set_field_by_name("id", 200).value();
         
@@ -267,12 +267,12 @@ Every mutable reference (`_mref`) has a corresponding constant sibling (`_cref`)
 ```cpp
 // ... (inside main)
 
-    hpp::proto::message_value_cref address_book_cref = address_book_msg.cref();
-    if (auto people_cref_expected = address_book_cref.typed_ref_by_name<hpp::proto::repeated_message_field_cref>("people")) {
+    hpp_proto::message_value_cref address_book_cref = address_book_msg.cref();
+    if (auto people_cref_expected = address_book_cref.typed_ref_by_name<hpp_proto::repeated_message_field_cref>("people")) {
         auto people_list_cref = *people_cref_expected;
         if (!people_list_cref.empty()) {
-            hpp::proto::message_value_cref first_person_cref = people_list_cref[0];
-            auto name_cref_expected = first_person_cref.typed_ref_by_name<hpp::proto::string_field_cref>("name");
+            hpp_proto::message_value_cref first_person_cref = people_list_cref[0];
+            auto name_cref_expected = first_person_cref.typed_ref_by_name<hpp_proto::string_field_cref>("name");
             if (name_cref_expected) {
                 std::cout << "First person's name (const access): " << name_cref_expected->value() << "\n";
             }
@@ -284,12 +284,12 @@ Every mutable reference (`_mref`) has a corresponding constant sibling (`_cref`)
 
 `hpp-proto` embraces `std::expected` for error handling, allowing for a no-exception style of programming.
 
-*   **No-exception style**: Chain operations using `.and_then()` on `std::expected` returns, and check `.has_value()` or `.error()` to handle errors explicitly. Helpers like `hpp::proto::expected_message_mref` are designed for this fluent style.
+*   **No-exception style**: Chain operations using `.and_then()` on `std::expected` returns, and check `.has_value()` or `.error()` to handle errors explicitly. Helpers like `hpp_proto::expected_message_mref` are designed for this fluent style.
 *   **Exception style**: If exceptions are preferred, simply call `.value()` on the `std::expected` return types. This will throw `std::bad_optional_access` if the `expected` holds an error.
 
 ## 7) Full Example (`tutorial_proto3_dynamic.cpp`)
 
-The `hpp::proto::expected_message_mref` is a fluent wrapper that streamlines chained mutations on dynamic messages. It automatically propagates `std::expected` errors, allowing complex operations to be written concisely.
+The `hpp_proto::expected_message_mref` is a fluent wrapper that streamlines chained mutations on dynamic messages. It automatically propagates `std::expected` errors, allowing complex operations to be written concisely.
 
 A full, working example demonstrating dynamic message creation, field access, and manipulation (including nested messages and repeated fields) can be found in `tutorial/dynamic_message/tutorial_proto3_dynamic.cpp`. Additional snippets and test cases are also available in `tests/dynamic_message_test.cpp`.
 
@@ -299,23 +299,23 @@ For instance, adding a new person to an address book might look like this:
 // ... (from tutorial/dynamic_message/tutorial_proto3_dynamic.cpp)
 
     std::pmr::monotonic_buffer_resource mr;
-    hpp::proto::expected_message_mref address_book_expected = factory.get_message("tutorial.AddressBook", mr);
+    hpp_proto::expected_message_mref address_book_expected = factory.get_message("tutorial.AddressBook", mr);
     if (!address_book_expected) {
         // Handle error
         return 1;
     }
-    hpp::proto::message_value_mref address_book_msg = *address_book_expected;
+    hpp_proto::message_value_mref address_book_msg = *address_book_expected;
 
     // Use expected_message_mref for fluent chaining with error propagation
     address_book_expected
-        .mutate_field_by_name("people", [&](hpp::proto::repeated_message_field_mref people) {
-            return hpp::proto::expected_message_mref{people.emplace_back()}
+        .mutate_field_by_name("people", [&](hpp_proto::repeated_message_field_mref people) {
+            return hpp_proto::expected_message_mref{people.emplace_back()}
                 .set_field_by_name("name", "Alex")
                 .set_field_by_name("id", 1)
-                .mutate_field_by_name("phones", [](hpp::proto::repeated_message_field_mref phones) {
-                    return hpp::proto::expected_message_mref{phones.emplace_back()}
+                .mutate_field_by_name("phones", [](hpp_proto::repeated_message_field_mref phones) {
+                    return hpp_proto::expected_message_mref{phones.emplace_back()}
                         .set_field_by_name("number", "19890604")
-                        .set_field_by_name("type", hpp::proto::enum_name{"MOBILE"sv})
+                        .set_field_by_name("type", hpp_proto::enum_name{"MOBILE"sv})
                         .done(); // End phone number chain
                 })
                 .done(); // End person chain
@@ -323,17 +323,17 @@ For instance, adding a new person to an address book might look like this:
         .done(); // End address book chain
 
     std::cout << "\nDynamically created AddressBook content:\n";
-    std::cout << hpp::proto::write_json(address_book_msg).value() << "\n";
+    std::cout << hpp_proto::write_json(address_book_msg).value() << "\n";
 
     // Binary serialization/deserialization also works
     std::string binary_data;
-    hpp::proto::write_binpb(address_book_msg, binary_data).value();
+    hpp_proto::write_binpb(address_book_msg, binary_data).value();
 
-    hpp::proto::message_value_mref deserialized_address_book = *factory.get_message("tutorial.AddressBook", mr);
-    hpp::proto::read_binpb(deserialized_address_book, binary_data).value();
+    hpp_proto::message_value_mref deserialized_address_book = *factory.get_message("tutorial.AddressBook", mr);
+    hpp_proto::read_binpb(deserialized_address_book, binary_data).value();
     
     std::cout << "\nDeserialized dynamic AddressBook content:\n";
-    std::cout << hpp::proto::write_json(deserialized_address_book).value() << "\n";
+    std::cout << hpp_proto::write_json(deserialized_address_book).value() << "\n";
 ```
 
 ## 8) Safety Reminders

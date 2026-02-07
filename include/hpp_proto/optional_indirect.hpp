@@ -7,7 +7,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 template <typename T, typename Allocator = std::allocator<T>>
 class optional_indirect {
@@ -445,4 +445,4 @@ public:
   }
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

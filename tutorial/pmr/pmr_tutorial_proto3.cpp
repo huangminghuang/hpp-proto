@@ -6,8 +6,8 @@
 #include "addressbook_proto3.glz.hpp"
 #include "addressbook_proto3.pb.hpp"
 
-using PmrAddressBook = tutorial::AddressBook<hpp::proto::pmr_traits>;
-using PmrPerson = tutorial::Person<hpp::proto::pmr_traits>;
+using PmrAddressBook = tutorial::AddressBook<hpp_proto::pmr_traits>;
+using PmrPerson = tutorial::Person<hpp_proto::pmr_traits>;
 using PmrPhoneNumber = PmrPerson::PhoneNumber;
 
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
@@ -39,12 +39,12 @@ int main() {
 
   // Serialize to binary
   std::vector<std::byte> binary_data;
-  auto write_result = hpp::proto::write_binpb(*address_book, binary_data);
+  auto write_result = hpp_proto::write_binpb(*address_book, binary_data);
   expect(write_result.ok());
 
   // Deserialize from binary into a new object using the same pool
   auto *read_book = alloc.new_object<PmrAddressBook>();
-  auto read_result = hpp::proto::read_binpb(*read_book, binary_data);
+  auto read_result = hpp_proto::read_binpb(*read_book, binary_data);
 
   expect(read_result.ok());
   expect(*address_book == *read_book);
@@ -54,11 +54,11 @@ int main() {
 
 #ifndef HPP_PROTO_DISABLE_GLAZE
   // JSON serialization works with PMR traits too
-  auto json_result = hpp::proto::write_json(*address_book);
+  auto json_result = hpp_proto::write_json(*address_book);
   expect(json_result.has_value());
 
   auto *json_read_book = alloc.new_object<PmrAddressBook>();
-  auto json_read_result = hpp::proto::read_json(*json_read_book, json_result.value());
+  auto json_read_result = hpp_proto::read_json(*json_read_book, json_result.value());
   expect(json_read_result.ok());
   expect(*address_book == *json_read_book);
 

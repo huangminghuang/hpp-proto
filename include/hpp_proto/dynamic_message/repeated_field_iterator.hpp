@@ -27,7 +27,7 @@
 #include <cstddef>
 #include <iterator>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 template <typename Field>
 class repeated_field_iterator {
@@ -106,4 +106,4 @@ public:
   reference operator[](std::ptrdiff_t n) const noexcept { return *(*this + n); }
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

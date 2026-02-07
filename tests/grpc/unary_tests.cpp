@@ -10,20 +10,20 @@
 
 namespace {
 using namespace boost::ut;
-using namespace hpp::proto;
-using namespace hpp::proto::grpc;
-using hpp::proto::grpc::test_utils::Harness;
-using hpp::proto::grpc::test_utils::UnaryEcho;
+using namespace hpp_proto;
+using namespace hpp_proto::grpc;
+using hpp_proto::grpc::test_utils::Harness;
+using hpp_proto::grpc::test_utils::UnaryEcho;
 
 void run_unary_blocking_case() {
   Harness harness;
   auto &stub = harness.stub();
   ::grpc::ClientContext context;
-  EchoRequest request;
+  hpp_proto_test::EchoRequest request;
   request.message = "ping";
   request.sequence = 41;
 
-  EchoResponse<> response;
+  hpp_proto_test::EchoResponse<> response;
   auto status = stub.call<UnaryEcho>(context, request, response);
 
   expect(status.ok()) << status.error_message();
@@ -31,12 +31,12 @@ void run_unary_blocking_case() {
   expect(eq(response.message, std::string{"ping-unary"}));
 }
 
-class UnaryAsyncReactor : public ::hpp::proto::grpc::ClientCallbackReactor<UnaryEcho> {
+class UnaryAsyncReactor : public ::hpp_proto::grpc::ClientCallbackReactor<UnaryEcho> {
   std::mutex mu_;
   std::condition_variable cv_;
   bool done_ = false;
   ::grpc::Status status_;
-  EchoResponse<> response_;
+  hpp_proto_test::EchoResponse<> response_;
 
 public:
   void OnDone(const ::grpc::Status &status) override {
@@ -58,14 +58,14 @@ public:
   }
 
   [[nodiscard]] const ::grpc::Status &status() const { return status_; }
-  [[nodiscard]] const EchoResponse<> &response() const { return response_; }
+  [[nodiscard]] const hpp_proto_test::EchoResponse<> &response() const { return response_; }
 };
 
 void run_unary_async_reactor_case() {
   Harness harness;
   auto &stub = harness.stub();
   ::grpc::ClientContext context;
-  EchoRequest request;
+  hpp_proto_test::EchoRequest request;
   request.message = "async-reactor";
   request.sequence = 10;
 
@@ -84,11 +84,11 @@ void run_unary_async_callback_case() {
   Harness harness;
   auto &stub = harness.stub();
   ::grpc::ClientContext context;
-  EchoRequest request;
+  hpp_proto_test::EchoRequest request;
   request.message = "async-callback";
   request.sequence = 5;
 
-  EchoResponse response;
+  hpp_proto_test::EchoResponse response;
   std::mutex mu;
   std::condition_variable cv;
   bool done = false;

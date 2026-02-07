@@ -18,8 +18,8 @@ inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buf
   return {buf, str.size()};
 }
 
-using Person = tutorial::Person<hpp::proto::non_owning_traits>;
-using AddressBook = tutorial::AddressBook<hpp::proto::non_owning_traits>;
+using Person = tutorial::Person<hpp_proto::non_owning_traits>;
+using AddressBook = tutorial::AddressBook<hpp_proto::non_owning_traits>;
 
 int main() {
   using enum Person::PhoneType;
@@ -31,7 +31,7 @@ int main() {
   std::pmr::vector<Person::PhoneNumber> alex_phones{&pool};
   alex_phones.push_back({.number = "19890604"sv, .type = PHONE_TYPE_MOBILE});
 
-  using PhoneNumberSpan = hpp::proto::equality_comparable_span<const Person::PhoneNumber>;
+  using PhoneNumberSpan = hpp_proto::equality_comparable_span<const Person::PhoneNumber>;
 
   std::pmr::vector<Person> people{&pool};
   people.resize(2);
@@ -57,10 +57,10 @@ int main() {
 
   address_book.people = people;
 
-  auto write_result = hpp::proto::write_binpb<std::span<const std::byte>>(address_book, hpp::proto::alloc_from{pool});
+  auto write_result = hpp_proto::write_binpb<std::span<const std::byte>>(address_book, hpp_proto::alloc_from{pool});
   expect(write_result.has_value());
 
-  auto read_result = hpp::proto::read_binpb<AddressBook>(write_result.value(), hpp::proto::alloc_from{pool});
+  auto read_result = hpp_proto::read_binpb<AddressBook>(write_result.value(), hpp_proto::alloc_from{pool});
   expect(read_result.has_value());
   expect(address_book == read_result.value());
 
@@ -85,7 +85,7 @@ int main() {
         alex.map_string_nested_message;
     expect(std::ranges::equal(map_string_nested_message, address_book.people[0].map_string_nested_message));
 
-    const std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string_view, hpp::proto::bytes_view>
+    const std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string_view, hpp_proto::bytes_view>
         &alex_oneof_field = alex.oneof_field;
     expect(alex_oneof_field.index() == Person::oneof_field_oneof_case::oneof_string);
     expect(std::get<Person::oneof_field_oneof_case::oneof_string>(alex_oneof_field) ==
@@ -94,10 +94,10 @@ int main() {
 
 #ifndef HPP_PROTO_DISABLE_GLAZE
   auto write_json_result =
-      hpp::proto::write_json<hpp::proto::json_opts{}, std::pmr::string>(address_book, hpp::proto::alloc_from{pool});
+      hpp_proto::write_json<hpp_proto::json_opts{}, std::pmr::string>(address_book, hpp_proto::alloc_from{pool});
   expect(write_json_result.has_value());
   auto read_json_result =
-      hpp::proto::read_json<glz::opts{}, AddressBook>(write_json_result.value(), hpp::proto::alloc_from{pool});
+      hpp_proto::read_json<glz::opts{}, AddressBook>(write_json_result.value(), hpp_proto::alloc_from{pool});
   expect(address_book == read_json_result.value());
 #endif
   return 0;

@@ -26,7 +26,7 @@
 #include <hpp_proto/binpb/deserialize.hpp>
 #include <hpp_proto/binpb/serialize.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using std::expected;
 using std::unexpected;
 template <auto Mode>
@@ -275,7 +275,7 @@ status read_binpb(T &msg, const Buffer &buffer, concepts::is_option_type auto &&
 template <typename T, template <typename Traits> class Extendee>
 struct extension_base {
   constexpr static auto number() {
-    using field_meta_t = std::tuple_element_t<0, typename hpp::proto::util::meta_of<T>::type>;
+    using field_meta_t = std::tuple_element_t<0, typename hpp_proto::util::meta_of<T>::type>;
     return field_meta_t::number;
   }
 
@@ -361,4 +361,4 @@ expected<T, std::errc> unpack_any(concepts::is_any auto const &any, concepts::is
   return result;
 }
 
-} // namespace hpp::proto
+} // namespace hpp_proto

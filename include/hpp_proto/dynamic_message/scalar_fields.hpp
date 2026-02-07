@@ -31,7 +31,7 @@
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using enum field_kind_t;
 
 /**
@@ -230,4 +230,4 @@ using uint32_field_mref = scalar_field_mref<vuint32_t, KIND_UINT32>;
 using fixed32_field_mref = scalar_field_mref<uint32_t, KIND_FIXED32>;
 
 using bool_field_mref = scalar_field_mref<bool, KIND_BOOL>;
-} // namespace hpp::proto
+} // namespace hpp_proto

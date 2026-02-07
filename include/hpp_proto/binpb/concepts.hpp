@@ -34,7 +34,7 @@
 
 #include <hpp_proto/binpb/varint.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
-namespace hpp::proto {
+namespace hpp_proto {
 template <typename TargetTraits = default_traits, template <typename Traits> class Message, typename Traits>
 auto rebind_traits(Message<Traits>) -> Message<TargetTraits>;
 namespace concepts {
@@ -43,7 +43,7 @@ template <typename T>
 concept is_enum = std::is_enum_v<T> && !std::same_as<std::byte, T>;
 
 template <typename T>
-concept is_boolean = std::same_as<hpp::proto::boolean, T>;
+concept is_boolean = std::same_as<hpp_proto::boolean, T>;
 
 template <typename T>
 concept associative_container =
@@ -103,17 +103,17 @@ template <typename T>
 concept dereferenceable = requires(T item) { *item; };
 
 template <typename T>
-concept optional_indirect_view = std::same_as<T, ::hpp::proto::optional_indirect_view<typename T::value_type>>;
+concept optional_indirect_view = std::same_as<T, ::hpp_proto::optional_indirect_view<typename T::value_type>>;
 
 template <typename T>
-concept indirect_view = std::same_as<T, ::hpp::proto::indirect_view<typename T::value_type>>;
+concept indirect_view = std::same_as<T, ::hpp_proto::indirect_view<typename T::value_type>>;
 
 template <typename T>
 concept indirect =
     requires {
       typename std::remove_cvref_t<T>::value_type;
       typename std::remove_cvref_t<T>::allocator_type;
-    } && std::same_as<std::remove_cvref_t<T>, ::hpp::proto::indirect<typename std::remove_cvref_t<T>::value_type,
+    } && std::same_as<std::remove_cvref_t<T>, ::hpp_proto::indirect<typename std::remove_cvref_t<T>::value_type,
                                                                      typename std::remove_cvref_t<T>::allocator_type>>;
 
 template <typename T>
@@ -142,7 +142,7 @@ template <typename T>
 concept is_pair = std::same_as<T, std::pair<typename T::first_type, typename T::second_type>>;
 
 template <typename T>
-concept string_or_bytes_view = concepts::basic_string_view<T> || std::same_as<T, hpp::proto::bytes_view>;
+concept string_or_bytes_view = concepts::basic_string_view<T> || std::same_as<T, hpp_proto::bytes_view>;
 
 template <typename T>
 concept is_oneof_field_meta = requires { typename T::alternatives_meta; };
@@ -218,4 +218,4 @@ concept is_any = requires(T &obj) {
 };
 
 } // namespace concepts
-} // namespace hpp::proto
+} // namespace hpp_proto

@@ -10,13 +10,11 @@
 
 namespace {
 using namespace boost::ut;
-using namespace hpp::proto;
-using namespace hpp::proto::grpc;
-using hpp::proto::grpc::test_utils::BidiStreamChat;
-using hpp::proto::grpc::test_utils::Harness;
-using hpp::proto::grpc::test_utils::kTerminalSequence;
+using namespace hpp_proto;
+using namespace hpp_proto::grpc;
+using namespace hpp_proto::grpc::test_utils;
 
-class BidiReactor : public ::hpp::proto::grpc::ClientCallbackReactor<BidiStreamChat> {
+class BidiReactor : public ::hpp_proto::grpc::ClientCallbackReactor<BidiStreamChat> {
   std::mutex mu_;
   std::mutex write_mu_;
   std::condition_variable cv_;
@@ -30,7 +28,7 @@ class BidiReactor : public ::hpp::proto::grpc::ClientCallbackReactor<BidiStreamC
   bool sentinel_sent_ = false;
 
 public:
-  using request_t = EchoRequest<>;
+  using request_t = hpp_proto_test::EchoRequest<>;
 
   void set_payloads(std::vector<std::string> payloads) { payloads_ = std::move(payloads); }
 
@@ -55,8 +53,8 @@ public:
       return;
     }
     std::pmr::monotonic_buffer_resource mr;
-    EchoResponse<> response;
-    auto read_status = this->get_response(response, hpp::proto::alloc_from{mr});
+    hpp_proto_test::EchoResponse<> response;
+    auto read_status = this->get_response(response, hpp_proto::alloc_from{mr});
     {
       std::unique_lock lock(mu_);
       if (!read_status.ok()) {

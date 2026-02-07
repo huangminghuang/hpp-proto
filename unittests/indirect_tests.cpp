@@ -15,7 +15,7 @@ const boost::ut::suite indirect_tests = [] {
   using namespace boost::ut;
 
   "indirect"_test = [] {
-    using Indirect = hpp::proto::indirect<TestMessage, std::pmr::polymorphic_allocator<TestMessage>>;
+    using Indirect = hpp_proto::indirect<TestMessage, std::pmr::polymorphic_allocator<TestMessage>>;
     using Alloc = std::pmr::polymorphic_allocator<TestMessage>;
 
     auto expect_allocator_eq = [](const Alloc &lhs, const Alloc &rhs) {
@@ -162,7 +162,7 @@ const boost::ut::suite indirect_tests = [] {
   };
 
   "indirect_view"_test = [] {
-    using View = hpp::proto::indirect_view<TestMessage>;
+    using View = hpp_proto::indirect_view<TestMessage>;
 
     "default_ctor"_test = [] {
       View v;

@@ -16,50 +16,50 @@ template <typename Traits>
 struct glz::meta<google::protobuf::compiler::Version<Traits>> {
   using T = google::protobuf::compiler::Version<Traits>;
   static constexpr auto value = object(
-    "major", ::hpp::proto::as_optional_ref<&T::major>,
-    "minor", ::hpp::proto::as_optional_ref<&T::minor>,
-    "patch", ::hpp::proto::as_optional_ref<&T::patch>,
-    "suffix", ::hpp::proto::as_optional_ref<&T::suffix>);
+    "major", ::hpp_proto::as_optional_ref<&T::major>,
+    "minor", ::hpp_proto::as_optional_ref<&T::minor>,
+    "patch", ::hpp_proto::as_optional_ref<&T::patch>,
+    "suffix", ::hpp_proto::as_optional_ref<&T::suffix>);
 };
 
 template <typename Traits>
-struct hpp::proto::has_glz<google::protobuf::compiler::Version<Traits>> : std::true_type {};
+struct hpp_proto::has_glz<google::protobuf::compiler::Version<Traits>> : std::true_type {};
 template <typename Traits>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest<Traits>> {
   using T = google::protobuf::compiler::CodeGeneratorRequest<Traits>;
   static constexpr auto value = object(
-    "fileToGenerate", ::hpp::proto::as_optional_ref<&T::file_to_generate>,
-    "parameter", ::hpp::proto::as_optional_ref<&T::parameter>,
-    "protoFile", ::hpp::proto::as_optional_ref<&T::proto_file>,
-    "sourceFileDescriptors", ::hpp::proto::as_optional_ref<&T::source_file_descriptors>,
+    "fileToGenerate", ::hpp_proto::as_optional_ref<&T::file_to_generate>,
+    "parameter", ::hpp_proto::as_optional_ref<&T::parameter>,
+    "protoFile", ::hpp_proto::as_optional_ref<&T::proto_file>,
+    "sourceFileDescriptors", ::hpp_proto::as_optional_ref<&T::source_file_descriptors>,
     "compilerVersion", &T::compiler_version);
 };
 
 template <typename Traits>
-struct hpp::proto::has_glz<google::protobuf::compiler::CodeGeneratorRequest<Traits>> : std::true_type {};
+struct hpp_proto::has_glz<google::protobuf::compiler::CodeGeneratorRequest<Traits>> : std::true_type {};
 template <typename Traits>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse<Traits>> {
   using T = google::protobuf::compiler::CodeGeneratorResponse<Traits>;
   static constexpr auto value = object(
-    "error", ::hpp::proto::as_optional_ref<&T::error>,
-    "supportedFeatures", ::hpp::proto::as_optional_ref<&T::supported_features>,
-    "minimumEdition", ::hpp::proto::as_optional_ref<&T::minimum_edition>,
-    "maximumEdition", ::hpp::proto::as_optional_ref<&T::maximum_edition>,
-    "file", ::hpp::proto::as_optional_ref<&T::file>);
+    "error", ::hpp_proto::as_optional_ref<&T::error>,
+    "supportedFeatures", ::hpp_proto::as_optional_ref<&T::supported_features>,
+    "minimumEdition", ::hpp_proto::as_optional_ref<&T::minimum_edition>,
+    "maximumEdition", ::hpp_proto::as_optional_ref<&T::maximum_edition>,
+    "file", ::hpp_proto::as_optional_ref<&T::file>);
 };
 
 template <typename Traits>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse_::File<Traits>> {
   using T = google::protobuf::compiler::CodeGeneratorResponse_::File<Traits>;
   static constexpr auto value = object(
-    "name", ::hpp::proto::as_optional_ref<&T::name>,
-    "insertionPoint", ::hpp::proto::as_optional_ref<&T::insertion_point>,
-    "content", ::hpp::proto::as_optional_ref<&T::content>,
+    "name", ::hpp_proto::as_optional_ref<&T::name>,
+    "insertionPoint", ::hpp_proto::as_optional_ref<&T::insertion_point>,
+    "content", ::hpp_proto::as_optional_ref<&T::content>,
     "generatedCodeInfo", &T::generated_code_info);
 };
 
 template <typename Traits>
-struct hpp::proto::has_glz<google::protobuf::compiler::CodeGeneratorResponse_::File<Traits>> : std::true_type {};
+struct hpp_proto::has_glz<google::protobuf::compiler::CodeGeneratorResponse_::File<Traits>> : std::true_type {};
 template <>
 struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse_::Feature> {
   using enum google::protobuf::compiler::CodeGeneratorResponse_::Feature;
@@ -70,5 +70,5 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse_::Feature> {
 };
 
 template <typename Traits>
-struct hpp::proto::has_glz<google::protobuf::compiler::CodeGeneratorResponse<Traits>> : std::true_type {};
+struct hpp_proto::has_glz<google::protobuf::compiler::CodeGeneratorResponse<Traits>> : std::true_type {};
 // clang-format on

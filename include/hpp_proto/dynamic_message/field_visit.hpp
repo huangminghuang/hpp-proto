@@ -38,7 +38,7 @@
 #include <hpp_proto/dynamic_message/string_fields.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using enum field_kind_t;
 
 inline auto field_cref::visit(auto &&visitor) const {
@@ -207,4 +207,4 @@ inline void field_mref::set_null() noexcept {
   }
 }
 
-} // namespace hpp::proto
+} // namespace hpp_proto

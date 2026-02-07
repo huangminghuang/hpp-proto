@@ -29,7 +29,7 @@
 #include <string_view>
 #include <variant>
 
-namespace hpp::proto {
+namespace hpp_proto {
 template <typename T>
 struct scalar_storage_base {
   T content;
@@ -91,4 +91,4 @@ union value_storage {
     std::memcpy(&this->of_repeated_int64.size, &zero, sizeof(zero));
   }
 };
-} // namespace hpp::proto
+} // namespace hpp_proto

@@ -209,7 +209,7 @@ template <auto Opts>
 }
 
 template <auto Options, typename T>
-  requires(!::hpp::proto::concepts::associative_container<T>)
+  requires(!::hpp_proto::concepts::associative_container<T>)
 void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end, const auto &element_parser) {
   constexpr auto Opts = ws_handled_off<Options>();
 
@@ -257,7 +257,7 @@ void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end, const
   util::match_ending<Opts>(ending_token, ctx, it, end);
 }
 
-template <auto Options, ::hpp::proto::concepts::associative_container T>
+template <auto Options, ::hpp_proto::concepts::associative_container T>
 void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end, const auto &element_parser) {
   constexpr auto Opts = ws_handled_off<Options>();
 
@@ -279,8 +279,8 @@ void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end, const auto &
 
   const std::size_t new_size = value.size() + n;
 
-  if constexpr (::hpp::proto::concepts::flat_map<T>) {
-    ::hpp::proto::reserve(value, new_size);
+  if constexpr (::hpp_proto::concepts::flat_map<T>) {
+    ::hpp_proto::reserve(value, new_size);
   } else if constexpr (requires { value.reserve(new_size); }) {
     value.reserve(new_size);
   }

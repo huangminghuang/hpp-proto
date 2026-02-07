@@ -3,7 +3,7 @@
 #include <hpp_proto/binpb.hpp>
 #include <hpp_proto/merge.hpp>
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct ForeignMessage {
   std::int32_t c = {};
   std::int32_t d = {};
@@ -14,9 +14,9 @@ struct ForeignMessage {
 template <typename Traits>
 auto pb_meta(const ForeignMessage<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &ForeignMessage<Traits>::c, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-        hpp::proto::field_meta<2, &ForeignMessage<Traits>::d, hpp::proto::field_option::none, hpp::proto::vint64_t>,
-        hpp::proto::field_meta<15, &ForeignMessage<Traits>::e, hpp::proto::field_option::none>>;
+        hpp_proto::field_meta<1, &ForeignMessage<Traits>::c, hpp_proto::field_option::none, hpp_proto::vint64_t>,
+        hpp_proto::field_meta<2, &ForeignMessage<Traits>::d, hpp_proto::field_option::none, hpp_proto::vint64_t>,
+        hpp_proto::field_meta<15, &ForeignMessage<Traits>::e, hpp_proto::field_option::none>>;
 
 #if defined(__GNUC__) && (__GNUC__ < 14) && !defined(__clang__)
 namespace std {
@@ -27,14 +27,14 @@ bool operator==(const pair<LFirst, LSecond> &lhs, const pair<RFirst, RSecond> &r
 } // namespace std
 #endif
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct TestMessage {
-  hpp::proto::optional<std::int32_t> optional_int32;
-  hpp::proto::optional<std::int64_t> optional_int64;
-  hpp::proto::optional<std::uint32_t> optional_uint32;
-  hpp::proto::optional<std::uint64_t> optional_uint64;
-  hpp::proto::optional<typename Traits::string_t> optional_string;
-  hpp::proto::optional<typename Traits::bytes_t> optional_bytes;
+  hpp_proto::optional<std::int32_t> optional_int32;
+  hpp_proto::optional<std::int64_t> optional_int64;
+  hpp_proto::optional<std::uint32_t> optional_uint32;
+  hpp_proto::optional<std::uint64_t> optional_uint64;
+  hpp_proto::optional<typename Traits::string_t> optional_string;
+  hpp_proto::optional<typename Traits::bytes_t> optional_bytes;
 
   std::optional<ForeignMessage<Traits>> optional_foreign_message;
   Traits::template repeated_t<std::int32_t> repeated_int32;
@@ -42,10 +42,10 @@ struct TestMessage {
   Traits::template repeated_t<std::uint32_t> repeated_uint32;
   Traits::template repeated_t<std::uint64_t> repeated_uint64;
 
-  hpp::proto::optional<std::int32_t, 41> default_int32;
-  hpp::proto::optional<std::int64_t, 42LL> default_int64;
-  hpp::proto::optional<std::uint32_t, 43U> default_uint32;
-  hpp::proto::optional<std::uint64_t, 44ULL> default_uint64;
+  hpp_proto::optional<std::int32_t, 41> default_int32;
+  hpp_proto::optional<std::int64_t, 42LL> default_int64;
+  hpp_proto::optional<std::uint32_t, 43U> default_uint32;
+  hpp_proto::optional<std::uint64_t, 44ULL> default_uint64;
 
   Traits::template map_t<std::int32_t, std::int32_t> map_int32_int32;
 
@@ -68,45 +68,45 @@ struct TestMessage {
 template <typename Traits>
 auto pb_meta(const TestMessage<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &TestMessage<Traits>::optional_int32, hpp::proto::field_option::explicit_presence,
-                               hpp::proto::vint64_t>,
-        hpp::proto::field_meta<2, &TestMessage<Traits>::optional_int64, hpp::proto::field_option::explicit_presence,
-                               hpp::proto::vint64_t>,
-        hpp::proto::field_meta<3, &TestMessage<Traits>::optional_uint32, hpp::proto::field_option::explicit_presence,
-                               hpp::proto::vuint32_t>,
-        hpp::proto::field_meta<4, &TestMessage<Traits>::optional_uint64, hpp::proto::field_option::explicit_presence,
-                               hpp::proto::vuint64_t>,
-        hpp::proto::field_meta<14, &TestMessage<Traits>::optional_string, hpp::proto::field_option::explicit_presence>,
-        hpp::proto::field_meta<15, &TestMessage<Traits>::optional_bytes, hpp::proto::field_option::explicit_presence>,
-        hpp::proto::field_meta<19, &TestMessage<Traits>::optional_foreign_message,
-                               hpp::proto::field_option::explicit_presence>,
-        hpp::proto::field_meta<31, &TestMessage<Traits>::repeated_int32, hpp::proto::field_option::none,
-                               hpp::proto::vint64_t>,
-        hpp::proto::field_meta<32, &TestMessage<Traits>::repeated_int64, hpp::proto::field_option::none,
-                               hpp::proto::vint64_t>,
-        hpp::proto::field_meta<33, &TestMessage<Traits>::repeated_uint32, hpp::proto::field_option::none,
-                               hpp::proto::vuint32_t>,
-        hpp::proto::field_meta<34, &TestMessage<Traits>::repeated_uint64, hpp::proto::field_option::none,
-                               hpp::proto::vuint64_t>,
-        hpp::proto::field_meta<61, &TestMessage<Traits>::default_int32, hpp::proto::field_option::explicit_presence,
-                               hpp::proto::vint64_t>,
-        hpp::proto::field_meta<62, &TestMessage<Traits>::default_int64, hpp::proto::field_option::explicit_presence,
-                               hpp::proto::vint64_t>,
-        hpp::proto::field_meta<63, &TestMessage<Traits>::default_uint32, hpp::proto::field_option::explicit_presence,
-                               hpp::proto::vuint32_t>,
-        hpp::proto::field_meta<64, &TestMessage<Traits>::default_uint64, hpp::proto::field_option::explicit_presence,
-                               hpp::proto::vuint64_t>,
-        hpp::proto::field_meta<71, &TestMessage<Traits>::map_int32_int32, hpp::proto::field_option::none,
-                               hpp::proto::map_entry<hpp::proto::vint64_t, hpp::proto::vint64_t,
-                                                     hpp::proto::field_option::none, hpp::proto::field_option::none>>,
-        hpp::proto::oneof_field_meta<
+        hpp_proto::field_meta<1, &TestMessage<Traits>::optional_int32, hpp_proto::field_option::explicit_presence,
+                               hpp_proto::vint64_t>,
+        hpp_proto::field_meta<2, &TestMessage<Traits>::optional_int64, hpp_proto::field_option::explicit_presence,
+                               hpp_proto::vint64_t>,
+        hpp_proto::field_meta<3, &TestMessage<Traits>::optional_uint32, hpp_proto::field_option::explicit_presence,
+                               hpp_proto::vuint32_t>,
+        hpp_proto::field_meta<4, &TestMessage<Traits>::optional_uint64, hpp_proto::field_option::explicit_presence,
+                               hpp_proto::vuint64_t>,
+        hpp_proto::field_meta<14, &TestMessage<Traits>::optional_string, hpp_proto::field_option::explicit_presence>,
+        hpp_proto::field_meta<15, &TestMessage<Traits>::optional_bytes, hpp_proto::field_option::explicit_presence>,
+        hpp_proto::field_meta<19, &TestMessage<Traits>::optional_foreign_message,
+                               hpp_proto::field_option::explicit_presence>,
+        hpp_proto::field_meta<31, &TestMessage<Traits>::repeated_int32, hpp_proto::field_option::none,
+                               hpp_proto::vint64_t>,
+        hpp_proto::field_meta<32, &TestMessage<Traits>::repeated_int64, hpp_proto::field_option::none,
+                               hpp_proto::vint64_t>,
+        hpp_proto::field_meta<33, &TestMessage<Traits>::repeated_uint32, hpp_proto::field_option::none,
+                               hpp_proto::vuint32_t>,
+        hpp_proto::field_meta<34, &TestMessage<Traits>::repeated_uint64, hpp_proto::field_option::none,
+                               hpp_proto::vuint64_t>,
+        hpp_proto::field_meta<61, &TestMessage<Traits>::default_int32, hpp_proto::field_option::explicit_presence,
+                               hpp_proto::vint64_t>,
+        hpp_proto::field_meta<62, &TestMessage<Traits>::default_int64, hpp_proto::field_option::explicit_presence,
+                               hpp_proto::vint64_t>,
+        hpp_proto::field_meta<63, &TestMessage<Traits>::default_uint32, hpp_proto::field_option::explicit_presence,
+                               hpp_proto::vuint32_t>,
+        hpp_proto::field_meta<64, &TestMessage<Traits>::default_uint64, hpp_proto::field_option::explicit_presence,
+                               hpp_proto::vuint64_t>,
+        hpp_proto::field_meta<71, &TestMessage<Traits>::map_int32_int32, hpp_proto::field_option::none,
+                               hpp_proto::map_entry<hpp_proto::vint64_t, hpp_proto::vint64_t,
+                                                     hpp_proto::field_option::none, hpp_proto::field_option::none>>,
+        hpp_proto::oneof_field_meta<
             &TestMessage<Traits>::oneof_field,
-            hpp::proto::field_meta<111, 1, hpp::proto::field_option::explicit_presence, hpp::proto::vuint32_t>,
-            hpp::proto::field_meta<112, 2, hpp::proto::field_option::explicit_presence>,
-            hpp::proto::field_meta<113, 3, hpp::proto::field_option::explicit_presence>,
-            hpp::proto::field_meta<114, 4, hpp::proto::field_option::explicit_presence>>>;
+            hpp_proto::field_meta<111, 1, hpp_proto::field_option::explicit_presence, hpp_proto::vuint32_t>,
+            hpp_proto::field_meta<112, 2, hpp_proto::field_option::explicit_presence>,
+            hpp_proto::field_meta<113, 3, hpp_proto::field_option::explicit_presence>,
+            hpp_proto::field_meta<114, 4, hpp_proto::field_option::explicit_presence>>>;
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct MoveRepeatedMessage {
   typename Traits::template repeated_t<typename Traits::string_t> values;
   bool operator==(const MoveRepeatedMessage &) const = default;
@@ -114,14 +114,14 @@ struct MoveRepeatedMessage {
 
 template <typename Traits>
 auto pb_meta(const MoveRepeatedMessage<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &MoveRepeatedMessage<Traits>::values, hpp::proto::field_option::none>>;
+    -> std::tuple<hpp_proto::field_meta<1, &MoveRepeatedMessage<Traits>::values, hpp_proto::field_option::none>>;
 
 const boost::ut::suite merge_test_suite = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
   using namespace std::string_view_literals;
 
-  static_assert(hpp::proto::concepts::repeated<hpp::proto::equality_comparable_span<const int>>);
+  static_assert(hpp_proto::concepts::repeated<hpp_proto::equality_comparable_span<const int>>);
 
   auto abc_bytes = "abc"_bytes;
   auto def_bytes = "def"_bytes;
@@ -201,20 +201,20 @@ const boost::ut::suite merge_test_suite = [] {
 
         should("merge const reference") = [=]() mutable {
           std::pmr::monotonic_buffer_resource mr;
-          hpp::proto::merge(dest, source, hpp::proto::alloc_from(mr));
+          hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
           verify_merge(dest);
         };
 
         should("merge rvalue reference") = [=]() mutable {
           std::pmr::monotonic_buffer_resource mr;
-          hpp::proto::merge(dest, std::move(source), hpp::proto::alloc_from(mr));
+          hpp_proto::merge(dest, std::move(source), hpp_proto::alloc_from(mr));
           verify_merge(dest);
         };
       } |
-      std::tuple<std::pair<hpp::proto::default_traits, hpp::proto::default_traits>,
-                 std::pair<hpp::proto::non_owning_traits, hpp::proto::non_owning_traits>,
-                 std::pair<hpp::proto::non_owning_traits, hpp::proto::default_traits>,
-                 std::pair<hpp::proto::default_traits, hpp::proto::non_owning_traits>>{};
+      std::tuple<std::pair<hpp_proto::default_traits, hpp_proto::default_traits>,
+                 std::pair<hpp_proto::non_owning_traits, hpp_proto::non_owning_traits>,
+                 std::pair<hpp_proto::non_owning_traits, hpp_proto::default_traits>,
+                 std::pair<hpp_proto::default_traits, hpp_proto::non_owning_traits>>{};
 
   "map_merge"_test =
       []<class TraitsPair> {
@@ -232,12 +232,12 @@ const boost::ut::suite merge_test_suite = [] {
 
             then("merge const reference should work") = [=]() mutable {
               std::pmr::monotonic_buffer_resource mr;
-              hpp::proto::merge(dest, source, hpp::proto::alloc_from(mr));
+              hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
               expect(std::ranges::equal(data, dest.map_int32_int32));
             };
             then("merge rvalue reference should work") = [=]() mutable {
               std::pmr::monotonic_buffer_resource mr;
-              hpp::proto::merge(dest, std::move(source), hpp::proto::alloc_from(mr));
+              hpp_proto::merge(dest, std::move(source), hpp_proto::alloc_from(mr));
               expect(std::ranges::equal(data, dest.map_int32_int32));
             };
           };
@@ -251,12 +251,12 @@ const boost::ut::suite merge_test_suite = [] {
 
             then("merge const reference should work") = [=]() mutable {
               std::pmr::monotonic_buffer_resource mr;
-              hpp::proto::merge(dest, source, hpp::proto::alloc_from(mr));
+              hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
               expect(std::ranges::equal(data, dest.map_int32_int32));
             };
             then("merge rvalue reference should work") = [=]() mutable {
               std::pmr::monotonic_buffer_resource mr;
-              hpp::proto::merge(dest, std::move(source), hpp::proto::alloc_from(mr));
+              hpp_proto::merge(dest, std::move(source), hpp_proto::alloc_from(mr));
               expect(std::ranges::equal(data, dest.map_int32_int32));
             };
           };
@@ -270,35 +270,35 @@ const boost::ut::suite merge_test_suite = [] {
             dest.map_int32_int32 = dest_data;
             source.map_int32_int32 = src_data;
 
-            auto expected = hpp::proto::flat_map<int32_t, int32_t>{{1, 1}, {2, 12}, {3, 13}};
+            auto expected = hpp_proto::flat_map<int32_t, int32_t>{{1, 1}, {2, 12}, {3, 13}};
 
             then("merge const reference should work") = [=]() mutable {
               std::pmr::monotonic_buffer_resource mr;
-              hpp::proto::merge(dest, source, hpp::proto::alloc_from(mr));
-              if constexpr (hpp::proto::concepts::flat_map<decltype(dest.map_int32_int32)>) {
+              hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
+              if constexpr (hpp_proto::concepts::flat_map<decltype(dest.map_int32_int32)>) {
                 expect(expected == dest.map_int32_int32);
               } else {
-                expect(expected == hpp::proto::flat_map<int32_t, int32_t>{dest.map_int32_int32.rbegin(),
+                expect(expected == hpp_proto::flat_map<int32_t, int32_t>{dest.map_int32_int32.rbegin(),
                                                                           dest.map_int32_int32.rend()});
               }
             };
             then("merge rvalue reference should work") = [=]() mutable {
               std::pmr::monotonic_buffer_resource mr;
-              hpp::proto::merge(dest, std::move(source), hpp::proto::alloc_from(mr));
-              if constexpr (hpp::proto::concepts::flat_map<decltype(dest.map_int32_int32)>) {
+              hpp_proto::merge(dest, std::move(source), hpp_proto::alloc_from(mr));
+              if constexpr (hpp_proto::concepts::flat_map<decltype(dest.map_int32_int32)>) {
                 expect(expected == dest.map_int32_int32);
               } else {
-                expect(expected == hpp::proto::flat_map<int32_t, int32_t>{dest.map_int32_int32.rbegin(),
+                expect(expected == hpp_proto::flat_map<int32_t, int32_t>{dest.map_int32_int32.rbegin(),
                                                                           dest.map_int32_int32.rend()});
               }
             };
           };
         };
       } |
-      std::tuple<std::pair<hpp::proto::default_traits, hpp::proto::default_traits>,
-                 std::pair<hpp::proto::non_owning_traits, hpp::proto::non_owning_traits>,
-                 std::pair<hpp::proto::non_owning_traits, hpp::proto::default_traits>,
-                 std::pair<hpp::proto::default_traits, hpp::proto::non_owning_traits>>{};
+      std::tuple<std::pair<hpp_proto::default_traits, hpp_proto::default_traits>,
+                 std::pair<hpp_proto::non_owning_traits, hpp_proto::non_owning_traits>,
+                 std::pair<hpp_proto::non_owning_traits, hpp_proto::default_traits>,
+                 std::pair<hpp_proto::default_traits, hpp_proto::non_owning_traits>>{};
 
   "oneof_merge"_test =
       []<class TraitsPair> {
@@ -314,7 +314,7 @@ const boost::ut::suite merge_test_suite = [] {
             source.oneof_field = 1U;
 
             std::pmr::monotonic_buffer_resource mr;
-            hpp::proto::merge(dest, source, hpp::proto::alloc_from(mr));
+            hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
             expect(fatal(eq(dest.oneof_field.index(), TestMessage<DestTraits>::oneof_uint32)));
             expect(eq(1U, std::get<uint32_t>(dest.oneof_field)));
           };
@@ -324,7 +324,7 @@ const boost::ut::suite merge_test_suite = [] {
             dest.oneof_field = 1U;
 
             std::pmr::monotonic_buffer_resource mr;
-            hpp::proto::merge(dest, source, hpp::proto::alloc_from(mr));
+            hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
             expect(fatal(eq(dest.oneof_field.index(), TestMessage<DestTraits>::oneof_uint32)));
             expect(eq(1U, std::get<uint32_t>(dest.oneof_field)));
           };
@@ -336,7 +336,7 @@ const boost::ut::suite merge_test_suite = [] {
             source.oneof_field.template emplace<typename SourceTraits::string_t>("abc"sv);
 
             std::pmr::monotonic_buffer_resource mr;
-            hpp::proto::merge(dest, source, hpp::proto::alloc_from(mr));
+            hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
             expect(fatal(eq(dest.oneof_field.index(), TestMessage<DestTraits>::oneof_string)));
             expect(eq("abc"sv, std::get<3>(dest.oneof_field)));
           };
@@ -347,24 +347,24 @@ const boost::ut::suite merge_test_suite = [] {
             source.oneof_field.template emplace<TestMessage<SourceTraits>::oneof_foreign_message>().d = 2;
 
             std::pmr::monotonic_buffer_resource mr;
-            hpp::proto::merge(dest, source, hpp::proto::alloc_from(mr));
+            hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
             expect(fatal(eq(dest.oneof_field.index(), TestMessage<DestTraits>::oneof_foreign_message)));
             expect(ForeignMessage<DestTraits>{.c = 1, .d = 2} ==
                    std::get<ForeignMessage<DestTraits>>(dest.oneof_field));
           };
         };
       } |
-      std::tuple<std::pair<hpp::proto::default_traits, hpp::proto::default_traits>,
-                 std::pair<hpp::proto::non_owning_traits, hpp::proto::non_owning_traits>,
-                 std::pair<hpp::proto::non_owning_traits, hpp::proto::default_traits>,
-                 std::pair<hpp::proto::default_traits, hpp::proto::non_owning_traits>>{};
+      std::tuple<std::pair<hpp_proto::default_traits, hpp_proto::default_traits>,
+                 std::pair<hpp_proto::non_owning_traits, hpp_proto::non_owning_traits>,
+                 std::pair<hpp_proto::non_owning_traits, hpp_proto::default_traits>,
+                 std::pair<hpp_proto::default_traits, hpp_proto::non_owning_traits>>{};
 
   "merge_repeated_move_optimization"_test = [] {
     MoveRepeatedMessage<> dest;
     MoveRepeatedMessage<> source;
     source.values = {"abc", "def"};
 
-    hpp::proto::merge(dest, std::move(source));
+    hpp_proto::merge(dest, std::move(source));
 
     expect(eq(dest.values.size(), 2U));
     expect(dest.values[0] == "abc"sv);
@@ -379,7 +379,7 @@ const boost::ut::suite merge_test_suite = [] {
     MoveRepeatedMessage<> source;
     source.values = {"abc", "def"};
 
-    hpp::proto::merge(dest, std::move(source));
+    hpp_proto::merge(dest, std::move(source));
 
     expect(eq(dest.values.size(), 3U));
     expect(dest.values[1] == "abc"sv);

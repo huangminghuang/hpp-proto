@@ -43,37 +43,37 @@ using namespace std::string_literals;
 #endif
 
 template <typename T>
-void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, std::string_view json,
+void verify(const ::hpp_proto::dynamic_message_factory &factory, const T &msg, std::string_view json,
             std::optional<std::string_view> pretty_json = std::nullopt) {
-  expect(eq(json, hpp::proto::write_json(msg).value()));
+  expect(eq(json, hpp_proto::write_json(msg).value()));
   if (pretty_json && !pretty_json->empty()) {
-    expect(eq(*pretty_json, hpp::proto::write_json<hpp::proto::json_opts{.prettify = true}>(msg).value()));
+    expect(eq(*pretty_json, hpp_proto::write_json<hpp_proto::json_opts{.prettify = true}>(msg).value()));
   }
   T msg2{};
   std::pmr::monotonic_buffer_resource mr;
 
-  expect(fatal((hpp::proto::read_json(msg2, json, hpp::proto::alloc_from(mr)).ok())));
+  expect(fatal((hpp_proto::read_json(msg2, json, hpp_proto::alloc_from(mr)).ok())));
   expect(msg == msg2);
 
-  hpp::proto::bytes pb;
-  auto ec = hpp::proto::write_binpb(msg, pb);
+  hpp_proto::bytes pb;
+  auto ec = hpp_proto::write_binpb(msg, pb);
   expect(ec.ok());
 
-  auto message_name = hpp::proto::message_name(msg);
-  hpp::proto::bytes pb_buf1;
+  auto message_name = hpp_proto::message_name(msg);
+  hpp_proto::bytes pb_buf1;
   std::string json_buf1;
-  expect(hpp::proto::json_to_binpb(factory, message_name, json, pb_buf1).ok());
+  expect(hpp_proto::json_to_binpb(factory, message_name, json, pb_buf1).ok());
   expect(std::ranges::equal(pb, pb_buf1));
-  expect(hpp::proto::binpb_to_json(factory, message_name, pb_buf1, json_buf1).ok());
+  expect(hpp_proto::binpb_to_json(factory, message_name, pb_buf1, json_buf1).ok());
   expect(eq(json, json_buf1));
 
   if (pretty_json && !pretty_json->empty()) {
-    hpp::proto::bytes pb_buf2;
+    hpp_proto::bytes pb_buf2;
     std::string json_buf2;
     expect(
-        hpp::proto::binpb_to_json<hpp::proto::json_opts{.prettify = true}>(factory, message_name, pb, json_buf2).ok());
+        hpp_proto::binpb_to_json<hpp_proto::json_opts{.prettify = true}>(factory, message_name, pb, json_buf2).ok());
     expect(eq(*pretty_json, json_buf2));
-    expect(hpp::proto::json_to_binpb(factory, message_name, *pretty_json, pb_buf2).ok());
+    expect(hpp_proto::json_to_binpb(factory, message_name, *pretty_json, pb_buf2).ok());
     expect(std::ranges::equal(pb, pb_buf2));
   }
 }
@@ -82,8 +82,8 @@ void verify(const ::hpp::proto::dynamic_message_factory &factory, const T &msg, 
 const ut::suite test_timestamp = [] {
   using timestamp_t = google::protobuf::Timestamp<>;
 
-  hpp::proto::dynamic_message_factory factory;
-  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_timestamp_proto()));
+  hpp_proto::dynamic_message_factory factory;
+  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_timestamp_proto()));
 
   "verify Timestamp 1970-01-01T00:16:40Z"_test = [&factory] {
     verify<timestamp_t>(factory, timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
@@ -108,32 +108,32 @@ const ut::suite test_timestamp = [] {
   };
 
   timestamp_t msg;
-  ut::expect(hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2Z")").ok());
+  ut::expect(hpp_proto::read_json(msg, R"("1970-01-01T00:16:40.2Z")").ok());
   ut::expect(msg == timestamp_t{.seconds = 1000, .nanos = 200000000});
 
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40.2xZ")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:16:40")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-13-01T00:00:00Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-00-01T00:00:00Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-32T00:00:00Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T24:00:00Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:60:00Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:00:60Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1970-01-01T00:33:20.-200Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("10000-01-01T00:00:00.00000000000Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("0000-01-01T00:00:00.00000000000Z")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("-197-01-01T00:00:00.00000000000Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1970-01-01T00:16:40.2xZ")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1970-01-01T00:16:40")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("197-01-01T00:16:40")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("197-01-01T00:16:40.00000000000Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1970-13-01T00:00:00Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1970-00-01T00:00:00Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1970-01-32T00:00:00Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1970-01-01T24:00:00Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1970-01-01T00:60:00Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1970-01-01T00:00:60Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1970-01-01T00:33:20.-200Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("10000-01-01T00:00:00.00000000000Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("0000-01-01T00:00:00.00000000000Z")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("-197-01-01T00:00:00.00000000000Z")").ok());
 
-  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
-  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = -62135596801, .nanos = 0}).has_value());
-  ut::expect(!hpp::proto::write_json(timestamp_t{.seconds = 253402300800, .nanos = 0}).has_value());
+  ut::expect(!hpp_proto::write_json(timestamp_t{.seconds = 1000, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp_proto::write_json(timestamp_t{.seconds = -62135596801, .nanos = 0}).has_value());
+  ut::expect(!hpp_proto::write_json(timestamp_t{.seconds = 253402300800, .nanos = 0}).has_value());
 
   "timestamp_second_overlong"_test = [&factory] {
     std::string json_buf;
     using namespace std::string_view_literals;
-    expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.Timestamp",
+    expect(!hpp_proto::binpb_to_json(factory, "google.protobuf.Timestamp",
                                       "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01\x10\x01"sv, json_buf)
                 .ok());
   };
@@ -141,15 +141,15 @@ const ut::suite test_timestamp = [] {
   "timestamp_nano_too_large"_test = [&factory] {
     std::string json_buf;
     std::string pb_data;
-    expect(hpp::proto::write_binpb(timestamp_t{.seconds = 1000, .nanos = 1000000000}, pb_data).ok());
-    expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.Timestamp", pb_data, json_buf).ok());
+    expect(hpp_proto::write_binpb(timestamp_t{.seconds = 1000, .nanos = 1000000000}, pb_data).ok());
+    expect(!hpp_proto::binpb_to_json(factory, "google.protobuf.Timestamp", pb_data, json_buf).ok());
   };
 };
 
 const ut::suite test_duration = [] {
   using duration_t = google::protobuf::Duration<>;
-  hpp::proto::dynamic_message_factory factory;
-  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_duration_proto()));
+  hpp_proto::dynamic_message_factory factory;
+  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_duration_proto()));
 
   "verify Duration 1000s"_test = [&factory] { verify<duration_t>(factory, duration_t{.seconds = 1000}, R"("1000s")"); };
 
@@ -181,36 +181,36 @@ const ut::suite test_duration = [] {
   };
 
   duration_t msg;
-  ut::expect(hpp::proto::read_json(msg, R"("1000.2s")").ok());
+  ut::expect(hpp_proto::read_json(msg, R"("1000.2s")").ok());
   ut::expect(msg == duration_t{.seconds = 1000, .nanos = 200000000});
 
-  ut::expect(hpp::proto::read_json(msg, R"("-1000.2s")").ok());
+  ut::expect(hpp_proto::read_json(msg, R"("-1000.2s")").ok());
   ut::expect(msg == duration_t{.seconds = -1000, .nanos = -200000000});
 
-  ut::expect(!hpp::proto::read_json(msg, R"("1000")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1000.s")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1000.2xs")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("abcs")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("-1.s")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"(" 1s")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1s ")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("-1000.-10000000s")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("-1000. 10000000s")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("1000.0000000000000000s")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("315576000001s")").ok());
-  ut::expect(!hpp::proto::read_json(msg, R"("-315576000001s")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1000")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1000.s")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1000.2xs")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("abcs")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("-1.s")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"(" 1s")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1s ")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("-1000.-10000000s")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("-1000. 10000000s")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("1000.0000000000000000s")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("315576000001s")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("-315576000001s")").ok());
 
-  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 0, .nanos = 1000000000}).has_value());
-  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 0, .nanos = -1000000000}).has_value());
-  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 315576000001, .nanos = 0}).has_value());
-  ut::expect(!hpp::proto::write_json(duration_t{.seconds = -315576000001, .nanos = 0}).has_value());
-  ut::expect(!hpp::proto::write_json(duration_t{.seconds = 1, .nanos = -1}).has_value());
-  ut::expect(!hpp::proto::write_json(duration_t{.seconds = -1, .nanos = 1}).has_value());
+  ut::expect(!hpp_proto::write_json(duration_t{.seconds = 0, .nanos = 1000000000}).has_value());
+  ut::expect(!hpp_proto::write_json(duration_t{.seconds = 0, .nanos = -1000000000}).has_value());
+  ut::expect(!hpp_proto::write_json(duration_t{.seconds = 315576000001, .nanos = 0}).has_value());
+  ut::expect(!hpp_proto::write_json(duration_t{.seconds = -315576000001, .nanos = 0}).has_value());
+  ut::expect(!hpp_proto::write_json(duration_t{.seconds = 1, .nanos = -1}).has_value());
+  ut::expect(!hpp_proto::write_json(duration_t{.seconds = -1, .nanos = 1}).has_value());
 };
 
 const ut::suite test_field_mask = [] {
-  hpp::proto::dynamic_message_factory factory;
-  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
+  hpp_proto::dynamic_message_factory factory;
+  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
 
   using FieldMask = google::protobuf::FieldMask<>;
 
@@ -221,21 +221,21 @@ const ut::suite test_field_mask = [] {
     // field mask json format does not escape control code
     verify<FieldMask>(factory, google::protobuf::FieldMask<>{.paths = {"a\x00c"s, "def"s}}, "\"a\x00c,def\"");
     std::array<std::string_view, 2> paths{"a\x00c", "def"};
-    verify<google::protobuf::FieldMask<hpp::proto::non_owning_traits>>(
-        factory, google::protobuf::FieldMask<hpp::proto::non_owning_traits>{.paths = paths}, "\"a\x00c,def\"");
+    verify<google::protobuf::FieldMask<hpp_proto::non_owning_traits>>(
+        factory, google::protobuf::FieldMask<hpp_proto::non_owning_traits>{.paths = paths}, "\"a\x00c,def\"");
   };
 
   "field_mask_empty_clears"_test = [] {
     google::protobuf::FieldMask<> msg;
     msg.paths = {"abc", "def"};
-    ut::expect(hpp::proto::read_json(msg, R"("")").ok());
+    ut::expect(hpp_proto::read_json(msg, R"("")").ok());
     ut::expect(msg.paths.empty());
   };
 };
 
 const ut::suite test_wrapper = [] {
-  hpp::proto::dynamic_message_factory factory;
-  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_wrappers_proto()));
+  hpp_proto::dynamic_message_factory factory;
+  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_wrappers_proto()));
   using Int64Value = google::protobuf::Int64Value<>;
 
   "verify Int64Value 1000"_test = [&factory] { verify<Int64Value>(factory, Int64Value{1000, {}}, R"("1000")"); };
@@ -244,20 +244,20 @@ const ut::suite test_wrapper = [] {
     std::string json_buf;
     using namespace std::string_view_literals;
     // wrong tag
-    expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
+    expect(!hpp_proto::binpb_to_json(factory, "google.protobuf.Int64Value", "\x00\x01"sv, json_buf).ok());
     // wrong value
-    expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.Int64Value",
+    expect(!hpp_proto::binpb_to_json(factory, "google.protobuf.Int64Value",
                                       "\x08\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, json_buf)
                 .ok());
     // skip unknown field
-    expect(hpp::proto::binpb_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
+    expect(hpp_proto::binpb_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
     expect(json_buf.empty());
   };
 };
 
 const ut::suite test_empty = [] {
-  hpp::proto::dynamic_message_factory factory;
-  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_empty_proto()));
+  hpp_proto::dynamic_message_factory factory;
+  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_empty_proto()));
   using Empty = google::protobuf::Empty<>;
 
   "verify Empty {}"_test = [&factory] { verify<Empty>(factory, Empty{}, "{}"); };
@@ -265,8 +265,8 @@ const ut::suite test_empty = [] {
 
 const ut::suite test_value = [] {
   using namespace boost::ut;
-  hpp::proto::dynamic_message_factory factory;
-  expect(factory.init(hpp::proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
+  hpp_proto::dynamic_message_factory factory;
+  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
 
   "value"_test = [&factory]<class Traits>() {
     using string_t = Traits::string_t;
@@ -299,10 +299,10 @@ const ut::suite test_value = [] {
       Value null_value{.kind = NullValue{}};
 
       auto make_indirect = [](Value &v) {
-        if constexpr (std::same_as<Traits, hpp::proto::non_owning_traits>) {
-          return hpp::proto::indirect_view<Value>(&v);
+        if constexpr (std::same_as<Traits, hpp_proto::non_owning_traits>) {
+          return hpp_proto::indirect_view<Value>(&v);
         } else {
-          return hpp::proto::indirect<Value>(v);
+          return hpp_proto::indirect<Value>(v);
         }
       };
 
@@ -321,17 +321,17 @@ const ut::suite test_value = [] {
    "f4": null
 })");
     };
-  } | std::tuple<hpp::proto::stable_traits, hpp::proto::non_owning_traits>();
+  } | std::tuple<hpp_proto::stable_traits, hpp_proto::non_owning_traits>();
 
   "struct invalid cases"_test = [&factory] {
     std::string json_buf;
     using namespace std::string_view_literals;
     // field name is not a valid utf8 string
-    expect(!hpp::proto::binpb_to_json(factory, "google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv,
+    expect(!hpp_proto::binpb_to_json(factory, "google.protobuf.Struct", "\x0a\x08\x0a\x02\xc0\xcd\x12\x02\x08\x00"sv,
                                       json_buf)
                 .ok());
     // skip unknown field
-    expect(hpp::proto::binpb_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
+    expect(hpp_proto::binpb_to_json(factory, "google.protobuf.Struct", "\x10\x01"sv, json_buf).ok());
   };
 
   "list invalid cases"_test = [&factory] {
@@ -340,21 +340,21 @@ const ut::suite test_value = [] {
 
     // list element is not a valid utf8 string
     expect(
-        !hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
+        !hpp_proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x0a\x04\x1a\x02\xc0\xcd"sv, json_buf).ok());
     // skip first unknown element
-    expect(hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x0a\x02\x38\x01"sv, json_buf).ok());
+    expect(hpp_proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x0a\x02\x38\x01"sv, json_buf).ok());
     expect(eq(json_buf, "[]"s));
     // skip middle unknown element
-    expect(hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue",
+    expect(hpp_proto::binpb_to_json(factory, "google.protobuf.ListValue",
                                      "\x0a\x02\x20\x01\x0a\x02\x38\x01\x0a\x02\x20\x00"sv, json_buf)
                .ok());
     expect(eq(json_buf, "[true,false]"s));
     // skip unknown field
-    expect(hpp::proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x10\x01"sv, json_buf).ok());
+    expect(hpp_proto::binpb_to_json(factory, "google.protobuf.ListValue", "\x10\x01"sv, json_buf).ok());
   };
   "Struct invalid cases"_test = [] {
     google::protobuf::Struct<> msg;
-    expect(!hpp::proto::read_json(msg, R"({"f1":})").ok());
+    expect(!hpp_proto::read_json(msg, R"({"f1":})").ok());
   };
 };
 

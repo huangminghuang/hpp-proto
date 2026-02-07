@@ -31,7 +31,7 @@
 #include <hpp_proto/binpb/varint.hpp>
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-namespace hpp::proto {
+namespace hpp_proto {
 
 [[noreturn]] inline void unreachable() {
 #if __cpp_lib_unreachable
@@ -688,7 +688,7 @@ constexpr status do_skip_field(uint32_t tag, concepts::is_basic_in auto &archive
   if (tag == 0) [[unlikely]] {
     return std::errc::bad_message;
   }
-  switch (proto::tag_type(tag)) {
+  switch (hpp_proto::tag_type(tag)) {
   case wire_type::varint:
     return archive.skip_varint();
   case wire_type::length_delimited:
@@ -722,7 +722,7 @@ constexpr status do_skip_group(uint32_t field_num, concepts::is_basic_in auto &a
     auto tag = archive.read_tag();
 
     const uint32_t next_field_num = tag_number(tag);
-    const wire_type next_type = proto::tag_type(tag);
+    const wire_type next_type = hpp_proto::tag_type(tag);
 
     if (next_type == wire_type::egroup && field_num == next_field_num) {
       return {};
@@ -1267,7 +1267,7 @@ constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is
   decltype(auto) modifiable_unknown_fields = detail::as_modifiable(archive.context, unknown_fields);
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
-    if (proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag)) {
+    if (hpp_proto::tag_type(tag) == wire_type::egroup && field_num == tag_number(tag)) {
       return {};
     }
     if (auto result = deserialize_field_by_tag(tag, item, archive, modifiable_unknown_fields); !result.ok())
@@ -1437,5 +1437,5 @@ status deserialize(auto &item, concepts::chunked_byte_range auto const &buffer, 
 }
 
 } // namespace pb_serializer
-} // namespace hpp::proto
+} // namespace hpp_proto
 // NOLINTEND(bugprone-easily-swappable-parameters)

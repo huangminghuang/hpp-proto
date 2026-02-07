@@ -16,283 +16,283 @@ namespace google::protobuf {
 
 template <typename Traits>
 auto pb_meta(const FileDescriptorSet<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &FileDescriptorSet<Traits>::file, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &FileDescriptorSet<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &FileDescriptorSet<Traits>::file, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &FileDescriptorSet<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const FileDescriptorProto<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &FileDescriptorProto<Traits>::name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &FileDescriptorProto<Traits>::package, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<3, &FileDescriptorProto<Traits>::dependency, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<10, &FileDescriptorProto<Traits>::public_dependency, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-  ::hpp::proto::field_meta<11, &FileDescriptorProto<Traits>::weak_dependency, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-  ::hpp::proto::field_meta<15, &FileDescriptorProto<Traits>::option_dependency, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<4, &FileDescriptorProto<Traits>::message_type, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<5, &FileDescriptorProto<Traits>::enum_type, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<6, &FileDescriptorProto<Traits>::service, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<7, &FileDescriptorProto<Traits>::extension, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<8, &FileDescriptorProto<Traits>::options, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<9, &FileDescriptorProto<Traits>::source_code_info, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<12, &FileDescriptorProto<Traits>::syntax, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<14, &FileDescriptorProto<Traits>::edition, ::hpp::proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
-  ::hpp::proto::field_meta<UINT32_MAX, &FileDescriptorProto<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &FileDescriptorProto<Traits>::name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<2, &FileDescriptorProto<Traits>::package, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<3, &FileDescriptorProto<Traits>::dependency, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<10, &FileDescriptorProto<Traits>::public_dependency, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+  ::hpp_proto::field_meta<11, &FileDescriptorProto<Traits>::weak_dependency, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+  ::hpp_proto::field_meta<15, &FileDescriptorProto<Traits>::option_dependency, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<4, &FileDescriptorProto<Traits>::message_type, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<5, &FileDescriptorProto<Traits>::enum_type, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<6, &FileDescriptorProto<Traits>::service, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<7, &FileDescriptorProto<Traits>::extension, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<8, &FileDescriptorProto<Traits>::options, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<9, &FileDescriptorProto<Traits>::source_code_info, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<12, &FileDescriptorProto<Traits>::syntax, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<14, &FileDescriptorProto<Traits>::edition, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
+  ::hpp_proto::field_meta<UINT32_MAX, &FileDescriptorProto<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const DescriptorProto<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &DescriptorProto<Traits>::name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &DescriptorProto<Traits>::field, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<6, &DescriptorProto<Traits>::extension, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<3, &DescriptorProto<Traits>::nested_type, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<4, &DescriptorProto<Traits>::enum_type, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<5, &DescriptorProto<Traits>::extension_range, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<8, &DescriptorProto<Traits>::oneof_decl, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<7, &DescriptorProto<Traits>::options, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<9, &DescriptorProto<Traits>::reserved_range, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<10, &DescriptorProto<Traits>::reserved_name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<11, &DescriptorProto<Traits>::visibility, ::hpp::proto::field_option::closed_enum, void, google::protobuf::SymbolVisibility::VISIBILITY_UNSET>,
-  ::hpp::proto::field_meta<UINT32_MAX, &DescriptorProto<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &DescriptorProto<Traits>::name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<2, &DescriptorProto<Traits>::field, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<6, &DescriptorProto<Traits>::extension, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<3, &DescriptorProto<Traits>::nested_type, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<4, &DescriptorProto<Traits>::enum_type, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<5, &DescriptorProto<Traits>::extension_range, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<8, &DescriptorProto<Traits>::oneof_decl, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<7, &DescriptorProto<Traits>::options, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<9, &DescriptorProto<Traits>::reserved_range, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<10, &DescriptorProto<Traits>::reserved_name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<11, &DescriptorProto<Traits>::visibility, ::hpp_proto::field_option::closed_enum, void, google::protobuf::SymbolVisibility::VISIBILITY_UNSET>,
+  ::hpp_proto::field_meta<UINT32_MAX, &DescriptorProto<Traits>::unknown_fields_>>;
 
 namespace DescriptorProto_ {
   template <typename Traits>
   auto pb_meta(const ExtensionRange<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<1, &ExtensionRange<Traits>::start, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<2, &ExtensionRange<Traits>::end, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<3, &ExtensionRange<Traits>::options, ::hpp::proto::field_option::explicit_presence>,
-    ::hpp::proto::field_meta<UINT32_MAX, &DescriptorProto_::ExtensionRange<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<1, &ExtensionRange<Traits>::start, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<2, &ExtensionRange<Traits>::end, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<3, &ExtensionRange<Traits>::options, ::hpp_proto::field_option::explicit_presence>,
+    ::hpp_proto::field_meta<UINT32_MAX, &DescriptorProto_::ExtensionRange<Traits>::unknown_fields_>>;
 
   template <typename Traits>
   auto pb_meta(const ReservedRange<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<1, &ReservedRange<Traits>::start, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<2, &ReservedRange<Traits>::end, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<UINT32_MAX, &DescriptorProto_::ReservedRange<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<1, &ReservedRange<Traits>::start, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<2, &ReservedRange<Traits>::end, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<UINT32_MAX, &DescriptorProto_::ReservedRange<Traits>::unknown_fields_>>;
 
 } //namespace DescriptorProto_
 
 template <typename Traits>
 auto pb_meta(const ExtensionRangeOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<999, &ExtensionRangeOptions<Traits>::uninterpreted_option, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &ExtensionRangeOptions<Traits>::declaration, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<50, &ExtensionRangeOptions<Traits>::features, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<3, &ExtensionRangeOptions<Traits>::verification, ::hpp::proto::field_option::closed_enum, void, google::protobuf::ExtensionRangeOptions_::VerificationState::UNVERIFIED>,
-  ::hpp::proto::field_meta<UINT32_MAX, &ExtensionRangeOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<999, &ExtensionRangeOptions<Traits>::uninterpreted_option, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<2, &ExtensionRangeOptions<Traits>::declaration, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<50, &ExtensionRangeOptions<Traits>::features, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<3, &ExtensionRangeOptions<Traits>::verification, ::hpp_proto::field_option::closed_enum, void, google::protobuf::ExtensionRangeOptions_::VerificationState::UNVERIFIED>,
+  ::hpp_proto::field_meta<UINT32_MAX, &ExtensionRangeOptions<Traits>::unknown_fields_>>;
 
 namespace ExtensionRangeOptions_ {
   template <typename Traits>
   auto pb_meta(const Declaration<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<1, &Declaration<Traits>::number, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<2, &Declaration<Traits>::full_name, ::hpp::proto::field_option::none>,
-    ::hpp::proto::field_meta<3, &Declaration<Traits>::type, ::hpp::proto::field_option::none>,
-    ::hpp::proto::field_meta<5, &Declaration<Traits>::reserved, ::hpp::proto::field_option::none, bool>,
-    ::hpp::proto::field_meta<6, &Declaration<Traits>::repeated, ::hpp::proto::field_option::none, bool>,
-    ::hpp::proto::field_meta<UINT32_MAX, &ExtensionRangeOptions_::Declaration<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<1, &Declaration<Traits>::number, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<2, &Declaration<Traits>::full_name, ::hpp_proto::field_option::none>,
+    ::hpp_proto::field_meta<3, &Declaration<Traits>::type, ::hpp_proto::field_option::none>,
+    ::hpp_proto::field_meta<5, &Declaration<Traits>::reserved, ::hpp_proto::field_option::none, bool>,
+    ::hpp_proto::field_meta<6, &Declaration<Traits>::repeated, ::hpp_proto::field_option::none, bool>,
+    ::hpp_proto::field_meta<UINT32_MAX, &ExtensionRangeOptions_::Declaration<Traits>::unknown_fields_>>;
 
 } //namespace ExtensionRangeOptions_
 
 template <typename Traits>
 auto pb_meta(const FieldDescriptorProto<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &FieldDescriptorProto<Traits>::name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<3, &FieldDescriptorProto<Traits>::number, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-  ::hpp::proto::field_meta<4, &FieldDescriptorProto<Traits>::label, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FieldDescriptorProto_::Label::LABEL_OPTIONAL>,
-  ::hpp::proto::field_meta<5, &FieldDescriptorProto<Traits>::type, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FieldDescriptorProto_::Type::TYPE_DOUBLE>,
-  ::hpp::proto::field_meta<6, &FieldDescriptorProto<Traits>::type_name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &FieldDescriptorProto<Traits>::extendee, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<7, &FieldDescriptorProto<Traits>::default_value, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<9, &FieldDescriptorProto<Traits>::oneof_index, ::hpp::proto::field_option::explicit_presence, ::hpp::proto::vint64_t>,
-  ::hpp::proto::field_meta<10, &FieldDescriptorProto<Traits>::json_name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<8, &FieldDescriptorProto<Traits>::options, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<17, &FieldDescriptorProto<Traits>::proto3_optional, ::hpp::proto::field_option::none, bool>,
-  ::hpp::proto::field_meta<UINT32_MAX, &FieldDescriptorProto<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &FieldDescriptorProto<Traits>::name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<3, &FieldDescriptorProto<Traits>::number, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+  ::hpp_proto::field_meta<4, &FieldDescriptorProto<Traits>::label, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FieldDescriptorProto_::Label::LABEL_OPTIONAL>,
+  ::hpp_proto::field_meta<5, &FieldDescriptorProto<Traits>::type, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FieldDescriptorProto_::Type::TYPE_DOUBLE>,
+  ::hpp_proto::field_meta<6, &FieldDescriptorProto<Traits>::type_name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<2, &FieldDescriptorProto<Traits>::extendee, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<7, &FieldDescriptorProto<Traits>::default_value, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<9, &FieldDescriptorProto<Traits>::oneof_index, ::hpp_proto::field_option::explicit_presence, ::hpp_proto::vint64_t>,
+  ::hpp_proto::field_meta<10, &FieldDescriptorProto<Traits>::json_name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<8, &FieldDescriptorProto<Traits>::options, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<17, &FieldDescriptorProto<Traits>::proto3_optional, ::hpp_proto::field_option::none, bool>,
+  ::hpp_proto::field_meta<UINT32_MAX, &FieldDescriptorProto<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const OneofDescriptorProto<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &OneofDescriptorProto<Traits>::name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &OneofDescriptorProto<Traits>::options, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<UINT32_MAX, &OneofDescriptorProto<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &OneofDescriptorProto<Traits>::name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<2, &OneofDescriptorProto<Traits>::options, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<UINT32_MAX, &OneofDescriptorProto<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const EnumDescriptorProto<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &EnumDescriptorProto<Traits>::name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &EnumDescriptorProto<Traits>::value, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<3, &EnumDescriptorProto<Traits>::options, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<4, &EnumDescriptorProto<Traits>::reserved_range, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<5, &EnumDescriptorProto<Traits>::reserved_name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<6, &EnumDescriptorProto<Traits>::visibility, ::hpp::proto::field_option::closed_enum, void, google::protobuf::SymbolVisibility::VISIBILITY_UNSET>,
-  ::hpp::proto::field_meta<UINT32_MAX, &EnumDescriptorProto<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &EnumDescriptorProto<Traits>::name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<2, &EnumDescriptorProto<Traits>::value, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<3, &EnumDescriptorProto<Traits>::options, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<4, &EnumDescriptorProto<Traits>::reserved_range, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<5, &EnumDescriptorProto<Traits>::reserved_name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<6, &EnumDescriptorProto<Traits>::visibility, ::hpp_proto::field_option::closed_enum, void, google::protobuf::SymbolVisibility::VISIBILITY_UNSET>,
+  ::hpp_proto::field_meta<UINT32_MAX, &EnumDescriptorProto<Traits>::unknown_fields_>>;
 
 namespace EnumDescriptorProto_ {
   template <typename Traits>
   auto pb_meta(const EnumReservedRange<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<1, &EnumReservedRange<Traits>::start, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<2, &EnumReservedRange<Traits>::end, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<UINT32_MAX, &EnumDescriptorProto_::EnumReservedRange<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<1, &EnumReservedRange<Traits>::start, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<2, &EnumReservedRange<Traits>::end, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<UINT32_MAX, &EnumDescriptorProto_::EnumReservedRange<Traits>::unknown_fields_>>;
 
 } //namespace EnumDescriptorProto_
 
 template <typename Traits>
 auto pb_meta(const EnumValueDescriptorProto<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &EnumValueDescriptorProto<Traits>::name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &EnumValueDescriptorProto<Traits>::number, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-  ::hpp::proto::field_meta<3, &EnumValueDescriptorProto<Traits>::options, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<UINT32_MAX, &EnumValueDescriptorProto<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &EnumValueDescriptorProto<Traits>::name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<2, &EnumValueDescriptorProto<Traits>::number, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+  ::hpp_proto::field_meta<3, &EnumValueDescriptorProto<Traits>::options, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<UINT32_MAX, &EnumValueDescriptorProto<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const ServiceDescriptorProto<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &ServiceDescriptorProto<Traits>::name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &ServiceDescriptorProto<Traits>::method, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<3, &ServiceDescriptorProto<Traits>::options, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<UINT32_MAX, &ServiceDescriptorProto<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &ServiceDescriptorProto<Traits>::name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<2, &ServiceDescriptorProto<Traits>::method, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<3, &ServiceDescriptorProto<Traits>::options, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<UINT32_MAX, &ServiceDescriptorProto<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const MethodDescriptorProto<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &MethodDescriptorProto<Traits>::name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<2, &MethodDescriptorProto<Traits>::input_type, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<3, &MethodDescriptorProto<Traits>::output_type, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<4, &MethodDescriptorProto<Traits>::options, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<5, &MethodDescriptorProto<Traits>::client_streaming, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<6, &MethodDescriptorProto<Traits>::server_streaming, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<UINT32_MAX, &MethodDescriptorProto<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &MethodDescriptorProto<Traits>::name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<2, &MethodDescriptorProto<Traits>::input_type, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<3, &MethodDescriptorProto<Traits>::output_type, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<4, &MethodDescriptorProto<Traits>::options, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<5, &MethodDescriptorProto<Traits>::client_streaming, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<6, &MethodDescriptorProto<Traits>::server_streaming, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<UINT32_MAX, &MethodDescriptorProto<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const FileOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &FileOptions<Traits>::java_package, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<8, &FileOptions<Traits>::java_outer_classname, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<10, &FileOptions<Traits>::java_multiple_files, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<20, &FileOptions<Traits>::java_generate_equals_and_hash, ::hpp::proto::field_option::none, bool>,
-  ::hpp::proto::field_meta<27, &FileOptions<Traits>::java_string_check_utf8, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<9, &FileOptions<Traits>::optimize_for, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FileOptions_::OptimizeMode::SPEED>,
-  ::hpp::proto::field_meta<11, &FileOptions<Traits>::go_package, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<16, &FileOptions<Traits>::cc_generic_services, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<17, &FileOptions<Traits>::java_generic_services, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<18, &FileOptions<Traits>::py_generic_services, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<23, &FileOptions<Traits>::deprecated, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<31, &FileOptions<Traits>::cc_enable_arenas, ::hpp::proto::field_option::none, bool, true>,
-  ::hpp::proto::field_meta<36, &FileOptions<Traits>::objc_class_prefix, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<37, &FileOptions<Traits>::csharp_namespace, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<39, &FileOptions<Traits>::swift_prefix, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<40, &FileOptions<Traits>::php_class_prefix, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<41, &FileOptions<Traits>::php_namespace, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<44, &FileOptions<Traits>::php_metadata_namespace, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<45, &FileOptions<Traits>::ruby_package, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<50, &FileOptions<Traits>::features, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<999, &FileOptions<Traits>::uninterpreted_option, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &FileOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &FileOptions<Traits>::java_package, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<8, &FileOptions<Traits>::java_outer_classname, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<10, &FileOptions<Traits>::java_multiple_files, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<20, &FileOptions<Traits>::java_generate_equals_and_hash, ::hpp_proto::field_option::none, bool>,
+  ::hpp_proto::field_meta<27, &FileOptions<Traits>::java_string_check_utf8, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<9, &FileOptions<Traits>::optimize_for, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FileOptions_::OptimizeMode::SPEED>,
+  ::hpp_proto::field_meta<11, &FileOptions<Traits>::go_package, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<16, &FileOptions<Traits>::cc_generic_services, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<17, &FileOptions<Traits>::java_generic_services, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<18, &FileOptions<Traits>::py_generic_services, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<23, &FileOptions<Traits>::deprecated, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<31, &FileOptions<Traits>::cc_enable_arenas, ::hpp_proto::field_option::none, bool, true>,
+  ::hpp_proto::field_meta<36, &FileOptions<Traits>::objc_class_prefix, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<37, &FileOptions<Traits>::csharp_namespace, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<39, &FileOptions<Traits>::swift_prefix, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<40, &FileOptions<Traits>::php_class_prefix, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<41, &FileOptions<Traits>::php_namespace, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<44, &FileOptions<Traits>::php_metadata_namespace, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<45, &FileOptions<Traits>::ruby_package, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<50, &FileOptions<Traits>::features, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<999, &FileOptions<Traits>::uninterpreted_option, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &FileOptions<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const MessageOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &MessageOptions<Traits>::message_set_wire_format, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<2, &MessageOptions<Traits>::no_standard_descriptor_accessor, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<3, &MessageOptions<Traits>::deprecated, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<7, &MessageOptions<Traits>::map_entry, ::hpp::proto::field_option::none, bool>,
-  ::hpp::proto::field_meta<11, &MessageOptions<Traits>::deprecated_legacy_json_field_conflicts, ::hpp::proto::field_option::none, bool>,
-  ::hpp::proto::field_meta<12, &MessageOptions<Traits>::features, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<999, &MessageOptions<Traits>::uninterpreted_option, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &MessageOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &MessageOptions<Traits>::message_set_wire_format, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<2, &MessageOptions<Traits>::no_standard_descriptor_accessor, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<3, &MessageOptions<Traits>::deprecated, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<7, &MessageOptions<Traits>::map_entry, ::hpp_proto::field_option::none, bool>,
+  ::hpp_proto::field_meta<11, &MessageOptions<Traits>::deprecated_legacy_json_field_conflicts, ::hpp_proto::field_option::none, bool>,
+  ::hpp_proto::field_meta<12, &MessageOptions<Traits>::features, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<999, &MessageOptions<Traits>::uninterpreted_option, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &MessageOptions<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const FieldOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &FieldOptions<Traits>::ctype, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FieldOptions_::CType::STRING>,
-  ::hpp::proto::field_meta<2, &FieldOptions<Traits>::packed, ::hpp::proto::field_option::explicit_presence, bool>,
-  ::hpp::proto::field_meta<6, &FieldOptions<Traits>::jstype, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FieldOptions_::JSType::JS_NORMAL>,
-  ::hpp::proto::field_meta<5, &FieldOptions<Traits>::lazy, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<15, &FieldOptions<Traits>::unverified_lazy, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<3, &FieldOptions<Traits>::deprecated, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<10, &FieldOptions<Traits>::weak, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<16, &FieldOptions<Traits>::debug_redact, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<17, &FieldOptions<Traits>::retention, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FieldOptions_::OptionRetention::RETENTION_UNKNOWN>,
-  ::hpp::proto::field_meta<19, &FieldOptions<Traits>::targets, ::hpp::proto::field_option::closed_enum>,
-  ::hpp::proto::field_meta<20, &FieldOptions<Traits>::edition_defaults, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<21, &FieldOptions<Traits>::features, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<22, &FieldOptions<Traits>::feature_support, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<999, &FieldOptions<Traits>::uninterpreted_option, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &FieldOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &FieldOptions<Traits>::ctype, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FieldOptions_::CType::STRING>,
+  ::hpp_proto::field_meta<2, &FieldOptions<Traits>::packed, ::hpp_proto::field_option::explicit_presence, bool>,
+  ::hpp_proto::field_meta<6, &FieldOptions<Traits>::jstype, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FieldOptions_::JSType::JS_NORMAL>,
+  ::hpp_proto::field_meta<5, &FieldOptions<Traits>::lazy, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<15, &FieldOptions<Traits>::unverified_lazy, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<3, &FieldOptions<Traits>::deprecated, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<10, &FieldOptions<Traits>::weak, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<16, &FieldOptions<Traits>::debug_redact, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<17, &FieldOptions<Traits>::retention, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FieldOptions_::OptionRetention::RETENTION_UNKNOWN>,
+  ::hpp_proto::field_meta<19, &FieldOptions<Traits>::targets, ::hpp_proto::field_option::closed_enum>,
+  ::hpp_proto::field_meta<20, &FieldOptions<Traits>::edition_defaults, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<21, &FieldOptions<Traits>::features, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<22, &FieldOptions<Traits>::feature_support, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<999, &FieldOptions<Traits>::uninterpreted_option, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &FieldOptions<Traits>::unknown_fields_>>;
 
 namespace FieldOptions_ {
   template <typename Traits>
   auto pb_meta(const EditionDefault<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<3, &EditionDefault<Traits>::edition, ::hpp::proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
-    ::hpp::proto::field_meta<2, &EditionDefault<Traits>::value, ::hpp::proto::field_option::none>,
-    ::hpp::proto::field_meta<UINT32_MAX, &FieldOptions_::EditionDefault<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<3, &EditionDefault<Traits>::edition, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
+    ::hpp_proto::field_meta<2, &EditionDefault<Traits>::value, ::hpp_proto::field_option::none>,
+    ::hpp_proto::field_meta<UINT32_MAX, &FieldOptions_::EditionDefault<Traits>::unknown_fields_>>;
 
   template <typename Traits>
   auto pb_meta(const FeatureSupport<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<1, &FeatureSupport<Traits>::edition_introduced, ::hpp::proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
-    ::hpp::proto::field_meta<2, &FeatureSupport<Traits>::edition_deprecated, ::hpp::proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
-    ::hpp::proto::field_meta<3, &FeatureSupport<Traits>::deprecation_warning, ::hpp::proto::field_option::none>,
-    ::hpp::proto::field_meta<4, &FeatureSupport<Traits>::edition_removed, ::hpp::proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
-    ::hpp::proto::field_meta<UINT32_MAX, &FieldOptions_::FeatureSupport<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<1, &FeatureSupport<Traits>::edition_introduced, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
+    ::hpp_proto::field_meta<2, &FeatureSupport<Traits>::edition_deprecated, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
+    ::hpp_proto::field_meta<3, &FeatureSupport<Traits>::deprecation_warning, ::hpp_proto::field_option::none>,
+    ::hpp_proto::field_meta<4, &FeatureSupport<Traits>::edition_removed, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
+    ::hpp_proto::field_meta<UINT32_MAX, &FieldOptions_::FeatureSupport<Traits>::unknown_fields_>>;
 
 } //namespace FieldOptions_
 
 template <typename Traits>
 auto pb_meta(const OneofOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &OneofOptions<Traits>::features, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<999, &OneofOptions<Traits>::uninterpreted_option, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &OneofOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &OneofOptions<Traits>::features, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<999, &OneofOptions<Traits>::uninterpreted_option, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &OneofOptions<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const EnumOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<2, &EnumOptions<Traits>::allow_alias, ::hpp::proto::field_option::none, bool>,
-  ::hpp::proto::field_meta<3, &EnumOptions<Traits>::deprecated, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<6, &EnumOptions<Traits>::deprecated_legacy_json_field_conflicts, ::hpp::proto::field_option::none, bool>,
-  ::hpp::proto::field_meta<7, &EnumOptions<Traits>::features, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<999, &EnumOptions<Traits>::uninterpreted_option, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &EnumOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<2, &EnumOptions<Traits>::allow_alias, ::hpp_proto::field_option::none, bool>,
+  ::hpp_proto::field_meta<3, &EnumOptions<Traits>::deprecated, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<6, &EnumOptions<Traits>::deprecated_legacy_json_field_conflicts, ::hpp_proto::field_option::none, bool>,
+  ::hpp_proto::field_meta<7, &EnumOptions<Traits>::features, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<999, &EnumOptions<Traits>::uninterpreted_option, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &EnumOptions<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const EnumValueOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &EnumValueOptions<Traits>::deprecated, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<2, &EnumValueOptions<Traits>::features, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<3, &EnumValueOptions<Traits>::debug_redact, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<4, &EnumValueOptions<Traits>::feature_support, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<999, &EnumValueOptions<Traits>::uninterpreted_option, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &EnumValueOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &EnumValueOptions<Traits>::deprecated, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<2, &EnumValueOptions<Traits>::features, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<3, &EnumValueOptions<Traits>::debug_redact, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<4, &EnumValueOptions<Traits>::feature_support, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<999, &EnumValueOptions<Traits>::uninterpreted_option, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &EnumValueOptions<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const ServiceOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<34, &ServiceOptions<Traits>::features, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<33, &ServiceOptions<Traits>::deprecated, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<999, &ServiceOptions<Traits>::uninterpreted_option, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &ServiceOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<34, &ServiceOptions<Traits>::features, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<33, &ServiceOptions<Traits>::deprecated, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<999, &ServiceOptions<Traits>::uninterpreted_option, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &ServiceOptions<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const MethodOptions<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<33, &MethodOptions<Traits>::deprecated, ::hpp::proto::field_option::none, bool, false>,
-  ::hpp::proto::field_meta<34, &MethodOptions<Traits>::idempotency_level, ::hpp::proto::field_option::closed_enum, void, google::protobuf::MethodOptions_::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>,
-  ::hpp::proto::field_meta<35, &MethodOptions<Traits>::features, ::hpp::proto::field_option::explicit_presence>,
-  ::hpp::proto::field_meta<999, &MethodOptions<Traits>::uninterpreted_option, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &MethodOptions<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<33, &MethodOptions<Traits>::deprecated, ::hpp_proto::field_option::none, bool, false>,
+  ::hpp_proto::field_meta<34, &MethodOptions<Traits>::idempotency_level, ::hpp_proto::field_option::closed_enum, void, google::protobuf::MethodOptions_::IdempotencyLevel::IDEMPOTENCY_UNKNOWN>,
+  ::hpp_proto::field_meta<35, &MethodOptions<Traits>::features, ::hpp_proto::field_option::explicit_presence>,
+  ::hpp_proto::field_meta<999, &MethodOptions<Traits>::uninterpreted_option, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &MethodOptions<Traits>::unknown_fields_>>;
 
 template <typename Traits>
 auto pb_meta(const UninterpretedOption<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<2, &UninterpretedOption<Traits>::name, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<3, &UninterpretedOption<Traits>::identifier_value, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<4, &UninterpretedOption<Traits>::positive_int_value, ::hpp::proto::field_option::none, ::hpp::proto::vuint64_t>,
-  ::hpp::proto::field_meta<5, &UninterpretedOption<Traits>::negative_int_value, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-  ::hpp::proto::field_meta<6, &UninterpretedOption<Traits>::double_value, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<7, &UninterpretedOption<Traits>::string_value, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<8, &UninterpretedOption<Traits>::aggregate_value, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &UninterpretedOption<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<2, &UninterpretedOption<Traits>::name, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<3, &UninterpretedOption<Traits>::identifier_value, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<4, &UninterpretedOption<Traits>::positive_int_value, ::hpp_proto::field_option::none, ::hpp_proto::vuint64_t>,
+  ::hpp_proto::field_meta<5, &UninterpretedOption<Traits>::negative_int_value, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+  ::hpp_proto::field_meta<6, &UninterpretedOption<Traits>::double_value, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<7, &UninterpretedOption<Traits>::string_value, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<8, &UninterpretedOption<Traits>::aggregate_value, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &UninterpretedOption<Traits>::unknown_fields_>>;
 
 namespace UninterpretedOption_ {
   template <typename Traits>
   auto pb_meta(const NamePart<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<1, &NamePart<Traits>::name_part, ::hpp::proto::field_option::explicit_presence>,
-    ::hpp::proto::field_meta<2, &NamePart<Traits>::is_extension, ::hpp::proto::field_option::explicit_presence, bool>,
-    ::hpp::proto::field_meta<UINT32_MAX, &UninterpretedOption_::NamePart<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<1, &NamePart<Traits>::name_part, ::hpp_proto::field_option::explicit_presence>,
+    ::hpp_proto::field_meta<2, &NamePart<Traits>::is_extension, ::hpp_proto::field_option::explicit_presence, bool>,
+    ::hpp_proto::field_meta<UINT32_MAX, &UninterpretedOption_::NamePart<Traits>::unknown_fields_>>;
 
 } //namespace UninterpretedOption_
 
 template <typename Traits>
 auto pb_meta(const FeatureSet<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &FeatureSet<Traits>::field_presence, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::FieldPresence::FIELD_PRESENCE_UNKNOWN>,
-  ::hpp::proto::field_meta<2, &FeatureSet<Traits>::enum_type, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::EnumType::ENUM_TYPE_UNKNOWN>,
-  ::hpp::proto::field_meta<3, &FeatureSet<Traits>::repeated_field_encoding, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN>,
-  ::hpp::proto::field_meta<4, &FeatureSet<Traits>::utf8_validation, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::Utf8Validation::UTF8_VALIDATION_UNKNOWN>,
-  ::hpp::proto::field_meta<5, &FeatureSet<Traits>::message_encoding, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::MessageEncoding::MESSAGE_ENCODING_UNKNOWN>,
-  ::hpp::proto::field_meta<6, &FeatureSet<Traits>::json_format, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::JsonFormat::JSON_FORMAT_UNKNOWN>,
-  ::hpp::proto::field_meta<7, &FeatureSet<Traits>::enforce_naming_style, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::EnforceNamingStyle::ENFORCE_NAMING_STYLE_UNKNOWN>,
-  ::hpp::proto::field_meta<8, &FeatureSet<Traits>::default_symbol_visibility, ::hpp::proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::VisibilityFeature_::DefaultSymbolVisibility::DEFAULT_SYMBOL_VISIBILITY_UNKNOWN>,
-  ::hpp::proto::field_meta<UINT32_MAX, &FeatureSet<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &FeatureSet<Traits>::field_presence, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::FieldPresence::FIELD_PRESENCE_UNKNOWN>,
+  ::hpp_proto::field_meta<2, &FeatureSet<Traits>::enum_type, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::EnumType::ENUM_TYPE_UNKNOWN>,
+  ::hpp_proto::field_meta<3, &FeatureSet<Traits>::repeated_field_encoding, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::RepeatedFieldEncoding::REPEATED_FIELD_ENCODING_UNKNOWN>,
+  ::hpp_proto::field_meta<4, &FeatureSet<Traits>::utf8_validation, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::Utf8Validation::UTF8_VALIDATION_UNKNOWN>,
+  ::hpp_proto::field_meta<5, &FeatureSet<Traits>::message_encoding, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::MessageEncoding::MESSAGE_ENCODING_UNKNOWN>,
+  ::hpp_proto::field_meta<6, &FeatureSet<Traits>::json_format, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::JsonFormat::JSON_FORMAT_UNKNOWN>,
+  ::hpp_proto::field_meta<7, &FeatureSet<Traits>::enforce_naming_style, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::EnforceNamingStyle::ENFORCE_NAMING_STYLE_UNKNOWN>,
+  ::hpp_proto::field_meta<8, &FeatureSet<Traits>::default_symbol_visibility, ::hpp_proto::field_option::closed_enum, void, google::protobuf::FeatureSet_::VisibilityFeature_::DefaultSymbolVisibility::DEFAULT_SYMBOL_VISIBILITY_UNKNOWN>,
+  ::hpp_proto::field_meta<UINT32_MAX, &FeatureSet<Traits>::unknown_fields_>>;
 
 namespace FeatureSet_ {
   template <typename Traits>
@@ -303,52 +303,52 @@ namespace FeatureSet_ {
 
 template <typename Traits>
 auto pb_meta(const FeatureSetDefaults<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &FeatureSetDefaults<Traits>::defaults, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<4, &FeatureSetDefaults<Traits>::minimum_edition, ::hpp::proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
-  ::hpp::proto::field_meta<5, &FeatureSetDefaults<Traits>::maximum_edition, ::hpp::proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
-  ::hpp::proto::field_meta<UINT32_MAX, &FeatureSetDefaults<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &FeatureSetDefaults<Traits>::defaults, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<4, &FeatureSetDefaults<Traits>::minimum_edition, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
+  ::hpp_proto::field_meta<5, &FeatureSetDefaults<Traits>::maximum_edition, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
+  ::hpp_proto::field_meta<UINT32_MAX, &FeatureSetDefaults<Traits>::unknown_fields_>>;
 
 namespace FeatureSetDefaults_ {
   template <typename Traits>
   auto pb_meta(const FeatureSetEditionDefault<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<3, &FeatureSetEditionDefault<Traits>::edition, ::hpp::proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
-    ::hpp::proto::field_meta<4, &FeatureSetEditionDefault<Traits>::overridable_features, ::hpp::proto::field_option::explicit_presence>,
-    ::hpp::proto::field_meta<5, &FeatureSetEditionDefault<Traits>::fixed_features, ::hpp::proto::field_option::explicit_presence>,
-    ::hpp::proto::field_meta<UINT32_MAX, &FeatureSetDefaults_::FeatureSetEditionDefault<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<3, &FeatureSetEditionDefault<Traits>::edition, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
+    ::hpp_proto::field_meta<4, &FeatureSetEditionDefault<Traits>::overridable_features, ::hpp_proto::field_option::explicit_presence>,
+    ::hpp_proto::field_meta<5, &FeatureSetEditionDefault<Traits>::fixed_features, ::hpp_proto::field_option::explicit_presence>,
+    ::hpp_proto::field_meta<UINT32_MAX, &FeatureSetDefaults_::FeatureSetEditionDefault<Traits>::unknown_fields_>>;
 
 } //namespace FeatureSetDefaults_
 
 template <typename Traits>
 auto pb_meta(const SourceCodeInfo<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &SourceCodeInfo<Traits>::location, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &SourceCodeInfo<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &SourceCodeInfo<Traits>::location, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &SourceCodeInfo<Traits>::unknown_fields_>>;
 
 namespace SourceCodeInfo_ {
   template <typename Traits>
   auto pb_meta(const Location<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<1, &Location<Traits>::path, ::hpp::proto::field_option::is_packed, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<2, &Location<Traits>::span, ::hpp::proto::field_option::is_packed, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<3, &Location<Traits>::leading_comments, ::hpp::proto::field_option::none>,
-    ::hpp::proto::field_meta<4, &Location<Traits>::trailing_comments, ::hpp::proto::field_option::none>,
-    ::hpp::proto::field_meta<6, &Location<Traits>::leading_detached_comments, ::hpp::proto::field_option::none>,
-    ::hpp::proto::field_meta<UINT32_MAX, &SourceCodeInfo_::Location<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<1, &Location<Traits>::path, ::hpp_proto::field_option::is_packed, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<2, &Location<Traits>::span, ::hpp_proto::field_option::is_packed, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<3, &Location<Traits>::leading_comments, ::hpp_proto::field_option::none>,
+    ::hpp_proto::field_meta<4, &Location<Traits>::trailing_comments, ::hpp_proto::field_option::none>,
+    ::hpp_proto::field_meta<6, &Location<Traits>::leading_detached_comments, ::hpp_proto::field_option::none>,
+    ::hpp_proto::field_meta<UINT32_MAX, &SourceCodeInfo_::Location<Traits>::unknown_fields_>>;
 
 } //namespace SourceCodeInfo_
 
 template <typename Traits>
 auto pb_meta(const GeneratedCodeInfo<Traits> &) -> std::tuple<
-  ::hpp::proto::field_meta<1, &GeneratedCodeInfo<Traits>::annotation, ::hpp::proto::field_option::none>,
-  ::hpp::proto::field_meta<UINT32_MAX, &GeneratedCodeInfo<Traits>::unknown_fields_>>;
+  ::hpp_proto::field_meta<1, &GeneratedCodeInfo<Traits>::annotation, ::hpp_proto::field_option::none>,
+  ::hpp_proto::field_meta<UINT32_MAX, &GeneratedCodeInfo<Traits>::unknown_fields_>>;
 
 namespace GeneratedCodeInfo_ {
   template <typename Traits>
   auto pb_meta(const Annotation<Traits> &) -> std::tuple<
-    ::hpp::proto::field_meta<1, &Annotation<Traits>::path, ::hpp::proto::field_option::is_packed, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<2, &Annotation<Traits>::source_file, ::hpp::proto::field_option::none>,
-    ::hpp::proto::field_meta<3, &Annotation<Traits>::begin, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<4, &Annotation<Traits>::end, ::hpp::proto::field_option::none, ::hpp::proto::vint64_t>,
-    ::hpp::proto::field_meta<5, &Annotation<Traits>::semantic, ::hpp::proto::field_option::closed_enum, void, google::protobuf::GeneratedCodeInfo_::Annotation_::Semantic::NONE>,
-    ::hpp::proto::field_meta<UINT32_MAX, &GeneratedCodeInfo_::Annotation<Traits>::unknown_fields_>>;
+    ::hpp_proto::field_meta<1, &Annotation<Traits>::path, ::hpp_proto::field_option::is_packed, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<2, &Annotation<Traits>::source_file, ::hpp_proto::field_option::none>,
+    ::hpp_proto::field_meta<3, &Annotation<Traits>::begin, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<4, &Annotation<Traits>::end, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
+    ::hpp_proto::field_meta<5, &Annotation<Traits>::semantic, ::hpp_proto::field_option::closed_enum, void, google::protobuf::GeneratedCodeInfo_::Annotation_::Semantic::NONE>,
+    ::hpp_proto::field_meta<UINT32_MAX, &GeneratedCodeInfo_::Annotation<Traits>::unknown_fields_>>;
 
 } //namespace GeneratedCodeInfo_
 

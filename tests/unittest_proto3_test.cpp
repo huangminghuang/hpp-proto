@@ -16,13 +16,13 @@
 template <typename T>
   requires requires { glz::meta<T>::value; }
 std::ostream &operator<<(std::ostream &os, const T &v) {
-  return os << hpp::proto::write_json(v).value();
+  return os << hpp_proto::write_json(v).value();
 }
 
 using namespace std::literals::string_view_literals;
 using namespace boost::ut;
-template <hpp::proto::compile_time_string cts>
-using bytes_literal = hpp::proto::bytes_literal<cts>;
+template <hpp_proto::compile_time_string cts>
+using bytes_literal = hpp_proto::bytes_literal<cts>;
 
 template <typename Traits>
 struct Proto3Tests {
@@ -174,8 +174,8 @@ struct Proto3Tests {
       std::pmr::monotonic_buffer_resource mr;
       std::vector<std::byte> data;
 
-      expect(hpp::proto::write_binpb(original, data).ok());
-      expect(hpp::proto::read_binpb(msg, data, hpp::proto::alloc_from{mr}).ok());
+      expect(hpp_proto::write_binpb(original, data).ok());
+      expect(hpp_proto::read_binpb(msg, data, hpp_proto::alloc_from{mr}).ok());
 
       ExpectAllFieldsSet(msg);
     };
@@ -188,8 +188,8 @@ struct Proto3Tests {
 
       std::pmr::monotonic_buffer_resource mr;
       std::vector<char> data;
-      expect(hpp::proto::write_binpb(original, data).ok());
-      expect(hpp::proto::read_binpb(msg, data, hpp::proto::alloc_from{mr}).ok());
+      expect(hpp_proto::write_binpb(original, data).ok());
+      expect(hpp_proto::read_binpb(msg, data, hpp_proto::alloc_from{mr}).ok());
 
       ExpectUnpackedFieldsSet(msg);
 
@@ -215,15 +215,15 @@ struct Proto3Tests {
 
       std::pmr::monotonic_buffer_resource mr;
       std::vector<char> data;
-      expect(hpp::proto::write_binpb(original, data).ok());
+      expect(hpp_proto::write_binpb(original, data).ok());
 
       auto original_json = gpb_based::binpb_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestAllTypes",
                                                     {data.data(), data.size()});
       expect(fatal(!original_json.empty()));
-      expect(hpp::proto::write_json(original).value() == original_json);
+      expect(hpp_proto::write_json(original).value() == original_json);
 
       TestAllTypes msg;
-      expect(hpp::proto::read_json(msg, original_json, hpp::proto::alloc_from{mr}).ok());
+      expect(hpp_proto::read_json(msg, original_json, hpp_proto::alloc_from{mr}).ok());
 
       ExpectAllFieldsSet(msg);
     };
@@ -234,7 +234,7 @@ struct Proto3Tests {
 
 const boost::ut::suite proto3_test = [] {
   "proto3"_test = []<class Traits> { Proto3Tests<Traits>::run(); } |
-                  std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits, hpp::proto::pmr_traits>{};
+                  std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits, hpp_proto::pmr_traits>{};
 };
 
 int main() {

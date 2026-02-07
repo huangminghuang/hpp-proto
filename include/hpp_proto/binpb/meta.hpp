@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <variant>
 
-namespace hpp::proto {
+namespace hpp_proto {
 enum class field_option : uint8_t {
   none = 0,
   explicit_presence = 1,
@@ -457,4 +457,4 @@ struct reverse_indices {
   }
 };
 } // namespace util
-} // namespace hpp::proto
+} // namespace hpp_proto

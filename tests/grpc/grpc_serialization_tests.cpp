@@ -14,8 +14,8 @@ const boost::ut::suite grpc_serialization_tests = [] {
   using namespace boost::ut;
   "read_binpb_empty_buffer_succeeds"_test = [] {
     ::grpc::ByteBuffer buffer;
-    ::hpp::proto::grpc::EchoRequest<> msg;
-    auto status = ::hpp::proto::grpc::read_binpb(msg, buffer);
+    hpp_proto_test::EchoRequest<> msg;
+    auto status = ::hpp_proto::grpc::read_binpb(msg, buffer);
     expect(status.ok());
   };
 
@@ -23,30 +23,30 @@ const boost::ut::suite grpc_serialization_tests = [] {
     const std::string bad_payload = "not-a-binpb-payload";
     ::grpc::Slice slice(bad_payload.data(), bad_payload.size());
     ::grpc::ByteBuffer buffer(&slice, 1);
-    ::hpp::proto::grpc::EchoRequest<> msg;
-    auto status = ::hpp::proto::grpc::read_binpb(msg, buffer);
+    hpp_proto_test::EchoRequest<> msg;
+    auto status = ::hpp_proto::grpc::read_binpb(msg, buffer);
     expect(!status.ok());
   };
 
   "write_read_binpb_roundtrip"_test = []<class Mode> {
-    ::hpp::proto::grpc::EchoRequest<> msg;
+    hpp_proto_test::EchoRequest<> msg;
     msg.message = "hello grpc";
     ::grpc::ByteBuffer buffer;
-    auto write_status = ::hpp::proto::grpc::write_binpb(msg, buffer, Mode{});
+    auto write_status = ::hpp_proto::grpc::write_binpb(msg, buffer, Mode{});
     expect(write_status.ok());
 
-    ::hpp::proto::grpc::EchoRequest<> decoded;
-    auto read_status = ::hpp::proto::grpc::read_binpb(decoded, buffer);
+    hpp_proto_test::EchoRequest<> decoded;
+    auto read_status = ::hpp_proto::grpc::read_binpb(decoded, buffer);
     expect(read_status.ok());
     expect(decoded.message == msg.message);
-  } | std::make_tuple(hpp::proto::contiguous_mode, hpp::proto::adaptive_mode, hpp::proto::chunked_mode);
+  } | std::make_tuple(hpp_proto::contiguous_mode, hpp_proto::adaptive_mode, hpp_proto::chunked_mode);
 
 #if !HPP_PROTO_NO_UTF8_VALIDATION
   "write_binpb_failure_returns_internal"_test = [] {
     ::grpc::ByteBuffer buffer;
-    ::hpp::proto::grpc::EchoRequest<> msg;
+    hpp_proto_test::EchoRequest<> msg;
     msg.message = std::string{"\xFF"};
-    auto status = ::hpp::proto::grpc::write_binpb(msg, buffer);
+    auto status = ::hpp_proto::grpc::write_binpb(msg, buffer);
     expect(status.error_code() == ::grpc::StatusCode::INTERNAL);
   };
 #endif

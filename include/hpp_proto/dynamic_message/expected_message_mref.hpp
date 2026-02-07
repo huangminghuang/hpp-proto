@@ -29,7 +29,7 @@
 #include <hpp_proto/dynamic_message/message_fields.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 namespace util {
 // Extract first argument type from callables/functions.
 template <typename T, typename = void>
@@ -126,4 +126,4 @@ public:
   }
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

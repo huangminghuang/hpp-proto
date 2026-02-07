@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package hpp.proto.grpc;
+package hpp_proto_test;
 
 message EchoRequest {
   string message = 1;

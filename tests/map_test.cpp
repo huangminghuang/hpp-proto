@@ -17,12 +17,12 @@ const boost::ut::suite map_test = [] {
     protobuf_unittest::TestMap<Traits> msg;
 
     std::vector<char> data;
-    expect(hpp::proto::write_binpb(original, data).ok());
+    expect(hpp_proto::write_binpb(original, data).ok());
     std::pmr::monotonic_buffer_resource mr;
-    expect(hpp::proto::read_binpb(msg, data, hpp::proto::alloc_from(mr)).ok());
+    expect(hpp_proto::read_binpb(msg, data, hpp_proto::alloc_from(mr)).ok());
 
     ExpectMapFieldsSet(msg);
-  } | std::tuple<::hpp::proto::stable_traits, ::hpp::proto::non_owning_traits>();
+  } | std::tuple<::hpp_proto::stable_traits, ::hpp_proto::non_owning_traits>();
 
 #ifndef HPP_PROTO_DISABLE_GLAZE
   "glaze"_test = [&]<class Traits> {
@@ -30,23 +30,23 @@ const boost::ut::suite map_test = [] {
     SetMapFields(&original);
 
     std::vector<char> data;
-    expect(hpp::proto::write_binpb(original, data).ok());
+    expect(hpp_proto::write_binpb(original, data).ok());
 
     auto original_json =
         gpb_based::binpb_to_json(map_unittest_descriptorset, "protobuf_unittest.TestMap", {data.data(), data.size()});
     expect(fatal(!original_json.empty()));
 
-    expect(eq(hpp::proto::write_json(original).value(), original_json));
+    expect(eq(hpp_proto::write_json(original).value(), original_json));
 
     protobuf_unittest::TestMap<Traits> msg;
     std::pmr::monotonic_buffer_resource mr;
-    expect(hpp::proto::read_json(msg, original_json, hpp::proto::alloc_from(mr)).ok());
+    expect(hpp_proto::read_json(msg, original_json, hpp_proto::alloc_from(mr)).ok());
     ExpectMapFieldsSet(msg);
 
     std::vector<char> non_null_terminated_json{original_json.begin(), original_json.end()};
-    expect(hpp::proto::read_json(msg, non_null_terminated_json, hpp::proto::alloc_from(mr)).ok());
+    expect(hpp_proto::read_json(msg, non_null_terminated_json, hpp_proto::alloc_from(mr)).ok());
     ExpectMapFieldsSet(msg);
-  } | std::tuple<::hpp::proto::stable_traits, ::hpp::proto::non_owning_traits>();
+  } | std::tuple<::hpp_proto::stable_traits, ::hpp_proto::non_owning_traits>();
 #endif
 };
 

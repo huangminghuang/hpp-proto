@@ -10,12 +10,11 @@
 
 namespace {
 using namespace boost::ut;
-using namespace hpp::proto;
-using namespace hpp::proto::grpc;
-using hpp::proto::grpc::test_utils::Harness;
-using hpp::proto::grpc::test_utils::ServerStreamFanout;
+using namespace hpp_proto;
+using namespace hpp_proto::grpc;
+using namespace hpp_proto::grpc::test_utils;
 
-class ServerStreamReactor : public ::hpp::proto::grpc::ClientCallbackReactor<ServerStreamFanout> {
+class ServerStreamReactor : public ::hpp_proto::grpc::ClientCallbackReactor<ServerStreamFanout> {
   mutable std::mutex mu_;
   std::condition_variable cv_;
   bool done_ = false;
@@ -24,7 +23,7 @@ class ServerStreamReactor : public ::hpp::proto::grpc::ClientCallbackReactor<Ser
   bool forced_status_ = false;
 
 public:
-  using request_t = EchoRequest<>;
+  using request_t = hpp_proto_test::EchoRequest<>;
 
   void start(Harness::stub_type &stub, request_t &request, ::grpc::ClientContext &context) {
     stub.async_call<ServerStreamFanout>(context, request, &(*this));
@@ -51,8 +50,8 @@ public:
       return;
     }
     std::pmr::monotonic_buffer_resource mr;
-    EchoResponse<> response;
-    auto read_status = this->get_response(response, hpp::proto::alloc_from{mr});
+    hpp_proto_test::EchoResponse<> response;
+    auto read_status = this->get_response(response, hpp_proto::alloc_from{mr});
     std::unique_lock lock(mu_);
     if (!read_status.ok()) {
       status_ = read_status;

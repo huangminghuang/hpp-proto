@@ -20,7 +20,7 @@
 #include <hpp_proto/dynamic_message/expected_message_mref.hpp>
 #include <hpp_proto/dynamic_message/field_visit.hpp>
 #include <hpp_proto/dynamic_message/pb_serializer_ext.hpp>
-namespace hpp::proto {
+namespace hpp_proto {
 
 [[nodiscard]] status read_binpb(message_value_mref msg, auto &&buffer) {
   msg.reset();
@@ -48,4 +48,4 @@ template <std::size_t N>
   pb_context ctx{std::forward<decltype(option)>(option)...};
   return pb_serializer::serialize(msg, sink, ctx);
 }
-} // namespace hpp::proto
+} // namespace hpp_proto

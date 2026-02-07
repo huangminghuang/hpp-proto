@@ -34,7 +34,7 @@
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 namespace pb_serializer {
 template <concepts::is_basic_in Archive>
 struct field_deserializer;
@@ -366,4 +366,4 @@ private:
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

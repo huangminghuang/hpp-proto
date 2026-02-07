@@ -13,14 +13,14 @@ using namespace boost::ut;
 enum struct test_status : uint8_t { fail = 0, ok = 1 };
 
 template <template <typename Traits> class Message>
-void test_read(hpp::proto::dynamic_message_factory &factory, std::string_view input, test_status expected) {
+void test_read(hpp_proto::dynamic_message_factory &factory, std::string_view input, test_status expected) {
   std::pmr::monotonic_buffer_resource mr; // Needs to be alive during read_binpb
 
-  Message<hpp::proto::default_traits> owning_message;
-  Message<hpp::proto::non_owning_traits> non_owning_message;
+  Message<hpp_proto::default_traits> owning_message;
+  Message<hpp_proto::non_owning_traits> non_owning_message;
 
   auto msg_name = message_name(non_owning_message);
-  hpp::proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
+  hpp_proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
 
   auto expect_status_match = [&](const std::string &kind, auto status) {
     bool s = static_cast<bool>(expected);
@@ -29,13 +29,13 @@ void test_read(hpp::proto::dynamic_message_factory &factory, std::string_view in
         [&] { return kind + " test case with input `"s + std::string{input} + "` did not "s + (s ? "pass" : "fail"); };
   };
 
-  expect_status_match("owning", hpp::proto::read_json(owning_message, input));
-  expect_status_match("non-owning", hpp::proto::read_json(non_owning_message, input, hpp::proto::alloc_from{mr}));
-  expect_status_match("dynamic", hpp::proto::read_json(dyn_message, input));
+  expect_status_match("owning", hpp_proto::read_json(owning_message, input));
+  expect_status_match("non-owning", hpp_proto::read_json(non_owning_message, input, hpp_proto::alloc_from{mr}));
+  expect_status_match("dynamic", hpp_proto::read_json(dyn_message, input));
 }
 
 const suite test_read_json = [] {
-  hpp::proto::dynamic_message_factory factory;
+  hpp_proto::dynamic_message_factory factory;
   expect(fatal(factory.init(read_file("unittest.desc.binpb"))));
 
   using enum test_status;

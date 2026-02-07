@@ -31,7 +31,7 @@
 #include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/file_descriptor_pb.hpp>
 #include <hpp_proto/merge.hpp>
-namespace hpp::proto {
+namespace hpp_proto {
 
 struct deref_pointer {
   template <typename T>
@@ -667,9 +667,9 @@ private:
       const auto &overriding_features = options->features;
       if (overriding_features.has_value()) {
         if constexpr (std::is_trivially_destructible_v<FeatureSet>) {
-          hpp::proto::merge(features, *options->features, hpp::proto::alloc_from(*std::pmr::get_default_resource()));
+          hpp_proto::merge(features, *options->features, hpp_proto::alloc_from(*std::pmr::get_default_resource()));
         } else {
-          hpp::proto::merge(features, *options->features);
+          hpp_proto::merge(features, *options->features);
         }
       }
     }
@@ -882,4 +882,4 @@ private:
   // NOLINTEND(bugprone-unchecked-optional-access)
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

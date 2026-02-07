@@ -34,7 +34,7 @@
 #pragma GCC diagnostic pop
 #endif
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 template <typename T, std::size_t Index>
 struct oneof_wrapper {
@@ -116,9 +116,9 @@ struct optional_ref {
 };
 
 template <auto Default>
-struct optional_ref<hpp::proto::optional<bool, Default>, std::monostate{}> {
+struct optional_ref<hpp_proto::optional<bool, Default>, std::monostate{}> {
   static constexpr auto glaze_reflect = false;
-  hpp::proto::optional<bool, Default> &val;
+  hpp_proto::optional<bool, Default> &val;
   operator bool() const { return val.has_value(); }
 
   bool &emplace() const { return val.emplace(); }
@@ -126,9 +126,9 @@ struct optional_ref<hpp::proto::optional<bool, Default>, std::monostate{}> {
 };
 
 template <auto Default>
-struct optional_ref<const hpp::proto::optional<bool, Default>, std::monostate{}> {
+struct optional_ref<const hpp_proto::optional<bool, Default>, std::monostate{}> {
   static constexpr auto glaze_reflect = false;
-  const hpp::proto::optional<bool, Default> &val;
+  const hpp_proto::optional<bool, Default> &val;
   operator bool() const { return val.has_value(); }
   bool operator*() const { return *val; }
 };
@@ -167,4 +167,4 @@ constexpr decltype(auto) as_optional_indirect_view_ref_impl() noexcept {
 template <auto MemPtr>
 constexpr auto as_optional_indirect_view_ref = as_optional_indirect_view_ref_impl<MemPtr>();
 
-} // namespace hpp::proto
+} // namespace hpp_proto
