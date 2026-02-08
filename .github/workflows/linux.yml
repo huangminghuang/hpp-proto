@@ -44,6 +44,9 @@
       runs-on: ubuntu-24.04
       container:
         image: ${{ startsWith(matrix.compiler, 'gcc') && 'gcc:15' || 'ubuntu:24.04' }}
+      defaults:
+        run:
+          shell: bash
       steps:
         - name: Setup SUDO helper
           run: |
@@ -56,7 +59,7 @@
         - name: Install Compiler and Set Environment
           run: |
             $SUDO apt-get update
-            $SUDO apt-get install -y software-properties-common wget curl unzip
+            $SUDO apt-get install -y curl unzip cmake lsb-release
             
             # Get the version suffix (e.g., "-15", "-20")
             VERSION_SUFFIX=$(echo "${{ matrix.compiler }}" | grep -oE -- '-[0-9]+$')
@@ -78,6 +81,7 @@
               echo "CXX=${CXX_BIN}" >> $GITHUB_ENV
             elif [[ "${{ matrix.compiler }}" == clang* ]]; then
               echo "Installing Clang + libc++..."
+              $SUDO apt-get install -y wget gpg software-properties-common
               wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
               chmod +x /tmp/llvm.sh
               $SUDO /tmp/llvm.sh ${VERSION_SUFFIX#-}
