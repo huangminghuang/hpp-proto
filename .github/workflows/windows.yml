@@ -50,11 +50,17 @@ jobs:
         run: |
           $version = "33.5"
           $zip = "protoc-$version-win64.zip"
+          $sha256 = "18b2f519f78fc8695f459f2608be6d294a9ce26e045117e66d4e9da547e8b542"
           $url = "https://github.com/protocolbuffers/protobuf/releases/download/v$version/$zip"
           $dest = "$env:RUNNER_TEMP\protoc"
+          $zipPath = "$dest\$zip"
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          Invoke-WebRequest -Uri $url -OutFile "$dest\$zip"
-          Expand-Archive -Path "$dest\$zip" -DestinationPath $dest -Force
+          Invoke-WebRequest -Uri $url -OutFile $zipPath
+          $actual = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $sha256) {
+            throw "Checksum mismatch for $zip. Expected $sha256, got $actual"
+          }
+          Expand-Archive -Path $zipPath -DestinationPath $dest -Force
           Add-Content -Path $env:GITHUB_PATH -Value "$dest\bin"
           Add-Content -Path $env:GITHUB_ENV -Value "PROTOC_BIN=$dest\bin"
 

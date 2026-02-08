@@ -8,14 +8,6 @@ include("${CURRENT_HOST_INSTALLED_DIR}/share/vcpkg-cmake-config/vcpkg_cmake_conf
 set(hpp_proto_protoc_mode "find")
 set(hpp_proto_extra_options)
 
-if("download-protoc" IN_LIST FEATURES)
-    set(hpp_proto_protoc_mode "download")
-endif()
-
-if("download-protoc" IN_LIST FEATURES AND "vcpkg-protobuf" IN_LIST FEATURES)
-    message(FATAL_ERROR "Features 'download-protoc' and 'vcpkg-protobuf' are mutually exclusive.")
-endif()
-
 if("vcpkg-protobuf" IN_LIST FEATURES)
     set(hpp_proto_protoc_mode "find")
     # Use vcpkg host-tools protobuf as protoc provider.

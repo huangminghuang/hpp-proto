@@ -12,7 +12,6 @@ This directory contains local vcpkg overlay ports used by this repository.
 
 - `ports/hpp-proto`: local port for this project.
   - Default mode is `find` (looks for `protoc` on system `PATH`).
-  - Feature `download-protoc` downloads prebuilt `protoc`.
   - Feature `vcpkg-protobuf` uses `protobuf`/`protoc` from vcpkg host tools.
 - `ports/glaze`: pinned overlay port for `glaze` `7.0.2`.
   - This overrides the registry `glaze` port when `--overlay-ports` points to this directory.
@@ -34,17 +33,6 @@ Precondition: default mode, `protoc` must be installed and discoverable via `$PA
 ```bash
 "$VCPKG_ROOT/vcpkg" install \
   hpp-proto \
-  --triplet=x64-linux \
-  --overlay-ports="$PWD/ports"
-```
-
-### Install `download-protoc` mode
-
-Precondition: environment must be able to download protobuf prebuilt archives from official GitHub releases.
-
-```bash
-"$VCPKG_ROOT/vcpkg" install \
-  "hpp-proto[download-protoc]" \
   --triplet=x64-linux \
   --overlay-ports="$PWD/ports"
 ```

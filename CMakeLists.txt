@@ -16,9 +16,9 @@ option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
 
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
-set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, 'compile' for compiling from source, or 'download' for downloading precompiled executable from github")
+set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
 set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS
-  "find" "compile" "download")
+  "find" "compile")
 
 if(HPP_PROTO_FUZZER_ONLY)
   if(NOT HPP_PROTO_PROTOC_PLUGIN)
@@ -137,15 +137,6 @@ if(HPP_PROTO_PROTOC_PLUGIN)
     endforeach()
 
     install(TARGETS protoc EXPORT hpp_proto-targets)
-  elseif(HPP_PROTO_PROTOC STREQUAL "download")
-    if(DEFINED HPP_PROTO_PROTOC_ZIP_PATH)
-      configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protoc_install.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/protoc_install.cmake"
-        @ONLY
-      )
-      install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/protoc_install.cmake")
-    endif()
   endif()
 
   install(TARGETS libhpp_proto EXPORT hpp_proto-targets)

@@ -15,9 +15,11 @@ class HppProtoConan(ConanFile):
     settings = ("os", "compiler", "build_type", "arch")
     options = {
         "tests": [True, False],
+        "with_protobuf": [True, False],
     }
     default_options = {
         "tests": False,
+        "with_protobuf": False,
     }
     exports_sources = (
         "CMakeLists.txt",
@@ -40,7 +42,7 @@ class HppProtoConan(ConanFile):
 
     def build_requirements(self):
         self.protoc_mode = self.conf.get("user.hpp_proto:protoc", default="find")
-        if self.protoc_mode != "download":
+        if self.options.with_protobuf:
             self.tool_requires("protobuf/[>=3.21.12]")
 
     def layout(self):
