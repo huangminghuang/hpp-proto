@@ -59,7 +59,7 @@
         - name: Install Compiler and Set Environment
           run: |
             $SUDO apt-get update
-            $SUDO apt-get install -y curl unzip cmake lsb-release
+            $SUDO apt-get install -y curl unzip cmake lsb-release git
             
             # Get the version suffix (e.g., "-15", "-20")
             VERSION_SUFFIX=$(echo "${{ matrix.compiler }}" | grep -oE -- '-[0-9]+$')

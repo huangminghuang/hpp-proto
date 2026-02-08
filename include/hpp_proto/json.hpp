@@ -189,7 +189,7 @@ struct from<JSON, hpp_proto::bytes_view> {
 namespace detail {
 template <auto Opts>
 void from_json(hpp_proto::bool_proxy value, auto &ctx, auto &it, auto &end) {
-  bool v; // NOLINT(cppcoreguidelines-init-variables)
+  bool v = false;
   parse<JSON>::op<Opts>(v, ctx, it, end);
   value = v;
 }
