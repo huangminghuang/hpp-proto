@@ -1,0 +1,32 @@
+{
+  "name": "hpp-proto",
+  "version-semver": "1.0.0",
+  "description": "A modern, high-performance, header-only C++23 implementation of Protocol Buffers.",
+  "homepage": "https://github.com/huangminghuang/hpp-proto",
+  "license": "Apache-2.0",
+  "dependencies": [
+    "glaze",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ],
+  "features": {
+    "download-protoc": {
+      "description": "Download a prebuilt protoc binary during build."
+    },
+    "vcpkg-protobuf": {
+      "description": "Use protoc from vcpkg host protobuf package.",
+      "dependencies": [
+        {
+          "name": "protobuf",
+          "host": true
+        }
+      ]
+    }
+  }
+}

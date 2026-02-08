@@ -1,0 +1,75 @@
+---
+name: Vcpkg
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - dev/**
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - '**.md'
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: 1
+  VCPKG_DEFAULT_TRIPLET: x64-linux
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        protoc_mode:
+          - download-protoc
+          - vcpkg-protobuf
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: setup vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh"
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - name: install hpp-proto via local overlay port
+        run: |
+          if [ "${{ matrix.protoc_mode }}" = "download-protoc" ]; then
+            PKG_SPEC="hpp-proto[download-protoc]"
+          elif [ "${{ matrix.protoc_mode }}" = "vcpkg-protobuf" ]; then
+            PKG_SPEC="hpp-proto[vcpkg-protobuf]"
+          else
+            PKG_SPEC="hpp-proto"
+          fi
+          "$VCPKG_ROOT/vcpkg" install \
+            "$PKG_SPEC" \
+            --triplet="$VCPKG_DEFAULT_TRIPLET" \
+            --overlay-ports="$GITHUB_WORKSPACE/ports"
+
+      - name: configure tutorial with vcpkg toolchain
+        run: |
+          cmake -S tutorial -B tutorial-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET="$VCPKG_DEFAULT_TRIPLET" \
+            -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/ports"
+
+      - name: build tutorial
+        run: |
+          cmake --build tutorial-build -j2
+
+      - name: test tutorial
+        run: |
+          ctest --test-dir tutorial-build --output-on-failure
