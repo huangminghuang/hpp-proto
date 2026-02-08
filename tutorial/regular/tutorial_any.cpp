@@ -25,18 +25,18 @@ int main() {
               .oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"};
 
   AnyDemo message;
-  expect(hpp::proto::pack_any(message.any_value.emplace(), alex).ok());
+  expect(hpp_proto::pack_any(message.any_value.emplace(), alex).ok());
 
   std::vector<std::byte> buffer;
-  expect(hpp::proto::write_binpb(message, buffer).ok());
+  expect(hpp_proto::write_binpb(message, buffer).ok());
 
-  auto write_result = hpp::proto::write_binpb(message);
+  auto write_result = hpp_proto::write_binpb(message);
   expect(write_result.has_value());
 
-  auto any_demo = hpp::proto::read_binpb<AnyDemo>(write_result.value());
+  auto any_demo = hpp_proto::read_binpb<AnyDemo>(write_result.value());
   expect(any_demo.has_value());
   // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-  auto unpacked_result = hpp::proto::unpack_any<Person>(any_demo.value().any_value.value());
+  auto unpacked_result = hpp_proto::unpack_any<Person>(any_demo.value().any_value.value());
   expect(unpacked_result.has_value());
   expect(alex == unpacked_result.value());
 

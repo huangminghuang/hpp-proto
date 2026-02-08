@@ -32,7 +32,7 @@
 
 #include <hpp_proto/memory_resource_utils.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 enum class varint_encoding : uint8_t {
   normal,
   zig_zag,
@@ -86,7 +86,7 @@ using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 
 namespace concepts {
 template <typename T>
-concept varint = requires { requires std::same_as<T, hpp::proto::varint<typename T::value_type, T::encoding>>; };
+concept varint = requires { requires std::same_as<T, hpp_proto::varint<typename T::value_type, T::encoding>>; };
 } // namespace concepts
 
 template <concepts::varint VarintType, concepts::byte_type Byte>
@@ -328,4 +328,4 @@ constexpr auto unchecked_parse_varint(concepts::contiguous_byte_range auto const
     return p;
   }
 }
-} // namespace hpp::proto
+} // namespace hpp_proto

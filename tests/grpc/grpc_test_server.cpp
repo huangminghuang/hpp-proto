@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     address = args[2];
   }
 
-  hpp::proto::grpc::test_utils::EchoService service;
+  hpp_proto::grpc::test_utils::EchoService service;
   ::grpc::ServerBuilder builder;
   builder.SetMaxReceiveMessageSize(-1);
   int selected_port = 0;

@@ -9,9 +9,9 @@
 
 namespace {
 using namespace boost::ut;
-using hpp::proto::grpc::EchoRequest;
-using hpp::proto::grpc::EchoResponse;
-using hpp::proto::grpc::EchoStreamService;
+using hpp_proto_test::EchoRequest;
+using hpp_proto_test::EchoResponse;
+using hpp_proto_test::EchoStreamService;
 
 class OfficialUnaryHarness {
 public:

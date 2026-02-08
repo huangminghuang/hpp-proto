@@ -28,7 +28,7 @@
 #include <ranges>
 #include <span>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 struct timestamp_codec {
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
@@ -212,4 +212,4 @@ public:
   }
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

@@ -30,7 +30,7 @@
 #include <span>
 #include <string_view>
 
-namespace hpp::proto {
+namespace hpp_proto {
 namespace concepts {
 template <typename T>
 concept memory_resource = !std::copyable<T> && std::destructible<T> && requires(T &object) {
@@ -64,13 +64,13 @@ template <typename T>
 concept is_pb_context = requires { typename std::decay_t<T>::is_pb_context; };
 
 template <typename T>
-concept dynamic_sized_view = std::derived_from<T, std::span<typename T::element_type>> ||
-                             std::same_as<T, hpp::proto::equality_comparable_span<typename T::element_type>> ||
-                             std::same_as<T, std::string_view>;
+concept dynamic_sized_view =
+    std::derived_from<T, std::span<typename T::element_type>> ||
+    std::same_as<T, hpp_proto::equality_comparable_span<typename T::element_type>> || std::same_as<T, std::string_view>;
 
 template <typename T>
 concept byte_serializable =
-    std::is_arithmetic_v<T> || std::same_as<hpp::proto::boolean, T> || std::same_as<std::byte, T>;
+    std::is_arithmetic_v<T> || std::same_as<hpp_proto::boolean, T> || std::same_as<std::byte, T>;
 } // namespace concepts
 
 template <concepts::memory_resource T>
@@ -201,7 +201,7 @@ auto bit_cast_view(const Bytes &input_range) {
   return bit_cast_view_t<T, Bytes>{input_range};
 }
 
-/// The `arena_vector` class adapts an existing hpp::proto::equality_comparable_span or std::string_view, allowing the
+/// The `arena_vector` class adapts an existing hpp_proto::equality_comparable_span or std::string_view, allowing the
 /// underlying memory to be allocated from a designated memory resource. This memory resource releases the allocated
 /// memory only upon its destruction, similar to std::pmr::monotonic_buffer_resource.
 ///
@@ -363,7 +363,7 @@ arena_vector(View &view, Context &ctx)
     -> arena_vector<View, std::remove_reference_t<decltype(std::declval<Context>().memory_resource())>>;
 
 constexpr auto as_modifiable(concepts::is_pb_context auto &context, concepts::dynamic_sized_view auto &view) {
-  static_assert(requires { context.memory_resource(); }, "requires hpp::proto::alloc_from{memory_resource}");
+  static_assert(requires { context.memory_resource(); }, "requires hpp_proto::alloc_from{memory_resource}");
   return detail::arena_vector{view, context};
 }
 
@@ -374,4 +374,4 @@ constexpr auto as_modifiable([[maybe_unused]] const auto &ctx, T &obj) -> T & {
 }
 
 } // namespace detail
-} // namespace hpp::proto
+} // namespace hpp_proto

@@ -8,7 +8,7 @@
 namespace helloworld::Greeter {
 
 class Client {
-  ::hpp::proto::grpc::Stub<_methods> stub_;
+  ::hpp_proto::grpc::Stub<_methods> stub_;
 
 public:
   explicit Client(const std::shared_ptr<::grpc::Channel> &channel, ::grpc::StubOptions options)
@@ -18,15 +18,15 @@ public:
   // from the server.
   void SayHello(const std::string &user) {
     // Data we are sending to the server.
-    helloworld::HelloRequest<hpp::proto::non_owning_traits> request;
+    helloworld::HelloRequest<hpp_proto::non_owning_traits> request;
     request.name = user;
     // Container for the data we expect from the server.
     std::pmr::monotonic_buffer_resource mr;
-    helloworld::HelloReply<hpp::proto::non_owning_traits> reply;
+    helloworld::HelloReply<hpp_proto::non_owning_traits> reply;
 
     ::grpc::ClientContext context;
 
-    auto status = stub_.call<::helloworld::Greeter::SayHello>(context, request, reply, hpp::proto::alloc_from{mr});
+    auto status = stub_.call<::helloworld::Greeter::SayHello>(context, request, reply, hpp_proto::alloc_from{mr});
 
     // Handles the reply
     if (status.ok()) {
@@ -38,7 +38,7 @@ public:
 
   void SayHelloStreamReply(const std::string &user) {
     class SayHelloStreamReplyReactor
-        : public ::hpp::proto::grpc::ClientCallbackReactor<::helloworld::Greeter::SayHelloStreamReply> {
+        : public ::hpp_proto::grpc::ClientCallbackReactor<::helloworld::Greeter::SayHelloStreamReply> {
       std::mutex mu_;
       std::condition_variable cv_;
       ::grpc::Status result_;
@@ -74,8 +74,8 @@ public:
         }
 
         std::pmr::monotonic_buffer_resource mr;
-        helloworld::HelloReply<hpp::proto::non_owning_traits> reply;
-        auto r = this->get_response(reply, hpp::proto::alloc_from(mr));
+        helloworld::HelloReply<hpp_proto::non_owning_traits> reply;
+        auto r = this->get_response(reply, hpp_proto::alloc_from(mr));
         if (!r.ok()) {
           context.TryCancel();
           std::unique_lock lock(mu_);
@@ -97,7 +97,7 @@ public:
         cv_.notify_one();
       }
     } reactor;
-    helloworld::HelloRequest<hpp::proto::non_owning_traits> request;
+    helloworld::HelloRequest<hpp_proto::non_owning_traits> request;
     request.name = user;
     // See README streaming cookbook for write/read sequencing rules.
     stub_.async_call(reactor.context, request, &reactor);

@@ -2,7 +2,7 @@
 #include <cassert>
 #include <compare>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 template <typename T>
 class indirect_view {
@@ -63,4 +63,4 @@ public:
 
   constexpr void swap(indirect_view &other) noexcept { std::swap(obj_, other.obj_); }
 };
-} // namespace hpp::proto
+} // namespace hpp_proto

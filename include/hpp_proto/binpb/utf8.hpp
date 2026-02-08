@@ -29,7 +29,7 @@ extern "C" {
 bool is_utf8(const char *src, size_t len);
 }
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 constexpr bool utf8_validation_failed(auto meta, const auto &str) {
 #if HPP_PROTO_NO_UTF8_VALIDATION
@@ -45,4 +45,4 @@ constexpr bool utf8_validation_failed(auto meta, const auto &str) {
   return false;
 }
 
-} // namespace hpp::proto
+} // namespace hpp_proto

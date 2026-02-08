@@ -35,7 +35,7 @@
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 class message_value_cref {
   const message_descriptor_t *descriptor_;
   const value_storage *storage_;
@@ -517,7 +517,7 @@ public:
 
   [[nodiscard]] bool is_present_or_explicit_default() const noexcept { return has_value(); }
 
-  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
+  [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
   [[nodiscard]] value_type operator*() const noexcept {
     return {message_descriptor(), *(storage_->of_message.content)};
   }
@@ -602,7 +602,7 @@ public:
     }
     return {message_descriptor(), storage_->of_message.content, *memory_resource_};
   }
-  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
+  [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {operator*()}; }
   [[nodiscard]] value_type operator*() const noexcept {
     return {message_descriptor(), storage_->of_message.content, *memory_resource_};
   }
@@ -653,4 +653,4 @@ private:
   std::pmr::monotonic_buffer_resource *memory_resource_;
   [[nodiscard]] std::size_t num_slots() const noexcept { return message_descriptor().num_slots; }
 };
-} // namespace hpp::proto
+} // namespace hpp_proto

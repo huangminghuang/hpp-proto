@@ -15,25 +15,25 @@
 #include "echo_stream.pb.hpp"
 #include "echo_stream.service.hpp"
 
-namespace hpp::proto::grpc::test_utils {
+namespace hpp_proto::grpc::test_utils {
 
 constexpr int32_t kTerminalSequence = -1;
 
-using EchoMethods = ::hpp::proto::grpc::EchoStreamService::_methods;
-using UnaryEcho = ::hpp::proto::grpc::EchoStreamService::UnaryEcho;
-using ClientStreamAggregate = ::hpp::proto::grpc::EchoStreamService::ClientStreamAggregate;
-using ServerStreamFanout = ::hpp::proto::grpc::EchoStreamService::ServerStreamFanout;
-using BidiStreamChat = ::hpp::proto::grpc::EchoStreamService::BidiStreamChat;
+using EchoMethods = hpp_proto_test::EchoStreamService::_methods;
+using UnaryEcho = hpp_proto_test::EchoStreamService::UnaryEcho;
+using ClientStreamAggregate = hpp_proto_test::EchoStreamService::ClientStreamAggregate;
+using ServerStreamFanout = hpp_proto_test::EchoStreamService::ServerStreamFanout;
+using BidiStreamChat = hpp_proto_test::EchoStreamService::BidiStreamChat;
 
-using EchoRequest = ::hpp::proto::grpc::EchoRequest<>;
-using EchoResponse = ::hpp::proto::grpc::EchoResponse<>;
-using StreamSummary = ::hpp::proto::grpc::StreamSummary<>;
+using EchoRequest = hpp_proto_test::EchoRequest<>;
+using EchoResponse = hpp_proto_test::EchoResponse<>;
+using StreamSummary = hpp_proto_test::StreamSummary<>;
 
-class EchoService : public ::hpp::proto::grpc::CallbackService<EchoService, EchoMethods> {
+class EchoService : public ::hpp_proto::grpc::CallbackService<EchoService, EchoMethods> {
 public:
   struct UnaryHandler {
-    using rpc_t = ::hpp::proto::grpc::ServerRPC<UnaryEcho>;
-    UnaryHandler(EchoService &, rpc_t &rpc, ::hpp::proto::grpc::RequestToken<UnaryEcho> token) {
+    using rpc_t = ::hpp_proto::grpc::ServerRPC<UnaryEcho>;
+    UnaryHandler(EchoService &, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<UnaryEcho> token) {
       EchoRequest request;
       auto status = token.get(request);
       if (!status.ok()) {
@@ -49,12 +49,12 @@ public:
   auto handle(UnaryEcho) -> UnaryHandler;
 
   struct ClientStreamHandler {
-    using rpc_t = ::hpp::proto::grpc::ServerRPC<ClientStreamAggregate>;
+    using rpc_t = ::hpp_proto::grpc::ServerRPC<ClientStreamAggregate>;
     StreamSummary summary_;
 
     explicit ClientStreamHandler(EchoService &, rpc_t &rpc) { rpc.start_read(); }
 
-    void on_read_ok(rpc_t &rpc, ::hpp::proto::grpc::RequestToken<ClientStreamAggregate> token) {
+    void on_read_ok(rpc_t &rpc, ::hpp_proto::grpc::RequestToken<ClientStreamAggregate> token) {
       EchoRequest request;
       auto status = token.get(request);
       if (!status.ok()) {
@@ -77,11 +77,11 @@ public:
   auto handle(ClientStreamAggregate) -> ClientStreamHandler;
 
   struct ServerStreamHandler {
-    using rpc_t = ::hpp::proto::grpc::ServerRPC<ServerStreamFanout>;
+    using rpc_t = ::hpp_proto::grpc::ServerRPC<ServerStreamFanout>;
     int remaining_ = 0;
     std::string payload_;
 
-    ServerStreamHandler(EchoService &, rpc_t &rpc, ::hpp::proto::grpc::RequestToken<ServerStreamFanout> token) {
+    ServerStreamHandler(EchoService &, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<ServerStreamFanout> token) {
       EchoRequest request;
       auto status = token.get(request);
       if (!status.ok() || request.sequence <= 0 || request.message.empty()) {
@@ -116,14 +116,14 @@ public:
   auto handle(ServerStreamFanout) -> ServerStreamHandler;
 
   struct BidiStreamHandler {
-    using rpc_t = ::hpp::proto::grpc::ServerRPC<BidiStreamChat>;
+    using rpc_t = ::hpp_proto::grpc::ServerRPC<BidiStreamChat>;
     std::mutex mu_;
     std::deque<EchoResponse> pending_;
     EchoResponse current_;
 
     BidiStreamHandler(EchoService &, rpc_t &rpc) { rpc.start_read(); }
 
-    void on_read_ok(rpc_t &rpc, ::hpp::proto::grpc::RequestToken<BidiStreamChat> token) {
+    void on_read_ok(rpc_t &rpc, ::hpp_proto::grpc::RequestToken<BidiStreamChat> token) {
       EchoRequest request;
       auto status = token.get(request);
       if (!status.ok()) {
@@ -167,7 +167,7 @@ public:
 
 class Harness {
 public:
-  using stub_type = ::hpp::proto::grpc::Stub<EchoMethods>;
+  using stub_type = ::hpp_proto::grpc::Stub<EchoMethods>;
 
   Harness();
   ~Harness();
@@ -209,4 +209,4 @@ inline Harness::~Harness() {
   }
 }
 
-} // namespace hpp::proto::grpc::test_utils
+} // namespace hpp_proto::grpc::test_utils

@@ -155,17 +155,17 @@ struct Proto2TypeMapping {
 
 const boost::ut::suite proto2_test = [] {
   "proto2"_test = []<class Traits> { TestSuite<Traits, Proto2TypeMapping>::run(); } |
-                  std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits, hpp::proto::pmr_traits>{};
+                  std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits, hpp_proto::pmr_traits>{};
 
   "empty"_test = [] {
-    protobuf_unittest::TestAllTypes<hpp::proto::non_owning_traits> message;
+    protobuf_unittest::TestAllTypes<hpp_proto::non_owning_traits> message;
     using namespace std::string_view_literals;
     const auto json = R"({})"sv;
     std::vector<char> in{json.begin(), json.end()};
     std::string out;
     std::pmr::monotonic_buffer_resource mr;
-    expect(hpp::proto::read_json(message, in, hpp::proto::alloc_from(mr)).ok());
-    expect(hpp::proto::write_json(message, out).ok());
+    expect(hpp_proto::read_json(message, in, hpp_proto::alloc_from(mr)).ok());
+    expect(hpp_proto::write_json(message, out).ok());
     expect(eq(json, out));
   };
 };

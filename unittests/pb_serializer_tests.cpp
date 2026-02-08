@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 namespace ut = boost::ut;
-using hpp::proto::field_option;
+using hpp_proto::field_option;
 using namespace boost::ut::literals;
 using namespace std::string_view_literals;
 
@@ -23,7 +23,7 @@ const ut::suite bit_cast_view_test = [] {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     std::span<const char> input_range{reinterpret_cast<const char *>(data.data()), data.size() * chunk_size};
     int i = 0;
-    for (auto v : hpp::proto::detail::bit_cast_view<int>(input_range)) {
+    for (auto v : hpp_proto::detail::bit_cast_view<int>(input_range)) {
       ut::expect(v == i);
       ++i;
     }
@@ -35,36 +35,36 @@ const ut::suite varint_decode_tests = [] {
   "unchecked_parse_bool"_test = [] {
     bool value = true;
     std::string_view data = "\x00"sv;
-    ut::expect(hpp::proto::unchecked_parse_bool(data, value) ==
+    ut::expect(hpp_proto::unchecked_parse_bool(data, value) ==
                std::next(std::ranges::cdata(data), static_cast<std::ptrdiff_t>(data.size())));
     ut::expect(!value);
 
     data = "\x01"sv;
-    ut::expect(hpp::proto::unchecked_parse_bool(data, value) ==
+    ut::expect(hpp_proto::unchecked_parse_bool(data, value) ==
                std::next(std::ranges::cdata(data), static_cast<std::ptrdiff_t>(data.size())));
     ut::expect(value);
 
     // oversized bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x01"sv;
-    ut::expect(hpp::proto::unchecked_parse_bool(data, value) ==
+    ut::expect(hpp_proto::unchecked_parse_bool(data, value) ==
                std::next(std::ranges::cdata(data), static_cast<std::ptrdiff_t>(data.size())));
     ut::expect(value);
 
     // unterminated bool
     data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
-    ut::expect(hpp::proto::unchecked_parse_bool(data, value) >
+    ut::expect(hpp_proto::unchecked_parse_bool(data, value) >
                std::next(std::ranges::cdata(data), static_cast<std::ptrdiff_t>(data.size())));
   };
 
-  using vint64_t = hpp::proto::vint64_t;
+  using vint64_t = hpp_proto::vint64_t;
 
   "unchecked_parse_varint"_test =
       [](int64_t arg) {
         std::array<std::byte, 16> data = {};
-        const auto *end = hpp::proto::unchecked_pack_varint(hpp::proto::varint{arg}, data.data());
+        const auto *end = hpp_proto::unchecked_pack_varint(hpp_proto::varint{arg}, data.data());
 
         int64_t parsed_value = 0;
-        const auto *r = hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value);
+        const auto *r = hpp_proto::shift_mix_parse_varint<int64_t>(data, parsed_value);
         ut::expect(r == end);
       } |
       std::vector<int64_t>{
@@ -74,7 +74,7 @@ const ut::suite varint_decode_tests = [] {
   "unterminated_varint"_test = [] {
     auto data = "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xF1"sv;
     int64_t parsed_value; // NOLINT(cppcoreguidelines-init-variables)
-    const auto *result = hpp::proto::shift_mix_parse_varint<int64_t>(data, parsed_value);
+    const auto *result = hpp_proto::shift_mix_parse_varint<int64_t>(data, parsed_value);
     ut::expect(std::distance(std::ranges::cdata(data), result) > static_cast<std::ptrdiff_t>(data.size()));
   };
 };
@@ -83,8 +83,8 @@ const ut::suite varint_decode_tests = [] {
 #define carg(...) ([]() constexpr -> decltype(auto) { return __VA_ARGS__; })
 
 constexpr void constexpr_verify(auto buffer, auto object_fun) {
-  static_assert(std::ranges::equal(buffer(), hpp::proto::write_binpb(object_fun)));
-  static_assert(object_fun() == hpp::proto::read_binpb<decltype(object_fun())>(buffer()).value());
+  static_assert(std::ranges::equal(buffer(), hpp_proto::write_binpb(object_fun)));
+  static_assert(object_fun() == hpp_proto::read_binpb<decltype(object_fun())>(buffer()).value());
 }
 
 template <typename T>
@@ -92,11 +92,11 @@ void expect_roundtrip_ok(auto encoded_data, const T &expected_value) {
   std::remove_cvref_t<T> value;
 
   std::pmr::monotonic_buffer_resource mr;
-  ut::expect(hpp::proto::read_binpb(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
+  ut::expect(hpp_proto::read_binpb(value, encoded_data, hpp_proto::alloc_from{mr}).ok());
   ut::expect(ut::fatal(value == expected_value));
 
   std::vector<char> new_data;
-  ut::expect(hpp::proto::write_binpb(value, new_data).ok());
+  ut::expect(hpp_proto::write_binpb(value, new_data).ok());
   ut::expect(std::ranges::equal(encoded_data, new_data));
 }
 
@@ -104,7 +104,7 @@ template <typename T>
 void expect_read_ok(const auto &encoded_data, const T &expected_value) {
   std::remove_cvref_t<T> value;
   std::pmr::monotonic_buffer_resource mr;
-  ut::expect(hpp::proto::read_binpb(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
+  ut::expect(hpp_proto::read_binpb(value, encoded_data, hpp_proto::alloc_from{mr}).ok());
   ut::expect(ut::fatal(value == expected_value));
 }
 
@@ -112,7 +112,7 @@ template <typename T>
 void expect_read_fail(const auto &encoded_data, const T &) {
   std::remove_cvref_t<T> value;
   std::pmr::monotonic_buffer_resource mr;
-  ut::expect(!hpp::proto::read_binpb(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
+  ut::expect(!hpp_proto::read_binpb(value, encoded_data, hpp_proto::alloc_from{mr}).ok());
 }
 
 struct empty {
@@ -128,15 +128,15 @@ struct example {
   constexpr bool operator==(const example &) const = default;
 };
 auto pb_meta(const example &)
-    -> std::tuple<hpp::proto::field_meta<1, &example::i, field_option::none, hpp::proto::vint64_t>,
-                  hpp::proto::field_meta<2, &example::j, field_option::none, hpp::proto::vint64_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &example::i, field_option::none, hpp_proto::vint64_t>,
+                  hpp_proto::field_meta<2, &example::j, field_option::none, hpp_proto::vint64_t>>;
 
 struct nested_example {
   std::optional<example> nested; // field number == 1
   constexpr bool operator==(const nested_example &) const = default;
 };
 
-auto pb_meta(const nested_example &) -> std::tuple<hpp::proto::field_meta<1, &nested_example::nested>>;
+auto pb_meta(const nested_example &) -> std::tuple<hpp_proto::field_meta<1, &nested_example::nested>>;
 
 const ut::suite test_nested_example = [] {
   expect_roundtrip_ok("\x0a\x02\x08\x01"sv, nested_example{.nested = example{.i = 1}});
@@ -151,8 +151,8 @@ struct example_explicit_presence {
 };
 
 auto pb_meta(const example_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta<1, &example_explicit_presence::i, field_option::explicit_presence,
-                                         hpp::proto::vint64_t>>;
+    -> std::tuple<
+        hpp_proto::field_meta<1, &example_explicit_presence::i, field_option::explicit_presence, hpp_proto::vint64_t>>;
 
 struct example_default_type {
   int32_t i = 1; // field number == 1
@@ -161,23 +161,23 @@ struct example_default_type {
 };
 
 auto pb_meta(const example_default_type &)
-    -> std::tuple<hpp::proto::field_meta<1, &example_default_type::i, field_option::none, hpp::proto::vint64_t, 1>>;
+    -> std::tuple<hpp_proto::field_meta<1, &example_default_type::i, field_option::none, hpp_proto::vint64_t, 1>>;
 
 const ut::suite test_example_default_type = [] {
   example_default_type const v;
   std::vector<char> data;
-  ut::expect(hpp::proto::write_binpb(v, data).ok());
+  ut::expect(hpp_proto::write_binpb(v, data).ok());
   ut::expect(data.empty());
 };
 
 struct non_owing_nested_example {
-  hpp::proto::optional_indirect_view<example> nested; // field number == 1
+  hpp_proto::optional_indirect_view<example> nested; // field number == 1
 
   constexpr bool operator==(const non_owing_nested_example &) const = default;
 };
 
 auto pb_meta(const non_owing_nested_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owing_nested_example::nested, field_option::none>>;
+    -> std::tuple<hpp_proto::field_meta<1, &non_owing_nested_example::nested, field_option::none>>;
 
 const ut::suite test_non_owning_nested_example = [] {
   example const ex1{.i = 150};
@@ -195,7 +195,7 @@ struct bool_example {
   constexpr bool operator==(const bool_example &) const = default;
 };
 
-auto pb_meta(const bool_example &) -> std::tuple<hpp::proto::field_meta<1, &bool_example::b, field_option::none>>;
+auto pb_meta(const bool_example &) -> std::tuple<hpp_proto::field_meta<1, &bool_example::b, field_option::none>>;
 
 struct varint_example {
   int32_t i = 0; // field number == 1
@@ -203,7 +203,7 @@ struct varint_example {
 };
 
 auto pb_meta(const varint_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &varint_example::i, field_option::none, hpp::proto::vint64_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &varint_example::i, field_option::none, hpp_proto::vint64_t>>;
 
 struct fixed_example {
   uint32_t a = 0; // field number == 1
@@ -212,7 +212,7 @@ struct fixed_example {
 };
 
 auto pb_meta(const fixed_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &fixed_example::a>, hpp::proto::field_meta<2, &fixed_example::b>>;
+    -> std::tuple<hpp_proto::field_meta<1, &fixed_example::a>, hpp_proto::field_meta<2, &fixed_example::b>>;
 
 const ut::suite test_bool = [] {
   "bool"_test = [] { expect_roundtrip_ok("\x08\x01"sv, bool_example{.b = true}); };
@@ -241,7 +241,7 @@ const ut::suite test_truncated_inputs = [] {
   };
 };
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct repeated_sint32 {
   Traits::template repeated_t<int32_t> integers;
   bool operator==(const repeated_sint32 &) const = default;
@@ -250,20 +250,20 @@ struct repeated_sint32 {
 template <typename Traits>
 auto pb_meta(const repeated_sint32<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &repeated_sint32<Traits>::integers, field_option::is_packed, hpp::proto::vsint32_t>>;
+        hpp_proto::field_meta<1, &repeated_sint32<Traits>::integers, field_option::is_packed, hpp_proto::vsint32_t>>;
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 
 struct repeated_sint32_unpacked {
-  Traits::template repeated_t<hpp::proto::vsint32_t> integers;
+  Traits::template repeated_t<hpp_proto::vsint32_t> integers;
   bool operator==(const repeated_sint32_unpacked &) const = default;
 };
 
 template <typename Traits>
 auto pb_meta(const repeated_sint32_unpacked<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32_unpacked<Traits>::integers, field_option::none>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_sint32_unpacked<Traits>::integers, field_option::none>>;
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 
 struct repeated_sint32_unpacked_explicit_type {
   Traits::template repeated_t<int32_t> integers;
@@ -272,10 +272,10 @@ struct repeated_sint32_unpacked_explicit_type {
 
 template <typename Traits>
 auto pb_meta(const repeated_sint32_unpacked_explicit_type<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_sint32_unpacked_explicit_type<Traits>::integers,
-                                         field_option::none, hpp::proto::vsint32_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_sint32_unpacked_explicit_type<Traits>::integers,
+                                        field_option::none, hpp_proto::vsint32_t>>;
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct repeated_uint64 {
   Traits::template repeated_t<uint64_t> integers;
   bool operator==(const repeated_uint64 &) const = default;
@@ -284,7 +284,7 @@ struct repeated_uint64 {
 template <typename Traits>
 auto pb_meta(const repeated_uint64<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &repeated_uint64<Traits>::integers, field_option::is_packed, hpp::proto::vuint64_t>>;
+        hpp_proto::field_meta<1, &repeated_uint64<Traits>::integers, field_option::is_packed, hpp_proto::vuint64_t>>;
 
 const ut::suite test_repeated_vint = [] {
   using namespace boost::ut::operators;
@@ -299,7 +299,7 @@ const ut::suite test_repeated_vint = [] {
     // overlong element in the middle
     expect_read_fail("\x0a\x11\x08\x16\x21\x30\x40\x50\x80\xF0\x80\x90\xa1\xb2\xc3\xd4\xe5\x85\x06"sv, value);
     // zero length
-    ut::expect(hpp::proto::read_binpb(value, "\x0a\x00"sv).ok());
+    ut::expect(hpp_proto::read_binpb(value, "\x0a\x00"sv).ok());
     // invalid length
     expect_read_fail("\x0a\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, value);
     // skip invalid length
@@ -336,7 +336,7 @@ const ut::suite test_repeated_vint = [] {
     "repeated_sint32_unpacked_case"_test = [] {
       expect_roundtrip_ok("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
                           repeated_sint32_unpacked<Traits>{
-                              .integers = std::initializer_list<hpp::proto::vsint32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+                              .integers = std::initializer_list<hpp_proto::vsint32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
     };
 
     "repeated_sint32_unpacked_decode"_test = [] {
@@ -356,10 +356,10 @@ const ut::suite test_repeated_vint = [] {
             repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{0, 1, 2, 3, 4, -1, -2, -3, -4}});
       };
     };
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 };
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct repeated_fixed {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed &) const = default;
@@ -367,9 +367,9 @@ struct repeated_fixed {
 
 template <typename Traits>
 auto pb_meta(const repeated_fixed<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed<Traits>::integers, field_option::is_packed>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_fixed<Traits>::integers, field_option::is_packed>>;
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 
 struct repeated_fixed_explicit_type {
   std::vector<uint64_t> integers;
@@ -379,9 +379,9 @@ struct repeated_fixed_explicit_type {
 template <typename Traits>
 auto pb_meta(const repeated_fixed_explicit_type<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &repeated_fixed_explicit_type<Traits>::integers, field_option::is_packed, uint64_t>>;
+        hpp_proto::field_meta<1, &repeated_fixed_explicit_type<Traits>::integers, field_option::is_packed, uint64_t>>;
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct repeated_fixed_unpacked {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed_unpacked &) const = default;
@@ -389,9 +389,9 @@ struct repeated_fixed_unpacked {
 
 template <typename Traits>
 auto pb_meta(const repeated_fixed_unpacked<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed_unpacked<Traits>::integers, field_option::none>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_fixed_unpacked<Traits>::integers, field_option::none>>;
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct repeated_fixed_unpacked_explicit_type {
   std::vector<uint64_t> integers;
   bool operator==(const repeated_fixed_unpacked_explicit_type &) const = default;
@@ -399,8 +399,8 @@ struct repeated_fixed_unpacked_explicit_type {
 
 template <typename Traits>
 auto pb_meta(const repeated_fixed_unpacked_explicit_type<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_fixed_unpacked_explicit_type<Traits>::integers,
-                                         field_option::none, uint64_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_fixed_unpacked_explicit_type<Traits>::integers, field_option::none,
+                                        uint64_t>>;
 
 const ut::suite test_repeated_fixed = [] {
   using namespace boost::ut::operators;
@@ -412,7 +412,7 @@ const ut::suite test_repeated_fixed = [] {
 
   "zero_length_repeated_fixed"_test = [] {
     repeated_fixed<> value;
-    ut::expect(hpp::proto::read_binpb(value, "\x0a\x00"sv).ok());
+    ut::expect(hpp_proto::read_binpb(value, "\x0a\x00"sv).ok());
   };
 
   "normal_cases"_test = []<class Traits> {
@@ -451,30 +451,30 @@ const ut::suite test_repeated_fixed = [] {
           "\x09\x01\x00\x00\x00\x00\x00\x00\x00\x09\x02\x00\x00\x00\x00\x00\x00\x00\x09\x03\x00\x00\x00\x00\x00\x00\x00"sv,
           repeated_fixed_unpacked_explicit_type<Traits>{{1, 2, 3}});
     };
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 };
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct repeated_bool {
-  std::vector<hpp::proto::boolean> booleans;
+  std::vector<hpp_proto::boolean> booleans;
   bool operator==(const repeated_bool &) const = default;
 };
 
 template <typename Traits>
 auto pb_meta(const repeated_bool<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &repeated_bool<Traits>::booleans, field_option::is_packed, hpp::proto::boolean>>;
+        hpp_proto::field_meta<1, &repeated_bool<Traits>::booleans, field_option::is_packed, hpp_proto::boolean>>;
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct repeated_bool_unpacked {
-  std::vector<hpp::proto::boolean> booleans;
+  std::vector<hpp_proto::boolean> booleans;
   bool operator==(const repeated_bool_unpacked &) const = default;
 };
 
 template <typename Traits>
 auto pb_meta(const repeated_bool_unpacked<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &repeated_bool_unpacked<Traits>::booleans, field_option::none, hpp::proto::boolean>>;
+        hpp_proto::field_meta<1, &repeated_bool_unpacked<Traits>::booleans, field_option::none, hpp_proto::boolean>>;
 
 const ut::suite test_repeated_bool = [] {
   using namespace boost::ut::operators;
@@ -511,7 +511,7 @@ const ut::suite test_repeated_bool = [] {
       expect_read_fail("\x0a\x03\x01\x00\x81"sv, value);
       expect_read_fail("\x0a\x0e\x01\x80\x81\x80\x81\x80\x81\x80\x81\x80\x81\x80\x81\x00"sv, value);
     };
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 };
 
 enum class ForeignEnum : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, NEG = -1 };
@@ -519,52 +519,52 @@ bool is_valid(ForeignEnum v) { return v >= ForeignEnum::NEG && v <= ForeignEnum:
 
 enum class ForeignEnumEx : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, EXTRA = 4, NEG = -1 };
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct open_enum_message {
   typename Traits::template repeated_t<ForeignEnumEx> expanded_repeated_field;
   ForeignEnumEx foreign_enum_field = ForeignEnumEx::ZERO;
   typename Traits::template repeated_t<ForeignEnumEx> packed_repeated_field;
   std::optional<example> optional_indirect_field;
-  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  [[no_unique_address]] hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator==(const open_enum_message &) const = default;
 };
 
 template <typename Traits>
 auto pb_meta(const open_enum_message<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &open_enum_message<Traits>::expanded_repeated_field, field_option::none>,
-                  hpp::proto::field_meta<2, &open_enum_message<Traits>::foreign_enum_field, field_option::none>,
-                  hpp::proto::field_meta<3, &open_enum_message<Traits>::packed_repeated_field, field_option::is_packed>,
-                  hpp::proto::field_meta<4, &open_enum_message<Traits>::optional_indirect_field, field_option::none>,
-                  hpp::proto::field_meta<UINT32_MAX, &open_enum_message<Traits>::unknown_fields_>>;
+    -> std::tuple<hpp_proto::field_meta<1, &open_enum_message<Traits>::expanded_repeated_field, field_option::none>,
+                  hpp_proto::field_meta<2, &open_enum_message<Traits>::foreign_enum_field, field_option::none>,
+                  hpp_proto::field_meta<3, &open_enum_message<Traits>::packed_repeated_field, field_option::is_packed>,
+                  hpp_proto::field_meta<4, &open_enum_message<Traits>::optional_indirect_field, field_option::none>,
+                  hpp_proto::field_meta<UINT32_MAX, &open_enum_message<Traits>::unknown_fields_>>;
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct closed_enum_message {
   typename Traits::template repeated_t<ForeignEnum> expanded_repeated_field;
   std::optional<ForeignEnum> foreign_enum_field;
   typename Traits::template repeated_t<ForeignEnum> packed_repeated_field;
-  [[no_unique_address]] hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  [[no_unique_address]] hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator==(const closed_enum_message &) const = default;
 };
 
 template <typename Traits>
 auto pb_meta(const closed_enum_message<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &closed_enum_message<Traits>::expanded_repeated_field, field_option::closed_enum>,
-        hpp::proto::field_meta<2, &closed_enum_message<Traits>::foreign_enum_field,
-                               field_option::explicit_presence | field_option::closed_enum>,
-        hpp::proto::field_meta<3, &closed_enum_message<Traits>::packed_repeated_field,
-                               field_option::is_packed | field_option::closed_enum>,
-        hpp::proto::field_meta<UINT32_MAX, &closed_enum_message<Traits>::unknown_fields_>>;
+        hpp_proto::field_meta<1, &closed_enum_message<Traits>::expanded_repeated_field, field_option::closed_enum>,
+        hpp_proto::field_meta<2, &closed_enum_message<Traits>::foreign_enum_field,
+                              field_option::explicit_presence | field_option::closed_enum>,
+        hpp_proto::field_meta<3, &closed_enum_message<Traits>::packed_repeated_field,
+                              field_option::is_packed | field_option::closed_enum>,
+        hpp_proto::field_meta<UINT32_MAX, &closed_enum_message<Traits>::unknown_fields_>>;
 
 const ut::suite test_enums = [] {
   using namespace boost::ut::operators;
   using enum ForeignEnumEx;
   "enum_message"_test = [] {
-    expect_roundtrip_ok("\x10\x01"sv, open_enum_message<hpp::proto::default_traits>{.foreign_enum_field = FOO});
+    expect_roundtrip_ok("\x10\x01"sv, open_enum_message<hpp_proto::default_traits>{.foreign_enum_field = FOO});
   };
 
   "invalid_enum_message"_test = [] {
-    open_enum_message<hpp::proto::default_traits> value = {};
+    open_enum_message<hpp_proto::default_traits> value = {};
     expect_read_fail("\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80"sv, value);
     // invalid tag type
     expect_read_fail("\x11\x01"sv, value);
@@ -594,7 +594,7 @@ const ut::suite test_enums = [] {
           "\x08\x01\x08\x02\x0a\x01\x03"sv,
           open_enum_message<Traits>{.expanded_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ}});
     };
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 
   "repeated_closed_enum"_test =
       []<class Traits> {
@@ -605,14 +605,14 @@ const ut::suite test_enums = [] {
         msg.packed_repeated_field = repeated_fields;
         msg.optional_indirect_field.emplace().i = 1;
         std::vector<std::byte> buffer;
-        ut::expect(hpp::proto::write_binpb(msg, buffer).ok());
+        ut::expect(hpp_proto::write_binpb(msg, buffer).ok());
 
         using ClosedMessage = closed_enum_message<Traits>;
 
         std::pmr::monotonic_buffer_resource mr;
 
         ClosedMessage closed_msg;
-        ut::expect(hpp::proto::read_binpb(closed_msg, buffer, hpp::proto::alloc_from{mr}).ok());
+        ut::expect(hpp_proto::read_binpb(closed_msg, buffer, hpp_proto::alloc_from{mr}).ok());
         ut::expect(!closed_msg.foreign_enum_field.has_value());
         auto expected_repeated =
             std::initializer_list<ForeignEnum>{ForeignEnum::FOO, ForeignEnum::BAR, ForeignEnum::BAZ};
@@ -621,10 +621,10 @@ const ut::suite test_enums = [] {
 
         if constexpr (!std::is_empty_v<typename Traits::unknown_fields_range_t>) {
           ut::expect(ut::eq(closed_msg.unknown_fields_.fields, "\x08\x04\x10\x04\x18\04\x22\x02\x08\x01"_bytes));
-          ut::expect(hpp::proto::write_binpb(closed_msg, buffer).ok());
+          ut::expect(hpp_proto::write_binpb(closed_msg, buffer).ok());
 
-          open_enum_message<hpp::proto::default_traits> restored_msg;
-          ut::expect(hpp::proto::read_binpb(restored_msg, buffer).ok());
+          open_enum_message<hpp_proto::default_traits> restored_msg;
+          ut::expect(hpp_proto::read_binpb(restored_msg, buffer).ok());
 
           ut::expect(restored_msg.foreign_enum_field == EXTRA);
           ut::expect(std::ranges::equal(restored_msg.expanded_repeated_field,
@@ -634,12 +634,12 @@ const ut::suite test_enums = [] {
           ut::expect(restored_msg.optional_indirect_field.has_value() && restored_msg.optional_indirect_field->i == 1);
         }
       } |
-      std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits,
-                 hpp::proto::keep_unknown_fields<hpp::proto::default_traits>,
-                 hpp::proto::keep_unknown_fields<hpp::proto::non_owning_traits>>{};
+      std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits,
+                 hpp_proto::keep_unknown_fields<hpp_proto::default_traits>,
+                 hpp_proto::keep_unknown_fields<hpp_proto::non_owning_traits>>{};
 };
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct repeated_message_examples {
   std::vector<example> examples;
   bool operator==(const repeated_message_examples &) const = default;
@@ -647,7 +647,7 @@ struct repeated_message_examples {
 
 template <typename Traits>
 auto pb_meta(const repeated_message_examples<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_message_examples<Traits>::examples, field_option::none>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_message_examples<Traits>::examples, field_option::none>>;
 
 const ut::suite test_repeated_example = [] {
   using namespace boost::ut::operators;
@@ -658,10 +658,10 @@ const ut::suite test_repeated_example = [] {
   "repeated_message_examples_case"_test = [&]<class Traits> {
     repeated_message_examples<Traits> const expected{.examples = {{1}, {2}, {3}, {4}, {-1}, {-2}, {-3}, {-4}}};
     expect_roundtrip_ok(encoded, expected);
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 
   "invalid_repeated_example"_test = [] {
-    repeated_message_examples<hpp::proto::default_traits> value;
+    repeated_message_examples<hpp_proto::default_traits> value;
     expect_read_fail("\x0a\x02\x08\x01\x0a\x02\x08\xa2"sv, value);
     // invalid message tag type
     expect_read_fail("\x0a\x02\x09\x01"sv, value);
@@ -675,7 +675,7 @@ struct nested_group {
   bool operator==(const nested_group &) const = default;
 };
 
-auto pb_meta(const nested_group &) -> std::tuple<hpp::proto::field_meta<1, &nested_group::nested, field_option::group>>;
+auto pb_meta(const nested_group &) -> std::tuple<hpp_proto::field_meta<1, &nested_group::nested, field_option::group>>;
 
 const ut::suite test_nested_group = [] {
   "nested_group_case"_test = [] { expect_roundtrip_ok("\x0b\x08\x01\x0c"sv, nested_group{.nested = {.i = 1}}); };
@@ -692,7 +692,7 @@ struct repeated_group {
 };
 
 auto pb_meta(const repeated_group &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_group::repeatedgroup, field_option::group>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_group::repeatedgroup, field_option::group>>;
 
 const ut::suite test_repeated_group = [] {
   auto encoded = "\x0b\x08\x01\x0c\x0b\x08\x02\x0c"sv;
@@ -728,17 +728,17 @@ struct map_example {
 };
 
 auto pb_meta(const map_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &map_example::dict, field_option::none,
-                                         hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
+    -> std::tuple<hpp_proto::field_meta<1, &map_example::dict, field_option::none,
+                                        hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
 
 struct flat_map_example {
-  hpp::proto::flat_map<int32_t, color_t> dict;
+  hpp_proto::flat_map<int32_t, color_t> dict;
   bool operator==(const flat_map_example &) const = default;
 };
 
 auto pb_meta(const flat_map_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &flat_map_example::dict, field_option::none,
-                                         hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
+    -> std::tuple<hpp_proto::field_meta<1, &flat_map_example::dict, field_option::none,
+                                        hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
 
 struct sequential_map_example {
   std::vector<std::pair<int32_t, color_t>> dict;
@@ -746,28 +746,28 @@ struct sequential_map_example {
 };
 
 auto pb_meta(const sequential_map_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &sequential_map_example::dict, field_option::none,
-                                         hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
+    -> std::tuple<hpp_proto::field_meta<1, &sequential_map_example::dict, field_option::none,
+                                        hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
 
 struct non_owning_map_example {
-  hpp::proto::equality_comparable_span<const std::pair<int32_t, color_t>> dict;
+  hpp_proto::equality_comparable_span<const std::pair<int32_t, color_t>> dict;
   bool operator==(const non_owning_map_example &) const = default;
 };
 
 auto pb_meta(const non_owning_map_example &)
-    -> std::tuple<hpp::proto::field_meta<1, &non_owning_map_example::dict, field_option::none,
-                                         hpp::proto::map_entry<hpp::proto::vint64_t, color_t>>>;
+    -> std::tuple<hpp_proto::field_meta<1, &non_owning_map_example::dict, field_option::none,
+                                        hpp_proto::map_entry<hpp_proto::vint64_t, color_t>>>;
 
 struct string_key_map_example {
-  hpp::proto::flat_map<std::string, color_t> dict;
+  hpp_proto::flat_map<std::string, color_t> dict;
   bool operator==(const string_key_map_example &) const = default;
 };
 
 auto pb_meta(const string_key_map_example &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &string_key_map_example::dict, field_option::none,
-                               hpp::proto::map_entry<std::string, color_t, hpp::proto::field_option::utf8_validation,
-                                                     hpp::proto::field_option::none>>>;
+        hpp_proto::field_meta<1, &string_key_map_example::dict, field_option::none,
+                              hpp_proto::map_entry<std::string, color_t, hpp_proto::field_option::utf8_validation,
+                                                   hpp_proto::field_option::none>>>;
 
 struct unordered_map_example {
   std::unordered_map<std::string, color_t> dict;
@@ -776,20 +776,20 @@ struct unordered_map_example {
 
 auto pb_meta(const unordered_map_example &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &unordered_map_example::dict, field_option::none,
-                               hpp::proto::map_entry<std::string, color_t, hpp::proto::field_option::utf8_validation,
-                                                     hpp::proto::field_option::none>>>;
+        hpp_proto::field_meta<1, &unordered_map_example::dict, field_option::none,
+                              hpp_proto::map_entry<std::string, color_t, hpp_proto::field_option::utf8_validation,
+                                                   hpp_proto::field_option::none>>>;
 
 struct indirect_map_example {
-  hpp::proto::flat_map<std::string, hpp::proto::indirect<example>> fields;
+  hpp_proto::flat_map<std::string, hpp_proto::indirect<example>> fields;
   bool operator==(const indirect_map_example &) const = default;
 };
 
 auto pb_meta(const indirect_map_example &)
-    -> std::tuple<hpp::proto::field_meta<
+    -> std::tuple<hpp_proto::field_meta<
         1, &indirect_map_example::fields, field_option::none,
-        hpp::proto::map_entry<std::string, hpp::proto::indirect<example>, hpp::proto::field_option::utf8_validation,
-                              hpp::proto::field_option::none>>>;
+        hpp_proto::map_entry<std::string, hpp_proto::indirect<example>, hpp_proto::field_option::utf8_validation,
+                             hpp_proto::field_option::none>>>;
 
 const ut::suite test_map_example = [] {
   auto encoded = "\x0a\x04\x08\x01\x10\x00\x0a\x04\x08\x02\x10\x01\x0a\x04\x08\x03\x10\x02"sv;
@@ -820,22 +820,22 @@ const ut::suite test_map_example = [] {
         "\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00"sv,
         expected);
     string_key_map_example value{.dict = {{"\xc0\xdf", color_t::red}}};
-    ut::expect(!hpp::proto::write_binpb(value).has_value());
+    ut::expect(!hpp_proto::write_binpb(value).has_value());
   };
 
   "unordered_key_map_example"_test = [&] {
     unordered_map_example const msg{
         .dict = {{"red", color_t::red}, {"blue", color_t::blue}, {"green", color_t::green}}};
     std::vector<std::byte> buffer;
-    ut::expect(hpp::proto::write_binpb(msg, buffer).ok());
+    ut::expect(hpp_proto::write_binpb(msg, buffer).ok());
 
     unordered_map_example value;
-    ut::expect(hpp::proto::read_binpb(value, buffer).ok());
+    ut::expect(hpp_proto::read_binpb(value, buffer).ok());
     ut::expect(value == msg);
 
     // double check if the encoded value is correct
     string_key_map_example another;
-    ut::expect(hpp::proto::read_binpb(another, buffer).ok());
+    ut::expect(hpp_proto::read_binpb(another, buffer).ok());
     value = unordered_map_example{.dict{another.dict.begin(), another.dict.end()}};
     ut::expect(value == msg);
   };
@@ -874,18 +874,18 @@ const ut::suite test_map_example = [] {
   };
 };
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct string_example {
   typename Traits::string_t field;
-  hpp::proto::optional<typename Traits::string_t, hpp::proto::string_literal<"test">{}> optional_field;
+  hpp_proto::optional<typename Traits::string_t, hpp_proto::string_literal<"test">{}> optional_field;
   bool operator==(const string_example &) const = default;
 };
 
 template <typename Traits>
 auto pb_meta(const string_example<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &string_example<Traits>::field, field_option::utf8_validation>,
-                  hpp::proto::field_meta<2, &string_example<Traits>::optional_field,
-                                         field_option::explicit_presence | field_option::utf8_validation>>;
+    -> std::tuple<hpp_proto::field_meta<1, &string_example<Traits>::field, field_option::utf8_validation>,
+                  hpp_proto::field_meta<2, &string_example<Traits>::optional_field,
+                                        field_option::explicit_presence | field_option::utf8_validation>>;
 
 struct string_required {
   std::string value;
@@ -893,7 +893,7 @@ struct string_required {
 };
 
 auto pb_meta(const string_required &)
-    -> std::tuple<hpp::proto::field_meta<1, &string_required::value, field_option::explicit_presence>>;
+    -> std::tuple<hpp_proto::field_meta<1, &string_required::value, field_option::explicit_presence>>;
 
 const ut::suite test_string_example = [] {
   using namespace boost::ut::operators;
@@ -916,21 +916,21 @@ const ut::suite test_string_example = [] {
 
     "padded_input"_test = [] {
       const auto *input = "\x0a\x04\x74\x65\x73\x74";
-      string_example<hpp::proto::non_owning_traits> msg;
-      ut::expect(read_binpb(msg, std::string_view{input}, hpp::proto::padded_input).ok());
+      string_example<hpp_proto::non_owning_traits> msg;
+      ut::expect(read_binpb(msg, std::string_view{input}, hpp_proto::padded_input).ok());
       ut::expect(msg.field.data() == std::next(input, 2));
       ut::expect(msg.field.size() == 4);
     };
 
     "invalid_utf8"_test = [] {
       string_example<Traits> v{.field = "\xc0\xdf"};
-      ut::expect(!hpp::proto::write_binpb(v).has_value());
+      ut::expect(!hpp_proto::write_binpb(v).has_value());
     };
 
     "padded_input_invalid_utf8"_test = [] {
       const auto *input = "\x0a\x02\xc0\xdf";
-      string_example<hpp::proto::non_owning_traits> msg;
-      ut::expect(!read_binpb(msg, std::string_view{input}, hpp::proto::padded_input).ok());
+      string_example<hpp_proto::non_owning_traits> msg;
+      ut::expect(!read_binpb(msg, std::string_view{input}, hpp_proto::padded_input).ok());
     };
 
     "invalid_string"_test = [] {
@@ -940,20 +940,20 @@ const ut::suite test_string_example = [] {
       // invalid tag type
       expect_read_fail("\x11\x04\x74\x65\x73\x74"sv, v);
     };
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 };
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct bytes_example {
   typename Traits::bytes_t field;
-  hpp::proto::optional<typename Traits::bytes_t, hpp::proto::bytes_literal<"test">{}> optional_field;
+  hpp_proto::optional<typename Traits::bytes_t, hpp_proto::bytes_literal<"test">{}> optional_field;
   bool operator==(const bytes_example &) const = default;
 };
 
 template <typename Traits>
 auto pb_meta(const bytes_example<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &bytes_example<Traits>::field, field_option::none>,
-                  hpp::proto::field_meta<2, &bytes_example<Traits>::optional_field, field_option::explicit_presence>>;
+    -> std::tuple<hpp_proto::field_meta<1, &bytes_example<Traits>::field, field_option::none>,
+                  hpp_proto::field_meta<2, &bytes_example<Traits>::optional_field, field_option::explicit_presence>>;
 
 struct bytes_explicit_presence {
   std::vector<std::byte> value;
@@ -961,7 +961,7 @@ struct bytes_explicit_presence {
 };
 
 auto pb_meta(const bytes_explicit_presence &)
-    -> std::tuple<hpp::proto::field_meta<1, &bytes_explicit_presence::value, field_option::explicit_presence>>;
+    -> std::tuple<hpp_proto::field_meta<1, &bytes_explicit_presence::value, field_option::explicit_presence>>;
 
 const ut::suite test_bytes = [] {
   using namespace boost::ut::operators;
@@ -982,12 +982,12 @@ const ut::suite test_bytes = [] {
 
     bytes_example<Traits> const v;
     ut::expect(std::ranges::equal(v.optional_field.value(), verified_value));
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 
   "padded_input"_test = [] {
     auto input = "\x0a\x04\x74\x65\x73\x74"_bytes;
-    bytes_example<hpp::proto::non_owning_traits> msg;
-    ut::expect(read_binpb(msg, input, hpp::proto::padded_input).ok());
+    bytes_example<hpp_proto::non_owning_traits> msg;
+    ut::expect(read_binpb(msg, input, hpp_proto::padded_input).ok());
     ut::expect(msg.field.data() == std::next(input.data(), 2));
     ut::expect(msg.field.size() == 4);
   };
@@ -999,7 +999,7 @@ struct repeated_int32 {
 };
 
 auto pb_meta(const repeated_int32 &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_int32::integers, field_option::is_packed, hpp::proto::vint32_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_int32::integers, field_option::is_packed, hpp_proto::vint32_t>>;
 
 template <typename T>
 void verify_chunked_input(auto &encoded, const T &value, const std::vector<int> &sizes) {
@@ -1013,7 +1013,7 @@ void verify_chunked_input(auto &encoded, const T &value, const std::vector<int> 
     len += sizes[i];
   }
   T decoded;
-  ut::expect(hpp::proto::read_binpb(decoded, segments).ok());
+  ut::expect(hpp_proto::read_binpb(decoded, segments).ok());
   ut::expect(value == decoded);
 };
 
@@ -1027,18 +1027,18 @@ const ut::suite test_chunked_byte_range = [] {
   "empty_with_chunked_input"_test = [] {
     empty value;
     std::vector<std::span<char>> segments;
-    ut::expect(hpp::proto::read_binpb(value, segments).ok());
+    ut::expect(hpp_proto::read_binpb(value, segments).ok());
   };
 
   "bytes_with_chunked_input"_test = [] {
-    bytes_example<hpp::proto::default_traits> value;
+    bytes_example<hpp_proto::default_traits> value;
     value.field.resize(128);
     for (int i = 0; i < 128; ++i) {
       value.field[i] = std::byte(i);
     }
 
     std::vector<char> encoded;
-    ut::expect(hpp::proto::write_binpb(value, encoded).ok());
+    ut::expect(hpp_proto::write_binpb(value, encoded).ok());
     ut::expect(encoded.size() == 131);
 
     verify_chunked_input(encoded, value, {48, 48, 25, 10});
@@ -1055,7 +1055,7 @@ const ut::suite test_chunked_byte_range = [] {
     // NOLINTNEXTLINE(modernize-use-ranges)
     std::iota(value.integers.begin(), value.integers.end(), -15);
     std::vector<char> encoded;
-    ut::expect(hpp::proto::write_binpb(value, encoded).ok());
+    ut::expect(hpp_proto::write_binpb(value, encoded).ok());
 
     expect_roundtrip_ok(encoded, value);
     verify_chunked_input(encoded, value, {90, 10, 70});
@@ -1080,7 +1080,7 @@ const ut::suite test_chunked_byte_range = [] {
     std::iota(value.integers.begin(), value.integers.begin() + 16, INT32_MAX - 16);
     std::iota(value.integers.begin() + 16, value.integers.end(), INT32_MIN);
     std::vector<char> encoded;
-    ut::expect(hpp::proto::write_binpb(value, encoded).ok());
+    ut::expect(hpp_proto::write_binpb(value, encoded).ok());
 
     expect_roundtrip_ok(encoded, value);
     const int len = static_cast<int>(encoded.size());
@@ -1119,7 +1119,7 @@ const ut::suite test_chunked_byte_range = [] {
     repeated_bool<> value;
     using namespace std::string_literals;
     ut::expect(
-        hpp::proto::read_binpb(
+        hpp_proto::read_binpb(
             value,
             split(
                 "\x1b\x0a\x08\x0a\x04\x62\x6c\x75\x65\x10\x01\x0a\x09\x0a\x05\x67\x72\x65\x65\x6e\x10\x02\x0a\x07\x0a\x03\x72\x65\x64\x10\x00\x1c"s,
@@ -1133,7 +1133,7 @@ const ut::suite test_chunked_byte_range = [] {
   };
 };
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct repeated_strings {
   Traits::template repeated_t<typename Traits::string_t> values;
   bool operator==(const repeated_strings &) const = default;
@@ -1141,38 +1141,38 @@ struct repeated_strings {
 
 template <typename Traits>
 auto pb_meta(const repeated_strings<Traits> &)
-    -> std::tuple<hpp::proto::field_meta<1, &repeated_strings<Traits>::values, field_option::utf8_validation>>;
+    -> std::tuple<hpp_proto::field_meta<1, &repeated_strings<Traits>::values, field_option::utf8_validation>>;
 
 using namespace std::literals;
 
 const ut::suite test_repeated_strings = [] {
   using namespace boost::ut::operators;
   "invalid_repeated_strings"_test = [] {
-    repeated_strings<hpp::proto::default_traits> value;
+    repeated_strings<hpp_proto::default_traits> value;
     expect_read_fail("\x0a\x03\x61\x62"sv, value);
     expect_read_fail("\x0a\x02\xc0\xdf"sv, value);
 
     value.values.emplace_back("\xc0\xdf");
-    ut::expect(!hpp::proto::write_binpb(value).has_value());
+    ut::expect(!hpp_proto::write_binpb(value).has_value());
   };
 
   "repeated_strings_case"_test = []<class Traits> {
     using element_type = typename Traits::string_t;
     expect_roundtrip_ok("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv,
                         repeated_strings<Traits>{.values = std::initializer_list<element_type>{"abc", "def"}});
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 };
 
 struct optional_bools {
-  hpp::proto::optional<bool> false_defaulted;
-  hpp::proto::optional<bool, true> true_defaulted;
+  hpp_proto::optional<bool> false_defaulted;
+  hpp_proto::optional<bool, true> true_defaulted;
   bool operator==(const optional_bools &) const = default;
 };
 
 auto pb_meta(const optional_bools &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &optional_bools::false_defaulted, field_option::explicit_presence>,
-        hpp::proto::field_meta<2, &optional_bools::true_defaulted, field_option::explicit_presence, bool, true>>;
+        hpp_proto::field_meta<1, &optional_bools::false_defaulted, field_option::explicit_presence>,
+        hpp_proto::field_meta<2, &optional_bools::true_defaulted, field_option::explicit_presence, bool, true>>;
 
 const ut::suite test_optional_bools = [] {
   "empty_optional_bools"_test = [] {
@@ -1195,11 +1195,11 @@ struct oneof_example {
 };
 
 auto pb_meta(const oneof_example &)
-    -> std::tuple<hpp::proto::oneof_field_meta<
-        &oneof_example::value, hpp::proto::field_meta<1, 1, field_option::explicit_presence>,
-        hpp::proto::field_meta<2, 2, field_option::explicit_presence, hpp::proto::vint64_t>,
-        hpp::proto::field_meta<3, 3, field_option::explicit_presence>,
-        hpp::proto::field_meta<4, 4, field_option::explicit_presence>>>;
+    -> std::tuple<
+        hpp_proto::oneof_field_meta<&oneof_example::value, hpp_proto::field_meta<1, 1, field_option::explicit_presence>,
+                                    hpp_proto::field_meta<2, 2, field_option::explicit_presence, hpp_proto::vint64_t>,
+                                    hpp_proto::field_meta<3, 3, field_option::explicit_presence>,
+                                    hpp_proto::field_meta<4, 4, field_option::explicit_presence>>>;
 
 const ut::suite test_oneof = [] {
   "empty_oneof_example"_test = [] { expect_roundtrip_ok(""sv, oneof_example{}); };
@@ -1221,13 +1221,13 @@ const ut::suite test_oneof = [] {
 const boost::ut::suite overflow_tests = [] {
   using namespace boost::ut;
   "serialize_huge_message_fails_safely"_test = [] {
-    bytes_example<hpp::proto::non_owning_traits> msg;
+    bytes_example<hpp_proto::non_owning_traits> msg;
     const auto max_size = static_cast<std::size_t>(std::numeric_limits<int32_t>::max());
     // Use a non-null pointer to avoid UBSan error "applying non-zero offset to null pointer"
     // The pointer is invalid but shouldn't be dereferenced if the size check fails early.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
     const auto *fake_ptr = reinterpret_cast<const std::byte *>(static_cast<uintptr_t>(16));
-    msg.field = hpp::proto::bytes_view{fake_ptr, max_size};
+    msg.field = hpp_proto::bytes_view{fake_ptr, max_size};
 
     std::vector<std::byte> buffer;
 
@@ -1243,18 +1243,17 @@ const boost::ut::suite overflow_tests = [] {
   };
 };
 
-template <typename Traits = hpp::proto::default_traits>
+template <typename Traits = hpp_proto::default_traits>
 struct extension_example {
   using hpp_proto_traits_type = Traits;
   int32_t int_value = {};
-  hpp::proto::pb_extensions<Traits> unknown_fields_;
+  hpp_proto::pb_extensions<Traits> unknown_fields_;
 
-  [[nodiscard]] hpp::proto::status get_extension(auto &ext,
-                                                 hpp::proto::concepts::is_option_type auto &&...option) const {
+  [[nodiscard]] hpp_proto::status get_extension(auto &ext, hpp_proto::concepts::is_option_type auto &&...option) const {
     return ext.get_from(*this, option...);
   }
 
-  [[nodiscard]] hpp::proto::status set_extension(auto &&ext, hpp::proto::concepts::is_option_type auto &&...option) {
+  [[nodiscard]] hpp_proto::status set_extension(auto &&ext, hpp_proto::concepts::is_option_type auto &&...option) {
     return ext.set_to(*this, option...);
   }
 
@@ -1266,78 +1265,78 @@ struct extension_example {
 template <typename Traits>
 auto pb_meta(const extension_example<Traits> &)
     -> std::tuple<
-        hpp::proto::field_meta<1, &extension_example<Traits>::int_value, field_option::none, hpp::proto::vint64_t>,
-        hpp::proto::field_meta<UINT32_MAX, &extension_example<Traits>::unknown_fields_>>;
+        hpp_proto::field_meta<1, &extension_example<Traits>::int_value, field_option::none, hpp_proto::vint64_t>,
+        hpp_proto::field_meta<UINT32_MAX, &extension_example<Traits>::unknown_fields_>>;
 
-template <typename Traits = ::hpp::proto::default_traits>
-struct i32_ext : hpp::proto::extension_base<i32_ext<Traits>, extension_example> {
+template <typename Traits = ::hpp_proto::default_traits>
+struct i32_ext : hpp_proto::extension_base<i32_ext<Traits>, extension_example> {
   using value_type = std::int32_t;
   value_type value = {};
   using pb_meta = std::tuple<
-      ::hpp::proto::field_meta<10, &i32_ext<Traits>::value, field_option::explicit_presence, hpp::proto::vint64_t>>;
+      ::hpp_proto::field_meta<10, &i32_ext<Traits>::value, field_option::explicit_presence, hpp_proto::vint64_t>>;
 };
 
-template <typename Traits = ::hpp::proto::default_traits>
-struct string_ext : ::hpp::proto::extension_base<string_ext<Traits>, extension_example> {
+template <typename Traits = ::hpp_proto::default_traits>
+struct string_ext : ::hpp_proto::extension_base<string_ext<Traits>, extension_example> {
   using value_type = typename Traits::string_t;
   value_type value = {};
-  using pb_meta = std::tuple<::hpp::proto::field_meta<
-      11, &string_ext<Traits>::value, field_option::explicit_presence | ::hpp::proto::field_option::utf8_validation>>;
+  using pb_meta =
+      std::tuple<::hpp_proto::field_meta<11, &string_ext<Traits>::value,
+                                         field_option::explicit_presence | ::hpp_proto::field_option::utf8_validation>>;
 };
 
-template <typename Traits = ::hpp::proto::default_traits>
-struct i32_defaulted_ext : ::hpp::proto::extension_base<i32_defaulted_ext<Traits>, extension_example> {
+template <typename Traits = ::hpp_proto::default_traits>
+struct i32_defaulted_ext : ::hpp_proto::extension_base<i32_defaulted_ext<Traits>, extension_example> {
   using value_type = std::int32_t;
   value_type value = 10;
-  using pb_meta = std::tuple<::hpp::proto::field_meta<13, &i32_defaulted_ext<Traits>::value,
-                                                      field_option::explicit_presence, hpp::proto::vint64_t, 10>>;
+  using pb_meta = std::tuple<::hpp_proto::field_meta<13, &i32_defaulted_ext<Traits>::value,
+                                                     field_option::explicit_presence, hpp_proto::vint64_t, 10>>;
 };
 
-template <typename Traits = ::hpp::proto::default_traits>
-struct i32unset_ext : ::hpp::proto::extension_base<i32unset_ext<Traits>, extension_example> {
+template <typename Traits = ::hpp_proto::default_traits>
+struct i32unset_ext : ::hpp_proto::extension_base<i32unset_ext<Traits>, extension_example> {
   using value_type = std::int32_t;
   value_type value = {};
-  using pb_meta = std::tuple<::hpp::proto::field_meta<14, &i32unset_ext<Traits>::value, field_option::explicit_presence,
-                                                      hpp::proto::vint64_t>>;
+  using pb_meta = std::tuple<
+      ::hpp_proto::field_meta<14, &i32unset_ext<Traits>::value, field_option::explicit_presence, hpp_proto::vint64_t>>;
 };
 
-template <typename Traits = ::hpp::proto::default_traits>
-struct example_ext : ::hpp::proto::extension_base<example_ext<Traits>, extension_example> {
+template <typename Traits = ::hpp_proto::default_traits>
+struct example_ext : ::hpp_proto::extension_base<example_ext<Traits>, extension_example> {
   using value_type = example;
   value_type value = {};
-  using pb_meta =
-      std::tuple<::hpp::proto::field_meta<15, &example_ext<Traits>::value, field_option::explicit_presence>>;
+  using pb_meta = std::tuple<::hpp_proto::field_meta<15, &example_ext<Traits>::value, field_option::explicit_presence>>;
   ;
 };
 
-template <typename Traits = ::hpp::proto::default_traits>
-struct repeated_i32_ext : ::hpp::proto::extension_base<repeated_i32_ext<Traits>, extension_example> {
+template <typename Traits = ::hpp_proto::default_traits>
+struct repeated_i32_ext : ::hpp_proto::extension_base<repeated_i32_ext<Traits>, extension_example> {
   using value_type = typename Traits::template repeated_t<std::int32_t>;
   value_type value;
   using pb_meta = std::tuple<
-      ::hpp::proto::field_meta<20, &repeated_i32_ext<Traits>::value, field_option::none, hpp::proto::vint64_t>>;
+      ::hpp_proto::field_meta<20, &repeated_i32_ext<Traits>::value, field_option::none, hpp_proto::vint64_t>>;
 };
 
-template <typename Traits = ::hpp::proto::default_traits>
-struct repeated_string_ext : ::hpp::proto::extension_base<repeated_string_ext<Traits>, extension_example> {
+template <typename Traits = ::hpp_proto::default_traits>
+struct repeated_string_ext : ::hpp_proto::extension_base<repeated_string_ext<Traits>, extension_example> {
   using value_type = typename Traits::template repeated_t<typename Traits::string_t>;
   value_type value;
-  using pb_meta = std::tuple<::hpp::proto::field_meta<21, &repeated_string_ext<Traits>::value, field_option::none>>;
+  using pb_meta = std::tuple<::hpp_proto::field_meta<21, &repeated_string_ext<Traits>::value, field_option::none>>;
 };
 
-template <typename Traits = ::hpp::proto::default_traits>
-struct repeated_packed_i32_ext : ::hpp::proto::extension_base<repeated_packed_i32_ext<Traits>, extension_example> {
+template <typename Traits = ::hpp_proto::default_traits>
+struct repeated_packed_i32_ext : ::hpp_proto::extension_base<repeated_packed_i32_ext<Traits>, extension_example> {
   using value_type = typename Traits::template repeated_t<std::int32_t>;
   value_type value;
-  using pb_meta = std::tuple<::hpp::proto::field_meta<22, &repeated_packed_i32_ext<Traits>::value,
-                                                      field_option::is_packed, hpp::proto::vint64_t>>;
+  using pb_meta = std::tuple<::hpp_proto::field_meta<22, &repeated_packed_i32_ext<Traits>::value,
+                                                     field_option::is_packed, hpp_proto::vint64_t>>;
 };
 
 const ut::suite test_extensions = [] {
   "get_extension"_test = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;
-    const extension_example<hpp::proto::default_traits> expected_value{
+    const extension_example<hpp_proto::default_traits> expected_value{
         .int_value = 150,
         .unknown_fields_ = {.fields = {{10U, "\x50\x01"_bytes},
                                        {11U, "\x5a\x04\x74\x65\x73\x74"_bytes},
@@ -1345,103 +1344,103 @@ const ut::suite test_extensions = [] {
                                        {20U, "\xa0\x01\x01\xa0\x01\x02"_bytes},
                                        {21U, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes},
                                        {22U, "\xb2\x01\x03\01\02\03"_bytes}}}};
-    extension_example<hpp::proto::default_traits> value;
-    ut::expect(hpp::proto::read_binpb(value, encoded_data).ok());
+    extension_example<hpp_proto::default_traits> value;
+    ut::expect(hpp_proto::read_binpb(value, encoded_data).ok());
     ut::expect(value == expected_value);
 
     {
-      i32_ext<hpp::proto::default_traits> ext;
+      i32_ext<hpp_proto::default_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == 1);
     }
 
     {
-      string_ext<hpp::proto::default_traits> ext;
+      string_ext<hpp_proto::default_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == "test");
     }
     {
-      example_ext<hpp::proto::default_traits> ext;
+      example_ext<hpp_proto::default_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == example{.i = 150});
     }
     {
-      repeated_i32_ext<hpp::proto::default_traits> ext;
+      repeated_i32_ext<hpp_proto::default_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == std::vector<int32_t>{1, 2});
     }
     {
-      repeated_string_ext<hpp::proto::default_traits> ext;
+      repeated_string_ext<hpp_proto::default_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == std::vector<std::string>{"abc", "def"});
     }
     {
-      repeated_packed_i32_ext<hpp::proto::default_traits> ext;
+      repeated_packed_i32_ext<hpp_proto::default_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == std::vector<int32_t>{1, 2, 3});
     }
 
     std::vector<char> new_data{};
-    ut::expect(hpp::proto::write_binpb(value, new_data).ok());
+    ut::expect(hpp_proto::write_binpb(value, new_data).ok());
     ut::expect(std::ranges::equal(encoded_data, new_data));
   };
   "set_extension"_test = [] {
-    extension_example<hpp::proto::default_traits> value;
+    extension_example<hpp_proto::default_traits> value;
 
-    ut::expect(value.set_extension(i32_ext<hpp::proto::default_traits>{.value = 1}).ok());
+    ut::expect(value.set_extension(i32_ext<hpp_proto::default_traits>{.value = 1}).ok());
     ut::expect(value.unknown_fields_.fields[10] == "\x50\x01"_bytes);
 
-    ut::expect(value.set_extension(string_ext<hpp::proto::default_traits>{.value = "test"}).ok());
+    ut::expect(value.set_extension(string_ext<hpp_proto::default_traits>{.value = "test"}).ok());
     ut::expect(value.unknown_fields_.fields[11] == "\x5a\x04\x74\x65\x73\x74"_bytes);
 
     ut::expect(value.set_extension(i32_defaulted_ext{}).ok());
     ut::expect(value.unknown_fields_.fields.contains(13));
 
-    ut::expect(value.set_extension(example_ext<hpp::proto::default_traits>{.value = example{.i = 150}}).ok());
+    ut::expect(value.set_extension(example_ext<hpp_proto::default_traits>{.value = example{.i = 150}}).ok());
     ut::expect(value.unknown_fields_.fields[15] == "\x7a\x03\x08\x96\x01"_bytes);
 
-    ut::expect(value.set_extension(repeated_i32_ext<hpp::proto::default_traits>{.value = {1, 2}}).ok());
+    ut::expect(value.set_extension(repeated_i32_ext<hpp_proto::default_traits>{.value = {1, 2}}).ok());
     ut::expect(value.unknown_fields_.fields[20] == "\xa0\x01\x01\xa0\x01\x02"_bytes);
 
-    ut::expect(value.set_extension(repeated_string_ext<hpp::proto::default_traits>{.value = {"abc", "def"}}).ok());
+    ut::expect(value.set_extension(repeated_string_ext<hpp_proto::default_traits>{.value = {"abc", "def"}}).ok());
     ut::expect(value.unknown_fields_.fields[21] == "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes);
 
-    ut::expect(value.set_extension(repeated_packed_i32_ext<hpp::proto::default_traits>{.value = {1, 2, 3}}).ok());
+    ut::expect(value.set_extension(repeated_packed_i32_ext<hpp_proto::default_traits>{.value = {1, 2, 3}}).ok());
     ut::expect(value.unknown_fields_.fields[22] == "\xb2\x01\x03\01\02\03"_bytes);
   };
 
   "invalid_extension"_test = [] {
-    extension_example<hpp::proto::default_traits> value;
+    extension_example<hpp_proto::default_traits> value;
     expect_read_fail("\x08\x96\x01\x50\x81\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01"sv, value);
   };
 
   "read_invalid_extension"_test = [] {
-    extension_example<hpp::proto::default_traits> value{
+    extension_example<hpp_proto::default_traits> value{
         .int_value = 150, .unknown_fields_ = {.fields = {{15U, "\x7a\x03\x08\x96\x81"_bytes}}}};
-    example_ext<hpp::proto::default_traits> ext;
+    example_ext<hpp_proto::default_traits> ext;
     ut::expect(ext.in(value));
     ut::expect(!ext.get_from(value).ok());
   };
 
   "write_invalid_extension"_test = [] {
-    extension_example<hpp::proto::default_traits> value;
-    ut::expect(!string_ext<hpp::proto::default_traits>{.value = "\xc0\xcd"}.set_to(value).ok());
+    extension_example<hpp_proto::default_traits> value;
+    ut::expect(!string_ext<hpp_proto::default_traits>{.value = "\xc0\xcd"}.set_to(value).ok());
   };
 };
 
 const ut::suite test_non_owning_extensions = [] {
-  using non_owning_extension_example = extension_example<hpp::proto::non_owning_traits>;
+  using non_owning_extension_example = extension_example<hpp_proto::non_owning_traits>;
   "get_non_owning_extension"_test = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;
 
-    std::array<std::pair<uint32_t, hpp::proto::equality_comparable_span<const std::byte>>, 6> fields_storage = {
+    std::array<std::pair<uint32_t, hpp_proto::equality_comparable_span<const std::byte>>, 6> fields_storage = {
         {{10U, "\x50\x01"_bytes},
          {11U, "\x5a\x04\x74\x65\x73\x74"_bytes},
          {15U, "\x7a\x03\x08\x96\x01"_bytes},
@@ -1453,72 +1452,72 @@ const ut::suite test_non_owning_extensions = [] {
     non_owning_extension_example value;
 
     std::pmr::monotonic_buffer_resource mr;
-    ut::expect(hpp::proto::read_binpb(value, encoded_data, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(hpp_proto::read_binpb(value, encoded_data, hpp_proto::alloc_from{mr}).ok());
     ut::expect(value == expected_value);
 
-    ut::expect(value.has_extension(string_ext<hpp::proto::default_traits>{}));
+    ut::expect(value.has_extension(string_ext<hpp_proto::default_traits>{}));
     ut::expect(!value.has_extension(i32_defaulted_ext{}));
     ut::expect(!value.has_extension(i32unset_ext{}));
-    ut::expect(value.has_extension(example_ext<hpp::proto::default_traits>{}));
+    ut::expect(value.has_extension(example_ext<hpp_proto::default_traits>{}));
 
     {
-      string_ext<hpp::proto::non_owning_traits> ext;
+      string_ext<hpp_proto::non_owning_traits> ext;
       ut::expect(value.has_extension(ext));
-      ut::expect(value.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      ut::expect(value.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
       ut::expect(ext.value == "test"sv);
     }
     {
-      example_ext<hpp::proto::non_owning_traits> ext;
+      example_ext<hpp_proto::non_owning_traits> ext;
       ut::expect(value.has_extension(ext));
-      ut::expect(value.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      ut::expect(value.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
       ut::expect(ext.value == example{.i = 150});
     }
     {
-      repeated_i32_ext<hpp::proto::non_owning_traits> ext;
-      ut::expect(value.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      repeated_i32_ext<hpp_proto::non_owning_traits> ext;
+      ut::expect(value.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
       ut::expect(std::ranges::equal(ext.value, std::initializer_list<uint32_t>{1, 2}));
     }
     {
-      repeated_string_ext<hpp::proto::non_owning_traits> ext;
-      ut::expect(value.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      repeated_string_ext<hpp_proto::non_owning_traits> ext;
+      ut::expect(value.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
       using namespace std::literals;
       ut::expect(std::ranges::equal(ext.value, std::initializer_list<std::string_view>{"abc"sv, "def"sv}));
     }
     {
-      repeated_packed_i32_ext<hpp::proto::non_owning_traits> ext;
-      ut::expect(value.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      repeated_packed_i32_ext<hpp_proto::non_owning_traits> ext;
+      ut::expect(value.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
       ut::expect(std::ranges::equal(ext.value, std::initializer_list<uint32_t>{1, 2, 3}));
     }
 
     std::vector<char> new_data{};
-    ut::expect(hpp::proto::write_binpb(value, new_data).ok());
+    ut::expect(hpp_proto::write_binpb(value, new_data).ok());
 
     ut::expect(std::ranges::equal(encoded_data, new_data));
   };
   "set_non_owning_extension"_test = [] {
     std::pmr::monotonic_buffer_resource mr;
     non_owning_extension_example value;
-    ut::expect(value.set_extension(i32_ext<hpp::proto::default_traits>{.value = 1}, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(value.set_extension(i32_ext<hpp_proto::default_traits>{.value = 1}, hpp_proto::alloc_from{mr}).ok());
     ut::expect(value.unknown_fields_.fields.back().first == 10);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\x50\x01"_bytes));
 
     ut::expect(
-        value.set_extension(string_ext<hpp::proto::default_traits>{.value = "test"}, hpp::proto::alloc_from{mr}).ok());
+        value.set_extension(string_ext<hpp_proto::default_traits>{.value = "test"}, hpp_proto::alloc_from{mr}).ok());
     ut::expect(value.unknown_fields_.fields.back().first == 11);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\x5a\x04\x74\x65\x73\x74"_bytes));
 
-    ut::expect(value.set_extension(i32_defaulted_ext{}, hpp::proto::alloc_from{mr}).ok());
+    ut::expect(value.set_extension(i32_defaulted_ext{}, hpp_proto::alloc_from{mr}).ok());
     ut::expect(value.unknown_fields_.fields.back().first == 13);
 
     ut::expect(value
-                   .set_extension(example_ext<hpp::proto::default_traits>{.value = example{.i = 150}},
-                                  hpp::proto::alloc_from{mr})
+                   .set_extension(example_ext<hpp_proto::default_traits>{.value = example{.i = 150}},
+                                  hpp_proto::alloc_from{mr})
                    .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 15);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\x7a\x03\x08\x96\x01"_bytes));
 
     ut::expect(
-        value.set_extension(repeated_i32_ext<hpp::proto::default_traits>{.value = {1, 2}}, hpp::proto::alloc_from{mr})
+        value.set_extension(repeated_i32_ext<hpp_proto::default_traits>{.value = {1, 2}}, hpp_proto::alloc_from{mr})
             .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 20);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\xa0\x01\x01\xa0\x01\x02"_bytes));
@@ -1526,20 +1525,20 @@ const ut::suite test_non_owning_extensions = [] {
     using namespace std::literals;
     ut::expect(value
                    .set_extension(
-                       repeated_string_ext<hpp::proto::non_owning_traits>{
+                       repeated_string_ext<hpp_proto::non_owning_traits>{
                            .value = std::initializer_list<std::string_view>{"abc"sv, "def"sv}},
-                       hpp::proto::alloc_from{mr})
+                       hpp_proto::alloc_from{mr})
                    .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 21);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
-    ut::expect(value
-                   .set_extension(
-                       repeated_packed_i32_ext<hpp::proto::non_owning_traits>{
-                           .value = std::initializer_list<int32_t>{1, 2, 3}},
-                       hpp::proto::alloc_from{mr})
-                   .ok());
+    ut::expect(
+        value
+            .set_extension(
+                repeated_packed_i32_ext<hpp_proto::non_owning_traits>{.value = std::initializer_list<int32_t>{1, 2, 3}},
+                hpp_proto::alloc_from{mr})
+            .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 22);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };
@@ -1556,9 +1555,8 @@ struct recursive_type1 {
 
 template <typename Traits>
 auto pb_meta(const recursive_type1<Traits> &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &recursive_type1<Traits>::child>,
-        hpp::proto::field_meta<2, &recursive_type1<Traits>::payload, field_option::none, hpp::proto::vint64_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &recursive_type1<Traits>::child>,
+                  hpp_proto::field_meta<2, &recursive_type1<Traits>::payload, field_option::none, hpp_proto::vint64_t>>;
 
 template <typename Traits>
 struct recursive_type2 {
@@ -1570,9 +1568,8 @@ struct recursive_type2 {
 
 template <typename Traits>
 auto pb_meta(const recursive_type2<Traits> &)
-    -> std::tuple<
-        hpp::proto::field_meta<1, &recursive_type2<Traits>::children, field_option::none>,
-        hpp::proto::field_meta<2, &recursive_type2<Traits>::payload, field_option::none, hpp::proto::vint64_t>>;
+    -> std::tuple<hpp_proto::field_meta<1, &recursive_type2<Traits>::children, field_option::none>,
+                  hpp_proto::field_meta<2, &recursive_type2<Traits>::payload, field_option::none, hpp_proto::vint64_t>>;
 
 const ut::suite recursive_types = [] {
   using namespace boost::ut;
@@ -1599,19 +1596,19 @@ const ut::suite recursive_types = [] {
       recursive_type1<Traits> value;
       expect_read_fail("\x0a\x0c\x10\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x10\x10\x01"sv, value);
     };
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::pmr_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::pmr_traits>{};
 
   "non_owning_recursive_type1"_test = [] {
-    recursive_type1<hpp::proto::non_owning_traits> child{nullptr, 2};
-    recursive_type1<hpp::proto::non_owning_traits> const value{&child, 1};
+    recursive_type1<hpp_proto::non_owning_traits> child{nullptr, 2};
+    recursive_type1<hpp_proto::non_owning_traits> const value{&child, 1};
 
     expect_roundtrip_ok("\x0a\x02\x10\x02\x10\x01"sv, value);
   };
 
   "non_owning_recursive_type2"_test = [] {
-    recursive_type2<hpp::proto::non_owning_traits> child[1];
+    recursive_type2<hpp_proto::non_owning_traits> child[1];
     child[0].payload = 2;
-    recursive_type2<hpp::proto::non_owning_traits> value;
+    recursive_type2<hpp_proto::non_owning_traits> value;
     value.children = child;
     value.payload = 1;
 
@@ -1634,7 +1631,7 @@ recursive_type1<Traits> make_recursive_chain(uint32_t depth) {
 const ut::suite recursion_limit_tests = [] {
   using namespace boost::ut;
   "serialize_respects_recursion_limit"_test = [] {
-    std::array<recursive_type1<hpp::proto::non_owning_traits>, 3> nodes{};
+    std::array<recursive_type1<hpp_proto::non_owning_traits>, 3> nodes{};
     nodes[0].payload = 3;
     nodes[1].payload = 2;
     nodes[2].payload = 1;
@@ -1643,18 +1640,18 @@ const ut::suite recursion_limit_tests = [] {
     nodes[2].child = nullptr;
     std::vector<std::byte> buffer;
 
-    auto status = hpp::proto::write_binpb(nodes[0], buffer, hpp::proto::recursion_limit<1>);
+    auto status = hpp_proto::write_binpb(nodes[0], buffer, hpp_proto::recursion_limit<1>);
     ut::expect(!status.ok());
     ut::expect(status.ec == std::errc::bad_message);
   };
 
   "deserialize_respects_recursion_limit"_test = [] {
-    auto value = make_recursive_chain<hpp::proto::default_traits>(3);
+    auto value = make_recursive_chain<hpp_proto::default_traits>(3);
     std::vector<std::byte> buffer;
-    ut::expect(hpp::proto::write_binpb(value, buffer).ok());
+    ut::expect(hpp_proto::write_binpb(value, buffer).ok());
 
-    recursive_type1<hpp::proto::default_traits> out;
-    auto status = hpp::proto::read_binpb(out, buffer, hpp::proto::recursion_limit<1>);
+    recursive_type1<hpp_proto::default_traits> out;
+    auto status = hpp_proto::read_binpb(out, buffer, hpp_proto::recursion_limit<1>);
     ut::expect(!status.ok());
     ut::expect(status.ec == std::errc::value_too_large);
   };
@@ -1668,8 +1665,8 @@ struct monster {
     float z;
 
     bool operator==(const vec3 &) const = default;
-    using pb_meta = std::tuple<hpp::proto::field_meta<1, &vec3::x>, hpp::proto::field_meta<2, &vec3::y>,
-                               hpp::proto::field_meta<3, &vec3::z>>;
+    using pb_meta = std::tuple<hpp_proto::field_meta<1, &vec3::x>, hpp_proto::field_meta<2, &vec3::y>,
+                               hpp_proto::field_meta<3, &vec3::z>>;
   };
 
   struct weapon {
@@ -1677,7 +1674,7 @@ struct monster {
     int damage = {};
 
     bool operator==(const weapon &) const = default;
-    using pb_meta = std::tuple<hpp::proto::field_meta<1, &weapon::name>, hpp::proto::field_meta<2, &weapon::damage>>;
+    using pb_meta = std::tuple<hpp_proto::field_meta<1, &weapon::name>, hpp_proto::field_meta<2, &weapon::damage>>;
   };
 
   vec3 pos = {};
@@ -1690,17 +1687,17 @@ struct monster {
   weapon equipped = {};
   std::vector<vec3> path;
   bool boss = {};
-  hpp::proto::pb_unknown_fields<hpp::proto::default_traits> unknown_fields_;
+  hpp_proto::pb_unknown_fields<hpp_proto::default_traits> unknown_fields_;
 
   bool operator==(const monster &) const = default;
   using pb_meta = std::tuple<
-      hpp::proto::field_meta<1, &monster::pos>,
-      hpp::proto::field_meta<2, &monster::mana, field_option::none, hpp::proto::vint64_t>,
-      hpp::proto::field_meta<3, &monster::hp>, hpp::proto::field_meta<4, &monster::name>,
-      hpp::proto::field_meta<5, &monster::inventory, field_option::is_packed>,
-      hpp::proto::field_meta<6, &monster::color>, hpp::proto::field_meta<7, &monster::weapons, field_option::none>,
-      hpp::proto::field_meta<8, &monster::equipped>, hpp::proto::field_meta<9, &monster::path, field_option::none>,
-      hpp::proto::field_meta<10, &monster::boss>, hpp::proto::field_meta<UINT32_MAX, &monster::unknown_fields_>>;
+      hpp_proto::field_meta<1, &monster::pos>,
+      hpp_proto::field_meta<2, &monster::mana, field_option::none, hpp_proto::vint64_t>,
+      hpp_proto::field_meta<3, &monster::hp>, hpp_proto::field_meta<4, &monster::name>,
+      hpp_proto::field_meta<5, &monster::inventory, field_option::is_packed>, hpp_proto::field_meta<6, &monster::color>,
+      hpp_proto::field_meta<7, &monster::weapons, field_option::none>, hpp_proto::field_meta<8, &monster::equipped>,
+      hpp_proto::field_meta<9, &monster::path, field_option::none>, hpp_proto::field_meta<10, &monster::boss>,
+      hpp_proto::field_meta<UINT32_MAX, &monster::unknown_fields_>>;
 };
 
 monster make_test_monster() {
@@ -1741,16 +1738,16 @@ struct monster_with_optional {
 
   bool operator==(const monster_with_optional &) const = default;
   using pb_meta =
-      std::tuple<hpp::proto::field_meta<1, &monster_with_optional::pos>,
-                 hpp::proto::field_meta<2, &monster_with_optional::mana, field_option::none, hpp::proto::vint64_t>,
-                 hpp::proto::field_meta<3, &monster_with_optional::hp>,
-                 hpp::proto::field_meta<4, &monster_with_optional::name>,
-                 hpp::proto::field_meta<5, &monster_with_optional::inventory, field_option::is_packed>,
-                 hpp::proto::field_meta<6, &monster_with_optional::color>,
-                 hpp::proto::field_meta<7, &monster_with_optional::weapons, field_option::none>,
-                 hpp::proto::field_meta<8, &monster_with_optional::equipped>,
-                 hpp::proto::field_meta<9, &monster_with_optional::path, field_option::none>,
-                 hpp::proto::field_meta<10, &monster_with_optional::boss>>;
+      std::tuple<hpp_proto::field_meta<1, &monster_with_optional::pos>,
+                 hpp_proto::field_meta<2, &monster_with_optional::mana, field_option::none, hpp_proto::vint64_t>,
+                 hpp_proto::field_meta<3, &monster_with_optional::hp>,
+                 hpp_proto::field_meta<4, &monster_with_optional::name>,
+                 hpp_proto::field_meta<5, &monster_with_optional::inventory, field_option::is_packed>,
+                 hpp_proto::field_meta<6, &monster_with_optional::color>,
+                 hpp_proto::field_meta<7, &monster_with_optional::weapons, field_option::none>,
+                 hpp_proto::field_meta<8, &monster_with_optional::equipped>,
+                 hpp_proto::field_meta<9, &monster_with_optional::path, field_option::none>,
+                 hpp_proto::field_meta<10, &monster_with_optional::boss>>;
 };
 
 struct person {
@@ -1768,20 +1765,20 @@ struct person {
     std::string number;                   // = 1
     phone_type type = phone_type::mobile; // = 2
     using pb_meta =
-        std::tuple<hpp::proto::field_meta<1, &phone_number::number>, hpp::proto::field_meta<2, &phone_number::type>>;
+        std::tuple<hpp_proto::field_meta<1, &phone_number::number>, hpp_proto::field_meta<2, &phone_number::type>>;
   };
 
   std::vector<phone_number> phones; // = 4
 
-  using pb_meta = std::tuple<hpp::proto::field_meta<1, &person::name>,
-                             hpp::proto::field_meta<2, &person::id, field_option::none, hpp::proto::vint64_t>,
-                             hpp::proto::field_meta<3, &person::email>,
-                             hpp::proto::field_meta<4, &person::phones, field_option::none>>;
+  using pb_meta = std::tuple<hpp_proto::field_meta<1, &person::name>,
+                             hpp_proto::field_meta<2, &person::id, field_option::none, hpp_proto::vint64_t>,
+                             hpp_proto::field_meta<3, &person::email>,
+                             hpp_proto::field_meta<4, &person::phones, field_option::none>>;
 };
 
 struct address_book {
   std::vector<person> people; // = 1
-  using pb_meta = std::tuple<hpp::proto::field_meta<1, &address_book::people, field_option::none>>;
+  using pb_meta = std::tuple<hpp_proto::field_meta<1, &address_book::people, field_option::none>>;
 };
 
 std::ostream &operator<<(std::ostream &os, person::phone_type type) {
@@ -1807,13 +1804,13 @@ struct person_map {
     work = 2,
   };
 
-  hpp::proto::flat_map<std::string, phone_type> phones; // = 4
+  hpp_proto::flat_map<std::string, phone_type> phones; // = 4
 
-  using pb_meta = std::tuple<hpp::proto::field_meta<1, &person_map::name>,
-                             hpp::proto::field_meta<2, &person_map::id, field_option::none, hpp::proto::vint64_t>,
-                             hpp::proto::field_meta<3, &person_map::email>,
-                             hpp::proto::field_meta<4, &person_map::phones, field_option::none,
-                                                    hpp::proto::map_entry<std::string, phone_type>>>;
+  using pb_meta = std::tuple<
+      hpp_proto::field_meta<1, &person_map::name>,
+      hpp_proto::field_meta<2, &person_map::id, field_option::none, hpp_proto::vint64_t>,
+      hpp_proto::field_meta<3, &person_map::email>,
+      hpp_proto::field_meta<4, &person_map::phones, field_option::none, hpp_proto::map_entry<std::string, phone_type>>>;
 };
 
 std::ostream &operator<<(std::ostream &os, person_map::phone_type type) {
@@ -1877,35 +1874,35 @@ const ut::suite out_sink_serialization_modes = [] {
   "write_binpb_out_sink_adaptive_mode"_test = [] {
     monster m = make_test_monster();
     test_out_sink sink(std::numeric_limits<std::size_t>::max());
-    ut::expect(hpp::proto::write_binpb(m, sink).ok());
+    ut::expect(hpp_proto::write_binpb(m, sink).ok());
     ut::expect(sink.set_message_size_calls_ == 1);
     ut::expect(sink.next_chunk_calls_ >= 1);
     monster decoded{};
-    ut::expect(hpp::proto::read_binpb(decoded, sink.written()).ok());
+    ut::expect(hpp_proto::read_binpb(decoded, sink.written()).ok());
     ut::expect(decoded == m);
   };
 
   "write_binpb_out_sink_contiguous_mode"_test = [] {
     monster m = make_test_monster();
     test_out_sink sink(std::numeric_limits<std::size_t>::max());
-    ut::expect(hpp::proto::write_binpb(m, sink, hpp::proto::contiguous_mode).ok());
+    ut::expect(hpp_proto::write_binpb(m, sink, hpp_proto::contiguous_mode).ok());
     ut::expect(sink.set_message_size_calls_ == 1);
     ut::expect(sink.next_chunk_calls_ == 1);
     ut::expect(sink.max_grant_ >= sink.message_size_);
     monster decoded{};
-    ut::expect(hpp::proto::read_binpb(decoded, sink.written()).ok());
+    ut::expect(hpp_proto::read_binpb(decoded, sink.written()).ok());
     ut::expect(decoded == m);
   };
 
   "write_binpb_out_sink_chunked_mode"_test = [] {
     monster m = make_test_monster();
     test_out_sink sink(7);
-    ut::expect(hpp::proto::write_binpb(m, sink, hpp::proto::chunked_mode).ok());
+    ut::expect(hpp_proto::write_binpb(m, sink, hpp_proto::chunked_mode).ok());
     ut::expect(sink.set_message_size_calls_ == 1);
     ut::expect(sink.next_chunk_calls_ > 1);
     ut::expect(sink.max_grant_ <= sink.chunk_limit_);
     monster decoded{};
-    ut::expect(hpp::proto::read_binpb(decoded, sink.written()).ok());
+    ut::expect(hpp_proto::read_binpb(decoded, sink.written()).ok());
     ut::expect(decoded == m);
   };
 };
@@ -1915,9 +1912,9 @@ const ut::suite composite_type = [] {
     monster const m = make_test_monster();
 
     std::vector<char> data;
-    ut::expect(hpp::proto::write_binpb(m, data).ok());
+    ut::expect(hpp_proto::write_binpb(m, data).ok());
     monster m2;
-    ut::expect(ut::fatal(hpp::proto::read_binpb(m2, data).ok()));
+    ut::expect(ut::fatal(hpp_proto::read_binpb(m2, data).ok()));
 
     ut::expect(m.pos == m2.pos);
     ut::expect(m.mana == m2.mana);
@@ -1953,10 +1950,10 @@ const ut::suite composite_type = [] {
 
     {
       std::vector<char> data;
-      ut::expect(hpp::proto::write_binpb(m, data).ok());
+      ut::expect(hpp_proto::write_binpb(m, data).ok());
 
       monster_with_optional m2;
-      ut::expect(hpp::proto::read_binpb(m2, data).ok());
+      ut::expect(hpp_proto::read_binpb(m2, data).ok());
 
       ut::expect(m.pos == m2.pos);
       ut::expect(m.mana == m2.mana);
@@ -1974,15 +1971,15 @@ const ut::suite composite_type = [] {
     m.equipped.reset();
     {
       std::vector<char> data;
-      ut::expect(hpp::proto::write_binpb(m, data).ok());
+      ut::expect(hpp_proto::write_binpb(m, data).ok());
       monster_with_optional m2;
-      ut::expect(hpp::proto::read_binpb(m2, data).ok());
+      ut::expect(hpp_proto::read_binpb(m2, data).ok());
       ut::expect(m == m2);
     }
   };
 
   "invalid_nested_message"_test = [] {
-    ut::expect(!hpp::proto::read_binpb<monster_with_optional>("\x42\x07\x0a\x04\x73\x65\x73\x74"sv).has_value());
+    ut::expect(!hpp_proto::read_binpb<monster_with_optional>("\x42\x07\x0a\x04\x73\x65\x73\x74"sv).has_value());
   };
 
   "person"_test = [] {
@@ -1991,7 +1988,7 @@ const ut::suite composite_type = [] {
     static_assert(data.size() == 45);
 
     person p;
-    ut::expect(hpp::proto::read_binpb(p, data).ok());
+    ut::expect(hpp_proto::read_binpb(p, data).ok());
 
     using namespace std::literals::string_view_literals;
 
@@ -2003,7 +2000,7 @@ const ut::suite composite_type = [] {
     ut::expect(ut::that % p.phones[0].type == person::phone_type::home);
 
     std::array<char, data.size()> new_data{};
-    ut::expect(hpp::proto::write_binpb(p, new_data).ok());
+    ut::expect(hpp_proto::write_binpb(p, new_data).ok());
 
     ut::expect(std::ranges::equal(data, new_data));
   };
@@ -2020,7 +2017,7 @@ const ut::suite composite_type = [] {
     using namespace std::literals::string_view_literals;
 
     address_book b;
-    ut::expect(hpp::proto::read_binpb(b, data).ok());
+    ut::expect(hpp_proto::read_binpb(b, data).ok());
 
     ut::expect(b.people.size() == 2U);
     ut::expect(b.people[0].name == "John Doe"sv);
@@ -2039,7 +2036,7 @@ const ut::suite composite_type = [] {
     ut::expect(b.people[1].phones[1].type == person::phone_type::work);
 
     std::array<char, data.size()> new_data{};
-    ut::expect(hpp::proto::write_binpb(b, new_data).ok());
+    ut::expect(hpp_proto::write_binpb(b, new_data).ok());
     ut::expect(std::ranges::equal(data, new_data));
   };
 
@@ -2051,7 +2048,7 @@ const ut::suite composite_type = [] {
     using namespace std::literals::string_view_literals;
 
     person_map p;
-    ut::expect(hpp::proto::read_binpb(p, data).ok());
+    ut::expect(hpp_proto::read_binpb(p, data).ok());
 
     ut::expect(p.name == "John Doe"sv);
     ut::expect(ut::that % p.id == 1234);
@@ -2061,7 +2058,7 @@ const ut::suite composite_type = [] {
     ut::expect(ut::that % p.phones["555-4321"] == person_map::phone_type::home);
 
     std::array<char, data.size()> new_data{};
-    ut::expect(hpp::proto::write_binpb(p, new_data).ok());
+    ut::expect(hpp_proto::write_binpb(p, new_data).ok());
 
     ut::expect(std::ranges::equal(data, new_data));
   };
@@ -2072,7 +2069,7 @@ const ut::suite composite_type = [] {
     using namespace std::literals::string_view_literals;
 
     address_book b;
-    ut::expect(hpp::proto::read_binpb(b, data).ok());
+    ut::expect(hpp_proto::read_binpb(b, data).ok());
 
     ut::expect(b.people.size() == 1U);
     ut::expect(b.people[0].name.empty());
@@ -2081,7 +2078,7 @@ const ut::suite composite_type = [] {
     ut::expect(b.people[0].phones.empty());
 
     std::array<char, "\x0a\x00"sv.size()> new_data{};
-    ut::expect(hpp::proto::write_binpb(b, new_data).ok());
+    ut::expect(hpp_proto::write_binpb(b, new_data).ok());
 
     ut::expect(std::ranges::equal(new_data, "\x0a\x00"sv));
   };
@@ -2090,12 +2087,12 @@ const ut::suite composite_type = [] {
     constexpr auto data = ""sv;
 
     address_book b;
-    ut::expect(hpp::proto::read_binpb(b, data).ok());
+    ut::expect(hpp_proto::read_binpb(b, data).ok());
 
     ut::expect(b.people.empty());
 
     std::vector<char> new_data{};
-    ut::expect(hpp::proto::write_binpb(b, new_data).ok());
+    ut::expect(hpp_proto::write_binpb(b, new_data).ok());
     ut::expect(new_data.empty());
   };
 
@@ -2104,7 +2101,7 @@ const ut::suite composite_type = [] {
     using namespace std::literals::string_view_literals;
 
     person p;
-    ut::expect(hpp::proto::read_binpb(p, data).ok());
+    ut::expect(hpp_proto::read_binpb(p, data).ok());
 
     ut::expect(p.name.empty());
     ut::expect(ut::that % p.id == 0);
@@ -2112,7 +2109,7 @@ const ut::suite composite_type = [] {
     ut::expect(p.phones.empty());
 
     std::vector<char> new_data{};
-    ut::expect(hpp::proto::write_binpb(p, new_data).ok());
+    ut::expect(hpp_proto::write_binpb(p, new_data).ok());
     ut::expect(new_data.empty());
   };
 };

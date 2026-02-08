@@ -13,8 +13,8 @@ hpp_proto_deserialize_regular<hpp::benchmarks::proto2::GoogleMessage1<>>        
 hpp_proto_deserialize_regular<hpp::benchmarks::proto3::GoogleMessage1<>>                                                      271 ns          268 ns      2677059 bytes_per_second=794.949Mi/s
 hpp_proto_deserialize_regular_big<hpp::benchmarks::proto2::GoogleMessage1<>>                                                  683 ns          683 ns      1030564 bytes_per_second=10.576Gi/s
 hpp_proto_deserialize_regular_big<hpp::benchmarks::proto3::GoogleMessage1<>>                                                  769 ns          768 ns       914411 bytes_per_second=9.39953Gi/s
-hpp_proto_deserialize_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>                       125 ns          125 ns      5602600 bytes_per_second=1.66116Gi/s
-hpp_proto_deserialize_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>                       152 ns          152 ns      4592121 bytes_per_second=1.36506Gi/s
+hpp_proto_deserialize_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp_proto::non_owning_traits>>                       125 ns          125 ns      5602600 bytes_per_second=1.66116Gi/s
+hpp_proto_deserialize_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp_proto::non_owning_traits>>                       152 ns          152 ns      4592121 bytes_per_second=1.36506Gi/s
 google_set_message_regular<benchmarks::proto2::GoogleMessage1>                                                                221 ns          221 ns      3168525
 google_set_message_regular<benchmarks::proto3::GoogleMessage1>                                                                221 ns          220 ns      3165645
 google_set_message_arena<benchmarks::proto2::GoogleMessage1>                                                                  187 ns          187 ns      3736562
@@ -31,15 +31,15 @@ hpp_proto_set_message_and_serialize_regular<hpp::benchmarks::proto2::GoogleMessa
 hpp_proto_set_message_and_serialize_regular<hpp::benchmarks::proto3::GoogleMessage1<>>                                        217 ns          217 ns      3230078 bytes_per_second=971.705Mi/s
 hpp_proto_serialize_only<hpp::benchmarks::proto2::GoogleMessage1<>>                                                           132 ns          132 ns      5301103 bytes_per_second=1.5696Gi/s
 hpp_proto_serialize_only<hpp::benchmarks::proto3::GoogleMessage1<>>                                                           154 ns          154 ns      4547551 bytes_per_second=1.33858Gi/s
-hpp_proto_set_message_and_serialize_nonowning< hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>        141 ns          141 ns      4954279 bytes_per_second=1.47047Gi/s
-hpp_proto_set_message_and_serialize_nonowning< hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>        162 ns          162 ns      4311646 bytes_per_second=1.26849Gi/s
-hpp_proto_set_message_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>                      15.7 ns         15.6 ns     44632894
-hpp_proto_set_message_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>                      8.33 ns         8.32 ns     83855433
+hpp_proto_set_message_and_serialize_nonowning< hpp::benchmarks::proto2::GoogleMessage1<hpp_proto::non_owning_traits>>        141 ns          141 ns      4954279 bytes_per_second=1.47047Gi/s
+hpp_proto_set_message_and_serialize_nonowning< hpp::benchmarks::proto3::GoogleMessage1<hpp_proto::non_owning_traits>>        162 ns          162 ns      4311646 bytes_per_second=1.26849Gi/s
+hpp_proto_set_message_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp_proto::non_owning_traits>>                      15.7 ns         15.6 ns     44632894
+hpp_proto_set_message_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp_proto::non_owning_traits>>                      8.33 ns         8.32 ns     83855433
 hpp_proto_deserialize_padded<hpp::benchmarks::proto2::GoogleMessage1<>>                                                       222 ns          222 ns      3154702 bytes_per_second=958.434Mi/s
 hpp_proto_deserialize_padded<hpp::benchmarks::proto3::GoogleMessage1<>>                                                       249 ns          249 ns      2813233 bytes_per_second=855.312Mi/s
-hpp_proto_deserialize_padded_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp::proto::non_owning_traits>>                101 ns          101 ns      6935156 bytes_per_second=2.05539Gi/s
-hpp_proto_deserialize_padded_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp::proto::non_owning_traits>>                150 ns          150 ns      4657941 bytes_per_second=1.38255Gi/s
+hpp_proto_deserialize_padded_nonowning<hpp::benchmarks::proto2::GoogleMessage1<hpp_proto::non_owning_traits>>                101 ns          101 ns      6935156 bytes_per_second=2.05539Gi/s
+hpp_proto_deserialize_padded_nonowning<hpp::benchmarks::proto3::GoogleMessage1<hpp_proto::non_owning_traits>>                150 ns          150 ns      4657941 bytes_per_second=1.38255Gi/s
 google_deserialize_regular<repeated_packed::TestMessage>                                                                     4799 ns         4798 ns       146139 bytes_per_second=1.55298Gi/s
 google_deserialize_arena<repeated_packed::TestMessage>                                                                       4871 ns         4870 ns       143790 bytes_per_second=1.53003Gi/s
 hpp_proto_deserialize_regular<hpp::repeated_packed::TestMessage<>>                                                           3003 ns         3003 ns       232991 bytes_per_second=2.48145Gi/s
-hpp_proto_deserialize_nonowning<hpp::repeated_packed::TestMessage<hpp::proto::non_owning_traits>>                            2874 ns         2873 ns       243575 bytes_per_second=2.59295Gi/s
+hpp_proto_deserialize_nonowning<hpp::repeated_packed::TestMessage<hpp_proto::non_owning_traits>>                            2874 ns         2873 ns       243575 bytes_per_second=2.59295Gi/s

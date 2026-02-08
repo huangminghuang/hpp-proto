@@ -13,12 +13,12 @@
 #include "hpp_proto/hpp_options.msg.hpp"
 
 template <typename Traits>
-struct glz::meta<hpp::proto::FileOptions<Traits>> {
-  using T = hpp::proto::FileOptions<Traits>;
+struct glz::meta<hpp_proto::FileOptions<Traits>> {
+  using T = hpp_proto::FileOptions<Traits>;
   static constexpr auto value = object(
     "namespacePrefix", &T::namespace_prefix);
 };
 
 template <typename Traits>
-struct hpp::proto::has_glz<hpp::proto::FileOptions<Traits>> : std::true_type {};
+struct hpp_proto::has_glz<hpp_proto::FileOptions<Traits>> : std::true_type {};
 // clang-format on

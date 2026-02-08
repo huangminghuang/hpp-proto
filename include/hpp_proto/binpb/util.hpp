@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <numeric>
 
-namespace hpp::proto::util {
+namespace hpp_proto::util {
 
 template <typename Range, typename UnaryOperation>
 constexpr uint64_t transform_accumulate(const Range &range, const UnaryOperation &unary_op) {
@@ -73,4 +73,4 @@ public:
   [[nodiscard]] constexpr bool ok() const { return allowed; }
 };
 
-} // namespace hpp::proto::util
+} // namespace hpp_proto::util

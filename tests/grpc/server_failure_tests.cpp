@@ -8,16 +8,16 @@
 #include "echo_stream.service.hpp"
 
 namespace {
-using EchoMethods = ::hpp::proto::grpc::EchoStreamService::_methods;
-using UnaryEcho = ::hpp::proto::grpc::EchoStreamService::UnaryEcho;
-using EchoRequest = ::hpp::proto::grpc::EchoRequest<>;
-using EchoResponse = ::hpp::proto::grpc::EchoResponse<>;
+using EchoMethods = hpp_proto_test::EchoStreamService::_methods;
+using UnaryEcho = hpp_proto_test::EchoStreamService::UnaryEcho;
+using EchoRequest = hpp_proto_test::EchoRequest<>;
+using EchoResponse = hpp_proto_test::EchoResponse<>;
 
-class FailingService : public ::hpp::proto::grpc::CallbackService<FailingService, EchoMethods> {
+class FailingService : public ::hpp_proto::grpc::CallbackService<FailingService, EchoMethods> {
 public:
   struct UnaryHandler {
-    using rpc_t = ::hpp::proto::grpc::ServerRPC<UnaryEcho>;
-    UnaryHandler(FailingService &, rpc_t &rpc, ::hpp::proto::grpc::RequestToken<UnaryEcho> /*token*/) {
+    using rpc_t = ::hpp_proto::grpc::ServerRPC<UnaryEcho>;
+    UnaryHandler(FailingService &, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<UnaryEcho> /*token*/) {
       EchoResponse response;
       response.message = std::string{"\xFF"};
       response.sequence = 1;
@@ -30,7 +30,7 @@ public:
 
 class FailureHarness {
 public:
-  using stub_type = ::hpp::proto::grpc::Stub<EchoMethods>;
+  using stub_type = ::hpp_proto::grpc::Stub<EchoMethods>;
 
   FailureHarness(const FailureHarness &) = delete;
   FailureHarness &operator=(const FailureHarness &) = delete;

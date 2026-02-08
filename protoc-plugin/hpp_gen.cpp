@@ -241,14 +241,14 @@ std::string_view get_common_ancestor(std::string_view s1, std::string_view s2) {
   return s1.substr(0, shared_scope_position(s1, s2));
 }
 
-std::array<char, 4> to_hex_literal(::hpp::proto::concepts::byte_type auto c) {
+std::array<char, 4> to_hex_literal(::hpp_proto::concepts::byte_type auto c) {
   static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
   const auto uc = static_cast<unsigned char>(c);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return {'\\', 'x', qmap[uc >> 4U], qmap[uc & 0x0FU]};
 }
 
-std::string to_hex_literal(::hpp::proto::concepts::contiguous_byte_range auto const &data) {
+std::string to_hex_literal(::hpp_proto::concepts::contiguous_byte_range auto const &data) {
   std::string result;
   result.resize(data.size() * 4);
   std::size_t index = 0;
@@ -260,7 +260,7 @@ std::string to_hex_literal(::hpp::proto::concepts::contiguous_byte_range auto co
 }
 } // namespace
 struct hpp_addons {
-  using traits_type = ::hpp::proto::default_traits;
+  using traits_type = ::hpp_proto::default_traits;
   using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
   using FieldOptions = google::protobuf::FieldOptions<traits_type>;
   using FeatureSet = google::protobuf::FeatureSet<traits_type>;
@@ -282,7 +282,7 @@ struct hpp_addons {
   template <typename T, typename U>
   using map_t = std::unordered_map<T, U>;
 
-  static ::hpp::proto::optional<std::string> namespace_prefix;
+  static ::hpp_proto::optional<std::string> namespace_prefix;
 
   template <typename Derived>
   struct field_descriptor {
@@ -318,17 +318,17 @@ struct hpp_addons {
       case TYPE_INT64:
         cpp_field_type = "std::int64_t";
         qualified_cpp_field_type = "std::int64_t";
-        cpp_meta_type = "::hpp::proto::vint64_t";
+        cpp_meta_type = "::hpp_proto::vint64_t";
         break;
       case TYPE_UINT64:
         cpp_field_type = "std::uint64_t";
         qualified_cpp_field_type = "std::uint64_t";
-        cpp_meta_type = "::hpp::proto::vuint64_t";
+        cpp_meta_type = "::hpp_proto::vuint64_t";
         break;
       case TYPE_INT32:
         cpp_field_type = "std::int32_t";
         qualified_cpp_field_type = "std::int32_t";
-        cpp_meta_type = "::hpp::proto::vint64_t";
+        cpp_meta_type = "::hpp_proto::vint64_t";
         break;
       case TYPE_FIXED64:
         cpp_field_type = "std::uint64_t";
@@ -358,7 +358,7 @@ struct hpp_addons {
       case TYPE_UINT32:
         cpp_field_type = "std::uint32_t";
         qualified_cpp_field_type = cpp_field_type;
-        cpp_meta_type = "::hpp::proto::vuint32_t";
+        cpp_meta_type = "::hpp_proto::vuint32_t";
         break;
       case TYPE_SFIXED32:
         cpp_field_type = "std::int32_t";
@@ -371,12 +371,12 @@ struct hpp_addons {
       case TYPE_SINT32:
         cpp_field_type = "std::int32_t";
         qualified_cpp_field_type = cpp_field_type;
-        cpp_meta_type = "::hpp::proto::vsint32_t";
+        cpp_meta_type = "::hpp_proto::vsint32_t";
         break;
       case TYPE_SINT64:
         cpp_field_type = "std::int64_t";
         qualified_cpp_field_type = cpp_field_type;
-        cpp_meta_type = "::hpp::proto::vsint64_t";
+        cpp_meta_type = "::hpp_proto::vsint64_t";
         break;
       }
     }
@@ -403,7 +403,7 @@ struct hpp_addons {
     void set_bytes_default_value(const FieldDescriptorProto &proto) {
       if (!proto.default_value.empty()) {
         default_value_template_arg =
-            std::format("::hpp::proto::bytes_literal<\"{}\">{{}}", cpp_escape(proto.default_value));
+            std::format("::hpp_proto::bytes_literal<\"{}\">{{}}", cpp_escape(proto.default_value));
         default_value = default_value_template_arg;
       }
     }
@@ -412,7 +412,7 @@ struct hpp_addons {
       if (!proto.default_value.empty()) {
         std::string escaped = cpp_escape(proto.default_value);
         default_value = std::format("\"{}\"", escaped);
-        default_value_template_arg = std::format("::hpp::proto::string_literal<\"{}\">{{}}", escaped);
+        default_value_template_arg = std::format("::hpp_proto::string_literal<\"{}\">{{}}", escaped);
       }
     }
 
@@ -532,7 +532,7 @@ struct hpp_addons {
     explicit file_descriptor(Derived &self)
         : syntax(self.proto().syntax.empty() ? std::string{"proto2"} : self.proto().syntax),
           cpp_name(self.proto().name) {
-      ::hpp::proto::hpp_file_opts opts;
+      ::hpp_proto::hpp_file_opts opts;
       if (self.options().get_extension(opts).ok()) {
         if (opts.value.namespace_prefix.has_value()) {
           namespace_prefix = opts.value.namespace_prefix.value();
@@ -565,12 +565,12 @@ struct hpp_addons {
   };
 };
 
-hpp::proto::optional<std::string> hpp_addons::namespace_prefix;
-using hpp_gen_descriptor_pool = ::hpp::proto::descriptor_pool<hpp_addons>;
+hpp_proto::optional<std::string> hpp_addons::namespace_prefix;
+using hpp_gen_descriptor_pool = ::hpp_proto::descriptor_pool<hpp_addons>;
 using traits_type = typename hpp_gen_descriptor_pool::traits_type;
 using CodeGeneratorResponse = google::protobuf::compiler::CodeGeneratorResponse<traits_type>;
 
-const static hpp::proto::flat_map<std::string, std::string> well_known_codecs = {
+const static hpp_proto::flat_map<std::string, std::string> well_known_codecs = {
     {"google.protobuf.Duration", "duration_codec"},
     {"google.protobuf.Timestamp", "timestamp_codec"},
     {"google.protobuf.FieldMask", "field_mask_codec"}};
@@ -999,7 +999,7 @@ struct msg_code_generator : code_generator {
         return "std::optional";
       }
     } else if (descriptor.is_cpp_optional) {
-      return "::hpp::proto::optional";
+      return "::hpp_proto::optional";
     }
     return "";
   }
@@ -1018,8 +1018,8 @@ struct msg_code_generator : code_generator {
 
     auto wrapper = field_type_wrapper(descriptor);
 
-    if (wrapper == "::hpp::proto::optional" && !descriptor.default_value_template_arg.empty()) {
-      return std::format("::hpp::proto::optional<{0}, {1}>", descriptor.cpp_field_type,
+    if (wrapper == "::hpp_proto::optional" && !descriptor.default_value_template_arg.empty()) {
+      return std::format("::hpp_proto::optional<{0}, {1}>", descriptor.cpp_field_type,
                          descriptor.default_value_template_arg);
     } else if (!wrapper.empty()) {
       return std::format("{}<{}>", wrapper, descriptor.cpp_field_type);
@@ -1159,7 +1159,7 @@ struct msg_code_generator : code_generator {
     }
 
     format_to(target,
-              "{0}template <typename Traits = ::hpp::proto::default_traits>\n"
+              "{0}template <typename Traits = ::hpp_proto::default_traits>\n"
               "{0}struct {1} {{\n",
               indent(), descriptor.cpp_name);
     indent_num += 2;
@@ -1195,19 +1195,19 @@ struct msg_code_generator : code_generator {
     if (descriptor.proto().extension_range.empty()) {
       format_to(target,
                 "\n"
-                "{0}[[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;",
+                "{0}[[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;",
                 indent());
     } else {
       format_to(target,
                 "\n"
-                "{0}::hpp::proto::pb_extensions<Traits> unknown_fields_;\n\n"
-                "{0}[[nodiscard]] ::hpp::proto::status get_extension(auto &ext, "
-                "::hpp::proto::concepts::is_option_type auto && "
+                "{0}::hpp_proto::pb_extensions<Traits> unknown_fields_;\n\n"
+                "{0}[[nodiscard]] ::hpp_proto::status get_extension(auto &ext, "
+                "::hpp_proto::concepts::is_option_type auto && "
                 "...option) const {{\n"
                 "{0}  return ext.get_from(*this, std::forward<decltype(option)>(option)...);\n"
                 "{0}}}\n"
                 "{0}[[nodiscard]] auto set_extension(const auto &ext,\n"
-                "{0}                                 ::hpp::proto::concepts::is_option_type auto &&...option) {{\n"
+                "{0}                                 ::hpp_proto::concepts::is_option_type auto &&...option) {{\n"
                 "{0}  return ext.set_to(*this, std::forward<decltype(option)>(option)...);\n"
                 "{0}}}\n"
                 "{0}[[nodiscard]] bool has_extension(const auto &ext) const {{\n"
@@ -1224,11 +1224,11 @@ struct msg_code_generator : code_generator {
     format_to(out_of_class_target,
               "template <typename Traits>\n"
               "constexpr auto message_type_url(const {0}{1}&) {{ return "
-              "::hpp::proto::string_literal<\"type.googleapis.com/{2}\">{{}}; }}\n",
+              "::hpp_proto::string_literal<\"type.googleapis.com/{2}\">{{}}; }}\n",
               qualified_name.ends_with('>') ? "" : "typename ", qualified_name, descriptor.pb_name);
     format_to(out_of_ns_target,
               "template <typename Traits>\n"
-              "struct hpp::proto::is_hpp_generated<{0}{1}> : std::true_type {{}};\n",
+              "struct hpp_proto::is_hpp_generated<{0}{1}> : std::true_type {{}};\n",
               qualified_name.ends_with('>') ? "" : "typename ", descriptor.qualified_name);
   }
 
@@ -1308,7 +1308,7 @@ struct hpp_meta_generator : code_generator {
     }
 
     if (!descriptor.proto().extension_range.empty() || !descriptor.fields().empty()) {
-      format_to(target, "{}::hpp::proto::field_meta<UINT32_MAX, &{}::unknown_fields_>", indent(), qualified_name);
+      format_to(target, "{}::hpp_proto::field_meta<UINT32_MAX, &{}::unknown_fields_>", indent(), qualified_name);
     }
     indent_num -= 2;
 
@@ -1336,19 +1336,19 @@ struct hpp_meta_generator : code_generator {
     std::vector<std::string_view> options;
     using enum google::protobuf::FieldDescriptorProto_::Label;
     if (descriptor.is_cpp_optional || descriptor.is_required()) {
-      options.emplace_back("::hpp::proto::field_option::explicit_presence");
+      options.emplace_back("::hpp_proto::field_option::explicit_presence");
     } else if (descriptor.is_packed()) {
-      options.emplace_back("::hpp::proto::field_option::is_packed");
+      options.emplace_back("::hpp_proto::field_option::is_packed");
     }
 
     if (descriptor.is_delimited()) {
-      options.emplace_back("::hpp::proto::field_option::group");
+      options.emplace_back("::hpp_proto::field_option::group");
     } else if (descriptor.requires_utf8_validation()) {
-      options.emplace_back("::hpp::proto::field_option::utf8_validation");
+      options.emplace_back("::hpp_proto::field_option::utf8_validation");
     } else if (descriptor.is_closed_enum) {
-      options.emplace_back("::hpp::proto::field_option::closed_enum");
+      options.emplace_back("::hpp_proto::field_option::closed_enum");
     } else if (options.empty()) {
-      options.emplace_back("::hpp::proto::field_option::none");
+      options.emplace_back("::hpp_proto::field_option::none");
     }
     return options;
   }
@@ -1367,13 +1367,13 @@ struct hpp_meta_generator : code_generator {
       auto *type_desc = descriptor.message_field_type_descriptor();
       if (type_desc->fields()[1].is_recursive) {
         descriptor.cpp_meta_type =
-            std::format("::hpp::proto::map_entry<{}, typename Traits::template indirect_t<{}>, {}, {}>",
+            std::format("::hpp_proto::map_entry<{}, typename Traits::template indirect_t<{}>, {}, {}>",
                         get_meta_type(type_desc->fields()[0]), get_meta_type(type_desc->fields()[1]),
                         join_to_string(meta_options(type_desc->fields()[0]), " | "),
                         join_to_string(meta_options(type_desc->fields()[1]), " | "));
       } else {
         descriptor.cpp_meta_type = std::format(
-            "::hpp::proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
+            "::hpp_proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
             get_meta_type(type_desc->fields()[1]), join_to_string(meta_options(type_desc->fields()[0]), " | "),
             join_to_string(meta_options(type_desc->fields()[1]), " | "));
       }
@@ -1381,7 +1381,7 @@ struct hpp_meta_generator : code_generator {
 
     std::string default_value;
 
-    if (options[0] == "::hpp::proto::field_option::none" || descriptor.is_closed_enum) {
+    if (options[0] == "::hpp_proto::field_option::none" || descriptor.is_closed_enum) {
       default_value = descriptor.default_value_template_arg;
     }
 
@@ -1400,7 +1400,7 @@ struct hpp_meta_generator : code_generator {
     if (descriptor.extendee_descriptor() == nullptr) {
       std::string access = (oneof_index == 0) ? "&" + cpp_name : std::to_string(oneof_index);
 
-      format_to(target, "{}::hpp::proto::field_meta<{}, {}, {}{}>,\n", indent(), proto.number, access,
+      format_to(target, "{}::hpp_proto::field_meta<{}, {}, {}{}>,\n", indent(), proto.number, access,
                 join_to_string(options, " | "), type_and_default_value);
     }
   }
@@ -1434,7 +1434,7 @@ struct hpp_meta_generator : code_generator {
       const char *default_traits = "";
       if (descriptor.parent_message() == nullptr) {
         extra_crtp_arg = "<Traits>";
-        default_traits = " = ::hpp::proto::default_traits";
+        default_traits = " = ::hpp_proto::default_traits";
       }
       format_to(target, "{0}template <typename Traits{1}>\n", indent(), default_traits);
     }
@@ -1447,10 +1447,10 @@ struct hpp_meta_generator : code_generator {
 
     format_to(target,
               "{0}struct {1}\n"
-              "{0}    : ::hpp::proto::extension_base<{1}{2}, {3}> {{\n"
+              "{0}    : ::hpp_proto::extension_base<{1}{2}, {3}> {{\n"
               "{0}  using value_type={4};\n"
               "{0}  value_type value{5};\n"
-              "{0}  using pb_meta = std::tuple<::hpp::proto::field_meta<{6}, &{1}{2}::value, {7}, {8}, {9}>>;\n"
+              "{0}  using pb_meta = std::tuple<::hpp_proto::field_meta<{6}, &{1}{2}::value, {7}, {8}, {9}>>;\n"
               "{0}}};\n\n",
               indent(), cpp_name, extra_crtp_arg, extendee_template, get_result_type, initializer, proto.number,
               join_to_string(meta_options(descriptor), " | "), descriptor.cpp_meta_type, default_value);
@@ -1467,7 +1467,7 @@ struct hpp_meta_generator : code_generator {
         types += (sep + f.cpp_field_type);
         sep = ",";
       }
-      format_to(target, "{}::hpp::proto::oneof_field_meta<\n", indent());
+      format_to(target, "{}::hpp_proto::oneof_field_meta<\n", indent());
       indent_num += 2;
       format_to(target, "{}&{}::{},\n", indent(), parent.no_namespace_qualified_name, descriptor.cpp_name);
       std::size_t i = 0;
@@ -1549,7 +1549,7 @@ struct glaze_meta_generator : code_generator {
 
       std::string parse_operation;
       if (descriptor.pb_name == "google.protobuf.StringValue") {
-        parse_operation = "    decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, value.value);\n"
+        parse_operation = "    decltype(auto) v = hpp_proto::detail::as_modifiable(ctx, value.value);\n"
                           "    parse<JSON>::template op<Opts>(v, ctx, it, end);";
       } else {
         parse_operation = std::format("    parse<JSON>::template op<{0}>(value.value, ctx, it, end);", opts);
@@ -1577,8 +1577,8 @@ struct glaze_meta_generator : code_generator {
     } else if (well_known_codecs.contains(descriptor.pb_name)) {
       format_to(target,
                 "template <typename Traits>\n"
-                "struct hpp::proto::json_codec<{0}> {{\n"
-                "  using type = ::hpp::proto::{1};\n"
+                "struct hpp_proto::json_codec<{0}> {{\n"
+                "  using type = ::hpp_proto::{1};\n"
                 "}};\n\n",
                 qualified_name, well_known_codecs.at(descriptor.pb_name));
     } else if (descriptor.pb_name == "google.protobuf.Value") {
@@ -1623,19 +1623,19 @@ struct glaze_meta_generator : code_generator {
                      "    }} else if ((*it >= '0' && *it <= '9') || *it == '-') {{\n"
                      "      parse<JSON>::op<Opts>(value.kind.template emplace<double>(), ctx, it, end);\n"
                      "    }} else if (*it == '\"') {{\n"
-                     "      decltype(auto) str = hpp::proto::detail::as_modifiable(ctx, value.kind.template emplace<google::protobuf::Value<Traits>::kind_oneof_case::string_value>());\n"
+                     "      decltype(auto) str = hpp_proto::detail::as_modifiable(ctx, value.kind.template emplace<google::protobuf::Value<Traits>::kind_oneof_case::string_value>());\n"
                      "      parse<JSON>::op<Opts>(str, ctx, it, end);\n"
                      "    }} else if (*it == 't' || *it == 'f') {{\n"
                      "      parse<JSON>::op<Opts>(value.kind.template emplace<bool>(), ctx, it, end);\n"
                      "    }} else if (*it == '{{') {{\n"
                      "      auto& fields = value.kind.template emplace<{0}::kind_oneof_case::struct_value>().fields;\n"
-                     "      decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, fields);\n"
+                     "      decltype(auto) v = hpp_proto::detail::as_modifiable(ctx, fields);\n"
                      "      util::parse_repeated<Opts>(true, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {{\n"
                      "        detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);\n"
                      "      }});\n"                       
                      "    }} else if (*it == '[') {{\n"
                      "      auto& values = value.kind.template emplace<{0}::kind_oneof_case::list_value>().values;\n"
-                     "      decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, values);\n"
+                     "      decltype(auto) v = hpp_proto::detail::as_modifiable(ctx, values);\n"
                      "      util::parse_repeated<Opts>(false, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {{\n"
                      "        detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);\n"
                      "      }});\n"                     
@@ -1654,7 +1654,7 @@ struct glaze_meta_generator : code_generator {
           "template <typename Traits>\n"
           "struct to<JSON, {0}> {{\n"
           "  template <auto Opts>"
-          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto "
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp_proto::concepts::is_json_context auto "
           "&ctx, auto &b, auto &ix) {{\n"
           "    static_assert(requires {{ ctx.get_dynamic_message_factory(); }}, \"write_json() for Any requires "
           "use_factory{{dynamic_message_factory}} argument\");\n"
@@ -1664,7 +1664,7 @@ struct glaze_meta_generator : code_generator {
           "template <typename Traits>\n"
           "struct from<JSON, {0}> {{\n"
           "  template <auto Opts>\n"
-          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp::proto::concepts::is_json_context auto "
+          "  GLZ_ALWAYS_INLINE static void op(auto &&value, ::hpp_proto::concepts::is_json_context auto "
           "&ctx, auto &it, auto &end) {{\n"
           "    static_assert(requires {{ ctx.get_dynamic_message_factory(); }}, \"read_json() for Any requires "
           "use_factory{{dynamic_message_factory}} argument\");\n"
@@ -1673,7 +1673,7 @@ struct glaze_meta_generator : code_generator {
           "}};\n"
           "}} // namespace glz\n\n"
           "template <typename Traits>\n"
-          "struct hpp::proto::optional_ref<std::optional<{0}>, std::monostate{{}}> {{\n"
+          "struct hpp_proto::optional_ref<std::optional<{0}>, std::monostate{{}}> {{\n"
           "  static constexpr auto glaze_reflect = false;\n"
           "  std::optional<{0}> &val;\n"
           "  operator bool() const {{ return val.has_value() && (!val->type_url.empty() && !val->value.empty()); }}\n"
@@ -1682,7 +1682,7 @@ struct glaze_meta_generator : code_generator {
           "  {0} &operator*() const {{ return *val; }}\n"
           "}};\n"
           "template <typename Traits>\n"
-          "struct hpp::proto::optional_ref<const std::optional<{0}>, std::monostate{{}}> {{\n"
+          "struct hpp_proto::optional_ref<const std::optional<{0}>, std::monostate{{}}> {{\n"
           "  static constexpr auto glaze_reflect = false;\n"
           "  const std::optional<{0}> &val;\n"
           "  operator bool() const {{ return val.has_value() && (!val->type_url.empty() && !val->value.empty()); }}\n"
@@ -1707,7 +1707,7 @@ struct glaze_meta_generator : code_generator {
           "struct from<JSON, google::protobuf::Struct<Traits>> {{\n"
           "  template <auto Opts>\n"
           "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
-          "    decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, value.fields);\n"
+          "    decltype(auto) v = hpp_proto::detail::as_modifiable(ctx, value.fields);\n"
           "    util::parse_repeated<Opts>(true, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {{\n"
           "      detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);\n"
           "    }});\n"
@@ -1731,7 +1731,7 @@ struct glaze_meta_generator : code_generator {
                 "struct from<JSON, google::protobuf::ListValue<Traits>> {{\n"
                 "  template <auto Opts>\n"
                 "  GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &&ctx, auto &&it, auto &&end) {{\n"
-                "    decltype(auto) v = hpp::proto::detail::as_modifiable(ctx, value.values);\n"
+                "    decltype(auto) v = hpp_proto::detail::as_modifiable(ctx, value.values);\n"
                 "    util::parse_repeated<Opts>(false, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto "
                 "&end) {{\n"
                 "      detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);\n"
@@ -1778,7 +1778,7 @@ struct glaze_meta_generator : code_generator {
 
     format_to(target,
               "template <typename Traits>\n"
-              "struct hpp::proto::has_glz<{0}> : std::true_type {{}};\n",
+              "struct hpp_proto::has_glz<{0}> : std::true_type {{}};\n",
               qualified_name);
   }
   // NOLINTEND(misc-no-recursion,readability-function-cognitive-complexity)
@@ -1805,7 +1805,7 @@ struct glaze_meta_generator : code_generator {
       if (!descriptor.default_value_template_arg.empty()) {
         name_and_default_value += ", " + descriptor.default_value_template_arg;
       }
-      format_to(target, "    \"{}\", ::hpp::proto::as_optional_ref<&T::{}>,\n", descriptor.proto().json_name,
+      format_to(target, "    \"{}\", ::hpp_proto::as_optional_ref<&T::{}>,\n", descriptor.proto().json_name,
                 name_and_default_value);
     }
   }
@@ -1814,7 +1814,7 @@ struct glaze_meta_generator : code_generator {
     auto fields = descriptor.fields();
     if (fields.size() > 1) {
       for (unsigned i = 0; i < fields.size(); ++i) {
-        format_to(target, "    \"{}\", ::hpp::proto::as_oneof_member<&T::{},{}>,\n", fields[i].proto().json_name,
+        format_to(target, "    \"{}\", ::hpp_proto::as_oneof_member<&T::{},{}>,\n", fields[i].proto().json_name,
                   descriptor.cpp_name, i + 1);
       }
     } else {
@@ -1883,14 +1883,14 @@ struct desc_hpp_generator : code_generator {
       format_to(target, "#include \"{}.desc.hpp\"\n", basename(d, directory_prefix));
     }
 
-    const auto *const ns = "hpp::proto::file_descriptors";
+    const auto *const ns = "hpp_proto::file_descriptors";
     format_to(target, "\nnamespace {} {{\n\n", ns);
 
     std::vector<std::uint8_t> buf;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     auto &proto = const_cast<google::protobuf::FileDescriptorProto<> &>(descriptor.proto());
     proto.source_code_info.reset();
-    (void)::hpp::proto::write_binpb(proto, buf);
+    (void)::hpp_proto::write_binpb(proto, buf);
 
     append_to(target, "using namespace std::literals::string_view_literals;\n");
     append_to(target, "constexpr file_descriptor_pb _desc_");
@@ -2031,7 +2031,7 @@ int main(int argc, const char **argv) {
 
   google::protobuf::compiler::CodeGeneratorRequest<traits_type> request;
 
-  if (auto ec = ::hpp::proto::read_binpb(request, request_data); !ec.ok()) {
+  if (auto ec = ::hpp_proto::read_binpb(request, request_data); !ec.ok()) {
     (void)fputs("hpp decode error", stderr);
     return 1;
   }
@@ -2111,7 +2111,7 @@ int main(int argc, const char **argv) {
   }
 
   std::vector<char> data;
-  if (auto ec = ::hpp::proto::write_binpb(response, data); !ec.ok()) {
+  if (auto ec = ::hpp_proto::write_binpb(response, data); !ec.ok()) {
     (void)fputs("hpp encode error", stderr);
     return 1;
   }

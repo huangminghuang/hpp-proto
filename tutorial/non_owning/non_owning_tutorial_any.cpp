@@ -12,8 +12,8 @@ inline void expect(bool condition, const std::source_location location = std::so
   }
 }
 
-using Person = tutorial::Person<hpp::proto::non_owning_traits>;
-using AnyDemo = tutorial::AnyDemo<hpp::proto::non_owning_traits>;
+using Person = tutorial::Person<hpp_proto::non_owning_traits>;
+using AnyDemo = tutorial::AnyDemo<hpp_proto::non_owning_traits>;
 
 int main() {
   using namespace std::string_view_literals;
@@ -34,17 +34,17 @@ int main() {
   std::pmr::monotonic_buffer_resource pool;
 
   AnyDemo message;
-  expect(hpp::proto::pack_any(message.any_value.emplace(), alex, hpp::proto::alloc_from{pool}).ok());
+  expect(hpp_proto::pack_any(message.any_value.emplace(), alex, hpp_proto::alloc_from{pool}).ok());
 
   std::pmr::vector<std::byte> buffer{&pool};
-  expect(hpp::proto::write_binpb(message, buffer).ok());
+  expect(hpp_proto::write_binpb(message, buffer).ok());
 
-  auto any_demo = hpp::proto::read_binpb<AnyDemo>(buffer, hpp::proto::alloc_from{pool});
+  auto any_demo = hpp_proto::read_binpb<AnyDemo>(buffer, hpp_proto::alloc_from{pool});
   expect(any_demo.has_value());
 
   auto unpacked_result =
       // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-      hpp::proto::unpack_any<Person>(any_demo.value().any_value.value(), hpp::proto::alloc_from{pool});
+      hpp_proto::unpack_any<Person>(any_demo.value().any_value.value(), hpp_proto::alloc_from{pool});
   expect(unpacked_result.has_value());
   expect(alex == unpacked_result.value());
 

@@ -46,7 +46,7 @@
 #include <hpp_proto/descriptor_pool.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 #include <hpp_proto/field_types.hpp>
-namespace hpp::proto {
+namespace hpp_proto {
 struct dynamic_message_factory_addons {
   using traits_type = non_owning_traits;
   using string_t = std::pmr::string;
@@ -214,7 +214,7 @@ struct dynamic_message_factory_addons {
   struct file_descriptor {
     bool wellknown_validated_ = false;
     explicit file_descriptor([[maybe_unused]] const Derived &derived) {
-      using namespace hpp::proto::file_descriptors;
+      using namespace hpp_proto::file_descriptors;
       static flat_map<std::string_view, file_descriptor_pb> wellknown_type_pbs{
           {"google/protobuf/any.proto", _desc_google_protobuf_any_proto},
           {"google/protobuf/duration.proto", _desc_google_protobuf_duration_proto},
@@ -225,7 +225,7 @@ struct dynamic_message_factory_addons {
 
       if (auto itr = wellknown_type_pbs.find(derived.proto().name); itr != wellknown_type_pbs.end()) {
         std::vector<std::byte> pb;
-        hpp::proto::status status;
+        hpp_proto::status status;
         if (derived.proto().source_code_info.has_value()) {
           auto proto_no_source_info = derived.proto();
           proto_no_source_info.source_code_info.reset();
@@ -247,4 +247,4 @@ using enum_descriptor_t = typename descriptor_pool_t::enum_descriptor_t;
 using oneof_descriptor_t = typename descriptor_pool_t::oneof_descriptor_t;
 using message_descriptor_t = typename descriptor_pool_t::message_descriptor_t;
 using file_descriptor_t = typename descriptor_pool_t::file_descriptor_t;
-} // namespace hpp::proto
+} // namespace hpp_proto

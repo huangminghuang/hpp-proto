@@ -30,7 +30,7 @@
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using enum field_kind_t;
 
 /**
@@ -184,7 +184,7 @@ public:
     }
   }
 
-  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
+  [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
@@ -269,7 +269,7 @@ public:
     }
     return {*descriptor_->enum_field_type_descriptor(), storage_->of_int32.content};
   }
-  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
+  [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   void reset() const noexcept { storage_->of_int32.selection = 0; }
 
@@ -314,4 +314,4 @@ private:
   value_storage *storage_;
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

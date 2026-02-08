@@ -156,32 +156,31 @@ void dump_field_separator(bool is_map_entry, is_context auto &ctx, auto &b, auto
 namespace concepts {
 template <typename T>
 concept string_mref =
-    (std::same_as<T, ::hpp::proto::string_field_mref> || std::same_as<T, ::hpp::proto::string_value_mref>);
+    (std::same_as<T, ::hpp_proto::string_field_mref> || std::same_as<T, ::hpp_proto::string_value_mref>);
 
 template <typename T>
-concept bytes_mref =
-    (std::same_as<T, ::hpp::proto::bytes_field_mref> || std::same_as<T, ::hpp::proto::bytes_value_mref>);
+concept bytes_mref = (std::same_as<T, ::hpp_proto::bytes_field_mref> || std::same_as<T, ::hpp_proto::bytes_value_mref>);
 
 template <typename T>
 concept repeated_mref = requires {
   requires T::is_mutable;
-  requires T::field_kind >= ::hpp::proto::field_kind_t::KIND_REPEATED_DOUBLE;
+  requires T::field_kind >= ::hpp_proto::field_kind_t::KIND_REPEATED_DOUBLE;
 };
 
 template <typename T>
 concept requires_custom_read = string_mref<T> || bytes_mref<T> || repeated_mref<T>;
 
 template <typename T>
-concept map_key_mref = std::same_as<T, ::hpp::proto::string_field_mref> ||
-                       (std::same_as<T, ::hpp::proto::scalar_field_mref<typename T::encode_type, T::field_kind>> &&
+concept map_key_mref = std::same_as<T, ::hpp_proto::string_field_mref> ||
+                       (std::same_as<T, ::hpp_proto::scalar_field_mref<typename T::encode_type, T::field_kind>> &&
                         !std::is_floating_point_v<typename T::value_type>);
 
 } // namespace concepts
 
 template <>
-struct to<JSON, hpp::proto::field_cref> {
+struct to<JSON, hpp_proto::field_cref> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(hpp::proto::field_cref value, is_context auto &ctx, auto &b, auto &ix) {
+  GLZ_ALWAYS_INLINE static void op(hpp_proto::field_cref value, is_context auto &ctx, auto &b, auto &ix) {
     if (value.has_value()) {
       value.visit([&](auto v) {
         using T = std::remove_cvref_t<decltype(v)>;
@@ -192,9 +191,9 @@ struct to<JSON, hpp::proto::field_cref> {
 };
 
 template <>
-struct from<JSON, hpp::proto::field_mref> {
+struct from<JSON, hpp_proto::field_mref> {
   template <auto Options>
-  static void op(hpp::proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void op(hpp_proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
     if (!util::parse_null<Options>(value, ctx, it, end)) {
       value.visit([&](auto v) {
         using T = std::remove_cvref_t<decltype(v)>;
@@ -206,7 +205,7 @@ struct from<JSON, hpp::proto::field_mref> {
 
 struct generic_message_json_serializer {
   template <auto Opts>
-  static void serialize_regular_field(hpp::proto::field_cref field, is_context auto &ctx, auto &b, auto &ix) {
+  static void serialize_regular_field(hpp_proto::field_cref field, is_context auto &ctx, auto &b, auto &ix) {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
     auto json_name = field.descriptor().proto().json_name;
     to<glz::JSON, std::string_view>::template op<field_opts>(json_name, ctx, b, ix);
@@ -219,11 +218,11 @@ struct generic_message_json_serializer {
   }
 
   template <auto Opts>
-  static void serialize_map_entry_field(hpp::proto::field_cref field, bool is_first_field, is_context auto &ctx,
-                                        auto &b, auto &ix) {
+  static void serialize_map_entry_field(hpp_proto::field_cref field, bool is_first_field, is_context auto &ctx, auto &b,
+                                        auto &ix) {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
     if (is_first_field) {
-      bool need_extra_quote = (field.field_kind() == hpp::proto::KIND_BOOL);
+      bool need_extra_quote = (field.field_kind() == hpp_proto::KIND_BOOL);
       if (need_extra_quote) {
         glz::dump<'"'>(b, ix);
       }
@@ -239,18 +238,18 @@ struct generic_message_json_serializer {
   }
 
   template <auto Opts>
-  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
-    bool is_wellknown_type = (value.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE);
+  static void to_json(hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+    bool is_wellknown_type = (value.descriptor().wellknown != hpp_proto::wellknown_types_t::NONE);
     bool is_map_entry = value.descriptor().is_map_entry();
     const bool dump_brace = !check_opening_handled(Opts) && !is_map_entry && !is_wellknown_type;
-    const auto should_skip_any_field = [](hpp::proto::field_cref field) -> bool {
-      using namespace ::hpp::proto;
+    const auto should_skip_any_field = [](hpp_proto::field_cref field) -> bool {
+      using namespace ::hpp_proto;
       const auto msg_field = field.to<message_field_cref>();
       if (!msg_field.has_value()) {
         return false;
       }
       const auto msg = msg_field->value();
-      if (msg.descriptor().wellknown != ::hpp::proto::wellknown_types_t::ANY) {
+      if (msg.descriptor().wellknown != ::hpp_proto::wellknown_types_t::ANY) {
         return false;
       }
       const auto type_url_field = msg.fields()[0].to<string_field_cref>();
@@ -298,7 +297,7 @@ struct generic_message_json_serializer {
   }
 
   template <auto Options>
-  static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void from_json(hpp_proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     // adapted from the snippet of
     // template <class T>
     //    requires((readable_map_t<T> || glaze_object_t<T> || reflectable<T>) && not custom_read<T>)
@@ -320,7 +319,7 @@ struct generic_message_json_serializer {
             }
             skip_value<JSON>::template op<Opts>(ctx, it_ref, end_ref);
           } else {
-            from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.field(*desc), ctx, it_ref, end_ref);
+            from<JSON, ::hpp_proto::field_mref>::template op<Opts>(value.field(*desc), ctx, it_ref, end_ref);
           }
           return bool(ctx.error);
         },
@@ -381,12 +380,12 @@ struct any_message_json_serializer {
   static void from_json_impl(auto &&build_message, auto &&any_type_url, auto &&any_value, is_context auto &ctx,
                              auto &it, auto &end);
 
-  static auto msg_builder(std::pmr::monotonic_buffer_resource &mr, const hpp::proto::message_value_cref &value) {
-    return [&](std::string_view message_name) -> std::expected<::hpp::proto::message_value_mref, const char *> {
+  static auto msg_builder(std::pmr::monotonic_buffer_resource &mr, const hpp_proto::message_value_cref &value) {
+    return [&](std::string_view message_name) -> std::expected<::hpp_proto::message_value_mref, const char *> {
       const auto &pool = value.descriptor().parent_file()->get_descriptor_pool();
       const auto *const descriptor = pool.get_message_descriptor(message_name);
       if (descriptor) {
-        return ::hpp::proto::message_value_mref{*descriptor, mr};
+        return ::hpp_proto::message_value_mref{*descriptor, mr};
       } else {
         return std::unexpected("unknown message type from google.protobuf.Any type_url field");
       }
@@ -394,14 +393,14 @@ struct any_message_json_serializer {
   }
 
   template <auto Opts>
-  static void to_json(::hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+  static void to_json(::hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Any");
     if (value.fields().size() == 2U) [[likely]] {
-      const auto type_url_field = value.fields()[0].to<::hpp::proto::string_field_cref>();
-      const auto value_field = value.fields()[1].to<::hpp::proto::bytes_field_cref>();
+      const auto type_url_field = value.fields()[0].to<::hpp_proto::string_field_cref>();
+      const auto value_field = value.fields()[1].to<::hpp_proto::bytes_field_cref>();
       if (type_url_field.has_value() && value_field.has_value()) [[likely]] {
         std::string_view any_type_url = type_url_field->value();
-        ::hpp::proto::bytes_view any_value = value_field->value();
+        ::hpp_proto::bytes_view any_value = value_field->value();
         std::pmr::monotonic_buffer_resource mr;
         to_json_impl<Opts>(msg_builder(mr, value), any_type_url, any_value, ctx, b, ix);
         return;
@@ -460,14 +459,14 @@ struct any_message_json_serializer {
   }
 
   template <auto Opts>
-  static void from_json(::hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void from_json(::hpp_proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.Any");
     std::string_view any_type_url;
-    ::hpp::proto::bytes_view any_value;
+    ::hpp_proto::bytes_view any_value;
 
-    using namespace ::hpp::proto;
+    using namespace ::hpp_proto;
     pb_context pb_ctx{alloc_from{value.memory_resource()}};
-    using ::hpp::proto::detail::as_modifiable;
+    using ::hpp_proto::detail::as_modifiable;
 
     from_json_impl<Opts>(msg_builder(value.memory_resource(), value), as_modifiable(pb_ctx, any_type_url),
                          as_modifiable(pb_ctx, any_value), ctx, it, end);
@@ -482,8 +481,8 @@ struct any_message_json_serializer {
     }
   }
 
-  static auto msg_builder(std::pmr::monotonic_buffer_resource &mr, ::hpp::proto::concepts::is_json_context auto &ctx) {
-    return [&](auto message_name) -> std::expected<::hpp::proto::message_value_mref, const char *> {
+  static auto msg_builder(std::pmr::monotonic_buffer_resource &mr, ::hpp_proto::concepts::is_json_context auto &ctx) {
+    return [&](auto message_name) -> std::expected<::hpp_proto::message_value_mref, const char *> {
       auto &msg_factory = ctx.get_dynamic_message_factory();
       auto opt_msg = msg_factory.get_message(message_name, mr);
       if (opt_msg.has_value()) {
@@ -495,15 +494,15 @@ struct any_message_json_serializer {
   }
 
   template <auto Opts>
-  static bool parse_wellknown_any_value(::hpp::proto::message_value_mref &message, is_context auto &ctx, auto &it,
+  static bool parse_wellknown_any_value(::hpp_proto::message_value_mref &message, is_context auto &ctx, auto &it,
                                         auto &end);
 
   template <auto Opts>
-  static bool parse_generic_any_value(::hpp::proto::message_value_mref &message, is_context auto &ctx, auto &it,
+  static bool parse_generic_any_value(::hpp_proto::message_value_mref &message, is_context auto &ctx, auto &it,
                                       auto &end);
 
   template <auto Opts>
-  static void to_json(const ::hpp::proto::concepts::is_any auto &any, ::hpp::proto::concepts::is_json_context auto &ctx,
+  static void to_json(const ::hpp_proto::concepts::is_any auto &any, ::hpp_proto::concepts::is_json_context auto &ctx,
                       auto &b, auto &ix) {
     if (!any.type_url.empty() && !any.value.empty()) {
       std::pmr::monotonic_buffer_resource mr;
@@ -512,9 +511,9 @@ struct any_message_json_serializer {
   }
 
   template <auto Opts>
-  static void from_json(::hpp::proto::concepts::is_any auto &any, ::hpp::proto::concepts::is_json_context auto &ctx,
+  static void from_json(::hpp_proto::concepts::is_any auto &any, ::hpp_proto::concepts::is_json_context auto &ctx,
                         auto &it, auto &end) {
-    using namespace ::hpp::proto::detail;
+    using namespace ::hpp_proto::detail;
     std::pmr::monotonic_buffer_resource mr;
     from_json_impl<Opts>(msg_builder(mr, ctx), as_modifiable(ctx, any.type_url), as_modifiable(ctx, any.value), ctx, it,
                          end);
@@ -522,7 +521,7 @@ struct any_message_json_serializer {
 };
 struct timestamp_message_json_serializer {
   template <auto Opts>
-  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+  static void to_json(hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
     if (value.fields().size() == 2U) [[likely]] {
       auto seconds_value = value.fields()[0].get<std::int64_t>();
@@ -538,7 +537,7 @@ struct timestamp_message_json_serializer {
   }
 
   template <auto Opts>
-  static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void from_json(hpp_proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.Timestamp");
     google::protobuf::Timestamp<> v;
     from<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, it, end);
@@ -553,7 +552,7 @@ struct timestamp_message_json_serializer {
 
 struct duration_message_json_serializer {
   template <auto Opts>
-  static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+  static void to_json(hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Duration");
     if (value.fields().size() == 2) [[likely]] {
       auto seconds_value = value.fields()[0].get<std::int64_t>();
@@ -569,7 +568,7 @@ struct duration_message_json_serializer {
   }
 
   template <auto Opts>
-  static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void from_json(hpp_proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.Duration");
     google::protobuf::Duration<> v;
     from<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, it, end);
@@ -583,10 +582,10 @@ struct duration_message_json_serializer {
 };
 
 struct field_mask_message_json_serializer {
-  using FieldMask = ::google::protobuf::FieldMask<::hpp::proto::non_owning_traits>;
+  using FieldMask = ::google::protobuf::FieldMask<::hpp_proto::non_owning_traits>;
 
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+  GLZ_ALWAYS_INLINE static void to_json(hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.FieldMask");
     if (value.fields().size() == 1U) [[likely]] {
       auto paths = value.fields()[0].get<std::span<const std::string_view>>();
@@ -600,7 +599,7 @@ struct field_mask_message_json_serializer {
   }
 
   template <auto Opts>
-  static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void from_json(hpp_proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.FieldMask");
     std::string_view encoded;
     from<JSON, std::string_view>::template op<Opts>(encoded, ctx, it, end);
@@ -623,7 +622,7 @@ struct field_mask_message_json_serializer {
                                 });
 
     if (value.fields().size() == 1 &&
-        value.fields()[0].set(::hpp::proto::sized_input_range{comma_separated_view, num_commas + 1}).has_value())
+        value.fields()[0].set(::hpp_proto::sized_input_range{comma_separated_view, num_commas + 1}).has_value())
         [[likely]] {
       return;
     }
@@ -634,18 +633,18 @@ struct field_mask_message_json_serializer {
 
 struct value_message_json_serializer {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void to_json(hpp::proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+  GLZ_ALWAYS_INLINE static void to_json(hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Value");
     if (value.fields().size() > 0) {
       auto oneof_index = value.fields()[0].active_oneof_index();
       if (oneof_index >= 0 && std::cmp_less(oneof_index, value.fields().size())) {
-        to<JSON, ::hpp::proto::field_cref>::template op<Opts>(value.fields()[static_cast<std::size_t>(oneof_index)],
-                                                              ctx, b, ix);
+        to<JSON, ::hpp_proto::field_cref>::template op<Opts>(value.fields()[static_cast<std::size_t>(oneof_index)], ctx,
+                                                             b, ix);
       }
     }
   }
   template <auto Options>
-  static void from_json(hpp::proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void from_json(hpp_proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     if constexpr (!check_ws_handled(Options)) {
       if (skip_ws<Options>(ctx, it, end)) {
         return;
@@ -667,42 +666,42 @@ struct value_message_json_serializer {
       if (bool(ctx.error)) [[unlikely]] {
         return;
       }
-      (void)value.fields()[null_value - 1].set(::hpp::proto::enum_number{0}); // NOLINT
+      (void)value.fields()[null_value - 1].set(::hpp_proto::enum_number{0}); // NOLINT
     } else if (*it == 'f' || *it == 't') {
-      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[bool_value - 1], ctx, it, end);
+      from<JSON, ::hpp_proto::field_mref>::template op<Opts>(value.fields()[bool_value - 1], ctx, it, end);
     } else if (*it == '"') {
-      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[string_value - 1], ctx, it, end);
+      from<JSON, ::hpp_proto::field_mref>::template op<Opts>(value.fields()[string_value - 1], ctx, it, end);
     } else if (*it == '[') {
-      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[list_value - 1], ctx, it, end);
+      from<JSON, ::hpp_proto::field_mref>::template op<Opts>(value.fields()[list_value - 1], ctx, it, end);
     } else if (*it == '{') {
-      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[struct_value - 1], ctx, it, end);
+      from<JSON, ::hpp_proto::field_mref>::template op<Opts>(value.fields()[struct_value - 1], ctx, it, end);
     } else {
-      from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[number_value - 1], ctx, it, end);
+      from<JSON, ::hpp_proto::field_mref>::template op<Opts>(value.fields()[number_value - 1], ctx, it, end);
     }
   }
 };
 
-template <typename T, hpp::proto::field_kind_t Kind>
-struct to<JSON, hpp::proto::scalar_field_cref<T, Kind>> {
+template <typename T, hpp_proto::field_kind_t Kind>
+struct to<JSON, hpp_proto::scalar_field_cref<T, Kind>> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_cref<T, Kind> &value, auto &&...args) {
+  GLZ_ALWAYS_INLINE static void op(const hpp_proto::scalar_field_cref<T, Kind> &value, auto &&...args) {
     if (value.has_value()) {
-      using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
-      constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts);
+      using value_type = hpp_proto::scalar_field_cref<T, Kind>::value_type;
+      constexpr bool need_quote = ::hpp_proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts);
       to<JSON, value_type>::template op<set_opt<Opts, quoted_num_opt_tag{}>(need_quote)>(
           value.value(), std::forward<decltype(args)>(args)...);
     }
   }
 };
 
-template <typename T, hpp::proto::field_kind_t Kind>
-struct to<JSON, hpp::proto::repeated_scalar_field_cref<T, Kind>> {
+template <typename T, hpp_proto::field_kind_t Kind>
+struct to<JSON, hpp_proto::repeated_scalar_field_cref<T, Kind>> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::repeated_scalar_field_cref<T, Kind> &value, auto &&...args) {
+  GLZ_ALWAYS_INLINE static void op(const hpp_proto::repeated_scalar_field_cref<T, Kind> &value, auto &&...args) {
     if (!value.empty()) {
       auto range = std::span{value.data(), value.size()};
-      using value_type = hpp::proto::repeated_scalar_field_cref<T, Kind>::value_type;
-      constexpr bool need_quote = ::hpp::proto::concepts::integral_64_bits<value_type>;
+      using value_type = hpp_proto::repeated_scalar_field_cref<T, Kind>::value_type;
+      constexpr bool need_quote = ::hpp_proto::concepts::integral_64_bits<value_type>;
       to<JSON, decltype(range)>::template op<set_opt<Opts, quoted_num_opt_tag{}>(need_quote)>(
           range, std::forward<decltype(args)>(args)...);
     }
@@ -710,9 +709,9 @@ struct to<JSON, hpp::proto::repeated_scalar_field_cref<T, Kind>> {
 };
 
 template <>
-struct to<JSON, hpp::proto::enum_value> {
+struct to<JSON, hpp_proto::enum_value> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value &value, is_context auto &ctx, auto &b, auto &ix) {
+  GLZ_ALWAYS_INLINE static void op(const hpp_proto::enum_value &value, is_context auto &ctx, auto &b, auto &ix) {
     if (value.descriptor().is_null_value) {
       dump<"null">(b, ix);
       return;
@@ -729,17 +728,17 @@ struct to<JSON, hpp::proto::enum_value> {
 };
 
 template <>
-struct to<JSON, hpp::proto::repeated_message_field_cref> {
+struct to<JSON, hpp_proto::repeated_message_field_cref> {
   template <auto Opts>
   static void op(auto const &value, is_context auto &ctx, auto &b, auto &ix);
 };
 
 template <>
-struct to<JSON, hpp::proto::message_value_cref> {
+struct to<JSON, hpp_proto::message_value_cref> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::message_value_cref &value, is_context auto &ctx, auto &b,
+  GLZ_ALWAYS_INLINE static void op(const hpp_proto::message_value_cref &value, is_context auto &ctx, auto &b,
                                    auto &ix) {
-    using enum hpp::proto::wellknown_types_t;
+    using enum hpp_proto::wellknown_types_t;
     switch (value.descriptor().wellknown) {
     case ANY:
       any_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
@@ -758,12 +757,12 @@ struct to<JSON, hpp::proto::message_value_cref> {
       break;
     case STRUCT:
     case LISTVALUE: {
-      auto f0 = value.fields()[0].to<::hpp::proto::repeated_message_field_cref>();
+      auto f0 = value.fields()[0].to<::hpp_proto::repeated_message_field_cref>();
       // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-      to<JSON, ::hpp::proto::repeated_message_field_cref>::template op<Opts>(*f0, ctx, b, ix);
+      to<JSON, ::hpp_proto::repeated_message_field_cref>::template op<Opts>(*f0, ctx, b, ix);
     } break;
     case WRAPPER: {
-      to<JSON, ::hpp::proto::field_cref>::template op<Opts>(value.fields()[0], ctx, b, ix);
+      to<JSON, ::hpp_proto::field_cref>::template op<Opts>(value.fields()[0], ctx, b, ix);
     } break;
     default:
       generic_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
@@ -772,15 +771,15 @@ struct to<JSON, hpp::proto::message_value_cref> {
 };
 
 template <>
-struct to<JSON, hpp::proto::message_value_mref> {
+struct to<JSON, hpp_proto::message_value_mref> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::message_value_mref &value, auto &&...args) {
-    to<JSON, hpp::proto::message_value_cref>::template op<Opts>(value.cref(), std::forward<decltype(args)>(args)...);
+  GLZ_ALWAYS_INLINE static void op(const hpp_proto::message_value_mref &value, auto &&...args) {
+    to<JSON, hpp_proto::message_value_cref>::template op<Opts>(value.cref(), std::forward<decltype(args)>(args)...);
   }
 };
 
 template <auto Opts>
-void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is_context auto &ctx, auto &b, auto &ix) {
+void to<JSON, hpp_proto::repeated_message_field_cref>::op(auto const &value, is_context auto &ctx, auto &b, auto &ix) {
   if (value.descriptor().is_map_entry()) {
     glz::dump<'{'>(b, ix);
   } else {
@@ -805,7 +804,7 @@ void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is
       }
     }
     auto pre_element_ix = ix;
-    to<JSON, hpp::proto::message_value_cref>::template op<Opts>(entry, ctx, b, ix);
+    to<JSON, hpp_proto::message_value_cref>::template op<Opts>(entry, ctx, b, ix);
     if (ix == pre_element_ix) [[unlikely]] {
       // in this case, we have an element with unknown fields only, just skip it.
       ix = pre_separator_ix;
@@ -826,14 +825,13 @@ void to<JSON, hpp::proto::repeated_message_field_cref>::op(auto const &value, is
   }
 }
 
-template <typename T, hpp::proto::field_kind_t Kind>
-struct from<JSON, hpp::proto::scalar_field_mref<T, Kind>> {
+template <typename T, hpp_proto::field_kind_t Kind>
+struct from<JSON, hpp_proto::scalar_field_mref<T, Kind>> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::scalar_field_mref<T, Kind> &value, auto &ctx, auto &it,
-                                   auto &end) {
-    using value_type = hpp::proto::scalar_field_cref<T, Kind>::value_type;
+  GLZ_ALWAYS_INLINE static void op(const hpp_proto::scalar_field_mref<T, Kind> &value, auto &ctx, auto &it, auto &end) {
+    using value_type = hpp_proto::scalar_field_cref<T, Kind>::value_type;
     value_type v = {};
-    if constexpr (::hpp::proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts)) {
+    if constexpr (::hpp_proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts)) {
       if constexpr (!check_ws_handled(Opts)) {
         if (skip_ws<Opts>(ctx, it, end)) {
           return;
@@ -856,8 +854,8 @@ struct from<JSON, T> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
     std::string_view v;
-    hpp::proto::pb_context pb_ctx{hpp::proto::alloc_from(value.memory_resource())};
-    decltype(auto) m = hpp::proto::detail::as_modifiable(pb_ctx, v);
+    hpp_proto::pb_context pb_ctx{hpp_proto::alloc_from(value.memory_resource())};
+    decltype(auto) m = hpp_proto::detail::as_modifiable(pb_ctx, v);
     from<JSON, decltype(m)>::template op<Opts>(m, ctx, it, end);
     if constexpr (not Opts.null_terminated) {
       if (ctx.error == error_code::end_reached) {
@@ -879,9 +877,9 @@ struct from<JSON, T> {
     if (static_cast<bool>(ctx.error)) [[unlikely]] {
       return;
     }
-    hpp::proto::pb_context pb_ctx{hpp::proto::alloc_from{value.memory_resource()}};
-    hpp::proto::bytes_view decoded;
-    if (::hpp::proto::base64::decode(encoded, decoded, pb_ctx)) [[likely]] {
+    hpp_proto::pb_context pb_ctx{hpp_proto::alloc_from{value.memory_resource()}};
+    hpp_proto::bytes_view decoded;
+    if (::hpp_proto::base64::decode(encoded, decoded, pb_ctx)) [[likely]] {
       value.adopt(decoded);
     } else {
       ctx.error = error_code::syntax_error;
@@ -891,10 +889,9 @@ struct from<JSON, T> {
 };
 
 template <>
-struct from<JSON, hpp::proto::enum_value_mref> {
+struct from<JSON, hpp_proto::enum_value_mref> {
   template <auto Opts>
-  GLZ_ALWAYS_INLINE static void op(const hpp::proto::enum_value_mref &value, is_context auto &ctx, auto &it,
-                                   auto &end) {
+  GLZ_ALWAYS_INLINE static void op(const hpp_proto::enum_value_mref &value, is_context auto &ctx, auto &it, auto &end) {
     if constexpr (!check_ws_handled(Opts)) {
       if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
         return;
@@ -935,12 +932,12 @@ struct from<JSON, hpp::proto::enum_value_mref> {
 };
 
 template <>
-struct from<JSON, hpp::proto::message_value_mref> {
+struct from<JSON, hpp_proto::message_value_mref> {
   template <auto Options>
-  static void parse_mapped(hpp::proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void parse_mapped(hpp_proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
     const auto *msg_descriptor = value.descriptor().message_field_type_descriptor();
     bool is_wellknown_value =
-        msg_descriptor != nullptr && msg_descriptor->wellknown == hpp::proto::wellknown_types_t::VALUE;
+        msg_descriptor != nullptr && msg_descriptor->wellknown == hpp_proto::wellknown_types_t::VALUE;
 
     if (util::parse_null<Options>(value, ctx, it, end)) {
       if (!is_wellknown_value) {
@@ -973,7 +970,7 @@ struct from<JSON, hpp::proto::message_value_mref> {
         }
       });
     } else {
-      using enum hpp::proto::wellknown_types_t;
+      using enum hpp_proto::wellknown_types_t;
       switch (value.descriptor().wellknown) {
       case ANY:
         any_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
@@ -993,7 +990,7 @@ struct from<JSON, hpp::proto::message_value_mref> {
       case STRUCT:
       case LISTVALUE:
       case WRAPPER:
-        from<JSON, ::hpp::proto::field_mref>::template op<Opts>(value.fields()[0], ctx, it, end);
+        from<JSON, ::hpp_proto::field_mref>::template op<Opts>(value.fields()[0], ctx, it, end);
         break;
       default:
         generic_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
@@ -1007,10 +1004,10 @@ struct from<JSON, T> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
     const bool is_map =
-        std::same_as<T, ::hpp::proto::repeated_message_field_mref> ? value.descriptor().is_map_entry() : false;
+        std::same_as<T, ::hpp_proto::repeated_message_field_mref> ? value.descriptor().is_map_entry() : false;
 
     util::parse_repeated<Opts>(is_map, value, ctx, it, end, [](auto &&element, auto &ctx, auto &it, auto &end) {
-      if constexpr (::hpp::proto::concepts::integral_64_bits<typename T::value_type>) {
+      if constexpr (::hpp_proto::concepts::integral_64_bits<typename T::value_type>) {
         if (skip_ws<Opts>(ctx, it, end)) {
           return;
         }
@@ -1026,12 +1023,11 @@ struct from<JSON, T> {
 };
 
 template <auto Opts>
-static std::expected<bool, const char *> message_to_json(::hpp::proto::message_value_mref message,
-                                                         const auto &any_value, is_context auto &ctx, auto &b,
-                                                         auto &ix) {
-  if (hpp::proto::read_binpb(message, any_value).ok()) {
+static std::expected<bool, const char *> message_to_json(::hpp_proto::message_value_mref message, const auto &any_value,
+                                                         is_context auto &ctx, auto &b, auto &ix) {
+  if (hpp_proto::read_binpb(message, any_value).ok()) {
     const auto pre_ix = ix;
-    to<JSON, hpp::proto::message_value_cref>::template op<Opts>(message, ctx, b, ix);
+    to<JSON, hpp_proto::message_value_cref>::template op<Opts>(message, ctx, b, ix);
     if (bool(ctx.error)) [[unlikely]] {
       return false;
     }
@@ -1042,7 +1038,7 @@ static std::expected<bool, const char *> message_to_json(::hpp::proto::message_v
 };
 
 template <auto Opts>
-bool any_message_json_serializer::parse_wellknown_any_value(::hpp::proto::message_value_mref &message,
+bool any_message_json_serializer::parse_wellknown_any_value(::hpp_proto::message_value_mref &message,
                                                             is_context auto &ctx, auto &it, auto &end) {
   bool seen_value = false;
   util::scan_object_fields<opening_handled<Opts>(), true>(
@@ -1058,7 +1054,7 @@ bool any_message_json_serializer::parse_wellknown_any_value(::hpp::proto::messag
           }
           seen_value = true;
           // parse the the json into a new dynamic_message
-          from<JSON, ::hpp::proto::message_value_mref>::template op<ws_handled<Opts>()>(message, ctx, it_ref, end_ref);
+          from<JSON, ::hpp_proto::message_value_mref>::template op<ws_handled<Opts>()>(message, ctx, it_ref, end_ref);
           return bool(ctx.error);
         } else if (key == "@type") {
           // Consume the already-parsed @type field to enforce no extra keys.
@@ -1081,7 +1077,7 @@ bool any_message_json_serializer::parse_wellknown_any_value(::hpp::proto::messag
 }
 
 template <auto Options>
-bool any_message_json_serializer::parse_generic_any_value(::hpp::proto::message_value_mref &message,
+bool any_message_json_serializer::parse_generic_any_value(::hpp_proto::message_value_mref &message,
                                                           is_context auto &ctx, auto &it, auto &end) {
   util::scan_object_fields<Options, true>(
       ctx, it, end, [](auto &, auto &) {},
@@ -1098,7 +1094,7 @@ bool any_message_json_serializer::parse_generic_any_value(::hpp::proto::message_
             }
             skip_value<JSON>::template op<Opts>(ctx, it_ref, end_ref);
           } else {
-            from<JSON, ::hpp::proto::field_mref>::template op<Opts>(message.field(*desc), ctx, it_ref, end_ref);
+            from<JSON, ::hpp_proto::field_mref>::template op<Opts>(message.field(*desc), ctx, it_ref, end_ref);
           }
         }
         return bool(ctx.error);
@@ -1121,8 +1117,8 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
 
   (void)to_message_name(any_type_url)
       .and_then(build_message)
-      .and_then([&](::hpp::proto::message_value_mref message) -> std::expected<void, const char *> {
-        if (message.descriptor().wellknown != hpp::proto::wellknown_types_t::NONE) {
+      .and_then([&](::hpp_proto::message_value_mref message) -> std::expected<void, const char *> {
+        if (message.descriptor().wellknown != hpp_proto::wellknown_types_t::NONE) {
           dump<','>(b, ix);
           if (Opts.prettify) {
             dump<'\n'>(b, ix);
@@ -1168,11 +1164,11 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
   (void)get_type_url<Opts>(any_type_url, ctx, it, end)
       .and_then([&](std::string_view type_url) { return to_message_name(type_url).and_then(build_message); })
       .and_then([&](auto message) -> std::expected<void, const char *> {
-        const bool ok = message.descriptor().wellknown != ::hpp::proto::wellknown_types_t::NONE
+        const bool ok = message.descriptor().wellknown != ::hpp_proto::wellknown_types_t::NONE
                             ? parse_wellknown_any_value<Opts>(message, ctx, it, end)
                             : parse_generic_any_value<opening_handled<Opts>()>(message, ctx, it, end);
 
-        if (ok && !hpp::proto::write_binpb(message, any_value).ok()) {
+        if (ok && !hpp_proto::write_binpb(message, any_value).ok()) {
           return std::unexpected("unable to serialize the value for google.protobuf.Any message");
         }
         return {};
@@ -1190,7 +1186,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
 
 } // namespace glz
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name, auto &&json_view,
                           concepts::contiguous_byte_range auto &buffer) {
@@ -1233,4 +1229,4 @@ status binpb_to_json(const dynamic_message_factory &factory, std::string_view me
   }
 }
 
-} // namespace hpp::proto
+} // namespace hpp_proto

@@ -33,7 +33,7 @@
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using enum field_kind_t;
 
 class string_field_cref {
@@ -78,7 +78,7 @@ public:
     }
   }
 
-  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
+  [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   template <typename U>
   [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
@@ -164,7 +164,7 @@ public:
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] std::string_view default_value() const noexcept { return cref().default_value(); }
   [[nodiscard]] std::string_view value() const noexcept { return cref().value(); }
-  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
+  [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   void set_as_default() const noexcept { adopt(default_value()); }
 
@@ -209,4 +209,4 @@ private:
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

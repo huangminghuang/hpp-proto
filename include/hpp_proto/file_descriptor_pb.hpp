@@ -7,7 +7,7 @@
 #include <string_view>
 #include <type_traits>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 /// Used to represent the protobuf encoded binary stream of google.protobuf.FileDescriptorProto
 struct file_descriptor_pb {
@@ -40,12 +40,12 @@ template <typename... Ts>
   requires(sizeof...(Ts) > 0 && (std::is_convertible_v<Ts, file_descriptor_pb> && ...))
 distinct_file_descriptor_pb_array(Ts...) -> distinct_file_descriptor_pb_array<sizeof...(Ts)>;
 
-} // namespace hpp::proto
+} // namespace hpp_proto
 
 namespace std {
 template <>
-struct hash<hpp::proto::file_descriptor_pb> {
-  size_t operator()(const hpp::proto::file_descriptor_pb &d) const noexcept {
+struct hash<hpp_proto::file_descriptor_pb> {
+  size_t operator()(const hpp_proto::file_descriptor_pb &d) const noexcept {
     return std::hash<std::string_view>{}(d.value);
   }
 };

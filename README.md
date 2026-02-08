@@ -139,36 +139,36 @@ int main() {
 
     // --- Binary Serialization ---
     std::string binary_buffer;
-    if (!hpp::proto::write_binpb(p, binary_buffer).ok()) {
-        std::cerr << "Binary serialization failed!" << std::endl;
+    if (!hpp_proto::write_binpb(p, binary_buffer).ok()) {
+        std::cerr << "Binary serialization failed!\n";
         return 1;
     }
 
     Person p_from_binary;
-    if (!hpp::proto::read_binpb(p_from_binary, binary_buffer).ok()) {
-        std::cerr << "Binary deserialization failed!" << std::endl;
+    if (!hpp_proto::read_binpb(p_from_binary, binary_buffer).ok()) {
+        std::cerr << "Binary deserialization failed!\n";
         return 1;
     }
     // read_binpb/read_json do not catch std::bad_alloc. Handle allocation failures explicitly if needed.
     assert(p == p_from_binary);
-    std::cout << "Binary round-trip successful!" << std::endl;
+    std::cout << "Binary round-trip successful!\n";
 
     // --- JSON Serialization ---
     std::string json_buffer;
     // Use json_opts{.prettify=true} for pretty-printing
-    if (!hpp::proto::write_json<hpp::proto::json_opts{.prettify=true}>(p, json_buffer).ok()) {
-        std::cerr << "JSON serialization failed!" << std::endl;
+    if (!hpp_proto::write_json<hpp_proto::json_opts{.prettify=true}>(p, json_buffer).ok()) {
+        std::cerr << "JSON serialization failed!\n";
         return 1;
     }
-    std::cout << "\nSerialized JSON:\n" << json_buffer << std::endl;
+    std::cout << "\nSerialized JSON:\n" << json_buffer << "\n";
 
     Person p_from_json;
-    if (!hpp::proto::read_json(p_from_json, json_buffer).ok()) {
-        std::cerr << "JSON deserialization failed!" << std::endl;
+    if (!hpp_proto::read_json(p_from_json, json_buffer).ok()) {
+        std::cerr << "JSON deserialization failed!\n";
         return 1;
     }
     assert(p == p_from_json);
-    std::cout << "\nJSON round-trip successful!" << std::endl;
+    std::cout << "\nJSON round-trip successful!\n";
 
     return 0;
 }
@@ -202,12 +202,12 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
   * `unknown_fields_range_t`: Define how unknown fields are stored.
 
 * **Supplied Traits**:
-  * `hpp::proto::default_traits`: The default. Uses standard STL containers (`std::string`, `std::vector`).
-  * `hpp::proto::pmr_traits`: Uses standard STL PMR containers (`std::pmr::string`, `std::pmr::vector`).
-  * `hpp::proto::stable_traits`: Uses `flat_map` for map fields regardless of key type.
-  * `hpp::proto::pmr_stable_traits`: PMR-backed containers with `flat_map` map fields.
-  * `hpp::proto::non_owning_traits`: Zero-copy views using `std::string_view` and `hpp::proto::equality_comparable_span`. Ideal for performance-critical parsing where you can guarantee the backing buffer outlives the message view.
-  * `hpp::proto::keep_unknown_fields<Base>`: A mixin to enable unknown-field retention for any base trait.
+  * `hpp_proto::default_traits`: The default. Uses standard STL containers (`std::string`, `std::vector`).
+  * `hpp_proto::pmr_traits`: Uses standard STL PMR containers (`std::pmr::string`, `std::pmr::vector`).
+  * `hpp_proto::stable_traits`: Uses `flat_map` for map fields regardless of key type.
+  * `hpp_proto::pmr_stable_traits`: PMR-backed containers with `flat_map` map fields.
+  * `hpp_proto::non_owning_traits`: Zero-copy views using `std::string_view` and `hpp_proto::equality_comparable_span`. Ideal for performance-critical parsing where you can guarantee the backing buffer outlives the message view.
+  * `hpp_proto::keep_unknown_fields<Base>`: A mixin to enable unknown-field retention for any base trait.
 
     `default_traits` uses `flat_map` for integral keys and `std::unordered_map` for string keys. `stable_traits` and `pmr_stable_traits` always use `flat_map` for maps.
 
@@ -218,7 +218,7 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
   ```cpp
   #include <boost/container/small_vector.hpp>
 
-  struct my_custom_traits : hpp::proto::default_traits {
+  struct my_custom_traits : hpp_proto::default_traits {
     // Use small_vector for all repeated fields to reduce heap allocations
     template <typename T>
     using repeated_t = boost::container::small_vector<T, 8>;
@@ -259,10 +259,10 @@ buffer[data_size] = std::byte{0}; // First padding byte MUST be 0
 
 // Pass the valid data range and the padded_input tag
 MyMessage msg;
-auto result = hpp::proto::read_binpb(
+auto result = hpp_proto::read_binpb(
     msg, 
     std::span{buffer.data(), data_size}, 
-    hpp::proto::padded_input
+    hpp_proto::padded_input
 );
 ```
 

@@ -32,18 +32,17 @@
 
 #include <hpp_proto/memory_resource_utils.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 struct base64 {
-  constexpr static std::size_t
-  max_encode_size(hpp::proto::concepts::contiguous_byte_range auto const &source) noexcept {
+  constexpr static std::size_t max_encode_size(hpp_proto::concepts::contiguous_byte_range auto const &source) noexcept {
     std::size_t n = source.size();
     return (n / 3 + (n % 3 > 0 ? 1 : 0)) * 4;
   }
 
   // @returns The number bytes written to b, -1 for error
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-not-moved)
-  constexpr static int64_t encode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &&b) noexcept {
+  constexpr static int64_t encode(hpp_proto::concepts::contiguous_byte_range auto const &source, auto &&b) noexcept {
     const auto n = source.size();
     using V = std::decay_t<decltype(b[0])>;
     constexpr char const base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -124,9 +123,9 @@ struct base64 {
     return static_cast<int64_t>(ix);
   }
 
-  constexpr static bool decode(hpp::proto::concepts::contiguous_byte_range auto const &source, auto &value, auto &ctx) {
+  constexpr static bool decode(hpp_proto::concepts::contiguous_byte_range auto const &source, auto &value, auto &ctx) {
     std::size_t n = source.size();
-    decltype(auto) mref = hpp::proto::detail::as_modifiable(ctx, value);
+    decltype(auto) mref = hpp_proto::detail::as_modifiable(ctx, value);
     if (n == 0) {
       mref.resize(0);
       return true;
@@ -231,4 +230,4 @@ struct base64 {
   }
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

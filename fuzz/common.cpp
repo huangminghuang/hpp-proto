@@ -24,7 +24,7 @@ std::vector<char> read_file(const std::filesystem::path &path) {
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,misc-use-anonymous-namespace)
-hpp::proto::dynamic_message_factory factory;
+hpp_proto::dynamic_message_factory factory;
 
 // NOLINTNEXTLINE(readability-non-const-parameter)
 extern "C" __attribute__((visibility("default"))) int LLVMFuzzerInitialize(int *pargc, char ***pargv) {

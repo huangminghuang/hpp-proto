@@ -33,7 +33,7 @@
 #include <hpp_proto/binpb/meta.hpp>
 #include <hpp_proto/binpb/util.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 namespace detail {
 template <typename Tuple1, typename Tuple2, std::size_t... I>
@@ -269,4 +269,4 @@ constexpr void merge(T &dest, U &&source, concepts::is_option_type auto &&...opt
   merger.perform(dest, std::forward<U>(source));
 }
 
-} // namespace hpp::proto
+} // namespace hpp_proto

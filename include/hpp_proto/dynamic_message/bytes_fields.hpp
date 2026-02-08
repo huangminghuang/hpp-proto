@@ -32,7 +32,7 @@
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using enum field_kind_t;
 
 class bytes_field_cref {
@@ -80,7 +80,7 @@ public:
     }
   }
 
-  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
+  [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   template <typename U>
   [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
@@ -166,7 +166,7 @@ public:
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] bytes_view default_value() const noexcept { return cref().default_value(); }
   [[nodiscard]] bytes_view value() const noexcept { return cref().value(); }
-  [[nodiscard]] ::hpp::proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
+  [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
 
   void set_as_default() const noexcept { adopt(default_value()); }
 
@@ -187,27 +187,27 @@ class bytes_value_mref {
 public:
   constexpr static bool is_mutable = true;
 
-  bytes_value_mref(hpp::proto::bytes_view &data, std::pmr::monotonic_buffer_resource &mr) noexcept
+  bytes_value_mref(hpp_proto::bytes_view &data, std::pmr::monotonic_buffer_resource &mr) noexcept
       : data_(&data), memory_resource_(&mr) {}
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() const noexcept { return *memory_resource_; }
 
-  void adopt(const hpp::proto::bytes_view &v) const noexcept { *data_ = v; }
+  void adopt(const hpp_proto::bytes_view &v) const noexcept { *data_ = v; }
 
   void set(concepts::contiguous_std_byte_range auto const &v) const {
     assert(v.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto *dest = static_cast<std::byte *>(memory_resource_->allocate(v.size(), 1));
     std::copy(v.begin(), v.end(), dest);
-    adopt(hpp::proto::bytes_view{dest, v.size()});
+    adopt(hpp_proto::bytes_view{dest, v.size()});
   }
 
-  void clone_from(const hpp::proto::bytes_view &v) const { set(v); }
+  void clone_from(const hpp_proto::bytes_view &v) const { set(v); }
 
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
-  operator hpp::proto::bytes_view() const noexcept { return *data_; }
+  operator hpp_proto::bytes_view() const noexcept { return *data_; }
 
 private:
-  hpp::proto::bytes_view *data_;
+  hpp_proto::bytes_view *data_;
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

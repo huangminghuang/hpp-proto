@@ -13,13 +13,13 @@
 #include <grpcpp/impl/serialization_traits.h>
 #include <hpp_proto/binpb.hpp>
 
-namespace hpp::proto::grpc {
+namespace hpp_proto::grpc {
 class byte_buffer_access;
 }
 
 namespace grpc::internal {
 template <>
-class CallOpRecvMessage<::hpp::proto::grpc::byte_buffer_access> {
+class CallOpRecvMessage<::hpp_proto::grpc::byte_buffer_access> {
 public:
   static grpc_byte_buffer *c_buffer(const ::grpc::ByteBuffer &buffer) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
@@ -28,7 +28,7 @@ public:
 };
 } // namespace grpc::internal
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 template <typename Message, typename Context>
 struct with_pb_context {
@@ -96,15 +96,15 @@ private:
   std::size_t chunk_size_ = 0;
 };
 
-::grpc::Status write_binpb(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer,
-                           ::hpp::proto::concepts::is_pb_context auto &ctx) {
-  constexpr bool is_contiguous = ::hpp::proto::pb_serializer::serialization_mode_for_context<decltype(ctx)>() ==
-                                 ::hpp::proto::serialization_mode::contiguous;
+::grpc::Status write_binpb(::hpp_proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer,
+                           ::hpp_proto::concepts::is_pb_context auto &ctx) {
+  constexpr bool is_contiguous = ::hpp_proto::pb_serializer::serialization_mode_for_context<decltype(ctx)>() ==
+                                 ::hpp_proto::serialization_mode::contiguous;
   constexpr std::size_t kStackBufferSize = is_contiguous ? sizeof(::grpc::Slice) : 4096;
   alignas(std::max_align_t) std::array<std::byte, kStackBufferSize> stack_buffer{};
   std::pmr::monotonic_buffer_resource mr{stack_buffer.data(), stack_buffer.size()};
   byte_buffer_sink sink{mr, is_contiguous ? std::numeric_limits<std::size_t>::max() : 1024ULL * 1024ULL};
-  if (::hpp::proto::write_binpb(message, sink, ctx).ok()) [[likely]] {
+  if (::hpp_proto::write_binpb(message, sink, ctx).ok()) [[likely]] {
     sink.finalize(buffer);
     return ::grpc::Status::OK;
   }
@@ -112,8 +112,8 @@ private:
   return {::grpc::StatusCode::INTERNAL, "Failed to serialize message"};
 }
 
-::grpc::Status write_binpb(::hpp::proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer,
-                           ::hpp::proto::concepts::is_option_type auto &&...option) {
+::grpc::Status write_binpb(::hpp_proto::concepts::has_meta auto const &message, ::grpc::ByteBuffer &buffer,
+                           ::hpp_proto::concepts::is_option_type auto &&...option) {
   pb_context context{option...};
   return write_binpb(message, buffer, context);
 }
@@ -131,7 +131,7 @@ public:
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   explicit slices_view(const ::grpc::ByteBuffer &buffer)
       : resource_(buffer_.data(), buffer_.size()), slices_(&resource_), spans_(&resource_) {
-    auto *c_buffer = ::grpc::internal::CallOpRecvMessage<::hpp::proto::grpc::byte_buffer_access>::c_buffer(buffer);
+    auto *c_buffer = ::grpc::internal::CallOpRecvMessage<::hpp_proto::grpc::byte_buffer_access>::c_buffer(buffer);
     if (c_buffer == nullptr) {
       return;
     }
@@ -178,40 +178,40 @@ private:
   bool supported_ = true;
 };
 
-::grpc::Status read_binpb(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
-                          ::hpp::proto::concepts::is_pb_context auto &context) {
+::grpc::Status read_binpb(::hpp_proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
+                          ::hpp_proto::concepts::is_pb_context auto &context) {
 
   slices_view buffers{buffer};
   if (!buffers.supported()) {
     return {::grpc::StatusCode::INVALID_ARGUMENT, "Unsupported ByteBuffer compression"};
   }
-  if (::hpp::proto::read_binpb(message, buffers.get(), context).ok()) [[likely]] {
+  if (::hpp_proto::read_binpb(message, buffers.get(), context).ok()) [[likely]] {
     return ::grpc::Status::OK;
   }
   return {::grpc::StatusCode::INTERNAL, "Failed to deserialize message"};
 }
 
-::grpc::Status read_binpb(::hpp::proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
-                          ::hpp::proto::concepts::is_option_type auto &&...option) {
+::grpc::Status read_binpb(::hpp_proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
+                          ::hpp_proto::concepts::is_option_type auto &&...option) {
   pb_context context{option...};
   return read_binpb(message, buffer, context);
 }
 } // namespace grpc
 
-} // namespace hpp::proto
+} // namespace hpp_proto
 
 namespace grpc {
 template <class T>
-  requires ::hpp::proto::concepts::with_pb_context<T>
+  requires ::hpp_proto::concepts::with_pb_context<T>
 class SerializationTraits<T> {
 public:
   static Status Serialize(const T &msg_with_context, ByteBuffer *bb, bool *own_buffer) {
     *own_buffer = true;
-    return ::hpp::proto::grpc::write_binpb(msg_with_context.message, *bb, msg_with_context.context);
+    return ::hpp_proto::grpc::write_binpb(msg_with_context.message, *bb, msg_with_context.context);
   }
 
   static Status Deserialize(ByteBuffer *buffer, T *msg_with_context) {
-    auto status = ::hpp::proto::grpc::read_binpb(msg_with_context->message, *buffer, msg_with_context->context);
+    auto status = ::hpp_proto::grpc::read_binpb(msg_with_context->message, *buffer, msg_with_context->context);
     buffer->Clear();
     return status;
   }

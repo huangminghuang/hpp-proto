@@ -39,7 +39,7 @@
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 /**
  * @brief Untyped, read-only reference to a single field in a dynamic message.
@@ -207,4 +207,4 @@ public:
   void set_null() noexcept;
 }; // class field_mref
 
-} // namespace hpp::proto
+} // namespace hpp_proto

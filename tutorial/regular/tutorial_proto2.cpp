@@ -25,40 +25,40 @@ int main() {
                                                  .email = "bob@email.com",
                                                  .phones = {{.number = "22222222", .type = PHONE_TYPE_HOME}}}}};
 
-  auto write_result = hpp::proto::write_binpb(address_book);
+  auto write_result = hpp_proto::write_binpb(address_book);
   expect(write_result.has_value());
 
-  auto read_result = hpp::proto::read_binpb<AddressBook>(write_result.value());
+  auto read_result = hpp_proto::read_binpb<AddressBook>(write_result.value());
   expect(address_book == read_result.value());
 
   std::vector<Person> &people = address_book.people;
   expect(people.size() == 2);
   Person &alex = address_book.people[0];
-  hpp::proto::optional<std::string> &alex_name = alex.name;
+  hpp_proto::optional<std::string> &alex_name = alex.name;
   expect(alex_name.has_value());
   expect(alex_name.value() == "Alex");
   expect(*alex_name == "Alex");
   expect(alex_name.value() == "Alex");
 
-  hpp::proto::optional<int32_t> &alex_id = alex.id;
+  hpp_proto::optional<int32_t> &alex_id = alex.id;
   expect(alex_id.has_value());
   expect(*alex_id == 1);
   expect(alex_id.value() == 1);
   expect(alex_id.value() == 1);
 
   std::vector<Person::PhoneNumber> &alex_phones = alex.phones;
-  hpp::proto::optional<std::string> &alex_phone_number = alex_phones[0].number;
+  hpp_proto::optional<std::string> &alex_phone_number = alex_phones[0].number;
   expect(alex_phone_number.has_value());
   expect(*alex_phone_number == "19890604");
   expect(alex_phone_number.value() == "19890604");
 
-  hpp::proto::optional<Person::PhoneType, PHONE_TYPE_HOME> &alex_phone_type = alex_phones[0].type;
+  hpp_proto::optional<Person::PhoneType, PHONE_TYPE_HOME> &alex_phone_type = alex_phones[0].type;
   expect(alex_phone_type.has_value());
   expect(*alex_phone_type == PHONE_TYPE_MOBILE);
   expect(alex_phone_type.value() == PHONE_TYPE_MOBILE);
 
   // default phone type value
-  hpp::proto::optional<Person::PhoneType, PHONE_TYPE_HOME> default_phone_type_value;
+  hpp_proto::optional<Person::PhoneType, PHONE_TYPE_HOME> default_phone_type_value;
   expect(!default_phone_type_value.has_value());
   expect(default_phone_type_value.value() == PHONE_TYPE_HOME);
   default_phone_type_value = PHONE_TYPE_MOBILE;
@@ -66,13 +66,13 @@ int main() {
   default_phone_type_value.reset();
   expect(!default_phone_type_value.has_value());
 
-  auto write_json_result = hpp::proto::write_json(address_book);
+  auto write_json_result = hpp_proto::write_json(address_book);
   expect(write_json_result.has_value());
-  auto read_json_result = hpp::proto::read_json<glz::opts{}, AddressBook>(write_json_result.value());
+  auto read_json_result = hpp_proto::read_json<glz::opts{}, AddressBook>(write_json_result.value());
   expect(address_book == read_json_result.value());
 
   // pretty print json, with indent level 3
-  write_json_result = hpp::proto::write_json<hpp::proto::json_opts{.prettify = true}>(address_book);
+  write_json_result = hpp_proto::write_json<hpp_proto::json_opts{.prettify = true}>(address_book);
   expect(write_json_result.has_value());
   std::cout << write_json_result.value() << "\n";
 

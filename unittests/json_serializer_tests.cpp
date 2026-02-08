@@ -9,23 +9,23 @@ template <typename T>
 constexpr auto non_owning = false;
 
 template <template <typename Traits> class Message>
-constexpr auto non_owning<Message<hpp::proto::non_owning_traits>> = true;
+constexpr auto non_owning<Message<hpp_proto::non_owning_traits>> = true;
 
-using optional_string_t = hpp::proto::optional<std::string>;
+using optional_string_t = hpp_proto::optional<std::string>;
 static_assert(glz::nullable_t<optional_string_t> && not glz::custom_read<optional_string_t>);
 
 struct byte_span_example {
-  hpp::proto::equality_comparable_span<const std::byte> field;
+  hpp_proto::equality_comparable_span<const std::byte> field;
   bool operator==(const byte_span_example &other) const = default;
 };
 constexpr auto message_type_url(const byte_span_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/byte_span_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/byte_span_example">{};
 }
 
 template <>
 struct glz::meta<byte_span_example> {
   using T = byte_span_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
+  static constexpr auto value = object("field", hpp_proto::as_optional_ref<&T::field>);
 };
 
 struct uint64_example {
@@ -33,7 +33,7 @@ struct uint64_example {
   bool operator==(const uint64_example &) const = default;
 };
 constexpr auto message_type_url(const uint64_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/uint64_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/uint64_example">{};
 }
 
 template <>
@@ -50,7 +50,7 @@ struct optional_example {
   bool operator==(const optional_example &) const = default;
 };
 constexpr auto message_type_url(const optional_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/optional_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/optional_example">{};
 }
 
 template <>
@@ -58,20 +58,20 @@ struct glz::meta<optional_example> {
   using T = optional_example;
   static constexpr auto value = object(
       // clang-format off
-      "field1", hpp::proto::as_optional_ref<&T::field1>, 
-      "field2", hpp::proto::as_optional_ref<&T::field2>, 
-      "field3", hpp::proto::as_optional_ref<&T::field3>, 
-      "field4", hpp::proto::as_optional_ref<&T::field4>);
+      "field1", hpp_proto::as_optional_ref<&T::field1>, 
+      "field2", hpp_proto::as_optional_ref<&T::field2>, 
+      "field3", hpp_proto::as_optional_ref<&T::field3>, 
+      "field4", hpp_proto::as_optional_ref<&T::field4>);
   // clang-format on
 };
 
 struct explicit_optional_bool_example {
-  hpp::proto::optional<bool> field;
+  hpp_proto::optional<bool> field;
   bool operator==(const explicit_optional_bool_example &) const = default;
 };
 
 constexpr auto message_type_url(const explicit_optional_bool_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/explicit_optional_bool_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/explicit_optional_bool_example">{};
 }
 
 template <>
@@ -81,11 +81,11 @@ struct glz::meta<explicit_optional_bool_example> {
 };
 
 struct explicit_optional_uint64_example {
-  hpp::proto::optional<uint64_t> field;
+  hpp_proto::optional<uint64_t> field;
   bool operator==(const explicit_optional_uint64_example &) const = default;
 };
 constexpr auto message_type_url(const explicit_optional_uint64_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/explicit_optional_uint64_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/explicit_optional_uint64_example">{};
 }
 
 template <>
@@ -95,11 +95,11 @@ struct glz::meta<explicit_optional_uint64_example> {
 };
 
 struct uint32_span_example {
-  hpp::proto::equality_comparable_span<const uint32_t> field;
+  hpp_proto::equality_comparable_span<const uint32_t> field;
   bool operator==(const uint32_span_example &) const = default;
 };
 constexpr auto message_type_url(const uint32_span_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/uint32_span_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/uint32_span_example">{};
 }
 
 template <>
@@ -108,7 +108,7 @@ constexpr auto non_owning<uint32_span_example> = true;
 template <>
 struct glz::meta<uint32_span_example> {
   using T = uint32_span_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
+  static constexpr auto value = object("field", hpp_proto::as_optional_ref<&T::field>);
 };
 
 struct pair_vector_example {
@@ -116,7 +116,7 @@ struct pair_vector_example {
   bool operator==(const pair_vector_example &) const = default;
 };
 constexpr auto message_type_url(const pair_vector_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/pair_vector_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/pair_vector_example">{};
 }
 
 struct json_overload_example {
@@ -130,27 +130,27 @@ struct glz::meta<json_overload_example> {
   static constexpr auto value = object("value", &T::value);
 };
 
-static_assert(hpp::proto::concepts::null_terminated_str<const char *>);
-static_assert(hpp::proto::concepts::null_terminated_str<decltype("x")>);
-static_assert(hpp::proto::concepts::null_terminated_str<const char8_t *>);
-static_assert(hpp::proto::concepts::null_terminated_str<decltype(u8"x")>);
-static_assert(hpp::proto::concepts::null_terminated_str<std::string>);
-static_assert(hpp::proto::concepts::null_terminated_str<std::u8string>);
-static_assert(hpp::proto::concepts::non_null_terminated_str<std::string_view>);
-static_assert(hpp::proto::concepts::non_null_terminated_str<std::basic_string_view<char8_t>>);
+static_assert(hpp_proto::concepts::null_terminated_str<const char *>);
+static_assert(hpp_proto::concepts::null_terminated_str<decltype("x")>);
+static_assert(hpp_proto::concepts::null_terminated_str<const char8_t *>);
+static_assert(hpp_proto::concepts::null_terminated_str<decltype(u8"x")>);
+static_assert(hpp_proto::concepts::null_terminated_str<std::string>);
+static_assert(hpp_proto::concepts::null_terminated_str<std::u8string>);
+static_assert(hpp_proto::concepts::non_null_terminated_str<std::string_view>);
+static_assert(hpp_proto::concepts::non_null_terminated_str<std::basic_string_view<char8_t>>);
 
 template <>
 struct glz::meta<pair_vector_example> {
   using T = pair_vector_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
+  static constexpr auto value = object("field", hpp_proto::as_optional_ref<&T::field>);
 };
 
 struct pair_span_example {
-  hpp::proto::equality_comparable_span<const std::pair<std::string_view, int32_t>> field;
+  hpp_proto::equality_comparable_span<const std::pair<std::string_view, int32_t>> field;
   bool operator==(const pair_span_example &) const = default;
 };
 constexpr auto message_type_url(const pair_span_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/pair_span_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/pair_span_example">{};
 }
 
 template <>
@@ -158,15 +158,15 @@ constexpr auto non_owning<pair_span_example> = true;
 template <>
 struct glz::meta<pair_span_example> {
   using T = pair_span_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
+  static constexpr auto value = object("field", hpp_proto::as_optional_ref<&T::field>);
 };
 
 struct object_span_example {
-  hpp::proto::equality_comparable_span<const optional_example> field;
+  hpp_proto::equality_comparable_span<const optional_example> field;
   bool operator==(const object_span_example &) const = default;
 };
 constexpr auto message_type_url(const object_span_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/object_span_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/object_span_example">{};
 }
 
 template <>
@@ -175,15 +175,15 @@ constexpr auto non_owning<object_span_example> = true;
 template <>
 struct glz::meta<object_span_example> {
   using T = object_span_example;
-  static constexpr auto value = object("field", hpp::proto::as_optional_ref<&T::field>);
+  static constexpr auto value = object("field", hpp_proto::as_optional_ref<&T::field>);
 };
 
 struct non_owning_nested_example {
-  hpp::proto::optional_indirect_view<optional_example> nested;
+  hpp_proto::optional_indirect_view<optional_example> nested;
   bool operator==(const non_owning_nested_example &) const = default;
 };
 constexpr auto message_type_url(const non_owning_nested_example &) {
-  return hpp::proto::string_literal<"type.googleapis.com/non_owning_nested_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/non_owning_nested_example">{};
 }
 
 template <>
@@ -192,7 +192,7 @@ constexpr auto non_owning<non_owning_nested_example> = true;
 template <>
 struct glz::meta<non_owning_nested_example> {
   using T = non_owning_nested_example;
-  static constexpr auto value = object("nested", hpp::proto::as_optional_indirect_view_ref<&T::nested>);
+  static constexpr auto value = object("nested", hpp_proto::as_optional_indirect_view_ref<&T::nested>);
 };
 
 struct oneof_example {
@@ -203,8 +203,8 @@ struct oneof_example {
 template <>
 struct glz::meta<oneof_example> {
   using T = oneof_example;
-  static constexpr auto value = object("string_field", hpp::proto::as_oneof_member<&T::value, 1>, "int32_field",
-                                       hpp::proto::as_oneof_member<&T::value, 2>);
+  static constexpr auto value = object("string_field", hpp_proto::as_oneof_member<&T::value, 1>, "int32_field",
+                                       hpp_proto::as_oneof_member<&T::value, 2>);
 };
 
 namespace ut = boost::ut;
@@ -212,14 +212,14 @@ namespace ut = boost::ut;
 const ut::suite test_base64 = [] {
   auto verify = [](std::string_view data, std::string_view encoded) {
     using namespace boost::ut;
-    expect(ge(hpp::proto::base64::max_encode_size(data), encoded.size()));
+    expect(ge(hpp_proto::base64::max_encode_size(data), encoded.size()));
     std::string result;
-    result.resize(hpp::proto::base64::max_encode_size(data));
-    auto encoded_size = hpp::proto::base64::encode(data, result);
+    result.resize(hpp_proto::base64::max_encode_size(data));
+    auto encoded_size = hpp_proto::base64::encode(data, result);
     result.resize(encoded_size);
     expect(eq(encoded, result));
-    hpp::proto::json_context<> ctx;
-    expect(hpp::proto::base64::decode(encoded, result, ctx));
+    hpp_proto::json_context<> ctx;
+    expect(hpp_proto::base64::decode(encoded, result, ctx));
     expect(eq(data, result));
   };
 
@@ -241,16 +241,16 @@ const ut::suite test_base64 = [] {
   "invalid_decode"_test = [] {
     using namespace boost::ut;
     using namespace std::literals::string_view_literals;
-    hpp::proto::json_context<> ctx;
+    hpp_proto::json_context<> ctx;
     std::string result;
     // The decoder should reject invalid base64 strings.
     // 1. Invalid characters
-    expect(!hpp::proto::base64::decode("bGlnaHQgd29yay4-"sv, result, ctx));
+    expect(!hpp_proto::base64::decode("bGlnaHQgd29yay4-"sv, result, ctx));
     // 2. Padding in the middle
-    expect(!hpp::proto::base64::decode("Zg==YWJj"sv, result, ctx));
+    expect(!hpp_proto::base64::decode("Zg==YWJj"sv, result, ctx));
     // 3. Incorrect padding
-    expect(!hpp::proto::base64::decode("Zm9vYg="sv, result, ctx));   // "foob" is "Zm9vYg=="
-    expect(!hpp::proto::base64::decode("Zm9vYmE=="sv, result, ctx)); // "fooba" is "Zm9vYmE="
+    expect(!hpp_proto::base64::decode("Zm9vYg="sv, result, ctx));   // "foob" is "Zm9vYg=="
+    expect(!hpp_proto::base64::decode("Zm9vYmE=="sv, result, ctx)); // "fooba" is "Zm9vYmE="
   };
 };
 
@@ -260,16 +260,16 @@ template <typename T>
 void verify(const T &msg, std::string_view json, const source_location &from_loc = source_location::current()) {
   using namespace boost::ut;
   std::string from_line_number = "from line " + std::to_string(from_loc.line());
-  expect(eq(json, hpp::proto::write_json(msg).value())) << from_line_number;
+  expect(eq(json, hpp_proto::write_json(msg).value())) << from_line_number;
 
   T msg2;
 
   if constexpr (!non_owning<T>) {
-    expect(fatal((hpp::proto::read_json(msg2, json).ok()))) << from_line_number;
+    expect(fatal((hpp_proto::read_json(msg2, json).ok()))) << from_line_number;
     expect(msg == msg2);
   } else {
     std::pmr::monotonic_buffer_resource mr;
-    expect(fatal((hpp::proto::read_json(msg2, json, hpp::proto::alloc_from{mr}).ok()))) << from_line_number;
+    expect(fatal((hpp_proto::read_json(msg2, json, hpp_proto::alloc_from{mr}).ok()))) << from_line_number;
     expect(msg == msg2);
   }
 }
@@ -277,22 +277,22 @@ void verify(const T &msg, std::string_view json, const source_location &from_loc
 template <typename Traits>
 struct bytes_example {
   typename Traits::bytes_t field0;
-  hpp::proto::optional<typename Traits::bytes_t> field1;
-  hpp::proto::optional<typename Traits::bytes_t, hpp::proto::bytes_literal<"test">{}> field2;
+  hpp_proto::optional<typename Traits::bytes_t> field1;
+  hpp_proto::optional<typename Traits::bytes_t, hpp_proto::bytes_literal<"test">{}> field2;
   typename Traits::bytes_t field3;
   bool operator==(const bytes_example &) const = default;
 };
 
 template <typename T>
 constexpr auto message_type_url(const bytes_example<T> &) {
-  return hpp::proto::string_literal<"type.googleapis.com/bytes_example">{};
+  return hpp_proto::string_literal<"type.googleapis.com/bytes_example">{};
 }
 
 template <>
 constexpr auto non_owning<std::string_view> = true;
 
 template <typename T>
-constexpr auto non_owning<hpp::proto::equality_comparable_span<const T>> = true;
+constexpr auto non_owning<hpp_proto::equality_comparable_span<const T>> = true;
 
 template <typename Traits>
 struct glz::meta<bytes_example<Traits>> {
@@ -301,7 +301,7 @@ struct glz::meta<bytes_example<Traits>> {
   static constexpr auto value = object("field0", &T::field0,
                                        "field1", &T::field1, 
                                        "field2", &T::field2, 
-                                       "field3", hpp::proto::as_optional_ref<&T::field3>);
+                                       "field3", hpp_proto::as_optional_ref<&T::field3>);
   // clang-format on
 };
 
@@ -316,12 +316,12 @@ const ut::suite test_bytes = [] {
                                  .field2 = "light work"_bytes,
                                  .field3 = "light wor"_bytes},
            R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits, hpp::proto::pmr_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits, hpp_proto::pmr_traits>{};
 };
 
 template <typename Traits>
 struct string_example {
-  ::hpp::proto::optional<typename Traits::string_t> optional_string;
+  ::hpp_proto::optional<typename Traits::string_t> optional_string;
   Traits::template repeated_t<typename Traits::string_t> repeated_string;
 
   // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
@@ -338,10 +338,10 @@ struct glz::meta<string_example<Traits>> {
   using T = string_example<Traits>;
   static constexpr auto value =
       object("optionalString", &T::optional_string, 
-             "repeatedString", ::hpp::proto::as_optional_ref<&T::repeated_string>,
-             "oneofUint32", ::hpp::proto::as_oneof_member<&T::oneof_field, 1>,
-             "oneofString", ::hpp::proto::as_oneof_member<&T::oneof_field, 2>, 
-             "oneofBytes", ::hpp::proto::as_oneof_member<&T::oneof_field, 3>);
+             "repeatedString", ::hpp_proto::as_optional_ref<&T::repeated_string>,
+             "oneofUint32", ::hpp_proto::as_oneof_member<&T::oneof_field, 1>,
+             "oneofString", ::hpp_proto::as_oneof_member<&T::oneof_field, 2>, 
+             "oneofBytes", ::hpp_proto::as_oneof_member<&T::oneof_field, 3>);
 };
 // clang-format on
 
@@ -349,11 +349,11 @@ const ut::suite test_string_json = [] {
   using namespace boost::ut;
   "test_escape"_test = []<class Traits> {
     verify(string_example<Traits>{.optional_string = "te\t"}, R"({"optionalString":"te\t"})");
-  } | std::tuple<hpp::proto::default_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 
-  string_example<hpp::proto::default_traits> msg;
-  expect(hpp::proto::read_json(msg, "{\"optionalString\":null}").ok());
-  expect(!hpp::proto::read_json(msg, "{\"repeatedString\":[\"a\rsdfads\"],\"optionalString\":\"abc\"}").ok());
+  string_example<hpp_proto::default_traits> msg;
+  expect(hpp_proto::read_json(msg, "{\"optionalString\":null}").ok());
+  expect(!hpp_proto::read_json(msg, "{\"repeatedString\":[\"a\rsdfads\"],\"optionalString\":\"abc\"}").ok());
 };
 
 const ut::suite test_uint64_json = [] { verify(uint64_example{.field = 123U}, R"({"field":"123"})"); };
@@ -417,7 +417,7 @@ const ut::suite test_prettify = [] {
 
   "prettify"_test = [] {
     optional_example msg{.field2 = 123U, .field3 = 456};
-    auto json = hpp::proto::write_json<hpp::proto::json_opts{.prettify = true}>(msg).value();
+    auto json = hpp_proto::write_json<hpp_proto::json_opts{.prettify = true}>(msg).value();
     expect(eq(json, R"({
    "field2": "123",
    "field3": 456
@@ -431,7 +431,7 @@ const ut::suite test_read_json_overloads = [] {
 
   auto expect_read = [](auto &&buffer) {
     json_overload_example msg{};
-    auto status = hpp::proto::read_json(msg, buffer);
+    auto status = hpp_proto::read_json(msg, buffer);
     expect(status.ok());
     expect(eq(msg.value, 1_i));
   };
@@ -456,13 +456,13 @@ const ut::suite test_read_json_full_buffer = [] {
 
   "read_json_rejects_trailing_non_whitespace"_test = [] {
     json_overload_example msg{};
-    auto status = hpp::proto::read_json(msg, R"({"value":1}) trailing)");
+    auto status = hpp_proto::read_json(msg, R"({"value":1}) trailing)");
     expect(!status.ok());
   };
 
   "read_json_accepts_trailing_whitespace"_test = [] {
     json_overload_example msg{};
-    auto status = hpp::proto::read_json(msg, R"({"value":1}  )");
+    auto status = hpp_proto::read_json(msg, R"({"value":1}  )");
     expect(status.ok());
   };
 };

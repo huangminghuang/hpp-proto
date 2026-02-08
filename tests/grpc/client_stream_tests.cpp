@@ -10,13 +10,11 @@
 
 namespace {
 using namespace boost::ut;
-using namespace hpp::proto;
-using namespace hpp::proto::grpc;
-using hpp::proto::grpc::test_utils::ClientStreamAggregate;
-using hpp::proto::grpc::test_utils::Harness;
-using hpp::proto::grpc::test_utils::kTerminalSequence;
+using namespace hpp_proto;
+using namespace hpp_proto::grpc;
+using namespace hpp_proto::grpc::test_utils;
 
-class ClientStreamReactor : public ::hpp::proto::grpc::ClientCallbackReactor<ClientStreamAggregate> {
+class ClientStreamReactor : public ::hpp_proto::grpc::ClientCallbackReactor<ClientStreamAggregate> {
   std::mutex mu_;
   std::condition_variable cv_;
   bool done_ = false;
@@ -25,10 +23,10 @@ class ClientStreamReactor : public ::hpp::proto::grpc::ClientCallbackReactor<Cli
   bool sentinel_sent_ = false;
   bool writes_complete_ = false;
   ::grpc::Status status_;
-  StreamSummary<> summary_;
+  hpp_proto_test::StreamSummary<> summary_;
 
 public:
-  using request_t = EchoRequest<>;
+  using request_t = hpp_proto_test::EchoRequest<>;
 
   void set_payloads(std::vector<std::string> payloads) { payloads_ = std::move(payloads); }
 
@@ -47,7 +45,7 @@ public:
     std::scoped_lock lock(mu_);
     return status_;
   }
-  [[nodiscard]] StreamSummary<> summary() {
+  [[nodiscard]] hpp_proto_test::StreamSummary<> summary() {
     std::scoped_lock lock(mu_);
     return summary_;
   }
@@ -99,7 +97,7 @@ private:
       request_t sentinel;
       sentinel.message = "final";
       sentinel.sequence = kTerminalSequence;
-      auto status = this->write(sentinel, hpp::proto::contiguous_mode);
+      auto status = this->write(sentinel, hpp_proto::contiguous_mode);
       if (!status.ok()) {
         OnDone(status);
       }
@@ -110,7 +108,7 @@ private:
     request.message = payloads_[next_message_];
     request.sequence = static_cast<int32_t>(next_message_);
     ++next_message_;
-    auto status = this->write(request, hpp::proto::contiguous_mode);
+    auto status = this->write(request, hpp_proto::contiguous_mode);
     if (!status.ok()) {
       OnDone(status);
     }

@@ -36,7 +36,7 @@
 #include <hpp_proto/dynamic_message/string_fields.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using enum field_kind_t;
 
 using repeated_string_field_cref = repeated_scalar_field_cref<std::string_view, KIND_REPEATED_STRING>;
@@ -192,4 +192,4 @@ private:
   std::pmr::monotonic_buffer_resource *memory_resource_;
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

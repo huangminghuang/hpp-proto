@@ -8,8 +8,8 @@ This guide walks you through building a simple unary client and server, then pro
 
 The adapter is built around two key components:
 
-*   **`hpp::proto::grpc::Stub`**: A client-side stub that takes a `grpc::Channel` and your service's generated method tuple (`YourService::_methods`). It provides a `call()` method for unary RPCs and an `async_call()` method for streaming RPCs.
-*   **`hpp::proto::grpc::CallbackService`**: A server-side helper that wires your service implementation into a `grpc::ServerBuilder`. You implement a `handle()` method for each RPC, which returns a request handler struct.
+*   **`hpp_proto::grpc::Stub`**: A client-side stub that takes a `grpc::Channel` and your service's generated method tuple (`YourService::_methods`). It provides a `call()` method for unary RPCs and an `async_call()` method for streaming RPCs.
+*   **`hpp_proto::grpc::CallbackService`**: A server-side helper that wires your service implementation into a `grpc::ServerBuilder`. You implement a `handle()` method for each RPC, which returns a request handler struct.
 
 ## A Complete Unary RPC Example
 
@@ -46,7 +46,7 @@ When you generate code with `protoc-gen-hpp`, this will produce `helloworld.msg.
 
 ### 2. The Server Implementation
 
-The server implements the `Greeter` service using `hpp::proto::grpc::CallbackService`. For each RPC, you define a handler struct that contains the logic to execute when a request is received.
+The server implements the `Greeter` service using `hpp_proto::grpc::CallbackService`. For each RPC, you define a handler struct that contains the logic to execute when a request is received.
 
 ```cpp
 // greeter_server.cpp
@@ -63,14 +63,14 @@ The server implements the `Greeter` service using `hpp::proto::grpc::CallbackSer
 namespace helloworld {
 
 // Service implementation
-class GreeterService : public ::hpp::proto::grpc::CallbackService<GreeterService, Greeter::_methods> {
+class GreeterService : public ::hpp_proto::grpc::CallbackService<GreeterService, Greeter::_methods> {
 public:
     // Handler for the SayHello RPC
     struct SayHelloHandler {
-        SayHelloHandler(GreeterService&, ::hpp::proto::grpc::ServerRPC<Greeter::SayHello>& rpc,
-                        ::hpp::proto::grpc::RequestToken<Greeter::SayHello> token) {
+        SayHelloHandler(GreeterService&, ::hpp_proto::grpc::ServerRPC<Greeter::SayHello>& rpc,
+                        ::hpp_proto::grpc::RequestToken<Greeter::SayHello> token) {
             
-            std::cout << "Server received SayHello RPC" << std::endl;
+            std::cout << "Server received SayHello RPC\n";
             
             HelloRequest request;
             auto status = token.get(request); // Deserialize request
@@ -108,7 +108,7 @@ void RunServer() {
     builder.RegisterService(&service); // Register the hpp-proto service
 
     std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
-    std::cout << "Server listening on " << server_address << std::endl;
+    std::cout << "Server listening on " << server_address << "\n";
     server->Wait();
 }
 
@@ -120,7 +120,7 @@ int main() {
 
 ### 3. The Client Implementation
 
-The client uses `hpp::proto::grpc::Stub` to make RPC calls. For unary RPCs, the `call()` method provides a simple, blocking interface.
+The client uses `hpp_proto::grpc::Stub` to make RPC calls. For unary RPCs, the `call()` method provides a simple, blocking interface.
 
 ```cpp
 // greeter_client.cpp
@@ -133,7 +133,7 @@ The client uses `hpp::proto::grpc::Stub` to make RPC calls. For unary RPCs, the 
 #include <grpcpp/grpcpp.h>
 
 // Define the stub type using the generated methods
-using GreeterStub = ::hpp::proto::grpc::Stub<helloworld::Greeter::_methods>;
+using GreeterStub = ::hpp_proto::grpc::Stub<helloworld::Greeter::_methods>;
 
 int main() {
     std::string server_address("localhost:50051");
@@ -148,15 +148,15 @@ int main() {
     // The ClientContext allows you to set deadlines, metadata, etc.
     ::grpc::ClientContext context;
 
-    std::cout << "Client sending SayHello RPC to server..." << std::endl;
+    std::cout << "Client sending SayHello RPC to server...\n";
     
     // Make the unary RPC call
     auto status = stub.call<helloworld::Greeter::SayHello>(context, request, reply);
 
     if (status.ok()) {
-        std::cout << "Server replied: \"" << reply.message << "\"" << std::endl;
+        std::cout << "Server replied: \"" << reply.message << "\"\n";
     } else {
-        std::cerr << "RPC failed: " << status.error_code() << ": " << status.error_message() << std::endl;
+        std::cerr << "RPC failed: " << status.error_code() << ": " << status.error_message() << "\n";
         return 1;
     }
 
@@ -174,21 +174,21 @@ The adapter also provides powerful, low-level callback reactors for handling cli
 apply only to out_sink-based serialization (i.e., when the gRPC adapter writes into `grpc::ByteBuffer`). Buffer-based
 serialization is always contiguous and ignores these options.
 
-- **Contiguous** (`hpp::proto::contiguous_mode`): serialize into a single contiguous slice when possible. Fastest, but
+- **Contiguous** (`hpp_proto::contiguous_mode`): serialize into a single contiguous slice when possible. Fastest, but
   requires a full contiguous buffer.
-- **Adaptive** (`hpp::proto::adaptive_mode`): default behavior; tries contiguous first and falls back to chunked when
+- **Adaptive** (`hpp_proto::adaptive_mode`): default behavior; tries contiguous first and falls back to chunked when
   the message doesn't fit.
-- **Chunked** (`hpp::proto::chunked_mode`): always emit chunked output. Lowest peak memory, but more overhead.
+- **Chunked** (`hpp_proto::chunked_mode`): always emit chunked output. Lowest peak memory, but more overhead.
 
 At the gRPC adapter layer, pass the mode as an option to your request/response handling:
 
 ```cpp
 // Server side: choose mode when finishing a response.
-rpc.finish(reply, hpp::proto::contiguous_mode);
+rpc.finish(reply, hpp_proto::contiguous_mode);
 
 // Client side: choose mode for a unary call.
 auto status = stub.call<helloworld::Greeter::SayHello>(
-    context, request, reply, hpp::proto::adaptive_mode);
+    context, request, reply, hpp_proto::adaptive_mode);
 ```
 
 ### Streaming Best Practices

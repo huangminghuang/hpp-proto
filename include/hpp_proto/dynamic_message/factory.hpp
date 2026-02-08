@@ -34,7 +34,7 @@
 #include <hpp_proto/dynamic_message/expected_message_mref.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 /**
  * @brief Factory that builds dynamic message instances from descriptor sets.
@@ -119,7 +119,7 @@ public:
    *          ::google::protobuf::FileDescriptorSet.
    */
   bool init(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb) {
-    return ::hpp::proto::read_binpb<FileDescriptorSet>(
+    return ::hpp_proto::read_binpb<FileDescriptorSet>(
                std::as_bytes(std::span{std::ranges::data(file_descriptor_set_binpb),
                                        std::ranges::size(file_descriptor_set_binpb)}),
                alloc_from(memory_resource_))
@@ -158,7 +158,7 @@ public:
 
 inline void dynamic_message_factory::setup_storage_slots() {
   for (auto &message : pool_.messages()) {
-    hpp::proto::optional<std::int32_t> prev_oneof_index;
+    hpp_proto::optional<std::int32_t> prev_oneof_index;
     uint16_t oneof_ordinal = 1;
     uint32_t cur_slot = 0;
     for (auto &f : message.fields()) {
@@ -245,4 +245,4 @@ inline expected_message_mref dynamic_message_factory::get_message(std::string_vi
   return expected_message_mref{std::unexpected(dynamic_message_errc::unknown_message_name)};
 }
 
-} // namespace hpp::proto
+} // namespace hpp_proto

@@ -27,7 +27,7 @@
 #include <iterator>
 #include <span>
 
-namespace hpp::proto {
+namespace hpp_proto {
 struct duration_codec {
   constexpr static std::size_t max_encode_size(const auto &) noexcept { return 32; }
 
@@ -133,4 +133,4 @@ struct duration_codec {
     return true;
   }
 };
-} // namespace hpp::proto
+} // namespace hpp_proto

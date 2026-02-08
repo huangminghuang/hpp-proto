@@ -9,8 +9,8 @@
 
 using namespace std::literals::string_view_literals;
 using namespace boost::ut;
-template <hpp::proto::compile_time_string cts>
-using bytes_literal = hpp::proto::bytes_literal<cts>;
+template <hpp_proto::compile_time_string cts>
+using bytes_literal = hpp_proto::bytes_literal<cts>;
 
 template <typename TLhs, typename TRhs>
   requires(!requires { ::boost::ut::eq(std::declval<TLhs>(), std::declval<TRhs>()); })
@@ -21,7 +21,7 @@ template <typename TLhs, typename TRhs>
 template <typename T>
   requires requires { glz::meta<T>::value; }
 std::ostream &operator<<(std::ostream &os, const T &v) {
-  return os << hpp::proto::write_json(v).value();
+  return os << hpp_proto::write_json(v).value();
 }
 
 template <typename Traits, template <typename> typename TypeMapping>
@@ -291,7 +291,7 @@ struct TestSuite {
       }
     };
 
-    if constexpr (hpp::proto::concepts::optional<decltype(actual)>) {
+    if constexpr (hpp_proto::concepts::optional<decltype(actual)>) {
       compare(expected, actual.value());
     } else {
       compare(expected, actual);
@@ -745,7 +745,7 @@ struct TestSuite {
   static void SetAll(TestAllExtensions_t *message, auto &&mr) {
     using namespace std::string_view_literals;
     auto expect_set_extension_ok = [&](auto &&ext) {
-      expect(message->set_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      expect(message->set_extension(ext, hpp_proto::alloc_from{mr}).ok());
     };
     expect_set_extension_ok(optional_int32_extension_t{.value = 101});
     expect_set_extension_ok(optional_int64_extension_t{.value = 102});
@@ -846,12 +846,12 @@ struct TestSuite {
     expect_set_extension_ok(default_string_piece_extension_t{.value = "424"});
     expect_set_extension_ok(default_cord_extension_t{.value = "425"});
 
-    SetOneofFields(message, hpp::proto::alloc_from{mr});
+    SetOneofFields(message, hpp_proto::alloc_from{mr});
   }
 
   static void SetOneofFields(TestAllExtensions_t *message, auto &&mr) {
     auto expect_set_extension_ok = [&](auto &&ext) {
-      expect(message->set_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      expect(message->set_extension(ext, hpp_proto::alloc_from{mr}).ok());
     };
 
     expect_set_extension_ok(oneof_uint32_extension_t{.value = 601});
@@ -890,7 +890,7 @@ struct TestSuite {
 
     auto expect_extension_value_set = [&](auto ext, const auto &get_value) {
       std::pmr::monotonic_buffer_resource mr;
-      expect(message.get_extension(ext, hpp::proto::alloc_from(mr)).ok());
+      expect(message.get_extension(ext, hpp_proto::alloc_from(mr)).ok());
       expect(get_value(ext));
     };
 
@@ -912,7 +912,7 @@ struct TestSuite {
     std::pmr::monotonic_buffer_resource mr;
 
     auto expect_extension_value_eq = [&](const auto &value, auto ext, const auto &get_value) {
-      expect(message.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      expect(message.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
       expect(value == get_value(ext));
     };
 
@@ -959,7 +959,7 @@ struct TestSuite {
     auto expect_extension_range_eq =
         [&]<typename Extension>(std::initializer_list<typename Extension::value_type::value_type> value,
                                 Extension ext) {
-          expect(message.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+          expect(message.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
           expect(std::ranges::equal(value, ext.value));
         };
 
@@ -1063,7 +1063,7 @@ struct TestSuite {
 
   static void ExpectClear(const TestAllExtensions_t &message) {
     std::vector<std::byte> data;
-    expect(hpp::proto::write_binpb(message, data).ok());
+    expect(hpp_proto::write_binpb(message, data).ok());
     expect(eq(0, data.size()));
 
     std::pmr::monotonic_buffer_resource mr;
@@ -1102,7 +1102,7 @@ struct TestSuite {
     auto get_value = [](const auto &ext) { return ext.value; };
 
     auto expect_extension_value_eq = [&](const auto &v, auto &&ext, const auto &get_value) {
-      expect(message.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      expect(message.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
       expect(v == get_value(ext));
     };
 
@@ -1124,7 +1124,7 @@ struct TestSuite {
     expect_extension_value_eq(""_bytes, optional_bytes_extension_t{}, get_value);
 
     auto expect_extension_value_not_set = [&](auto ext, const auto &get_value) {
-      expect(message.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      expect(message.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
       expect(!get_value(ext).has_value());
     };
     // Embedded messages should also be clear.
@@ -1140,7 +1140,7 @@ struct TestSuite {
     expect_extension_value_eq(mapping_t::FOREIGN_FOO, optional_foreign_enum_extension_t{}, get_value);
     expect_extension_value_eq(mapping_t::IMPORT_FOO, optional_import_enum_extension_t{}, get_value);
 
-    auto opt = hpp::proto::alloc_from{mr};
+    auto opt = hpp_proto::alloc_from{mr};
     expect_extension_value_eq(""sv, optional_string_piece_extension_t{}, get_value);
     expect_extension_value_eq(""sv, optional_cord_extension_t{}, get_value);
 
@@ -1230,7 +1230,7 @@ struct TestSuite {
 
   static void SetAll(TestPackedExtensions_t *message, auto &&mr) {
     auto expect_set_extension_ok = [&](auto &&ext) {
-      expect(message->set_extension(ext, hpp::proto::alloc_from{mr}).ok());
+      expect(message->set_extension(ext, hpp_proto::alloc_from{mr}).ok());
     };
 
     expect_set_extension_ok(packed_int32_extension_t{.value = std::initializer_list<int32_t>{601, 701}});
@@ -1258,7 +1258,7 @@ struct TestSuite {
     auto expect_extension_range_eq =
         [&]<typename Extension>(std::initializer_list<typename Extension::value_type::value_type> value,
                                 Extension ext) {
-          expect(message.get_extension(ext, hpp::proto::alloc_from{mr}).ok());
+          expect(message.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
           expect(std::ranges::equal(value, ext.value));
         };
 
@@ -1290,15 +1290,15 @@ struct TestSuite {
       if constexpr (requires { ExpectClear(message); }) {
         ExpectClear(message);
       }
-      SetAll(&message, hpp::proto::alloc_from{mr});
+      SetAll(&message, hpp_proto::alloc_from{mr});
       ExpectAllSet(message);
 
       message2 = message;
       ExpectAllSet(message2);
 
       std::vector<std::byte> data;
-      expect(hpp::proto::write_binpb(message2, data).ok());
-      expect(hpp::proto::read_binpb(message3, data, hpp::proto::alloc_from{mr}).ok());
+      expect(hpp_proto::write_binpb(message2, data).ok());
+      expect(hpp_proto::read_binpb(message3, data, hpp_proto::alloc_from{mr}).ok());
 
       ExpectAllSet(message3);
     } | typename mapping_t::protobuf_test_types{};
@@ -1310,20 +1310,20 @@ struct TestSuite {
       T original;
       std::pmr::monotonic_buffer_resource mr;
 
-      SetAll(&original, hpp::proto::alloc_from{mr});
+      SetAll(&original, hpp_proto::alloc_from{mr});
 
       std::vector<char> data;
-      expect(hpp::proto::write_binpb(original, data).ok());
+      expect(hpp_proto::write_binpb(original, data).ok());
 
-      auto original_json = gpb_based::binpb_to_json(unittest_descriptorset, hpp::proto::message_name(original),
+      auto original_json = gpb_based::binpb_to_json(unittest_descriptorset, hpp_proto::message_name(original),
                                                     {data.data(), data.size()});
       expect(fatal(!original_json.empty()));
-      auto generated_json = hpp::proto::write_json(original);
+      auto generated_json = hpp_proto::write_json(original);
 
       expect(eq(generated_json.value(), original_json));
 
       T msg;
-      expect(hpp::proto::read_json(msg, original_json, hpp::proto::alloc_from{mr}).ok());
+      expect(hpp_proto::read_json(msg, original_json, hpp_proto::alloc_from{mr}).ok());
 
       ExpectAllSet(msg);
     } | typename mapping_t::interoperability_test_types{};

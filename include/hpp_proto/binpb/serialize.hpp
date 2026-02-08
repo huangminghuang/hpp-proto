@@ -30,12 +30,12 @@
 
 #include <limits>
 
-namespace hpp::proto {
+namespace hpp_proto {
 enum class serialization_mode : uint8_t { contiguous, adaptive, chunked };
-} // namespace hpp::proto
+} // namespace hpp_proto
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
-namespace hpp::proto::pb_serializer {
+namespace hpp_proto::pb_serializer {
 
 template <concepts::is_size_cache_iterator Iterator>
 constexpr decltype(auto) consume_size_cache_entry(Iterator &iterator) {
@@ -192,7 +192,7 @@ constexpr std::size_t max_stack_cache_size_for_context() {
   if constexpr (requires { Context::max_size_cache_on_stack; }) {
     return Context::max_size_cache_on_stack;
   } else {
-    return hpp::proto::max_size_cache_on_stack<>.max_size_cache_on_stack;
+    return hpp_proto::max_size_cache_on_stack<>.max_size_cache_on_stack;
   }
 }
 
@@ -558,7 +558,7 @@ consteval serialization_mode serialization_mode_for_context() {
   if constexpr (requires { Context::serialization_mode; }) {
     return Context::serialization_mode;
   } else {
-    return hpp::proto::serialization_mode::contiguous;
+    return hpp_proto::serialization_mode::contiguous;
   }
 }
 
@@ -748,5 +748,5 @@ template <std::size_t I, concepts::tuple Meta>
   }
   return true;
 }
-} // namespace hpp::proto::pb_serializer
+} // namespace hpp_proto::pb_serializer
 // NOLINTEND(bugprone-easily-swappable-parameters)

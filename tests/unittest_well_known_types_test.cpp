@@ -24,7 +24,7 @@ struct WellKnownTypesTests {
   static std::initializer_list<string_t> field_mask_paths_init_list;
 
   static auto struct_fields_init()
-    requires(!std::same_as<Traits, hpp::proto::non_owning_traits>)
+    requires(!std::same_as<Traits, hpp_proto::non_owning_traits>)
   {
     struct_fields_t fields;
     fields.emplace(string_t{"abc"}, value_t{.kind = 1.0});
@@ -32,7 +32,7 @@ struct WellKnownTypesTests {
   }
 
   static auto struct_fields_init()
-    requires(std::same_as<Traits, hpp::proto::non_owning_traits>)
+    requires(std::same_as<Traits, hpp_proto::non_owning_traits>)
   {
     static value_t v = value_t{.kind = 1.0};
     static auto init_list = std::initializer_list<typename struct_fields_t::value_type>{{string_t{"abc"}, &v}};
@@ -40,8 +40,8 @@ struct WellKnownTypesTests {
   }
 
   void SetAllFields(TestWellKnownTypes *m) {
-    expect(hpp::proto::pack_any(m->any_field.emplace(), field_mask_t{.paths = field_mask_paths_init_list},
-                                hpp::proto::alloc_from{pool})
+    expect(hpp_proto::pack_any(m->any_field.emplace(), field_mask_t{.paths = field_mask_paths_init_list},
+                               hpp_proto::alloc_from{pool})
                .ok());
 
     m->api_field.emplace().name = string_t{"test_api"};
@@ -68,8 +68,7 @@ struct WellKnownTypesTests {
   void ExpectAllFieldsSet([[maybe_unused]] const TestWellKnownTypes &m) {
     std::pmr::monotonic_buffer_resource mr;
     field_mask_t fm;
-    expect(m.any_field.has_value() &&
-           hpp::proto::unpack_any(m.any_field.value(), fm, ::hpp::proto::alloc_from(mr)).ok());
+    expect(m.any_field.has_value() && hpp_proto::unpack_any(m.any_field.value(), fm, ::hpp_proto::alloc_from(mr)).ok());
     expect(std::ranges::equal(field_mask_paths_init_list, fm.paths));
 
     expect(m.api_field.has_value());
@@ -142,8 +141,8 @@ struct WellKnownTypesTests {
       std::pmr::monotonic_buffer_resource mr;
       std::vector<std::byte> data;
 
-      expect(hpp::proto::write_binpb(original, data).ok());
-      expect(hpp::proto::read_binpb(msg, data, hpp::proto::alloc_from{mr}).ok());
+      expect(hpp_proto::write_binpb(original, data).ok());
+      expect(hpp_proto::read_binpb(msg, data, hpp_proto::alloc_from{mr}).ok());
 
       ExpectAllFieldsSet(msg);
     };
@@ -154,21 +153,21 @@ struct WellKnownTypesTests {
 
       std::pmr::monotonic_buffer_resource mr;
       std::vector<char> data;
-      expect(hpp::proto::write_binpb(original, data).ok());
+      expect(hpp_proto::write_binpb(original, data).ok());
 
       auto original_json = gpb_based::binpb_to_json(unittest_descriptorset, "proto2_unittest.TestWellKnownTypes",
                                                     {data.data(), data.size()});
       expect(fatal(!original_json.empty()));
 
-      ::hpp::proto::dynamic_message_factory message_factory;
-      using hpp::proto::use_factory;
-      using hpp::proto::alloc_from;
+      ::hpp_proto::dynamic_message_factory message_factory;
+      using hpp_proto::use_factory;
+      using hpp_proto::alloc_from;
       expect(message_factory.init(unittest_descriptorset));
-      auto my_json = hpp::proto::write_json(original, use_factory{message_factory}).value();
+      auto my_json = hpp_proto::write_json(original, use_factory{message_factory}).value();
       expect(eq(my_json, original_json));
 
       TestWellKnownTypes msg;
-      expect(hpp::proto::read_json(msg, original_json, use_factory{message_factory}, alloc_from{mr}).ok());
+      expect(hpp_proto::read_json(msg, original_json, use_factory{message_factory}, alloc_from{mr}).ok());
 
       ExpectAllFieldsSet(msg);
     };
@@ -183,7 +182,7 @@ const boost::ut::suite well_known_types_test = [] {
   "TestWellKnownTypes"_test = []<class Traits> {
     WellKnownTypesTests<Traits> test;
     test.run();
-  } | std::tuple<hpp::proto::stable_traits, hpp::proto::pmr_stable_traits, hpp::proto::non_owning_traits>{};
+  } | std::tuple<hpp_proto::stable_traits, hpp_proto::pmr_stable_traits, hpp_proto::non_owning_traits>{};
 };
 
 int main() {

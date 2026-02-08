@@ -8,10 +8,10 @@
 
 using namespace std::string_view_literals;
 // Define the variant of all message types we fuzz
-using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp::proto::stable_traits>,
-                                       protobuf_unittest::TestAllTypes<hpp::proto::stable_traits>,
-                                       protobuf_unittest::TestMap<hpp::proto::stable_traits>,
-                                       proto2_unittest::TestWellKnownTypes<hpp::proto::stable_traits>>;
+using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp_proto::stable_traits>,
+                                       protobuf_unittest::TestAllTypes<hpp_proto::stable_traits>,
+                                       protobuf_unittest::TestMap<hpp_proto::stable_traits>,
+                                       proto2_unittest::TestWellKnownTypes<hpp_proto::stable_traits>>;
 
 std::vector<std::span<const std::byte>> split_input(std::span<const std::byte> input) {
   std::vector<std::span<const std::byte>> result{2};
@@ -26,19 +26,19 @@ std::vector<std::byte> round_trip_test(const T &in_message, T &&out_message) {
   std::vector<std::byte> buffer1;
   assert(util::write_binpb(in_message, buffer1).ok());
   // std::string dyn_json;
-  // assert(hpp::proto::write_json(in_message, dyn_json).ok());
+  // assert(hpp_proto::write_json(in_message, dyn_json).ok());
   // std::cout << "in_message: " << dyn_json << "\n";
 
   // Skip comparing the serialized buffer to the raw input because unknown fields are dropped on parse.
   // Skip structural comparison of messages; NaN payloads make equality fail even when bitwise identical.
   std::pmr::monotonic_buffer_resource mr;
   if constexpr (concepts::use_non_owning_traits<T>) {
-    assert(util::read_binpb(out_message, to_bytes(buffer1), hpp::proto::alloc_from(mr)).ok());
+    assert(util::read_binpb(out_message, to_bytes(buffer1), hpp_proto::alloc_from(mr)).ok());
   } else {
     assert(util::read_binpb(out_message, to_bytes(buffer1)).ok());
   }
 
-  // assert(hpp::proto::write_json(out_message, dyn_json).ok());
+  // assert(hpp_proto::write_json(out_message, dyn_json).ok());
   // std::cout << "out_message: " << dyn_json << "\n";
   util::fuzz_out_sink sink;
   assert(util::write_binpb(out_message, sink).ok());
@@ -63,11 +63,10 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
     return std::visit(
         [&](auto &owning_message) -> std::expected<std::vector<std::byte>, std::errc> {
           using owning_message_t = std::remove_reference_t<decltype(owning_message)>;
-          using non_owning_message_t =
-              decltype(hpp::proto::rebind_traits<hpp::proto::non_owning_traits>(owning_message));
+          using non_owning_message_t = decltype(hpp_proto::rebind_traits<hpp_proto::non_owning_traits>(owning_message));
           auto msg_name = message_name(owning_message);
           non_owning_message_t non_owning_message;
-          hpp::proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
+          hpp_proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
 
           // Google's parser can accept bytes that serialize differently for map fields. Example schema:
           // ```
@@ -78,7 +77,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           // The bytes "\x22\x04\x28\x00\x10\x01" may parse yet re-encode as "\x22\x04\x08\x00\x10\x01".
           // Hpp-proto does not show this behavior, so raw parse results are not directly comparable.
 
-          auto non_owning_read_ok = util::read_binpb(non_owning_message, input, hpp::proto::alloc_from{mr}).ok();
+          auto non_owning_read_ok = util::read_binpb(non_owning_message, input, hpp_proto::alloc_from{mr}).ok();
           auto owning_read_ok = util::read_binpb(owning_message, input).ok();
           auto dyn_read_ok = util::read_binpb(dyn_message, input).ok();
 

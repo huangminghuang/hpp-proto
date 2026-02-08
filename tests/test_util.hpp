@@ -24,14 +24,14 @@ inline std::string read_file(const std::string &filename) {
   return contents;
 }
 
-std::array<char, 2> to_hex(hpp::proto::concepts::byte_type auto c) {
+std::array<char, 2> to_hex(hpp_proto::concepts::byte_type auto c) {
   static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
   const auto uc = static_cast<unsigned char>(c);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return {qmap[uc >> 4U], qmap[uc & 0x0FU]};
 }
 
-std::string to_hex(hpp::proto::concepts::contiguous_byte_range auto const &data) {
+std::string to_hex(hpp_proto::concepts::contiguous_byte_range auto const &data) {
   std::string result;
   result.resize(data.size() * 2);
   std::size_t index = 0;
@@ -42,9 +42,9 @@ std::string to_hex(hpp::proto::concepts::contiguous_byte_range auto const &data)
   return result;
 }
 
-template <hpp::proto::compile_time_string str>
+template <hpp_proto::compile_time_string str>
 constexpr auto operator""_bytes() {
-  return hpp::proto::bytes_literal<str>{};
+  return hpp_proto::bytes_literal<str>{};
 }
 
 // NOLINTBEGIN(cert-dcl58-cpp)
@@ -52,7 +52,7 @@ namespace std {
 template <glz::glaze_t T>
 inline std::ostream &operator<<(ostream &os, const T &v) {
 #ifndef HPP_PROTO_DISABLE_GLAZE
-  return os << hpp::proto::write_json(v).value();
+  return os << hpp_proto::write_json(v).value();
 #else
   return os;
 #endif
@@ -87,7 +87,7 @@ inline bool operator==(std::span<T, ExtentL> lhs, std::span<U, ExtentR> rhs) {
 
 } // namespace std
 
-namespace hpp::proto {
+namespace hpp_proto {
 template <compile_time_string cts>
 std::ostream &operator<<(std::ostream &os, bytes_literal<cts> v) {
   return os << std::span<const std::byte>(v);
@@ -107,7 +107,7 @@ std::ostream &operator<<(std::ostream &os, const equality_comparable_span<T> &sp
   os << ']';
   return os;
 }
-} // namespace hpp::proto
+} // namespace hpp_proto
 
 // NOLINTEND(cert-dcl58-cpp)
 

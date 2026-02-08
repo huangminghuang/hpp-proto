@@ -36,7 +36,7 @@
 #include <hpp_proto/dynamic_message/storage.hpp>
 #include <hpp_proto/dynamic_message/types.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 using enum field_kind_t;
 
 class repeated_message_field_cref : std::ranges::view_interface<repeated_message_field_cref> {
@@ -242,4 +242,4 @@ public:
   }
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

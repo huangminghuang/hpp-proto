@@ -8,7 +8,7 @@
 #include <hpp_proto/dynamic_message/factory.hpp>
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,misc-use-anonymous-namespace)
-extern hpp::proto::dynamic_message_factory factory;
+extern hpp_proto::dynamic_message_factory factory;
 
 // Helper function to set variant by runtime index
 template <typename... Ts>
@@ -34,9 +34,9 @@ static std::string_view message_name(const auto &message) {
 namespace concepts {
 template <typename T>
 concept use_non_owning_traits =
-    requires { requires std::same_as<typename T::hpp_proto_traits_type, ::hpp::proto::non_owning_traits>; };
+    requires { requires std::same_as<typename T::hpp_proto_traits_type, ::hpp_proto::non_owning_traits>; };
 }; // namespace concepts
 
-std::span<const std::byte> to_bytes(hpp::proto::concepts::contiguous_byte_range auto const &data) {
+std::span<const std::byte> to_bytes(hpp_proto::concepts::contiguous_byte_range auto const &data) {
   return std::as_bytes(std::span{std::ranges::data(data), std::ranges::size(data)});
 }

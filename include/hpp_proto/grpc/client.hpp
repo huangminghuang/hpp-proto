@@ -13,7 +13,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace hpp::proto::grpc {
+namespace hpp_proto::grpc {
 
 namespace concepts {
 template <typename Message, template <typename> typename MessageTemplate>
@@ -105,10 +105,10 @@ public:
   template <typename Method, typename Request, typename Response>
     requires(concepts::unary_method_check<Method, Request, Response>)::grpc::Status
   call(::grpc::ClientContext &context, const Request &request, Response &response,
-       hpp::proto::concepts::is_option_type auto &&...option) {
+       hpp_proto::concepts::is_option_type auto &&...option) {
     pb_context ctx{std::forward<decltype(option)>(option)...};
-    hpp::proto::with_pb_context request_with_context{request, ctx};
-    hpp::proto::with_pb_context response_with_context{response, ctx};
+    hpp_proto::with_pb_context request_with_context{request, ctx};
+    hpp_proto::with_pb_context response_with_context{response, ctx};
 
     return ::grpc::internal::BlockingUnaryCallImpl{this->channel_.get(), grpc_method<Method>(), &context,
                                                    request_with_context, &response_with_context}
@@ -130,7 +130,7 @@ public:
   template <typename Method, typename Request, typename Response, typename CallbackFunction>
     requires(concepts::unary_method_check<Method, Request, Response>)
   void async_call(::grpc::ClientContext &context, const Request &request, Response &response, CallbackFunction &&f,
-                  hpp::proto::concepts::is_option_type auto &&...response_option);
+                  hpp_proto::concepts::is_option_type auto &&...response_option);
 };
 
 template <typename Method>
@@ -147,8 +147,8 @@ public:
   template <typename Stub, typename Traits>
     requires(rpc_type == RpcType::NORMAL_RPC)
   void prepare(const Stub &stub, ::grpc::ClientContext &context, const typename Method::template request_t<Traits> &req,
-               hpp::proto::concepts::is_option_type auto &&...option) {
-    auto result = ::hpp::proto::grpc::write_binpb(req, request_, std::forward<decltype(option)>(option)...);
+               hpp_proto::concepts::is_option_type auto &&...option) {
+    auto result = ::hpp_proto::grpc::write_binpb(req, request_, std::forward<decltype(option)>(option)...);
     if (result.ok()) {
       ::grpc::internal::ClientCallbackUnaryFactory::Create<::grpc::ByteBuffer, ::grpc::ByteBuffer>(
           stub.channel_.get(), stub.template grpc_method<Method>(), &context, &request_, &response_, this);
@@ -167,8 +167,8 @@ public:
   template <typename Stub, typename Traits>
     requires(rpc_type == RpcType::SERVER_STREAMING)
   void prepare(const Stub &stub, ::grpc::ClientContext &context, const typename Method::template request_t<Traits> &req,
-               hpp::proto::concepts::is_option_type auto &&...option) {
-    auto result = ::hpp::proto::grpc::write_binpb(req, request_, std::forward<decltype(option)>(option)...);
+               hpp_proto::concepts::is_option_type auto &&...option) {
+    auto result = ::hpp_proto::grpc::write_binpb(req, request_, std::forward<decltype(option)>(option)...);
     if (result.ok()) {
       ::grpc::internal::ClientCallbackReaderFactory<::grpc::ByteBuffer>::Create(
           stub.channel_.get(), stub.template grpc_method<Method>(), &context, &request_, this);
@@ -193,10 +193,10 @@ public:
 
   template <typename Traits>
   ::grpc::Status write(typename Method::template request_t<Traits> &req, ::grpc::WriteOptions options,
-                       hpp::proto::concepts::is_option_type auto &&...ser_option)
+                       hpp_proto::concepts::is_option_type auto &&...ser_option)
     requires Method::client_streaming
   {
-    auto result = ::hpp::proto::grpc::write_binpb(req, request_, std::forward<decltype(ser_option)>(ser_option)...);
+    auto result = ::hpp_proto::grpc::write_binpb(req, request_, std::forward<decltype(ser_option)>(ser_option)...);
     if (result.ok()) {
       this->StartWrite(&request_, options);
     }
@@ -205,7 +205,7 @@ public:
 
   template <typename Traits>
   ::grpc::Status write(typename Method::template request_t<Traits> &req,
-                       hpp::proto::concepts::is_option_type auto &&...ser_option)
+                       hpp_proto::concepts::is_option_type auto &&...ser_option)
     requires Method::client_streaming
   {
     return this->write(req, ::grpc::WriteOptions{}, std::forward<decltype(ser_option)>(ser_option)...);
@@ -213,7 +213,7 @@ public:
 
   template <typename Traits>
   ::grpc::Status write_last(typename Method::template request_t<Traits> &req, ::grpc::WriteOptions options,
-                            hpp::proto::concepts::is_option_type auto &&...ser_option)
+                            hpp_proto::concepts::is_option_type auto &&...ser_option)
     requires Method::client_streaming
   {
     options.set_last_message();
@@ -240,14 +240,14 @@ public:
 
   template <typename Traits>
   ::grpc::Status get_response(typename Method::template response_t<Traits> &response,
-                              hpp::proto::concepts::is_option_type auto &&...option) {
-    return ::hpp::proto::grpc::read_binpb(response, response_, std::forward<decltype(option)>(option)...);
+                              hpp_proto::concepts::is_option_type auto &&...option) {
+    return ::hpp_proto::grpc::read_binpb(response, response_, std::forward<decltype(option)>(option)...);
   }
 
   template <typename Traits>
   ::grpc::Status get_response(typename Method::template response_t<Traits> &response,
-                              hpp::proto::concepts::is_pb_context auto &context) {
-    return ::hpp::proto::grpc::read_binpb(response, response_, context);
+                              hpp_proto::concepts::is_pb_context auto &context) {
+    return ::hpp_proto::grpc::read_binpb(response, response_, context);
   }
 
   ::grpc::ByteBuffer &response() { return response_; }
@@ -263,7 +263,7 @@ class CallbackUnaryCall : public ClientCallbackReactor<Method> {
 public:
   CallbackUnaryCall(Method, callback_storage_t callback,
                     Response &response, // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
-                    hpp::proto::concepts::is_option_type auto &&...response_option)
+                    hpp_proto::concepts::is_option_type auto &&...response_option)
       : f_(std::move(callback)), response_ref_(response),
         response_context_(std::forward<decltype(response_option)>(response_option)...) {}
 
@@ -282,21 +282,21 @@ public:
 
 template <typename Method, typename CallbackFunction, typename Response, typename... U>
 CallbackUnaryCall(Method, CallbackFunction &&, Response &, U &&...)
-    -> CallbackUnaryCall<Method, CallbackFunction, Response, hpp::proto::pb_context<std::remove_cvref_t<U>...>>;
+    -> CallbackUnaryCall<Method, CallbackFunction, Response, hpp_proto::pb_context<std::remove_cvref_t<U>...>>;
 
 template <typename ServiceMethods>
 template <typename Method, typename Request, typename Response, typename CallbackFunction>
   requires(concepts::unary_method_check<Method, Request, Response>)
 void Stub<ServiceMethods>::async_call(::grpc::ClientContext &context, const Request &request, Response &response,
                                       CallbackFunction &&f,
-                                      hpp::proto::concepts::is_option_type auto &&...response_option) {
+                                      hpp_proto::concepts::is_option_type auto &&...response_option) {
   using CallbackReactorType =
       CallbackUnaryCall<Method, CallbackFunction, Response,
-                        hpp::proto::pb_context<std::remove_cvref_t<decltype(response_option)>...>>;
+                        hpp_proto::pb_context<std::remove_cvref_t<decltype(response_option)>...>>;
 
   auto callback_reactor = std::unique_ptr<CallbackReactorType>{
       new CallbackReactorType{Method{}, std::forward<CallbackFunction>(f), response, response_option...}};
   callback_reactor->prepare(*this, context, request);
   callback_reactor.release()->start_call(); // gRPC callback deletes reactor in OnDone
 }
-} // namespace hpp::proto::grpc
+} // namespace hpp_proto::grpc

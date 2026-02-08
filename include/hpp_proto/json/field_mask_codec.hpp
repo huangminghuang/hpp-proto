@@ -26,7 +26,7 @@
 #include <iterator>
 #include <numeric>
 #include <span>
-namespace hpp::proto {
+namespace hpp_proto {
 
 struct field_mask_codec {
   constexpr static std::size_t max_encode_size(auto const &value) noexcept {
@@ -51,18 +51,18 @@ struct field_mask_codec {
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   static bool decode(auto const &json, auto &value, auto &ctx) {
     if (json.empty()) {
-      decltype(auto) mpaths = hpp::proto::detail::as_modifiable(ctx, value.paths);
+      decltype(auto) mpaths = hpp_proto::detail::as_modifiable(ctx, value.paths);
       mpaths.resize(0);
       return true;
     }
     auto is_comma = [](auto c) { return c == ','; };
     auto num_commas = std::count_if(json.begin(), json.end(), is_comma);
-    decltype(auto) mpaths = hpp::proto::detail::as_modifiable(ctx, value.paths);
+    decltype(auto) mpaths = hpp_proto::detail::as_modifiable(ctx, value.paths);
     mpaths.resize(static_cast<std::size_t>(num_commas + 1));
     auto cur = json.begin();
     for (auto &p : mpaths) {
       auto comma_pos = std::find_if(cur, json.end(), is_comma);
-      decltype(auto) path = hpp::proto::detail::as_modifiable(ctx, p);
+      decltype(auto) path = hpp_proto::detail::as_modifiable(ctx, p);
       path.assign(cur, comma_pos);
       if (comma_pos != json.end()) {
         cur = std::next(comma_pos);
@@ -71,4 +71,4 @@ struct field_mask_codec {
     return true;
   }
 };
-} // namespace hpp::proto
+} // namespace hpp_proto

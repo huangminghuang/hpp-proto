@@ -31,7 +31,7 @@
 
 #include <hpp_proto/dynamic_message/repeated_field_iterator.hpp>
 
-namespace hpp::proto {
+namespace hpp_proto {
 
 template <std::ranges::input_range Range>
 struct sized_input_range { // NOLINT(hicpp-member-init)
@@ -146,4 +146,4 @@ struct value_proxy {
   [[nodiscard]] const T *operator->() const noexcept { return std::addressof(value); }
 };
 
-} // namespace hpp::proto
+} // namespace hpp_proto

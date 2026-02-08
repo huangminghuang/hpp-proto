@@ -10,7 +10,7 @@
 #include <hpp_proto/file_descriptor_pb.hpp>
 
 
-namespace hpp::proto::file_descriptors {
+namespace hpp_proto::file_descriptors {
 
 using namespace std::literals::string_view_literals;
 constexpr file_descriptor_pb _desc_google_protobuf_descriptor_proto{
@@ -22,5 +22,5 @@ inline auto desc_set_google_protobuf_descriptor_proto(){
     _desc_google_protobuf_descriptor_proto,
   };
 }
-} // namespace hpp::proto::file_descriptors
+} // namespace hpp_proto::file_descriptors
 // clang-format on

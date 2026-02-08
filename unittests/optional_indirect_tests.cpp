@@ -5,13 +5,13 @@
 #include <hpp_proto/field_types.hpp>
 #include <hpp_proto/json.hpp>
 
-template <typename Traits = ::hpp::proto::default_traits>
+template <typename Traits = ::hpp_proto::default_traits>
 struct TestRecursiveMessage {
   using hpp_proto_traits_type = Traits;
   Traits::template optional_indirect_t<TestRecursiveMessage> a;
   std::int32_t i{};
 
-  [[no_unique_address]] ::hpp::proto::pb_unknown_fields<Traits> unknown_fields_;
+  [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator==(const TestRecursiveMessage &) const = default;
 };
 
@@ -320,15 +320,15 @@ const boost::ut::suite optional_indirect_tests = [] {
       msg.i = 100;
 
       std::string json;
-      expect(hpp::proto::write_json(msg, json).ok());
+      expect(hpp_proto::write_json(msg, json).ok());
       std::string expected_json = R"({"a":{"i":10},"i":100})";
       expect(eq(expected_json, json));
 
       Message msg1;
-      expect(hpp::proto::read_json(msg1, expected_json).ok());
+      expect(hpp_proto::read_json(msg1, expected_json).ok());
       expect(msg == msg1);
     };
-  } | std::tuple<hpp::proto::stable_traits, hpp::proto::pmr_stable_traits>{};
+  } | std::tuple<hpp_proto::stable_traits, hpp_proto::pmr_stable_traits>{};
 };
 
 int main() {
