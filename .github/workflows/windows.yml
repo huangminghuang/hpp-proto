@@ -50,7 +50,7 @@ jobs:
         run: |
           $version = "33.5"
           $zip = "protoc-$version-win64.zip"
-          $sha256 = "18b2f519f78fc8695f459f2608be6d294a9ce26e045117e66d4e9da547e8b542"
+          $sha256 = "7e3468cd1fbd1ae9361a5304d4ac28fbd593aa1a425b5464bd9d4da5fca224b4"
           $url = "https://github.com/protocolbuffers/protobuf/releases/download/v$version/$zip"
           $dest = "$env:RUNNER_TEMP\protoc"
           $zipPath = "$dest\$zip"
