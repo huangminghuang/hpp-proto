@@ -18,6 +18,9 @@ on:
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
+  PROTOC_VERSION: 33.5
+  PROTOC_ZIP: protoc-33.5-linux-x86_64.zip
+  PROTOC_SHA256: 24e58fb231d50306ee28491f33a170301e99540f7e29ca461e0e80fd1239f8d1
 
 jobs:
   build:
@@ -34,7 +37,19 @@ jobs:
       - name: install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build
+          sudo apt-get install -y ninja-build curl unzip
+
+      - name: install protoc
+        run: |
+          PROTOC_DIR="$RUNNER_TEMP/protoc"
+          mkdir -p "$PROTOC_DIR"
+          curl -L --fail --retry 3 \
+            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}" \
+            -o "$PROTOC_DIR/$PROTOC_ZIP"
+          echo "${PROTOC_SHA256}  $PROTOC_DIR/$PROTOC_ZIP" | sha256sum -c -
+          unzip -q -o "$PROTOC_DIR/$PROTOC_ZIP" -d "$PROTOC_DIR"
+          echo "$PROTOC_DIR/bin" >> "$GITHUB_PATH"
+          echo "PROTOC_BIN=$PROTOC_DIR/bin" >> "$GITHUB_ENV"
 
       - name: install conan
         run: |
@@ -48,7 +63,6 @@ jobs:
         run: |
           conan create . \
             -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
-            -c user.hpp_proto:protoc=download \
             --build=missing
 
       - name: install dependencies
@@ -56,13 +70,12 @@ jobs:
           conan install tutorial \
             -s:h build_type=Release -s:b build_type=Release \
             -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
-            -c user.hpp_proto:protoc=download \
             --build=missing \
             -of tutorial-build
 
       - name: configure
         run: |
-          cmake -S tutorial --preset conan-release
+          cmake -S tutorial --preset conan-release -DCMAKE_PROGRAM_PATH="$PROTOC_BIN"
 
       - name: build
         run: |

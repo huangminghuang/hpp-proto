@@ -38,7 +38,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.14

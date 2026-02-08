@@ -16,9 +16,6 @@
     }
   ],
   "features": {
-    "download-protoc": {
-      "description": "Download a prebuilt protoc binary during build."
-    },
     "vcpkg-protobuf": {
       "description": "Use protoc from vcpkg host protobuf package.",
       "dependencies": [

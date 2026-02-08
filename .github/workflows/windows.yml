@@ -37,7 +37,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: Setup Ninja
         uses: wirekang/setup-ninja@v1
@@ -50,11 +50,17 @@ jobs:
         run: |
           $version = "33.5"
           $zip = "protoc-$version-win64.zip"
+          $sha256 = "7e3468cd1fbd1ae9361a5304d4ac28fbd593aa1a425b5464bd9d4da5fca224b4"
           $url = "https://github.com/protocolbuffers/protobuf/releases/download/v$version/$zip"
           $dest = "$env:RUNNER_TEMP\protoc"
+          $zipPath = "$dest\$zip"
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          Invoke-WebRequest -Uri $url -OutFile "$dest\$zip"
-          Expand-Archive -Path "$dest\$zip" -DestinationPath $dest -Force
+          Invoke-WebRequest -Uri $url -OutFile $zipPath
+          $actual = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $sha256) {
+            throw "Checksum mismatch for $zip. Expected $sha256, got $actual"
+          }
+          Expand-Archive -Path $zipPath -DestinationPath $dest -Force
           Add-Content -Path $env:GITHUB_PATH -Value "$dest\bin"
           Add-Content -Path $env:GITHUB_ENV -Value "PROTOC_BIN=$dest\bin"
 

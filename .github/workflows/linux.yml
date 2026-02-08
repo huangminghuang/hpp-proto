@@ -78,7 +78,7 @@
         - uses: actions/cache@v4
           with:
             path: "**/cpm_modules"
-            key: ${{ matrix.os }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-party.cmake') }}
+            key: ${{ matrix.os }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
   
         - name: ccache
           uses: hendrikmuhs/ccache-action@v1.2.14
