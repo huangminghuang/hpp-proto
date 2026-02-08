@@ -42,30 +42,46 @@
               build_type: Debug
 
       runs-on: ubuntu-24.04
+      container:
+        image: ${{ startsWith(matrix.compiler, 'gcc') && 'gcc:15' || 'ubuntu:24.04' }}
       steps:
+        - name: Setup SUDO helper
+          run: |
+            if command -v sudo >/dev/null 2>&1; then
+              echo "SUDO=sudo" >> "$GITHUB_ENV"
+            else
+              echo "SUDO=" >> "$GITHUB_ENV"
+            fi
+
         - name: Install Compiler and Set Environment
           run: |
-            sudo apt-get update
-            sudo apt-get install -y software-properties-common wget
+            $SUDO apt-get update
+            $SUDO apt-get install -y software-properties-common wget curl unzip
             
             # Get the version suffix (e.g., "-15", "-20")
             VERSION_SUFFIX=$(echo "${{ matrix.compiler }}" | grep -oE -- '-[0-9]+$')
 
             if [[ "${{ matrix.compiler }}" == gcc* ]]; then
               echo "Installing GCC..."
-              sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-              sudo apt-get update
-              sudo apt-get install -y ${{ matrix.compiler }} g++${VERSION_SUFFIX}
-              
+
+              # In gcc:15 container, gcc/g++ are preinstalled as gcc/g++.
+              if command -v "${{ matrix.compiler }}" >/dev/null 2>&1; then
+                CC_BIN="${{ matrix.compiler }}"
+                CXX_BIN="g++${VERSION_SUFFIX}"
+              else
+                CC_BIN="gcc"
+                CXX_BIN="g++"
+              fi
+
               echo "Setting GCC environment variables..."
-              echo "CC=${{ matrix.compiler }}" >> $GITHUB_ENV
-              echo "CXX=g++${VERSION_SUFFIX}" >> $GITHUB_ENV    
+              echo "CC=${CC_BIN}" >> $GITHUB_ENV
+              echo "CXX=${CXX_BIN}" >> $GITHUB_ENV
             elif [[ "${{ matrix.compiler }}" == clang* ]]; then
               echo "Installing Clang + libc++..."
               wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
               chmod +x /tmp/llvm.sh
-              sudo /tmp/llvm.sh ${VERSION_SUFFIX#-}
-              sudo apt-get install -y \
+              $SUDO /tmp/llvm.sh ${VERSION_SUFFIX#-}
+              $SUDO apt-get install -y \
                 ${{ matrix.compiler }} \
                 lld${VERSION_SUFFIX} \
                 libc++${VERSION_SUFFIX}-dev \
@@ -93,17 +109,17 @@
 
         - name: install ninja
           run: |
-            sudo apt install -y ninja-build
+            $SUDO apt-get install -y ninja-build
 
         - name: install protoc
           if: matrix.protoc == 'find'
           run: |
-            sudo apt install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
+            $SUDO apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
 
         - name: install lcov
           if: matrix.build_type == 'Coverage'
           run: |
-            sudo apt install -y lcov
+            $SUDO apt-get install -y lcov
             
         - name: configure
           run: |
