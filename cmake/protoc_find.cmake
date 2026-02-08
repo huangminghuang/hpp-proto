@@ -27,6 +27,8 @@ function(hpp_proto_find_protoc)
             "  - make sure 'protoc' is available in your PATH system variable, or\n"
             "  - use '-DHPP_PROTO_PROTOC=compile' for compiling protoc from source, or\n"
             "  - use '-DHPP_PROTO_PROTOC=download' for downloading a prebuilt protoc, or\n"
-            "  - use '-DProtobuf_PROTOC_EXECUTABLE=/path/to/bin/protoc' to specify the absolute path of protoc.")
+            "  - use '-DProtobuf_PROTOC_EXECUTABLE=/path/to/bin/protoc' to specify the absolute path of protoc, or"
+            "  - for vcpkg, use feature 'download-protoc' or 'vcpkg-protobuf' (e.g. vcpkg install \"hpp-proto[download-protoc]\" --overlay-ports=<ports-dir>).\n"
+)
     endif()
 endfunction()
