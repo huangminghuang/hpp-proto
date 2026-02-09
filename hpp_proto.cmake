@@ -13,11 +13,34 @@ protobuf_generate_hpp(
 protobuf_generate_hpp(
     TARGET descriptor_lib
     PROTOS ${Protobuf_INCLUDE_DIRS}/google/protobuf/descriptor.proto
-           ${Protobuf_INCLUDE_DIRS}/google/protobuf/compiler/plugin.proto
+    ${Protobuf_INCLUDE_DIRS}/google/protobuf/compiler/plugin.proto
     IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
     PLUGIN_OPTIONS "proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed"
     PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
 
+if(EXISTS ${Protobuf_INCLUDE_DIRS}/google/protobuf/compiler/plugin.proto)
+    protobuf_generate_hpp(
+        TARGET descriptor_lib
+        PROTOS ${Protobuf_INCLUDE_DIRS}/google/protobuf/compiler/plugin.proto
+        IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
+        PLUGIN_OPTIONS "proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed"
+        PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
+else()
+    # ubuntu 24.04 protobuf-compiler package does not ship plugin.proto
+    add_library(plugin_lib INTERFACE)
+    target_sources(plugin_lib
+        FILE_SET public_headers
+        TYPE HEADERS
+        BASE_DIRS "include"
+        FILES "include/google/protobuf/compiler/plugin.msg.hpp"
+        "include/google/protobuf/compiler/plugin.pb.hpp"
+        "include/google/protobuf/compiler/plugin.glz.hpp"
+        "include/google/protobuf/compiler/plugin.desc.hpp"
+    )
+    install(TARGETS plugin_lib EXPORT hpp_proto-targets
+        FILE_SET HEADERS DESTINATION
+        ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
 install(TARGETS descriptor_lib EXPORT hpp_proto-targets
     FILE_SET HEADERS DESTINATION
@@ -49,6 +72,10 @@ protobuf_generate_hpp(
 install(TARGETS well_known_types EXPORT hpp_proto-targets
     FILE_SET HEADERS DESTINATION
     ${CMAKE_INSTALL_INCLUDEDIR})
+
+if (TARGET plugin_lib)
+    add_library(hpp_proto INTERFACE plugin_lib)
+endif()
 
 add_library(hpp_proto INTERFACE)
 target_link_libraries(hpp_proto INTERFACE hpp_proto_core well_known_types descriptor_lib)

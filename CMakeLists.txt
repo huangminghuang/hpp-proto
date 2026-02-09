@@ -30,6 +30,7 @@ if(NOT MSVC)
 endif()
 
 include(third-parties.cmake)
+include(cmake/coverage.cmake)
 
 add_library(hpp_proto_core INTERFACE)
 
@@ -82,4 +83,3 @@ if(HPP_PROTO_BENCHMARKS)
 endif()
 
 include(cmake/hpp_proto_install_package.cmake)
-include(cmake/coverage.cmake)
