@@ -27,7 +27,11 @@ if(HPP_PROTO_FUZZER_ONLY)
   set(HPP_PROTO_BENCHMARKS OFF CACHE BOOL "Enable building benchmarks" FORCE)
 endif()
 
-set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra" "-Werror=sign-conversion")
+if (NOT MSVC)
+  set(HPP_PROTO_COMPILE_OPTIONS "/Zc:preprocessor")
+else()
+  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra" "-Werror=sign-conversion")
+endif()
  
 include(third-parties.cmake)
 
@@ -45,12 +49,8 @@ target_include_directories(libhpp_proto INTERFACE
 
 target_compile_features(libhpp_proto INTERFACE cxx_std_23)
 target_link_libraries(libhpp_proto INTERFACE is_utf8)
-
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
 
-if(MSVC)
-  target_compile_options(libhpp_proto INTERFACE "/Zc:preprocessor")
-endif()
 
 if(HPP_PROTO_TESTS)
   enable_testing()
