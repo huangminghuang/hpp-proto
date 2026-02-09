@@ -23,6 +23,7 @@ class HppProtoConan(ConanFile):
     }
     exports_sources = (
         "CMakeLists.txt",
+        "hpp_proto.cmake",
         "cmake/*",
         "hpp_proto-config.cmake.in",
         "third-parties.cmake",
