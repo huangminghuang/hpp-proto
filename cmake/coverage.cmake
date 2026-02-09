@@ -1,3 +1,5 @@
+set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} -g -O0 --coverage -fprofile-arcs -ftest-coverage")
+
 if(CMAKE_CONFIGURATION_TYPES)
   list(FIND CMAKE_CONFIGURATION_TYPES "Coverage" _coverage_config_index)
 else()

@@ -6,11 +6,12 @@ endif()
 
 # # when sanitizer is enable, we can't use gRPC unless the gRPC library is built with sanitizer.
 add_library(helloworld INTERFACE)
+target_compile_features(helloworld INTERFACE cxx_std_23)
 
 protobuf_generate_hpp(TARGET helloworld
     PROTOS helloworld.proto)
 
-target_link_libraries(helloworld INTERFACE gRPC::grpc++ hpp_proto::well_known_types)
+target_link_libraries(helloworld INTERFACE gRPC::grpc++ hpp_proto::hpp_proto)
 
 add_executable(greeter_client
     greeter_client.cpp

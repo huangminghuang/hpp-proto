@@ -24,7 +24,7 @@ CPMAddPackage(
     DOWNLOAD_ONLY ON
 )
 add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
-target_compile_features(is_utf8 INTERFACE cxx_std_20)
+target_compile_features(is_utf8 PRIVATE cxx_std_20)
 get_target_property(IS_UTF8_COMPILER_OPTIONS is_utf8 COMPILE_OPTIONS)
 
 if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")

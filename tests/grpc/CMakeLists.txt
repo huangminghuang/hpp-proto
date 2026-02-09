@@ -1,7 +1,5 @@
-set(HPP_PROTO_GRPC_ENABLED FALSE)
-
-if(NOT HPP_PROTO_PROTOC STREQUAL "compile" AND GRPC_SUPPORT)
-    set(HPP_PROTO_GRPC_ENABLED TRUE)
+if(NOT GRPC_SUPPORT)
+    return()
 endif()
 
 add_hpp_proto_generated_test_lib(
@@ -9,14 +7,12 @@ add_hpp_proto_generated_test_lib(
     SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/echo_stream.proto"
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/.."
     PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}"
-    LINK_LIBRARIES gRPC::grpc++
-    REQUIRES HPP_PROTO_GRPC_ENABLED)
+    LINK_LIBRARIES gRPC::grpc++)
 
 add_hpp_proto_test(
     NAME grpc_test_server
     SOURCES grpc_test_server.cpp
-    LINK_LIBRARIES grpc_proto_lib hpp_proto::libhpp_proto gRPC::grpc++
-    REQUIRES HPP_PROTO_GRPC_ENABLED
+    LINK_LIBRARIES grpc_proto_lib hpp_proto::hpp_proto_core gRPC::grpc++
     NO_TEST)
 
 set(GRPC_TEST_RUNNER "${CMAKE_CURRENT_SOURCE_DIR}/run_grpc_test.py")
@@ -24,48 +20,41 @@ set(GRPC_TEST_RUNNER "${CMAKE_CURRENT_SOURCE_DIR}/run_grpc_test.py")
 add_hpp_proto_test(
     NAME grpc_unary_tests
     SOURCES grpc_tests.cpp unary_tests.cpp
-    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
-    REQUIRES HPP_PROTO_GRPC_ENABLED)
+    LINK_LIBRARIES grpc_proto_lib hpp_proto::hpp_proto_core Boost::ut glaze::glaze gRPC::grpc++)
 
 add_hpp_proto_test(
     NAME grpc_client_stream_tests
     SOURCES grpc_tests.cpp client_stream_tests.cpp
-    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
-    REQUIRES HPP_PROTO_GRPC_ENABLED)
+    LINK_LIBRARIES grpc_proto_lib hpp_proto::hpp_proto_core Boost::ut glaze::glaze gRPC::grpc++)
 
 add_hpp_proto_test(
     NAME grpc_server_stream_tests
     SOURCES grpc_tests.cpp server_stream_tests.cpp
-    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
-    REQUIRES HPP_PROTO_GRPC_ENABLED)
+    LINK_LIBRARIES grpc_proto_lib hpp_proto::hpp_proto_core Boost::ut glaze::glaze gRPC::grpc++)
 
 add_hpp_proto_test(
     NAME grpc_bidi_stream_tests
     SOURCES grpc_tests.cpp bidi_stream_tests.cpp
-    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
-    REQUIRES HPP_PROTO_GRPC_ENABLED)
+    LINK_LIBRARIES grpc_proto_lib hpp_proto::hpp_proto_core Boost::ut glaze::glaze gRPC::grpc++)
 
 add_hpp_proto_test(
     NAME grpc_server_failure_tests
     SOURCES grpc_tests.cpp server_failure_tests.cpp
-    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
-    REQUIRES HPP_PROTO_GRPC_ENABLED)
+    LINK_LIBRARIES grpc_proto_lib hpp_proto::hpp_proto_core Boost::ut glaze::glaze gRPC::grpc++)
 
 add_hpp_proto_test(
     NAME grpc_serialization_tests
     SOURCES grpc_tests.cpp grpc_serialization_tests.cpp
-    LINK_LIBRARIES grpc_proto_lib hpp_proto::libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
-    REQUIRES HPP_PROTO_GRPC_ENABLED)
+    LINK_LIBRARIES grpc_proto_lib hpp_proto::hpp_proto_core Boost::ut glaze::glaze gRPC::grpc++)
 
-
-if(HPP_PROTO_GRPC_ENABLED AND TARGET protobuf::libprotobuf AND TARGET protobuf::protoc
+if(TARGET protobuf::libprotobuf AND TARGET protobuf::protoc
     AND TARGET gRPC::grpc_cpp_plugin AND Python3_Interpreter_FOUND)
-
     find_package(Python3 COMPONENTS Interpreter)
-    if (NOT Python3_Interpreter_FOUND)
+
+    if(NOT Python3_Interpreter_FOUND)
         return()
     endif()
-    
+
     set(GRPC_OFFICIAL_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/official")
     file(MAKE_DIRECTORY "${GRPC_OFFICIAL_GENERATED_DIR}")
 

@@ -1,5 +1,6 @@
 if (NOT MSVC OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.43)
     add_library(person INTERFACE)
+    target_compile_features(person INTERFACE cxx_std_23)
     protobuf_generate_hpp(TARGET person
         PROTOS person.proto)
     add_executable(compile_time_serialization compile_time_serialization.cpp)

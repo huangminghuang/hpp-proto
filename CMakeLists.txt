@@ -15,7 +15,6 @@ option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
 option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
-option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
 if(HPP_PROTO_FUZZER_ONLY)
   if(NOT HPP_PROTO_PROTOC_PLUGIN)
@@ -32,17 +31,19 @@ endif()
 
 include(third-parties.cmake)
 
-set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} -g -O0 --coverage -fprofile-arcs -ftest-coverage")
+add_library(hpp_proto_core INTERFACE)
 
-add_library(libhpp_proto INTERFACE)
-target_include_directories(libhpp_proto INTERFACE
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+file(GLOB_RECURSE HPP_PROTO_PUBLIC_HEADERS CONFIGURE_DEPENDS
+  "${PROJECT_SOURCE_DIR}/include/hpp_proto/*.hpp")
+list(FILTER HPP_PROTO_PUBLIC_HEADERS EXCLUDE REGEX ".*/include/hpp_proto/hpp_options\\..*")
+target_sources(hpp_proto_core INTERFACE
+  FILE_SET public_headers
+  TYPE HEADERS
+  BASE_DIRS "${PROJECT_SOURCE_DIR}/include"
+  FILES ${HPP_PROTO_PUBLIC_HEADERS})
 
-target_compile_features(libhpp_proto INTERFACE cxx_std_23)
-target_link_libraries(libhpp_proto INTERFACE is_utf8)
-add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
+target_link_libraries(hpp_proto_core INTERFACE is_utf8)
+add_library(hpp_proto::hpp_proto_core ALIAS hpp_proto_core)
 
 if(HPP_PROTO_TESTS)
   enable_testing()
@@ -51,76 +52,34 @@ if(HPP_PROTO_TESTS)
   add_subdirectory(unittests)
 endif()
 
-if(HPP_PROTO_PROTOC_PLUGIN)
-  include(cmake/protobuf_generate_hpp.cmake)
+if(NOT HPP_PROTO_PROTOC_PLUGIN)
+  return()
+endif()
 
-  add_subdirectory(protoc-plugin)
+include(cmake/protobuf_generate_hpp.cmake)
 
-  if(HPP_PROTO_TESTS AND NOT HPP_PROTO_PROTOC STREQUAL "compile")
-    include(cmake/grpc_check.cmake)
-  endif()
+add_subdirectory(protoc-plugin)
+include(hpp_proto.cmake)
 
-  if(HPP_PROTO_TESTS OR HPP_PROTO_FUZZER_ONLY)
-    add_subdirectory(tests)
-  endif()
+if(HPP_PROTO_TESTS AND NOT HPP_PROTO_PROTOC STREQUAL "compile")
+  include(cmake/grpc_check.cmake)
+endif()
 
-  if(HPP_PROTO_TESTS)
-    add_subdirectory(tutorial)
-  endif()
+if(HPP_PROTO_TESTS OR HPP_PROTO_FUZZER_ONLY)
+  add_subdirectory(tests)
+endif()
 
-  if(HPP_PROTO_FUZZER_ONLY)
-    add_subdirectory(fuzz)
-  endif()
+if(HPP_PROTO_TESTS)
+  add_subdirectory(tutorial)
+endif()
 
-  if(HPP_PROTO_BENCHMARKS)
-    add_subdirectory(benchmarks)
-  endif()
+if(HPP_PROTO_FUZZER_ONLY)
+  add_subdirectory(fuzz)
+endif()
 
-  include(CMakePackageConfigHelpers)
-  write_basic_package_version_file(
-    lib/cmake/hpp_proto/hpp_proto-config-version.cmake
-    COMPATIBILITY AnyNewerVersion
-  )
+if(HPP_PROTO_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()
 
-  if(HPP_PROTO_PROTOC STREQUAL "compile")
-    # copy google proto files into include directory
-    file(GLOB GOOGLE_PROTOFILES RELATIVE "${protobuf_SOURCE_DIR}/src/google/protobuf" "${protobuf_SOURCE_DIR}/src/google/protobuf/*.proto")
-    list(FILTER GOOGLE_PROTOFILES EXCLUDE REGEX ".*test.*")
-    list(APPEND GOOGLE_PROTOFILES "compiler/plugin.proto")
-
-    foreach(f ${GOOGLE_PROTOFILES})
-      configure_file(${protobuf_SOURCE_DIR}/src/google/protobuf/${f} include/google/protobuf/${f} COPYONLY)
-    endforeach()
-
-    install(TARGETS protoc EXPORT hpp_proto-targets)
-  endif()
-
-  install(TARGETS libhpp_proto EXPORT hpp_proto-targets)
-
-  install(DIRECTORY include/ TYPE INCLUDE)
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
-
-  configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config-version.cmake"
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate_hpp.cmake"
-    DESTINATION "lib/cmake/hpp_proto")
-
-  install(
-    FILES ${is_utf8_SOURCE_DIR}/include/is_utf8.h
-    TYPE INCLUDE
-  )
-
-  install(
-    TARGETS is_utf8
-    EXPORT hpp_proto-targets
-  )
-
-  install(EXPORT hpp_proto-targets
-    DESTINATION lib/cmake/hpp_proto
-    NAMESPACE hpp_proto::)
-  export(EXPORT hpp_proto-targets FILE lib/cmake/hpp_proto/hpp_proto-targets.cmake
-    NAMESPACE hpp_proto::)
-endif(HPP_PROTO_PROTOC_PLUGIN)
-
+include(cmake/hpp_proto_install_package.cmake)
 include(cmake/coverage.cmake)

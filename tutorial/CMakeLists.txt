@@ -18,30 +18,30 @@ if(PROJECT_IS_TOP_LEVEL)
     )
 
     FetchContent_MakeAvailable(hpp_proto)
-    set(WELLKNOWN_TARGET hpp_proto::well_known_types)
   else()
     find_package(hpp_proto CONFIG REQUIRED)
   endif()
 elseif(NOT HPP_PROTO_TESTS)
   return()
-else()
-  set(WELLKNOWN_TARGET hpp_proto::well_known_types)
 endif()
 
 add_library(addressbook_proto3 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/addressbook_proto3.proto)
+target_compile_features(addressbook_proto3 INTERFACE cxx_std_23)
 protobuf_generate_hpp(
     TARGET addressbook_proto3
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 add_library(addressbook_proto2 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/addressbook_proto2.proto)
+target_compile_features(addressbook_proto2 INTERFACE cxx_std_23)
 protobuf_generate_hpp(
     TARGET addressbook_proto2
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} # # required when the proto file is not in ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 add_library(any_demo INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/any_demo.proto)
-target_link_libraries(any_demo INTERFACE ${WELLKNOWN_TARGET})
+target_compile_features(any_demo INTERFACE cxx_std_23)
+target_link_libraries(any_demo INTERFACE hpp_proto::hpp_proto)
 protobuf_generate_hpp(
     TARGET any_demo
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR})

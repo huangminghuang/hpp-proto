@@ -201,7 +201,13 @@ function(protobuf_generate_hpp)
       set(_base_dir ${CMAKE_CURRENT_BINARY_DIR})
     endif()
 
-    target_link_libraries(${protobuf_generate_hpp_TARGET} ${_scope} hpp_proto::libhpp_proto)
+    if (TARGET hpp_proto_core)
+      set(_generated_dependency hpp_proto_core)
+    else()
+      set(_generated_dependency hpp_proto::hpp_proto)
+    endif()
+
+    target_link_libraries(${protobuf_generate_hpp_TARGET} ${_scope} ${_generated_dependency})
     target_sources(${protobuf_generate_hpp_TARGET}
       ${_scope}
       FILE_SET HEADERS

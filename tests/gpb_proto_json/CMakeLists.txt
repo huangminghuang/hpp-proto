@@ -1,6 +1,6 @@
 
 
-if(HPP_PROTO_TEST_USE_PROTOBUF)
+if(HPP_PROTO_PROTOC STREQUAL "compile")
   if((TARGET protobuf::libprotoc) AND("${Protobuf_VERSION}" VERSION_GREATER_EQUAL "22.0"))
     set(use_libprotobuf ON)
   else()

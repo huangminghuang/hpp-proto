@@ -74,11 +74,9 @@ class HppProtoConan(ConanFile):
         copy(self, "conan_protoc_target.cmake", src=os.path.join(self.source_folder, "cmake"), dst=cmake_config_folder)
 
     def package_info(self):
-        self.cpp_info.components["libhpp_proto"].libs = ["is_utf8"]
-        self.cpp_info.components["libhpp_proto"].includedirs = ["include"]
-        self.cpp_info.components["libhpp_proto"].libsdir = ["lib"]
-        self.cpp_info.components["libhpp_proto"].set_property("cmake_target_name", "hpp_proto::libhpp_proto")
-        self.cpp_info.components["libhpp_proto"].requires = ["glaze::glaze"] 
+        self.cpp_info.libs = ["is_utf8"]
+        self.cpp_info.set_property("cmake_target_name", "hpp_proto::hpp_proto")
+        self.cpp_info.requires = ["glaze::glaze"]
 
         self.cpp_info.set_property(
             "cmake_build_modules",

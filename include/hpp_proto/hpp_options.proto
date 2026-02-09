@@ -1,6 +1,6 @@
 syntax = "proto2";
 import "google/protobuf/descriptor.proto";
-package hpp.proto;
+package hpp_proto;
 
 message FileOptions {
     optional string namespace_prefix = 2;

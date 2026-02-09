@@ -111,6 +111,7 @@ protobuf_generate_hpp(TARGET addressbook_lib)
 
 # Create our main executable
 add_executable(tutorial_proto main.cpp)
+target_compile_features(tutorial_proto PRIVATE cxx_std_23)
 
 # Link the generated code and hpp-proto to our executable
 target_link_libraries(tutorial_proto PRIVATE addressbook_lib)
