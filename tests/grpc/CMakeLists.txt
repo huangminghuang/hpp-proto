@@ -10,8 +10,6 @@ endif()
 
 add_library(grpc_proto_lib INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/echo_stream.proto")
-target_include_directories(grpc_proto_lib SYSTEM INTERFACE
-    ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET grpc_proto_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -31,8 +29,6 @@ target_link_libraries(grpc_test_server PRIVATE
     grpc_proto_lib
     hpp_proto::libhpp_proto
     gRPC::grpc++)
-target_include_directories(grpc_test_server PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(GRPC_TEST_RUNNER "${CMAKE_CURRENT_SOURCE_DIR}/run_grpc_test.py")
 
@@ -45,12 +41,10 @@ foreach(test_src IN LISTS GRPC_TEST_CASES)
         "${test_src}")
     target_link_libraries(${target_name} PRIVATE
         grpc_proto_lib
-        hpp_proto::libhpp_proto
+        libhpp_proto
         Boost::ut
         glaze::glaze
         gRPC::grpc++)
-    target_include_directories(${target_name} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME ${target_name}
         COMMAND $<TARGET_FILE:${target_name}>
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -65,8 +59,6 @@ target_link_libraries(grpc_serialization_tests PRIVATE
     Boost::ut
     glaze::glaze
     gRPC::grpc++)
-target_include_directories(grpc_serialization_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME grpc_serialization_tests
     COMMAND $<TARGET_FILE:grpc_serialization_tests>
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -121,6 +113,7 @@ if(GRPC_OFFICIAL_PROTO_AVAILABLE)
     add_executable(grpc_unary_official_tests
         grpc_tests.cpp
         unary_official_tests.cpp)
+    target_compile_features(grpc_unary_official_tests PRIVATE cxx_std_23)
     target_link_libraries(grpc_unary_official_tests PRIVATE
         grpc_official_proto
         Boost::ut)

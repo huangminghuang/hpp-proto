@@ -51,7 +51,6 @@ add_test(NAME unittest_well_known_types_test
 
 if(Protobuf_INCLUDE_DIRS)
     add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
-    target_include_directories(any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
     protobuf_generate_hpp(
         TARGET any_test_lib
         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -65,7 +64,6 @@ if(Protobuf_INCLUDE_DIRS)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_executable(well_known_types_tests well_known_types_tests.cpp)
-    target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
     target_link_libraries(well_known_types_tests PRIVATE well_known_types hpp_proto::libhpp_proto Boost::ut glaze::glaze)
     add_dependencies(well_known_types_tests well_known_types)
     add_test(NAME well_known_types_tests
@@ -87,7 +85,6 @@ protobuf_generate_hpp(
     TARGET hpp_options_test_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include"
     PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-target_include_directories(hpp_options_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(hpp_options_test hpp_options_test.cpp)
 target_link_libraries(hpp_options_test PRIVATE hpp_options_test_lib)
@@ -104,7 +101,6 @@ add_library(unittest_lite_proto_lib INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_lite.proto"
     "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_lite.proto"
     "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public_lite.proto")
-target_include_directories(unittest_lite_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET unittest_lite_proto_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -118,7 +114,6 @@ add_test(NAME lite_test
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(editions_test_lib INTERFACE "basic_test_editions.proto" "editions_test.proto")
-target_include_directories(editions_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET editions_test_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -127,7 +122,6 @@ add_executable(editions_test basic_test_editions_test.cpp)
 target_link_libraries(editions_test PRIVATE editions_test_lib)
 
 add_library(basic_test_proto2_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/basic_test_proto2.proto")
-target_include_directories(basic_test_proto2_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET basic_test_proto2_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"

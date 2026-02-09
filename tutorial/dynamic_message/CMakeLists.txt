@@ -13,7 +13,6 @@ add_custom_target(addressbook_proto3.desc.binpb.target ALL
 
 add_executable(dynamic_message_tutorial_proto3 tutorial_proto3_dynamic.cpp)
 target_link_libraries(dynamic_message_tutorial_proto3 PRIVATE hpp_proto::libhpp_proto glaze::glaze ${WELLKNOWN_TARGET})
-target_include_directories(dynamic_message_tutorial_proto3 PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/..) 
 if (MSVC)
     target_compile_options(dynamic_message_tutorial_proto3 PRIVATE /bigobj)
 endif()

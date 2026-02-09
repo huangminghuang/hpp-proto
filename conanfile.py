@@ -10,7 +10,7 @@ class HppProtoConan(ConanFile):
     version = "1.0.0"
     license = "Apache-2.0"
     url = "https://github.com/huangminghuang/hpp-proto"
-    description = "A modern, high-performance, header-only C++23 implementation of Protocol Buffers."
+    description = "A modern C++23 implementation of Protocol Buffers."
     topics = ("protobuf", "serialization", "codegen", "header-only")
     settings = ("os", "compiler", "build_type", "arch")
     options = {

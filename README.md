@@ -107,7 +107,6 @@ FetchContent_MakeAvailable(hpp_proto)
 # Create a library from our .proto file.
 # The generated headers will be available to targets that link against it.
 add_library(addressbook_lib INTERFACE addressbook.proto)
-target_include_directories(addressbook_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(TARGET addressbook_lib)
 
 # Create our main executable

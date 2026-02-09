@@ -51,9 +51,8 @@ if(Protobuf_INCLUDE_DIRS)
         TARGET well_known_types
         IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
         PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/../include)
-    target_include_directories(well_known_types INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../include>
-        $<INSTALL_INTERFACE:include>)
     add_library(hpp_proto::well_known_types ALIAS well_known_types)
-    install(TARGETS well_known_types EXPORT hpp_proto-targets)
+    install(TARGETS well_known_types EXPORT hpp_proto-targets
+        FILE_SET HEADERS DESTINATION
+        ${CMAKE_INSTALL_INCLUDEDIR})
 endif()

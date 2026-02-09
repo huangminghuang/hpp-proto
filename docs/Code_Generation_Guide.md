@@ -67,7 +67,6 @@ Example CMake configuration:
 
 ```cmake
 add_library(non_owning_unittest_proto3_proto_lib INTERFACE)
-target_include_directories(non_owning_unittest_proto3_proto_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET non_owning_unittest_proto3_proto_lib
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}

@@ -1,24 +1,22 @@
 cmake_minimum_required(VERSION 3.25)
 message("CMake Version: ${CMAKE_VERSION}")
 project(hpp_proto
+  DESCRIPTION "A modern C++23 implementation of Protocol Buffers"
   VERSION 1.0.0
   LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
-option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
-option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
-option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
-option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
-
-option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
 set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
-set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS
-  "find" "compile")
+set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS "find" "compile")
+option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
+
+# The following options are internal and not part of the public interface.
+option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
+option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
+option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
+option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
+
 
 if(HPP_PROTO_FUZZER_ONLY)
   if(NOT HPP_PROTO_PROTOC_PLUGIN)
@@ -29,46 +27,8 @@ if(HPP_PROTO_FUZZER_ONLY)
   set(HPP_PROTO_BENCHMARKS OFF CACHE BOOL "Enable building benchmarks" FORCE)
 endif()
 
-if(APPLE)
-  set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
-  set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
-endif()
-
-if(MSVC)
-  message(" compiler version ${CMAKE_CXX_COMPILER_VERSION}")
-  add_compile_options("/EHsc")
-
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.42 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.43)
-    message(WARNING "MSVC 19.42 has known bug to compile glaze, disable all JSON support")
-    set(HPP_PROTO_DISABLE_GLAZE ON)
-  endif()
-else()
-  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra" "-Werror=sign-conversion")
-endif()
-
-if(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")
-  find_program(ccache_exe ccache)
-
-  if(ccache_exe)
-    file(COPY_FILE
-      ${ccache_exe} ${CMAKE_BINARY_DIR}/cl.exe
-      ONLY_IF_DIFFERENT)
-
-    # By default Visual Studio generators will use /Zi which is not compatible
-    # with ccache, so tell Visual Studio to use /Z7 instead.
-    message(STATUS "Setting MSVC debug information format to 'Embedded'")
-    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
-
-    set(CMAKE_VS_GLOBALS
-      "CLToolExe=cl.exe"
-      "CLToolPath=${CMAKE_BINARY_DIR}"
-      "TrackFileAccess=false"
-      "UseMultiToolTask=true"
-      "DebugInformationFormat=OldStyle"
-    )
-  endif()
-endif()
-
+set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra" "-Werror=sign-conversion")
+ 
 include(third-parties.cmake)
 
 set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} -g -O0 --coverage -fprofile-arcs -ftest-coverage")

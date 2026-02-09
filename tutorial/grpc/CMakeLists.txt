@@ -11,7 +11,6 @@ protobuf_generate_hpp(TARGET helloworld
     PROTOS helloworld.proto)
 
 target_link_libraries(helloworld INTERFACE gRPC::grpc++ hpp_proto::well_known_types)
-target_include_directories(helloworld INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(greeter_client
     greeter_client.cpp
