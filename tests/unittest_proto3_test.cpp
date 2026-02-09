@@ -193,7 +193,6 @@ struct Proto3Tests {
 
       ExpectUnpackedFieldsSet(msg);
 
-#ifndef HPP_PROTO_DISABLE_GLAZE
       auto r = glz::write_json(original);
       expect(r.has_value());
       auto original_json = gpb_based::binpb_to_json(unittest_proto3_descriptorset, "proto3_unittest.TestUnpackedTypes",
@@ -205,10 +204,8 @@ struct Proto3Tests {
       auto s = std::distance(r->begin(), i1);
       std::cout << s << "\n";
       expect(eq(*r, original_json));
-#endif
     };
 
-#ifndef HPP_PROTO_DISABLE_GLAZE
     "glaze"_test = [&] {
       TestAllTypes original;
       SetAllFields(&original);
@@ -227,7 +224,6 @@ struct Proto3Tests {
 
       ExpectAllFieldsSet(msg);
     };
-#endif
   }
 };
 // NOLINTEND(clang-diagnostic-missing-designated-field-initializers)

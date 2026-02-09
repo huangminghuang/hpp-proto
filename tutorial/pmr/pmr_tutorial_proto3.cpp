@@ -52,7 +52,6 @@ int main() {
 
   std::cout << "Successfully serialized and deserialized using PMR traits!\n";
 
-#ifndef HPP_PROTO_DISABLE_GLAZE
   // JSON serialization works with PMR traits too
   auto json_result = hpp_proto::write_json(*address_book);
   expect(json_result.has_value());
@@ -66,7 +65,6 @@ int main() {
   expect(json_read_book->people.get_allocator().resource() == &pool);
   expect(json_read_book->people[0].name.get_allocator().resource() == &pool);
   std::cout << "Successfully serialized and deserialized JSON using PMR traits!\n";
-#endif
 
   return 0;
 }

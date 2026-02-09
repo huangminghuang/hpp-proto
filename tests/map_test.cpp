@@ -24,7 +24,6 @@ const boost::ut::suite map_test = [] {
     ExpectMapFieldsSet(msg);
   } | std::tuple<::hpp_proto::stable_traits, ::hpp_proto::non_owning_traits>();
 
-#ifndef HPP_PROTO_DISABLE_GLAZE
   "glaze"_test = [&]<class Traits> {
     protobuf_unittest::TestMap<Traits> original;
     SetMapFields(&original);
@@ -47,7 +46,6 @@ const boost::ut::suite map_test = [] {
     expect(hpp_proto::read_json(msg, non_null_terminated_json, hpp_proto::alloc_from(mr)).ok());
     ExpectMapFieldsSet(msg);
   } | std::tuple<::hpp_proto::stable_traits, ::hpp_proto::non_owning_traits>();
-#endif
 };
 
 int main() {

@@ -92,13 +92,11 @@ int main() {
            "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
   }
 
-#ifndef HPP_PROTO_DISABLE_GLAZE
   auto write_json_result =
       hpp_proto::write_json<hpp_proto::json_opts{}, std::pmr::string>(address_book, hpp_proto::alloc_from{pool});
   expect(write_json_result.has_value());
   auto read_json_result =
       hpp_proto::read_json<glz::opts{}, AddressBook>(write_json_result.value(), hpp_proto::alloc_from{pool});
   expect(address_book == read_json_result.value());
-#endif
   return 0;
 }

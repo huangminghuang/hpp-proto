@@ -1,88 +1,75 @@
+set(HPP_PROTO_GRPC_ENABLED FALSE)
 
-if(HPP_PROTO_PROTOC STREQUAL "compile")
-    return()
+if(NOT HPP_PROTO_PROTOC STREQUAL "compile" AND GRPC_SUPPORT)
+    set(HPP_PROTO_GRPC_ENABLED TRUE)
 endif()
 
-if(NOT GRPC_SUPPORT)
-    message(STATUS "gRPC not supported, skipping grpc test targets")
-    return()
-endif()
-
-add_library(grpc_proto_lib INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}/echo_stream.proto")
-protobuf_generate_hpp(
-    TARGET grpc_proto_lib
+add_hpp_proto_generated_test_lib(
+    NAME grpc_proto_lib
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/echo_stream.proto"
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/.."
-    PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-target_link_libraries(grpc_proto_lib INTERFACE gRPC::grpc++)
+    PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}"
+    LINK_LIBRARIES gRPC::grpc++
+    REQUIRES HPP_PROTO_GRPC_ENABLED)
 
-set(GRPC_TEST_CASES
-    unary_tests.cpp
-    client_stream_tests.cpp
-    server_stream_tests.cpp
-    bidi_stream_tests.cpp
-    server_failure_tests.cpp)
-
-add_executable(grpc_test_server
-    grpc_test_server.cpp)
-target_link_libraries(grpc_test_server PRIVATE
-    grpc_proto_lib
-    hpp_proto::libhpp_proto
-    gRPC::grpc++)
+add_hpp_proto_test(
+    NAME grpc_test_server
+    SOURCES grpc_test_server.cpp
+    LINK_LIBRARIES grpc_proto_lib hpp_proto::libhpp_proto gRPC::grpc++
+    REQUIRES HPP_PROTO_GRPC_ENABLED
+    NO_TEST)
 
 set(GRPC_TEST_RUNNER "${CMAKE_CURRENT_SOURCE_DIR}/run_grpc_test.py")
 
-foreach(test_src IN LISTS GRPC_TEST_CASES)
-    get_filename_component(test_name "${test_src}" NAME_WE)
-    set(target_name "grpc_${test_name}")
+add_hpp_proto_test(
+    NAME grpc_unary_tests
+    SOURCES grpc_tests.cpp unary_tests.cpp
+    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
+    REQUIRES HPP_PROTO_GRPC_ENABLED)
 
-    add_executable(${target_name}
-        grpc_tests.cpp
-        "${test_src}")
-    target_link_libraries(${target_name} PRIVATE
-        grpc_proto_lib
-        libhpp_proto
-        Boost::ut
-        glaze::glaze
-        gRPC::grpc++)
-    add_test(NAME ${target_name}
-        COMMAND $<TARGET_FILE:${target_name}>
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-endforeach()
+add_hpp_proto_test(
+    NAME grpc_client_stream_tests
+    SOURCES grpc_tests.cpp client_stream_tests.cpp
+    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
+    REQUIRES HPP_PROTO_GRPC_ENABLED)
 
-add_executable(grpc_serialization_tests
-    grpc_tests.cpp
-    grpc_serialization_tests.cpp)
-target_link_libraries(grpc_serialization_tests PRIVATE
-    grpc_proto_lib
-    hpp_proto::libhpp_proto
-    Boost::ut
-    glaze::glaze
-    gRPC::grpc++)
-add_test(NAME grpc_serialization_tests
-    COMMAND $<TARGET_FILE:grpc_serialization_tests>
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_hpp_proto_test(
+    NAME grpc_server_stream_tests
+    SOURCES grpc_tests.cpp server_stream_tests.cpp
+    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
+    REQUIRES HPP_PROTO_GRPC_ENABLED)
 
-set(GRPC_OFFICIAL_PROTO_AVAILABLE OFF)
+add_hpp_proto_test(
+    NAME grpc_bidi_stream_tests
+    SOURCES grpc_tests.cpp bidi_stream_tests.cpp
+    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
+    REQUIRES HPP_PROTO_GRPC_ENABLED)
 
-if(TARGET protobuf::libprotobuf AND TARGET protobuf::protoc AND TARGET gRPC::grpc_cpp_plugin)
-    set(GRPC_OFFICIAL_PROTO_AVAILABLE ON)
-else()
-    message(WARNING "Skipping official protobuf-based grpc unary test; required protobuf/gRPC targets not found")
-endif()
+add_hpp_proto_test(
+    NAME grpc_server_failure_tests
+    SOURCES grpc_tests.cpp server_failure_tests.cpp
+    LINK_LIBRARIES grpc_proto_lib libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
+    REQUIRES HPP_PROTO_GRPC_ENABLED)
 
-if(GRPC_OFFICIAL_PROTO_AVAILABLE)
+add_hpp_proto_test(
+    NAME grpc_serialization_tests
+    SOURCES grpc_tests.cpp grpc_serialization_tests.cpp
+    LINK_LIBRARIES grpc_proto_lib hpp_proto::libhpp_proto Boost::ut glaze::glaze gRPC::grpc++
+    REQUIRES HPP_PROTO_GRPC_ENABLED)
+
+
+if(HPP_PROTO_GRPC_ENABLED AND TARGET protobuf::libprotobuf AND TARGET protobuf::protoc
+    AND TARGET gRPC::grpc_cpp_plugin AND Python3_Interpreter_FOUND)
+
     find_package(Python3 COMPONENTS Interpreter)
-    if(NOT Python3_Interpreter_FOUND)
-        message(WARNING "Python3 interpreter not found, skipping grpc_tests target")
+    if (NOT Python3_Interpreter_FOUND)
         return()
     endif()
-
+    
     set(GRPC_OFFICIAL_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/official")
     file(MAKE_DIRECTORY "${GRPC_OFFICIAL_GENERATED_DIR}")
 
-    add_library(grpc_official_proto STATIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/echo_stream.proto)
+    add_library(grpc_official_proto STATIC ${CMAKE_CURRENT_SOURCE_DIR}/echo_stream.proto)
 
     protobuf_generate(
         TARGET grpc_official_proto
@@ -101,22 +88,17 @@ if(GRPC_OFFICIAL_PROTO_AVAILABLE)
         DEPENDENCIES gRPC::grpc_cpp_plugin
         GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc)
 
-    
-    target_include_directories(grpc_official_proto PUBLIC
-        "${GRPC_OFFICIAL_GENERATED_DIR}")
-    target_link_libraries(grpc_official_proto PUBLIC
-        protobuf::libprotobuf
-        gRPC::grpc++)
-    target_compile_options(grpc_official_proto PRIVATE
-        $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang>:-w>)
+    target_include_directories(grpc_official_proto PUBLIC "${GRPC_OFFICIAL_GENERATED_DIR}")
+    target_link_libraries(grpc_official_proto PUBLIC protobuf::libprotobuf gRPC::grpc++)
+    target_compile_options(grpc_official_proto PRIVATE $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang>:-w>)
 
-    add_executable(grpc_unary_official_tests
-        grpc_tests.cpp
-        unary_official_tests.cpp)
+    add_hpp_proto_test(
+        NAME grpc_unary_official_tests
+        SOURCES grpc_tests.cpp unary_official_tests.cpp
+        LINK_LIBRARIES grpc_official_proto Boost::ut
+        REQUIRES HPP_PROTO_GRPC_OFFICIAL_ENABLED)
+
     target_compile_features(grpc_unary_official_tests PRIVATE cxx_std_23)
-    target_link_libraries(grpc_unary_official_tests PRIVATE
-        grpc_official_proto
-        Boost::ut)
     set_property(TARGET grpc_official_proto grpc_unary_official_tests PROPERTY CXX_CLANG_TIDY "")
 
     add_test(NAME grpc_interoperability_test

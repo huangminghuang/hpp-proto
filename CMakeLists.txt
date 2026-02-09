@@ -17,7 +17,6 @@ option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
 option(HPP_PROTO_TEST_USE_PROTOBUF "Use libprotobuf to generate data for tests" OFF)
 
-
 if(HPP_PROTO_FUZZER_ONLY)
   if(NOT HPP_PROTO_PROTOC_PLUGIN)
     message(FATAL_ERROR "HPP_PROTO_FUZZER_ONLY requires HPP_PROTO_PROTOC_PLUGIN=ON")
@@ -27,19 +26,13 @@ if(HPP_PROTO_FUZZER_ONLY)
   set(HPP_PROTO_BENCHMARKS OFF CACHE BOOL "Enable building benchmarks" FORCE)
 endif()
 
-if (MSVC)
-  set(HPP_PROTO_COMPILE_OPTIONS "/Zc:preprocessor")
-else()
+if(NOT MSVC)
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra" "-Werror=sign-conversion")
 endif()
- 
+
 include(third-parties.cmake)
 
 set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} -g -O0 --coverage -fprofile-arcs -ftest-coverage")
-
-if(HPP_PROTO_DISABLE_GLAZE)
-  add_compile_definitions(BOOST_UT_DISABLE_MODULE HPP_PROTO_DISABLE_GLAZE)
-endif()
 
 add_library(libhpp_proto INTERFACE)
 target_include_directories(libhpp_proto INTERFACE
@@ -51,11 +44,11 @@ target_compile_features(libhpp_proto INTERFACE cxx_std_23)
 target_link_libraries(libhpp_proto INTERFACE is_utf8)
 add_library(hpp_proto::libhpp_proto ALIAS libhpp_proto)
 
-
 if(HPP_PROTO_TESTS)
   enable_testing()
-  add_subdirectory(unittests)
   include(CTest)
+  include("cmake/hpp_proto_test_helpers.cmake")
+  add_subdirectory(unittests)
 endif()
 
 if(HPP_PROTO_PROTOC_PLUGIN)
@@ -70,12 +63,15 @@ if(HPP_PROTO_PROTOC_PLUGIN)
   if(HPP_PROTO_TESTS OR HPP_PROTO_FUZZER_ONLY)
     add_subdirectory(tests)
   endif()
-  if (HPP_PROTO_TESTS)
+
+  if(HPP_PROTO_TESTS)
     add_subdirectory(tutorial)
   endif()
+
   if(HPP_PROTO_FUZZER_ONLY)
     add_subdirectory(fuzz)
   endif()
+
   if(HPP_PROTO_BENCHMARKS)
     add_subdirectory(benchmarks)
   endif()
@@ -103,7 +99,6 @@ if(HPP_PROTO_PROTOC_PLUGIN)
 
   install(DIRECTORY include/ TYPE INCLUDE)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/ TYPE INCLUDE)
-  
 
   configure_file(hpp_proto-config.cmake.in lib/cmake/hpp_proto/hpp_proto-config.cmake @ONLY)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.cmake"
