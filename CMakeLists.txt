@@ -27,7 +27,7 @@ if(HPP_PROTO_FUZZER_ONLY)
   set(HPP_PROTO_BENCHMARKS OFF CACHE BOOL "Enable building benchmarks" FORCE)
 endif()
 
-if (NOT MSVC)
+if (MSVC)
   set(HPP_PROTO_COMPILE_OPTIONS "/Zc:preprocessor")
 else()
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra" "-Werror=sign-conversion")
