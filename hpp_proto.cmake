@@ -28,9 +28,8 @@ if(EXISTS ${Protobuf_INCLUDE_DIRS}/google/protobuf/compiler/plugin.proto)
 else()
     # ubuntu 24.04 protobuf-compiler package does not ship plugin.proto
     add_library(plugin_lib INTERFACE)
-    target_sources(plugin_lib
-        FILE_SET public_headers
-        TYPE HEADERS
+    target_sources(plugin_lib INTERFACE
+        FILE_SET HEADERS
         BASE_DIRS "include"
         FILES "include/google/protobuf/compiler/plugin.msg.hpp"
         "include/google/protobuf/compiler/plugin.pb.hpp"
