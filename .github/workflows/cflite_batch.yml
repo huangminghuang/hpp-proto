@@ -16,7 +16,7 @@ jobs:
         sanitizer: [address, undefined]  # Override this with the sanitizers you want.
     steps:
     - name: Setup ccache
-      uses: hendrikmuhs/ccache-action@v1.2.14
+      uses: hendrikmuhs/ccache-action@v1.2.19
       env:
         CCACHE_DIR: ${{ github.workspace }}/.ccache
       with:

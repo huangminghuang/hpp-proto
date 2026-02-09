@@ -22,15 +22,15 @@ jobs:
   clang-tidy:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: "**/cpm_modules"
           key: clang-tidy-${{ runner.os }}-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.14
+        uses: hendrikmuhs/ccache-action@v1.2.19
         with:
           key: clang-tidy-${{ runner.os }}
 

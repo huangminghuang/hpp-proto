@@ -14,7 +14,7 @@ jobs:
         sanitizer: [address, undefined]  
     steps:
     - name: Setup ccache
-      uses: hendrikmuhs/ccache-action@v1.2.14
+      uses: hendrikmuhs/ccache-action@v1.2.19
       env:
         CCACHE_DIR: ${{ github.workspace }}/.ccache
       with:
