@@ -73,11 +73,12 @@ install(TARGETS well_known_types EXPORT hpp_proto-targets
     FILE_SET HEADERS DESTINATION
     ${CMAKE_INSTALL_INCLUDEDIR})
 
-if (TARGET plugin_lib)
-    add_library(hpp_proto INTERFACE plugin_lib)
-endif()
+
 
 add_library(hpp_proto INTERFACE)
 target_link_libraries(hpp_proto INTERFACE hpp_proto_core well_known_types descriptor_lib)
+if (TARGET plugin_lib)
+    target_link_libraries(hpp_proto INTERFACE plugin_lib)
+endif()
 add_library(hpp_proto::hpp_proto ALIAS hpp_proto)
 install(TARGETS hpp_proto EXPORT hpp_proto-targets)
