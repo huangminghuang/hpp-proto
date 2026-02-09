@@ -34,17 +34,17 @@ include(cmake/coverage.cmake)
 
 add_library(hpp_proto_core INTERFACE)
 
-file(GLOB_RECURSE HPP_PROTO_PUBLIC_HEADERS CONFIGURE_DEPENDS
-  "${PROJECT_SOURCE_DIR}/include/hpp_proto/*.hpp")
-list(FILTER HPP_PROTO_PUBLIC_HEADERS EXCLUDE REGEX ".*/include/hpp_proto/hpp_options\\..*")
+file(GLOB_RECURSE HPP_PROTO_CORE_PUBLIC_HEADERS CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/hpp_proto/*.hpp")
 target_sources(hpp_proto_core INTERFACE
-  FILE_SET public_headers
-  TYPE HEADERS
-  BASE_DIRS "${PROJECT_SOURCE_DIR}/include"
-  FILES ${HPP_PROTO_PUBLIC_HEADERS})
+  FILE_SET HEADERS
+  BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  FILES ${HPP_PROTO_CORE_PUBLIC_HEADERS})
 
 target_link_libraries(hpp_proto_core INTERFACE is_utf8)
 add_library(hpp_proto::hpp_proto_core ALIAS hpp_proto_core)
+install(TARGETS hpp_proto_core EXPORT hpp_proto-targets
+  FILE_SET HEADERS DESTINATION include)
 
 if(HPP_PROTO_TESTS)
   enable_testing()
@@ -70,11 +70,11 @@ if(HPP_PROTO_TESTS OR HPP_PROTO_FUZZER_ONLY)
   add_subdirectory(tests)
 endif()
 
-if(HPP_PROTO_TESTS)
+if(PROJECT_IS_TOP_LEVEL AND HPP_PROTO_TESTS)
   add_subdirectory(tutorial)
 endif()
 
-if(HPP_PROTO_FUZZER_ONLY)
+if(PROJECT_IS_TOP_LEVEL)
   add_subdirectory(fuzz)
 endif()
 
