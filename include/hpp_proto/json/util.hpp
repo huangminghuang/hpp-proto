@@ -324,9 +324,59 @@ template <auto Opts>
   unreachable();
 }
 
+
+template <auto Opts>
+void from_json(hpp_proto::bool_proxy value, auto &ctx, auto &it, auto &end) {
+  bool v = false;
+  parse<JSON>::op<Opts>(v, ctx, it, end);
+  value = v;
+}
+
+template <auto Opts, typename T>
+  requires std::is_enum_v<T>
+void from_json(T &v, auto &ctx, auto &it, auto &end) {
+  if constexpr (!check_ws_handled(Opts)) {
+    if (skip_ws<Opts>(ctx, it, end)) {
+      return;
+    }
+  }
+  if (*it != '"') {
+    int32_t number = 0;
+    from<JSON, int32_t>::template op<ws_handled<Opts>()>(number, ctx, it, end);
+    v = static_cast<T>(number);
+  } else {
+    from<JSON, T>::template op<ws_handled<Opts>()>(v, ctx, it, end);
+  }
+}
+
+template <auto Opts, typename T>
+  requires(!std::is_enum_v<T>)
+void from_json(T &&v, auto &ctx, auto &it, auto &end) {
+  using value_t = std::decay_t<T>;
+  if constexpr (std::same_as<value_t, std::string_view>) {
+    decltype(auto) mutable_v = hpp_proto::detail::as_modifiable(ctx, v);
+    from<JSON, decltype(mutable_v)>::template op<Opts>(mutable_v, ctx, it, end);
+  } else if constexpr (::hpp_proto::concepts::integral_64_bits<T>) {
+    if constexpr (!check_ws_handled(Opts)) {
+      if (skip_ws<Opts>(ctx, it, end)) {
+        return;
+      }
+    }
+    from<JSON, value_t>::template op<opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(v, ctx, it, end);
+  } else if constexpr (pair_t<value_t>) {
+    util::parse_key_and_colon<Opts>(::hpp_proto::detail::as_modifiable(ctx, v.first), ctx, it, end);
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
+    }
+    from_json<ws_handled<Opts>()>(v.second, ctx, it, end);
+  } else {
+    from<JSON, value_t>::template op<Opts>(std::forward<T>(v), ctx, it, end);
+  }
+}
+
 template <auto Options, typename T>
   requires(!::hpp_proto::concepts::associative_container<T>)
-void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end, const auto &element_parser) {
+void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end) {
   constexpr auto Opts = ws_handled_off<Options>();
 
   const auto opening_token = is_map ? '{' : '[';
@@ -350,7 +400,7 @@ void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end, const
   value.resize(new_size);
 
   for (auto i = old_size; i < new_size; ++i) {
-    element_parser(value[i], ctx, it, end);
+    from_json<Opts>(value[i], ctx, it, end);
     if (bool(ctx.error)) [[unlikely]] {
       return;
     }
@@ -373,18 +423,15 @@ void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end, const
   util::match_ending<Opts>(ending_token, ctx, it, end);
 }
 
+
 template <auto Options, ::hpp_proto::concepts::associative_container T>
-void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end, const auto &) {
+void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end) {
   typename T::key_type key;
   scan_object_fields<Options, true>(
       ctx, it, end, hpp_proto::detail::as_modifiable(ctx, key), [](auto &, auto &) {},
       [&](auto &it_ref, auto &end_ref) {
         static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
-        if constexpr (hpp_proto::concepts::integral_64_bits<typename T::mapped_type>) {
-          parse<JSON>::op<opt_true<Opts, quoted_num_opt_tag{}>>(value[std::move(key)], ctx, it_ref, end_ref);
-        } else {
-          parse<JSON>::op<Opts>(value[std::move(key)], ctx, it_ref, end_ref);
-        }
+        from_json<Opts>(value[std::move(key)], ctx, it_ref, end_ref);
         return bool(ctx.error);
       },
       [](auto &, auto &) {});

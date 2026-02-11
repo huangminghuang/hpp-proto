@@ -906,19 +906,7 @@ struct from<JSON, T> {
     const bool is_map =
         std::same_as<T, ::hpp_proto::repeated_message_field_mref> ? value.descriptor().is_map_entry() : false;
 
-    util::parse_repeated<Opts>(is_map, value, ctx, it, end, [](auto &&element, auto &ctx, auto &it, auto &end) {
-      if constexpr (::hpp_proto::concepts::integral_64_bits<typename T::value_type>) {
-        if (skip_ws<Opts>(ctx, it, end)) {
-          return;
-        }
-        from<JSON, std::remove_reference_t<typename T::reference>>::template op<
-            opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(std::forward<decltype(element)>(element), ctx, it, end);
-
-      } else {
-        from<JSON, std::remove_reference_t<typename T::reference>>::template op<ws_handled_off<Opts>()>(
-            std::forward<decltype(element)>(element), ctx, it, end);
-      }
-    });
+    util::parse_repeated<Opts>(is_map, value, ctx, it, end);
   }
 };
 

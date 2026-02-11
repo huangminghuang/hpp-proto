@@ -186,56 +186,7 @@ struct from<JSON, hpp_proto::bytes_view> {
   }
 };
 
-namespace detail {
-template <auto Opts>
-void from_json(hpp_proto::bool_proxy value, auto &ctx, auto &it, auto &end) {
-  bool v = false;
-  parse<JSON>::op<Opts>(v, ctx, it, end);
-  value = v;
-}
 
-template <auto Opts, typename T>
-  requires std::is_enum_v<T>
-void from_json(T &v, auto &ctx, auto &it, auto &end) {
-  if constexpr (!check_ws_handled(Opts)) {
-    if (skip_ws<Opts>(ctx, it, end)) {
-      return;
-    }
-  }
-  if (*it != '"') {
-    int32_t number = 0;
-    from<JSON, int32_t>::template op<ws_handled<Opts>()>(number, ctx, it, end);
-    v = static_cast<T>(number);
-  } else {
-    from<JSON, T>::template op<ws_handled<Opts>()>(v, ctx, it, end);
-  }
-}
-
-template <auto Opts, typename T>
-  requires(!std::is_enum_v<T>)
-void from_json(T &v, auto &ctx, auto &it, auto &end) {
-  if constexpr (std::same_as<T, std::string_view>) {
-    decltype(auto) mutable_v = hpp_proto::detail::as_modifiable(ctx, v);
-    from<JSON, decltype(mutable_v)>::template op<Opts>(mutable_v, ctx, it, end);
-  } else if constexpr (::hpp_proto::concepts::integral_64_bits<T>) {
-    if constexpr (!check_ws_handled(Opts)) {
-      if (skip_ws<Opts>(ctx, it, end)) {
-        return;
-      }
-    }
-
-    from<JSON, T>::template op<opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(v, ctx, it, end);
-  } else if constexpr (pair_t<T>) {
-    util::parse_key_and_colon<Opts>(::hpp_proto::detail::as_modifiable(ctx, v.first), ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]] {
-      return;
-    }
-    from_json<ws_handled<Opts>()>(v.second, ctx, it, end);
-  } else {
-    from<JSON, T>::template op<Opts>(v, ctx, it, end);
-  }
-}
-} // namespace detail
 
 template <typename Type, auto Default>
 struct to<JSON, hpp_proto::optional<Type, Default>> {
@@ -257,10 +208,10 @@ struct from<JSON, hpp_proto::optional<Type, Default>> {
   GLZ_ALWAYS_INLINE static void op(auto &value, auto &ctx, auto &it, auto &end) noexcept {
     if (!util::parse_null<Options>(value, ctx, it, end)) {
       if constexpr (requires { value.emplace(); }) {
-        detail::from_json<Options>(value.emplace(), ctx, it, end);
+        util::from_json<Options>(value.emplace(), ctx, it, end);
       } else {
         Type v;
-        detail::from_json<Options>(v, ctx, it, end);
+        util::from_json<Options>(v, ctx, it, end);
         value = v;
       }
     }
@@ -288,15 +239,13 @@ struct from<JSON, hpp_proto::optional_ref<Type, Default>> {
   GLZ_ALWAYS_INLINE static void op(auto &&value, auto &ctx, auto &it, auto &end) noexcept {
     if (!util::parse_null<Opts>(value, ctx, it, end)) {
       if constexpr (requires { value.emplace(); }) {
-        detail::from_json<Opts>(value.emplace(), ctx, it, end);
+        util::from_json<Opts>(value.emplace(), ctx, it, end);
       } else if constexpr (hpp_proto::concepts::repeated_or_map<Type>) {
         constexpr bool is_map = pair_t<std::ranges::range_value_t<Type>>;
         decltype(auto) v = hpp_proto::detail::as_modifiable(ctx, *value);
-        util::parse_repeated<Opts>(is_map, v, ctx, it, end, [](auto &element, auto &ctx, auto &it, auto &end) {
-          detail::from_json<ws_handled_off<Opts>()>(element, ctx, it, end);
-        });
+        util::parse_repeated<Opts>(is_map, v, ctx, it, end);
       } else {
-        detail::from_json<Opts>(*value, ctx, it, end);
+        util::from_json<Opts>(*value, ctx, it, end);
       }
     }
   }
@@ -318,10 +267,10 @@ struct from<JSON, hpp_proto::oneof_wrapper<Type, Index>> {
     if (!util::parse_null<Opts>(value, ctx, it, end)) {
       using alt_type = std::variant_alternative_t<Index, Type>;
       if constexpr (requires { value.value->template emplace<Index>(); }) {
-        detail::from_json<Opts>(value.value->template emplace<Index>(), ctx, it, end);
+        util::from_json<Opts>(value.value->template emplace<Index>(), ctx, it, end);
       } else {
         *value.value = alt_type{};
-        detail::from_json<Opts>(std::get<Index>(*value.value), ctx, it, end);
+        util::from_json<Opts>(std::get<Index>(*value.value), ctx, it, end);
       }
     }
   }
