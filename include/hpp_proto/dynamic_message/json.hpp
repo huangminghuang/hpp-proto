@@ -846,9 +846,7 @@ struct from<JSON, hpp_proto::message_value_mref> {
       return;
     }
 
-    value.visit([&](auto v) {
-      util::from_json<Options>(v, ctx, it, end);
-    });
+    value.visit([&](auto v) { util::from_json<Options>(v, ctx, it, end); });
   }
 
   template <auto Opts>
