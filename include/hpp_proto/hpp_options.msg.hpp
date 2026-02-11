@@ -26,7 +26,7 @@ struct FileOptions {
 };
 
 template <typename Traits>
-constexpr auto message_type_url(const FileOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/hpp.proto.FileOptions">{}; }
+constexpr auto message_type_url(const FileOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/hpp_proto.FileOptions">{}; }
 // NOLINTEND(performance-enum-size)
 } // namespace hpp_proto
 template <typename Traits>

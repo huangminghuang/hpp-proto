@@ -23,14 +23,12 @@ target_link_libraries(google_benchmark_messages_lite_lib PUBLIC protobuf::libpro
 
 add_executable(proto_bench benchmark.cpp)
 
-target_include_directories(proto_bench PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(proto_bench
     hpp_benchmark_messages_lib
     google_benchmark_messages_lib
     benchmark::benchmark_main)
 
 add_executable(hpp_proto_decode_encode hpp_proto_decode_encode.cpp)
-target_include_directories(hpp_proto_decode_encode PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(hpp_proto_decode_encode hpp_benchmark_messages_lib)
 
 add_executable(google_decode_encode google_decode_encode.cpp)

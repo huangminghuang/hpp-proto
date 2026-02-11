@@ -174,18 +174,20 @@ if(NOT COMMAND protobuf_generate)
       target_sources(${protobuf_generate_TARGET} PRIVATE ${_generated_srcs_all})
     endif()
   endfunction()
-endif()  
+endif()
 
 function(protobuf_generate_hpp)
-  protobuf_generate(${ARGN} 
-                    LANGUAGE hpp
-                    GENERATE_EXTENSIONS .msg.hpp .pb.hpp .glz.hpp .desc.hpp
-                    PLUGIN protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp>
-                    DEPENDENCIES hpp_proto::protoc-gen-hpp)
+  protobuf_generate(${ARGN}
+    LANGUAGE hpp
+    GENERATE_EXTENSIONS .msg.hpp .pb.hpp .glz.hpp .desc.hpp
+    PLUGIN protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp>
+    DEPENDENCIES hpp_proto::protoc-gen-hpp
+    OUT_VAR _generated_files)
 
   include(CMakeParseArguments)
   cmake_parse_arguments(protobuf_generate_hpp "" "TARGET;PLUGIN_OPTIONS;PROTOC_OUT_DIR" "" "${ARGN}")
-  if (protobuf_generate_hpp_TARGET) 
+
+  if(protobuf_generate_hpp_TARGET)
     get_target_property(_target_type ${protobuf_generate_hpp_TARGET} TYPE)
 
     if(_target_type STREQUAL INTERFACE_LIBRARY)
@@ -194,13 +196,31 @@ function(protobuf_generate_hpp)
       set(_scope PUBLIC)
     endif()
 
-    target_link_libraries(${protobuf_generate_hpp_TARGET} ${_scope} hpp_proto::libhpp_proto)
+    set(_base_dir ${protobuf_generate_hpp_PROTOC_OUT_DIR})
+    if (NOT _base_dir)
+      set(_base_dir ${CMAKE_CURRENT_BINARY_DIR})
+    endif()
+
+    if (TARGET hpp_proto_core)
+      set(_generated_dependency hpp_proto_core)
+    else()
+      set(_generated_dependency hpp_proto::hpp_proto)
+    endif()
+
+    target_link_libraries(${protobuf_generate_hpp_TARGET} ${_scope} ${_generated_dependency})
+    target_sources(${protobuf_generate_hpp_TARGET}
+      ${_scope}
+      FILE_SET HEADERS
+      BASE_DIRS ${_base_dir}
+      FILES ${_generated_files}
+    )
   endif()
 
-  if (protobuf_generate_hpp_PLUGIN_OPTIONS MATCHES "directory_prefix=([^,]+)")
+  if(protobuf_generate_hpp_PLUGIN_OPTIONS MATCHES "directory_prefix=([^,]+)")
     set(_dir_prefix "${CMAKE_MATCH_1}")
     get_filename_component(_abs_output_dir "${protobuf_generate_hpp_PROTOC_OUT_DIR}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-    if (NOT "${_abs_output_dir}" MATCHES "${_dir_prefix}$")
+
+    if(NOT "${_abs_output_dir}" MATCHES "${_dir_prefix}$")
       message(FATAL_ERROR "the value of PROTOC_OUT_DIR, i.e. ${_abs_output_dir}, does not ends with the directory_prefix parameter, i.e. ${_dir_prefix}")
     endif()
   endif()

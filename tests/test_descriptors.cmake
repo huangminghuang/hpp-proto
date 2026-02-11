@@ -35,7 +35,6 @@ add_library(unittest_proto3_proto_lib INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import.proto"
     "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public.proto"
 )
-target_include_directories(unittest_proto3_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET unittest_proto3_proto_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -43,14 +42,12 @@ protobuf_generate_hpp(
 )
 
 add_library(unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
-target_include_directories(unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET unittest_proto_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 add_library(map_unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
-target_include_directories(map_unittest_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_hpp(
     TARGET map_unittest_proto_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -58,7 +55,6 @@ protobuf_generate_hpp(
 target_link_libraries(map_unittest_proto_lib INTERFACE unittest_proto_lib)
 
 add_library(unittest_well_known_types_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_well_known_types.proto")
-target_include_directories(unittest_well_known_types_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(unittest_well_known_types_proto_lib INTERFACE unittest_proto_lib)
 protobuf_generate_hpp(
     TARGET unittest_well_known_types_proto_lib

@@ -4,9 +4,7 @@
 #include <vector>
 
 #include <hpp_proto/dynamic_message/binpb.hpp>
-#ifndef HPP_PROTO_DISABLE_GLAZE
 #include <hpp_proto/dynamic_message/json.hpp>
-#endif
 
 // #include "addressbook_proto3.desc.hpp" // descriptor set for dynamic loading
 
@@ -162,7 +160,6 @@ int main() {
   expect(alex.field_value_by_name<std::string_view>("oneof_nested_message") ==
          "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"sv);
 
-#ifndef HPP_PROTO_DISABLE_GLAZE
   std::string json;
   expect(hpp_proto::write_json(msg, json).ok());
   auto address_book3 = factory.get_message("tutorial.AddressBook", mr2).value();
@@ -170,6 +167,5 @@ int main() {
   auto people3_expected = address_book3.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("people");
   auto people3 = *people3_expected;
   expect(people3.size() == std::size_t{2});
-#endif
   return 0;
 }

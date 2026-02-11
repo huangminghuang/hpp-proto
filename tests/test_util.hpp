@@ -51,11 +51,7 @@ constexpr auto operator""_bytes() {
 namespace std {
 template <glz::glaze_t T>
 inline std::ostream &operator<<(ostream &os, const T &v) {
-#ifndef HPP_PROTO_DISABLE_GLAZE
   return os << hpp_proto::write_json(v).value();
-#else
-  return os;
-#endif
 }
 
 inline std::ostream &operator<<(std::ostream &os, const vector<byte> &bytes) { return os << to_hex(bytes); }

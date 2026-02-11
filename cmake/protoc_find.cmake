@@ -16,7 +16,6 @@ function(hpp_proto_find_protoc)
 
         if(EXISTS ${PROTOBUF_INCLUDE_DIR}/google/protobuf/any.proto)
             set(Protobuf_INCLUDE_DIRS ${PROTOBUF_INCLUDE_DIR} PARENT_SCOPE)
-            message(Protobuf_INCLUDE_DIRS=${Protobuf_INCLUDE_DIRS})
         endif()
 
         add_executable(protoc IMPORTED GLOBAL)

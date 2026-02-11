@@ -13,7 +13,7 @@ endif()
 
 include(test_descriptors.cmake)
 
-if (NOT HPP_PROTO_TESTS)
+if(NOT HPP_PROTO_TESTS)
     return()
 endif()
 
@@ -21,121 +21,105 @@ add_subdirectory(gpb_proto_json)
 add_subdirectory(data)
 add_subdirectory(grpc)
 
-add_executable(proto3_test unittest_proto3_test.cpp)
-target_link_libraries(proto3_test PRIVATE unittest_proto3_proto_lib Boost::ut glaze::glaze gpb_proto_json)
+add_hpp_proto_test(
+    NAME proto3_test
+    SOURCES unittest_proto3_test.cpp
+    LINK_LIBRARIES unittest_proto3_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
-add_test(NAME proto3_test
-    COMMAND proto3_test
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_hpp_proto_test(
+    NAME proto2_test
+    SOURCES unittest_proto2_test.cpp
+    LINK_LIBRARIES unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
-add_executable(proto2_test unittest_proto2_test.cpp)
-target_link_libraries(proto2_test PRIVATE unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
-add_test(NAME proto2_test
-    COMMAND proto2_test
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_hpp_proto_test(
+    NAME map_test
+    SOURCES map_test.cpp
+    LINK_LIBRARIES map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
-add_executable(map_test map_test.cpp)
-target_link_libraries(map_test PRIVATE map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json)
+add_hpp_proto_test(
+    NAME unittest_well_known_types_test
+    SOURCES unittest_well_known_types_test.cpp
+    LINK_LIBRARIES well_known_types unittest_well_known_types_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
-add_test(NAME map_test
-    COMMAND map_test
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
+add_hpp_proto_generated_test_lib(
+    NAME any_test_lib
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto"
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+    LINK_LIBRARIES well_known_types
+    REQUIRES Protobuf_INCLUDE_DIRS)
 
-add_executable(unittest_well_known_types_test unittest_well_known_types_test.cpp)
-target_link_libraries(unittest_well_known_types_test PRIVATE unittest_well_known_types_proto_lib Boost::ut glaze::glaze gpb_proto_json)
+add_hpp_proto_test(
+    NAME any_test
+    SOURCES any_test.cpp
+    LINK_LIBRARIES Boost::ut hpp_proto::hpp_proto_core glaze::glaze any_test_lib
+    REQUIRES Protobuf_INCLUDE_DIRS)
 
-add_test(NAME unittest_well_known_types_test
-    COMMAND unittest_well_known_types_test
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_hpp_proto_test(
+    NAME well_known_types_tests
+    SOURCES well_known_types_tests.cpp
+    LINK_LIBRARIES well_known_types Boost::ut glaze::glaze
+    DEPENDENCIES well_known_types
+    REQUIRES Protobuf_INCLUDE_DIRS)
 
-if(Protobuf_INCLUDE_DIRS)
-    add_library(any_test_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/any_test.proto)
-    target_include_directories(any_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../include)
-    protobuf_generate_hpp(
-        TARGET any_test_lib
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(any_test_lib INTERFACE well_known_types)
+add_hpp_proto_test(
+    NAME dynamic_message_test
+    SOURCES dynamic_message_test.cpp
+    LINK_LIBRARIES unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib
+    REQUIRES Protobuf_INCLUDE_DIRS)
 
-    add_executable(any_test any_test.cpp)
-    target_link_libraries(any_test PRIVATE Boost::ut hpp_proto::libhpp_proto glaze::glaze any_test_lib)
-
-    add_test(NAME any_test
-        COMMAND any_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_executable(well_known_types_tests well_known_types_tests.cpp)
-    target_include_directories(well_known_types_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
-    target_link_libraries(well_known_types_tests PRIVATE well_known_types hpp_proto::libhpp_proto Boost::ut glaze::glaze)
-    add_dependencies(well_known_types_tests well_known_types)
-    add_test(NAME well_known_types_tests
-        COMMAND well_known_types_tests
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-else()
-    message(WARNING "No proto file for well known types are found, all tests involves well known types are skipped.")
-endif(Protobuf_INCLUDE_DIRS)
-
-add_executable(proto3_decode proto3_decode.cpp)
-target_link_libraries(proto3_decode PRIVATE unittest_proto3_proto_lib)
-
-add_executable(dynamic_message_test dynamic_message_test.cpp)
-target_link_libraries(dynamic_message_test PRIVATE unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib)
-add_test(NAME dynamic_message_test COMMAND dynamic_message_test WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-add_library(hpp_options_test_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/hpp_options_test.proto")
-protobuf_generate_hpp(
-    TARGET hpp_options_test_lib
+add_hpp_proto_generated_test_lib(
+    NAME hpp_options_test_lib
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/hpp_options_test.proto"
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include"
     PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-target_include_directories(hpp_options_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 
-add_executable(hpp_options_test hpp_options_test.cpp)
-target_link_libraries(hpp_options_test PRIVATE hpp_options_test_lib)
+add_hpp_proto_test(
+    NAME hpp_options_test
+    SOURCES hpp_options_test.cpp
+    LINK_LIBRARIES hpp_options_test_lib)
 
-add_executable(read_json_consistency_test read_json_consistency_test.cpp)
-target_link_libraries(read_json_consistency_test unittest_proto_lib unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze)
-add_test(NAME read_json_consistency_test COMMAND read_json_consistency_test WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_hpp_proto_test(
+    NAME read_json_consistency_test
+    SOURCES read_json_consistency_test.cpp
+    LINK_LIBRARIES unittest_proto_lib unittest_proto3_proto_lib map_unittest_proto_lib well_known_types Boost::ut glaze::glaze)
 
-if(NOT edition_support)
-    return()
-endif()
-
-add_library(unittest_lite_proto_lib INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_lite.proto"
-    "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_lite.proto"
-    "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public_lite.proto")
-target_include_directories(unittest_lite_proto_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate_hpp(
-    TARGET unittest_lite_proto_lib
+add_hpp_proto_generated_test_lib(
+    NAME unittest_lite_proto_lib
+    SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_lite.proto"
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_lite.proto"
+        "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_import_public_lite.proto"
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-    PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION})
+    PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
+    REQUIRES edition_support)
 
-add_executable(lite_test unittest_lite_test.cpp)
-target_link_libraries(lite_test PRIVATE unittest_lite_proto_lib Boost::ut glaze::glaze gpb_proto_json)
+add_hpp_proto_test(
+    NAME lite_test
+    SOURCES unittest_lite_test.cpp
+    LINK_LIBRARIES unittest_lite_proto_lib Boost::ut glaze::glaze gpb_proto_json
+    REQUIRES edition_support)
 
-add_test(NAME lite_test
-    COMMAND lite_test
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-add_library(editions_test_lib INTERFACE "basic_test_editions.proto" "editions_test.proto")
-target_include_directories(editions_test_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate_hpp(
-    TARGET editions_test_lib
-    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
-
-add_executable(editions_test basic_test_editions_test.cpp)
-target_link_libraries(editions_test PRIVATE editions_test_lib)
-
-add_library(basic_test_proto2_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/basic_test_proto2.proto")
-target_include_directories(basic_test_proto2_lib SYSTEM INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate_hpp(
-    TARGET basic_test_proto2_lib
+add_hpp_proto_generated_test_lib(
+    NAME editions_test_lib
+    SOURCES "basic_test_editions.proto" "editions_test.proto"
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-    PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,namespace_prefix=test")
+    REQUIRES edition_support)
 
-add_executable(basic_test_proto2 basic_test_proto2.cpp)
-target_link_libraries(basic_test_proto2 PRIVATE basic_test_proto2_lib)
+add_hpp_proto_test(
+    NAME editions_test
+    SOURCES basic_test_editions_test.cpp
+    LINK_LIBRARIES editions_test_lib
+    REQUIRES edition_support)
 
-add_test(NAME editions_test
-    COMMAND editions_test
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_hpp_proto_generated_test_lib(
+    NAME basic_test_proto2_lib
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/basic_test_proto2.proto"
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+    PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,namespace_prefix=test"
+    REQUIRES edition_support)
+
+add_hpp_proto_test(
+    NAME basic_test_proto2
+    SOURCES basic_test_proto2.cpp
+    LINK_LIBRARIES basic_test_proto2_lib
+    REQUIRES edition_support)

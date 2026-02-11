@@ -1305,7 +1305,6 @@ struct TestSuite {
 
     auto unittest_descriptorset = read_file("unittest.desc.binpb");
 
-#ifndef HPP_PROTO_DISABLE_GLAZE
     "interoperate_with_google_protobuf_parser"_test = [&]<class T> {
       T original;
       std::pmr::monotonic_buffer_resource mr;
@@ -1327,7 +1326,6 @@ struct TestSuite {
 
       ExpectAllSet(msg);
     } | typename mapping_t::interoperability_test_types{};
-#endif
   }
 }; // struct TestSuite
 // NOLINTEND(clang-diagnostic-missing-designated-field-initializers)

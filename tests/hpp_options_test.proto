@@ -1,7 +1,7 @@
 syntax = "proto3";
 import "hpp_proto/hpp_options.proto";
 
-option (hpp.proto.hpp_file_opts).namespace_prefix = "test";
+option (hpp_proto.hpp_file_opts).namespace_prefix = "test";
 
 message Msg1 {
   string string_field = 1;

@@ -10,7 +10,7 @@ class HppProtoConan(ConanFile):
     version = "1.0.0"
     license = "Apache-2.0"
     url = "https://github.com/huangminghuang/hpp-proto"
-    description = "A modern, high-performance, header-only C++23 implementation of Protocol Buffers."
+    description = "A modern C++23 implementation of Protocol Buffers."
     topics = ("protobuf", "serialization", "codegen", "header-only")
     settings = ("os", "compiler", "build_type", "arch")
     options = {
@@ -23,6 +23,7 @@ class HppProtoConan(ConanFile):
     }
     exports_sources = (
         "CMakeLists.txt",
+        "hpp_proto.cmake",
         "cmake/*",
         "hpp_proto-config.cmake.in",
         "third-parties.cmake",
@@ -74,11 +75,9 @@ class HppProtoConan(ConanFile):
         copy(self, "conan_protoc_target.cmake", src=os.path.join(self.source_folder, "cmake"), dst=cmake_config_folder)
 
     def package_info(self):
-        self.cpp_info.components["libhpp_proto"].libs = ["is_utf8"]
-        self.cpp_info.components["libhpp_proto"].includedirs = ["include"]
-        self.cpp_info.components["libhpp_proto"].libsdir = ["lib"]
-        self.cpp_info.components["libhpp_proto"].set_property("cmake_target_name", "hpp_proto::libhpp_proto")
-        self.cpp_info.components["libhpp_proto"].requires = ["glaze::glaze"] 
+        self.cpp_info.libs = ["is_utf8"]
+        self.cpp_info.set_property("cmake_target_name", "hpp_proto::hpp_proto")
+        self.cpp_info.requires = ["glaze::glaze"]
 
         self.cpp_info.set_property(
             "cmake_build_modules",
