@@ -186,8 +186,6 @@ struct from<JSON, hpp_proto::bytes_view> {
   }
 };
 
-
-
 template <typename Type, auto Default>
 struct to<JSON, hpp_proto::optional<Type, Default>> {
   template <auto Opts>

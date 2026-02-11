@@ -324,7 +324,6 @@ template <auto Opts>
   unreachable();
 }
 
-
 template <auto Opts>
 void from_json(hpp_proto::bool_proxy value, auto &ctx, auto &it, auto &end) {
   bool v = false;
@@ -422,7 +421,6 @@ void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end) {
 
   util::match_ending<Opts>(ending_token, ctx, it, end);
 }
-
 
 template <auto Options, ::hpp_proto::concepts::associative_container T>
 void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end) {
