@@ -356,7 +356,12 @@ void from_json(T &&v, auto &ctx, auto &it, auto &end) {
     decltype(auto) mutable_v = hpp_proto::detail::as_modifiable(ctx, v);
     from<JSON, decltype(mutable_v)>::template op<Opts>(mutable_v, ctx, it, end);
   } else if constexpr (::hpp_proto::concepts::integral_64_bits<T>) {
-    from<JSON, value_t>::template op<opt_true<Opts, quoted_num_opt_tag{}>>(v, ctx, it, end);
+    if constexpr (!check_ws_handled(Opts)) {
+      if (skip_ws<Opts>(ctx, it, end)) {
+        return;
+      }
+    }
+    from<JSON, value_t>::template op<opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(v, ctx, it, end);
   } else if constexpr (pair_t<value_t>) {
     util::parse_key_and_colon<Opts>(::hpp_proto::detail::as_modifiable(ctx, v.first), ctx, it, end);
     if (bool(ctx.error)) [[unlikely]] {
