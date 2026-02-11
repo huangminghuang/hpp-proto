@@ -240,7 +240,7 @@ void scan_object_fields(glz::is_context auto &ctx, auto &it, auto &end, auto &&k
       return;
     }
     on_key_start(it, end);
-    util::parse_key_and_colon<Opts>(std::forward<decltype(key)>(key), ctx, it, end);
+    util::parse_key_and_colon<Opts>(key, ctx, it, end);
     if (bool(ctx.error)) [[unlikely]] {
       return;
     }
