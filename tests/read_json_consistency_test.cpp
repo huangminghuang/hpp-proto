@@ -48,7 +48,8 @@ const suite test_read_json = [] {
   test_read<proto3_unittest::TestAllTypes>(factory, R"({"optionalString":null})"sv, ok);
   test_read<proto3_unittest::TestAllTypes>(factory, R"({"oneofNestedMessage" :  null})"sv, ok);
 
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"	102":0}})"sv, fail);
+  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"	102":0}})"sv, ok);
+  test_read<protobuf_unittest::TestMap>(factory, R"({"mapBoolBool":{" false":true}})"sv, fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({mapSint64Sint64":{"1":" -10"}})"sv, fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapStringString":{"1":"0", "1":"1"}})"sv, ok);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32ForeignMessage":{"0":null}})", fail);
