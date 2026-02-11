@@ -218,7 +218,7 @@ bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, g
  * @return None; scanning stops by returning from the function.
  */
 template <auto Options, bool ConsumeEnd>
-void scan_object_fields(glz::is_context auto &ctx, auto &it, auto &end, auto&& key, auto &&on_key_start, auto &&on_key,
+void scan_object_fields(glz::is_context auto &ctx, auto &it, auto &end, auto &&key, auto &&on_key_start, auto &&on_key,
                         auto &&on_after_ws) {
   if (!util::parse_opening<Options>('{', ctx, it, end)) [[unlikely]] {
     return;
@@ -378,10 +378,10 @@ void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end, const auto &
   typename T::key_type key;
   scan_object_fields<Options, true>(
       ctx, it, end, hpp_proto::detail::as_modifiable(ctx, key), [](auto &, auto &) {},
-      [&](auto &it_ref, auto &end_ref){
+      [&](auto &it_ref, auto &end_ref) {
         static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
         if constexpr (hpp_proto::concepts::integral_64_bits<typename T::mapped_type>) {
-          parse<JSON>::op<opt_true<Opts, quoted_num_opt_tag{} >>(value[std::move(key)], ctx, it_ref, end_ref);
+          parse<JSON>::op<opt_true<Opts, quoted_num_opt_tag{}>>(value[std::move(key)], ctx, it_ref, end_ref);
         } else {
           parse<JSON>::op<Opts>(value[std::move(key)], ctx, it_ref, end_ref);
         }

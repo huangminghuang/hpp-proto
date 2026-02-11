@@ -39,7 +39,7 @@ const boost::ut::suite map_test = [] {
 
     protobuf_unittest::TestMap<Traits> msg;
     std::pmr::monotonic_buffer_resource mr;
-    auto status =hpp_proto::read_json(msg, original_json, hpp_proto::alloc_from(mr));
+    auto status = hpp_proto::read_json(msg, original_json, hpp_proto::alloc_from(mr));
     if (!status.ok()) {
       std::cerr << status.message(original_json) << "\n";
     }
