@@ -847,9 +847,7 @@ struct from<JSON, hpp_proto::message_value_mref> {
     }
 
     value.visit([&](auto v) {
-      using T = std::remove_cvref_t<decltype(v)>;
-      constexpr auto Opts = ws_handled_off<Options>();
-      from<JSON, T>::template op<Opts>(v, ctx, it, end);
+      util::from_json<Options>(v, ctx, it, end);
     });
   }
 
