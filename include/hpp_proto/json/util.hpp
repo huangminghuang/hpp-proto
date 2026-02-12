@@ -321,6 +321,11 @@ void from_json(hpp_proto::bool_proxy value, auto &ctx, auto &it, auto &end) {
 template <auto Opts, typename T>
   requires std::is_enum_v<T>
 void from_json(T &v, auto &ctx, auto &it, auto &end) {
+  if constexpr (!check_ws_handled(Opts)) {
+    if (skip_ws<Opts>(ctx, it, end)) {
+      return;
+    }
+  }
   if (*it != '"') {
     int32_t number = 0;
     from<JSON, int32_t>::template op<ws_handled<Opts>()>(number, ctx, it, end);
