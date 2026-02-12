@@ -232,10 +232,6 @@ void scan_object_fields(glz::is_context auto &ctx, auto &it, auto &end, auto &&k
   const auto ws_size = size_t(it - ws_start);
   bool first = true;
   while (true) {
-    if (it == end) [[unlikely]] {
-      ctx.error = error_code::unexpected_end;
-      return;
-    }
     if (util::match_ending_or_consume_comma<Opts, ConsumeEnd>(ws_start, ws_size, first, ctx, it, end)) {
       return;
     }
@@ -245,9 +241,6 @@ void scan_object_fields(glz::is_context auto &ctx, auto &it, auto &end, auto &&k
       return;
     }
     if (on_key(it, end)) {
-      return;
-    }
-    if (bool(ctx.error)) [[unlikely]] {
       return;
     }
     if (skip_ws<Opts>(ctx, it, end)) {
