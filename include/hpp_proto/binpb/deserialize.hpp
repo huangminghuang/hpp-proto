@@ -902,47 +902,13 @@ struct deserialize_element_type<MetaType, ValueType> {
   using type = typename MetaType::mutable_type;
 };
 
-// NOLINTBEGIN(readability-function-cognitive-complexity)
 template <typename Meta>
-constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&item,
-                                               concepts::is_basic_in auto &archive, auto &unknown_fields) {
-  using type = std::remove_reference_t<decltype(item)>;
+constexpr status deserialize_unpacked_repeated_elements(Meta meta, uint32_t tag, auto &v, std::size_t old_size,
+                                                        std::size_t new_size, auto &&deserialize_element,
+                                                        auto &unknown_fields, concepts::is_basic_in auto &archive) {
+  using type = std::remove_reference_t<decltype(v)>;
   using value_type = typename type::value_type;
-
-  decltype(auto) v = detail::as_modifiable(archive.context, item);
-  if (tag_type(tag) !=
-      tag_type<std::conditional_t<std::same_as<typename Meta::type, void>, value_type, typename Meta::type>>()) {
-    return std::errc::bad_message;
-  }
-
-  std::size_t count = 0;
-  if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
-    return result;
-  }
-  auto old_size = item.size();
-  const std::size_t new_size = item.size() + count;
   using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
-  auto deserialize_element = [&](element_type &element) {
-    if constexpr (concepts::has_meta<element_type>) {
-      return deserialize_sized(element, archive);
-    } else {
-      return deserialize_field(element, meta, tag, archive, unknown_fields);
-    }
-  };
-
-  if constexpr (concepts::associative_container<type>) {
-    if constexpr (concepts::flat_map<type>) {
-      reserve(v, new_size);
-    } else if constexpr (requires { v.reserve(new_size); }) {
-      v.reserve(new_size);
-    }
-  } else {
-    if constexpr (meta.closed_enum()) {
-      v.reserve(new_size);
-    } else if constexpr (requires { v.resize(new_size); }) {
-      v.resize(new_size);
-    }
-  }
 
   for (auto i = old_size; i < new_size; ++i) {
     if constexpr (concepts::associative_container<type>) {
@@ -979,12 +945,59 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
     }
 
     if (i < new_size - 1) {
-      // no error handling here, because  `count_unpacked_elements()` already checked the tag
+      // no error handling here, because `count_unpacked_elements()` already checked the tag
       archive.maybe_advance_region();
       (void)archive.read_tag();
     }
   }
+
   return {};
+}
+
+// NOLINTBEGIN(readability-function-cognitive-complexity)
+template <typename Meta>
+constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&item,
+                                               concepts::is_basic_in auto &archive, auto &unknown_fields) {
+  using type = std::remove_reference_t<decltype(item)>;
+  using value_type = typename type::value_type;
+
+  decltype(auto) v = detail::as_modifiable(archive.context, item);
+  if (tag_type(tag) !=
+      tag_type<std::conditional_t<std::same_as<typename Meta::type, void>, value_type, typename Meta::type>>()) {
+    return std::errc::bad_message;
+  }
+
+  std::size_t count = 0;
+  if (auto result = count_unpacked_elements(tag, count, archive); !result.ok()) [[unlikely]] {
+    return result;
+  }
+  auto old_size = item.size();
+  const std::size_t new_size = item.size() + count;
+  using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
+  auto deserialize_element = [&](element_type &element) {
+    if constexpr (concepts::has_meta<element_type>) {
+      return deserialize_sized(element, archive);
+    } else {
+      return deserialize_field(element, meta, tag, archive, unknown_fields);
+    }
+  };
+
+  if constexpr (concepts::associative_container<type>) {
+    if constexpr (concepts::reservable_flat_map<type>) {
+      reserve(v, new_size);
+    } else if constexpr (requires { v.reserve(new_size); }) {
+      v.reserve(new_size);
+    }
+  } else {
+    if constexpr (meta.closed_enum()) {
+      v.reserve(new_size);
+    } else if constexpr (requires { v.resize(new_size); }) {
+      v.resize(new_size);
+    }
+  }
+
+  return deserialize_unpacked_repeated_elements(meta, tag, v, old_size, new_size, deserialize_element, unknown_fields,
+                                                archive);
 }
 // NOLINTEND(readability-function-cognitive-complexity)
 
