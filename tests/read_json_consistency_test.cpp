@@ -69,7 +69,6 @@ const suite test_read_json = [] {
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32ForeignMessage":{"0":null}})", fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Enum":{"0":0}})"sv, ok);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt64Int64":{"0":" -64"}})"sv, fail);
-  
 };
 
 int main() {
