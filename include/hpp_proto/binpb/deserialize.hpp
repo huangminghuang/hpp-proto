@@ -152,7 +152,7 @@ struct basic_in {
 
   constexpr void set_current_region(const input_buffer_region<Byte> &next_region) {
     current._begin = next_region._begin;
-    if (size_exclude_current + next_region.slope_distance() >= 0) {
+    if (size_exclude_current + next_region.slope_distance() > 0) {
       current._end = next_region._end;
       size_exclude_current += next_region.slope_distance();
       current._slope_begin = std::min(next_region._slope_begin, current._end);
