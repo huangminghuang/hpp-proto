@@ -13,110 +13,6 @@
 namespace glz {
 
 namespace util {
-template <auto Opts, bool ConsumeEnd = true>
-/**
- * @brief Match an object end or consume a field separator, skipping whitespace as needed.
- *
- * @tparam Opts Glaze parsing options controlling whitespace, comments, and termination behavior.
- * @tparam ConsumeEnd Whether to consume the closing '}' via match_ending.
- * @param ws_start Iterator to the start of the initial whitespace after the opening '{'.
- * @param ws_size Size of that initial whitespace span; reused for a fast-path skip when unchanged.
- * @param first Tracks whether this is the first field in the object.
- * @param ctx Parsing context for error reporting.
- * @param it Current input iterator.
- * @param end Input end iterator.
- * @return true if the object ended or a terminal/error condition was encountered; false to continue parsing fields.
- */
-bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, glz::is_context auto &ctx, auto &it,
-                                   auto &end) {
-  if (util::match_ending<Opts, ConsumeEnd>('}', ctx, it, end)) {
-    if constexpr (not Opts.null_terminated) {
-      if (it == end) {
-        ctx.error = error_code::end_reached;
-      }
-    }
-    return true;
-  } else if (first) {
-    first = false;
-  } else {
-    if (match_invalid_end<',', Opts>(ctx, it, end)) {
-      return true;
-    }
-    if constexpr (not Opts.null_terminated) {
-      if (it == end) [[unlikely]] {
-        ctx.error = error_code::unexpected_end;
-        return true;
-      }
-    }
-
-    if constexpr ((not Opts.minified) && (!Opts.comments)) {
-      if (ws_size && ws_size < size_t(end - it)) {
-        skip_matching_ws(ws_start, it, ws_size);
-      }
-    }
-
-    if (skip_ws<Opts>(ctx, it, end)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * @brief Scan an object field list, invoking callbacks around each key.
- *
- * @tparam Opts Glaze parsing options controlling whitespace, comments, and termination behavior.
- * @tparam ConsumeEnd Whether to consume the closing '}' via match_ending_or_consume_comma.
- * @param ws_start Iterator to the start of the initial whitespace after the opening '{'.
- * @param ws_size Size of that initial whitespace span; reused for a fast-path skip when unchanged.
- * @param ctx Parsing context for error reporting.
- * @param it Current input iterator.
- * @param end Input end iterator.
- * @param on_key_start Invoked before key parsing; can update iterator-related state.
- * @param on_key Invoked with the key and iterators; return true to terminate scanning.
- * @param on_after_ws Invoked after trailing whitespace is skipped.
- * @return None; scanning stops by returning from the function.
- */
-template <auto Options, bool ConsumeEnd>
-void scan_object_fields(glz::is_context auto &ctx, auto &it, auto &end, auto &&on_key_start, auto &&on_key,
-                        auto &&on_after_ws) {
-  if (!util::parse_opening<Options>('{', ctx, it, end)) [[unlikely]] {
-    return;
-  }
-
-  static constexpr auto Opts = opening_handled_off<ws_handled_off<Options>()>();
-  const auto ws_start = it; // Snapshot of initial whitespace after '{' for later fast-path skipping.
-  if (skip_ws<Opts>(ctx, it, end)) [[unlikely]] {
-    return;
-  }
-  const auto ws_size = size_t(it - ws_start);
-  bool first = true;
-  while (true) {
-    if (it == end) [[unlikely]] {
-      ctx.error = error_code::unexpected_end;
-      return;
-    }
-    if (util::match_ending_or_consume_comma<Opts, ConsumeEnd>(ws_start, ws_size, first, ctx, it, end)) {
-      return;
-    }
-    on_key_start(it, end);
-    std::string_view key;
-    util::parse_key_and_colon<Opts>(key, ctx, it, end);
-    if (bool(ctx.error)) [[unlikely]] {
-      return;
-    }
-    if (on_key(key, it, end)) {
-      return;
-    }
-    if (bool(ctx.error)) [[unlikely]] {
-      return;
-    }
-    if (skip_ws<Opts>(ctx, it, end)) {
-      return;
-    }
-    on_after_ws(it, end);
-  }
-}
 
 template <auto Opts>
 void dump_opening_brace(is_context auto &ctx, auto &b, auto &ix) {
@@ -306,10 +202,10 @@ struct generic_message_json_serializer {
     //    template <auto Options, string_literal tag = "">
     //    static void op(auto&& value, is_context auto&& ctx, auto&& it, auto&& end);
     //  };
-
+    std::string_view key;
     util::scan_object_fields<Options, true>(
-        ctx, it, end, [](auto &, auto &) {},
-        [&](std::string_view key, auto &it_ref, auto &end_ref) {
+        ctx, it, end, key, [](auto &, auto &) {},
+        [&](auto &it_ref, auto &end_ref) {
           static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
           const auto *desc = value.field_descriptor_by_json_name(key);
           if (desc == nullptr) {
@@ -431,15 +327,16 @@ struct any_message_json_serializer {
     auto it = input_it;
     bool is_type_key_first = true;
     bool is_first_iteration = true;
+    std::string_view key;
     util::scan_object_fields<opening_handled_off<Options>(), false>(
-        ctx, it, end,
+        ctx, it, end, key,
         [&](auto &it_ref, auto &) {
           if (is_first_iteration || is_type_key_first) {
             input_it = it_ref;
             is_first_iteration = false;
           }
         },
-        [&](std::string_view key, auto &it_ref, auto &end_ref) {
+        [&](auto &it_ref, auto &end_ref) {
           return handle_any_type_key<opening_handled_off<ws_handled_off<Options>()>()>(key, ctx, it_ref, end_ref,
                                                                                        any_type_url, is_type_key_first);
         },
@@ -831,13 +728,16 @@ struct from<JSON, hpp_proto::scalar_field_mref<T, Kind>> {
   GLZ_ALWAYS_INLINE static void op(const hpp_proto::scalar_field_mref<T, Kind> &value, auto &ctx, auto &it, auto &end) {
     using value_type = hpp_proto::scalar_field_cref<T, Kind>::value_type;
     value_type v = {};
-    if constexpr (::hpp_proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts)) {
-      if constexpr (!check_ws_handled(Opts)) {
-        if (skip_ws<Opts>(ctx, it, end)) {
-          return;
-        }
+    if constexpr (std::is_integral_v<value_type>) {
+      auto &descriptor = value.descriptor();
+      if (descriptor.proto().number == 1 && descriptor.parent_message()->is_map_entry()) {
+        util::parse_integral_map_key<Opts>(v, ctx, it, end);
+        value.set(v);
+        return;
       }
-      from<JSON, value_type>::template op<opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(v, ctx, it, end);
+    }
+    if constexpr (::hpp_proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts)) {
+      from<JSON, value_type>::template op<opt_true<Opts, quoted_num_opt_tag{}>>(v, ctx, it, end);
     } else {
       from<JSON, value_type>::template op<Opts>(v, ctx, it, end);
     }
@@ -946,11 +846,7 @@ struct from<JSON, hpp_proto::message_value_mref> {
       return;
     }
 
-    value.visit([&](auto v) {
-      using T = std::remove_cvref_t<decltype(v)>;
-      constexpr auto Opts = ws_handled_off<Options>();
-      from<JSON, T>::template op<Opts>(v, ctx, it, end);
-    });
+    value.visit([&](auto v) { util::from_json<Options>(v, ctx, it, end); });
   }
 
   template <auto Opts>
@@ -1006,19 +902,7 @@ struct from<JSON, T> {
     const bool is_map =
         std::same_as<T, ::hpp_proto::repeated_message_field_mref> ? value.descriptor().is_map_entry() : false;
 
-    util::parse_repeated<Opts>(is_map, value, ctx, it, end, [](auto &&element, auto &ctx, auto &it, auto &end) {
-      if constexpr (::hpp_proto::concepts::integral_64_bits<typename T::value_type>) {
-        if (skip_ws<Opts>(ctx, it, end)) {
-          return;
-        }
-        from<JSON, std::remove_reference_t<typename T::reference>>::template op<
-            opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(std::forward<decltype(element)>(element), ctx, it, end);
-
-      } else {
-        from<JSON, std::remove_reference_t<typename T::reference>>::template op<ws_handled_off<Opts>()>(
-            std::forward<decltype(element)>(element), ctx, it, end);
-      }
-    });
+    util::parse_repeated<Opts>(is_map, value, ctx, it, end);
   }
 };
 
@@ -1041,9 +925,10 @@ template <auto Opts>
 bool any_message_json_serializer::parse_wellknown_any_value(::hpp_proto::message_value_mref &message,
                                                             is_context auto &ctx, auto &it, auto &end) {
   bool seen_value = false;
+  std::string_view key;
   util::scan_object_fields<opening_handled<Opts>(), true>(
-      ctx, it, end, [](auto &, auto &) {},
-      [&](std::string_view key, auto &it_ref, auto &end_ref) {
+      ctx, it, end, key, [](auto &, auto &) {},
+      [&](auto &it_ref, auto &end_ref) {
         if (key == "value") {
           if (seen_value) {
             if (!bool(ctx.error)) {
@@ -1079,9 +964,10 @@ bool any_message_json_serializer::parse_wellknown_any_value(::hpp_proto::message
 template <auto Options>
 bool any_message_json_serializer::parse_generic_any_value(::hpp_proto::message_value_mref &message,
                                                           is_context auto &ctx, auto &it, auto &end) {
+  std::string_view key;
   util::scan_object_fields<Options, true>(
-      ctx, it, end, [](auto &, auto &) {},
-      [&](std::string_view key, auto &it_ref, auto &end_ref) {
+      ctx, it, end, key, [](auto &, auto &) {},
+      [&](auto &it_ref, auto &end_ref) {
         static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
         if (key == "@type") [[unlikely]] {
           skip_value<JSON>::template op<Opts>(ctx, it_ref, end_ref);
