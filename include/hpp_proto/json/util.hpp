@@ -181,12 +181,6 @@ bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, g
     if (match_invalid_end<',', Opts>(ctx, it, end)) {
       return true;
     }
-    if constexpr (not Opts.null_terminated) {
-      if (it == end) [[unlikely]] {
-        ctx.error = error_code::unexpected_end;
-        return true;
-      }
-    }
 
     if constexpr ((not Opts.minified) && (!Opts.comments)) {
       if (ws_size && ws_size < size_t(end - it)) {
