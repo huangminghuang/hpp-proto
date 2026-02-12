@@ -54,10 +54,12 @@ const suite test_read_json = [] {
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{   )"sv, fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{}})"sv, ok);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"1":1,)"sv, fail);
+  test_read<protobuf_unittest::TestMap>(factory, "{\"mapInt32Int32\":{\"1\":1,", fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{   "1":1,   "2":2}})"sv, ok);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"1":1 "2":2}})"sv, fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"1":1,   )"sv, fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"1":1   )"sv, fail);
+  test_read<protobuf_unittest::TestMap>(factory, "{\"mapInt32Enum\":{\"1\":   ", fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({mapSint64Sint64":{"1":" -10"}})"sv, fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapStringString":{"1":"0", "1":"1"}})"sv, ok);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32ForeignMessage":{"0":null}})", fail);
