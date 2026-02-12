@@ -275,7 +275,7 @@ const boost::ut::suite merge_test_suite = [] {
             then("merge const reference should work") = [=]() mutable {
               std::pmr::monotonic_buffer_resource mr;
               hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
-              if constexpr (hpp_proto::concepts::flat_map<decltype(dest.map_int32_int32)>) {
+              if constexpr (hpp_proto::concepts::reservable_flat_map<decltype(dest.map_int32_int32)>) {
                 expect(expected == dest.map_int32_int32);
               } else {
                 expect(expected == hpp_proto::flat_map<int32_t, int32_t>{dest.map_int32_int32.rbegin(),
@@ -285,7 +285,7 @@ const boost::ut::suite merge_test_suite = [] {
             then("merge rvalue reference should work") = [=]() mutable {
               std::pmr::monotonic_buffer_resource mr;
               hpp_proto::merge(dest, std::move(source), hpp_proto::alloc_from(mr));
-              if constexpr (hpp_proto::concepts::flat_map<decltype(dest.map_int32_int32)>) {
+              if constexpr (hpp_proto::concepts::reservable_flat_map<decltype(dest.map_int32_int32)>) {
                 expect(expected == dest.map_int32_int32);
               } else {
                 expect(expected == hpp_proto::flat_map<int32_t, int32_t>{dest.map_int32_int32.rbegin(),

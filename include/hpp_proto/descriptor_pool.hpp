@@ -584,7 +584,7 @@ private:
     enums_.reserve(counter.enums);
     oneofs_.reserve(counter.oneofs);
     fields_.reserve(counter.fields);
-    if constexpr (concepts::flat_map<map_t<std::string_view, message_descriptor_t *>>) {
+    if constexpr (concepts::reservable_flat_map<map_t<std::string_view, message_descriptor_t *>>) {
       reserve(file_map_, counter.files);
       reserve(message_map_, counter.messages);
       reserve(enum_map_, counter.enums);

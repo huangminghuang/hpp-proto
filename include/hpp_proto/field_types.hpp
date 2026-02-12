@@ -536,11 +536,14 @@ concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<s
                     std::same_as<std::remove_cv_t<Type>, std::byte>;
 
 template <typename Type>
-concept flat_map = requires(Type t) {
+concept reservable_flat_map = requires(Type t, std::size_t size, typename Type::key_container_type keys,
+                                       typename Type::mapped_container_type values) {
   typename Type::key_type;
   typename Type::mapped_type;
   t.keys();
   t.values();
+  keys.reserve(size);
+  values.reserve(size);
 };
 
 template <typename T>
@@ -609,7 +612,7 @@ inline const char *message_name(auto &&v)
   return message_type_url(v).c_str() + std::size("type.googleapis.com");
 }
 
-template <concepts::flat_map T>
+template <concepts::reservable_flat_map T>
 constexpr static void reserve(T &mut, std::size_t size) {
   if (size > mut.keys().capacity() || size > mut.values().capacity()) {
     typename T::key_container_type keys(mut.keys().begin(), mut.keys().end());
