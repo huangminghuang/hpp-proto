@@ -251,7 +251,24 @@ struct Foo {
 };
 ```
 
-`hpp_proto::optional<T, DefaultValue>` matches the interface of `std::optional<T>` while supplying protobuf-friendly defaults and comparisons. The specialization for `optional<bool>` removes the implicit conversion to `bool` to distinguish missing from `false`.
+`hpp_proto::optional<T, DefaultValue>` is used for explicit presence fields. It is similar to `std::optional<T>`, but with protobuf-specific behavior:
+
+- It stores the protobuf default value and returns that value when the field is not present.
+- It is optimized for protobuf field storage.
+- `hpp_proto::optional<bool>` is specialized to avoid common `std::optional<bool>` pitfalls.
+
+For `optional<bool>`, implicit `operator bool()` is intentionally removed. This prevents accidental checks like `if (opt_bool)` from being interpreted as a value check when they are actually presence checks. Use:
+
+- `.has_value()` to check presence
+- `*opt_bool` or `.value()` to read the boolean value
+
+Compared with `std::optional<T>`:
+
+| Feature | `std::optional<T>` | `hpp_proto::optional<T>` |
+| :--- | :--- | :--- |
+| Missing value | `nullopt` / exception on value access | protobuf default value |
+| `if (opt)` for `bool` | allowed (checks presence) | disabled |
+| Protobuf default support | no | yes (`optional<T, Default>`) |
 
 ### Optional Embedded Message Fields (proto2 and proto3)
 
