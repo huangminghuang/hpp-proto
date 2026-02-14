@@ -970,8 +970,7 @@ constexpr status deserialize_unpacked_repeated_elements(Meta meta, uint32_t tag,
 
   for (auto i = old_size; i < new_size; ++i) {
     if constexpr (concepts::associative_container<type>) {
-      if (auto result = deserialize_unpacked_associative_element(meta, v, hint, archive);
-          !result.ok()) {
+      if (auto result = deserialize_unpacked_associative_element(meta, v, hint, archive); !result.ok()) {
         return result;
       }
     } else {
