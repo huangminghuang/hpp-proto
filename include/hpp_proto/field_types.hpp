@@ -619,7 +619,7 @@ inline const char *message_name(auto &&v)
 template <concepts::reservable_flat_map T>
 constexpr static void reserve(T &mut, std::size_t size) {
   if (size > mut.keys().capacity()) {
-    auto containers = std::move(mut).extract(); 
+    auto containers = std::move(mut).extract();
     containers.keys.reserve(size);
     containers.values.reserve(size);
     mut.replace(std::move(containers.keys), std::move(containers.values));
