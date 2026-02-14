@@ -295,10 +295,10 @@ const boost::ut::suite merge_test_suite = [] {
           };
         };
       } |
-      std::tuple<std::pair<hpp_proto::default_traits, hpp_proto::default_traits>,
+      std::tuple<std::pair<hpp_proto::stable_traits, hpp_proto::stable_traits>,
                  std::pair<hpp_proto::non_owning_traits, hpp_proto::non_owning_traits>,
-                 std::pair<hpp_proto::non_owning_traits, hpp_proto::default_traits>,
-                 std::pair<hpp_proto::default_traits, hpp_proto::non_owning_traits>>{};
+                 std::pair<hpp_proto::non_owning_traits, hpp_proto::stable_traits>,
+                 std::pair<hpp_proto::stable_traits, hpp_proto::non_owning_traits>>{};
 
   "oneof_merge"_test =
       []<class TraitsPair> {
@@ -354,10 +354,10 @@ const boost::ut::suite merge_test_suite = [] {
           };
         };
       } |
-      std::tuple<std::pair<hpp_proto::default_traits, hpp_proto::default_traits>,
+      std::tuple<std::pair<hpp_proto::stable_traits, hpp_proto::stable_traits>,
                  std::pair<hpp_proto::non_owning_traits, hpp_proto::non_owning_traits>,
-                 std::pair<hpp_proto::non_owning_traits, hpp_proto::default_traits>,
-                 std::pair<hpp_proto::default_traits, hpp_proto::non_owning_traits>>{};
+                 std::pair<hpp_proto::non_owning_traits, hpp_proto::stable_traits>,
+                 std::pair<hpp_proto::stable_traits, hpp_proto::non_owning_traits>>{};
 
   "merge_repeated_move_optimization"_test = [] {
     MoveRepeatedMessage<> dest;

@@ -1336,7 +1336,7 @@ const ut::suite test_extensions = [] {
   "get_extension"_test = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;
-    const extension_example<hpp_proto::default_traits> expected_value{
+    const extension_example<hpp_proto::stable_traits> expected_value{
         .int_value = 150,
         .unknown_fields_ = {.fields = {{10U, "\x50\x01"_bytes},
                                        {11U, "\x5a\x04\x74\x65\x73\x74"_bytes},
@@ -1344,43 +1344,43 @@ const ut::suite test_extensions = [] {
                                        {20U, "\xa0\x01\x01\xa0\x01\x02"_bytes},
                                        {21U, "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes},
                                        {22U, "\xb2\x01\x03\01\02\03"_bytes}}}};
-    extension_example<hpp_proto::default_traits> value;
+    extension_example<hpp_proto::stable_traits> value;
     ut::expect(hpp_proto::read_binpb(value, encoded_data).ok());
     ut::expect(value == expected_value);
 
     {
-      i32_ext<hpp_proto::default_traits> ext;
+      i32_ext<hpp_proto::stable_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == 1);
     }
 
     {
-      string_ext<hpp_proto::default_traits> ext;
+      string_ext<hpp_proto::stable_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == "test");
     }
     {
-      example_ext<hpp_proto::default_traits> ext;
+      example_ext<hpp_proto::stable_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == example{.i = 150});
     }
     {
-      repeated_i32_ext<hpp_proto::default_traits> ext;
+      repeated_i32_ext<hpp_proto::stable_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == std::vector<int32_t>{1, 2});
     }
     {
-      repeated_string_ext<hpp_proto::default_traits> ext;
+      repeated_string_ext<hpp_proto::stable_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == std::vector<std::string>{"abc", "def"});
     }
     {
-      repeated_packed_i32_ext<hpp_proto::default_traits> ext;
+      repeated_packed_i32_ext<hpp_proto::stable_traits> ext;
       ut::expect(value.has_extension(ext));
       ut::expect(value.get_extension(ext).ok());
       ut::expect(ext.value == std::vector<int32_t>{1, 2, 3});

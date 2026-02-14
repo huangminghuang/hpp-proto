@@ -904,11 +904,21 @@ struct deserialize_element_type<MetaType, ValueType> {
 
 template <typename Meta>
 constexpr status deserialize_unpacked_repeated_elements(Meta meta, uint32_t tag, auto &v, std::size_t old_size,
-                                                        std::size_t new_size, auto &&deserialize_element,
-                                                        auto &unknown_fields, concepts::is_basic_in auto &archive) {
+                                                        std::size_t new_size, auto &unknown_fields,
+                                                        concepts::is_basic_in auto &archive) {
   using type = std::remove_reference_t<decltype(v)>;
   using value_type = typename type::value_type;
   using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
+
+  auto deserialize_element = [&](element_type &element) {
+    if constexpr (concepts::has_meta<element_type>) {
+      return deserialize_sized(element, archive);
+    } else {
+      return deserialize_field(element, meta, tag, archive, unknown_fields);
+    }
+  };
+
+  [[maybe_unused]] auto hint = v.end();
 
   for (auto i = old_size; i < new_size; ++i) {
     if constexpr (concepts::associative_container<type>) {
@@ -920,7 +930,7 @@ constexpr status deserialize_unpacked_repeated_elements(Meta meta, uint32_t tag,
 
       auto val = static_cast<value_type>(std::move(element));
       if constexpr (requires { v.insert_or_assign(std::move(val.first), std::move(val.second)); }) {
-        v.insert_or_assign(std::move(val.first), std::move(val.second));
+        hint = v.insert_or_assign(hint, std::move(val.first), std::move(val.second));
       } else { // pre-C++23 std::map
         v[std::move(val.first)] = std::move(val.second);
       }
@@ -954,7 +964,6 @@ constexpr status deserialize_unpacked_repeated_elements(Meta meta, uint32_t tag,
   return {};
 }
 
-// NOLINTBEGIN(readability-function-cognitive-complexity)
 template <typename Meta>
 constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&item,
                                                concepts::is_basic_in auto &archive, auto &unknown_fields) {
@@ -973,14 +982,6 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
   }
   auto old_size = item.size();
   const std::size_t new_size = item.size() + count;
-  using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
-  auto deserialize_element = [&](element_type &element) {
-    if constexpr (concepts::has_meta<element_type>) {
-      return deserialize_sized(element, archive);
-    } else {
-      return deserialize_field(element, meta, tag, archive, unknown_fields);
-    }
-  };
 
   if constexpr (concepts::associative_container<type>) {
     if constexpr (concepts::reservable_flat_map<type>) {
@@ -996,10 +997,8 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
     }
   }
 
-  return deserialize_unpacked_repeated_elements(meta, tag, v, old_size, new_size, deserialize_element, unknown_fields,
-                                                archive);
+  return deserialize_unpacked_repeated_elements(meta, tag, v, old_size, new_size, unknown_fields, archive);
 }
-// NOLINTEND(readability-function-cognitive-complexity)
 
 template <typename Meta>
 constexpr status deserialize_repeated_group(Meta, uint32_t tag, auto &&item, concepts::is_basic_in auto &archive) {
