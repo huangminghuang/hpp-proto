@@ -77,6 +77,15 @@ void verify(const ::hpp_proto::dynamic_message_factory &factory, const T &msg, s
   }
 }
 
+void expect_read_json_fail(const ::hpp_proto::dynamic_message_factory &factory, std::string_view message_name,
+                           std::string_view json) {
+  std::pmr::monotonic_buffer_resource mr;
+  auto opt_msg = factory.get_message(message_name, mr);
+  expect(fatal(opt_msg.has_value()));
+  auto msg = *opt_msg;
+  expect(!hpp_proto::read_json(msg, json).ok());
+}
+
 // NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
 const ut::suite test_timestamp = [] {
   using timestamp_t = google::protobuf::Timestamp<>;
@@ -251,6 +260,10 @@ const ut::suite test_wrapper = [] {
     // skip unknown field
     expect(hpp_proto::binpb_to_json(factory, "google.protobuf.Int64Value", "\x10\x01"sv, json_buf).ok());
     expect(json_buf.empty());
+  };
+
+  "parse_invalid_int64"_test = [&factory] {
+    expect_read_json_fail(factory, "google.protobuf.Int64Value"sv, "\"\n40\""sv);
   };
 };
 
