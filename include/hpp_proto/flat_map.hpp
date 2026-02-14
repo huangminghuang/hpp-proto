@@ -833,28 +833,28 @@ public:
     return result;
   }
 
-  // TODO: use the hint, here
   template <class M>
   iterator insert_or_assign(const_iterator hint, const Key &k, M &&obj) {
     static_assert(std::is_assignable<Mapped &, M>::value, "");
     static_assert(sizeof(Mapped(static_cast<M &&>(obj))) != 0, "");
-    auto result = try_emplace(hint, k, static_cast<M &&>(obj));
-    if (!result.second) {
-      result.first->second = static_cast<M &&>(obj);
+    auto size_before = c_.keys.size();
+    auto it = try_emplace(hint, k, static_cast<M &&>(obj));
+    if (c_.keys.size() == size_before) {
+      it->second = static_cast<M &&>(obj);
     }
-    return result.first;
+    return it;
   }
 
-  // TODO: use the hint, here
   template <class M>
   iterator insert_or_assign(const_iterator hint, Key &&k, M &&obj) {
     static_assert(std::is_assignable<Mapped &, M>::value, "");
     static_assert(sizeof(Mapped(static_cast<M &&>(obj))) != 0, "");
-    auto result = try_emplace(hint, static_cast<Key &&>(k), static_cast<M &&>(obj));
-    if (!result.second) {
-      result.first->second = static_cast<M &&>(obj);
+    auto size_before = c_.keys.size();
+    auto it = try_emplace(hint, static_cast<Key &&>(k), static_cast<M &&>(obj));
+    if (c_.keys.size() == size_before) {
+      it->second = static_cast<M &&>(obj);
     }
-    return result.first;
+    return it;
   }
 
   iterator erase(iterator position) {
