@@ -902,55 +902,81 @@ struct deserialize_element_type<MetaType, ValueType> {
   using type = typename MetaType::mutable_type;
 };
 
+template <typename Meta, typename ElementType, typename Archive, typename UnknownFields>
+constexpr status deserialize_unpacked_element(Meta meta, uint32_t tag, ElementType &element, Archive &archive,
+                                              UnknownFields &unknown_fields) {
+  if constexpr (concepts::has_meta<ElementType>) {
+    return deserialize_sized(element, archive);
+  } else {
+    return deserialize_field(element, meta, tag, archive, unknown_fields);
+  }
+}
+
+template <typename Meta, concepts::associative_container V>
+constexpr status deserialize_unpacked_associative_element(Meta, V &v, auto &hint, auto &archive) {
+  using type = std::remove_reference_t<V>;
+  using value_type = typename type::value_type;
+  using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
+
+  element_type element;
+  if (auto result = deserialize_sized(element, archive); !result.ok()) {
+    return result;
+  }
+
+  auto val = static_cast<value_type>(std::move(element));
+  hint = v.insert_or_assign(hint, std::move(val.first), std::move(val.second));
+  return {};
+}
+
+template <typename Meta, typename V, typename UnknownFields, typename Archive>
+constexpr status deserialize_unpacked_sequence_element(Meta meta, uint32_t tag, V &v, std::size_t index,
+                                                       UnknownFields &unknown_fields, Archive &archive) {
+  using type = std::remove_reference_t<V>;
+  using value_type = typename type::value_type;
+  using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
+
+  if constexpr (std::same_as<element_type, value_type> && !meta.closed_enum()) {
+    if (auto result = deserialize_unpacked_element(meta, tag, v[index], archive, unknown_fields); !result.ok())
+        [[unlikely]] {
+      return result;
+    }
+    return {};
+  }
+
+  element_type element;
+  if (auto result = deserialize_unpacked_element(meta, tag, element, archive, unknown_fields); !result.ok())
+      [[unlikely]] {
+    return result;
+  }
+
+  if constexpr (meta.closed_enum()) {
+    if (meta.valid_enum_value(element)) {
+      v.push_back(element);
+    } else {
+      deserialize_unknown_enum(unknown_fields, tag_number(tag), std::to_underlying(element), archive);
+    }
+  } else {
+    v[index] = std::move(static_cast<value_type>(std::move(element)));
+  }
+  return {};
+}
+
 template <typename Meta>
 constexpr status deserialize_unpacked_repeated_elements(Meta meta, uint32_t tag, auto &v, std::size_t old_size,
                                                         std::size_t new_size, auto &unknown_fields,
                                                         concepts::is_basic_in auto &archive) {
   using type = std::remove_reference_t<decltype(v)>;
-  using value_type = typename type::value_type;
-  using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
-
-  auto deserialize_element = [&](element_type &element) {
-    if constexpr (concepts::has_meta<element_type>) {
-      return deserialize_sized(element, archive);
-    } else {
-      return deserialize_field(element, meta, tag, archive, unknown_fields);
-    }
-  };
-
   [[maybe_unused]] auto hint = v.end();
 
   for (auto i = old_size; i < new_size; ++i) {
     if constexpr (concepts::associative_container<type>) {
-      element_type element;
-
-      if (auto result = deserialize_element(element); !result.ok()) {
-        return result;
-      }
-
-      auto val = static_cast<value_type>(std::move(element));
-      if constexpr (requires { v.insert_or_assign(std::move(val.first), std::move(val.second)); }) {
-        hint = v.insert_or_assign(hint, std::move(val.first), std::move(val.second));
-      } else { // pre-C++23 std::map
-        v[std::move(val.first)] = std::move(val.second);
-      }
-    } else if constexpr (std::same_as<element_type, value_type> && !meta.closed_enum()) {
-      if (auto result = deserialize_element(v[i]); !result.ok()) [[unlikely]] {
+      if (auto result = deserialize_unpacked_associative_element(meta, v, hint, archive);
+          !result.ok()) {
         return result;
       }
     } else {
-      element_type element;
-      if (auto result = deserialize_element(element); !result.ok()) [[unlikely]] {
+      if (auto result = deserialize_unpacked_sequence_element(meta, tag, v, i, unknown_fields, archive); !result.ok()) {
         return result;
-      }
-      if constexpr (meta.closed_enum()) {
-        if (meta.valid_enum_value(element)) {
-          v.push_back(element);
-        } else {
-          deserialize_unknown_enum(unknown_fields, tag_number(tag), std::to_underlying(element), archive);
-        }
-      } else {
-        v[i] = std::move(static_cast<value_type>(std::move(element)));
       }
     }
 

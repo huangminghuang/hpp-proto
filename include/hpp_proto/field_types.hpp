@@ -622,6 +622,7 @@ constexpr static void reserve(T &mut, std::size_t size) {
     auto containers = std::move(mut).extract();
     containers.keys.reserve(size);
     containers.values.reserve(size);
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
     mut.replace(std::move(containers.keys), std::move(containers.values));
   }
 }
