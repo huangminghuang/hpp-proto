@@ -892,8 +892,6 @@ constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable
   }
 }
 
-
-
 template <typename Meta, concepts::associative_container V>
 constexpr status deserialize_unpacked_associative_element(Meta, V &v, auto &hint, auto &archive) {
   using type = std::remove_reference_t<V>;
