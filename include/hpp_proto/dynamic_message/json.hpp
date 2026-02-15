@@ -737,7 +737,7 @@ struct from<JSON, hpp_proto::scalar_field_mref<T, Kind>> {
       }
     }
     if constexpr (::hpp_proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts)) {
-      from<JSON, value_type>::template op<opt_true<Opts, quoted_num_opt_tag{}>>(v, ctx, it, end);
+      from<JSON, value_type>::template op<opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(v, ctx, it, end);
     } else {
       from<JSON, value_type>::template op<Opts>(v, ctx, it, end);
     }
