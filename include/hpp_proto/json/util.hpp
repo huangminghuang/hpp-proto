@@ -403,11 +403,22 @@ void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end) {
 template <auto Options, ::hpp_proto::concepts::associative_container T>
 void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end) {
   typename T::key_type key;
+  auto hint = value.end();
   scan_object_fields<Options, true>(
       ctx, it, end, hpp_proto::detail::as_modifiable(ctx, key), [](auto &, auto &) {},
       [&](auto &it_ref, auto &end_ref) {
         static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
-        from_json<Opts>(value[std::move(key)], ctx, it_ref, end_ref);
+        std::size_t size_before = value.size();
+        auto it = value.try_emplace(hint, std::move(key));
+        if (size_before == value.size()) {
+          if constexpr (hpp_proto::concepts::indirect<typename T::mapped_type>) {
+            it->second.value() = {};
+          } else {
+            it->second = {};
+          }
+        }
+        from_json<Opts>(it->second, ctx, it_ref, end_ref);
+        hint = it;
         return bool(ctx.error);
       },
       [](auto &, auto &) {});
