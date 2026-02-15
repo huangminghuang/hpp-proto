@@ -77,6 +77,7 @@ void verify(const ::hpp_proto::dynamic_message_factory &factory, const T &msg, s
   }
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void expect_read_json_fail(const ::hpp_proto::dynamic_message_factory &factory, std::string_view message_name,
                            std::string_view json) {
   std::pmr::monotonic_buffer_resource mr;
