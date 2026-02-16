@@ -25,6 +25,24 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: conan-protobuf-binary
+            build_cppstd: gnu17
+            use_system_protobuf: false
+            with_protobuf: "True"
+            protoc_conf: find
+          - name: system-protobuf-cpp23
+            build_cppstd: 23
+            use_system_protobuf: true
+            with_protobuf: "False"
+            protoc_conf: system
+    name: ${{ matrix.name }}
+    env:
+      CC: gcc-13
+      CXX: g++-13
 
     steps:
       - uses: actions/checkout@v6
@@ -37,19 +55,13 @@ jobs:
       - name: install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build curl unzip
+          sudo apt-get install -y ninja-build curl unzip gcc-13 g++-13
 
-      - name: install protoc
+      - name: install system protobuf
+        if: matrix.use_system_protobuf
         run: |
-          PROTOC_DIR="$RUNNER_TEMP/protoc"
-          mkdir -p "$PROTOC_DIR"
-          curl -L --fail --retry 3 \
-            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}" \
-            -o "$PROTOC_DIR/$PROTOC_ZIP"
-          echo "${PROTOC_SHA256}  $PROTOC_DIR/$PROTOC_ZIP" | sha256sum -c -
-          unzip -q -o "$PROTOC_DIR/$PROTOC_ZIP" -d "$PROTOC_DIR"
-          echo "$PROTOC_DIR/bin" >> "$GITHUB_PATH"
-          echo "PROTOC_BIN=$PROTOC_DIR/bin" >> "$GITHUB_ENV"
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev
+          echo "PROTOC_BIN=/usr/bin" >> "$GITHUB_ENV"
 
       - name: install conan
         run: |
@@ -62,14 +74,23 @@ jobs:
       - name: create package
         run: |
           conan create . \
-            -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
+            -s:h compiler.cppstd=23 \
+            -s:b arch=x86_64 -s:b compiler=gcc -s:b compiler.version=13 -s:b compiler.libcxx=libstdc++11 \
+            -s:b compiler.cppstd=${{ matrix.build_cppstd }} \
+            -o '&:with_protobuf=${{ matrix.with_protobuf }}' \
+            -c user.hpp_proto:protoc=${{ matrix.protoc_conf }} \
             --build=missing
 
       - name: install dependencies
         run: |
           conan install tutorial \
-            -s:h build_type=Release -s:b build_type=Release \
-            -s:h compiler.cppstd=23 -s:b compiler.cppstd=23 \
+            -s:h build_type=Release \
+            -s:b build_type=Release \
+            -s:h compiler.cppstd=23 \
+            -s:b arch=x86_64 -s:b compiler=gcc -s:b compiler.version=13 -s:b compiler.libcxx=libstdc++11 \
+            -s:b compiler.cppstd=${{ matrix.build_cppstd }} \
+            -o '&:with_protobuf=${{ matrix.with_protobuf }}' \
+            -c user.hpp_proto:protoc=${{ matrix.protoc_conf }} \
             --build=missing \
             -of tutorial-build
 

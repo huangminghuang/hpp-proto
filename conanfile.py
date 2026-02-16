@@ -1,6 +1,7 @@
 from conan import ConanFile
 from conan.tools.files import copy
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.build import check_min_cppstd
 import os
 from shutil import which
 
@@ -35,8 +36,10 @@ class HppProtoConan(ConanFile):
         "README.md",
     )
 
-    def configure(self):
-        self.settings.compiler.cppstd = "23"
+    def validate(self):
+        cppstd = self.settings.get_safe("compiler.cppstd")
+        if cppstd is not None:
+            check_min_cppstd(self, "23")
 
     def requirements(self):
         self.requires("glaze/7.0.2")
