@@ -59,6 +59,17 @@ class HppProtoConan(ConanFile):
         tc.variables["HPP_PROTO_PROTOC_PLUGIN"] = "ON"
         tc.variables["HPP_PROTO_TESTS"] = "ON" if self.options.tests else "OFF"
         tc.variables["HPP_PROTO_PROTOC"] = self.protoc_mode
+        protoc_executable = self.conf.get("user.hpp_proto:protoc_executable", default=None)
+        if not protoc_executable and self.options.with_protobuf:
+            protobuf_dep = self.dependencies.build.get("protobuf")
+            if protobuf_dep is not None:
+                tool_protoc = os.path.join(protobuf_dep.package_folder, "bin", "protoc")
+                if os.path.isfile(tool_protoc):
+                    protoc_executable = tool_protoc
+        if not protoc_executable:
+            protoc_executable = which("protoc")
+        if protoc_executable:
+            tc.variables["Protobuf_PROTOC_EXECUTABLE"] = protoc_executable
         protoc_version = self.conf.get("user.hpp_proto:protoc_version")
         if protoc_version:
             tc.variables["HPP_PROTO_PROTOC_VERSION"] = protoc_version
