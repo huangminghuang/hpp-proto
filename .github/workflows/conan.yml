@@ -82,6 +82,23 @@ jobs:
             --build=missing
 
       - name: install dependencies
+        if: matrix.with_protobuf == 'True'
+        run: |
+          conan install tutorial \
+            -s:h build_type=Release \
+            -s:b build_type=Release \
+            -s:h compiler.cppstd=23 \
+            -s:h protobuf/*:compiler.cppstd=gnu17 \
+            -s:b arch=x86_64 -s:b compiler=gcc -s:b compiler.version=13 -s:b compiler.libcxx=libstdc++11 \
+            -s:b compiler.cppstd=${{ matrix.build_cppstd }} \
+            --requires=protobuf/[>=3.21.12] \
+            -o 'hpp_proto/*:with_protobuf=True' \
+            -c user.hpp_proto:protoc=${{ matrix.protoc_conf }} \
+            --build=missing \
+            -of tutorial-build
+
+      - name: install dependencies
+        if: matrix.with_protobuf != 'True'
         run: |
           conan install tutorial \
             -s:h build_type=Release \
@@ -89,14 +106,20 @@ jobs:
             -s:h compiler.cppstd=23 \
             -s:b arch=x86_64 -s:b compiler=gcc -s:b compiler.version=13 -s:b compiler.libcxx=libstdc++11 \
             -s:b compiler.cppstd=${{ matrix.build_cppstd }} \
-            -o 'hpp_proto/*:with_protobuf=${{ matrix.with_protobuf }}' \
+            -o 'hpp_proto/*:with_protobuf=False' \
             -c user.hpp_proto:protoc=${{ matrix.protoc_conf }} \
             --build=missing \
             -of tutorial-build
 
       - name: configure
+        if: matrix.use_system_protobuf
         run: |
           cmake -S tutorial --preset conan-release -DCMAKE_PROGRAM_PATH="$PROTOC_BIN"
+
+      - name: configure
+        if: ${{ !matrix.use_system_protobuf }}
+        run: |
+          cmake -S tutorial --preset conan-release
 
       - name: build
         run: |
