@@ -204,12 +204,12 @@ One of `hpp-proto`'s most powerful features is its trait-based design, which dec
 * **Supplied Traits**:
   * `hpp_proto::default_traits`: The default. Uses standard STL containers (`std::string`, `std::vector`).
   * `hpp_proto::pmr_traits`: Uses standard STL PMR containers (`std::pmr::string`, `std::pmr::vector`).
-  * `hpp_proto::stable_traits`: Uses `flat_map` for map fields regardless of key type.
+  * `hpp_proto::stable_traits`: Uses `flat_map` for map fields.
   * `hpp_proto::pmr_stable_traits`: PMR-backed containers with `flat_map` map fields.
   * `hpp_proto::non_owning_traits`: Zero-copy views using `std::string_view` and `hpp_proto::equality_comparable_span`. Ideal for performance-critical parsing where you can guarantee the backing buffer outlives the message view.
   * `hpp_proto::keep_unknown_fields<Base>`: A mixin to enable unknown-field retention for any base trait.
 
-    `default_traits` uses `flat_map` for integral keys and `std::unordered_map` for string keys. `stable_traits` and `pmr_stable_traits` always use `flat_map` for maps.
+    `default_traits` uses `std::unordered_map` for maps. `stable_traits` and `pmr_stable_traits` always use `flat_map` for maps.
 
 * **Example: Customizing Containers**
 

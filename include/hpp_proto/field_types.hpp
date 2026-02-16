@@ -535,12 +535,19 @@ template <typename Type>
 concept byte_type = std::same_as<std::remove_cv_t<Type>, char> || std::same_as<std::remove_cv_t<Type>, unsigned char> ||
                     std::same_as<std::remove_cv_t<Type>, std::byte>;
 
-template <typename Type>
-concept flat_map = requires(Type t) {
-  typename Type::key_type;
-  typename Type::mapped_type;
+template <typename T>
+concept flat_map = requires(T t) {
+  typename T::key_type;
+  typename T::mapped_type;
   t.keys();
   t.values();
+};
+
+template <typename T>
+concept reservable_flat_map = flat_map<T> && requires(std::size_t size, typename T::key_container_type keys,
+                                                      typename T::mapped_container_type values) {
+  keys.reserve(size);
+  values.reserve(size);
 };
 
 template <typename T>
@@ -609,14 +616,14 @@ inline const char *message_name(auto &&v)
   return message_type_url(v).c_str() + std::size("type.googleapis.com");
 }
 
-template <concepts::flat_map T>
+template <concepts::reservable_flat_map T>
 constexpr static void reserve(T &mut, std::size_t size) {
-  if (size > mut.keys().capacity() || size > mut.values().capacity()) {
-    typename T::key_container_type keys(mut.keys().begin(), mut.keys().end());
-    typename T::mapped_container_type values(mut.values().begin(), mut.values().end());
-    keys.reserve(size);
-    values.reserve(size);
-    mut.replace(std::move(keys), std::move(values));
+  if (size > mut.keys().capacity()) {
+    auto containers = std::move(mut).extract();
+    containers.keys.reserve(size);
+    containers.values.reserve(size);
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
+    mut.replace(std::move(containers.keys), std::move(containers.values));
   }
 }
 template <typename Traits>
@@ -679,7 +686,8 @@ struct basic_default_traits {
   using indirect_t = hpp_proto::indirect<T, Allocator<T>>;
 
   template <typename Key, typename Mapped>
-  using map_t = typename basic_map_trait<Key, Mapped, Allocator>::type;
+  using map_t =
+      std::unordered_map<Key, Mapped, std::hash<Key>, std::equal_to<Key>, Allocator<std::pair<const Key, Mapped>>>;
   struct unknown_fields_range_t {
     bool operator==(const unknown_fields_range_t &) const = default;
   };

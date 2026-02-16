@@ -892,6 +892,22 @@ constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable
   }
 }
 
+template <typename Meta, concepts::associative_container V>
+constexpr status deserialize_unpacked_associative_element(Meta, V &v, auto &hint, auto &archive) {
+  using type = std::remove_reference_t<V>;
+  using value_type = typename type::value_type;
+  using element_type = typename Meta::type::mutable_type;
+
+  element_type element;
+  if (auto result = deserialize_sized(element, archive); !result.ok()) {
+    return result;
+  }
+
+  auto val = static_cast<value_type>(std::move(element));
+  hint = v.insert_or_assign(hint, std::move(val.first), std::move(val.second));
+  return {};
+}
+
 template <typename MetaType, typename ValueType>
 struct deserialize_element_type {
   using type = ValueType;
@@ -902,7 +918,73 @@ struct deserialize_element_type<MetaType, ValueType> {
   using type = typename MetaType::mutable_type;
 };
 
-// NOLINTBEGIN(readability-function-cognitive-complexity)
+template <typename Meta, typename V, typename UnknownFields, typename Archive>
+constexpr status deserialize_unpacked_sequence_element(Meta meta, uint32_t tag, V &v, std::size_t index,
+                                                       UnknownFields &unknown_fields, Archive &archive) {
+  using type = std::remove_reference_t<V>;
+  using value_type = typename type::value_type;
+  using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
+
+  auto deserialize_element = [&](auto &element) {
+    if constexpr (concepts::has_meta<element_type>) {
+      return deserialize_sized(element, archive);
+    } else {
+      return deserialize_field(element, meta, tag, archive, unknown_fields);
+    }
+  };
+
+  if constexpr (std::same_as<element_type, value_type> && !meta.closed_enum()) {
+    if (auto result = deserialize_element(v[index]); !result.ok()) [[unlikely]] {
+      return result;
+    }
+    return {};
+  } else {
+    element_type element;
+    if (auto result = deserialize_element(element); !result.ok()) [[unlikely]] {
+      return result;
+    }
+
+    if constexpr (meta.closed_enum()) {
+      if (meta.valid_enum_value(element)) {
+        v.push_back(element);
+      } else {
+        deserialize_unknown_enum(unknown_fields, tag_number(tag), std::to_underlying(element), archive);
+      }
+    } else {
+      v[index] = std::move(static_cast<value_type>(std::move(element)));
+    }
+    return {};
+  }
+}
+
+template <typename Meta>
+constexpr status deserialize_unpacked_repeated_elements(Meta meta, uint32_t tag, auto &v, std::size_t old_size,
+                                                        std::size_t new_size, auto &unknown_fields,
+                                                        concepts::is_basic_in auto &archive) {
+  using type = std::remove_reference_t<decltype(v)>;
+  [[maybe_unused]] auto hint = v.end();
+
+  for (auto i = old_size; i < new_size; ++i) {
+    if constexpr (concepts::associative_container<type>) {
+      if (auto result = deserialize_unpacked_associative_element(meta, v, hint, archive); !result.ok()) {
+        return result;
+      }
+    } else {
+      if (auto result = deserialize_unpacked_sequence_element(meta, tag, v, i, unknown_fields, archive); !result.ok()) {
+        return result;
+      }
+    }
+
+    if (i < new_size - 1) {
+      // no error handling here, because `count_unpacked_elements()` already checked the tag
+      archive.maybe_advance_region();
+      (void)archive.read_tag();
+    }
+  }
+
+  return {};
+}
+
 template <typename Meta>
 constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&item,
                                                concepts::is_basic_in auto &archive, auto &unknown_fields) {
@@ -921,17 +1003,9 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
   }
   auto old_size = item.size();
   const std::size_t new_size = item.size() + count;
-  using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
-  auto deserialize_element = [&](element_type &element) {
-    if constexpr (concepts::has_meta<element_type>) {
-      return deserialize_sized(element, archive);
-    } else {
-      return deserialize_field(element, meta, tag, archive, unknown_fields);
-    }
-  };
 
   if constexpr (concepts::associative_container<type>) {
-    if constexpr (concepts::flat_map<type>) {
+    if constexpr (concepts::reservable_flat_map<type>) {
       reserve(v, new_size);
     } else if constexpr (requires { v.reserve(new_size); }) {
       v.reserve(new_size);
@@ -944,49 +1018,8 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
     }
   }
 
-  for (auto i = old_size; i < new_size; ++i) {
-    if constexpr (concepts::associative_container<type>) {
-      element_type element;
-
-      if (auto result = deserialize_element(element); !result.ok()) {
-        return result;
-      }
-
-      auto val = static_cast<value_type>(std::move(element));
-      if constexpr (requires { v.insert_or_assign(std::move(val.first), std::move(val.second)); }) {
-        v.insert_or_assign(std::move(val.first), std::move(val.second));
-      } else { // pre-C++23 std::map
-        v[std::move(val.first)] = std::move(val.second);
-      }
-    } else if constexpr (std::same_as<element_type, value_type> && !meta.closed_enum()) {
-      if (auto result = deserialize_element(v[i]); !result.ok()) [[unlikely]] {
-        return result;
-      }
-    } else {
-      element_type element;
-      if (auto result = deserialize_element(element); !result.ok()) [[unlikely]] {
-        return result;
-      }
-      if constexpr (meta.closed_enum()) {
-        if (meta.valid_enum_value(element)) {
-          v.push_back(element);
-        } else {
-          deserialize_unknown_enum(unknown_fields, tag_number(tag), std::to_underlying(element), archive);
-        }
-      } else {
-        v[i] = std::move(static_cast<value_type>(std::move(element)));
-      }
-    }
-
-    if (i < new_size - 1) {
-      // no error handling here, because  `count_unpacked_elements()` already checked the tag
-      archive.maybe_advance_region();
-      (void)archive.read_tag();
-    }
-  }
-  return {};
+  return deserialize_unpacked_repeated_elements(meta, tag, v, old_size, new_size, unknown_fields, archive);
 }
-// NOLINTEND(readability-function-cognitive-complexity)
 
 template <typename Meta>
 constexpr status deserialize_repeated_group(Meta, uint32_t tag, auto &&item, concepts::is_basic_in auto &archive) {

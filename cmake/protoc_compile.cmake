@@ -1,8 +1,8 @@
 function(hpp_proto_compile_protoc)
-    set(Protobuf_VERSION "${HPP_PROTO_PROTOC_VERSION}")
+    set(Protobuf_VERSION "${HPP_PROTO_PROTOC_VERSION}" PARENT_SCOPE)
     CPMAddPackage(
         NAME protobuf
-        VERSION ${Protobuf_VERSION}
+        VERSION "${HPP_PROTO_PROTOC_VERSION}"
         GITHUB_REPOSITORY protocolbuffers/protobuf
         SYSTEM ON
         OPTIONS "ABSL_PROPAGATE_CXX_STD ON"

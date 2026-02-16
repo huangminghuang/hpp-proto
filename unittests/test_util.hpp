@@ -52,7 +52,7 @@ std::ostream &operator<<(std::ostream &os, hpp_proto::bytes_literal<cts> v) {
   return os << std::span<const std::byte>(v);
 }
 
-template <hpp_proto::concepts::flat_map Map>
+template <hpp_proto::concepts::reservable_flat_map Map>
 std::ostream &operator<<(std::ostream &os, const Map &map) {
   os << "{";
   bool is_first = true;

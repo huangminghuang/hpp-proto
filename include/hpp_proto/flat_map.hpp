@@ -741,15 +741,73 @@ public:
     }
   }
 
-  // TODO: use the hint, here
+  // TODO: make this exception-safe if either container operation throws.
   template <class... Args>
-  iterator try_emplace(const_iterator, const Key &k, Args &&...args) {
+  iterator try_emplace(const_iterator hint, const Key &k, Args &&...args) {
+    auto equivalent = [&](const Key &lhs, const Key &rhs) {
+      return !bool(compare_(lhs, rhs)) && !bool(compare_(rhs, lhs));
+    };
+    auto hkit = hint.private_impl_getkey();
+
+    if (hkit != c_.keys.end() && equivalent(k, *hkit)) {
+      auto hvit = c_.values.begin() + (hkit - c_.keys.begin());
+      return flatmap_detail::make_iterator(hkit, hvit);
+    }
+
+    if (hkit != c_.keys.begin()) {
+      auto prev = hkit - 1;
+      if (equivalent(k, *prev)) {
+        auto pvit = c_.values.begin() + (prev - c_.keys.begin());
+        return flatmap_detail::make_iterator(prev, pvit);
+      }
+      if (bool(compare_(*prev, k)) && (hkit == c_.keys.end() || bool(compare_(k, *hkit)))) {
+        auto vit = c_.values.begin() + (hkit - c_.keys.begin());
+        auto kit = c_.keys.insert(hkit, k);
+        vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+        return flatmap_detail::make_iterator(kit, vit);
+      }
+    } else if (hkit == c_.keys.end() || bool(compare_(k, *hkit))) {
+      auto vit = c_.values.begin();
+      auto kit = c_.keys.insert(hkit, k);
+      vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+      return flatmap_detail::make_iterator(kit, vit);
+    }
+
     return try_emplace(k, static_cast<Args &&>(args)...).first;
   }
 
-  // TODO: use the hint, here
+  // TODO: make this exception-safe if either container operation throws.
   template <class... Args>
-  iterator try_emplace(const_iterator, Key &&k, Args &&...args) {
+  iterator try_emplace(const_iterator hint, Key &&k, Args &&...args) {
+    auto equivalent = [&](const Key &lhs, const Key &rhs) {
+      return !bool(compare_(lhs, rhs)) && !bool(compare_(rhs, lhs));
+    };
+    auto hkit = hint.private_impl_getkey();
+
+    if (hkit != c_.keys.end() && equivalent(k, *hkit)) {
+      auto hvit = c_.values.begin() + (hkit - c_.keys.begin());
+      return flatmap_detail::make_iterator(hkit, hvit);
+    }
+
+    if (hkit != c_.keys.begin()) {
+      auto prev = hkit - 1;
+      if (equivalent(k, *prev)) {
+        auto pvit = c_.values.begin() + (prev - c_.keys.begin());
+        return flatmap_detail::make_iterator(prev, pvit);
+      }
+      if (bool(compare_(*prev, k)) && (hkit == c_.keys.end() || bool(compare_(k, *hkit)))) {
+        auto vit = c_.values.begin() + (hkit - c_.keys.begin());
+        auto kit = c_.keys.insert(hkit, static_cast<Key &&>(k));
+        vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+        return flatmap_detail::make_iterator(kit, vit);
+      }
+    } else if (hkit == c_.keys.end() || bool(compare_(k, *hkit))) {
+      auto vit = c_.values.begin();
+      auto kit = c_.keys.insert(hkit, static_cast<Key &&>(k));
+      vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+      return flatmap_detail::make_iterator(kit, vit);
+    }
+
     return try_emplace(static_cast<Key &&>(k), static_cast<Args &&>(args)...).first;
   }
 
@@ -775,28 +833,28 @@ public:
     return result;
   }
 
-  // TODO: use the hint, here
   template <class M>
-  iterator insert_or_assign(const_iterator, const Key &k, M &&obj) {
+  iterator insert_or_assign(const_iterator hint, const Key &k, M &&obj) {
     static_assert(std::is_assignable<Mapped &, M>::value, "");
     static_assert(sizeof(Mapped(static_cast<M &&>(obj))) != 0, "");
-    auto result = try_emplace(k, static_cast<M &&>(obj));
-    if (!result.second) {
-      result.first->second = static_cast<M &&>(obj);
+    auto size_before = c_.keys.size();
+    auto it = try_emplace(hint, k, static_cast<M &&>(obj));
+    if (c_.keys.size() == size_before) {
+      it->second = static_cast<M &&>(obj);
     }
-    return result.first;
+    return it;
   }
 
-  // TODO: use the hint, here
   template <class M>
-  iterator insert_or_assign(const_iterator, Key &&k, M &&obj) {
+  iterator insert_or_assign(const_iterator hint, Key &&k, M &&obj) {
     static_assert(std::is_assignable<Mapped &, M>::value, "");
     static_assert(sizeof(Mapped(static_cast<M &&>(obj))) != 0, "");
-    auto result = try_emplace(static_cast<Key &&>(k), static_cast<M &&>(obj));
-    if (!result.second) {
-      result.first->second = static_cast<M &&>(obj);
+    auto size_before = c_.keys.size();
+    auto it = try_emplace(hint, static_cast<Key &&>(k), static_cast<M &&>(obj));
+    if (c_.keys.size() == size_before) {
+      it->second = static_cast<M &&>(obj);
     }
-    return result.first;
+    return it;
   }
 
   iterator erase(iterator position) {
