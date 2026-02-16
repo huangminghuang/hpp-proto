@@ -38,7 +38,7 @@ jobs:
             build_cppstd: 23
             use_system_protobuf: true
             with_protobuf: "False"
-            protoc_conf: system
+            protoc_conf: find
     name: ${{ matrix.name }}
     env:
       CC: gcc-13
