@@ -89,7 +89,7 @@ jobs:
             -s:h compiler.cppstd=23 \
             -s:b arch=x86_64 -s:b compiler=gcc -s:b compiler.version=13 -s:b compiler.libcxx=libstdc++11 \
             -s:b compiler.cppstd=${{ matrix.build_cppstd }} \
-            -o '&:with_protobuf=${{ matrix.with_protobuf }}' \
+            -o 'hpp_proto/*:with_protobuf=${{ matrix.with_protobuf }}' \
             -c user.hpp_proto:protoc=${{ matrix.protoc_conf }} \
             --build=missing \
             -of tutorial-build
