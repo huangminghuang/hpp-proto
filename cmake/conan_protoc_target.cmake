@@ -1,41 +1,27 @@
-if(NOT TARGET hpp_proto::protoc)
-    # Prefer protoc from an installed protobuf package.
-    if(NOT TARGET protobuf::protoc)
-        find_package(protobuf CONFIG QUIET)
+if(NOT Protobuf_PROTOC_EXECUTABLE)
+    # Locate protoc executable
+    ## Workaround for legacy "cmake" generator in case of cross-build
+    if(CMAKE_CROSSCOMPILING)
+        find_program(PROTOC_PROGRAM NAMES protoc PATHS ENV PATH NO_DEFAULT_PATH)
+    endif()
+    ## And here this will work fine with "CMakeToolchain" (for native & cross-build)
+    ## and legacy "cmake" generator in case of native build
+    if(NOT PROTOC_PROGRAM)
+        find_program(PROTOC_PROGRAM NAMES protoc)
     endif()
 
-    if(TARGET protobuf::protoc)
-        add_executable(hpp_proto::protoc ALIAS protobuf::protoc)
-    else()
-        # Locate protoc executable
-        ## Workaround for legacy "cmake" generator in case of cross-build
-        if(CMAKE_CROSSCOMPILING)
-            find_program(PROTOC_PROGRAM NAMES protoc PATHS ENV PATH NO_DEFAULT_PATH)
-        endif()
-        ## And here this will work fine with "CMakeToolchain" (for native & cross-build)
-        ## and legacy "cmake" generator in case of native build
-        if(NOT PROTOC_PROGRAM)
-            find_program(PROTOC_PROGRAM NAMES protoc)
-        endif()
-
-        # Give opportunity to users to provide an external protoc executable
-        # (this is a feature of official FindProtobuf.cmake)
-        set(Protobuf_PROTOC_EXECUTABLE ${PROTOC_PROGRAM} CACHE FILEPATH "The protoc compiler")
-
-        if(NOT Protobuf_PROTOC_EXECUTABLE)
-            message(FATAL_ERROR "Could not resolve protoc. Install protobuf package for the consumer "
-                                "or set Protobuf_PROTOC_EXECUTABLE.")
-        endif()
-        get_filename_component(Protobuf_PROTOC_EXECUTABLE "${Protobuf_PROTOC_EXECUTABLE}" ABSOLUTE)
-        if(NOT EXISTS "${Protobuf_PROTOC_EXECUTABLE}")
-            message(FATAL_ERROR "Protobuf_PROTOC_EXECUTABLE does not exist: ${Protobuf_PROTOC_EXECUTABLE}")
-        endif()
-
-        # Create executable imported target hpp_proto::protoc
-        add_executable(hpp_proto::protoc IMPORTED)
-        set_property(TARGET hpp_proto::protoc PROPERTY IMPORTED_LOCATION ${Protobuf_PROTOC_EXECUTABLE})
-    endif()
+    # Give opportunity to users to provide an external protoc executable
+    # (this is a feature of official FindProtobuf.cmake)
+    set(Protobuf_PROTOC_EXECUTABLE ${PROTOC_PROGRAM} CACHE FILEPATH "The protoc compiler")
 endif()
+get_filename_component(Protobuf_PROTOC_EXECUTABLE "${Protobuf_PROTOC_EXECUTABLE}" ABSOLUTE)
+if(NOT EXISTS "${Protobuf_PROTOC_EXECUTABLE}")
+    message(FATAL_ERROR "Protobuf_PROTOC_EXECUTABLE does not exist: ${Protobuf_PROTOC_EXECUTABLE}")
+endif()
+
+# Create executable imported target hpp_proto::protoc
+add_executable(hpp_proto::protoc IMPORTED)
+set_property(TARGET hpp_proto::protoc PROPERTY IMPORTED_LOCATION ${Protobuf_PROTOC_EXECUTABLE})
 
 if(NOT TARGET hpp_proto::protoc-gen-hpp)
     # Locate protoc-gen-hpp executable

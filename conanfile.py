@@ -59,22 +59,15 @@ class HppProtoConan(ConanFile):
         tc.variables["HPP_PROTO_PROTOC_PLUGIN"] = "ON"
         tc.variables["HPP_PROTO_TESTS"] = "ON" if self.options.tests else "OFF"
         tc.variables["HPP_PROTO_PROTOC"] = self.protoc_mode
-        protoc_executable = None
+        self.protoc_executable = None
         if self.options.with_protobuf:
             protobuf_dep = self.dependencies.build.get("protobuf")
             if protobuf_dep is not None:
-                tool_protoc = os.path.join(protobuf_dep.package_folder, "bin", "protoc")
-                if os.path.isfile(tool_protoc):
-                    protoc_executable = tool_protoc
-        if not protoc_executable:
-            protoc_executable = self.conf.get("user.hpp_proto:protoc_executable", default=None)
-        if not protoc_executable:
-            protoc_executable = which("protoc")
-        if protoc_executable:
-            tc.variables["Protobuf_PROTOC_EXECUTABLE"] = protoc_executable
-        protoc_version = self.conf.get("user.hpp_proto:protoc_version")
-        if protoc_version:
-            tc.variables["HPP_PROTO_PROTOC_VERSION"] = protoc_version
+                self.protoc_executable = os.path.join(protobuf_dep.package_folder, "bin", "protoc")
+                if os.path.isfile(self.protoc_executable):
+                    tc.variables["Protobuf_PROTOC_EXECUTABLE"] = self.protoc_executable
+                else:
+                    self.protoc_executable = None
         tc.variables["CPM_USE_LOCAL_PACKAGES"] = "ON"
         tc.generate()
 
@@ -88,7 +81,16 @@ class HppProtoConan(ConanFile):
         cmake.install()
         cmake_config_folder = os.path.join(self.package_folder, "lib", "cmake", "hpp_proto")
         src_cmake_folder = os.path.join(self.source_folder, "cmake")
-        copy(self, "conan_protoc_target.cmake", src=os.path.join(self.source_folder, "cmake"), dst=cmake_config_folder)
+        
+        if self.protoc_executable:
+            src = os.path.join(src_cmake_folder, "conan_protoc_target.cmake")
+            dest = os.path.join(cmake_config_folder, "conan_protoc_target.cmake")
+            with open(src, "r", encoding="utf-8") as handle:
+                existing = handle.read()
+            with open(dest, "w", encoding="utf-8") as handle:
+                handle.write(f"set(Protobuf_PROTOC_EXECUTABLE {self.protoc_executable})\n" + existing)
+        else: 
+            copy(self, "conan_protoc_target.cmake", src=src_cmake_folder, dst=cmake_config_folder)
 
     def package_info(self):
         self.cpp_info.libs = ["is_utf8"]
