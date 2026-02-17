@@ -26,7 +26,7 @@ if(HPP_PROTO_FUZZER_ONLY)
 endif()
 
 if(NOT MSVC)
-  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wall" "-Wextra" "-Werror=sign-conversion")
+  set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wextra" "-Werror=sign-conversion")
 endif()
 
 include(third-parties.cmake)
