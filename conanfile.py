@@ -65,7 +65,7 @@ class HppProtoConan(ConanFile):
             if protobuf_dep is not None:
                 self.protoc_executable = os.path.join(protobuf_dep.package_folder, "bin", "protoc")
                 if os.path.isfile(self.protoc_executable):
-                    tc.variables["Protobuf_PROTOC_EXECUTABLE"] = self.protoc_executable
+                    tc.variables["PROTOC_PROGRAM"] = self.protoc_executable
                 else:
                     self.protoc_executable = None
         tc.variables["CPM_USE_LOCAL_PACKAGES"] = "ON"
@@ -88,7 +88,7 @@ class HppProtoConan(ConanFile):
             with open(src, "r", encoding="utf-8") as handle:
                 existing = handle.read()
             with open(dest, "w", encoding="utf-8") as handle:
-                handle.write(f"set(Protobuf_PROTOC_EXECUTABLE {self.protoc_executable})\n" + existing)
+                handle.write(f"set(PROTOC_PROGRAM \"{self.protoc_executable}\")\n" + existing)
         else: 
             copy(self, "conan_protoc_target.cmake", src=src_cmake_folder, dst=cmake_config_folder)
 

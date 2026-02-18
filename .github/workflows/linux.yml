@@ -135,7 +135,7 @@
                   ${{ matrix.extra_cmake_configure_flags }}
   
         - name: build
-          run: cmake --build build -j${{env.nproc}}
+          run: cmake --build build -j"$(nproc)"
   
         - name: test
           working-directory: ./build
