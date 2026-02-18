@@ -1,9 +1,12 @@
 function(hpp_proto_find_protoc)
-    find_program(PROTOC_PROGRAM NAMES protoc)
-    # Give opportunity to users to provide an external protoc executable
-    # (this is a feature of official FindProtobuf.cmake)
-    set(Protobuf_PROTOC_EXECUTABLE ${PROTOC_PROGRAM} CACHE FILEPATH "The protoc compiler")
+    if(NOT PROTOC_PROGRAM)
+        find_program(PROTOC_PROGRAM NAMES protoc)
+    endif()
     if(PROTOC_PROGRAM)
+        get_filename_component(PROTOC_PROGRAM "${PROTOC_PROGRAM}" ABSOLUTE)
+        if(NOT EXISTS "${PROTOC_PROGRAM}" OR IS_DIRECTORY "${PROTOC_PROGRAM}")
+            message(FATAL_ERROR "PROTOC_PROGRAM must be an existing file: ${PROTOC_PROGRAM}")
+        endif()
         execute_process(
             COMMAND "${PROTOC_PROGRAM}" --version
             OUTPUT_VARIABLE protoc_version_output
@@ -18,14 +21,18 @@ function(hpp_proto_find_protoc)
             set(Protobuf_INCLUDE_DIRS ${PROTOBUF_INCLUDE_DIR} PARENT_SCOPE)
         endif()
 
-        add_executable(protoc IMPORTED GLOBAL)
-        set_property(TARGET protoc PROPERTY IMPORTED_LOCATION ${PROTOC_PROGRAM})
-        add_executable(hpp_proto::protoc ALIAS protoc)
+        if(NOT TARGET protoc)
+            add_executable(protoc IMPORTED GLOBAL)
+        endif()
+        set_property(TARGET protoc PROPERTY IMPORTED_LOCATION "${PROTOC_PROGRAM}")
+        if(NOT TARGET hpp_proto::protoc)
+            add_executable(hpp_proto::protoc ALIAS protoc)
+        endif()
     else()
         message(FATAL_ERROR "Could not find 'protoc', you can\n"
             "  - make sure 'protoc' is available in your PATH system variable, or\n"
             "  - use '-DHPP_PROTO_PROTOC=compile' for compiling protoc from source, or\n"
-            "  - use '-DProtobuf_PROTOC_EXECUTABLE=/path/to/bin/protoc' to specify the absolute path of protoc, or"
+            "  - use '-DPROTOC_PROGRAM=/path/to/bin/protoc' to specify the absolute path of protoc, or"
             "  - for vcpkg, use feature 'vcpkg-protobuf'.\n"
 )
     endif()
