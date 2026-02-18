@@ -79,19 +79,30 @@ int main() {
                            [](hpp_proto::message_field_mref mref) {
                              return expected_message_mref{mref.emplace()}.set_field_by_name("bb", 89).done();
                            })
-                       .modify_field_by_name("map_string_nested_message",
-                                             [](hpp_proto::repeated_message_field_mref mref) {
-                                               mref.resize(2);
-                                               return expected_message_mref{mref[0]}
-                                                          .set_field_by_number(1, "Tiananmen"sv)
-                                                          .set_field_by_number(2, 89)
-                                                          .done() &&
-                                                      expected_message_mref{mref[1]}
-                                                          .set_field_by_number(1, "Square"sv)
-                                                          .set_field_by_number(2, 64)
-                                                          .done();
-                                             })
-                       .set_field_by_name("oneof_nested_message",
+                       .modify_field_by_name(
+                           "map_string_nested_message",
+                           [](hpp_proto::repeated_message_field_mref mref) {
+                             mref.resize(2);
+                             return expected_message_mref{mref[0]}
+                                        .set_field_by_number(1, "Tiananmen"sv)
+                                        .modify_field_by_number(2,
+                                                                [](hpp_proto::message_field_mref mref) {
+                                                                  return expected_message_mref{mref.emplace()}
+                                                                      .set_field_by_name("bb", 89)
+                                                                      .done();
+                                                                })
+                                        .done() &&
+                                    expected_message_mref{mref[1]}
+                                        .set_field_by_number(1, "Square"sv)
+                                        .modify_field_by_number(2,
+                                                                [](hpp_proto::message_field_mref mref) {
+                                                                  return expected_message_mref{mref.emplace()}
+                                                                      .set_field_by_name("bb", 64)
+                                                                      .done();
+                                                                })
+                                        .done();
+                           })
+                       .set_field_by_name("oneof_string",
                                           "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"sv)
                        .done();
                  })
@@ -105,7 +116,7 @@ int main() {
     expect(bob.set_field_by_name("name", "Bob").has_value());
     expect(bob.set_field_by_name("id", 2).has_value());
     expect(bob.set_field_by_name("email", "bob@email.com"sv).has_value());
-    auto phones = bob.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("people").value();
+    auto phones = bob.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("phones").value();
     auto phone = phones.emplace_back();
     expect(phone.set_field_by_name("number", "22222222").has_value());
     expect(phone.set_field_by_name("type", hpp_proto::enum_name{"PHONE_TYPE_HOME"}).has_value());
@@ -153,11 +164,14 @@ int main() {
   auto alex_map_string_nested_message = *alex_map_string_nested_message_expected;
   expect(alex_map_string_nested_message.size() == 2);
   expect("Tiananmen"sv == alex_map_string_nested_message[0].field_value_by_number<std::string_view>(1));
-  expect(89 == alex_map_string_nested_message[0].field_value_by_number<std::int32_t>(2));
+  auto v0 = alex_map_string_nested_message[0].typed_ref_by_number<hpp_proto::message_field_cref>(2);
+  expect(v0.has_value());
+  expect(89 == (*v0)->field_value_by_name<int32_t>("bb"sv));
   expect("Square"sv == alex_map_string_nested_message[1].field_value_by_number<std::string_view>(1));
-  expect(64 == alex_map_string_nested_message[2].field_value_by_number<std::int32_t>(2));
+  auto v1 = alex_map_string_nested_message[1].typed_ref_by_number<hpp_proto::message_field_cref>(2);
+  expect(64 == (*v1)->field_value_by_name<int32_t>("bb"sv));
 
-  expect(alex.field_value_by_name<std::string_view>("oneof_nested_message") ==
+  expect(alex.field_value_by_name<std::string_view>("oneof_string") ==
          "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"sv);
 
   std::string json;

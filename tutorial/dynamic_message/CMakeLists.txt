@@ -19,5 +19,5 @@ if (MSVC)
 endif()
 
 add_test(NAME dynamic_message_tutorial_proto3
-    COMMAND tutorial_proto3
+    COMMAND dynamic_message_tutorial_proto3
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
