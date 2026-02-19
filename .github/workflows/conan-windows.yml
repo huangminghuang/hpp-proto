@@ -91,9 +91,9 @@ jobs:
       - name: build
         run: |
           cd tutorial
-          cmake --build --preset conan-default -j2
+          cmake --build --preset conan-release -j2
 
       - name: test
         run: |
           cd tutorial
-          ctest --preset conan-default --output-on-failure
+          ctest --preset conan-release --output-on-failure
