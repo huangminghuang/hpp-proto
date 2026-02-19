@@ -49,7 +49,9 @@ jobs:
           sudo apt install -y protobuf-compiler libprotobuf-dev
   
       - name: configure
-        run: cmake -DHPP_PROTO_GIT_TAG=${{ github.head_ref || github.ref_name }} -S tutorial -B tutorial-build 
+        env:
+          HPP_PROTO_GIT_TAG: ${{ github.head_ref || github.ref_name }}
+        run: cmake -DHPP_PROTO_GIT_TAG="${HPP_PROTO_GIT_TAG}" -S tutorial -B tutorial-build
 
       - name: build
         run: cmake --build tutorial-build --config Release -j4

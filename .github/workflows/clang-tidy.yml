@@ -42,8 +42,10 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh 21
           sudo apt-get install -y clang-tidy-21
-          echo "CC=clang-21" >> $GITHUB_ENV
-          echo "CXX=clang++-21" >> $GITHUB_ENV
+          {
+            echo "CC=clang-21"
+            echo "CXX=clang++-21"
+          } >> "$GITHUB_ENV"
 
       - name: Configure (clang-tidy enforced)
         run: |
