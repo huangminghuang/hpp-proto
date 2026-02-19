@@ -24,15 +24,30 @@ jobs:
   build:
     runs-on: windows-latest
     strategy:
-        matrix:
-          protoc: ["find"]
-          compiler_env: [msvc, mingw]
+      matrix:
+        include:
+          - cmake_preset: ci-windows-msvc-release
+            compiler_env: msvc
+          - cmake_preset: ci-windows-mingw-release
+            compiler_env: mingw
 
     steps:
       - uses: actions/checkout@v6
 
       - uses: ilammy/msvc-dev-cmd@v1
         if: ${{ matrix.compiler_env == 'msvc' }}
+
+      - name: Setup MinGW
+        if: ${{ matrix.compiler_env == 'mingw' }}
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: mingw-w64-x86_64-gcc
+
+      - name: Add MinGW to PATH
+        if: ${{ matrix.compiler_env == 'mingw' }}
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_PATH -Value "C:\msys64\mingw64\bin"
 
       - uses: actions/cache@v5
         with:
@@ -67,16 +82,13 @@ jobs:
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.19
         with:
-          key: ${{ github.workflow }}-${{ matrix.protoc }}-${{ matrix.compiler_env }}
+          key: ${{ github.workflow }}-${{ matrix.cmake_preset }}
 
       - name: configure
-        run: |
-          cmake -S . -B build -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_PROGRAM_PATH="$env:PROTOC_BIN" -DCMAKE_BUILD_TYPE=Release -DHPP_PROTO_TEST_USE_PROTOBUF=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -GNinja
+        run: cmake --preset "${{ matrix.cmake_preset }}"
 
       - name: build
         run: cmake --build build
 
       - name: test
-        run: |
-          cd build
-          ctest --output-on-failure
+        run: ctest --test-dir build --output-on-failure

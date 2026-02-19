@@ -25,21 +25,19 @@
       strategy:
         fail-fast: false
         matrix:
-          os: [ubuntu-24.04]
-          compiler: [gcc-15, clang-20]
-          build_type: [Release, Debug]
-          protoc: [find]
           include:
-            - sanitize: OFF
-            - build_type: Debug
-              sanitize: "address,undefined"
-            - build_type: Coverage
+            - os: ubuntu-24.04
               compiler: gcc-15
-              protoc: find
-              sanitize: OFF
-          exclude:
-            - compiler: gcc-15
-              build_type: Debug
+              cmake_preset: ci-linux-release
+            - os: ubuntu-24.04
+              compiler: clang-20
+              cmake_preset: ci-linux-release
+            - os: ubuntu-24.04
+              compiler: clang-20
+              cmake_preset: ci-linux-asan-ubsan
+            - os: ubuntu-24.04
+              compiler: gcc-15
+              cmake_preset: ci-linux-coverage
 
       runs-on: ubuntu-24.04
       container:
@@ -104,35 +102,29 @@
         - uses: actions/cache@v5
           with:
             path: "**/cpm_modules"
-            key: ${{ matrix.os }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
+            key: ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.cmake_preset }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
   
         - name: ccache
           uses: hendrikmuhs/ccache-action@v1.2.19
           with:
-            key: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
+            key: ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.cmake_preset }}
 
         - name: install ninja
           run: |
             $SUDO apt-get install -y ninja-build
 
         - name: install protoc
-          if: matrix.protoc == 'find'
           run: |
             $SUDO apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
 
         - name: install lcov
-          if: matrix.build_type == 'Coverage'
+          if: matrix.cmake_preset == 'ci-linux-coverage'
           run: |
             $SUDO apt-get install -y lcov
             
         - name: configure
           run: |
-            cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-                  -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
-                  -DHPP_PROTO_ENABLE_SANITIZERS=${{ matrix.sanitize }} \
-                  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-                  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-                  ${{ matrix.extra_cmake_configure_flags }}
+            cmake --preset "${{ matrix.cmake_preset }}" ${{ matrix.extra_cmake_configure_flags }}
   
         - name: build
           run: cmake --build build -j"$(nproc)"
@@ -140,16 +132,16 @@
         - name: test
           working-directory: ./build
           run: |
-            ctest --build-config ${{ matrix.build_type }} --output-on-failure
+            ctest --output-on-failure
 
         - name: capture coverage
-          if: matrix.build_type == 'Coverage'
+          if: matrix.cmake_preset == 'ci-linux-coverage'
           run: |
             cmake --build build --target coverage_filtered_info
 
         - name: Upload coverage to Codecov
           uses: codecov/codecov-action@v5
-          if: matrix.build_type == 'Coverage'
+          if: matrix.cmake_preset == 'ci-linux-coverage'
           with:
             token: ${{ secrets.CODECOV_TOKEN }}
             files: build/coverage.filtered.info

@@ -31,8 +31,12 @@ jobs:
         include:
           - name: conan-protobuf-binary
             with_protobuf: "True"
+            cmake_configure_preset: conan-default
+            cmake_build_preset: conan-release
           - name: system-protobuf-cpp23
             with_protobuf: "False"
+            cmake_configure_preset: conan-default
+            cmake_build_preset: conan-release
     name: ${{ matrix.name }}
 
     steps:
@@ -85,15 +89,14 @@ jobs:
             -of tutorial-build
 
       - name: configure
-        run: |
-          cmake -S tutorial --preset conan-default
+        run: cmake -S tutorial --preset "${{ matrix.cmake_configure_preset }}"
 
       - name: build
         run: |
           cd tutorial
-          cmake --build --preset conan-release -j2
+          cmake --build --preset "${{ matrix.cmake_build_preset }}" -j2
 
       - name: test
         run: |
           cd tutorial
-          ctest --preset conan-release --output-on-failure
+          ctest --preset "${{ matrix.cmake_build_preset }}" --output-on-failure

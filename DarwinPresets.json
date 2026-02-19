@@ -7,6 +7,32 @@
     },
     "configurePresets": [
         {
+            "name": "ci-macos-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "HPP_PROTO_PROTOC": "find",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+            }
+        },
+        {
+            "name": "ci-macos-release",
+            "inherits": "ci-macos-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "ci-macos-coverage",
+            "inherits": "ci-macos-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Coverage"
+            }
+        },
+        {
             "name": "asan",
             "hidden": true,
             "displayName": "Address Sanitizer",
