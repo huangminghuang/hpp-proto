@@ -1,6 +1,7 @@
 name: Conan Windows
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -85,13 +86,12 @@ jobs:
 
       - name: configure
         run: |
-          cmake -S tutorial -B tutorial-build `
-            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}\\tutorial-build\\build\\generators\\conan_toolchain.cmake"
+          cmake -S tutorial --preset conan-release
 
       - name: build
         run: |
-          cmake --build tutorial-build --config Release -j2
+          cmake --build --preset conan-release -j2
 
       - name: test
         run: |
-          ctest --test-dir tutorial-build -C Release --output-on-failure
+          ctest --preset conan-release --output-on-failure
