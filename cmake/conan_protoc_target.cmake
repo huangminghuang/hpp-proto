@@ -29,6 +29,16 @@ if( NOT TARGET hpp_proto::protoc )
 endif()
 
 if( NOT TARGET hpp_proto::protoc-gen-hpp )
+    if( NOT PROTOC_GEN_HPP_PROGRAM )
+        message( FATAL_ERROR "Could not find 'protoc-gen-hpp'. Set PROTOC_GEN_HPP_PROGRAM to an absolute path." )
+    endif()
+
+    get_filename_component( PROTOC_GEN_HPP_PROGRAM "${PROTOC_GEN_HPP_PROGRAM}" ABSOLUTE )
+
+    if( NOT EXISTS "${PROTOC_GEN_HPP_PROGRAM}" OR IS_DIRECTORY "${PROTOC_GEN_HPP_PROGRAM}" )
+        message( FATAL_ERROR "PROTOC_GEN_HPP_PROGRAM must be an existing file: ${PROTOC_GEN_HPP_PROGRAM}" )
+    endif()
+
     # Create executable imported target hpp_proto::protoc-gen-hpp
     add_executable( hpp_proto::protoc-gen-hpp IMPORTED )
     set_property( TARGET hpp_proto::protoc-gen-hpp PROPERTY IMPORTED_LOCATION "${PROTOC_GEN_HPP_PROGRAM}" )
