@@ -1,9 +1,7 @@
 from conan import ConanFile
-from conan.tools.files import copy
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 from conan.tools.build import check_min_cppstd
 import os
-from shutil import which
 
 
 class HppProtoConan(ConanFile):
