@@ -36,6 +36,14 @@ class HppProtoConan(ConanFile):
         "README.md",
     )
 
+    def _cmake_path(self, exe_path, add_exe_suffix=False):
+        if exe_path is None:
+            return None
+        suffix = ""
+        if add_exe_suffix and str(self.settings.os) == "Windows":
+            suffix = ".exe"
+        return (exe_path + suffix).replace("\\", "/")
+
     def validate(self):
         cppstd = self.settings.get_safe("compiler.cppstd")
         if cppstd is not None:
@@ -63,10 +71,8 @@ class HppProtoConan(ConanFile):
         if self.options.with_protobuf:
             protobuf_dep = self.dependencies.build.get("protobuf")
             if protobuf_dep is not None:
-                exe_suffix = ".exe" if str(self.settings.os) == "Windows" else ""
-                self.protoc_executable = os.path.join(
-                    protobuf_dep.package_folder, "bin", f"protoc{exe_suffix}"
-                )
+                protoc_path = os.path.join(protobuf_dep.package_folder, "bin", "protoc")
+                self.protoc_executable = self._cmake_path(protoc_path, add_exe_suffix=True)
                 if os.path.isfile(self.protoc_executable):
                     tc.variables["PROTOC_PROGRAM"] = self.protoc_executable
                 else:
@@ -92,13 +98,12 @@ class HppProtoConan(ConanFile):
         with open(dest, "w", encoding="utf-8") as handle:
             content = []
             if self.protoc_executable:
-                cmake_protoc_path = self.protoc_executable.replace("\\", "/")
-                content.append(f"set(PROTOC_PROGRAM \"{cmake_protoc_path}\")")
-            exe_suffix = ".exe" if str(self.settings.os) == "Windows" else ""
+                content.append(f"set(PROTOC_PROGRAM \"{self.protoc_executable}\")")
             protoc_gen_hpp_path = os.path.join(
-                self.package_folder, "bin", f"protoc-gen-hpp{exe_suffix}"
-            ).replace("\\", "/")
-            content.append(f"set(PROTOC_GEN_HPP_PROGRAM \"{protoc_gen_hpp_path}\")")
+                self.package_folder, "bin", "protoc-gen-hpp"
+            )
+            cmake_protoc_gen_hpp_path = self._cmake_path(protoc_gen_hpp_path, add_exe_suffix=True)
+            content.append(f"set(PROTOC_GEN_HPP_PROGRAM \"{cmake_protoc_gen_hpp_path}\")")
             content.append(existing)
             handle.write("\n".join(content))
 
