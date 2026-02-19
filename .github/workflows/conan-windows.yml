@@ -86,12 +86,12 @@ jobs:
 
       - name: configure
         run: |
-          cmake -S tutorial --preset conan-release
+          cmake -S tutorial --preset conan-default
 
       - name: build
         run: |
-          cmake --build --preset conan-release -j2
+          cmake --build --preset conan-default -j2
 
       - name: test
         run: |
-          ctest --preset conan-release --output-on-failure
+          ctest --preset conan-default --output-on-failure
