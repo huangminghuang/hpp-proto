@@ -49,10 +49,7 @@
         - name: Ensure sudo command exists
           run: |
             if ! command -v sudo >/dev/null 2>&1; then
-              cat > /usr/local/bin/sudo <<'EOF'
-#!/usr/bin/env bash
-exec "$@"
-EOF
+              printf '%s\n' '#!/usr/bin/env bash' 'exec "$@"' > /usr/local/bin/sudo
               chmod +x /usr/local/bin/sudo
             fi
 
@@ -90,9 +87,9 @@ EOF
               sudo /tmp/llvm.sh "${VERSION_SUFFIX#-}"
               sudo apt-get install -y \
                 "${COMPILER}" \
-                lld${VERSION_SUFFIX} \
-                libc++${VERSION_SUFFIX}-dev \
-                libc++abi${VERSION_SUFFIX}-dev
+                "lld${VERSION_SUFFIX}" \
+                "libc++${VERSION_SUFFIX}-dev" \
+                "libc++abi${VERSION_SUFFIX}-dev"
 
               echo "Setting Clang environment variables..."
               {
