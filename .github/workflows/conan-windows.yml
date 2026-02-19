@@ -42,10 +42,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: setup python
-        uses: actions/setup-python@v6
+      - name: setup cpp tools
+        uses: aminya/setup-cpp@v1
         with:
-          python-version: "3.x"
+          cmake: "3.31.0"
+          ninja: true
+          ccache: true
+          conan: "2.25.2"
 
       - name: install protoc
         run: |
@@ -58,11 +61,6 @@ jobs:
           }
           Expand-Archive -Path $zip -DestinationPath "$env:TEMP\\protoc"
           Add-Content $env:GITHUB_PATH "$env:TEMP\\protoc\\bin"
-
-      - name: install conan
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install conan==2.25.2
 
       - name: conan profile
         run: conan profile detect --force

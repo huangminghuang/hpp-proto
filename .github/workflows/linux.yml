@@ -30,106 +30,39 @@
               compiler: gcc-15
               cmake_preset: ci-linux-release
             - os: ubuntu-24.04
-              compiler: clang-20
+              compiler: llvm-20
               cmake_preset: ci-linux-release
             - os: ubuntu-24.04
-              compiler: clang-20
+              compiler: llvm-20
               cmake_preset: ci-linux-asan-ubsan
             - os: ubuntu-24.04
               compiler: gcc-15
               cmake_preset: ci-linux-coverage
 
-      runs-on: ubuntu-24.04
-      container:
-        image: ${{ startsWith(matrix.compiler, 'gcc') && 'gcc:15' || 'ubuntu:24.04' }}
+      runs-on: ${{ matrix.os }}
       defaults:
         run:
           shell: bash
       steps:
-        - name: Ensure sudo command exists
-          run: |
-            if ! command -v sudo >/dev/null 2>&1; then
-              printf '%s\n' '#!/usr/bin/env bash' 'exec "$@"' > /usr/local/bin/sudo
-              chmod +x /usr/local/bin/sudo
-            fi
-
-        - name: Install Compiler and Set Environment
+        - name: Install protoc and libgrpc++
           run: |
             sudo apt-get update
-            sudo apt-get install -y curl unzip cmake lsb-release git
-
-            # Get the version suffix (e.g., "-15", "-20")
-            COMPILER="${{ matrix.compiler }}"
-            VERSION_SUFFIX="$(echo "${COMPILER}" | grep -oE -- '-[0-9]+$')"
-
-            if [[ "${COMPILER}" == gcc* ]]; then
-              echo "Installing GCC..."
-
-              # In gcc:15 container, gcc/g++ are preinstalled as gcc/g++.
-              if command -v "${COMPILER}" >/dev/null 2>&1; then
-                CC_BIN="${COMPILER}"
-                CXX_BIN="g++${VERSION_SUFFIX}"
-              else
-                CC_BIN="gcc"
-                CXX_BIN="g++"
-              fi
-
-              echo "Setting GCC environment variables..."
-              {
-                echo "CC=${CC_BIN}"
-                echo "CXX=${CXX_BIN}"
-              } >> "$GITHUB_ENV"
-            elif [[ "${COMPILER}" == clang* ]]; then
-              echo "Installing Clang + libc++..."
-              sudo apt-get install -y wget gpg software-properties-common
-              wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
-              chmod +x /tmp/llvm.sh
-              sudo /tmp/llvm.sh "${VERSION_SUFFIX#-}"
-              sudo apt-get install -y \
-                "${COMPILER}" \
-                "lld${VERSION_SUFFIX}" \
-                "libc++${VERSION_SUFFIX}-dev" \
-                "libc++abi${VERSION_SUFFIX}-dev"
-
-              echo "Setting Clang environment variables..."
-              {
-                echo "CC=${COMPILER}"
-                echo "CXX=clang++${VERSION_SUFFIX}"
-                # Tell Clang to use libc++ (compile and link)
-                echo "CXXFLAGS=-stdlib=libc++"
-                echo "LDFLAGS=-stdlib=libc++"
-              } >> "$GITHUB_ENV"
-
-              # Tell Clang to use libc++ (compile and link)
-            fi
+            sudo apt-get install -y git protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
         - uses: actions/checkout@v6
 
-        - name: Install newer CMake for clang lanes
-          if: startsWith(matrix.compiler, 'clang')
-          run: |
-            sudo apt-get install -y python3-pip
-            python3 -m pip install --user "cmake>=3.30"
-            echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
-            cmake --version
-  
+        - name: Setup required C++ tools
+          uses: aminya/setup-cpp@v1
+          with:
+            compiler: ${{ matrix.compiler }}
+            cmake: "3.31.0"
+            ninja: true
+            ccache: true
+
         - uses: actions/cache@v5
           with:
             path: "**/cpm_modules"
             key: ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.cmake_preset }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
   
-        - name: ccache
-          uses: hendrikmuhs/ccache-action@v1.2.19
-          with:
-            key: ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.cmake_preset }}
-
-        - name: install ninja
-          run: |
-            sudo apt-get install -y ninja-build
-
-        - name: install protoc
-          run: |
-            sudo apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
-
         - name: install lcov
           if: matrix.cmake_preset == 'ci-linux-coverage'
           run: |

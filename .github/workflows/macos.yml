@@ -37,15 +37,17 @@ jobs:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
-      - name: Install ninja and protobuf 
-        shell: bash
-        run: brew install ninja protobuf grpc
-        
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.19
+      - name: Setup required C++ tools
+        uses: aminya/setup-cpp@v1
         with:
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}
+          cmake: "3.31.0"
+          ninja: true
+          ccache: true
 
+      - name: Install protobuf
+        shell: bash
+        run: brew install protobuf grpc
+        
       - name: install lcov
         if: matrix.cmake_preset == 'ci-macos-coverage'
         run: brew install lcov

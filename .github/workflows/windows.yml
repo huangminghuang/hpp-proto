@@ -54,11 +54,12 @@ jobs:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
-      - name: Setup Ninja
-        uses: wirekang/setup-ninja@v1
+      - name: Setup required C++ tools
+        uses: aminya/setup-cpp@v1
         with:
-          platform: win
-          tag: v1.12.1
+          cmake: "3.31.0"
+          ninja: true
+          ccache: true
 
       - name: Install Protoc
         shell: pwsh
@@ -78,11 +79,6 @@ jobs:
           Expand-Archive -Path $zipPath -DestinationPath $dest -Force
           Add-Content -Path $env:GITHUB_PATH -Value "$dest\bin"
           Add-Content -Path $env:GITHUB_ENV -Value "PROTOC_BIN=$dest\bin"
-
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.19
-        with:
-          key: ${{ github.workflow }}-${{ matrix.cmake_preset }}
 
       - name: configure
         run: cmake --preset "${{ matrix.cmake_preset }}"
