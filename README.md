@@ -155,8 +155,8 @@ int main() {
 
     // --- JSON Serialization ---
     std::string json_buffer;
-    // Use json_opts{.prettify=true} for pretty-printing
-    if (!hpp_proto::write_json<hpp_proto::json_opts{.prettify=true}>(p, json_buffer).ok()) {
+    // Use hpp_proto::json_write_opts{.prettify=true} for pretty-printing
+    if (!hpp_proto::write_json<hpp_proto::json_write_opts{.prettify=true}>(p, json_buffer).ok()) {
         std::cerr << "JSON serialization failed!\n";
         return 1;
     }

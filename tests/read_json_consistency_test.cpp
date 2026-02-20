@@ -41,6 +41,7 @@ const suite test_read_json = [] {
   using enum test_status;
   using namespace std::string_view_literals;
   test_read<protobuf_unittest::TestAllTypes>(factory, "{"sv, fail);
+  test_read<protobuf_unittest::TestAllTypes>(factory, R"({"optionalInt64":"102"} 1)"sv, fail);
   test_read<protobuf_unittest::TestAllTypes>(factory, R"({"optionalInt64":"	102"})"sv, fail);
   test_read<protobuf_unittest::TestAllTypes>(factory, R"({"repeatedInt64":["	102"]})"sv, fail);
 

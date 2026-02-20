@@ -245,6 +245,17 @@ void scan_object_fields(glz::is_context auto &ctx, auto &it, auto &end, auto &&k
 }
 
 template <auto Opts>
+constexpr auto validate_skipped_off() {
+  if constexpr (requires { Opts.validate_skipped; }) {
+    auto ret = Opts;
+    ret.validate_skipped = false;
+    return ret;
+  } else {
+    return Opts;
+  }
+}
+
+template <auto Opts>
 [[nodiscard]] size_t number_of_elements(char stop_token, is_context auto &ctx, auto it, auto &end) noexcept {
   skip_ws<Opts>(ctx, it, end);
   if (bool(ctx.error)) [[unlikely]] {
@@ -254,7 +265,6 @@ template <auto Opts>
   if (*it == stop_token) [[unlikely]] {
     return 0;
   }
-
   size_t count = 1;
   while (true) {
     switch (*it) {
@@ -272,20 +282,20 @@ template <auto Opts>
     }
     case '{':
       ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      skip_until_closed<Opts, '{', '}'>(ctx, it, end);
+      skip_until_closed<validate_skipped_off<Opts>(), '{', '}'>(ctx, it, end);
       if (bool(ctx.error)) [[unlikely]] {
         return {};
       }
       break;
     case '[':
       ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      skip_until_closed<Opts, '[', ']'>(ctx, it, end);
+      skip_until_closed<validate_skipped_off<Opts>(), '[', ']'>(ctx, it, end);
       if (bool(ctx.error)) [[unlikely]] {
         return {};
       }
       break;
     case '"': {
-      skip_string<Opts>(ctx, it, end);
+      skip_string<validate_skipped_off<Opts>()>(ctx, it, end);
       if (bool(ctx.error)) [[unlikely]] {
         return {};
       }

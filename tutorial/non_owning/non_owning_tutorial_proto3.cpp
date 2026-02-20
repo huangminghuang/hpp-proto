@@ -93,7 +93,7 @@ int main() {
   }
 
   auto write_json_result =
-      hpp_proto::write_json<hpp_proto::json_opts{}, std::pmr::string>(address_book, hpp_proto::alloc_from{pool});
+      hpp_proto::write_json<hpp_proto::json_write_opts{}, std::pmr::string>(address_book, hpp_proto::alloc_from{pool});
   expect(write_json_result.has_value());
   auto read_json_result =
       hpp_proto::read_json<glz::opts{}, AddressBook>(write_json_result.value(), hpp_proto::alloc_from{pool});
