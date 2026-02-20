@@ -434,7 +434,11 @@ template <auto Opts = glz::opts_validate{}>
 inline json_status read_json(concepts::read_json_supported auto &value,
                              concepts::non_null_terminated_str auto const &buffer,
                              concepts::is_option_type auto &&...option) {
-  constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(false);
+  constexpr auto opts = [] {
+    auto ret = Opts;
+    ret.null_terminated = false;
+    return ret;
+  }();
   using char_type = std::remove_cvref_t<std::ranges::range_value_t<decltype(buffer)>>;
   auto view = std::basic_string_view<char_type>{std::ranges::data(buffer), std::ranges::size(buffer)};
   return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
@@ -451,7 +455,11 @@ template <auto Opts = glz::opts_validate{}>
 inline json_status read_json(concepts::read_json_supported auto &value, concepts::null_terminated_str auto const &str,
                              concepts::is_option_type auto &&...option) {
   using buffer_type = std::remove_cvref_t<decltype(str)>;
-  constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(true);
+  constexpr auto opts = [] {
+    auto ret = Opts;
+    ret.null_terminated = true;
+    return ret;
+  }();
   if constexpr (std::is_array_v<buffer_type>) {
     using char_type = std::remove_extent_t<buffer_type>;
     constexpr std::size_t size = std::extent_v<buffer_type>;
