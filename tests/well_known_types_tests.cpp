@@ -70,7 +70,8 @@ void verify(const ::hpp_proto::dynamic_message_factory &factory, const T &msg, s
   if (pretty_json && !pretty_json->empty()) {
     hpp_proto::bytes pb_buf2;
     std::string json_buf2;
-    expect(hpp_proto::binpb_to_json<hpp_proto::json_write_opts{.prettify = true}>(factory, message_name, pb, json_buf2).ok());
+    expect(hpp_proto::binpb_to_json<hpp_proto::json_write_opts{.prettify = true}>(factory, message_name, pb, json_buf2)
+               .ok());
     expect(eq(*pretty_json, json_buf2));
     expect(hpp_proto::json_to_binpb(factory, message_name, *pretty_json, pb_buf2).ok());
     expect(std::ranges::equal(pb, pb_buf2));

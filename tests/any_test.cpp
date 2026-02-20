@@ -82,7 +82,7 @@ const suite test_dynamic_message_any = [] {
     expect(std::ranges::equal(message.any_value->value, message3.any_value->value));
 
     expect(hpp_proto::write_json<hpp_proto::json_write_opts{.prettify = true}>(message, buf,
-                                                                         hpp_proto::use_factory{message_factory})
+                                                                               hpp_proto::use_factory{message_factory})
                .ok());
     using namespace std::string_literals;
     expect(eq(buf, R"({
@@ -126,7 +126,8 @@ const suite test_dynamic_message_any = [] {
     expect(json_to_binpb(message_factory, message_name, expected_json, serialized).ok());
     expect(std::ranges::equal(data, serialized));
 
-    expect(binpb_to_json<hpp_proto::json_write_opts{.prettify = true}>(message_factory, message_name, data, result).ok());
+    expect(
+        binpb_to_json<hpp_proto::json_write_opts{.prettify = true}>(message_factory, message_name, data, result).ok());
     const char *expected_json_indented = R"({
    "anyValue": {
       "@type": "type.googleapis.com/proto3_unittest.ForeignMessage",
