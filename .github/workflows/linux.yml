@@ -44,10 +44,15 @@
         run:
           shell: bash
       steps:
-        - name: Install protoc and libgrpc++
+        - name: Install protoc
           run: |
             sudo apt-get update
             sudo apt-get install -y git protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
+
+        - name: Install libgrpc++
+          if: matrix.cmake_preset != 'ci-linux-asan-ubsan'
+          run: |
+            sudo apt-get install -y libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
         - uses: actions/checkout@v6
 
         - name: Setup required C++ tools
