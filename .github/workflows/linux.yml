@@ -47,7 +47,7 @@
         - name: Install protoc
           run: |
             sudo apt-get update
-            sudo apt-get install -y git protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
+            sudo apt-get install -y git protobuf-compiler
 
         - name: Install libgrpc++
           if: matrix.cmake_preset != 'ci-linux-asan-ubsan'
