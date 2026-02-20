@@ -35,13 +35,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl unzip
 
-      - name: Setup required C++ tools
-        uses: aminya/setup-cpp@v1
-        with:
-          cmake: "3.31.0"
-          ninja: true
-          vcpkg: true
-
       - name: install protoc
         run: |
           PROTOC_DIR="$RUNNER_TEMP/protoc"
@@ -53,6 +46,13 @@ jobs:
           unzip -q -o "$PROTOC_DIR/$PROTOC_ZIP" -d "$PROTOC_DIR"
           echo "$PROTOC_DIR/bin" >> "$GITHUB_PATH"
           echo "PROTOC_BIN=$PROTOC_DIR/bin" >> "$GITHUB_ENV"
+
+      - name: Setup required C++ tools
+        uses: aminya/setup-cpp@v1
+        with:
+          cmake: "3.31.0"
+          ninja: true
+          vcpkg: true
 
       - name: install hpp-proto via local overlay port
         run: |

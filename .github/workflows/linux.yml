@@ -27,7 +27,7 @@
         matrix:
           include:
             - os: ubuntu-24.04
-              compiler: gcc-15
+              compiler: gcc-14
               cmake_preset: ci-linux-release
             - os: ubuntu-24.04
               compiler: llvm-20
@@ -36,7 +36,7 @@
               compiler: llvm-20
               cmake_preset: ci-linux-asan-ubsan
             - os: ubuntu-24.04
-              compiler: gcc-15
+              compiler: gcc-14
               cmake_preset: ci-linux-coverage
 
       runs-on: ${{ matrix.os }}
