@@ -358,6 +358,10 @@ struct json_write_opts : glz::opts {
   bool prettify = false;
 };
 
+struct json_read_opts : glz::opts {
+  bool validate_trailing_whitespace = true;
+};
+
 class message_value_cref;
 class message_value_mref;
 
@@ -430,7 +434,7 @@ inline json_status read_json_buffer(concepts::read_json_supported auto &value, a
 /// @param buffer Contiguous range of char or char8_t that is not null-terminated.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
-template <auto Opts = glz::opts_validate{}>
+template <auto Opts = json_read_opts{}>
 inline json_status read_json(concepts::read_json_supported auto &value,
                              concepts::non_null_terminated_str auto const &buffer,
                              concepts::is_option_type auto &&...option) {
@@ -451,7 +455,7 @@ inline json_status read_json(concepts::read_json_supported auto &value,
 /// @param str The null-terminated string or pointer containing the JSON.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
-template <auto Opts = glz::opts_validate{}>
+template <auto Opts = json_read_opts{}>
 inline json_status read_json(concepts::read_json_supported auto &value, concepts::null_terminated_str auto const &str,
                              concepts::is_option_type auto &&...option) {
   using buffer_type = std::remove_cvref_t<decltype(str)>;
@@ -487,7 +491,7 @@ inline json_status read_json(concepts::read_json_supported auto &value, concepts
 /// @param buffer The input buffer containing the JSON string.
 /// @param option Optional configuration parameters.
 /// @return A std::expected containing the deserialized message on success, or a json_status on failure.
-template <auto Opts = glz::opts_validate{}, concepts::read_json_supported T>
+template <auto Opts = json_read_opts{}, concepts::read_json_supported T>
 inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) -> std::expected<T, json_status> {
   std::expected<T, json_status> result;
   if (auto status =

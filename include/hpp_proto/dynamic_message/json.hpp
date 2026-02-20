@@ -1074,7 +1074,7 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
 
 namespace hpp_proto {
 
-template <auto Opts = glz::opts_validate{}>
+template <auto Opts = json_read_opts{}>
 json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name, auto &&json_view,
                           concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
