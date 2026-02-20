@@ -36,7 +36,7 @@
               compiler: llvm-20
               cmake_preset: ci-linux-asan-ubsan
             - os: ubuntu-24.04
-              compiler: gcc-14
+              compiler: gcc-13
               cmake_preset: ci-linux-coverage
 
       runs-on: ${{ matrix.os }}

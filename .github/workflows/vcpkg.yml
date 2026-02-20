@@ -63,6 +63,7 @@ jobs:
 
       - name: configure tutorial with vcpkg toolchain
         run: |
+          export VCPKG_ROOT=~/vcpkg
           cmake -S tutorial -B tutorial-build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PROGRAM_PATH="$PROTOC_BIN" \
