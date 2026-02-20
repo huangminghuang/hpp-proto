@@ -251,7 +251,7 @@ template <auto Option>
     return {};
   }
 
-  constexpr auto Opts = static_cast<glz::Opts>(Options);
+  constexpr auto Opts = static_cast<glz::opts>(Option);
   if (*it == stop_token) [[unlikely]] {
     return 0;
   }
