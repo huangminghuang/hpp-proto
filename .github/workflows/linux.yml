@@ -25,114 +25,56 @@
       strategy:
         fail-fast: false
         matrix:
-          os: [ubuntu-24.04]
-          compiler: [gcc-15, clang-20]
-          build_type: [Release, Debug]
-          protoc: [find]
           include:
-            - sanitize: OFF
-            - build_type: Debug
-              sanitize: "address,undefined"
-            - build_type: Coverage
-              compiler: gcc-15
-              protoc: find
-              sanitize: OFF
-          exclude:
-            - compiler: gcc-15
-              build_type: Debug
+            - os: ubuntu-24.04
+              compiler: gcc-14
+              cmake_preset: ci-linux-release
+            - os: ubuntu-24.04
+              compiler: llvm-20
+              cmake_preset: ci-linux-release
+            - os: ubuntu-24.04
+              compiler: llvm-20
+              cmake_preset: ci-linux-asan-ubsan
+            - os: ubuntu-24.04
+              compiler: gcc-13
+              cmake_preset: ci-linux-coverage
 
-      runs-on: ubuntu-24.04
-      container:
-        image: ${{ startsWith(matrix.compiler, 'gcc') && 'gcc:15' || 'ubuntu:24.04' }}
+      runs-on: ${{ matrix.os }}
       defaults:
         run:
           shell: bash
       steps:
-        - name: Setup SUDO helper
+        - name: Install protoc
           run: |
-            if command -v sudo >/dev/null 2>&1; then
-              echo "SUDO=sudo" >> "$GITHUB_ENV"
-            else
-              echo "SUDO=" >> "$GITHUB_ENV"
-            fi
+            sudo apt-get update
+            sudo apt-get install -y git protobuf-compiler
 
-        - name: Install Compiler and Set Environment
+        - name: Install libgrpc++
+          if: matrix.cmake_preset != 'ci-linux-asan-ubsan'
           run: |
-            $SUDO apt-get update
-            $SUDO apt-get install -y curl unzip cmake lsb-release git
-            
-            # Get the version suffix (e.g., "-15", "-20")
-            VERSION_SUFFIX=$(echo "${{ matrix.compiler }}" | grep -oE -- '-[0-9]+$')
-
-            if [[ "${{ matrix.compiler }}" == gcc* ]]; then
-              echo "Installing GCC..."
-
-              # In gcc:15 container, gcc/g++ are preinstalled as gcc/g++.
-              if command -v "${{ matrix.compiler }}" >/dev/null 2>&1; then
-                CC_BIN="${{ matrix.compiler }}"
-                CXX_BIN="g++${VERSION_SUFFIX}"
-              else
-                CC_BIN="gcc"
-                CXX_BIN="g++"
-              fi
-
-              echo "Setting GCC environment variables..."
-              echo "CC=${CC_BIN}" >> $GITHUB_ENV
-              echo "CXX=${CXX_BIN}" >> $GITHUB_ENV
-            elif [[ "${{ matrix.compiler }}" == clang* ]]; then
-              echo "Installing Clang + libc++..."
-              $SUDO apt-get install -y wget gpg software-properties-common
-              wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
-              chmod +x /tmp/llvm.sh
-              $SUDO /tmp/llvm.sh ${VERSION_SUFFIX#-}
-              $SUDO apt-get install -y \
-                ${{ matrix.compiler }} \
-                lld${VERSION_SUFFIX} \
-                libc++${VERSION_SUFFIX}-dev \
-                libc++abi${VERSION_SUFFIX}-dev
-                
-              echo "Setting Clang environment variables..."
-              echo "CC=${{ matrix.compiler }}" >> $GITHUB_ENV
-              echo "CXX=clang++${VERSION_SUFFIX}" >> $GITHUB_ENV
-              
-              # Tell Clang to use libc++ (compile and link)
-              echo "CXXFLAGS=-stdlib=libc++" >> $GITHUB_ENV
-              echo "LDFLAGS=-stdlib=libc++" >> $GITHUB_ENV
-            fi
+            sudo apt-get install -y libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
         - uses: actions/checkout@v6
-  
+
+        - name: Setup required C++ tools
+          uses: aminya/setup-cpp@v1
+          with:
+            compiler: ${{ matrix.compiler }}
+            cmake: "3.31.0"
+            ninja: true
+            ccache: true
+
         - uses: actions/cache@v5
           with:
             path: "**/cpm_modules"
-            key: ${{ matrix.os }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
+            key: ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.cmake_preset }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
   
-        - name: ccache
-          uses: hendrikmuhs/ccache-action@v1.2.19
-          with:
-            key: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
-
-        - name: install ninja
-          run: |
-            $SUDO apt-get install -y ninja-build
-
-        - name: install protoc
-          if: matrix.protoc == 'find'
-          run: |
-            $SUDO apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
-
         - name: install lcov
-          if: matrix.build_type == 'Coverage'
+          if: matrix.cmake_preset == 'ci-linux-coverage'
           run: |
-            $SUDO apt-get install -y lcov
+            sudo apt-get install -y lcov
             
         - name: configure
-          run: |
-            cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-                  -DHPP_PROTO_PROTOC=${{ matrix.protoc }} \
-                  -DHPP_PROTO_ENABLE_SANITIZERS=${{ matrix.sanitize }} \
-                  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-                  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-                  ${{ matrix.extra_cmake_configure_flags }}
+          run: cmake --preset "${{ matrix.cmake_preset }}"
   
         - name: build
           run: cmake --build build -j"$(nproc)"
@@ -140,16 +82,16 @@
         - name: test
           working-directory: ./build
           run: |
-            ctest --build-config ${{ matrix.build_type }} --output-on-failure
+            ctest --output-on-failure
 
         - name: capture coverage
-          if: matrix.build_type == 'Coverage'
+          if: matrix.cmake_preset == 'ci-linux-coverage'
           run: |
             cmake --build build --target coverage_filtered_info
 
         - name: Upload coverage to Codecov
           uses: codecov/codecov-action@v5
-          if: matrix.build_type == 'Coverage'
+          if: matrix.cmake_preset == 'ci-linux-coverage'
           with:
             token: ${{ secrets.CODECOV_TOKEN }}
             files: build/coverage.filtered.info

@@ -31,17 +31,24 @@ jobs:
         include:
           - name: conan-protobuf-binary
             with_protobuf: "True"
+            cmake_configure_preset: conan-default
+            cmake_build_preset: conan-release
           - name: system-protobuf-cpp23
             with_protobuf: "False"
+            cmake_configure_preset: conan-default
+            cmake_build_preset: conan-release
     name: ${{ matrix.name }}
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: setup python
-        uses: actions/setup-python@v6
+      - name: setup cpp tools
+        uses: aminya/setup-cpp@v1
         with:
-          python-version: "3.x"
+          cmake: "3.31.0"
+          ninja: true
+          ccache: true
+          conan: "2.25.2"
 
       - name: install protoc
         run: |
@@ -54,11 +61,6 @@ jobs:
           }
           Expand-Archive -Path $zip -DestinationPath "$env:TEMP\\protoc"
           Add-Content $env:GITHUB_PATH "$env:TEMP\\protoc\\bin"
-
-      - name: install conan
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install conan==2.25.2
 
       - name: conan profile
         run: conan profile detect --force
@@ -85,15 +87,14 @@ jobs:
             -of tutorial-build
 
       - name: configure
-        run: |
-          cmake -S tutorial --preset conan-default
+        run: cmake -S tutorial --preset "${{ matrix.cmake_configure_preset }}"
 
       - name: build
         run: |
           cd tutorial
-          cmake --build --preset conan-release -j2
+          cmake --build --preset "${{ matrix.cmake_build_preset }}" -j2
 
       - name: test
         run: |
           cd tutorial
-          ctest --preset conan-release --output-on-failure
+          ctest --preset "${{ matrix.cmake_build_preset }}" --output-on-failure

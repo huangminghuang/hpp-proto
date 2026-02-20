@@ -13,12 +13,10 @@ jobs:
       matrix:
         sanitizer: [address, undefined]  
     steps:
-    - name: Setup ccache
-      uses: hendrikmuhs/ccache-action@v1.2.19
-      env:
-        CCACHE_DIR: ${{ github.workspace }}/.ccache
+    - name: Setup C++ tools
+      uses: aminya/setup-cpp@v1
       with:
-        max-size: 2G
+        ccache: true
     - name: Build Fuzzers (${{ matrix.sanitizer }})
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1

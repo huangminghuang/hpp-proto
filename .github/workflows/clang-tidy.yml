@@ -29,30 +29,28 @@ jobs:
           path: "**/cpm_modules"
           key: clang-tidy-${{ runner.os }}-${{ hashFiles('**/third-parties.cmake') }}
 
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.19
+      - name: Setup required C++ tools
+        uses: aminya/setup-cpp@v1
         with:
-          key: clang-tidy-${{ runner.os }}
+          compiler: llvm-21
+          cmake: "3.31.0"
+          ninja: true
+          ccache: true
+          clang-tidy: true
 
-      - name: Install LLVM 21 and dependencies
+      - name: Install protobuf dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget ninja-build protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 21
-          sudo apt-get install -y clang-tidy-21
-          echo "CC=clang-21" >> $GITHUB_ENV
-          echo "CXX=clang++-21" >> $GITHUB_ENV
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
 
       - name: Configure (clang-tidy enforced)
         run: |
           cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
                 -DHPP_PROTO_PROTOC=find \
-                -DCMAKE_C_COMPILER=clang-21 \
-                -DCMAKE_CXX_COMPILER=clang++-21 \
-                -DCMAKE_C_CLANG_TIDY="clang-tidy-21;-warnings-as-errors=*" \
-                -DCMAKE_CXX_CLANG_TIDY="clang-tidy-21;-warnings-as-errors=*"
+                -DCMAKE_C_COMPILER=clang \
+                -DCMAKE_CXX_COMPILER=clang++ \
+                -DCMAKE_C_CLANG_TIDY="clang-tidy;-warnings-as-errors=*" \
+                -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
 
       - name: Build
         run: cmake --build build -j"$(nproc)"

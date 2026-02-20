@@ -24,9 +24,10 @@ jobs:
   build:
     runs-on: macos-latest
     strategy:
-        matrix:
-          build_type: [Release, Coverage]
-          protoc: ["find"]
+      matrix:
+        include:
+          - cmake_preset: ci-macos-release
+          - cmake_preset: ci-macos-coverage
 
     steps:
       - uses: actions/checkout@v6
@@ -34,26 +35,27 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-${{ matrix.protoc }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
-      - name: Install ninja and protobuf 
-        shell: bash
-        run: brew install ninja protobuf grpc
-        
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.19
+      - name: Setup required C++ tools
+        uses: aminya/setup-cpp@v1
         with:
-          key: ${{ github.workflow }}-${{ matrix.protoc }}
+          cmake: "3.31.0"
+          ninja: true
+          ccache: true
 
+      - name: Install protobuf
+        shell: bash
+        run: brew install protobuf grpc
+        
       - name: install lcov
-        if: matrix.build_type == 'Coverage'
+        if: matrix.cmake_preset == 'ci-macos-coverage'
         run: brew install lcov
 
       - name: configure
         shell: bash
         run: |
-          cmake -S . -B build -G Ninja -DHPP_PROTO_PROTOC=${{ matrix.protoc }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --preset "${{ matrix.cmake_preset }}"
 
       - name: build
         run: cmake --build build
@@ -61,17 +63,17 @@ jobs:
       - name: test
         working-directory: ./build
         run: |
-          ctest --build-config ${{ matrix.build_type }} --output-on-failure
+          ctest --output-on-failure
 
 
       - name: capture coverage
-        if: matrix.build_type == 'Coverage'
+        if: matrix.cmake_preset == 'ci-macos-coverage'
         run: |
           cmake --build build --target coverage_filtered_info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
-        if: matrix.build_type == 'Coverage'
+        if: matrix.cmake_preset == 'ci-macos-coverage'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: build/coverage.filtered.info

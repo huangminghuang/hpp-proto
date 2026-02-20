@@ -27,29 +27,31 @@ jobs:
       matrix:
         gcc: [13]
 
-    env:
-      CC: gcc-${{ matrix.gcc }}
-      CXX: g++-${{ matrix.gcc }}
-
     steps:
       - uses: actions/checkout@v6
+
+      - name: Setup required C++ tools
+        uses: aminya/setup-cpp@v1
+        with:
+          compiler: gcc-${{ matrix.gcc }}
+          cmake: "3.31.0"
+          ninja: true
+          ccache: true
 
       - uses: actions/cache@v5
         with:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2.19
-        with:
-          key: ${{ github.workflow }}
-
       - name: install protoc
         run: |
-          sudo apt install -y protobuf-compiler libprotobuf-dev
+          sudo apt-get update
+          sudo apt install -y git protobuf-compiler libprotobuf-dev
   
       - name: configure
-        run: cmake -DHPP_PROTO_GIT_TAG=${{ github.head_ref || github.ref_name }} -S tutorial -B tutorial-build 
+        env:
+          HPP_PROTO_GIT_TAG: ${{ github.head_ref || github.ref_name }}
+        run: cmake -DHPP_PROTO_GIT_TAG="${HPP_PROTO_GIT_TAG}" -S tutorial -B tutorial-build
 
       - name: build
         run: cmake --build tutorial-build --config Release -j4

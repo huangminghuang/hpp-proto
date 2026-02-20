@@ -1,11 +1,37 @@
 {
-    "version": 7,
+    "version": 9,
     "cmakeMinimumRequired": {
         "major": 3,
         "minor": 23,
         "patch": 0
     },
     "configurePresets": [
+        {
+            "name": "ci-windows-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "HPP_PROTO_PROTOC": "find",
+                "HPP_PROTO_TEST_USE_PROTOBUF": "OFF",
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_PROGRAM_PATH": "$env{PROTOC_BIN}",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+            }
+        },
+        {
+            "name": "ci-windows-msvc-release",
+            "inherits": "ci-windows-base"
+        },
+        {
+            "name": "ci-windows-mingw-release",
+            "inherits": "ci-windows-base",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++"
+            }
+        },
         {
             "name": "asan",
             "hidden": true,
