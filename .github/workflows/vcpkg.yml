@@ -38,13 +38,16 @@ jobs:
 
       - name: install protoc
         run: |
+          PROTOC_VERSION_VALUE="${PROTOC_VERSION:?PROTOC_VERSION is not set}"
+          PROTOC_ZIP_VALUE="${PROTOC_ZIP:?PROTOC_ZIP is not set}"
+          PROTOC_SHA256_VALUE="${PROTOC_SHA256:?PROTOC_SHA256 is not set}"
           PROTOC_DIR="$RUNNER_TEMP/protoc"
           mkdir -p "$PROTOC_DIR"
           curl -L --fail --retry 3 \
-            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}" \
-            -o "$PROTOC_DIR/$PROTOC_ZIP"
-          echo "${PROTOC_SHA256}  $PROTOC_DIR/$PROTOC_ZIP" | sha256sum -c -
-          unzip -q -o "$PROTOC_DIR/$PROTOC_ZIP" -d "$PROTOC_DIR"
+            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION_VALUE}/${PROTOC_ZIP_VALUE}" \
+            -o "$PROTOC_DIR/$PROTOC_ZIP_VALUE"
+          echo "${PROTOC_SHA256_VALUE}  $PROTOC_DIR/$PROTOC_ZIP_VALUE" | sha256sum -c -
+          unzip -q -o "$PROTOC_DIR/$PROTOC_ZIP_VALUE" -d "$PROTOC_DIR"
           echo "$PROTOC_DIR/bin" >> "$GITHUB_PATH"
           echo "PROTOC_BIN=$PROTOC_DIR/bin" >> "$GITHUB_ENV"
 
