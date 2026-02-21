@@ -335,19 +335,20 @@ void from_json(T &v, auto &ctx, auto &it, auto &end) {
   }
 }
 
+void validate_utf8_if_string(auto &ctx, const auto &v) {
+  if constexpr (hpp_proto::concepts::string_like<std::decay_t<decltype(v)>>) {
+    if (bool(ctx.error)) [[unlikely]] {
+      return;
+    }
+    if (!is_utf8(v.data(), v.size())) {
+      ctx.error = error_code::syntax_error;
+    }
+  }
+}
+
 template <auto Opts, typename T>
   requires(!std::is_enum_v<T>)
 void from_json(T &&v, auto &ctx, auto &it, auto &end) {
-  auto validate_utf8_if_string = [](auto &ctx, const auto &v) {
-    if constexpr (hpp_proto::concepts::string_like<std::decay_t<decltype(v)>>) {
-      if (bool(ctx.error)) [[unlikely]] {
-        return;
-      }
-      if (!is_utf8(v.data(), v.size())) {
-        ctx.error = error_code::syntax_error;
-      }
-    }
-  };
 
   using value_t = std::decay_t<T>;
   if constexpr (std::same_as<value_t, std::string_view>) {
@@ -420,6 +421,10 @@ void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end) {
   scan_object_fields<Options, true>(
       ctx, it, end, hpp_proto::detail::as_modifiable(ctx, key), [](auto &, auto &) {},
       [&](auto &it_ref, auto &end_ref) {
+        validate_utf8_if_string(ctx, key);
+        if (bool(ctx.error)){
+          return true;
+        }
         static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
         std::size_t size_before = value.size();
         auto it = value.try_emplace(hint, std::move(key));

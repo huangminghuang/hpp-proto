@@ -267,6 +267,13 @@ const ut::suite test_wrapper = [] {
   "parse_invalid_int64"_test = [&factory] {
     expect_read_json_fail(factory, "google.protobuf.Int64Value"sv, "\"\n40\""sv);
   };
+
+  "parse_invalid_utf8_string"_test = []{
+    google::protobuf::StringValue<hpp_proto::default_traits> str;
+    expect(!read_json(str, "\"\xcd\"").ok());
+    google::protobuf::Value<hpp_proto::default_traits> value;
+    expect(!read_json(value, "\"\xcd\"").ok());
+  };
 };
 
 const ut::suite test_empty = [] {

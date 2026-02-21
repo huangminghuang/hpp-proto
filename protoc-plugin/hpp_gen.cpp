@@ -1550,7 +1550,10 @@ struct glaze_meta_generator : code_generator {
       std::string parse_operation;
       if (descriptor.pb_name == "google.protobuf.StringValue") {
         parse_operation = "    decltype(auto) v = hpp_proto::detail::as_modifiable(ctx, value.value);\n"
-                          "    parse<JSON>::template op<Opts>(v, ctx, it, end);";
+                          "    parse<JSON>::template op<Opts>(v, ctx, it, end);\n"
+                          "    if (!bool(ctx.error) && !is_utf8(v.data(), v.size())){{\n"
+                          "        ctx.error = error_code::syntax_error;\n"
+                          "    }}";
       } else {
         parse_operation = std::format("    parse<JSON>::template op<{0}>(value.value, ctx, it, end);", opts);
       }
@@ -1625,6 +1628,9 @@ struct glaze_meta_generator : code_generator {
                      "    }} else if (*it == '\"') {{\n"
                      "      decltype(auto) str = hpp_proto::detail::as_modifiable(ctx, value.kind.template emplace<google::protobuf::Value<Traits>::kind_oneof_case::string_value>());\n"
                      "      parse<JSON>::op<Opts>(str, ctx, it, end);\n"
+                     "      if (!bool(ctx.error) && !is_utf8(str.data(), str.size())){{\n"
+                     "        ctx.error = error_code::syntax_error;\n"
+                     "      }}\n"
                      "    }} else if (*it == 't' || *it == 'f') {{\n"
                      "      parse<JSON>::op<Opts>(value.kind.template emplace<bool>(), ctx, it, end);\n"
                      "    }} else if (*it == '{{') {{\n"
