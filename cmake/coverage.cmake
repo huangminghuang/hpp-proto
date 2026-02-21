@@ -49,6 +49,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Coverage" OR _coverage_config_index GREATER_EQUAL 
       COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
       COMMAND ${GCOVR_EXECUTABLE}
       --root ${CMAKE_CURRENT_SOURCE_DIR}
+      --exclude-throw-branches 
+      --exclude-unreachable-branches
       ${COVERAGE_GCOVR_FILTER_ARGS}
       --xml-pretty
       --xml ${CMAKE_BINARY_DIR}/coverage.cobertura.xml
