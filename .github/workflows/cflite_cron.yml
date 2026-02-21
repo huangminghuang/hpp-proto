@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Setup C++ tools
-      uses: aminya/setup-cpp@v1
+      uses: aminya/setup-cpp@v1.8.0
       with:
         ccache: true
     - name: Build Fuzzers
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Setup C++ tools
-      uses: aminya/setup-cpp@v1
+      uses: aminya/setup-cpp@v1.8.0
       with:
         ccache: true
     - name: Build Fuzzers

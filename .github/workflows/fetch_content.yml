@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Setup required C++ tools
-        uses: aminya/setup-cpp@v1
+        uses: aminya/setup-cpp@v1.8.0
         with:
           compiler: gcc-${{ matrix.gcc }}
           cmake: "3.31.0"

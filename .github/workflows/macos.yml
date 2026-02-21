@@ -48,7 +48,7 @@ jobs:
             ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-ccache-
 
       - name: Setup required C++ tools
-        uses: aminya/setup-cpp@v1
+        uses: aminya/setup-cpp@v1.8.0
         with:
           cmake: "3.31.0"
           ninja: true

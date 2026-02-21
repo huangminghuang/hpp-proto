@@ -16,7 +16,7 @@ jobs:
         sanitizer: [address, undefined]  # Override this with the sanitizers you want.
     steps:
     - name: Setup C++ tools
-      uses: aminya/setup-cpp@v1
+      uses: aminya/setup-cpp@v1.8.0
       with:
         ccache: true
     - name: Build Fuzzers (${{ matrix.sanitizer }})
