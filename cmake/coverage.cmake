@@ -10,12 +10,25 @@ if(CMAKE_BUILD_TYPE STREQUAL "Coverage" OR _coverage_config_index GREATER_EQUAL 
   find_program(GCOVR_EXECUTABLE gcovr)
 
   if(GCOVR_EXECUTABLE)
+    # gcovr may report file paths as either absolute or root-relative.
+    # Keep regexes tolerant to both formats.
+    set(COVERAGE_GCOVR_FILTERS
+      "^${CMAKE_CURRENT_SOURCE_DIR}/.*"
+      "^(include|src|tests|unittests|tutorial)/.*"
+    )
+
     set(COVERAGE_GCOVR_EXCLUDES
-      ".*/usr/include/.*"
-      ".*/include/google/protobuf/.*"
-      ".*/tutorial/.*"
-      ".*/tests/.*"
-      "${CMAKE_BINARY_DIR}/.*"
+      "^${CMAKE_BINARY_DIR}/.*"
+      "^${CMAKE_CURRENT_SOURCE_DIR}/include/google/protobuf/.*"
+      "^${CMAKE_CURRENT_SOURCE_DIR}/tutorial/.*"
+      "^${CMAKE_CURRENT_SOURCE_DIR}/tests/.*"
+      "^${CMAKE_CURRENT_SOURCE_DIR}/build/.*"
+      "^${CMAKE_CURRENT_SOURCE_DIR}/out/.*"
+      "^${CMAKE_CURRENT_SOURCE_DIR}/\\.conan/.*"
+      "^${CMAKE_CURRENT_SOURCE_DIR}/cpm_modules/.*"
+      "^(include/google/protobuf|tutorial|tests|build|out|\\.conan|cpm_modules)/.*"
+      "^/usr/include/.*"
+      ".*/_deps/.*"
     )
 
     if(DEFINED ENV{CPM_SOURCE_CACHE} AND NOT "$ENV{CPM_SOURCE_CACHE}" STREQUAL "")
@@ -27,10 +40,16 @@ if(CMAKE_BUILD_TYPE STREQUAL "Coverage" OR _coverage_config_index GREATER_EQUAL 
       list(APPEND COVERAGE_GCOVR_EXCLUDE_ARGS --exclude "${pattern}")
     endforeach()
 
+    set(COVERAGE_GCOVR_FILTER_ARGS)
+    foreach(pattern IN LISTS COVERAGE_GCOVR_FILTERS)
+      list(APPEND COVERAGE_GCOVR_FILTER_ARGS --filter "${pattern}")
+    endforeach()
+
     add_custom_target(coverage_gcovr
       COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
       COMMAND ${GCOVR_EXECUTABLE}
       --root ${CMAKE_CURRENT_SOURCE_DIR}
+      ${COVERAGE_GCOVR_FILTER_ARGS}
       --xml-pretty
       --xml ${CMAKE_BINARY_DIR}/coverage.cobertura.xml
       --print-summary
@@ -51,6 +70,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Coverage" OR _coverage_config_index GREATER_EQUAL 
       DEPENDS coverage_gcovr
       COMMAND ${GCOVR_EXECUTABLE}
       --root ${CMAKE_CURRENT_SOURCE_DIR}
+      ${COVERAGE_GCOVR_FILTER_ARGS}
       --html-details ${CMAKE_BINARY_DIR}/coverage-report/index.html
       --html-title "hpp-proto coverage"
       --gcov-ignore-errors all
