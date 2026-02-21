@@ -353,9 +353,13 @@ struct to<JSON, hpp_proto::indirect_view<Type>> {
 } // namespace glz
 
 namespace hpp_proto {
-struct json_opts : glz::opts {
+struct json_write_opts : glz::opts {
   bool escape_control_characters = true;
   bool prettify = false;
+};
+
+struct json_read_opts : glz::opts {
+  bool validate_trailing_whitespace = true;
 };
 
 class message_value_cref;
@@ -430,11 +434,15 @@ inline json_status read_json_buffer(concepts::read_json_supported auto &value, a
 /// @param buffer Contiguous range of char or char8_t that is not null-terminated.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
-template <auto Opts = glz::opts{}>
+template <auto Opts = json_read_opts{}>
 inline json_status read_json(concepts::read_json_supported auto &value,
                              concepts::non_null_terminated_str auto const &buffer,
                              concepts::is_option_type auto &&...option) {
-  constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(false);
+  constexpr auto opts = [] {
+    auto ret = Opts;
+    ret.null_terminated = false;
+    return ret;
+  }();
   using char_type = std::remove_cvref_t<std::ranges::range_value_t<decltype(buffer)>>;
   auto view = std::basic_string_view<char_type>{std::ranges::data(buffer), std::ranges::size(buffer)};
   return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
@@ -447,11 +455,15 @@ inline json_status read_json(concepts::read_json_supported auto &value,
 /// @param str The null-terminated string or pointer containing the JSON.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
-template <auto Opts = glz::opts{}>
+template <auto Opts = json_read_opts{}>
 inline json_status read_json(concepts::read_json_supported auto &value, concepts::null_terminated_str auto const &str,
                              concepts::is_option_type auto &&...option) {
   using buffer_type = std::remove_cvref_t<decltype(str)>;
-  constexpr auto opts = ::glz::set_opt<Opts, &glz::opts::null_terminated>(true);
+  constexpr auto opts = [] {
+    auto ret = Opts;
+    ret.null_terminated = true;
+    return ret;
+  }();
   if constexpr (std::is_array_v<buffer_type>) {
     using char_type = std::remove_extent_t<buffer_type>;
     constexpr std::size_t size = std::extent_v<buffer_type>;
@@ -479,7 +491,7 @@ inline json_status read_json(concepts::read_json_supported auto &value, concepts
 /// @param buffer The input buffer containing the JSON string.
 /// @param option Optional configuration parameters.
 /// @return A std::expected containing the deserialized message on success, or a json_status on failure.
-template <auto Opts = glz::opts{}, concepts::read_json_supported T>
+template <auto Opts = json_read_opts{}, concepts::read_json_supported T>
 inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) -> std::expected<T, json_status> {
   std::expected<T, json_status> result;
   if (auto status =
@@ -492,12 +504,12 @@ inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) 
 
 /// @brief Serializes a message object to a JSON string in the provided buffer.
 /// @details Compared to glz::write, this wrapper uses json_context, writes via detail::as_modifiable, and defaults to
-///          json_opts (escape_control_characters=true) instead of glz::opts.
+///          json_write_opts (escape_control_characters=true) instead of glz::opts.
 /// @param value The message object to serialize.
 /// @param buffer The buffer to write the JSON string into.
 /// @param option Optional configuration parameters.
 /// @return json_status indicating success or failure.
-template <auto Opts = json_opts{}>
+template <auto Opts = json_write_opts{}>
 inline json_status write_json(concepts::write_json_supported auto const &value,
                               concepts::contiguous_byte_range auto &buffer,
                               concepts::is_option_type auto &&...option) noexcept {
@@ -510,12 +522,12 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
 
 /// @brief Serializes a message object to a JSON string and returns the buffer.
 /// @details Unlike glz::write, this wrapper returns std::expected with json_status on failure and defaults to
-///          json_opts (escape_control_characters=true) instead of glz::opts.
+///          hpp_proto::json_write_opts (escape_control_characters=true) instead of glz::opts.
 /// @tparam Buffer The type of the buffer to return, defaults to std::string.
 /// @param value The message object to serialize.
 /// @param option Optional configuration parameters.
 /// @return A std::expected containing the buffer on success, or a json_status on failure.
-template <auto Opts = json_opts{}, concepts::contiguous_byte_range Buffer = std::string>
+template <auto Opts = json_write_opts{}, concepts::contiguous_byte_range Buffer = std::string>
 inline auto write_json(concepts::write_json_supported auto const &value,
                        concepts::is_option_type auto &&...option) noexcept -> std::expected<Buffer, json_status> {
   std::expected<Buffer, json_status> result;

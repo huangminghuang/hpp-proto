@@ -72,7 +72,7 @@ int main() {
   expect(address_book == read_json_result.value());
 
   // pretty print json, with indent level 3
-  write_json_result = hpp_proto::write_json<hpp_proto::json_opts{.prettify = true}>(address_book);
+  write_json_result = hpp_proto::write_json<hpp_proto::json_write_opts{.prettify = true}>(address_book);
   expect(write_json_result.has_value());
   std::cout << write_json_result.value() << "\n";
 

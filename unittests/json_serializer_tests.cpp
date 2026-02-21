@@ -417,7 +417,7 @@ const ut::suite test_prettify = [] {
 
   "prettify"_test = [] {
     optional_example msg{.field2 = 123U, .field3 = 456};
-    auto json = hpp_proto::write_json<hpp_proto::json_opts{.prettify = true}>(msg).value();
+    auto json = hpp_proto::write_json<hpp_proto::json_write_opts{.prettify = true}>(msg).value();
     expect(eq(json, R"({
    "field2": "123",
    "field3": 456

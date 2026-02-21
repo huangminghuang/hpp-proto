@@ -254,7 +254,6 @@ template <auto Opts>
   if (*it == stop_token) [[unlikely]] {
     return 0;
   }
-
   size_t count = 1;
   while (true) {
     switch (*it) {

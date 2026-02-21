@@ -1074,13 +1074,14 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
 
 namespace hpp_proto {
 
+template <auto Opts = json_read_opts{}>
 json_status json_to_binpb(const dynamic_message_factory &factory, std::string_view message_name, auto &&json_view,
                           concepts::contiguous_byte_range auto &buffer) {
   std::pmr::monotonic_buffer_resource mr;
   auto opt_msg = factory.get_message(message_name, mr);
   if (opt_msg.has_value()) {
     auto msg = *opt_msg;
-    auto status = read_json(msg, std::forward<decltype(json_view)>(json_view));
+    auto status = read_json<Opts>(msg, std::forward<decltype(json_view)>(json_view));
     if (status.ok()) [[likely]] {
       if (write_binpb(msg, buffer).ok()) [[likely]] {
         return {};
@@ -1095,7 +1096,7 @@ json_status json_to_binpb(const dynamic_message_factory &factory, std::string_vi
   }
 }
 
-template <auto Opts = json_opts{}>
+template <auto Opts = json_write_opts{}>
 status binpb_to_json(const dynamic_message_factory &factory, std::string_view message_name,
                      concepts::contiguous_byte_range auto const &pb_encoded_stream,
                      concepts::resizable_contiguous_byte_container auto &buffer) {
