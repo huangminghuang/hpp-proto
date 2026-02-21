@@ -348,8 +348,8 @@ void validate_utf8_if_string(auto &ctx, const auto &v) {
 
 template <auto Opts, typename T>
   requires(!std::is_enum_v<T>)
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
 void from_json(T &&v, auto &ctx, auto &it, auto &end) {
-
   using value_t = std::decay_t<T>;
   if constexpr (std::same_as<value_t, std::string_view>) {
     decltype(auto) mutable_v = hpp_proto::detail::as_modifiable(ctx, v);
