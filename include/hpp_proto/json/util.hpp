@@ -422,7 +422,7 @@ void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end) {
       ctx, it, end, hpp_proto::detail::as_modifiable(ctx, key), [](auto &, auto &) {},
       [&](auto &it_ref, auto &end_ref) {
         validate_utf8_if_string(ctx, key);
-        if (bool(ctx.error)){
+        if (bool(ctx.error)) {
           return true;
         }
         static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
