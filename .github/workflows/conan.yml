@@ -22,6 +22,7 @@ env:
   PROTOC_VERSION: 33.5
   PROTOC_ZIP: protoc-33.5-linux-x86_64.zip
   PROTOC_SHA256: 24e58fb231d50306ee28491f33a170301e99540f7e29ca461e0e80fd1239f8d1
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
   build:
@@ -54,6 +55,14 @@ jobs:
           ninja: true
           ccache: true
           conan: "2.25.2"
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.name }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ github.workflow }}-${{ runner.os }}-${{ matrix.name }}-ccache-
 
       - name: install system protobuf
         if: matrix.use_system_protobuf
