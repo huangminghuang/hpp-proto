@@ -2,6 +2,7 @@
 name: MacOS
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -43,15 +44,12 @@ jobs:
           cmake: "3.31.0"
           ninja: true
           ccache: true
+          gcovr: ${{ matrix.cmake_preset == 'ci-macos-coverage' }}
 
       - name: Install protobuf
         shell: bash
         run: brew install protobuf grpc
         
-      - name: install lcov
-        if: matrix.cmake_preset == 'ci-macos-coverage'
-        run: brew install lcov
-
       - name: configure
         shell: bash
         run: |
@@ -69,14 +67,14 @@ jobs:
       - name: capture coverage
         if: matrix.cmake_preset == 'ci-macos-coverage'
         run: |
-          cmake --build build --target coverage_filtered_info
+          cmake --build build --target coverage_gcovr
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         if: matrix.cmake_preset == 'ci-macos-coverage'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: build/coverage.filtered.info
+          files: build/coverage.cobertura.xml
           flags: macos,ci
           name: macos-coverage
           verbose: true

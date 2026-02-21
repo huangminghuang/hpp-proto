@@ -2,6 +2,7 @@
   name: Linux
   
   on:
+    workflow_dispatch:
     push:
       branches:
         - main
@@ -62,17 +63,13 @@
             cmake: "3.31.0"
             ninja: true
             ccache: true
+            gcovr: ${{ matrix.cmake_preset == 'ci-linux-coverage' }}
 
         - uses: actions/cache@v5
           with:
             path: "**/cpm_modules"
             key: ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.cmake_preset }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
   
-        - name: install lcov
-          if: matrix.cmake_preset == 'ci-linux-coverage'
-          run: |
-            sudo apt-get install -y lcov
-            
         - name: configure
           run: cmake --preset "${{ matrix.cmake_preset }}"
   
@@ -87,14 +84,14 @@
         - name: capture coverage
           if: matrix.cmake_preset == 'ci-linux-coverage'
           run: |
-            cmake --build build --target coverage_filtered_info
+            cmake --build build --target coverage_gcovr
 
         - name: Upload coverage to Codecov
           uses: codecov/codecov-action@v5
           if: matrix.cmake_preset == 'ci-linux-coverage'
           with:
             token: ${{ secrets.CODECOV_TOKEN }}
-            files: build/coverage.filtered.info
+            files: build/coverage.cobertura.xml
             flags: linux,ci
             name: linux-coverage
             verbose: true

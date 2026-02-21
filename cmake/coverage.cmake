@@ -7,46 +7,57 @@ else()
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Coverage" OR _coverage_config_index GREATER_EQUAL 0)
-  find_program(LCOV_EXECUTABLE lcov)
-  find_program(GENHTML_EXECUTABLE genhtml)
+  find_program(GCOVR_EXECUTABLE gcovr)
 
-  if(LCOV_EXECUTABLE)
-    set(COVERAGE_EXCLUDE_PATTERNS
-      "/usr/include/*"
-      "${CMAKE_CURRENT_SOURCE_DIR}/include/google/protobuf/*"
-      "${CMAKE_CURRENT_SOURCE_DIR}/tutorial/*"
-      "${CMAKE_CURRENT_SOURCE_DIR}/tests/*"
-      "${CMAKE_BINARY_DIR}/*"
-      "$ENV{CPM_SOURCE_CACHE}/*"
-    )
-    set(COVERAGE_LCOV_ARGS
-      --ignore-errors inconsistent,unsupported,format,unused
-      --rc derive_function_end_line=0
+  if(GCOVR_EXECUTABLE)
+    set(COVERAGE_GCOVR_EXCLUDES
+      ".*/usr/include/.*"
+      ".*/include/google/protobuf/.*"
+      ".*/tutorial/.*"
+      ".*/tests/.*"
+      "${CMAKE_BINARY_DIR}/.*"
     )
 
-    add_custom_target(coverage_filtered_info
+    if(DEFINED ENV{CPM_SOURCE_CACHE} AND NOT "$ENV{CPM_SOURCE_CACHE}" STREQUAL "")
+      list(APPEND COVERAGE_GCOVR_EXCLUDES "$ENV{CPM_SOURCE_CACHE}/.*")
+    endif()
+
+    set(COVERAGE_GCOVR_EXCLUDE_ARGS)
+    foreach(pattern IN LISTS COVERAGE_GCOVR_EXCLUDES)
+      list(APPEND COVERAGE_GCOVR_EXCLUDE_ARGS --exclude "${pattern}")
+    endforeach()
+
+    add_custom_target(coverage_gcovr
       COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-      COMMAND ${LCOV_EXECUTABLE} --capture --directory ${CMAKE_BINARY_DIR}
-      --output-file ${CMAKE_BINARY_DIR}/coverage.info
-      ${COVERAGE_LCOV_ARGS}
-      COMMAND ${LCOV_EXECUTABLE} --remove ${CMAKE_BINARY_DIR}/coverage.info
-      ${COVERAGE_EXCLUDE_PATTERNS}
-      --output-file ${CMAKE_BINARY_DIR}/coverage.filtered.info
-      ${COVERAGE_LCOV_ARGS}
+      COMMAND ${GCOVR_EXECUTABLE}
+      --root ${CMAKE_CURRENT_SOURCE_DIR}
+      --xml-pretty
+      --xml ${CMAKE_BINARY_DIR}/coverage.cobertura.xml
+      --print-summary
+      --txt ${CMAKE_BINARY_DIR}/coverage.txt
+      --gcov-ignore-errors all
+      ${COVERAGE_GCOVR_EXCLUDE_ARGS}
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-      COMMENT "Generating coverage.filtered.info"
+      COMMENT "Generating coverage reports with gcovr"
       VERBATIM
     )
 
-    if(GENHTML_EXECUTABLE)
-      add_custom_target(coverage_html
-        DEPENDS coverage_filtered_info
-        COMMAND ${GENHTML_EXECUTABLE} ${CMAKE_BINARY_DIR}/coverage.filtered.info
-        --output-directory ${CMAKE_BINARY_DIR}/coverage-report
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Generating coverage HTML report"
-        VERBATIM
-      )
-    endif()
+    # Backward-compatible target name used by existing CI workflow steps.
+    add_custom_target(coverage_filtered_info
+      DEPENDS coverage_gcovr
+    )
+
+    add_custom_target(coverage_html
+      DEPENDS coverage_gcovr
+      COMMAND ${GCOVR_EXECUTABLE}
+      --root ${CMAKE_CURRENT_SOURCE_DIR}
+      --html-details ${CMAKE_BINARY_DIR}/coverage-report/index.html
+      --html-title "hpp-proto coverage"
+      --gcov-ignore-errors all
+      ${COVERAGE_GCOVR_EXCLUDE_ARGS}
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      COMMENT "Generating coverage HTML report with gcovr"
+      VERBATIM
+    )
   endif()
 endif()
