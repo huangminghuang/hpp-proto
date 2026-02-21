@@ -1,6 +1,7 @@
 name: Fetch_Content_Usage
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
