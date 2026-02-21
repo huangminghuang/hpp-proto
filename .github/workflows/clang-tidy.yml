@@ -18,6 +18,7 @@ on:
 
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
   clang-tidy:
@@ -29,6 +30,14 @@ jobs:
         with:
           path: "**/cpm_modules"
           key: clang-tidy-${{ runner.os }}-${{ hashFiles('**/third-parties.cmake') }}
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: clang-tidy-${{ runner.os }}-ccache-${{ github.sha }}
+          restore-keys: |
+            clang-tidy-${{ runner.os }}-ccache-
 
       - name: Setup required C++ tools
         uses: aminya/setup-cpp@v1

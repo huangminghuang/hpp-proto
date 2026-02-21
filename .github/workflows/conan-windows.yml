@@ -21,6 +21,7 @@ env:
   PROTOC_VERSION: 33.5
   PROTOC_ZIP: protoc-33.5-win64.zip
   PROTOC_SHA256: 7e3468cd1fbd1ae9361a5304d4ac28fbd593aa1a425b5464bd9d4da5fca224b4
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
   build:
@@ -49,6 +50,14 @@ jobs:
           ninja: true
           ccache: true
           conan: "2.25.2"
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.name }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ github.workflow }}-${{ runner.os }}-${{ matrix.name }}-ccache-
 
       - name: install protoc
         run: |

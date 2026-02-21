@@ -20,6 +20,7 @@ on:
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
   build:
@@ -54,6 +55,14 @@ jobs:
         with:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-${{ matrix.compiler_env }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-${{ matrix.compiler_env }}-ccache-
 
       - name: Setup required C++ tools
         uses: aminya/setup-cpp@v1
