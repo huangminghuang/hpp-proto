@@ -46,11 +46,13 @@ const suite test_read_json = [] {
   test_read<protobuf_unittest::TestAllTypes>(factory, R"({"repeatedInt64":["	102"]})"sv, fail);
 
   test_read<protobuf_unittest::TestAllTypes>(factory, R"({"optionalString":null})"sv, ok);
+  test_read<protobuf_unittest::TestAllTypes>(factory, "{\"optionalString\":\"\xcd\"}"sv, fail);
   test_read<proto3_unittest::TestAllTypes>(factory, R"({"optionalString":null})"sv, ok);
   test_read<proto3_unittest::TestAllTypes>(factory, R"({"oneofNestedMessage" :  null})"sv, ok);
 
   test_read<protobuf_unittest::TestAllTypes>(factory, R"({"repeatedInt32":[1,2,3]})"sv, ok);
   test_read<protobuf_unittest::TestAllTypes>(factory, R"({"repeatedString":["abc,"def"]})"sv, fail);
+  test_read<protobuf_unittest::TestAllTypes>(factory, "{\"repeatedString\":[\"\xcd\"]}"sv, fail);
   test_read<protobuf_unittest::TestAllTypes>(factory, R"({"optionalNestedEnum": )"sv, fail);
   test_read<protobuf_unittest::TestAllTypes>(factory, R"({"repeatedNestedEnum":[2, 0]})"sv, ok);
 
@@ -68,6 +70,7 @@ const suite test_read_json = [] {
   test_read<protobuf_unittest::TestMap>(factory, "{\"mapInt32Enum\":{\"1\":   ", fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({mapSint64Sint64":{"1":" -10"}})"sv, fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapStringString":{"1":"0", "1":"1"}})"sv, ok);
+  test_read<protobuf_unittest::TestMap>(factory, "{\"mapStringString\":{\"\xcd\":\"0\"}"sv, fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32ForeignMessage":{"0":null}})", fail);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Enum":{"0":0}})"sv, ok);
   test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt64Int64":{"0":" -64"}})"sv, fail);
