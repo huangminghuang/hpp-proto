@@ -364,7 +364,7 @@ void from_json(T &&v, auto &ctx, auto &it, auto &end) {
     }
     from_json<ws_handled<Opts>()>(v.second, ctx, it, end);
   } else {
-    from<JSON, value_t>::template op<Opts>(std::forward<T>(v), ctx, it, end);
+    from<JSON, value_t>::template op<Opts>(v, ctx, it, end);
   }
   validate_utf8_if_string(ctx, v);
 }
