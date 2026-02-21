@@ -763,7 +763,11 @@ struct from<JSON, T> {
       }
     }
     if (!bool(ctx.error)) [[likely]] {
-      value.adopt(v);
+      if (!is_utf8(v.data(), v.size())) {
+        ctx.error = error_code::syntax_error;
+      } else {
+        value.adopt(v);
+      }
     }
   }
 };
