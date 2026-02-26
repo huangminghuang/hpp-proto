@@ -887,7 +887,7 @@ bool any_message_json_serializer::parse_wellknown_any_value(::hpp_proto::message
       ctx, it, end, key, [](auto &, auto &) {},
       [&](auto &it_ref, auto &end_ref) {
         if (key == "value") {
-          value_begin = it_ref; 
+          value_begin = it_ref;
           skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it_ref, end_ref);
           value_end = it_ref;
           return bool(ctx.error);

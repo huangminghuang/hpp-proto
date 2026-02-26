@@ -12,7 +12,7 @@ public:
   using value_type = T;
 
 private:
-  T* obj_ = nullptr;
+  T *obj_ = nullptr;
 
   static const T *default_object() {
     static T default_obj;
@@ -22,16 +22,14 @@ private:
 public:
   constexpr indirect_view() = default;
   // NOLINTNEXTLINE
-  constexpr indirect_view(T* obj) : obj_(obj) {}
+  constexpr indirect_view(T *obj) : obj_(obj) {}
   constexpr indirect_view(const indirect_view &) = default;
   constexpr indirect_view(indirect_view &&) = default;
   ~indirect_view() = default;
 
   constexpr indirect_view &operator=(indirect_view &&) = default;
   constexpr indirect_view &operator=(const indirect_view &) = default;
-  constexpr void reset(T *obj) {
-    obj_ = obj;
-  }
+  constexpr void reset(T *obj) { obj_ = obj; }
 
   [[nodiscard]] T *pointer() const { return obj_; }
   [[nodiscard]] constexpr const T &value() const noexcept { return obj_ == nullptr ? *default_object() : *obj_; }

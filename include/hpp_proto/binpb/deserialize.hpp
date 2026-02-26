@@ -1429,8 +1429,8 @@ struct contiguous_input_archive<Context, Byte> : padded_input_archive_base<Byte>
 };
 
 template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-contiguous_input_archive(const Buffer &, Context &)
-    -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+contiguous_input_archive(const Buffer &,
+                         Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
 constexpr status deserialize(auto &item, std::span<const std::byte> buffer, concepts::is_pb_context auto &context) {
   contiguous_input_archive archive{buffer, context};

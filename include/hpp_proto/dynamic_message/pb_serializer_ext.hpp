@@ -105,7 +105,7 @@ struct field_deserializer {
       if (mref.descriptor().explicit_presence() || tmp.number() != mref.default_value().number()) {
         mref.set(tmp);
       } else {
-       mref.reset();
+        mref.reset();
       }
       return {};
     } else if (ec == std::errc::result_out_of_range) {
