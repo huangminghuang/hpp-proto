@@ -164,6 +164,7 @@ const suite test_dynamic_message_any = [] {
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234},"anyValue":{"c":1234}})");
   };
 
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   auto expect_test_any_json = [&](const ::protobuf_unittest::TestAny<> &message, std::string_view json,
                                   std::string_view pretty_json = {}) {
     std::string result;

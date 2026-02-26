@@ -205,9 +205,6 @@ struct any_message_json_serializer {
   }
 
   static std::expected<std::string_view, const char *> to_message_name(std::string_view type_url) {
-    if (type_url.empty()) {
-      return std::unexpected("empty google.protobuf.Any type_url");
-    }
     auto slash_pos = type_url.find('/');
     if (slash_pos >= type_url.size() - 1) {
       return std::unexpected("invalid formatted google.protobuf.Any type_url field value");
@@ -246,8 +243,10 @@ struct any_message_json_serializer {
         return !expected_field->has_value() || expected_field->value().empty();
       };
       if (!is_empty(expected_type_url_field) || !is_empty(expected_value_field)) {
+        // NOLINTBEGIN(bugprone-unchecked-optional-access)
         std::string_view any_type_url = expected_type_url_field->value();
         ::hpp_proto::bytes_view any_value = expected_value_field->value();
+        // NOLINTEND(bugprone-unchecked-optional-access)
         std::pmr::monotonic_buffer_resource mr;
         to_json_impl<Opts>(msg_builder(mr, value), any_type_url, any_value, ctx, b, ix);
       }
