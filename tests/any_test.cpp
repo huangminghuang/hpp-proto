@@ -107,40 +107,14 @@ const suite test_dynamic_message_any = [] {
       ::hpp_proto::file_descriptors::_desc_google_protobuf_empty_proto,
       ::hpp_proto::file_descriptors::_desc_google_protobuf_timestamp_proto,
       ::hpp_proto::file_descriptors::_desc_google_protobuf_duration_proto,
+      ::hpp_proto::file_descriptors::_desc_google_protobuf_field_mask_proto,
       ::hpp_proto::file_descriptors::_desc_google_protobuf_wrappers_proto,
   };
 
-  "any_json"_test = [&] {
-    ::hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(protos));
-
-    const char *message_name = "protobuf_unittest.TestAny";
-    std::string_view expected_json =
-        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234}})";
-
-    std::string result;
-    expect(binpb_to_json(message_factory, message_name, data, result).ok());
-    expect(eq(expected_json, result));
-
-    std::vector<char> serialized;
-    expect(json_to_binpb(message_factory, message_name, expected_json, serialized).ok());
-    expect(std::ranges::equal(data, serialized));
-
-    expect(
-        binpb_to_json<hpp_proto::json_write_opts{.prettify = true}>(message_factory, message_name, data, result).ok());
-    const char *expected_json_indented = R"({
-   "anyValue": {
-      "@type": "type.googleapis.com/proto3_unittest.ForeignMessage",
-      "c": 1234
-   }
-})";
-    expect(eq(expected_json_indented, result));
-  };
+  ::hpp_proto::dynamic_message_factory message_factory;
+  expect(message_factory.init(protos));
 
   "any_json_edge_cases"_test = [&] {
-    ::hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(protos));
-
     auto expect_read_fail = [&](std::string_view json) {
       ::protobuf_unittest::TestAny<> message;
       auto status = hpp_proto::read_json(message, json, hpp_proto::use_factory{message_factory});
@@ -155,20 +129,20 @@ const suite test_dynamic_message_any = [] {
     auto expect_read_ok = [&](std::string_view json) {
       ::protobuf_unittest::TestAny<> message;
       auto status = hpp_proto::read_json(message, json, hpp_proto::use_factory{message_factory});
-      expect(status.ok());
+      expect(status.ok()) << json;
     };
 
     expect_read_fail(R"({"anyValue":{"value":"/usr/share"}})");                               // missing @type
     expect_read_fail(R"({"anyValue":{"@type":"","c":1}})");                                   // empty @type
     expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com","c":1}})");                // invalid formatted @type
     expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/does.not.Exist","c":1}})"); // unknown type_url
-    expect_read_fail(
+    expect_read_ok(
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1}})"); // duplicate @type
     expect_read_fail(
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","extra":1}})"); // unknown key in well-known
-    expect_read_fail(
+    expect_read_ok(
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","value":"/usr/local"}})"); // duplicate value
-    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask"}})"); // missing value
+    expect_read_ok(R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask"}})"); // missing value
     expect_read_fail_strict(
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1,"unknown":2}})"); // unknown
                                                                                                              // key with
@@ -180,137 +154,90 @@ const suite test_dynamic_message_any = [] {
     std::string bad_control = "{\"anyValue\":{\"@type\":\"\x01\",\"c\":1}}";
     expect_read_fail(bad_control); // invalid control character in @type
 
-    expect_read_ok(
-        R"({"anyValue":{"c":1234,"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})"); // @type not first
+    expect_read_ok( // @type not first
+        R"({"anyValue":{"c":1234,"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})");
+
+    expect_read_ok( // duplicated anyValue field
+        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234},"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":2345}})");
+
+    expect_read_fail( // duplicated anyValue field, invalid second
+        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234},"anyValue":{"c":1234}})");
   };
 
-  "any_json_empty_value_skips_field"_test = [&] {
-    ::hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(protos));
-
-    ::protobuf_unittest::TestAny<> message;
-    auto &any_value = message.any_value.emplace();
-    any_value.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
-    any_value.value.clear();
-
+  auto expect_test_any_json = [&](const ::protobuf_unittest::TestAny<> &message, std::string_view json,
+                                  std::string_view pretty_json = {}) {
     std::string result;
     expect(hpp_proto::write_json(message, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(eq(result, "{}"sv));
-  };
-
-  "any_json_empty_wellknown_value_skips_field"_test = [&] {
-    ::hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(protos));
-
-    ::protobuf_unittest::TestAny<> message;
-    ::google::protobuf::Empty<> empty{};
-    expect(hpp_proto::pack_any(message.any_value.emplace(), empty).ok());
-
-    std::string result;
-    expect(hpp_proto::write_json(message, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(eq(result, "{}"sv));
-  };
-
-  "any_json_empty_embedded_message"_test = [&] {
-    ::hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(protos));
-
-    ::protobuf_unittest::TestAny<> message;
-    auto &any_value = message.any_value.emplace();
-    any_value.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
-    any_value.value = hpp_proto::bytes{std::byte{0x10}, std::byte{0x01}};
-
-    std::string result;
-    expect(hpp_proto::write_json(message, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})"sv));
-  };
-
-  "any_json_empty_value_skips_field_dynamic"_test = [&] {
-    ::hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(protos));
-
-    ::protobuf_unittest::TestAny<> message;
-    auto &any_value = message.any_value.emplace();
-    any_value.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
-    any_value.value.clear();
+    expect(eq(result, json));
 
     std::vector<char> pb;
     expect(hpp_proto::write_binpb(message, pb).ok());
 
-    std::string result;
-    expect(binpb_to_json(message_factory, "protobuf_unittest.TestAny", pb, result).ok());
-    expect(eq(result, "{}"sv));
+    std::string dyn_result;
+    expect(binpb_to_json(message_factory, "protobuf_unittest.TestAny", pb, dyn_result).ok());
+    expect(eq(dyn_result, json));
+
+    if (!pretty_json.empty()) {
+      expect(binpb_to_json<hpp_proto::json_write_opts{.prettify = true}>(message_factory, "protobuf_unittest.TestAny",
+                                                                         pb, result)
+                 .ok());
+      expect(eq(pretty_json, result));
+    }
   };
 
-  "any_json_wellknown_types"_test = [&] {
-    ::hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(protos));
+  "any_json"_test = [&] {
+    expect_test_any_json({.any_value = {}}, "{}"sv);
+    ::protobuf_unittest::TestAny<> type_only;
+    type_only.any_value.emplace().type_url = "type.googleapis.com/proto3_unittest.ForeignMessage";
+    expect_test_any_json(type_only, R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})"sv);
 
+    ::protobuf_unittest::TestAny<> with_value;
+    with_value.any_value.emplace() = {.type_url = "type.googleapis.com/proto3_unittest.ForeignMessage",
+                                      .value = {std::byte{0x10}, std::byte{0x01}}};
+    expect_test_any_json(with_value,
+                         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})"sv);
+  };
+
+  auto expect_pack_any_json_roundtrip = [&](const auto &v, std::string_view json, std::string_view pretty_json = {}) {
     ::protobuf_unittest::TestAny<> message;
-    ::google::protobuf::Timestamp<> ts;
-    ts.seconds = 1000;
-    ts.nanos = 0;
-    expect(hpp_proto::pack_any(message.any_value.emplace(), ts).ok());
-
-    std::string result;
-    expect(hpp_proto::write_json(message, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(eq(
-        result,
-        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Timestamp","value":"1970-01-01T00:16:40Z"}})"sv));
-
+    expect(hpp_proto::pack_any(message.any_value.emplace(), v).ok()) << json;
+    expect_test_any_json(message, json, pretty_json);
     ::protobuf_unittest::TestAny<> message2;
-    expect(hpp_proto::read_json(message2, result, hpp_proto::use_factory{message_factory}).ok());
+    expect(hpp_proto::read_json(message2, json, hpp_proto::use_factory{message_factory}).ok()) << json;
     expect(message == message2);
-
-    ::protobuf_unittest::TestAny<> message3;
-    ::google::protobuf::Duration<> duration;
-    duration.seconds = 1000;
-    duration.nanos = 0;
-    expect(hpp_proto::pack_any(message3.any_value.emplace(), duration).ok());
-
-    expect(hpp_proto::write_json(message3, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Duration","value":"1000s"}})"sv));
-
-    ::protobuf_unittest::TestAny<> message4;
-    expect(hpp_proto::read_json(message4, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(message3 == message4);
-
-    ::protobuf_unittest::TestAny<> message5;
-    ::google::protobuf::Int64Value<> int64_value;
-    int64_value.value = 1000;
-    expect(hpp_proto::pack_any(message5.any_value.emplace(), int64_value).ok());
-
-    expect(hpp_proto::write_json(message5, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Int64Value","value":"1000"}})"sv));
-
-    ::protobuf_unittest::TestAny<> message6;
-    expect(hpp_proto::read_json(message6, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(message5 == message6);
-
-    ::protobuf_unittest::TestAny<> message7;
-    ::google::protobuf::Int32Value<> int32_value;
-    int32_value.value = 42;
-    expect(hpp_proto::pack_any(message7.any_value.emplace(), int32_value).ok());
-
-    expect(hpp_proto::write_json(message7, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(eq(result, R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Int32Value","value":42}})"sv));
-
-    ::protobuf_unittest::TestAny<> message8;
-    expect(hpp_proto::read_json(message8, result, hpp_proto::use_factory{message_factory}).ok());
-    expect(message7 == message8);
   };
 
-  "type_not_found"_test = [data] {
-    hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_any_test_proto()));
-    std::string result;
-    expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
+  "pack_any_json"_test = [&] {
+    expect_pack_any_json_roundtrip(
+        proto3_unittest::ForeignMessage<>{.c = 1234},
+        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234}})"sv,
+        R"({
+   "anyValue": {
+      "@type": "type.googleapis.com/proto3_unittest.ForeignMessage",
+      "c": 1234
+   }
+})");
+
+    expect_pack_any_json_roundtrip(::google::protobuf::Empty<>{},
+                                   R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Empty"}})"sv);
+    expect_pack_any_json_roundtrip(
+        ::google::protobuf::Timestamp<>{.seconds = 1000, .nanos = 0},
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Timestamp","value":"1970-01-01T00:16:40Z"}})"sv);
+
+    expect_pack_any_json_roundtrip(
+        ::google::protobuf::Duration<>{.seconds = 1000, .nanos = 0},
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Duration","value":"1000s"}})"sv);
+
+    expect_pack_any_json_roundtrip(
+        ::google::protobuf::Int64Value{.value = 1000},
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Int64Value","value":"1000"}})"sv);
+
+    expect_pack_any_json_roundtrip(
+        ::google::protobuf::Int32Value<>{.value = 42},
+        R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.Int32Value","value":42}})"sv);
   };
 
   "bad_message"_test = [&] {
-    ::hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(protos));
-
     std::string_view data =
         "\x12\x39\x0a\x32\x74\x79\x70\x65\x2e\x67\x6f\x6f\x67\x6c\x65\x61\x70\x69\x73\x2e\x63\x6f\x6d\x2f"
         "\x70\x72\x6f\x74\x6f\x33\x5f\x75\x6e\x69\x74\x74\x65\x73\x74\x2e\x46\x6f\x72\x65\x69\x67\x6e\x4d"
@@ -320,6 +247,13 @@ const suite test_dynamic_message_any = [] {
     expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
     using namespace std::string_view_literals;
     expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", "\x12\x04\x0a\x02\xc0\xcd"sv, result).ok());
+  };
+
+  "type_not_found"_test = [data] {
+    hpp_proto::dynamic_message_factory message_factory;
+    expect(message_factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_any_test_proto()));
+    std::string result;
+    expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
   };
 };
 

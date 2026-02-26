@@ -40,6 +40,39 @@
 namespace glz::util {
 
 template <auto Opts>
+void dump_opening_brace(is_context auto &ctx, auto &b, auto &ix) {
+  glz::dump<'{'>(b, ix);
+  if constexpr (Opts.prettify) {
+    ctx.depth += glz::check_indentation_width(Opts);
+    glz::dump<'\n'>(b, ix);
+    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
+  }
+}
+
+template <auto Opts>
+void dump_closing_brace(is_context auto &ctx, auto &b, auto &ix) {
+  if constexpr (Opts.prettify) {
+    ctx.depth -= glz::check_indentation_width(Opts);
+    glz::dump<'\n'>(b, ix);
+    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
+  }
+  glz::dump<'}'>(b, ix);
+}
+
+template <auto Opts>
+void dump_field_separator(bool is_map_entry, is_context auto &ctx, auto &b, auto &ix, char separator) {
+  glz::dump(separator, b, ix);
+  if constexpr (Opts.prettify) {
+    if (!is_map_entry) {
+      glz::dump<'\n'>(b, ix);
+      glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
+    } else {
+      glz::dump<' '>(b, ix);
+    }
+  }
+}
+
+template <auto Opts>
 bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
   if constexpr (!check_ws_handled(Opts)) {
     if (skip_ws<Opts>(ctx, it, end)) {

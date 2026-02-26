@@ -313,6 +313,7 @@ const ut::suite test_value = [] {
     "verify Struct empty"_test = [&factory] { verify<Struct>(factory, Struct{}, "{}"); };
     "verify ListValue empty"_test = [&factory] { verify<ListValue>(factory, ListValue{}, "[]"); };
 
+
     "verify Value struct"_test = [&factory] {
       Value true_value{.kind = true};
       Value double_value{.kind = 1.0};
@@ -343,6 +344,39 @@ const ut::suite test_value = [] {
 })");
     };
   } | std::tuple<hpp_proto::stable_traits, hpp_proto::non_owning_traits>();
+
+  "struct no value field"_test = [&factory]<class Traits>()  {
+     using namespace std::string_view_literals;
+     auto pb_buf = "\x0a\x04\x0a\x00\x12\x00"sv;
+     std::pmr::monotonic_buffer_resource mr;
+     google::protobuf::Struct<Traits> struct_value;
+     expect(hpp_proto::read_binpb(struct_value, pb_buf, hpp_proto::alloc_from(mr)).ok());
+     
+     std::string json_buf1;
+     expect(hpp_proto::write_json(struct_value, json_buf1).ok());
+     expect(eq("{}"sv, json_buf1));
+
+     std::string json_buf2;
+     expect(hpp_proto::binpb_to_json(factory, "google.protobuf.Struct", pb_buf, json_buf2).ok());
+     expect(eq("{}"sv, json_buf2));
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>();
+
+  "struct duplicated_value"_test = [&factory]<class Traits>()  {
+     using namespace std::string_view_literals;
+     auto pb_buf = "\x0a\x09\x0a\x01\x65\x12\x02\x32\x00\x12\x00"sv;
+     std::pmr::monotonic_buffer_resource mr;
+     google::protobuf::Struct<Traits> struct_value;
+     expect(hpp_proto::read_binpb(struct_value, pb_buf, hpp_proto::alloc_from(mr)).ok());
+     
+     std::string json_buf1;
+     expect(hpp_proto::write_json(struct_value, json_buf1).ok());
+     expect(eq(R"({"e":[]})"sv, json_buf1));
+
+     std::string json_buf2;
+     expect(hpp_proto::binpb_to_json(factory, "google.protobuf.Struct", pb_buf, json_buf2).ok());
+     expect(eq(R"({"e":[]})"sv, json_buf2));
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>();
+
 
   "struct invalid cases"_test = [&factory] {
     std::string json_buf;

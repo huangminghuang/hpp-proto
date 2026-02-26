@@ -11,44 +11,6 @@
 #include <iterator>
 
 namespace glz {
-
-namespace util {
-
-template <auto Opts>
-void dump_opening_brace(is_context auto &ctx, auto &b, auto &ix) {
-  glz::dump<'{'>(b, ix);
-  if constexpr (Opts.prettify) {
-    ctx.depth += glz::check_indentation_width(Opts);
-    glz::dump<'\n'>(b, ix);
-    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
-  }
-}
-
-template <auto Opts>
-void dump_closing_brace(is_context auto &ctx, auto &b, auto &ix) {
-  if constexpr (Opts.prettify) {
-    ctx.depth -= glz::check_indentation_width(Opts);
-    glz::dump<'\n'>(b, ix);
-    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
-  }
-  glz::dump<'}'>(b, ix);
-}
-
-template <auto Opts>
-void dump_field_separator(bool is_map_entry, is_context auto &ctx, auto &b, auto &ix, char separator) {
-  glz::dump(separator, b, ix);
-  if constexpr (Opts.prettify) {
-    if (!is_map_entry) {
-      glz::dump<'\n'>(b, ix);
-      glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
-    } else {
-      glz::dump<' '>(b, ix);
-    }
-  }
-}
-
-} // namespace util
-
 namespace concepts {
 template <typename T>
 concept string_mref =
@@ -137,25 +99,20 @@ struct generic_message_json_serializer {
   static void to_json(hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     bool is_wellknown_type = (value.descriptor().wellknown != hpp_proto::wellknown_types_t::NONE);
     bool is_map_entry = value.descriptor().is_map_entry();
-    const bool dump_brace = !check_opening_handled(Opts) && !is_map_entry && !is_wellknown_type;
-    const auto should_skip_any_field = [](hpp_proto::field_cref field) -> bool {
-      using namespace ::hpp_proto;
-      const auto msg_field = field.to<message_field_cref>();
-      if (!msg_field.has_value()) {
-        return false;
-      }
-      const auto msg = msg_field->value();
-      if (msg.descriptor().wellknown != ::hpp_proto::wellknown_types_t::ANY) {
-        return false;
-      }
-      const auto type_url_field = msg.fields()[0].to<string_field_cref>();
-      const auto value_field = msg.fields()[1].to<bytes_field_cref>();
-      if (!type_url_field.has_value() || !value_field.has_value()) {
-        return false;
-      }
-      return !type_url_field->value().empty() && value_field->value().empty();
-    };
 
+    if (is_map_entry) {
+      const auto mapped_field = value.fields()[1].to<hpp_proto::message_field_cref>();
+      if (mapped_field.has_value()) {
+        auto mapped_message_cref = *mapped_field;
+        auto mapped_value_cref = *mapped_message_cref;
+        if (mapped_value_cref.descriptor().wellknown == hpp_proto::wellknown_types_t::VALUE) {
+          if (mapped_value_cref.fields()[0].active_oneof_index() < 0) {
+            return;
+          }
+        }
+      }
+    }
+    const bool dump_brace = !check_opening_handled(Opts) && !is_map_entry && !is_wellknown_type;
     if (dump_brace) {
       util::dump_opening_brace<Opts>(ctx, b, ix);
     }
@@ -164,9 +121,6 @@ struct generic_message_json_serializer {
 
     for (auto field : value.fields()) {
       if (!field.has_value()) {
-        continue;
-      }
-      if (should_skip_any_field(field)) {
         continue;
       }
 
@@ -241,18 +195,8 @@ struct any_message_json_serializer {
                                   bool &is_type_key_first) {
 
     if (key == "@type") {
-      if (!type_url.empty()) {
-        ctx.error = error_code::syntax_error;
-        ctx.custom_error_message = "duplicate @type field in google.protobuf.Any";
-      } else {
-        parse<JSON>::template op<ws_handled<Opts>()>(type_url, ctx, it, end);
-        if (bool(ctx.error)) [[unlikely]] {
-          return true;
-        } else if (type_url.empty()) {
-          ctx.error = error_code::syntax_error;
-          ctx.custom_error_message = "empty @type field in google.protobuf.Any";
-        }
-      }
+      parse<JSON>::template op<ws_handled<Opts>()>(type_url, ctx, it, end);
+      // do not short circuit here to get the last @type value
     } else {
       is_type_key_first = false;
       skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it, end);
@@ -261,6 +205,9 @@ struct any_message_json_serializer {
   }
 
   static std::expected<std::string_view, const char *> to_message_name(std::string_view type_url) {
+    if (type_url.empty()) {
+      return std::unexpected("empty google.protobuf.Any type_url");
+    }
     auto slash_pos = type_url.find('/');
     if (slash_pos >= type_url.size() - 1) {
       return std::unexpected("invalid formatted google.protobuf.Any type_url field value");
@@ -292,18 +239,20 @@ struct any_message_json_serializer {
   static void to_json(::hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
     assert(value.descriptor().full_name() == "google.protobuf.Any");
     if (value.fields().size() == 2U) [[likely]] {
-      const auto type_url_field = value.fields()[0].to<::hpp_proto::string_field_cref>();
-      const auto value_field = value.fields()[1].to<::hpp_proto::bytes_field_cref>();
-      if (type_url_field.has_value() && value_field.has_value()) [[likely]] {
-        std::string_view any_type_url = type_url_field->value();
-        ::hpp_proto::bytes_view any_value = value_field->value();
+      util::dump_opening_brace<Opts>(ctx, b, ix);
+      auto expected_type_url_field = value.fields()[0].to<::hpp_proto::string_field_cref>();
+      auto expected_value_field = value.fields()[1].to<::hpp_proto::bytes_field_cref>();
+      auto is_empty = [](auto expected_field) {
+        return !expected_field->has_value() || expected_field->value().empty();
+      };
+      if (!is_empty(expected_type_url_field) || !is_empty(expected_value_field)) {
+        std::string_view any_type_url = expected_type_url_field->value();
+        ::hpp_proto::bytes_view any_value = expected_value_field->value();
         std::pmr::monotonic_buffer_resource mr;
         to_json_impl<Opts>(msg_builder(mr, value), any_type_url, any_value, ctx, b, ix);
-        return;
       }
+      util::dump_closing_brace<Opts>(ctx, b, ix);
     }
-    ctx.error = error_code::syntax_error;
-    ctx.custom_error_message = "invalid google.protobuf.Any descriptor";
   }
 
   template <auto Options>
@@ -390,9 +339,9 @@ struct any_message_json_serializer {
     };
   }
 
-  template <auto Opts>
-  static bool parse_wellknown_any_value(::hpp_proto::message_value_mref &message, is_context auto &ctx, auto &it,
-                                        auto &end);
+  template <auto Opts, typename It, typename End>
+  static bool parse_wellknown_any_value(::hpp_proto::message_value_mref &message, is_context auto &ctx, It &it,
+                                        End &end);
 
   template <auto Opts>
   static bool parse_generic_any_value(::hpp_proto::message_value_mref &message, is_context auto &ctx, auto &it,
@@ -401,10 +350,10 @@ struct any_message_json_serializer {
   template <auto Opts>
   static void to_json(const ::hpp_proto::concepts::is_any auto &any, ::hpp_proto::concepts::is_json_context auto &ctx,
                       auto &b, auto &ix) {
-    if (!any.type_url.empty() && !any.value.empty()) {
-      std::pmr::monotonic_buffer_resource mr;
-      to_json_impl<Opts>(msg_builder(mr, ctx), any.type_url, any.value, ctx, b, ix);
-    }
+    util::dump_opening_brace<Opts>(ctx, b, ix);
+    std::pmr::monotonic_buffer_resource mr;
+    to_json_impl<Opts>(msg_builder(mr, ctx), any.type_url, any.value, ctx, b, ix);
+    util::dump_closing_brace<Opts>(ctx, b, ix);
   }
 
   template <auto Opts>
@@ -412,6 +361,9 @@ struct any_message_json_serializer {
                         auto &it, auto &end) {
     using namespace ::hpp_proto::detail;
     std::pmr::monotonic_buffer_resource mr;
+    // use override instead of merge semantic for duplicated google.protobuf.Any field.
+    any.type_url = {};
+    any.value = {};
     from_json_impl<Opts>(msg_builder(mr, ctx), as_modifiable(ctx, any.type_url), as_modifiable(ctx, any.value), ctx, it,
                          end);
   }
@@ -925,25 +877,19 @@ static std::expected<bool, const char *> message_to_json(::hpp_proto::message_va
   }
 };
 
-template <auto Opts>
+template <auto Opts, typename It, typename End>
 bool any_message_json_serializer::parse_wellknown_any_value(::hpp_proto::message_value_mref &message,
-                                                            is_context auto &ctx, auto &it, auto &end) {
-  bool seen_value = false;
+                                                            is_context auto &ctx, It &it, End &end) {
   std::string_view key;
+  It value_begin = {};
+  End value_end = {};
   util::scan_object_fields<opening_handled<Opts>(), true>(
       ctx, it, end, key, [](auto &, auto &) {},
       [&](auto &it_ref, auto &end_ref) {
         if (key == "value") {
-          if (seen_value) {
-            if (!bool(ctx.error)) {
-              ctx.error = error_code::syntax_error;
-              ctx.custom_error_message = "duplicate value field in google.protobuf.Any message";
-            }
-            return true;
-          }
-          seen_value = true;
-          // parse the the json into a new dynamic_message
-          from<JSON, ::hpp_proto::message_value_mref>::template op<ws_handled<Opts>()>(message, ctx, it_ref, end_ref);
+          value_begin = it_ref; 
+          skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it_ref, end_ref);
+          value_end = it_ref;
           return bool(ctx.error);
         } else if (key == "@type") {
           // Consume the already-parsed @type field to enforce no extra keys.
@@ -958,9 +904,13 @@ bool any_message_json_serializer::parse_wellknown_any_value(::hpp_proto::message
         }
       },
       [](auto &, auto &) {});
-  if (!bool(ctx.error) && !seen_value) [[unlikely]] {
-    ctx.error = error_code::syntax_error;
-    ctx.custom_error_message = "value key not found in google.protobuf.Any message";
+  if (!bool(ctx.error) && value_begin != value_end) {
+    from<JSON, ::hpp_proto::message_value_mref>::template op<ws_handled<Opts>()>(message, ctx, value_begin, value_end);
+    if constexpr (not Opts.null_terminated) {
+      if (ctx.error == error_code::end_reached) {
+        ctx.error = error_code::none;
+      }
+    }
   }
   return !bool(ctx.error);
 }
@@ -996,7 +946,6 @@ bool any_message_json_serializer::parse_generic_any_value(::hpp_proto::message_v
 template <auto Opts>
 void any_message_json_serializer::to_json_impl(auto &&build_message, const auto &any_type_url, const auto &any_value,
                                                is_context auto &ctx, auto &b, auto &ix) {
-  util::dump_opening_brace<Opts>(ctx, b, ix);
 
   dump<"\"@type\":">(b, ix);
   if constexpr (Opts.prettify) {
@@ -1038,7 +987,6 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
             ix = sep_ix;
           }
         }
-        util::dump_closing_brace<Opts>(ctx, b, ix);
         return {};
       })
       .transform_error([&](const char *err_msg) {
