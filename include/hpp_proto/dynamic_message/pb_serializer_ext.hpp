@@ -74,7 +74,11 @@ struct field_deserializer {
     if (auto ec = deserialize(value, mref.descriptor()); !ec.ok()) [[likely]] {
       return ec;
     }
-    mref.set(value);
+    if (mref.descriptor().explicit_presence() || value != mref.default_value()) {
+      mref.set(value);
+    } else {
+      mref.reset();
+    }
     return {};
   }
 
@@ -98,7 +102,11 @@ struct field_deserializer {
     enum_value_mref tmp{mref.enum_descriptor(), number};
     auto ec = deserialize(tmp, mref.descriptor());
     if (ec.ok()) [[likely]] {
-      mref.set(tmp);
+      if (mref.descriptor().explicit_presence() || tmp.number() != mref.default_value().number()) {
+        mref.set(tmp);
+      } else {
+        mref.reset();
+      }
       return {};
     } else if (ec == std::errc::result_out_of_range) {
       // out of range enum should be placed in the unknown fields
@@ -143,7 +151,11 @@ struct field_deserializer {
     if (status result = this->deserialize(item, mref.descriptor()); !result.ok()) {
       return result;
     }
-    mref.adopt(item);
+    if (mref.descriptor().explicit_presence() || item != mref.default_value()) {
+      mref.adopt(item);
+    } else {
+      mref.reset();
+    }
     return {};
   }
 
@@ -161,7 +173,11 @@ struct field_deserializer {
     if (status result = this->deserialize(item, mref.descriptor()); !result.ok()) {
       return result;
     }
-    mref.adopt(item);
+    if (mref.descriptor().explicit_presence() || item != mref.default_value()) {
+      mref.adopt(item);
+    } else {
+      mref.reset();
+    }
     return {};
   }
 

@@ -344,6 +344,65 @@ const ut::suite test_value = [] {
     };
   } | std::tuple<hpp_proto::stable_traits, hpp_proto::non_owning_traits>();
 
+  "struct no value field"_test = [&factory]<class Traits>() {
+    using namespace std::string_view_literals;
+    auto pb_buf = "\x0a\x04\x0a\x00\x12\x00"sv;
+    std::pmr::monotonic_buffer_resource mr;
+    google::protobuf::Struct<Traits> struct_value;
+    expect(hpp_proto::read_binpb(struct_value, pb_buf, hpp_proto::alloc_from(mr)).ok());
+
+    std::string json_buf1;
+    expect(hpp_proto::write_json(struct_value, json_buf1).ok());
+    expect(eq("{}"sv, json_buf1));
+
+    std::string json_buf2;
+    expect(hpp_proto::binpb_to_json(factory, "google.protobuf.Struct", pb_buf, json_buf2).ok());
+    expect(eq("{}"sv, json_buf2));
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>();
+
+  "struct skip_missing_value_then_emit_value"_test = [] {
+    using namespace std::string_view_literals;
+    auto pb_buf = "\x0a\x05\x0a\x01\x61\x12\x00\x0a\x07\x0a\x01\x62\x12\x02\x20\x01"sv;
+    std::pmr::monotonic_buffer_resource mr;
+    google::protobuf::Struct<hpp_proto::default_traits> struct_value;
+    expect(hpp_proto::read_binpb(struct_value, pb_buf, hpp_proto::alloc_from(mr)).ok());
+
+    std::string json_buf;
+    expect(hpp_proto::write_json(struct_value, json_buf).ok());
+    expect(eq(R"({"b":true})"sv, json_buf));
+  };
+
+  "struct duplicated_value"_test = [&factory]<class Traits>() {
+    using namespace std::string_view_literals;
+    auto pb_buf = "\x0a\x09\x0a\x01\x65\x12\x02\x32\x00\x12\x00"sv;
+    std::pmr::monotonic_buffer_resource mr;
+    google::protobuf::Struct<Traits> struct_value;
+    expect(hpp_proto::read_binpb(struct_value, pb_buf, hpp_proto::alloc_from(mr)).ok());
+
+    std::string json_buf1;
+    expect(hpp_proto::write_json(struct_value, json_buf1).ok());
+    expect(eq(R"({"e":[]})"sv, json_buf1));
+
+    std::string json_buf2;
+    expect(hpp_proto::binpb_to_json(factory, "google.protobuf.Struct", pb_buf, json_buf2).ok());
+    expect(eq(R"({"e":[]})"sv, json_buf2));
+  } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>();
+
+  "struct prettify separator"_test = [&factory] {
+    using Value = google::protobuf::Value<hpp_proto::stable_traits>;
+    using Struct = google::protobuf::Struct<hpp_proto::stable_traits>;
+    using Struct_value_t = typename decltype(std::declval<Struct>().fields)::value_type;
+    auto make_indirect = [](Value &v) { return hpp_proto::indirect<Value>(v); };
+    Value a_value{.kind = std::string{"x"}};
+    Value b_value{.kind = true};
+    auto fields = std::initializer_list<Struct_value_t>{{"a", make_indirect(a_value)}, {"b", make_indirect(b_value)}};
+    Struct struct_value{.fields = fields};
+    verify<Struct>(factory, struct_value, R"({"a":"x","b":true})", R"({
+   "a": "x",
+   "b": true
+})");
+  };
+
   "struct invalid cases"_test = [&factory] {
     std::string json_buf;
     using namespace std::string_view_literals;

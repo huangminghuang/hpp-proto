@@ -1107,10 +1107,11 @@ constexpr status deserialize_field(concepts::indirect auto &item, auto meta, uin
 template <typename T>
 constexpr status deserialize_field(indirect_view<T> &item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive,
                                    auto &unknown_fields) {
-  void *buffer = archive.context.memory_resource().allocate(sizeof(T), alignof(T));
-  auto loaded = new (buffer) T; // NOLINT(cppcoreguidelines-owning-memory)
-  item = loaded;
-  return deserialize_field(*loaded, meta, tag, archive, unknown_fields);
+  if (item.pointer() == nullptr) {
+    void *buffer = archive.context.memory_resource().allocate(sizeof(T), alignof(T));
+    item.reset(new (buffer) T); // NOLINT(cppcoreguidelines-owning-memory)
+  }
+  return deserialize_field(*item.pointer(), meta, tag, archive, unknown_fields);
 }
 
 constexpr status deserialize_field(bool_proxy item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive,

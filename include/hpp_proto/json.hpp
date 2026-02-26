@@ -335,10 +335,11 @@ template <typename Type>
 struct from<JSON, hpp_proto::indirect_view<Type>> {
   template <auto Opts>
   static void op(auto &value, auto &ctx, auto &it, auto &end) {
-    void *addr = ctx.memory_resource().allocate(sizeof(Type), alignof(Type));
-    auto *obj = new (addr) Type; // NOLINT(cppcoreguidelines-owning-memory)
-    value = obj;
-    from<JSON, Type>::template op<Opts>(*obj, ctx, it, end);
+    if (value.pointer() == nullptr) {
+      void *addr = ctx.memory_resource().allocate(sizeof(Type), alignof(Type));
+      value.reset(new (addr) Type); // NOLINT(cppcoreguidelines-owning-memory)
+    }
+    from<JSON, Type>::template op<Opts>(*value.pointer(), ctx, it, end);
   }
 };
 

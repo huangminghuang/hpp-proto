@@ -188,7 +188,7 @@ const boost::ut::suite indirect_tests = [] {
       TestMessage msg2{103};
       View v(&msg1);
       expect(v->i == 102);
-      v = &msg2;
+      v.reset(&msg2);
       expect(v->i == 103);
     };
 
