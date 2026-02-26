@@ -1,6 +1,7 @@
 #pragma once
 #include <cassert>
 #include <compare>
+#include <memory>
 
 namespace hpp_proto {
 
