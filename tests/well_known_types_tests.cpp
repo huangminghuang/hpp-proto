@@ -392,9 +392,7 @@ const ut::suite test_value = [] {
     using Value = google::protobuf::Value<hpp_proto::stable_traits>;
     using Struct = google::protobuf::Struct<hpp_proto::stable_traits>;
     using Struct_value_t = typename decltype(std::declval<Struct>().fields)::value_type;
-    auto make_indirect = [](Value &v) {
-      return hpp_proto::indirect<Value>(v);
-    };
+    auto make_indirect = [](Value &v) { return hpp_proto::indirect<Value>(v); };
     Value a_value{.kind = std::string{"x"}};
     Value b_value{.kind = true};
     auto fields = std::initializer_list<Struct_value_t>{{"a", make_indirect(a_value)}, {"b", make_indirect(b_value)}};
