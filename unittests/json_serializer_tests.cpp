@@ -124,7 +124,7 @@ struct json_overload_example {
   bool operator==(const json_overload_example &) const = default;
 };
 
-enum class enum_read_example_field : int32_t { zero = 0, one = 1 };
+enum class enum_read_example_field : uint8_t { zero = 0, one = 1 };
 
 struct enum_read_example {
   enum_read_example_field value = enum_read_example_field::zero;

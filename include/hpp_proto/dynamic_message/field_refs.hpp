@@ -74,7 +74,7 @@ public:
   [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
 
   [[nodiscard]] bool has_value() const noexcept {
-    const uint32_t word = value_storage::read_selection_word(*storage_);
+    const uint32_t word = value_storage::selection_word(*storage_);
     return descriptor().is_repeated() ? (word > 0) : (word == descriptor().oneof_ordinal);
   }
 
@@ -85,7 +85,7 @@ public:
   ///   - oneof field: index of the active field in the same oneof
   ///   - non-oneof field: index of this field itself
   [[nodiscard]] std::int32_t active_oneof_index() const {
-    const uint32_t selection = value_storage::read_selection_word(*storage_);
+    const uint32_t selection = value_storage::selection_word(*storage_);
     if (selection == 0) {
       return -1;
     }

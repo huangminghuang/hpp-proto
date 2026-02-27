@@ -162,64 +162,90 @@ public:
   [[nodiscard]] dynamic_message_factory &get_dynamic_message_factory() const { return *factory_; }
 };
 
+namespace detail {
+struct storage_slot_state {
+  uint32_t cur_slot = 0;
+  std::size_t oneof_count = 0;
+  std::vector<bool> oneof_started;
+  std::size_t prev_oneof = 0;
+  uint16_t oneof_next_ordinal = 1;
+
+  explicit storage_slot_state(std::size_t count)
+      : oneof_count(count), oneof_started(count, false), prev_oneof(count) {}
+};
+
+template <typename FieldT>
+[[nodiscard]] inline status setup_oneof_field(FieldT &field, storage_slot_state &state, std::size_t field_index) {
+  const auto index = static_cast<std::size_t>(*field.proto().oneof_index);
+  if (index >= state.oneof_count) [[unlikely]] {
+    return std::errc::bad_message;
+  }
+  if (state.prev_oneof != index) {
+    if (state.oneof_started[index]) [[unlikely]] {
+      return std::errc::bad_message;
+    }
+    state.oneof_started[index] = true;
+    if (state.cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
+      return std::errc::bad_message;
+    }
+    field.storage_slot = state.cur_slot++;
+    state.oneof_next_ordinal = 1;
+  } else {
+    field.storage_slot = state.cur_slot - 1;
+  }
+  if (state.oneof_next_ordinal == std::numeric_limits<uint16_t>::max()) [[unlikely]] {
+    return std::errc::bad_message;
+  }
+  field.oneof_ordinal = ++state.oneof_next_ordinal;
+  if (field_index > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) [[unlikely]] {
+    return std::errc::bad_message;
+  }
+  const auto bias = static_cast<std::int64_t>(field_index) - static_cast<std::int64_t>(field.oneof_ordinal);
+  if (bias < std::numeric_limits<std::int32_t>::min() || bias > std::numeric_limits<std::int32_t>::max())
+      [[unlikely]] {
+    return std::errc::bad_message;
+  }
+  field.active_oneof_index_bias = static_cast<std::int32_t>(bias);
+  field.active_oneof_selection_mask = std::numeric_limits<uint32_t>::max();
+  state.prev_oneof = index;
+  return {};
+}
+
+template <typename FieldT>
+[[nodiscard]] inline status setup_non_oneof_field(FieldT &field, storage_slot_state &state, std::size_t field_index) {
+  state.prev_oneof = state.oneof_count;
+  if (state.cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
+    return std::errc::bad_message;
+  }
+  field.storage_slot = state.cur_slot++;
+  field.oneof_ordinal = field.is_repeated() ? 0 : 1;
+  if (field_index > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) [[unlikely]] {
+    return std::errc::bad_message;
+  }
+  field.active_oneof_index_bias = static_cast<std::int32_t>(field_index);
+  field.active_oneof_selection_mask = 0;
+  return {};
+}
+} // namespace detail
+
 inline status dynamic_message_factory::setup_storage_slots() {
   for (auto &message : pool_.messages()) {
-    uint32_t cur_slot = 0;
     const auto oneof_count = message.proto().oneof_decl.size();
-    std::vector<bool> oneof_started(oneof_count, false);
-    std::size_t prev_oneof = oneof_count;
-    uint16_t oneof_next_ordinal = 1;
+    detail::storage_slot_state state{oneof_count};
     std::size_t field_index = 0;
     for (auto &f : message.fields()) {
+      status result;
       if (f.proto().oneof_index.has_value()) {
-        const auto index = static_cast<std::size_t>(*f.proto().oneof_index);
-        if (index >= oneof_count) [[unlikely]] {
-          return std::errc::bad_message;
-        }
-        if (prev_oneof != index) {
-          if (oneof_started[index]) [[unlikely]] {
-            return std::errc::bad_message;
-          }
-          oneof_started[index] = true;
-          if (cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
-            return std::errc::bad_message;
-          }
-          f.storage_slot = cur_slot++;
-          oneof_next_ordinal = 1;
-        } else {
-          f.storage_slot = cur_slot - 1;
-        }
-        if (oneof_next_ordinal == std::numeric_limits<uint16_t>::max()) [[unlikely]] {
-          return std::errc::bad_message;
-        }
-        f.oneof_ordinal = ++oneof_next_ordinal;
-        if (field_index > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) [[unlikely]] {
-          return std::errc::bad_message;
-        }
-        const auto bias = static_cast<std::int64_t>(field_index) - static_cast<std::int64_t>(f.oneof_ordinal);
-        if (bias < std::numeric_limits<std::int32_t>::min() || bias > std::numeric_limits<std::int32_t>::max())
-            [[unlikely]] {
-          return std::errc::bad_message;
-        }
-        f.active_oneof_index_bias = static_cast<std::int32_t>(bias);
-        f.active_oneof_selection_mask = std::numeric_limits<uint32_t>::max();
-        prev_oneof = index;
+        result = detail::setup_oneof_field(f, state, field_index);
       } else {
-        prev_oneof = oneof_count;
-        if (cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
-          return std::errc::bad_message;
-        }
-        f.storage_slot = cur_slot++;
-        f.oneof_ordinal = f.is_repeated() ? 0 : 1;
-        if (field_index > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) [[unlikely]] {
-          return std::errc::bad_message;
-        }
-        f.active_oneof_index_bias = static_cast<std::int32_t>(field_index);
-        f.active_oneof_selection_mask = 0;
+        result = detail::setup_non_oneof_field(f, state, field_index);
+      }
+      if (!result.ok()) {
+        return result;
       }
       ++field_index;
     }
-    message.num_slots = cur_slot;
+    message.num_slots = state.cur_slot;
   }
   return {};
 }
@@ -267,7 +293,7 @@ inline status dynamic_message_factory::setup_enum_field_default_value() {
         return std::errc::bad_message;
       }
       if (!proto.default_value.empty()) {
-        auto *pdefault = enum_desc->value_of(proto.default_value);
+        const auto *pdefault = enum_desc->value_of(proto.default_value);
         if (pdefault == nullptr) [[unlikely]] {
           return std::errc::bad_message;
         }

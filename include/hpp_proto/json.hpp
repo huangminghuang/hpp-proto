@@ -26,6 +26,7 @@
 #include <cstddef>
 #include <iterator>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -468,10 +469,10 @@ inline json_status read_json(concepts::read_json_supported auto &value, concepts
   if constexpr (std::is_array_v<buffer_type>) {
     using char_type = std::remove_extent_t<buffer_type>;
     constexpr std::size_t size = std::extent_v<buffer_type>;
-    auto data = std::ranges::data(str);
+    auto span = std::span{str};
     if constexpr (size > 0) {
-      if (data[size - 1] == char_type{}) {
-        std::basic_string_view<char_type> view{data, size - 1};
+      if (span.back() == char_type{}) {
+        std::basic_string_view<char_type> view{span.data(), span.size() - 1};
         return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
       }
       // Intentional API constraint: character-array overload accepts only
@@ -481,7 +482,7 @@ inline json_status read_json(concepts::read_json_supported auto &value, concepts
       return {.ctx = {.ec = glz::error_code::syntax_error,
                       .custom_error_message = "character array input must be null-terminated"}};
     } else {
-      std::basic_string_view<char_type> view{data, 0};
+      std::basic_string_view<char_type> view{span.data(), 0};
       return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
     }
   } else if constexpr (requires { str.c_str(); }) {

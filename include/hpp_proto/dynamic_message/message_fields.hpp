@@ -171,7 +171,7 @@ public:
       return false;
     }
     const auto &storage = *std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot()));
-    return value_storage::read_selection_word(storage) != 0U;
+    return value_storage::selection_word(storage) != 0U;
   }
   class fields_view : public std::ranges::view_interface<fields_view> {
     const message_value_cref *base_;
