@@ -170,8 +170,7 @@ struct storage_slot_state {
   std::size_t prev_oneof = 0;
   uint16_t oneof_next_ordinal = 1;
 
-  explicit storage_slot_state(std::size_t count)
-      : oneof_count(count), oneof_started(count, false), prev_oneof(count) {}
+  explicit storage_slot_state(std::size_t count) : oneof_count(count), oneof_started(count, false), prev_oneof(count) {}
 };
 
 template <typename FieldT>
@@ -201,8 +200,7 @@ template <typename FieldT>
     return std::errc::bad_message;
   }
   const auto bias = static_cast<std::int64_t>(field_index) - static_cast<std::int64_t>(field.oneof_ordinal);
-  if (bias < std::numeric_limits<std::int32_t>::min() || bias > std::numeric_limits<std::int32_t>::max())
-      [[unlikely]] {
+  if (bias < std::numeric_limits<std::int32_t>::min() || bias > std::numeric_limits<std::int32_t>::max()) [[unlikely]] {
     return std::errc::bad_message;
   }
   field.active_oneof_index_bias = static_cast<std::int32_t>(bias);

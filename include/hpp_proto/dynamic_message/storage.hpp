@@ -81,9 +81,7 @@ union value_storage {
     return value;
   }
 
-  [[nodiscard]] bool selection_matches(uint32_t ordinal) const noexcept {
-    return selection_word(*this) == ordinal;
-  }
+  [[nodiscard]] bool selection_matches(uint32_t ordinal) const noexcept { return selection_word(*this) == ordinal; }
 
   [[nodiscard]] bool has_value() const noexcept { return selection_word(*this) != 0; }
   void reset() noexcept {
