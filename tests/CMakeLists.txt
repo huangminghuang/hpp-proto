@@ -63,7 +63,7 @@ add_hpp_proto_test(
 
 add_hpp_proto_test(
     NAME dynamic_message_test
-    SOURCES dynamic_message_test.cpp
+    SOURCES dynamic_message_test.cpp dynamic_message_factory_test.cpp
     LINK_LIBRARIES unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib
     REQUIRES Protobuf_INCLUDE_DIRS)
 

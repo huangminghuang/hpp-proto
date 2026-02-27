@@ -560,16 +560,29 @@ private:
   };
 
   status init() {
+    files_.clear();
+    messages_.clear();
+    enums_.clear();
+    oneofs_.clear();
+    fields_.clear();
+    file_map_.clear();
+    message_map_.clear();
+    enum_map_.clear();
+
     const descriptor_counter counter(fileset_);
     reserve_storage(counter);
     if (auto result = build_files_from_fileset(); !result.ok()) {
       return result;
     }
-    link_file_dependencies();
+    if (auto result = link_file_dependencies(); !result.ok()) {
+      return result;
+    }
     if (auto result = build_message_fields_and_extensions(); !result.ok()) {
       return result;
     }
-    build_file_extensions();
+    if (auto result = build_file_extensions(); !result.ok()) {
+      return result;
+    }
     if (auto result = resolve_field_types(); !result.ok()) {
       return result;
     }
@@ -593,24 +606,35 @@ private:
 
   status build_files_from_fileset() {
     for (const auto &proto : fileset_.file) {
-      if (!proto.name.empty() && file_map_.count(proto.name) == 0) {
-        auto features = select_features(proto);
-        if (!features.has_value()) {
-          return features.error();
-        }
-        build(files_.emplace_back(proto, std::move(features).value()));
+      if (proto.name.empty()) {
+        return std::errc::bad_message;
+      }
+      if (file_map_.count(proto.name) != 0) {
+        return std::errc::bad_message;
+      }
+      auto features = select_features(proto);
+      if (!features.has_value()) {
+        return features.error();
+      }
+      auto result = build(files_.emplace_back(proto, std::move(features).value()));
+      if (!result.ok()) {
+        return result;
       }
     }
     return {};
   }
 
-  void link_file_dependencies() {
+  status link_file_dependencies() {
     for (auto &file : files_) {
       file.descriptor_pool_ = this;
       file.dependencies_.resize(file.proto().dependency.size());
       std::transform(file.proto().dependency.begin(), file.proto().dependency.end(), file.dependencies_.begin(),
                      [this](auto &dep) { return this->get_file_descriptor(dep); });
+      if (std::ranges::any_of(file.dependencies_, [](const auto *dep) { return dep == nullptr; })) {
+        return std::errc::bad_message;
+      }
     }
+    return {};
   }
 
   status build_message_fields_and_extensions() {
@@ -619,16 +643,21 @@ private:
       if (auto result = build_fields(*msg); !result.ok()) {
         return result;
       }
-      build_extensions(*msg);
+      if (auto result = build_extensions(*msg); !result.ok()) {
+        return result;
+      }
     }
     return {};
   }
 
-  void build_file_extensions() {
+  status build_file_extensions() {
     for (auto &entry : file_map_) {
       auto *f = entry.second;
-      build_extensions(*f);
+      if (auto result = build_extensions(*f); !result.ok()) {
+        return result;
+      }
     }
+    return {};
   }
 
   status resolve_field_types() {
@@ -798,50 +827,85 @@ private:
     return result;
   }
 
-  void build(file_descriptor_t &descriptor) {
-    file_map_.try_emplace(descriptor.proto_.name, &descriptor);
+  static constexpr bool is_valid_field_number(int32_t number) noexcept {
+    // Protobuf valid field-number range:
+    // [1, 536870911], excluding the reserved range [19000, 19999].
+    return number >= 1 && number <= 536'870'911 && (number < 19'000 || number > 19'999);
+  }
+
+  status build(file_descriptor_t &descriptor) {
+    const auto [_, inserted] = file_map_.try_emplace(descriptor.proto_.name, &descriptor);
+    if (!inserted) {
+      return std::errc::bad_message;
+    }
     const auto package = descriptor.proto_.package;
     descriptor.messages_.reserve(descriptor.proto_.message_type.size());
     for (auto &proto : descriptor.proto_.message_type) {
+      if (proto.name.empty()) {
+        return std::errc::bad_message;
+      }
       string_t scope = !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name};
       auto &message = messages_.emplace_back(proto, std::move(scope), descriptor.options_, &descriptor,
                                              static_cast<message_descriptor_t *>(nullptr));
-      build(message);
+      auto result = build(message);
+      if (!result.ok()) {
+        return result;
+      }
       descriptor.messages_.push_back(&message);
     }
 
     descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
+      if (proto.name.empty()) {
+        return std::errc::bad_message;
+      }
       string_t scope = !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name};
       auto &e = enums_.emplace_back(proto, std::move(scope), descriptor.options_, &descriptor, nullptr);
-      enum_map_.try_emplace(e.full_name(), &e);
+      if (!enum_map_.try_emplace(e.full_name(), &e).second) {
+        return std::errc::bad_message;
+      }
       descriptor.enums_.push_back(&e);
     }
+    return {};
   }
 
-  void build(message_descriptor_t &descriptor) {
+  status build(message_descriptor_t &descriptor) {
     descriptor.oneofs_.reserve(descriptor.proto_.oneof_decl.size());
     for (auto &proto : descriptor.proto_.oneof_decl) {
       auto &oneof = oneofs_.emplace_back(proto, descriptor.options_);
       descriptor.oneofs_.push_back(&oneof);
     }
 
-    message_map_.try_emplace(descriptor.full_name(), &descriptor);
+    if (!message_map_.try_emplace(descriptor.full_name(), &descriptor).second) {
+      return std::errc::bad_message;
+    }
     descriptor.messages_.reserve(descriptor.proto_.nested_type.size());
     for (auto &proto : descriptor.proto_.nested_type) {
+      if (proto.name.empty()) {
+        return std::errc::bad_message;
+      }
       auto &message = messages_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name),
                                              descriptor.options_, descriptor.parent_file_, &descriptor);
-      build(message);
+      auto result = build(message);
+      if (!result.ok()) {
+        return result;
+      }
       descriptor.messages_.push_back(&message);
     }
 
     descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
+      if (proto.name.empty()) {
+        return std::errc::bad_message;
+      }
       auto &e = enums_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name), descriptor.options_,
                                     descriptor.parent_file_, &descriptor);
-      enum_map_.try_emplace(e.full_name(), &e);
+      if (!enum_map_.try_emplace(e.full_name(), &e).second) {
+        return std::errc::bad_message;
+      }
       descriptor.enums_.push_back(&e);
     }
+    return {};
   }
 
   template <typename FlatMap>
@@ -852,13 +916,24 @@ private:
 
   status build_fields(message_descriptor_t &descriptor) {
     descriptor.fields_.reserve(descriptor.proto_.field.size());
+    std::unordered_set<int32_t> seen_field_numbers;
+    seen_field_numbers.reserve(descriptor.proto_.field.size());
     for (auto &proto : descriptor.proto_.field) {
+      if (!is_valid_field_number(proto.number)) {
+        return std::errc::bad_message;
+      }
+      if (!seen_field_numbers.insert(proto.number).second) {
+        return std::errc::bad_message;
+      }
       auto &field = fields_.emplace_back(proto, &descriptor, descriptor.options_);
       if (descriptor.is_map_entry()) {
         field.set_explicit_presence();
       }
       descriptor.fields_.push_back(&field);
       if (proto.oneof_index.has_value()) {
+        if (proto.label == FieldDescriptorProto::Label::LABEL_REPEATED) {
+          return std::errc::bad_message;
+        }
         const auto index = static_cast<std::size_t>(*proto.oneof_index);
         if (index >= descriptor.oneofs_.size()) {
           return std::errc::bad_message;
@@ -866,11 +941,17 @@ private:
         descriptor.oneofs_[index]->fields_.push_back(&field);
       }
     }
+    if (std::ranges::any_of(descriptor.oneofs_, [](const auto *oneof) { return oneof->fields_.empty(); })) {
+      return std::errc::bad_message;
+    }
     return {};
   };
 
-  void build_extensions(auto &parent) {
+  status build_extensions(auto &parent) {
     for (auto &proto : parent.proto_.extension) {
+      if (!is_valid_field_number(proto.number)) {
+        return std::errc::bad_message;
+      }
       message_descriptor_t *msg_desc = nullptr;
       if constexpr (std::same_as<decltype(&parent), message_descriptor_t *>) {
         msg_desc = &parent;
@@ -878,6 +959,7 @@ private:
       auto &field = fields_.emplace_back(proto, msg_desc, parent.options_);
       parent.extensions_.push_back(&field);
     }
+    return {};
   }
   // NOLINTEND(bugprone-unchecked-optional-access)
 };

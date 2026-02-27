@@ -21,128 +21,44 @@ decltype(auto) expect_ok(Exp &&exp) {
   return std::forward<Exp>(exp).value(); // NOLINT
 }
 
-const boost::ut::suite parse_default_value_tests = [] {
-  "parse_default_value_success"_test = [] {
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("123"), 123));
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<uint64_t>(
-                  std::to_string(std::numeric_limits<uint64_t>::max())),
-              std::numeric_limits<uint64_t>::max()));
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<float>("1.5"), 1.5F));
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<double>("-2.5"), -2.5));
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>(""),
-              0)); // empty defaults to zero-initialized
-  };
-
-  "parse_default_value_errors"_test = [] {
-    expect(throws<std::invalid_argument>(
-        [] { (void)hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("abc"); }));
-    expect(throws<std::out_of_range>(
-        [] { (void)hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("999999999999"); }));
-    expect(throws<std::out_of_range>(
-        [] { (void)hpp_proto::dynamic_message_factory_addons::parse_default_value<double>("1e400"); }));
-  };
-};
-
-const boost::ut::suite descriptor_pool_gap_tests = [] {
-  using descriptor_pool_t = hpp_proto::descriptor_pool<hpp_proto::dynamic_message_factory_addons>;
-  using OwningFileDescriptorProto = google::protobuf::FileDescriptorProto<>;
-
-  auto make_fileset = [&](const OwningFileDescriptorProto &proto, std::pmr::memory_resource &mr) {
-    std::string buffer;
-    expect(hpp_proto::write_binpb(proto, buffer).ok());
-    std::array<hpp_proto::file_descriptor_pb, 1> descs{hpp_proto::file_descriptor_pb{buffer}};
-    return expect_ok(
-        descriptor_pool_t::make_file_descriptor_set(descs, hpp_proto::distinct_file_tag, hpp_proto::alloc_from(mr)));
-  };
-
-  auto make_invalid_edition_fileset = [] {
-    OwningFileDescriptorProto file;
-    file.name = "invalid_edition.proto";
-    file.syntax = "editions";
-    file.edition = static_cast<google::protobuf::Edition>(0x7fffffff);
-    return file;
-  };
-
-  auto make_missing_type_fileset = [] {
-    OwningFileDescriptorProto file;
-    file.name = "missing_type.proto";
-    auto &message = file.message_type.emplace_back();
-    message.name = "Root";
-    auto &field = message.field.emplace_back();
-    field.name = "missing";
-    field.number = 1;
-    field.label = decltype(field.label)::LABEL_OPTIONAL;
-    field.type = decltype(field.type)::TYPE_MESSAGE;
-    field.type_name = ".MissingType";
-    return file;
-  };
-
-  auto make_invalid_oneof_fileset = [] {
-    OwningFileDescriptorProto file;
-    file.name = "invalid_oneof.proto";
-    auto &message = file.message_type.emplace_back();
-    message.name = "Root";
-    auto &field = message.field.emplace_back();
-    field.name = "bad_oneof";
-    field.number = 1;
-    field.label = decltype(field.label)::LABEL_OPTIONAL;
-    field.type = decltype(field.type)::TYPE_INT32;
-    field.oneof_index = 0;
-    return file;
-  };
-
-  auto make_missing_extendee_fileset = [] {
-    OwningFileDescriptorProto file;
-    file.name = "missing_extendee.proto";
-    auto &field = file.extension.emplace_back();
-    field.name = "bad_ext";
-    field.number = 100;
-    field.label = decltype(field.label)::LABEL_OPTIONAL;
-    field.type = decltype(field.type)::TYPE_INT32;
-    field.extendee = ".MissingExtendee";
-    return file;
-  };
-
-  "unsupported_edition_sets_error"_test = [&] {
+const boost::ut::suite dynamic_message_json_iterator_safety_tests = [] {
+  "value_from_json_ws_handled_end_iterator_regression"_test = [] {
+    hpp_proto::dynamic_message_factory factory;
+    expect(factory.init(read_file("unittest.desc.binpb")));
     std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset(make_invalid_edition_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto value_msg = expect_ok(factory.get_message("google.protobuf.Value", mr));
+
+    // Closest public API shape to the internal ws_handled dereference path.
+    std::string_view json{};
+    constexpr auto opts = glz::ws_handled<hpp_proto::json_read_opts{}>();
+    auto status = hpp_proto::read_json<opts>(value_msg, json);
+    expect(!status.ok());
   };
 
-  "missing_message_type_sets_error"_test = [&] {
+  "enum_from_json_ws_handled_end_iterator_regression"_test = [] {
+    hpp_proto::dynamic_message_factory factory;
+    expect(factory.init(read_file("unittest.desc.binpb")));
     std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset(make_missing_type_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
+
+    // Truncated enum JSON value through read_json API.
+    std::string_view json = R"({"optionalNestedEnum":)";
+    constexpr auto opts = glz::ws_handled<hpp_proto::json_read_opts{}>();
+    auto status = hpp_proto::read_json<opts>(msg, json);
+    expect(!status.ok());
   };
 
-  "invalid_oneof_index_sets_error"_test = [&] {
+  "repeated_field_truncated_value_ws_handled_regression"_test = [] {
+    hpp_proto::dynamic_message_factory factory;
+    expect(factory.init(read_file("unittest.desc.binpb")));
     std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset(make_invalid_oneof_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
-  };
+    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
 
-  "missing_extendee_type_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset(make_missing_extendee_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
-  };
-
-  "pmr_default_resource_restored_on_error"_test = [&] {
-    auto *old_resource = std::pmr::get_default_resource();
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset(make_invalid_edition_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
-
-    auto *current_resource = std::pmr::get_default_resource();
-    if (current_resource != old_resource) {
-      std::pmr::set_default_resource(old_resource);
-    }
-    expect(current_resource == old_resource);
+    // Repeated field enters util::parse_repeated -> util::parse_opening without parse_null.
+    std::string_view json = R"({"repeatedInt32":)";
+    constexpr auto opts = glz::ws_handled<hpp_proto::json_read_opts{}>();
+    auto status = hpp_proto::read_json<opts>(msg, json);
+    expect(!status.ok());
   };
 };
 
@@ -700,6 +616,37 @@ const boost::ut::suite dynamic_message_test = [] {
     expect(oneof_desc != nullptr);
     expect(eq(oneof_desc->proto().name, std::string_view{"oneof_field"}));
     expect(cref.oneof_descriptor("missing_oneof") == nullptr);
+  };
+
+  "active_oneof_index_contract"_test = [&factory]() {
+    std::pmr::monotonic_buffer_resource memory_resource;
+    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
+
+    auto field_index_by_name = [&](std::string_view name) {
+      std::int32_t i = 0;
+      for (const auto &desc : msg.cref().descriptor().fields()) {
+        if (desc.proto().name == name) {
+          return i;
+        }
+        ++i;
+      }
+      return std::int32_t{-1};
+    };
+
+    auto optional_int32 = expect_ok(msg.field_by_name("optional_int32"));
+    expect(optional_int32.cref().active_oneof_index() < 0_i);
+    expect(optional_int32.set(123).has_value());
+    expect(eq(optional_int32.cref().active_oneof_index(), field_index_by_name("optional_int32")));
+
+    auto oneof_uint32 = expect_ok(msg.field_by_name("oneof_uint32"));
+    auto oneof_string = expect_ok(msg.field_by_name("oneof_string"));
+    expect(oneof_uint32.cref().active_oneof_index() < 0_i);
+    expect(oneof_string.cref().active_oneof_index() < 0_i);
+
+    expect(oneof_string.adopt("active").has_value());
+    const auto active_oneof_idx = field_index_by_name("oneof_string");
+    expect(eq(oneof_string.cref().active_oneof_index(), active_oneof_idx));
+    expect(eq(oneof_uint32.cref().active_oneof_index(), active_oneof_idx));
   };
 
   "field_cref_get_and_field_mref_set_adopt"_test = [&factory]() {

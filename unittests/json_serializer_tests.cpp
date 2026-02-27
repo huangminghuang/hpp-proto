@@ -124,9 +124,22 @@ struct json_overload_example {
   bool operator==(const json_overload_example &) const = default;
 };
 
+enum class enum_read_example_field : int32_t { zero = 0, one = 1 };
+
+struct enum_read_example {
+  enum_read_example_field value = enum_read_example_field::zero;
+  bool operator==(const enum_read_example &) const = default;
+};
+
 template <>
 struct glz::meta<json_overload_example> {
   using T = json_overload_example;
+  static constexpr auto value = object("value", &T::value);
+};
+
+template <>
+struct glz::meta<enum_read_example> {
+  using T = enum_read_example;
   static constexpr auto value = object("value", &T::value);
 };
 
@@ -447,6 +460,19 @@ const ut::suite test_read_json_overloads = [] {
     expect_read(std::u8string{u8R"({"value":1})"});
     expect_read(std::basic_string_view<char8_t>{u8R"({"value":1})"});
   };
+
+  "read_json_rejects_null_pointer_input"_test = [] {
+    json_overload_example msg{};
+    auto status = hpp_proto::read_json(msg, static_cast<const char *>(nullptr));
+    expect(!status.ok());
+  };
+
+  "read_json_rejects_non_null_terminated_c_array"_test = [] {
+    char fixed_json[] = {'{', '"', 'v', 'a', 'l', 'u', 'e', '"', ':', '1', '}'};
+    json_overload_example msg{};
+    auto status = hpp_proto::read_json(msg, fixed_json);
+    expect(!status.ok());
+  };
 };
 
 const ut::suite test_read_json_full_buffer = [] {
@@ -465,6 +491,14 @@ const ut::suite test_read_json_full_buffer = [] {
     auto status = hpp_proto::read_json(msg, R"({"value":1}  )");
     expect(status.ok());
   };
+
+  "read_json_truncated_enum_value_ws_handled_regression"_test = [] {
+    enum_read_example msg{};
+    constexpr auto opts = glz::ws_handled<hpp_proto::json_read_opts{}>();
+    auto status = hpp_proto::read_json<opts>(msg, R"({"value":)");
+    expect(!status.ok());
+  };
+
 };
 
 int main() {

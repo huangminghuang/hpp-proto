@@ -69,26 +69,28 @@ union value_storage {
   repeated_storage_base<std::string_view> of_repeated_string;
   repeated_storage_base<value_storage> of_repeated_message;
 
-  [[nodiscard]] bool has_value() const noexcept {
-    // This implementation relies on a layout hack where the 'selection' field of
-    // scalar types and the 'size' field of repeated types are at the same
-    // memory offset. Reading from an inactive union member (e.g. of_int32.selection)
-    // when another member is active is a strict aliasing violation and thus
-    // undefined behavior.
-    // We use std::memcpy to safely access the bytes at the given offset, which
-    // is a standard-compliant way to perform this type of type-punning.
-    // Compilers will optimize this memcpy to a single efficient instruction.
+  [[nodiscard]] static uint32_t read_selection_word(const value_storage &storage) noexcept {
+    // The selection word and repeated size share the same union offset.
+    // Read via memcpy to avoid UB from inactive-union-member access.
     static_assert(offsetof(scalar_storage_base<bool>, selection) == offsetof(repeated_storage_base<bool>, size));
     uint32_t value = 0;
-    std::memcpy(&value, &this->of_repeated_int64.size, sizeof(value));
-    return value != 0;
+    std::memcpy(&value, &storage.of_int64.selection, sizeof(value));
+    return value;
+  }
+
+  [[nodiscard]] bool selection_matches(uint32_t ordinal) const noexcept {
+    return read_selection_word(*this) == ordinal;
+  }
+
+  [[nodiscard]] bool has_value() const noexcept {
+    return read_selection_word(*this) != 0;
   }
   void reset() noexcept {
     // Similar to has_value(), we use memcpy to avoid undefined behavior when
     // writing to an inactive union member.
     static_assert(offsetof(scalar_storage_base<bool>, selection) == offsetof(repeated_storage_base<bool>, size));
     uint32_t zero = 0;
-    std::memcpy(&this->of_repeated_int64.size, &zero, sizeof(zero));
+    std::memcpy(&this->of_int64.selection, &zero, sizeof(zero));
   }
 };
 } // namespace hpp_proto

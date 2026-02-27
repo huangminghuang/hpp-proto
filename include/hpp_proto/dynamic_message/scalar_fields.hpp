@@ -61,7 +61,9 @@ public:
   scalar_field_cref &operator=(scalar_field_cref &&) noexcept = default;
   ~scalar_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return access_storage().selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept {
+    return storage_->selection_matches(descriptor().oneof_ordinal);
+  }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type default_value() const noexcept { return std::get<value_type>(descriptor_->default_value); }
   [[nodiscard]] value_type value() const noexcept {

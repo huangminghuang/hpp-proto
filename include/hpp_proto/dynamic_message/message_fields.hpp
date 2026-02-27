@@ -129,6 +129,7 @@ public:
   }
 
   [[nodiscard]] field_cref field(const field_descriptor_t &desc) const noexcept {
+    assert(desc.parent_message() == descriptor_);
     const auto &storage = storage_for(desc);
 
     return {desc, storage};
@@ -163,9 +164,14 @@ public:
   }
 
   [[nodiscard]] bool has_oneof(const oneof_descriptor_t &desc) const noexcept {
+    if (!std::ranges::any_of(descriptor_->oneofs(), [&](const auto &oneof) { return &oneof == &desc; })) [[unlikely]] {
+      return false;
+    }
+    if (desc.fields().empty()) [[unlikely]] {
+      return false;
+    }
     const auto &storage = *std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot()));
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-    return storage.of_int64.selection != 0U;
+    return value_storage::read_selection_word(storage) != 0U;
   }
   class fields_view : public std::ranges::view_interface<fields_view> {
     const message_value_cref *base_;
@@ -270,6 +276,7 @@ public:
   }
 
   [[nodiscard]] field_mref field(const field_descriptor_t &desc) const noexcept {
+    assert(desc.parent_message() == descriptor_);
     auto &storage = storage_for(desc);
     return {desc, storage, *memory_resource_};
   }
@@ -423,11 +430,18 @@ public:
   }
 
   void clear_field(const field_descriptor_t &desc) const noexcept {
+    assert(desc.parent_message() == descriptor_);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
     storage_for(desc).reset();
   }
 
   void clear_field(const oneof_descriptor_t &desc) const noexcept {
+    if (!std::ranges::any_of(descriptor_->oneofs(), [&](const auto &oneof) { return &oneof == &desc; })) [[unlikely]] {
+      return;
+    }
+    if (desc.fields().empty()) [[unlikely]] {
+      return;
+    }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
     std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot()))->reset();
   }
@@ -506,7 +520,9 @@ public:
   message_field_cref &operator=(message_field_cref &&) noexcept = default;
   ~message_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->of_message.selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept {
+    return storage_->selection_matches(descriptor().oneof_ordinal);
+  }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const {
     if (!has_value()) {

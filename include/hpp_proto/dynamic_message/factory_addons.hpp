@@ -124,9 +124,17 @@ struct dynamic_message_factory_addons {
     /// @brief slot represents the index to the field memory storage of a message; all non-oneof fields use different
     /// slot, fields of the same oneof type share the same slot.
     uint32_t storage_slot = 0;
-    /// @brief for oneof field, this value is the order among the same oneof field counting from 1; otherwise, it is
-    /// always 1 for singular field and 0 for repeated field
+    /// @brief for oneof fields, this is a oneof-local tag used in the shared selection slot
+    /// (first oneof field is currently 2); otherwise, it is always 1 for singular fields and
+    /// 0 for repeated fields.
     uint16_t oneof_ordinal = 0;
+    /// @brief precomputed value used by field_cref::active_oneof_index() for O(1) lookup:
+    /// field_index = masked_selection + active_oneof_index_bias.
+    int32_t active_oneof_index_bias = 0;
+    /// @brief mask applied to the raw selection word in active_oneof_index().
+    /// oneof fields use all bits; non-oneof fields use 0 and rely on active_oneof_index_bias
+    /// to map present values to their own field index.
+    uint32_t active_oneof_selection_mask = 0;
     field_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options) { set_default_value(self.proto()); }
 
     void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto) {
@@ -199,6 +207,7 @@ struct dynamic_message_factory_addons {
   struct oneof_descriptor {
     explicit oneof_descriptor(Derived &, [[maybe_unused]] const auto &inherited_options) {}
     [[nodiscard]] uint32_t storage_slot() const {
+      assert(!static_cast<const Derived *>(this)->fields().empty());
       return static_cast<const Derived *>(this)->fields().front().storage_slot;
     }
   };
@@ -214,6 +223,9 @@ struct dynamic_message_factory_addons {
   struct file_descriptor {
     bool wellknown_validated_ = false;
     explicit file_descriptor([[maybe_unused]] const Derived &derived) {
+      // Validate embedded descriptors for supported well-known types against the
+      // checked-in canonical descriptor bytes. This guarantees fixed field layout
+      // assumptions used by dynamic Any/Struct/Value JSON serializers.
       using namespace hpp_proto::file_descriptors;
       static flat_map<std::string_view, file_descriptor_pb> wellknown_type_pbs{
           {"google/protobuf/any.proto", _desc_google_protobuf_any_proto},

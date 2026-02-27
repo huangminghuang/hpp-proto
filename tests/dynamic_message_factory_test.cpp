@@ -1,0 +1,690 @@
+#include "test_util.hpp"
+#include <array>
+#include <boost/ut.hpp>
+#include <hpp_proto/descriptor_pool.hpp>
+#include <hpp_proto/dynamic_message/binpb.hpp>
+#include <hpp_proto/dynamic_message/factory_addons.hpp>
+#include <hpp_proto/dynamic_message/json.hpp>
+#include <limits>
+#include <memory_resource>
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+using namespace boost::ut;
+
+template <typename Exp>
+decltype(auto) expect_ok(Exp &&exp) {
+  expect(fatal(exp.has_value()));
+  return std::forward<Exp>(exp).value(); // NOLINT
+}
+
+const boost::ut::suite parse_default_value_tests = [] {
+  "parse_default_value_success"_test = [] {
+    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("123"), 123));
+    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<uint64_t>(
+                  std::to_string(std::numeric_limits<uint64_t>::max())),
+              std::numeric_limits<uint64_t>::max()));
+    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<float>("1.5"), 1.5F));
+    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<double>("-2.5"), -2.5));
+    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>(""),
+              0)); // empty defaults to zero-initialized
+  };
+
+  "parse_default_value_errors"_test = [] {
+    expect(throws<std::invalid_argument>(
+        [] { (void)hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("abc"); }));
+    expect(throws<std::out_of_range>(
+        [] { (void)hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("999999999999"); }));
+    expect(throws<std::out_of_range>(
+        [] { (void)hpp_proto::dynamic_message_factory_addons::parse_default_value<double>("1e400"); }));
+  };
+};
+
+const boost::ut::suite descriptor_pool_gap_tests = [] {
+  using descriptor_pool_t = hpp_proto::descriptor_pool<hpp_proto::dynamic_message_factory_addons>;
+  using OwningFileDescriptorProto = google::protobuf::FileDescriptorProto<>;
+  using MessageProto = google::protobuf::DescriptorProto<>;
+  using FieldProto = google::protobuf::FieldDescriptorProto<>;
+  using OneofProto = google::protobuf::OneofDescriptorProto<>;
+  using EnumProto = google::protobuf::EnumDescriptorProto<>;
+  using EnumValueProto = google::protobuf::EnumValueDescriptorProto<>;
+  using enum google::protobuf::FieldDescriptorProto_::Label;
+  using enum google::protobuf::FieldDescriptorProto_::Type;
+
+  auto make_fileset_one = [&](const OwningFileDescriptorProto &proto, std::pmr::memory_resource &mr) {
+    std::string buffer;
+    expect(hpp_proto::write_binpb(proto, buffer).ok());
+    std::array<hpp_proto::file_descriptor_pb, 1> descs{hpp_proto::file_descriptor_pb{buffer}};
+    return expect_ok(
+        descriptor_pool_t::make_file_descriptor_set(descs, hpp_proto::distinct_file_tag, hpp_proto::alloc_from(mr)));
+  };
+
+  auto make_fileset_many = [&](std::initializer_list<OwningFileDescriptorProto> protos,
+                               std::pmr::memory_resource &mr) {
+    std::vector<std::string> buffers;
+    buffers.reserve(protos.size());
+    std::vector<hpp_proto::file_descriptor_pb> descs;
+    descs.reserve(protos.size());
+    for (const auto &proto : protos) {
+      auto &buffer = buffers.emplace_back();
+      expect(hpp_proto::write_binpb(proto, buffer).ok());
+      descs.push_back(hpp_proto::file_descriptor_pb{buffer});
+    }
+    return expect_ok(descriptor_pool_t::make_file_descriptor_set(std::span<const hpp_proto::file_descriptor_pb>{descs},
+                                                                 hpp_proto::distinct_file_tag,
+                                                                 hpp_proto::alloc_from(mr)));
+  };
+
+  auto make_invalid_edition_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_edition.proto",
+        .syntax = "editions",
+        .edition = static_cast<google::protobuf::Edition>(0x7fffffff),
+    };
+  };
+
+  auto make_missing_type_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "missing_type.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "missing",
+                        .number = 1,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_MESSAGE,
+                        .type_name = ".MissingType",
+                    },
+                },
+            },
+        },
+    };
+  };
+
+  auto make_duplicate_field_number_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "duplicate_field_number.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "a",
+                        .number = 1,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                    },
+                    FieldProto{
+                        .name = "b",
+                        .number = 1,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_STRING,
+                    },
+                },
+            },
+        },
+    };
+  };
+
+  auto make_invalid_field_number_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_field_number.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "bad_zero",
+                        .number = 0,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                    },
+                },
+            },
+        },
+    };
+  };
+
+  auto make_reserved_field_number_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "reserved_field_number.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "bad_reserved",
+                        .number = 19000,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                    },
+                },
+            },
+        },
+    };
+  };
+
+  auto make_too_large_field_number_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "too_large_field_number.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "bad_large",
+                        .number = 536870912,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                    },
+                },
+            },
+        },
+    };
+  };
+
+  auto make_invalid_oneof_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_oneof.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "bad_oneof",
+                        .number = 1,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                        .oneof_index = 0,
+                    },
+                },
+            },
+        },
+    };
+  };
+
+  auto make_repeated_oneof_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "repeated_oneof.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "bad_repeated_oneof",
+                        .number = 1,
+                        .label = LABEL_REPEATED,
+                        .type = TYPE_INT32,
+                        .oneof_index = 0,
+                    },
+                },
+                .oneof_decl = {
+                    OneofProto{.name = "choice"},
+                },
+            },
+        },
+    };
+  };
+
+  auto make_empty_oneof_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "empty_oneof.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .oneof_decl = {
+                    OneofProto{.name = "empty"},
+                },
+            },
+        },
+    };
+  };
+
+  auto make_interleaved_oneof_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "interleaved_oneof.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "a",
+                        .number = 1,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                        .oneof_index = 0,
+                        .json_name = "a",
+                    },
+                    FieldProto{
+                        .name = "x",
+                        .number = 2,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                        .json_name = "x",
+                    },
+                    FieldProto{
+                        .name = "b",
+                        .number = 3,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                        .oneof_index = 0,
+                        .json_name = "b",
+                    },
+                },
+                .oneof_decl = {
+                    OneofProto{.name = "choice"},
+                },
+            },
+        },
+    };
+  };
+
+  auto make_two_oneofs_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "two_oneofs.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "a1",
+                        .number = 1,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                        .oneof_index = 0,
+                    },
+                    FieldProto{
+                        .name = "a2",
+                        .number = 2,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                        .oneof_index = 0,
+                    },
+                    FieldProto{
+                        .name = "b1",
+                        .number = 3,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                        .oneof_index = 1,
+                    },
+                    FieldProto{
+                        .name = "b2",
+                        .number = 4,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_INT32,
+                        .oneof_index = 1,
+                    },
+                },
+                .oneof_decl = {
+                    OneofProto{.name = "choice_a"},
+                    OneofProto{.name = "choice_b"},
+                },
+            },
+        },
+    };
+  };
+
+  auto make_missing_extendee_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "missing_extendee.proto",
+        .extension = {
+            FieldProto{
+                .name = "bad_ext",
+                .number = 100,
+                .label = LABEL_OPTIONAL,
+                .type = TYPE_INT32,
+                .extendee = ".MissingExtendee",
+            },
+        },
+    };
+  };
+
+  auto make_invalid_extension_field_number_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_extension_field_number.proto",
+        .extension = {
+            FieldProto{
+                .name = "bad_ext_num",
+                .number = 19000,
+                .label = LABEL_OPTIONAL,
+                .type = TYPE_INT32,
+                .extendee = ".MissingExtendee",
+            },
+        },
+    };
+  };
+
+  auto make_invalid_enum_default_name_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_enum_default_name.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "enum_field",
+                        .number = 1,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_ENUM,
+                        .type_name = ".Root.E",
+                        .default_value = "DOES_NOT_EXIST",
+                    },
+                },
+                .enum_type = {
+                    EnumProto{
+                        .name = "E",
+                        .value = {
+                            EnumValueProto{.name = "ZERO", .number = 0},
+                        },
+                    },
+                },
+            },
+        },
+    };
+  };
+
+  auto make_empty_enum_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "empty_enum.proto",
+        .message_type = {
+            MessageProto{
+                .name = "Root",
+                .field = {
+                    FieldProto{
+                        .name = "enum_field",
+                        .number = 1,
+                        .label = LABEL_OPTIONAL,
+                        .type = TYPE_ENUM,
+                        .type_name = ".Root.E",
+                    },
+                },
+                .enum_type = {
+                    EnumProto{.name = "E"},
+                },
+            },
+        },
+    };
+  };
+
+  auto make_missing_dependency_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "has_missing_dependency.proto",
+        .dependency = {"missing_dependency.proto"},
+    };
+  };
+
+  auto make_empty_file_name_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "",
+        .package = "pkg",
+        .message_type = {MessageProto{.name = "Root"}},
+    };
+  };
+
+  auto make_empty_message_name_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "empty_message_name.proto",
+        .package = "pkg",
+        .message_type = {MessageProto{.name = ""}},
+    };
+  };
+
+  auto make_empty_enum_name_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "empty_enum_name.proto",
+        .package = "pkg",
+        .enum_type = {EnumProto{.name = "", .value = {EnumValueProto{.name = "ZERO", .number = 0}}}},
+    };
+  };
+
+  auto make_duplicate_file_name_fileset = [] {
+    return std::array{
+        OwningFileDescriptorProto{
+            .name = "dup_file.proto",
+            .package = "pkg_a",
+            .message_type = {MessageProto{.name = "A"}},
+        },
+        OwningFileDescriptorProto{
+            .name = "dup_file.proto",
+            .package = "pkg_b",
+            .message_type = {MessageProto{.name = "B"}},
+        },
+    };
+  };
+
+  auto make_duplicate_message_full_name_fileset = [] {
+    return std::array{
+        OwningFileDescriptorProto{
+            .name = "first.proto",
+            .package = "pkg",
+            .message_type = {MessageProto{.name = "Dup"}},
+        },
+        OwningFileDescriptorProto{
+            .name = "second.proto",
+            .package = "pkg",
+            .message_type = {MessageProto{.name = "Dup"}},
+        },
+    };
+  };
+
+  auto make_duplicate_enum_full_name_fileset = [] {
+    return std::array{
+        OwningFileDescriptorProto{
+            .name = "first_enum.proto",
+            .package = "pkg",
+            .enum_type = {EnumProto{.name = "DupEnum", .value = {EnumValueProto{.name = "ZERO", .number = 0}}}},
+        },
+        OwningFileDescriptorProto{
+            .name = "second_enum.proto",
+            .package = "pkg",
+            .enum_type = {EnumProto{.name = "DupEnum", .value = {EnumValueProto{.name = "ZERO", .number = 0}}}},
+        },
+    };
+  };
+
+  "unsupported_edition_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_invalid_edition_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "missing_message_type_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_missing_type_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "duplicate_field_number_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_duplicate_field_number_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "invalid_field_number_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_invalid_field_number_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "reserved_field_number_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_reserved_field_number_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "too_large_field_number_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_too_large_field_number_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "invalid_oneof_index_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_invalid_oneof_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "repeated_oneof_field_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_repeated_oneof_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "empty_oneof_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_empty_oneof_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "missing_extendee_type_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_missing_extendee_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "invalid_extension_field_number_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_invalid_extension_field_number_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "missing_file_dependency_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_missing_dependency_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "empty_file_name_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_empty_file_name_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "empty_message_name_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_empty_message_name_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "empty_enum_name_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_empty_enum_name_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "duplicate_file_name_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto files = make_duplicate_file_name_fileset();
+    auto fileset = make_fileset_many({files[0], files[1]}, mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "duplicate_message_full_name_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto files = make_duplicate_message_full_name_fileset();
+    auto fileset = make_fileset_many({files[0], files[1]}, mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "duplicate_enum_full_name_sets_error"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto files = make_duplicate_enum_full_name_fileset();
+    auto fileset = make_fileset_many({files[0], files[1]}, mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+  };
+
+  "invalid_enum_default_name_factory_init_fails"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_invalid_enum_default_name_fileset(), mr);
+    hpp_proto::dynamic_message_factory factory;
+    factory.init(std::move(fileset));
+    std::pmr::monotonic_buffer_resource msg_mr;
+    expect(!factory.get_message("Root", msg_mr).has_value());
+  };
+
+  "empty_enum_factory_init_fails"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_empty_enum_fileset(), mr);
+    hpp_proto::dynamic_message_factory factory;
+    factory.init(std::move(fileset));
+    std::pmr::monotonic_buffer_resource msg_mr;
+    expect(!factory.get_message("Root", msg_mr).has_value());
+  };
+
+  "pmr_default_resource_restored_on_error"_test = [&] {
+    auto *old_resource = std::pmr::get_default_resource();
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_invalid_edition_fileset(), mr);
+    descriptor_pool_t pool;
+    expect(!pool.init(std::move(fileset), mr).ok());
+
+    auto *current_resource = std::pmr::get_default_resource();
+    if (current_resource != old_resource) {
+      std::pmr::set_default_resource(old_resource);
+    }
+    expect(current_resource == old_resource);
+  };
+
+  "factory_reinit_succeeds_after_failed_init"_test = [&] {
+    hpp_proto::dynamic_message_factory factory;
+    std::pmr::monotonic_buffer_resource mr;
+
+    auto invalid_fileset = make_fileset_one(make_invalid_oneof_fileset(), mr);
+    factory.init(std::move(invalid_fileset));
+
+    expect(factory.init(read_file("unittest.desc.binpb")));
+
+    std::pmr::monotonic_buffer_resource mr2;
+    auto msg = factory.get_message("proto3_unittest.TestAllTypes", mr2);
+    expect(msg.has_value());
+  };
+
+  "interleaved_oneof_fields_factory_init_fails"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_interleaved_oneof_fileset(), mr);
+    hpp_proto::dynamic_message_factory factory;
+    factory.init(std::move(fileset));
+
+    std::pmr::monotonic_buffer_resource msg_mr;
+    expect(!factory.get_message("Root", msg_mr).has_value());
+  };
+
+  "active_oneof_index_second_oneof_points_to_active_field"_test = [&] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = make_fileset_one(make_two_oneofs_fileset(), mr);
+    hpp_proto::dynamic_message_factory factory;
+    factory.init(std::move(fileset));
+
+    std::pmr::monotonic_buffer_resource msg_mr;
+    auto msg = expect_ok(factory.get_message("Root", msg_mr));
+    auto b2 = expect_ok(msg.field_by_name("b2"));
+    expect(b2.set(22).has_value());
+
+    auto b1 = expect_ok(msg.field_by_name("b1"));
+    expect(!b1.has_value());
+    expect(b2.has_value());
+    expect(eq(b1.cref().active_oneof_index(), std::int32_t{3}));
+  };
+};

@@ -156,6 +156,8 @@ const suite test_dynamic_message_any = [] {
 
     expect_read_ok( // @type not first
         R"({"anyValue":{"c":1234,"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})");
+    expect_read_ok( // URL with extra path components should use suffix after last '/'
+        R"({"anyValue":{"@type":"https://type.googleapis.com/proto3_unittest.ForeignMessage","c":1234}})");
 
     expect_read_ok( // duplicated anyValue field
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234},"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":2345}})");

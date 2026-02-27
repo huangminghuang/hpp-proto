@@ -79,6 +79,9 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
       return true;
     }
   }
+  if constexpr (not Opts.null_terminated) {
+    assert(it != end);
+  }
 
   if (*it == 'n') {
     ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)

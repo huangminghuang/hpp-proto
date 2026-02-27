@@ -22,13 +22,16 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <memory_resource>
+#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include <hpp_proto/binpb.hpp>
 #include <hpp_proto/dynamic_message/expected_message_mref.hpp>
@@ -48,10 +51,10 @@ class dynamic_message_factory {
   descriptor_pool_t pool_;
   bool initialized_ = false;
 
-  void setup_storage_slots();
+  status setup_storage_slots();
   void setup_wellknown_types();
-  void setup_enum_field_default_value();
-  void init();
+  status setup_enum_field_default_value();
+  status init();
 
 public:
   using FileDescriptorSet = ::google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
@@ -83,8 +86,11 @@ public:
       initialized_ = false;
       return;
     }
+    if (auto result = init(); !result.ok()) {
+      initialized_ = false;
+      return;
+    }
     initialized_ = true;
-    init();
   }
 
   /**
@@ -156,28 +162,66 @@ public:
   [[nodiscard]] dynamic_message_factory &get_dynamic_message_factory() const { return *factory_; }
 };
 
-inline void dynamic_message_factory::setup_storage_slots() {
+inline status dynamic_message_factory::setup_storage_slots() {
   for (auto &message : pool_.messages()) {
-    hpp_proto::optional<std::int32_t> prev_oneof_index;
-    uint16_t oneof_ordinal = 1;
     uint32_t cur_slot = 0;
+    const auto oneof_count = message.proto().oneof_decl.size();
+    std::vector<bool> oneof_started(oneof_count, false);
+    std::size_t prev_oneof = oneof_count;
+    uint16_t oneof_next_ordinal = 1;
+    std::size_t field_index = 0;
     for (auto &f : message.fields()) {
       if (f.proto().oneof_index.has_value()) {
-        if (f.proto().oneof_index != prev_oneof_index) {
+        const auto index = static_cast<std::size_t>(*f.proto().oneof_index);
+        if (index >= oneof_count) [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        if (prev_oneof != index) {
+          if (oneof_started[index]) [[unlikely]] {
+            return std::errc::bad_message;
+          }
+          oneof_started[index] = true;
+          if (cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
+            return std::errc::bad_message;
+          }
           f.storage_slot = cur_slot++;
+          oneof_next_ordinal = 1;
         } else {
           f.storage_slot = cur_slot - 1;
         }
-        f.oneof_ordinal = ++oneof_ordinal;
+        if (oneof_next_ordinal == std::numeric_limits<uint16_t>::max()) [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        f.oneof_ordinal = ++oneof_next_ordinal;
+        if (field_index > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        const auto bias = static_cast<std::int64_t>(field_index) - static_cast<std::int64_t>(f.oneof_ordinal);
+        if (bias < std::numeric_limits<std::int32_t>::min() || bias > std::numeric_limits<std::int32_t>::max())
+            [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        f.active_oneof_index_bias = static_cast<std::int32_t>(bias);
+        f.active_oneof_selection_mask = std::numeric_limits<uint32_t>::max();
+        prev_oneof = index;
       } else {
+        prev_oneof = oneof_count;
+        if (cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
+          return std::errc::bad_message;
+        }
         f.storage_slot = cur_slot++;
         f.oneof_ordinal = f.is_repeated() ? 0 : 1;
-        oneof_ordinal = 1;
+        if (field_index > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        f.active_oneof_index_bias = static_cast<std::int32_t>(field_index);
+        f.active_oneof_selection_mask = 0;
       }
-      prev_oneof_index = f.proto().oneof_index;
+      ++field_index;
     }
     message.num_slots = cur_slot;
   }
+  return {};
 }
 
 inline void dynamic_message_factory::setup_wellknown_types() {
@@ -209,28 +253,43 @@ inline void dynamic_message_factory::setup_wellknown_types() {
   }
 }
 
-inline void dynamic_message_factory::setup_enum_field_default_value() {
+inline status dynamic_message_factory::setup_enum_field_default_value() {
   using enum google::protobuf::FieldDescriptorProto_::Type;
   for (auto &field : pool_.fields()) {
     const auto &proto = field.proto();
     if (proto.type == TYPE_ENUM) {
+      auto *enum_desc = field.enum_field_type_descriptor();
+      if (enum_desc == nullptr) [[unlikely]] {
+        return std::errc::bad_message;
+      }
+      const auto &enum_values = enum_desc->proto().value;
+      if (enum_values.empty()) [[unlikely]] {
+        return std::errc::bad_message;
+      }
       if (!proto.default_value.empty()) {
-        field.default_value = *field.enum_field_type_descriptor()->value_of(proto.default_value);
+        auto *pdefault = enum_desc->value_of(proto.default_value);
+        if (pdefault == nullptr) [[unlikely]] {
+          return std::errc::bad_message;
+        }
+        field.default_value = *pdefault;
       } else if (field.explicit_presence()) {
         // In proto2, if you do not explicitly specify a [default = ...] option for an optional enum field, the
         // default value is the first value defined in that enum's definition.
-        field.default_value = field.enum_field_type_descriptor()->proto().value[0].number;
+        field.default_value = enum_values[0].number;
       } else {
         field.default_value = 0;
       }
     }
   }
+  return {};
 }
 
-inline void dynamic_message_factory::init() {
-  setup_storage_slots();
+inline status dynamic_message_factory::init() {
+  if (auto result = setup_storage_slots(); !result.ok()) {
+    return result;
+  }
   setup_wellknown_types();
-  setup_enum_field_default_value();
+  return setup_enum_field_default_value();
 }
 
 inline expected_message_mref dynamic_message_factory::get_message(std::string_view name,

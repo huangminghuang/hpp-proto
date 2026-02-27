@@ -24,8 +24,8 @@
 
 #include <cassert>
 #include <compare>
-#include <cstring>
 #include <expected>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -74,15 +74,27 @@ public:
   [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
 
   [[nodiscard]] bool has_value() const noexcept {
-    return descriptor().is_repeated() ? (storage_->of_repeated_uint64.size > 0)
-                                      : (storage_->of_int64.selection == descriptor().oneof_ordinal);
+    const uint32_t word = value_storage::read_selection_word(*storage_);
+    return descriptor().is_repeated() ? (word > 0) : (word == descriptor().oneof_ordinal);
   }
 
-  /// if the field is part of an oneof fields, return the active field index of the oneof. If the returned
-  /// value is smaller than 0, it means the oneof does not contains any value.
+  /// @brief Return presence and active-index information for this field.
+  /// @details
+  /// - negative return value: this field is not present
+  /// - non-negative return value:
+  ///   - oneof field: index of the active field in the same oneof
+  ///   - non-oneof field: index of this field itself
   [[nodiscard]] std::int32_t active_oneof_index() const {
-    return static_cast<std::int32_t>(storage_->of_int64.selection + descriptor().storage_slot) -
-           descriptor().oneof_ordinal;
+    const uint32_t selection = value_storage::read_selection_word(*storage_);
+    if (selection == 0) {
+      return -1;
+    }
+    const auto masked_selection = selection & descriptor().active_oneof_selection_mask;
+    const auto index =
+        static_cast<std::int64_t>(masked_selection) + static_cast<std::int64_t>(descriptor().active_oneof_index_bias);
+    return (index < std::numeric_limits<std::int32_t>::min() || index > std::numeric_limits<std::int32_t>::max())
+               ? -1
+               : static_cast<std::int32_t>(index);
   }
 
   template <typename T>
