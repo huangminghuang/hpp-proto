@@ -498,7 +498,6 @@ const ut::suite test_read_json_full_buffer = [] {
     auto status = hpp_proto::read_json<opts>(msg, R"({"value":)");
     expect(!status.ok());
   };
-
 };
 
 int main() {

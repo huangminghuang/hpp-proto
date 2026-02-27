@@ -61,8 +61,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
         descriptor_pool_t::make_file_descriptor_set(descs, hpp_proto::distinct_file_tag, hpp_proto::alloc_from(mr)));
   };
 
-  auto make_fileset_many = [&](std::initializer_list<OwningFileDescriptorProto> protos,
-                               std::pmr::memory_resource &mr) {
+  auto make_fileset_many = [&](std::initializer_list<OwningFileDescriptorProto> protos, std::pmr::memory_resource &mr) {
     std::vector<std::string> buffers;
     buffers.reserve(protos.size());
     std::vector<hpp_proto::file_descriptor_pb> descs;
@@ -88,325 +87,357 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   auto make_missing_type_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "missing_type.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "missing",
-                        .number = 1,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_MESSAGE,
-                        .type_name = ".MissingType",
-                    },
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "missing",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_MESSAGE,
+                                .type_name = ".MissingType",
+                            },
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_duplicate_field_number_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "duplicate_field_number.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "a",
-                        .number = 1,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                    },
-                    FieldProto{
-                        .name = "b",
-                        .number = 1,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_STRING,
-                    },
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "a",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                            },
+                            FieldProto{
+                                .name = "b",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_STRING,
+                            },
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_invalid_field_number_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "invalid_field_number.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "bad_zero",
-                        .number = 0,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                    },
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "bad_zero",
+                                .number = 0,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                            },
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_reserved_field_number_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "reserved_field_number.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "bad_reserved",
-                        .number = 19000,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                    },
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "bad_reserved",
+                                .number = 19000,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                            },
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_too_large_field_number_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "too_large_field_number.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "bad_large",
-                        .number = 536870912,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                    },
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "bad_large",
+                                .number = 536870912,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                            },
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_invalid_oneof_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "invalid_oneof.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "bad_oneof",
-                        .number = 1,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                        .oneof_index = 0,
-                    },
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "bad_oneof",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                                .oneof_index = 0,
+                            },
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_repeated_oneof_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "repeated_oneof.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "bad_repeated_oneof",
-                        .number = 1,
-                        .label = LABEL_REPEATED,
-                        .type = TYPE_INT32,
-                        .oneof_index = 0,
-                    },
-                },
-                .oneof_decl = {
-                    OneofProto{.name = "choice"},
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "bad_repeated_oneof",
+                                .number = 1,
+                                .label = LABEL_REPEATED,
+                                .type = TYPE_INT32,
+                                .oneof_index = 0,
+                            },
+                        },
+                    .oneof_decl =
+                        {
+                            OneofProto{.name = "choice"},
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_empty_oneof_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "empty_oneof.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .oneof_decl = {
-                    OneofProto{.name = "empty"},
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .oneof_decl =
+                        {
+                            OneofProto{.name = "empty"},
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_interleaved_oneof_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "interleaved_oneof.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "a",
-                        .number = 1,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                        .oneof_index = 0,
-                        .json_name = "a",
-                    },
-                    FieldProto{
-                        .name = "x",
-                        .number = 2,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                        .json_name = "x",
-                    },
-                    FieldProto{
-                        .name = "b",
-                        .number = 3,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                        .oneof_index = 0,
-                        .json_name = "b",
-                    },
-                },
-                .oneof_decl = {
-                    OneofProto{.name = "choice"},
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "a",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                                .oneof_index = 0,
+                                .json_name = "a",
+                            },
+                            FieldProto{
+                                .name = "x",
+                                .number = 2,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                                .json_name = "x",
+                            },
+                            FieldProto{
+                                .name = "b",
+                                .number = 3,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                                .oneof_index = 0,
+                                .json_name = "b",
+                            },
+                        },
+                    .oneof_decl =
+                        {
+                            OneofProto{.name = "choice"},
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_two_oneofs_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "two_oneofs.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "a1",
-                        .number = 1,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                        .oneof_index = 0,
-                    },
-                    FieldProto{
-                        .name = "a2",
-                        .number = 2,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                        .oneof_index = 0,
-                    },
-                    FieldProto{
-                        .name = "b1",
-                        .number = 3,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                        .oneof_index = 1,
-                    },
-                    FieldProto{
-                        .name = "b2",
-                        .number = 4,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_INT32,
-                        .oneof_index = 1,
-                    },
-                },
-                .oneof_decl = {
-                    OneofProto{.name = "choice_a"},
-                    OneofProto{.name = "choice_b"},
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "a1",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                                .oneof_index = 0,
+                            },
+                            FieldProto{
+                                .name = "a2",
+                                .number = 2,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                                .oneof_index = 0,
+                            },
+                            FieldProto{
+                                .name = "b1",
+                                .number = 3,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                                .oneof_index = 1,
+                            },
+                            FieldProto{
+                                .name = "b2",
+                                .number = 4,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                                .oneof_index = 1,
+                            },
+                        },
+                    .oneof_decl =
+                        {
+                            OneofProto{.name = "choice_a"},
+                            OneofProto{.name = "choice_b"},
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_missing_extendee_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "missing_extendee.proto",
-        .extension = {
-            FieldProto{
-                .name = "bad_ext",
-                .number = 100,
-                .label = LABEL_OPTIONAL,
-                .type = TYPE_INT32,
-                .extendee = ".MissingExtendee",
+        .extension =
+            {
+                FieldProto{
+                    .name = "bad_ext",
+                    .number = 100,
+                    .label = LABEL_OPTIONAL,
+                    .type = TYPE_INT32,
+                    .extendee = ".MissingExtendee",
+                },
             },
-        },
     };
   };
 
   auto make_invalid_extension_field_number_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "invalid_extension_field_number.proto",
-        .extension = {
-            FieldProto{
-                .name = "bad_ext_num",
-                .number = 19000,
-                .label = LABEL_OPTIONAL,
-                .type = TYPE_INT32,
-                .extendee = ".MissingExtendee",
+        .extension =
+            {
+                FieldProto{
+                    .name = "bad_ext_num",
+                    .number = 19000,
+                    .label = LABEL_OPTIONAL,
+                    .type = TYPE_INT32,
+                    .extendee = ".MissingExtendee",
+                },
             },
-        },
     };
   };
 
   auto make_invalid_enum_default_name_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "invalid_enum_default_name.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "enum_field",
-                        .number = 1,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_ENUM,
-                        .type_name = ".Root.E",
-                        .default_value = "DOES_NOT_EXIST",
-                    },
-                },
-                .enum_type = {
-                    EnumProto{
-                        .name = "E",
-                        .value = {
-                            EnumValueProto{.name = "ZERO", .number = 0},
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "enum_field",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_ENUM,
+                                .type_name = ".Root.E",
+                                .default_value = "DOES_NOT_EXIST",
+                            },
                         },
-                    },
+                    .enum_type =
+                        {
+                            EnumProto{
+                                .name = "E",
+                                .value =
+                                    {
+                                        EnumValueProto{.name = "ZERO", .number = 0},
+                                    },
+                            },
+                        },
                 },
             },
-        },
     };
   };
 
   auto make_empty_enum_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "empty_enum.proto",
-        .message_type = {
-            MessageProto{
-                .name = "Root",
-                .field = {
-                    FieldProto{
-                        .name = "enum_field",
-                        .number = 1,
-                        .label = LABEL_OPTIONAL,
-                        .type = TYPE_ENUM,
-                        .type_name = ".Root.E",
-                    },
-                },
-                .enum_type = {
-                    EnumProto{.name = "E"},
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "enum_field",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_ENUM,
+                                .type_name = ".Root.E",
+                            },
+                        },
+                    .enum_type =
+                        {
+                            EnumProto{.name = "E"},
+                        },
                 },
             },
-        },
     };
   };
 

@@ -23,9 +23,9 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <memory_resource>
-#include <limits>
 #include <span>
 #include <string>
 #include <string_view>

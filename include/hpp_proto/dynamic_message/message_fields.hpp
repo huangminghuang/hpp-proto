@@ -520,9 +520,7 @@ public:
   message_field_cref &operator=(message_field_cref &&) noexcept = default;
   ~message_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept {
-    return storage_->selection_matches(descriptor().oneof_ordinal);
-  }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const {
     if (!has_value()) {

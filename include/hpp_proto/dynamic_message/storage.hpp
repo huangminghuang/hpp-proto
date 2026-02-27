@@ -82,9 +82,7 @@ union value_storage {
     return read_selection_word(*this) == ordinal;
   }
 
-  [[nodiscard]] bool has_value() const noexcept {
-    return read_selection_word(*this) != 0;
-  }
+  [[nodiscard]] bool has_value() const noexcept { return read_selection_word(*this) != 0; }
   void reset() noexcept {
     // Similar to has_value(), we use memcpy to avoid undefined behavior when
     // writing to an inactive union member.
