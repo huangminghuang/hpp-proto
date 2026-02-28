@@ -834,10 +834,8 @@ private:
   }
 
   status build(file_descriptor_t &descriptor) {
-    const auto [_, inserted] = file_map_.try_emplace(descriptor.proto_.name, &descriptor);
-    if (!inserted) {
-      return std::errc::bad_message;
-    }
+    [[maybe_unused]] const auto inserted = file_map_.try_emplace(descriptor.proto_.name, &descriptor).second;
+    assert(inserted);
     const auto package = descriptor.proto_.package;
     descriptor.messages_.reserve(descriptor.proto_.message_type.size());
     for (auto &proto : descriptor.proto_.message_type) {

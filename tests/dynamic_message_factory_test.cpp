@@ -345,6 +345,32 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
   };
 
+  auto make_oneof_ordinal_overflow_fileset = [] {
+    OwningFileDescriptorProto file{
+        .name = "oneof_ordinal_overflow.proto",
+    };
+    MessageProto message{
+        .name = "Root",
+        .oneof_decl =
+            {
+                OneofProto{.name = "choice"},
+            },
+    };
+    const auto limit = static_cast<int32_t>(std::numeric_limits<uint16_t>::max());
+    message.field.reserve(static_cast<std::size_t>(limit));
+    for (int32_t i = 1; i <= limit; ++i) {
+      message.field.push_back(FieldProto{
+          .name = "f" + std::to_string(i),
+          .number = i,
+          .label = LABEL_OPTIONAL,
+          .type = TYPE_INT32,
+          .oneof_index = 0,
+      });
+    }
+    file.message_type.push_back(std::move(message));
+    return file;
+  };
+
   auto make_missing_extendee_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "missing_extendee.proto",
@@ -372,6 +398,27 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                     .label = LABEL_OPTIONAL,
                     .type = TYPE_INT32,
                     .extendee = ".MissingExtendee",
+                },
+            },
+    };
+  };
+
+  auto make_invalid_message_extension_field_number_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_message_extension_field_number.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .extension =
+                        {
+                            FieldProto{
+                                .name = "bad_ext_num",
+                                .number = 19000,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                            },
+                        },
                 },
             },
     };
@@ -459,11 +506,77 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
   };
 
+  auto make_empty_nested_message_name_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "empty_nested_message_name.proto",
+        .package = "pkg",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .nested_type = {MessageProto{.name = ""}},
+                },
+            },
+    };
+  };
+
+  auto make_invalid_deeply_nested_message_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_deeply_nested_message.proto",
+        .package = "pkg",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .nested_type =
+                        {
+                            MessageProto{
+                                .name = "Child",
+                                .nested_type = {MessageProto{.name = ""}},
+                            },
+                        },
+                },
+            },
+    };
+  };
+
   auto make_empty_enum_name_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "empty_enum_name.proto",
         .package = "pkg",
         .enum_type = {EnumProto{.name = "", .value = {EnumValueProto{.name = "ZERO", .number = 0}}}},
+    };
+  };
+
+  auto make_empty_nested_enum_name_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "empty_nested_enum_name.proto",
+        .package = "pkg",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .enum_type = {EnumProto{.name = "", .value = {EnumValueProto{.name = "ZERO", .number = 0}}}},
+                },
+            },
+    };
+  };
+
+  auto make_duplicate_nested_enum_full_name_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "duplicate_nested_enum_full_name.proto",
+        .package = "pkg",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .enum_type =
+                        {
+                            EnumProto{.name = "DupEnum", .value = {EnumValueProto{.name = "ZERO", .number = 0}}},
+                            EnumProto{.name = "DupEnum", .value = {EnumValueProto{.name = "ZERO", .number = 0}}},
+                        },
+                },
+            },
     };
   };
 
@@ -567,6 +680,11 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
+  "invalid_message_extension_field_number_sets_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_message_extension_field_number_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
   "missing_file_dependency_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_missing_dependency_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
@@ -582,8 +700,23 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
+  "empty_nested_message_name_sets_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_empty_nested_message_name_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "invalid_deeply_nested_message_sets_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_deeply_nested_message_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
   "empty_enum_name_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_empty_enum_name_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "empty_nested_enum_name_sets_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_empty_nested_enum_name_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
@@ -602,6 +735,11 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "duplicate_enum_full_name_sets_error"_test = [&] {
     auto files = make_duplicate_enum_full_name_fileset();
     auto desc_binpb = make_descriptor_set_binpb_many({files[0], files[1]});
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "duplicate_nested_enum_full_name_sets_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_duplicate_nested_enum_full_name_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
@@ -656,5 +794,33 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(!b1.has_value());
     expect(b2.has_value());
     expect(eq(b1.cref().active_oneof_index(), std::int32_t{3}));
+  };
+
+  "oneof_ordinal_overflow_sets_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_oneof_ordinal_overflow_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "factory_create_from_non_owning_fileset_overload_succeeds"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+        desc_binpb, hpp_proto::alloc_from(mr)));
+
+    auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
+    expect(factory.has_value());
+  };
+
+  "moved_from_factory_returns_unknown_message_name"_test = [&] {
+    auto src = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
+    auto dst = std::move(src);
+    std::pmr::monotonic_buffer_resource mr;
+
+    auto moved_from_msg = src.get_message("proto3_unittest.TestAllTypes", mr);
+    expect(!moved_from_msg.has_value());
+    expect(eq(moved_from_msg.error(), hpp_proto::dynamic_message_errc::unknown_message_name));
+
+    auto moved_to_msg = dst.get_message("proto3_unittest.TestAllTypes", mr);
+    expect(moved_to_msg.has_value());
   };
 };

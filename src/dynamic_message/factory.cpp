@@ -24,6 +24,7 @@
 #include <hpp_proto/dynamic_message/factory.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
 
+#include <cassert>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -48,17 +49,13 @@ template <typename FieldT>
 [[nodiscard]] dynamic_message_errc setup_oneof_field(FieldT &field, storage_slot_state &state,
                                                      std::size_t field_index) {
   const auto index = static_cast<std::size_t>(*field.proto().oneof_index);
-  if (index >= state.oneof_count) [[unlikely]] {
-    return dynamic_message_errc::bad_message;
-  }
+  assert(index < state.oneof_count);
   if (state.prev_oneof != index) {
     if (state.oneof_started[index]) [[unlikely]] {
       return dynamic_message_errc::bad_message;
     }
     state.oneof_started[index] = true;
-    if (state.cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
-      return dynamic_message_errc::bad_message;
-    }
+    assert(state.cur_slot != std::numeric_limits<uint32_t>::max());
     field.storage_slot = state.cur_slot++;
     state.oneof_next_ordinal = 1;
   } else {
@@ -68,13 +65,9 @@ template <typename FieldT>
     return dynamic_message_errc::bad_message;
   }
   field.oneof_ordinal = ++state.oneof_next_ordinal;
-  if (field_index > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) [[unlikely]] {
-    return dynamic_message_errc::bad_message;
-  }
+  assert(field_index <= static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max()));
   const auto bias = static_cast<std::int64_t>(field_index) - static_cast<std::int64_t>(field.oneof_ordinal);
-  if (bias < std::numeric_limits<std::int32_t>::min() || bias > std::numeric_limits<std::int32_t>::max()) [[unlikely]] {
-    return dynamic_message_errc::bad_message;
-  }
+  assert(bias >= std::numeric_limits<std::int32_t>::min() && bias <= std::numeric_limits<std::int32_t>::max());
   field.active_oneof_index_bias = static_cast<std::int32_t>(bias);
   field.active_oneof_selection_mask = std::numeric_limits<uint32_t>::max();
   state.prev_oneof = index;
@@ -85,14 +78,10 @@ template <typename FieldT>
 [[nodiscard]] dynamic_message_errc setup_non_oneof_field(FieldT &field, storage_slot_state &state,
                                                          std::size_t field_index) {
   state.prev_oneof = state.oneof_count;
-  if (state.cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
-    return dynamic_message_errc::bad_message;
-  }
+  assert(state.cur_slot != std::numeric_limits<uint32_t>::max());
   field.storage_slot = state.cur_slot++;
   field.oneof_ordinal = field.is_repeated() ? 0 : 1;
-  if (field_index > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) [[unlikely]] {
-    return dynamic_message_errc::bad_message;
-  }
+  assert(field_index <= static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max()));
   field.active_oneof_index_bias = static_cast<std::int32_t>(field_index);
   field.active_oneof_selection_mask = 0;
   return {};
@@ -186,9 +175,7 @@ private:
       const auto &proto = field.proto();
       if (proto.type == TYPE_ENUM) {
         auto *enum_desc = field.enum_field_type_descriptor();
-        if (enum_desc == nullptr) [[unlikely]] {
-          return std::unexpected(dynamic_message_errc::bad_message);
-        }
+        assert(enum_desc != nullptr);
         const auto &enum_values = enum_desc->proto().value;
         if (enum_values.empty()) [[unlikely]] {
           return std::unexpected(dynamic_message_errc::bad_message);
