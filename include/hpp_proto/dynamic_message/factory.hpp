@@ -110,9 +110,9 @@ public:
    */
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb, impl_allocator_type allocator = {}) {
-    return create_from_binpb(
-        std::as_bytes(std::span{std::ranges::data(file_descriptor_set_binpb), std::ranges::size(file_descriptor_set_binpb)}),
-        allocator);
+    return create_from_binpb(std::as_bytes(std::span{std::ranges::data(file_descriptor_set_binpb),
+                                                     std::ranges::size(file_descriptor_set_binpb)}),
+                             allocator);
   }
 
   /**

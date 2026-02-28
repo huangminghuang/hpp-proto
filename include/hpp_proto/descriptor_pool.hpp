@@ -441,8 +441,8 @@ public:
 
   template <std::ranges::forward_range Range>
     requires std::same_as<std::ranges::range_value_t<Range>, file_descriptor_pb>
-  static std::expected<FileDescriptorSet, std::errc> make_file_descriptor_set(Range const &descs,
-                                                                           concepts::is_option_type auto &&...option) {
+  static std::expected<FileDescriptorSet, std::errc>
+  make_file_descriptor_set(Range const &descs, concepts::is_option_type auto &&...option) {
     std::unordered_set<file_descriptor_pb> unique_files;
     unique_files.insert(std::ranges::begin(descs), std::ranges::end(descs));
 

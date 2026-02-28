@@ -20,8 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <hpp_proto/dynamic_message/factory.hpp>
 #include <hpp_proto/binpb.hpp>
+#include <hpp_proto/dynamic_message/factory.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
 
 #include <cstdint>
@@ -45,7 +45,8 @@ struct storage_slot_state {
 };
 
 template <typename FieldT>
-[[nodiscard]] dynamic_message_errc setup_oneof_field(FieldT &field, storage_slot_state &state, std::size_t field_index) {
+[[nodiscard]] dynamic_message_errc setup_oneof_field(FieldT &field, storage_slot_state &state,
+                                                     std::size_t field_index) {
   const auto index = static_cast<std::size_t>(*field.proto().oneof_index);
   if (index >= state.oneof_count) [[unlikely]] {
     return dynamic_message_errc::bad_message;
@@ -118,7 +119,8 @@ public:
         .and_then([this](auto &&fileset) { return initialize(std::move(fileset)); });
   }
 
-  [[nodiscard]] expected_message_mref get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const {
+  [[nodiscard]] expected_message_mref get_message(std::string_view name,
+                                                  std::pmr::monotonic_buffer_resource &mr) const {
     const auto *desc = pool_.get_message_descriptor(name);
     if (desc != nullptr) {
       return expected_message_mref{message_value_mref{*desc, mr}};
@@ -138,8 +140,8 @@ private:
       storage_slot_state state{oneof_count};
       std::size_t field_index = 0;
       for (auto &f : message.fields()) {
-        const auto ec =
-            f.proto().oneof_index.has_value() ? setup_oneof_field(f, state, field_index) : setup_non_oneof_field(f, state, field_index);
+        const auto ec = f.proto().oneof_index.has_value() ? setup_oneof_field(f, state, field_index)
+                                                          : setup_non_oneof_field(f, state, field_index);
         if (ec != dynamic_message_errc{}) {
           return std::unexpected(ec);
         }
@@ -171,7 +173,8 @@ private:
     };
 
     for (auto [name, id] : wellknown_mappings) {
-      if (auto *desc = pool_.get_message_descriptor(name); desc != nullptr && desc->parent_file()->wellknown_validated_) {
+      if (auto *desc = pool_.get_message_descriptor(name);
+          desc != nullptr && desc->parent_file()->wellknown_validated_) {
         desc->wellknown = id;
       }
     }
@@ -253,7 +256,9 @@ std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb,
                                            impl_allocator_type allocator) {
   impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
-  return impl->initialize(file_descriptor_set_binpb).transform([&] { return dynamic_message_factory{std::move(impl)}; });
+  return impl->initialize(file_descriptor_set_binpb).transform([&] {
+    return dynamic_message_factory{std::move(impl)};
+  });
 }
 
 expected_message_mref dynamic_message_factory::get_message(std::string_view name,

@@ -66,8 +66,8 @@ const suite test_dynamic_message_any = [] {
     fm.paths = {"/usr/share", "/usr/local/share"};
     expect(hpp_proto::pack_any(message.any_value.emplace(), fm).ok());
 
-    auto message_factory =
-        expect_ok(::hpp_proto::dynamic_message_factory::create(::hpp_proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
+    auto message_factory = expect_ok(::hpp_proto::dynamic_message_factory::create(
+        ::hpp_proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
 
     const std::string_view expected_json =
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/local/share"}})";
@@ -259,8 +259,8 @@ const suite test_dynamic_message_any = [] {
   };
 
   "type_not_found"_test = [data] {
-    auto message_factory =
-        expect_ok(hpp_proto::dynamic_message_factory::create(hpp_proto::file_descriptors::desc_set_google_protobuf_any_test_proto()));
+    auto message_factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+        hpp_proto::file_descriptors::desc_set_google_protobuf_any_test_proto()));
     std::string result;
     expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
   };

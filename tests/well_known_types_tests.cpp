@@ -293,8 +293,8 @@ const ut::suite test_empty = [] {
 
 const ut::suite test_value = [] {
   using namespace boost::ut;
-  auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
-      hpp_proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
+  auto factory = expect_ok(
+      hpp_proto::dynamic_message_factory::create(hpp_proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
 
   "value"_test = [&factory]<class Traits>() {
     using string_t = Traits::string_t;
