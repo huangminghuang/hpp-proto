@@ -1,7 +1,7 @@
 #include "test_util.hpp"
 #include <array>
 #include <boost/ut.hpp>
-#include <hpp_proto/descriptor_pool.hpp>
+#include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
 #include <hpp_proto/dynamic_message/json.hpp>
@@ -43,8 +43,8 @@ const boost::ut::suite parse_default_value_tests = [] {
 };
 
 const boost::ut::suite descriptor_pool_gap_tests = [] {
-  using descriptor_pool_t = hpp_proto::descriptor_pool<hpp_proto::dynamic_message_factory_addons>;
   using OwningFileDescriptorProto = google::protobuf::FileDescriptorProto<>;
+  using OwningFileDescriptorSet = google::protobuf::FileDescriptorSet<>;
   using MessageProto = google::protobuf::DescriptorProto<>;
   using FieldProto = google::protobuf::FieldDescriptorProto<>;
   using OneofProto = google::protobuf::OneofDescriptorProto<>;
@@ -53,27 +53,22 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   using enum google::protobuf::FieldDescriptorProto_::Label;
   using enum google::protobuf::FieldDescriptorProto_::Type;
 
-  auto make_fileset_one = [&](const OwningFileDescriptorProto &proto, std::pmr::memory_resource &mr) {
+  auto make_descriptor_set_binpb_one = [&](const OwningFileDescriptorProto &proto) {
     std::string buffer;
-    expect(hpp_proto::write_binpb(proto, buffer).ok());
-    std::array<hpp_proto::file_descriptor_pb, 1> descs{hpp_proto::file_descriptor_pb{buffer}};
-    return expect_ok(
-        descriptor_pool_t::make_file_descriptor_set(descs, hpp_proto::distinct_file_tag, hpp_proto::alloc_from(mr)));
+    OwningFileDescriptorSet file_set{.file = {proto}};
+    expect(hpp_proto::write_binpb(file_set, buffer).ok());
+    return buffer;
   };
 
-  auto make_fileset_many = [&](std::initializer_list<OwningFileDescriptorProto> protos, std::pmr::memory_resource &mr) {
-    std::vector<std::string> buffers;
-    buffers.reserve(protos.size());
-    std::vector<hpp_proto::file_descriptor_pb> descs;
-    descs.reserve(protos.size());
+  auto make_descriptor_set_binpb_many = [&](std::initializer_list<OwningFileDescriptorProto> protos) {
+    OwningFileDescriptorSet file_set;
+    file_set.file.reserve(protos.size());
     for (const auto &proto : protos) {
-      auto &buffer = buffers.emplace_back();
-      expect(hpp_proto::write_binpb(proto, buffer).ok());
-      descs.push_back(hpp_proto::file_descriptor_pb{buffer});
+      file_set.file.push_back(proto);
     }
-    return expect_ok(descriptor_pool_t::make_file_descriptor_set(std::span<const hpp_proto::file_descriptor_pb>{descs},
-                                                                 hpp_proto::distinct_file_tag,
-                                                                 hpp_proto::alloc_from(mr)));
+    std::string buffer;
+    expect(hpp_proto::write_binpb(file_set, buffer).ok());
+    return buffer;
   };
 
   auto make_invalid_edition_fileset = [] {
@@ -518,152 +513,112 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   "unsupported_edition_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_invalid_edition_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "missing_message_type_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_missing_type_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_missing_type_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "duplicate_field_number_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_duplicate_field_number_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_duplicate_field_number_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "invalid_field_number_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_invalid_field_number_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_field_number_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "reserved_field_number_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_reserved_field_number_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_reserved_field_number_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "too_large_field_number_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_too_large_field_number_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_too_large_field_number_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "invalid_oneof_index_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_invalid_oneof_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_oneof_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "repeated_oneof_field_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_repeated_oneof_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_repeated_oneof_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "empty_oneof_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_empty_oneof_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_empty_oneof_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "missing_extendee_type_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_missing_extendee_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_missing_extendee_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "invalid_extension_field_number_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_invalid_extension_field_number_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_extension_field_number_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "missing_file_dependency_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_missing_dependency_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_missing_dependency_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "empty_file_name_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_empty_file_name_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_empty_file_name_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "empty_message_name_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_empty_message_name_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_empty_message_name_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "empty_enum_name_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_empty_enum_name_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_empty_enum_name_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "duplicate_file_name_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
     auto files = make_duplicate_file_name_fileset();
-    auto fileset = make_fileset_many({files[0], files[1]}, mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_many({files[0], files[1]});
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "duplicate_message_full_name_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
     auto files = make_duplicate_message_full_name_fileset();
-    auto fileset = make_fileset_many({files[0], files[1]}, mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_many({files[0], files[1]});
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "duplicate_enum_full_name_sets_error"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
     auto files = make_duplicate_enum_full_name_fileset();
-    auto fileset = make_fileset_many({files[0], files[1]}, mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_many({files[0], files[1]});
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "invalid_enum_default_name_factory_init_fails"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_invalid_enum_default_name_fileset(), mr);
-    expect(!hpp_proto::dynamic_message_factory::create(std::move(fileset)).has_value());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_enum_default_name_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "empty_enum_factory_init_fails"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_empty_enum_fileset(), mr);
-    expect(!hpp_proto::dynamic_message_factory::create(std::move(fileset)).has_value());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_empty_enum_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "pmr_default_resource_restored_on_error"_test = [&] {
     auto *old_resource = std::pmr::get_default_resource();
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_invalid_edition_fileset(), mr);
-    descriptor_pool_t pool;
-    expect(!pool.init(std::move(fileset), mr).ok());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
 
     auto *current_resource = std::pmr::get_default_resource();
     if (current_resource != old_resource) {
@@ -673,10 +628,8 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   "factory_create_succeeds_after_failed_create"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-
-    auto invalid_fileset = make_fileset_one(make_invalid_oneof_fileset(), mr);
-    expect(!hpp_proto::dynamic_message_factory::create(std::move(invalid_fileset)).has_value());
+    auto invalid_desc_binpb = make_descriptor_set_binpb_one(make_invalid_oneof_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(invalid_desc_binpb).has_value());
 
     auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
 
@@ -686,15 +639,13 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   "interleaved_oneof_fields_factory_init_fails"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_interleaved_oneof_fileset(), mr);
-    expect(!hpp_proto::dynamic_message_factory::create(std::move(fileset)).has_value());
+    auto desc_binpb = make_descriptor_set_binpb_one(make_interleaved_oneof_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "active_oneof_index_second_oneof_points_to_active_field"_test = [&] {
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = make_fileset_one(make_two_oneofs_fileset(), mr);
-    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(std::move(fileset)));
+    auto desc_binpb = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(desc_binpb));
 
     std::pmr::monotonic_buffer_resource msg_mr;
     auto msg = expect_ok(factory.get_message("Root", msg_mr));

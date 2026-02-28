@@ -35,6 +35,7 @@
 #include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/binpb/concepts.hpp>
 #include <hpp_proto/dynamic_message/expected_message_mref.hpp>
+#include <hpp_proto/dynamic_message/export.hpp>
 #include <hpp_proto/file_descriptor_pb.hpp>
 
 namespace hpp_proto {
@@ -49,7 +50,7 @@ class dynamic_message_factory_impl;
  * Instances are created via `create(...)` and own an internal implementation
  * object that stores descriptor state and PMR resources.
  */
-class dynamic_message_factory {
+class HPP_PROTO_DYNAMIC_MESSAGE_EXPORT dynamic_message_factory {
 private:
   using file_descriptor_set_type = ::google::protobuf::FileDescriptorSet<non_owning_traits>;
 
