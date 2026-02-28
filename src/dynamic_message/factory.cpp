@@ -116,7 +116,7 @@ public:
   initialize(std::span<const std::byte> file_descriptor_set_binpb) {
     return ::hpp_proto::read_binpb<FileDescriptorSet>(file_descriptor_set_binpb, alloc_from(memory_resource_))
         .transform_error([](std::errc) { return dynamic_message_errc::bad_message; })
-        .and_then([this](auto &&fileset) { return initialize(std::move(fileset)); });
+        .and_then([this](auto &&fileset) { return initialize(std::forward<decltype(fileset)>(fileset)); });
   }
 
   [[nodiscard]] expected_message_mref get_message(std::string_view name,
@@ -248,7 +248,7 @@ dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> d
   impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
   return descriptor_pool_t::make_file_descriptor_set(descs, distinct_file_tag_t{}, alloc_from(impl->memory_resource()))
       .transform_error([](std::errc) { return dynamic_message_errc::bad_message; })
-      .and_then([&](auto &&fileset) { return impl->initialize(std::move(fileset)); })
+      .and_then([&](auto &&fileset) { return impl->initialize(std::forward<decltype(fileset)>(fileset)); })
       .transform([&] { return dynamic_message_factory{std::move(impl)}; });
 }
 

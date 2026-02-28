@@ -25,6 +25,7 @@ std::vector<char> read_file(const std::filesystem::path &path) {
 
 namespace {
 using factory_expected_t = decltype(hpp_proto::dynamic_message_factory::create(std::declval<std::vector<char> &>()));
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 factory_expected_t factory{std::unexpected(hpp_proto::dynamic_message_errc::unknown_message_name)};
 } // namespace
 
