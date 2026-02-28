@@ -47,11 +47,12 @@ int main() {
         return 1;
     }
 
-    hpp_proto::dynamic_message_factory factory;
-    if (!factory.init(filedescriptorset_binpb)) {
+    auto factory_result = hpp_proto::dynamic_message_factory::create(filedescriptorset_binpb);
+    if (!factory_result.has_value()) {
         std::cerr << "Error: Factory initialization failed (bad descriptors).\n";
         return 1;
     }
+    auto factory = std::move(factory_result).value();
 
     // ... rest of your code
     return 0;

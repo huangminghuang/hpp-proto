@@ -23,8 +23,7 @@ decltype(auto) expect_ok(Exp &&exp) {
 
 const boost::ut::suite dynamic_message_json_iterator_safety_tests = [] {
   "value_from_json_ws_handled_end_iterator_regression"_test = [] {
-    hpp_proto::dynamic_message_factory factory;
-    expect(factory.init(read_file("unittest.desc.binpb")));
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
     std::pmr::monotonic_buffer_resource mr;
     auto value_msg = expect_ok(factory.get_message("google.protobuf.Value", mr));
 
@@ -36,8 +35,7 @@ const boost::ut::suite dynamic_message_json_iterator_safety_tests = [] {
   };
 
   "enum_from_json_ws_handled_end_iterator_regression"_test = [] {
-    hpp_proto::dynamic_message_factory factory;
-    expect(factory.init(read_file("unittest.desc.binpb")));
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
     std::pmr::monotonic_buffer_resource mr;
     auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
 
@@ -49,8 +47,7 @@ const boost::ut::suite dynamic_message_json_iterator_safety_tests = [] {
   };
 
   "repeated_field_truncated_value_ws_handled_regression"_test = [] {
-    hpp_proto::dynamic_message_factory factory;
-    expect(factory.init(read_file("unittest.desc.binpb")));
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
     std::pmr::monotonic_buffer_resource mr;
     auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
 
@@ -65,8 +62,7 @@ const boost::ut::suite dynamic_message_json_iterator_safety_tests = [] {
 const boost::ut::suite dynamic_message_test = [] {
   using namespace boost::ut::literals;
 
-  hpp_proto::dynamic_message_factory factory;
-  expect(factory.init(read_file("unittest.desc.binpb")));
+  auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
 
   "unit"_test = [&factory](const std::string &message_name) -> void {
     using namespace std::string_literals;

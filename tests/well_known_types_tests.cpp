@@ -26,6 +26,7 @@
 
 #include <optional>
 #include <stdexcept>
+#include <utility>
 
 #include <boost/ut.hpp>
 namespace ut = boost::ut;
@@ -33,6 +34,12 @@ using source_location = boost::ut::reflection::source_location;
 using namespace ut;
 using namespace std::string_view_literals;
 using namespace std::string_literals;
+
+template <typename Exp>
+decltype(auto) expect_ok(Exp &&exp) {
+  expect(fatal(exp.has_value()));
+  return std::forward<Exp>(exp).value(); // NOLINT
+}
 
 #ifdef __GNUC__
 #ifdef __apple_build_version__
@@ -92,8 +99,8 @@ void expect_read_json_fail(const ::hpp_proto::dynamic_message_factory &factory, 
 const ut::suite test_timestamp = [] {
   using timestamp_t = google::protobuf::Timestamp<>;
 
-  hpp_proto::dynamic_message_factory factory;
-  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_timestamp_proto()));
+  auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+      hpp_proto::file_descriptors::desc_set_google_protobuf_timestamp_proto()));
 
   "verify Timestamp 1970-01-01T00:16:40Z"_test = [&factory] {
     verify<timestamp_t>(factory, timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
@@ -158,8 +165,8 @@ const ut::suite test_timestamp = [] {
 
 const ut::suite test_duration = [] {
   using duration_t = google::protobuf::Duration<>;
-  hpp_proto::dynamic_message_factory factory;
-  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_duration_proto()));
+  auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+      hpp_proto::file_descriptors::desc_set_google_protobuf_duration_proto()));
 
   "verify Duration 1000s"_test = [&factory] { verify<duration_t>(factory, duration_t{.seconds = 1000}, R"("1000s")"); };
 
@@ -219,8 +226,8 @@ const ut::suite test_duration = [] {
 };
 
 const ut::suite test_field_mask = [] {
-  hpp_proto::dynamic_message_factory factory;
-  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
+  auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+      hpp_proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
 
   using FieldMask = google::protobuf::FieldMask<>;
 
@@ -244,8 +251,8 @@ const ut::suite test_field_mask = [] {
 };
 
 const ut::suite test_wrapper = [] {
-  hpp_proto::dynamic_message_factory factory;
-  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_wrappers_proto()));
+  auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+      hpp_proto::file_descriptors::desc_set_google_protobuf_wrappers_proto()));
   using Int64Value = google::protobuf::Int64Value<>;
 
   "verify Int64Value 1000"_test = [&factory] { verify<Int64Value>(factory, Int64Value{1000, {}}, R"("1000")"); };
@@ -277,8 +284,8 @@ const ut::suite test_wrapper = [] {
 };
 
 const ut::suite test_empty = [] {
-  hpp_proto::dynamic_message_factory factory;
-  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_empty_proto()));
+  auto factory = expect_ok(
+      hpp_proto::dynamic_message_factory::create(hpp_proto::file_descriptors::desc_set_google_protobuf_empty_proto()));
   using Empty = google::protobuf::Empty<>;
 
   "verify Empty {}"_test = [&factory] { verify<Empty>(factory, Empty{}, "{}"); };
@@ -286,8 +293,8 @@ const ut::suite test_empty = [] {
 
 const ut::suite test_value = [] {
   using namespace boost::ut;
-  hpp_proto::dynamic_message_factory factory;
-  expect(factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
+  auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+      hpp_proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
 
   "value"_test = [&factory]<class Traits>() {
     using string_t = Traits::string_t;

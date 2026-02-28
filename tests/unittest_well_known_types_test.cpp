@@ -4,8 +4,15 @@
 #include "hpp_proto/dynamic_message/json.hpp"
 #include "test_util.hpp"
 #include <boost/ut.hpp>
+#include <utility>
 
 using namespace boost::ut;
+
+template <typename Exp>
+decltype(auto) expect_ok(Exp &&exp) {
+  expect(fatal(exp.has_value()));
+  return std::forward<Exp>(exp).value(); // NOLINT
+}
 
 template <typename Traits>
 struct WellKnownTypesTests {
@@ -159,10 +166,9 @@ struct WellKnownTypesTests {
                                                     {data.data(), data.size()});
       expect(fatal(!original_json.empty()));
 
-      ::hpp_proto::dynamic_message_factory message_factory;
       using hpp_proto::use_factory;
       using hpp_proto::alloc_from;
-      expect(message_factory.init(unittest_descriptorset));
+      auto message_factory = expect_ok(::hpp_proto::dynamic_message_factory::create(unittest_descriptorset));
       auto my_json = hpp_proto::write_json(original, use_factory{message_factory}).value();
       expect(eq(my_json, original_json));
 

@@ -649,19 +649,13 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "invalid_enum_default_name_factory_init_fails"_test = [&] {
     std::pmr::monotonic_buffer_resource mr;
     auto fileset = make_fileset_one(make_invalid_enum_default_name_fileset(), mr);
-    hpp_proto::dynamic_message_factory factory;
-    factory.init(std::move(fileset));
-    std::pmr::monotonic_buffer_resource msg_mr;
-    expect(!factory.get_message("Root", msg_mr).has_value());
+    expect(!hpp_proto::dynamic_message_factory::create(std::move(fileset)).has_value());
   };
 
   "empty_enum_factory_init_fails"_test = [&] {
     std::pmr::monotonic_buffer_resource mr;
     auto fileset = make_fileset_one(make_empty_enum_fileset(), mr);
-    hpp_proto::dynamic_message_factory factory;
-    factory.init(std::move(fileset));
-    std::pmr::monotonic_buffer_resource msg_mr;
-    expect(!factory.get_message("Root", msg_mr).has_value());
+    expect(!hpp_proto::dynamic_message_factory::create(std::move(fileset)).has_value());
   };
 
   "pmr_default_resource_restored_on_error"_test = [&] {
@@ -678,14 +672,13 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(current_resource == old_resource);
   };
 
-  "factory_reinit_succeeds_after_failed_init"_test = [&] {
-    hpp_proto::dynamic_message_factory factory;
+  "factory_create_succeeds_after_failed_create"_test = [&] {
     std::pmr::monotonic_buffer_resource mr;
 
     auto invalid_fileset = make_fileset_one(make_invalid_oneof_fileset(), mr);
-    factory.init(std::move(invalid_fileset));
+    expect(!hpp_proto::dynamic_message_factory::create(std::move(invalid_fileset)).has_value());
 
-    expect(factory.init(read_file("unittest.desc.binpb")));
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
 
     std::pmr::monotonic_buffer_resource mr2;
     auto msg = factory.get_message("proto3_unittest.TestAllTypes", mr2);
@@ -695,18 +688,13 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "interleaved_oneof_fields_factory_init_fails"_test = [&] {
     std::pmr::monotonic_buffer_resource mr;
     auto fileset = make_fileset_one(make_interleaved_oneof_fileset(), mr);
-    hpp_proto::dynamic_message_factory factory;
-    factory.init(std::move(fileset));
-
-    std::pmr::monotonic_buffer_resource msg_mr;
-    expect(!factory.get_message("Root", msg_mr).has_value());
+    expect(!hpp_proto::dynamic_message_factory::create(std::move(fileset)).has_value());
   };
 
   "active_oneof_index_second_oneof_points_to_active_field"_test = [&] {
     std::pmr::monotonic_buffer_resource mr;
     auto fileset = make_fileset_one(make_two_oneofs_fileset(), mr);
-    hpp_proto::dynamic_message_factory factory;
-    factory.init(std::move(fileset));
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(std::move(fileset)));
 
     std::pmr::monotonic_buffer_resource msg_mr;
     auto msg = expect_ok(factory.get_message("Root", msg_mr));

@@ -66,7 +66,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           using non_owning_message_t = decltype(hpp_proto::rebind_traits<hpp_proto::non_owning_traits>(owning_message));
           auto msg_name = message_name(owning_message);
           non_owning_message_t non_owning_message;
-          hpp_proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
+          hpp_proto::message_value_mref dyn_message = get_factory().get_message(msg_name, mr).value();
 
           // Google's parser can accept bytes that serialize differently for map fields. Example schema:
           // ```
@@ -85,7 +85,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           if (dyn_read_ok) {
             auto non_owning_write = round_trip_test(non_owning_message, non_owning_message_t{});
             auto owning_write = round_trip_test(owning_message, owning_message_t{});
-            auto dyn_write = round_trip_test(dyn_message, factory.get_message(msg_name, mr).value());
+            auto dyn_write = round_trip_test(dyn_message, get_factory().get_message(msg_name, mr).value());
 
             if (msg_name != "protobuf_unittest.TestMap"sv && msg_name != "proto2_unittest.TestWellKnownTypes"sv) {
               // Map fields can reorder entries on read, so encoded bytes may differ.

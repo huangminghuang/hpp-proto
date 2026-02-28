@@ -55,7 +55,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           using owning_message_t = decltype(hpp_proto::rebind_traits<hpp_proto::stable_traits>(non_owning_message));
           std::string_view msg_name = message_name(non_owning_message);
           owning_message_t owning_message;
-          hpp_proto::message_value_mref dyn_message = factory.get_message(msg_name, mr).value();
+          hpp_proto::message_value_mref dyn_message = get_factory().get_message(msg_name, mr).value();
 
           auto non_owning_read_status = util::read_json(non_owning_message, input, hpp_proto::alloc_from{mr});
           auto owning_read_status = util::read_json(owning_message, input, hpp_proto::alloc_from{mr});
@@ -77,7 +77,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
           if (dyn_read_status.ok()) {
             round_trip_test(non_owning_message, non_owning_message_t{});
             round_trip_test(owning_message, owning_message_t{});
-            round_trip_test(dyn_message, factory.get_message(msg_name, mr).value());
+            round_trip_test(dyn_message, get_factory().get_message(msg_name, mr).value());
           }
           return dyn_read_status.ok() ? 0 : -1;
         },

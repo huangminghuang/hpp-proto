@@ -422,7 +422,7 @@ public:
         : file_descriptor_base(proto, default_features), addon_type(*this) {}
   };
 
-  static std::expected<FileDescriptorSet, status>
+  static std::expected<FileDescriptorSet, std::errc>
   make_file_descriptor_set(concepts::file_descriptor_pb_range auto const &unique_descs, distinct_file_tag_t,
                            concepts::is_option_type auto &&...option) {
     std::expected<FileDescriptorSet, status> result;
@@ -441,7 +441,7 @@ public:
 
   template <std::ranges::forward_range Range>
     requires std::same_as<std::ranges::range_value_t<Range>, file_descriptor_pb>
-  static std::expected<FileDescriptorSet, status> make_file_descriptor_set(Range const &descs,
+  static std::expected<FileDescriptorSet, std::errc> make_file_descriptor_set(Range const &descs,
                                                                            concepts::is_option_type auto &&...option) {
     std::unordered_set<file_descriptor_pb> unique_files;
     unique_files.insert(std::ranges::begin(descs), std::ranges::end(descs));
