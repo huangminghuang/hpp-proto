@@ -22,6 +22,22 @@ This command will create `addressbook_proto3.desc.binpb`, a binary file containi
 
 The `hpp_proto::dynamic_message_factory` is responsible for owning and managing the loaded descriptors. Individual dynamic messages created by the factory will borrow a caller-owned `std::pmr::monotonic_buffer_resource` for their allocations.
 
+### CMake Linking
+
+`dynamic_message_factory` is provided by the `hpp_proto::dynamic_message` target:
+
+```cmake
+target_link_libraries(your_target PRIVATE hpp_proto::dynamic_message)
+```
+
+### API Notes
+
+* `dynamic_message_factory` has no default constructor. Create it via `dynamic_message_factory::create(...)`.
+* `create(...)` returns `std::expected<dynamic_message_factory, dynamic_message_errc>`.
+* `create(...)` overloads accept an optional allocator parameter via
+  `dynamic_message_factory::impl_allocator_type`.
+* By design, `create(...)` does not catch `std::bad_alloc` thrown by standard containers.
+
 ```cpp
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <fstream>

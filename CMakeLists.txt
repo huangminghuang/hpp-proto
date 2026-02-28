@@ -36,6 +36,7 @@ add_library(hpp_proto_core INTERFACE)
 
 file(GLOB_RECURSE HPP_PROTO_CORE_PUBLIC_HEADERS CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/include/hpp_proto/*.hpp")
+list(FILTER HPP_PROTO_CORE_PUBLIC_HEADERS EXCLUDE REGEX ".*/include/hpp_proto/dynamic_message/.*\\.hpp$")
 target_sources(hpp_proto_core INTERFACE
   FILE_SET HEADERS
   BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -58,9 +59,7 @@ if(NOT HPP_PROTO_PROTOC_PLUGIN)
 endif()
 
 include(cmake/protobuf_generate_hpp.cmake)
-
-add_subdirectory(protoc-plugin)
-include(hpp_proto.cmake)
+add_subdirectory(src)
 
 if(HPP_PROTO_TESTS AND NOT HPP_PROTO_PROTOC STREQUAL "compile")
   include(cmake/grpc_check.cmake)

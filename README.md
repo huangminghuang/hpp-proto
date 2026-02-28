@@ -6,7 +6,7 @@
 [![codecov](https://codecov.io/github/huangminghuang/hpp-proto/graph/badge.svg?token=C2DD0WLCRC&flag=ci)](https://codecov.io/github/huangminghuang/hpp-proto)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/c629f1cf7a7c45b3b3640362da4ac95a)](https://app.codacy.com/gh/huangminghuang/hpp-proto/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-Hpp-proto is a modern, high-performance, and header-only C++23 implementation of Google's Protocol Buffers. It is designed from the ground up for extreme performance and minimal code size, making it an ideal choice for resource-constrained environments, real-time systems, and performance-critical applications.
+Hpp-proto is a modern, high-performance C++23 implementation of Google's Protocol Buffers. It is designed from the ground up for extreme performance and minimal code size, making it an ideal choice for resource-constrained environments, real-time systems, and performance-critical applications.
 
 The library leverages modern C++ features and a trait-based design to generate clean, efficient, and highly customizable C++ aggregates from your `.proto` files. It provides first-class support for both binary and JSON serialization, gRPC integration, and dynamic messages.
 
@@ -14,7 +14,7 @@ The library leverages modern C++ features and a trait-based design to generate c
 
 * **High Performance**: Outperforms the official Google Protobuf library in many common use cases, especially in combined "set and serialize" operations.
 * **Modern C++23 Design**: Uses concepts, `consteval`, `std::span`, and other modern features for maximum type safety and performance. The generated code is clean, idiomatic, and easy to work with.
-* **Header-Only Core**: The core serialization library is header-only (with one external dependency for UTF-8 validation), simplifying integration into any build system.
+* **Header-Only Core + Optional Runtime**: The core serialization library is header-only (with one external dependency for UTF-8 validation), while dynamic-message support is provided as a runtime library target (`hpp_proto::dynamic_message`).
 * **JSON Support**: First-class serialization and deserialization to and from the canonical ProtoJSON format, powered by the high-performance [glaze](https://github.com/stephenberry/glaze) library.
 * **Trait-Based Customization**: A unique trait-based system allows you to customize the generated types without modifying the generated code. Easily swap in custom containers, allocators (like `std::pmr`), or string types to perfectly match your application's memory management strategy.
 * **Non-Owning Mode**: Supports a zero-copy mode that utilizes `std::string_view` and `std::span` to avoid unnecessary memory copies.
@@ -187,6 +187,16 @@ cmake --build build
 You should see output indicating that both binary and JSON round-trips were successful.
 
 ## Advanced Usage & Concepts
+
+### Library Targets
+
+`hpp-proto` separates the runtime dynamic-message implementation from the header-only core:
+
+
+* `hpp_proto::dynamic_message`: Runtime dynamic-message factory and descriptor-driven message APIs.
+* `hpp_proto::hpp_proto`: Header-only core APIs (binary/json codecs, generated-message support).
+
+If your code includes headers under `hpp_proto/dynamic_message/*`, link `hpp_proto::dynamic_message`.
 
 ### Trait-Based Design
 

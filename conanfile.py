@@ -22,12 +22,11 @@ class HppProtoConan(ConanFile):
     }
     exports_sources = (
         "CMakeLists.txt",
-        "hpp_proto.cmake",
         "cmake/*",
         "hpp_proto-config.cmake.in",
         "third-parties.cmake",
         "include/*",
-        "protoc-plugin/*",
+        "src/*",
         "tests/*",
         "tutorial/*",
         "LICENSE",
@@ -109,6 +108,11 @@ class HppProtoConan(ConanFile):
         self.cpp_info.libs = ["is_utf8"]
         self.cpp_info.set_property("cmake_target_name", "hpp_proto::hpp_proto")
         self.cpp_info.requires = ["glaze::glaze"]
+
+        dynamic_message = self.cpp_info.components["dynamic_message"]
+        dynamic_message.libs = ["dynamic_message"]
+        dynamic_message.set_property("cmake_target_name", "hpp_proto::dynamic_message")
+        dynamic_message.requires = ["glaze::glaze"]
 
         self.cpp_info.set_property(
             "cmake_build_modules",
