@@ -10,7 +10,7 @@ class HppProtoConan(ConanFile):
     license = "Apache-2.0"
     url = "https://github.com/huangminghuang/hpp-proto"
     description = "A modern C++23 implementation of Protocol Buffers."
-    topics = ("protobuf", "serialization", "codegen", "header-only")
+    topics = ("protobuf", "serialization", "codegen")
     settings = ("os", "compiler", "build_type", "arch")
     options = {
         "tests": [True, False],
@@ -112,12 +112,20 @@ class HppProtoConan(ConanFile):
         core.set_property("cmake_target_name", "hpp_proto::hpp_proto_core")
         core.requires = ["glaze::glaze"]
 
-        self.cpp_info.requires = ["core"]
+        well_known_types = self.cpp_info.components["well_known_types"]
+        well_known_types.set_property("cmake_target_name", "hpp_proto::well_known_types")
+        well_known_types.requires = ["core"]
+
+        descriptor_lib = self.cpp_info.components["descriptor_lib"]
+        descriptor_lib.set_property("cmake_target_name", "hpp_proto::descriptor_lib")
+        descriptor_lib.requires = ["core"]
+
+        self.cpp_info.requires = ["core", "well_known_types", "descriptor_lib"]
 
         dynamic_message = self.cpp_info.components["dynamic_message"]
         dynamic_message.libs = ["dynamic_message"]
         dynamic_message.set_property("cmake_target_name", "hpp_proto::dynamic_message")
-        dynamic_message.requires = ["core", "glaze::glaze"]
+        dynamic_message.requires = ["core", "well_known_types", "glaze::glaze"]
 
         self.cpp_info.set_property(
             "cmake_build_modules",
