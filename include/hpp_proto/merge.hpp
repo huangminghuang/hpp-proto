@@ -34,6 +34,8 @@
 #include <hpp_proto/binpb/util.hpp>
 
 namespace hpp_proto {
+template <typename>
+inline constexpr bool dependent_false_v = false;
 
 namespace detail {
 template <typename Tuple1, typename Tuple2, std::size_t... I>
@@ -134,16 +136,18 @@ struct message_merger {
   }
 
   template <concepts::repeated T, typename U>
-    requires(std::assignable_from<typename T::value_type &, typename U::value_type> && !std::is_lvalue_reference_v<U>)
+    requires(std::convertible_to<typename U::value_type, std::remove_const_t<typename T::value_type>> &&
+             !std::is_lvalue_reference_v<U>)
   constexpr void perform(T &dest, U &&source) {
     if constexpr (std::ranges::contiguous_range<U>) {
       if (dest.empty()) {
-        if constexpr (std::assignable_from<T &, U>) {
+        if constexpr (requires { dest = std::forward<U>(source); }) {
           dest = std::forward<U>(source);
-        } else {
+          return;
+        } else if constexpr (requires { dest.assign(std::make_move_iterator(source.begin()), std::make_move_iterator(source.end())); }) {
           dest.assign(std::make_move_iterator(source.begin()), std::make_move_iterator(source.end()));
+          return;
         }
-        return;
       }
     }
     decltype(auto) v = detail::as_modifiable(ctx, dest);
@@ -157,16 +161,17 @@ struct message_merger {
   }
 
   template <concepts::repeated T, typename U>
-    requires(std::assignable_from<typename T::value_type &, typename U::value_type>)
+    requires std::convertible_to<typename U::value_type, std::remove_const_t<typename T::value_type>>
   constexpr void perform(T &dest, const U &source) {
     if constexpr (std::ranges::contiguous_range<U>) {
       if (dest.empty()) {
-        if constexpr (std::assignable_from<T &, U>) {
+        if constexpr (requires { dest = source; }) {
           dest = source;
-        } else {
+          return;
+        } else if constexpr (requires { dest.assign(source.begin(), source.end()); }) {
           dest.assign(source.begin(), source.end());
+          return;
         }
-        return;
       }
     }
     decltype(auto) v = detail::as_modifiable(ctx, dest);
@@ -174,7 +179,7 @@ struct message_merger {
   }
 
   template <concepts::repeated T, typename U>
-    requires(!std::assignable_from<typename T::value_type &, typename U::value_type>)
+    requires(!std::convertible_to<typename U::value_type, std::remove_const_t<typename T::value_type>>)
   constexpr void perform(T &dest, auto const &source) {
     decltype(auto) x = detail::as_modifiable(ctx, dest);
     auto orig_size = dest.size();
@@ -244,14 +249,17 @@ struct message_merger {
 
   template <concepts::singular T, typename U>
   constexpr void perform(T &dest, U &&source) {
-    if constexpr (std::assignable_from<T &, U>) {
+    if constexpr (requires { dest = std::forward<U>(source); }) {
       dest = std::forward<U>(source);
     } else if constexpr (requires { dest.assign_range(source); }) {
       dest.assign_range(source);
     } else if constexpr (requires { dest.assign(source.begin(), source.end()); }) {
       dest.assign(source.begin(), source.end());
+    } else if constexpr (requires { detail::as_modifiable(ctx, dest).assign_range(source); }) {
+      auto v = detail::as_modifiable(ctx, dest);
+      v.assign_range(source);
     } else {
-      static_assert(false, "invalid operation");
+      static_assert(dependent_false_v<U>, "invalid operation");
     }
   }
 };

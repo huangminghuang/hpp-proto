@@ -780,45 +780,61 @@ struct TestSuite {
 
     // -----------------------------------------------------------------
 
-    expect_set_extension_ok(repeated_int32_extension_t{.value = std::initializer_list<int32_t>{201, 301}});
-    expect_set_extension_ok(repeated_int64_extension_t{.value = std::initializer_list<int64_t>{202LL, 302LL}});
-    expect_set_extension_ok(repeated_uint32_extension_t{.value = std::initializer_list<uint32_t>{203U, 303U}});
-    expect_set_extension_ok(repeated_uint64_extension_t{.value = std::initializer_list<uint64_t>{204ULL, 304ULL}});
-    expect_set_extension_ok(repeated_sint32_extension_t{.value = std::initializer_list<int32_t>{205, 305}});
-    expect_set_extension_ok(repeated_sint64_extension_t{.value = std::initializer_list<int64_t>{206LL, 306LL}});
-    expect_set_extension_ok(repeated_fixed32_extension_t{.value = std::initializer_list<uint32_t>{207U, 307U}});
-    expect_set_extension_ok(repeated_fixed64_extension_t{.value = std::initializer_list<uint64_t>{208ULL, 308ULL}});
-    expect_set_extension_ok(repeated_sfixed32_extension_t{.value = std::initializer_list<int32_t>{209, 309}});
-    expect_set_extension_ok(repeated_sfixed64_extension_t{.value = std::initializer_list<int64_t>{210LL, 310LL}});
-    expect_set_extension_ok(repeated_float_extension_t{.value = std::initializer_list<float>{211, 311}});
-    expect_set_extension_ok(repeated_double_extension_t{.value = std::initializer_list<double>{212, 312}});
-    expect_set_extension_ok(repeated_bool_extension_t{.value = std::initializer_list<bool_t>{true, false}});
-    expect_set_extension_ok(repeated_string_extension_t{.value = std::initializer_list<string_t>{"215", "315"}});
-    expect_set_extension_ok(
-        repeated_bytes_extension_t{.value = std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes}});
+    const static auto repeated_int32 = std::initializer_list<int32_t>{201, 301};
+    const static auto repeated_int64 = std::initializer_list<int64_t>{202LL, 302LL};
+    const static auto repeated_uint32 = std::initializer_list<uint32_t>{203U, 303U};
+    const static auto repeated_uint64 = std::initializer_list<uint64_t>{204ULL, 304ULL};
+    const static auto repeated_sint32 = std::initializer_list<int32_t>{205, 305};
+    const static auto repeated_sint64 = std::initializer_list<int64_t>{206LL, 306LL};
+    const static auto repeated_fixed32 = std::initializer_list<uint32_t>{207U, 307U};
+    const static auto repeated_fixed64 = std::initializer_list<uint64_t>{208ULL, 308ULL};
+    const static auto repeated_sfixed32 = std::initializer_list<int32_t>{209, 309};
+    const static auto repeated_sfixed64 = std::initializer_list<int64_t>{210LL, 310LL};
+    const static auto repeated_float = std::initializer_list<float>{211.F, 311.F};
+    const static auto repeated_double = std::initializer_list<double>{212., 312.};
+    const static auto repeated_bool = std::initializer_list<bool_t>{true, false};
+    const static auto repeated_string = std::initializer_list<string_t>{"215", "315"};
+    const static auto repeated_bytes = std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes};
+    const static auto repeated_group = std::initializer_list<RepeatedGroup_extension_t>{{.a = 217}, {.a = 317}};
+    const static auto repeated_nested_message = std::initializer_list<NestedMessage_t>{{.bb = 218}, {.bb = 318}};
+    const static auto repeated_foreign_message = std::initializer_list<ForeignMessage_t>{{.c = 219}, {.c = 319}};
+    const static auto repeated_import_message = std::initializer_list<ImportMessage_t>{{.d = 220}, {.d = 320}};
+    const static auto repeated_lazy_message = std::initializer_list<NestedMessage_t>{{.bb = 227}, {.bb = 327}};
+    const static auto repeated_nested_enum = std::initializer_list<NestedEnum>{NestedEnum::BAR, NestedEnum::BAZ};
 
-    expect_set_extension_ok(
-        repeatedgroup_extension_t{.value = std::initializer_list<RepeatedGroup_extension_t>{{.a = 217}, {.a = 317}}});
-    expect_set_extension_ok(
-        repeated_nested_message_extension_t{.value = std::initializer_list<NestedMessage_t>{{.bb = 218}, {.bb = 318}}});
-    expect_set_extension_ok(
-        repeated_foreign_message_extension_t{.value = std::initializer_list<ForeignMessage_t>{{.c = 219}, {.c = 319}}});
-    expect_set_extension_ok(
-        repeated_import_message_extension_t{.value = std::initializer_list<ImportMessage_t>{{.d = 220}, {.d = 320}}});
-    expect_set_extension_ok(
-        repeated_lazy_message_extension_t{.value = std::initializer_list<NestedMessage_t>{{.bb = 227}, {.bb = 327}}});
-
-    expect_set_extension_ok(
-        repeated_nested_enum_extension_t{.value = std::initializer_list<NestedEnum>{NestedEnum::BAR, NestedEnum::BAZ}});
+    expect_set_extension_ok(repeated_int32_extension_t{.value = repeated_int32});
+    expect_set_extension_ok(repeated_int64_extension_t{.value = repeated_int64});
+    expect_set_extension_ok(repeated_uint32_extension_t{.value = repeated_uint32});
+    expect_set_extension_ok(repeated_uint64_extension_t{.value = repeated_uint64});
+    expect_set_extension_ok(repeated_sint32_extension_t{.value = repeated_sint32});
+    expect_set_extension_ok(repeated_sint64_extension_t{.value = repeated_sint64});
+    expect_set_extension_ok(repeated_fixed32_extension_t{.value = repeated_fixed32});
+    expect_set_extension_ok(repeated_fixed64_extension_t{.value = repeated_fixed64});
+    expect_set_extension_ok(repeated_sfixed32_extension_t{.value = repeated_sfixed32});
+    expect_set_extension_ok(repeated_sfixed64_extension_t{.value = repeated_sfixed64});
+    expect_set_extension_ok(repeated_float_extension_t{.value = repeated_float});
+    expect_set_extension_ok(repeated_double_extension_t{.value = repeated_double});
+    expect_set_extension_ok(repeated_bool_extension_t{.value = repeated_bool});
+    expect_set_extension_ok(repeated_string_extension_t{.value = repeated_string});
+    expect_set_extension_ok(repeated_bytes_extension_t{.value = repeated_bytes});
+    expect_set_extension_ok(repeatedgroup_extension_t{.value = repeated_group});
+    expect_set_extension_ok(repeated_nested_message_extension_t{.value = repeated_nested_message});
+    expect_set_extension_ok(repeated_foreign_message_extension_t{.value = repeated_foreign_message});
+    expect_set_extension_ok(repeated_import_message_extension_t{.value = repeated_import_message});
+    expect_set_extension_ok(repeated_lazy_message_extension_t{.value = repeated_lazy_message});
+    expect_set_extension_ok(repeated_nested_enum_extension_t{.value = repeated_nested_enum});
     using foreign_enum_t = typename repeated_foreign_enum_extension_t::value_type::value_type;
-    expect_set_extension_ok(repeated_foreign_enum_extension_t{
-        .value = std::initializer_list<foreign_enum_t>{mapping_t::FOREIGN_BAR, mapping_t::FOREIGN_BAZ}});
+    const static auto repeated_foreign_enum =
+        std::initializer_list<foreign_enum_t>{mapping_t::FOREIGN_BAR, mapping_t::FOREIGN_BAZ};
+    expect_set_extension_ok(repeated_foreign_enum_extension_t{.value = repeated_foreign_enum});
     using import_enum_t = typename repeated_import_enum_extension_t::value_type::value_type;
-    expect_set_extension_ok(repeated_import_enum_extension_t{
-        .value = std::initializer_list<import_enum_t>{mapping_t::IMPORT_BAR, mapping_t::IMPORT_BAZ}});
-
-    expect_set_extension_ok(repeated_string_piece_extension_t{.value = std::initializer_list<string_t>{"224", "324"}});
-    expect_set_extension_ok(repeated_cord_extension_t{.value = std::initializer_list<string_t>{"225", "325"}});
+    const static auto repeated_import_enum =
+        std::initializer_list<import_enum_t>{mapping_t::IMPORT_BAR, mapping_t::IMPORT_BAZ};
+    const static auto repeated_string_piece = std::initializer_list<string_t>{"224", "324"};
+    const static auto repeated_cord = std::initializer_list<string_t>{"225", "325"};
+    expect_set_extension_ok(repeated_import_enum_extension_t{.value = repeated_import_enum});
+    expect_set_extension_ok(repeated_string_piece_extension_t{.value = repeated_string_piece});
+    expect_set_extension_ok(repeated_cord_extension_t{.value = repeated_cord});
 
     // -----------------------------------------------------------------
 
@@ -1232,22 +1248,35 @@ struct TestSuite {
     auto expect_set_extension_ok = [&](auto &&ext) {
       expect(message->set_extension(ext, hpp_proto::alloc_from{mr}).ok());
     };
+    const static auto packed_int32 = std::initializer_list<int32_t>{601, 701};
+    const static auto packed_int64 = std::initializer_list<int64_t>{602, 702};
+    const static auto packed_uint32 = std::initializer_list<uint32_t>{603, 703};
+    const static auto packed_uint64 = std::initializer_list<uint64_t>{604, 704};
+    const static auto packed_sint32 = std::initializer_list<int32_t>{605, 705};
+    const static auto packed_sint64 = std::initializer_list<int64_t>{606, 706};
+    const static auto packed_fixed32 = std::initializer_list<uint32_t>{607, 707};
+    const static auto packed_fixed64 = std::initializer_list<uint64_t>{608, 708};
+    const static auto packed_sfixed32 = std::initializer_list<int32_t>{609, 709};
+    const static auto packed_sfixed64 = std::initializer_list<int64_t>{610, 710};
+    const static auto packed_float = std::initializer_list<float>{611.F, 711.F};
+    const static auto packed_double = std::initializer_list<double>{612., 712.};
+    const static auto packed_bool = std::initializer_list<bool_t>{true, false};
+    const static auto packed_enum = std::initializer_list<ForeignEnum>{mapping_t::FOREIGN_BAR, mapping_t::FOREIGN_BAZ};
 
-    expect_set_extension_ok(packed_int32_extension_t{.value = std::initializer_list<int32_t>{601, 701}});
-    expect_set_extension_ok(packed_int64_extension_t{.value = std::initializer_list<int64_t>{602, 702}});
-    expect_set_extension_ok(packed_uint32_extension_t{.value = std::initializer_list<uint32_t>{603, 703}});
-    expect_set_extension_ok(packed_uint64_extension_t{.value = std::initializer_list<uint64_t>{604, 704}});
-    expect_set_extension_ok(packed_sint32_extension_t{.value = std::initializer_list<int32_t>{605, 705}});
-    expect_set_extension_ok(packed_sint64_extension_t{.value = std::initializer_list<int64_t>{606, 706}});
-    expect_set_extension_ok(packed_fixed32_extension_t{.value = std::initializer_list<uint32_t>{607, 707}});
-    expect_set_extension_ok(packed_fixed64_extension_t{.value = std::initializer_list<uint64_t>{608, 708}});
-    expect_set_extension_ok(packed_sfixed32_extension_t{.value = std::initializer_list<int32_t>{609, 709}});
-    expect_set_extension_ok(packed_sfixed64_extension_t{.value = std::initializer_list<int64_t>{610, 710}});
-    expect_set_extension_ok(packed_float_extension_t{.value = std::initializer_list<float>{611, 711}});
-    expect_set_extension_ok(packed_double_extension_t{.value = std::initializer_list<double>{612, 712}});
-    expect_set_extension_ok(packed_bool_extension_t{.value = std::initializer_list<bool_t>{true, false}});
-    expect_set_extension_ok(packed_enum_extension_t{
-        .value = std::initializer_list<ForeignEnum>{mapping_t::FOREIGN_BAR, mapping_t::FOREIGN_BAZ}});
+    expect_set_extension_ok(packed_int32_extension_t{.value = packed_int32});
+    expect_set_extension_ok(packed_int64_extension_t{.value = packed_int64});
+    expect_set_extension_ok(packed_uint32_extension_t{.value = packed_uint32});
+    expect_set_extension_ok(packed_uint64_extension_t{.value = packed_uint64});
+    expect_set_extension_ok(packed_sint32_extension_t{.value = packed_sint32});
+    expect_set_extension_ok(packed_sint64_extension_t{.value = packed_sint64});
+    expect_set_extension_ok(packed_fixed32_extension_t{.value = packed_fixed32});
+    expect_set_extension_ok(packed_fixed64_extension_t{.value = packed_fixed64});
+    expect_set_extension_ok(packed_sfixed32_extension_t{.value = packed_sfixed32});
+    expect_set_extension_ok(packed_sfixed64_extension_t{.value = packed_sfixed64});
+    expect_set_extension_ok(packed_float_extension_t{.value = packed_float});
+    expect_set_extension_ok(packed_double_extension_t{.value = packed_double});
+    expect_set_extension_ok(packed_bool_extension_t{.value = packed_bool});
+    expect_set_extension_ok(packed_enum_extension_t{.value = packed_enum});
   }
 
   // -------------------------------------------------------------------
