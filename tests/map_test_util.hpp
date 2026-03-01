@@ -39,8 +39,8 @@ const std::array<std::pair<typename Traits::string_t, typename Traits::string_t>
 
 template <typename Traits>
 const std::array<std::pair<std::int32_t, typename Traits::bytes_t>, 2> init_list<Traits>::map_int32_bytes{{
-    {0, typename Traits::bytes_t("0"_bytes)},
-    {1, typename Traits::bytes_t("1"_bytes)},
+    {0, static_cast<typename Traits::bytes_t>("0"_bytes)},
+    {1, static_cast<typename Traits::bytes_t>("1"_bytes)},
 }};
 
 template <typename T>

@@ -277,7 +277,7 @@ struct TestSuite {
     constexpr int oneof_nested_message_id = TestAllTypes_t::oneof_field_oneof_case::oneof_nested_message;
     message->oneof_field.template emplace<oneof_nested_message_id>().bb = 602;
     message->oneof_field.template emplace<string_t>("603");
-    message->oneof_field.template emplace<bytes_t>("604"_bytes);
+    message->oneof_field.template emplace<bytes_t>(static_cast<bytes_t>("604"_bytes));
   }
 
   // -------------------------------------------------------------------
