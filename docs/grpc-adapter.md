@@ -196,6 +196,31 @@ The gRPC callback reactors enforce sequencing rules:
 - **Client streaming**: Only one `write()` or `write_last()` can be in flight. Wait for `OnWriteDone()` before issuing the next write. If you call `write_last()`, do **not** call `write_done()` afterward—`write_last` already marks completion. (See `tests/grpc/client_stream_tests.cpp`.)
 - **Bidirectional streaming**: `ClientBidiReactor` lacks `TryCancel()`. Store the `grpc::ClientContext` you passed to `async_call` and call `context->TryCancel()` when needed. (See `tests/grpc/bidi_stream_tests.cpp`.)
 - **Server streaming**: `ServerRPC::write` serializes immediately, so you can reuse buffers between writes.
+- **Server read-close handling**: For server-side client/bidi streams, `OnReadDone(false)` means no more inbound reads. In `hpp_proto::grpc::CallbackService`, handlers can distinguish terminal read states with:
+  - `on_read_eof(rpc_t&) -> bool`
+  - `on_read_cancel(rpc_t&) -> bool`
+  If the callback returns `true`, the handler fully handled the event (for example by calling `rpc.finish(...)`).
+  If it returns `false` (or callback is absent), the framework applies fallback finish behavior.
+
+### Server Handler Callback Contract
+
+For handlers used by `hpp_proto::grpc::CallbackService`:
+
+- `on_read_ok(rpc_t&, RequestToken<Method>)`
+  Called for each successful inbound read on client-streaming/bidi methods.
+- `on_read_eof(rpc_t&) -> bool`
+  Optional. Called on non-cancel terminal read (`OnReadDone(false)` and `!context.IsCancelled()`).
+- `on_read_cancel(rpc_t&) -> bool`
+  Optional. Called on canceled terminal read (`OnReadDone(false)` and `context.IsCancelled()`).
+- `on_write_ok(rpc_t&)`
+  Called after a successful async write on server-streaming/bidi methods.
+- `on_write_error(rpc_t&) -> bool`
+  Optional. Called when write completion fails (`OnWriteDone(false)`).
+
+Return semantics for boolean callbacks:
+
+- `true`: handler fully handled terminal event.
+- `false`: framework fallback applies (`Finish(CANCELLED/OK/UNKNOWN)` depending on state/path).
 
 ### Streaming Reference (see `tests/grpc` for full examples)
 | Scenario | Reactor | Example |
@@ -219,9 +244,9 @@ The gRPC callback reactors enforce sequencing rules:
 | Method type | Inherits from | Extras | Handler Hooks |
 |---|---|---|---|
 | Unary | `::grpc::ServerUnaryReactor` | `RequestToken::get()`, `finish(response)` | `on_send_initial_metadata_done`, `on_done`, `on_cancel` |
-| Client streaming | `::grpc::ServerReadReactor<...>` | `start_read()`, `RequestToken::get()`, `finish(response)` | `on_send_initial_metadata_done`, `on_read_ok`, `on_read_error`, `on_done`, `on_cancel` |
-| Server streaming | `::grpc::ServerWriteReactor<...>` | `write(response)`, `finish(status)` | `on_send_initial_metadata_done`, `on_write_ok`, `on_write_error`, `on_done`, `on_cancel` |
-| Bidirectional streaming | `::grpc::ServerBidiReactor<...>` | `start_read()`, `write(response)`, `finish(status)` | `on_send_initial_metadata_done`, `on_read_ok`, `on_write_ok`, `on_write_error`, `on_done`, `on_cancel` |
+| Client streaming | `::grpc::ServerReadReactor<...>` | `start_read()`, `RequestToken::get()`, `finish(response)` | `on_send_initial_metadata_done`, `on_read_ok`, `on_read_eof` (optional, bool), `on_read_cancel` (optional, bool), `on_done`, `on_cancel` |
+| Server streaming | `::grpc::ServerWriteReactor<...>` | `write(response)`, `finish(status)` | `on_send_initial_metadata_done`, `on_write_ok`, `on_write_error` (optional, bool), `on_done`, `on_cancel` |
+| Bidirectional streaming | `::grpc::ServerBidiReactor<...>` | `start_read()`, `write(response)`, `finish(status)` | `on_send_initial_metadata_done`, `on_read_ok`, `on_read_eof` (optional, bool), `on_read_cancel` (optional, bool), `on_write_ok`, `on_write_error` (optional, bool), `on_done`, `on_cancel` |
 
 ## Tutorial References
 - `tutorial/grpc/greeter_client.cpp`: Synchronous unary and asynchronous streaming clients.

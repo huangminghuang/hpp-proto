@@ -1,8 +1,10 @@
 #include "helloworld.service.hpp"
+#include <chrono>
 #include <hpp_proto/grpc/client.hpp>
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <thread>
 
 // See include/hpp_proto/grpc/README.md for adapter usage and streaming best practices.
 namespace helloworld::Greeter {
@@ -84,7 +86,7 @@ public:
           return;
         }
         std::cout << "Received reply: " << reply.message << "\n";
-        sleep(1);
+        std::this_thread::sleep_for(std::chrono::seconds{1});
         start_read();
       }
 

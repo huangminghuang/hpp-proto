@@ -70,8 +70,15 @@ public:
       rpc.start_read();
     }
 
-    void on_read_error() const {
-      // Client cancelled; nothing else to do.
+    bool on_read_eof(rpc_t &rpc) const {
+      rpc.finish(summary_);
+      return true;
+    }
+
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    bool on_read_cancel(rpc_t &) const {
+      // Let reactor fallback finish with CANCELLED.
+      return false;
     }
   };
   auto handle(ClientStreamAggregate) -> ClientStreamHandler;
@@ -101,8 +108,10 @@ public:
       }
     }
 
-    void on_write_error() {
-      // rely on base to finish with CANCELLED
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    bool on_write_error(rpc_t &) {
+      // Let reactor fallback finish with CANCELLED/UNKNOWN.
+      return false;
     }
 
   private:
@@ -141,9 +150,20 @@ public:
       next_write(rpc);
     }
 
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void on_write_ok(rpc_t &rpc) { next_write(rpc); }
 
-    void on_write_error() {}
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    bool on_write_error(rpc_t &) { return false; }
+
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    bool on_read_eof(rpc_t &rpc) {
+      rpc.finish(::grpc::Status::OK);
+      return true;
+    }
+
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    bool on_read_cancel(rpc_t &) { return false; }
 
   private:
     void next_write(rpc_t &rpc) {
