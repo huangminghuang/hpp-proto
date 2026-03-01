@@ -24,8 +24,12 @@ void round_trip_test(const T &in_message, T &&out_message) { // NOLINT(cppcoregu
   assert(util::write_json(out_message, buffer2).ok());
   if (buffer1 != buffer2) {
     auto [it1, it2] = std::ranges::mismatch(buffer1, buffer2);
-    auto sw1 = std::string_view{it1 - 20, buffer1.end()};
-    auto sw2 = std::string_view{it2 - 20, buffer2.end()};
+    const auto pos1 = static_cast<std::size_t>(std::distance(buffer1.begin(), it1));
+    const auto pos2 = static_cast<std::size_t>(std::distance(buffer2.begin(), it2));
+    const auto start1 = (pos1 > 20) ? (pos1 - 20) : 0;
+    const auto start2 = (pos2 > 20) ? (pos2 - 20) : 0;
+    auto sw1 = std::string_view{buffer1}.substr(start1);
+    auto sw2 = std::string_view{buffer2}.substr(start2);
     std::cerr << sw1 << "\n" << sw2 << "\n";
     assert(false);
   }

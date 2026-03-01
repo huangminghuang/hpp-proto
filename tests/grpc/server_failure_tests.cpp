@@ -75,7 +75,6 @@ struct fake_context {
 struct fake_client_stream_method {
   static constexpr auto rpc_type = hpp_proto::grpc::RpcType::CLIENT_STREAMING;
   static constexpr bool client_streaming = true;
-  static constexpr bool server_streaming = false;
   template <typename>
   using request_t = EchoRequest;
   template <typename>
@@ -107,9 +106,9 @@ template <>
 class ServerRPC<unit_test_detail::fake_client_stream_method, RpcType::CLIENT_STREAMING>
     : public ::grpc::ServerReadReactor<::grpc::ByteBuffer> {
   unit_test_detail::fake_context context_{};
-  ::grpc::Status finished_status_{};
+  ::grpc::Status finished_status_;
   bool finished_ = false;
-  ::grpc::ByteBuffer request_{};
+  ::grpc::ByteBuffer request_;
 
 protected:
   [[nodiscard]] const ::grpc::ByteBuffer *request_buf() const { return &request_; }
@@ -134,7 +133,7 @@ template <>
 class ServerRPC<unit_test_detail::fake_server_stream_method, RpcType::SERVER_STREAMING>
     : public ::grpc::ServerWriteReactor<::grpc::ByteBuffer> {
   unit_test_detail::fake_context context_{};
-  ::grpc::Status finished_status_{};
+  ::grpc::Status finished_status_;
   bool finished_ = false;
 
 public:
@@ -180,7 +179,7 @@ struct WriteErrorHandler {
 
   void on_write_ok(rpc_t &) {}
 
-  bool on_write_error(rpc_t &) {
+  bool on_write_error(rpc_t &) const {
     state_->on_write_error_calls.fetch_add(1, std::memory_order_relaxed);
     return false;
   }
