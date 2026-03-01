@@ -20,6 +20,7 @@ class ClientStreamReactor : public ::hpp_proto::grpc::ClientCallbackReactor<Clie
   bool done_ = false;
   size_t next_message_ = 0;
   std::vector<std::string> payloads_;
+  bool use_sentinel_ = true;
   bool sentinel_sent_ = false;
   bool writes_complete_ = false;
   ::grpc::Status status_;
@@ -29,6 +30,7 @@ public:
   using request_t = hpp_proto_test::EchoRequest<>;
 
   void set_payloads(std::vector<std::string> payloads) { payloads_ = std::move(payloads); }
+  void set_use_sentinel(bool use_sentinel) { use_sentinel_ = use_sentinel; }
 
   void begin(Harness::stub_type &stub, ::grpc::ClientContext &context) {
     stub.async_call<ClientStreamAggregate>(context, this);
@@ -56,17 +58,6 @@ public:
       return;
     }
     send_next();
-    bool should_close = false;
-    {
-      std::scoped_lock<std::mutex> lock(mu_);
-      if (sentinel_sent_ && !writes_complete_ && next_message_ >= payloads_.size()) {
-        writes_complete_ = true;
-        should_close = true;
-      }
-    }
-    if (should_close) {
-      this->write_done();
-    }
   }
 
   void OnDone(const ::grpc::Status &status) override {
@@ -90,16 +81,26 @@ private:
     }
 
     if (next_message_ >= payloads_.size()) {
-      if (sentinel_sent_) {
+      if (writes_complete_) {
         return;
       }
-      sentinel_sent_ = true;
-      request_t sentinel;
-      sentinel.message = "final";
-      sentinel.sequence = kTerminalSequence;
-      auto status = this->write(sentinel, hpp_proto::contiguous_mode);
-      if (!status.ok()) {
-        OnDone(status);
+      if (use_sentinel_) {
+        if (sentinel_sent_) {
+          writes_complete_ = true;
+          this->write_done();
+          return;
+        }
+        sentinel_sent_ = true;
+        request_t sentinel;
+        sentinel.message = "final";
+        sentinel.sequence = kTerminalSequence;
+        auto status = this->write(sentinel, hpp_proto::contiguous_mode);
+        if (!status.ok()) {
+          OnDone(status);
+        }
+      } else {
+        writes_complete_ = true;
+        this->write_done();
       }
       return;
     }
@@ -130,5 +131,39 @@ void run_client_stream_case() {
   expect(eq(reactor.summary().last_message, std::string{"chunk_2"}));
 }
 
-const suite client_stream_suite = [] { "client_stream_aggregate"_test = [] { run_client_stream_case(); }; };
+void run_client_stream_eof_without_sentinel_case() {
+  Harness harness;
+  auto &stub = harness.stub();
+
+  ::grpc::ClientContext context;
+  ClientStreamReactor reactor;
+  reactor.set_use_sentinel(false);
+  reactor.set_payloads({"chunk_0", "chunk_1", "chunk_2"});
+  reactor.begin(stub, context);
+  reactor.wait();
+
+  expect(reactor.status().ok()) << reactor.status().error_message();
+  expect(eq(static_cast<int>(reactor.summary().total_messages), 3));
+  expect(eq(reactor.summary().last_message, std::string{"chunk_2"}));
+}
+
+void run_client_stream_cancel_case() {
+  Harness harness;
+  auto &stub = harness.stub();
+
+  ::grpc::ClientContext context;
+  ClientStreamReactor reactor;
+  reactor.set_payloads({"chunk_0", "chunk_1", "chunk_2", "chunk_3"});
+  reactor.begin(stub, context);
+  context.TryCancel();
+  reactor.wait();
+
+  expect(reactor.status().error_code() == ::grpc::StatusCode::CANCELLED);
+}
+
+const suite client_stream_suite = [] {
+  "client_stream_aggregate"_test = [] { run_client_stream_case(); };
+  "client_stream_eof_without_sentinel"_test = [] { run_client_stream_eof_without_sentinel_case(); };
+  "client_stream_explicit_cancel"_test = [] { run_client_stream_cancel_case(); };
+};
 } // namespace

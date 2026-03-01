@@ -70,8 +70,14 @@ public:
       rpc.start_read();
     }
 
-    void on_read_error() const {
-      // Client cancelled; nothing else to do.
+    bool on_read_eof(rpc_t &rpc) {
+      rpc.finish(summary_);
+      return true;
+    }
+
+    bool on_read_cancel(rpc_t &) const {
+      // Let reactor fallback finish with CANCELLED.
+      return false;
     }
   };
   auto handle(ClientStreamAggregate) -> ClientStreamHandler;
@@ -101,8 +107,9 @@ public:
       }
     }
 
-    void on_write_error() {
-      // rely on base to finish with CANCELLED
+    bool on_write_error(rpc_t &) {
+      // Let reactor fallback finish with CANCELLED/UNKNOWN.
+      return false;
     }
 
   private:
@@ -143,7 +150,14 @@ public:
 
     void on_write_ok(rpc_t &rpc) { next_write(rpc); }
 
-    void on_write_error() {}
+    bool on_write_error(rpc_t &) { return false; }
+
+    bool on_read_eof(rpc_t &rpc) {
+      rpc.finish(::grpc::Status::OK);
+      return true;
+    }
+
+    bool on_read_cancel(rpc_t &) { return false; }
 
   private:
     void next_write(rpc_t &rpc) {

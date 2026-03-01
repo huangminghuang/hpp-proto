@@ -25,12 +25,14 @@ class BidiReactor : public ::hpp_proto::grpc::ClientCallbackReactor<BidiStreamCh
   ::grpc::Status status_;
   std::vector<std::string> responses_;
   ::grpc::ClientContext *context_ = nullptr;
+  bool use_sentinel_ = true;
   bool sentinel_sent_ = false;
 
 public:
   using request_t = hpp_proto_test::EchoRequest<>;
 
   void set_payloads(std::vector<std::string> payloads) { payloads_ = std::move(payloads); }
+  void set_use_sentinel(bool use_sentinel) { use_sentinel_ = use_sentinel; }
 
   void start(Harness::stub_type &stub, ::grpc::ClientContext &context) {
     context_ = &context;
@@ -76,17 +78,6 @@ public:
       return;
     }
     send_next();
-    bool should_close = false;
-    {
-      std::scoped_lock<std::mutex> lock(write_mu_);
-      if (sentinel_sent_ && !writes_complete_ && next_payload_ >= payloads_.size()) {
-        writes_complete_ = true;
-        should_close = true;
-      }
-    }
-    if (should_close) {
-      this->write_done();
-    }
   }
 
   void OnDone(const ::grpc::Status &status) override {
@@ -105,16 +96,26 @@ private:
       return;
     }
     if (next_payload_ >= payloads_.size()) {
-      if (sentinel_sent_) {
+      if (writes_complete_) {
         return;
       }
-      sentinel_sent_ = true;
-      request_t sentinel;
-      sentinel.message = "bye";
-      sentinel.sequence = kTerminalSequence;
-      auto status = this->write(sentinel);
-      if (!status.ok()) {
-        OnDone(status);
+      if (use_sentinel_) {
+        if (sentinel_sent_) {
+          writes_complete_ = true;
+          this->write_done();
+          return;
+        }
+        sentinel_sent_ = true;
+        request_t sentinel;
+        sentinel.message = "bye";
+        sentinel.sequence = kTerminalSequence;
+        auto status = this->write(sentinel);
+        if (!status.ok()) {
+          OnDone(status);
+        }
+      } else {
+        writes_complete_ = true;
+        this->write_done();
       }
       return;
     }
@@ -146,5 +147,40 @@ void run_bidi_case() {
   expect(eq(reactor.responses()[1], "chat_1-bidi"s));
 }
 
-const suite bidi_suite = [] { "bidi_chat_round_trip"_test = [] { run_bidi_case(); }; };
+void run_bidi_half_close_without_sentinel_case() {
+  Harness harness;
+  auto &stub = harness.stub();
+  ::grpc::ClientContext context;
+  BidiReactor reactor;
+  reactor.set_use_sentinel(false);
+  reactor.set_payloads({"chat_0", "chat_1"});
+  reactor.start(stub, context);
+  reactor.wait();
+
+  expect(reactor.status().ok()) << reactor.status().error_message();
+  expect(eq(reactor.responses().size(), std::size_t{2}));
+  using namespace std::string_literals;
+  expect(eq(reactor.responses()[0], "chat_0-bidi"s));
+  expect(eq(reactor.responses()[1], "chat_1-bidi"s));
+}
+
+void run_bidi_explicit_cancel_case() {
+  Harness harness;
+  auto &stub = harness.stub();
+  ::grpc::ClientContext context;
+  BidiReactor reactor;
+  reactor.set_use_sentinel(false);
+  reactor.set_payloads({"chat_0", "chat_1", "chat_2", "chat_3"});
+  reactor.start(stub, context);
+  context.TryCancel();
+  reactor.wait();
+
+  expect(reactor.status().error_code() == ::grpc::StatusCode::CANCELLED);
+}
+
+const suite bidi_suite = [] {
+  "bidi_chat_round_trip"_test = [] { run_bidi_case(); };
+  "bidi_half_close_without_sentinel"_test = [] { run_bidi_half_close_without_sentinel_case(); };
+  "bidi_explicit_cancel"_test = [] { run_bidi_explicit_cancel_case(); };
+};
 } // namespace

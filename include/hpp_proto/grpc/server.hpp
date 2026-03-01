@@ -269,11 +269,14 @@ protected:
     if (ok) {
       handler_.on_write_ok(*this);
     } else {
-      if constexpr (requires { handler_.on_write_error(); }) {
-        handler_.on_write_error();
+      bool handled = false;
+      if constexpr (requires { { handler_.on_write_error(*this) } -> std::convertible_to<bool>; }) {
+        handled = handler_.on_write_error(*this);
       }
-      // Client cancelled it
-      this->Finish(::grpc::Status::CANCELLED);
+      if (!handled) {
+        this->Finish(this->context().IsCancelled() ? ::grpc::Status::CANCELLED
+                                                   : ::grpc::Status{::grpc::StatusCode::UNKNOWN, "write failed"});
+      }
     }
   }
 
@@ -283,12 +286,19 @@ protected:
     if (ok) {
       handler_.on_read_ok(*this, RequestToken<Method>{this->request_buf()});
     } else {
-      // Client cancelled it
-      if constexpr (requires { handler_.on_read_error(); }) {
-        handler_.on_read_error();
+      bool handled = false;
+      if (this->context().IsCancelled()) {
+        if constexpr (requires { { handler_.on_read_cancel(*this) } -> std::convertible_to<bool>; }) {
+          handled = handler_.on_read_cancel(*this);
+        }
+      } else {
+        if constexpr (requires { { handler_.on_read_eof(*this) } -> std::convertible_to<bool>; }) {
+          handled = handler_.on_read_eof(*this);
+        }
       }
-      this->Finish(::grpc::Status::CANCELLED);
-      return;
+      if (!handled) {
+        this->Finish(this->context().IsCancelled() ? ::grpc::Status::CANCELLED : ::grpc::Status::OK);
+      }
     }
   }
 
