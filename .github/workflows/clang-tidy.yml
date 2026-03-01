@@ -25,10 +25,17 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Prepare cache directories
+        run: |
+          mkdir -p "${CPM_SOURCE_CACHE}"
+          mkdir -p "${CCACHE_DIR}"
 
       - uses: actions/cache@v5
         with:
-          path: "**/cpm_modules"
+          path: ${{ env.CPM_SOURCE_CACHE }}
           key: clang-tidy-${{ runner.os }}-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: Cache ccache
@@ -53,7 +60,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
 
-      - name: Configure (clang-tidy enforced)
+      - name: Configure (full clang-tidy on push/dispatch)
+        if: github.event_name != 'pull_request'
         run: |
           cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
                 -DHPP_PROTO_PROTOC=find \
@@ -64,5 +72,35 @@ jobs:
                 -DCMAKE_C_CLANG_TIDY="clang-tidy;-warnings-as-errors=*" \
                 -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
 
+      - name: Configure (PR build)
+        if: github.event_name == 'pull_request'
+        run: |
+          cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
+                -DHPP_PROTO_PROTOC=find \
+                -DCMAKE_C_COMPILER=clang \
+                -DCMAKE_CXX_COMPILER=clang++ \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
       - name: Build
         run: cmake --build build -j"$(nproc)"
+
+      - name: Clang-tidy changed files (PR)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+          BASE="origin/${{ github.base_ref }}"
+          CHANGED="$(git diff --name-only --diff-filter=ACMR "$BASE...HEAD" | grep -E '\.(c|cc|cpp|cxx)$' || true)"
+
+          if [[ -z "$CHANGED" ]]; then
+            echo "No changed C/C++ source files to run clang-tidy on."
+            exit 0
+          fi
+
+          echo "Running clang-tidy on changed files:"
+          echo "$CHANGED"
+          while IFS= read -r file; do
+            clang-tidy -p build --warnings-as-errors='*' "$file"
+          done <<< "$CHANGED"
