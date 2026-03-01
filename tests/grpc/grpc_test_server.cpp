@@ -17,6 +17,34 @@ bool write_endpoint_file(const std::string &path, std::string_view endpoint) {
   out.flush();
   return static_cast<bool>(out);
 }
+
+std::string endpoint_from_listen_address(std::string_view address, int selected_port) {
+  if (address.empty()) {
+    return "127.0.0.1:" + std::to_string(selected_port);
+  }
+
+  if (address.front() == '[') {
+    const auto close = address.find(']');
+    if (close != std::string_view::npos) {
+      return std::string{address.substr(0, close + 1)} + ":" + std::to_string(selected_port);
+    }
+  }
+
+  const auto colon = address.rfind(':');
+  if (colon == std::string_view::npos) {
+    return std::string{address} + ":" + std::to_string(selected_port);
+  }
+
+  std::string host{address.substr(0, colon)};
+  if (host.empty()) {
+    host = "127.0.0.1";
+  }
+  if (host.find(':') != std::string::npos && host.front() != '[') {
+    host = "[" + host + "]";
+  }
+
+  return host + ":" + std::to_string(selected_port);
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -44,7 +72,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  const std::string endpoint = "127.0.0.1:" + std::to_string(selected_port);
+  const std::string endpoint = endpoint_from_listen_address(address, selected_port);
   if (!write_endpoint_file(port_file, endpoint)) {
     std::cerr << "Failed to write port file at " << port_file << '\n';
     return 1;
