@@ -239,6 +239,7 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
   void adopt(std::span<value_type> s) const noexcept {
+    assert(s.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &storage = access_storage();
     storage.content = s.data();
     storage.size = static_cast<uint32_t>(s.size());

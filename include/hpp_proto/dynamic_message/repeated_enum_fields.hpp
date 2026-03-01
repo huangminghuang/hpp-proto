@@ -301,6 +301,7 @@ public:
   }
 
   void adopt(std::span<int32_t> s) const noexcept {
+    assert(s.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     auto &storage = storage_->of_repeated_int32;
     storage.content = s.data();
     storage.capacity = static_cast<uint32_t>(s.size());
