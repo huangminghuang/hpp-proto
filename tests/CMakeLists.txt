@@ -39,7 +39,7 @@ add_hpp_proto_test(
 add_hpp_proto_test(
     NAME unittest_well_known_types_test
     SOURCES unittest_well_known_types_test.cpp
-    LINK_LIBRARIES well_known_types unittest_well_known_types_proto_lib Boost::ut glaze::glaze gpb_proto_json)
+    LINK_LIBRARIES hpp_proto::dynamic_message well_known_types unittest_well_known_types_proto_lib Boost::ut glaze::glaze gpb_proto_json)
 
 add_hpp_proto_generated_test_lib(
     NAME any_test_lib
@@ -51,20 +51,20 @@ add_hpp_proto_generated_test_lib(
 add_hpp_proto_test(
     NAME any_test
     SOURCES any_test.cpp
-    LINK_LIBRARIES Boost::ut hpp_proto::hpp_proto_core glaze::glaze any_test_lib
+    LINK_LIBRARIES Boost::ut hpp_proto::hpp_proto_core hpp_proto::dynamic_message glaze::glaze any_test_lib
     REQUIRES Protobuf_INCLUDE_DIRS)
 
 add_hpp_proto_test(
     NAME well_known_types_tests
     SOURCES well_known_types_tests.cpp
-    LINK_LIBRARIES well_known_types Boost::ut glaze::glaze
+    LINK_LIBRARIES hpp_proto::dynamic_message well_known_types Boost::ut glaze::glaze
     DEPENDENCIES well_known_types
     REQUIRES Protobuf_INCLUDE_DIRS)
 
 add_hpp_proto_test(
     NAME dynamic_message_test
-    SOURCES dynamic_message_test.cpp
-    LINK_LIBRARIES unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib
+    SOURCES dynamic_message_test.cpp dynamic_message_factory_test.cpp
+    LINK_LIBRARIES hpp_proto::dynamic_message unittest_proto3_proto_lib map_unittest_proto_lib Boost::ut glaze::glaze gpb_proto_json any_test_lib
     REQUIRES Protobuf_INCLUDE_DIRS)
 
 add_hpp_proto_generated_test_lib(
@@ -81,7 +81,7 @@ add_hpp_proto_test(
 add_hpp_proto_test(
     NAME read_json_consistency_test
     SOURCES read_json_consistency_test.cpp
-    LINK_LIBRARIES unittest_proto_lib unittest_proto3_proto_lib map_unittest_proto_lib well_known_types Boost::ut glaze::glaze)
+    LINK_LIBRARIES hpp_proto::dynamic_message unittest_proto_lib unittest_proto3_proto_lib map_unittest_proto_lib well_known_types Boost::ut glaze::glaze)
 
 add_hpp_proto_generated_test_lib(
     NAME unittest_lite_proto_lib

@@ -162,7 +162,7 @@ public:
 
   ~enum_field_cref() = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->of_int32.selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] enum_value default_value() const noexcept {
     return {enum_descriptor(), std::get<int32_t>(descriptor_->default_value)};

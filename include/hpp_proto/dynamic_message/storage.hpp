@@ -22,10 +22,11 @@
 
 #pragma once
 
+#include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <span>
 #include <string_view>
 #include <variant>
 
@@ -69,26 +70,29 @@ union value_storage {
   repeated_storage_base<std::string_view> of_repeated_string;
   repeated_storage_base<value_storage> of_repeated_message;
 
-  [[nodiscard]] bool has_value() const noexcept {
-    // This implementation relies on a layout hack where the 'selection' field of
-    // scalar types and the 'size' field of repeated types are at the same
-    // memory offset. Reading from an inactive union member (e.g. of_int32.selection)
-    // when another member is active is a strict aliasing violation and thus
-    // undefined behavior.
-    // We use std::memcpy to safely access the bytes at the given offset, which
-    // is a standard-compliant way to perform this type of type-punning.
-    // Compilers will optimize this memcpy to a single efficient instruction.
+  [[nodiscard]] static uint32_t selection_word(const value_storage &storage) noexcept {
+    // The selection word and repeated size share the same union offset.
+    // Read via object representation to avoid UB from inactive-union-member access.
     static_assert(offsetof(scalar_storage_base<bool>, selection) == offsetof(repeated_storage_base<bool>, size));
+    constexpr std::size_t selection_offset = offsetof(scalar_storage_base<bool>, selection);
+    const auto raw_bytes = std::bit_cast<std::array<std::byte, sizeof(value_storage)>>(storage);
     uint32_t value = 0;
-    std::memcpy(&value, &this->of_repeated_int64.size, sizeof(value));
-    return value != 0;
+    std::memcpy(&value, &raw_bytes[selection_offset], sizeof(value));
+    return value;
   }
+
+  [[nodiscard]] bool selection_matches(uint32_t ordinal) const noexcept { return selection_word(*this) == ordinal; }
+
+  [[nodiscard]] bool has_value() const noexcept { return selection_word(*this) != 0; }
   void reset() noexcept {
     // Similar to has_value(), we use memcpy to avoid undefined behavior when
     // writing to an inactive union member.
     static_assert(offsetof(scalar_storage_base<bool>, selection) == offsetof(repeated_storage_base<bool>, size));
-    uint32_t zero = 0;
-    std::memcpy(&this->of_repeated_int64.size, &zero, sizeof(zero));
+    constexpr std::size_t selection_offset = offsetof(scalar_storage_base<bool>, selection);
+    auto raw_bytes = std::bit_cast<std::array<std::byte, sizeof(value_storage)>>(*this);
+    constexpr uint32_t zero = 0;
+    std::memcpy(&raw_bytes[selection_offset], &zero, sizeof(zero));
+    *this = std::bit_cast<value_storage>(raw_bytes);
   }
 };
 } // namespace hpp_proto

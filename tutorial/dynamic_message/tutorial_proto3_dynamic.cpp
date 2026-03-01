@@ -49,8 +49,9 @@ int main() {
   auto filedescriptorset_binpb = read_file("addressbook_proto3.desc.binpb");
 
   // construct and init a dynamic_message_factory
-  hpp_proto::dynamic_message_factory factory;
-  expect(factory.init(filedescriptorset_binpb));
+  auto expected_factory = hpp_proto::dynamic_message_factory::create(filedescriptorset_binpb);
+  expect(expected_factory.has_value());
+  auto factory = std::move(expected_factory).value();
 
   // Allocate a message arena.
   std::pmr::monotonic_buffer_resource mr;

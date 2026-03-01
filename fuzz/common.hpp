@@ -7,8 +7,7 @@
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory.hpp>
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,misc-use-anonymous-namespace)
-extern hpp_proto::dynamic_message_factory factory;
+hpp_proto::dynamic_message_factory &get_factory();
 
 // Helper function to set variant by runtime index
 template <typename... Ts>

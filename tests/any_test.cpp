@@ -22,9 +22,16 @@
 #include <boost/ut.hpp>
 
 #include <hpp_proto/dynamic_message/json.hpp>
+#include <utility>
 
 using namespace boost::ut;
 using namespace std::string_view_literals;
+
+template <typename Exp>
+decltype(auto) expect_ok(Exp &&exp) {
+  expect(fatal(exp.has_value()));
+  return std::forward<Exp>(exp).value(); // NOLINT
+}
 
 const suite test_any = [] {
   "any"_test = []<class Traits>() {
@@ -59,8 +66,8 @@ const suite test_dynamic_message_any = [] {
     fm.paths = {"/usr/share", "/usr/local/share"};
     expect(hpp_proto::pack_any(message.any_value.emplace(), fm).ok());
 
-    ::hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(::hpp_proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
+    auto message_factory = expect_ok(::hpp_proto::dynamic_message_factory::create(
+        ::hpp_proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
 
     const std::string_view expected_json =
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/local/share"}})";
@@ -111,8 +118,7 @@ const suite test_dynamic_message_any = [] {
       ::hpp_proto::file_descriptors::_desc_google_protobuf_wrappers_proto,
   };
 
-  ::hpp_proto::dynamic_message_factory message_factory;
-  expect(message_factory.init(protos));
+  auto message_factory = expect_ok(::hpp_proto::dynamic_message_factory::create(protos));
 
   "any_json_edge_cases"_test = [&] {
     auto expect_read_fail = [&](std::string_view json) {
@@ -156,6 +162,8 @@ const suite test_dynamic_message_any = [] {
 
     expect_read_ok( // @type not first
         R"({"anyValue":{"c":1234,"@type":"type.googleapis.com/proto3_unittest.ForeignMessage"}})");
+    expect_read_ok( // URL with extra path components should use suffix after last '/'
+        R"({"anyValue":{"@type":"https://type.googleapis.com/proto3_unittest.ForeignMessage","c":1234}})");
 
     expect_read_ok( // duplicated anyValue field
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234},"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":2345}})");
@@ -251,8 +259,8 @@ const suite test_dynamic_message_any = [] {
   };
 
   "type_not_found"_test = [data] {
-    hpp_proto::dynamic_message_factory message_factory;
-    expect(message_factory.init(hpp_proto::file_descriptors::desc_set_google_protobuf_any_test_proto()));
+    auto message_factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+        hpp_proto::file_descriptors::desc_set_google_protobuf_any_test_proto()));
     std::string result;
     expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
   };

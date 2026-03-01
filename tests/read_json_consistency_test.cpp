@@ -35,45 +35,46 @@ void test_read(hpp_proto::dynamic_message_factory &factory, std::string_view inp
 }
 
 const suite test_read_json = [] {
-  hpp_proto::dynamic_message_factory factory;
-  expect(fatal(factory.init(read_file("unittest.desc.binpb"))));
+  auto factory = hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"));
+  expect(fatal(factory.has_value()));
+  auto &message_factory = *factory;
 
   using enum test_status;
   using namespace std::string_view_literals;
-  test_read<protobuf_unittest::TestAllTypes>(factory, "{"sv, fail);
-  test_read<protobuf_unittest::TestAllTypes>(factory, R"({"optionalInt64":"102"} 1)"sv, fail);
-  test_read<protobuf_unittest::TestAllTypes>(factory, R"({"optionalInt64":"	102"})"sv, fail);
-  test_read<protobuf_unittest::TestAllTypes>(factory, R"({"repeatedInt64":["	102"]})"sv, fail);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, "{"sv, fail);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"optionalInt64":"102"} 1)"sv, fail);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"optionalInt64":"	102"})"sv, fail);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"repeatedInt64":["	102"]})"sv, fail);
 
-  test_read<protobuf_unittest::TestAllTypes>(factory, R"({"optionalString":null})"sv, ok);
-  test_read<protobuf_unittest::TestAllTypes>(factory, "{\"optionalString\":\"\xcd\"}"sv, fail);
-  test_read<proto3_unittest::TestAllTypes>(factory, R"({"optionalString":null})"sv, ok);
-  test_read<proto3_unittest::TestAllTypes>(factory, R"({"oneofNestedMessage" :  null})"sv, ok);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"optionalString":null})"sv, ok);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, "{\"optionalString\":\"\xcd\"}"sv, fail);
+  test_read<proto3_unittest::TestAllTypes>(message_factory, R"({"optionalString":null})"sv, ok);
+  test_read<proto3_unittest::TestAllTypes>(message_factory, R"({"oneofNestedMessage" :  null})"sv, ok);
 
-  test_read<protobuf_unittest::TestAllTypes>(factory, R"({"repeatedInt32":[1,2,3]})"sv, ok);
-  test_read<protobuf_unittest::TestAllTypes>(factory, R"({"repeatedString":["abc,"def"]})"sv, fail);
-  test_read<protobuf_unittest::TestAllTypes>(factory, "{\"repeatedString\":[\"\xcd\"]}"sv, fail);
-  test_read<protobuf_unittest::TestAllTypes>(factory, R"({"optionalNestedEnum": )"sv, fail);
-  test_read<protobuf_unittest::TestAllTypes>(factory, R"({"repeatedNestedEnum":[2, 0]})"sv, ok);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"repeatedInt32":[1,2,3]})"sv, ok);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"repeatedString":["abc,"def"]})"sv, fail);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, "{\"repeatedString\":[\"\xcd\"]}"sv, fail);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"optionalNestedEnum": )"sv, fail);
+  test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"repeatedNestedEnum":[2, 0]})"sv, ok);
 
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"	102":0}})"sv, ok);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapBoolBool":{"false":true,"true":false}})"sv, ok);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapBoolBool":{" false":true}})"sv, fail);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{   )"sv, fail);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{}})"sv, ok);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"1":1,)"sv, fail);
-  test_read<protobuf_unittest::TestMap>(factory, "{\"mapInt32Int32\":{\"1\":1,", fail);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{   "1":1,   "2":2}})"sv, ok);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"1":1 "2":2}})"sv, fail);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"1":1,   )"sv, fail);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Int32":{"1":1   )"sv, fail);
-  test_read<protobuf_unittest::TestMap>(factory, "{\"mapInt32Enum\":{\"1\":   ", fail);
-  test_read<protobuf_unittest::TestMap>(factory, R"({mapSint64Sint64":{"1":" -10"}})"sv, fail);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapStringString":{"1":"0", "1":"1"}})"sv, ok);
-  test_read<protobuf_unittest::TestMap>(factory, "{\"mapStringString\":{\"\xcd\":\"0\"}"sv, fail);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32ForeignMessage":{"0":null}})", fail);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt32Enum":{"0":0}})"sv, ok);
-  test_read<protobuf_unittest::TestMap>(factory, R"({"mapInt64Int64":{"0":" -64"}})"sv, fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"	102":0}})"sv, ok);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapBoolBool":{"false":true,"true":false}})"sv, ok);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapBoolBool":{" false":true}})"sv, fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{   )"sv, fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{}})"sv, ok);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"1":1,)"sv, fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, "{\"mapInt32Int32\":{\"1\":1,", fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{   "1":1,   "2":2}})"sv, ok);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"1":1 "2":2}})"sv, fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"1":1,   )"sv, fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"1":1   )"sv, fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, "{\"mapInt32Enum\":{\"1\":   ", fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({mapSint64Sint64":{"1":" -10"}})"sv, fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapStringString":{"1":"0", "1":"1"}})"sv, ok);
+  test_read<protobuf_unittest::TestMap>(message_factory, "{\"mapStringString\":{\"\xcd\":\"0\"}"sv, fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32ForeignMessage":{"0":null}})", fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Enum":{"0":0}})"sv, ok);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt64Int64":{"0":" -64"}})"sv, fail);
 };
 
 int main() {

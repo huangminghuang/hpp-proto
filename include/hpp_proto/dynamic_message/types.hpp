@@ -119,7 +119,8 @@ enum class dynamic_message_errc : uint8_t {
   invalid_enum_name,
   unknown_enum_value,
   wrong_message_type,
-  unknown_message_name
+  unknown_message_name,
+  bad_message
 };
 
 namespace concepts {

@@ -22,129 +22,107 @@
 
 #pragma once
 
+#include <cstddef>
+#include <expected>
+#include <functional>
 #include <memory>
 #include <memory_resource>
+#include <ranges>
 #include <span>
-#include <string>
 #include <string_view>
-#include <system_error>
 #include <utility>
 
-#include <hpp_proto/binpb.hpp>
+#include <google/protobuf/descriptor.pb.hpp>
+#include <hpp_proto/binpb/concepts.hpp>
 #include <hpp_proto/dynamic_message/expected_message_mref.hpp>
-#include <hpp_proto/dynamic_message/factory_addons.hpp>
+#include <hpp_proto/dynamic_message/export.hpp>
+#include <hpp_proto/file_descriptor_pb.hpp>
 
 namespace hpp_proto {
+
+namespace detail {
+class dynamic_message_factory_impl;
+} // namespace detail
 
 /**
  * @brief Factory that builds dynamic message instances from descriptor sets.
  *
- * The factory owns a descriptor pool created from provided FileDescriptorSets and can
- * spawn mutable message views (`message_value_mref`) backed by a user-supplied
- * monotonic_buffer_resource. It also exposes access to the loaded file descriptors.
+ * Instances are created via `create(...)` and own an internal implementation
+ * object that stores descriptor state and PMR resources.
  */
-class dynamic_message_factory {
-  std::pmr::monotonic_buffer_resource memory_resource_;
-  descriptor_pool_t pool_;
-  bool initialized_ = false;
-
-  void setup_storage_slots();
-  void setup_wellknown_types();
-  void setup_enum_field_default_value();
-  void init();
+class HPP_PROTO_DYNAMIC_MESSAGE_EXPORT dynamic_message_factory {
+private:
+  using file_descriptor_set_type = ::google::protobuf::FileDescriptorSet<non_owning_traits>;
 
 public:
-  using FileDescriptorSet = ::google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
+  using impl_allocator_type = std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl>;
 
   /// enable to pass dynamic_message_factory as an option to read_json()/write_json()
   using option_type = std::reference_wrapper<dynamic_message_factory>;
 
-  dynamic_message_factory() = default;
+private:
+  struct impl_deleter {
+    void operator()(detail::dynamic_message_factory_impl *p) noexcept;
+  };
+  using impl_ptr = std::unique_ptr<detail::dynamic_message_factory_impl, impl_deleter>;
+
+  impl_ptr impl_;
+
+  explicit dynamic_message_factory(impl_ptr impl) noexcept;
+
+  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
+  create_from_fileset(file_descriptor_set_type &&fileset, impl_allocator_type allocator);
+
+  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
+  create_from_descs(std::span<const file_descriptor_pb> descs, impl_allocator_type allocator);
+
+  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
+  create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb, impl_allocator_type allocator);
+
+public:
+  dynamic_message_factory(const dynamic_message_factory &) = delete;
+  dynamic_message_factory(dynamic_message_factory &&) noexcept;
+  dynamic_message_factory &operator=(const dynamic_message_factory &) = delete;
+  dynamic_message_factory &operator=(dynamic_message_factory &&) noexcept;
+  ~dynamic_message_factory();
 
   /**
-   * @brief Construct a factory with an in-place monotonic buffer resource.
-   *
-   * The constructor forwards `memory_resource_init_args...` to
-   * `std::pmr::monotonic_buffer_resource`, letting callers optionally provide a
-   * backing buffer and upstream resource. Use `init(...)` afterward to populate
-   * the descriptor pool before calling `get_message()`.
+   * @brief Construct and initialize from FileDescriptorSet.
+   * @details This API does not catch std::bad_alloc thrown by standard containers.
    */
-  explicit dynamic_message_factory(auto &&...memory_resource_init_args)
-      : memory_resource_(std::forward<decltype(memory_resource_init_args)>(memory_resource_init_args)...) {}
-
-  /**
-   * @brief Initialize the object from a FileDescriptorSet
-   *
-   * On failure, the factory remains uninitialized and `get_message()` returns
-   * `dynamic_message_errc::unknown_message_name`.
-   */
-  void init(FileDescriptorSet &&fileset) {
-    if (auto result = pool_.init(std::move(fileset), memory_resource_); !result.ok()) {
-      initialized_ = false;
-      return;
-    }
-    initialized_ = true;
-    init();
+  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
+  create(file_descriptor_set_type &&fileset, impl_allocator_type allocator = {}) {
+    return create_from_fileset(std::move(fileset), allocator);
   }
 
   /**
-   * @brief Initialize the object from a fixed array of serialized file descriptors.
-   *
-   * @pre: Every element in `descs` must describe a different file. Passing
-   * duplicates is undefined and will violate the distinct-file contract enforced by
-   * `distinct_file_descriptor_pb_array`.
-   *
-   * @return false if any of the element in the array cannot be deserialized into
-   *          ::google::protobuf::FileDescriptorProto.
+   * @brief Construct and initialize from distinct serialized file descriptors.
+   * @details This API does not catch std::bad_alloc thrown by standard containers.
    */
   template <std::size_t N>
-  bool init(const distinct_file_descriptor_pb_array<N> &descs) {
-    return descriptor_pool_t::make_file_descriptor_set(
-               std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), distinct_file_tag_t{},
-               alloc_from(memory_resource_))
-        .and_then([this](auto &&fileset) -> std::expected<void, status> {
-          this->init(std::forward<decltype(fileset)>(fileset));
-          if (!initialized_) {
-            return std::unexpected(status{std::errc::bad_message});
-          }
-          return {};
-        })
-        .has_value();
+  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
+  create(const distinct_file_descriptor_pb_array<N> &descs, impl_allocator_type allocator = {}) {
+    return create_from_descs(std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), allocator);
   }
 
   /**
-   * @brief Initialize the object from a serialized FileDescriptorSet.
-   *
-   * @return false if the input cannot be deserialized into
-   *          ::google::protobuf::FileDescriptorSet.
+   * @brief Construct and initialize from serialized FileDescriptorSet bytes.
+   * @details This API does not catch std::bad_alloc thrown by standard containers.
    */
-  bool init(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb) {
-    return ::hpp_proto::read_binpb<FileDescriptorSet>(
-               std::as_bytes(std::span{std::ranges::data(file_descriptor_set_binpb),
-                                       std::ranges::size(file_descriptor_set_binpb)}),
-               alloc_from(memory_resource_))
-        .and_then([this](auto &&fileset) -> std::expected<void, std::errc> {
-          this->init(std::forward<decltype(fileset)>(fileset));
-          if (!initialized_) {
-            return std::unexpected(std::errc::bad_message);
-          }
-          return {};
-        })
-        .has_value();
+  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
+  create(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb, impl_allocator_type allocator = {}) {
+    return create_from_binpb(std::as_bytes(std::span{std::ranges::data(file_descriptor_set_binpb),
+                                                     std::ranges::size(file_descriptor_set_binpb)}),
+                             allocator);
   }
 
   /**
    * @brief Construct a mutable dynamic message for the given type name.
    *
-   * @pre `init()` has been called on this factory and returned true so that the descriptor
-   *      pool is populated.
    * @param name Fully-qualified protobuf message name.
    * @param mr   Monotonic buffer resource used for allocating message storage.
-   * @return `expected_message_mref` containing a message view on success, or an error
-   *         (e.g., `dynamic_message_errc::unknown_message_name`) if the name is not found.
    */
-  expected_message_mref get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const;
-  [[nodiscard]] std::span<const file_descriptor_t> files() const { return pool_.files(); }
+  [[nodiscard]] expected_message_mref get_message(std::string_view name, std::pmr::monotonic_buffer_resource &mr) const;
 };
 
 class use_factory {
@@ -155,94 +133,5 @@ public:
   explicit use_factory(dynamic_message_factory &f) : factory_(&f) {}
   [[nodiscard]] dynamic_message_factory &get_dynamic_message_factory() const { return *factory_; }
 };
-
-inline void dynamic_message_factory::setup_storage_slots() {
-  for (auto &message : pool_.messages()) {
-    hpp_proto::optional<std::int32_t> prev_oneof_index;
-    uint16_t oneof_ordinal = 1;
-    uint32_t cur_slot = 0;
-    for (auto &f : message.fields()) {
-      if (f.proto().oneof_index.has_value()) {
-        if (f.proto().oneof_index != prev_oneof_index) {
-          f.storage_slot = cur_slot++;
-        } else {
-          f.storage_slot = cur_slot - 1;
-        }
-        f.oneof_ordinal = ++oneof_ordinal;
-      } else {
-        f.storage_slot = cur_slot++;
-        f.oneof_ordinal = f.is_repeated() ? 0 : 1;
-        oneof_ordinal = 1;
-      }
-      prev_oneof_index = f.proto().oneof_index;
-    }
-    message.num_slots = cur_slot;
-  }
-}
-
-inline void dynamic_message_factory::setup_wellknown_types() {
-  const static std::pair<const char *, wellknown_types_t> wellknown_mappings[] = {
-      {"google.protobuf.Any", wellknown_types_t::ANY},
-      {"google.protobuf.Timestamp", wellknown_types_t::TIMESTAMP},
-      {"google.protobuf.Duration", wellknown_types_t::DURATION},
-      {"google.protobuf.FieldMask", wellknown_types_t::FIELDMASK},
-      {"google.protobuf.Value", wellknown_types_t::VALUE},
-      {"google.protobuf.ListValue", wellknown_types_t::LISTVALUE},
-      {"google.protobuf.Struct", wellknown_types_t::STRUCT},
-      {"google.protobuf.DoubleValue", wellknown_types_t::WRAPPER},
-      {"google.protobuf.FloatValue", wellknown_types_t::WRAPPER},
-      {"google.protobuf.Int64Value", wellknown_types_t::WRAPPER},
-      {"google.protobuf.UInt64Value", wellknown_types_t::WRAPPER},
-      {"google.protobuf.Int32Value", wellknown_types_t::WRAPPER},
-      {"google.protobuf.UInt32Value", wellknown_types_t::WRAPPER},
-      {"google.protobuf.BoolValue", wellknown_types_t::WRAPPER},
-      {"google.protobuf.StringValue", wellknown_types_t::WRAPPER},
-      {"google.protobuf.BytesValue", wellknown_types_t::WRAPPER},
-  };
-
-  for (auto [name, id] : wellknown_mappings) {
-    if (auto *desc = pool_.get_message_descriptor(name); desc != nullptr) {
-      if (desc->parent_file()->wellknown_validated_) {
-        desc->wellknown = id;
-      }
-    }
-  }
-}
-
-inline void dynamic_message_factory::setup_enum_field_default_value() {
-  using enum google::protobuf::FieldDescriptorProto_::Type;
-  for (auto &field : pool_.fields()) {
-    const auto &proto = field.proto();
-    if (proto.type == TYPE_ENUM) {
-      if (!proto.default_value.empty()) {
-        field.default_value = *field.enum_field_type_descriptor()->value_of(proto.default_value);
-      } else if (field.explicit_presence()) {
-        // In proto2, if you do not explicitly specify a [default = ...] option for an optional enum field, the
-        // default value is the first value defined in that enum's definition.
-        field.default_value = field.enum_field_type_descriptor()->proto().value[0].number;
-      } else {
-        field.default_value = 0;
-      }
-    }
-  }
-}
-
-inline void dynamic_message_factory::init() {
-  setup_storage_slots();
-  setup_wellknown_types();
-  setup_enum_field_default_value();
-}
-
-inline expected_message_mref dynamic_message_factory::get_message(std::string_view name,
-                                                                  std::pmr::monotonic_buffer_resource &mr) const {
-  if (!initialized_) {
-    return expected_message_mref{std::unexpected(dynamic_message_errc::unknown_message_name)};
-  }
-  const auto *desc = pool_.get_message_descriptor(name);
-  if (desc != nullptr) {
-    return expected_message_mref{message_value_mref{*desc, mr}};
-  }
-  return expected_message_mref{std::unexpected(dynamic_message_errc::unknown_message_name)};
-}
 
 } // namespace hpp_proto

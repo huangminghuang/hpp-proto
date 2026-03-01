@@ -26,6 +26,7 @@
 #include <cstddef>
 #include <iterator>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -468,14 +469,31 @@ inline json_status read_json(concepts::read_json_supported auto &value, concepts
   if constexpr (std::is_array_v<buffer_type>) {
     using char_type = std::remove_extent_t<buffer_type>;
     constexpr std::size_t size = std::extent_v<buffer_type>;
-    std::basic_string_view<char_type> view{std::ranges::data(str), size > 0 ? size - 1 : 0};
-    return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
+    auto span = std::span{str};
+    if constexpr (size > 0) {
+      if (span.back() == char_type{}) {
+        std::basic_string_view<char_type> view{span.data(), span.size() - 1};
+        return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
+      }
+      // Intentional API constraint: character-array overload accepts only
+      // null-terminated arrays. For non-null-terminated arrays, use the
+      // non_null_terminated_str overload (e.g. std::string_view) instead.
+      // This avoids extra template instantiations for edge-case array handling.
+      return {.ctx = {.ec = glz::error_code::syntax_error,
+                      .custom_error_message = "character array input must be null-terminated"}};
+    } else {
+      std::basic_string_view<char_type> view{span.data(), 0};
+      return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
+    }
   } else if constexpr (requires { str.c_str(); }) {
     using char_type = typename buffer_type::value_type;
     std::basic_string_view<char_type> view{str};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   } else if constexpr (std::is_pointer_v<buffer_type>) {
     using char_type = std::remove_const_t<std::remove_pointer_t<buffer_type>>;
+    if (str == nullptr) {
+      return {.ctx = {.ec = glz::error_code::syntax_error, .custom_error_message = "null json input pointer"}};
+    }
     std::basic_string_view<char_type> view{str};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   } else {

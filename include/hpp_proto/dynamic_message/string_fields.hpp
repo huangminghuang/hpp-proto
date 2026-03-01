@@ -57,7 +57,7 @@ public:
   string_field_cref &operator=(string_field_cref &&) noexcept = default;
   ~string_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->of_string.selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] std::size_t size() const noexcept { return storage_->of_string.size; }
   [[nodiscard]] std::string_view default_value() const noexcept { return descriptor_->proto().default_value; }

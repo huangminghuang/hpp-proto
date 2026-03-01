@@ -8,7 +8,7 @@ target_link_libraries(protoc-gen-hpp PRIVATE hpp_proto::hpp_proto_core)
 
 set_target_properties(protoc-gen-hpp
     PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/../bin"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 install(TARGETS protoc-gen-hpp EXPORT hpp_proto-targets)
 

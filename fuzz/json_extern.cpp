@@ -67,22 +67,22 @@ json_status write_json(const protobuf_unittest::TestMap<hpp_proto::non_owning_tr
 
 json_status read_json(proto2_unittest::TestWellKnownTypes<hpp_proto::stable_traits> &msg, std::string_view json_view,
                       hpp_proto::alloc_option_t) {
-  return hpp_proto::read_json(msg, json_view, hpp_proto::use_factory{factory});
+  return hpp_proto::read_json(msg, json_view, hpp_proto::use_factory{get_factory()});
 }
 
 json_status read_json(proto2_unittest::TestWellKnownTypes<hpp_proto::non_owning_traits> &msg,
                       std::string_view json_view, hpp_proto::alloc_option_t option) {
-  return hpp_proto::read_json(msg, json_view, option, hpp_proto::use_factory{factory});
+  return hpp_proto::read_json(msg, json_view, option, hpp_proto::use_factory{get_factory()});
 }
 
 json_status write_json(const proto2_unittest::TestWellKnownTypes<hpp_proto::stable_traits> &msg,
                        std::string &json_buffer) {
-  return hpp_proto::write_json(msg, json_buffer, hpp_proto::use_factory{factory});
+  return hpp_proto::write_json(msg, json_buffer, hpp_proto::use_factory{get_factory()});
 }
 
 json_status write_json(const proto2_unittest::TestWellKnownTypes<hpp_proto::non_owning_traits> &msg,
                        std::string &json_buffer) {
-  return hpp_proto::write_json(msg, json_buffer, hpp_proto::use_factory{factory});
+  return hpp_proto::write_json(msg, json_buffer, hpp_proto::use_factory{get_factory()});
 }
 
 json_status read_json(hpp_proto::message_value_mref &msg, std::string_view json_view, hpp_proto::alloc_option_t) {

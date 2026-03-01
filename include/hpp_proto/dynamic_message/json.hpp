@@ -161,6 +161,9 @@ struct generic_message_json_serializer {
         ctx, it, end, key, [](auto &, auto &) {},
         [&](auto &it_ref, auto &end_ref) {
           static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
+          // Current limitation: in this Glaze-based path we match only proto json_name.
+          // Proto field-name fallback (e.g. "optional_int32") is intentionally not
+          // enabled here for now.
           const auto *desc = value.field_descriptor_by_json_name(key);
           if (desc == nullptr) {
             if constexpr (Opts.error_on_unknown_keys) {
@@ -205,7 +208,7 @@ struct any_message_json_serializer {
   }
 
   static std::expected<std::string_view, const char *> to_message_name(std::string_view type_url) {
-    auto slash_pos = type_url.find('/');
+    auto slash_pos = type_url.rfind('/');
     if (slash_pos >= type_url.size() - 1) {
       return std::unexpected("invalid formatted google.protobuf.Any type_url field value");
     }
@@ -243,6 +246,8 @@ struct any_message_json_serializer {
         return !expected_field->has_value() || expected_field->value().empty();
       };
       if (!is_empty(expected_type_url_field) || !is_empty(expected_value_field)) {
+        // Safe: google.protobuf.Any descriptor shape is validated in
+        // dynamic_message_factory_addons::file_descriptor for well-known types.
         // NOLINTBEGIN(bugprone-unchecked-optional-access)
         std::string_view any_type_url = expected_type_url_field->value();
         ::hpp_proto::bytes_view any_value = expected_value_field->value();
@@ -258,8 +263,9 @@ struct any_message_json_serializer {
   /**
    * @brief Scan a JSON object for the "@type" field and adjust the input iterator for follow-up parsing.
    *
-   * The function walks the object, returning the "@type" string when found and reporting errors for duplicates
-   * (or empty values). The caller's iterator is advanced to the start of the first key after leading whitespace;
+   * The function walks the object and returns the final "@type" value when duplicates appear
+   * (empty values still fail later in type-url validation). The caller's iterator is advanced to the
+   * start of the first key after leading whitespace;
    * if "@type" is the first key, it is further advanced to the start of the next field when present (comma and
    * whitespace consumed), otherwise to the position after the "@type" value and trailing whitespace.
    *
@@ -606,10 +612,16 @@ struct to<JSON, hpp_proto::message_value_cref> {
     case STRUCT:
     case LISTVALUE: {
       auto f0 = value.fields()[0].to<::hpp_proto::repeated_message_field_cref>();
+      // Safe: well-known descriptor layout is validated in
+      // dynamic_message_factory_addons::file_descriptor, so STRUCT/LISTVALUE
+      // always have a compatible field[0] shape here.
       // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
       to<JSON, ::hpp_proto::repeated_message_field_cref>::template op<Opts>(*f0, ctx, b, ix);
     } break;
     case WRAPPER: {
+      // Safe: wrapper descriptor layout is validated in
+      // dynamic_message_factory_addons::file_descriptor, so field[0] exists
+      // and is the wrapped scalar/message field.
       to<JSON, ::hpp_proto::field_cref>::template op<Opts>(value.fields()[0], ctx, b, ix);
     } break;
     default:
@@ -841,6 +853,9 @@ struct from<JSON, hpp_proto::message_value_mref> {
       case STRUCT:
       case LISTVALUE:
       case WRAPPER:
+        // Safe: well-known descriptor layout is validated in
+        // dynamic_message_factory_addons::file_descriptor, so field[0] is
+        // present and matches the expected decode target.
         from<JSON, ::hpp_proto::field_mref>::template op<Opts>(value.fields()[0], ctx, it, end);
         break;
       default:

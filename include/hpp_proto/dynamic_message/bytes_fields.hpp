@@ -56,7 +56,7 @@ public:
   bytes_field_cref &operator=(bytes_field_cref &&) noexcept = default;
   ~bytes_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->of_bytes.selection == descriptor().oneof_ordinal; }
+  [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] bytes_view default_value() const noexcept {
     const auto &v = descriptor_->proto().default_value;
