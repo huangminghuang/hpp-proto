@@ -339,8 +339,8 @@ const ut::suite test_repeated_vint = [] {
     constexpr std::array<int32_t, 9> kPackedSint32 = {0, 1, 2, 3, 4, -1, -2, -3, -4};
     constexpr std::array<int32_t, 9> kUnpackedSint32 = {1, 2, 3, 4, 0, -1, -2, -3, -4};
     constexpr std::array<hpp_proto::vsint32_t, 9> kUnpackedVsint32 = {
-        hpp_proto::vsint32_t{1}, hpp_proto::vsint32_t{2}, hpp_proto::vsint32_t{3},
-        hpp_proto::vsint32_t{4}, hpp_proto::vsint32_t{0}, hpp_proto::vsint32_t{-1},
+        hpp_proto::vsint32_t{1},  hpp_proto::vsint32_t{2},  hpp_proto::vsint32_t{3},
+        hpp_proto::vsint32_t{4},  hpp_proto::vsint32_t{0},  hpp_proto::vsint32_t{-1},
         hpp_proto::vsint32_t{-2}, hpp_proto::vsint32_t{-3}, hpp_proto::vsint32_t{-4},
     };
 
@@ -1563,11 +1563,10 @@ const ut::suite test_non_owning_extensions = [] {
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
-    ut::expect(
-        value
-            .set_extension(repeated_packed_i32_ext<hpp_proto::non_owning_traits>{.value = kPackedExtInts},
-                           hpp_proto::alloc_from{mr})
-            .ok());
+    ut::expect(value
+                   .set_extension(repeated_packed_i32_ext<hpp_proto::non_owning_traits>{.value = kPackedExtInts},
+                                  hpp_proto::alloc_from{mr})
+                   .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 22);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };

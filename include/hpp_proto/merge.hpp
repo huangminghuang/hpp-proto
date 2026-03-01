@@ -144,7 +144,10 @@ struct message_merger {
         if constexpr (requires { dest = std::forward<U>(source); }) {
           dest = std::forward<U>(source);
           return;
-        } else if constexpr (requires { dest.assign(std::make_move_iterator(source.begin()), std::make_move_iterator(source.end())); }) {
+        } else if constexpr (requires {
+                               dest.assign(std::make_move_iterator(source.begin()),
+                                           std::make_move_iterator(source.end()));
+                             }) {
           dest.assign(std::make_move_iterator(source.begin()), std::make_move_iterator(source.end()));
           return;
         }
