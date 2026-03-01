@@ -1,5 +1,6 @@
 #include <boost/ut.hpp>
 
+#include <chrono>
 #include <condition_variable>
 #include <memory_resource>
 #include <mutex>
@@ -46,6 +47,11 @@ public:
     std::unique_lock lock(mu_);
     cv_.wait(lock, [&] { return done_; });
   }
+  template <class Rep, class Period>
+  bool wait_for_responses(std::size_t count, const std::chrono::duration<Rep, Period> &timeout) {
+    std::unique_lock lock(mu_);
+    return cv_.wait_for(lock, timeout, [&] { return responses_.size() >= count || done_; });
+  }
 
   [[nodiscard]] const ::grpc::Status &status() const { return status_; }
   [[nodiscard]] const std::vector<std::string> &responses() const { return responses_; }
@@ -66,6 +72,7 @@ public:
         return;
       }
       responses_.emplace_back(response.message.begin(), response.message.end());
+      cv_.notify_all();
     }
     this->start_read();
   }
@@ -168,10 +175,13 @@ void run_bidi_explicit_cancel_case() {
   Harness harness;
   auto &stub = harness.stub();
   ::grpc::ClientContext context;
+  context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
   BidiReactor reactor;
   reactor.set_use_sentinel(false);
-  reactor.set_payloads({"chat_0", "chat_1", "chat_2", "chat_3"});
+  reactor.set_payloads(
+      {"chat_0", "chat_1", "chat_2", "chat_3", "chat_4", "chat_5", "chat_6", "chat_7", "chat_8", "chat_9"});
   reactor.start(stub, context);
+  expect(reactor.wait_for_responses(1, std::chrono::seconds(2)));
   context.TryCancel();
   reactor.wait();
 
