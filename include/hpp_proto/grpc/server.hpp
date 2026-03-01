@@ -270,7 +270,9 @@ protected:
       handler_.on_write_ok(*this);
     } else {
       bool handled = false;
-      if constexpr (requires { { handler_.on_write_error(*this) } -> std::convertible_to<bool>; }) {
+      if constexpr (requires {
+                      { handler_.on_write_error(*this) } -> std::convertible_to<bool>;
+                    }) {
         handled = handler_.on_write_error(*this);
       }
       if (!handled) {
@@ -288,11 +290,15 @@ protected:
     } else {
       bool handled = false;
       if (this->context().IsCancelled()) {
-        if constexpr (requires { { handler_.on_read_cancel(*this) } -> std::convertible_to<bool>; }) {
+        if constexpr (requires {
+                        { handler_.on_read_cancel(*this) } -> std::convertible_to<bool>;
+                      }) {
           handled = handler_.on_read_cancel(*this);
         }
       } else {
-        if constexpr (requires { { handler_.on_read_eof(*this) } -> std::convertible_to<bool>; }) {
+        if constexpr (requires {
+                        { handler_.on_read_eof(*this) } -> std::convertible_to<bool>;
+                      }) {
           handled = handler_.on_read_eof(*this);
         }
       }
