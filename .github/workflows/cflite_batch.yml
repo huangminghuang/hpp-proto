@@ -6,7 +6,10 @@ on:
       - main  # Use your actual default branch here.
   schedule:
     - cron: '0 3 * * *'
-permissions: read-all
+permissions:
+  contents: read
+  actions: read
+  security-events: write
 jobs:
   BatchFuzzing:
     runs-on: ubuntu-latest
@@ -24,14 +27,38 @@ jobs:
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       with:
         sanitizer: ${{ matrix.sanitizer }}
-    - name: Run Fuzzers (${{ matrix.sanitizer }})
+
+    - name: Detect storage PAT
+      id: storage
+      shell: bash
+      env:
+        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      run: |
+        if [[ -n "${PERSONAL_ACCESS_TOKEN}" ]]; then
+          echo "has_pat=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "has_pat=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run Fuzzers (${{ matrix.sanitizer }}) with storage repo
+      if: steps.storage.outputs.has_pat == 'true'
       id: run
       uses: google/clusterfuzzlite/actions/run_fuzzers@v1
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ github.token }}
         fuzz-seconds: 600
         mode: 'batch'
         sanitizer: ${{ matrix.sanitizer }}
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+
+    - name: Run Fuzzers (${{ matrix.sanitizer }}) without storage repo
+      if: steps.storage.outputs.has_pat != 'true'
+      id: run-no-storage
+      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      with:
+        github-token: ${{ github.token }}
+        fuzz-seconds: 600
+        mode: 'batch'
+        sanitizer: ${{ matrix.sanitizer }}

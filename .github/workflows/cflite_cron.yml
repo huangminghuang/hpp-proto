@@ -3,7 +3,10 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 5 * * *'  # Once a day.
-permissions: read-all
+permissions:
+  contents: read
+  actions: read
+  security-events: write
 jobs:
   Coverage:
     runs-on: ubuntu-latest
@@ -17,18 +20,41 @@ jobs:
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       with:
         sanitizer: coverage
-    - name: Run Fuzzers
+    - name: Detect storage PAT
+      id: storage
+      shell: bash
+      env:
+        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      run: |
+        if [[ -n "${PERSONAL_ACCESS_TOKEN}" ]]; then
+          echo "has_pat=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "has_pat=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run Fuzzers with storage repo
+      if: steps.storage.outputs.has_pat == 'true'
       id: run
       uses: google/clusterfuzzlite/actions/run_fuzzers@v1
       env:
         COVERAGE_EXTRA_ARGS: -ignore-filename-regex=build/* -ignore-filename-regex=fuzz/* -ignore-filename-regex=include/google/*
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ github.token }}
         fuzz-seconds: 600
         mode: 'coverage'
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+    - name: Run Fuzzers without storage repo
+      if: steps.storage.outputs.has_pat != 'true'
+      id: run-no-storage
+      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      env:
+        COVERAGE_EXTRA_ARGS: -ignore-filename-regex=build/* -ignore-filename-regex=fuzz/* -ignore-filename-regex=include/google/*
+      with:
+        github-token: ${{ github.token }}
+        fuzz-seconds: 600
+        mode: 'coverage'
   Pruning:
     runs-on: ubuntu-latest
     steps:
@@ -39,13 +65,34 @@ jobs:
     - name: Build Fuzzers
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
-    - name: Run Fuzzers
+    - name: Detect storage PAT
+      id: storage
+      shell: bash
+      env:
+        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      run: |
+        if [[ -n "${PERSONAL_ACCESS_TOKEN}" ]]; then
+          echo "has_pat=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "has_pat=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run Fuzzers with storage repo
+      if: steps.storage.outputs.has_pat == 'true'
       id: run
       uses: google/clusterfuzzlite/actions/run_fuzzers@v1
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ github.token }}
         fuzz-seconds: 600
         mode: 'prune'
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+    - name: Run Fuzzers without storage repo
+      if: steps.storage.outputs.has_pat != 'true'
+      id: run-no-storage
+      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      with:
+        github-token: ${{ github.token }}
+        fuzz-seconds: 600
+        mode: 'prune'
