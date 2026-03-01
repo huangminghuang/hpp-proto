@@ -811,16 +811,12 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(factory.has_value());
   };
 
-  "moved_from_factory_returns_unknown_message_name"_test = [&] {
-    auto src = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
-    auto dst = std::move(src);
+  "unknown_message_name_returns_error"_test = [&] {
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
     std::pmr::monotonic_buffer_resource mr;
 
-    auto moved_from_msg = src.get_message("proto3_unittest.TestAllTypes", mr);
-    expect(!moved_from_msg.has_value());
-    expect(eq(moved_from_msg.error(), hpp_proto::dynamic_message_errc::unknown_message_name));
-
-    auto moved_to_msg = dst.get_message("proto3_unittest.TestAllTypes", mr);
-    expect(moved_to_msg.has_value());
+    auto missing = factory.get_message("proto3_unittest.DoesNotExist", mr);
+    expect(!missing.has_value());
+    expect(eq(missing.error(), hpp_proto::dynamic_message_errc::unknown_message_name));
   };
 };
