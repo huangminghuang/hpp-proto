@@ -27,6 +27,10 @@ endif()
 
 if(NOT MSVC)
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wextra" "-Werror=sign-conversion")
+else()
+  # Ensure exception unwind semantics are enabled for MSVC builds.
+  # This is required for tests that use boost::ut `throws(...)` and avoids C4530.
+  add_compile_options("/EHsc")
 endif()
 
 include(third-parties.cmake)

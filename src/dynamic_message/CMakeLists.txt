@@ -18,6 +18,9 @@ target_sources( dynamic_message PUBLIC
     FILES "${PROJECT_BINARY_DIR}/include/hpp_proto/dynamic_message/export.hpp" )
 target_compile_features( dynamic_message PUBLIC cxx_std_23 )
 target_compile_options( dynamic_message PRIVATE ${HPP_PROTO_COMPILE_OPTIONS} )
+if (MSVC)
+    target_compile_options(dynamic_message PRIVATE /bigobj)
+endif()
 target_link_libraries( dynamic_message PUBLIC hpp_proto_core well_known_types )
 add_library( hpp_proto::dynamic_message ALIAS dynamic_message )
 install( TARGETS dynamic_message EXPORT hpp_proto-targets

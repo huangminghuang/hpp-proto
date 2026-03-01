@@ -146,6 +146,8 @@ struct TestSuite {
   using string_t = typename Traits::string_t;
   using bytes_t = typename Traits::bytes_t;
 
+  static bytes_t make_bytes(const auto &literal) { return bytes_t{literal.begin(), literal.end()}; }
+
   static void SetAll(TestAllTypes_t *message, auto && /*unused*/) {
     SetOptionalFields(message);
     SetRepeatedFields(message);
@@ -168,7 +170,7 @@ struct TestSuite {
     message->optional_double = 112;
     message->optional_bool = true;
     message->optional_string = "115";
-    message->optional_bytes = "116"_bytes;
+    message->optional_bytes = make_bytes("116"_bytes);
 
     message->optionalgroup.emplace().a = 117;
     message->optional_nested_message.emplace().bb = 118;
@@ -219,7 +221,7 @@ struct TestSuite {
       message->repeated_string = std::initializer_list<string_t>{"215", "315"};
     }
 
-    const static auto repeated_bytes = std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes};
+    const static auto repeated_bytes = std::initializer_list<bytes_t>{make_bytes("216"_bytes), make_bytes("316"_bytes)};
     message->repeated_bytes = repeated_bytes;
 
     const static auto repeatedgroup = std::initializer_list<RepeatedGroup_t>{{.a = 217}, {.a = 317}};
@@ -264,7 +266,7 @@ struct TestSuite {
     message->default_double = 412;
     message->default_bool = false;
     message->default_string = "415";
-    message->default_bytes = "416"_bytes;
+    message->default_bytes = make_bytes("416"_bytes);
 
     message->default_nested_enum = NestedEnum::FOO;
     message->default_foreign_enum = mapping_t::FOREIGN_FOO;
@@ -277,7 +279,7 @@ struct TestSuite {
     constexpr int oneof_nested_message_id = TestAllTypes_t::oneof_field_oneof_case::oneof_nested_message;
     message->oneof_field.template emplace<oneof_nested_message_id>().bb = 602;
     message->oneof_field.template emplace<string_t>("603");
-    message->oneof_field.template emplace<bytes_t>(static_cast<bytes_t>("604"_bytes));
+    message->oneof_field.template emplace<bytes_t>(make_bytes("604"_bytes));
   }
 
   // -------------------------------------------------------------------
@@ -761,7 +763,7 @@ struct TestSuite {
     expect_set_extension_ok(optional_double_extension_t{.value = 112});
     expect_set_extension_ok(optional_bool_extension_t{.value = true});
     expect_set_extension_ok(optional_string_extension_t{.value = "115"});
-    expect_set_extension_ok(optional_bytes_extension_t{.value = "116"_bytes});
+    expect_set_extension_ok(optional_bytes_extension_t{.value = make_bytes("116"_bytes)});
 
     expect_set_extension_ok(optionalgroup_extension_t{.value = {.a = 117}});
     expect_set_extension_ok(optional_nested_message_extension_t{.value = {.bb = 118}});
@@ -794,7 +796,7 @@ struct TestSuite {
     const static auto repeated_double = std::initializer_list<double>{212., 312.};
     const static auto repeated_bool = std::initializer_list<bool_t>{true, false};
     const static auto repeated_string = std::initializer_list<string_t>{"215", "315"};
-    const static auto repeated_bytes = std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes};
+    const static auto repeated_bytes = std::initializer_list<bytes_t>{make_bytes("216"_bytes), make_bytes("316"_bytes)};
     const static auto repeated_group = std::initializer_list<RepeatedGroup_extension_t>{{.a = 217}, {.a = 317}};
     const static auto repeated_nested_message = std::initializer_list<NestedMessage_t>{{.bb = 218}, {.bb = 318}};
     const static auto repeated_foreign_message = std::initializer_list<ForeignMessage_t>{{.c = 219}, {.c = 319}};
@@ -853,7 +855,7 @@ struct TestSuite {
 
     expect_set_extension_ok(default_bool_extension_t{.value = false});
     expect_set_extension_ok(default_string_extension_t{.value = "415"});
-    expect_set_extension_ok(default_bytes_extension_t{.value = "416"_bytes});
+    expect_set_extension_ok(default_bytes_extension_t{.value = make_bytes("416"_bytes)});
 
     expect_set_extension_ok(default_nested_enum_extension_t{.value = NestedEnum::FOO});
     expect_set_extension_ok(default_foreign_enum_extension_t{.value = mapping_t::FOREIGN_FOO});
@@ -873,7 +875,7 @@ struct TestSuite {
     expect_set_extension_ok(oneof_uint32_extension_t{.value = 601});
     expect_set_extension_ok(oneof_nested_message_extension_t{.value = {.bb = 602}});
     expect_set_extension_ok(oneof_string_extension_t{.value = "603"});
-    expect_set_extension_ok(oneof_bytes_extension_t{.value = "604"_bytes});
+    expect_set_extension_ok(oneof_bytes_extension_t{.value = make_bytes("604"_bytes)});
   }
 
   // -------------------------------------------------------------------
@@ -993,7 +995,8 @@ struct TestSuite {
     expect_extension_range_eq({212, 312}, repeated_double_extension_t{});
     expect_extension_range_eq({true, false}, repeated_bool_extension_t{});
     expect_extension_range_eq(std::initializer_list<string_t>{"215", "315"}, repeated_string_extension_t{});
-    expect_extension_range_eq(std::initializer_list<bytes_t>{"216"_bytes, "316"_bytes}, repeated_bytes_extension_t{});
+    expect_extension_range_eq(std::initializer_list<bytes_t>{make_bytes("216"_bytes), make_bytes("316"_bytes)},
+                              repeated_bytes_extension_t{});
     expect_extension_range_eq({{.a = 217}, {.a = 317}}, repeatedgroup_extension_t{});
 
     expect_extension_range_eq({{.bb = 218}, {.bb = 318}}, repeated_nested_message_extension_t{});

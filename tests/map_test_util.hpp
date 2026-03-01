@@ -9,6 +9,7 @@ struct init_list {
   using bool_t = typename Traits::template repeated_t<bool>::value_type;
   using string_t = typename Traits::string_t;
   using bytes_t = typename Traits::bytes_t;
+  static bytes_t make_bytes(const auto &literal) { return bytes_t{literal.begin(), literal.end()}; }
 
   constexpr static auto map_int32_int32 = std::initializer_list<std::pair<std::int32_t, std::int32_t>>{{0, 0}, {1, 1}};
   constexpr static auto map_int64_int64 =
@@ -39,8 +40,8 @@ const std::array<std::pair<typename Traits::string_t, typename Traits::string_t>
 
 template <typename Traits>
 const std::array<std::pair<std::int32_t, typename Traits::bytes_t>, 2> init_list<Traits>::map_int32_bytes{{
-    {0, static_cast<typename Traits::bytes_t>("0"_bytes)},
-    {1, static_cast<typename Traits::bytes_t>("1"_bytes)},
+    {0, init_list<Traits>::make_bytes("0"_bytes)},
+    {1, init_list<Traits>::make_bytes("1"_bytes)},
 }};
 
 template <typename T>
