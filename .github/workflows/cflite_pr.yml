@@ -4,7 +4,10 @@ on:
     paths-ignore:
       - '**.md'
   workflow_dispatch:
-permissions: read-all
+permissions:
+  contents: read
+  actions: read
+  security-events: write
 jobs:
   PR:
     runs-on: ubuntu-latest
@@ -22,13 +25,15 @@ jobs:
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       with:
         language: c++ 
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ github.token }}
         sanitizer: ${{ matrix.sanitizer }}
-    - name: Run Fuzzers (${{ matrix.sanitizer }})
+
+    - name: Run Fuzzers (${{ matrix.sanitizer }}) with storage repo
+      if: ${{ secrets.PERSONAL_ACCESS_TOKEN != '' }}
       id: run
       uses: google/clusterfuzzlite/actions/run_fuzzers@v1
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ github.token }}
         fuzz-seconds: 300
         mode: 'code-change'
         sanitizer: ${{ matrix.sanitizer }}
@@ -36,3 +41,14 @@ jobs:
         storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+
+    - name: Run Fuzzers (${{ matrix.sanitizer }}) without storage repo
+      if: ${{ secrets.PERSONAL_ACCESS_TOKEN == '' }}
+      id: run-no-storage
+      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      with:
+        github-token: ${{ github.token }}
+        fuzz-seconds: 300
+        mode: 'code-change'
+        sanitizer: ${{ matrix.sanitizer }}
+        output-sarif: true
