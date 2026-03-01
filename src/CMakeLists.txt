@@ -59,7 +59,7 @@ install(TARGETS well_known_types EXPORT hpp_proto-targets
     ${CMAKE_INSTALL_INCLUDEDIR})
 
 add_library(hpp_proto INTERFACE)
-target_link_libraries(hpp_proto INTERFACE hpp_proto_core hpp_proto::dynamic_message well_known_types descriptor_lib)
+target_link_libraries(hpp_proto INTERFACE hpp_proto_core well_known_types descriptor_lib)
 add_library(hpp_proto::hpp_proto ALIAS hpp_proto)
 install(TARGETS hpp_proto EXPORT hpp_proto-targets)
 
