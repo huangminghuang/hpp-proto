@@ -327,33 +327,45 @@ const ut::suite test_repeated_vint = [] {
   };
 
   "normal_cases"_test = []<class Traits> {
-    "repeated_sint32_case"_test = [] {
-      expect_roundtrip_ok(
-          "\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv,
-          repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{0, 1, 2, 3, 4, -1, -2, -3, -4}});
+    auto make_repeated = []<typename Elem, std::size_t N>(const std::array<Elem, N> &values) {
+      using repeated_t = typename Traits::template repeated_t<Elem>;
+      if constexpr (std::same_as<Traits, hpp_proto::non_owning_traits>) {
+        return repeated_t{values};
+      } else {
+        return repeated_t{values.begin(), values.end()};
+      }
     };
 
-    "repeated_sint32_unpacked_case"_test = [] {
-      expect_roundtrip_ok("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-                          repeated_sint32_unpacked<Traits>{
-                              .integers = std::initializer_list<hpp_proto::vsint32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+    constexpr std::array<int32_t, 9> kPackedSint32 = {0, 1, 2, 3, 4, -1, -2, -3, -4};
+    constexpr std::array<int32_t, 9> kUnpackedSint32 = {1, 2, 3, 4, 0, -1, -2, -3, -4};
+    constexpr std::array<hpp_proto::vsint32_t, 9> kUnpackedVsint32 = {
+        hpp_proto::vsint32_t{1},  hpp_proto::vsint32_t{2},  hpp_proto::vsint32_t{3},
+        hpp_proto::vsint32_t{4},  hpp_proto::vsint32_t{0},  hpp_proto::vsint32_t{-1},
+        hpp_proto::vsint32_t{-2}, hpp_proto::vsint32_t{-3}, hpp_proto::vsint32_t{-4},
     };
 
-    "repeated_sint32_unpacked_decode"_test = [] {
-      expect_read_ok(
-          "\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-          repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+    "repeated_sint32_case"_test = [=] {
+      repeated_sint32<Traits> value{.integers = make_repeated(kPackedSint32)};
+      expect_roundtrip_ok("\x0a\x09\x00\x02\x04\x06\x08\x01\x03\x05\x07"sv, value);
     };
 
-    "repeated_sint32_unpacked_explicit_type_case"_test = [] {
-      expect_roundtrip_ok("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv,
-                          repeated_sint32_unpacked_explicit_type<Traits>{
-                              .integers = std::initializer_list<int32_t>{1, 2, 3, 4, 0, -1, -2, -3, -4}});
+    "repeated_sint32_unpacked_case"_test = [=] {
+      repeated_sint32_unpacked<Traits> value{.integers = make_repeated(kUnpackedVsint32)};
+      expect_roundtrip_ok("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv, value);
+    };
 
-      "repeated_sint32_append"_test = [] {
-        expect_read_ok(
-            "\x0a\x05\x00\x02\x04\x06\x08\x0a\x04\x01\x03\x05\x07"sv,
-            repeated_sint32<Traits>{.integers = std::initializer_list<int32_t>{0, 1, 2, 3, 4, -1, -2, -3, -4}});
+    "repeated_sint32_unpacked_decode"_test = [=] {
+      repeated_sint32<Traits> value{.integers = make_repeated(kUnpackedSint32)};
+      expect_read_ok("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv, value);
+    };
+
+    "repeated_sint32_unpacked_explicit_type_case"_test = [=] {
+      repeated_sint32_unpacked_explicit_type<Traits> value{.integers = make_repeated(kUnpackedSint32)};
+      expect_roundtrip_ok("\x08\x02\x08\x04\x08\x06\x08\x08\x08\x00\x08\x01\x08\x03\x08\x05\x08\x07"sv, value);
+
+      "repeated_sint32_append"_test = [=] {
+        repeated_sint32<Traits> value{.integers = make_repeated(kPackedSint32)};
+        expect_read_ok("\x0a\x05\x00\x02\x04\x06\x08\x0a\x04\x01\x03\x05\x07"sv, value);
       };
     };
   } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
@@ -571,28 +583,36 @@ const ut::suite test_enums = [] {
   };
 
   "repeated_open_enum"_test = []<class Traits> {
-    "repeated_enum_packed"_test = [] {
-      expect_roundtrip_ok(
-          "\x1a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
-          open_enum_message<Traits>{.packed_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
+    auto make_repeated = []<typename Elem, std::size_t N>(const std::array<Elem, N> &values) {
+      using repeated_t = typename Traits::template repeated_t<Elem>;
+      if constexpr (std::same_as<Traits, hpp_proto::non_owning_traits>) {
+        return repeated_t{values};
+      } else {
+        return repeated_t{values.begin(), values.end()};
+      }
     };
 
-    "repeated_enum_unpacked"_test = [] {
-      expect_roundtrip_ok("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv,
-                          open_enum_message<Traits>{.expanded_repeated_field =
-                                                        std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ, NEG}});
+    constexpr std::array<ForeignEnumEx, 4> kEnumsWithNeg = {FOO, BAR, BAZ, NEG};
+    constexpr std::array<ForeignEnumEx, 3> kEnums = {FOO, BAR, BAZ};
+
+    "repeated_enum_packed"_test = [=] {
+      open_enum_message<Traits> value{.packed_repeated_field = make_repeated(kEnumsWithNeg)};
+      expect_roundtrip_ok("\x1a\x0d\x01\x02\x03\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv, value);
     };
 
-    "repeated_enum packed + repeated_enum unpacked"_test = [] {
-      expect_read_ok(
-          "\x1a\x02\x01\x02\x18\x03"sv,
-          open_enum_message<Traits>{.packed_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ}});
+    "repeated_enum_unpacked"_test = [=] {
+      open_enum_message<Traits> value{.expanded_repeated_field = make_repeated(kEnumsWithNeg)};
+      expect_roundtrip_ok("\x08\x01\x08\x02\x08\x03\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"sv, value);
     };
 
-    "repeated_enum unpacked + repeated_enum packed"_test = [] {
-      expect_read_ok(
-          "\x08\x01\x08\x02\x0a\x01\x03"sv,
-          open_enum_message<Traits>{.expanded_repeated_field = std::initializer_list<ForeignEnumEx>{FOO, BAR, BAZ}});
+    "repeated_enum packed + repeated_enum unpacked"_test = [=] {
+      open_enum_message<Traits> value{.packed_repeated_field = make_repeated(kEnums)};
+      expect_read_ok("\x1a\x02\x01\x02\x18\x03"sv, value);
+    };
+
+    "repeated_enum unpacked + repeated_enum packed"_test = [=] {
+      open_enum_message<Traits> value{.expanded_repeated_field = make_repeated(kEnums)};
+      expect_read_ok("\x08\x01\x08\x02\x0a\x01\x03"sv, value);
     };
   } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 
@@ -1158,8 +1178,18 @@ const ut::suite test_repeated_strings = [] {
 
   "repeated_strings_case"_test = []<class Traits> {
     using element_type = typename Traits::string_t;
-    expect_roundtrip_ok("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv,
-                        repeated_strings<Traits>{.values = std::initializer_list<element_type>{"abc", "def"}});
+    auto make_repeated = []<typename Elem, std::size_t N>(const std::array<Elem, N> &values) {
+      using repeated_t = typename Traits::template repeated_t<Elem>;
+      if constexpr (std::same_as<Traits, hpp_proto::non_owning_traits>) {
+        return repeated_t{values};
+      } else {
+        return repeated_t{values.begin(), values.end()};
+      }
+    };
+
+    std::array<element_type, 2> values = {"abc", "def"};
+    repeated_strings<Traits> msg{.values = make_repeated(values)};
+    expect_roundtrip_ok("\x0a\x03\x61\x62\x63\x0a\x03\x64\x65\x66"sv, msg);
   } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits>{};
 };
 
@@ -1497,6 +1527,8 @@ const ut::suite test_non_owning_extensions = [] {
   "set_non_owning_extension"_test = [] {
     std::pmr::monotonic_buffer_resource mr;
     non_owning_extension_example value;
+    constexpr std::array<std::string_view, 2> kExtStrings = {"abc"sv, "def"sv};
+    constexpr std::array<int32_t, 3> kPackedExtInts = {1, 2, 3};
     ut::expect(value.set_extension(i32_ext<hpp_proto::default_traits>{.value = 1}, hpp_proto::alloc_from{mr}).ok());
     ut::expect(value.unknown_fields_.fields.back().first == 10);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\x50\x01"_bytes));
@@ -1524,21 +1556,17 @@ const ut::suite test_non_owning_extensions = [] {
 
     using namespace std::literals;
     ut::expect(value
-                   .set_extension(
-                       repeated_string_ext<hpp_proto::non_owning_traits>{
-                           .value = std::initializer_list<std::string_view>{"abc"sv, "def"sv}},
-                       hpp_proto::alloc_from{mr})
+                   .set_extension(repeated_string_ext<hpp_proto::non_owning_traits>{.value = kExtStrings},
+                                  hpp_proto::alloc_from{mr})
                    .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 21);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second,
                                   "\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66"_bytes));
 
-    ut::expect(
-        value
-            .set_extension(
-                repeated_packed_i32_ext<hpp_proto::non_owning_traits>{.value = std::initializer_list<int32_t>{1, 2, 3}},
-                hpp_proto::alloc_from{mr})
-            .ok());
+    ut::expect(value
+                   .set_extension(repeated_packed_i32_ext<hpp_proto::non_owning_traits>{.value = kPackedExtInts},
+                                  hpp_proto::alloc_from{mr})
+                   .ok());
     ut::expect(value.unknown_fields_.fields.back().first == 22);
     ut::expect(std::ranges::equal(value.unknown_fields_.fields.back().second, "\xb2\x01\x03\01\02\03"_bytes));
   };

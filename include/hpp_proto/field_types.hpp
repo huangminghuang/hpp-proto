@@ -153,11 +153,11 @@ public:
   constexpr optional(const optional &) = default;
 
   template <class U>
-  constexpr optional(const optional<U> &other) : _value(other._value), _present(other.present) {}
+  constexpr optional(const optional<U> &other) : _value(other._value), _present(other._present) {}
 
   template <class U>
   constexpr optional(optional<U> &&other) // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
-      : _value(std::move(other)._value), _present(other.present) {}
+      : _value(std::move(other)._value), _present(other._present) {}
 
   constexpr optional(const std::optional<T> &other)
       : _value(other.value_or(default_value())), _present(other.has_value()) {}
@@ -387,15 +387,10 @@ public:
     requires std::is_convertible_v<U (*)[], T (*)[]>
   constexpr equality_comparable_span(std::span<U> other) noexcept : _data(other.data()), _size(other.size()) {}
 
-#ifdef _MSC_VER
-  template <typename U>
-    requires(std::is_const_v<T> && std::same_as<std::remove_const_t<T>, std::remove_const_t<U>>)
-  constexpr equality_comparable_span(std::initializer_list<U> init) noexcept
-      : _data(init.begin()), _size(init.size()) {}
-#endif
   template <typename R>
     requires(!std::same_as<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
-             std::ranges::sized_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
+             std::ranges::sized_range<R> && std::ranges::borrowed_range<R> &&
+             std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
   constexpr equality_comparable_span(R &&r) noexcept
       : equality_comparable_span(std::span<element_type>{std::forward<R>(r)}) {}
 
@@ -423,19 +418,10 @@ public:
     return *this;
   }
 
-#ifdef _MSC_VER
-  template <typename U>
-    requires(std::is_const_v<T> && std::same_as<std::remove_const_t<T>, std::remove_const_t<U>>)
-  constexpr equality_comparable_span &operator=(std::initializer_list<U> init) noexcept {
-    _data = init.begin();
-    _size = init.size();
-    return *this;
-  }
-#endif
-
   template <typename R>
     requires(!std::same_as<std::remove_cvref_t<R>, equality_comparable_span> && std::ranges::contiguous_range<R> &&
-             std::ranges::sized_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
+             std::ranges::sized_range<R> && std::ranges::borrowed_range<R> &&
+             std::convertible_to<std::ranges::range_reference_t<R>, element_type>)
   constexpr equality_comparable_span &operator=(R &&r) noexcept {
     *this = std::span<element_type>{std::forward<R>(r)};
     return *this;
@@ -463,10 +449,13 @@ public:
   [[nodiscard]] constexpr bool empty() const noexcept { return _size == 0; }
 
   [[nodiscard]] constexpr reference front() const noexcept {
-    assert(!_size);
+    assert(!empty());
     return *_data;
   }
-  [[nodiscard]] constexpr reference back() const noexcept { return (*this)[_size - 1]; }
+  [[nodiscard]] constexpr reference back() const noexcept {
+    assert(!empty());
+    return (*this)[_size - 1];
+  }
   [[nodiscard]] constexpr equality_comparable_span first(size_type count) const {
     assert(count <= _size);
     return {_data, count};
@@ -525,7 +514,8 @@ struct bytes_literal {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
   }
 
-  friend constexpr bool operator==(const bytes_literal &lhs, const std::vector<std::byte> &rhs) {
+  template <typename Alloc>
+  friend constexpr bool operator==(const bytes_literal &lhs, const std::vector<std::byte, Alloc> &rhs) {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
   }
 };

@@ -323,11 +323,22 @@ const ut::suite test_bytes = [] {
   using namespace boost::ut;
 
   "bytes"_test = []<class Traits> {
+    auto make_bytes = [](const auto &literal) {
+      using bytes_t = typename Traits::bytes_t;
+      if constexpr (std::same_as<Traits, hpp_proto::non_owning_traits>) {
+        return bytes_t{std::span<const std::byte>{literal.begin(), literal.end()}};
+      } else {
+        return bytes_t{literal.begin(), literal.end()};
+      }
+    };
+
     verify(bytes_example<Traits>{}, R"({"field0":""})");
-    verify(bytes_example<Traits>{.field0 = "foo"_bytes,
-                                 .field1 = "light work."_bytes,
-                                 .field2 = "light work"_bytes,
-                                 .field3 = "light wor"_bytes},
+    bytes_example<Traits> value{};
+    value.field0 = make_bytes("foo"_bytes);
+    value.field1 = make_bytes("light work."_bytes);
+    value.field2 = make_bytes("light work"_bytes);
+    value.field3 = make_bytes("light wor"_bytes);
+    verify(value,
            R"({"field0":"Zm9v","field1":"bGlnaHQgd29yay4=","field2":"bGlnaHQgd29yaw==","field3":"bGlnaHQgd29y"})");
   } | std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits, hpp_proto::pmr_traits>{};
 };
