@@ -61,8 +61,6 @@ public:
       std::unique_lock lock(mu_);
       if (!read_status.ok()) {
         status_ = read_status;
-        done_ = true;
-        cv_.notify_all();
         lock.unlock();
         context_->TryCancel();
         return;
@@ -74,7 +72,7 @@ public:
 
   void OnWriteDone(bool ok) override {
     if (!ok) {
-      OnDone(::grpc::Status(::grpc::StatusCode::CANCELLED, "write cancelled"));
+      // gRPC will deliver OnDone() for terminal write failure.
       return;
     }
     send_next();
@@ -111,7 +109,8 @@ private:
         sentinel.sequence = kTerminalSequence;
         auto status = this->write(sentinel);
         if (!status.ok()) {
-          OnDone(status);
+          writes_complete_ = true;
+          context_->TryCancel();
         }
       } else {
         writes_complete_ = true;
@@ -126,7 +125,8 @@ private:
     ++next_payload_;
     auto status = this->write(request);
     if (!status.ok()) {
-      OnDone(status);
+      writes_complete_ = true;
+      context_->TryCancel();
     }
   }
 };

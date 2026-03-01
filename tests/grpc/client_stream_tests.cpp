@@ -25,6 +25,7 @@ class ClientStreamReactor : public ::hpp_proto::grpc::ClientCallbackReactor<Clie
   bool writes_complete_ = false;
   ::grpc::Status status_;
   hpp_proto_test::StreamSummary<> summary_;
+  ::grpc::ClientContext *context_ = nullptr;
 
 public:
   using request_t = hpp_proto_test::EchoRequest<>;
@@ -33,6 +34,7 @@ public:
   void set_use_sentinel(bool use_sentinel) { use_sentinel_ = use_sentinel; }
 
   void begin(Harness::stub_type &stub, ::grpc::ClientContext &context) {
+    context_ = &context;
     stub.async_call<ClientStreamAggregate>(context, this);
     this->start_call();
     send_next();
@@ -54,7 +56,7 @@ public:
 
   void OnWriteDone(bool ok) override {
     if (!ok) {
-      OnDone(::grpc::Status(::grpc::StatusCode::CANCELLED, "write cancelled"));
+      // gRPC will deliver OnDone() for terminal write failure.
       return;
     }
     send_next();
@@ -96,7 +98,8 @@ private:
         sentinel.sequence = kTerminalSequence;
         auto status = this->write(sentinel, hpp_proto::contiguous_mode);
         if (!status.ok()) {
-          OnDone(status);
+          writes_complete_ = true;
+          context_->TryCancel();
         }
       } else {
         writes_complete_ = true;
@@ -111,7 +114,8 @@ private:
     ++next_message_;
     auto status = this->write(request, hpp_proto::contiguous_mode);
     if (!status.ok()) {
-      OnDone(status);
+      writes_complete_ = true;
+      context_->TryCancel();
     }
   }
 };
