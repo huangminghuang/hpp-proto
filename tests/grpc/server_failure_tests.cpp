@@ -158,7 +158,9 @@ struct CancelReadHandler {
   using rpc_t = ::hpp_proto::grpc::ServerRPC<unit_test_detail::fake_client_stream_method>;
   unit_test_detail::cancel_read_state *state_;
 
-  explicit CancelReadHandler(unit_test_detail::cancel_read_state &state, rpc_t &rpc) : state_(&state) { rpc.start_read(); }
+  explicit CancelReadHandler(unit_test_detail::cancel_read_state &state, rpc_t &rpc) : state_(&state) {
+    rpc.start_read();
+  }
 
   void on_read_ok(rpc_t &, ::hpp_proto::grpc::RequestToken<unit_test_detail::fake_client_stream_method>) const {}
 
