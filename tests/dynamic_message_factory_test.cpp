@@ -811,6 +811,93 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(factory.has_value());
   };
 
+  "factory_create_invalid_binpb_returns_bad_message"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
+    auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+    expect(!factory.has_value());
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::bad_message));
+  };
+
+  "factory_create_invalid_fileset_returns_bad_message"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+        desc_binpb, hpp_proto::alloc_from(mr)));
+
+    auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
+    expect(!factory.has_value());
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::bad_message));
+  };
+
+  "factory_create_invalid_distinct_descs_returns_bad_message"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
+    std::pmr::monotonic_buffer_resource mr;
+    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+        desc_binpb, hpp_proto::alloc_from(mr)));
+    expect(!fileset.file.empty());
+
+    std::string file_desc_pb;
+    expect(hpp_proto::write_binpb(fileset.file.front(), file_desc_pb).ok());
+
+    hpp_proto::distinct_file_descriptor_pb_array descs = {
+        hpp_proto::file_descriptor_pb{file_desc_pb},
+    };
+    auto factory = hpp_proto::dynamic_message_factory::create(descs);
+    expect(!factory.has_value());
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::bad_message));
+  };
+
+  "moved_from_factory_returns_unknown_message_name"_test = [&] {
+    auto src = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
+    auto dst = std::move(src);
+    std::pmr::monotonic_buffer_resource mr;
+
+    auto moved_from_msg = src.get_message("proto3_unittest.TestAllTypes", mr);
+    expect(!moved_from_msg.has_value());
+    expect(eq(moved_from_msg.error(), hpp_proto::dynamic_message_errc::unknown_message_name));
+
+    auto moved_to_msg = dst.get_message("proto3_unittest.TestAllTypes", mr);
+    expect(moved_to_msg.has_value());
+  };
+  //   #endif
+
+  "factory_impl_allocator_deallocates_symmetrically"_test = [&] {
+    struct tracking_memory_resource final : std::pmr::memory_resource {
+      std::pmr::memory_resource *upstream = std::pmr::new_delete_resource();
+      std::size_t allocations = 0;
+      std::size_t deallocations = 0;
+      std::size_t outstanding_bytes = 0;
+
+    private:
+      void *do_allocate(std::size_t bytes, std::size_t alignment) override {
+        ++allocations;
+        outstanding_bytes += bytes;
+        return upstream->allocate(bytes, alignment);
+      }
+
+      void do_deallocate(void *p, std::size_t bytes, std::size_t alignment) override {
+        ++deallocations;
+        outstanding_bytes -= bytes;
+        upstream->deallocate(p, bytes, alignment);
+      }
+
+      [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+        return this == &other;
+      }
+    };
+
+    tracking_memory_resource tracking_mr{};
+    {
+      auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+          read_file("unittest.desc.binpb"), hpp_proto::dynamic_message_factory::impl_allocator_type{&tracking_mr}));
+      expect(gt(tracking_mr.allocations, std::size_t{0}));
+      std::pmr::monotonic_buffer_resource msg_mr;
+      expect(factory.get_message("proto3_unittest.TestAllTypes", msg_mr).has_value());
+    }
+    expect(eq(tracking_mr.allocations, tracking_mr.deallocations));
+    expect(eq(tracking_mr.outstanding_bytes, std::size_t{0}));
+  };
+
   "unknown_message_name_returns_error"_test = [&] {
     auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
     std::pmr::monotonic_buffer_resource mr;

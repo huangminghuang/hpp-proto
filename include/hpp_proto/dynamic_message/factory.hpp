@@ -89,6 +89,8 @@ public:
   /**
    * @brief Construct and initialize from FileDescriptorSet.
    * @details This API does not catch std::bad_alloc thrown by standard containers.
+   * @param allocator Allocator used to create the internal impl object. Its memory_resource()
+   *                  must outlive the returned factory instance.
    */
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create(file_descriptor_set_type &&fileset, impl_allocator_type allocator = {}) {
@@ -98,6 +100,8 @@ public:
   /**
    * @brief Construct and initialize from distinct serialized file descriptors.
    * @details This API does not catch std::bad_alloc thrown by standard containers.
+   * @param allocator Allocator used to create the internal impl object. Its memory_resource()
+   *                  must outlive the returned factory instance.
    */
   template <std::size_t N>
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
@@ -108,6 +112,8 @@ public:
   /**
    * @brief Construct and initialize from serialized FileDescriptorSet bytes.
    * @details This API does not catch std::bad_alloc thrown by standard containers.
+   * @param allocator Allocator used to create the internal impl object. Its memory_resource()
+   *                  must outlive the returned factory instance.
    */
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb, impl_allocator_type allocator = {}) {
