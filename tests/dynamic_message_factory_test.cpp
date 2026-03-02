@@ -811,14 +811,14 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(factory.has_value());
   };
 
-  "factory_create_invalid_binpb_returns_bad_message"_test = [&] {
-    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
-    auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+  "factory_create_malformed_binpb_returns_descriptor_deserialization_error"_test = [&] {
+    std::string malformed_binpb(1, static_cast<char>(0x80));
+    auto factory = hpp_proto::dynamic_message_factory::create(malformed_binpb);
     expect(!factory.has_value());
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::bad_message));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_deserialization_error));
   };
 
-  "factory_create_invalid_fileset_returns_bad_message"_test = [&] {
+  "factory_create_invalid_fileset_returns_schema_validation_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
     std::pmr::monotonic_buffer_resource mr;
     auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
@@ -826,10 +826,10 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
 
     auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
     expect(!factory.has_value());
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::bad_message));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
   };
 
-  "factory_create_invalid_distinct_descs_returns_bad_message"_test = [&] {
+  "factory_create_invalid_distinct_descs_returns_schema_validation_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
     std::pmr::monotonic_buffer_resource mr;
     auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
@@ -844,7 +844,17 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
     auto factory = hpp_proto::dynamic_message_factory::create(descs);
     expect(!factory.has_value());
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::bad_message));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
+  };
+
+  "factory_create_malformed_distinct_descs_returns_descriptor_deserialization_error"_test = [&] {
+    std::string malformed_desc(1, static_cast<char>(0x80));
+    hpp_proto::distinct_file_descriptor_pb_array descs = {
+        hpp_proto::file_descriptor_pb{malformed_desc},
+    };
+    auto factory = hpp_proto::dynamic_message_factory::create(descs);
+    expect(!factory.has_value());
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_deserialization_error));
   };
 
   "moved_from_factory_returns_unknown_message_name"_test = [&] {

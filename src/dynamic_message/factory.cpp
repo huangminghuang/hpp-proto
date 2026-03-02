@@ -35,6 +35,16 @@
 namespace hpp_proto {
 namespace detail {
 
+[[nodiscard]] constexpr dynamic_message_errc to_dynamic_message_errc(descriptor_pool_errc ec) noexcept {
+  switch (ec) {
+  case descriptor_pool_errc::descriptor_deserialization_error:
+    return dynamic_message_errc::descriptor_deserialization_error;
+  case descriptor_pool_errc::validation_error:
+    return dynamic_message_errc::schema_validation_error;
+  }
+  return dynamic_message_errc::schema_validation_error;
+}
+
 struct storage_slot_state {
   uint32_t cur_slot = 0;
   std::size_t oneof_count = 0;
@@ -52,7 +62,7 @@ template <typename FieldT>
   assert(index < state.oneof_count);
   if (state.prev_oneof != index) {
     if (state.oneof_started[index]) [[unlikely]] {
-      return dynamic_message_errc::bad_message;
+      return dynamic_message_errc::schema_validation_error;
     }
     state.oneof_started[index] = true;
     assert(state.cur_slot != std::numeric_limits<uint32_t>::max());
@@ -62,7 +72,7 @@ template <typename FieldT>
     field.storage_slot = state.cur_slot - 1;
   }
   if (state.oneof_next_ordinal == std::numeric_limits<uint16_t>::max()) [[unlikely]] {
-    return dynamic_message_errc::bad_message;
+    return dynamic_message_errc::schema_validation_error;
   }
   field.oneof_ordinal = ++state.oneof_next_ordinal;
   assert(field_index <= static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max()));
@@ -95,16 +105,15 @@ public:
       : memory_resource_(upstream_resource) {}
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> initialize(FileDescriptorSet &&fileset) {
-    if (!pool_.init(std::move(fileset), memory_resource_).ok()) {
-      return std::unexpected(dynamic_message_errc::bad_message);
-    }
-    return finish_initialize();
+    return pool_.init(std::move(fileset), memory_resource_)
+        .transform_error(to_dynamic_message_errc)
+        .and_then([this] { return finish_initialize(); });
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc>
   initialize(std::span<const std::byte> file_descriptor_set_binpb) {
     return ::hpp_proto::read_binpb<FileDescriptorSet>(file_descriptor_set_binpb, alloc_from(memory_resource_))
-        .transform_error([](std::errc) { return dynamic_message_errc::bad_message; })
+        .transform_error([](std::errc) { return dynamic_message_errc::descriptor_deserialization_error; })
         .and_then([this](auto &&fileset) { return initialize(std::forward<decltype(fileset)>(fileset)); });
   }
 
@@ -178,12 +187,12 @@ private:
         assert(enum_desc != nullptr);
         const auto &enum_values = enum_desc->proto().value;
         if (enum_values.empty()) [[unlikely]] {
-          return std::unexpected(dynamic_message_errc::bad_message);
+          return std::unexpected(dynamic_message_errc::schema_validation_error);
         }
         if (!proto.default_value.empty()) {
           const auto *pdefault = enum_desc->value_of(proto.default_value);
           if (pdefault == nullptr) [[unlikely]] {
-            return std::unexpected(dynamic_message_errc::bad_message);
+            return std::unexpected(dynamic_message_errc::schema_validation_error);
           }
           field.default_value = *pdefault;
         } else if (field.explicit_presence()) {
@@ -234,7 +243,7 @@ std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> descs, impl_allocator_type allocator) {
   impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
   return descriptor_pool_t::make_file_descriptor_set(descs, distinct_file_tag_t{}, alloc_from(impl->memory_resource()))
-      .transform_error([](std::errc) { return dynamic_message_errc::bad_message; })
+      .transform_error(detail::to_dynamic_message_errc)
       .and_then([&](auto &&fileset) { return impl->initialize(std::forward<decltype(fileset)>(fileset)); })
       .transform([&] { return dynamic_message_factory{std::move(impl)}; });
 }

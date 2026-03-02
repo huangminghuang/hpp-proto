@@ -22,6 +22,7 @@
 
 #pragma once
 #include <cassert>
+#include <cstdint>
 #include <expected>
 #include <iostream>
 #include <memory_resource>
@@ -32,6 +33,11 @@
 #include <hpp_proto/file_descriptor_pb.hpp>
 #include <hpp_proto/merge.hpp>
 namespace hpp_proto {
+
+enum class descriptor_pool_errc : uint8_t {
+  descriptor_deserialization_error,
+  validation_error,
+};
 
 struct deref_pointer {
   template <typename T>
@@ -422,17 +428,17 @@ public:
         : file_descriptor_base(proto, default_features), addon_type(*this) {}
   };
 
-  static std::expected<FileDescriptorSet, std::errc>
+  static std::expected<FileDescriptorSet, descriptor_pool_errc>
   make_file_descriptor_set(concepts::file_descriptor_pb_range auto const &unique_descs, distinct_file_tag_t,
                            concepts::is_option_type auto &&...option) {
-    std::expected<FileDescriptorSet, status> result;
+    std::expected<FileDescriptorSet, descriptor_pool_errc> result;
     pb_context ctx{std::forward<decltype(option)>(option)...};
     decltype(auto) files = detail::as_modifiable(ctx, result->file);
     files.resize(std::ranges::size(unique_descs));
     std::size_t i = 0;
     for (const auto &desc : unique_descs) {
       if (auto ec = read_binpb(files[i++], desc.value, ctx); !ec.ok()) {
-        result = std::unexpected(ec);
+        result = std::unexpected(descriptor_pool_errc::descriptor_deserialization_error);
         return result;
       }
     }
@@ -441,7 +447,7 @@ public:
 
   template <std::ranges::forward_range Range>
     requires std::same_as<std::ranges::range_value_t<Range>, file_descriptor_pb>
-  static std::expected<FileDescriptorSet, std::errc>
+  static std::expected<FileDescriptorSet, descriptor_pool_errc>
   make_file_descriptor_set(Range const &descs, concepts::is_option_type auto &&...option) {
     std::unordered_set<file_descriptor_pb> unique_files;
     unique_files.insert(std::ranges::begin(descs), std::ranges::end(descs));
@@ -504,9 +510,9 @@ public:
   /**
    * @brief Initialize the pool from a FileDescriptorSet.
    *
-   * @return status::ok() on success; std::errc::bad_message if the descriptor set is invalid.
+   * @return expected<void, descriptor_pool_errc> with validation_error on invalid schema.
    */
-  [[nodiscard]] status init(FileDescriptorSet &&fileset)
+  [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset)
     requires(!std::is_trivially_destructible_v<FileDescriptorSet>)
   {
     fileset_.file = std::move(fileset).file;
@@ -516,9 +522,10 @@ public:
   /**
    * @brief Initialize the pool from a FileDescriptorSet using a PMR default resource.
    *
-   * @return status::ok() on success; std::errc::bad_message if the descriptor set is invalid.
+   * @return expected<void, descriptor_pool_errc> with validation_error on invalid schema.
    */
-  [[nodiscard]] status init(FileDescriptorSet &&fileset, std::pmr::memory_resource &mr) {
+  [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset,
+                                                                std::pmr::memory_resource &mr) {
     fileset_.file = std::move(fileset).file;
     default_resource_guard guard{mr};
     return init();
@@ -559,7 +566,7 @@ private:
     }
   };
 
-  status init() {
+  std::expected<void, descriptor_pool_errc> init() {
     files_.clear();
     messages_.clear();
     enums_.clear();
@@ -571,24 +578,12 @@ private:
 
     const descriptor_counter counter(fileset_);
     reserve_storage(counter);
-    if (auto result = build_files_from_fileset(); !result.ok()) {
-      return result;
-    }
-    if (auto result = link_file_dependencies(); !result.ok()) {
-      return result;
-    }
-    if (auto result = build_message_fields_and_extensions(); !result.ok()) {
-      return result;
-    }
-    if (auto result = build_file_extensions(); !result.ok()) {
-      return result;
-    }
-    if (auto result = resolve_field_types(); !result.ok()) {
-      return result;
-    }
-
-    assert(messages_.size() == counter.messages);
-    return {};
+    return build_files_from_fileset()
+        .and_then([this] { return link_file_dependencies(); })
+        .and_then([this] { return build_message_fields_and_extensions(); })
+        .and_then([this] { return build_file_extensions(); })
+        .and_then([this] { return resolve_field_types(); })
+        .transform([&] { assert(messages_.size() == counter.messages); });
   }
 
   void reserve_storage(const descriptor_counter &counter) {
@@ -604,69 +599,69 @@ private:
     }
   }
 
-  status build_files_from_fileset() {
+  std::expected<void, descriptor_pool_errc> build_files_from_fileset() {
+    std::expected<void, descriptor_pool_errc> result;
     for (const auto &proto : fileset_.file) {
-      if (proto.name.empty()) {
-        return std::errc::bad_message;
-      }
-      if (file_map_.count(proto.name) != 0) {
-        return std::errc::bad_message;
-      }
-      auto features = select_features(proto);
-      if (!features.has_value()) {
-        return features.error();
-      }
-      auto result = build(files_.emplace_back(proto, std::move(features).value()));
-      if (!result.ok()) {
+      result = result.and_then([&]() -> std::expected<void, descriptor_pool_errc> {
+        if (proto.name.empty() || file_map_.count(proto.name) != 0) {
+          return std::unexpected(descriptor_pool_errc::validation_error);
+        }
+        return select_features(proto).and_then([&](auto features) -> std::expected<void, descriptor_pool_errc> {
+          return build(files_.emplace_back(proto, std::move(features)));
+        });
+      });
+      if (!result.has_value()) {
         return result;
       }
     }
-    return {};
+    return result;
   }
 
-  status link_file_dependencies() {
+  std::expected<void, descriptor_pool_errc> link_file_dependencies() {
     for (auto &file : files_) {
       file.descriptor_pool_ = this;
       file.dependencies_.resize(file.proto().dependency.size());
       std::transform(file.proto().dependency.begin(), file.proto().dependency.end(), file.dependencies_.begin(),
                      [this](auto &dep) { return this->get_file_descriptor(dep); });
       if (std::ranges::any_of(file.dependencies_, [](const auto *dep) { return dep == nullptr; })) {
-        return std::errc::bad_message;
+        return std::unexpected(descriptor_pool_errc::validation_error);
       }
     }
     return {};
   }
 
-  status build_message_fields_and_extensions() {
+  std::expected<void, descriptor_pool_errc> build_message_fields_and_extensions() {
+    std::expected<void, descriptor_pool_errc> result;
     for (auto &entry : message_map_) {
       auto *msg = entry.second;
-      if (auto result = build_fields(*msg); !result.ok()) {
-        return result;
-      }
-      if (auto result = build_extensions(*msg); !result.ok()) {
+      result = result.and_then(
+          [&]() -> std::expected<void, descriptor_pool_errc> { return build_fields(*msg).and_then([&] { return build_extensions(*msg); }); });
+      if (!result.has_value()) {
         return result;
       }
     }
-    return {};
+    return result;
   }
 
-  status build_file_extensions() {
+  std::expected<void, descriptor_pool_errc> build_file_extensions() {
+    std::expected<void, descriptor_pool_errc> result;
     for (auto &entry : file_map_) {
       auto *f = entry.second;
-      if (auto result = build_extensions(*f); !result.ok()) {
+      result = result.and_then([&]() -> std::expected<void, descriptor_pool_errc> { return build_extensions(*f); });
+      if (!result.has_value()) {
         return result;
       }
     }
-    return {};
+    return result;
   }
 
-  status resolve_field_types() {
+  std::expected<void, descriptor_pool_errc> resolve_field_types() {
     for (auto &f : fields_) {
       if (f.proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
           f.proto_.type == FieldDescriptorProto::Type::TYPE_GROUP) {
         auto desc = find_type(message_map_, f.proto_.type_name.substr(1));
         if (!desc) {
-          return std::errc::bad_message;
+          return std::unexpected(descriptor_pool_errc::validation_error);
         }
         f.type_descriptor_ = desc;
         if (desc->is_map_entry()) {
@@ -675,7 +670,7 @@ private:
       } else if (f.proto_.type == FieldDescriptorProto::Type::TYPE_ENUM) {
         auto desc = find_type(enum_map_, f.proto_.type_name.substr(1));
         if (!desc) {
-          return std::errc::bad_message;
+          return std::unexpected(descriptor_pool_errc::validation_error);
         }
         f.type_descriptor_ = desc;
       }
@@ -683,7 +678,7 @@ private:
       if (!f.proto_.extendee.empty()) {
         auto desc = find_type(message_map_, f.proto_.extendee.substr(1));
         if (!desc) {
-          return std::errc::bad_message;
+          return std::unexpected(descriptor_pool_errc::validation_error);
         }
         f.extendee_descriptor_ = desc;
       }
@@ -797,7 +792,7 @@ private:
             .unknown_fields_ = {}};
   }
 
-  std::expected<FeatureSet, status> select_features(const FileDescriptorProto &file) {
+  std::expected<FeatureSet, descriptor_pool_errc> select_features(const FileDescriptorProto &file) {
     static const auto cpp_edition_defaults = get_cpp_edition_defaults();
     current_edition_ = google::protobuf::Edition::EDITION_LEGACY;
     if (file.syntax == "proto3") {
@@ -815,7 +810,7 @@ private:
         return merge_features(features, file.options);
       }
     }
-    return std::unexpected(status{std::errc::bad_message});
+    return std::unexpected(descriptor_pool_errc::validation_error);
   }
 
   static string_t join_by_dot(std::string_view x, std::string_view y) {
@@ -833,41 +828,43 @@ private:
     return number >= 1 && number <= 536'870'911 && (number < 19'000 || number > 19'999);
   }
 
-  status build(file_descriptor_t &descriptor) {
+  std::expected<void, descriptor_pool_errc> build(file_descriptor_t &descriptor) {
     [[maybe_unused]] const auto inserted = file_map_.try_emplace(descriptor.proto_.name, &descriptor).second;
     assert(inserted);
     const auto package = descriptor.proto_.package;
     descriptor.messages_.reserve(descriptor.proto_.message_type.size());
+    std::expected<void, descriptor_pool_errc> result;
     for (auto &proto : descriptor.proto_.message_type) {
-      if (proto.name.empty()) {
-        return std::errc::bad_message;
-      }
-      string_t scope = !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name};
-      auto &message = messages_.emplace_back(proto, std::move(scope), descriptor.options_, &descriptor,
-                                             static_cast<message_descriptor_t *>(nullptr));
-      auto result = build(message);
-      if (!result.ok()) {
+      result = result.and_then([&]() -> std::expected<void, descriptor_pool_errc> {
+        if (proto.name.empty()) {
+          return std::unexpected(descriptor_pool_errc::validation_error);
+        }
+        string_t scope = !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name};
+        auto &message = messages_.emplace_back(proto, std::move(scope), descriptor.options_, &descriptor,
+                                               static_cast<message_descriptor_t *>(nullptr));
+        return build(message).transform([&] { descriptor.messages_.push_back(&message); });
+      });
+      if (!result.has_value()) {
         return result;
       }
-      descriptor.messages_.push_back(&message);
     }
 
     descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
       if (proto.name.empty()) {
-        return std::errc::bad_message;
+        return std::unexpected(descriptor_pool_errc::validation_error);
       }
       string_t scope = !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name};
       auto &e = enums_.emplace_back(proto, std::move(scope), descriptor.options_, &descriptor, nullptr);
       if (!enum_map_.try_emplace(e.full_name(), &e).second) {
-        return std::errc::bad_message;
+        return std::unexpected(descriptor_pool_errc::validation_error);
       }
       descriptor.enums_.push_back(&e);
     }
     return {};
   }
 
-  status build(message_descriptor_t &descriptor) {
+  std::expected<void, descriptor_pool_errc> build(message_descriptor_t &descriptor) {
     descriptor.oneofs_.reserve(descriptor.proto_.oneof_decl.size());
     for (auto &proto : descriptor.proto_.oneof_decl) {
       auto &oneof = oneofs_.emplace_back(proto, descriptor.options_);
@@ -875,31 +872,33 @@ private:
     }
 
     if (!message_map_.try_emplace(descriptor.full_name(), &descriptor).second) {
-      return std::errc::bad_message;
+      return std::unexpected(descriptor_pool_errc::validation_error);
     }
     descriptor.messages_.reserve(descriptor.proto_.nested_type.size());
+    std::expected<void, descriptor_pool_errc> result;
     for (auto &proto : descriptor.proto_.nested_type) {
-      if (proto.name.empty()) {
-        return std::errc::bad_message;
-      }
-      auto &message = messages_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name),
-                                             descriptor.options_, descriptor.parent_file_, &descriptor);
-      auto result = build(message);
-      if (!result.ok()) {
+      result = result.and_then([&]() -> std::expected<void, descriptor_pool_errc> {
+        if (proto.name.empty()) {
+          return std::unexpected(descriptor_pool_errc::validation_error);
+        }
+        auto &message = messages_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name),
+                                               descriptor.options_, descriptor.parent_file_, &descriptor);
+        return build(message).transform([&] { descriptor.messages_.push_back(&message); });
+      });
+      if (!result.has_value()) {
         return result;
       }
-      descriptor.messages_.push_back(&message);
     }
 
     descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
     for (auto &proto : descriptor.proto_.enum_type) {
       if (proto.name.empty()) {
-        return std::errc::bad_message;
+        return std::unexpected(descriptor_pool_errc::validation_error);
       }
       auto &e = enums_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name), descriptor.options_,
                                     descriptor.parent_file_, &descriptor);
       if (!enum_map_.try_emplace(e.full_name(), &e).second) {
-        return std::errc::bad_message;
+        return std::unexpected(descriptor_pool_errc::validation_error);
       }
       descriptor.enums_.push_back(&e);
     }
@@ -912,16 +911,16 @@ private:
     return itr == types.end() ? nullptr : itr->second;
   }
 
-  status build_fields(message_descriptor_t &descriptor) {
+  std::expected<void, descriptor_pool_errc> build_fields(message_descriptor_t &descriptor) {
     descriptor.fields_.reserve(descriptor.proto_.field.size());
     std::unordered_set<int32_t> seen_field_numbers;
     seen_field_numbers.reserve(descriptor.proto_.field.size());
     for (auto &proto : descriptor.proto_.field) {
       if (!is_valid_field_number(proto.number)) {
-        return std::errc::bad_message;
+        return std::unexpected(descriptor_pool_errc::validation_error);
       }
       if (!seen_field_numbers.insert(proto.number).second) {
-        return std::errc::bad_message;
+        return std::unexpected(descriptor_pool_errc::validation_error);
       }
       auto &field = fields_.emplace_back(proto, &descriptor, descriptor.options_);
       if (descriptor.is_map_entry()) {
@@ -930,25 +929,25 @@ private:
       descriptor.fields_.push_back(&field);
       if (proto.oneof_index.has_value()) {
         if (proto.label == FieldDescriptorProto::Label::LABEL_REPEATED) {
-          return std::errc::bad_message;
+          return std::unexpected(descriptor_pool_errc::validation_error);
         }
         const auto index = static_cast<std::size_t>(*proto.oneof_index);
         if (index >= descriptor.oneofs_.size()) {
-          return std::errc::bad_message;
+          return std::unexpected(descriptor_pool_errc::validation_error);
         }
         descriptor.oneofs_[index]->fields_.push_back(&field);
       }
     }
     if (std::ranges::any_of(descriptor.oneofs_, [](const auto *oneof) { return oneof->fields_.empty(); })) {
-      return std::errc::bad_message;
+      return std::unexpected(descriptor_pool_errc::validation_error);
     }
     return {};
   };
 
-  status build_extensions(auto &parent) {
+  std::expected<void, descriptor_pool_errc> build_extensions(auto &parent) {
     for (auto &proto : parent.proto_.extension) {
       if (!is_valid_field_number(proto.number)) {
-        return std::errc::bad_message;
+        return std::unexpected(descriptor_pool_errc::validation_error);
       }
       message_descriptor_t *msg_desc = nullptr;
       if constexpr (std::same_as<decltype(&parent), message_descriptor_t *>) {
