@@ -36,25 +36,21 @@ jobs:
             use_system_protobuf: false
             with_protobuf: "True"
             build_shared_libs: "OFF"
-            conan_shared: "False"
           - name: conan-protobuf-binary-shared
             build_cppstd: gnu17
             use_system_protobuf: false
             with_protobuf: "True"
             build_shared_libs: "ON"
-            conan_shared: "True"
           - name: system-protobuf-cpp23-static
             build_cppstd: 23
             use_system_protobuf: true
             with_protobuf: "False"
             build_shared_libs: "OFF"
-            conan_shared: "False"
           - name: system-protobuf-cpp23-shared
             build_cppstd: 23
             use_system_protobuf: true
             with_protobuf: "False"
             build_shared_libs: "ON"
-            conan_shared: "True"
     name: ${{ matrix.name }}
     env:
       CC: gcc-13
@@ -96,7 +92,6 @@ jobs:
             -s:b arch=x86_64 -s:b compiler=gcc -s:b compiler.version=13 -s:b compiler.libcxx=libstdc++11 \
             -s:b compiler.cppstd=${{ matrix.build_cppstd }} \
             -o '&:with_protobuf=${{ matrix.with_protobuf }}' \
-            -o '&:shared=${{ matrix.conan_shared }}' \
             --build=missing
 
       - name: install dependencies
@@ -109,7 +104,6 @@ jobs:
             -s:b arch=x86_64 -s:b compiler=gcc -s:b compiler.version=13 -s:b compiler.libcxx=libstdc++11 \
             -s:b compiler.cppstd=${{ matrix.build_cppstd }} \
             -o 'hpp_proto/*:with_protobuf=${{ matrix.with_protobuf }}' \
-            -o 'hpp_proto/*:shared=${{ matrix.conan_shared }}' \
             --build=missing \
             -of tutorial-build
 

@@ -35,25 +35,21 @@ jobs:
             cmake_configure_preset: conan-default
             cmake_build_preset: conan-release
             build_shared_libs: "OFF"
-            conan_shared: "False"
           - name: conan-protobuf-binary-shared
             with_protobuf: "True"
             cmake_configure_preset: conan-default
             cmake_build_preset: conan-release
             build_shared_libs: "ON"
-            conan_shared: "True"
           - name: system-protobuf-cpp23-static
             with_protobuf: "False"
             cmake_configure_preset: conan-default
             cmake_build_preset: conan-release
             build_shared_libs: "OFF"
-            conan_shared: "False"
           - name: system-protobuf-cpp23-shared
             with_protobuf: "False"
             cmake_configure_preset: conan-default
             cmake_build_preset: conan-release
             build_shared_libs: "ON"
-            conan_shared: "True"
     name: ${{ matrix.name }}
 
     steps:
@@ -98,7 +94,6 @@ jobs:
             -s:b build_type=Release `
             -s:b compiler.cppstd=17 `
             -o "&:with_protobuf=${{ matrix.with_protobuf }}" `
-            -o "&:shared=${{ matrix.conan_shared }}" `
             --build=missing
 
       - name: install dependencies
@@ -109,7 +104,6 @@ jobs:
             -s:h compiler.cppstd=23 `
             -s:b compiler.cppstd=17 `
             -o "hpp_proto/*:with_protobuf=${{ matrix.with_protobuf }}" `
-            -o "hpp_proto/*:shared=${{ matrix.conan_shared }}" `
             --build=missing `
             -of tutorial-build
 
