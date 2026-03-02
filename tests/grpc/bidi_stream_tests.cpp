@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <limits>
 #include <memory_resource>
 #include <mutex>
 #include <string>
@@ -28,12 +29,15 @@ class BidiReactor : public ::hpp_proto::grpc::ClientCallbackReactor<BidiStreamCh
   ::grpc::ClientContext *context_ = nullptr;
   bool use_sentinel_ = true;
   bool sentinel_sent_ = false;
+  std::size_t auto_write_limit_ = std::numeric_limits<std::size_t>::max();
+  std::size_t writes_started_ = 0;
 
 public:
   using request_t = hpp_proto_test::EchoRequest<>;
 
   void set_payloads(std::vector<std::string> payloads) { payloads_ = std::move(payloads); }
   void set_use_sentinel(bool use_sentinel) { use_sentinel_ = use_sentinel; }
+  void set_auto_write_limit(std::size_t limit) { auto_write_limit_ = limit; }
 
   void start(Harness::stub_type &stub, ::grpc::ClientContext &context) {
     context_ = &context;
@@ -100,6 +104,9 @@ private:
     if (writes_complete_) {
       return;
     }
+    if (writes_started_ >= auto_write_limit_) {
+      return;
+    }
     if (next_payload_ >= payloads_.size()) {
       if (writes_complete_) {
         return;
@@ -130,6 +137,7 @@ private:
     request.message = payloads_[next_payload_];
     request.sequence = static_cast<int32_t>(next_payload_);
     ++next_payload_;
+    ++writes_started_;
     auto status = this->write(request);
     if (!status.ok()) {
       writes_complete_ = true;
@@ -178,6 +186,9 @@ void run_bidi_explicit_cancel_case() {
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
   BidiReactor reactor;
   reactor.set_use_sentinel(false);
+  // Keep the stream open after first client write so TryCancel() races only
+  // against an active RPC, not against normal server completion.
+  reactor.set_auto_write_limit(1);
   reactor.set_payloads(
       {"chat_0", "chat_1", "chat_2", "chat_3", "chat_4", "chat_5", "chat_6", "chat_7", "chat_8", "chat_9"});
   reactor.start(stub, context);
