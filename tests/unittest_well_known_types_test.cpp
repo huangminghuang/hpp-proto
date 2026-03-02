@@ -11,7 +11,7 @@ using namespace boost::ut;
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   expect(fatal(exp.has_value()));
-  return std::forward<Exp>(exp).value(); // NOLINT
+  return std::forward<Exp>(exp).value();
 }
 
 template <typename Traits>
@@ -61,7 +61,7 @@ struct WellKnownTypesTests {
     m->type_field.emplace().name = string_t{"test_type"};
 
     m->double_field.emplace().value = 3.14;
-    m->float_field.emplace().value = 2.718F; // NOLINT
+    m->float_field.emplace().value = 2.718F; // NOLINT(modernize-use-std-numbers)
     m->int64_field.emplace().value = 40LL;
     m->uint64_field.emplace().value = 41;
     m->int32_field.emplace().value = 42;
@@ -104,7 +104,7 @@ struct WellKnownTypesTests {
     }
     expect(m.float_field.has_value());
     if (m.float_field) {
-      expect(m.float_field->value == 2.718F); // NOLINT
+      expect(m.float_field->value == 2.718F); // NOLINT(modernize-use-std-numbers)
     }
     expect(m.int64_field.has_value());
     if (m.int64_field) {

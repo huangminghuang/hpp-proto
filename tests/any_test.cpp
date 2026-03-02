@@ -30,7 +30,7 @@ using namespace std::string_view_literals;
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   expect(fatal(exp.has_value()));
-  return std::forward<Exp>(exp).value(); // NOLINT
+  return std::forward<Exp>(exp).value();
 }
 
 const suite test_any = [] {
@@ -171,6 +171,7 @@ const suite test_dynamic_message_any = [] {
     expect_read_fail( // duplicated anyValue field, invalid second
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1234},"anyValue":{"c":1234}})");
   };
+
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   auto expect_test_any_json = [&](const ::protobuf_unittest::TestAny<> &message, std::string_view json,

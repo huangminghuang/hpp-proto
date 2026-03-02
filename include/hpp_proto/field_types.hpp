@@ -132,7 +132,6 @@ public:
       return unwrap(Default);
     } else {
       static_assert(sizeof(typename T::value_type) == 1);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
       auto data = static_cast<const typename T::value_type *>(Default.data());
       return T{data, data + Default.size()}; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
@@ -311,7 +310,6 @@ public:
 private:
   static constexpr std::uint8_t default_state = 0x80U | std::uint8_t(default_value()); // use 0x80 to denote empty state
   bool_proxy deref() {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return bool_proxy{impl};
   }
   uint8_t impl = default_state;

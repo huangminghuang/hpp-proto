@@ -38,7 +38,7 @@ using namespace std::string_literals;
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   expect(fatal(exp.has_value()));
-  return std::forward<Exp>(exp).value(); // NOLINT
+  return std::forward<Exp>(exp).value();
 }
 
 #ifdef __GNUC__
@@ -95,7 +95,6 @@ void expect_read_json_fail(const ::hpp_proto::dynamic_message_factory &factory, 
   expect(!hpp_proto::read_json(msg, json).ok());
 }
 
-// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
 const ut::suite test_timestamp = [] {
   using timestamp_t = google::protobuf::Timestamp<>;
 
@@ -444,8 +443,6 @@ const ut::suite test_value = [] {
     expect(!hpp_proto::read_json(msg, R"({"f1":})").ok());
   };
 };
-
-// NOLINTEND(clang-diagnostic-missing-designated-field-initializers)
 
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
