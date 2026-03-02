@@ -19,9 +19,9 @@ on:
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
-  PROTOC_VERSION: 33.5
-  PROTOC_ZIP: protoc-33.5-linux-x86_64.zip
-  PROTOC_SHA256: 24e58fb231d50306ee28491f33a170301e99540f7e29ca461e0e80fd1239f8d1
+  PROTOC_VERSION: "34.0"
+  PROTOC_ZIP: protoc-34.0-linux-x86_64.zip
+  PROTOC_SHA256: e9a91b6fcfe4177ec2cd35fc8f15c1e811fa0ecdef9372755cd6d3513d5faaab
   CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
