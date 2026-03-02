@@ -105,9 +105,9 @@ public:
       : memory_resource_(upstream_resource) {}
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> initialize(FileDescriptorSet &&fileset) {
-    return pool_.init(std::move(fileset), memory_resource_)
-        .transform_error(to_dynamic_message_errc)
-        .and_then([this] { return finish_initialize(); });
+    return pool_.init(std::move(fileset), memory_resource_).transform_error(to_dynamic_message_errc).and_then([this] {
+      return finish_initialize();
+    });
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc>

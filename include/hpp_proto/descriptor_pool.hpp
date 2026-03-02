@@ -525,7 +525,7 @@ public:
    * @return expected<void, descriptor_pool_errc> with validation_error on invalid schema.
    */
   [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset,
-                                                                std::pmr::memory_resource &mr) {
+                                                               std::pmr::memory_resource &mr) {
     fileset_.file = std::move(fileset).file;
     default_resource_guard guard{mr};
     return init();
@@ -634,8 +634,9 @@ private:
     std::expected<void, descriptor_pool_errc> result;
     for (auto &entry : message_map_) {
       auto *msg = entry.second;
-      result = result.and_then(
-          [&]() -> std::expected<void, descriptor_pool_errc> { return build_fields(*msg).and_then([&] { return build_extensions(*msg); }); });
+      result = result.and_then([&]() -> std::expected<void, descriptor_pool_errc> {
+        return build_fields(*msg).and_then([&] { return build_extensions(*msg); });
+      });
       if (!result.has_value()) {
         return result;
       }
