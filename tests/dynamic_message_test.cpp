@@ -59,6 +59,37 @@ const boost::ut::suite dynamic_message_json_iterator_safety_tests = [] {
   };
 };
 
+const boost::ut::suite error_contract_failure_tests = [] {
+  "binpb_expected_api_reports_bad_message_for_malformed_payload"_test = [] {
+    std::string malformed_binpb(1, static_cast<char>(0x80));
+    auto result = hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<>>(malformed_binpb);
+    expect(!result.has_value());
+    expect(eq(result.error(), std::errc::bad_message));
+  };
+
+  "json_expected_api_reports_syntax_error_on_trailing_garbage"_test = [] {
+    std::string invalid_json = R"({"file":[]})x";
+    auto result = hpp_proto::read_json<google::protobuf::FileDescriptorSet<>>(invalid_json);
+    expect(!result.has_value());
+    expect(!result.error().ok());
+    expect(eq(result.error().ctx.ec, glz::error_code::syntax_error));
+  };
+
+  "dynamic_message_api_surfaces_representative_error_codes"_test = [] {
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
+    std::pmr::monotonic_buffer_resource mr;
+    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
+
+    auto wrong_type = msg.set_field_by_name("optional_int32", std::string_view{"oops"});
+    expect(!wrong_type.has_value());
+    expect(eq(wrong_type.error(), hpp_proto::dynamic_message_errc::invalid_field_type));
+
+    auto missing_field = msg.field_by_name("definitely_missing");
+    expect(!missing_field.has_value());
+    expect(eq(missing_field.error(), hpp_proto::dynamic_message_errc::no_such_field));
+  };
+};
+
 const boost::ut::suite dynamic_message_test = [] {
   using namespace boost::ut::literals;
 

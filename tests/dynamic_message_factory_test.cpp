@@ -7,6 +7,7 @@
 #include <hpp_proto/dynamic_message/json.hpp>
 #include <limits>
 #include <memory_resource>
+#include <new>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -907,6 +908,23 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     }
     expect(eq(tracking_mr.allocations, tracking_mr.deallocations));
     expect(eq(tracking_mr.outstanding_bytes, std::size_t{0}));
+  };
+
+  "factory_create_propagates_bad_alloc_from_allocator"_test = [&] {
+    struct throwing_memory_resource final : std::pmr::memory_resource {
+    private:
+      void *do_allocate(std::size_t /*bytes*/, std::size_t /*alignment*/) override { throw std::bad_alloc{}; }
+      void do_deallocate(void * /*p*/, std::size_t /*bytes*/, std::size_t /*alignment*/) override {}
+      [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+        return this == &other;
+      }
+    };
+
+    throwing_memory_resource throwing_mr{};
+    const auto allocator = hpp_proto::dynamic_message_factory::impl_allocator_type{&throwing_mr};
+    expect(throws<std::bad_alloc>([&] {
+      (void)hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"), allocator);
+    }));
   };
 
   "unknown_message_name_returns_error"_test = [&] {
