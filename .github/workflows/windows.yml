@@ -74,9 +74,9 @@ jobs:
       - name: Install Protoc
         shell: pwsh
         run: |
-          $version = "33.5"
+          $version = "34.0"
           $zip = "protoc-$version-win64.zip"
-          $sha256 = "7e3468cd1fbd1ae9361a5304d4ac28fbd593aa1a425b5464bd9d4da5fca224b4"
+          $sha256 = "76ddeb5ae7a31c8f9f7759d3b843a4cadda2150ac037ad0c1794665d6cf31fce"
           $url = "https://github.com/protocolbuffers/protobuf/releases/download/v$version/$zip"
           $dest = "$env:RUNNER_TEMP\protoc"
           $zipPath = "$dest\$zip"
