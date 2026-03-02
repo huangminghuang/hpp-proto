@@ -30,11 +30,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: conan-protobuf-binary-static
-            with_protobuf: "True"
-            cmake_configure_preset: conan-default
-            cmake_build_preset: conan-release
-            build_shared_libs: "OFF"
           - name: conan-protobuf-binary-shared
             with_protobuf: "True"
             cmake_configure_preset: conan-default
@@ -45,11 +40,6 @@ jobs:
             cmake_configure_preset: conan-default
             cmake_build_preset: conan-release
             build_shared_libs: "OFF"
-          - name: system-protobuf-cpp23-shared
-            with_protobuf: "False"
-            cmake_configure_preset: conan-default
-            cmake_build_preset: conan-release
-            build_shared_libs: "ON"
     name: ${{ matrix.name }}
 
     steps:

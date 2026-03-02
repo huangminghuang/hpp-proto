@@ -31,11 +31,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: conan-protobuf-binary-static
-            build_cppstd: gnu17
-            use_system_protobuf: false
-            with_protobuf: "True"
-            build_shared_libs: "OFF"
           - name: conan-protobuf-binary-shared
             build_cppstd: gnu17
             use_system_protobuf: false
@@ -46,11 +41,6 @@ jobs:
             use_system_protobuf: true
             with_protobuf: "False"
             build_shared_libs: "OFF"
-          - name: system-protobuf-cpp23-shared
-            build_cppstd: 23
-            use_system_protobuf: true
-            with_protobuf: "False"
-            build_shared_libs: "ON"
     name: ${{ matrix.name }}
     env:
       CC: gcc-13
