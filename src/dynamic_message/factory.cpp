@@ -36,13 +36,9 @@ namespace hpp_proto {
 namespace detail {
 
 [[nodiscard]] constexpr dynamic_message_errc to_dynamic_message_errc(descriptor_pool_errc ec) noexcept {
-  switch (ec) {
-  case descriptor_pool_errc::descriptor_deserialization_error:
-    return dynamic_message_errc::descriptor_deserialization_error;
-  case descriptor_pool_errc::validation_error:
-    return dynamic_message_errc::schema_validation_error;
-  }
-  return dynamic_message_errc::schema_validation_error;
+  return (ec == descriptor_pool_errc::descriptor_deserialization_error)
+             ? dynamic_message_errc::descriptor_deserialization_error
+             : dynamic_message_errc::schema_validation_error;
 }
 
 struct storage_slot_state {
