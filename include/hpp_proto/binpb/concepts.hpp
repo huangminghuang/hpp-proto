@@ -85,8 +85,7 @@ concept string_like_interface = requires(const std::remove_cvref_t<T> &value) {
 };
 
 template <typename T>
-concept string_like = basic_string_view<std::remove_cvref_t<T>>  ||
-                      string_like_interface<T>;
+concept string_like = basic_string_view<std::remove_cvref_t<T>> || string_like_interface<T>;
 
 template <typename T>
 concept has_local_meta = concepts::tuple<typename std::decay_t<T>::pb_meta>;
@@ -124,8 +123,7 @@ template <typename T>
 concept arithmetic = std::is_arithmetic_v<T> || concepts::varint<T>;
 
 template <typename T>
-concept singular =
-    arithmetic<T> || is_enum<T> || std::same_as<T, boolean> || contiguous_byte_range<T>;
+concept singular = arithmetic<T> || is_enum<T> || std::same_as<T, boolean> || contiguous_byte_range<T>;
 
 template <typename T>
 concept maybe_packed_value_type = arithmetic<T> || is_enum<T> || char_or_byte<T> || std::same_as<T, boolean>;
