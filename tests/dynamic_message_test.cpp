@@ -68,11 +68,14 @@ const boost::ut::suite error_contract_failure_tests = [] {
   };
 
   "json_expected_api_reports_syntax_error_on_trailing_garbage"_test = [] {
-    std::string invalid_json = R"({"file":[]})x";
-    auto result = hpp_proto::read_json<google::protobuf::FileDescriptorSet<>>(invalid_json);
-    expect(!result.has_value());
-    expect(!result.error().ok());
-    expect(eq(result.error().ctx.ec, glz::error_code::syntax_error));
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
+    std::pmr::monotonic_buffer_resource mr;
+    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
+
+    std::string invalid_json = R"({"optionalInt32":1}x)";
+    auto status = hpp_proto::read_json(msg, invalid_json);
+    expect(!status.ok());
+    expect(status.ctx.ec == glz::error_code::syntax_error);
   };
 
   "dynamic_message_api_surfaces_representative_error_codes"_test = [] {
@@ -986,214 +989,213 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(!enum_field.get<hpp_proto::enum_name>().has_value());
 
       std::string expected_json_str = R"({"optionalNestedEnum":10})";
-    std::string json_buf;
-    expect(::hpp_proto::write_json(msg1, json_buf).ok());
-    using namespace std::string_literals;
-    expect(eq(expected_json_str, json_buf));
+      std::string json_buf;
+      expect(::hpp_proto::write_json(msg1, json_buf).ok());
+      using namespace std::string_literals;
+      expect(eq(expected_json_str, json_buf));
 
-    std::pmr::monotonic_buffer_resource mr2;
-    auto msg2 = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr2));
-    expect(::hpp_proto::read_json(msg2, expected_json_str).ok());
-    expect(10 == msg2.field_value_by_name<hpp_proto::enum_number>("optional_nested_enum"));
+      std::pmr::monotonic_buffer_resource mr2;
+      auto msg2 = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr2));
+      expect(::hpp_proto::read_json(msg2, expected_json_str).ok());
+      expect(10 == msg2.field_value_by_name<hpp_proto::enum_number>("optional_nested_enum"));
+    };
+
+    "repeated enum set and adopt"_test = [&factory] {
+      std::pmr::monotonic_buffer_resource memory_resource;
+      auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
+      auto rep_enum_field = expect_ok(msg.field_by_name("repeated_nested_enum"));
+      std::array<std::int32_t, 2> enums{1, 2};
+      using namespace std::string_view_literals;
+      std::array<std::string_view, 2> enum_names{"FOO"sv, "BAR"sv};
+      expect(rep_enum_field.set(::hpp_proto::enum_numbers_range(enums)).has_value());
+      expect(rep_enum_field.has_value());
+      expect(std::ranges::equal(enums, expect_ok(rep_enum_field.get<::hpp_proto::enum_numbers_span>())));
+      expect(std::ranges::equal(enum_names, expect_ok(rep_enum_field.get<::hpp_proto::enum_names_view>())));
+
+      std::array<std::int32_t, 1> adopt_enums{3};
+      expect(rep_enum_field.adopt(std::span<std::int32_t>(adopt_enums)).has_value());
+      expect(std::ranges::equal(adopt_enums, expect_ok(rep_enum_field.get<::hpp_proto::enum_numbers_span>())));
+
+      expect(rep_enum_field.set(::hpp_proto::enum_names_range{enum_names}).has_value());
+      expect(std::ranges::equal(enum_names, expect_ok(rep_enum_field.get<::hpp_proto::enum_names_view>())));
+
+      std::array<std::string_view, 2> partially_invalid_names{"BAZ"sv, "XXX"sv};
+      expect(!rep_enum_field.set(::hpp_proto::enum_names_range{partially_invalid_names}).has_value());
+      expect(std::ranges::equal(std::initializer_list<std::string_view>{"BAZ"sv},
+                                expect_ok(rep_enum_field.get<::hpp_proto::enum_names_view>())));
+    };
+
+    "nested message set/get"_test = [&factory] {
+      std::pmr::monotonic_buffer_resource memory_resource;
+      auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
+      auto nested_msg_field =
+          expect_ok(msg.typed_ref_by_name<::hpp_proto::message_field_mref>("optional_nested_message"));
+      expect(!nested_msg_field.has_value());
+      auto nested = nested_msg_field.emplace();
+      expect(nested_msg_field.has_value());
+      // operator-> on mref
+      expect(nested_msg_field->set_field_by_name("bb", 777).has_value());
+
+      auto bb_field = expect_ok(nested.field_by_name("bb"));
+      expect(bb_field.set(321).has_value());
+
+      expect(nested.field_value_by_name<std::int32_t>("bb") == 321);
+
+      hpp_proto::message_value_cref nested_cref = expect_ok(nested_msg_field.get<hpp_proto::message_value_cref>());
+      expect(nested_cref.field_value_by_name<std::int32_t>("bb") == 321);
+
+      auto nested_field_cref = nested_msg_field.cref();
+      expect(nested_field_cref->field_value_by_name<std::int32_t>("bb") == 321);
+    };
+
+    "arrow operators on scalar/string/bytes/enum"_test = [&factory] {
+      using namespace std::string_view_literals;
+      using hpp_proto::KIND_BYTES;
+      using hpp_proto::KIND_ENUM;
+      using hpp_proto::KIND_INT32;
+      using hpp_proto::KIND_STRING;
+
+      std::pmr::monotonic_buffer_resource memory_resource;
+      auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
+
+      auto int_field = expect_ok(msg.typed_ref_by_name<hpp_proto::int32_field_mref>("optional_int32"));
+      expect(!static_cast<bool>(int_field));
+      expect(int_field.value() == 0);
+      int_field.set(123);
+      expect(static_cast<bool>(int_field));
+      expect(int_field.value() == 123);
+
+      auto str_field = expect_ok(msg.typed_ref_by_name<hpp_proto::string_field_mref>("optional_string"));
+      expect(!static_cast<bool>(str_field));
+      expect(str_field->empty());
+      str_field.set("hello");
+      expect(static_cast<bool>(str_field));
+      expect(str_field->size() == 5U);
+
+      auto bytes_field = expect_ok(msg.typed_ref_by_name<hpp_proto::bytes_field_mref>("optional_bytes"));
+      expect(!static_cast<bool>(bytes_field));
+      expect(bytes_field->empty());
+      bytes_field.set("hi"_bytes);
+      expect(static_cast<bool>(bytes_field));
+      expect(bytes_field->size() == 2U);
+
+      auto enum_field = expect_ok(msg.typed_ref_by_name<hpp_proto::enum_field_mref>("optional_nested_enum"));
+      expect(!static_cast<bool>(enum_field));
+      expect(enum_field->name() == "FOO"sv);
+      expect(enum_field->number() == 1);
+      enum_field.set(hpp_proto::enum_number{2});
+      expect(static_cast<bool>(enum_field));
+      expect(enum_field->number() == 2);
+      expect(!enum_field->name().empty());
+
+      auto msg_cref = msg.cref();
+      auto int_cref = expect_ok(msg_cref.typed_ref_by_name<hpp_proto::int32_field_cref>("optional_int32"));
+      expect(static_cast<bool>(int_cref));
+      expect(int_cref.value() == 123);
+
+      auto str_cref = expect_ok(msg_cref.typed_ref_by_name<hpp_proto::string_field_cref>("optional_string"));
+      expect(static_cast<bool>(str_cref));
+      expect(str_cref->size() == 5U);
+
+      auto bytes_cref = expect_ok(msg_cref.typed_ref_by_name<hpp_proto::bytes_field_cref>("optional_bytes"));
+      expect(static_cast<bool>(bytes_cref));
+      expect(bytes_cref->size() == 2U);
+
+      auto enum_cref = expect_ok(msg_cref.typed_ref_by_name<hpp_proto::enum_field_cref>("optional_nested_enum"));
+      expect(static_cast<bool>(enum_cref));
+      expect(enum_cref->number() == 2);
+      expect(!enum_cref->name().empty());
+    };
+
+    "repeated nested message set/get"_test = [&factory] {
+      std::pmr::monotonic_buffer_resource memory_resource;
+      auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
+      auto rep_nested_field =
+          expect_ok(msg.typed_ref_by_name<::hpp_proto::repeated_message_field_mref>("repeated_nested_message"));
+      expect(rep_nested_field.size() == 0U);
+
+      rep_nested_field.resize(2);
+      auto first = rep_nested_field[0];
+      auto second = rep_nested_field[1];
+
+      expect(first.set_field_by_name("bb", 111).has_value());
+      expect(second.set_field_by_name("bb", 222).has_value());
+
+      expect(std::ranges::equal(
+          std::array<int32_t, 2>{111, 222},
+          std::array<int32_t, 2>{expect_ok(rep_nested_field[0].field_value_by_name<std::int32_t>("bb")),
+                                 expect_ok(rep_nested_field[1].field_value_by_name<std::int32_t>("bb"))}));
+
+      auto rep_cref = rep_nested_field.cref();
+      expect(rep_cref.size() == 2U);
+      expect(rep_cref[0].field_value_by_name<std::int32_t>("bb") == 111);
+      expect(rep_cref[1].field_value_by_name<std::int32_t>("bb") == 222);
+    };
+
+    "expected_message_mref chain"_test = [&factory]() {
+      std::pmr::monotonic_buffer_resource memory_resource;
+      auto em = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource);
+      expect(em.has_value());
+
+      auto chained =
+          em.set_field_by_name("optional_int32", 42)
+              .modify_field_by_name("optional_nested_message", [](hpp_proto::message_field_mref nested_field) {
+                return hpp_proto::expected_message_mref{nested_field.emplace()}.set_field_by_name("bb", 7).done();
+              });
+      expect(chained.has_value());
+      auto msg_chain = chained.value();
+      expect(msg_chain.field_value_by_name<std::int32_t>("optional_int32") == 42);
+      auto nested = msg_chain.typed_ref_by_name<hpp_proto::message_field_cref>("optional_nested_message");
+      expect(nested.has_value());
+      expect(nested.value()->field_value_by_name<std::int32_t>("bb") == 7);
+
+      auto bad = em.set_field_by_name("missing_field", 1);
+      expect(!bad.has_value());
+    };
+
+    "expected_message_mref observers"_test = [&factory]() {
+      std::pmr::monotonic_buffer_resource memory_resource;
+      auto em = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource);
+      expect(em.has_value());
+      expect(static_cast<bool>(em));
+      expect(em.done().has_value());
+
+      // operator* and value()
+      auto mref = *em;
+      expect(mref.set_field_by_name("optional_int32", 5).has_value());
+      expect(em.value().field_value_by_name<std::int32_t>("optional_int32") == 5);
+
+      // operator-> presence
+      expect(em.operator->() != nullptr);
+
+      // failure path
+      std::pmr::monotonic_buffer_resource mr2;
+      auto em_bad = factory.get_message("unknown.message", mr2);
+      expect(!em_bad.has_value());
+      expect(!static_cast<bool>(em_bad));
+      expect(em_bad.error() == hpp_proto::dynamic_message_errc::unknown_message_name);
+      expect(!em_bad.done().has_value());
+    };
   };
 
-  "repeated enum set and adopt"_test = [&factory] {
-    std::pmr::monotonic_buffer_resource memory_resource;
-    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
-    auto rep_enum_field = expect_ok(msg.field_by_name("repeated_nested_enum"));
-    std::array<std::int32_t, 2> enums{1, 2};
-    using namespace std::string_view_literals;
-    std::array<std::string_view, 2> enum_names{"FOO"sv, "BAR"sv};
-    expect(rep_enum_field.set(::hpp_proto::enum_numbers_range(enums)).has_value());
-    expect(rep_enum_field.has_value());
-    expect(std::ranges::equal(enums, expect_ok(rep_enum_field.get<::hpp_proto::enum_numbers_span>())));
-    expect(std::ranges::equal(enum_names, expect_ok(rep_enum_field.get<::hpp_proto::enum_names_view>())));
-
-    std::array<std::int32_t, 1> adopt_enums{3};
-    expect(rep_enum_field.adopt(std::span<std::int32_t>(adopt_enums)).has_value());
-    expect(std::ranges::equal(adopt_enums, expect_ok(rep_enum_field.get<::hpp_proto::enum_numbers_span>())));
-
-    expect(rep_enum_field.set(::hpp_proto::enum_names_range{enum_names}).has_value());
-    expect(std::ranges::equal(enum_names, expect_ok(rep_enum_field.get<::hpp_proto::enum_names_view>())));
-
-    std::array<std::string_view, 2> partially_invalid_names{"BAZ"sv, "XXX"sv};
-    expect(!rep_enum_field.set(::hpp_proto::enum_names_range{partially_invalid_names}).has_value());
-    expect(std::ranges::equal(std::initializer_list<std::string_view>{"BAZ"sv},
-                              expect_ok(rep_enum_field.get<::hpp_proto::enum_names_view>())));
-  };
-
-  "nested message set/get"_test = [&factory] {
-    std::pmr::monotonic_buffer_resource memory_resource;
-    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
-    auto nested_msg_field =
-        expect_ok(msg.typed_ref_by_name<::hpp_proto::message_field_mref>("optional_nested_message"));
-    expect(!nested_msg_field.has_value());
-    auto nested = nested_msg_field.emplace();
-    expect(nested_msg_field.has_value());
-    // operator-> on mref
-    expect(nested_msg_field->set_field_by_name("bb", 777).has_value());
-
-    auto bb_field = expect_ok(nested.field_by_name("bb"));
-    expect(bb_field.set(321).has_value());
-
-    expect(nested.field_value_by_name<std::int32_t>("bb") == 321);
-
-    hpp_proto::message_value_cref nested_cref = expect_ok(nested_msg_field.get<hpp_proto::message_value_cref>());
-    expect(nested_cref.field_value_by_name<std::int32_t>("bb") == 321);
-
-    auto nested_field_cref = nested_msg_field.cref();
-    expect(nested_field_cref->field_value_by_name<std::int32_t>("bb") == 321);
-  };
-
-  "arrow operators on scalar/string/bytes/enum"_test = [&factory] {
-    using namespace std::string_view_literals;
-    using hpp_proto::KIND_BYTES;
-    using hpp_proto::KIND_ENUM;
-    using hpp_proto::KIND_INT32;
-    using hpp_proto::KIND_STRING;
-
-    std::pmr::monotonic_buffer_resource memory_resource;
-    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
-
-    auto int_field = expect_ok(msg.typed_ref_by_name<hpp_proto::int32_field_mref>("optional_int32"));
-    expect(!static_cast<bool>(int_field));
-    expect(int_field.value() == 0);
-    int_field.set(123);
-    expect(static_cast<bool>(int_field));
-    expect(int_field.value() == 123);
-
-    auto str_field = expect_ok(msg.typed_ref_by_name<hpp_proto::string_field_mref>("optional_string"));
-    expect(!static_cast<bool>(str_field));
-    expect(str_field->empty());
-    str_field.set("hello");
-    expect(static_cast<bool>(str_field));
-    expect(str_field->size() == 5U);
-
+  "serialize_dynamic_huge_message_fails_safely"_test = [&factory] {
+    std::pmr::monotonic_buffer_resource mr;
+    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
     auto bytes_field = expect_ok(msg.typed_ref_by_name<hpp_proto::bytes_field_mref>("optional_bytes"));
-    expect(!static_cast<bool>(bytes_field));
-    expect(bytes_field->empty());
-    bytes_field.set("hi"_bytes);
-    expect(static_cast<bool>(bytes_field));
-    expect(bytes_field->size() == 2U);
 
-    auto enum_field = expect_ok(msg.typed_ref_by_name<hpp_proto::enum_field_mref>("optional_nested_enum"));
-    expect(!static_cast<bool>(enum_field));
-    expect(enum_field->name() == "FOO"sv);
-    expect(enum_field->number() == 1);
-    enum_field.set(hpp_proto::enum_number{2});
-    expect(static_cast<bool>(enum_field));
-    expect(enum_field->number() == 2);
-    expect(!enum_field->name().empty());
+    const auto max_size = static_cast<std::size_t>(std::numeric_limits<int32_t>::max());
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
+    const auto *fake_ptr = reinterpret_cast<const std::byte *>(static_cast<uintptr_t>(16));
+    auto huge_bytes = hpp_proto::bytes_view{fake_ptr, max_size};
+    bytes_field.adopt(huge_bytes);
 
-    auto msg_cref = msg.cref();
-    auto int_cref = expect_ok(msg_cref.typed_ref_by_name<hpp_proto::int32_field_cref>("optional_int32"));
-    expect(static_cast<bool>(int_cref));
-    expect(int_cref.value() == 123);
-
-    auto str_cref = expect_ok(msg_cref.typed_ref_by_name<hpp_proto::string_field_cref>("optional_string"));
-    expect(static_cast<bool>(str_cref));
-    expect(str_cref->size() == 5U);
-
-    auto bytes_cref = expect_ok(msg_cref.typed_ref_by_name<hpp_proto::bytes_field_cref>("optional_bytes"));
-    expect(static_cast<bool>(bytes_cref));
-    expect(bytes_cref->size() == 2U);
-
-    auto enum_cref = expect_ok(msg_cref.typed_ref_by_name<hpp_proto::enum_field_cref>("optional_nested_enum"));
-    expect(static_cast<bool>(enum_cref));
-    expect(enum_cref->number() == 2);
-    expect(!enum_cref->name().empty());
-  };
-
-  "repeated nested message set/get"_test = [&factory] {
-    std::pmr::monotonic_buffer_resource memory_resource;
-    auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
-    auto rep_nested_field =
-        expect_ok(msg.typed_ref_by_name<::hpp_proto::repeated_message_field_mref>("repeated_nested_message"));
-    expect(rep_nested_field.size() == 0U);
-
-    rep_nested_field.resize(2);
-    auto first = rep_nested_field[0];
-    auto second = rep_nested_field[1];
-
-    expect(first.set_field_by_name("bb", 111).has_value());
-    expect(second.set_field_by_name("bb", 222).has_value());
-
-    expect(std::ranges::equal(
-        std::array<int32_t, 2>{111, 222},
-        std::array<int32_t, 2>{expect_ok(rep_nested_field[0].field_value_by_name<std::int32_t>("bb")),
-                               expect_ok(rep_nested_field[1].field_value_by_name<std::int32_t>("bb"))}));
-
-    auto rep_cref = rep_nested_field.cref();
-    expect(rep_cref.size() == 2U);
-    expect(rep_cref[0].field_value_by_name<std::int32_t>("bb") == 111);
-    expect(rep_cref[1].field_value_by_name<std::int32_t>("bb") == 222);
-  };
-
-  "expected_message_mref chain"_test = [&factory]() {
-    std::pmr::monotonic_buffer_resource memory_resource;
-    auto em = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource);
-    expect(em.has_value());
-
-    auto chained =
-        em.set_field_by_name("optional_int32", 42)
-            .modify_field_by_name("optional_nested_message", [](hpp_proto::message_field_mref nested_field) {
-              return hpp_proto::expected_message_mref{nested_field.emplace()}.set_field_by_name("bb", 7).done();
-            });
-    expect(chained.has_value());
-    auto msg_chain = chained.value();
-    expect(msg_chain.field_value_by_name<std::int32_t>("optional_int32") == 42);
-    auto nested = msg_chain.typed_ref_by_name<hpp_proto::message_field_cref>("optional_nested_message");
-    expect(nested.has_value());
-    expect(nested.value()->field_value_by_name<std::int32_t>("bb") == 7);
-
-    auto bad = em.set_field_by_name("missing_field", 1);
-    expect(!bad.has_value());
-  };
-
-  "expected_message_mref observers"_test = [&factory]() {
-    std::pmr::monotonic_buffer_resource memory_resource;
-    auto em = factory.get_message("protobuf_unittest.TestAllTypes", memory_resource);
-    expect(em.has_value());
-    expect(static_cast<bool>(em));
-    expect(em.done().has_value());
-
-    // operator* and value()
-    auto mref = *em;
-    expect(mref.set_field_by_name("optional_int32", 5).has_value());
-    expect(em.value().field_value_by_name<std::int32_t>("optional_int32") == 5);
-
-    // operator-> presence
-    expect(em.operator->() != nullptr);
-
-    // failure path
-    std::pmr::monotonic_buffer_resource mr2;
-    auto em_bad = factory.get_message("unknown.message", mr2);
-    expect(!em_bad.has_value());
-    expect(!static_cast<bool>(em_bad));
-    expect(em_bad.error() == hpp_proto::dynamic_message_errc::unknown_message_name);
-    expect(!em_bad.done().has_value());
+    std::vector<std::byte> buffer;
+    auto result = hpp_proto::write_binpb(msg.cref(), buffer);
+    expect(!result.ok());
+    expect(result == std::errc::value_too_large);
+    expect(buffer.empty());
   };
 };
-
-"serialize_dynamic_huge_message_fails_safely"_test = [&factory] {
-  std::pmr::monotonic_buffer_resource mr;
-  auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
-  auto bytes_field = expect_ok(msg.typed_ref_by_name<hpp_proto::bytes_field_mref>("optional_bytes"));
-
-  const auto max_size = static_cast<std::size_t>(std::numeric_limits<int32_t>::max());
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
-  const auto *fake_ptr = reinterpret_cast<const std::byte *>(static_cast<uintptr_t>(16));
-  auto huge_bytes = hpp_proto::bytes_view{fake_ptr, max_size};
-  bytes_field.adopt(huge_bytes);
-
-  std::vector<std::byte> buffer;
-  auto result = hpp_proto::write_binpb(msg.cref(), buffer);
-  expect(!result.ok());
-  expect(result == std::errc::value_too_large);
-  expect(buffer.empty());
-};
-}
-;
 
 int main() {
   const auto result =

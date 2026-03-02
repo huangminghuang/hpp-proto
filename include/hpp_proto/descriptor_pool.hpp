@@ -606,7 +606,7 @@ private:
         if (proto.name.empty() || file_map_.count(proto.name) != 0) {
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
-        return select_features(proto).and_then([&](auto features) -> std::expected<void, descriptor_pool_errc> {
+        return select_features(proto).and_then([&](const auto& features) -> std::expected<void, descriptor_pool_errc> {
           return build(files_.emplace_back(proto, std::move(features)));
         });
       });
