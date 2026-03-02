@@ -34,7 +34,7 @@ endif()
 set_target_properties(is_utf8 PROPERTIES CXX_CLANG_TIDY "")
 
 if(HPP_PROTO_PROTOC_PLUGIN)
-    set(HPP_PROTO_PROTOC_VERSION "33.5")
+    set(HPP_PROTO_PROTOC_VERSION "34.0")
 
     if(HPP_PROTO_PROTOC STREQUAL "find")
         include(cmake/protoc_find.cmake)
