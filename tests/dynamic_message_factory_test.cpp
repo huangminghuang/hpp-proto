@@ -922,9 +922,8 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
 
     throwing_memory_resource throwing_mr{};
     const auto allocator = hpp_proto::dynamic_message_factory::impl_allocator_type{&throwing_mr};
-    expect(throws<std::bad_alloc>([&] {
-      (void)hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"), allocator);
-    }));
+    expect(throws<std::bad_alloc>(
+        [&] { (void)hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"), allocator); }));
   };
 
   "unknown_message_name_returns_error"_test = [&] {
