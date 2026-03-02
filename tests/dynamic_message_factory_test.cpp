@@ -811,7 +811,6 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(factory.has_value());
   };
 
-
   "factory_create_invalid_binpb_returns_bad_message"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
     auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
@@ -860,7 +859,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     auto moved_to_msg = dst.get_message("proto3_unittest.TestAllTypes", mr);
     expect(moved_to_msg.has_value());
   };
-//   #endif
+  //   #endif
 
   "factory_impl_allocator_deallocates_symmetrically"_test = [&] {
     struct tracking_memory_resource final : std::pmr::memory_resource {
