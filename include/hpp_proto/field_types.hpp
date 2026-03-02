@@ -309,9 +309,7 @@ public:
 
 private:
   static constexpr std::uint8_t default_state = 0x80U | std::uint8_t(default_value()); // use 0x80 to denote empty state
-  bool_proxy deref() {
-    return bool_proxy{impl};
-  }
+  bool_proxy deref() { return bool_proxy{impl}; }
   uint8_t impl = default_state;
 
 public:
