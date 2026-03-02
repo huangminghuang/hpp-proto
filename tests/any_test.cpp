@@ -30,7 +30,7 @@ using namespace std::string_view_literals;
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   expect(fatal(exp.has_value()));
-  return std::forward<Exp>(exp).value(); // NOLINT
+  return std::forward<Exp>(exp).value();
 }
 
 const suite test_any = [] {

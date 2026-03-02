@@ -185,7 +185,6 @@ struct dynamic_message_factory_addons {
       const auto &proto = static_cast<const Derived *>(this)->proto();
       for (const auto &ev : proto.value) {
         if (ev.name == name) {
-          // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
           return &ev.number;
         }
       }
