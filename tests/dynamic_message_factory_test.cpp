@@ -852,6 +852,8 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     auto dst = std::move(src);
     std::pmr::monotonic_buffer_resource mr;
 
+    // Intentional: verify moved-from factory has no resolvable message type.
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     auto moved_from_msg = src.get_message("proto3_unittest.TestAllTypes", mr);
     expect(!moved_from_msg.has_value());
     expect(eq(moved_from_msg.error(), hpp_proto::dynamic_message_errc::unknown_message_name));
@@ -859,7 +861,6 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     auto moved_to_msg = dst.get_message("proto3_unittest.TestAllTypes", mr);
     expect(moved_to_msg.has_value());
   };
-  //   #endif
 
   "factory_impl_allocator_deallocates_symmetrically"_test = [&] {
     struct tracking_memory_resource final : std::pmr::memory_resource {
