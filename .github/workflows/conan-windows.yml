@@ -18,7 +18,7 @@ on:
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
-  PROTOC_VERSION: 34.0
+  PROTOC_VERSION: "34.0"
   PROTOC_ZIP: protoc-34.0-win64.zip
   PROTOC_SHA256: 76ddeb5ae7a31c8f9f7759d3b843a4cadda2150ac037ad0c1794665d6cf31fce
   CCACHE_DIR: ${{ github.workspace }}/.ccache
