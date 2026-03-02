@@ -7,6 +7,7 @@
 #include <hpp_proto/dynamic_message/json.hpp>
 #include <limits>
 #include <memory_resource>
+#include <new>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -811,14 +812,14 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(factory.has_value());
   };
 
-  "factory_create_invalid_binpb_returns_bad_message"_test = [&] {
-    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
-    auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+  "factory_create_malformed_binpb_returns_descriptor_deserialization_error"_test = [&] {
+    std::string malformed_binpb(1, static_cast<char>(0x80));
+    auto factory = hpp_proto::dynamic_message_factory::create(malformed_binpb);
     expect(!factory.has_value());
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::bad_message));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_deserialization_error));
   };
 
-  "factory_create_invalid_fileset_returns_bad_message"_test = [&] {
+  "factory_create_invalid_fileset_returns_schema_validation_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
     std::pmr::monotonic_buffer_resource mr;
     auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
@@ -826,10 +827,10 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
 
     auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
     expect(!factory.has_value());
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::bad_message));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
   };
 
-  "factory_create_invalid_distinct_descs_returns_bad_message"_test = [&] {
+  "factory_create_invalid_distinct_descs_returns_schema_validation_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
     std::pmr::monotonic_buffer_resource mr;
     auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
@@ -844,7 +845,17 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
     auto factory = hpp_proto::dynamic_message_factory::create(descs);
     expect(!factory.has_value());
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::bad_message));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
+  };
+
+  "factory_create_malformed_distinct_descs_returns_descriptor_deserialization_error"_test = [&] {
+    std::string malformed_desc(1, static_cast<char>(0x80));
+    hpp_proto::distinct_file_descriptor_pb_array descs = {
+        hpp_proto::file_descriptor_pb{malformed_desc},
+    };
+    auto factory = hpp_proto::dynamic_message_factory::create(descs);
+    expect(!factory.has_value());
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_deserialization_error));
   };
 
   "moved_from_factory_returns_unknown_message_name"_test = [&] {
@@ -897,6 +908,24 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     }
     expect(eq(tracking_mr.allocations, tracking_mr.deallocations));
     expect(eq(tracking_mr.outstanding_bytes, std::size_t{0}));
+  };
+
+  "factory_create_propagates_bad_alloc_from_allocator"_test = [&] {
+    struct throwing_memory_resource final : std::pmr::memory_resource {
+    private:
+      void *do_allocate(std::size_t /*bytes*/, std::size_t /*alignment*/) override { throw std::bad_alloc{}; }
+      void do_deallocate(void * /*p*/, std::size_t /*bytes*/, std::size_t /*alignment*/) override {}
+      [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+        return this == &other;
+      }
+    };
+
+    throwing_memory_resource throwing_mr{};
+    const auto allocator = hpp_proto::dynamic_message_factory::impl_allocator_type{&throwing_mr};
+    expect(throws<std::bad_alloc>([&] {
+      [[maybe_unused]] auto result =
+          hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"), allocator);
+    }));
   };
 
   "unknown_message_name_returns_error"_test = [&] {

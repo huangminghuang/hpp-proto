@@ -530,8 +530,7 @@ inline auto read_json(auto &&buffer, concepts::is_option_type auto &&...option) 
 /// @return json_status indicating success or failure.
 template <auto Opts = json_write_opts{}>
 inline json_status write_json(concepts::write_json_supported auto const &value,
-                              concepts::contiguous_byte_range auto &buffer,
-                              concepts::is_option_type auto &&...option) noexcept {
+                              concepts::contiguous_byte_range auto &buffer, concepts::is_option_type auto &&...option) {
   using value_type = std::remove_cvref_t<decltype(value)>;
   static_assert(!hpp_proto::is_hpp_generated<value_type>::value || hpp_proto::has_glz<value_type>::value,
                 "the generated .glz.hpp is required for hpp_gen messages");
@@ -548,7 +547,7 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
 /// @return A std::expected containing the buffer on success, or a json_status on failure.
 template <auto Opts = json_write_opts{}, concepts::contiguous_byte_range Buffer = std::string>
 inline auto write_json(concepts::write_json_supported auto const &value,
-                       concepts::is_option_type auto &&...option) noexcept -> std::expected<Buffer, json_status> {
+                       concepts::is_option_type auto &&...option) -> std::expected<Buffer, json_status> {
   std::expected<Buffer, json_status> result;
   auto ec = write_json<Opts>(value, *result, std::forward<decltype(option)>(option)...);
   if (!ec.ok()) {

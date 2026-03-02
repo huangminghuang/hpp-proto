@@ -120,7 +120,8 @@ enum class dynamic_message_errc : uint8_t {
   unknown_enum_value,
   wrong_message_type,
   unknown_message_name,
-  bad_message
+  descriptor_deserialization_error,
+  schema_validation_error
 };
 
 namespace concepts {
