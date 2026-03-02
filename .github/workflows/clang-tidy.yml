@@ -118,6 +118,12 @@ jobs:
         if: github.event_name != 'pull_request'
         run: cmake --build build -j"$(nproc)"
 
+      - name: Build (PR prerequisites)
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes == 'true'
+        run: |
+          # Ensure generated headers/sources exist before running clang-tidy on selected files.
+          cmake --build build -j"$(nproc)"
+
       - name: Clang-tidy changed files (PR)
         if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes == 'true'
         shell: bash
@@ -126,7 +132,13 @@ jobs:
           echo "Running clang-tidy on changed files:"
           echo "$CHANGED"
           while IFS= read -r file; do
-            clang-tidy -p build --warnings-as-errors='*' "$file"
+            [[ -z "$file" ]] && continue
+            abs_file="$GITHUB_WORKSPACE/$file"
+            # Limit diagnostics to the changed translation unit to avoid failing
+            # on pre-existing issues in unrelated headers.
+            clang-tidy -p build --warnings-as-errors='*' \
+              --header-filter="^${abs_file}$" \
+              "$file"
           done <<< "$CHANGED"
 
       - name: No changed C/C++ files (PR)
