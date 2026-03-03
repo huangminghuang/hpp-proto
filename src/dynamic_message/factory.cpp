@@ -223,20 +223,20 @@ dynamic_message_factory::~dynamic_message_factory() = default;
 
 void dynamic_message_factory::impl_deleter::operator()(detail::dynamic_message_factory_impl *p) noexcept {
   if (p != nullptr) {
-    impl_allocator_type allocator{p->upstream_resource()};
+    allocator_type allocator{p->upstream_resource()};
     allocator.delete_object(p);
   }
 }
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_fileset(dynamic_message_factory::file_descriptor_set_type &&fileset,
-                                             impl_allocator_type allocator) {
+                                             allocator_type allocator) {
   impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
   return impl->initialize(std::move(fileset)).transform([&] { return dynamic_message_factory{std::move(impl)}; });
 }
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
-dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> descs, impl_allocator_type allocator) {
+dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> descs, allocator_type allocator) {
   impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
   return descriptor_pool_t::make_file_descriptor_set(descs, distinct_file_tag_t{}, alloc_from(impl->memory_resource()))
       .transform_error(detail::to_dynamic_message_errc)
@@ -246,7 +246,7 @@ dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> d
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb,
-                                           impl_allocator_type allocator) {
+                                           allocator_type allocator) {
   impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
   return impl->initialize(file_descriptor_set_binpb).transform([&] {
     return dynamic_message_factory{std::move(impl)};

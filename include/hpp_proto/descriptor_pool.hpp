@@ -28,6 +28,7 @@
 #include <memory_resource>
 #include <system_error>
 #include <unordered_set>
+#include <vector>
 
 #include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/file_descriptor_pb.hpp>
@@ -624,6 +625,38 @@ private:
       std::transform(file.proto().dependency.begin(), file.proto().dependency.end(), file.dependencies_.begin(),
                      [this](auto &dep) { return this->get_file_descriptor(dep); });
       if (std::ranges::any_of(file.dependencies_, [](const auto *dep) { return dep == nullptr; })) {
+        return std::unexpected(descriptor_pool_errc::validation_error);
+      }
+    }
+    return validate_file_dependency_acyclic();
+  }
+
+  [[nodiscard]] std::expected<void, descriptor_pool_errc> validate_file_dependency_acyclic() const {
+    enum class visit_state : uint8_t { unvisited, visiting, visited };
+    std::vector<visit_state> states(files_.size(), visit_state::unvisited);
+
+    auto dfs = [&](auto &&self, std::size_t file_index) -> bool {
+      auto &state = states[file_index];
+      if (state == visit_state::visiting) {
+        return false;
+      }
+      if (state == visit_state::visited) {
+        return true;
+      }
+
+      state = visit_state::visiting;
+      for (const auto *dep : files_[file_index].dependencies_) {
+        const auto dep_index = static_cast<std::size_t>(dep - files_.data());
+        if (!self(self, dep_index)) {
+          return false;
+        }
+      }
+      state = visit_state::visited;
+      return true;
+    };
+
+    for (std::size_t i = 0; i < files_.size(); ++i) {
+      if (states[i] == visit_state::unvisited && !dfs(dfs, i)) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
     }

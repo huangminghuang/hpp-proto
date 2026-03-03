@@ -55,7 +55,7 @@ private:
   using file_descriptor_set_type = ::google::protobuf::FileDescriptorSet<non_owning_traits>;
 
 public:
-  using impl_allocator_type = std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl>;
+  using allocator_type = std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl>;
 
   /// enable to pass dynamic_message_factory as an option to read_json()/write_json()
   using option_type = std::reference_wrapper<dynamic_message_factory>;
@@ -71,13 +71,13 @@ private:
   explicit dynamic_message_factory(impl_ptr impl) noexcept;
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create_from_fileset(file_descriptor_set_type &&fileset, impl_allocator_type allocator);
+  create_from_fileset(file_descriptor_set_type &&fileset, allocator_type allocator);
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create_from_descs(std::span<const file_descriptor_pb> descs, impl_allocator_type allocator);
+  create_from_descs(std::span<const file_descriptor_pb> descs, allocator_type allocator);
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb, impl_allocator_type allocator);
+  create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb, allocator_type allocator);
 
 public:
   dynamic_message_factory(const dynamic_message_factory &) = delete;
@@ -93,7 +93,7 @@ public:
    *                  must outlive the returned factory instance.
    */
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create(file_descriptor_set_type &&fileset, impl_allocator_type allocator = {}) {
+  create(file_descriptor_set_type &&fileset, allocator_type allocator = {}) {
     return create_from_fileset(std::move(fileset), allocator);
   }
 
@@ -105,7 +105,7 @@ public:
    */
   template <std::size_t N>
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create(const distinct_file_descriptor_pb_array<N> &descs, impl_allocator_type allocator = {}) {
+  create(const distinct_file_descriptor_pb_array<N> &descs, allocator_type allocator = {}) {
     return create_from_descs(std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), allocator);
   }
 
@@ -116,7 +116,7 @@ public:
    *                  must outlive the returned factory instance.
    */
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb, impl_allocator_type allocator = {}) {
+  create(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb, allocator_type allocator = {}) {
     return create_from_binpb(std::as_bytes(std::span{std::ranges::data(file_descriptor_set_binpb),
                                                      std::ranges::size(file_descriptor_set_binpb)}),
                              allocator);

@@ -43,6 +43,8 @@ const boost::ut::suite parse_default_value_tests = [] {
   };
 };
 
+// Intentionally broad integration-style suite with many scenario builders/tests.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 const boost::ut::suite descriptor_pool_gap_tests = [] {
   using OwningFileDescriptorProto = google::protobuf::FileDescriptorProto<>;
   using OwningFileDescriptorSet = google::protobuf::FileDescriptorSet<>;
@@ -95,6 +97,28 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                                 .label = LABEL_OPTIONAL,
                                 .type = TYPE_MESSAGE,
                                 .type_name = ".MissingType",
+                            },
+                        },
+                },
+            },
+    };
+  };
+
+  auto make_missing_enum_type_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "missing_enum_type.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "missing_enum",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_ENUM,
+                                .type_name = ".MissingEnum",
                             },
                         },
                 },
@@ -190,6 +214,112 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                 },
             },
     };
+  };
+
+  auto make_field_number_fileset = [](int32_t field_number) {
+    return OwningFileDescriptorProto{
+        .name = "field_number_boundary.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "boundary",
+                                .number = field_number,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                            },
+                        },
+                },
+            },
+    };
+  };
+
+  auto make_large_descriptor_collection_fileset = [](std::size_t file_count) {
+    std::vector<OwningFileDescriptorProto> files;
+    files.reserve(file_count);
+    for (std::size_t i = 0; i < file_count; ++i) {
+      files.push_back(OwningFileDescriptorProto{
+          .name = "bulk_" + std::to_string(i) + ".proto",
+          .package = "bulk.pkg",
+          .message_type =
+              {
+                  MessageProto{
+                      .name = "M" + std::to_string(i),
+                      .field =
+                          {
+                              FieldProto{
+                                  .name = "f",
+                                  .number = 1,
+                                  .label = LABEL_OPTIONAL,
+                                  .type = TYPE_INT32,
+                              },
+                          },
+                  },
+              },
+      });
+    }
+    return files;
+  };
+
+  auto make_deep_name_and_dependency_pressure_fileset = [] {
+    std::vector<OwningFileDescriptorProto> files;
+    constexpr int dep_count = 96;
+    files.reserve(static_cast<std::size_t>(dep_count) + 1);
+
+    for (int i = 0; i < dep_count; ++i) {
+      files.push_back(OwningFileDescriptorProto{
+          .name = "dep_" + std::to_string(i) + ".proto",
+          .package = "deps.pkg",
+          .message_type =
+              {
+                  MessageProto{
+                      .name = "D" + std::to_string(i),
+                  },
+              },
+      });
+    }
+
+    std::string long_package;
+    for (int i = 0; i < 64; ++i) {
+      if (!long_package.empty()) {
+        long_package += '.';
+      }
+      long_package += "segment_" + std::to_string(i);
+    }
+
+    OwningFileDescriptorProto root{
+        .name = "root_pressure.proto",
+        .package = long_package,
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "child",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_MESSAGE,
+                                .type_name = "." + long_package + ".Root.Inner",
+                            },
+                        },
+                    .nested_type =
+                        {
+                            MessageProto{.name = "Inner"},
+                        },
+                },
+            },
+    };
+    root.dependency.reserve(dep_count);
+    for (int i = 0; i < dep_count; ++i) {
+      root.dependency.push_back("dep_" + std::to_string(i) + ".proto");
+    }
+    files.push_back(std::move(root));
+    return files;
   };
 
   auto make_invalid_oneof_fileset = [] {
@@ -626,6 +756,46 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
   };
 
+  auto make_direct_dependency_cycle_fileset = [] {
+    return std::array{
+        OwningFileDescriptorProto{
+            .name = "dep_a.proto",
+            .package = "dep",
+            .dependency = {"dep_b.proto"},
+            .message_type = {MessageProto{.name = "A"}},
+        },
+        OwningFileDescriptorProto{
+            .name = "dep_b.proto",
+            .package = "dep",
+            .dependency = {"dep_a.proto"},
+            .message_type = {MessageProto{.name = "B"}},
+        },
+    };
+  };
+
+  auto make_transitive_dependency_cycle_fileset = [] {
+    return std::array{
+        OwningFileDescriptorProto{
+            .name = "dep_a.proto",
+            .package = "dep",
+            .dependency = {"dep_b.proto"},
+            .message_type = {MessageProto{.name = "A"}},
+        },
+        OwningFileDescriptorProto{
+            .name = "dep_b.proto",
+            .package = "dep",
+            .dependency = {"dep_c.proto"},
+            .message_type = {MessageProto{.name = "B"}},
+        },
+        OwningFileDescriptorProto{
+            .name = "dep_c.proto",
+            .package = "dep",
+            .dependency = {"dep_a.proto"},
+            .message_type = {MessageProto{.name = "C"}},
+        },
+    };
+  };
+
   "unsupported_edition_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
@@ -633,6 +803,11 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
 
   "missing_message_type_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_missing_type_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "missing_enum_type_sets_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_missing_enum_type_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
@@ -654,6 +829,66 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "too_large_field_number_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_too_large_field_number_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "field_number_1_is_valid"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_field_number_fileset(1));
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "field_number_18999_is_valid"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_field_number_fileset(18999));
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "field_number_19999_is_invalid_reserved_range"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_field_number_fileset(19999));
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "field_number_20000_is_valid"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_field_number_fileset(20000));
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "field_number_536870911_is_valid_max"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_field_number_fileset(536870911));
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "large_descriptor_collection_factory_init_succeeds"_test = [&] {
+    auto files = make_large_descriptor_collection_fileset(256);
+    OwningFileDescriptorSet file_set;
+    file_set.file = std::move(files);
+    std::string desc_binpb;
+    expect(hpp_proto::write_binpb(file_set, desc_binpb).ok());
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "deep_name_and_dependency_pressure_factory_init_succeeds"_test = [&] {
+    OwningFileDescriptorSet file_set;
+    file_set.file = make_deep_name_and_dependency_pressure_fileset();
+    std::string desc_binpb;
+    expect(hpp_proto::write_binpb(file_set, desc_binpb).ok());
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "factory_create_truncation_and_length_mismatch_binpb_returns_descriptor_deserialization_error"_test = [&] {
+    auto valid_desc_binpb = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
+    expect(valid_desc_binpb.size() > 2U);
+
+    std::array<std::string, 4> malformed_cases = {
+        valid_desc_binpb.substr(0, valid_desc_binpb.size() - 1),         // truncated valid payload
+        valid_desc_binpb.substr(0, 2),                                   // very short truncation
+        std::string{"\x0A\x05\x08\x96\x01", 5},                          // declared length exceeds available bytes
+        std::string{"\x0A\x80\x80\x80\x80\x80\x80\x80\x80\x80\x02", 11}, // malformed/overlong length varint
+    };
+
+    for (const auto &malformed : malformed_cases) {
+      auto factory = hpp_proto::dynamic_message_factory::create(malformed);
+      expect(!factory.has_value());
+      expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_deserialization_error));
+    }
   };
 
   "invalid_oneof_index_sets_error"_test = [&] {
@@ -736,6 +971,18 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "duplicate_enum_full_name_sets_error"_test = [&] {
     auto files = make_duplicate_enum_full_name_fileset();
     auto desc_binpb = make_descriptor_set_binpb_many({files[0], files[1]});
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "direct_dependency_cycle_sets_error"_test = [&] {
+    auto files = make_direct_dependency_cycle_fileset();
+    auto desc_binpb = make_descriptor_set_binpb_many({files[0], files[1]});
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "transitive_dependency_cycle_sets_error"_test = [&] {
+    auto files = make_transitive_dependency_cycle_fileset();
+    auto desc_binpb = make_descriptor_set_binpb_many({files[0], files[1], files[2]});
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
@@ -901,7 +1148,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     tracking_memory_resource tracking_mr{};
     {
       auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
-          read_file("unittest.desc.binpb"), hpp_proto::dynamic_message_factory::impl_allocator_type{&tracking_mr}));
+          read_file("unittest.desc.binpb"), hpp_proto::dynamic_message_factory::allocator_type{&tracking_mr}));
       expect(gt(tracking_mr.allocations, std::size_t{0}));
       std::pmr::monotonic_buffer_resource msg_mr;
       expect(factory.get_message("proto3_unittest.TestAllTypes", msg_mr).has_value());
@@ -910,22 +1157,148 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(eq(tracking_mr.outstanding_bytes, std::size_t{0}));
   };
 
-  "factory_create_propagates_bad_alloc_from_allocator"_test = [&] {
-    struct throwing_memory_resource final : std::pmr::memory_resource {
-    private:
-      void *do_allocate(std::size_t /*bytes*/, std::size_t /*alignment*/) override { throw std::bad_alloc{}; }
-      void do_deallocate(void * /*p*/, std::size_t /*bytes*/, std::size_t /*alignment*/) override {}
-      [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
-        return this == &other;
-      }
-    };
+  struct failpoint_memory_resource final : std::pmr::memory_resource {
+    std::pmr::memory_resource *upstream = std::pmr::new_delete_resource();
+    std::size_t allocation_count = 0;
+    std::size_t deallocation_count = 0;
+    std::size_t fail_on_allocation = 0; // 1-based index, 0 disables failpoint
 
-    throwing_memory_resource throwing_mr{};
-    const auto allocator = hpp_proto::dynamic_message_factory::impl_allocator_type{&throwing_mr};
+    explicit failpoint_memory_resource(std::size_t fail_on_allocation) : fail_on_allocation(fail_on_allocation) {}
+
+  private:
+    void *do_allocate(std::size_t bytes, std::size_t alignment) override {
+      ++allocation_count;
+      if (fail_on_allocation != 0 && allocation_count == fail_on_allocation) {
+        throw std::bad_alloc{};
+      }
+      return upstream->allocate(bytes, alignment);
+    }
+
+    void do_deallocate(void *p, std::size_t bytes, std::size_t alignment) override {
+      ++deallocation_count;
+      upstream->deallocate(p, bytes, alignment);
+    }
+
+    [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+      return this == &other;
+    }
+  };
+
+  // Sentinel: immediate allocator failure must propagate std::bad_alloc.
+  "factory_create_propagates_bad_alloc_from_allocator"_test = [&] {
+    failpoint_memory_resource failpoint_mr{1};
+    const auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
     expect(throws<std::bad_alloc>([&] {
       [[maybe_unused]] auto result =
           hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"), allocator);
     }));
+  };
+
+  // Verifies OOM contract on decode path:
+  // 1) std::bad_alloc is propagated at a deterministic failpoint index.
+  // 2) Repeating the same failpoint index yields the same failure.
+  // 3) A later healthy create still succeeds (no leaked invalid state).
+  "factory_create_failpoint_bad_alloc_during_descriptor_decode_is_deterministic"_test = [&] {
+    auto descriptor_binpb = read_file("unittest.desc.binpb");
+
+    auto throws_bad_alloc_for_index = [&](std::size_t fail_index) {
+      failpoint_memory_resource failpoint_mr{fail_index};
+      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
+      try {
+        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(descriptor_binpb, allocator);
+        return false;
+      } catch (const std::bad_alloc &) {
+        return true;
+      }
+    };
+
+    std::size_t decode_fail_index = 0;
+    for (std::size_t index = 2; index <= 128; ++index) {
+      if (throws_bad_alloc_for_index(index)) {
+        decode_fail_index = index;
+        break;
+      }
+    }
+
+    expect(gt(decode_fail_index, std::size_t{1}));
+    expect(throws_bad_alloc_for_index(decode_fail_index));
+    expect(throws_bad_alloc_for_index(decode_fail_index));
+
+    auto healthy_factory = expect_ok(hpp_proto::dynamic_message_factory::create(descriptor_binpb));
+    std::pmr::monotonic_buffer_resource msg_mr;
+    expect(healthy_factory.get_message("proto3_unittest.TestAllTypes", msg_mr).has_value());
+  };
+
+  // Verifies OOM contract on fileset-init path:
+  // 1) std::bad_alloc is propagated while building/linking/resolving pool state.
+  // 2) Repeating the same failpoint index yields the same failure.
+  // 3) A later healthy create still succeeds (no leaked invalid state).
+  "factory_create_failpoint_bad_alloc_during_pool_init_from_fileset_is_deterministic"_test = [&] {
+    auto descriptor_binpb = read_file("unittest.desc.binpb");
+
+    auto throws_bad_alloc_for_index = [&](std::size_t fail_index) {
+      failpoint_memory_resource failpoint_mr{fail_index};
+      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
+      std::pmr::monotonic_buffer_resource parse_mr;
+      auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+          descriptor_binpb, hpp_proto::alloc_from(parse_mr)));
+      try {
+        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset), allocator);
+        return false;
+      } catch (const std::bad_alloc &) {
+        return true;
+      }
+    };
+
+    std::size_t pool_fail_index = 0;
+    for (std::size_t index = 2; index <= 128; ++index) {
+      if (throws_bad_alloc_for_index(index)) {
+        pool_fail_index = index;
+        break;
+      }
+    }
+
+    expect(gt(pool_fail_index, std::size_t{1}));
+    expect(throws_bad_alloc_for_index(pool_fail_index));
+    expect(throws_bad_alloc_for_index(pool_fail_index));
+
+    auto healthy_factory = expect_ok(hpp_proto::dynamic_message_factory::create(descriptor_binpb));
+    std::pmr::monotonic_buffer_resource msg_mr;
+    expect(healthy_factory.get_message("proto3_unittest.TestAllTypes", msg_mr).has_value());
+  };
+
+  // Regression test across multiple failpoint indices:
+  // 1) Different allocation-failure indices consistently throw std::bad_alloc.
+  // 2) Each failed attempt is followed by a healthy create that still succeeds.
+  // 3) Confirms no cross-run poisoning from prior OOM failures.
+  "factory_create_failpoint_multiple_indices_do_not_poison_later_success"_test = [&] {
+    auto descriptor_binpb = read_file("unittest.desc.binpb");
+
+    std::vector<std::size_t> failing_indices;
+    failing_indices.reserve(3);
+    for (std::size_t index = 1; index <= 256 && failing_indices.size() < 3; ++index) {
+      failpoint_memory_resource failpoint_mr{index};
+      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
+      try {
+        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(descriptor_binpb, allocator);
+      } catch (const std::bad_alloc &) {
+        failing_indices.push_back(index);
+      }
+    }
+
+    expect(eq(failing_indices.size(), std::size_t{3}));
+    for (const auto fail_index : failing_indices) {
+      failpoint_memory_resource failpoint_mr{fail_index};
+      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
+      expect(throws<std::bad_alloc>([&] {
+        [[maybe_unused]] auto result = hpp_proto::dynamic_message_factory::create(descriptor_binpb, allocator);
+      }));
+
+      auto recovered_factory = expect_ok(hpp_proto::dynamic_message_factory::create(descriptor_binpb));
+      std::pmr::monotonic_buffer_resource msg_mr;
+      auto recovered_msg = recovered_factory.get_message("proto3_unittest.TestAllTypes", msg_mr);
+      expect(recovered_msg.has_value());
+    }
   };
 
   "unknown_message_name_returns_error"_test = [&] {
