@@ -9,20 +9,55 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
 set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS "find" "compile")
+set(HPP_PROTO_PROTOC_GEN_HPP "" CACHE FILEPATH
+    "Path to host protoc-gen-hpp executable. If set, hpp-proto uses this binary instead of building src/protoc-plugin.")
 option(HPP_PROTO_TESTS "Enable HPP_PROTO tests" ${PROJECT_IS_TOP_LEVEL})
+option(HPP_PROTO_CORE_TESTS_ONLY "Build only unittests targets (core tests only)" OFF)
 
 # The following options are internal and not part of the public interface.
-option(HPP_PROTO_PROTOC_PLUGIN "Enable protoc plugin" ON)
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
 
-if(HPP_PROTO_FUZZER_ONLY)
-  if(NOT HPP_PROTO_PROTOC_PLUGIN)
-    message(FATAL_ERROR "HPP_PROTO_FUZZER_ONLY requires HPP_PROTO_PROTOC_PLUGIN=ON")
-  endif()
+if(HPP_PROTO_CORE_TESTS_ONLY AND HPP_PROTO_FUZZER_ONLY)
+  message(FATAL_ERROR "HPP_PROTO_CORE_TESTS_ONLY and HPP_PROTO_FUZZER_ONLY cannot both be ON")
+endif()
 
+if(HPP_PROTO_CORE_TESTS_ONLY)
+  set(HPP_PROTO_TESTS ON CACHE BOOL "Enable HPP_PROTO tests" FORCE)
+  set(HPP_PROTO_BENCHMARKS OFF CACHE BOOL "Enable building benchmarks" FORCE)
+  set(HPP_PROTO_FUZZER_ONLY OFF CACHE BOOL "Build only fuzzers and their dependencies" FORCE)
+endif()
+
+if(HPP_PROTO_FUZZER_ONLY)
   set(HPP_PROTO_TESTS OFF CACHE BOOL "Enable HPP_PROTO tests" FORCE)
   set(HPP_PROTO_BENCHMARKS OFF CACHE BOOL "Enable building benchmarks" FORCE)
+endif()
+
+if(CMAKE_CROSSCOMPILING AND NOT HPP_PROTO_PROTOC_GEN_HPP)
+  find_program(HPP_PROTO_PROTOC_GEN_HPP
+    NAMES protoc-gen-hpp
+    NO_CMAKE_FIND_ROOT_PATH)
+
+  if(HPP_PROTO_PROTOC_GEN_HPP)
+    set(HPP_PROTO_PROTOC_GEN_HPP "${HPP_PROTO_PROTOC_GEN_HPP}" CACHE FILEPATH
+      "Path to host protoc-gen-hpp executable. If set, hpp-proto uses this binary instead of building src/protoc-plugin."
+      FORCE)
+    message(STATUS "Cross-compiling: found host protoc-gen-hpp at ${HPP_PROTO_PROTOC_GEN_HPP}")
+  else()
+    message(FATAL_ERROR
+      "Cross-compiling requires -DHPP_PROTO_PROTOC_GEN_HPP or protoc-gen-hpp in PATH.")
+  endif()
+endif()
+
+if(HPP_PROTO_PROTOC_GEN_HPP)
+  if(NOT EXISTS "${HPP_PROTO_PROTOC_GEN_HPP}")
+    message(FATAL_ERROR
+      "HPP_PROTO_PROTOC_GEN_HPP does not exist: ${HPP_PROTO_PROTOC_GEN_HPP}")
+  endif()
+  if(NOT IS_EXECUTABLE "${HPP_PROTO_PROTOC_GEN_HPP}")
+    message(FATAL_ERROR
+      "HPP_PROTO_PROTOC_GEN_HPP is not executable: ${HPP_PROTO_PROTOC_GEN_HPP}")
+  endif()
 endif()
 
 if(NOT MSVC)
@@ -48,8 +83,10 @@ target_sources(hpp_proto_core INTERFACE
 
 target_link_libraries(hpp_proto_core INTERFACE is_utf8)
 add_library(hpp_proto::hpp_proto_core ALIAS hpp_proto_core)
-install(TARGETS hpp_proto_core EXPORT hpp_proto-targets
-  FILE_SET HEADERS DESTINATION include)
+if(NOT HPP_PROTO_CORE_TESTS_ONLY)
+  install(TARGETS hpp_proto_core EXPORT hpp_proto-targets
+    FILE_SET HEADERS DESTINATION include)
+endif()
 
 if(HPP_PROTO_TESTS)
   enable_testing()
@@ -58,8 +95,16 @@ if(HPP_PROTO_TESTS)
   add_subdirectory(unittests)
 endif()
 
-if(NOT HPP_PROTO_PROTOC_PLUGIN)
+if(HPP_PROTO_CORE_TESTS_ONLY)
   return()
+endif()
+
+if(HPP_PROTO_PROTOC_GEN_HPP)
+  add_executable(protoc-gen-hpp IMPORTED GLOBAL)
+  set_target_properties(protoc-gen-hpp PROPERTIES
+    IMPORTED_LOCATION "${HPP_PROTO_PROTOC_GEN_HPP}")
+  add_executable(hpp_proto::protoc-gen-hpp ALIAS protoc-gen-hpp)
+  message(STATUS "Using external protoc-gen-hpp: ${HPP_PROTO_PROTOC_GEN_HPP}")
 endif()
 
 include(cmake/protobuf_generate_hpp.cmake)

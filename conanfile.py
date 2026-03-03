@@ -61,7 +61,6 @@ class HppProtoConan(ConanFile):
         deps = CMakeDeps(self)
         deps.generate()
         tc = CMakeToolchain(self)
-        tc.variables["HPP_PROTO_PROTOC_PLUGIN"] = "ON"
         tc.variables["HPP_PROTO_TESTS"] = "ON" if self.options.tests else "OFF"
         tc.variables["HPP_PROTO_PROTOC"] = self.protoc_mode
         self.protoc_executable = None

@@ -1,4 +1,6 @@
-add_subdirectory(protoc-plugin)
+if(NOT TARGET hpp_proto::protoc-gen-hpp)
+    add_subdirectory(protoc-plugin)
+endif()
 
 if(NOT Protobuf_INCLUDE_DIRS)
     message(FATAL_ERROR
@@ -15,11 +17,11 @@ set(descriptor_proto_files
 
 add_custom_target(update_descriptor
     COMMENT "processing ${descriptor_proto_files} hpp_proto/hpp_options.pb"
-    COMMAND hpp_proto::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${PROJECT_SOURCE_DIR}/include -I ${Protobuf_INCLUDE_DIRS}
+    COMMAND hpp_proto::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp> --hpp_out=${PROJECT_SOURCE_DIR}/include -I ${Protobuf_INCLUDE_DIRS}
     --hpp_opt=proto2_explicit_presence=.google.protobuf.FieldDescriptorProto.oneof_index,proto2_explicit_presence=.google.protobuf.FieldOptions.packed ${descriptor_proto_files}
-    COMMAND hpp_proto::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:protoc-gen-hpp> --hpp_out=${PROJECT_SOURCE_DIR}/include -I ${PROJECT_SOURCE_DIR}/include
+    COMMAND hpp_proto::protoc --plugin=protoc-gen-hpp=$<TARGET_FILE:hpp_proto::protoc-gen-hpp> --hpp_out=${PROJECT_SOURCE_DIR}/include -I ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/include/hpp_proto/hpp_options.proto
-    DEPENDS hpp_proto::protoc ${PROJECT_SOURCE_DIR}/include/hpp_proto/hpp_options.proto
+    DEPENDS hpp_proto::protoc hpp_proto::protoc-gen-hpp ${PROJECT_SOURCE_DIR}/include/hpp_proto/hpp_options.proto
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     VERBATIM
 )
