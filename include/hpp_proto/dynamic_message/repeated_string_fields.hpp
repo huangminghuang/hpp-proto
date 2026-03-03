@@ -159,7 +159,7 @@ public:
 
   template <std::ranges::sized_range Range>
     requires std::convertible_to<std::ranges::range_value_t<Range>, std::string_view>
-  void set(const Range &r) const noexcept {
+  void set(const Range &r) const {
     resize(std::ranges::size(r));
     std::size_t i = 0;
     for (auto &&e : r) {
@@ -172,7 +172,7 @@ public:
     adopt(std::span{other.data(), other.size()});
   }
 
-  void clone_from(const cref_type &other) const noexcept {
+  void clone_from(const cref_type &other) const {
     assert(this->descriptor_ == &other.descriptor());
     if (other.empty()) {
       clear();

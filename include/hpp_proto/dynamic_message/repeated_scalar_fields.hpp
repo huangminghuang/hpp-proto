@@ -248,7 +248,7 @@ public:
 
   template <std::ranges::sized_range Range>
     requires std::same_as<std::ranges::range_value_t<Range>, value_type>
-  void set(const Range &s) const noexcept {
+  void set(const Range &s) const {
     resize(static_cast<std::size_t>(std::ranges::distance(s)));
     std::copy(s.begin(), s.end(), data());
   }
@@ -258,7 +258,7 @@ public:
     access_storage() = other.access_storage();
   }
 
-  void clone_from(const cref_type &other) const noexcept {
+  void clone_from(const cref_type &other) const {
     assert(this->descriptor_ == &other.descriptor());
     if (other.empty()) {
       clear();

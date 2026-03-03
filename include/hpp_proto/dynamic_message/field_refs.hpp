@@ -166,7 +166,7 @@ public:
     assert(this->descriptor_ == other.descriptor_);
     *storage_ = *other.storage_;
   }
-  void clone_from(const field_cref &other) const noexcept;
+  void clone_from(const field_cref &other) const;
 
   template <typename T>
   [[nodiscard]] auto get() const noexcept {
@@ -174,7 +174,7 @@ public:
   }
 
   template <typename T>
-  [[nodiscard]] auto set(T v) const noexcept -> std::expected<void, dynamic_message_errc> {
+  [[nodiscard]] auto set(T v) const -> std::expected<void, dynamic_message_errc> {
     return visit([&v](auto mref) -> std::expected<void, dynamic_message_errc> {
       using mref_type = decltype(mref);
       if constexpr (mref_type::template settable_from_v<T>) {
@@ -216,7 +216,7 @@ public:
         });
   }
 
-  void set_null() noexcept;
+  void set_null();
 }; // class field_mref
 
 } // namespace hpp_proto

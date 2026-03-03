@@ -470,7 +470,7 @@ public:
     std::copy(other.storage_, std::next(other.storage_, static_cast<std::ptrdiff_t>(num_slots())), storage_);
   }
 
-  void clone_from(const cref_type &other) const noexcept {
+  void clone_from(const cref_type &other) const {
     assert(this->descriptor_ == &other.descriptor());
     for (std::size_t i = 0; i < num_slots(); ++i) {
       fields()[i].clone_from(other.fields()[i]);
@@ -638,7 +638,7 @@ public:
     storage_->of_message = other.storage_->of_message;
   }
 
-  void clone_from(const cref_type &other) const noexcept {
+  void clone_from(const cref_type &other) const {
     assert(&this->message_descriptor() == &other.message_descriptor());
     if (other.has_value()) {
       emplace().clone_from(*other);
