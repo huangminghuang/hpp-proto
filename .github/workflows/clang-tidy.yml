@@ -69,13 +69,9 @@ jobs:
                 echo "has_header_changes=false"
               fi
               echo "has_tidy_changes=true"
-            } >> "$GITHUB_OUTPUT"
-            {
               echo "changed_cpp_files<<EOF"
               echo "$CHANGED_CPP"
               echo "EOF"
-            } >> "$GITHUB_OUTPUT"
-            {
               echo "changed_header_files<<EOF"
               echo "$CHANGED_HDR"
               echo "EOF"
