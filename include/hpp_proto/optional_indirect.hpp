@@ -236,7 +236,7 @@ public:
     }
   }
 
-  constexpr bool operator==(std::nullopt_t /* unused */) const { return !has_value(); }
+  constexpr bool operator==(std::nullopt_t /* unused */) const noexcept { return !has_value(); }
 
   [[nodiscard]] constexpr allocator_type get_allocator() const noexcept { return alloc_; }
 
@@ -406,7 +406,7 @@ public:
     }
   }
 
-  constexpr bool operator==(std::nullptr_t /* unused */) const { return !has_value(); }
+  constexpr bool operator==(std::nullptr_t /* unused */) const noexcept { return !has_value(); }
 
   template <class F>
   constexpr auto and_then(F &&f) const & {

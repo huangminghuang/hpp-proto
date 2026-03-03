@@ -137,36 +137,40 @@ public:
     }
   }
 
-  [[nodiscard]] constexpr T &value() & { return *raw_ptr(); }
-  [[nodiscard]] constexpr const T &value() const & { return *raw_ptr(); }
-  [[nodiscard]] constexpr T &&value() && { return std::move(*raw_ptr()); }
-  [[nodiscard]] constexpr const T &&value() const && { return std::move(*raw_ptr()); }
+  [[nodiscard]] constexpr T &value() & noexcept { return *raw_ptr(); }
+  [[nodiscard]] constexpr const T &value() const & noexcept { return *raw_ptr(); }
+  [[nodiscard]] constexpr T &&value() && noexcept { return std::move(*raw_ptr()); }
+  [[nodiscard]] constexpr const T &&value() const && noexcept { return std::move(*raw_ptr()); }
 
-  constexpr T &operator*() & { return *raw_ptr(); }
-  constexpr const T &operator*() const & { return *raw_ptr(); }
-  constexpr T &&operator*() && { return std::move(*raw_ptr()); }
-  constexpr const T &&operator*() const && { return std::move(*raw_ptr()); }
+  constexpr T &operator*() & noexcept { return *raw_ptr(); }
+  constexpr const T &operator*() const & noexcept { return *raw_ptr(); }
+  constexpr T &&operator*() && noexcept { return std::move(*raw_ptr()); }
+  constexpr const T &&operator*() const && noexcept { return std::move(*raw_ptr()); }
 
   constexpr T *operator->() noexcept { return raw_ptr(); }
   constexpr const T *operator->() const noexcept { return raw_ptr(); }
 
   constexpr bool operator==(const T &rhs) const
+      noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
     requires requires { *obj_ == rhs; }
   {
     return *raw_ptr() == rhs;
   }
   constexpr bool operator==(const indirect &rhs) const
+      noexcept(noexcept(std::declval<const T &>() == std::declval<const T &>()))
     requires requires { *obj_ == *rhs.obj_; }
   {
     return *raw_ptr() == *rhs.raw_ptr();
   }
 
   constexpr auto operator<=>(const T &rhs) const
+      noexcept(noexcept(std::declval<const T &>() <=> std::declval<const T &>()))
     requires requires { *obj_ <=> rhs; }
   {
     return *raw_ptr() <=> rhs;
   }
   constexpr auto operator<=>(const indirect &rhs) const
+      noexcept(noexcept(std::declval<const T &>() <=> std::declval<const T &>()))
     requires requires { *obj_ <=> *rhs.obj_; }
   {
     return *raw_ptr() <=> *rhs.raw_ptr();
