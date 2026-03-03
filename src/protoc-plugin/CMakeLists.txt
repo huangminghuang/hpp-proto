@@ -1,3 +1,29 @@
+if (CMAKE_CROSSCOMPILING)
+    # Since we are cross-compiling, we use the pre-built version of the program.
+    find_program(HPP_HOST_TOOL_PATH
+            NAMES protoc-gen-hpp
+            NO_CMAKE_FIND_ROOT_PATH
+    )
+
+    if(NOT HPP_HOST_TOOL_PATH)
+        message(FATAL_ERROR
+                "Cross-compiling: 'protoc-gen-hpp' not found in PATH. "
+                "Please install it on the host or provide -DHPP_HOST_TOOL_PATH."
+        )
+    endif()
+
+    # Make the binary available as imported target.
+    add_executable(protoc-gen-hpp IMPORTED GLOBAL)
+    set_target_properties(protoc-gen-hpp PROPERTIES
+            IMPORTED_LOCATION "${HPP_HOST_TOOL_PATH}"
+    )
+
+    add_executable(hpp_proto::protoc-gen-hpp ALIAS protoc-gen-hpp)
+
+    message(STATUS "Using host protoc-gen-hpp: ${HPP_HOST_TOOL_PATH}")
+    return()
+endif ()
+
 add_compile_options(${HPP_PROTO_COMPILE_OPTIONS})
 
 add_executable(protoc-gen-hpp hpp_gen.cpp)
