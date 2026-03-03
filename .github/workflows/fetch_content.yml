@@ -57,11 +57,24 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt install -y git protobuf-compiler libprotobuf-dev
+
+      - name: Resolve FetchContent source
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "HPP_PROTO_GIT_REPOSITORY=https://github.com/${{ github.event.pull_request.head.repo.full_name }}.git" >> "$GITHUB_ENV"
+            echo "HPP_PROTO_GIT_TAG=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_ENV"
+          else
+            echo "HPP_PROTO_GIT_REPOSITORY=https://github.com/${{ github.repository }}.git" >> "$GITHUB_ENV"
+            echo "HPP_PROTO_GIT_TAG=${{ github.sha }}" >> "$GITHUB_ENV"
+          fi
   
       - name: configure
-        env:
-          HPP_PROTO_GIT_TAG: ${{ github.head_ref || github.ref_name }}
-        run: cmake -DHPP_PROTO_GIT_TAG="${HPP_PROTO_GIT_TAG}" -S tutorial -B tutorial-build
+        run: >
+          cmake
+          -DHPP_PROTO_GIT_REPOSITORY="${HPP_PROTO_GIT_REPOSITORY}"
+          -DHPP_PROTO_GIT_TAG="${HPP_PROTO_GIT_TAG}"
+          -S tutorial
+          -B tutorial-build
 
       - name: build
         run: cmake --build tutorial-build --config Release -j4
