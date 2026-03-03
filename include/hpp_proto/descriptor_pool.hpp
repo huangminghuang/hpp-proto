@@ -631,7 +631,7 @@ private:
     return validate_file_dependency_acyclic();
   }
 
-  std::expected<void, descriptor_pool_errc> validate_file_dependency_acyclic() const {
+  [[nodiscard]] std::expected<void, descriptor_pool_errc> validate_file_dependency_acyclic() const {
     enum class visit_state : uint8_t { unvisited, visiting, visited };
     std::vector<visit_state> states(files_.size(), visit_state::unvisited);
 

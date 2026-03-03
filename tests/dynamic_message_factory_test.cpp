@@ -43,6 +43,8 @@ const boost::ut::suite parse_default_value_tests = [] {
   };
 };
 
+// Intentionally broad integration-style suite with many scenario builders/tests.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 const boost::ut::suite descriptor_pool_gap_tests = [] {
   using OwningFileDescriptorProto = google::protobuf::FileDescriptorProto<>;
   using OwningFileDescriptorSet = google::protobuf::FileDescriptorSet<>;
@@ -1272,21 +1274,21 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "factory_create_failpoint_multiple_indices_do_not_poison_later_success"_test = [&] {
     auto descriptor_binpb = read_file("unittest.desc.binpb");
 
-    std::array<std::size_t, 3> failing_indices{};
-    std::size_t found = 0;
-    for (std::size_t index = 1; index <= 256 && found < failing_indices.size(); ++index) {
+    std::vector<std::size_t> failing_indices;
+    failing_indices.reserve(3);
+    for (std::size_t index = 1; index <= 256 && failing_indices.size() < 3; ++index) {
       failpoint_memory_resource failpoint_mr{index};
       auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
       try {
         [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(descriptor_binpb, allocator);
       } catch (const std::bad_alloc &) {
-        failing_indices[found++] = index;
+        failing_indices.push_back(index);
       }
     }
 
-    expect(eq(found, failing_indices.size()));
-    for (std::size_t i = 0; i < found; ++i) {
-      failpoint_memory_resource failpoint_mr{failing_indices[i]};
+    expect(eq(failing_indices.size(), std::size_t{3}));
+    for (const auto fail_index : failing_indices) {
+      failpoint_memory_resource failpoint_mr{fail_index};
       auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
       expect(throws<std::bad_alloc>([&] {
         [[maybe_unused]] auto result = hpp_proto::dynamic_message_factory::create(descriptor_binpb, allocator);
