@@ -876,9 +876,9 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(valid_desc_binpb.size() > 2U);
 
     std::array<std::string, 4> malformed_cases = {
-        valid_desc_binpb.substr(0, valid_desc_binpb.size() - 1), // truncated valid payload
-        valid_desc_binpb.substr(0, 2),                           // very short truncation
-        std::string{"\x0A\x05\x08\x96\x01", 5},                 // declared length exceeds available bytes
+        valid_desc_binpb.substr(0, valid_desc_binpb.size() - 1),         // truncated valid payload
+        valid_desc_binpb.substr(0, 2),                                   // very short truncation
+        std::string{"\x0A\x05\x08\x96\x01", 5},                          // declared length exceeds available bytes
         std::string{"\x0A\x80\x80\x80\x80\x80\x80\x80\x80\x80\x02", 11}, // malformed/overlong length varint
     };
 
