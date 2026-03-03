@@ -33,11 +33,13 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-            echo "has_cpp_changes=true" >> "$GITHUB_OUTPUT"
-            echo "has_header_changes=true" >> "$GITHUB_OUTPUT"
-            echo "has_tidy_changes=true" >> "$GITHUB_OUTPUT"
-            echo "changed_cpp_files=" >> "$GITHUB_OUTPUT"
-            echo "changed_header_files=" >> "$GITHUB_OUTPUT"
+            {
+              echo "has_cpp_changes=true"
+              echo "has_header_changes=true"
+              echo "has_tidy_changes=true"
+              echo "changed_cpp_files="
+              echo "changed_header_files="
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -47,23 +49,27 @@ jobs:
           CHANGED_HDR="$(git diff --name-only --diff-filter=ACMR "$BASE...HEAD" | grep -E '\.(h|hh|hpp|hxx)$' || true)"
 
           if [[ -z "$CHANGED_CPP" && -z "$CHANGED_HDR" ]]; then
-            echo "has_cpp_changes=false" >> "$GITHUB_OUTPUT"
-            echo "has_header_changes=false" >> "$GITHUB_OUTPUT"
-            echo "has_tidy_changes=false" >> "$GITHUB_OUTPUT"
-            echo "changed_cpp_files=" >> "$GITHUB_OUTPUT"
-            echo "changed_header_files=" >> "$GITHUB_OUTPUT"
+            {
+              echo "has_cpp_changes=false"
+              echo "has_header_changes=false"
+              echo "has_tidy_changes=false"
+              echo "changed_cpp_files="
+              echo "changed_header_files="
+            } >> "$GITHUB_OUTPUT"
           else
-            if [[ -n "$CHANGED_CPP" ]]; then
-              echo "has_cpp_changes=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "has_cpp_changes=false" >> "$GITHUB_OUTPUT"
-            fi
-            if [[ -n "$CHANGED_HDR" ]]; then
-              echo "has_header_changes=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "has_header_changes=false" >> "$GITHUB_OUTPUT"
-            fi
-            echo "has_tidy_changes=true" >> "$GITHUB_OUTPUT"
+            {
+              if [[ -n "$CHANGED_CPP" ]]; then
+                echo "has_cpp_changes=true"
+              else
+                echo "has_cpp_changes=false"
+              fi
+              if [[ -n "$CHANGED_HDR" ]]; then
+                echo "has_header_changes=true"
+              else
+                echo "has_header_changes=false"
+              fi
+              echo "has_tidy_changes=true"
+            } >> "$GITHUB_OUTPUT"
             {
               echo "changed_cpp_files<<EOF"
               echo "$CHANGED_CPP"
