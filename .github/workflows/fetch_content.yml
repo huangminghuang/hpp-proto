@@ -61,18 +61,22 @@ jobs:
       - name: Resolve FetchContent source
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "HPP_PROTO_GIT_REPOSITORY=https://github.com/${{ github.event.pull_request.head.repo.full_name }}.git" >> "$GITHUB_ENV"
-            echo "HPP_PROTO_GIT_TAG=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_ENV"
+            REPO_FULL_NAME="${{ github.event.pull_request.head.repo.full_name }}"
+            SOURCE_SHA="${{ github.event.pull_request.head.sha }}"
           else
-            echo "HPP_PROTO_GIT_REPOSITORY=https://github.com/${{ github.repository }}.git" >> "$GITHUB_ENV"
-            echo "HPP_PROTO_GIT_TAG=${{ github.sha }}" >> "$GITHUB_ENV"
+            REPO_FULL_NAME="${{ github.repository }}"
+            SOURCE_SHA="${{ github.sha }}"
           fi
+          echo "HPP_PROTO_GIT_REPOSITORY=https://github.com/${REPO_FULL_NAME}.git" >> "$GITHUB_ENV"
+          echo "HPP_PROTO_GIT_TAG=${SOURCE_SHA}" >> "$GITHUB_ENV"
+          echo "CPM_hpp_proto_SOURCE=${{ github.workspace }}" >> "$GITHUB_ENV"
   
       - name: configure
         run: >
           cmake
           -DHPP_PROTO_GIT_REPOSITORY="${HPP_PROTO_GIT_REPOSITORY}"
           -DHPP_PROTO_GIT_TAG="${HPP_PROTO_GIT_TAG}"
+          -DCPM_hpp_proto_SOURCE="${CPM_hpp_proto_SOURCE}"
           -S tutorial
           -B tutorial-build
 
