@@ -155,7 +155,7 @@ public:
 
   public:
     using iterator_category = std::input_iterator_tag;
-    using difference_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
     using value_type = T;
     using reference = value_type &;
     using pointer = value_type *;
@@ -209,6 +209,13 @@ auto bit_cast_view(const Bytes &input_range) {
 /// `push_back()`
 ///  will always allocate new memory blocks from the associate memory resource without calling `deallocate()`.
 ///
+/// WARNING:
+/// `arena_vector` is a specialized adapter for hpp_proto internals and is not a general-purpose vector replacement.
+/// After construction, internal storage pointer `data_` is null until an operation that materializes storage
+/// (`resize`, `reserve`, `assign`, `append`, `append_range`, `push_back`, etc.) runs. Calling read/access APIs that
+/// use `data_` directly (`data`, `begin/end`, `operator[]`, `front/back`) before storage materialization is undefined
+/// behavior, even if the referenced input view was initially non-empty.
+///
 /// @tparam View
 /// @tparam MemoryResource
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -222,7 +229,7 @@ public:
   using const_pointer = const value_type *;
   using difference_type = std::size_t;
   using iterator = pointer;
-  using const_iterator = const iterator;
+  using const_iterator = const_pointer;
 
   static_assert(std::is_trivially_destructible_v<value_type>);
 
