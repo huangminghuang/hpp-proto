@@ -24,16 +24,16 @@ private:
 
 public:
   constexpr indirect() : obj_(allocate_default()) {}
-  constexpr explicit indirect(const allocator_type &alloc) : alloc_(alloc), obj_(allocate_default()) {}
-  constexpr indirect(allocator_arg_t, const allocator_type &alloc) : alloc_(alloc), obj_(allocate_default()) {}
+  constexpr explicit indirect(allocator_type alloc) : alloc_(std::move(alloc)), obj_(allocate_default()) {}
+  constexpr indirect(allocator_arg_t, allocator_type alloc) : alloc_(std::move(alloc)), obj_(allocate_default()) {}
   constexpr ~indirect() { destroy(); }
 
   template <class... Args>
   constexpr explicit indirect(std::in_place_t, Args &&...args)
       : obj_(allocate_construct(std::forward<Args>(args)...)) {}
   template <class... Args>
-  constexpr explicit indirect(allocator_arg_t, const allocator_type &alloc, std::in_place_t, Args &&...args)
-      : alloc_(alloc), obj_(allocate_construct(std::forward<Args>(args)...)) {}
+  constexpr explicit indirect(allocator_arg_t, allocator_type alloc, std::in_place_t, Args &&...args)
+      : alloc_(std::move(alloc)), obj_(allocate_construct(std::forward<Args>(args)...)) {}
 
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   constexpr indirect(T &&object) : obj_(allocate_construct(std::move(object))) {}
@@ -41,8 +41,8 @@ public:
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   constexpr indirect(const T &object) : obj_(allocate_construct(object)) {}
 
-  constexpr indirect(allocator_arg_t, const allocator_type &alloc, T &&object)
-      : alloc_(alloc), obj_(allocate_construct(std::move(object))) {}
+  constexpr indirect(allocator_arg_t, allocator_type alloc, T &&object)
+      : alloc_(std::move(alloc)), obj_(allocate_construct(std::move(object))) {}
 
   constexpr indirect(const indirect &other)
       : alloc_(allocator_traits::select_on_container_copy_construction(other.alloc_)),
@@ -50,11 +50,11 @@ public:
   constexpr indirect(indirect &&other) noexcept(std::is_nothrow_move_constructible_v<allocator_type>)
       : alloc_(std::move(other.alloc_)), obj_(std::exchange(other.obj_, nullptr)) {}
 
-  constexpr indirect(allocator_arg_t, const allocator_type &alloc, const indirect &other)
-      : alloc_(alloc), obj_(allocate_construct(*other.raw_ptr())) {}
+  constexpr indirect(allocator_arg_t, allocator_type alloc, const indirect &other)
+      : alloc_(std::move(alloc)), obj_(allocate_construct(*other.raw_ptr())) {}
 
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
-  constexpr indirect(allocator_arg_t, const allocator_type &alloc, indirect &&other) : alloc_(alloc) {
+  constexpr indirect(allocator_arg_t, allocator_type alloc, indirect &&other) : alloc_(std::move(alloc)) {
     if constexpr (allocator_traits::is_always_equal::value) {
       obj_ = std::exchange(other.obj_, nullptr);
     } else {
