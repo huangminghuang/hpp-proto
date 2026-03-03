@@ -10,16 +10,15 @@ if(PROJECT_IS_TOP_LEVEL)
       "The hpp-proto git repository URL for fetch_content")
   set(HPP_PROTO_GIT_TAG "" CACHE STRING "Use find_package(hpp-proto) if empty; otherwise the hpp-proto git tag for fetch_content")
   if(HPP_PROTO_GIT_TAG)
-    include(FetchContent)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CPM.cmake)
 
-    FetchContent_Declare(
-      hpp_proto
+    # CPM local override is supported via -DCPM_hpp_proto_SOURCE=/path/to/hpp-proto.
+    CPMAddPackage(
+      NAME hpp_proto
       GIT_REPOSITORY ${HPP_PROTO_GIT_REPOSITORY}
       GIT_TAG ${HPP_PROTO_GIT_TAG}
       GIT_SHALLOW TRUE
     )
-
-    FetchContent_MakeAvailable(hpp_proto)
   else()
     find_package(hpp_proto CONFIG REQUIRED)
   endif()
