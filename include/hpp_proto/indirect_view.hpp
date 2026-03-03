@@ -2,6 +2,7 @@
 #include <cassert>
 #include <compare>
 #include <memory>
+#include <type_traits>
 
 namespace hpp_proto {
 
@@ -29,30 +30,43 @@ public:
 
   constexpr indirect_view &operator=(indirect_view &&) = default;
   constexpr indirect_view &operator=(const indirect_view &) = default;
-  constexpr void reset(T *obj) { obj_ = obj; }
+  constexpr void reset(T *obj) noexcept { obj_ = obj; }
 
-  [[nodiscard]] T *pointer() const { return obj_; }
-  [[nodiscard]] constexpr const T &value() const noexcept { return obj_ == nullptr ? *default_object() : *obj_; }
-  constexpr const T &operator*() const noexcept { return value(); }
-  constexpr const T *operator->() const noexcept { return std::addressof(value()); }
+  [[nodiscard]] constexpr T *pointer() noexcept { return obj_; }
+  [[nodiscard]] constexpr const T *pointer() const noexcept { return obj_; }
+  [[nodiscard]] constexpr const T &value() const noexcept(std::is_nothrow_default_constructible_v<T>) {
+    return obj_ == nullptr ? *default_object() : *obj_;
+  }
+  constexpr const T &operator*() const noexcept(std::is_nothrow_default_constructible_v<T>) { return value(); }
+  constexpr const T *operator->() const noexcept(std::is_nothrow_default_constructible_v<T>) {
+    return std::addressof(value());
+  }
 
   constexpr bool operator==(const T &rhs) const
+      noexcept(std::is_nothrow_default_constructible_v<T> &&
+               noexcept(std::declval<const T &>() == std::declval<const T &>()))
     requires requires { value() == rhs; }
   {
     return value() == rhs;
   }
   constexpr bool operator==(const indirect_view &rhs) const
+      noexcept(std::is_nothrow_default_constructible_v<T> &&
+               noexcept(std::declval<const T &>() == std::declval<const T &>()))
     requires requires { value() == rhs.value(); }
   {
     return value() == rhs.value();
   }
 
   constexpr auto operator<=>(const T &rhs) const
+      noexcept(std::is_nothrow_default_constructible_v<T> &&
+               noexcept(std::declval<const T &>() <=> std::declval<const T &>()))
     requires requires { value() <=> rhs; }
   {
     return value() <=> rhs;
   }
   constexpr auto operator<=>(const indirect_view &rhs) const
+      noexcept(std::is_nothrow_default_constructible_v<T> &&
+               noexcept(std::declval<const T &>() <=> std::declval<const T &>()))
     requires requires { *obj_ <=> *rhs.obj_; }
   {
     return value() <=> rhs.value();

@@ -1,7 +1,9 @@
 #include <boost/ut.hpp>
 #include <memory_resource>
 #include <optional>
+#include <type_traits>
 
+#include "test_allocators.hpp"
 #include <hpp_proto/field_types.hpp>
 #include <hpp_proto/json.hpp>
 
@@ -20,6 +22,14 @@ struct glz::meta<TestRecursiveMessage<Traits>> {
   using T = TestRecursiveMessage<Traits>;
   static constexpr auto value = object("a", &T::a, "i", &T::i);
 };
+
+using optional_with_throwing_move_ctor_alloc = hpp_proto::optional_indirect<int, throwing_move_ctor_allocator<int>>;
+using optional_with_throwing_move_assign_alloc = hpp_proto::optional_indirect<int, throwing_move_assign_allocator<int>>;
+using optional_with_throwing_swap_alloc = hpp_proto::optional_indirect<int, throwing_swap_allocator<int>>;
+
+static_assert(!std::is_nothrow_move_constructible_v<optional_with_throwing_move_ctor_alloc>);
+static_assert(!std::is_nothrow_move_assignable_v<optional_with_throwing_move_assign_alloc>);
+static_assert(!std::is_nothrow_swappable_v<optional_with_throwing_swap_alloc>);
 
 const boost::ut::suite optional_indirect_tests = [] {
   using namespace boost::ut;
@@ -329,6 +339,39 @@ const boost::ut::suite optional_indirect_tests = [] {
       expect(msg == msg1);
     };
   } | std::tuple<hpp_proto::stable_traits, hpp_proto::pmr_stable_traits>{};
+};
+
+const boost::ut::suite optional_indirect_exception_safety_tests = [] {
+  using namespace boost::ut;
+
+  "failed_emplace_is_disengaged_and_deallocates_immediately"_test = [] {
+    auto state = std::make_shared<counting_alloc_state>();
+    using Alloc = counting_allocator<throwing_constructible>;
+    using Optional = hpp_proto::optional_indirect<throwing_constructible, Alloc>;
+
+    Optional opt(std::allocator_arg, Alloc{state});
+    expect(throws<std::runtime_error>([&] { opt.emplace(-1); }));
+
+    expect(!opt.has_value());
+    expect(eq(state->alloc_count, std::size_t{1}));
+    expect(eq(state->dealloc_count, std::size_t{1}));
+  };
+
+  "optional_remains_usable_after_failed_emplace"_test = [] {
+    auto state = std::make_shared<counting_alloc_state>();
+    using Alloc = counting_allocator<throwing_constructible>;
+    using Optional = hpp_proto::optional_indirect<throwing_constructible, Alloc>;
+
+    Optional opt(std::allocator_arg, Alloc{state});
+    expect(throws<std::runtime_error>([&] { opt.emplace(-1); }));
+    auto &value = opt.emplace(42);
+
+    expect(opt.has_value());
+    expect(eq(value.value, 42));
+    expect(eq(opt->value, 42));
+    expect(eq(state->alloc_count, std::size_t{2}));
+    expect(eq(state->dealloc_count, std::size_t{1}));
+  };
 };
 
 int main() {

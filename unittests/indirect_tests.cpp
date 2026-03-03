@@ -1,7 +1,9 @@
 #include <boost/ut.hpp>
 #include <memory_resource>
+#include <stdexcept>
 #include <type_traits>
 
+#include "test_allocators.hpp"
 #include <hpp_proto/indirect.hpp>
 #include <hpp_proto/indirect_view.hpp>
 
@@ -10,6 +12,19 @@ struct TestMessage {
   bool operator==(const TestMessage &) const = default;
   auto operator<=>(const TestMessage &) const = default;
 };
+
+struct ThrowingDefaultMessage {
+  ThrowingDefaultMessage() { throw std::runtime_error("default construction failed"); }
+  bool operator==(const ThrowingDefaultMessage &) const = default;
+};
+
+using indirect_with_throwing_move_ctor_alloc = hpp_proto::indirect<int, throwing_move_ctor_allocator<int>>;
+using indirect_with_throwing_move_assign_alloc = hpp_proto::indirect<int, throwing_move_assign_allocator<int>>;
+using indirect_with_throwing_swap_alloc = hpp_proto::indirect<int, throwing_swap_allocator<int>>;
+
+static_assert(!std::is_nothrow_move_constructible_v<indirect_with_throwing_move_ctor_alloc>);
+static_assert(!std::is_nothrow_move_assignable_v<indirect_with_throwing_move_assign_alloc>);
+static_assert(!std::is_nothrow_swappable_v<indirect_with_throwing_swap_alloc>);
 
 const boost::ut::suite indirect_tests = [] {
   using namespace boost::ut;
@@ -224,6 +239,41 @@ const boost::ut::suite indirect_tests = [] {
       expect(v1->i == 108);
       expect(v2->i == 107);
     };
+
+    "null_access_propagates_default_ctor_exception"_test = [] {
+      hpp_proto::indirect_view<ThrowingDefaultMessage> v;
+      expect(throws<std::runtime_error>([&] { (void)v.value(); }));
+      expect(throws<std::runtime_error>([&] { (void)*v; }));
+      expect(throws<std::runtime_error>([&] { (void)v.operator->(); }));
+    };
+  };
+};
+
+const boost::ut::suite indirect_exception_safety_tests = [] {
+  using namespace boost::ut;
+
+  "failing_value_construction_deallocates_allocation"_test = [] {
+    auto state = std::make_shared<counting_alloc_state>();
+    using Alloc = counting_allocator<throwing_constructible>;
+    using Indirect = hpp_proto::indirect<throwing_constructible, Alloc>;
+
+    expect(throws<std::runtime_error>(
+        [&] { [[maybe_unused]] Indirect value(std::allocator_arg, Alloc{state}, std::in_place, -1); }));
+    expect(eq(state->alloc_count, std::size_t{1}));
+    expect(eq(state->dealloc_count, std::size_t{1}));
+  };
+
+  "copy_assignment_with_allocator_propagation_and_mismatch_reconstructs_storage"_test = [] {
+    using Alloc = propagating_copy_allocator<int>;
+    using Indirect = hpp_proto::indirect<int, Alloc>;
+
+    Indirect lhs(std::allocator_arg, Alloc{1}, 1);
+    Indirect rhs(std::allocator_arg, Alloc{2}, 7);
+
+    lhs = rhs;
+
+    expect(eq(*lhs, 7));
+    expect(lhs.get_allocator() == rhs.get_allocator());
   };
 };
 
