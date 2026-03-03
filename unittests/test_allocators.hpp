@@ -83,9 +83,7 @@ struct throwing_move_assign_allocator {
   throwing_move_assign_allocator(const throwing_move_assign_allocator &) = default;
   throwing_move_assign_allocator(throwing_move_assign_allocator &&) noexcept = default;
   throwing_move_assign_allocator &operator=(const throwing_move_assign_allocator &) = default;
-  throwing_move_assign_allocator &operator=(throwing_move_assign_allocator &&) noexcept(false) {
-    return *this;
-  }
+  throwing_move_assign_allocator &operator=(throwing_move_assign_allocator &&) noexcept(false) { return *this; }
 
   template <class U>
   throwing_move_assign_allocator(const throwing_move_assign_allocator<U> &) noexcept {}

@@ -3,9 +3,9 @@
 #include <optional>
 #include <type_traits>
 
+#include "test_allocators.hpp"
 #include <hpp_proto/field_types.hpp>
 #include <hpp_proto/json.hpp>
-#include "test_allocators.hpp"
 
 template <typename Traits = ::hpp_proto::default_traits>
 struct TestRecursiveMessage {
@@ -24,8 +24,7 @@ struct glz::meta<TestRecursiveMessage<Traits>> {
 };
 
 using optional_with_throwing_move_ctor_alloc = hpp_proto::optional_indirect<int, throwing_move_ctor_allocator<int>>;
-using optional_with_throwing_move_assign_alloc =
-    hpp_proto::optional_indirect<int, throwing_move_assign_allocator<int>>;
+using optional_with_throwing_move_assign_alloc = hpp_proto::optional_indirect<int, throwing_move_assign_allocator<int>>;
 using optional_with_throwing_swap_alloc = hpp_proto::optional_indirect<int, throwing_swap_allocator<int>>;
 
 static_assert(!std::is_nothrow_move_constructible_v<optional_with_throwing_move_ctor_alloc>);

@@ -3,9 +3,9 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include "test_allocators.hpp"
 #include <hpp_proto/indirect.hpp>
 #include <hpp_proto/indirect_view.hpp>
-#include "test_allocators.hpp"
 
 struct TestMessage {
   int i = 0;
@@ -257,9 +257,8 @@ const boost::ut::suite indirect_exception_safety_tests = [] {
     using Alloc = counting_allocator<throwing_constructible>;
     using Indirect = hpp_proto::indirect<throwing_constructible, Alloc>;
 
-    expect(throws<std::runtime_error>([&] {
-      [[maybe_unused]] Indirect value(std::allocator_arg, Alloc{state}, std::in_place, -1);
-    }));
+    expect(throws<std::runtime_error>(
+        [&] { [[maybe_unused]] Indirect value(std::allocator_arg, Alloc{state}, std::in_place, -1); }));
     expect(eq(state->alloc_count, std::size_t{1}));
     expect(eq(state->dealloc_count, std::size_t{1}));
   };
