@@ -1,6 +1,10 @@
 #include <boost/ut.hpp>
+#include <memory>
 #include <memory_resource>
 #include <optional>
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
 
 #include <hpp_proto/field_types.hpp>
 #include <hpp_proto/json.hpp>
@@ -20,6 +24,134 @@ struct glz::meta<TestRecursiveMessage<Traits>> {
   using T = TestRecursiveMessage<Traits>;
   static constexpr auto value = object("a", &T::a, "i", &T::i);
 };
+
+struct throwing_constructible {
+  int value{};
+  explicit throwing_constructible(int v) {
+    if (v < 0) {
+      throw std::runtime_error("negative is invalid");
+    }
+    value = v;
+  }
+};
+
+struct counting_alloc_state {
+  std::size_t alloc_count{};
+  std::size_t dealloc_count{};
+};
+
+template <class T>
+struct counting_allocator {
+  using value_type = T;
+  using is_always_equal = std::false_type;
+
+  std::shared_ptr<counting_alloc_state> state = std::make_shared<counting_alloc_state>();
+
+  counting_allocator() = default;
+  explicit counting_allocator(std::shared_ptr<counting_alloc_state> s) : state(std::move(s)) {}
+
+  template <class U>
+  counting_allocator(const counting_allocator<U> &other) noexcept : state(other.state) {}
+
+  [[nodiscard]] T *allocate(std::size_t n) {
+    state->alloc_count += n;
+    return std::allocator<T>{}.allocate(n);
+  }
+
+  void deallocate(T *p, std::size_t n) noexcept {
+    state->dealloc_count += n;
+    std::allocator<T>{}.deallocate(p, n);
+  }
+
+  template <class U>
+  constexpr bool operator==(const counting_allocator<U> &rhs) const noexcept {
+    return state == rhs.state;
+  }
+};
+
+template <class T>
+struct throwing_move_ctor_allocator {
+  using value_type = T;
+  using is_always_equal = std::false_type;
+
+  throwing_move_ctor_allocator() = default;
+  throwing_move_ctor_allocator(const throwing_move_ctor_allocator &) = default;
+  throwing_move_ctor_allocator(throwing_move_ctor_allocator &&) noexcept(false) {}
+  throwing_move_ctor_allocator &operator=(const throwing_move_ctor_allocator &) = default;
+  throwing_move_ctor_allocator &operator=(throwing_move_ctor_allocator &&) = default;
+
+  template <class U>
+  throwing_move_ctor_allocator(const throwing_move_ctor_allocator<U> &) noexcept {}
+
+  [[nodiscard]] T *allocate(std::size_t n) { return std::allocator<T>{}.allocate(n); }
+  void deallocate(T *p, std::size_t n) noexcept { std::allocator<T>{}.deallocate(p, n); }
+
+  template <class U>
+  constexpr bool operator==(const throwing_move_ctor_allocator<U> &) const noexcept {
+    return true;
+  }
+};
+
+template <class T>
+struct throwing_move_assign_allocator {
+  using value_type = T;
+  using is_always_equal = std::false_type;
+  using propagate_on_container_move_assignment = std::true_type;
+
+  throwing_move_assign_allocator() = default;
+  throwing_move_assign_allocator(const throwing_move_assign_allocator &) = default;
+  throwing_move_assign_allocator(throwing_move_assign_allocator &&) noexcept = default;
+  throwing_move_assign_allocator &operator=(const throwing_move_assign_allocator &) = default;
+  throwing_move_assign_allocator &operator=(throwing_move_assign_allocator &&) noexcept(false) {
+    return *this;
+  }
+
+  template <class U>
+  throwing_move_assign_allocator(const throwing_move_assign_allocator<U> &) noexcept {}
+
+  [[nodiscard]] T *allocate(std::size_t n) { return std::allocator<T>{}.allocate(n); }
+  void deallocate(T *p, std::size_t n) noexcept { std::allocator<T>{}.deallocate(p, n); }
+
+  template <class U>
+  constexpr bool operator==(const throwing_move_assign_allocator<U> &) const noexcept {
+    return true;
+  }
+};
+
+template <class T>
+struct throwing_swap_allocator {
+  using value_type = T;
+  using is_always_equal = std::false_type;
+  using propagate_on_container_swap = std::true_type;
+
+  throwing_swap_allocator() = default;
+  throwing_swap_allocator(const throwing_swap_allocator &) = default;
+  throwing_swap_allocator(throwing_swap_allocator &&) noexcept = default;
+  throwing_swap_allocator &operator=(const throwing_swap_allocator &) = default;
+  throwing_swap_allocator &operator=(throwing_swap_allocator &&) noexcept = default;
+
+  template <class U>
+  throwing_swap_allocator(const throwing_swap_allocator<U> &) noexcept {}
+
+  [[nodiscard]] T *allocate(std::size_t n) { return std::allocator<T>{}.allocate(n); }
+  void deallocate(T *p, std::size_t n) noexcept { std::allocator<T>{}.deallocate(p, n); }
+
+  friend void swap(throwing_swap_allocator &, throwing_swap_allocator &) noexcept(false) {}
+
+  template <class U>
+  constexpr bool operator==(const throwing_swap_allocator<U> &) const noexcept {
+    return true;
+  }
+};
+
+using optional_with_throwing_move_ctor_alloc = hpp_proto::optional_indirect<int, throwing_move_ctor_allocator<int>>;
+using optional_with_throwing_move_assign_alloc =
+    hpp_proto::optional_indirect<int, throwing_move_assign_allocator<int>>;
+using optional_with_throwing_swap_alloc = hpp_proto::optional_indirect<int, throwing_swap_allocator<int>>;
+
+static_assert(!std::is_nothrow_move_constructible_v<optional_with_throwing_move_ctor_alloc>);
+static_assert(!std::is_nothrow_move_assignable_v<optional_with_throwing_move_assign_alloc>);
+static_assert(!std::is_nothrow_swappable_v<optional_with_throwing_swap_alloc>);
 
 const boost::ut::suite optional_indirect_tests = [] {
   using namespace boost::ut;
@@ -329,6 +461,39 @@ const boost::ut::suite optional_indirect_tests = [] {
       expect(msg == msg1);
     };
   } | std::tuple<hpp_proto::stable_traits, hpp_proto::pmr_stable_traits>{};
+};
+
+const boost::ut::suite optional_indirect_exception_safety_tests = [] {
+  using namespace boost::ut;
+
+  "failed_emplace_is_disengaged_and_deallocates_immediately"_test = [] {
+    auto state = std::make_shared<counting_alloc_state>();
+    using Alloc = counting_allocator<throwing_constructible>;
+    using Optional = hpp_proto::optional_indirect<throwing_constructible, Alloc>;
+
+    Optional opt(std::allocator_arg, Alloc{state});
+    expect(throws<std::runtime_error>([&] { opt.emplace(-1); }));
+
+    expect(!opt.has_value());
+    expect(eq(state->alloc_count, std::size_t{1}));
+    expect(eq(state->dealloc_count, std::size_t{1}));
+  };
+
+  "optional_remains_usable_after_failed_emplace"_test = [] {
+    auto state = std::make_shared<counting_alloc_state>();
+    using Alloc = counting_allocator<throwing_constructible>;
+    using Optional = hpp_proto::optional_indirect<throwing_constructible, Alloc>;
+
+    Optional opt(std::allocator_arg, Alloc{state});
+    expect(throws<std::runtime_error>([&] { opt.emplace(-1); }));
+    auto &value = opt.emplace(42);
+
+    expect(opt.has_value());
+    expect(eq(value.value, 42));
+    expect(eq(opt->value, 42));
+    expect(eq(state->alloc_count, std::size_t{2}));
+    expect(eq(state->dealloc_count, std::size_t{1}));
+  };
 };
 
 int main() {

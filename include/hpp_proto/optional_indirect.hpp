@@ -43,7 +43,7 @@ public:
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, T &&object) : alloc_(alloc) {
     emplace(std::move(object));
   }
-  constexpr optional_indirect(optional_indirect &&other) noexcept
+  constexpr optional_indirect(optional_indirect &&other) noexcept(std::is_nothrow_move_constructible_v<allocator_type>)
       : alloc_(std::move(other.alloc_)), obj_(std::exchange(other.obj_, nullptr)) {}
   constexpr optional_indirect(const optional_indirect &other)
       : alloc_(allocator_traits::select_on_container_copy_construction(other.alloc_)) {
@@ -81,7 +81,8 @@ public:
   }
 
   constexpr optional_indirect &
-  operator=(optional_indirect &&other) noexcept(allocator_traits::propagate_on_container_move_assignment::value ||
+  operator=(optional_indirect &&other) noexcept((allocator_traits::propagate_on_container_move_assignment::value &&
+                                                 std::is_nothrow_move_assignable_v<allocator_type>) ||
                                                 allocator_traits::is_always_equal::value) {
     if (this == &other) {
       return *this;
@@ -177,23 +178,16 @@ public:
   constexpr T *operator->() noexcept { return raw_ptr(); }
   constexpr const T *operator->() const noexcept { return raw_ptr(); }
 
-  constexpr T &emplace() {
-    reset();
-    obj_ = allocator_traits::allocate(alloc_, 1);
-    allocator_traits::construct(alloc_, obj_);
-    return *raw_ptr();
-  }
+  constexpr T &emplace() { return emplace_impl(); }
 
   template <class... Args>
   constexpr T &emplace(Args &&...args) {
-    reset();
-    obj_ = allocator_traits::allocate(alloc_, 1);
-    allocator_traits::construct(alloc_, obj_, std::forward<Args>(args)...);
-    return *raw_ptr();
+    return emplace_impl(std::forward<Args>(args)...);
   }
 
-  constexpr void swap(optional_indirect &other) noexcept(allocator_traits::propagate_on_container_swap::value ||
-                                                         allocator_traits::is_always_equal::value) {
+  constexpr void swap(optional_indirect &other) noexcept(allocator_traits::is_always_equal::value ||
+                                                         (allocator_traits::propagate_on_container_swap::value &&
+                                                          std::is_nothrow_swappable_v<allocator_type>)) {
     if (this == &other) {
       return;
     }
@@ -220,7 +214,7 @@ public:
   }
   constexpr void reset() noexcept {
     if (obj_) {
-      allocator_traits::destroy(alloc_, obj_);
+      allocator_traits::destroy(alloc_, std::to_address(obj_));
       allocator_traits::deallocate(alloc_, obj_, 1);
       obj_ = nullptr;
     }
@@ -335,6 +329,20 @@ public:
   }
 
 private:
+  template <class... Args>
+  constexpr T &emplace_impl(Args &&...args) {
+    reset();
+    auto new_obj = allocator_traits::allocate(alloc_, 1);
+    try {
+      allocator_traits::construct(alloc_, std::to_address(new_obj), std::forward<Args>(args)...);
+    } catch (...) {
+      allocator_traits::deallocate(alloc_, new_obj, 1);
+      throw;
+    }
+    obj_ = new_obj;
+    return *raw_ptr();
+  }
+
   [[nodiscard]] constexpr T *raw_ptr() noexcept { return std::to_address(obj_); }
   [[nodiscard]] constexpr const T *raw_ptr() const noexcept { return std::to_address(obj_); }
 };
