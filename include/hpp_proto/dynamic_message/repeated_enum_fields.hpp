@@ -350,7 +350,7 @@ public:
     adopt(std::span{other.data(), other.size()});
   }
 
-  void clone_from(const cref_type &other) const noexcept {
+  void clone_from(const cref_type &other) const {
     assert(this->descriptor_ == &other.descriptor());
     set(std::span{other.data(), other.size()});
   }

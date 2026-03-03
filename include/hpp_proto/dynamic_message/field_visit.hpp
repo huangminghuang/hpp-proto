@@ -189,7 +189,7 @@ inline auto field_mref::visit(auto &&visitor) const {
   unreachable();
 }
 
-inline void field_mref::clone_from(const field_cref &other) const noexcept {
+inline void field_mref::clone_from(const field_cref &other) const {
   assert(this->descriptor_ == &other.descriptor());
   this->visit([&](const auto &specific_mref) {
     using cref_type = typename std::decay_t<decltype(specific_mref)>::cref_type;
@@ -197,7 +197,7 @@ inline void field_mref::clone_from(const field_cref &other) const noexcept {
   });
 }
 
-inline void field_mref::set_null() noexcept {
+inline void field_mref::set_null() {
   const auto *msg_descriptor = descriptor().message_field_type_descriptor();
   if (msg_descriptor != nullptr && msg_descriptor->wellknown == wellknown_types_t::VALUE) {
     auto msg = message_field_mref{*descriptor_, *storage_, *memory_resource_}.emplace();

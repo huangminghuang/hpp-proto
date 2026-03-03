@@ -158,7 +158,7 @@ public:
 
   template <std::ranges::sized_range Range>
     requires concepts::contiguous_std_byte_range<std::ranges::range_value_t<Range>>
-  void set(const Range &r) const noexcept {
+  void set(const Range &r) const {
     resize(std::ranges::size(r));
     std::size_t i = 0;
     for (auto &&e : r) {
@@ -171,7 +171,7 @@ public:
     adopt(std::span{other.data(), other.size()});
   }
 
-  void clone_from(const cref_type &other) const noexcept {
+  void clone_from(const cref_type &other) const {
     assert(this->descriptor_ == &other.descriptor());
     if (other.empty()) {
       clear();
