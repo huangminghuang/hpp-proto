@@ -6,13 +6,15 @@ project(hpp_proto_tutorial
 
 if(PROJECT_IS_TOP_LEVEL)
   include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/grpc_check.cmake)
+  set(HPP_PROTO_GIT_REPOSITORY "https://github.com/huangminghuang/hpp-proto.git" CACHE STRING
+      "The hpp-proto git repository URL for fetch_content")
   set(HPP_PROTO_GIT_TAG "" CACHE STRING "Use find_package(hpp-proto) if empty; otherwise the hpp-proto git tag for fetch_content")
   if(HPP_PROTO_GIT_TAG)
     include(FetchContent)
 
     FetchContent_Declare(
       hpp_proto
-      GIT_REPOSITORY https://github.com/huangminghuang/hpp-proto.git
+      GIT_REPOSITORY ${HPP_PROTO_GIT_REPOSITORY}
       GIT_TAG ${HPP_PROTO_GIT_TAG}
       GIT_SHALLOW TRUE
     )
