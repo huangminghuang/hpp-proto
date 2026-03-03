@@ -90,17 +90,6 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     return OwningFileDescriptorProto{
         .name = "edition_features.proto",
         .package = "edition_features",
-        .syntax = "editions",
-        .edition = google::protobuf::Edition::EDITION_2023,
-        .options =
-            google::protobuf::FileOptions<>{
-                .features =
-                    google::protobuf::FeatureSet<>{
-                        .field_presence = IMPLICIT,
-                        .repeated_field_encoding = EXPANDED,
-                        .message_encoding = DELIMITED,
-                    },
-            },
         .message_type =
             {
                 MessageProto{
@@ -132,6 +121,17 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                         },
                 },
             },
+        .options =
+            google::protobuf::FileOptions<>{
+                .features =
+                    google::protobuf::FeatureSet<>{
+                        .field_presence = IMPLICIT,
+                        .repeated_field_encoding = EXPANDED,
+                        .message_encoding = DELIMITED,
+                    },
+            },
+        .syntax = "editions",
+        .edition = google::protobuf::Edition::EDITION_2023,
     };
   };
 
