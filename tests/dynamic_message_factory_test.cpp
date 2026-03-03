@@ -82,6 +82,59 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
   };
 
+  auto make_valid_edition_with_file_feature_overrides_fileset = [] {
+    using enum google::protobuf::FeatureSet_::FieldPresence;
+    using enum google::protobuf::FeatureSet_::MessageEncoding;
+    using enum google::protobuf::FeatureSet_::RepeatedFieldEncoding;
+
+    return OwningFileDescriptorProto{
+        .name = "edition_features.proto",
+        .package = "edition_features",
+        .syntax = "editions",
+        .edition = google::protobuf::Edition::EDITION_2023,
+        .options =
+            google::protobuf::FileOptions<>{
+                .features =
+                    google::protobuf::FeatureSet<>{
+                        .field_presence = IMPLICIT,
+                        .repeated_field_encoding = EXPANDED,
+                        .message_encoding = DELIMITED,
+                    },
+            },
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Child",
+                },
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "numbers",
+                                .number = 1,
+                                .label = LABEL_REPEATED,
+                                .type = TYPE_INT32,
+                            },
+                            FieldProto{
+                                .name = "scalar",
+                                .number = 2,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                            },
+                            FieldProto{
+                                .name = "child",
+                                .number = 3,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_MESSAGE,
+                                .type_name = ".edition_features.Child",
+                            },
+                        },
+                },
+            },
+    };
+  };
+
   auto make_missing_type_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "missing_type.proto",
@@ -799,6 +852,28 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "unsupported_edition_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "edition_file_feature_overrides_are_merged_into_runtime_descriptors"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_valid_edition_with_file_feature_overrides_fileset());
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(desc_binpb));
+
+    std::pmr::monotonic_buffer_resource memory_resource;
+    auto msg = expect_ok(factory.get_message("edition_features.Root", memory_resource));
+
+    const auto *numbers = msg.field_descriptor_by_name("numbers");
+    const auto *scalar = msg.field_descriptor_by_name("scalar");
+    const auto *child = msg.field_descriptor_by_name("child");
+
+    expect(numbers != nullptr);
+    expect(scalar != nullptr);
+    expect(child != nullptr);
+
+    // File-level editions feature overrides should change descriptor behavior from 2023 defaults:
+    // PACKED -> EXPANDED, EXPLICIT presence -> IMPLICIT, LENGTH_PREFIXED -> DELIMITED.
+    expect(!numbers->is_packed());
+    expect(!scalar->explicit_presence());
+    expect(child->is_delimited());
   };
 
   "missing_message_type_sets_error"_test = [&] {
