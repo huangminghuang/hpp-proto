@@ -67,9 +67,11 @@ jobs:
             REPO_FULL_NAME="${{ github.repository }}"
             SOURCE_SHA="${{ github.sha }}"
           fi
-          echo "HPP_PROTO_GIT_REPOSITORY=https://github.com/${REPO_FULL_NAME}.git" >> "$GITHUB_ENV"
-          echo "HPP_PROTO_GIT_TAG=${SOURCE_SHA}" >> "$GITHUB_ENV"
-          echo "CPM_hpp_proto_SOURCE=${{ github.workspace }}" >> "$GITHUB_ENV"
+          {
+            echo "HPP_PROTO_GIT_REPOSITORY=https://github.com/${REPO_FULL_NAME}.git"
+            echo "HPP_PROTO_GIT_TAG=${SOURCE_SHA}"
+            echo "CPM_hpp_proto_SOURCE=${{ github.workspace }}"
+          } >> "$GITHUB_ENV"
   
       - name: configure
         run: >
