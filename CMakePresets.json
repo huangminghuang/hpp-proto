@@ -16,7 +16,6 @@
             "generator": "Ninja",
             "hidden": true,
             "cacheVariables": {
-                "HPP_PROTO_PROTOC_PLUGIN": true,
                 "HPP_PROTO_TESTS": true
             }
         },
@@ -31,7 +30,7 @@
             "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "HPP_PROTO_PROTOC_PLUGIN": false
+                "HPP_PROTO_CORE_TESTS_ONLY": "ON"
             }
         },
         {

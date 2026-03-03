@@ -1,0 +1,60 @@
+name: Ubuntu Two-Stage Host Protoc Plugin
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+      - dev/**
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - "**.md"
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: 1
+
+jobs:
+  build_and_test_with_host_plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup required C++ tools
+        uses: aminya/setup-cpp@v1.8.0
+        with:
+          compiler: gcc-13
+          cmake: "3.31.0"
+          ninja: true
+
+      - name: Install protobuf/grpc tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
+
+      - name: Configure (plugin-only)
+        run: |
+          cmake -S . -B build-host -G Ninja \
+            -DHPP_PROTO_TESTS=OFF \
+            -DHPP_PROTO_PROTOC=find
+
+      - name: Build protoc-gen-hpp
+        run: cmake --build build-host --target protoc-gen-hpp -j2
+
+      - name: Configure (tests enabled, external plugin)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DHPP_PROTO_PROTOC=find \
+            -DHPP_PROTO_TESTS=ON \
+            -DHPP_PROTO_PROTOC_GEN_HPP="${{ github.workspace }}/build-host/bin/protoc-gen-hpp"
+
+      - name: Build
+        run: cmake --build build -j2
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
