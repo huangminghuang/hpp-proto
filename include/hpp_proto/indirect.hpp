@@ -47,7 +47,7 @@ public:
   constexpr indirect(const indirect &other)
       : alloc_(allocator_traits::select_on_container_copy_construction(other.alloc_)),
         obj_(allocate_construct(*other.raw_ptr())) {}
-  constexpr indirect(indirect &&other) noexcept
+  constexpr indirect(indirect &&other) noexcept(std::is_nothrow_move_constructible_v<allocator_type>)
       : alloc_(std::move(other.alloc_)), obj_(std::exchange(other.obj_, nullptr)) {}
 
   constexpr indirect(allocator_arg_t, const allocator_type &alloc, const indirect &other)
@@ -60,8 +60,10 @@ public:
     } else {
       if (alloc_ == other.alloc_) {
         obj_ = std::exchange(other.obj_, nullptr);
-      } else {
+      } else if (other.obj_) {
         obj_ = allocate_construct(std::move(*other.raw_ptr()));
+      } else {
+        obj_ = allocate_default();
       }
     }
   }
@@ -71,26 +73,42 @@ public:
       if constexpr (allocator_traits::propagate_on_container_copy_assignment::value) {
         if (alloc_ != other.alloc_) {
           destroy();
+          alloc_ = other.alloc_;
+          obj_ = allocate_construct(*other.raw_ptr());
+          return *this;
         }
         alloc_ = other.alloc_;
       }
-      *raw_ptr() = *other.raw_ptr();
+      if (obj_) {
+        *raw_ptr() = *other.raw_ptr();
+      } else {
+        obj_ = allocate_construct(*other.raw_ptr());
+      }
     }
     return *this;
   }
 
   constexpr indirect &operator=(T &&other) {
-    *raw_ptr() = std::move(other);
+    if (obj_) {
+      *raw_ptr() = std::move(other);
+    } else {
+      obj_ = allocate_construct(std::move(other));
+    }
     return *this;
   }
 
   constexpr indirect &operator=(const T &other) {
-    *raw_ptr() = other;
+    if (obj_) {
+      *raw_ptr() = other;
+    } else {
+      obj_ = allocate_construct(other);
+    }
     return *this;
   }
 
   constexpr indirect &
-  operator=(indirect &&other) noexcept(allocator_traits::propagate_on_container_move_assignment::value ||
+  operator=(indirect &&other) noexcept((allocator_traits::propagate_on_container_move_assignment::value &&
+                                        std::is_nothrow_move_assignable_v<allocator_type>) ||
                                        allocator_traits::is_always_equal::value) {
     if (this == &other) {
       return *this;
@@ -110,7 +128,11 @@ public:
         obj_ = std::exchange(other.obj_, nullptr);
         return *this;
       }
-      *raw_ptr() = std::move(*other.raw_ptr());
+      if (obj_) {
+        *raw_ptr() = std::move(*other.raw_ptr());
+      } else {
+        obj_ = allocate_construct(std::move(*other.raw_ptr()));
+      }
       return *this;
     }
   }
@@ -150,8 +172,9 @@ public:
     return *raw_ptr() <=> *rhs.raw_ptr();
   }
 
-  constexpr void swap(indirect &other) noexcept(allocator_traits::propagate_on_container_swap::value ||
-                                                allocator_traits::is_always_equal::value) {
+  constexpr void swap(indirect &other) noexcept(allocator_traits::is_always_equal::value ||
+                                                (allocator_traits::propagate_on_container_swap::value &&
+                                                 std::is_nothrow_swappable_v<allocator_type>)) {
     using std::swap;
     if constexpr (allocator_traits::propagate_on_container_swap::value) {
       swap(alloc_, other.alloc_);
@@ -175,20 +198,30 @@ private:
 
   constexpr pointer allocate_default() {
     pointer p = allocator_traits::allocate(alloc_, 1);
-    allocator_traits::construct(alloc_, p);
+    try {
+      allocator_traits::construct(alloc_, std::to_address(p));
+    } catch (...) {
+      allocator_traits::deallocate(alloc_, p, 1);
+      throw;
+    }
     return p;
   }
 
   template <class... Args>
   constexpr pointer allocate_construct(Args &&...args) {
     pointer p = allocator_traits::allocate(alloc_, 1);
-    allocator_traits::construct(alloc_, p, std::forward<Args>(args)...);
+    try {
+      allocator_traits::construct(alloc_, std::to_address(p), std::forward<Args>(args)...);
+    } catch (...) {
+      allocator_traits::deallocate(alloc_, p, 1);
+      throw;
+    }
     return p;
   }
 
   constexpr void destroy() noexcept {
     if (obj_) {
-      allocator_traits::destroy(alloc_, obj_);
+      allocator_traits::destroy(alloc_, std::to_address(obj_));
       allocator_traits::deallocate(alloc_, obj_, 1);
       obj_ = nullptr;
     }

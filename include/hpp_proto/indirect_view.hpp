@@ -2,6 +2,7 @@
 #include <cassert>
 #include <compare>
 #include <memory>
+#include <type_traits>
 
 namespace hpp_proto {
 
@@ -32,9 +33,13 @@ public:
   constexpr void reset(T *obj) { obj_ = obj; }
 
   [[nodiscard]] T *pointer() { return obj_; }
-  [[nodiscard]] constexpr const T &value() const { return obj_ == nullptr ? *default_object() : *obj_; }
-  constexpr const T &operator*() const { return value(); }
-  constexpr const T *operator->() const { return std::addressof(value()); }
+  [[nodiscard]] constexpr const T &value() const noexcept(std::is_nothrow_default_constructible_v<T>) {
+    return obj_ == nullptr ? *default_object() : *obj_;
+  }
+  constexpr const T &operator*() const noexcept(std::is_nothrow_default_constructible_v<T>) { return value(); }
+  constexpr const T *operator->() const noexcept(std::is_nothrow_default_constructible_v<T>) {
+    return std::addressof(value());
+  }
 
   constexpr bool operator==(const T &rhs) const
     requires requires { value() == rhs; }
