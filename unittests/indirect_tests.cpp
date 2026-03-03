@@ -1,5 +1,6 @@
 #include <boost/ut.hpp>
 #include <memory_resource>
+#include <stdexcept>
 #include <type_traits>
 
 #include <hpp_proto/indirect.hpp>
@@ -9,6 +10,11 @@ struct TestMessage {
   int i = 0;
   bool operator==(const TestMessage &) const = default;
   auto operator<=>(const TestMessage &) const = default;
+};
+
+struct ThrowingDefaultMessage {
+  ThrowingDefaultMessage() { throw std::runtime_error("default construction failed"); }
+  bool operator==(const ThrowingDefaultMessage &) const = default;
 };
 
 const boost::ut::suite indirect_tests = [] {
@@ -223,6 +229,13 @@ const boost::ut::suite indirect_tests = [] {
       v1.swap(v2);
       expect(v1->i == 108);
       expect(v2->i == 107);
+    };
+
+    "null_access_propagates_default_ctor_exception"_test = [] {
+      hpp_proto::indirect_view<ThrowingDefaultMessage> v;
+      expect(throws<std::runtime_error>([&] { (void)v.value(); }));
+      expect(throws<std::runtime_error>([&] { (void)*v; }));
+      expect(throws<std::runtime_error>([&] { (void)v.operator->(); }));
     };
   };
 };

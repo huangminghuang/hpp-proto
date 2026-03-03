@@ -31,10 +31,10 @@ public:
   constexpr indirect_view &operator=(const indirect_view &) = default;
   constexpr void reset(T *obj) { obj_ = obj; }
 
-  [[nodiscard]] T *pointer() const { return obj_; }
-  [[nodiscard]] constexpr const T &value() const noexcept { return obj_ == nullptr ? *default_object() : *obj_; }
-  constexpr const T &operator*() const noexcept { return value(); }
-  constexpr const T *operator->() const noexcept { return std::addressof(value()); }
+  [[nodiscard]] T *pointer() { return obj_; }
+  [[nodiscard]] constexpr const T &value() const { return obj_ == nullptr ? *default_object() : *obj_; }
+  constexpr const T &operator*() const { return value(); }
+  constexpr const T *operator->() const { return std::addressof(value()); }
 
   constexpr bool operator==(const T &rhs) const
     requires requires { value() == rhs; }
