@@ -33,41 +33,65 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-            echo "has_cpp_changes=true" >> "$GITHUB_OUTPUT"
-            echo "changed_cpp_files=" >> "$GITHUB_OUTPUT"
+            {
+              echo "has_cpp_changes=true"
+              echo "has_header_changes=true"
+              echo "has_tidy_changes=true"
+              echo "changed_cpp_files="
+              echo "changed_header_files="
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
           BASE="origin/${{ github.base_ref }}"
-          CHANGED="$(git diff --name-only --diff-filter=ACMR "$BASE...HEAD" | grep -E '\.(c|cc|cpp|cxx)$' || true)"
+          CHANGED_CPP="$(git diff --name-only --diff-filter=ACMR "$BASE...HEAD" | grep -E '\.(c|cc|cpp|cxx)$' || true)"
+          CHANGED_HDR="$(git diff --name-only --diff-filter=ACMR "$BASE...HEAD" | grep -E '\.(h|hh|hpp|hxx)$' || true)"
 
-          if [[ -z "$CHANGED" ]]; then
-            echo "has_cpp_changes=false" >> "$GITHUB_OUTPUT"
-            echo "changed_cpp_files=" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_cpp_changes=true" >> "$GITHUB_OUTPUT"
+          if [[ -z "$CHANGED_CPP" && -z "$CHANGED_HDR" ]]; then
             {
+              echo "has_cpp_changes=false"
+              echo "has_header_changes=false"
+              echo "has_tidy_changes=false"
+              echo "changed_cpp_files="
+              echo "changed_header_files="
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              if [[ -n "$CHANGED_CPP" ]]; then
+                echo "has_cpp_changes=true"
+              else
+                echo "has_cpp_changes=false"
+              fi
+              if [[ -n "$CHANGED_HDR" ]]; then
+                echo "has_header_changes=true"
+              else
+                echo "has_header_changes=false"
+              fi
+              echo "has_tidy_changes=true"
               echo "changed_cpp_files<<EOF"
-              echo "$CHANGED"
+              echo "$CHANGED_CPP"
+              echo "EOF"
+              echo "changed_header_files<<EOF"
+              echo "$CHANGED_HDR"
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Prepare cache directories
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_cpp_changes == 'true'
+        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         run: |
           mkdir -p "${CPM_SOURCE_CACHE}"
           mkdir -p "${CCACHE_DIR}"
 
       - uses: actions/cache@v5
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_cpp_changes == 'true'
+        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         with:
           path: ${{ env.CPM_SOURCE_CACHE }}
           key: clang-tidy-${{ runner.os }}-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: Cache ccache
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_cpp_changes == 'true'
+        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         uses: actions/cache@v5
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -76,7 +100,7 @@ jobs:
             clang-tidy-${{ runner.os }}-ccache-
 
       - name: Setup required C++ tools
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_cpp_changes == 'true'
+        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         uses: aminya/setup-cpp@v1.8.0
         with:
           compiler: llvm-21
@@ -86,7 +110,7 @@ jobs:
           clang-tidy: true
 
       - name: Install protobuf dependencies
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_cpp_changes == 'true'
+        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
@@ -103,8 +127,20 @@ jobs:
                 -DCMAKE_C_CLANG_TIDY="clang-tidy;-warnings-as-errors=*" \
                 -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
 
+      - name: Configure (PR full clang-tidy for header changes)
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_header_changes == 'true'
+        run: |
+          cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
+                -DHPP_PROTO_PROTOC=find \
+                -DCMAKE_C_COMPILER=clang \
+                -DCMAKE_CXX_COMPILER=clang++ \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_C_CLANG_TIDY="clang-tidy;-warnings-as-errors=*" \
+                -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
+
       - name: Configure (PR build)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes == 'true'
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes == 'true' && steps.changes.outputs.has_header_changes != 'true'
         run: |
           cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
                 -DHPP_PROTO_PROTOC=find \
@@ -118,14 +154,18 @@ jobs:
         if: github.event_name != 'pull_request'
         run: cmake --build build -j"$(nproc)"
 
+      - name: Build (PR full clang-tidy for header changes)
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_header_changes == 'true'
+        run: cmake --build build -j"$(nproc)"
+
       - name: Build (PR prerequisites)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes == 'true'
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes == 'true' && steps.changes.outputs.has_header_changes != 'true'
         run: |
           # Ensure generated headers/sources exist before running clang-tidy on selected files.
           cmake --build build -j"$(nproc)"
 
       - name: Clang-tidy changed files (PR)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes == 'true'
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes == 'true' && steps.changes.outputs.has_header_changes != 'true'
         shell: bash
         run: |
           CHANGED="${{ steps.changes.outputs.changed_cpp_files }}"
@@ -142,5 +182,5 @@ jobs:
           done <<< "$CHANGED"
 
       - name: No changed C/C++ files (PR)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes != 'true'
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes != 'true'
         run: echo "No changed C/C++ files detected. Skipping clang-tidy workflow steps."

@@ -25,21 +25,26 @@ private:
 
 public:
   constexpr optional_indirect() noexcept = default;
+  // NOLINTNEXTLINE(modernize-pass-by-value)
   constexpr explicit optional_indirect(const allocator_type &alloc) noexcept : alloc_(alloc) {}
+  // NOLINTNEXTLINE(modernize-pass-by-value)
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc) noexcept : alloc_(alloc) {}
   constexpr ~optional_indirect() noexcept { reset(); }
 
   constexpr explicit optional_indirect(std::nullopt_t /* unused */) noexcept {};
+  // NOLINTNEXTLINE(modernize-pass-by-value)
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, std::nullopt_t /* unused */) noexcept
       : alloc_(alloc) {}
 
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   constexpr optional_indirect(const T &object) { emplace(object); }
+  // NOLINTNEXTLINE(modernize-pass-by-value)
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, const T &object) : alloc_(alloc) {
     emplace(object);
   }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   constexpr optional_indirect(T &&object) { emplace(std::move(object)); }
+  // NOLINTNEXTLINE(modernize-pass-by-value)
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, T &&object) : alloc_(alloc) {
     emplace(std::move(object));
   }
@@ -51,13 +56,14 @@ public:
       emplace(*other.raw_ptr());
     }
   }
+  // NOLINTNEXTLINE(modernize-pass-by-value)
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, const optional_indirect &other)
       : alloc_(alloc) {
     if (other.obj_) {
       emplace(*other.raw_ptr());
     }
   }
-  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,modernize-pass-by-value)
   constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, optional_indirect &&other) : alloc_(alloc) {
     if constexpr (allocator_traits::is_always_equal::value) {
       obj_ = std::exchange(other.obj_, nullptr);
@@ -75,6 +81,7 @@ public:
     emplace(std::forward<Args>(args)...);
   }
   template <class... Args>
+  // NOLINTNEXTLINE(modernize-pass-by-value)
   constexpr explicit optional_indirect(allocator_arg_t, const allocator_type &alloc, std::in_place_t, Args &&...args)
       : alloc_(alloc) {
     emplace(std::forward<Args>(args)...);
@@ -332,7 +339,7 @@ private:
   template <class... Args>
   constexpr T &emplace_impl(Args &&...args) {
     reset();
-    auto new_obj = allocator_traits::allocate(alloc_, 1);
+    auto *new_obj = allocator_traits::allocate(alloc_, 1);
     try {
       allocator_traits::construct(alloc_, std::to_address(new_obj), std::forward<Args>(args)...);
     } catch (...) {

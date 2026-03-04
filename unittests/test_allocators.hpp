@@ -32,7 +32,7 @@ struct counting_allocator {
   explicit counting_allocator(std::shared_ptr<counting_alloc_state> s) : state(std::move(s)) {}
 
   template <class U>
-  counting_allocator(const counting_allocator<U> &other) noexcept : state(other.state) {}
+  explicit counting_allocator(const counting_allocator<U> &other) noexcept : state(other.state) {}
 
   [[nodiscard]] T *allocate(std::size_t n) {
     state->alloc_count += n;
@@ -60,9 +60,10 @@ struct throwing_move_ctor_allocator {
   throwing_move_ctor_allocator(throwing_move_ctor_allocator &&) noexcept(false) {}
   throwing_move_ctor_allocator &operator=(const throwing_move_ctor_allocator &) = default;
   throwing_move_ctor_allocator &operator=(throwing_move_ctor_allocator &&) = default;
+  ~throwing_move_ctor_allocator() = default;
 
   template <class U>
-  throwing_move_ctor_allocator(const throwing_move_ctor_allocator<U> &) noexcept {}
+  explicit throwing_move_ctor_allocator(const throwing_move_ctor_allocator<U> &) noexcept {}
 
   [[nodiscard]] T *allocate(std::size_t n) { return std::allocator<T>{}.allocate(n); }
   void deallocate(T *p, std::size_t n) noexcept { std::allocator<T>{}.deallocate(p, n); }
@@ -74,6 +75,7 @@ struct throwing_move_ctor_allocator {
 };
 
 template <class T>
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct throwing_move_assign_allocator {
   using value_type = T;
   using is_always_equal = std::false_type;
@@ -86,7 +88,7 @@ struct throwing_move_assign_allocator {
   throwing_move_assign_allocator &operator=(throwing_move_assign_allocator &&) noexcept(false) { return *this; }
 
   template <class U>
-  throwing_move_assign_allocator(const throwing_move_assign_allocator<U> &) noexcept {}
+  explicit throwing_move_assign_allocator(const throwing_move_assign_allocator<U> &) noexcept {}
 
   [[nodiscard]] T *allocate(std::size_t n) { return std::allocator<T>{}.allocate(n); }
   void deallocate(T *p, std::size_t n) noexcept { std::allocator<T>{}.deallocate(p, n); }
@@ -98,6 +100,7 @@ struct throwing_move_assign_allocator {
 };
 
 template <class T>
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct throwing_swap_allocator {
   using value_type = T;
   using is_always_equal = std::false_type;
@@ -110,7 +113,7 @@ struct throwing_swap_allocator {
   throwing_swap_allocator &operator=(throwing_swap_allocator &&) noexcept = default;
 
   template <class U>
-  throwing_swap_allocator(const throwing_swap_allocator<U> &) noexcept {}
+  explicit throwing_swap_allocator(const throwing_swap_allocator<U> &) noexcept {}
 
   [[nodiscard]] T *allocate(std::size_t n) { return std::allocator<T>{}.allocate(n); }
   void deallocate(T *p, std::size_t n) noexcept { std::allocator<T>{}.deallocate(p, n); }
@@ -135,7 +138,7 @@ struct propagating_copy_allocator {
   explicit propagating_copy_allocator(int value) : id(value) {}
 
   template <class U>
-  propagating_copy_allocator(const propagating_copy_allocator<U> &other) noexcept : id(other.id) {}
+  explicit propagating_copy_allocator(const propagating_copy_allocator<U> &other) noexcept : id(other.id) {}
 
   [[nodiscard]] T *allocate(std::size_t n) { return std::allocator<T>{}.allocate(n); }
   void deallocate(T *p, std::size_t n) noexcept { std::allocator<T>{}.deallocate(p, n); }
