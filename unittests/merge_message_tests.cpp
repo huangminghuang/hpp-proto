@@ -116,6 +116,17 @@ template <typename Traits>
 auto pb_meta(const MoveRepeatedMessage<Traits> &)
     -> std::tuple<hpp_proto::field_meta<1, &MoveRepeatedMessage<Traits>::values, hpp_proto::field_option::none>>;
 
+template <typename Traits = hpp_proto::default_traits>
+struct BoolOptionalMessage {
+  hpp_proto::optional<bool> optional_bool;
+  bool operator==(const BoolOptionalMessage &) const = default;
+};
+
+template <typename Traits>
+auto pb_meta(const BoolOptionalMessage<Traits> &)
+    -> std::tuple<hpp_proto::field_meta<1, &BoolOptionalMessage<Traits>::optional_bool,
+                                        hpp_proto::field_option::explicit_presence>>;
+
 const boost::ut::suite merge_test_suite = [] {
   using namespace boost::ut;
   using namespace boost::ut::literals;
@@ -390,6 +401,39 @@ const boost::ut::suite merge_test_suite = [] {
     expect(source.values[1].empty());
     // NOLINTEND(bugprone-use-after-move,hicpp-invalid-access-moved)
   };
+
+  "merge_optional_bool"_test =
+      []<class TraitsPair> {
+        using DestTraits = typename TraitsPair::first_type;
+        using SourceTraits = typename TraitsPair::second_type;
+
+        should("merge const reference should overwrite optional<bool>") = [] {
+          BoolOptionalMessage<DestTraits> dest;
+          BoolOptionalMessage<SourceTraits> source;
+          dest.optional_bool.emplace(false);
+          source.optional_bool.emplace(true);
+
+          std::pmr::monotonic_buffer_resource mr;
+          hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
+          expect(eq(dest.optional_bool.has_value(), true));
+          expect(eq(*dest.optional_bool, true));
+        };
+
+        should("merge rvalue should overwrite optional<bool>") = [] {
+          BoolOptionalMessage<DestTraits> dest;
+          BoolOptionalMessage<SourceTraits> source;
+          dest.optional_bool.emplace(false);
+          source.optional_bool.emplace(true);
+
+          std::pmr::monotonic_buffer_resource mr;
+          hpp_proto::merge(dest, std::move(source), hpp_proto::alloc_from(mr));
+          expect(eq(dest.optional_bool.has_value(), true));
+          expect(eq(*dest.optional_bool, true));
+        };
+      } |
+      std::tuple<std::pair<hpp_proto::default_traits, hpp_proto::default_traits>,
+                 std::pair<hpp_proto::non_owning_traits, hpp_proto::default_traits>,
+                 std::pair<hpp_proto::default_traits, hpp_proto::non_owning_traits>>{};
 };
 
 int main() {
