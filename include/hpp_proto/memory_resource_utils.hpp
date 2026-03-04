@@ -88,6 +88,21 @@ public:
   [[nodiscard]] T &memory_resource() const { return *mr; }
 };
 
+template <concepts::memory_resource T>
+class cache_alloc_from {
+  T *mr;
+
+public:
+  using option_type = cache_alloc_from<T>;
+  explicit cache_alloc_from(T &m) : mr(&m) {}
+  ~cache_alloc_from() = default;
+  cache_alloc_from(const cache_alloc_from &other) = default;
+  cache_alloc_from(cache_alloc_from &&other) = default;
+  cache_alloc_from &operator=(const cache_alloc_from &) = default;
+  cache_alloc_from &operator=(cache_alloc_from &&) = default;
+  [[nodiscard]] T &cache_memory_resource() const { return *mr; }
+};
+
 template <uint32_t n>
 struct max_size_cache_on_stack_t {
   using option_type = max_size_cache_on_stack_t<n>;
@@ -142,12 +157,12 @@ auto &get_memory_resource(T &v) {
 }
 
 template <typename Context>
-constexpr std::pmr::memory_resource *upstream_memory_resource_or_default(Context &context) {
+constexpr std::pmr::memory_resource *cache_memory_resource_or_default(Context &context) {
   if constexpr (requires(Context &ctx) {
-                  requires std::derived_from<std::remove_reference_t<decltype(ctx.memory_resource())>,
+                  requires std::derived_from<std::remove_reference_t<decltype(ctx.cache_memory_resource())>,
                                              std::pmr::memory_resource>;
                 }) {
-    return &context.memory_resource();
+    return &context.cache_memory_resource();
   } else {
     return std::pmr::get_default_resource();
   }

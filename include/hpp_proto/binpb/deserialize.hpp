@@ -1455,7 +1455,7 @@ status deserialize(auto &item, concepts::chunked_byte_range auto const &buffer, 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::array<std::byte, 1024> tmp_buffer;
   std::pmr::monotonic_buffer_resource mr{tmp_buffer.data(), tmp_buffer.size(),
-                                         upstream_memory_resource_or_default(context)};
+                                         cache_memory_resource_or_default(context)};
 
   std::pmr::vector<std::byte> patch_buffer(patch_buffer_bytes_count, &mr);
   std::pmr::vector<input_buffer_region<std::byte>> regions(num_regions, &mr);
