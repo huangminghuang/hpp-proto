@@ -186,6 +186,13 @@ cmake --build build
 
 You should see output indicating that both binary and JSON round-trips were successful.
 
+## Documentation
+
+* [Front-End API Guide](docs/frontend_apis.md): `read/write` binary+JSON APIs, sink modes, and allocator/cache options.
+* [Code Generation Guide](docs/Code_Generation_Guide.md): generated APIs, traits, and customization model.
+* [gRPC Adapter Guide](docs/grpc-adapter.md): gRPC integration for generated messages.
+* [Dynamic Message Guide](docs/dynamic_message.md): descriptor-driven runtime messaging APIs.
+
 ## Advanced Usage & Concepts
 
 ### Library Targets

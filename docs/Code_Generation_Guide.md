@@ -435,6 +435,7 @@ Regardless of return type (`std::expected` or status), `read_binpb`/`read_json` 
 
 </p>
 </details>
+
 <details open><summary> View Traits (`hpp_proto::non_owning_traits`)</summary>
 <p>
 
@@ -462,3 +463,75 @@ assert(hpp_proto::unpack_any(round_trip.any_value.value(), fm2, ctx).ok());
 
 </p>
 </details>
+
+## Memory Options for Serialization/Deserialization
+
+`hpp-proto` exposes three related options that control where temporary and object storage comes from:
+
+| Option | Purpose | Typical lifetime |
+|---|---|---|
+| `hpp_proto::alloc_from(mr)` | Message/object allocations during parse/build (for example strings, bytes, repeated/map storage in non-owning/PMR flows) | Usually tied to decoded message lifetime |
+| `hpp_proto::cache_alloc_from(mr)` | Internal temp/cache allocations used by binpb encode/decode working buffers | Usually short-lived per call/batch |
+| `hpp_proto::max_size_cache_on_stack<N>` | Stack front-buffer size (bytes) for binpb size cache before upstream allocation | Per call (stack) |
+
+### `alloc_from`
+
+Use `alloc_from` when you want decoded objects (or APIs that build message content) to allocate from a specific memory resource:
+
+```cpp
+std::pmr::monotonic_buffer_resource object_pool;
+auto obj_ctx = hpp_proto::alloc_from(object_pool);
+
+MyViewMessage<hpp_proto::non_owning_traits> msg;
+auto st = hpp_proto::read_binpb(msg, input_bytes, obj_ctx);
+```
+
+### `cache_alloc_from`
+
+Use `cache_alloc_from` when you want binpb internal working memory to come from a dedicated resource:
+
+```cpp
+std::pmr::monotonic_buffer_resource cache_pool;
+
+test_out_sink sink(7);
+auto st = hpp_proto::write_binpb(
+    message,
+    sink,
+    hpp_proto::chunked_mode,
+    hpp_proto::cache_alloc_from(cache_pool));
+```
+
+For chunked-input decode, temporary patch/region buffers follow `cache_alloc_from` as well:
+
+```cpp
+auto st = hpp_proto::read_binpb(
+    message,
+    chunked_segments,
+    hpp_proto::cache_alloc_from(cache_pool));
+```
+
+### `max_size_cache_on_stack`
+
+`max_size_cache_on_stack<N>` controls the stack front-buffer size used by binpb size-cache allocation:
+
+- If working cache fits in `N` bytes, no upstream allocation is needed for that cache.
+- If it exceeds `N`, additional bytes come from the cache upstream resource.
+- `N = 0` forces cache growth to use upstream immediately.
+
+```cpp
+auto st = hpp_proto::write_binpb(
+    message,
+    sink,
+    hpp_proto::chunked_mode,
+    hpp_proto::max_size_cache_on_stack<0>,
+    hpp_proto::cache_alloc_from(cache_pool));
+```
+
+### Precedence Rules for Binpb Cache/Temp Allocation
+
+For binpb internal cache/temp storage, hpp-proto resolves upstream memory resource as:
+
+1. `cache_alloc_from(...)` (if provided)
+2. default PMR resource (`std::pmr::get_default_resource()`)
+
+`alloc_from(...)` is intentionally not used as fallback for cache/temp storage, so object lifetime memory and cache lifetime memory can be controlled independently.
