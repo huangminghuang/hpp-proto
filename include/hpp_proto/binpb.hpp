@@ -341,7 +341,7 @@ status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg,
   any.type_url = message_type_url(msg);
   auto ctx = pb_context{std::forward<decltype(option)>(option)...};
   decltype(auto) v = detail::as_modifiable(ctx, any.value);
-  return write_binpb(msg, v);
+  return write_binpb(msg, v, ctx);
 }
 
 status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg,
