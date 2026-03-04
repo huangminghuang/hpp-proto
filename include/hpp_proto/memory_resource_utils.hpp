@@ -156,11 +156,9 @@ auto &get_memory_resource(T &v) {
 }
 
 template <typename Context>
-concept has_cache_memory_resource =
-    requires(Context &ctx) {
-      requires std::derived_from<std::remove_reference_t<decltype(ctx.cache_memory_resource())>,
-                                 std::pmr::memory_resource>;
-    };
+concept has_cache_memory_resource = requires(Context &ctx) {
+  requires std::derived_from<std::remove_reference_t<decltype(ctx.cache_memory_resource())>, std::pmr::memory_resource>;
+};
 
 namespace detail {
 template <concepts::byte_serializable T, std::ranges::contiguous_range Range>

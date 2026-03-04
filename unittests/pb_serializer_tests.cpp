@@ -1147,8 +1147,8 @@ const ut::suite test_chunked_byte_range = [] {
 
     counting_memory_resource cache_resource;
     counting_memory_resource object_resource;
-    verify_chunked_input(encoded, value, std::vector<int>(encoded.size(), 1), hpp_proto::cache_alloc_from(cache_resource),
-                         hpp_proto::alloc_from(object_resource));
+    verify_chunked_input(encoded, value, std::vector<int>(encoded.size(), 1),
+                         hpp_proto::cache_alloc_from(cache_resource), hpp_proto::alloc_from(object_resource));
     ut::expect(cache_resource.alloc_calls > 0U);
     ut::expect(object_resource.alloc_calls == 0U);
   };
@@ -2020,8 +2020,7 @@ const ut::suite out_sink_serialization_modes = [] {
     test_out_sink sink(7);
     counting_memory_resource cache_resource;
     counting_memory_resource object_resource;
-    auto status = hpp_proto::write_binpb(m, sink, hpp_proto::chunked_mode,
-                                         hpp_proto::cache_alloc_from(cache_resource),
+    auto status = hpp_proto::write_binpb(m, sink, hpp_proto::chunked_mode, hpp_proto::cache_alloc_from(cache_resource),
                                          hpp_proto::alloc_from(object_resource));
     ut::expect(status.ok());
     ut::expect(cache_resource.alloc_calls > 0U);
