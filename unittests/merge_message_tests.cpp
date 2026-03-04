@@ -402,34 +402,36 @@ const boost::ut::suite merge_test_suite = [] {
     // NOLINTEND(bugprone-use-after-move,hicpp-invalid-access-moved)
   };
 
-  "merge_optional_bool"_test = []<class TraitsPair> {
-    using DestTraits = typename TraitsPair::first_type;
-    using SourceTraits = typename TraitsPair::second_type;
+  "merge_optional_bool"_test =
+      []<class TraitsPair> {
+        using DestTraits = typename TraitsPair::first_type;
+        using SourceTraits = typename TraitsPair::second_type;
 
-    should("merge const reference should overwrite optional<bool>") = [] {
-      BoolOptionalMessage<DestTraits> dest;
-      BoolOptionalMessage<SourceTraits> source;
-      dest.optional_bool.emplace(false);
-      source.optional_bool.emplace(true);
+        should("merge const reference should overwrite optional<bool>") = [] {
+          BoolOptionalMessage<DestTraits> dest;
+          BoolOptionalMessage<SourceTraits> source;
+          dest.optional_bool.emplace(false);
+          source.optional_bool.emplace(true);
 
-      std::pmr::monotonic_buffer_resource mr;
-      hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
-      expect(eq(dest.optional_bool.has_value(), true));
-      expect(eq(*dest.optional_bool, true));
-    };
+          std::pmr::monotonic_buffer_resource mr;
+          hpp_proto::merge(dest, source, hpp_proto::alloc_from(mr));
+          expect(eq(dest.optional_bool.has_value(), true));
+          expect(eq(*dest.optional_bool, true));
+        };
 
-    should("merge rvalue should overwrite optional<bool>") = [] {
-      BoolOptionalMessage<DestTraits> dest;
-      BoolOptionalMessage<SourceTraits> source;
-      dest.optional_bool.emplace(false);
-      source.optional_bool.emplace(true);
+        should("merge rvalue should overwrite optional<bool>") = [] {
+          BoolOptionalMessage<DestTraits> dest;
+          BoolOptionalMessage<SourceTraits> source;
+          dest.optional_bool.emplace(false);
+          source.optional_bool.emplace(true);
 
-      std::pmr::monotonic_buffer_resource mr;
-      hpp_proto::merge(dest, std::move(source), hpp_proto::alloc_from(mr));
-      expect(eq(dest.optional_bool.has_value(), true));
-      expect(eq(*dest.optional_bool, true));
-    };
-  } | std::tuple<std::pair<hpp_proto::default_traits, hpp_proto::default_traits>,
+          std::pmr::monotonic_buffer_resource mr;
+          hpp_proto::merge(dest, std::move(source), hpp_proto::alloc_from(mr));
+          expect(eq(dest.optional_bool.has_value(), true));
+          expect(eq(*dest.optional_bool, true));
+        };
+      } |
+      std::tuple<std::pair<hpp_proto::default_traits, hpp_proto::default_traits>,
                  std::pair<hpp_proto::non_owning_traits, hpp_proto::default_traits>,
                  std::pair<hpp_proto::default_traits, hpp_proto::non_owning_traits>>{};
 };
