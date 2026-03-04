@@ -1130,12 +1130,6 @@ const ut::suite test_chunked_byte_range = [] {
     std::vector<char> encoded;
     ut::expect(hpp_proto::write_binpb(value, encoded).ok());
 
-    std::vector<std::vector<char>> segments;
-    segments.reserve(encoded.size());
-    for (char ch : encoded) {
-      segments.emplace_back(1, ch);
-    }
-
     counting_memory_resource cache_resource;
     verify_chunked_input(encoded, value, std::vector<int>(encoded.size(), 1),
                          hpp_proto::cache_alloc_from(cache_resource));
