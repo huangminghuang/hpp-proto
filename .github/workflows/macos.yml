@@ -77,15 +77,21 @@ jobs:
 
       - name: Upload macOS crash reports
         if: failure()
+        shell: bash
+        run: |
+          mkdir -p build/crash-artifacts
+          cp -v "$HOME/Library/Logs/DiagnosticReports/"* build/crash-artifacts/ 2>/dev/null || true
+          cp -v build/Testing/Temporary/LastTest.log build/crash-artifacts/ 2>/dev/null || true
+          cp -v build/Testing/Temporary/LastTestsFailed.log build/crash-artifacts/ 2>/dev/null || true
+          cp -v build/Testing/Temporary/CTestCostData.txt build/crash-artifacts/ 2>/dev/null || true
+
+      - name: Upload macOS crash artifact bundle
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: macos-crash-reports-${{ matrix.cmake_preset }}
           if-no-files-found: warn
-          path: |
-            ~/Library/Logs/DiagnosticReports/*
-            build/Testing/Temporary/LastTest.log
-            build/Testing/Temporary/LastTestsFailed.log
-            build/Testing/Temporary/CTestCostData.txt
+          path: build/crash-artifacts
 
       - name: capture coverage
         if: matrix.cmake_preset == 'ci-macos-coverage'
