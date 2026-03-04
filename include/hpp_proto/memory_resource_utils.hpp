@@ -103,11 +103,11 @@ public:
 };
 
 class default_cache_memory_resource {
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-  std::array<std::byte, 1024> stack_buffer;
+  std::array<std::byte, 1024> stack_buffer{};
   std::pmr::monotonic_buffer_resource mr;
 
 public:
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   default_cache_memory_resource() : mr(stack_buffer.data(), stack_buffer.size(), std::pmr::get_default_resource()) {}
   ~default_cache_memory_resource() = default;
   default_cache_memory_resource(const default_cache_memory_resource &) = delete;

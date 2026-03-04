@@ -1068,6 +1068,7 @@ struct counting_memory_resource : std::pmr::memory_resource {
   counting_memory_resource &operator=(const counting_memory_resource &) = delete;
   counting_memory_resource(counting_memory_resource &&) = delete;
   counting_memory_resource &operator=(counting_memory_resource &&) = delete;
+  ~counting_memory_resource() override = default;
 
 private:
   void *do_allocate(std::size_t bytes, std::size_t alignment) override {
@@ -1080,7 +1081,9 @@ private:
     upstream->deallocate(p, bytes, alignment);
   }
 
-  bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override { return this == &other; }
+  [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+    return this == &other;
+  }
 };
 
 const ut::suite test_chunked_byte_range = [] {
