@@ -75,6 +75,38 @@ jobs:
         run: |
           ctest --output-on-failure
 
+      - name: Rerun failed tests with verbose logging
+        if: failure()
+        shell: bash
+        working-directory: ./build
+        run: |
+          mkdir -p crash-artifacts
+          set +e
+          ctest --rerun-failed -VV --output-on-failure 2>&1 | tee crash-artifacts/ctest-rerun-failed-vv.log
+          echo "$?" > crash-artifacts/ctest-rerun-failed-vv.exitcode
+
+      - name: Capture direct grpc binary runs
+        if: failure()
+        shell: bash
+        working-directory: ./build
+        run: |
+          mkdir -p crash-artifacts/direct-runs
+          set +e
+          run_and_log() {
+            local name="$1"
+            shift
+            "$@" > "crash-artifacts/direct-runs/${name}.stdout.log" 2> "crash-artifacts/direct-runs/${name}.stderr.log"
+            echo "$?" > "crash-artifacts/direct-runs/${name}.exitcode"
+          }
+
+          run_and_log grpc_unary_tests ./tests/grpc/grpc_unary_tests
+          run_and_log grpc_client_stream_tests ./tests/grpc/grpc_client_stream_tests
+          run_and_log grpc_server_stream_tests ./tests/grpc/grpc_server_stream_tests
+          run_and_log grpc_bidi_stream_tests ./tests/grpc/grpc_bidi_stream_tests
+          run_and_log grpc_server_failure_tests ./tests/grpc/grpc_server_failure_tests
+          run_and_log grpc_serialization_tests ./tests/grpc/grpc_serialization_tests
+          run_and_log greeter_test_script bash -lc "cd tutorial/grpc && ../../../../../tutorial/grpc/greeter_test.sh"
+
       - name: Upload macOS crash reports
         if: failure()
         shell: bash
