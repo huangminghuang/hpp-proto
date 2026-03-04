@@ -130,7 +130,11 @@ struct message_merger {
       }
     } else {
       if (source.has_value()) {
-        perform(dest.emplace(), *std::forward<U>(source));
+        if constexpr (requires { dest = *std::forward<U>(source); }) {
+          dest = *std::forward<U>(source);
+        } else {
+          perform(dest.emplace(), *std::forward<U>(source));
+        }
       }
     }
   }
