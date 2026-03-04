@@ -75,6 +75,17 @@ jobs:
         run: |
           ctest --output-on-failure
 
+      - name: Upload macOS crash reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-crash-reports-${{ matrix.cmake_preset }}
+          if-no-files-found: warn
+          path: |
+            ~/Library/Logs/DiagnosticReports/*
+            build/Testing/Temporary/LastTest.log
+            build/Testing/Temporary/LastTestsFailed.log
+            build/Testing/Temporary/CTestCostData.txt
 
       - name: capture coverage
         if: matrix.cmake_preset == 'ci-macos-coverage'
