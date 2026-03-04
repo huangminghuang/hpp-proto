@@ -55,6 +55,7 @@ const suite test_read_json = [] {
   test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"repeatedString":["abc,"def"]})"sv, fail);
   test_read<protobuf_unittest::TestAllTypes>(message_factory, "{\"repeatedString\":[\"\xcd\"]}"sv, fail);
   test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"optionalNestedEnum": )"sv, fail);
+  test_read<proto3_unittest::TestAllTypes>(message_factory, "{\"optionalNestedEnum\":\""sv, fail);
   test_read<protobuf_unittest::TestAllTypes>(message_factory, R"({"repeatedNestedEnum":[2, 0]})"sv, ok);
 
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"	102":0}})"sv, ok);

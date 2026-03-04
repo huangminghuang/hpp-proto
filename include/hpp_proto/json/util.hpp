@@ -362,6 +362,12 @@ void from_json(T &v, auto &ctx, auto &it, auto &end) {
       return;
     }
   }
+  if constexpr (!Opts.null_terminated) {
+    if (it == end) {
+      ctx.error = error_code::end_reached;
+      return;
+    }
+  }
   if (*it != '"') {
     int32_t number = 0;
     from<JSON, int32_t>::template op<ws_handled<Opts>()>(number, ctx, it, end);
