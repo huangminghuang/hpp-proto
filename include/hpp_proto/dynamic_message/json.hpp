@@ -291,8 +291,8 @@ struct any_message_json_serializer {
           }
         },
         [&](auto &it_ref, auto &end_ref) {
-          return handle_any_type_key<opening_handled_off<ws_handled_off<Options>()>()>(key, ctx, it_ref, end_ref,
-                                                                                       any_type_url, is_type_key_first);
+          return handle_any_type_key<opening_handled_off<ws_handled<Options>()>()>(key, ctx, it_ref, end_ref,
+                                                                                   any_type_url, is_type_key_first);
         },
         [&](auto &it_ref, auto &) {
           if (is_type_key_first) {

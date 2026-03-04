@@ -224,6 +224,7 @@ constexpr static expected<T, std::errc> read_binpb(concepts::input_byte_range au
 /// @param buffer The input byte range.
 /// @param ctx The protobuf serialization context.
 /// @details This API does not catch std::bad_alloc thrown by standard containers.
+///          The previous contents of @p msg are not preserved on parse failure.
 /// @return status indicating success or failure.
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status read_binpb(T &msg, const Buffer &buffer, concepts::is_pb_context auto &ctx) {
@@ -251,6 +252,7 @@ constexpr static expected<T, std::errc> read_binpb(const char (&buffer)[N], conc
 /// @param msg The message object to deserialize into.
 /// @param buffer The character array.
 /// @param option Optional configuration parameters.
+/// @details The previous contents of @p msg are not preserved on parse failure.
 /// @return status indicating success or failure.
 template <concepts::has_meta T, std::size_t N>
 status read_binpb(T &msg, const char (&buffer)[N], concepts::is_option_type auto &&...option) {
@@ -265,6 +267,7 @@ status read_binpb(T &msg, const char (&buffer)[N], concepts::is_option_type auto
 /// @param msg The message object to deserialize into.
 /// @param buffer The input byte range.
 /// @param option Optional configuration parameters.
+/// @details The previous contents of @p msg are not preserved on parse failure.
 /// @return status indicating success or failure.
 template <concepts::has_meta T, concepts::input_byte_range Buffer>
 status read_binpb(T &msg, const Buffer &buffer, concepts::is_option_type auto &&...option) {

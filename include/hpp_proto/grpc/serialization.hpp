@@ -178,6 +178,8 @@ private:
   bool supported_ = true;
 };
 
+/// @brief Deserializes a gRPC ByteBuffer into a protobuf message.
+/// @details The previous contents of @p message are not preserved on parse failure.
 ::grpc::Status read_binpb(::hpp_proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
                           ::hpp_proto::concepts::is_pb_context auto &context) {
 
@@ -191,6 +193,8 @@ private:
   return {::grpc::StatusCode::INTERNAL, "Failed to deserialize message"};
 }
 
+/// @brief Deserializes a gRPC ByteBuffer into a protobuf message with ad-hoc options.
+/// @details The previous contents of @p message are not preserved on parse failure.
 ::grpc::Status read_binpb(::hpp_proto::concepts::has_meta auto &message, const ::grpc::ByteBuffer &buffer,
                           ::hpp_proto::concepts::is_option_type auto &&...option) {
   pb_context context{option...};

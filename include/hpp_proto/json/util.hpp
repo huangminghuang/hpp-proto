@@ -79,9 +79,6 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
       return true;
     }
   }
-  if constexpr (not Opts.null_terminated) {
-    assert(it != end);
-  }
 
   if (*it == 'n') {
     ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -243,8 +240,10 @@ bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, g
  * @param it Current input iterator.
  * @param end Input end iterator.
  * @param key The key
- * @param on_key_start Invoked before key parsing; can update iterator-related state.
- * @param on_key Invoked after key parsing; return true to terminate scanning.
+ * @param on_key_start Invoked before key parsing but after trailing whitespace parsing; can update iterator-related
+ *                     state.
+ * @param on_key Invoked after key parsing and colon parsing, including the whitespace consumed inside
+ *               util::parse_key_and_colon; return true to terminate scanning.
  * @param on_after_ws Invoked after trailing whitespace is skipped.
  * @return None; scanning stops by returning from the function.
  */

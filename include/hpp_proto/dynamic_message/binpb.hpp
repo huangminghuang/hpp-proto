@@ -22,6 +22,8 @@
 #include <hpp_proto/dynamic_message/pb_serializer_ext.hpp>
 namespace hpp_proto {
 
+/// @brief Deserializes binary protobuf data into a dynamic message.
+/// @details The message is reset before parsing. The previous contents of @p msg are not preserved on parse failure.
 [[nodiscard]] status read_binpb(message_value_mref msg, auto &&buffer) {
   msg.reset();
   auto context = pb_context{alloc_from(msg.memory_resource())};
@@ -29,6 +31,8 @@ namespace hpp_proto {
 }
 
 template <std::size_t N>
+/// @brief Deserializes binary protobuf data from a character array into a dynamic message.
+/// @details The previous contents of @p msg are not preserved on parse failure.
 [[nodiscard]] status read_binpb(message_value_mref msg, const char (&buffer)[N]) {
   constexpr auto span_size = N == 0 ? 0 : N - 1;
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,-warnings-as-errors)
