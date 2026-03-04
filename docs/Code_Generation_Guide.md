@@ -466,13 +466,12 @@ assert(hpp_proto::unpack_any(round_trip.any_value.value(), fm2, ctx).ok());
 
 ## Memory Options for Serialization/Deserialization
 
-`hpp-proto` exposes three related options that control where temporary and object storage comes from:
+`hpp-proto` exposes two related options that control where temporary and object storage comes from:
 
 | Option | Purpose | Typical lifetime |
 |---|---|---|
 | `hpp_proto::alloc_from(mr)` | Message/object allocations during parse/build (for example strings, bytes, repeated/map storage in non-owning/PMR flows) | Usually tied to decoded message lifetime |
 | `hpp_proto::cache_alloc_from(mr)` | Internal temp/cache allocations used by binpb encode/decode working buffers | Usually short-lived per call/batch |
-| `hpp_proto::max_size_cache_on_stack<N>` | Stack front-buffer size (bytes) for binpb size cache before upstream allocation | Per call (stack) |
 
 ### `alloc_from`
 
@@ -510,28 +509,11 @@ auto st = hpp_proto::read_binpb(
     hpp_proto::cache_alloc_from(cache_pool));
 ```
 
-### `max_size_cache_on_stack`
-
-`max_size_cache_on_stack<N>` controls the stack front-buffer size used by binpb size-cache allocation:
-
-- If working cache fits in `N` bytes, no upstream allocation is needed for that cache.
-- If it exceeds `N`, additional bytes come from the cache upstream resource.
-- `N = 0` forces cache growth to use upstream immediately.
-
-```cpp
-auto st = hpp_proto::write_binpb(
-    message,
-    sink,
-    hpp_proto::chunked_mode,
-    hpp_proto::max_size_cache_on_stack<0>,
-    hpp_proto::cache_alloc_from(cache_pool));
-```
-
 ### Precedence Rules for Binpb Cache/Temp Allocation
 
-For binpb internal cache/temp storage, hpp-proto resolves upstream memory resource as:
+For binpb internal cache/temp storage, hpp-proto resolves cache memory resource as:
 
 1. `cache_alloc_from(...)` (if provided)
-2. default PMR resource (`std::pmr::get_default_resource()`)
+2. internal default cache memory resource (1024-byte stack-backed monotonic buffer, upstreaming to `std::pmr::get_default_resource()`)
 
 `alloc_from(...)` is intentionally not used as fallback for cache/temp storage, so object lifetime memory and cache lifetime memory can be controlled independently.

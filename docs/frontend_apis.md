@@ -105,20 +105,12 @@ Controls message/object allocations (for example when parsing into non-owning/PM
 
 Controls internal binpb temporary/cache allocations (size cache, chunked-input temp buffers).
 
-### `max_size_cache_on_stack<N>`
-
-Sets stack front-buffer bytes for binpb size cache.
-
-- small caches fit on stack
-- larger caches spill to upstream cache resource
-- `N = 0` forces immediate upstream usage
-
 ### Cache resource resolution
 
 For binpb temp/cache allocations:
 
 1. `cache_alloc_from(...)` if supplied
-2. default PMR resource
+2. internal default cache resource (1024-byte stack-backed monotonic buffer with default PMR upstream)
 
 `alloc_from(...)` is intentionally separate and not used as fallback for cache/temp storage.
 

@@ -1452,23 +1452,27 @@ status deserialize(auto &item, concepts::chunked_byte_range auto const &buffer, 
   const auto num_regions = num_segments * 2;
   const auto patch_buffer_bytes_count = num_segments * patch_buffer_size;
 
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-  std::array<std::byte, 1024> tmp_buffer;
-  std::pmr::monotonic_buffer_resource mr{tmp_buffer.data(), tmp_buffer.size(),
-                                         cache_memory_resource_or_default(context)};
+  auto deserialize_with_cache_resource = [&](std::pmr::memory_resource &cache_mr) -> status {
+    std::pmr::vector<std::byte> patch_buffer(patch_buffer_bytes_count, &cache_mr);
+    std::pmr::vector<input_buffer_region<std::byte>> regions(num_regions, &cache_mr);
 
-  std::pmr::vector<std::byte> patch_buffer(patch_buffer_bytes_count, &mr);
-  std::pmr::vector<input_buffer_region<std::byte>> regions(num_regions, &mr);
+    std::ranges::transform(
+        buffer, std::next(regions.begin(), static_cast<std::ptrdiff_t>(num_segments)), [](const auto &b) {
+          return input_buffer_region<std::byte>{std::as_bytes(std::span{std::ranges::data(b), std::ranges::size(b)})};
+        });
 
-  std::ranges::transform(
-      buffer, std::next(regions.begin(), static_cast<std::ptrdiff_t>(num_segments)), [](const auto &b) {
-        return input_buffer_region<std::byte>{std::as_bytes(std::span{std::ranges::data(b), std::ranges::size(b)})};
-      });
+    constexpr bool is_contiguous = false;
+    auto archive = basic_in<std::byte, std::decay_t<decltype(context)>, is_contiguous>(
+        std::span{regions.data(), regions.size()}, std::span{patch_buffer.data(), patch_buffer.size()}, context);
+    return deserialize(item, archive);
+  };
 
-  constexpr bool is_contiguous = false;
-  auto archive = basic_in<std::byte, std::decay_t<decltype(context)>, is_contiguous>(
-      std::span{regions.data(), regions.size()}, std::span{patch_buffer.data(), patch_buffer.size()}, context);
-  return deserialize(item, archive);
+  if constexpr (has_cache_memory_resource<decltype(context)>) {
+    return deserialize_with_cache_resource(context.cache_memory_resource());
+  } else {
+    default_cache_memory_resource default_cache;
+    return deserialize_with_cache_resource(default_cache.memory_resource());
+  }
 }
 
 } // namespace pb_serializer

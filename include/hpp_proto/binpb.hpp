@@ -158,7 +158,7 @@ status write_binpb(T &&msg, Sink &sink, concepts::is_pb_context auto &ctx) {
 /// @tparam Buffer A contiguous byte range.
 /// @param msg The message to serialize.
 /// @param buffer The buffer to write the serialized data into.
-/// @param option Optional configuration parameters (e.g., alloc_from, cache_alloc_from, max_size_cache_on_stack).
+/// @param option Optional configuration parameters (e.g., alloc_from, cache_alloc_from).
 /// @return status indicating success or failure.
 template <concepts::has_meta T, concepts::contiguous_byte_range Buffer>
 status write_binpb(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...option) {
@@ -171,7 +171,7 @@ status write_binpb(T &&msg, Buffer &buffer, concepts::is_option_type auto &&...o
 /// @tparam Sink A chunked output sink.
 /// @param msg The message to serialize.
 /// @param sink The sink to write the serialized data into.
-/// @param option Optional configuration parameters (e.g., cache_alloc_from, max_size_cache_on_stack).
+/// @param option Optional configuration parameters (e.g., cache_alloc_from).
 /// @return status indicating success or failure.
 template <concepts::has_meta T, concepts::out_sink Sink>
 status write_binpb(T &&msg, Sink &sink, concepts::is_option_type auto &&...option) {
