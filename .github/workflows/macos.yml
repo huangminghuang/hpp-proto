@@ -80,7 +80,31 @@ jobs:
         shell: bash
         run: |
           mkdir -p build/crash-artifacts
-          cp -v "$HOME/Library/Logs/DiagnosticReports/"* build/crash-artifacts/ 2>/dev/null || true
+          {
+            echo "HOME=$HOME"
+            echo "date=$(date -u)"
+            echo "--- ls \$HOME/Library/Logs ---"
+            ls -la "$HOME/Library/Logs" || true
+            echo "--- ls \$HOME/Library/Logs/DiagnosticReports ---"
+            ls -la "$HOME/Library/Logs/DiagnosticReports" || true
+            echo "--- ls /Library/Logs/DiagnosticReports ---"
+            ls -la /Library/Logs/DiagnosticReports || true
+          } > build/crash-artifacts/diagnosticreports-index.txt
+
+          # Crash reports can be written slightly after process exit.
+          for _ in {1..30}; do
+            count="$(find "$HOME/Library/Logs/DiagnosticReports" /Library/Logs/DiagnosticReports \
+              -maxdepth 1 -type f \( -name '*.crash' -o -name '*.ips' \) 2>/dev/null | wc -l | tr -d ' ')"
+            if [[ "$count" != "0" ]]; then
+              break
+            fi
+            sleep 1
+          done
+
+          find "$HOME/Library/Logs/DiagnosticReports" /Library/Logs/DiagnosticReports \
+            -maxdepth 1 -type f \( -name '*.crash' -o -name '*.ips' \) -print0 2>/dev/null \
+            | xargs -0 -I{} cp -v "{}" build/crash-artifacts/ || true
+
           cp -v build/Testing/Temporary/LastTest.log build/crash-artifacts/ 2>/dev/null || true
           cp -v build/Testing/Temporary/LastTestsFailed.log build/crash-artifacts/ 2>/dev/null || true
           cp -v build/Testing/Temporary/CTestCostData.txt build/crash-artifacts/ 2>/dev/null || true
