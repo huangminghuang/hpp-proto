@@ -401,6 +401,7 @@ struct [[nodiscard]] json_status final {
 ///          - uses hpp_proto::json_context options
 ///          - validates that the full buffer is consumed (trailing non-whitespace becomes syntax_error)
 ///          - does not catch std::bad_alloc thrown by standard containers (same as glz::read)
+///          - does not preserve the previous contents of @p value on parse failure
 /// @param value The message object to populate.
 /// @param buffer The input buffer containing JSON bytes.
 /// @param option Optional configuration parameters.
@@ -432,6 +433,7 @@ inline json_status read_json_buffer(concepts::read_json_supported auto &value, a
 /// @brief Deserializes JSON from a contiguous char/char8_t range that is not null-terminated.
 /// @details Unlike glz::read, this wrapper forces null_terminated=false and validates full-buffer consumption.
 ///          It does not catch std::bad_alloc thrown by standard containers (same as glz::read).
+///          The previous contents of @p value are not preserved on parse failure.
 /// @param value The message object to populate.
 /// @param buffer Contiguous range of char or char8_t that is not null-terminated.
 /// @param option Optional configuration parameters.
@@ -453,6 +455,7 @@ inline json_status read_json(concepts::read_json_supported auto &value,
 /// @brief Deserializes JSON from a null-terminated string or pointer into a message object.
 /// @details Unlike glz::read, this wrapper forces null_terminated=true and validates full-buffer consumption.
 ///          It does not catch std::bad_alloc thrown by standard containers (same as glz::read).
+///          The previous contents of @p value are not preserved on parse failure.
 /// @param value The message object to populate.
 /// @param str The null-terminated string or pointer containing the JSON.
 /// @param option Optional configuration parameters.
