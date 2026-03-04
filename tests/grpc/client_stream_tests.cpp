@@ -1,5 +1,6 @@
 #include <boost/ut.hpp>
 
+#include <chrono>
 #include <condition_variable>
 #include <memory_resource>
 #include <mutex>
@@ -23,6 +24,7 @@ class ClientStreamReactor : public ::hpp_proto::grpc::ClientCallbackReactor<Clie
   bool use_sentinel_ = true;
   bool sentinel_sent_ = false;
   bool writes_complete_ = false;
+  size_t write_done_count_ = 0;
   ::grpc::Status status_;
   hpp_proto_test::StreamSummary<> summary_;
   ::grpc::ClientContext *context_ = nullptr;
@@ -53,11 +55,20 @@ public:
     std::scoped_lock lock(mu_);
     return summary_;
   }
+  [[nodiscard]] bool wait_for_writes(size_t n, std::chrono::milliseconds timeout) {
+    std::unique_lock lock(mu_);
+    return cv_.wait_for(lock, timeout, [&] { return write_done_count_ >= n || done_; });
+  }
 
   void OnWriteDone(bool ok) override {
     if (!ok) {
       // gRPC will deliver OnDone() for terminal write failure.
       return;
+    }
+    {
+      std::scoped_lock lock(mu_);
+      ++write_done_count_;
+      cv_.notify_all();
     }
     send_next();
   }
@@ -156,9 +167,14 @@ void run_client_stream_cancel_case() {
   auto &stub = harness.stub();
 
   ::grpc::ClientContext context;
+  context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
   ClientStreamReactor reactor;
-  reactor.set_payloads({"chunk_0", "chunk_1", "chunk_2", "chunk_3"});
+  reactor.set_use_sentinel(false);
+  reactor.set_payloads({"chunk_0",  "chunk_1",  "chunk_2",  "chunk_3",  "chunk_4",  "chunk_5",  "chunk_6",
+                        "chunk_7",  "chunk_8",  "chunk_9",  "chunk_10", "chunk_11", "chunk_12", "chunk_13",
+                        "chunk_14", "chunk_15", "chunk_16", "chunk_17", "chunk_18", "chunk_19"});
   reactor.begin(stub, context);
+  expect(reactor.wait_for_writes(1, std::chrono::seconds(2)));
   context.TryCancel();
   reactor.wait();
 
