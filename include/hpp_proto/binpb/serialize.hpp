@@ -547,7 +547,8 @@ constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] conce
   } else {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     std::array<std::byte, max_stack_cache_size> cache_storage;
-    std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size()};
+    std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size(),
+                                           upstream_memory_resource_or_default(context)};
     std::pmr::vector<uint32_t> cache(n, &mr);
     return serialize_contiguous_buffer_with_cache<overwrite_buffer>(item, buffer, context, cache);
   }
@@ -592,7 +593,8 @@ status serialize(const T &item, Sink &sink, Context &context) {
   constexpr std::size_t max_stack_cache_size = max_stack_cache_size_for_context<Context>();
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   std::array<std::byte, max_stack_cache_size> cache_storage;
-  std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size()};
+  std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size(),
+                                         upstream_memory_resource_or_default(context)};
   std::pmr::vector<uint32_t> cache(n, &mr);
   const std::size_t msg_sz = message_size_calculator<T>::message_size(item, cache);
   if (msg_sz >= max_message_size) {

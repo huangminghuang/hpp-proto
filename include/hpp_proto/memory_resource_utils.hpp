@@ -141,6 +141,18 @@ auto &get_memory_resource(T &v) {
   return v.memory_resource();
 }
 
+template <typename Context>
+constexpr std::pmr::memory_resource *upstream_memory_resource_or_default(Context &context) {
+  if constexpr (requires(Context &ctx) {
+                  requires std::derived_from<std::remove_reference_t<decltype(ctx.memory_resource())>,
+                                             std::pmr::memory_resource>;
+                }) {
+    return &context.memory_resource();
+  } else {
+    return std::pmr::get_default_resource();
+  }
+}
+
 namespace detail {
 template <concepts::byte_serializable T, std::ranges::contiguous_range Range>
 class bit_cast_view_t : public std::ranges::view_interface<bit_cast_view_t<T, Range>> {

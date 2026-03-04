@@ -1081,6 +1081,50 @@ const ut::suite test_chunked_byte_range = [] {
     verify_chunked_input(encoded, value, {90, 10, 70});
   };
 
+  "chunked_input_uses_supplied_memory_resource_for_temp_buffers"_test = [] {
+    struct counting_memory_resource_for_chunked_read : std::pmr::memory_resource {
+      std::size_t alloc_calls = 0;
+      std::pmr::memory_resource *upstream = std::pmr::get_default_resource();
+      counting_memory_resource_for_chunked_read() = default;
+      counting_memory_resource_for_chunked_read(const counting_memory_resource_for_chunked_read &) = delete;
+      counting_memory_resource_for_chunked_read &operator=(const counting_memory_resource_for_chunked_read &) = delete;
+      counting_memory_resource_for_chunked_read(counting_memory_resource_for_chunked_read &&) = delete;
+      counting_memory_resource_for_chunked_read &operator=(counting_memory_resource_for_chunked_read &&) = delete;
+
+    private:
+      void *do_allocate(std::size_t bytes, std::size_t alignment) override {
+        ++alloc_calls;
+        return upstream->allocate(bytes, alignment);
+      }
+
+      void do_deallocate(void *p, std::size_t bytes, std::size_t alignment) override {
+        upstream->deallocate(p, bytes, alignment);
+      }
+
+      bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override { return this == &other; }
+    };
+
+    bytes_example<hpp_proto::default_traits> value;
+    value.field.resize(128);
+    for (int i = 0; i < 128; ++i) {
+      value.field[i] = std::byte(i);
+    }
+    std::vector<char> encoded;
+    ut::expect(hpp_proto::write_binpb(value, encoded).ok());
+
+    std::vector<std::vector<char>> segments;
+    segments.reserve(encoded.size());
+    for (char ch : encoded) {
+      segments.emplace_back(1, ch);
+    }
+
+    counting_memory_resource_for_chunked_read resource;
+    bytes_example<hpp_proto::default_traits> decoded;
+    ut::expect(hpp_proto::read_binpb(decoded, segments, hpp_proto::alloc_from(resource)).ok());
+    ut::expect(decoded == value);
+    ut::expect(resource.alloc_calls > 0U);
+  };
+
   "invalid_packed_int32_with_chunked_input"_test = [] {
     repeated_int32 value;
 
@@ -1898,6 +1942,30 @@ struct test_out_sink {
   }
 };
 
+struct counting_memory_resource : std::pmr::memory_resource {
+  std::size_t alloc_calls = 0;
+  std::size_t dealloc_calls = 0;
+  std::pmr::memory_resource *upstream = std::pmr::get_default_resource();
+  counting_memory_resource() = default;
+  counting_memory_resource(const counting_memory_resource &) = delete;
+  counting_memory_resource &operator=(const counting_memory_resource &) = delete;
+  counting_memory_resource(counting_memory_resource &&) = delete;
+  counting_memory_resource &operator=(counting_memory_resource &&) = delete;
+
+private:
+  void *do_allocate(std::size_t bytes, std::size_t alignment) override {
+    ++alloc_calls;
+    return upstream->allocate(bytes, alignment);
+  }
+
+  void do_deallocate(void *p, std::size_t bytes, std::size_t alignment) override {
+    ++dealloc_calls;
+    upstream->deallocate(p, bytes, alignment);
+  }
+
+  bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override { return this == &other; }
+};
+
 const ut::suite out_sink_serialization_modes = [] {
   "write_binpb_out_sink_adaptive_mode"_test = [] {
     monster m = make_test_monster();
@@ -1932,6 +2000,16 @@ const ut::suite out_sink_serialization_modes = [] {
     monster decoded{};
     ut::expect(hpp_proto::read_binpb(decoded, sink.written()).ok());
     ut::expect(decoded == m);
+  };
+
+  "write_binpb_out_sink_uses_supplied_memory_resource_for_cache"_test = [] {
+    monster m = make_test_monster();
+    test_out_sink sink(7);
+    counting_memory_resource resource;
+    auto status =
+        hpp_proto::write_binpb(m, sink, hpp_proto::chunked_mode, hpp_proto::max_size_cache_on_stack<0>, hpp_proto::alloc_from(resource));
+    ut::expect(status.ok());
+    ut::expect(resource.alloc_calls > 0U);
   };
 };
 
