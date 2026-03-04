@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <limits>
 #include <memory_resource>
 #include <mutex>
 #include <string>
@@ -25,6 +26,7 @@ class ClientStreamReactor : public ::hpp_proto::grpc::ClientCallbackReactor<Clie
   bool sentinel_sent_ = false;
   bool writes_complete_ = false;
   size_t write_done_count_ = 0;
+  size_t auto_write_limit_ = std::numeric_limits<size_t>::max();
   ::grpc::Status status_;
   hpp_proto_test::StreamSummary<> summary_;
   ::grpc::ClientContext *context_ = nullptr;
@@ -34,6 +36,7 @@ public:
 
   void set_payloads(std::vector<std::string> payloads) { payloads_ = std::move(payloads); }
   void set_use_sentinel(bool use_sentinel) { use_sentinel_ = use_sentinel; }
+  void set_auto_write_limit(size_t n) { auto_write_limit_ = n; }
 
   void begin(Harness::stub_type &stub, ::grpc::ClientContext &context) {
     context_ = &context;
@@ -119,6 +122,10 @@ private:
       return;
     }
 
+    if (write_done_count_ >= auto_write_limit_) {
+      return;
+    }
+
     request_t request;
     request.message = payloads_[next_message_];
     request.sequence = static_cast<int32_t>(next_message_);
@@ -170,6 +177,7 @@ void run_client_stream_cancel_case() {
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
   ClientStreamReactor reactor;
   reactor.set_use_sentinel(false);
+  reactor.set_auto_write_limit(1);
   reactor.set_payloads({"chunk_0",  "chunk_1",  "chunk_2",  "chunk_3",  "chunk_4",  "chunk_5",  "chunk_6",
                         "chunk_7",  "chunk_8",  "chunk_9",  "chunk_10", "chunk_11", "chunk_12", "chunk_13",
                         "chunk_14", "chunk_15", "chunk_16", "chunk_17", "chunk_18", "chunk_19"});
