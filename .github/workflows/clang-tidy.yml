@@ -34,11 +34,7 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" != "pull_request" ]]; then
             {
-              echo "has_cpp_changes=true"
-              echo "has_header_changes=true"
               echo "has_tidy_changes=true"
-              echo "changed_cpp_files="
-              echo "changed_header_files="
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -50,31 +46,11 @@ jobs:
 
           if [[ -z "$CHANGED_CPP" && -z "$CHANGED_HDR" ]]; then
             {
-              echo "has_cpp_changes=false"
-              echo "has_header_changes=false"
               echo "has_tidy_changes=false"
-              echo "changed_cpp_files="
-              echo "changed_header_files="
             } >> "$GITHUB_OUTPUT"
           else
             {
-              if [[ -n "$CHANGED_CPP" ]]; then
-                echo "has_cpp_changes=true"
-              else
-                echo "has_cpp_changes=false"
-              fi
-              if [[ -n "$CHANGED_HDR" ]]; then
-                echo "has_header_changes=true"
-              else
-                echo "has_header_changes=false"
-              fi
               echo "has_tidy_changes=true"
-              echo "changed_cpp_files<<EOF"
-              echo "$CHANGED_CPP"
-              echo "EOF"
-              echo "changed_header_files<<EOF"
-              echo "$CHANGED_HDR"
-              echo "EOF"
             } >> "$GITHUB_OUTPUT"
           fi
 
@@ -127,20 +103,8 @@ jobs:
                 -DCMAKE_C_CLANG_TIDY="clang-tidy;-warnings-as-errors=*" \
                 -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
 
-      - name: Configure (PR full clang-tidy for header changes)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_header_changes == 'true'
-        run: |
-          cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
-                -DHPP_PROTO_PROTOC=find \
-                -DCMAKE_C_COMPILER=clang \
-                -DCMAKE_CXX_COMPILER=clang++ \
-                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-                -DCMAKE_C_CLANG_TIDY="clang-tidy;-warnings-as-errors=*" \
-                -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
-
-      - name: Configure (PR build)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes == 'true' && steps.changes.outputs.has_header_changes != 'true'
+      - name: Configure (PR impacted clang-tidy)
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes == 'true'
         run: |
           cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
                 -DHPP_PROTO_PROTOC=find \
@@ -154,32 +118,18 @@ jobs:
         if: github.event_name != 'pull_request'
         run: cmake --build build -j"$(nproc)"
 
-      - name: Build (PR full clang-tidy for header changes)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_header_changes == 'true'
-        run: cmake --build build -j"$(nproc)"
-
       - name: Build (PR prerequisites)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes == 'true' && steps.changes.outputs.has_header_changes != 'true'
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes == 'true'
         run: |
-          # Ensure generated headers/sources exist before running clang-tidy on selected files.
+          # Ensure generated headers/sources and depfiles exist before running impacted clang-tidy.
           cmake --build build -j"$(nproc)"
 
-      - name: Clang-tidy changed files (PR)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_cpp_changes == 'true' && steps.changes.outputs.has_header_changes != 'true'
-        shell: bash
+      - name: Clang-tidy impacted files (PR)
+        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes == 'true'
         run: |
-          CHANGED="${{ steps.changes.outputs.changed_cpp_files }}"
-          echo "Running clang-tidy on changed files:"
-          echo "$CHANGED"
-          while IFS= read -r file; do
-            [[ -z "$file" ]] && continue
-            abs_file="$GITHUB_WORKSPACE/$file"
-            # Limit diagnostics to the changed translation unit to avoid failing
-            # on pre-existing issues in unrelated headers.
-            clang-tidy -p build --warnings-as-errors='*' \
-              --header-filter="^${abs_file}$" \
-              "$file"
-          done <<< "$CHANGED"
+          python3 scripts/clang_tidy_impacted.py \
+            --base "origin/${{ github.base_ref }}" \
+            --build-dir build
 
       - name: No changed C/C++ files (PR)
         if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes != 'true'
