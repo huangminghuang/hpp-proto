@@ -66,15 +66,14 @@ jobs:
         shell: bash
         run: |
           protobuf_formula="$(
-            brew info grpc | awk '
-              /^==> Dependencies$/ { in_deps=1; next }
-              in_deps && /^==> / { in_deps=0 }
-              in_deps {
-                if (match($0, /protobuf(@[0-9]+)?/)) {
-                  print substr($0, RSTART, RLENGTH)
-                  exit
-                }
-              }
+            brew info --json=v2 grpc | /usr/bin/ruby -rjson -e '
+              data = JSON.parse(STDIN.read)
+              formula = data.fetch("formulae").first || {}
+              installed = formula.fetch("installed", [])
+              runtime = installed.flat_map { |i| i.fetch("runtime_dependencies", []) }
+              dep = runtime.map { |d| d["full_name"] }.find { |n| n&.match?(/^protobuf(@\d+)?$/) }
+              dep ||= formula.fetch("dependencies", []).find { |n| n.match?(/^protobuf(@\d+)?$/) }
+              puts(dep) if dep
             '
           )"
           if [[ -z "${protobuf_formula}" ]]; then
