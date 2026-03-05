@@ -54,9 +54,9 @@ jobs:
           ninja: true
           ccache: true
 
-      - name: Install protobuf
+      - name: Install grpc
         shell: bash
-        run: brew install protobuf grpc
+        run: brew install grpc
         
       - name: install lcov
         if: matrix.cmake_preset == 'ci-macos-coverage'
@@ -65,6 +65,23 @@ jobs:
       - name: configure
         shell: bash
         run: |
+          protobuf_formula="$(
+            brew info --json=v2 grpc | /usr/bin/ruby -rjson -e '
+              data = JSON.parse(STDIN.read)
+              formula = data.fetch("formulae").first || {}
+              installed = formula.fetch("installed", [])
+              runtime = installed.flat_map { |i| i.fetch("runtime_dependencies", []) }
+              dep = runtime.map { |d| d["full_name"] }.find { |n| n&.match?(/^protobuf(@\d+)?$/) }
+              dep ||= formula.fetch("dependencies", []).find { |n| n.match?(/^protobuf(@\d+)?$/) }
+              puts(dep) if dep
+            '
+          )"
+          if [[ -z "${protobuf_formula}" ]]; then
+            echo "Failed to resolve protobuf dependency for grpc" >&2
+            exit 1
+          fi
+          protobuf_prefix="$(brew --prefix "${protobuf_formula}")"
+          export PATH="${protobuf_prefix}/bin:${PATH}"
           cmake --preset "${{ matrix.cmake_preset }}"
 
       - name: build

@@ -1037,10 +1037,53 @@ void verify_chunked_input(auto &encoded, const T &value, const std::vector<int> 
   ut::expect(value == decoded);
 };
 
+template <typename T, typename... Options>
+void verify_chunked_input(auto &encoded, const T &value, const std::vector<int> &sizes, Options &&...options) {
+  std::vector<std::vector<char>> segments;
+  segments.resize(sizes.size());
+  std::size_t len = 0;
+  for (unsigned i = 0; i < sizes.size(); ++i) {
+    auto begin = std::next(encoded.begin(), static_cast<std::ptrdiff_t>(len));
+    auto end = std::next(begin, static_cast<std::ptrdiff_t>(sizes[i]));
+    segments[i] = std::vector<char>{begin, end};
+    len += sizes[i];
+  }
+  T decoded;
+  ut::expect(hpp_proto::read_binpb(decoded, segments, std::forward<Options>(options)...).ok());
+  ut::expect(value == decoded);
+};
+
 auto split(auto data, int pos) {
   auto midpoint = std::next(data.begin(), pos);
   return std::array<std::vector<char>, 2>{std::vector<char>{data.begin(), midpoint},
                                           std::vector<char>{midpoint, data.end()}};
+};
+
+struct counting_memory_resource : std::pmr::memory_resource {
+  std::size_t alloc_calls = 0;
+  std::size_t dealloc_calls = 0;
+  std::pmr::memory_resource *upstream = std::pmr::get_default_resource();
+  counting_memory_resource() = default;
+  counting_memory_resource(const counting_memory_resource &) = delete;
+  counting_memory_resource &operator=(const counting_memory_resource &) = delete;
+  counting_memory_resource(counting_memory_resource &&) = delete;
+  counting_memory_resource &operator=(counting_memory_resource &&) = delete;
+  ~counting_memory_resource() override = default;
+
+private:
+  void *do_allocate(std::size_t bytes, std::size_t alignment) override {
+    ++alloc_calls;
+    return upstream->allocate(bytes, alignment);
+  }
+
+  void do_deallocate(void *p, std::size_t bytes, std::size_t alignment) override {
+    ++dealloc_calls;
+    upstream->deallocate(p, bytes, alignment);
+  }
+
+  [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+    return this == &other;
+  }
 };
 
 const ut::suite test_chunked_byte_range = [] {
@@ -1079,6 +1122,38 @@ const ut::suite test_chunked_byte_range = [] {
 
     expect_roundtrip_ok(encoded, value);
     verify_chunked_input(encoded, value, {90, 10, 70});
+  };
+
+  "chunked_input_uses_cache_alloc_from_for_temp_buffers"_test = [] {
+    bytes_example<hpp_proto::default_traits> value;
+    value.field.resize(128);
+    for (int i = 0; i < 128; ++i) {
+      value.field[i] = std::byte(i);
+    }
+    std::vector<char> encoded;
+    ut::expect(hpp_proto::write_binpb(value, encoded).ok());
+
+    counting_memory_resource cache_resource;
+    verify_chunked_input(encoded, value, std::vector<int>(encoded.size(), 1),
+                         hpp_proto::cache_alloc_from(cache_resource));
+    ut::expect(cache_resource.alloc_calls > 0U);
+  };
+
+  "chunked_input_cache_alloc_from_takes_precedence_over_alloc_from"_test = [] {
+    bytes_example<hpp_proto::default_traits> value;
+    value.field.resize(128);
+    for (int i = 0; i < 128; ++i) {
+      value.field[i] = std::byte(i);
+    }
+    std::vector<char> encoded;
+    ut::expect(hpp_proto::write_binpb(value, encoded).ok());
+
+    counting_memory_resource cache_resource;
+    counting_memory_resource object_resource;
+    verify_chunked_input(encoded, value, std::vector<int>(encoded.size(), 1),
+                         hpp_proto::cache_alloc_from(cache_resource), hpp_proto::alloc_from(object_resource));
+    ut::expect(cache_resource.alloc_calls > 0U);
+    ut::expect(object_resource.alloc_calls == 0U);
   };
 
   "invalid_packed_int32_with_chunked_input"_test = [] {
@@ -1932,6 +2007,27 @@ const ut::suite out_sink_serialization_modes = [] {
     monster decoded{};
     ut::expect(hpp_proto::read_binpb(decoded, sink.written()).ok());
     ut::expect(decoded == m);
+  };
+
+  "write_binpb_out_sink_uses_cache_alloc_from_for_cache"_test = [] {
+    monster m = make_test_monster();
+    test_out_sink sink(7);
+    counting_memory_resource cache_resource;
+    auto status = hpp_proto::write_binpb(m, sink, hpp_proto::chunked_mode, hpp_proto::cache_alloc_from(cache_resource));
+    ut::expect(status.ok());
+    ut::expect(cache_resource.alloc_calls > 0U);
+  };
+
+  "write_binpb_out_sink_cache_alloc_from_takes_precedence_over_alloc_from"_test = [] {
+    monster m = make_test_monster();
+    test_out_sink sink(7);
+    counting_memory_resource cache_resource;
+    counting_memory_resource object_resource;
+    auto status = hpp_proto::write_binpb(m, sink, hpp_proto::chunked_mode, hpp_proto::cache_alloc_from(cache_resource),
+                                         hpp_proto::alloc_from(object_resource));
+    ut::expect(status.ok());
+    ut::expect(cache_resource.alloc_calls > 0U);
+    ut::expect(object_resource.alloc_calls == 0U);
   };
 };
 

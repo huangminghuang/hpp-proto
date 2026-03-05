@@ -187,15 +187,6 @@ private:
   }
 };
 
-template <typename Context>
-constexpr std::size_t max_stack_cache_size_for_context() {
-  if constexpr (requires { Context::max_size_cache_on_stack; }) {
-    return Context::max_size_cache_on_stack;
-  } else {
-    return hpp_proto::max_size_cache_on_stack<>.max_size_cache_on_stack;
-  }
-}
-
 constexpr uint64_t len_size(uint64_t len) { return varint_size(len) + len; }
 
 /**
@@ -540,16 +531,20 @@ template <bool overwrite_buffer = true, typename T, concepts::contiguous_byte_ra
 constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] concepts::is_pb_context auto &context) {
   const std::size_t n = size_cache_counter<T>::count(item);
 
-  constexpr std::size_t max_stack_cache_size = max_stack_cache_size_for_context<decltype(context)>();
   if (std::is_constant_evaluated()) {
     std::vector<uint32_t> cache(n);
     return serialize_contiguous_buffer_with_cache<overwrite_buffer>(item, buffer, context, cache);
   } else {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-    std::array<std::byte, max_stack_cache_size> cache_storage;
-    std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size()};
-    std::pmr::vector<uint32_t> cache(n, &mr);
-    return serialize_contiguous_buffer_with_cache<overwrite_buffer>(item, buffer, context, cache);
+    if constexpr (has_cache_memory_resource<decltype(context)>) {
+      auto &cache_mr = context.cache_memory_resource();
+      std::pmr::vector<uint32_t> cache(n, &cache_mr);
+      return serialize_contiguous_buffer_with_cache<overwrite_buffer>(item, buffer, context, cache);
+    } else {
+      default_cache_memory_resource default_cache;
+      auto &cache_mr = default_cache.memory_resource();
+      std::pmr::vector<uint32_t> cache(n, &cache_mr);
+      return serialize_contiguous_buffer_with_cache<overwrite_buffer>(item, buffer, context, cache);
+    }
   }
 }
 
@@ -589,29 +584,34 @@ template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
 status serialize(const T &item, Sink &sink, Context &context) {
   const std::size_t n = size_cache_counter<T>::count(item);
 
-  constexpr std::size_t max_stack_cache_size = max_stack_cache_size_for_context<Context>();
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-  std::array<std::byte, max_stack_cache_size> cache_storage;
-  std::pmr::monotonic_buffer_resource mr{cache_storage.data(), cache_storage.size()};
-  std::pmr::vector<uint32_t> cache(n, &mr);
-  const std::size_t msg_sz = message_size_calculator<T>::message_size(item, cache);
-  if (msg_sz >= max_message_size) {
-    return std::errc::value_too_large;
-  }
-  constexpr auto mode = serialization_mode_for_context<Context>();
-  sink.set_message_size(msg_sz);
+  auto serialize_with_cache_resource = [&](std::pmr::memory_resource &cache_mr) -> status {
+    std::pmr::vector<uint32_t> cache(n, &cache_mr);
+    const std::size_t msg_sz = message_size_calculator<T>::message_size(item, cache);
+    if (msg_sz >= max_message_size) {
+      return std::errc::value_too_large;
+    }
+    constexpr auto mode = serialization_mode_for_context<Context>();
+    sink.set_message_size(msg_sz);
 
-  if constexpr (mode == serialization_mode::contiguous) {
-    return serialize_contiguous_sink(item, sink, context, cache);
-  }
-
-  if constexpr (mode == serialization_mode::adaptive) {
-    if (msg_sz <= sink.chunk_size()) {
+    if constexpr (mode == serialization_mode::contiguous) {
       return serialize_contiguous_sink(item, sink, context, cache);
     }
-  }
 
-  return serialize_chunked_sink(item, sink, context, cache);
+    if constexpr (mode == serialization_mode::adaptive) {
+      if (msg_sz <= sink.chunk_size()) {
+        return serialize_contiguous_sink(item, sink, context, cache);
+      }
+    }
+
+    return serialize_chunked_sink(item, sink, context, cache);
+  };
+
+  if constexpr (has_cache_memory_resource<Context>) {
+    return serialize_with_cache_resource(context.cache_memory_resource());
+  } else {
+    default_cache_memory_resource default_cache;
+    return serialize_with_cache_resource(default_cache.memory_resource());
+  }
 }
 
 template <concepts::has_meta T>

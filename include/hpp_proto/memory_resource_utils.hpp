@@ -88,20 +88,34 @@ public:
   [[nodiscard]] T &memory_resource() const { return *mr; }
 };
 
-template <uint32_t n>
-struct max_size_cache_on_stack_t {
-  using option_type = max_size_cache_on_stack_t<n>;
-  static constexpr auto max_size_cache_on_stack = n;
+class cache_alloc_from {
+  std::pmr::memory_resource *mr;
+
+public:
+  using option_type = cache_alloc_from;
+  explicit cache_alloc_from(std::pmr::memory_resource &m) : mr(&m) {}
+  ~cache_alloc_from() = default;
+  cache_alloc_from(const cache_alloc_from &other) = default;
+  cache_alloc_from(cache_alloc_from &&other) = default;
+  cache_alloc_from &operator=(const cache_alloc_from &) = default;
+  cache_alloc_from &operator=(cache_alloc_from &&) = default;
+  [[nodiscard]] std::pmr::memory_resource &cache_memory_resource() const { return *mr; }
 };
 
-/// @brief max size in bytes which can be used for allocating size cache on stack
-///
-/// @details To accelerate Protobuf serialization, a size cache is utilized to store the serialized byte count of
-/// variable-length fields before the fields’ content is serialized. If the total size of the size cache required is
-/// less than or equal to max_size_cache_on_stack, the cache is allocated directly on the stack. Otherwise, it is
-/// allocated on the heap.
-template <uint32_t n = 1024>
-constexpr auto max_size_cache_on_stack = max_size_cache_on_stack_t<n>{};
+class default_cache_memory_resource {
+  std::array<std::byte, 1024> stack_buffer{};
+  std::pmr::monotonic_buffer_resource mr;
+
+public:
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+  default_cache_memory_resource() : mr(stack_buffer.data(), stack_buffer.size(), std::pmr::get_default_resource()) {}
+  ~default_cache_memory_resource() = default;
+  default_cache_memory_resource(const default_cache_memory_resource &) = delete;
+  default_cache_memory_resource(default_cache_memory_resource &&) = delete;
+  default_cache_memory_resource &operator=(const default_cache_memory_resource &) = delete;
+  default_cache_memory_resource &operator=(default_cache_memory_resource &&) = delete;
+  [[nodiscard]] std::pmr::memory_resource &memory_resource() { return mr; }
+};
 
 template <typename... T>
 struct pb_context : T::option_type... {
@@ -140,6 +154,11 @@ template <concepts::has_memory_resource T>
 auto &get_memory_resource(T &v) {
   return v.memory_resource();
 }
+
+template <typename Context>
+concept has_cache_memory_resource = requires(Context &ctx) {
+  requires std::derived_from<std::remove_reference_t<decltype(ctx.cache_memory_resource())>, std::pmr::memory_resource>;
+};
 
 namespace detail {
 template <concepts::byte_serializable T, std::ranges::contiguous_range Range>
