@@ -65,6 +65,24 @@ jobs:
       - name: configure
         shell: bash
         run: |
+          protobuf_formula="$(
+            brew info grpc | awk '
+              /^==> Dependencies$/ { in_deps=1; next }
+              in_deps && /^==> / { in_deps=0 }
+              in_deps {
+                if (match($0, /protobuf(@[0-9]+)?/)) {
+                  print substr($0, RSTART, RLENGTH)
+                  exit
+                }
+              }
+            '
+          )"
+          if [[ -z "${protobuf_formula}" ]]; then
+            echo "Failed to resolve protobuf dependency for grpc" >&2
+            exit 1
+          fi
+          protobuf_prefix="$(brew --prefix "${protobuf_formula}")"
+          export PATH="${protobuf_prefix}/bin:${PATH}"
           cmake --preset "${{ matrix.cmake_preset }}"
 
       - name: build
