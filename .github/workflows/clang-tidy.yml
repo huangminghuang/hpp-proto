@@ -19,6 +19,8 @@ on:
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
   CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CTCACHE_DIR: ${{ github.workspace }}/.ctcache
+  CTCACHE_LOCAL: "1"
 
 jobs:
   clang-tidy:
@@ -28,46 +30,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect changed C/C++ files (PR)
-        id: changes
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-            {
-              echo "has_tidy_changes=true"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
-          BASE="origin/${{ github.base_ref }}"
-          CHANGED_CPP="$(git diff --name-only --diff-filter=ACMR "$BASE...HEAD" | grep -E '\.(c|cc|cpp|cxx)$' || true)"
-          CHANGED_HDR="$(git diff --name-only --diff-filter=ACMR "$BASE...HEAD" | grep -E '\.(h|hh|hpp|hxx)$' || true)"
-
-          if [[ -z "$CHANGED_CPP" && -z "$CHANGED_HDR" ]]; then
-            {
-              echo "has_tidy_changes=false"
-            } >> "$GITHUB_OUTPUT"
-          else
-            {
-              echo "has_tidy_changes=true"
-            } >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Prepare cache directories
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         run: |
           mkdir -p "${CPM_SOURCE_CACHE}"
           mkdir -p "${CCACHE_DIR}"
+          mkdir -p "${CTCACHE_DIR}"
 
       - uses: actions/cache@v5
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         with:
           path: ${{ env.CPM_SOURCE_CACHE }}
           key: clang-tidy-${{ runner.os }}-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: Cache ccache
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         uses: actions/cache@v5
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -75,8 +49,16 @@ jobs:
           restore-keys: |
             clang-tidy-${{ runner.os }}-ccache-
 
+      - name: Cache ctcache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.CTCACHE_DIR }}
+          key: clang-tidy-${{ runner.os }}-ctcache-${{ hashFiles('.clang-tidy', '.github/workflows/clang-tidy.yml') }}-${{ github.sha }}
+          restore-keys: |
+            clang-tidy-${{ runner.os }}-ctcache-${{ hashFiles('.clang-tidy', '.github/workflows/clang-tidy.yml') }}-
+            clang-tidy-${{ runner.os }}-ctcache-
+
       - name: Setup required C++ tools
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         uses: aminya/setup-cpp@v1.8.0
         with:
           compiler: llvm-21
@@ -85,14 +67,36 @@ jobs:
           ccache: true
           clang-tidy: true
 
+      - name: Install and wire ctcache
+        shell: bash
+        run: |
+          python3 -m pip install --user --break-system-packages --upgrade \
+            "git+https://github.com/matus-chochlik/ctcache.git"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          REAL_CLANG_TIDY="$(command -v clang-tidy)"
+          WRAPPER_DIR="${RUNNER_TEMP}/ctcache-bin"
+          mkdir -p "${WRAPPER_DIR}"
+          cat > "${WRAPPER_DIR}/clang-tidy" <<'EOF'
+          #!/usr/bin/env bash
+          exec clang-tidy-cache "${REAL_CLANG_TIDY}" "$@"
+          EOF
+          sed -i "s#\${REAL_CLANG_TIDY}#${REAL_CLANG_TIDY}#g" "${WRAPPER_DIR}/clang-tidy"
+          chmod +x "${WRAPPER_DIR}/clang-tidy"
+          echo "${WRAPPER_DIR}" >> "$GITHUB_PATH"
+
+      - name: Show ctcache toolchain
+        run: |
+          command -v clang-tidy
+          command -v clang-tidy-cache
+          clang-tidy --version
+
       - name: Install protobuf dependencies
-        if: github.event_name != 'pull_request' || steps.changes.outputs.has_tidy_changes == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
 
-      - name: Configure (full clang-tidy on push/dispatch)
-        if: github.event_name != 'pull_request'
+      - name: Configure (clang-tidy via ctcache)
         run: |
           cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
                 -DHPP_PROTO_PROTOC=find \
@@ -103,34 +107,10 @@ jobs:
                 -DCMAKE_C_CLANG_TIDY="clang-tidy;-warnings-as-errors=*" \
                 -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
 
-      - name: Configure (PR impacted clang-tidy)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes == 'true'
-        run: |
-          cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
-                -DHPP_PROTO_PROTOC=find \
-                -DCMAKE_C_COMPILER=clang \
-                -DCMAKE_CXX_COMPILER=clang++ \
-                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-
-      - name: Build
-        if: github.event_name != 'pull_request'
+      - name: Build (clang-tidy via ctcache)
         run: cmake --build build -j"$(nproc)"
 
-      - name: Build (PR prerequisites)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes == 'true'
+      - name: ctcache stats
+        if: always()
         run: |
-          # Ensure generated headers/sources and depfiles exist before running impacted clang-tidy.
-          cmake --build build -j"$(nproc)"
-
-      - name: Clang-tidy impacted files (PR)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes == 'true'
-        run: |
-          python3 scripts/clang_tidy_impacted.py \
-            --base "origin/${{ github.base_ref }}" \
-            --build-dir build
-
-      - name: No changed C/C++ files (PR)
-        if: github.event_name == 'pull_request' && steps.changes.outputs.has_tidy_changes != 'true'
-        run: echo "No changed C/C++ files detected. Skipping clang-tidy workflow steps."
+          clang-tidy-cache --show-stats || true
