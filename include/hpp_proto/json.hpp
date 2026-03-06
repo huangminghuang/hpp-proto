@@ -273,7 +273,6 @@ struct from<JSON, hpp_proto::oneof_wrapper<Type, Index>> {
   }
 };
 
-
 template <>
 struct to<JSON, hpp_proto::boolean> {
   template <auto Opts, class... Args>
