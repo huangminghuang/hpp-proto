@@ -184,4 +184,29 @@ constexpr decltype(auto) as_optional_indirect_view_ref_impl() noexcept {
 template <auto MemPtr>
 constexpr auto as_optional_indirect_view_ref = as_optional_indirect_view_ref_impl<MemPtr>();
 
+template <typename T>
+struct alias_ref {
+  static constexpr auto glaze_reflect = false;
+  T val;
+  operator bool() const noexcept { return false; }
+  T &operator*() noexcept { return val; }
+  const T &operator*() const noexcept { return val; }
+};
+
+template <auto Expr>
+constexpr auto as_alias = [](auto &&val) {
+  if constexpr (std::is_member_object_pointer_v<decltype(Expr)>) {
+    return alias_ref<decltype(val.*Expr)>{val.*Expr};
+  } else {
+    auto wrapper = Expr(val);
+    return alias_ref<decltype(wrapper)>{std::move(wrapper)};
+  }
+};
+
+template <auto MemPtr, int Index>
+constexpr auto as_oneof_alias = [](auto &&val) {
+  return alias_ref<oneof_wrapper<std::remove_reference_t<decltype(val.*MemPtr)>, Index>>{
+      wrap_oneof<Index>(val.*MemPtr)};
+};
+
 } // namespace hpp_proto

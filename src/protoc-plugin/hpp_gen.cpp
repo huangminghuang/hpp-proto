@@ -580,6 +580,7 @@ struct code_generator {
   static std::string plugin_parameters;
   static std::vector<std::string> proto2_explicit_presences;
   static std::string directory_prefix;
+  static bool preserve_proto_field_names;
   std::size_t indent_num = 0;
   typename CodeGeneratorResponse::File &file;
   std::back_insert_iterator<std::string> target;
@@ -930,6 +931,7 @@ std::filesystem::path code_generator::plugin_name;
 std::string code_generator::plugin_parameters;
 std::vector<std::string> code_generator::proto2_explicit_presences;
 std::string code_generator::directory_prefix;
+bool code_generator::preserve_proto_field_names = false;
 
 struct msg_code_generator : code_generator {
   std::string syntax;
@@ -1789,23 +1791,47 @@ struct glaze_meta_generator : code_generator {
 
     auto type = descriptor.proto().type;
     const bool is_google_any = (type == TYPE_MESSAGE && descriptor.proto().type_name == ".google.protobuf.Any");
-    if (descriptor.is_cpp_optional && !is_google_any) {
-      format_to(target, "    \"{}\", &T::{},\n", descriptor.proto().json_name, descriptor.cpp_name);
-    } else if (descriptor.proto().label == LABEL_REQUIRED) {
 
-      if (type == TYPE_INT64 || type == TYPE_UINT64 || type == TYPE_FIXED64 || type == TYPE_SFIXED64 ||
-          type == TYPE_SINT64) {
-        format_to(target, "    \"{}\", glz::quoted_num<&T::{}>,\n", descriptor.proto().json_name, descriptor.cpp_name);
+    auto emit_field = [&](const std::string &name, bool is_alias) {
+      std::string expr;
+      if (descriptor.is_cpp_optional && !is_google_any) {
+        expr = std::format("&T::{}", descriptor.cpp_name);
+      } else if (descriptor.proto().label == LABEL_REQUIRED) {
+
+        if (type == TYPE_INT64 || type == TYPE_UINT64 || type == TYPE_FIXED64 || type == TYPE_SFIXED64 ||
+            type == TYPE_SINT64) {
+          expr = std::format("glz::quoted_num<&T::{}>", descriptor.cpp_name);
+        } else {
+          expr = std::format("&T::{}", descriptor.cpp_name);
+        }
       } else {
-        format_to(target, "    \"{}\", &T::{},\n", descriptor.proto().json_name, descriptor.cpp_name);
+        std::string name_and_default_value = descriptor.cpp_name;
+        if (!descriptor.default_value_template_arg.empty()) {
+          name_and_default_value += ", " + descriptor.default_value_template_arg;
+        }
+        expr = std::format("::hpp_proto::as_optional_ref<&T::{}>", name_and_default_value);
+      }
+
+      if (is_alias) {
+        format_to(target, "    \"{}\", ::hpp_proto::as_alias<{}>,\n", name, expr);
+      } else {
+        format_to(target, "    \"{}\", {},\n", name, expr);
+      }
+    };
+
+    const std::string &json_name = descriptor.proto().json_name;
+    const std::string &proto_name = descriptor.proto().name;
+
+    if (code_generator::preserve_proto_field_names) {
+      emit_field(proto_name, false);
+      if (json_name != proto_name) {
+        emit_field(json_name, true);
       }
     } else {
-      std::string name_and_default_value = descriptor.cpp_name;
-      if (!descriptor.default_value_template_arg.empty()) {
-        name_and_default_value += ", " + descriptor.default_value_template_arg;
+      emit_field(json_name, false);
+      if (proto_name != json_name) {
+        emit_field(proto_name, true);
       }
-      format_to(target, "    \"{}\", ::hpp_proto::as_optional_ref<&T::{}>,\n", descriptor.proto().json_name,
-                name_and_default_value);
     }
   }
 
@@ -1813,8 +1839,28 @@ struct glaze_meta_generator : code_generator {
     auto fields = descriptor.fields();
     if (fields.size() > 1) {
       for (unsigned i = 0; i < fields.size(); ++i) {
-        format_to(target, "    \"{}\", ::hpp_proto::as_oneof_member<&T::{},{}>,\n", fields[i].proto().json_name,
-                  descriptor.cpp_name, i + 1);
+        auto emit_oneof = [&](const std::string &name, bool is_alias) {
+          if (is_alias) {
+            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_alias<&T::{},{}>,\n", name, descriptor.cpp_name, i + 1);
+          } else {
+            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_member<&T::{},{}>,\n", name, descriptor.cpp_name, i + 1);
+          }
+        };
+
+        const std::string &json_name = fields[i].proto().json_name;
+        const std::string &proto_name = fields[i].proto().name;
+
+        if (code_generator::preserve_proto_field_names) {
+          emit_oneof(proto_name, false);
+          if (json_name != proto_name) {
+            emit_oneof(json_name, true);
+          }
+        } else {
+          emit_oneof(json_name, false);
+          if (proto_name != json_name) {
+            emit_oneof(proto_name, true);
+          }
+        }
       }
     } else {
       process(fields[0]);
@@ -2049,6 +2095,8 @@ int main(int argc, const char **argv) {
       hpp_addons::namespace_prefix = make_qualified_cpp_name("", opt_value);
     } else if (opt_key == "proto2_explicit_presence") {
       code_generator::proto2_explicit_presences.emplace_back(opt_value);
+    } else if (opt_key == "preserve_proto_field_names") {
+      code_generator::preserve_proto_field_names = (opt_value == "true" || opt_value.empty());
     } else if (opt_key == "export_request") {
       std::ofstream out{std::string(opt_value), std::ios::binary};
       if (!out) {

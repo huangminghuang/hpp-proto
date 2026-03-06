@@ -350,6 +350,20 @@ struct to<JSON, hpp_proto::indirect_view<Type>> {
   }
 };
 
+template <typename T>
+struct to<JSON, hpp_proto::alias_ref<T>> {
+  template <auto Opts, class... Args>
+  GLZ_ALWAYS_INLINE static void op(auto &&...) noexcept {}
+};
+
+template <typename T>
+struct from<JSON, hpp_proto::alias_ref<T>> {
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto &&wrapper, auto &&...args) noexcept {
+    from<JSON, std::remove_cvref_t<T>>::template op<Opts>(*wrapper, std::forward<decltype(args)>(args)...);
+  }
+};
+
 } // namespace glz
 
 namespace hpp_proto {
