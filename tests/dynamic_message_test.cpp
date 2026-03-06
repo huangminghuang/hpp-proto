@@ -1001,6 +1001,26 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(10 == msg2.field_value_by_name<hpp_proto::enum_number>("optional_nested_enum"));
     };
 
+    "always_print_fields_with_no_presence for dynamic json"_test = [&factory] {
+      constexpr auto opts = ::hpp_proto::json_write_opts{.always_print_fields_with_no_presence = true};
+      std::pmr::monotonic_buffer_resource mr;
+      auto msg = expect_ok(factory.get_message("proto3_unittest.TestAllTypes", mr));
+
+      std::string json_buf;
+      expect(::hpp_proto::write_json<opts>(msg, json_buf).ok());
+      expect(json_buf.find(R"("optionalInt32":0)") != std::string::npos);
+      expect(json_buf.find(R"("repeatedInt32":[])") != std::string::npos);
+      expect(json_buf.find(R"("optionalNestedMessage")") == std::string::npos);
+
+      std::string json_from_binpb;
+      expect(::hpp_proto::binpb_to_json<opts>(factory, "proto3_unittest.TestAllTypes", std::string_view{},
+                                              json_from_binpb)
+                 .ok());
+      expect(json_from_binpb.find(R"("optionalInt32":0)") != std::string::npos);
+      expect(json_from_binpb.find(R"("repeatedInt32":[])") != std::string::npos);
+      expect(json_from_binpb.find(R"("optionalNestedMessage")") == std::string::npos);
+    };
+
     "repeated enum set and adopt"_test = [&factory] {
       std::pmr::monotonic_buffer_resource memory_resource;
       auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
