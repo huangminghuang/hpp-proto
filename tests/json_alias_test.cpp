@@ -10,7 +10,7 @@
 using namespace boost::ut;
 using namespace std::string_literals;
 
-suite json_alias_tests = [] {
+const suite json_alias_tests = [] {
   "default_naming_serialization"_test = [] {
     hpp_proto::test::JsonAliasMessage<> msg;
     msg.first_name = "John";
