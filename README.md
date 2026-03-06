@@ -285,7 +285,7 @@ auto result = hpp_proto::read_binpb(
 
 ## Limitations
 
-* **JSON Options**: Lacks support for some of the extended JSON print options found in Google's C++ implementation, like `always_print_fields_with_no_presence` or `preserve_proto_field_names`.
+* **JSON Options**: Lacks support for some of the extended JSON print options found in Google's C++ implementation, like `preserve_proto_field_names`.
 
 ---
 

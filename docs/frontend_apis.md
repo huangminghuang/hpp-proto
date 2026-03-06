@@ -83,6 +83,21 @@ std::string json;
 auto st = hpp_proto::write_json(message, json);
 ```
 
+### JSON Write Options
+
+You can customize the JSON output by passing a `hpp_proto::json_write_opts` template argument:
+
+```cpp
+using opts = hpp_proto::json_write_opts;
+auto st = hpp_proto::write_json<opts{.prettify = true}>(message, json);
+```
+
+Supported options in `json_write_opts`:
+
+- `prettify` (default: `false`): Enables multi-line, indented JSON output.
+- `always_print_fields_with_no_presence` (default: `false`): If `true`, non-presence fields (primitives, repeated, maps) are always included in the output even if they are set to their default values (e.g., `0`, `""`, `false`, `[]`). Presence-tracking fields (like sub-messages or explicit `optional` fields) are still omitted if not set.
+- `escape_control_characters` (default: `true`): Escapes control characters in strings.
+
 ### Read JSON
 
 ```cpp
