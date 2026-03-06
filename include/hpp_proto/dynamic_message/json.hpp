@@ -35,11 +35,20 @@ concept map_key_mref = std::same_as<T, ::hpp_proto::string_field_mref> ||
 
 } // namespace concepts
 
+template <auto Opts>
+consteval bool always_print_fields_with_no_presence_enabled() {
+  if constexpr (requires { Opts.always_print_fields_with_no_presence; }) {
+    return Opts.always_print_fields_with_no_presence;
+  } else {
+    return false;
+  }
+}
+
 template <>
 struct to<JSON, hpp_proto::field_cref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(hpp_proto::field_cref value, is_context auto &ctx, auto &b, auto &ix) {
-    if (value.has_value()) {
+    if (value.has_value() || (always_print_fields_with_no_presence_enabled<Opts>() && !value.explicit_presence())) {
       value.visit([&](auto v) {
         using T = std::remove_cvref_t<decltype(v)>;
         to<JSON, T>::template op<Opts>(v, ctx, b, ix);
@@ -62,6 +71,17 @@ struct from<JSON, hpp_proto::field_mref> {
 };
 
 struct generic_message_json_serializer {
+  template <auto Opts>
+  static bool should_serialize_field(hpp_proto::field_cref field) {
+    if (field.has_value()) {
+      return true;
+    }
+    if constexpr (!always_print_fields_with_no_presence_enabled<Opts>()) {
+      return false;
+    }
+    return !field.explicit_presence();
+  }
+
   template <auto Opts>
   static void serialize_regular_field(hpp_proto::field_cref field, is_context auto &ctx, auto &b, auto &ix) {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
@@ -120,7 +140,7 @@ struct generic_message_json_serializer {
     const char *separator = nullptr;
 
     for (auto field : value.fields()) {
-      if (!field.has_value()) {
+      if (!should_serialize_field<Opts>(field)) {
         continue;
       }
 
@@ -539,7 +559,8 @@ template <typename T, hpp_proto::field_kind_t Kind>
 struct to<JSON, hpp_proto::scalar_field_cref<T, Kind>> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp_proto::scalar_field_cref<T, Kind> &value, auto &&...args) {
-    if (value.has_value()) {
+    if (value.has_value() ||
+        (always_print_fields_with_no_presence_enabled<Opts>() && !value.descriptor().explicit_presence())) {
       using value_type = hpp_proto::scalar_field_cref<T, Kind>::value_type;
       constexpr bool need_quote = ::hpp_proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts);
       to<JSON, value_type>::template op<set_opt<Opts, quoted_num_opt_tag{}>(need_quote)>(
@@ -552,7 +573,8 @@ template <typename T, hpp_proto::field_kind_t Kind>
 struct to<JSON, hpp_proto::repeated_scalar_field_cref<T, Kind>> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp_proto::repeated_scalar_field_cref<T, Kind> &value, auto &&...args) {
-    if (!value.empty()) {
+    if (!value.empty() ||
+        (always_print_fields_with_no_presence_enabled<Opts>() && !value.descriptor().explicit_presence())) {
       auto range = std::span{value.data(), value.size()};
       using value_type = hpp_proto::repeated_scalar_field_cref<T, Kind>::value_type;
       constexpr bool need_quote = ::hpp_proto::concepts::integral_64_bits<value_type>;
