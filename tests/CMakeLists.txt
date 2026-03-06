@@ -4,6 +4,18 @@ if(MSVC)
     add_compile_options("/bigobj" "/wd4459" "/wd4125")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # Alias-enabled JSON metadata for large generated protos (for example unittest TestAllTypes)
+    # can exceed GCC's default constexpr evaluation budgets inside Glaze reflection.
+    add_compile_options("-fconstexpr-ops-limit=67108864" "-fconstexpr-loop-limit=1048576")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Alias-enabled JSON metadata for large generated protos (for example unittest TestAllTypes)
+    # can exceed Clang's default constexpr evaluation budget inside Glaze reflection.
+    add_compile_options("-fbracket-depth=512" "-fconstexpr-steps=67108864")
+endif()
+
 set(Min_Protobuf_VERSION 3.12.0)
 
 if("${Protobuf_VERSION}" VERSION_LESS "${Min_Protobuf_VERSION}")
@@ -83,6 +95,12 @@ add_hpp_proto_test(
     SOURCES read_json_consistency_test.cpp
     LINK_LIBRARIES hpp_proto::dynamic_message unittest_proto_lib unittest_proto3_proto_lib map_unittest_proto_lib well_known_types Boost::ut glaze::glaze)
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Glaze key hashing for very large reflected messages can exceed Clang's
+    # default constexpr step budget during compilation.
+    target_compile_options(read_json_consistency_test PRIVATE "-fconstexpr-steps=67108864")
+endif()
+
 add_hpp_proto_generated_test_lib(
     NAME unittest_lite_proto_lib
     SOURCES
@@ -123,3 +141,24 @@ add_hpp_proto_test(
     SOURCES basic_test_proto2.cpp
     LINK_LIBRARIES basic_test_proto2_lib
     REQUIRES edition_support)
+
+add_hpp_proto_generated_test_lib(
+    NAME json_alias_test_lib
+    SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/json_alias_test.proto"
+        "${CMAKE_CURRENT_SOURCE_DIR}/json_required_alias_test.proto"
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_hpp_proto_generated_test_lib(
+    NAME json_alias_preserved_lib
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/json_alias_preserved_test.proto"
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+    PLUGIN_OPTIONS "preserve_proto_field_names=true"
+)
+
+add_hpp_proto_test(
+    NAME json_alias_test
+    SOURCES json_alias_test.cpp
+    LINK_LIBRARIES json_alias_test_lib json_alias_preserved_lib Boost::ut glaze::glaze
+)

@@ -267,6 +267,74 @@ const ut::suite test_always_print = [] {
   };
 };
 
+struct multiple_keys_example {
+  int32_t first_name = 0;
+  bool operator==(const multiple_keys_example &) const = default;
+};
+
+template <>
+struct glz::meta<multiple_keys_example> {
+  using T = multiple_keys_example;
+  // firstName is primary (serializes), first_name is an alias (parse-only)
+  static constexpr auto value = object("firstName", &T::first_name, "first_name", hpp_proto::as_alias<&T::first_name>);
+};
+
+struct oneof_alias_example {
+  std::variant<std::monostate, std::string, int32_t> value;
+  bool operator==(const oneof_alias_example &) const = default;
+};
+
+template <>
+struct glz::meta<oneof_alias_example> {
+  using T = oneof_alias_example;
+  static constexpr auto value = object("stringField", hpp_proto::as_oneof_member<&T::value, 1>, "string_field",
+                                       hpp_proto::as_oneof_alias<&T::value, 1>);
+};
+
+const ut::suite test_multiple_keys = [] {
+  using namespace boost::ut;
+  using namespace std::string_literals;
+
+  "multiple_keys_parsing"_test = [] {
+    multiple_keys_example msg;
+
+    // Accepts camelCase
+    expect(hpp_proto::read_json(msg, R"({"firstName":1})").ok());
+    expect(eq(msg.first_name, 1));
+
+    // Accepts snake_case (alias)
+    expect(hpp_proto::read_json(msg, R"({"first_name":2})").ok());
+    expect(eq(msg.first_name, 2));
+  };
+
+  "oneof_alias_parsing"_test = [] {
+    {
+      oneof_alias_example m;
+      constexpr const char *const json = R"({"stringField":"abc"})";
+      auto status = hpp_proto::read_json(m, json);
+      expect(fatal(status.ok())) << status.message(json);
+      expect(fatal(m.value.index() == 1_u)) << "Index is " << m.value.index();
+      expect(eq(std::get<1>(m.value), "abc"s));
+    }
+
+    {
+      oneof_alias_example m;
+      constexpr const char *const json = R"({"string_field":"def"})";
+      auto status = hpp_proto::read_json(m, json);
+      expect(fatal(status.ok())) << status.message(json);
+      expect(fatal(m.value.index() == 1_u)) << "Index is " << m.value.index();
+      expect(eq(std::get<1>(m.value), "def"s));
+    }
+
+    {
+      oneof_alias_example m;
+      m.value = "xyz"s;
+      auto json = hpp_proto::write_json(m).value();
+      expect(eq(json, R"({"stringField":"xyz"})"s));
+    }
+  };
+};
+
 const ut::suite test_base64 = [] {
   auto verify = [](std::string_view data, std::string_view encoded) {
     using namespace boost::ut;

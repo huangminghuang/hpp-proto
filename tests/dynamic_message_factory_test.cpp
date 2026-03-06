@@ -206,6 +206,64 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
   };
 
+  auto make_json_name_proto_name_conflict_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "json_name_proto_name_conflict.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "alpha",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_STRING,
+                                .json_name = "beta",
+                            },
+                            FieldProto{
+                                .name = "beta",
+                                .number = 2,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_STRING,
+                                .json_name = "beta2",
+                            },
+                        },
+                },
+            },
+    };
+  };
+
+  auto make_empty_json_name_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "empty_json_name.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "alpha_value",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_STRING,
+                                .json_name = "",
+                            },
+                            FieldProto{
+                                .name = "beta_value",
+                                .number = 2,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_STRING,
+                                .json_name = "betaValue",
+                            },
+                        },
+                },
+            },
+    };
+  };
+
   auto make_invalid_field_number_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "invalid_field_number.proto",
@@ -889,6 +947,16 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "duplicate_field_number_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_duplicate_field_number_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "json_name_proto_name_conflict_sets_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_json_name_proto_name_conflict_fileset());
+    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "empty_json_name_is_allowed"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_empty_json_name_fileset());
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
   "invalid_field_number_sets_error"_test = [&] {

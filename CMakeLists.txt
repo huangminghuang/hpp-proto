@@ -62,6 +62,12 @@ endif()
 
 if(NOT MSVC)
   set(HPP_PROTO_COMPILE_OPTIONS "-Wall" "-Wextra" "-Werror=sign-conversion")
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # Alias-enabled JSON metadata can substantially increase constexpr work in Glaze
+    # for very large generated messages (e.g., TestAllTypes). Raise GCC's default
+    # constexpr operation budget to avoid spurious compile failures in CI.
+    list(APPEND HPP_PROTO_COMPILE_OPTIONS "-fconstexpr-ops-limit=67108864")
+  endif()
 else()
   # Ensure exception unwind semantics are enabled for MSVC builds.
   # This is required for tests that use boost::ut `throws(...)` and avoids C4530.

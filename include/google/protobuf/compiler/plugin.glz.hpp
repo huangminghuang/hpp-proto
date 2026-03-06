@@ -29,10 +29,14 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorRequest<Traits>> {
   using T = google::protobuf::compiler::CodeGeneratorRequest<Traits>;
   static constexpr auto value = object(
     "fileToGenerate", ::hpp_proto::as_optional_ref<&T::file_to_generate>,
+    "file_to_generate", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::file_to_generate>>,
     "parameter", ::hpp_proto::as_optional_ref<&T::parameter>,
     "protoFile", ::hpp_proto::as_optional_ref<&T::proto_file>,
+    "proto_file", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::proto_file>>,
     "sourceFileDescriptors", ::hpp_proto::as_optional_ref<&T::source_file_descriptors>,
-    "compilerVersion", &T::compiler_version);
+    "source_file_descriptors", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::source_file_descriptors>>,
+    "compilerVersion", &T::compiler_version,
+    "compiler_version", ::hpp_proto::as_alias<&T::compiler_version>);
 };
 
 template <typename Traits>
@@ -43,8 +47,11 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse<Traits>> {
   static constexpr auto value = object(
     "error", ::hpp_proto::as_optional_ref<&T::error>,
     "supportedFeatures", ::hpp_proto::as_optional_ref<&T::supported_features>,
+    "supported_features", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::supported_features>>,
     "minimumEdition", ::hpp_proto::as_optional_ref<&T::minimum_edition>,
+    "minimum_edition", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::minimum_edition>>,
     "maximumEdition", ::hpp_proto::as_optional_ref<&T::maximum_edition>,
+    "maximum_edition", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::maximum_edition>>,
     "file", ::hpp_proto::as_optional_ref<&T::file>);
 };
 
@@ -54,8 +61,10 @@ struct glz::meta<google::protobuf::compiler::CodeGeneratorResponse_::File<Traits
   static constexpr auto value = object(
     "name", ::hpp_proto::as_optional_ref<&T::name>,
     "insertionPoint", ::hpp_proto::as_optional_ref<&T::insertion_point>,
+    "insertion_point", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::insertion_point>>,
     "content", ::hpp_proto::as_optional_ref<&T::content>,
-    "generatedCodeInfo", &T::generated_code_info);
+    "generatedCodeInfo", &T::generated_code_info,
+    "generated_code_info", ::hpp_proto::as_alias<&T::generated_code_info>);
 };
 
 template <typename Traits>

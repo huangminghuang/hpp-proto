@@ -96,6 +96,7 @@ Supported options in `json_write_opts`:
 
 - `prettify` (default: `false`): Enables multi-line, indented JSON output.
 - `always_print_fields_with_no_presence` (default: `false`): If `true`, non-presence fields (primitives, repeated, maps) are always included in the output even if they are set to their default values (e.g., `0`, `""`, `false`, `[]`). Presence-tracking fields (like sub-messages or explicit `optional` fields) are still omitted if not set.
+- `preserve_proto_field_names` (default: `false`): If `true`, the original field names from the `.proto` file (typically `snake_case`) are used as the primary keys for JSON serialization. **Note: This option only applies to dynamic messages.** For generated messages, use the corresponding plugin option. Regardless of this setting, `read_json` always accepts both naming conventions.
 - `escape_control_characters` (default: `true`): Escapes control characters in strings.
 
 ### Read JSON

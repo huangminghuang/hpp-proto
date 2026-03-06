@@ -1,0 +1,7 @@
+syntax = "proto2";
+package hpp_proto.test.required;
+
+message RequiredAliasMessage {
+  required uint64 user_id = 1;
+  required string user_role = 2;
+}

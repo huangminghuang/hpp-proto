@@ -44,6 +44,15 @@ consteval bool always_print_fields_with_no_presence_enabled() {
   }
 }
 
+template <auto Opts>
+consteval bool preserve_proto_field_names_enabled() {
+  if constexpr (requires { Opts.preserve_proto_field_names; }) {
+    return Opts.preserve_proto_field_names;
+  } else {
+    return false;
+  }
+}
+
 template <>
 struct to<JSON, hpp_proto::field_cref> {
   template <auto Opts>
@@ -85,8 +94,13 @@ struct generic_message_json_serializer {
   template <auto Opts>
   static void serialize_regular_field(hpp_proto::field_cref field, is_context auto &ctx, auto &b, auto &ix) {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
-    auto json_name = field.descriptor().proto().json_name;
-    to<glz::JSON, std::string_view>::template op<field_opts>(json_name, ctx, b, ix);
+    std::string_view name;
+    if constexpr (preserve_proto_field_names_enabled<Opts>()) {
+      name = field.descriptor().proto().name;
+    } else {
+      name = field.descriptor().proto().json_name;
+    }
+    to<glz::JSON, std::string_view>::template op<field_opts>(name, ctx, b, ix);
     glz::dump<':'>(b, ix);
     if constexpr (Opts.prettify) {
       glz::dump<' '>(b, ix);
@@ -181,10 +195,10 @@ struct generic_message_json_serializer {
         ctx, it, end, key, [](auto &, auto &) {},
         [&](auto &it_ref, auto &end_ref) {
           static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
-          // Current limitation: in this Glaze-based path we match only proto json_name.
-          // Proto field-name fallback (e.g. "optional_int32") is intentionally not
-          // enabled here for now.
           const auto *desc = value.field_descriptor_by_json_name(key);
+          if (desc == nullptr) {
+            desc = value.field_descriptor_by_name(key);
+          }
           if (desc == nullptr) {
             if constexpr (Opts.error_on_unknown_keys) {
               ctx.error = error_code::unknown_key;
@@ -963,6 +977,9 @@ bool any_message_json_serializer::parse_generic_any_value(::hpp_proto::message_v
           skip_value<JSON>::template op<Opts>(ctx, it_ref, end_ref);
         } else {
           const auto *desc = message.field_descriptor_by_json_name(key);
+          if (desc == nullptr) {
+            desc = message.field_descriptor_by_name(key);
+          }
           if (desc == nullptr) {
             if constexpr (Opts.error_on_unknown_keys) {
               ctx.error = error_code::unknown_key;

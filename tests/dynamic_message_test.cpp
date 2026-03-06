@@ -1021,6 +1021,31 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(json_from_binpb.find(R"("optionalNestedMessage")") == std::string::npos);
     };
 
+    "json_snake_case_parsing"_test = [&factory] {
+      std::pmr::monotonic_buffer_resource mr;
+      auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
+
+      // optionalInt32 has json_name "optionalInt32" and original name "optional_int32"
+      std::string json = R"({"optional_int32":123,"optional_string":"hello"})";
+      expect(hpp_proto::read_json(msg, json).ok());
+      expect(eq(123, *msg.field_value_by_name<int32_t>("optional_int32")));
+      expect(eq("hello"sv, *msg.field_value_by_name<std::string_view>("optional_string")));
+    };
+
+    "json_snake_case_serialization"_test = [&factory] {
+      std::pmr::monotonic_buffer_resource mr;
+      auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", mr));
+      expect(msg.set_field_by_name("optional_int32", 123).has_value());
+      expect(msg.set_field_by_name("optional_string", "hello"sv).has_value());
+
+      constexpr auto opts = hpp_proto::json_write_opts{.preserve_proto_field_names = true};
+      std::string json;
+      expect(hpp_proto::write_json<opts>(msg, json).ok());
+      // Expect snake_case names
+      expect(json.find(R"("optional_int32":123)") != std::string::npos) << "Actual: " << json;
+      expect(json.find(R"("optional_string":"hello")") != std::string::npos) << "Actual: " << json;
+    };
+
     "repeated enum set and adopt"_test = [&factory] {
       std::pmr::monotonic_buffer_resource memory_resource;
       auto msg = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
