@@ -41,7 +41,7 @@ inline auto always_print_fields_with_no_presence() -> bool & {
   static thread_local bool value = false;
   return value;
 }
-}
+} // namespace detail
 
 template <typename T, std::size_t Index>
 struct oneof_wrapper {
