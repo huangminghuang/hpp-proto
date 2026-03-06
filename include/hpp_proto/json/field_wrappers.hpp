@@ -184,14 +184,16 @@ constexpr decltype(auto) as_optional_indirect_view_ref_impl() noexcept {
 template <auto MemPtr>
 constexpr auto as_optional_indirect_view_ref = as_optional_indirect_view_ref_impl<MemPtr>();
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members,hicpp-explicit-conversions)
 template <typename T>
 struct alias_ref {
   static constexpr auto glaze_reflect = false;
   T val;
-  operator bool() const noexcept { return false; }
+  explicit operator bool() const noexcept { return false; }
   T &operator*() noexcept { return val; }
   const T &operator*() const noexcept { return val; }
 };
+// NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members,hicpp-explicit-conversions)
 
 template <auto Expr>
 constexpr auto as_alias = [](auto &&val) {

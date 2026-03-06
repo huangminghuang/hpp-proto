@@ -945,6 +945,7 @@ private:
     return itr == types.end() ? nullptr : itr->second;
   }
 
+  // NOLINTNEXTLINE(readability-function-cognitive-complexity)
   std::expected<void, descriptor_pool_errc> build_fields(message_descriptor_t &descriptor) {
     auto to_default_json_name = [](std::string_view proto_name) {
       std::string json_name;

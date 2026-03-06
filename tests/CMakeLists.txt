@@ -4,6 +4,12 @@ if(MSVC)
     add_compile_options("/bigobj" "/wd4459" "/wd4125")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # Alias-enabled JSON metadata for large generated protos (for example unittest TestAllTypes)
+    # can exceed GCC's default constexpr evaluation budgets inside Glaze reflection.
+    add_compile_options("-fconstexpr-ops-limit=67108864" "-fconstexpr-loop-limit=1048576")
+endif()
+
 set(Min_Protobuf_VERSION 3.12.0)
 
 if("${Protobuf_VERSION}" VERSION_LESS "${Min_Protobuf_VERSION}")

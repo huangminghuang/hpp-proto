@@ -2042,6 +2042,7 @@ void split(std::string_view str, char deliminator, auto &&callback) {
   }
 }
 } // namespace
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 int main(int argc, const char **argv) {
   std::span<const char *> args{argv, static_cast<std::size_t>(argc)};
   if (std::ranges::find_if(args, [](auto arg) { return std::string_view(arg) == "--version"; }) != args.end()) {

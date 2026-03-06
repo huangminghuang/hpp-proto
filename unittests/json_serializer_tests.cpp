@@ -310,7 +310,7 @@ const ut::suite test_multiple_keys = [] {
   "oneof_alias_parsing"_test = [] {
     {
       oneof_alias_example m;
-      const auto json = R"({"stringField":"abc"})";
+      constexpr const char *const json = R"({"stringField":"abc"})";
       auto status = hpp_proto::read_json(m, json);
       expect(fatal(status.ok())) << status.message(json);
       expect(fatal(m.value.index() == 1_u)) << "Index is " << m.value.index();
@@ -319,7 +319,7 @@ const ut::suite test_multiple_keys = [] {
 
     {
       oneof_alias_example m;
-      const auto json = R"({"string_field":"def"})";
+      constexpr const char *const json = R"({"string_field":"def"})";
       auto status = hpp_proto::read_json(m, json);
       expect(fatal(status.ok())) << status.message(json);
       expect(fatal(m.value.index() == 1_u)) << "Index is " << m.value.index();
