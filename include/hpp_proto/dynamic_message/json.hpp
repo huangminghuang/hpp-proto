@@ -48,8 +48,7 @@ template <>
 struct to<JSON, hpp_proto::field_cref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(hpp_proto::field_cref value, is_context auto &ctx, auto &b, auto &ix) {
-    if (value.has_value() ||
-        (always_print_fields_with_no_presence_enabled<Opts>() && !value.explicit_presence())) {
+    if (value.has_value() || (always_print_fields_with_no_presence_enabled<Opts>() && !value.explicit_presence())) {
       value.visit([&](auto v) {
         using T = std::remove_cvref_t<decltype(v)>;
         to<JSON, T>::template op<Opts>(v, ctx, b, ix);

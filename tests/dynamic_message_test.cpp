@@ -1013,9 +1013,9 @@ const boost::ut::suite dynamic_message_test = [] {
       expect(json_buf.find(R"("optionalNestedMessage")") == std::string::npos);
 
       std::string json_from_binpb;
-      expect(::hpp_proto::binpb_to_json<opts>(factory, "proto3_unittest.TestAllTypes", std::string_view{},
-                                              json_from_binpb)
-                 .ok());
+      expect(
+          ::hpp_proto::binpb_to_json<opts>(factory, "proto3_unittest.TestAllTypes", std::string_view{}, json_from_binpb)
+              .ok());
       expect(json_from_binpb.find(R"("optionalInt32":0)") != std::string::npos);
       expect(json_from_binpb.find(R"("repeatedInt32":[])") != std::string::npos);
       expect(json_from_binpb.find(R"("optionalNestedMessage")") == std::string::npos);
