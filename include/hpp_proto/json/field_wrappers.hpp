@@ -37,8 +37,11 @@
 namespace hpp_proto {
 
 namespace detail {
-inline thread_local bool always_print_fields_with_no_presence = false;
+inline auto always_print_fields_with_no_presence() -> bool & {
+  static thread_local bool value = false;
+  return value;
 }
+} // namespace detail
 
 template <typename T, std::size_t Index>
 struct oneof_wrapper {
@@ -100,7 +103,7 @@ struct optional_ref {
     if (!is_default_value<T, Default>(val)) {
       return true;
     }
-    if (detail::always_print_fields_with_no_presence) {
+    if (detail::always_print_fields_with_no_presence()) {
       if constexpr (!requires { val.has_value(); } && !std::is_pointer_v<T> && !requires { val.pointer(); }) {
         return true;
       }
