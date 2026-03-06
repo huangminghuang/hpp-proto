@@ -366,12 +366,14 @@ struct json_read_opts : glz::opts {
 namespace detail {
 struct always_print_guard {
   bool old_value;
-  explicit always_print_guard(bool new_value) : old_value(always_print_fields_with_no_presence) {
-    always_print_fields_with_no_presence = new_value;
+  explicit always_print_guard(bool new_value) : old_value(always_print_fields_with_no_presence()) {
+    always_print_fields_with_no_presence() = new_value;
   }
-  ~always_print_guard() { always_print_fields_with_no_presence = old_value; }
+  ~always_print_guard() { always_print_fields_with_no_presence() = old_value; }
   always_print_guard(const always_print_guard &) = delete;
   always_print_guard &operator=(const always_print_guard &) = delete;
+  always_print_guard(always_print_guard &&) = delete;
+  always_print_guard &operator=(always_print_guard &&) = delete;
 };
 } // namespace detail
 
