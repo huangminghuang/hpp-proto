@@ -16,7 +16,8 @@ template <typename Traits>
 struct glz::meta<hpp_proto::FileOptions<Traits>> {
   using T = hpp_proto::FileOptions<Traits>;
   static constexpr auto value = object(
-    "namespacePrefix", &T::namespace_prefix);
+    "namespacePrefix", &T::namespace_prefix,
+    "namespace_prefix", ::hpp_proto::as_alias<&T::namespace_prefix>);
 };
 
 template <typename Traits>

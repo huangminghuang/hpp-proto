@@ -371,6 +371,10 @@ struct json_write_opts : glz::opts {
   bool escape_control_characters = true;
   bool prettify = false;
   bool always_print_fields_with_no_presence = false;
+  /// If true, the original field names from the .proto file (typically snake_case) are used
+  /// as the primary keys for JSON serialization. This option is only used for dynamic messages.
+  /// For generated messages, use the preserve_proto_field_names plugin option instead.
+  bool preserve_proto_field_names = false;
 };
 
 struct json_read_opts : glz::opts {

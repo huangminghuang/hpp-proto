@@ -23,6 +23,7 @@ protobuf_generate_hpp(
 - <a id="plugin-options">PLUGIN_OPTIONS</a>: A comma-separated string forwarded to the protoc-gen-hpp plugin to customize code generation. Options include:
   - `namespace_prefix=`: Specifies a namespace prefix to be added to the generated C++ code in addition to the package namespace. If the specified prefix contains multiple components, they should be separated by a __dot (.)__ instead of double colons (::).
   - `directory_prefix=`:  Prepends a directory to included non-system dependencies.
+  - `preserve_proto_field_names=`: If set to `true`, the original field names from the `.proto` file (typically `snake_case`) are used as the primary keys for JSON serialization. If `false` (default), the `json_name` (typically `camelCase`) is used. Regardless of this setting, the generated JSON parser always accepts both naming conventions.
   - `proto2_explicit_presence=`: For Proto2 only, makes optional scalar fields implicitly present except for specified scopes. This option can be specified multiple times. For example: the option `proto2_explicit_presence=.pkg1.msg1.field1,proto2_explicit_presence=.pkg1.msg2` instructs the code generator that explicit presence is only applicable for the `field1` of `pkg1.msg1` and all fields of `pkg1.msg2`.
 
 ## Traits at a Glance
