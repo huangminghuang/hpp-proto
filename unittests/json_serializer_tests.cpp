@@ -287,10 +287,8 @@ struct oneof_alias_example {
 template <>
 struct glz::meta<oneof_alias_example> {
   using T = oneof_alias_example;
-  static constexpr auto value = object(
-      "stringField", hpp_proto::as_oneof_member<&T::value, 1>,
-      "string_field", hpp_proto::as_oneof_alias<&T::value, 1>
-  );
+  static constexpr auto value = object("stringField", hpp_proto::as_oneof_member<&T::value, 1>, "string_field",
+                                       hpp_proto::as_oneof_alias<&T::value, 1>);
 };
 
 const ut::suite test_multiple_keys = [] {
@@ -311,28 +309,28 @@ const ut::suite test_multiple_keys = [] {
 
   "oneof_alias_parsing"_test = [] {
     {
-        oneof_alias_example m;
-        const auto json = R"({"stringField":"abc"})";
-        auto status = hpp_proto::read_json(m, json);
-        expect(fatal(status.ok())) << status.message(json);
-        expect(fatal(m.value.index() == 1_u)) << "Index is " << m.value.index();
-        expect(eq(std::get<1>(m.value), "abc"s));
+      oneof_alias_example m;
+      const auto json = R"({"stringField":"abc"})";
+      auto status = hpp_proto::read_json(m, json);
+      expect(fatal(status.ok())) << status.message(json);
+      expect(fatal(m.value.index() == 1_u)) << "Index is " << m.value.index();
+      expect(eq(std::get<1>(m.value), "abc"s));
     }
 
     {
-        oneof_alias_example m;
-        const auto json = R"({"string_field":"def"})";
-        auto status = hpp_proto::read_json(m, json);
-        expect(fatal(status.ok())) << status.message(json);
-        expect(fatal(m.value.index() == 1_u)) << "Index is " << m.value.index();
-        expect(eq(std::get<1>(m.value), "def"s));
+      oneof_alias_example m;
+      const auto json = R"({"string_field":"def"})";
+      auto status = hpp_proto::read_json(m, json);
+      expect(fatal(status.ok())) << status.message(json);
+      expect(fatal(m.value.index() == 1_u)) << "Index is " << m.value.index();
+      expect(eq(std::get<1>(m.value), "def"s));
     }
 
     {
-        oneof_alias_example m;
-        m.value = "xyz"s;
-        auto json = hpp_proto::write_json(m).value();
-        expect(eq(json, R"({"stringField":"xyz"})"s));
+      oneof_alias_example m;
+      m.value = "xyz"s;
+      auto json = hpp_proto::write_json(m).value();
+      expect(eq(json, R"({"stringField":"xyz"})"s));
     }
   };
 };

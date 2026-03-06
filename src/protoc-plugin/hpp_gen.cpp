@@ -1841,9 +1841,11 @@ struct glaze_meta_generator : code_generator {
       for (unsigned i = 0; i < fields.size(); ++i) {
         auto emit_oneof = [&](const std::string &name, bool is_alias) {
           if (is_alias) {
-            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_alias<&T::{},{}>,\n", name, descriptor.cpp_name, i + 1);
+            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_alias<&T::{},{}>,\n", name, descriptor.cpp_name,
+                      i + 1);
           } else {
-            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_member<&T::{},{}>,\n", name, descriptor.cpp_name, i + 1);
+            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_member<&T::{},{}>,\n", name, descriptor.cpp_name,
+                      i + 1);
           }
         };
 

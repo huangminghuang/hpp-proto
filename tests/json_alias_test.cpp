@@ -1,11 +1,11 @@
-#include <boost/ut.hpp>
-#include <hpp_proto/json.hpp>
-#include "json_alias_test.glz.hpp"
-#include "json_alias_test.pb.hpp"
 #include "json_alias_preserved_test.glz.hpp"
 #include "json_alias_preserved_test.pb.hpp"
+#include "json_alias_test.glz.hpp"
+#include "json_alias_test.pb.hpp"
 #include "json_required_alias_test.glz.hpp"
 #include "json_required_alias_test.pb.hpp"
+#include <boost/ut.hpp>
+#include <hpp_proto/json.hpp>
 
 using namespace boost::ut;
 using namespace std::string_literals;
@@ -82,6 +82,4 @@ suite json_alias_tests = [] {
   };
 };
 
-int main() {
-  return static_cast<int>(boost::ut::cfg<>.run({.report_errors = true}));
-}
+int main() { return static_cast<int>(boost::ut::cfg<>.run({.report_errors = true})); }
