@@ -232,8 +232,8 @@ template <>
 struct glz::meta<always_print_example> {
   using T = always_print_example;
   static constexpr auto value =
-      object("id", hpp_proto::as_optional_ref<&T::id>, "name", hpp_proto::as_optional_ref<&T::name>, "opt_id", &T::opt_id,
-             "tags", hpp_proto::as_optional_ref<&T::tags>);
+      object("id", hpp_proto::as_optional_ref<&T::id>, "name", hpp_proto::as_optional_ref<&T::name>, "opt_id",
+             &T::opt_id, "tags", hpp_proto::as_optional_ref<&T::tags>);
 };
 
 namespace ut = boost::ut;
