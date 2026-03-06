@@ -220,7 +220,52 @@ struct glz::meta<oneof_example> {
                                        hpp_proto::as_oneof_member<&T::value, 2>);
 };
 
+struct always_print_example {
+  int32_t id = 0;
+  std::string name;
+  hpp_proto::optional<int32_t> opt_id;
+  std::vector<int32_t> tags;
+  bool operator==(const always_print_example &) const = default;
+};
+
+template <>
+struct glz::meta<always_print_example> {
+  using T = always_print_example;
+  static constexpr auto value =
+      object("id", hpp_proto::as_optional_ref<&T::id>, "name", hpp_proto::as_optional_ref<&T::name>, "opt_id", &T::opt_id,
+             "tags", hpp_proto::as_optional_ref<&T::tags>);
+};
+
 namespace ut = boost::ut;
+
+const ut::suite test_always_print = [] {
+  using namespace boost::ut;
+  using namespace std::string_literals;
+  "always_print_fields_with_no_presence"_test = [] {
+    always_print_example msg;
+    // Default: omit everything
+    expect(eq(hpp_proto::write_json(msg).value(), "{}"s));
+
+    // Force print non-presence fields
+    constexpr auto opts = [] {
+      hpp_proto::json_write_opts o;
+      o.always_print_fields_with_no_presence = true;
+      return o;
+    }();
+    auto json = hpp_proto::write_json<opts>(msg).value();
+    // id (int), name (string), tags (vector) are non-presence fields.
+    // opt_id (optional) is a presence field, it should still be omitted if not set.
+    expect(eq(json, R"({"id":0,"name":"","tags":[]})"s)) << "Actual: " << json;
+
+    // Verify presence field is still omitted even when other fields are printed
+    msg.id = 1;
+    expect(eq(hpp_proto::write_json<opts>(msg).value(), R"({"id":1,"name":"","tags":[]})"s));
+
+    // Verify presence field is printed when set
+    msg.opt_id = 42;
+    expect(eq(hpp_proto::write_json<opts>(msg).value(), R"({"id":1,"name":"","opt_id":42,"tags":[]})"s));
+  };
+};
 
 const ut::suite test_base64 = [] {
   auto verify = [](std::string_view data, std::string_view encoded) {

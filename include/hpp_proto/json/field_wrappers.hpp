@@ -36,6 +36,10 @@
 
 namespace hpp_proto {
 
+namespace detail {
+inline thread_local bool always_print_fields_with_no_presence = false;
+}
+
 template <typename T, std::size_t Index>
 struct oneof_wrapper {
   static constexpr auto glaze_reflect = false;
@@ -92,7 +96,17 @@ struct optional_ref {
   static constexpr bool has_default_value = true;
   using value_type = std::decay_t<T>;
   T &val;
-  operator bool() const { return !is_default_value<T, Default>(val); }
+  operator bool() const {
+    if (!is_default_value<T, Default>(val)) {
+      return true;
+    }
+    if (detail::always_print_fields_with_no_presence) {
+      if constexpr (!requires { val.has_value(); } && !std::is_pointer_v<T> && !requires { val.pointer(); }) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   auto operator*() const -> T & { return val; }
 

@@ -221,13 +221,11 @@ template <typename Type, auto Default>
 struct to<JSON, hpp_proto::optional_ref<Type, Default>> {
   template <auto Opts, class... Args>
   GLZ_ALWAYS_INLINE static void op(auto &&value, Args &&...args) noexcept {
-    if (bool(value)) {
-      if constexpr (::hpp_proto::concepts::jsonfy_need_quote<Type>) {
-        to<JSON, std::decay_t<decltype(*value)>>::template op<opt_true<Opts, quoted_num_opt_tag{}>>(
-            *value, std::forward<Args>(args)...);
-      } else {
-        to<JSON, std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
-      }
+    if constexpr (::hpp_proto::concepts::jsonfy_need_quote<Type>) {
+      to<JSON, std::decay_t<decltype(*value)>>::template op<opt_true<Opts, quoted_num_opt_tag{}>>(
+          *value, std::forward<Args>(args)...);
+    } else {
+      to<JSON, std::decay_t<decltype(*value)>>::template op<Opts>(*value, std::forward<Args>(args)...);
     }
   }
 };
@@ -274,6 +272,9 @@ struct from<JSON, hpp_proto::oneof_wrapper<Type, Index>> {
     }
   }
 };
+
+template <typename Traits>
+struct any_message_json_serializer;
 
 template <>
 struct to<JSON, hpp_proto::boolean> {
@@ -358,11 +359,24 @@ namespace hpp_proto {
 struct json_write_opts : glz::opts {
   bool escape_control_characters = true;
   bool prettify = false;
+  bool always_print_fields_with_no_presence = false;
 };
 
 struct json_read_opts : glz::opts {
   bool validate_trailing_whitespace = true;
 };
+
+namespace detail {
+struct always_print_guard {
+  bool old_value;
+  explicit always_print_guard(bool new_value) : old_value(always_print_fields_with_no_presence) {
+    always_print_fields_with_no_presence = new_value;
+  }
+  ~always_print_guard() { always_print_fields_with_no_presence = old_value; }
+  always_print_guard(const always_print_guard &) = delete;
+  always_print_guard &operator=(const always_print_guard &) = delete;
+};
+} // namespace detail
 
 class message_value_cref;
 class message_value_mref;
@@ -538,6 +552,7 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
   static_assert(!hpp_proto::is_hpp_generated<value_type>::value || hpp_proto::has_glz<value_type>::value,
                 "the generated .glz.hpp is required for hpp_gen messages");
   json_context ctx{std::forward<decltype(option)>(option)...};
+  detail::always_print_guard guard{Opts.always_print_fields_with_no_presence};
   return {glz::write<Opts>(value, detail::as_modifiable(ctx, buffer), ctx)};
 }
 
@@ -552,6 +567,7 @@ template <auto Opts = json_write_opts{}, concepts::contiguous_byte_range Buffer 
 inline auto write_json(concepts::write_json_supported auto const &value,
                        concepts::is_option_type auto &&...option) -> std::expected<Buffer, json_status> {
   std::expected<Buffer, json_status> result;
+  detail::always_print_guard guard{Opts.always_print_fields_with_no_presence};
   auto ec = write_json<Opts>(value, *result, std::forward<decltype(option)>(option)...);
   if (!ec.ok()) {
     result = std::unexpected(ec);
