@@ -273,8 +273,6 @@ struct from<JSON, hpp_proto::oneof_wrapper<Type, Index>> {
   }
 };
 
-template <typename Traits>
-struct any_message_json_serializer;
 
 template <>
 struct to<JSON, hpp_proto::boolean> {
