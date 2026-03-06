@@ -13,7 +13,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Alias-enabled JSON metadata for large generated protos (for example unittest TestAllTypes)
     # can exceed Clang's default constexpr evaluation budget inside Glaze reflection.
-    add_compile_options("-fconstexpr-steps=67108864")
+    add_compile_options("-fbracket-depth=512 -fconstexpr-steps=67108864")
 endif()
 
 set(Min_Protobuf_VERSION 3.12.0)
