@@ -946,14 +946,59 @@ private:
   }
 
   std::expected<void, descriptor_pool_errc> build_fields(message_descriptor_t &descriptor) {
+    auto to_default_json_name = [](std::string_view proto_name) {
+      std::string json_name;
+      json_name.reserve(proto_name.size());
+      bool upper_next = false;
+      for (char ch : proto_name) {
+        if (ch == '_') {
+          upper_next = true;
+          continue;
+        }
+        if (upper_next && ch >= 'a' && ch <= 'z') {
+          json_name.push_back(static_cast<char>(ch - ('a' - 'A')));
+        } else {
+          json_name.push_back(ch);
+        }
+        upper_next = false;
+      }
+      return json_name;
+    };
+    auto has_custom_json_name = [&](const FieldDescriptorProto &field) {
+      return !field.json_name.empty() && field.json_name != to_default_json_name(field.name);
+    };
+    auto has_custom_json_conflict = [&](const FieldDescriptorProto &lhs, const FieldDescriptorProto &rhs) {
+      if (has_custom_json_name(lhs)) {
+        if (lhs.json_name == rhs.name || lhs.json_name == rhs.json_name) {
+          return true;
+        }
+      }
+      if (has_custom_json_name(rhs)) {
+        if (rhs.json_name == lhs.name || rhs.json_name == lhs.json_name) {
+          return true;
+        }
+      }
+      return false;
+    };
+
     descriptor.fields_.reserve(descriptor.proto_.field.size());
     std::unordered_set<int32_t> seen_field_numbers;
     seen_field_numbers.reserve(descriptor.proto_.field.size());
+    std::unordered_set<std::string_view> seen_field_names;
+    seen_field_names.reserve(descriptor.proto_.field.size());
     for (auto &proto : descriptor.proto_.field) {
       if (!is_valid_field_number(proto.number)) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
       if (!seen_field_numbers.insert(proto.number).second) {
+        return std::unexpected(descriptor_pool_errc::validation_error);
+      }
+      if (!seen_field_names.insert(proto.name).second) {
+        return std::unexpected(descriptor_pool_errc::validation_error);
+      }
+      if (std::ranges::any_of(descriptor.fields_, [&](const auto *existing) {
+            return has_custom_json_conflict(existing->proto(), proto);
+          })) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
       auto &field = fields_.emplace_back(proto, &descriptor, descriptor.options_);
