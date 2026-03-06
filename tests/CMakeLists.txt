@@ -123,3 +123,24 @@ add_hpp_proto_test(
     SOURCES basic_test_proto2.cpp
     LINK_LIBRARIES basic_test_proto2_lib
     REQUIRES edition_support)
+
+add_hpp_proto_generated_test_lib(
+    NAME json_alias_test_lib
+    SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/json_alias_test.proto"
+        "${CMAKE_CURRENT_SOURCE_DIR}/json_required_alias_test.proto"
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_hpp_proto_generated_test_lib(
+    NAME json_alias_preserved_lib
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/json_alias_preserved_test.proto"
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+    PLUGIN_OPTIONS "preserve_proto_field_names=true"
+)
+
+add_hpp_proto_test(
+    NAME json_alias_test
+    SOURCES json_alias_test.cpp
+    LINK_LIBRARIES json_alias_test_lib json_alias_preserved_lib Boost::ut glaze::glaze
+)
