@@ -203,7 +203,7 @@ constexpr auto as_alias = [](auto &&val) {
   }
 };
 
-template <auto MemPtr, int Index>
+template <auto MemPtr, std::size_t Index>
 constexpr auto as_oneof_alias = [](auto &&val) {
   return alias_ref<oneof_wrapper<std::remove_reference_t<decltype(val.*MemPtr)>, Index>>{
       wrap_oneof<Index>(val.*MemPtr)};
