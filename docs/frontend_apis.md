@@ -39,6 +39,26 @@ my_sink sink;
 auto st = hpp_proto::write_binpb(message, sink, hpp_proto::adaptive_mode);
 ```
 
+`sink` is an output adapter that receives serialized bytes in one or more writable chunks.  
+The sink must satisfy the `out_sink` concept:
+
+- `sink.set_message_size(std::size_t) -> void`
+- `sink.next_chunk() -> std::span<std::byte>`
+- `sink.chunk_size() -> std::size_t`
+- `sink::slice_type` type alias
+
+Write flow:
+
+1. `write_binpb` computes encoded size and calls `sink.set_message_size(size)`.
+2. Based on selected mode, it uses either a single chunk write or a chunk-by-chunk write.
+3. In chunked path, serializer repeatedly calls `sink.next_chunk()` to get writable spans and fills them until done.
+
+Practical guidance:
+
+- `next_chunk()` should return writable storage that remains valid until the serializer moves to the next chunk.
+- Returning an empty span means no writable capacity and will fail serialization.
+- `chunk_size()` should reflect the typical/guaranteed chunk capacity, used by `adaptive_mode` to decide contiguous vs chunked path.
+
 Supported mode options:
 
 - `hpp_proto::contiguous_mode`: one-shot write into first chunk; fastest when sink chunk is large enough.
@@ -46,6 +66,23 @@ Supported mode options:
 - `hpp_proto::adaptive_mode` (default for sink): contiguous if message fits one sink chunk, otherwise chunked.
 
 > Mode options only affect sink-based `write_binpb`. Contiguous-buffer writes are always contiguous.
+
+Minimal sink skeleton:
+
+```cpp
+struct my_sink {
+  using slice_type = std::span<std::byte>;
+
+  void set_message_size(std::size_t n) { /* reserve/begin frame */ }
+
+  std::size_t chunk_size() const { return 4096; }
+
+  std::span<std::byte> next_chunk() {
+    // Return next writable window in your output target.
+    return {/* ptr */, /* len */};
+  }
+};
+```
 
 ### Read from contiguous/chunked input
 

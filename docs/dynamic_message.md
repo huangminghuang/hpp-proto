@@ -16,7 +16,7 @@ Before you can work with dynamic messages, you need a binary representation of y
 ```bash
 protoc --include_imports --descriptor_set_out=addressbook_proto3.desc.binpb addressbook_proto3.proto
 ```
-This command will create `addressbook_proto3.desc.binpb`, a binary file containing the descriptor information for your `addressbook.proto` file and all its imported dependencies.
+This command will create `addressbook_proto3.desc.binpb`, a binary file containing the descriptor information for your `addressbook_proto3.proto` file and all its imported dependencies.
 
 ## 1) Build a Factory
 
@@ -124,7 +124,7 @@ Once the factory is initialized, you can create dynamic message instances. Each 
     try {
         int id_val = msg.field_value_by_number<std::int32_t>(2).value();
         std::cout << "Person ID (untyped access, exception style): " << id_val << "\n";
-    } catch (const std::bad_expected_access& e) {
+    } catch (const std::bad_expected_access<hpp_proto::dynamic_message_errc>& e) {
         std::cerr << "Error getting ID: " << e.what() << "\n";
     }
 
@@ -302,7 +302,7 @@ Every mutable reference (`_mref`) has a corresponding constant sibling (`_cref`)
 `hpp-proto` embraces `std::expected` for error handling, allowing for a no-exception style of programming.
 
 *   **No-exception style**: Chain operations using `.and_then()` on `std::expected` returns, and check `.has_value()` or `.error()` to handle errors explicitly. Helpers like `hpp_proto::expected_message_mref` are designed for this fluent style.
-*   **Exception style**: If exceptions are preferred, simply call `.value()` on the `std::expected` return types. This will throw `std::bad_optional_access` if the `expected` holds an error.
+*   **Exception style**: If exceptions are preferred, simply call `.value()` on the `std::expected` return types. This throws `std::bad_expected_access` if the `expected` holds an error.
 
 ## 7) Full Example (`tutorial_proto3_dynamic.cpp`)
 
