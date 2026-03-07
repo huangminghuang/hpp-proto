@@ -47,7 +47,7 @@ This guide will walk you through creating a simple application using `hpp-proto`
 ### Prerequisites
 
 * A C++23-compatible compiler (e.g., Clang 19+, GCC 13+).
-* CMake (version 3.24 or newer).
+* CMake (version 3.25 or newer).
 * The `protoc` compiler. You can download it from the [official Protocol Buffers releases page](https://protobuf.dev/downloads).
 
 ### Step 1: Define Your Protocol Format
@@ -282,10 +282,6 @@ auto result = hpp_proto::read_binpb(
     hpp_proto::padded_input
 );
 ```
-
-## Limitations
-
-* **JSON Options**: Lacks support for some of the extended JSON print options found in Google's C++ implementation, like `preserve_proto_field_names`.
 
 ---
 
