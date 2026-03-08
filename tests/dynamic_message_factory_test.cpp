@@ -1343,7 +1343,8 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     const auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
     bool threw_bad_alloc = false;
     try {
-      [[maybe_unused]] auto result = hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"), allocator);
+      [[maybe_unused]] auto result =
+          hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"), allocator);
     } catch (const std::bad_alloc &) {
       threw_bad_alloc = true;
     } catch (...) {
@@ -1409,8 +1410,9 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
       auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
       try {
         std::pmr::monotonic_buffer_resource parse_mr;
-        auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-            descriptor_binpb, hpp_proto::alloc_from(parse_mr)));
+        auto fileset =
+            expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+                descriptor_binpb, hpp_proto::alloc_from(parse_mr)));
         [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset), allocator);
         return false;
       } catch (const std::bad_alloc &) {

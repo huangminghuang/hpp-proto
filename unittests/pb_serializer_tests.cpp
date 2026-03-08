@@ -935,11 +935,9 @@ const ut::suite test_string_example = [] {
     };
 
     "padded_input"_test = [] {
-      constexpr std::array<char, 6 + 16> input = {
-          '\x0a', '\x04', '\x74', '\x65', '\x73', '\x74',
-          '\0',   'p',    'a',    'd',    'd',    'e',
-          'd',    '_',    'd',    'a',    't',    'a',
-          '_',    '1',    '6',    '!'};
+      constexpr std::array<char, 6 + 16> input = {'\x0a', '\x04', '\x74', '\x65', '\x73', '\x74', '\0', 'p',
+                                                  'a',    'd',    'd',    'e',    'd',    '_',    'd',  'a',
+                                                  't',    'a',    '_',    '1',    '6',    '!'};
       std::string_view payload{input.data(), 6};
       string_example<hpp_proto::non_owning_traits> msg;
       ut::expect(read_binpb(msg, payload, hpp_proto::padded_input).ok());
@@ -953,12 +951,8 @@ const ut::suite test_string_example = [] {
     };
 
     "padded_input_invalid_utf8"_test = [] {
-      constexpr std::array<char, 4 + 16> input = {
-          '\x0a', '\x02', '\xc0', '\xdf',
-          '\0',   'p',    'a',    'd',
-          'd',    'e',    'd',    '_',
-          'd',    'a',    't',    'a',
-          '_',    '1',    '6',    '!'};
+      constexpr std::array<char, 4 + 16> input = {'\x0a', '\x02', '\xc0', '\xdf', '\0', 'p', 'a', 'd', 'd', 'e',
+                                                  'd',    '_',    'd',    'a',    't',  'a', '_', '1', '6', '!'};
       std::string_view payload{input.data(), 4};
       string_example<hpp_proto::non_owning_traits> msg;
       ut::expect(!read_binpb(msg, payload, hpp_proto::padded_input).ok());
