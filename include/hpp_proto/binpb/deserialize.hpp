@@ -1424,7 +1424,11 @@ template <concepts::is_padded_input_context Context, typename Byte>
 struct contiguous_input_archive<Context, Byte> : padded_input_archive_base<Byte>, basic_in<Byte, Context, true> {
   constexpr contiguous_input_archive(const auto &buffer, Context &context) noexcept
       : padded_input_archive_base<Byte>(buffer), basic_in<Byte, Context, true>(this->region, {}, 0, context) {
-    assert(*std::ranges::end(buffer) == Byte{0});
+    // padded_input requires the first byte immediately past the logical buffer end to be zero.
+    const auto *data = std::ranges::data(buffer);
+    const auto size = std::ranges::size(buffer);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    assert(data[size] == Byte{0});
   }
 };
 

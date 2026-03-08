@@ -13,7 +13,7 @@ This directory contains local vcpkg overlay ports used by this repository.
 - `ports/hpp-proto`: local port for this project.
   - Default mode is `find` (looks for `protoc` on system `PATH`).
   - Feature `vcpkg-protobuf` uses `protobuf`/`protoc` from vcpkg host tools.
-- `ports/glaze`: pinned overlay port for `glaze` `7.0.2`.
+- `ports/glaze`: pinned overlay port for `glaze` `7.1.1`.
   - This overrides the registry `glaze` port when `--overlay-ports` points to this directory.
 
 ## How Overlay Resolution Works

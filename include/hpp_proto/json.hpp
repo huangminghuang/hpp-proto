@@ -201,6 +201,26 @@ struct to<JSON, hpp_proto::optional<Type, Default>> {
   }
 };
 
+template <typename Type, typename Alloc>
+struct to<JSON, hpp_proto::optional_indirect<Type, Alloc>> {
+  // Avoid recursive constexpr can_error evaluation for self-referential
+  // optional_indirect<T> message types on MSVC.
+  static constexpr bool can_error = true;
+
+  template <auto Opts>
+  GLZ_ALWAYS_INLINE static void op(auto const &value, auto &ctx, auto &b, auto &ix) noexcept {
+    if (value.has_value()) {
+      if constexpr (required_padding<hpp_proto::optional_indirect<Type, Alloc>>()) {
+        serialize<JSON>::template op<Opts>(*value, ctx, b, ix);
+      } else {
+        serialize<JSON>::op<write_unchecked_off<Opts>()>(*value, ctx, b, ix);
+      }
+    } else {
+      dump<not check_write_unchecked(Opts)>("null", b, ix);
+    }
+  }
+};
+
 template <typename Type, auto Default>
 struct from<JSON, hpp_proto::optional<Type, Default>> {
   template <auto Options>
