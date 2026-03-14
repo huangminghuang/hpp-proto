@@ -103,6 +103,56 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
   return false;
 }
 
+template <auto Opts>
+void parse_string_view_reject_controls(std::string_view &value, glz::is_context auto &ctx, auto &it, auto &end) {
+  if constexpr (!check_opening_handled(Opts)) {
+    if constexpr (!check_ws_handled(Opts)) {
+      if (skip_ws<Opts>(ctx, it, end)) {
+        return;
+      }
+    }
+
+    if (match_invalid_end<'"', Opts>(ctx, it, end)) {
+      return;
+    }
+  }
+
+  auto start = it;
+  bool escaped = false;
+  for (;; ++it) {
+    if constexpr (not Opts.null_terminated) {
+      if (it == end) [[unlikely]] {
+        ctx.error = error_code::unexpected_end;
+        return;
+      }
+    }
+
+    const auto c = static_cast<unsigned char>(*it);
+    if (c < 0x20U) [[unlikely]] {
+      ctx.error = error_code::syntax_error;
+      return;
+    }
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (c == '\\') {
+      escaped = true;
+      continue;
+    }
+    if (c == '"') {
+      value = {start, static_cast<std::size_t>(it - start)};
+      ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      if constexpr (not Opts.null_terminated) {
+        if (it == end) {
+          ctx.error = error_code::end_reached;
+        }
+      }
+      return;
+    }
+  }
+}
+
 template <auto Opts> // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 [[nodiscard]] bool parse_opening(char c, glz::is_context auto &ctx, auto &it,
                                  auto &end) { // NOLINT(readability-function-cognitive-complexity)
