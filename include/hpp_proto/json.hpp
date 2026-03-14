@@ -142,8 +142,10 @@ struct from<JSON, T> {
   template <auto Opts, class It, class End>
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, It &it, End &end) {
-    std::string_view encoded;
-    util::parse_string_view_reject_controls<Opts>(encoded, ctx, it, end);
+    using codec = typename hpp_proto::json_codec<T>::type;
+    using encoded_storage = typename codec::encoded_storage;
+    encoded_storage encoded;
+    from<JSON, encoded_storage>::template op<Opts>(encoded, ctx, it, end);
     if constexpr (not Opts.null_terminated) {
       if (ctx.error == error_code::end_reached) {
         ctx.error = error_code::none;
@@ -154,7 +156,6 @@ struct from<JSON, T> {
       return;
     }
 
-    using codec = typename hpp_proto::json_codec<T>::type;
     if (!codec::decode(encoded, value, ctx)) {
       ctx.error = error_code::syntax_error;
       return;

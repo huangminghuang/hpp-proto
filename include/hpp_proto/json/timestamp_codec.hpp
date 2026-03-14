@@ -30,7 +30,9 @@
 
 namespace hpp_proto {
 
-struct timestamp_codec {
+class timestamp_codec {
+public:
+  using encoded_storage = std::string_view;
   constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
 
 private:

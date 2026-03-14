@@ -489,8 +489,8 @@ struct field_mask_message_json_serializer {
   template <auto Opts>
   static void from_json(hpp_proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
     assert(value.descriptor().full_name() == "google.protobuf.FieldMask");
-    std::string_view encoded;
-    util::parse_string_view_reject_controls<Opts>(encoded, ctx, it, end);
+    std::string encoded;
+    from<JSON, std::string>::template op<Opts>(encoded, ctx, it, end);
     if constexpr (not Opts.null_terminated) {
       if (ctx.error == error_code::end_reached) {
         ctx.error = error_code::none;

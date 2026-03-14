@@ -21,7 +21,9 @@
 // SOFTWARE.
 
 #pragma once
+#include <array>
 #include <cstdint>
+#include <glaze/util/parse.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
 #include <iterator>
 #include <numeric>
@@ -29,9 +31,50 @@
 namespace hpp_proto {
 
 struct field_mask_codec {
+  using encoded_storage = std::string;
+  static constexpr std::size_t escaped_char_size(unsigned char c) noexcept {
+    if (c < 0x20U) {
+      return 6;
+    }
+    if (c == '"' || c == '\\') {
+      return 2;
+    }
+    return 1;
+  }
+
+  template <typename Out>
+  static void append_escaped_char(unsigned char c, Out *&cur) noexcept {
+    constexpr auto hex = std::to_array("0123456789abcdef");
+    if (const auto escaped = glz::char_escape_table[c]; escaped) {
+      std::memcpy(cur, &escaped, 2);
+      cur += 2;
+      return;
+    }
+    if (c < 0x20U) {
+      *cur++ = '\\';
+      *cur++ = 'u';
+      *cur++ = '0';
+      *cur++ = '0';
+      *cur++ = hex[c >> 4U];
+      *cur++ = hex[c & 0x0FU];
+      return;
+    }
+    *cur++ = static_cast<Out>(c);
+  }
+
+  template <std::ranges::input_range Range, typename Out>
+  static void append_escaped_path(const Range &path, Out *&cur) noexcept {
+    for (auto c : path) {
+      append_escaped_char(static_cast<unsigned char>(c), cur);
+    }
+  }
+
   constexpr static std::size_t max_encode_size(auto const &value) noexcept {
-    return value.paths.size() + std::transform_reduce(value.paths.begin(), value.paths.end(), 0ULL, std::plus{},
-                                                      [](auto &p) { return p.size(); });
+    return std::transform_reduce(value.paths.begin(), value.paths.end(), value.paths.size(), std::plus{}, [](auto &p) {
+      return std::transform_reduce(p.begin(), p.end(), 0ULL, std::plus{}, [](auto c) {
+        return escaped_char_size(static_cast<unsigned char>(c));
+      });
+    });
   }
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   static int64_t encode(auto const &value, auto &&b) noexcept {
@@ -39,11 +82,13 @@ struct field_mask_codec {
       return 0;
     }
     auto *buf = std::data(std::forward<decltype(b)>(b));
-    auto *cur = std::copy(std::begin(value.paths[0]), std::end(value.paths[0]), buf);
+    auto *cur = buf;
+    append_escaped_path(value.paths[0], cur);
     const auto rest = std::span{value.paths}.subspan(1);
     for (const auto &p : rest) {
       *cur = ',';
-      cur = std::copy(std::begin(p), std::end(p), std::next(cur));
+      ++cur;
+      append_escaped_path(p, cur);
     }
     return std::distance(buf, cur);
   }

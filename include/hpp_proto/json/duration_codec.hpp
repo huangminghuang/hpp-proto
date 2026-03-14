@@ -29,6 +29,7 @@
 
 namespace hpp_proto {
 struct duration_codec {
+  using encoded_storage = std::string_view;
   constexpr static std::size_t max_encode_size(const auto &) noexcept { return 32; }
 
   static int64_t encode(auto const &value, auto &&b) noexcept {
