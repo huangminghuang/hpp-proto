@@ -146,8 +146,8 @@ const suite test_dynamic_message_any = [] {
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1}})"); // duplicate @type
     expect_read_fail(
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","extra":1}})"); // unknown key in well-known
-    expect_read_fail(
-        "{\"anyValue\":{\"@type\":\"type.googleapis.com/google.protobuf.FieldMask\",\"value\":\"/usr/share\x01\"}}"); // value with control code     
+    expect_read_fail("{\"anyValue\":{\"@type\":\"type.googleapis.com/google.protobuf.FieldMask\",\"value\":\"/usr/"
+                     "share\x01\"}}"); // value with control code
     expect_read_ok(
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share","value":"/usr/local"}})"); // duplicate value
     expect_read_ok(R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask"}})"); // missing value
