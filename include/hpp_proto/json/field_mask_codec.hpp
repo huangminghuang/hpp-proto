@@ -71,9 +71,8 @@ struct field_mask_codec {
 
   constexpr static std::size_t max_encode_size(auto const &value) noexcept {
     return std::transform_reduce(value.paths.begin(), value.paths.end(), value.paths.size(), std::plus{}, [](auto &p) {
-      return std::transform_reduce(p.begin(), p.end(), 0ULL, std::plus{}, [](auto c) {
-        return escaped_char_size(static_cast<unsigned char>(c));
-      });
+      return std::transform_reduce(p.begin(), p.end(), 0ULL, std::plus{},
+                                   [](auto c) { return escaped_char_size(static_cast<unsigned char>(c)); });
     });
   }
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
