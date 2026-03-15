@@ -241,6 +241,10 @@ const ut::suite test_field_mask = [] {
         factory, google::protobuf::FieldMask<hpp_proto::non_owning_traits>{.paths = paths}, R"("a\u0000c,def")");
   };
 
+  "verify FieldMask escaped characters"_test = [&factory] {
+    verify<FieldMask>(factory, FieldMask{.paths = {R"(a"b)", R"(c\d)"}}, R"("a\"b,c\\d")");
+  };
+
   "field_mask_empty_clears"_test = [] {
     google::protobuf::FieldMask<> msg;
     msg.paths = {"abc", "def"};
