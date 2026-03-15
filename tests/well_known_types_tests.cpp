@@ -234,11 +234,15 @@ const ut::suite test_field_mask = [] {
 
   "verify FieldMask abc def"_test = [&factory] {
     verify<FieldMask>(factory, FieldMask{.paths = {"abc", "def"}}, R"("abc,def")");
-    // field mask json format does not escape control code
-    verify<FieldMask>(factory, google::protobuf::FieldMask<>{.paths = {"a\x00c"s, "def"s}}, "\"a\x00c,def\"");
-    std::array<std::string_view, 2> paths{"a\x00c", "def"};
+    verify<FieldMask>(factory, google::protobuf::FieldMask<>{.paths = {std::string{"a\0c", 3}, "def"s}},
+                      R"("a\u0000c,def")");
+    std::array<std::string_view, 2> paths{std::string_view{"a\0c", 3}, "def"};
     verify<google::protobuf::FieldMask<hpp_proto::non_owning_traits>>(
-        factory, google::protobuf::FieldMask<hpp_proto::non_owning_traits>{.paths = paths}, "\"a\x00c,def\"");
+        factory, google::protobuf::FieldMask<hpp_proto::non_owning_traits>{.paths = paths}, R"("a\u0000c,def")");
+  };
+
+  "verify FieldMask escaped characters"_test = [&factory] {
+    verify<FieldMask>(factory, FieldMask{.paths = {R"(a"b)", R"(c\d)"}}, R"("a\"b,c\\d")");
   };
 
   "field_mask_empty_clears"_test = [] {
