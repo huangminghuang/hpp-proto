@@ -45,7 +45,7 @@ struct field_mask_codec {
 
   static constexpr char hex_digit(unsigned char value) noexcept {
     constexpr std::string_view hex = "0123456789abcdef";
-    return hex.at(value);
+    return hex[value]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
   }
 
   template <typename Out, typename It>
