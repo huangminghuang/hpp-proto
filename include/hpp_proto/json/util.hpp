@@ -104,33 +104,37 @@ bool parse_null(auto &&value, auto &ctx, auto &it, auto &end) {
 }
 
 template <auto Opts>
-void parse_string_view_reject_controls(std::string_view &value, glz::is_context auto &ctx, auto &it, auto &end) {
+bool parse_string_view_reject_controls_preamble(glz::is_context auto &ctx, auto &it, auto &end) {
   if constexpr (!check_opening_handled(Opts)) {
     if constexpr (!check_ws_handled(Opts)) {
       if (skip_ws<Opts>(ctx, it, end)) {
-        return;
+        return false;
       }
     }
 
     if (match_invalid_end<'"', Opts>(ctx, it, end)) {
-      return;
+      return false;
     }
   }
+  return true;
+}
 
+template <auto Opts>
+bool parse_string_view_reject_controls_scan(std::string_view &value, glz::is_context auto &ctx, auto &it, auto &end) {
   auto start = it;
   bool escaped = false;
   for (;; ++it) {
     if constexpr (not Opts.null_terminated) {
       if (it == end) [[unlikely]] {
         ctx.error = error_code::unexpected_end;
-        return;
+        return false;
       }
     }
 
     const auto c = static_cast<unsigned char>(*it);
     if (c < 0x20U) [[unlikely]] {
       ctx.error = error_code::syntax_error;
-      return;
+      return false;
     }
     if (escaped) {
       escaped = false;
@@ -148,9 +152,17 @@ void parse_string_view_reject_controls(std::string_view &value, glz::is_context 
           ctx.error = error_code::end_reached;
         }
       }
-      return;
+      return true;
     }
   }
+}
+
+template <auto Opts>
+void parse_string_view_reject_controls(std::string_view &value, glz::is_context auto &ctx, auto &it, auto &end) {
+  if (!parse_string_view_reject_controls_preamble<Opts>(ctx, it, end)) {
+    return;
+  }
+  static_cast<void>(parse_string_view_reject_controls_scan<Opts>(value, ctx, it, end));
 }
 
 template <auto Opts> // NOLINTNEXTLINE(readability-function-cognitive-complexity)

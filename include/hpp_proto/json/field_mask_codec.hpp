@@ -26,6 +26,7 @@
 #include <glaze/util/parse.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
 #include <iterator>
+#include <memory>
 #include <numeric>
 #include <span>
 namespace hpp_proto {
@@ -42,30 +43,41 @@ struct field_mask_codec {
     return 1;
   }
 
-  template <typename Out>
-  static void append_escaped_char(unsigned char c, Out *&cur) noexcept {
-    constexpr auto hex = std::to_array("0123456789abcdef");
-    if (const auto escaped = glz::char_escape_table[c]; escaped) {
-      std::memcpy(cur, &escaped, 2);
-      cur += 2;
+  static constexpr char hex_digit(unsigned char value) noexcept {
+    constexpr std::string_view hex = "0123456789abcdef";
+    return hex.at(value);
+  }
+
+  template <typename Out, typename It>
+  static void append_char(Out value, It &cur) noexcept {
+    *cur = value;
+    cur = std::next(cur);
+  }
+
+  template <typename Out, typename It>
+  static void append_escaped_char(unsigned char c, It &cur) noexcept {
+    const auto escaped = *std::next(glz::char_escape_table.begin(), c);
+    if (escaped) {
+      std::memcpy(std::to_address(cur), &escaped, 2);
+      cur = std::next(cur, 2);
       return;
     }
     if (c < 0x20U) {
-      *cur++ = '\\';
-      *cur++ = 'u';
-      *cur++ = '0';
-      *cur++ = '0';
-      *cur++ = hex[c >> 4U];
-      *cur++ = hex[c & 0x0FU];
+      append_char<Out>('\\', cur);
+      append_char<Out>('u', cur);
+      append_char<Out>('0', cur);
+      append_char<Out>('0', cur);
+      append_char<Out>(hex_digit(static_cast<unsigned char>(c >> 4U)), cur);
+      append_char<Out>(hex_digit(static_cast<unsigned char>(c & 0x0FU)), cur);
       return;
     }
-    *cur++ = static_cast<Out>(c);
+    append_char<Out>(static_cast<Out>(c), cur);
   }
 
-  template <std::ranges::input_range Range, typename Out>
-  static void append_escaped_path(const Range &path, Out *&cur) noexcept {
+  template <typename Out, std::ranges::input_range Range, typename It>
+  static void append_escaped_path(const Range &path, It &cur) noexcept {
     for (auto c : path) {
-      append_escaped_char(static_cast<unsigned char>(c), cur);
+      append_escaped_char<Out>(static_cast<unsigned char>(c), cur);
     }
   }
 
@@ -80,16 +92,16 @@ struct field_mask_codec {
     if (value.paths.empty()) {
       return 0;
     }
-    auto *buf = std::data(std::forward<decltype(b)>(b));
-    auto *cur = buf;
-    append_escaped_path(value.paths[0], cur);
+    auto buffer = std::span{std::forward<decltype(b)>(b)};
+    auto cur = buffer.begin();
+    using out_type = std::remove_cvref_t<decltype(*cur)>;
+    append_escaped_path<out_type>(value.paths[0], cur);
     const auto rest = std::span{value.paths}.subspan(1);
     for (const auto &p : rest) {
-      *cur = ',';
-      ++cur;
-      append_escaped_path(p, cur);
+      append_char<out_type>(',', cur);
+      append_escaped_path<out_type>(p, cur);
     }
-    return std::distance(buf, cur);
+    return std::ranges::distance(buffer.begin(), cur);
   }
 
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
