@@ -103,7 +103,7 @@ struct duration_codec {
     };
 
     auto point_pos = s.find('.');
-    uint64_t unsigned_seconds=0;
+    uint64_t unsigned_seconds = 0;
     if (!from_str_view(s.substr(0, point_pos), unsigned_seconds)) {
       return false;
     }
