@@ -103,11 +103,14 @@ struct duration_codec {
     };
 
     auto point_pos = s.find('.');
-    if (!from_str_view(s.substr(0, point_pos), value.seconds)) {
+    uint64_t unsigned_seconds=0;
+    if (!from_str_view(s.substr(0, point_pos), unsigned_seconds)) {
       return false;
     }
 
-    if (value.seconds > 315'576'000'000LL) {
+    value.seconds = static_cast<int64_t>(unsigned_seconds);
+
+    if (value.seconds > 315'576'000'000LL || value.seconds < 0) {
       return false;
     }
 
