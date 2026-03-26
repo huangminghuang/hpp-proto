@@ -215,6 +215,7 @@ const ut::suite test_duration = [] {
   ut::expect(!hpp_proto::read_json(msg, R"("1000.0000000000000000s")").ok());
   ut::expect(!hpp_proto::read_json(msg, R"("315576000001s")").ok());
   ut::expect(!hpp_proto::read_json(msg, R"("-315576000001s")").ok());
+  ut::expect(!hpp_proto::read_json(msg, R"("--90.0s")").ok());
 
   ut::expect(!hpp_proto::write_json(duration_t{.seconds = 0, .nanos = 1000000000}).has_value());
   ut::expect(!hpp_proto::write_json(duration_t{.seconds = 0, .nanos = -1000000000}).has_value());
