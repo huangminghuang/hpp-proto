@@ -26,8 +26,8 @@
 #include <expected>
 #include <iostream>
 #include <memory_resource>
-#include <system_error>
 #include <string_view>
+#include <system_error>
 #include <unordered_set>
 #include <vector>
 
@@ -1053,7 +1053,7 @@ private:
             return has_custom_json_conflict(existing->proto(), proto);
           })) {
         return make_descriptor_pool_error(descriptor_pool_errc::duplicate_field_error,
-                                     proto.json_name.empty() ? proto.name : proto.json_name);
+                                          proto.json_name.empty() ? proto.name : proto.json_name);
       }
       auto &field = fields_.emplace_back(proto, &descriptor, descriptor.options_);
       if (descriptor.is_map_entry()) {

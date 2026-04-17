@@ -887,8 +887,8 @@ public:
     auto klast = last.private_impl_getkey();
     auto vlast = last.private_impl_getmapped();
     containers copy{c_.keys, c_.values};
-    auto kitmut = copy.keys.erase(copy.keys.begin() + (kfirst - c_.keys.begin()),
-                                  copy.keys.begin() + (klast - c_.keys.begin()));
+    auto kitmut =
+        copy.keys.erase(copy.keys.begin() + (kfirst - c_.keys.begin()), copy.keys.begin() + (klast - c_.keys.begin()));
     auto vitmut = copy.values.erase(copy.values.begin() + (vfirst - c_.values.begin()),
                                     copy.values.begin() + (vlast - c_.values.begin()));
     using std::swap;

@@ -21,8 +21,8 @@
 // SOFTWARE.
 
 #pragma once
-#include <cassert>
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <glaze/util/parse.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
