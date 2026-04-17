@@ -47,7 +47,7 @@ class HppProtoConan(ConanFile):
             check_min_cppstd(self, "23")
 
     def requirements(self):
-        self.requires("glaze/7.0.2")
+        self.requires("glaze/7.2.0")
 
     def build_requirements(self):
         self.protoc_mode = self.conf.get("user.hpp_proto:protoc", default="find")
