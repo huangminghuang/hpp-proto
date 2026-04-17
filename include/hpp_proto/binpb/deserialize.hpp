@@ -277,12 +277,6 @@ struct basic_in {
     return {};
   }
 
-  template <typename T>
-    requires concepts::is_enum<T> && (sizeof(T) > 1)
-  constexpr status deserialize(T &item) {
-    return deserialize(varint{static_cast<int64_t>(item)});
-  }
-
   template <concepts::varint T>
   constexpr status deserialize(T &item) {
     if (auto p = unchecked_parse_varint(current, item); p <= current._end) [[likely]] {
