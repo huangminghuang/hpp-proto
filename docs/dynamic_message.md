@@ -37,6 +37,7 @@ target_link_libraries(your_target PRIVATE hpp_proto::dynamic_message)
 * `create(...)` overloads accept an optional allocator parameter via
   `dynamic_message_factory::impl_allocator_type`.
 * By design, `create(...)` does not catch `std::bad_alloc` thrown by standard containers.
+* Descriptor loading now reports specific `descriptor_pool_errc` values, and `descriptor_pool::error_detail()` can be used to read the latest validation context string.
 
 ```cpp
 #include <hpp_proto/dynamic_message/binpb.hpp>
