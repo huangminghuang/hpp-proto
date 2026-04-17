@@ -70,9 +70,7 @@ struct message_merger {
 
     return std::apply(
         [&, this](auto &&...metas) {
-          (this->perform(metas, metas.first.get(dest),
-                         conditional_move(metas.second.get(source_ref))),
-           ...);
+          (this->perform(metas, metas.first.get(dest), conditional_move(metas.second.get(source_ref))), ...);
         },
         detail::zip_tuples(typename util::meta_of<T>::type{}, typename util::meta_of<std::decay_t<U>>::type{}));
   }
