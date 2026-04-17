@@ -6,7 +6,7 @@ if(CMAKE_VERSION GREATER_EQUAL 3.25)
     set(system_package SYSTEM)
 endif()
 
-set(HPP_PROTO_GLAZE_VERSION 7.1.1)
+set(HPP_PROTO_GLAZE_VERSION 7.2.0)
 CPMAddPackage(
     NAME glaze
     GIT_TAG v${HPP_PROTO_GLAZE_VERSION}
