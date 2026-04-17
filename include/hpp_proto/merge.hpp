@@ -245,6 +245,9 @@ struct message_merger {
     requires requires { typename T::mapped_type; }
   // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
   constexpr void insert_or_replace(T &dest, T &&source) {
+    // After this swap, `source` holds the previous contents of `dest`.
+    // The reinsertion below intentionally uses that moved-from object as the
+    // temporary buffer for restoring the old entries.
     source.swap(dest);
     if constexpr (requires { dest.insert(sorted_unique, source.begin(), source.end()); }) {
       // flat_map
