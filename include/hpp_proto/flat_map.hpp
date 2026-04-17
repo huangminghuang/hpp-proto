@@ -162,6 +162,16 @@ void sort_together(Compare less, Head &head, Rest &...rest) {
   flatmap_detail::sort_together(less, 0, head.size(), head.begin(), rest.begin()...);
 }
 
+template <class KeyContainer, class KeyIterator, class MappedContainer, class MappedValue>
+void guarded_insert(KeyContainer &keys, KeyIterator kit, MappedContainer &values, MappedValue &&value) {
+  try {
+    values.insert(values.end(), static_cast<MappedValue &&>(value));
+  } catch (...) {
+    keys.erase(kit);
+    throw;
+  }
+}
+
 template <class It, class It2, class Compare>
 It unique_helper(It first, It last, It2 mapped, Compare &compare) {
   It dfirst = first;
@@ -319,6 +329,8 @@ class flat_map {
   static_assert(flatmap_detail::is_random_access_iterator<typename MappedContainer::iterator>::value, "");
   static_assert(std::is_same<Key, typename KeyContainer::value_type>::value, "");
   static_assert(std::is_same<Mapped, typename MappedContainer::value_type>::value, "");
+  static_assert(std::uses_allocator<KeyContainer, typename KeyContainer::allocator_type>::value, "");
+  static_assert(std::uses_allocator<MappedContainer, typename MappedContainer::allocator_type>::value, "");
   static_assert(!std::is_const<KeyContainer>::value && !std::is_const<Key>::value, "");
   static_assert(!std::is_const<MappedContainer>::value && !std::is_const<Mapped>::value, "");
   static_assert(!std::is_reference<KeyContainer>::value && !std::is_reference<Key>::value, "");
@@ -338,8 +350,8 @@ public:
   using const_mapped_reference = typename MappedContainer::const_reference;
   using reference = std::pair<const_key_reference, mapped_reference>;
   using const_reference = std::pair<const_key_reference, const_mapped_reference>;
-  using size_type = size_t;          // TODO: this should be KeyContainer::size_type
-  using difference_type = ptrdiff_t; // TODO: this should be KeyContainer::difference_type
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
   using iterator = flatmap_detail::iter<typename KeyContainer::const_iterator, typename MappedContainer::iterator>;
   using const_iterator =
       flatmap_detail::iter<typename KeyContainer::const_iterator, typename MappedContainer::const_iterator>;
@@ -352,9 +364,7 @@ public:
     friend class flat_map;
 
   protected:
-    // TODO: this should be private
     Compare comp;
-    // TODO: this constructor should be explicit
     value_compare(Compare c) : comp(c) {}
 
   public:
@@ -376,7 +386,6 @@ public:
     this->sort_and_unique_impl();
   }
 
-  // TODO: surely this should use uses-allocator construction
   template <class Alloc, typename std::enable_if<std::uses_allocator<KeyContainer, Alloc>::value &&
                                                      std::uses_allocator<MappedContainer, Alloc>::value,
                                                  int>::type = 0>
@@ -453,14 +462,12 @@ public:
                                                  int>::type = 0>
   explicit flat_map(const Alloc &a) : flat_map(Compare(), a) {}
 
-  // TODO: shouldn't InputIterator be constrained to point to something with "first" and "second" members?
   template <class InputIterator,
             class = typename std::enable_if<flatmap_detail::qualifies_as_input_iterator<InputIterator>::value>::type>
   flat_map(InputIterator first, InputIterator last, const Compare &comp = Compare()) : compare_(comp) {
     for (; first != last; ++first) {
-      c_.keys.insert(c_.keys.end(), first->first);
-      // TODO: we must make this exception-safe if the container insert throws
-      c_.values.insert(c_.values.end(), first->second);
+      auto kit = c_.keys.insert(c_.keys.end(), first->first);
+      flatmap_detail::guarded_insert(c_.keys, kit, c_.values, first->second);
     }
     this->sort_and_unique_impl();
   }
@@ -474,8 +481,8 @@ public:
            flatmap_detail::make_obj_using_allocator<MappedContainer>(a)},
         compare_(comp) {
     for (; first != last; ++first) {
-      c_.keys.insert(c_.keys.end(), first->first);
-      c_.values.insert(c_.values.end(), first->second);
+      auto kit = c_.keys.insert(c_.keys.end(), first->first);
+      flatmap_detail::guarded_insert(c_.keys, kit, c_.values, first->second);
     }
     this->sort_and_unique_impl();
   }
@@ -490,8 +497,8 @@ public:
             class = typename std::enable_if<flatmap_detail::qualifies_as_input_iterator<InputIterator>::value>::type>
   flat_map(sorted_unique_t, InputIterator first, InputIterator last, const Compare &comp = Compare()) : compare_(comp) {
     for (; first != last; ++first) {
-      c_.keys.insert(c_.keys.end(), first->first);
-      c_.values.insert(c_.values.end(), first->second);
+      auto kit = c_.keys.insert(c_.keys.end(), first->first);
+      flatmap_detail::guarded_insert(c_.keys, kit, c_.values, first->second);
     }
   }
 
@@ -504,8 +511,8 @@ public:
            flatmap_detail::make_obj_using_allocator<MappedContainer>(a)},
         compare_(comp) {
     for (; first != last; ++first) {
-      c_.keys.insert(c_.keys.end(), first->first);
-      c_.values.insert(c_.values.end(), first->second);
+      auto kit = c_.keys.insert(c_.keys.end(), first->first);
+      flatmap_detail::guarded_insert(c_.keys, kit, c_.values, first->second);
     }
   }
 
@@ -516,8 +523,6 @@ public:
   flat_map(sorted_unique_t s, InputIterator first, InputIterator last, const Alloc &a)
       : flat_map(s, first, last, Compare(), a) {}
 
-  // TODO: should this be conditionally noexcept?
-  // TODO: surely this should use uses-allocator construction
   template <class Alloc, typename std::enable_if<std::uses_allocator<KeyContainer, Alloc>::value &&
                                                      std::uses_allocator<MappedContainer, Alloc>::value,
                                                  int>::type = 0>
@@ -526,7 +531,6 @@ public:
            MappedContainer(static_cast<MappedContainer &&>(m.c_.values), a)},
         compare_(std::move(m.compare_)) {}
 
-  // TODO: surely this should use uses-allocator construction
   template <class Alloc, typename std::enable_if<std::uses_allocator<KeyContainer, Alloc>::value &&
                                                      std::uses_allocator<MappedContainer, Alloc>::value,
                                                  int>::type = 0>
@@ -622,9 +626,8 @@ public:
     if (it == end() || compare_(t.first, it->first)) {
       auto kit = it.private_impl_getkey();
       auto vit = it.private_impl_getmapped();
-      // TODO: we must make this exception-safe
       kit = c_.keys.emplace(kit, static_cast<Key &&>(t.first));
-      vit = c_.values.emplace(vit, static_cast<Mapped &&>(t.second));
+      vit = this->guarded_emplace(kit, vit, static_cast<Mapped &&>(t.second));
       auto result = flatmap_detail::make_iterator(kit, vit);
       return {std::move(result), true};
     } else {
@@ -660,7 +663,6 @@ public:
   template <class InputIterator,
             class = typename std::enable_if<flatmap_detail::qualifies_as_input_iterator<InputIterator>::value>::type>
   void insert(InputIterator first, InputIterator last) {
-    // TODO: if we're inserting lots of elements, stick them at the end and then sort
     while (first != last) {
       this->insert(*first);
       ++first;
@@ -670,8 +672,6 @@ public:
   template <class InputIterator,
             class = typename std::enable_if<flatmap_detail::qualifies_as_input_iterator<InputIterator>::value>::type>
   void insert(stdext::sorted_unique_t, InputIterator first, InputIterator last) {
-    // TODO: if InputIterator is bidirectional, this loop should (go backward??)
-    // TODO: if we're inserting lots of elements, stick them at the end and then sort
     auto it = begin();
     while (first != last) {
       std::pair<Key, Mapped> t(*first);
@@ -690,19 +690,14 @@ public:
     this->insert(s, il.begin(), il.end());
   }
 
-  // TODO: as specified, this function fails to preserve the allocator, and has UB for std::pmr containers
   containers extract() && {
-    try {
-      containers result{static_cast<KeyContainer &&>(c_.keys), static_cast<MappedContainer &&>(c_.values)};
-      this->clear();
-      return result;
-    } catch (...) {
-      this->clear();
-      throw;
-    }
+    containers result{KeyContainer(c_.keys.get_allocator()), MappedContainer(c_.values.get_allocator())};
+    using std::swap;
+    swap(result.keys, c_.keys);
+    swap(result.values, c_.values);
+    return result;
   }
 
-  // TODO: why by rvalue reference and not by-value?
   void replace(KeyContainer &&keys, MappedContainer &&values) {
     try {
       c_.keys = static_cast<KeyContainer &&>(keys);
@@ -719,8 +714,7 @@ public:
     auto vit = c_.values.begin() + (kit - c_.keys.begin());
     if (kit == c_.keys.end() || compare_(k, *kit)) {
       kit = c_.keys.insert(kit, k);
-      // TODO: we must make this exception-safe if the container throws
-      vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+      vit = this->guarded_emplace(kit, vit, static_cast<Args &&>(args)...);
       return {flatmap_detail::make_iterator(kit, vit), true};
     } else {
       return {flatmap_detail::make_iterator(kit, vit), false};
@@ -733,15 +727,13 @@ public:
     auto vit = c_.values.begin() + (kit - c_.keys.begin());
     if (kit == c_.keys.end() || compare_(k, *kit)) {
       kit = c_.keys.insert(kit, static_cast<Key &&>(k));
-      // TODO: we must make this exception-safe if the container throws
-      vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+      vit = this->guarded_emplace(kit, vit, static_cast<Args &&>(args)...);
       return {flatmap_detail::make_iterator(kit, vit), true};
     } else {
       return {flatmap_detail::make_iterator(kit, vit), false};
     }
   }
 
-  // TODO: make this exception-safe if either container operation throws.
   template <class... Args>
   iterator try_emplace(const_iterator hint, const Key &k, Args &&...args) {
     auto equivalent = [&](const Key &lhs, const Key &rhs) {
@@ -763,20 +755,19 @@ public:
       if (bool(compare_(*prev, k)) && (hkit == c_.keys.end() || bool(compare_(k, *hkit)))) {
         auto vit = c_.values.begin() + (hkit - c_.keys.begin());
         auto kit = c_.keys.insert(hkit, k);
-        vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+        vit = this->guarded_emplace(kit, vit, static_cast<Args &&>(args)...);
         return flatmap_detail::make_iterator(kit, vit);
       }
     } else if (hkit == c_.keys.end() || bool(compare_(k, *hkit))) {
       auto vit = c_.values.begin();
       auto kit = c_.keys.insert(hkit, k);
-      vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+      vit = this->guarded_emplace(kit, vit, static_cast<Args &&>(args)...);
       return flatmap_detail::make_iterator(kit, vit);
     }
 
     return try_emplace(k, static_cast<Args &&>(args)...).first;
   }
 
-  // TODO: make this exception-safe if either container operation throws.
   template <class... Args>
   iterator try_emplace(const_iterator hint, Key &&k, Args &&...args) {
     auto equivalent = [&](const Key &lhs, const Key &rhs) {
@@ -798,13 +789,13 @@ public:
       if (bool(compare_(*prev, k)) && (hkit == c_.keys.end() || bool(compare_(k, *hkit)))) {
         auto vit = c_.values.begin() + (hkit - c_.keys.begin());
         auto kit = c_.keys.insert(hkit, static_cast<Key &&>(k));
-        vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+        vit = this->guarded_emplace(kit, vit, static_cast<Args &&>(args)...);
         return flatmap_detail::make_iterator(kit, vit);
       }
     } else if (hkit == c_.keys.end() || bool(compare_(k, *hkit))) {
       auto vit = c_.values.begin();
       auto kit = c_.keys.insert(hkit, static_cast<Key &&>(k));
-      vit = c_.values.emplace(vit, static_cast<Args &&>(args)...);
+      vit = this->guarded_emplace(kit, vit, static_cast<Args &&>(args)...);
       return flatmap_detail::make_iterator(kit, vit);
     }
 
@@ -860,18 +851,24 @@ public:
   iterator erase(iterator position) {
     auto kit = position.private_impl_getkey();
     auto vit = position.private_impl_getmapped();
-    // TODO: what if either of these next two lines throws an exception?
-    auto kitmut = c_.keys.erase(kit);
-    auto vitmut = c_.values.erase(vit);
+    containers copy{c_.keys, c_.values};
+    auto kitmut = copy.keys.erase(copy.keys.begin() + (kit - c_.keys.begin()));
+    auto vitmut = copy.values.erase(copy.values.begin() + (vit - c_.values.begin()));
+    using std::swap;
+    swap(c_.keys, copy.keys);
+    swap(c_.values, copy.values);
     return flatmap_detail::make_iterator(kitmut, vitmut);
   }
 
   iterator erase(const_iterator position) {
     auto kit = position.private_impl_getkey();
     auto vit = position.private_impl_getmapped();
-    // TODO: what if either of these next two lines throws an exception?
-    auto kitmut = c_.keys.erase(kit);
-    auto vitmut = c_.values.erase(vit);
+    containers copy{c_.keys, c_.values};
+    auto kitmut = copy.keys.erase(copy.keys.begin() + (kit - c_.keys.begin()));
+    auto vitmut = copy.values.erase(copy.values.begin() + (vit - c_.values.begin()));
+    using std::swap;
+    swap(c_.keys, copy.keys);
+    swap(c_.values, copy.values);
     return flatmap_detail::make_iterator(kitmut, vitmut);
   }
 
@@ -889,9 +886,14 @@ public:
     auto vfirst = first.private_impl_getmapped();
     auto klast = last.private_impl_getkey();
     auto vlast = last.private_impl_getmapped();
-    // TODO: what if either of these next two lines throws an exception?
-    auto kitmut = c_.keys.erase(kfirst, klast);
-    auto vitmut = c_.values.erase(vfirst, vlast);
+    containers copy{c_.keys, c_.values};
+    auto kitmut = copy.keys.erase(copy.keys.begin() + (kfirst - c_.keys.begin()),
+                                  copy.keys.begin() + (klast - c_.keys.begin()));
+    auto vitmut = copy.values.erase(copy.values.begin() + (vfirst - c_.values.begin()),
+                                    copy.values.begin() + (vlast - c_.values.begin()));
+    using std::swap;
+    swap(c_.keys, copy.keys);
+    swap(c_.values, copy.values);
     return flatmap_detail::make_iterator(kitmut, vitmut);
   }
 
@@ -1066,6 +1068,16 @@ public:
   }
 
 private:
+  template <class MappedIterator, class... Args>
+  MappedIterator guarded_emplace(typename KeyContainer::iterator kit, MappedIterator vit, Args &&...args) {
+    try {
+      return c_.values.emplace(vit, static_cast<Args &&>(args)...);
+    } catch (...) {
+      c_.keys.erase(kit);
+      throw;
+    }
+  }
+
   void sort_and_unique_impl() {
     flatmap_detail::sort_together(compare_, c_.keys, c_.values);
     auto kit = flatmap_detail::unique_helper(c_.keys.begin(), c_.keys.end(), c_.values.begin(), compare_);
@@ -1078,7 +1090,6 @@ private:
   Compare compare_;
 };
 
-// TODO: all six comparison operators should be invisible friends
 template <class Key, class Mapped, class Compare, class KeyContainer, class MappedContainer>
 bool operator==(const flat_map<Key, Mapped, Compare, KeyContainer, MappedContainer> &x,
                 const flat_map<Key, Mapped, Compare, KeyContainer, MappedContainer> &y) {
@@ -1123,7 +1134,6 @@ void swap(flat_map<Key, Mapped, Compare, KeyContainer, MappedContainer> &x,
 
 #if defined(__cpp_deduction_guides)
 
-// TODO: this deduction guide should maybe be constrained by qualifies_as_range
 template <class Container, class = std::enable_if_t<!flatmap_detail::qualifies_as_allocator<Container>::value>>
 flat_map(Container) -> flat_map<flatmap_detail::cont_key_type<Container>, flatmap_detail::cont_mapped_type<Container>>;
 
@@ -1134,7 +1144,6 @@ flat_map(KeyContainer,
          MappedContainer) -> flat_map<typename KeyContainer::value_type, typename MappedContainer::value_type,
                                       std::less<typename KeyContainer::value_type>, KeyContainer, MappedContainer>;
 
-// TODO: all these deduction guides that ignore the Allocator parameter are wrong, but especially this one
 template <class Container, class Allocator,
           class = std::enable_if_t<!flatmap_detail::qualifies_as_allocator<Container>::value &&
                                    flatmap_detail::qualifies_as_allocator<Allocator>::value &&
