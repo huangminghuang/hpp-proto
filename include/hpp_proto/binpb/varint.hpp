@@ -314,6 +314,10 @@ template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
 }
 
 template <concepts::varint VarintType>
+// This parser writes the decoded value into `item` before the caller knows
+// whether the input was fully consumed. Callers must check the returned
+// pointer against the input end before using `item`; on failure, the stored
+// value should be treated as invalid.
 [[nodiscard]] constexpr auto unchecked_parse_varint(concepts::contiguous_byte_range auto const &input, VarintType &item) {
   int64_t res; // NOLINT(cppcoreguidelines-init-variables)
   if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
