@@ -317,6 +317,7 @@ struct from<JSON, hpp_proto::optional_indirect_view_ref<T>> {
     if (!util::parse_null<Options>(value, ctx, it, end)) {
       using type = std::remove_const_t<typename T::value_type>;
       void *addr = ctx.memory_resource().allocate(sizeof(type), alignof(type));
+      static_assert(std::is_nothrow_constructible_v<type>);
       auto *obj = new (addr) type; // NOLINT(cppcoreguidelines-owning-memory)
       constexpr auto Opts = ws_handled_off<Options>();
       parse<JSON>::op<Options>(*obj, ctx, it, end);

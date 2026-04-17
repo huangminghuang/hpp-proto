@@ -58,10 +58,18 @@ struct message_merger {
   template <concepts::has_meta T, typename U>
     requires concepts::isomorphic_message<T, std::decay_t<U>>
   constexpr void perform(T &dest, U &&source) {
+
+    auto conditional_move = [&](auto &src_field) -> decltype(auto) {
+      if constexpr (std::is_rvalue_reference_v<U &&>) {
+        return std::move(src_field);
+      } else {
+        return (src_field);
+      }
+    };
+
     return std::apply(
-        [this, &dest, &source](auto &&...metas) {
-          // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved)
-          (this->perform(metas, metas.first.get(dest), metas.second.get(std::forward<U>(source))), ...);
+        [&, this](auto &&...metas) {
+          (this->perform(metas, metas.first.get(dest), conditional_move(metas.second.get(source))), ...);
         },
         detail::zip_tuples(typename util::meta_of<T>::type{}, typename util::meta_of<std::decay_t<U>>::type{}));
   }
