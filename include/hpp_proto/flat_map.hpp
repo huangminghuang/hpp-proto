@@ -1069,7 +1069,7 @@ public:
 
 private:
   template <class MappedIterator, class... Args>
-  MappedIterator guarded_emplace(typename KeyContainer::iterator kit, MappedIterator vit, Args &&...args) {
+  MappedIterator guarded_emplace(typename KeyContainer::const_iterator kit, MappedIterator vit, Args &&...args) {
     try {
       return c_.values.emplace(vit, static_cast<Args &&>(args)...);
     } catch (...) {
