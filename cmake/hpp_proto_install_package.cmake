@@ -26,10 +26,12 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/hpp_proto/hpp_proto-config.
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/protobuf_generate_hpp.cmake"
   DESTINATION "lib/cmake/hpp_proto")
 
-install(
-  TARGETS is_utf8
-  EXPORT hpp_proto-targets
-)
+if(HPP_PROTO_BUNDLED_IS_UTF8)
+  install(
+    TARGETS is_utf8
+    EXPORT hpp_proto-targets
+  )
+endif()
 
 install(EXPORT hpp_proto-targets
   DESTINATION lib/cmake/hpp_proto

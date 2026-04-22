@@ -7,31 +7,47 @@ if(CMAKE_VERSION GREATER_EQUAL 3.25)
 endif()
 
 set(HPP_PROTO_GLAZE_VERSION 7.2.0)
-CPMAddPackage(
-    NAME glaze
-    GIT_TAG v${HPP_PROTO_GLAZE_VERSION}
-    GITHUB_REPOSITORY stephenberry/glaze
-    ${system_package}
-)
-if(glaze_ADDED)
+set(HPP_PROTO_BUNDLED_GLAZE OFF)
+if(HPP_PROTO_USE_SYSTEM_PACKAGES)
+    find_package(glaze CONFIG REQUIRED)
+else()
+    set(HPP_PROTO_BUNDLED_GLAZE ON)
+    CPMAddPackage(
+        NAME glaze
+        GIT_TAG v${HPP_PROTO_GLAZE_VERSION}
+        GITHUB_REPOSITORY stephenberry/glaze
+        ${system_package}
+    )
+endif()
+if(HPP_PROTO_BUNDLED_GLAZE AND glaze_ADDED)
     install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
 endif()
 
-CPMAddPackage(
-    NAME is_utf8
-    VERSION 1.4.1
-    GITHUB_REPOSITORY simdutf/is_utf8
-    DOWNLOAD_ONLY ON
-)
-add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
-target_compile_features(is_utf8 PRIVATE cxx_std_20)
-get_target_property(IS_UTF8_COMPILER_OPTIONS is_utf8 COMPILE_OPTIONS)
+set(HPP_PROTO_BUNDLED_IS_UTF8 OFF)
+if(HPP_PROTO_USE_SYSTEM_PACKAGES)
+    find_package(is_utf8 CONFIG REQUIRED)
+else()
+    set(HPP_PROTO_BUNDLED_IS_UTF8 ON)
+    CPMAddPackage(
+        NAME is_utf8
+        VERSION 1.4.1
+        GITHUB_REPOSITORY simdutf/is_utf8
+        DOWNLOAD_ONLY ON
+    )
+    add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
+    target_compile_features(is_utf8 PRIVATE cxx_std_20)
+    get_target_property(IS_UTF8_COMPILER_OPTIONS is_utf8 COMPILE_OPTIONS)
+endif()
 
 if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
     message(FATAL_ERROR "is_utf8 is not compatible with address sanitizer")
 endif()
 
-set_target_properties(is_utf8 PROPERTIES CXX_CLANG_TIDY "")
+if(HPP_PROTO_BUNDLED_IS_UTF8)
+    set_target_properties(is_utf8 PROPERTIES CXX_CLANG_TIDY "")
+else()
+    set_target_properties(is_utf8::is_utf8 PROPERTIES CXX_CLANG_TIDY "")
+endif()
 
 set(HPP_PROTO_PROTOC_VERSION "34.0")
 

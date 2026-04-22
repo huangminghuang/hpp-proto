@@ -17,6 +17,7 @@ option(HPP_PROTO_CORE_TESTS_ONLY "Build only unittests targets (core tests only)
 # The following options are internal and not part of the public interface.
 option(HPP_PROTO_BENCHMARKS "Enable building benchmarks" OFF)
 option(HPP_PROTO_FUZZER_ONLY "Build only fuzzers and their dependencies" OFF)
+option(HPP_PROTO_USE_SYSTEM_PACKAGES "Use system-installed packages instead of fetching via CPM" OFF)
 
 if(HPP_PROTO_CORE_TESTS_ONLY AND HPP_PROTO_FUZZER_ONLY)
   message(FATAL_ERROR "HPP_PROTO_CORE_TESTS_ONLY and HPP_PROTO_FUZZER_ONLY cannot both be ON")
@@ -87,7 +88,11 @@ target_sources(hpp_proto_core INTERFACE
   BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include"
   FILES ${HPP_PROTO_CORE_PUBLIC_HEADERS})
 
-target_link_libraries(hpp_proto_core INTERFACE is_utf8)
+if (HPP_PROTO_BUNDLED_IS_UTF8)
+  target_link_libraries(hpp_proto_core INTERFACE is_utf8)
+else()
+  target_link_libraries(hpp_proto_core INTERFACE is_utf8::is_utf8)
+endif()
 add_library(hpp_proto::hpp_proto_core ALIAS hpp_proto_core)
 if(NOT HPP_PROTO_CORE_TESTS_ONLY)
   install(TARGETS hpp_proto_core EXPORT hpp_proto-targets
