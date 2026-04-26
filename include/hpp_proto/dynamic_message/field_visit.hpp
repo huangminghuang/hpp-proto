@@ -112,7 +112,7 @@ inline auto field_cref::visit(auto &&visitor) const {
   case KIND_REPEATED_SINT64:
     return visitor(repeated_sint64_field_cref{*descriptor_, *storage_});
   }
-  unreachable();
+  std::unreachable();
 }
 
 inline auto field_mref::visit(auto &&visitor) const {
@@ -186,7 +186,7 @@ inline auto field_mref::visit(auto &&visitor) const {
   case KIND_REPEATED_SINT64:
     return visitor(repeated_sint64_field_mref{*descriptor_, *storage_, *memory_resource_});
   }
-  unreachable();
+  std::unreachable();
 }
 
 inline void field_mref::clone_from(const field_cref &other) const {

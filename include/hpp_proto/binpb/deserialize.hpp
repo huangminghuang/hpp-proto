@@ -32,19 +32,6 @@
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 namespace hpp_proto {
-
-[[noreturn]] inline void unreachable() {
-#if __cpp_lib_unreachable
-  std::unreachable();
-#else
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-  __assume(false);
-#else                                        // GCC, Clang
-  __builtin_unreachable();
-#endif
-#endif
-}
-
 namespace concepts {
 template <typename T>
 concept is_padded_input_context = is_pb_context<T> && requires { typename T::padded_input; };
@@ -1245,7 +1232,7 @@ constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic
       return deserialize_oneof<Index + 1, Meta>(tag, std::forward<decltype(item)>(item), archive, unknown_fields);
     }
   } else {
-    unreachable();
+    std::unreachable();
     return {};
   }
 }

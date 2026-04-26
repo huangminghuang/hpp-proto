@@ -405,7 +405,7 @@ template <auto Opts>
       }
     }
   }
-  unreachable();
+  std::unreachable();
 }
 
 template <auto Opts>
