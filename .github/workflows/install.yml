@@ -73,7 +73,9 @@ jobs:
 
           git clone --depth 1 --branch v1.4.1 https://github.com/simdutf/is_utf8.git /tmp/is_utf8
           sed -i '/add_subdirectory(benchmarks)/d' /tmp/is_utf8/CMakeLists.txt
-          sed -i '/mark_as_advanced(IS_UTF8_INSTALL_CMAKEDIR)/a install(EXPORT is_utf8Targets DESTINATION "${IS_UTF8_INSTALL_CMAKEDIR}" NAMESPACE is_utf8:: COMPONENT is_utf8_Development)' /tmp/is_utf8/CMakeLists.txt
+          cmake_install_export='install(EXPORT is_utf8Targets DESTINATION "@IS_UTF8_INSTALL_CMAKEDIR@" NAMESPACE is_utf8:: COMPONENT is_utf8_Development)'
+          cmake_install_export="${cmake_install_export//@IS_UTF8_INSTALL_CMAKEDIR@/\${IS_UTF8_INSTALL_CMAKEDIR}}"
+          sed -i "/mark_as_advanced(IS_UTF8_INSTALL_CMAKEDIR)/a ${cmake_install_export}" /tmp/is_utf8/CMakeLists.txt
           cmake -S /tmp/is_utf8 -B /tmp/is_utf8-build \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=OFF
