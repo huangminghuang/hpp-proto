@@ -17,21 +17,27 @@ if(glaze_ADDED)
     install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
 endif()
 
-CPMAddPackage(
-    NAME is_utf8
-    VERSION 1.4.1
-    GITHUB_REPOSITORY simdutf/is_utf8
-    DOWNLOAD_ONLY ON
-)
-add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
-target_compile_features(is_utf8 PRIVATE cxx_std_20)
-get_target_property(IS_UTF8_COMPILER_OPTIONS is_utf8 COMPILE_OPTIONS)
+if(NOT CPM_LOCAL_PACKAGES_ONLY)
+    CPMAddPackage(
+        NAME is_utf8
+        VERSION 1.4.1
+        GITHUB_REPOSITORY simdutf/is_utf8
+        DOWNLOAD_ONLY ON
+    )
+    add_subdirectory(${is_utf8_SOURCE_DIR}/src ${is_utf8_BINARY_DIR})
+    add_library(is_utf8::is_utf8 ALIAS is_utf8)
+    target_compile_features(is_utf8 PRIVATE cxx_std_20)
+    get_target_property(IS_UTF8_COMPILER_OPTIONS is_utf8 COMPILE_OPTIONS)
 
-if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
-    message(FATAL_ERROR "is_utf8 is not compatible with address sanitizer")
+    if(IS_UTF8_COMPILER_OPTIONS MATCHES "fsanitize=address")
+        message(FATAL_ERROR "is_utf8 is not compatible with address sanitizer")
+    endif()
+
+    set_target_properties(is_utf8 PROPERTIES CXX_CLANG_TIDY "")
+else()
+    find_package(is_utf8 CONFIG REQUIRED)
+    set(is_utf8_ADDED OFF)
 endif()
-
-set_target_properties(is_utf8 PROPERTIES CXX_CLANG_TIDY "")
 
 set(HPP_PROTO_PROTOC_VERSION "34.0")
 

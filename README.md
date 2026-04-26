@@ -186,6 +186,33 @@ cmake --build build
 
 You should see output indicating that both binary and JSON round-trips were successful.
 
+### Using System-Installed Dependencies
+
+By default, `hpp-proto` uses CPM to fetch missing third-party dependencies. If you want the build to use only packages that are already installed on the system, configure with `CPM_LOCAL_PACKAGES_ONLY=ON`:
+
+```bash
+cmake -B build \
+  -DCPM_LOCAL_PACKAGES_ONLY=ON \
+  -DHPP_PROTO_TESTS=OFF
+```
+
+In this mode, both `glaze` and `is_utf8` must be discoverable through CMake package config files before configuring `hpp-proto`:
+
+```cmake
+find_package(glaze CONFIG REQUIRED)
+find_package(is_utf8 CONFIG REQUIRED)
+```
+
+`glaze` v7.2.0 installs a usable CMake package config. As of `simdutf/is_utf8` v1.4.1, the upstream install rules need a small fix before `find_package(is_utf8 CONFIG REQUIRED)` works: `is_utf8-config.cmake` includes `is_utf8Targets.cmake`, but the project does not install that export file by default. When packaging or installing `is_utf8` yourself, add an export install rule equivalent to:
+
+```cmake
+install(EXPORT is_utf8Targets
+  DESTINATION "${IS_UTF8_INSTALL_CMAKEDIR}"
+  NAMESPACE is_utf8::)
+```
+
+The install workflow in this repository applies that local patch when testing `CPM_LOCAL_PACKAGES_ONLY=ON`.
+
 ## Documentation
 
 * [Front-End API Guide](docs/frontend_apis.md): `read/write` binary+JSON APIs, sink modes, and allocator/cache options.

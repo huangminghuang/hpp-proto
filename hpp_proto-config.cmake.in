@@ -5,6 +5,9 @@ get_filename_component(_hpp_proto_prefix "${CMAKE_CURRENT_LIST_DIR}/../../.." AB
 set(HPP_PROTO_ROOT "${_hpp_proto_prefix}")
 
 find_dependency(glaze)
+if(NOT @is_utf8_ADDED@)
+    find_dependency(is_utf8)
+endif()
 include("${CMAKE_CURRENT_LIST_DIR}/hpp_proto-targets.cmake")
 
 if(NOT TARGET hpp_proto::protoc)
