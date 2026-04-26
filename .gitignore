@@ -21,3 +21,4 @@ obj/
 .env.*
 .audit
 fuzz/__pycache__/
+graphify-out

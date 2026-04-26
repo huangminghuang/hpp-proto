@@ -27,8 +27,10 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         gcc: [13]
+        cpm-local-packages-only: ["OFF", "ON"]
 
     steps:
       - uses: actions/checkout@v6
@@ -44,24 +46,42 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
+          key: ${{ github.workflow }}-cpm-modules-${{ matrix.cpm-local-packages-only }}-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: Cache ccache
         uses: actions/cache@v5
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-gcc-${{ matrix.gcc }}-ccache-${{ github.sha }}
+          key: ${{ github.workflow }}-${{ runner.os }}-gcc-${{ matrix.gcc }}-${{ matrix.cpm-local-packages-only }}-ccache-${{ github.sha }}
           restore-keys: |
-            ${{ github.workflow }}-${{ runner.os }}-gcc-${{ matrix.gcc }}-ccache-
+            ${{ github.workflow }}-${{ runner.os }}-gcc-${{ matrix.gcc }}-${{ matrix.cpm-local-packages-only }}-ccache-
 
       - name: install protoc
         run: |
           sudo apt-get update
           sudo apt install -y git protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
 
+      - name: install CPM local packages
+        if: matrix.cpm-local-packages-only == 'ON'
+        run: |
+          git clone --depth 1 --branch v7.2.0 https://github.com/stephenberry/glaze.git /tmp/glaze
+          cmake -S /tmp/glaze -B /tmp/glaze-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -Dglaze_DEVELOPER_MODE=OFF \
+            -Dglaze_BUILD_EXAMPLES=OFF
+          sudo cmake --install /tmp/glaze-build
+
+          git clone --depth 1 --branch v1.4.1 https://github.com/simdutf/is_utf8.git /tmp/is_utf8
+          sed -i '/add_subdirectory(benchmarks)/d' /tmp/is_utf8/CMakeLists.txt
+          sed -i '/mark_as_advanced(IS_UTF8_INSTALL_CMAKEDIR)/a install(EXPORT is_utf8Targets DESTINATION "${IS_UTF8_INSTALL_CMAKEDIR}" NAMESPACE is_utf8:: COMPONENT is_utf8_Development)' /tmp/is_utf8/CMakeLists.txt
+          cmake -S /tmp/is_utf8 -B /tmp/is_utf8-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF
+          sudo cmake --build /tmp/is_utf8-build --target install
+
       - name: build and install library
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DHPP_PROTO_TESTS=OFF
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DHPP_PROTO_TESTS=OFF -DCPM_LOCAL_PACKAGES_ONLY=${{ matrix.cpm-local-packages-only }}
           sudo cmake --build build --target install
 
       - name: configure

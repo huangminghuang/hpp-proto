@@ -87,7 +87,11 @@ target_sources(hpp_proto_core INTERFACE
   BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include"
   FILES ${HPP_PROTO_CORE_PUBLIC_HEADERS})
 
-target_link_libraries(hpp_proto_core INTERFACE is_utf8)
+if(is_utf8_ADDED)
+  target_link_libraries(hpp_proto_core INTERFACE is_utf8)
+else()
+  target_link_libraries(hpp_proto_core INTERFACE is_utf8::is_utf8)
+endif()
 add_library(hpp_proto::hpp_proto_core ALIAS hpp_proto_core)
 if(NOT HPP_PROTO_CORE_TESTS_ONLY)
   install(TARGETS hpp_proto_core EXPORT hpp_proto-targets
