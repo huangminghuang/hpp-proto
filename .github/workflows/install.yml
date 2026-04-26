@@ -72,10 +72,7 @@ jobs:
           sudo cmake --install /tmp/glaze-build
 
           git clone --depth 1 --branch v1.4.1 https://github.com/simdutf/is_utf8.git /tmp/is_utf8
-          sed -i '/add_subdirectory(benchmarks)/d' /tmp/is_utf8/CMakeLists.txt
-          cmake_install_export='install(EXPORT is_utf8Targets DESTINATION "@IS_UTF8_INSTALL_CMAKEDIR@" NAMESPACE is_utf8:: COMPONENT is_utf8_Development)'
-          cmake_install_export="${cmake_install_export//@IS_UTF8_INSTALL_CMAKEDIR@/\${IS_UTF8_INSTALL_CMAKEDIR}}"
-          sed -i "/mark_as_advanced(IS_UTF8_INSTALL_CMAKEDIR)/a ${cmake_install_export}" /tmp/is_utf8/CMakeLists.txt
+          python3 -c 'from pathlib import Path; p = Path("/tmp/is_utf8/CMakeLists.txt"); s = p.read_text(); s = s.replace("add_subdirectory(benchmarks)\n", ""); marker = "mark_as_advanced(IS_UTF8_INSTALL_CMAKEDIR)\n"; export = "install(EXPORT is_utf8Targets DESTINATION " + chr(34) + "$" + "{IS_UTF8_INSTALL_CMAKEDIR}" + chr(34) + " NAMESPACE is_utf8:: COMPONENT is_utf8_Development)\n"; p.write_text(s.replace(marker, marker + export))'
           cmake -S /tmp/is_utf8 -B /tmp/is_utf8-build \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=OFF
