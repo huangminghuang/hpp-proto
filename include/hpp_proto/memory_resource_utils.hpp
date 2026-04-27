@@ -297,17 +297,16 @@ public:
     assert(empty() || data_ != nullptr);
     return data_;
   }
-  constexpr reference operator[](std::size_t n) { return data_[n]; }
+  constexpr reference operator[](std::size_t n) { return data()[n]; }
   [[nodiscard]] constexpr std::size_t size() const { return view_.size(); }
   [[nodiscard]] constexpr bool empty() const { return view_.empty(); }
   [[nodiscard]] constexpr value_type *begin() const {
-    assert(empty() || data_ != nullptr);
-    return data_;
+    return data();
   }
-  [[nodiscard]] constexpr value_type *end() const { return data_ + size(); }
+  [[nodiscard]] constexpr value_type *end() const { return data() + size(); }
 
-  constexpr reference front() { return data_[0]; }
-  constexpr reference back() { return data_[size() - 1]; }
+  constexpr reference front() { return data()[0]; }
+  constexpr reference back() { return data()[size() - 1]; }
 
   constexpr void push_back(const value_type &v) { emplace_back(v); }
 
