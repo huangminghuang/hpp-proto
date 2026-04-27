@@ -1,5 +1,6 @@
 #include <boost/ut.hpp>
 #include <hpp_proto/flat_map.hpp>
+#include <iterator>
 #include <stdexcept>
 #include <vector>
 
@@ -20,6 +21,7 @@ struct throwing_mapped {
     }
   }
   throwing_mapped(throwing_mapped &&) noexcept = default;
+  ~throwing_mapped() = default;
   throwing_mapped &operator=(const throwing_mapped &) = default;
   throwing_mapped &operator=(throwing_mapped &&) noexcept = default;
 
@@ -34,11 +36,13 @@ struct throwing_int_vector : std::vector<int> {
 
   throwing_int_vector() = default;
   throwing_int_vector(std::initializer_list<int> values) : std::vector<int>(values) {}
-  throwing_int_vector(std::vector<int> values) : std::vector<int>(std::move(values)) {}
+  explicit throwing_int_vector(std::vector<int> values) : std::vector<int>(std::move(values)) {}
   throwing_int_vector(const throwing_int_vector &) = default;
   throwing_int_vector(throwing_int_vector &&) noexcept = default;
+  ~throwing_int_vector() = default;
 
   throwing_int_vector &operator=(const throwing_int_vector &) = default;
+  // NOLINTNEXTLINE(cppcoreguidelines-noexcept-move-operations,hicpp-noexcept-move,performance-noexcept-move-constructor)
   throwing_int_vector &operator=(throwing_int_vector &&other) {
     if (throw_on_move_assign) {
       throw std::runtime_error("move assignment failed");
@@ -151,7 +155,7 @@ const boost::ut::suite flat_map_tests = [] {
     };
     input[1].second.throw_on_copy = true;
 
-    expect(throws<std::runtime_error>([&] { [[maybe_unused]] Map values{input, input + 2}; }));
+    expect(throws<std::runtime_error>([&] { [[maybe_unused]] Map values{std::begin(input), std::end(input)}; }));
   };
 
   "try_emplace_rolls_back_key_when_mapped_emplace_throws"_test = [] {
@@ -159,13 +163,13 @@ const boost::ut::suite flat_map_tests = [] {
 
     expect(throws<std::runtime_error>([&] { (void)values.try_emplace(2, 20, true); }));
     expect(values.size() == 2U);
-    expect(values.find(2) == values.end());
+    expect(!values.contains(2));
     expect(values.find(1)->second.value == 10);
     expect(values.find(3)->second.value == 30);
   };
 
   "replace_clears_when_mapped_container_assignment_throws"_test = [] {
-    using Map = stdext::flat_map<int, int, std::less<int>, std::vector<int>, throwing_int_vector>;
+    using Map = stdext::flat_map<int, int, std::less<>, std::vector<int>, throwing_int_vector>;
     Map values{{1, 10}, {2, 20}};
     throwing_int_vector::throw_on_move_assign = true;
 
