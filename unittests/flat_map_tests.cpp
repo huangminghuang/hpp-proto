@@ -169,8 +169,7 @@ const boost::ut::suite flat_map_tests = [] {
     Map values{{1, 10}, {2, 20}};
     throwing_int_vector::throw_on_move_assign = true;
 
-    expect(throws<std::runtime_error>(
-        [&] { values.replace(std::vector<int>{3, 4}, throwing_int_vector{30, 40}); }));
+    expect(throws<std::runtime_error>([&] { values.replace(std::vector<int>{3, 4}, throwing_int_vector{30, 40}); }));
 
     throwing_int_vector::throw_on_move_assign = false;
     expect(values.empty());
