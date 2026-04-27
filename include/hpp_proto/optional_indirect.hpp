@@ -192,10 +192,9 @@ public:
     return emplace_impl(std::forward<Args>(args)...);
   }
 
-  constexpr void swap(optional_indirect &other) noexcept((allocator_traits::propagate_on_container_swap::value &&
-                                                           std::is_nothrow_swappable_v<allocator_type>) ||
-                                                          (!allocator_traits::propagate_on_container_swap::value &&
-                                                           allocator_traits::is_always_equal::value)) {
+  constexpr void swap(optional_indirect &other) noexcept(
+      (allocator_traits::propagate_on_container_swap::value && std::is_nothrow_swappable_v<allocator_type>) ||
+      (!allocator_traits::propagate_on_container_swap::value && allocator_traits::is_always_equal::value)) {
     if (this == &other) {
       return;
     }
