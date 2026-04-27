@@ -104,6 +104,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: build/coverage.filtered.info
-          flags: macos,ci
+          flags: macos
           name: macos-coverage
           verbose: true

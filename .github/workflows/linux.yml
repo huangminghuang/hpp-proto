@@ -105,6 +105,6 @@
           with:
             token: ${{ secrets.CODECOV_TOKEN }}
             files: build/coverage.filtered.info
-            flags: linux,ci
+            flags: linux
             name: linux-coverage
             verbose: true
