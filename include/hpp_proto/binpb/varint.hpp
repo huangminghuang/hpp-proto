@@ -90,7 +90,7 @@ concept varint = requires { requires std::same_as<T, hpp_proto::varint<typename 
 } // namespace concepts
 
 template <concepts::varint VarintType, concepts::byte_type Byte>
-constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
+[[nodiscard]] constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
   auto value = std::make_unsigned_t<typename VarintType::encode_type>(item.value);
   if constexpr (varint_encoding::zig_zag == decltype(item)::encoding) {
     // NOLINTNEXTLINE(hicpp-signed-bitwise)
@@ -116,8 +116,8 @@ constexpr Byte *unchecked_pack_varint(VarintType item, Byte *data) {
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
-                                      int64_t &res1) -> decltype(std::ranges::cdata(input)) {
+[[nodiscard]] constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
+                                                    int64_t &res1) -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -250,8 +250,8 @@ constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const
   return done2();
 }
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    bool &value) -> decltype(std::ranges::cdata(input)) {
+[[nodiscard]] constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
+                                                  bool &value) -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -308,13 +308,14 @@ constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &
 }
 // NOLINTEND
 
-constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                    boolean &value) -> decltype(std::ranges::cdata(input)) {
+[[nodiscard]] constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
+                                                  boolean &value) -> decltype(std::ranges::cdata(input)) {
   return unchecked_parse_bool(input, value.value);
 }
 
 template <concepts::varint VarintType>
-constexpr auto unchecked_parse_varint(concepts::contiguous_byte_range auto const &input, VarintType &item) {
+[[nodiscard]] constexpr auto unchecked_parse_varint(concepts::contiguous_byte_range auto const &input,
+                                                    VarintType &item) {
   int64_t res; // NOLINT(cppcoreguidelines-init-variables)
   if constexpr (varint_encoding::zig_zag == VarintType::encoding) {
     auto p = shift_mix_parse_varint<typename VarintType::value_type>(input, res);

@@ -22,6 +22,7 @@
 
 #pragma once
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <glaze/util/parse.hpp>
 #include <hpp_proto/memory_resource_utils.hpp>
@@ -92,6 +93,7 @@ struct field_mask_codec {
     if (value.paths.empty()) {
       return 0;
     }
+    assert(b.size() >= max_encode_size(value));
     auto buffer = std::span{std::forward<decltype(b)>(b)};
     auto cur = buffer.begin();
     using out_type = std::remove_cvref_t<decltype(*cur)>;

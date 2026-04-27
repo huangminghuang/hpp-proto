@@ -22,8 +22,10 @@
 
 #pragma once
 
+#include <cassert>
 #include <concepts>
 #include <cstring>
+#include <functional>
 #include <hpp_proto/field_types.hpp>
 #include <memory_resource>
 #include <ranges>
@@ -102,11 +104,13 @@ public:
   [[nodiscard]] std::pmr::memory_resource &cache_memory_resource() const { return *mr; }
 };
 
+template <std::size_t StackBufferSize = 1024>
 class default_cache_memory_resource {
-  std::array<std::byte, 1024> stack_buffer{};
+  std::array<std::byte, StackBufferSize> stack_buffer{};
   std::pmr::monotonic_buffer_resource mr;
 
 public:
+  // Allocations beyond StackBufferSize fall back to std::pmr::get_default_resource().
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
   default_cache_memory_resource() : mr(stack_buffer.data(), stack_buffer.size(), std::pmr::get_default_resource()) {}
   ~default_cache_memory_resource() = default;
@@ -125,10 +129,14 @@ struct pb_context : T::option_type... {
 
   template <concepts::is_option_type U>
   [[nodiscard]] constexpr auto &get() const {
-    if constexpr (std::derived_from<pb_context, U>) {
-      return static_cast<const U &>(*this);
+    using option_type = std::remove_cvref_t<U>;
+    static_assert(std::derived_from<pb_context, option_type> ||
+                      std::derived_from<pb_context, std::reference_wrapper<option_type>>,
+                  "Requested option type is not stored in pb_context");
+    if constexpr (std::derived_from<pb_context, option_type>) {
+      return static_cast<const option_type &>(*this);
     } else {
-      return static_cast<const std::reference_wrapper<U> &>(*this).get();
+      return static_cast<const std::reference_wrapper<option_type> &>(*this).get();
     }
   }
 
@@ -285,15 +293,18 @@ public:
     return *this;
   }
 
-  [[nodiscard]] constexpr value_type *data() const { return data_; }
-  constexpr reference operator[](std::size_t n) { return data_[n]; }
+  [[nodiscard]] constexpr value_type *data() const {
+    assert(empty() || data_ != nullptr);
+    return data_;
+  }
+  constexpr reference operator[](std::size_t n) { return data()[n]; }
   [[nodiscard]] constexpr std::size_t size() const { return view_.size(); }
   [[nodiscard]] constexpr bool empty() const { return view_.empty(); }
-  [[nodiscard]] constexpr value_type *begin() const { return data_; }
-  [[nodiscard]] constexpr value_type *end() const { return data_ + size(); }
+  [[nodiscard]] constexpr value_type *begin() const { return data(); }
+  [[nodiscard]] constexpr value_type *end() const { return data() + size(); }
 
-  constexpr reference front() { return data_[0]; }
-  constexpr reference back() { return data_[size() - 1]; }
+  constexpr reference front() { return data()[0]; }
+  constexpr reference back() { return data()[size() - 1]; }
 
   constexpr void push_back(const value_type &v) { emplace_back(v); }
 
@@ -351,6 +362,7 @@ public:
   }
 
   constexpr void append_raw_data(concepts::contiguous_byte_range auto const &data) {
+    assert((data.size() % sizeof(value_type)) == 0);
     auto old_size = view_.size();
     auto num_elements = data.size() / sizeof(value_type);
     assign_range_with_size(view_, old_size + num_elements);
