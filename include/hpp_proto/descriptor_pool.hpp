@@ -584,7 +584,12 @@ private:
         .and_then([this] { return build_message_fields_and_extensions(); })
         .and_then([this] { return build_file_extensions(); })
         .and_then([this] { return resolve_field_types(); })
-        .transform([&] { assert(messages_.size() == counter.messages); });
+        .and_then([&]() -> std::expected<void, descriptor_pool_errc> {
+          if (messages_.size() != counter.messages) {
+            return std::unexpected(descriptor_pool_errc::validation_error);
+          }
+          return std::expected<void, descriptor_pool_errc>{};
+        });
   }
 
   void reserve_storage(const descriptor_counter &counter) {
