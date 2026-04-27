@@ -1140,9 +1140,9 @@ flat_map(Container) -> flat_map<flatmap_detail::cont_key_type<Container>, flatma
 template <class KeyContainer, class MappedContainer,
           class = std::enable_if_t<!flatmap_detail::qualifies_as_allocator<KeyContainer>::value &&
                                    !flatmap_detail::qualifies_as_allocator<MappedContainer>::value>>
-flat_map(KeyContainer, MappedContainer)
-    -> flat_map<typename KeyContainer::value_type, typename MappedContainer::value_type,
-                std::less<typename KeyContainer::value_type>, KeyContainer, MappedContainer>;
+flat_map(KeyContainer,
+         MappedContainer) -> flat_map<typename KeyContainer::value_type, typename MappedContainer::value_type,
+                                      std::less<typename KeyContainer::value_type>, KeyContainer, MappedContainer>;
 
 template <class Container, class Allocator,
           class = std::enable_if_t<!flatmap_detail::qualifies_as_allocator<Container>::value &&
@@ -1157,20 +1157,20 @@ template <class KeyContainer, class MappedContainer, class Allocator,
                                    flatmap_detail::qualifies_as_allocator<Allocator>::value &&
                                    std::uses_allocator<KeyContainer, Allocator>::value &&
                                    std::uses_allocator<MappedContainer, Allocator>::value>>
-flat_map(KeyContainer, MappedContainer, Allocator)
-    -> flat_map<typename KeyContainer::value_type, typename MappedContainer::value_type,
-                std::less<typename KeyContainer::value_type>, KeyContainer, MappedContainer>;
+flat_map(KeyContainer, MappedContainer,
+         Allocator) -> flat_map<typename KeyContainer::value_type, typename MappedContainer::value_type,
+                                std::less<typename KeyContainer::value_type>, KeyContainer, MappedContainer>;
 
 template <class Container, class = std::enable_if_t<!flatmap_detail::qualifies_as_allocator<Container>::value>>
-flat_map(sorted_unique_t, Container)
-    -> flat_map<flatmap_detail::cont_key_type<Container>, flatmap_detail::cont_mapped_type<Container>>;
+flat_map(sorted_unique_t,
+         Container) -> flat_map<flatmap_detail::cont_key_type<Container>, flatmap_detail::cont_mapped_type<Container>>;
 
 template <class KeyContainer, class MappedContainer,
           class = std::enable_if_t<!flatmap_detail::qualifies_as_allocator<KeyContainer>::value &&
                                    !flatmap_detail::qualifies_as_allocator<MappedContainer>::value>>
-flat_map(sorted_unique_t, KeyContainer, MappedContainer)
-    -> flat_map<typename KeyContainer::value_type, typename MappedContainer::value_type,
-                std::less<typename KeyContainer::value_type>, KeyContainer, MappedContainer>;
+flat_map(sorted_unique_t, KeyContainer,
+         MappedContainer) -> flat_map<typename KeyContainer::value_type, typename MappedContainer::value_type,
+                                      std::less<typename KeyContainer::value_type>, KeyContainer, MappedContainer>;
 
 template <class Container, class Allocator,
           class = std::enable_if_t<!flatmap_detail::qualifies_as_allocator<Container>::value &&
@@ -1185,9 +1185,9 @@ template <class KeyContainer, class MappedContainer, class Allocator,
                                    flatmap_detail::qualifies_as_allocator<Allocator>::value &&
                                    std::uses_allocator<KeyContainer, Allocator>::value &&
                                    std::uses_allocator<MappedContainer, Allocator>::value>>
-flat_map(sorted_unique_t, KeyContainer, MappedContainer, Allocator)
-    -> flat_map<typename KeyContainer::value_type, typename MappedContainer::value_type,
-                std::less<typename KeyContainer::value_type>, KeyContainer, MappedContainer>;
+flat_map(sorted_unique_t, KeyContainer, MappedContainer,
+         Allocator) -> flat_map<typename KeyContainer::value_type, typename MappedContainer::value_type,
+                                std::less<typename KeyContainer::value_type>, KeyContainer, MappedContainer>;
 
 template <class InputIterator, class Compare = std::less<flatmap_detail::iter_key_type<InputIterator>>,
           class = std::enable_if_t<flatmap_detail::qualifies_as_input_iterator<InputIterator>::value &&
@@ -1242,19 +1242,19 @@ flat_map(std::initializer_list<std::pair<const Key, T>>, Allocator, int = 0 /*to
 
 template <class Key, class T, class Compare = std::less<Key>,
           class = std::enable_if_t<!flatmap_detail::qualifies_as_allocator<Compare>::value>>
-flat_map(sorted_unique_t, std::initializer_list<std::pair<const Key, T>>, Compare = Compare())
-    -> flat_map<Key, T, Compare>;
+flat_map(sorted_unique_t, std::initializer_list<std::pair<const Key, T>>,
+         Compare = Compare()) -> flat_map<Key, T, Compare>;
 
 template <class Key, class T, class Compare, class Allocator,
           class = std::enable_if_t<!flatmap_detail::qualifies_as_allocator<Compare>::value &&
                                    flatmap_detail::qualifies_as_allocator<Allocator>::value>>
-flat_map(sorted_unique_t, std::initializer_list<std::pair<const Key, T>>, Compare, Allocator)
-    -> flat_map<Key, T, Compare>;
+flat_map(sorted_unique_t, std::initializer_list<std::pair<const Key, T>>, Compare,
+         Allocator) -> flat_map<Key, T, Compare>;
 
 template <class Key, class T, class Allocator,
           class = std::enable_if_t<flatmap_detail::qualifies_as_allocator<Allocator>::value>>
-flat_map(sorted_unique_t, std::initializer_list<std::pair<const Key, T>>, Allocator, int = 0 /*to please MSVC*/)
-    -> flat_map<Key, T>;
+flat_map(sorted_unique_t, std::initializer_list<std::pair<const Key, T>>, Allocator,
+         int = 0 /*to please MSVC*/) -> flat_map<Key, T>;
 
 #endif
 
