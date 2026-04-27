@@ -192,20 +192,19 @@ public:
     return emplace_impl(std::forward<Args>(args)...);
   }
 
-  constexpr void swap(optional_indirect &other) noexcept(allocator_traits::is_always_equal::value ||
-                                                         (allocator_traits::propagate_on_container_swap::value &&
-                                                          std::is_nothrow_swappable_v<allocator_type>)) {
+  constexpr void swap(optional_indirect &other) noexcept(
+      (allocator_traits::propagate_on_container_swap::value && std::is_nothrow_swappable_v<allocator_type>) ||
+      (!allocator_traits::propagate_on_container_swap::value && allocator_traits::is_always_equal::value)) {
     if (this == &other) {
       return;
     }
     using std::swap;
+    if constexpr (allocator_traits::propagate_on_container_swap::value) {
+      swap(alloc_, other.alloc_);
+    }
     if constexpr (allocator_traits::is_always_equal::value) {
       swap(obj_, other.obj_);
       return;
-    }
-
-    if constexpr (allocator_traits::propagate_on_container_swap::value) {
-      swap(alloc_, other.alloc_);
     }
     if (alloc_ == other.alloc_) {
       swap(obj_, other.obj_);
@@ -338,13 +337,16 @@ public:
 private:
   template <class... Args>
   constexpr T &emplace_impl(Args &&...args) {
-    reset();
     auto *new_obj = allocator_traits::allocate(alloc_, 1);
     try {
       allocator_traits::construct(alloc_, std::to_address(new_obj), std::forward<Args>(args)...);
     } catch (...) {
       allocator_traits::deallocate(alloc_, new_obj, 1);
       throw;
+    }
+    if (obj_) {
+      allocator_traits::destroy(alloc_, std::to_address(obj_));
+      allocator_traits::deallocate(alloc_, obj_, 1);
     }
     obj_ = new_obj;
     return *raw_ptr();
