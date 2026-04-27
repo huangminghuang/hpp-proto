@@ -59,7 +59,7 @@ jobs:
         run: brew install grpc
         
       - name: install lcov
-        if: matrix.cmake_preset == 'ci-macos-coverage'
+        if: matrix.cmake_preset == 'ci-macos-coverage'ƒc
         run: brew install lcov
 
       - name: configure
@@ -104,6 +104,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: build/coverage.filtered.info
-          flags: macos,ci
+          flags: macos
           name: macos-coverage
           verbose: true
