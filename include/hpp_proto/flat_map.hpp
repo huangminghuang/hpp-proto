@@ -1068,12 +1068,12 @@ public:
   }
 
 private:
-  template <class MappedIterator, class... Args>
-  MappedIterator guarded_emplace(typename KeyContainer::iterator kit, MappedIterator vit, Args &&...args) {
+  template <class KeyIterator, class MappedIterator, class... Args>
+  MappedIterator guarded_emplace(KeyIterator kit, MappedIterator vit, Args &&...args) {
     try {
       return c_.values.emplace(vit, static_cast<Args &&>(args)...);
     } catch (...) {
-      c_.keys.erase(kit);
+      c_.keys.erase(c_.keys.begin() + (kit - c_.keys.cbegin()));
       throw;
     }
   }
