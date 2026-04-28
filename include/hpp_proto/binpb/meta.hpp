@@ -49,7 +49,7 @@ struct accessor_type {
 template <uint32_t Number, uint8_t FieldOptions, typename Type, auto DefaultValue>
 struct field_meta_base {
   constexpr static uint32_t number = Number;
-  constexpr static auto default_value = unwrap(DefaultValue);
+  constexpr static auto default_value = DefaultValue;
 
   using type = Type;
 

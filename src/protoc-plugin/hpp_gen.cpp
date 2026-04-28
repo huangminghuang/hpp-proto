@@ -458,9 +458,7 @@ struct hpp_addons {
         default_value = std::format("static_cast<double>({})", proto.default_value);
       }
 
-      const char *wrap_type = (proto.type == TYPE_DOUBLE) ? "DOUBLE" : "FLOAT";
-
-      default_value_template_arg = std::format("HPP_PROTO_WRAP_{}({})", wrap_type, default_value);
+      default_value_template_arg = default_value;
     }
 
     [[nodiscard]] std::string_view qualified_parent_name() const {
