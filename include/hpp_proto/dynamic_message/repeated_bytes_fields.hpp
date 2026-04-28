@@ -110,12 +110,18 @@ public:
     s.size = static_cast<uint32_t>(n);
   }
 
-  [[nodiscard]] bool empty() const noexcept { return storage_->of_repeated_bytes.size == 0; } // NOLINT(bugprone-derived-method-shadowing-base-method)
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->of_repeated_bytes.size; } // NOLINT(bugprone-derived-method-shadowing-base-method)
+  [[nodiscard]] bool empty() const noexcept {
+    return storage_->of_repeated_bytes.size == 0;
+  } // NOLINT(bugprone-derived-method-shadowing-base-method)
+  [[nodiscard]] std::size_t size() const noexcept {
+    return storage_->of_repeated_bytes.size;
+  } // NOLINT(bugprone-derived-method-shadowing-base-method)
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->of_repeated_bytes.capacity; }
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->of_repeated_bytes.size}; }
-  [[nodiscard]] bytes_view *data() const noexcept { return storage_->of_repeated_bytes.content; } // NOLINT(bugprone-derived-method-shadowing-base-method)
+  [[nodiscard]] bytes_view *data() const noexcept {
+    return storage_->of_repeated_bytes.content;
+  } // NOLINT(bugprone-derived-method-shadowing-base-method)
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     auto values = content_span();
