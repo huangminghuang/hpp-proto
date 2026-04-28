@@ -532,11 +532,11 @@ concept flat_map = requires(T t) {
 };
 
 template <typename T>
-concept reservable_flat_map = flat_map<T> && requires(std::size_t size, T::key_container_type keys,
-                                                      T::mapped_container_type values) {
-  keys.reserve(size);
-  values.reserve(size);
-};
+concept reservable_flat_map =
+    flat_map<T> && requires(std::size_t size, T::key_container_type keys, T::mapped_container_type values) {
+      keys.reserve(size);
+      values.reserve(size);
+    };
 
 template <typename T>
 concept is_option_type = requires { typename std::decay_t<T>::option_type; };
