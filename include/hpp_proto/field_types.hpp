@@ -70,44 +70,6 @@ using stdext::sorted_unique;
 
 namespace hpp_proto {
 
-// workaround for clang not supporting floating-point types in non-type template
-// parameters as of clang-15
-template <int64_t x>
-struct double_wrapper {
-  constexpr bool operator==(double v) const { return v == std::bit_cast<double>(x); }
-};
-template <int32_t x>
-struct float_wrapper {
-  constexpr bool operator==(float v) const { return v == std::bit_cast<float>(x); }
-};
-
-// NOLINTBEGIN(cppcoreguidelines-macro-usage)
-#ifdef __clang__
-#define HPP_PROTO_WRAP_FLOAT(v)                                                                                        \
-  hpp_proto::float_wrapper<std::bit_cast<int32_t>(v)> {}
-#define HPP_PROTO_WRAP_DOUBLE(v)                                                                                       \
-  hpp_proto::double_wrapper<std::bit_cast<int64_t>(v)> {}
-#else
-#define HPP_PROTO_WRAP_FLOAT(v) v
-#define HPP_PROTO_WRAP_DOUBLE(v) v
-#endif
-// NOLINTEND(cppcoreguidelines-macro-usage)
-
-template <int64_t x>
-static constexpr auto unwrap(double_wrapper<x> /* unused */) {
-  return std::bit_cast<double>(x);
-}
-
-template <int32_t x>
-static constexpr auto unwrap(float_wrapper<x> /* unused */) {
-  return std::bit_cast<float>(x);
-}
-
-template <typename T>
-static constexpr auto unwrap(T v) {
-  return v;
-}
-
 namespace concepts {
 template <typename T>
 concept optional = requires(T optional) {
@@ -129,7 +91,7 @@ public:
     if constexpr (std::same_as<std::remove_cvref_t<decltype(Default)>, std::monostate>) {
       return T{};
     } else if constexpr (std::is_fundamental_v<T> || std::is_enum_v<T>) {
-      return unwrap(Default);
+      return Default;
     } else {
       static_assert(sizeof(typename T::value_type) == 1);
       auto data = static_cast<const T::value_type *>(Default.data());
