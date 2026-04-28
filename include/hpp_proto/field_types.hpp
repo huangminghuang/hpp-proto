@@ -132,7 +132,7 @@ public:
       return unwrap(Default);
     } else {
       static_assert(sizeof(typename T::value_type) == 1);
-      auto data = static_cast<const typename T::value_type *>(Default.data());
+      auto data = static_cast<const T::value_type *>(Default.data());
       return T{data, data + Default.size()}; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
   }
@@ -262,6 +262,7 @@ public:
 
   template <typename... Args>
   constexpr T &emplace(Args &&...args) {
+    // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
     _value = T{std::forward<Args>(args)...};
     _present = true;
     return _value;
@@ -308,7 +309,8 @@ public:
   static constexpr bool default_value() { return as_bool(Default); }
 
 private:
-  static constexpr std::uint8_t default_state = 0x80U | std::uint8_t(default_value()); // use 0x80 to denote empty state
+  static constexpr std::uint8_t default_state =
+      0x80U | static_cast<std::uint8_t>(default_value()); // use 0x80 to denote empty state
   bool_proxy deref() { return bool_proxy{impl}; }
   uint8_t impl = default_state;
 
@@ -316,7 +318,7 @@ public:
   using value_type = bool;
   constexpr optional() noexcept = default;
   constexpr ~optional() noexcept = default;
-  constexpr optional(bool v) noexcept : impl(std::uint8_t(v)) {};
+  constexpr optional(bool v) noexcept : impl(static_cast<std::uint8_t>(v)) {};
   constexpr optional(const optional &) noexcept = default;
   constexpr optional(optional &&) noexcept = default;
   constexpr optional &operator=(const optional &) noexcept = default;
@@ -326,19 +328,19 @@ public:
   constexpr bool operator*() const noexcept { return value(); }
 
   bool_proxy emplace() noexcept {
-    impl = std::uint8_t(default_value());
+    impl = static_cast<std::uint8_t>(default_value());
     return deref();
   }
 
   bool_proxy emplace(bool v) noexcept {
-    impl = std::uint8_t(v);
+    impl = static_cast<std::uint8_t>(v);
     return deref();
   }
 
   [[nodiscard]] constexpr bool value() const { return static_cast<bool>(impl & 0x01U); }
 
   constexpr optional &operator=(bool v) noexcept {
-    impl = std::uint8_t(v);
+    impl = static_cast<std::uint8_t>(v);
     return *this;
   }
   constexpr bool operator==(const optional &other) const = default;
@@ -530,8 +532,8 @@ concept flat_map = requires(T t) {
 };
 
 template <typename T>
-concept reservable_flat_map = flat_map<T> && requires(std::size_t size, typename T::key_container_type keys,
-                                                      typename T::mapped_container_type values) {
+concept reservable_flat_map = flat_map<T> && requires(std::size_t size, T::key_container_type keys,
+                                                      T::mapped_container_type values) {
   keys.reserve(size);
   values.reserve(size);
 };
@@ -614,8 +616,8 @@ constexpr static void reserve(T &mut, std::size_t size) {
 }
 template <typename Traits>
 struct pb_unknown_fields {
-  using unknown_fields_range_t = typename Traits::unknown_fields_range_t;
-  [[no_unique_address]] typename Traits::unknown_fields_range_t fields;
+  using unknown_fields_range_t = Traits::unknown_fields_range_t;
+  [[no_unique_address]] Traits::unknown_fields_range_t fields;
   bool operator==(const pb_unknown_fields &) const = default;
 };
 
@@ -639,7 +641,7 @@ struct vector_trait<bool, Allocator> {
 template <typename Key, typename Mapped, template <typename> class Allocator>
 struct stable_map_trait {
   template <typename T>
-  using repeated_t = typename vector_trait<T, Allocator>::type;
+  using repeated_t = vector_trait<T, Allocator>::type;
   using type = hpp_proto::flat_map<typename repeated_t<Key>::value_type, typename repeated_t<Mapped>::value_type,
                                    std::less<Key>, repeated_t<Key>, // NOLINT(modernize-use-transparent-functors)
                                    repeated_t<Mapped>>;
@@ -659,11 +661,11 @@ struct basic_map_trait<Key, Mapped, Allocator> {
 template <template <typename> class Allocator>
 struct basic_default_traits {
   template <typename T>
-  using repeated_t = typename vector_trait<T, Allocator>::type;
+  using repeated_t = vector_trait<T, Allocator>::type;
   template <typename T>
-  using recursive_repeated_t = typename vector_trait<T, Allocator>::type;
+  using recursive_repeated_t = vector_trait<T, Allocator>::type;
   using string_t = std::basic_string<char, std::char_traits<char>, Allocator<char>>;
-  using bytes_t = typename vector_trait<std::byte, Allocator>::type;
+  using bytes_t = vector_trait<std::byte, Allocator>::type;
 
   template <typename T>
   using optional_indirect_t = hpp_proto::optional_indirect<T, Allocator<T>>;
@@ -682,7 +684,7 @@ struct basic_default_traits {
 template <template <typename> class Allocator>
 struct basic_stable_traits : basic_default_traits<Allocator> {
   template <typename Key, typename Mapped>
-  using map_t = typename stable_map_trait<Key, Mapped, Allocator>::type;
+  using map_t = stable_map_trait<Key, Mapped, Allocator>::type;
 };
 
 using default_traits = basic_default_traits<std::allocator>;

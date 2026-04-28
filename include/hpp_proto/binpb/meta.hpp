@@ -133,7 +133,7 @@ constexpr auto tag_type() {
 }
 
 constexpr auto make_tag(uint32_t number, wire_type type) {
-  return varint{(number << 3U) | std::underlying_type_t<wire_type>(type)};
+  return varint{(number << 3U) | static_cast<std::underlying_type_t<wire_type>>(type)};
 }
 
 template <typename Type, typename Meta>
@@ -191,8 +191,8 @@ struct map_entry {
   using key_type = KeyType;
   using mapped_type = MappedType;
   struct mutable_type {
-    typename serialize_type<KeyType>::type key = {};
-    typename serialize_type<MappedType>::type value = {};
+    serialize_type<KeyType>::type key = {};
+    serialize_type<MappedType>::type value = {};
     constexpr static bool is_map_entry() { return true; }
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -217,14 +217,16 @@ struct map_entry {
   };
 
   struct read_only_type {
-    typename serialize_type<KeyType>::read_type key;
-    typename serialize_type<MappedType>::read_type value;
+    using key_convertible_type = serialize_type<KeyType>::convertible_type;
+    using mapped_convertible_type = serialize_type<MappedType>::convertible_type;
+
+    serialize_type<KeyType>::read_type key;
+    serialize_type<MappedType>::read_type value;
     constexpr static bool is_map_entry() { return true; }
 
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     constexpr read_only_type(auto &k, auto &v)
-        : key((typename serialize_type<KeyType>::convertible_type)k),
-          value((typename serialize_type<MappedType>::convertible_type)v) {}
+        : key(static_cast<key_convertible_type>(k)), value(static_cast<mapped_convertible_type>(v)) {}
     ~read_only_type() = default;
     read_only_type(const read_only_type &) = delete;
     read_only_type(read_only_type &&) = delete;
@@ -256,7 +258,7 @@ struct meta_of;
 
 template <concepts::has_local_meta Type>
 struct meta_of<Type> {
-  using type = typename Type::pb_meta;
+  using type = Type::pb_meta;
 };
 
 template <concepts::has_explicit_meta Type>
@@ -266,7 +268,7 @@ struct meta_of<Type> {
 
 template <concepts::has_meta Type, std::size_t Index>
 struct field_meta_of {
-  using type = typename std::tuple_element_t<Index, typename meta_of<Type>::type>;
+  using type = std::tuple_element_t<Index, typename meta_of<Type>::type>;
 };
 
 template <typename Meta, typename Type>
@@ -279,7 +281,7 @@ struct get_serialize_type<Meta, Type> {
 };
 
 template <typename Meta, typename Type>
-using get_map_entry = typename Meta::type;
+using get_map_entry = Meta::type;
 
 template <typename T, std::size_t M, std::size_t N>
 constexpr std::array<T, M + N> operator<<(std::array<T, M> lhs, std::array<T, N> rhs) {

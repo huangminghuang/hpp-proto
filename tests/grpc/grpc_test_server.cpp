@@ -39,7 +39,7 @@ std::string endpoint_from_listen_address(std::string_view address, int selected_
   if (host.empty()) {
     host = "127.0.0.1";
   }
-  if (host.find(':') != std::string::npos && host.front() != '[') {
+  if (host.contains(':') && host.front() != '[') {
     host = "[" + host + "]";
   }
 

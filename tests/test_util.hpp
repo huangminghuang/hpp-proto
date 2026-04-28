@@ -47,7 +47,7 @@ constexpr auto operator""_bytes() {
   return hpp_proto::bytes_literal<str>{};
 }
 
-// NOLINTBEGIN(cert-dcl58-cpp)
+// NOLINTBEGIN(cert-dcl58-cpp, bugprone-std-namespace-modification)
 namespace std {
 template <glz::glaze_t T>
 inline std::ostream &operator<<(ostream &os, const T &v) {
@@ -105,7 +105,7 @@ std::ostream &operator<<(std::ostream &os, const equality_comparable_span<T> &sp
 }
 } // namespace hpp_proto
 
-// NOLINTEND(cert-dcl58-cpp)
+// NOLINTEND(cert-dcl58-cpp,bugprone-std-namespace-modification)
 
 #ifdef __GNUC__
 #ifdef __apple_build_version__

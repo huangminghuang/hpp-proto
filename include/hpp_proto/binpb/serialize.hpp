@@ -79,7 +79,7 @@ struct contiguous_out {
   template <std::ranges::contiguous_range T>
   constexpr bool serialize(const T &item) {
     using type = std::remove_cvref_t<T>;
-    using value_type = typename type::value_type;
+    using value_type = type::value_type;
     static_assert(concepts::byte_serializable<value_type>);
     if (!std::is_constant_evaluated() && (!endian_swapped || sizeof(value_type) == 1)) {
       if (!item.empty()) {
@@ -147,7 +147,7 @@ struct chunked_out {
   template <std::ranges::contiguous_range T>
   bool serialize(const T &item) {
     using type = std::remove_cvref_t<T>;
-    using value_type = typename type::value_type;
+    using value_type = type::value_type;
     static_assert(concepts::byte_serializable<value_type>);
     if (!endian_swapped || sizeof(value_type) == 1) {
       auto bytes = std::as_bytes(std::span(item.data(), item.size()));
@@ -204,7 +204,7 @@ template <concepts::has_meta T>
 struct size_cache_counter<T> {
   constexpr static std::size_t count(concepts::has_meta auto const &item) {
     using type = std::remove_cvref_t<decltype(item)>;
-    using meta_type = typename util::meta_of<type>::type;
+    using meta_type = util::meta_of<type>::type;
     if constexpr (std::tuple_size_v<meta_type> == 0) {
       return 0;
     } else {
@@ -236,7 +236,7 @@ struct size_cache_counter<T> {
     if constexpr (concepts::contiguous_byte_range<type>) {
       return 0;
     }
-    using value_type = typename std::ranges::range_value_t<type>;
+    using value_type = std::ranges::range_value_t<type>;
     if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
       return util::transform_accumulate(item, [](const auto &elem) constexpr { return count(elem, Meta{}); });
     } else {
@@ -255,10 +255,10 @@ struct size_cache_counter<T> {
   template <typename Meta>
   constexpr static std::size_t count(concepts::is_pair auto const &item, Meta) {
     using type = std::remove_cvref_t<decltype(item)>;
-    using serialize_type = typename util::get_serialize_type<Meta, type>::type;
+    using serialize_type = util::get_serialize_type<Meta, type>::type;
 
     static_assert(concepts::is_map_entry<serialize_type>);
-    using mapped_type = typename serialize_type::mapped_type;
+    using mapped_type = serialize_type::mapped_type;
     if constexpr (requires { *item.second; }) {
       return count(*item.second) + 2;
     } else if constexpr (concepts::has_meta<mapped_type>) {
@@ -359,7 +359,7 @@ struct message_size_calculator<T> {
 
   constexpr static uint64_t field_size(concepts::pb_unknown_fields auto const &item, auto,
                                        concepts::is_size_cache_iterator auto &) {
-    using range_t = typename std::remove_reference_t<decltype(item)>::unknown_fields_range_t;
+    using range_t = std::remove_reference_t<decltype(item)>::unknown_fields_range_t;
     if constexpr (requires { item.fields.size(); }) {
       return item.fields.size();
     } else if constexpr (concepts::contiguous_byte_range<range_t>) {
@@ -383,7 +383,7 @@ struct message_size_calculator<T> {
   constexpr static uint64_t field_size(concepts::byte_serializable auto item, Meta meta,
                                        concepts::is_size_cache_iterator auto &) {
     using type = decltype(item);
-    using serialize_type = typename util::get_serialize_type<Meta, type>::type;
+    using serialize_type = util::get_serialize_type<Meta, type>::type;
 
     constexpr auto tag_size = static_cast<uint64_t>(varint_size(meta.number << 3U));
     if constexpr (concepts::byte_serializable<serialize_type>) {
@@ -421,8 +421,8 @@ struct message_size_calculator<T> {
   constexpr static uint64_t field_size(concepts::is_pair auto const &item, Meta meta,
                                        concepts::is_size_cache_iterator auto &cache_itr) {
     using type = std::remove_cvref_t<decltype(item)>;
-    using serialize_type = typename util::get_serialize_type<Meta, type>::type;
-    using value_type = typename serialize_type::read_only_type;
+    using serialize_type = util::get_serialize_type<Meta, type>::type;
+    using value_type = serialize_type::read_only_type;
 
     constexpr auto tag_size = static_cast<uint64_t>(varint_size(meta.number << 3U));
     auto &[key, value] = item;
@@ -441,7 +441,7 @@ struct message_size_calculator<T> {
       const auto len = item.size();
       return tag_size + len_size(len);
     } else {
-      using value_type = typename std::ranges::range_value_t<type>;
+      using value_type = std::ranges::range_value_t<type>;
       if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
         return util::transform_accumulate(
             item, [&cache_itr](const auto &elem) constexpr { return field_size(elem, Meta{}, cache_itr); });
@@ -617,7 +617,7 @@ status serialize(const T &item, Sink &sink, Context &context) {
 template <concepts::has_meta T>
 [[nodiscard]] constexpr bool serialize(const T &item, concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
   using type = std::remove_cvref_t<decltype(item)>;
-  using metas = typename util::meta_of<type>::type;
+  using metas = util::meta_of<type>::type;
   auto serialize_field_if_not_empty = [&](auto meta) {
     return meta.omit_value(meta.get(item)) || serialize_field(meta.get(item), meta, cache_itr, archive);
   };
@@ -642,7 +642,7 @@ template <typename Meta>
 
 [[nodiscard]] constexpr bool serialize_field(concepts::pb_unknown_fields auto const &item, auto,
                                              concepts::is_size_cache_iterator auto &, auto &archive) {
-  using range_t = typename std::remove_reference_t<decltype(item)>::unknown_fields_range_t;
+  using range_t = std::remove_reference_t<decltype(item)>::unknown_fields_range_t;
   if constexpr (concepts::contiguous_byte_range<range_t>) {
     return archive(item.fields);
   } else {
@@ -662,7 +662,7 @@ template <typename Meta>
 
 [[nodiscard]] constexpr bool serialize_field(concepts::arithmetic auto item, auto meta,
                                              concepts::is_size_cache_iterator auto &, auto &archive) {
-  using serialize_type = typename util::get_serialize_type<decltype(meta), decltype(item)>::type;
+  using serialize_type = util::get_serialize_type<decltype(meta), decltype(item)>::type;
   return archive(make_tag<serialize_type>(meta), serialize_type{item});
 }
 
@@ -694,9 +694,9 @@ template <concepts::dereferenceable T>
     auto len = varint{consume_size_cache_entry(cache_itr)};
     return archive(make_tag<decltype(item)>(meta), len) && serialize(item, cache_itr, archive);
   } else {
-    return archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::sgroup)}) &&
+    return archive(varint{(meta.number << 3U) | static_cast<std::underlying_type_t<wire_type>>(wire_type::sgroup)}) &&
            serialize(item, cache_itr, archive) &&
-           archive(varint{(meta.number << 3U) | std::underlying_type_t<wire_type>(wire_type::egroup)});
+           archive(varint{(meta.number << 3U) | static_cast<std::underlying_type_t<wire_type>>(wire_type::egroup)});
   }
 }
 
@@ -704,7 +704,7 @@ template <concepts::dereferenceable T>
                                              concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
   using Meta = decltype(meta);
   using type = std::remove_cvref_t<decltype(item)>;
-  using value_type = typename std::ranges::range_value_t<type>;
+  using value_type = std::ranges::range_value_t<type>;
   using element_type =
       std::conditional_t<std::same_as<typename Meta::type, void> || concepts::contiguous_byte_range<type>, value_type,
                          typename Meta::type>;
@@ -730,7 +730,7 @@ template <typename Meta>
                                              concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
   using type = std::remove_cvref_t<decltype(item)>;
   constexpr auto tag = make_tag<type>(meta);
-  using value_type = typename util::get_map_entry<Meta, type>::read_only_type;
+  using value_type = util::get_map_entry<Meta, type>::read_only_type;
   static_assert(concepts::has_meta<value_type>);
   auto &&[key, value] = item;
   auto len = varint{consume_size_cache_entry(cache_itr)};

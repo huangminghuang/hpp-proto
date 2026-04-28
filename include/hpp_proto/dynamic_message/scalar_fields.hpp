@@ -43,7 +43,7 @@ template <typename T, field_kind_t Kind>
 class scalar_field_cref {
 public:
   using encode_type = T;
-  using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
+  using value_type = std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
   using storage_type = scalar_storage_base<value_type>;
   constexpr static field_kind_t field_kind = Kind;
   constexpr static bool is_mutable = false;
@@ -127,7 +127,7 @@ class scalar_field_mref {
 
 public:
   using encode_type = T;
-  using value_type = typename std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
+  using value_type = std::conditional_t<concepts::varint<T>, T, value_type_identity<T>>::value_type;
   using storage_type = scalar_storage_base<value_type>;
   using cref_type = scalar_field_cref<T, Kind>;
 

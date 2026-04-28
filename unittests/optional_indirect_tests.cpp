@@ -36,8 +36,8 @@ const boost::ut::suite optional_indirect_tests = [] {
 
   "optional_indirect"_test = []<class Traits> {
     using Message = TestRecursiveMessage<Traits>;
-    using Optional = typename Traits::template optional_indirect_t<Message>;
-    using Alloc = typename Optional::allocator_type;
+    using Optional = Traits::template optional_indirect_t<Message>;
+    using Alloc = Optional::allocator_type;
 
     auto expect_allocator_eq = [](const Alloc &lhs, const Alloc &rhs) {
       if constexpr (requires { lhs.resource(); }) {

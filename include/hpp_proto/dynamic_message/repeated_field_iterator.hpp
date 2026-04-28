@@ -36,9 +36,9 @@ class repeated_field_iterator {
 
 public:
   using iterator_category = std::random_access_iterator_tag;
-  using value_type = typename Field::reference;
+  using value_type = Field::reference;
   using difference_type = std::ptrdiff_t;
-  using reference = typename Field::reference;
+  using reference = Field::reference;
   using pointer = void;
   repeated_field_iterator() = default;
   repeated_field_iterator(const Field *field, std::size_t index) noexcept : field_(field), index_(index) {}

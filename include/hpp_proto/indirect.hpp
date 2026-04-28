@@ -12,12 +12,12 @@ template <typename T, typename Allocator = std::allocator<T>>
 class indirect {
 public:
   using value_type = T;
-  using allocator_type = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+  using allocator_type = std::allocator_traits<Allocator>::template rebind_alloc<T>;
   using allocator_arg_t = std::allocator_arg_t;
 
 private:
   using allocator_traits = std::allocator_traits<allocator_type>;
-  using pointer = typename allocator_traits::pointer;
+  using pointer = allocator_traits::pointer;
 
   [[no_unique_address]] allocator_type alloc_{};
   pointer obj_;

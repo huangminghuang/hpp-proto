@@ -38,7 +38,7 @@ struct base64 {
   using encoded_storage = std::string_view;
   constexpr static std::size_t max_encode_size(hpp_proto::concepts::contiguous_byte_range auto const &source) noexcept {
     std::size_t n = source.size();
-    return (n / 3 + (n % 3 > 0 ? 1 : 0)) * 4;
+    return ((n / 3) + (n % 3 > 0 ? 1 : 0)) * 4;
   }
 
   // @returns The number bytes written to b, -1 for error

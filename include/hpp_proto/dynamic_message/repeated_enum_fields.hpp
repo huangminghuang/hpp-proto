@@ -203,8 +203,10 @@ public:
   constexpr static bool is_repeated = true;
 
   template <typename U>
+  // NOLINTBEGIN(readability-redundant-typename)
   static constexpr bool settable_from_v =
       requires { typename U::is_enum_numbers_range; } || requires { typename U::is_enum_names_range; };
+  // NOLINTEND(readability-redundant-typename)
 
   repeated_enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                            std::pmr::monotonic_buffer_resource &mr) noexcept

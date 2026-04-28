@@ -78,7 +78,7 @@ void run_server_stream_case() {
   Harness harness;
   auto &stub = harness.stub();
   ::grpc::ClientContext context;
-  typename ServerStreamReactor::request_t request;
+  ServerStreamReactor::request_t request;
   request.message = "fanout";
   request.sequence = 3;
 

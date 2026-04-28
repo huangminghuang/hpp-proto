@@ -122,7 +122,7 @@ public:
 };
 
 template <typename... T>
-struct pb_context : T::option_type... {
+struct pb_context : T::option_type... { // NOLINT(misc-multiple-inheritance)
   using is_pb_context = void;
   template <typename... U>
   constexpr explicit pb_context(U &&...ctx) : T::option_type(std::forward<U>(ctx))... {}
@@ -249,7 +249,7 @@ auto bit_cast_view(const Bytes &input_range) {
 template <concepts::dynamic_sized_view View, concepts::memory_resource MemoryResource>
 class arena_vector {
 public:
-  using value_type = typename View::value_type;
+  using value_type = View::value_type;
   using reference = value_type &;
   using const_reference = const value_type &;
   using pointer = value_type *;

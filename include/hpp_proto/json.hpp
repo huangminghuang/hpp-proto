@@ -42,6 +42,7 @@ template <typename T>
 concept is_json_context = requires { typename T::is_json_context; };
 } // namespace concepts
 template <typename... AuxContext>
+// NOLINTNEXTLINE(misc-multiple-inheritance)
 struct json_context : glz::context, pb_context<AuxContext...> {
   using is_json_context = void;
   const char *error_message_name = nullptr;
@@ -65,7 +66,7 @@ concept has_nested_codec = requires { typename T::json_codec; };
 
 template <concepts::has_nested_codec T>
 struct json_codec<T> {
-  using type = typename T::json_codec;
+  using type = T::json_codec;
 };
 
 struct use_base64 {
@@ -88,7 +89,7 @@ struct to<JSON, T> {
   template <auto Opts, class B>
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto const &value, is_context auto &ctx, B &b, auto &ix) noexcept {
-    using codec = typename hpp_proto::json_codec<T>::type;
+    using codec = hpp_proto::json_codec<T>::type;
     if constexpr (resizable<B>) {
       std::size_t const encoded_size = codec::max_encode_size(value);
       if ((ix + 2 + encoded_size) >= b.size()) {
@@ -142,8 +143,8 @@ struct from<JSON, T> {
   template <auto Opts, class It, class End>
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &value, is_context auto &ctx, It &it, End &end) {
-    using codec = typename hpp_proto::json_codec<T>::type;
-    using encoded_storage = typename codec::encoded_storage;
+    using codec = hpp_proto::json_codec<T>::type;
+    using encoded_storage = codec::encoded_storage;
     encoded_storage encoded;
     from<JSON, encoded_storage>::template op<Opts>(encoded, ctx, it, end);
     if constexpr (not Opts.null_terminated) {
@@ -541,7 +542,7 @@ inline json_status read_json(concepts::read_json_supported auto &value, concepts
       return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
     }
   } else if constexpr (requires { str.c_str(); }) {
-    using char_type = typename buffer_type::value_type;
+    using char_type = buffer_type::value_type;
     std::basic_string_view<char_type> view{str};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   } else if constexpr (std::is_pointer_v<buffer_type>) {

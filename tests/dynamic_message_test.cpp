@@ -1008,17 +1008,17 @@ const boost::ut::suite dynamic_message_test = [] {
 
       std::string json_buf;
       expect(::hpp_proto::write_json<opts>(msg, json_buf).ok());
-      expect(json_buf.find(R"("optionalInt32":0)") != std::string::npos);
-      expect(json_buf.find(R"("repeatedInt32":[])") != std::string::npos);
-      expect(json_buf.find(R"("optionalNestedMessage")") == std::string::npos);
+      expect(json_buf.contains(R"("optionalInt32":0)"));
+      expect(json_buf.contains(R"("repeatedInt32":[])"));
+      expect(!json_buf.contains(R"("optionalNestedMessage")"));
 
       std::string json_from_binpb;
       expect(
           ::hpp_proto::binpb_to_json<opts>(factory, "proto3_unittest.TestAllTypes", std::string_view{}, json_from_binpb)
               .ok());
-      expect(json_from_binpb.find(R"("optionalInt32":0)") != std::string::npos);
-      expect(json_from_binpb.find(R"("repeatedInt32":[])") != std::string::npos);
-      expect(json_from_binpb.find(R"("optionalNestedMessage")") == std::string::npos);
+      expect(json_from_binpb.contains(R"("optionalInt32":0)"));
+      expect(json_from_binpb.contains(R"("repeatedInt32":[])"));
+      expect(!json_from_binpb.contains(R"("optionalNestedMessage")"));
     };
 
     "json_snake_case_parsing"_test = [&factory] {
@@ -1042,8 +1042,8 @@ const boost::ut::suite dynamic_message_test = [] {
       std::string json;
       expect(hpp_proto::write_json<opts>(msg, json).ok());
       // Expect snake_case names
-      expect(json.find(R"("optional_int32":123)") != std::string::npos) << "Actual: " << json;
-      expect(json.find(R"("optional_string":"hello")") != std::string::npos) << "Actual: " << json;
+      expect(json.contains(R"("optional_int32":123)")) << "Actual: " << json;
+      expect(json.contains(R"("optional_string":"hello")")) << "Actual: " << json;
     };
 
     "repeated enum set and adopt"_test = [&factory] {

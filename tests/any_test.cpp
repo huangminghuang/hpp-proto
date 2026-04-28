@@ -36,7 +36,7 @@ decltype(auto) expect_ok(Exp &&exp) {
 const suite test_any = [] {
   "any"_test = []<class Traits>() {
     std::pmr::monotonic_buffer_resource mr;
-    using string_t = typename Traits::string_t;
+    using string_t = Traits::string_t;
 
     ::protobuf_unittest::TestAny<Traits> message;
     ::google::protobuf::FieldMask<Traits> fm;

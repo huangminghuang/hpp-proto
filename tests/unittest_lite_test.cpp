@@ -15,8 +15,8 @@ struct LiteTypeMapping {
   using ImportEnum = protobuf_unittest_import::ImportEnumLite;
   using ForeignMessage_t = protobuf_unittest::ForeignMessageLite<Traits>;
   using ImportMessage_t = protobuf_unittest_import::ImportMessageLite<Traits>;
-  using NestedMessage_t = typename TestAllTypes_t::NestedMessage;
-  using RepeatedGroup_t = typename TestAllTypes_t::RepeatedGroup;
+  using NestedMessage_t = TestAllTypes_t::NestedMessage;
+  using RepeatedGroup_t = TestAllTypes_t::RepeatedGroup;
   using RepeatedGroup_extension_t = protobuf_unittest::RepeatedGroup_extension_lite<Traits>;
 
   using oneof_uint32_extension_t = protobuf_unittest::oneof_uint32_extension_lite;

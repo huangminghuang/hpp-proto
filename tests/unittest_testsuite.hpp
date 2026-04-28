@@ -27,124 +27,124 @@ std::ostream &operator<<(std::ostream &os, const T &v) {
 template <typename Traits, template <typename> typename TypeMapping>
 struct TestSuite {
   using mapping_t = TypeMapping<Traits>;
-  using TestAllTypes_t = typename mapping_t::TestAllTypes_t;
-  using TestAllExtensions_t = typename mapping_t::TestAllExtensions_t;
-  using TestPackedTypes_t = typename mapping_t::TestPackedTypes_t;
-  using TestPackedExtensions_t = typename mapping_t::TestPackedExtensions_t;
+  using TestAllTypes_t = mapping_t::TestAllTypes_t;
+  using TestAllExtensions_t = mapping_t::TestAllExtensions_t;
+  using TestPackedTypes_t = mapping_t::TestPackedTypes_t;
+  using TestPackedExtensions_t = mapping_t::TestPackedExtensions_t;
 
-  using NestedEnum = typename mapping_t::NestedEnum;
-  using ForeignEnum = typename mapping_t::ForeignEnum;
-  using ImportEnum = typename mapping_t::ImportEnum;
-  using ForeignMessage_t = typename mapping_t::ForeignMessage_t;
-  using ImportMessage_t = typename mapping_t::ImportMessage_t;
-  using NestedMessage_t = typename mapping_t::NestedMessage_t;
-  using RepeatedGroup_t = typename mapping_t::RepeatedGroup_t;
-  using RepeatedGroup_extension_t = typename mapping_t::RepeatedGroup_extension_t;
+  using NestedEnum = mapping_t::NestedEnum;
+  using ForeignEnum = mapping_t::ForeignEnum;
+  using ImportEnum = mapping_t::ImportEnum;
+  using ForeignMessage_t = mapping_t::ForeignMessage_t;
+  using ImportMessage_t = mapping_t::ImportMessage_t;
+  using NestedMessage_t = mapping_t::NestedMessage_t;
+  using RepeatedGroup_t = mapping_t::RepeatedGroup_t;
+  using RepeatedGroup_extension_t = mapping_t::RepeatedGroup_extension_t;
 
-  using oneof_uint32_extension_t = typename mapping_t::oneof_uint32_extension_t;
-  using oneof_nested_message_extension_t = typename mapping_t::oneof_nested_message_extension_t;
-  using oneof_string_extension_t = typename mapping_t::oneof_string_extension_t;
-  using oneof_bytes_extension_t = typename mapping_t::oneof_bytes_extension_t;
+  using oneof_uint32_extension_t = mapping_t::oneof_uint32_extension_t;
+  using oneof_nested_message_extension_t = mapping_t::oneof_nested_message_extension_t;
+  using oneof_string_extension_t = mapping_t::oneof_string_extension_t;
+  using oneof_bytes_extension_t = mapping_t::oneof_bytes_extension_t;
 
-  using optional_int32_extension_t = typename mapping_t::optional_int32_extension_t;
-  using optional_int64_extension_t = typename mapping_t::optional_int64_extension_t;
-  using optional_uint32_extension_t = typename mapping_t::optional_uint32_extension_t;
-  using optional_uint64_extension_t = typename mapping_t::optional_uint64_extension_t;
-  using optional_sint32_extension_t = typename mapping_t::optional_sint32_extension_t;
-  using optional_sint64_extension_t = typename mapping_t::optional_sint64_extension_t;
-  using optional_fixed32_extension_t = typename mapping_t::optional_fixed32_extension_t;
-  using optional_fixed64_extension_t = typename mapping_t::optional_fixed64_extension_t;
-  using optional_sfixed32_extension_t = typename mapping_t::optional_sfixed32_extension_t;
-  using optional_sfixed64_extension_t = typename mapping_t::optional_sfixed64_extension_t;
-  using optional_float_extension_t = typename mapping_t::optional_float_extension_t;
-  using optional_double_extension_t = typename mapping_t::optional_double_extension_t;
-  using optional_bool_extension_t = typename mapping_t::optional_bool_extension_t;
-  using optional_string_extension_t = typename mapping_t::optional_string_extension_t;
-  using optional_bytes_extension_t = typename mapping_t::optional_bytes_extension_t;
+  using optional_int32_extension_t = mapping_t::optional_int32_extension_t;
+  using optional_int64_extension_t = mapping_t::optional_int64_extension_t;
+  using optional_uint32_extension_t = mapping_t::optional_uint32_extension_t;
+  using optional_uint64_extension_t = mapping_t::optional_uint64_extension_t;
+  using optional_sint32_extension_t = mapping_t::optional_sint32_extension_t;
+  using optional_sint64_extension_t = mapping_t::optional_sint64_extension_t;
+  using optional_fixed32_extension_t = mapping_t::optional_fixed32_extension_t;
+  using optional_fixed64_extension_t = mapping_t::optional_fixed64_extension_t;
+  using optional_sfixed32_extension_t = mapping_t::optional_sfixed32_extension_t;
+  using optional_sfixed64_extension_t = mapping_t::optional_sfixed64_extension_t;
+  using optional_float_extension_t = mapping_t::optional_float_extension_t;
+  using optional_double_extension_t = mapping_t::optional_double_extension_t;
+  using optional_bool_extension_t = mapping_t::optional_bool_extension_t;
+  using optional_string_extension_t = mapping_t::optional_string_extension_t;
+  using optional_bytes_extension_t = mapping_t::optional_bytes_extension_t;
 
-  using optionalgroup_extension_t = typename mapping_t::optionalgroup_extension_t;
-  using optional_nested_message_extension_t = typename mapping_t::optional_nested_message_extension_t;
-  using optional_foreign_message_extension_t = typename mapping_t::optional_foreign_message_extension_t;
-  using optional_import_message_extension_t = typename mapping_t::optional_import_message_extension_t;
-  using optional_public_import_message_extension_t = typename mapping_t::optional_public_import_message_extension_t;
-  using optional_lazy_message_extension_t = typename mapping_t::optional_lazy_message_extension_t;
+  using optionalgroup_extension_t = mapping_t::optionalgroup_extension_t;
+  using optional_nested_message_extension_t = mapping_t::optional_nested_message_extension_t;
+  using optional_foreign_message_extension_t = mapping_t::optional_foreign_message_extension_t;
+  using optional_import_message_extension_t = mapping_t::optional_import_message_extension_t;
+  using optional_public_import_message_extension_t = mapping_t::optional_public_import_message_extension_t;
+  using optional_lazy_message_extension_t = mapping_t::optional_lazy_message_extension_t;
 
-  using optional_nested_enum_extension_t = typename mapping_t::optional_nested_enum_extension_t;
-  using optional_foreign_enum_extension_t = typename mapping_t::optional_foreign_enum_extension_t;
-  using optional_import_enum_extension_t = typename mapping_t::optional_import_enum_extension_t;
+  using optional_nested_enum_extension_t = mapping_t::optional_nested_enum_extension_t;
+  using optional_foreign_enum_extension_t = mapping_t::optional_foreign_enum_extension_t;
+  using optional_import_enum_extension_t = mapping_t::optional_import_enum_extension_t;
 
-  using optional_string_piece_extension_t = typename mapping_t::optional_string_piece_extension_t;
-  using optional_cord_extension_t = typename mapping_t::optional_cord_extension_t;
+  using optional_string_piece_extension_t = mapping_t::optional_string_piece_extension_t;
+  using optional_cord_extension_t = mapping_t::optional_cord_extension_t;
 
-  using default_int32_extension_t = typename mapping_t::default_int32_extension_t;
-  using default_int64_extension_t = typename mapping_t::default_int64_extension_t;
-  using default_uint32_extension_t = typename mapping_t::default_uint32_extension_t;
-  using default_uint64_extension_t = typename mapping_t::default_uint64_extension_t;
-  using default_sint32_extension_t = typename mapping_t::default_sint32_extension_t;
-  using default_sint64_extension_t = typename mapping_t::default_sint64_extension_t;
-  using default_fixed32_extension_t = typename mapping_t::default_fixed32_extension_t;
-  using default_fixed64_extension_t = typename mapping_t::default_fixed64_extension_t;
-  using default_sfixed32_extension_t = typename mapping_t::default_sfixed32_extension_t;
-  using default_sfixed64_extension_t = typename mapping_t::default_sfixed64_extension_t;
-  using default_float_extension_t = typename mapping_t::default_float_extension_t;
-  using default_double_extension_t = typename mapping_t::default_double_extension_t;
-  using default_bool_extension_t = typename mapping_t::default_bool_extension_t;
-  using default_string_extension_t = typename mapping_t::default_string_extension_t;
-  using default_bytes_extension_t = typename mapping_t::default_bytes_extension_t;
+  using default_int32_extension_t = mapping_t::default_int32_extension_t;
+  using default_int64_extension_t = mapping_t::default_int64_extension_t;
+  using default_uint32_extension_t = mapping_t::default_uint32_extension_t;
+  using default_uint64_extension_t = mapping_t::default_uint64_extension_t;
+  using default_sint32_extension_t = mapping_t::default_sint32_extension_t;
+  using default_sint64_extension_t = mapping_t::default_sint64_extension_t;
+  using default_fixed32_extension_t = mapping_t::default_fixed32_extension_t;
+  using default_fixed64_extension_t = mapping_t::default_fixed64_extension_t;
+  using default_sfixed32_extension_t = mapping_t::default_sfixed32_extension_t;
+  using default_sfixed64_extension_t = mapping_t::default_sfixed64_extension_t;
+  using default_float_extension_t = mapping_t::default_float_extension_t;
+  using default_double_extension_t = mapping_t::default_double_extension_t;
+  using default_bool_extension_t = mapping_t::default_bool_extension_t;
+  using default_string_extension_t = mapping_t::default_string_extension_t;
+  using default_bytes_extension_t = mapping_t::default_bytes_extension_t;
 
-  using default_nested_enum_extension_t = typename mapping_t::default_nested_enum_extension_t;
-  using default_foreign_enum_extension_t = typename mapping_t::default_foreign_enum_extension_t;
-  using default_import_enum_extension_t = typename mapping_t::default_import_enum_extension_t;
+  using default_nested_enum_extension_t = mapping_t::default_nested_enum_extension_t;
+  using default_foreign_enum_extension_t = mapping_t::default_foreign_enum_extension_t;
+  using default_import_enum_extension_t = mapping_t::default_import_enum_extension_t;
 
-  using default_string_piece_extension_t = typename mapping_t::default_string_piece_extension_t;
-  using default_cord_extension_t = typename mapping_t::default_cord_extension_t;
+  using default_string_piece_extension_t = mapping_t::default_string_piece_extension_t;
+  using default_cord_extension_t = mapping_t::default_cord_extension_t;
 
-  using repeated_int32_extension_t = typename mapping_t::repeated_int32_extension_t;
-  using repeated_int64_extension_t = typename mapping_t::repeated_int64_extension_t;
-  using repeated_uint32_extension_t = typename mapping_t::repeated_uint32_extension_t;
-  using repeated_uint64_extension_t = typename mapping_t::repeated_uint64_extension_t;
-  using repeated_sint32_extension_t = typename mapping_t::repeated_sint32_extension_t;
-  using repeated_sint64_extension_t = typename mapping_t::repeated_sint64_extension_t;
-  using repeated_fixed32_extension_t = typename mapping_t::repeated_fixed32_extension_t;
-  using repeated_fixed64_extension_t = typename mapping_t::repeated_fixed64_extension_t;
-  using repeated_sfixed32_extension_t = typename mapping_t::repeated_sfixed32_extension_t;
-  using repeated_sfixed64_extension_t = typename mapping_t::repeated_sfixed64_extension_t;
-  using repeated_float_extension_t = typename mapping_t::repeated_float_extension_t;
-  using repeated_double_extension_t = typename mapping_t::repeated_double_extension_t;
-  using repeated_bool_extension_t = typename mapping_t::repeated_bool_extension_t;
-  using repeated_string_extension_t = typename mapping_t::repeated_string_extension_t;
-  using repeated_bytes_extension_t = typename mapping_t::repeated_bytes_extension_t;
+  using repeated_int32_extension_t = mapping_t::repeated_int32_extension_t;
+  using repeated_int64_extension_t = mapping_t::repeated_int64_extension_t;
+  using repeated_uint32_extension_t = mapping_t::repeated_uint32_extension_t;
+  using repeated_uint64_extension_t = mapping_t::repeated_uint64_extension_t;
+  using repeated_sint32_extension_t = mapping_t::repeated_sint32_extension_t;
+  using repeated_sint64_extension_t = mapping_t::repeated_sint64_extension_t;
+  using repeated_fixed32_extension_t = mapping_t::repeated_fixed32_extension_t;
+  using repeated_fixed64_extension_t = mapping_t::repeated_fixed64_extension_t;
+  using repeated_sfixed32_extension_t = mapping_t::repeated_sfixed32_extension_t;
+  using repeated_sfixed64_extension_t = mapping_t::repeated_sfixed64_extension_t;
+  using repeated_float_extension_t = mapping_t::repeated_float_extension_t;
+  using repeated_double_extension_t = mapping_t::repeated_double_extension_t;
+  using repeated_bool_extension_t = mapping_t::repeated_bool_extension_t;
+  using repeated_string_extension_t = mapping_t::repeated_string_extension_t;
+  using repeated_bytes_extension_t = mapping_t::repeated_bytes_extension_t;
 
-  using repeatedgroup_extension_t = typename mapping_t::repeatedgroup_extension_t;
-  using repeated_nested_message_extension_t = typename mapping_t::repeated_nested_message_extension_t;
-  using repeated_foreign_message_extension_t = typename mapping_t::repeated_foreign_message_extension_t;
-  using repeated_import_message_extension_t = typename mapping_t::repeated_import_message_extension_t;
-  using repeated_lazy_message_extension_t = typename mapping_t::repeated_lazy_message_extension_t;
-  using repeated_nested_enum_extension_t = typename mapping_t::repeated_nested_enum_extension_t;
-  using repeated_foreign_enum_extension_t = typename mapping_t::repeated_foreign_enum_extension_t;
-  using repeated_import_enum_extension_t = typename mapping_t::repeated_import_enum_extension_t;
+  using repeatedgroup_extension_t = mapping_t::repeatedgroup_extension_t;
+  using repeated_nested_message_extension_t = mapping_t::repeated_nested_message_extension_t;
+  using repeated_foreign_message_extension_t = mapping_t::repeated_foreign_message_extension_t;
+  using repeated_import_message_extension_t = mapping_t::repeated_import_message_extension_t;
+  using repeated_lazy_message_extension_t = mapping_t::repeated_lazy_message_extension_t;
+  using repeated_nested_enum_extension_t = mapping_t::repeated_nested_enum_extension_t;
+  using repeated_foreign_enum_extension_t = mapping_t::repeated_foreign_enum_extension_t;
+  using repeated_import_enum_extension_t = mapping_t::repeated_import_enum_extension_t;
 
-  using repeated_string_piece_extension_t = typename mapping_t::repeated_string_piece_extension_t;
-  using repeated_cord_extension_t = typename mapping_t::repeated_cord_extension_t;
+  using repeated_string_piece_extension_t = mapping_t::repeated_string_piece_extension_t;
+  using repeated_cord_extension_t = mapping_t::repeated_cord_extension_t;
 
-  using packed_int32_extension_t = typename mapping_t::packed_int32_extension_t;
-  using packed_int64_extension_t = typename mapping_t::packed_int64_extension_t;
-  using packed_uint32_extension_t = typename mapping_t::packed_uint32_extension_t;
-  using packed_uint64_extension_t = typename mapping_t::packed_uint64_extension_t;
-  using packed_sint32_extension_t = typename mapping_t::packed_sint32_extension_t;
-  using packed_sint64_extension_t = typename mapping_t::packed_sint64_extension_t;
-  using packed_fixed32_extension_t = typename mapping_t::packed_fixed32_extension_t;
-  using packed_fixed64_extension_t = typename mapping_t::packed_fixed64_extension_t;
-  using packed_sfixed32_extension_t = typename mapping_t::packed_sfixed32_extension_t;
-  using packed_sfixed64_extension_t = typename mapping_t::packed_sfixed64_extension_t;
-  using packed_float_extension_t = typename mapping_t::packed_float_extension_t;
-  using packed_double_extension_t = typename mapping_t::packed_double_extension_t;
-  using packed_bool_extension_t = typename mapping_t::packed_bool_extension_t;
-  using packed_enum_extension_t = typename mapping_t::packed_enum_extension_t;
+  using packed_int32_extension_t = mapping_t::packed_int32_extension_t;
+  using packed_int64_extension_t = mapping_t::packed_int64_extension_t;
+  using packed_uint32_extension_t = mapping_t::packed_uint32_extension_t;
+  using packed_uint64_extension_t = mapping_t::packed_uint64_extension_t;
+  using packed_sint32_extension_t = mapping_t::packed_sint32_extension_t;
+  using packed_sint64_extension_t = mapping_t::packed_sint64_extension_t;
+  using packed_fixed32_extension_t = mapping_t::packed_fixed32_extension_t;
+  using packed_fixed64_extension_t = mapping_t::packed_fixed64_extension_t;
+  using packed_sfixed32_extension_t = mapping_t::packed_sfixed32_extension_t;
+  using packed_sfixed64_extension_t = mapping_t::packed_sfixed64_extension_t;
+  using packed_float_extension_t = mapping_t::packed_float_extension_t;
+  using packed_double_extension_t = mapping_t::packed_double_extension_t;
+  using packed_bool_extension_t = mapping_t::packed_bool_extension_t;
+  using packed_enum_extension_t = mapping_t::packed_enum_extension_t;
 
-  using bool_t = typename Traits::template repeated_t<bool>::value_type;
-  using string_t = typename Traits::string_t;
-  using bytes_t = typename Traits::bytes_t;
+  using bool_t = Traits::template repeated_t<bool>::value_type;
+  using string_t = Traits::string_t;
+  using bytes_t = Traits::bytes_t;
 
   static bytes_t make_bytes(const auto &literal) { return bytes_t{literal.begin(), literal.end()}; }
 
@@ -595,7 +595,7 @@ struct TestSuite {
     message->packed_enum = packed_enum;
   }
 
-  static void SetAll(typename mapping_t::TestUnpackedTypes_t *message, auto && /*unused*/) {
+  static void SetAll(mapping_t::TestUnpackedTypes_t *message, auto && /*unused*/) {
     // The values applied here must match those of SetPackedFields.
 
     const static auto unpacked_int32 = std::initializer_list<int32_t>{601, 701};
@@ -690,7 +690,7 @@ struct TestSuite {
     expect(mapping_t::FOREIGN_BAZ == message.packed_enum[1]);
   }
 
-  static void ExpectAllSet(const typename mapping_t::TestUnpackedTypes_t &message) {
+  static void ExpectAllSet(const mapping_t::TestUnpackedTypes_t &message) {
     // The values expected here must match those of ExpectPackedFieldsSet.
     expect(fatal(eq(2, message.unpacked_int32.size())));
     expect(fatal(eq(2, message.unpacked_int64.size())));
@@ -825,11 +825,11 @@ struct TestSuite {
     expect_set_extension_ok(repeated_import_message_extension_t{.value = repeated_import_message});
     expect_set_extension_ok(repeated_lazy_message_extension_t{.value = repeated_lazy_message});
     expect_set_extension_ok(repeated_nested_enum_extension_t{.value = repeated_nested_enum});
-    using foreign_enum_t = typename repeated_foreign_enum_extension_t::value_type::value_type;
+    using foreign_enum_t = repeated_foreign_enum_extension_t::value_type::value_type;
     const static auto repeated_foreign_enum =
         std::initializer_list<foreign_enum_t>{mapping_t::FOREIGN_BAR, mapping_t::FOREIGN_BAZ};
     expect_set_extension_ok(repeated_foreign_enum_extension_t{.value = repeated_foreign_enum});
-    using import_enum_t = typename repeated_import_enum_extension_t::value_type::value_type;
+    using import_enum_t = repeated_import_enum_extension_t::value_type::value_type;
     const static auto repeated_import_enum =
         std::initializer_list<import_enum_t>{mapping_t::IMPORT_BAR, mapping_t::IMPORT_BAZ};
     const static auto repeated_string_piece = std::initializer_list<string_t>{"224", "324"};

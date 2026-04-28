@@ -64,6 +64,7 @@ template <typename ServiceMethods>
 class Stub {
   class GrpcMethod : public ::grpc::internal::RpcMethod {
   public:
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     GrpcMethod() : ::grpc::internal::RpcMethod(nullptr, RpcType::NORMAL_RPC) {}
     void set(const char *name, const char *suffix_for_stats, RpcType type,
              const std::shared_ptr<::grpc::ChannelInterface> &channel) {
@@ -135,7 +136,7 @@ public:
 
 template <typename Method>
 class ClientCallbackReactor : public ClientCallbackSelector<static_cast<RpcType>(Method::rpc_type)>::reactor {
-  using base = typename ClientCallbackSelector<static_cast<RpcType>(Method::rpc_type)>::reactor;
+  using base = ClientCallbackSelector<static_cast<RpcType>(Method::rpc_type)>::reactor;
   ::grpc::ByteBuffer request_;
   ::grpc::ByteBuffer response_;
 
@@ -146,7 +147,7 @@ public:
 
   template <typename Stub, typename Traits>
     requires(rpc_type == RpcType::NORMAL_RPC)
-  void prepare(const Stub &stub, ::grpc::ClientContext &context, const typename Method::template request_t<Traits> &req,
+  void prepare(const Stub &stub, ::grpc::ClientContext &context, const Method::template request_t<Traits> &req,
                hpp_proto::concepts::is_option_type auto &&...option) {
     auto result = ::hpp_proto::grpc::write_binpb(req, request_, std::forward<decltype(option)>(option)...);
     if (result.ok()) {
@@ -166,7 +167,7 @@ public:
 
   template <typename Stub, typename Traits>
     requires(rpc_type == RpcType::SERVER_STREAMING)
-  void prepare(const Stub &stub, ::grpc::ClientContext &context, const typename Method::template request_t<Traits> &req,
+  void prepare(const Stub &stub, ::grpc::ClientContext &context, const Method::template request_t<Traits> &req,
                hpp_proto::concepts::is_option_type auto &&...option) {
     auto result = ::hpp_proto::grpc::write_binpb(req, request_, std::forward<decltype(option)>(option)...);
     if (result.ok()) {
@@ -192,7 +193,7 @@ public:
   }
 
   template <typename Traits>
-  ::grpc::Status write(typename Method::template request_t<Traits> &req, ::grpc::WriteOptions options,
+  ::grpc::Status write(Method::template request_t<Traits> &req, ::grpc::WriteOptions options,
                        hpp_proto::concepts::is_option_type auto &&...ser_option)
     requires Method::client_streaming
   {
@@ -204,7 +205,7 @@ public:
   }
 
   template <typename Traits>
-  ::grpc::Status write(typename Method::template request_t<Traits> &req,
+  ::grpc::Status write(Method::template request_t<Traits> &req,
                        hpp_proto::concepts::is_option_type auto &&...ser_option)
     requires Method::client_streaming
   {
@@ -212,7 +213,7 @@ public:
   }
 
   template <typename Traits>
-  ::grpc::Status write_last(typename Method::template request_t<Traits> &req, ::grpc::WriteOptions options,
+  ::grpc::Status write_last(Method::template request_t<Traits> &req, ::grpc::WriteOptions options,
                             hpp_proto::concepts::is_option_type auto &&...ser_option)
     requires Method::client_streaming
   {
@@ -239,13 +240,13 @@ public:
   }
 
   template <typename Traits>
-  ::grpc::Status get_response(typename Method::template response_t<Traits> &response,
+  ::grpc::Status get_response(Method::template response_t<Traits> &response,
                               hpp_proto::concepts::is_option_type auto &&...option) {
     return ::hpp_proto::grpc::read_binpb(response, response_, std::forward<decltype(option)>(option)...);
   }
 
   template <typename Traits>
-  ::grpc::Status get_response(typename Method::template response_t<Traits> &response,
+  ::grpc::Status get_response(Method::template response_t<Traits> &response,
                               hpp_proto::concepts::is_pb_context auto &context) {
     return ::hpp_proto::grpc::read_binpb(response, response_, context);
   }

@@ -74,7 +74,7 @@ class descriptor_pool {
 
 public:
   // NOLINTBEGIN(bugprone-unchecked-optional-access)
-  using traits_type = typename AddOns::traits_type;
+  using traits_type = AddOns::traits_type;
   using FieldDescriptorProto = google::protobuf::FieldDescriptorProto<traits_type>;
   using FieldOptions = google::protobuf::FieldOptions<traits_type>;
   using FeatureSet = google::protobuf::FeatureSet<traits_type>;
@@ -221,6 +221,7 @@ public:
     FieldOptions options_;
   };
 
+  // NOLINTNEXTLINE(misc-multiple-inheritance)
   class field_descriptor_t : public field_descriptor_base,
                              public AddOns::template field_descriptor<field_descriptor_t> {
   public:
@@ -265,6 +266,7 @@ public:
     OneofOptions options_;
   };
 
+  // NOLINTNEXTLINE(misc-multiple-inheritance)
   class oneof_descriptor_t : public oneof_descriptor_base,
                              public AddOns::template oneof_descriptor<oneof_descriptor_t> {
     using addon_type = AddOns::template oneof_descriptor<oneof_descriptor_t>;
@@ -312,6 +314,7 @@ public:
     EnumOptions options_;
   };
 
+  // NOLINTNEXTLINE(misc-multiple-inheritance)
   class enum_descriptor_t : public enum_descriptor_base, public AddOns::template enum_descriptor<enum_descriptor_t> {
   public:
     using addon_type = AddOns::template enum_descriptor<enum_descriptor_t>;
@@ -374,6 +377,7 @@ public:
     MessageOptions options_;
   };
 
+  // NOLINTNEXTLINE(misc-multiple-inheritance)
   class message_descriptor_t : public message_descriptor_base,
                                public AddOns::template message_descriptor<message_descriptor_t> {
   public:
@@ -422,6 +426,7 @@ public:
     FileOptions options_;
   };
 
+  // NOLINTNEXTLINE(misc-multiple-inheritance)
   class file_descriptor_t : public file_descriptor_base, public AddOns::template file_descriptor<file_descriptor_t> {
   public:
     using addon_type = AddOns::template file_descriptor<file_descriptor_t>;
@@ -945,7 +950,7 @@ private:
   }
 
   template <typename FlatMap>
-  typename FlatMap::mapped_type find_type(FlatMap &types, std::string_view qualified_name) {
+  FlatMap::mapped_type find_type(FlatMap &types, std::string_view qualified_name) {
     auto itr = types.find(qualified_name);
     return itr == types.end() ? nullptr : itr->second;
   }

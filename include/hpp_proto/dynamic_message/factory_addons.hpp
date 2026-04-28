@@ -253,9 +253,9 @@ struct dynamic_message_factory_addons {
 };
 
 using descriptor_pool_t = descriptor_pool<dynamic_message_factory_addons>;
-using field_descriptor_t = typename descriptor_pool_t::field_descriptor_t;
-using enum_descriptor_t = typename descriptor_pool_t::enum_descriptor_t;
-using oneof_descriptor_t = typename descriptor_pool_t::oneof_descriptor_t;
-using message_descriptor_t = typename descriptor_pool_t::message_descriptor_t;
-using file_descriptor_t = typename descriptor_pool_t::file_descriptor_t;
+using field_descriptor_t = descriptor_pool_t::field_descriptor_t;
+using enum_descriptor_t = descriptor_pool_t::enum_descriptor_t;
+using oneof_descriptor_t = descriptor_pool_t::oneof_descriptor_t;
+using message_descriptor_t = descriptor_pool_t::message_descriptor_t;
+using file_descriptor_t = descriptor_pool_t::file_descriptor_t;
 } // namespace hpp_proto

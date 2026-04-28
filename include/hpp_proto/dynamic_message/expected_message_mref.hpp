@@ -62,11 +62,11 @@ struct callable_arg<Ret (ClassType::*)(Arg) const, void> {
 // functor/lambda fallback: peel off operator()
 template <typename T>
 struct callable_arg<T, std::void_t<decltype(&T::operator())>> {
-  using type = typename callable_arg<decltype(&T::operator())>::type;
+  using type = callable_arg<decltype(&T::operator())>::type;
 };
 
 template <typename T>
-using callable_arg_t = typename callable_arg<T>::type;
+using callable_arg_t = callable_arg<T>::type;
 
 } // namespace util
 

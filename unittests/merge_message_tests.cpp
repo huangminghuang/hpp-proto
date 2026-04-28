@@ -7,7 +7,7 @@ template <typename Traits = hpp_proto::default_traits>
 struct ForeignMessage {
   std::int32_t c = {};
   std::int32_t d = {};
-  typename Traits::bytes_t e;
+  Traits::bytes_t e;
   bool operator==(const ForeignMessage &) const = default;
 };
 
@@ -108,7 +108,7 @@ auto pb_meta(const TestMessage<Traits> &)
 
 template <typename Traits = hpp_proto::default_traits>
 struct MoveRepeatedMessage {
-  typename Traits::template repeated_t<typename Traits::string_t> values;
+  Traits::template repeated_t<typename Traits::string_t> values;
   bool operator==(const MoveRepeatedMessage &) const = default;
 };
 
@@ -168,8 +168,8 @@ const boost::ut::suite merge_test_suite = [] {
           expect(dest.repeated_uint64.empty());
         };
 
-        using DestTraits = typename TraitsPair::first_type;
-        using SourceTraits = typename TraitsPair::second_type;
+        using DestTraits = TraitsPair::first_type;
+        using SourceTraits = TraitsPair::second_type;
 
         TestMessage<DestTraits> dest;
         TestMessage<SourceTraits> source;
@@ -229,8 +229,8 @@ const boost::ut::suite merge_test_suite = [] {
 
   "map_merge"_test =
       []<class TraitsPair> {
-        using DestTraits = typename TraitsPair::first_type;
-        using SourceTraits = typename TraitsPair::second_type;
+        using DestTraits = TraitsPair::first_type;
+        using SourceTraits = TraitsPair::second_type;
         using namespace boost::ut::bdd;
 
         given("dest and source") = [] {
@@ -313,8 +313,8 @@ const boost::ut::suite merge_test_suite = [] {
 
   "oneof_merge"_test =
       []<class TraitsPair> {
-        using DestTraits = typename TraitsPair::first_type;
-        using SourceTraits = typename TraitsPair::second_type;
+        using DestTraits = TraitsPair::first_type;
+        using SourceTraits = TraitsPair::second_type;
         using namespace std::string_literals;
         using namespace boost::ut::bdd;
 
@@ -404,8 +404,8 @@ const boost::ut::suite merge_test_suite = [] {
 
   "merge_optional_bool"_test =
       []<class TraitsPair> {
-        using DestTraits = typename TraitsPair::first_type;
-        using SourceTraits = typename TraitsPair::second_type;
+        using DestTraits = TraitsPair::first_type;
+        using SourceTraits = TraitsPair::second_type;
 
         should("merge const reference should overwrite optional<bool>") = [] {
           BoolOptionalMessage<DestTraits> dest;

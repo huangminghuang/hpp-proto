@@ -123,7 +123,7 @@ public:
   [[nodiscard]] bool finished() const { return finished_; }
   [[nodiscard]] const ::grpc::Status &finished_status() const { return finished_status_; }
 
-  void Finish(::grpc::Status status) {
+  void Finish(::grpc::Status status) { // NOLINT(bugprone-derived-method-shadowing-base-method)
     finished_ = true;
     finished_status_ = std::move(status);
   }
@@ -145,7 +145,7 @@ public:
   [[nodiscard]] bool finished() const { return finished_; }
   [[nodiscard]] const ::grpc::Status &finished_status() const { return finished_status_; }
 
-  void Finish(::grpc::Status status) {
+  void Finish(::grpc::Status status) { // NOLINT(bugprone-derived-method-shadowing-base-method)
     finished_ = true;
     finished_status_ = std::move(status);
   }
