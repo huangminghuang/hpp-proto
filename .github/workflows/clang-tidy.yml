@@ -61,7 +61,7 @@ jobs:
       - name: Setup required C++ tools
         uses: aminya/setup-cpp@v1.8.0
         with:
-          compiler: llvm-21
+          compiler: llvm-22
           cmake: "3.31.0"
           ninja: true
           ccache: true
