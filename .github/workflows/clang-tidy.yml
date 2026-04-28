@@ -1,4 +1,4 @@
-name: Clang-Tidy 21
+name: Clang-Tidy 22
 
 on:
   workflow_dispatch:

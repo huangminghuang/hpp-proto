@@ -259,18 +259,18 @@ public:
     s.size = static_cast<uint32_t>(n);
   }
 
-  [[nodiscard]] bool empty() const noexcept {
+  [[nodiscard]] bool empty() const noexcept { // NOLINT(bugprone-derived-method-shadowing-base-method)
     return storage_->of_repeated_int32.size == 0;
-  } // NOLINT(bugprone-derived-method-shadowing-base-method)
-  [[nodiscard]] std::size_t size() const noexcept {
+  }
+  [[nodiscard]] std::size_t size() const noexcept { // NOLINT(bugprone-derived-method-shadowing-base-method)
     return storage_->of_repeated_int32.size;
-  } // NOLINT(bugprone-derived-method-shadowing-base-method)
+  }
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->of_repeated_int32.capacity; }
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->of_repeated_int32.size}; }
-  [[nodiscard]] int32_t *data() const noexcept {
+  [[nodiscard]] int32_t *data() const noexcept { // NOLINT(bugprone-derived-method-shadowing-base-method)
     return storage_->of_repeated_int32.content;
-  } // NOLINT(bugprone-derived-method-shadowing-base-method)
+  }
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     assert(index < size());
