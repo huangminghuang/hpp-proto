@@ -1098,6 +1098,7 @@ struct msg_code_generator : code_generator {
         types += (", " + type_as_template_arg(f.cpp_field_type));
       }
       format_to(target, "}};\n");
+      format_to(target, "{}// NOLINTNEXTLINE(readability-redundant-typename)\n", indent());
       format_to(target, "{}std::variant<std::monostate{}> {};\n", indent(), types, descriptor.cpp_name);
     } else {
       auto &f = fields[0];
