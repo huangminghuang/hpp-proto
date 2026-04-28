@@ -344,7 +344,7 @@ struct hpp_addons {
         cpp_meta_type = "bool";
         break;
       case TYPE_STRING:
-        cpp_field_type = "typename Traits::string_t";
+        cpp_field_type = "Traits::string_t";
         qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_GROUP:
@@ -352,7 +352,7 @@ struct hpp_addons {
       case TYPE_ENUM:
         break;
       case TYPE_BYTES:
-        cpp_field_type = "typename Traits::bytes_t";
+        cpp_field_type = "Traits::bytes_t";
         qualified_cpp_field_type = cpp_field_type;
         break;
       case TYPE_UINT32:
@@ -449,13 +449,13 @@ struct hpp_addons {
       } else if (proto.default_value == "-inf") {
         default_value = std::format("-std::numeric_limits<{}>::infinity()", cpp_field_type);
       } else if (proto.type == TYPE_FLOAT) {
-        if (proto.default_value.find('.') == std::string::npos && proto.default_value.find('e') == std::string::npos) {
+        if (!proto.default_value.contains('.') && !proto.default_value.contains('e')) {
           default_value = proto.default_value + ".0F";
         } else {
           default_value = proto.default_value + "F";
         }
       } else {
-        default_value = std::format("double({})", proto.default_value);
+        default_value = std::format("static_cast<double>({})", proto.default_value);
       }
 
       const char *wrap_type = (proto.type == TYPE_DOUBLE) ? "DOUBLE" : "FLOAT";
@@ -567,7 +567,7 @@ struct hpp_addons {
 
 hpp_proto::optional<std::string> hpp_addons::namespace_prefix;
 using hpp_gen_descriptor_pool = ::hpp_proto::descriptor_pool<hpp_addons>;
-using traits_type = typename hpp_gen_descriptor_pool::traits_type;
+using traits_type = hpp_gen_descriptor_pool::traits_type;
 using CodeGeneratorResponse = google::protobuf::compiler::CodeGeneratorResponse<traits_type>;
 
 const static hpp_proto::flat_map<std::string, std::string> well_known_codecs = {
@@ -582,7 +582,7 @@ struct code_generator {
   static std::string directory_prefix;
   static bool preserve_proto_field_names;
   std::size_t indent_num = 0;
-  typename CodeGeneratorResponse::File &file;
+  CodeGeneratorResponse::File &file;
   std::back_insert_iterator<std::string> target;
 
   using message_descriptor_t = hpp_gen_descriptor_pool::message_descriptor_t;
@@ -594,7 +594,14 @@ struct code_generator {
 
   static message_descriptor_t *parent_message_of(auto *desc) { return desc->parent_message(); }
 
-  explicit code_generator(std::vector<typename CodeGeneratorResponse::File> &files)
+  static std::string type_as_template_arg(std::string_view type) {
+    if (type.starts_with("Traits::")) {
+      return std::format("typename {}", type);
+    }
+    return std::string{type};
+  }
+
+  explicit code_generator(std::vector<CodeGeneratorResponse::File> &files)
       : file(files.emplace_back()), target(file.content) {}
 
   ~code_generator() = default;
@@ -1011,20 +1018,22 @@ struct msg_code_generator : code_generator {
       auto *type_desc = descriptor.message_field_type_descriptor();
       if (type_desc->fields()[1].is_recursive) {
         return std::format("Traits::template map_t<{}, typename Traits::template indirect_t<{}>>",
-                           type_desc->fields().front().cpp_field_type, type_desc->fields()[1].cpp_field_type);
-      } else {
-        return std::format("Traits::template map_t<{}, {}>", type_desc->fields().front().cpp_field_type,
+                           type_as_template_arg(type_desc->fields().front().cpp_field_type),
                            type_desc->fields()[1].cpp_field_type);
+      } else {
+        return std::format("Traits::template map_t<{}, {}>",
+                           type_as_template_arg(type_desc->fields().front().cpp_field_type),
+                           type_as_template_arg(type_desc->fields()[1].cpp_field_type));
       }
     }
 
     auto wrapper = field_type_wrapper(descriptor);
 
     if (wrapper == "::hpp_proto::optional" && !descriptor.default_value_template_arg.empty()) {
-      return std::format("::hpp_proto::optional<{0}, {1}>", descriptor.cpp_field_type,
+      return std::format("::hpp_proto::optional<{0}, {1}>", type_as_template_arg(descriptor.cpp_field_type),
                          descriptor.default_value_template_arg);
     } else if (!wrapper.empty()) {
-      return std::format("{}<{}>", wrapper, descriptor.cpp_field_type);
+      return std::format("{}<{}>", wrapper, type_as_template_arg(descriptor.cpp_field_type));
     }
     return descriptor.cpp_field_type;
   }
@@ -1086,15 +1095,17 @@ struct msg_code_generator : code_generator {
 
       for (auto &f : fields) {
         format_to(target, ", {}U", f.proto().number);
-        types += (", " + f.cpp_field_type);
+        types += (", " + type_as_template_arg(f.cpp_field_type));
       }
       format_to(target, "}};\n");
+      format_to(target, "{}// NOLINTNEXTLINE(readability-redundant-typename)\n", indent());
       format_to(target, "{}std::variant<std::monostate{}> {};\n", indent(), types, descriptor.cpp_name);
     } else {
       auto &f = fields[0];
       std::string attribute;
 
-      format_to(target, "{}{}std::optional<{}> {};\n", indent(), attribute, f.cpp_field_type, f.cpp_name);
+      format_to(target, "{}{}std::optional<{}> {};\n", indent(), attribute, type_as_template_arg(f.cpp_field_type),
+                f.cpp_name);
     }
   }
 
@@ -1368,16 +1379,17 @@ struct hpp_meta_generator : code_generator {
       };
       auto *type_desc = descriptor.message_field_type_descriptor();
       if (type_desc->fields()[1].is_recursive) {
-        descriptor.cpp_meta_type =
-            std::format("::hpp_proto::map_entry<{}, typename Traits::template indirect_t<{}>, {}, {}>",
-                        get_meta_type(type_desc->fields()[0]), get_meta_type(type_desc->fields()[1]),
-                        join_to_string(meta_options(type_desc->fields()[0]), " | "),
-                        join_to_string(meta_options(type_desc->fields()[1]), " | "));
-      } else {
         descriptor.cpp_meta_type = std::format(
-            "::hpp_proto::map_entry<{}, {}, {}, {}>", get_meta_type(type_desc->fields()[0]),
-            get_meta_type(type_desc->fields()[1]), join_to_string(meta_options(type_desc->fields()[0]), " | "),
+            "::hpp_proto::map_entry<{}, typename Traits::template indirect_t<{}>, {}, {}>",
+            type_as_template_arg(get_meta_type(type_desc->fields()[0])), get_meta_type(type_desc->fields()[1]),
+            join_to_string(meta_options(type_desc->fields()[0]), " | "),
             join_to_string(meta_options(type_desc->fields()[1]), " | "));
+      } else {
+        descriptor.cpp_meta_type = std::format("::hpp_proto::map_entry<{}, {}, {}, {}>",
+                                               type_as_template_arg(get_meta_type(type_desc->fields()[0])),
+                                               type_as_template_arg(get_meta_type(type_desc->fields()[1])),
+                                               join_to_string(meta_options(type_desc->fields()[0]), " | "),
+                                               join_to_string(meta_options(type_desc->fields()[1]), " | "));
       }
     }
 
@@ -1427,8 +1439,9 @@ struct hpp_meta_generator : code_generator {
     auto field_value_type = descriptor.cpp_field_type;
     bool is_repeated = proto.label == LABEL_REPEATED;
 
-    auto get_result_type =
-        is_repeated ? std::format("typename Traits::template repeated_t<{}>", field_value_type) : field_value_type;
+    auto get_result_type = is_repeated
+                               ? std::format("Traits::template repeated_t<{}>", type_as_template_arg(field_value_type))
+                               : field_value_type;
 
     const char *extra_crtp_arg = "";
     if (proto.type == TYPE_MESSAGE || proto.type == TYPE_GROUP || proto.type == TYPE_STRING ||

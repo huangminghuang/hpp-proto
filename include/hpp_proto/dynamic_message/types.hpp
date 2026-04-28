@@ -55,7 +55,7 @@ struct range_value_or_void<U, std::void_t<std::ranges::range_value_t<U>>> {
   using type = std::ranges::range_value_t<U>;
 };
 template <typename U>
-using range_value_or_void_t = typename range_value_or_void<U>::type;
+using range_value_or_void_t = range_value_or_void<U>::type;
 
 template <typename T>
 struct get_traits {

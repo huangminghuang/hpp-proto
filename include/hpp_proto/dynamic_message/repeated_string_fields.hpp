@@ -110,12 +110,18 @@ public:
     s.size = static_cast<uint32_t>(n);
   }
 
-  [[nodiscard]] bool empty() const noexcept { return storage_->of_repeated_string.size == 0; }
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->of_repeated_string.size; }
+  [[nodiscard]] bool empty() const noexcept { // NOLINT(bugprone-derived-method-shadowing-base-method)
+    return storage_->of_repeated_string.size == 0;
+  }
+  [[nodiscard]] std::size_t size() const noexcept { // NOLINT(bugprone-derived-method-shadowing-base-method)
+    return storage_->of_repeated_string.size;
+  }
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->of_repeated_string.capacity; }
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->of_repeated_string.size}; }
-  [[nodiscard]] std::string_view *data() const noexcept { return storage_->of_repeated_string.content; }
+  [[nodiscard]] std::string_view *data() const noexcept { // NOLINT(bugprone-derived-method-shadowing-base-method)
+    return storage_->of_repeated_string.content;
+  }
 
   [[nodiscard]] bool is_present_or_explicit_default() const noexcept { return !empty(); }
 

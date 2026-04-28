@@ -52,7 +52,7 @@ namespace UninterpretedOption_ {
   template <typename Traits = ::hpp_proto::default_traits>
   struct NamePart {
     using hpp_proto_traits_type = Traits;
-    typename Traits::string_t name_part;
+    Traits::string_t name_part;
     bool is_extension = {};
 
     [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
@@ -67,12 +67,12 @@ struct UninterpretedOption {
   using NamePart = UninterpretedOption_::NamePart<Traits>;
 
   Traits::template repeated_t<NamePart> name;
-  typename Traits::string_t identifier_value;
+  Traits::string_t identifier_value;
   std::uint64_t positive_int_value = {};
   std::int64_t negative_int_value = {};
   double double_value = {};
-  typename Traits::bytes_t string_value;
-  typename Traits::string_t aggregate_value;
+  Traits::bytes_t string_value;
+  Traits::string_t aggregate_value;
 
   [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const UninterpretedOption&) const = default;
@@ -228,8 +228,8 @@ namespace SourceCodeInfo_ {
     using hpp_proto_traits_type = Traits;
     Traits::template repeated_t<std::int32_t> path;
     Traits::template repeated_t<std::int32_t> span;
-    typename Traits::string_t leading_comments;
-    typename Traits::string_t trailing_comments;
+    Traits::string_t leading_comments;
+    Traits::string_t trailing_comments;
     Traits::template repeated_t<typename Traits::string_t> leading_detached_comments;
 
     [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
@@ -281,7 +281,7 @@ namespace GeneratedCodeInfo_ {
     using hpp_proto_traits_type = Traits;
     using Semantic = google::protobuf::GeneratedCodeInfo_::Annotation_::Semantic;
     Traits::template repeated_t<std::int32_t> path;
-    typename Traits::string_t source_file;
+    Traits::string_t source_file;
     std::int32_t begin = {};
     std::int32_t end = {};
     Semantic semantic = Semantic::NONE;
@@ -495,7 +495,7 @@ namespace FieldOptions_ {
   struct EditionDefault {
     using hpp_proto_traits_type = Traits;
     google::protobuf::Edition edition = google::protobuf::Edition::EDITION_UNKNOWN;
-    typename Traits::string_t value;
+    Traits::string_t value;
 
     [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const EditionDefault&) const = default;
@@ -506,7 +506,7 @@ namespace FieldOptions_ {
     using hpp_proto_traits_type = Traits;
     google::protobuf::Edition edition_introduced = google::protobuf::Edition::EDITION_UNKNOWN;
     google::protobuf::Edition edition_deprecated = google::protobuf::Edition::EDITION_UNKNOWN;
-    typename Traits::string_t deprecation_warning;
+    Traits::string_t deprecation_warning;
     google::protobuf::Edition edition_removed = google::protobuf::Edition::EDITION_UNKNOWN;
 
     [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
@@ -602,25 +602,25 @@ template <typename Traits = ::hpp_proto::default_traits>
 struct FileOptions {
   using hpp_proto_traits_type = Traits;
   using OptimizeMode = google::protobuf::FileOptions_::OptimizeMode;
-  typename Traits::string_t java_package;
-  typename Traits::string_t java_outer_classname;
+  Traits::string_t java_package;
+  Traits::string_t java_outer_classname;
   bool java_multiple_files = false;
   bool java_generate_equals_and_hash = {};
   bool java_string_check_utf8 = false;
   OptimizeMode optimize_for = OptimizeMode::SPEED;
-  typename Traits::string_t go_package;
+  Traits::string_t go_package;
   bool cc_generic_services = false;
   bool java_generic_services = false;
   bool py_generic_services = false;
   bool deprecated = false;
   bool cc_enable_arenas = true;
-  typename Traits::string_t objc_class_prefix;
-  typename Traits::string_t csharp_namespace;
-  typename Traits::string_t swift_prefix;
-  typename Traits::string_t php_class_prefix;
-  typename Traits::string_t php_namespace;
-  typename Traits::string_t php_metadata_namespace;
-  typename Traits::string_t ruby_package;
+  Traits::string_t objc_class_prefix;
+  Traits::string_t csharp_namespace;
+  Traits::string_t swift_prefix;
+  Traits::string_t php_class_prefix;
+  Traits::string_t php_namespace;
+  Traits::string_t php_metadata_namespace;
+  Traits::string_t ruby_package;
   std::optional<google::protobuf::FeatureSet<Traits>> features;
   Traits::template repeated_t<google::protobuf::UninterpretedOption<Traits>> uninterpreted_option;
 
@@ -643,9 +643,9 @@ struct FileOptions {
 template <typename Traits = ::hpp_proto::default_traits>
 struct MethodDescriptorProto {
   using hpp_proto_traits_type = Traits;
-  typename Traits::string_t name;
-  typename Traits::string_t input_type;
-  typename Traits::string_t output_type;
+  Traits::string_t name;
+  Traits::string_t input_type;
+  Traits::string_t output_type;
   std::optional<google::protobuf::MethodOptions<Traits>> options;
   bool client_streaming = false;
   bool server_streaming = false;
@@ -657,7 +657,7 @@ struct MethodDescriptorProto {
 template <typename Traits = ::hpp_proto::default_traits>
 struct ServiceDescriptorProto {
   using hpp_proto_traits_type = Traits;
-  typename Traits::string_t name;
+  Traits::string_t name;
   Traits::template repeated_t<google::protobuf::MethodDescriptorProto<Traits>> method;
   std::optional<google::protobuf::ServiceOptions<Traits>> options;
 
@@ -668,7 +668,7 @@ struct ServiceDescriptorProto {
 template <typename Traits = ::hpp_proto::default_traits>
 struct OneofDescriptorProto {
   using hpp_proto_traits_type = Traits;
-  typename Traits::string_t name;
+  Traits::string_t name;
   std::optional<google::protobuf::OneofOptions<Traits>> options;
 
   [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
@@ -720,15 +720,15 @@ struct FieldDescriptorProto {
   using hpp_proto_traits_type = Traits;
   using Type = google::protobuf::FieldDescriptorProto_::Type;
   using Label = google::protobuf::FieldDescriptorProto_::Label;
-  typename Traits::string_t name;
+  Traits::string_t name;
   std::int32_t number = {};
   Label label = Label::LABEL_OPTIONAL;
   Type type = Type::TYPE_DOUBLE;
-  typename Traits::string_t type_name;
-  typename Traits::string_t extendee;
-  typename Traits::string_t default_value;
+  Traits::string_t type_name;
+  Traits::string_t extendee;
+  Traits::string_t default_value;
   ::hpp_proto::optional<std::int32_t> oneof_index;
-  typename Traits::string_t json_name;
+  Traits::string_t json_name;
   std::optional<google::protobuf::FieldOptions<Traits>> options;
   bool proto3_optional = {};
 
@@ -751,8 +751,8 @@ namespace ExtensionRangeOptions_ {
   struct Declaration {
     using hpp_proto_traits_type = Traits;
     std::int32_t number = {};
-    typename Traits::string_t full_name;
-    typename Traits::string_t type;
+    Traits::string_t full_name;
+    Traits::string_t type;
     bool reserved = {};
     bool repeated = {};
 
@@ -817,7 +817,7 @@ struct EnumValueOptions {
 template <typename Traits = ::hpp_proto::default_traits>
 struct EnumValueDescriptorProto {
   using hpp_proto_traits_type = Traits;
-  typename Traits::string_t name;
+  Traits::string_t name;
   std::int32_t number = {};
   std::optional<google::protobuf::EnumValueOptions<Traits>> options;
 
@@ -843,7 +843,7 @@ struct EnumDescriptorProto {
   using hpp_proto_traits_type = Traits;
   using EnumReservedRange = EnumDescriptorProto_::EnumReservedRange<Traits>;
 
-  typename Traits::string_t name;
+  Traits::string_t name;
   Traits::template repeated_t<google::protobuf::EnumValueDescriptorProto<Traits>> value;
   std::optional<google::protobuf::EnumOptions<Traits>> options;
   Traits::template repeated_t<EnumReservedRange> reserved_range;
@@ -885,7 +885,7 @@ struct DescriptorProto {
 
   using ReservedRange = DescriptorProto_::ReservedRange<Traits>;
 
-  typename Traits::string_t name;
+  Traits::string_t name;
   Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> field;
   Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> extension;
   Traits::template recursive_repeated_t<DescriptorProto> nested_type;
@@ -904,8 +904,8 @@ struct DescriptorProto {
 template <typename Traits = ::hpp_proto::default_traits>
 struct FileDescriptorProto {
   using hpp_proto_traits_type = Traits;
-  typename Traits::string_t name;
-  typename Traits::string_t package;
+  Traits::string_t name;
+  Traits::string_t package;
   Traits::template repeated_t<typename Traits::string_t> dependency;
   Traits::template repeated_t<std::int32_t> public_dependency;
   Traits::template repeated_t<std::int32_t> weak_dependency;
@@ -916,7 +916,7 @@ struct FileDescriptorProto {
   Traits::template repeated_t<google::protobuf::FieldDescriptorProto<Traits>> extension;
   std::optional<google::protobuf::FileOptions<Traits>> options;
   std::optional<google::protobuf::SourceCodeInfo<Traits>> source_code_info;
-  typename Traits::string_t syntax;
+  Traits::string_t syntax;
   google::protobuf::Edition edition = google::protobuf::Edition::EDITION_UNKNOWN;
 
   [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;

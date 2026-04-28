@@ -192,7 +192,7 @@ inline auto field_mref::visit(auto &&visitor) const {
 inline void field_mref::clone_from(const field_cref &other) const {
   assert(this->descriptor_ == &other.descriptor());
   this->visit([&](const auto &specific_mref) {
-    using cref_type = typename std::decay_t<decltype(specific_mref)>::cref_type;
+    using cref_type = std::decay_t<decltype(specific_mref)>::cref_type;
     specific_mref.clone_from(cref_type{*descriptor_, *other.storage_});
   });
 }

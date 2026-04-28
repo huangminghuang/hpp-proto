@@ -15,6 +15,7 @@ Checks: "*,
         -concurrency-mt-unsafe,
         -cppcoreguidelines-non-private-member-variables-in-classes,
         -bugprone-exception-escape,
+        -bugprone-throwing-static-initialization,
         -misc-non-private-member-variables-in-classes,
         -misc-confusable-identifiers,
         -misc-include-cleaner,
@@ -23,6 +24,7 @@ Checks: "*,
         -cppcoreguidelines-avoid-magic-numbers,
         -readability-magic-numbers,
         -cppcoreguidelines-avoid-c-arrays,
+        -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
         -hicpp-avoid-c-arrays,
         -modernize-avoid-c-arrays,
         -misc-const-correctness,
@@ -54,4 +56,3 @@ ExtraArgs:
   - -Wno-unknown-warning-option
   - -Wno-ignored-optimization-argument
   - -Wno-unused-command-line-argument
-

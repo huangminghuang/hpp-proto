@@ -22,7 +22,7 @@ struct Version {
   std::int32_t major = {};
   std::int32_t minor = {};
   std::int32_t patch = {};
-  typename Traits::string_t suffix;
+  Traits::string_t suffix;
 
   [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator == (const Version&) const = default;
@@ -43,9 +43,9 @@ namespace CodeGeneratorResponse_ {
   template <typename Traits = ::hpp_proto::default_traits>
   struct File {
     using hpp_proto_traits_type = Traits;
-    typename Traits::string_t name;
-    typename Traits::string_t insertion_point;
-    typename Traits::string_t content;
+    Traits::string_t name;
+    Traits::string_t insertion_point;
+    Traits::string_t content;
     std::optional<google::protobuf::GeneratedCodeInfo<Traits>> generated_code_info;
 
     [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
@@ -60,7 +60,7 @@ struct CodeGeneratorResponse {
   using Feature = google::protobuf::compiler::CodeGeneratorResponse_::Feature;
   using File = CodeGeneratorResponse_::File<Traits>;
 
-  typename Traits::string_t error;
+  Traits::string_t error;
   std::uint64_t supported_features = {};
   std::int32_t minimum_edition = {};
   std::int32_t maximum_edition = {};
@@ -74,7 +74,7 @@ template <typename Traits = ::hpp_proto::default_traits>
 struct CodeGeneratorRequest {
   using hpp_proto_traits_type = Traits;
   Traits::template repeated_t<typename Traits::string_t> file_to_generate;
-  typename Traits::string_t parameter;
+  Traits::string_t parameter;
   Traits::template repeated_t<google::protobuf::FileDescriptorProto<Traits>> proto_file;
   Traits::template repeated_t<google::protobuf::FileDescriptorProto<Traits>> source_file_descriptors;
   std::optional<google::protobuf::compiler::Version<Traits>> compiler_version;

@@ -167,9 +167,9 @@ public:
 
     auto buffer = std::span<char>(static_cast<char *>(std::data(b)), b.size());
     std::size_t pos = 0;
-    fixed_len_to_chars<4, '-'>(buffer, pos, (int)ymd.year());
-    fixed_len_to_chars<2, '-'>(buffer, pos, (unsigned)ymd.month());
-    fixed_len_to_chars<2, 'T'>(buffer, pos, (unsigned)ymd.day());
+    fixed_len_to_chars<4, '-'>(buffer, pos, static_cast<int>(ymd.year()));
+    fixed_len_to_chars<2, '-'>(buffer, pos, static_cast<unsigned>(ymd.month()));
+    fixed_len_to_chars<2, 'T'>(buffer, pos, static_cast<unsigned>(ymd.day()));
     fixed_len_to_chars<2, ':'>(buffer, pos, hms.hours().count());
     fixed_len_to_chars<2, ':'>(buffer, pos, hms.minutes().count());
 

@@ -16,15 +16,15 @@ decltype(auto) expect_ok(Exp &&exp) {
 
 template <typename Traits>
 struct WellKnownTypesTests {
-  using string_t = typename Traits::string_t;
-  using bytes_t = typename Traits::bytes_t;
-  using value_t = typename google::protobuf::Value<Traits>;
-  using struct_t = typename google::protobuf::Struct<Traits>;
+  using string_t = Traits::string_t;
+  using bytes_t = Traits::bytes_t;
+  using value_t = google::protobuf::Value<Traits>;
+  using struct_t = google::protobuf::Struct<Traits>;
   using struct_fields_t = decltype(std::declval<struct_t>().fields);
-  using any_t = typename google::protobuf::Any<Traits>;
-  using field_mask_t = typename google::protobuf::FieldMask<Traits>;
-  using duration_t = typename google::protobuf::Duration<Traits>;
-  using timestamp_t = typename google::protobuf::Timestamp<Traits>;
+  using any_t = google::protobuf::Any<Traits>;
+  using field_mask_t = google::protobuf::FieldMask<Traits>;
+  using duration_t = google::protobuf::Duration<Traits>;
+  using timestamp_t = google::protobuf::Timestamp<Traits>;
   using TestWellKnownTypes = proto2_unittest::TestWellKnownTypes<Traits>;
 
   std::pmr::monotonic_buffer_resource pool;
@@ -181,8 +181,9 @@ struct WellKnownTypesTests {
 };
 
 template <typename Traits>
+// NOLINTNEXTLINE(readability-redundant-typename)
 std::initializer_list<typename Traits::string_t> WellKnownTypesTests<Traits>::field_mask_paths_init_list{
-    string_t{"/usr/share"}, string_t{"/usr/local/share"}};
+    WellKnownTypesTests<Traits>::string_t{"/usr/share"}, WellKnownTypesTests<Traits>::string_t{"/usr/local/share"}};
 
 const boost::ut::suite well_known_types_test = [] {
   "TestWellKnownTypes"_test = []<class Traits> {

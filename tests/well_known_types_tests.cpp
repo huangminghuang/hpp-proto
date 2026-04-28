@@ -306,7 +306,7 @@ const ut::suite test_value = [] {
     using NullValue = google::protobuf::NullValue;
     using ListValue = google::protobuf::ListValue<Traits>;
     using Struct = google::protobuf::Struct<Traits>;
-    using Struct_value_t = typename decltype(std::declval<Struct>().fields)::value_type;
+    using Struct_value_t = decltype(std::declval<Struct>().fields)::value_type;
     "verify Value null"_test = [&factory] { verify<Value>(factory, Value{.kind = NullValue{}}, "null"); };
 
     "verify Value true"_test = [&factory] { verify<Value>(factory, Value{.kind = true}, "true"); };
@@ -402,7 +402,7 @@ const ut::suite test_value = [] {
   "struct prettify separator"_test = [&factory] {
     using Value = google::protobuf::Value<hpp_proto::stable_traits>;
     using Struct = google::protobuf::Struct<hpp_proto::stable_traits>;
-    using Struct_value_t = typename decltype(std::declval<Struct>().fields)::value_type;
+    using Struct_value_t = decltype(std::declval<Struct>().fields)::value_type;
     auto make_indirect = [](Value &v) { return hpp_proto::indirect<Value>(v); };
     Value a_value{.kind = std::string{"x"}};
     Value b_value{.kind = true};

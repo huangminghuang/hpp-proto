@@ -30,9 +30,9 @@ struct Proto3Tests {
   using ForeignMessage = proto3_unittest::ForeignMessage<Traits>;
   using TestUnpackedTypes = proto3_unittest::TestUnpackedTypes<Traits>;
 
-  using bool_t = typename Traits::template repeated_t<bool>::value_type;
-  using string_t = typename Traits::string_t;
-  using bytes_t = typename Traits::bytes_t;
+  using bool_t = Traits::template repeated_t<bool>::value_type;
+  using string_t = Traits::string_t;
+  using bytes_t = Traits::bytes_t;
 
   // We selectively set/check a few representative fields rather than all fields
   // as this test is only expected to cover the basics of lite support.

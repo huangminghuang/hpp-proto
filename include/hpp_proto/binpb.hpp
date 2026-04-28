@@ -304,7 +304,7 @@ struct extension_base {
   status set_to(Extendee<Traits> &extendee, concepts::is_option_type auto &&...option) const {
     auto &fields = pb_serializer::get_unknown_fields(extendee);
     using fields_type = std::decay_t<decltype(fields)>;
-    using bytes_type = typename fields_type::value_type::second_type;
+    using bytes_type = fields_type::value_type::second_type;
     bytes_type data;
 
     pb_context ctx{std::forward<decltype(option)>(option)...};

@@ -63,7 +63,7 @@ struct message_merger {
       if constexpr (std::is_rvalue_reference_v<U &&>) {
         return std::move(src_field);
       } else {
-        return (src_field);
+        return static_cast<decltype(src_field)>(src_field);
       }
     };
     auto &&source_ref = std::forward<U>(source);

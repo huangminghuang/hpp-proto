@@ -402,10 +402,10 @@ void verify(const T &msg, std::string_view json, const source_location &from_loc
 
 template <typename Traits>
 struct bytes_example {
-  typename Traits::bytes_t field0;
+  Traits::bytes_t field0;
   hpp_proto::optional<typename Traits::bytes_t> field1;
   hpp_proto::optional<typename Traits::bytes_t, hpp_proto::bytes_literal<"test">{}> field2;
-  typename Traits::bytes_t field3;
+  Traits::bytes_t field3;
   bool operator==(const bytes_example &) const = default;
 };
 
@@ -437,7 +437,7 @@ const ut::suite test_bytes = [] {
 
   "bytes"_test = []<class Traits> {
     auto make_bytes = [](const auto &literal) {
-      using bytes_t = typename Traits::bytes_t;
+      using bytes_t = Traits::bytes_t;
       if constexpr (std::same_as<Traits, hpp_proto::non_owning_traits>) {
         return bytes_t{std::span<const std::byte>{literal.begin(), literal.end()}};
       } else {

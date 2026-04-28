@@ -327,7 +327,7 @@ struct basic_in {
   }
 
   constexpr status deserialize_packed(std::size_t n, auto &&item) {
-    using value_type = typename std::remove_cvref_t<decltype(item)>::value_type;
+    using value_type = std::remove_cvref_t<decltype(item)>::value_type;
     std::size_t nbytes = n * sizeof(value_type);
     if (std::cmp_less(in_avail(), nbytes)) [[unlikely]] {
       return std::errc::bad_message;
@@ -482,7 +482,9 @@ struct basic_in {
   constexpr status read_bytes(uint32_t length, T &item) {
     assert(std::cmp_greater_equal(region_size(), length));
     auto data = current.consume(length);
-    item = T{(const typename T::value_type *)data.data(), length};
+    using value_type = T::value_type;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    item = T{reinterpret_cast<const value_type *>(data.data()), length};
     return {};
   }
 
@@ -602,7 +604,7 @@ constexpr status deserialize_unknown_fields(concepts::uint32_pair_contiguous_ran
                           [field_num](const auto &e) { return e.first == field_num; });
 
   using fields_type = std::remove_cvref_t<decltype(unknown_fields)>;
-  using bytes_type = typename fields_type::value_type::second_type;
+  using bytes_type = fields_type::value_type::second_type;
 
   if (itr == unknown_fields.end() && archive.in_avail() == archive.region_size()) [[likely]] {
     bytes_type field_span;
@@ -641,7 +643,7 @@ constexpr void deserialize_unknown_enum(auto &unknown_fields, uint32_t field_num
     if (itr == unknown_fields.end()) {
       unknown_fields.push_back({field_num, field_span});
     } else {
-      using bytes_type = typename unknown_fields_t::value_type::second_type;
+      using bytes_type = unknown_fields_t::value_type::second_type;
       decltype(auto) v = detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second));
       util::append_range(v, field_span);
     }
@@ -780,7 +782,7 @@ constexpr status deserialize_packed_repeated_unpadded(Meta meta, Item &item, Arc
 template <typename Meta, concepts::is_basic_in Archive>
 constexpr status deserialize_packed_repeated(Meta meta, auto &&item, Archive &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
-  using value_type = typename type::value_type;
+  using value_type = type::value_type;
 
   using encode_type =
       std::conditional_t<std::same_as<typename Meta::type, void> || concepts::char_or_byte<value_type> ||
@@ -813,7 +815,7 @@ template <typename Meta, typename EncodeType, typename Archive, typename Item, t
 constexpr status deserialize_packed_repeated_unpadded(Meta, Item &item, Archive &archive, vuint32_t byte_count,
                                                       UnknownFields &unknown_fields) {
   using type = std::remove_reference_t<Item>;
-  using value_type = typename type::value_type;
+  using value_type = type::value_type;
 
   if (byte_count == 0) {
     if constexpr (concepts::char_or_byte<value_type>) {
@@ -876,8 +878,8 @@ constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable
 template <typename Meta, concepts::associative_container V>
 constexpr status deserialize_unpacked_associative_element(Meta, V &v, auto &hint, auto &archive) {
   using type = std::remove_reference_t<V>;
-  using value_type = typename type::value_type;
-  using element_type = typename Meta::type::mutable_type;
+  using value_type = type::value_type;
+  using element_type = Meta::type::mutable_type;
 
   element_type element;
   if (auto result = deserialize_sized(element, archive); !result.ok()) {
@@ -896,15 +898,15 @@ struct deserialize_element_type {
 
 template <concepts::is_map_entry MetaType, typename ValueType>
 struct deserialize_element_type<MetaType, ValueType> {
-  using type = typename MetaType::mutable_type;
+  using type = MetaType::mutable_type;
 };
 
 template <typename Meta, typename V, typename UnknownFields, typename Archive>
 constexpr status deserialize_unpacked_sequence_element(Meta meta, uint32_t tag, V &v, std::size_t index,
                                                        UnknownFields &unknown_fields, Archive &archive) {
   using type = std::remove_reference_t<V>;
-  using value_type = typename type::value_type;
-  using element_type = typename deserialize_element_type<typename Meta::type, value_type>::type;
+  using value_type = type::value_type;
+  using element_type = deserialize_element_type<typename Meta::type, value_type>::type;
 
   auto deserialize_element = [&](auto &element) {
     if constexpr (concepts::has_meta<element_type>) {
@@ -970,7 +972,7 @@ template <typename Meta>
 constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&item,
                                                concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
-  using value_type = typename type::value_type;
+  using value_type = type::value_type;
 
   decltype(auto) v = detail::as_modifiable(archive.context, item);
   if (tag_type(tag) !=
@@ -1144,7 +1146,7 @@ template <typename Meta>
 constexpr status deserialize_field(concepts::arithmetic auto &item, Meta meta, uint32_t tag,
                                    concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
-  using serialize_type = typename util::get_serialize_type<Meta, type>::type;
+  using serialize_type = util::get_serialize_type<Meta, type>::type;
   if constexpr (!std::same_as<type, serialize_type>) {
     serialize_type value;
     if (auto result = deserialize_field(value, meta, tag, archive, unknown_fields); !result.ok()) [[unlikely]] {
@@ -1207,7 +1209,7 @@ template <std::size_t Index, concepts::tuple Meta>
 constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic_in auto &archive,
                                    auto &unknown_fields) {
   if constexpr (Index < std::tuple_size_v<Meta>) {
-    using meta = typename std::tuple_element_t<Index, Meta>;
+    using meta = std::tuple_element_t<Index, Meta>;
     if (meta::number == tag_number(tag)) {
       if constexpr (meta::closed_enum()) {
         std::variant_alternative_t<Index + 1, std::decay_t<decltype(item)>> v;
@@ -1242,7 +1244,7 @@ constexpr status deserialize_field_by_index(uint32_t tag, concepts::has_meta aut
                                             concepts::is_basic_in auto &archive, auto &&unknown_fields) {
   if constexpr (Index != UINT32_MAX) {
     using type = std::remove_reference_t<decltype(item)>;
-    using Meta = typename util::field_meta_of<type, Index>::type;
+    using Meta = util::field_meta_of<type, Index>::type;
     return deserialize_field(Meta::get(item), Meta(), tag, archive, unknown_fields);
   } else if (archive.in_avail() > 0) {
     return skip_field(tag, archive, unknown_fields);
@@ -1381,6 +1383,7 @@ struct contiguous_input_archive_base {
 };
 
 template <concepts::is_pb_context Context, typename Byte>
+// NOLINTNEXTLINE(misc-multiple-inheritance)
 struct contiguous_input_archive : contiguous_input_archive_base<Byte>, basic_in<Byte, Context, true> {
   constexpr contiguous_input_archive(const auto &buffer, Context &context) noexcept
       : contiguous_input_archive_base<Byte>(buffer),
@@ -1402,6 +1405,7 @@ struct padded_input_archive_base {
 };
 
 template <concepts::is_padded_input_context Context, typename Byte>
+// NOLINTNEXTLINE(misc-multiple-inheritance)
 struct contiguous_input_archive<Context, Byte> : padded_input_archive_base<Byte>, basic_in<Byte, Context, true> {
   constexpr contiguous_input_archive(const auto &buffer, Context &context) noexcept
       : padded_input_archive_base<Byte>(buffer), basic_in<Byte, Context, true>(this->region, {}, 0, context) {

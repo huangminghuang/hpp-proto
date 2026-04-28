@@ -328,7 +328,7 @@ const ut::suite test_repeated_vint = [] {
 
   "normal_cases"_test = []<class Traits> {
     auto make_repeated = []<typename Elem, std::size_t N>(const std::array<Elem, N> &values) {
-      using repeated_t = typename Traits::template repeated_t<Elem>;
+      using repeated_t = Traits::template repeated_t<Elem>;
       if constexpr (std::same_as<Traits, hpp_proto::non_owning_traits>) {
         return repeated_t{values};
       } else {
@@ -533,9 +533,9 @@ enum class ForeignEnumEx : int8_t { ZERO = 0, FOO = 1, BAR = 2, BAZ = 3, EXTRA =
 
 template <typename Traits = hpp_proto::default_traits>
 struct open_enum_message {
-  typename Traits::template repeated_t<ForeignEnumEx> expanded_repeated_field;
+  Traits::template repeated_t<ForeignEnumEx> expanded_repeated_field;
   ForeignEnumEx foreign_enum_field = ForeignEnumEx::ZERO;
-  typename Traits::template repeated_t<ForeignEnumEx> packed_repeated_field;
+  Traits::template repeated_t<ForeignEnumEx> packed_repeated_field;
   std::optional<example> optional_indirect_field;
   [[no_unique_address]] hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator==(const open_enum_message &) const = default;
@@ -551,9 +551,9 @@ auto pb_meta(const open_enum_message<Traits> &)
 
 template <typename Traits = hpp_proto::default_traits>
 struct closed_enum_message {
-  typename Traits::template repeated_t<ForeignEnum> expanded_repeated_field;
+  Traits::template repeated_t<ForeignEnum> expanded_repeated_field;
   std::optional<ForeignEnum> foreign_enum_field;
-  typename Traits::template repeated_t<ForeignEnum> packed_repeated_field;
+  Traits::template repeated_t<ForeignEnum> packed_repeated_field;
   [[no_unique_address]] hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
   bool operator==(const closed_enum_message &) const = default;
 };
@@ -584,7 +584,7 @@ const ut::suite test_enums = [] {
 
   "repeated_open_enum"_test = []<class Traits> {
     auto make_repeated = []<typename Elem, std::size_t N>(const std::array<Elem, N> &values) {
-      using repeated_t = typename Traits::template repeated_t<Elem>;
+      using repeated_t = Traits::template repeated_t<Elem>;
       if constexpr (std::same_as<Traits, hpp_proto::non_owning_traits>) {
         return repeated_t{values};
       } else {
@@ -896,7 +896,7 @@ const ut::suite test_map_example = [] {
 
 template <typename Traits = hpp_proto::default_traits>
 struct string_example {
-  typename Traits::string_t field;
+  Traits::string_t field;
   hpp_proto::optional<typename Traits::string_t, hpp_proto::string_literal<"test">{}> optional_field;
   bool operator==(const string_example &) const = default;
 };
@@ -970,7 +970,7 @@ const ut::suite test_string_example = [] {
 
 template <typename Traits = hpp_proto::default_traits>
 struct bytes_example {
-  typename Traits::bytes_t field;
+  Traits::bytes_t field;
   hpp_proto::optional<typename Traits::bytes_t, hpp_proto::bytes_literal<"test">{}> optional_field;
   bool operator==(const bytes_example &) const = default;
 };
@@ -1257,9 +1257,9 @@ const ut::suite test_repeated_strings = [] {
   };
 
   "repeated_strings_case"_test = []<class Traits> {
-    using element_type = typename Traits::string_t;
+    using element_type = Traits::string_t;
     auto make_repeated = []<typename Elem, std::size_t N>(const std::array<Elem, N> &values) {
-      using repeated_t = typename Traits::template repeated_t<Elem>;
+      using repeated_t = Traits::template repeated_t<Elem>;
       if constexpr (std::same_as<Traits, hpp_proto::non_owning_traits>) {
         return repeated_t{values};
       } else {
@@ -1388,7 +1388,7 @@ struct i32_ext : hpp_proto::extension_base<i32_ext<Traits>, extension_example> {
 
 template <typename Traits = ::hpp_proto::default_traits>
 struct string_ext : ::hpp_proto::extension_base<string_ext<Traits>, extension_example> {
-  using value_type = typename Traits::string_t;
+  using value_type = Traits::string_t;
   value_type value = {};
   using pb_meta =
       std::tuple<::hpp_proto::field_meta<11, &string_ext<Traits>::value,
@@ -1421,7 +1421,7 @@ struct example_ext : ::hpp_proto::extension_base<example_ext<Traits>, extension_
 
 template <typename Traits = ::hpp_proto::default_traits>
 struct repeated_i32_ext : ::hpp_proto::extension_base<repeated_i32_ext<Traits>, extension_example> {
-  using value_type = typename Traits::template repeated_t<std::int32_t>;
+  using value_type = Traits::template repeated_t<std::int32_t>;
   value_type value;
   using pb_meta = std::tuple<
       ::hpp_proto::field_meta<20, &repeated_i32_ext<Traits>::value, field_option::none, hpp_proto::vint64_t>>;
@@ -1429,14 +1429,14 @@ struct repeated_i32_ext : ::hpp_proto::extension_base<repeated_i32_ext<Traits>, 
 
 template <typename Traits = ::hpp_proto::default_traits>
 struct repeated_string_ext : ::hpp_proto::extension_base<repeated_string_ext<Traits>, extension_example> {
-  using value_type = typename Traits::template repeated_t<typename Traits::string_t>;
+  using value_type = Traits::template repeated_t<typename Traits::string_t>;
   value_type value;
   using pb_meta = std::tuple<::hpp_proto::field_meta<21, &repeated_string_ext<Traits>::value, field_option::none>>;
 };
 
 template <typename Traits = ::hpp_proto::default_traits>
 struct repeated_packed_i32_ext : ::hpp_proto::extension_base<repeated_packed_i32_ext<Traits>, extension_example> {
-  using value_type = typename Traits::template repeated_t<std::int32_t>;
+  using value_type = Traits::template repeated_t<std::int32_t>;
   value_type value;
   using pb_meta = std::tuple<::hpp_proto::field_meta<22, &repeated_packed_i32_ext<Traits>::value,
                                                      field_option::is_packed, hpp_proto::vint64_t>>;

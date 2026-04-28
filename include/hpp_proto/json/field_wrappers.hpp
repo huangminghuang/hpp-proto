@@ -157,7 +157,7 @@ constexpr decltype(auto) as_optional_ref_impl() noexcept {
 }
 
 template <auto MemPtr, auto Default = std::monostate{}>
-constexpr auto as_optional_ref = as_optional_ref_impl<MemPtr, Default>();
+constexpr auto as_optional_ref = as_optional_ref_impl<MemPtr, Default>(); // NOLINT(modernize-avoid-c-style-cast)
 
 template <auto MemPtr, int Index>
 constexpr decltype(auto) as_oneof_member_impl() noexcept {

@@ -14,8 +14,8 @@ struct Proto2TypeMapping {
   using ImportEnum = protobuf_unittest_import::ImportEnum;
   using ForeignMessage_t = protobuf_unittest::ForeignMessage<Traits>;
   using ImportMessage_t = protobuf_unittest_import::ImportMessage<Traits>;
-  using NestedMessage_t = typename TestAllTypes_t::NestedMessage;
-  using RepeatedGroup_t = typename TestAllTypes_t::RepeatedGroup;
+  using NestedMessage_t = TestAllTypes_t::NestedMessage;
+  using RepeatedGroup_t = TestAllTypes_t::RepeatedGroup;
   using RepeatedGroup_extension_t = protobuf_unittest::RepeatedGroup_extension<Traits>;
   using TestMutualRecursionA_t = protobuf_unittest::TestMutualRecursionA<Traits>;
 

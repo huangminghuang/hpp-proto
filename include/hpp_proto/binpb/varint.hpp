@@ -41,8 +41,8 @@ enum class varint_encoding : uint8_t {
 template <varint_encoding Encoding = varint_encoding::normal>
 constexpr auto varint_size(auto value) {
   if constexpr (Encoding == varint_encoding::zig_zag) {
-    // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    return varint_size(std::make_unsigned_t<decltype(value)>((value << 1) ^ (value >> (sizeof(value) * CHAR_BIT - 1))));
+    return varint_size(std::make_unsigned_t<decltype(value)>(
+        (value << 1) ^ (value >> ((sizeof(value) * CHAR_BIT) - 1)))); // // NOLINT(hicpp-signed-bitwise)
   } else {
     return ((sizeof(value) * CHAR_BIT) -
             static_cast<unsigned>(std::countl_zero(std::make_unsigned_t<decltype(value)>(value) | 1U)) +
@@ -94,7 +94,7 @@ template <concepts::varint VarintType, concepts::byte_type Byte>
   auto value = std::make_unsigned_t<typename VarintType::encode_type>(item.value);
   if constexpr (varint_encoding::zig_zag == decltype(item)::encoding) {
     // NOLINTNEXTLINE(hicpp-signed-bitwise)
-    value = (value << 1U) ^ static_cast<decltype(value)>(item.value >> (sizeof(value) * CHAR_BIT - 1U));
+    value = (value << 1U) ^ static_cast<decltype(value)>(item.value >> ((sizeof(value) * CHAR_BIT) - 1U));
   }
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -325,11 +325,11 @@ template <concepts::varint VarintType>
     auto p = shift_mix_parse_varint<typename VarintType::value_type>(input, res);
     auto ures = static_cast<uint64_t>(res);
     auto sign = static_cast<int64_t>(ures & 0x1ULL);
-    item = static_cast<typename VarintType::value_type>((ures >> 1U) ^ static_cast<uint64_t>(-sign));
+    item = static_cast<VarintType::value_type>((ures >> 1U) ^ static_cast<uint64_t>(-sign));
     return p;
   } else {
     auto p = shift_mix_parse_varint<typename VarintType::value_type>(input, res);
-    item = static_cast<typename VarintType::value_type>(res);
+    item = static_cast<VarintType::value_type>(res);
     return p;
   }
 }

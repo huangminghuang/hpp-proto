@@ -110,12 +110,18 @@ public:
     s.size = static_cast<uint32_t>(n);
   }
 
-  [[nodiscard]] bool empty() const noexcept { return storage_->of_repeated_bytes.size == 0; }
-  [[nodiscard]] std::size_t size() const noexcept { return storage_->of_repeated_bytes.size; }
+  [[nodiscard]] bool empty() const noexcept { // NOLINT(bugprone-derived-method-shadowing-base-method)
+    return storage_->of_repeated_bytes.size == 0;
+  }
+  [[nodiscard]] std::size_t size() const noexcept { // NOLINT(bugprone-derived-method-shadowing-base-method)
+    return storage_->of_repeated_bytes.size;
+  }
   [[nodiscard]] std::size_t capacity() const noexcept { return storage_->of_repeated_bytes.capacity; }
   [[nodiscard]] iterator begin() const noexcept { return {this, 0}; }
   [[nodiscard]] iterator end() const noexcept { return {this, storage_->of_repeated_bytes.size}; }
-  [[nodiscard]] bytes_view *data() const noexcept { return storage_->of_repeated_bytes.content; }
+  [[nodiscard]] bytes_view *data() const noexcept { // NOLINT(bugprone-derived-method-shadowing-base-method)
+    return storage_->of_repeated_bytes.content;
+  }
 
   [[nodiscard]] reference operator[](std::size_t index) const noexcept {
     auto values = content_span();
