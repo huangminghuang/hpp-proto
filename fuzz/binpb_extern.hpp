@@ -21,6 +21,7 @@ struct fuzz_out_sink {
   std::vector<std::byte> storage;
   std::size_t offset = 0;
   std::size_t remaining_total = 0;
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
   std::size_t chunk_size_value = 1024;
 
   void set_message_size(std::size_t size) {
