@@ -16,10 +16,11 @@ struct ForeignMessage {
 };
 
 template <typename Traits>
-auto pb_meta(const ForeignMessage<Traits> &) -> std::tuple<
-    hpp_proto::field_meta<1, &ForeignMessage<Traits>::c, hpp_proto::field_option::none, hpp_proto::vint64_t>,
-    hpp_proto::field_meta<2, &ForeignMessage<Traits>::d, hpp_proto::field_option::none, hpp_proto::vint64_t>,
-    hpp_proto::field_meta<15, &ForeignMessage<Traits>::e, hpp_proto::field_option::none>>;
+auto pb_meta(const ForeignMessage<Traits> &)
+    -> std::tuple<
+        hpp_proto::field_meta<1, &ForeignMessage<Traits>::c, hpp_proto::field_option::none, hpp_proto::vint64_t>,
+        hpp_proto::field_meta<2, &ForeignMessage<Traits>::d, hpp_proto::field_option::none, hpp_proto::vint64_t>,
+        hpp_proto::field_meta<15, &ForeignMessage<Traits>::e, hpp_proto::field_option::none>>;
 
 #if defined(__GNUC__) && (__GNUC__ < 14) && !defined(__clang__)
 namespace std {
@@ -69,42 +70,45 @@ struct TestMessage {
 };
 
 template <typename Traits>
-auto pb_meta(const TestMessage<Traits> &) -> std::tuple<
-    hpp_proto::field_meta<1, &TestMessage<Traits>::optional_int32, hpp_proto::field_option::explicit_presence,
-                          hpp_proto::vint64_t>,
-    hpp_proto::field_meta<2, &TestMessage<Traits>::optional_int64, hpp_proto::field_option::explicit_presence,
-                          hpp_proto::vint64_t>,
-    hpp_proto::field_meta<3, &TestMessage<Traits>::optional_uint32, hpp_proto::field_option::explicit_presence,
-                          hpp_proto::vuint32_t>,
-    hpp_proto::field_meta<4, &TestMessage<Traits>::optional_uint64, hpp_proto::field_option::explicit_presence,
-                          hpp_proto::vuint64_t>,
-    hpp_proto::field_meta<14, &TestMessage<Traits>::optional_string, hpp_proto::field_option::explicit_presence>,
-    hpp_proto::field_meta<15, &TestMessage<Traits>::optional_bytes, hpp_proto::field_option::explicit_presence>,
-    hpp_proto::field_meta<19, &TestMessage<Traits>::optional_foreign_message,
-                          hpp_proto::field_option::explicit_presence>,
-    hpp_proto::field_meta<31, &TestMessage<Traits>::repeated_int32, hpp_proto::field_option::none, hpp_proto::vint64_t>,
-    hpp_proto::field_meta<32, &TestMessage<Traits>::repeated_int64, hpp_proto::field_option::none, hpp_proto::vint64_t>,
-    hpp_proto::field_meta<33, &TestMessage<Traits>::repeated_uint32, hpp_proto::field_option::none,
-                          hpp_proto::vuint32_t>,
-    hpp_proto::field_meta<34, &TestMessage<Traits>::repeated_uint64, hpp_proto::field_option::none,
-                          hpp_proto::vuint64_t>,
-    hpp_proto::field_meta<61, &TestMessage<Traits>::default_int32, hpp_proto::field_option::explicit_presence,
-                          hpp_proto::vint64_t>,
-    hpp_proto::field_meta<62, &TestMessage<Traits>::default_int64, hpp_proto::field_option::explicit_presence,
-                          hpp_proto::vint64_t>,
-    hpp_proto::field_meta<63, &TestMessage<Traits>::default_uint32, hpp_proto::field_option::explicit_presence,
-                          hpp_proto::vuint32_t>,
-    hpp_proto::field_meta<64, &TestMessage<Traits>::default_uint64, hpp_proto::field_option::explicit_presence,
-                          hpp_proto::vuint64_t>,
-    hpp_proto::field_meta<71, &TestMessage<Traits>::map_int32_int32, hpp_proto::field_option::none,
-                          hpp_proto::map_entry<hpp_proto::vint64_t, hpp_proto::vint64_t, hpp_proto::field_option::none,
-                                               hpp_proto::field_option::none>>,
-    hpp_proto::oneof_field_meta<
-        &TestMessage<Traits>::oneof_field,
-        hpp_proto::field_meta<111, 1, hpp_proto::field_option::explicit_presence, hpp_proto::vuint32_t>,
-        hpp_proto::field_meta<112, 2, hpp_proto::field_option::explicit_presence>,
-        hpp_proto::field_meta<113, 3, hpp_proto::field_option::explicit_presence>,
-        hpp_proto::field_meta<114, 4, hpp_proto::field_option::explicit_presence>>>;
+auto pb_meta(const TestMessage<Traits> &)
+    -> std::tuple<
+        hpp_proto::field_meta<1, &TestMessage<Traits>::optional_int32, hpp_proto::field_option::explicit_presence,
+                              hpp_proto::vint64_t>,
+        hpp_proto::field_meta<2, &TestMessage<Traits>::optional_int64, hpp_proto::field_option::explicit_presence,
+                              hpp_proto::vint64_t>,
+        hpp_proto::field_meta<3, &TestMessage<Traits>::optional_uint32, hpp_proto::field_option::explicit_presence,
+                              hpp_proto::vuint32_t>,
+        hpp_proto::field_meta<4, &TestMessage<Traits>::optional_uint64, hpp_proto::field_option::explicit_presence,
+                              hpp_proto::vuint64_t>,
+        hpp_proto::field_meta<14, &TestMessage<Traits>::optional_string, hpp_proto::field_option::explicit_presence>,
+        hpp_proto::field_meta<15, &TestMessage<Traits>::optional_bytes, hpp_proto::field_option::explicit_presence>,
+        hpp_proto::field_meta<19, &TestMessage<Traits>::optional_foreign_message,
+                              hpp_proto::field_option::explicit_presence>,
+        hpp_proto::field_meta<31, &TestMessage<Traits>::repeated_int32, hpp_proto::field_option::none,
+                              hpp_proto::vint64_t>,
+        hpp_proto::field_meta<32, &TestMessage<Traits>::repeated_int64, hpp_proto::field_option::none,
+                              hpp_proto::vint64_t>,
+        hpp_proto::field_meta<33, &TestMessage<Traits>::repeated_uint32, hpp_proto::field_option::none,
+                              hpp_proto::vuint32_t>,
+        hpp_proto::field_meta<34, &TestMessage<Traits>::repeated_uint64, hpp_proto::field_option::none,
+                              hpp_proto::vuint64_t>,
+        hpp_proto::field_meta<61, &TestMessage<Traits>::default_int32, hpp_proto::field_option::explicit_presence,
+                              hpp_proto::vint64_t>,
+        hpp_proto::field_meta<62, &TestMessage<Traits>::default_int64, hpp_proto::field_option::explicit_presence,
+                              hpp_proto::vint64_t>,
+        hpp_proto::field_meta<63, &TestMessage<Traits>::default_uint32, hpp_proto::field_option::explicit_presence,
+                              hpp_proto::vuint32_t>,
+        hpp_proto::field_meta<64, &TestMessage<Traits>::default_uint64, hpp_proto::field_option::explicit_presence,
+                              hpp_proto::vuint64_t>,
+        hpp_proto::field_meta<71, &TestMessage<Traits>::map_int32_int32, hpp_proto::field_option::none,
+                              hpp_proto::map_entry<hpp_proto::vint64_t, hpp_proto::vint64_t,
+                                                   hpp_proto::field_option::none, hpp_proto::field_option::none>>,
+        hpp_proto::oneof_field_meta<
+            &TestMessage<Traits>::oneof_field,
+            hpp_proto::field_meta<111, 1, hpp_proto::field_option::explicit_presence, hpp_proto::vuint32_t>,
+            hpp_proto::field_meta<112, 2, hpp_proto::field_option::explicit_presence>,
+            hpp_proto::field_meta<113, 3, hpp_proto::field_option::explicit_presence>,
+            hpp_proto::field_meta<114, 4, hpp_proto::field_option::explicit_presence>>>;
 
 template <typename Traits = hpp_proto::default_traits>
 struct MoveRepeatedMessage {
@@ -123,8 +127,9 @@ struct BoolOptionalMessage {
 };
 
 template <typename Traits>
-auto pb_meta(const BoolOptionalMessage<Traits> &) -> std::tuple<
-    hpp_proto::field_meta<1, &BoolOptionalMessage<Traits>::optional_bool, hpp_proto::field_option::explicit_presence>>;
+auto pb_meta(const BoolOptionalMessage<Traits> &)
+    -> std::tuple<hpp_proto::field_meta<1, &BoolOptionalMessage<Traits>::optional_bool,
+                                        hpp_proto::field_option::explicit_presence>>;
 
 const boost::ut::suite merge_test_suite = [] {
   using namespace boost::ut;

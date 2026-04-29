@@ -39,8 +39,8 @@ inline constexpr bool dependent_false_v = false;
 
 namespace detail {
 template <typename Tuple1, typename Tuple2, std::size_t... I>
-constexpr auto zip_tuples_impl(const Tuple1 &t1, const Tuple2 &t2, std::index_sequence<I...> /*seq*/)
-    -> decltype(auto) {
+constexpr auto zip_tuples_impl(const Tuple1 &t1, const Tuple2 &t2,
+                               std::index_sequence<I...> /*seq*/) -> decltype(auto) {
   return std::make_tuple(std::make_pair(std::get<I>(t1), std::get<I>(t2))...);
 }
 
