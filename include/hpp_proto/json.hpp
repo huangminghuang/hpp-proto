@@ -603,8 +603,8 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
 /// @param option Optional configuration parameters.
 /// @return A std::expected containing the buffer on success, or a json_status on failure.
 template <auto Opts = json_write_opts{}, concepts::contiguous_byte_range Buffer = std::string>
-inline auto write_json(concepts::write_json_supported auto const &value,
-                       concepts::is_option_type auto &&...option) -> std::expected<Buffer, json_status> {
+inline auto write_json(concepts::write_json_supported auto const &value, concepts::is_option_type auto &&...option)
+    -> std::expected<Buffer, json_status> {
   std::expected<Buffer, json_status> result;
   detail::always_print_guard guard{Opts.always_print_fields_with_no_presence};
   auto ec = write_json<Opts>(value, *result, std::forward<decltype(option)>(option)...);
