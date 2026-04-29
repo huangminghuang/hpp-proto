@@ -240,6 +240,7 @@ status read_binpb(T &msg, const Buffer &buffer, concepts::is_pb_context auto &ct
 /// @details This API does not catch std::bad_alloc thrown by standard containers.
 /// @return A std::expected containing the deserialized message on success, or an error code on failure.
 template <concepts::has_meta T, std::size_t N>
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 constexpr static expected<T, std::errc> read_binpb(const char (&buffer)[N], concepts::is_option_type auto &&...option) {
   constexpr auto span_size = N == 0 ? 0 : N - 1;
   auto span = std::span<const char>{buffer, span_size};
@@ -255,6 +256,7 @@ constexpr static expected<T, std::errc> read_binpb(const char (&buffer)[N], conc
 /// @details The previous contents of @p msg are not preserved on parse failure.
 /// @return status indicating success or failure.
 template <concepts::has_meta T, std::size_t N>
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 status read_binpb(T &msg, const char (&buffer)[N], concepts::is_option_type auto &&...option) {
   constexpr auto span_size = N == 0 ? 0 : N - 1;
   auto span = std::span<const char>{buffer, span_size};
@@ -276,7 +278,7 @@ status read_binpb(T &msg, const Buffer &buffer, concepts::is_option_type auto &&
 }
 
 template <typename T, template <typename Traits> class Extendee>
-struct extension_base {
+struct extension_base { // NOLINT(bugprone-crtp-constructor-accessibility)
   constexpr static auto number() {
     using field_meta_t = std::tuple_element_t<0, typename hpp_proto::util::meta_of<T>::type>;
     return field_meta_t::number;

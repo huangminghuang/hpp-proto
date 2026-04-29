@@ -113,6 +113,10 @@ enum class wire_type : uint8_t {
   fixed_32 = 5,
 };
 
+inline constexpr auto fixed_32_type_size = sizeof(std::uint32_t);
+inline constexpr auto fixed_64_type_size = sizeof(std::uint64_t);
+inline constexpr std::uint32_t wire_type_mask = 0x7U;
+
 template <typename Type>
 constexpr auto tag_type() {
   using type = std::remove_cvref_t<Type>;
@@ -120,9 +124,9 @@ constexpr auto tag_type() {
                 std::same_as<type, boolean>) {
     return wire_type::varint;
   } else if constexpr (std::is_integral_v<type> || std::is_floating_point_v<type>) {
-    if constexpr (sizeof(type) == 4) {
+    if constexpr (sizeof(type) == fixed_32_type_size) {
       return wire_type::fixed_32;
-    } else if constexpr (sizeof(type) == 8) {
+    } else if constexpr (sizeof(type) == fixed_64_type_size) {
       return wire_type::fixed_64;
     } else {
       static_assert(!sizeof(type));
@@ -141,7 +145,7 @@ constexpr auto make_tag(const Meta &meta) {
   return make_tag(meta.number, tag_type<Type>());
 }
 
-constexpr auto tag_type(uint32_t tag) { return wire_type(tag & 7U); }
+constexpr auto tag_type(uint32_t tag) { return wire_type(tag & wire_type_mask); }
 
 constexpr auto tag_number(uint32_t tag) { return (tag >> 3U); }
 
@@ -326,22 +330,23 @@ struct reverse_indices {
 
   template <std::size_t I, typename T>
     requires requires { T::number; }
-  constexpr static auto index(T) {
+  constexpr static auto index(T /*meta*/) {
     return std::array{I};
   }
 
   template <std::size_t I, concepts::is_oneof_field_meta Meta>
-  constexpr static auto index(Meta) {
+  constexpr static auto index(Meta /*meta*/) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
     std::array<std::size_t, std::tuple_size_v<typename Meta::alternatives_meta>> result;
     std::fill(result.begin(), result.end(), I);
     return result;
   }
 
-  constexpr static auto get_indices(std::index_sequence<>) { return std::array<std::size_t, 0>{}; }
+  constexpr static auto get_indices(std::index_sequence<> /*seq*/) { return std::array<std::size_t, 0>{}; }
 
   template <std::size_t FirstIndex, std::size_t... Indices>
-  constexpr static auto get_indices(std::index_sequence<FirstIndex, Indices...>, auto first_elem, auto... elems) {
+  constexpr static auto get_indices(std::index_sequence<FirstIndex, Indices...> /*seq*/, auto first_elem,
+                                    auto... elems) {
     return index<FirstIndex>(first_elem) << get_indices(std::index_sequence<Indices...>{}, elems...);
   }
 
@@ -434,19 +439,18 @@ struct reverse_indices {
     constexpr auto end_id = lookup_table_offsets[MaskedNum + 1];
     if constexpr (begin_id == end_id) {
       return f(make_integral_constant<UINT32_MAX>());
-    } else {
+    } else { // NOLINT(readability-else-after-return)
       constexpr auto entry = lookup_table[begin_id];
       if (field_number == entry.first) {
         return f(make_integral_constant<entry.second>());
-      } else [[unlikely]] {
-        return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
       }
+      return dispatch_by_masked_num<MaskedNum, I + 1>(field_number, std::forward<decltype(f)>(f));
     }
   }
 
   template <uint32_t... MaskNum>
   constexpr static status dispatch(std::uint32_t field_number, auto &&f,
-                                   std::integer_sequence<std::uint32_t, MaskNum...>) {
+                                   std::integer_sequence<std::uint32_t, MaskNum...> /*seq*/) {
     status r;
     (void)((((field_number & mask) == MaskNum) &&
             (r = dispatch_by_masked_num<MaskNum, 0>(field_number, std::forward<decltype(f)>(f)), true)) ||

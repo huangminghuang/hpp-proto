@@ -7,14 +7,14 @@
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
-    exit(1);
+    exit(1); // NOLINT(concurrency-mt-unsafe)
   }
 }
 
 using Person = tutorial::Person<>;
 using AddressBook = tutorial::AddressBook<>;
 
-int main() {
+int main() try {
   using enum Person::PhoneType;
   tutorial::AddressBook address_book{.people = {{.name = "Alex",
                                                  .id = 1,
@@ -31,7 +31,7 @@ int main() {
   auto read_result = hpp_proto::read_binpb<AddressBook>(write_result.value());
   expect(address_book == read_result.value());
 
-  std::vector<Person> &people = address_book.people;
+  const std::vector<Person> &people = address_book.people;
   expect(people.size() == 2);
   Person &alex = address_book.people[0];
   hpp_proto::optional<std::string> &alex_name = alex.name;
@@ -77,4 +77,7 @@ int main() {
   std::cout << write_json_result.value() << "\n";
 
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

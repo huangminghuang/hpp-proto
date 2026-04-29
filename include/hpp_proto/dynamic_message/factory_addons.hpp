@@ -80,7 +80,7 @@ struct dynamic_message_factory_addons {
         ec = result.ec;
         consumed_entire_input = result.ptr == end;
       } else {
-        std::string buffer(value);
+        const std::string buffer(value);
         char *conv_end = nullptr;
         errno = 0;
         if constexpr (std::same_as<T, float>) {
@@ -204,7 +204,7 @@ struct dynamic_message_factory_addons {
 
   template <typename Derived>
   struct oneof_descriptor {
-    explicit oneof_descriptor(Derived &, [[maybe_unused]] const auto &inherited_options) {}
+    explicit oneof_descriptor(Derived & /*derived*/, const auto & /*inherited_options*/) {}
     [[nodiscard]] uint32_t storage_slot() const {
       assert(!static_cast<const Derived *>(this)->fields().empty());
       return static_cast<const Derived *>(this)->fields().front().storage_slot;
@@ -215,12 +215,13 @@ struct dynamic_message_factory_addons {
   struct message_descriptor {
     uint32_t num_slots = 0;
     wellknown_types_t wellknown = wellknown_types_t::NONE;
-    explicit message_descriptor(const Derived &, [[maybe_unused]] const auto &inherited_options) {}
+    explicit message_descriptor(const Derived & /*derived*/, const auto & /*inherited_options*/) {}
   };
 
   template <typename Derived>
   struct file_descriptor {
     bool wellknown_validated_ = false;
+    // NOLINTNEXTLINEß(bugprone-crtp-constructor-accessibility)// NOLINT(bugprone-crtp-constructor-accessibility)
     explicit file_descriptor([[maybe_unused]] const Derived &derived) {
       // Validate embedded descriptors for supported well-known types against the
       // checked-in canonical descriptor bytes. This guarantees fixed field layout

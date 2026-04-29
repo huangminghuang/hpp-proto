@@ -34,9 +34,12 @@
 
 namespace hpp_proto {
 namespace concepts {
+inline constexpr std::size_t sample_allocation_size = 8;
+inline constexpr std::size_t sample_allocation_alignment = 8;
+
 template <typename T>
 concept memory_resource = !std::copyable<T> && std::destructible<T> && requires(T &object) {
-  { object.allocate(8, 8) } -> std::same_as<void *>;
+  { object.allocate(sample_allocation_size, sample_allocation_alignment) } -> std::same_as<void *>;
 };
 
 template <typename T>
@@ -104,7 +107,10 @@ public:
   [[nodiscard]] std::pmr::memory_resource &cache_memory_resource() const { return *mr; }
 };
 
-template <std::size_t StackBufferSize = 1024>
+inline constexpr std::size_t default_stack_buffer_size = 1024;
+inline constexpr uint32_t default_max_recursion_depth = 100;
+
+template <std::size_t StackBufferSize = default_stack_buffer_size>
 class default_cache_memory_resource {
   std::array<std::byte, StackBufferSize> stack_buffer{};
   std::pmr::monotonic_buffer_resource mr;
@@ -145,7 +151,7 @@ struct pb_context : T::option_type... { // NOLINT(misc-multiple-inheritance)
     if constexpr (requires { this->max_recursion_depth; }) {
       return this->max_recursion_depth;
     } else {
-      return 100;
+      return default_max_recursion_depth;
     }
   }
 };
@@ -310,7 +316,7 @@ public:
 
   template <class... Args>
   constexpr reference emplace_back(Args &&...args) {
-    std::size_t n = size();
+    const std::size_t n = size();
     assign_range_with_size(view_, n + 1);
     std::construct_at(data_ + n, std::forward<Args>(args)...);
     return data_[size() - 1];

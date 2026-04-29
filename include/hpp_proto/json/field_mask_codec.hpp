@@ -34,9 +34,13 @@ namespace hpp_proto {
 
 struct field_mask_codec {
   using encoded_storage = std::string;
+  static constexpr auto control_char_limit = 0x20U;
+  static constexpr auto escaped_control_char_size = 6U;
+  static constexpr auto low_nibble_mask = 0x0FU;
+
   static constexpr std::size_t escaped_char_size(unsigned char c) noexcept {
-    if (c < 0x20U) {
-      return 6;
+    if (c < control_char_limit) {
+      return escaped_control_char_size;
     }
     if (c == '"' || c == '\\') {
       return 2;
@@ -63,13 +67,13 @@ struct field_mask_codec {
       cur = std::next(cur, 2);
       return;
     }
-    if (c < 0x20U) {
+    if (c < control_char_limit) {
       append_char<Out>('\\', cur);
       append_char<Out>('u', cur);
       append_char<Out>('0', cur);
       append_char<Out>('0', cur);
       append_char<Out>(hex_digit(static_cast<unsigned char>(c >> 4U)), cur);
-      append_char<Out>(hex_digit(static_cast<unsigned char>(c & 0x0FU)), cur);
+      append_char<Out>(hex_digit(static_cast<unsigned char>(c & low_nibble_mask)), cur);
       return;
     }
     append_char<Out>(static_cast<Out>(c), cur);

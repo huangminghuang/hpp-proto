@@ -22,22 +22,27 @@
 
 #pragma once
 
+#include <array>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <iterator>
 #include <ranges>
+#include <string_view>
 #include <vector>
 
 #include <hpp_proto/memory_resource_utils.hpp>
 
 namespace hpp_proto {
 
+// Base64 is defined in fixed-width sextets and octets; keeping those bit constants inline
+// makes the encoding layout visible.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 struct base64 {
   using encoded_storage = std::string_view;
   constexpr static std::size_t max_encode_size(hpp_proto::concepts::contiguous_byte_range auto const &source) noexcept {
-    std::size_t n = source.size();
+    const std::size_t n = source.size();
     return ((n / 3) + (n % 3 > 0 ? 1 : 0)) * 4;
   }
 
@@ -46,9 +51,9 @@ struct base64 {
   constexpr static int64_t encode(hpp_proto::concepts::contiguous_byte_range auto const &source, auto &&b) noexcept {
     const auto n = source.size();
     using V = std::decay_t<decltype(b[0])>;
-    constexpr char const base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                          "abcdefghijklmnopqrstuvwxyz"
-                                          "0123456789+/";
+    constexpr std::string_view base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                              "abcdefghijklmnopqrstuvwxyz"
+                                              "0123456789+/";
 
     std::size_t i = 0;
     std::size_t ix = 0;
@@ -125,7 +130,7 @@ struct base64 {
   }
 
   constexpr static bool decode(hpp_proto::concepts::contiguous_byte_range auto const &source, auto &value, auto &ctx) {
-    std::size_t n = source.size();
+    const std::size_t n = source.size();
     decltype(auto) mref = hpp_proto::detail::as_modifiable(ctx, value);
     if (n == 0) {
       mref.resize(0);
@@ -145,7 +150,7 @@ struct base64 {
     }
     mref.resize(len);
     std::span decoded{mref.data(), mref.size()};
-    constexpr unsigned char decode_table[] = {
+    constexpr std::array<unsigned char, 258> decode_table = {
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
         64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63, 52, 53, 54, 55,
         56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64, 64, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
@@ -230,5 +235,6 @@ struct base64 {
     }
   }
 };
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 
 } // namespace hpp_proto

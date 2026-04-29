@@ -15,6 +15,9 @@ using namespace hpp_proto::grpc;
 using hpp_proto::grpc::test_utils::Harness;
 using hpp_proto::grpc::test_utils::UnaryEcho;
 
+// gRPC tests use compact request/response sequence fixture values inline.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
+
 void run_unary_blocking_case() {
   Harness harness;
   auto &stub = harness.stub();
@@ -115,3 +118,5 @@ const suite unary_suite = [] {
   "unary_echo_async_callback"_test = [] { run_unary_async_callback_case(); };
 };
 } // namespace
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)

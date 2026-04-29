@@ -12,7 +12,8 @@
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #endif
 #endif
-// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
+// Test fixtures use protobuf conformance values directly.
+// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 template <typename T>
   requires requires { glz::meta<T>::value; }
 std::ostream &operator<<(std::ostream &os, const T &v) {
@@ -226,13 +227,14 @@ struct Proto3Tests {
     };
   }
 };
-// NOLINTEND(clang-diagnostic-missing-designated-field-initializers)
+// NOLINTEND(clang-diagnostic-missing-designated-field-initializers,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
 const boost::ut::suite proto3_test = [] {
   "proto3"_test = []<class Traits> { Proto3Tests<Traits>::run(); } |
                   std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits, hpp_proto::pmr_traits>{};
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

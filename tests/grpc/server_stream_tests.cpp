@@ -37,11 +37,11 @@ public:
   }
 
   [[nodiscard]] ::grpc::Status status() const {
-    std::scoped_lock lock(mu_);
+    const std::scoped_lock lock(mu_);
     return status_;
   }
   [[nodiscard]] std::vector<std::string> messages() const {
-    std::scoped_lock lock(mu_);
+    const std::scoped_lock lock(mu_);
     return messages_;
   }
 
@@ -52,7 +52,7 @@ public:
     std::pmr::monotonic_buffer_resource mr;
     hpp_proto_test::EchoResponse<> response;
     auto read_status = this->get_response(response, hpp_proto::alloc_from{mr});
-    std::unique_lock lock(mu_);
+    const std::unique_lock lock(mu_);
     if (!read_status.ok()) {
       status_ = read_status;
       forced_status_ = true;
@@ -65,7 +65,7 @@ public:
   }
 
   void OnDone(const ::grpc::Status &status) override {
-    std::unique_lock lock(mu_);
+    const std::unique_lock lock(mu_);
     if (!forced_status_) {
       status_ = status;
     }

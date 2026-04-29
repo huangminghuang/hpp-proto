@@ -41,6 +41,8 @@
 
 namespace hpp_proto {
 
+inline constexpr int repeated_field_kind_offset = 18;
+
 /**
  * @brief Untyped, read-only reference to a single field in a dynamic message.
  *
@@ -68,7 +70,7 @@ public:
     using enum google::protobuf::FieldDescriptorProto_::Type;
     auto base_type = descriptor().proto().type == TYPE_GROUP ? TYPE_MESSAGE : descriptor().proto().type;
     return static_cast<field_kind_t>(std::to_underlying(base_type) +
-                                     (18 * static_cast<int>(descriptor().is_repeated())));
+                                     (repeated_field_kind_offset * static_cast<int>(descriptor().is_repeated())));
   }
 
   [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
@@ -107,7 +109,7 @@ public:
 
   auto visit(auto &&v) const;
   template <typename T>
-  [[nodiscard]] auto get() const noexcept -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
+  [[nodiscard]] auto get() const -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
     return visit([](auto cref) -> std::expected<typename get_traits<T>::type, dynamic_message_errc> {
       if constexpr (requires { cref.template get<T>(); }) {
         return cref.template get<T>();
@@ -169,7 +171,7 @@ public:
   void clone_from(const field_cref &other) const;
 
   template <typename T>
-  [[nodiscard]] auto get() const noexcept {
+  [[nodiscard]] auto get() const {
     return cref().get<T>();
   }
 

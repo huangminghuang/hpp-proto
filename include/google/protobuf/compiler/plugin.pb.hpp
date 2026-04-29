@@ -15,6 +15,9 @@
 
 namespace google::protobuf::compiler {
 
+// Generated protobuf metadata is intentionally made of schema field numbers.
+//NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
+
 template <typename Traits>
 auto pb_meta(const Version<Traits> &) -> std::tuple<
   ::hpp_proto::field_meta<1, &Version<Traits>::major, ::hpp_proto::field_option::none, ::hpp_proto::vint64_t>,
@@ -52,5 +55,6 @@ namespace CodeGeneratorResponse_ {
 
 } //namespace CodeGeneratorResponse_
 
+//NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
 } // namespace google::protobuf::compiler
 // clang-format on

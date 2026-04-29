@@ -84,6 +84,9 @@ using vuint32_t = varint<uint32_t>;
 using vsint64_t = varint<int64_t, varint_encoding::zig_zag>;
 using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 
+inline constexpr auto varint_payload_mask = 0x7fU;
+inline constexpr auto varint_continue_bit = 0x80U;
+
 namespace concepts {
 template <typename T>
 concept varint = requires { requires std::same_as<T, hpp_proto::varint<typename T::value_type, T::encoding>>; };
@@ -98,8 +101,8 @@ template <concepts::varint VarintType, concepts::byte_type Byte>
   }
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  while (value >= 0x80) {
-    *data++ = Byte((value & 0x7fU) | 0x80U);
+  while (value >= varint_continue_bit) {
+    *data++ = Byte((value & varint_payload_mask) | varint_continue_bit);
     value >>= static_cast<unsigned>(CHAR_BIT - 1);
   }
   *data++ = Byte(value);
@@ -116,8 +119,8 @@ template <concepts::varint VarintType, concepts::byte_type Byte>
 // pointer passed the consumed input data.
 // NOLINTBEGIN
 template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
-[[nodiscard]] constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input,
-                                                    int64_t &res1) -> decltype(std::ranges::cdata(input)) {
+[[nodiscard]] constexpr auto shift_mix_parse_varint(concepts::contiguous_byte_range auto const &input, int64_t &res1)
+    -> decltype(std::ranges::cdata(input)) {
   // The algorithm relies on sign extension for each byte to set all high bits
   // when the varint continues. It also relies on asserting all of the lower
   // bits for each successive byte read. This allows the result to be aggregated
@@ -250,8 +253,8 @@ template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
   return done2();
 }
 
-[[nodiscard]] constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                                  bool &value) -> decltype(std::ranges::cdata(input)) {
+[[nodiscard]] constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, bool &value)
+    -> decltype(std::ranges::cdata(input)) {
   // This function is adapted from
   // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/generated_message_tctable_lite.cc
   auto p = std::ranges::cdata(input);
@@ -308,8 +311,8 @@ template <typename Type, int MAX_BYTES = ((sizeof(Type) * 8 + 6) / 7)>
 }
 // NOLINTEND
 
-[[nodiscard]] constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input,
-                                                  boolean &value) -> decltype(std::ranges::cdata(input)) {
+[[nodiscard]] constexpr auto unchecked_parse_bool(concepts::contiguous_byte_range auto const &input, boolean &value)
+    -> decltype(std::ranges::cdata(input)) {
   return unchecked_parse_bool(input, value.value);
 }
 

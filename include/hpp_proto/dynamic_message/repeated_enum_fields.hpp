@@ -209,10 +209,8 @@ public:
   constexpr static bool is_repeated = true;
 
   template <typename U>
-  // NOLINTBEGIN(readability-redundant-typename)
-  static constexpr bool settable_from_v =
+  static constexpr bool settable_from_v = // NOLINTNEXTLINE(readability-redundant-typename)
       requires { typename U::is_enum_numbers_range; } || requires { typename U::is_enum_names_range; };
-  // NOLINTEND(readability-redundant-typename)
 
   repeated_enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
                            std::pmr::monotonic_buffer_resource &mr) noexcept
@@ -335,7 +333,7 @@ public:
     resize(std::ranges::size(r));
     std::size_t i = 0;
     auto values = numbers();
-    for (std::string_view name : r) {
+    for (const std::string_view name : r) {
       const auto *pval = enum_descriptor().value_of(name);
       if (pval) [[likely]] {
         values[i++] = *pval;

@@ -218,7 +218,7 @@ public:
     uint8_t field_option_bitset_ = 0;
 
   protected:
-    FieldOptions options_;
+    FieldOptions options_; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   };
 
   // NOLINTNEXTLINE(misc-multiple-inheritance)
@@ -263,7 +263,7 @@ public:
     vector_t<field_descriptor_t *> fields_;
 
   protected:
-    OneofOptions options_;
+    OneofOptions options_; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   };
 
   // NOLINTNEXTLINE(misc-multiple-inheritance)
@@ -311,7 +311,7 @@ public:
     message_descriptor_t *parent_message_;
 
   protected:
-    EnumOptions options_;
+    EnumOptions options_; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   };
 
   // NOLINTNEXTLINE(misc-multiple-inheritance)
@@ -374,7 +374,7 @@ public:
     vector_t<field_descriptor_t *> extensions_;
 
   protected:
-    MessageOptions options_;
+    MessageOptions options_; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   };
 
   // NOLINTNEXTLINE(misc-multiple-inheritance)
@@ -423,7 +423,7 @@ public:
     const class descriptor_pool *descriptor_pool_ = nullptr;
 
   protected:
-    FileOptions options_;
+    FileOptions options_; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   };
 
   // NOLINTNEXTLINE(misc-multiple-inheritance)
@@ -435,7 +435,7 @@ public:
   };
 
   static std::expected<FileDescriptorSet, descriptor_pool_errc>
-  make_file_descriptor_set(concepts::file_descriptor_pb_range auto const &unique_descs, distinct_file_tag_t,
+  make_file_descriptor_set(concepts::file_descriptor_pb_range auto const &unique_descs, distinct_file_tag_t /*tag*/,
                            concepts::is_option_type auto &&...option) {
     std::expected<FileDescriptorSet, descriptor_pool_errc> result;
     pb_context ctx{std::forward<decltype(option)>(option)...};
@@ -533,7 +533,7 @@ public:
   [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset,
                                                                std::pmr::memory_resource &mr) {
     fileset_.file = std::move(fileset).file;
-    default_resource_guard guard{mr};
+    const default_resource_guard guard{mr};
     return init();
   }
 
@@ -869,7 +869,12 @@ private:
   static constexpr bool is_valid_field_number(int32_t number) noexcept {
     // Protobuf valid field-number range:
     // [1, 536870911], excluding the reserved range [19000, 19999].
-    return number >= 1 && number <= 536'870'911 && (number < 19'000 || number > 19'999);
+    constexpr int32_t min_field_number = 1;
+    constexpr int32_t max_field_number = 536'870'911;
+    constexpr int32_t reserved_range_begin = 19'000;
+    constexpr int32_t reserved_range_end = 19'999;
+    return number >= min_field_number && number <= max_field_number &&
+           (number < reserved_range_begin || number > reserved_range_end);
   }
 
   std::expected<void, descriptor_pool_errc> build(file_descriptor_t &descriptor) {
@@ -961,7 +966,7 @@ private:
       std::string json_name;
       json_name.reserve(proto_name.size());
       bool upper_next = false;
-      for (char ch : proto_name) {
+      for (const char ch : proto_name) {
         if (ch == '_') {
           upper_next = true;
           continue;

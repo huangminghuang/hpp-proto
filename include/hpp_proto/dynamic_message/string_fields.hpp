@@ -73,9 +73,8 @@ public:
     if (has_value()) {
       auto val = std::string_view{storage_->of_string.content, storage_->of_string.size};
       return descriptor().explicit_presence() || !std::ranges::equal(val, descriptor_->proto().default_value);
-    } else {
-      return false;
     }
+    return false;
   }
 
   [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }

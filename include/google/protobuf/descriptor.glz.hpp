@@ -385,7 +385,9 @@ struct glz::meta<google::protobuf::FieldOptions_::FeatureSupport<Traits>> {
     "deprecationWarning", ::hpp_proto::as_optional_ref<&T::deprecation_warning>,
     "deprecation_warning", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::deprecation_warning>>,
     "editionRemoved", ::hpp_proto::as_optional_ref<&T::edition_removed, google::protobuf::Edition::EDITION_UNKNOWN>,
-    "edition_removed", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::edition_removed, google::protobuf::Edition::EDITION_UNKNOWN>>);
+    "edition_removed", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::edition_removed, google::protobuf::Edition::EDITION_UNKNOWN>>,
+    "removalError", ::hpp_proto::as_optional_ref<&T::removal_error>,
+    "removal_error", ::hpp_proto::as_alias<::hpp_proto::as_optional_ref<&T::removal_error>>);
 };
 
 template <typename Traits>

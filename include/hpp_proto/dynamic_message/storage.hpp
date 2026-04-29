@@ -31,17 +31,19 @@
 #include <variant>
 
 namespace hpp_proto {
+inline constexpr std::size_t value_storage_size_alignment = 8;
+
 template <typename T>
 struct scalar_storage_base {
   T content;
-  alignas(8) uint32_t size; // only used for string and bytes
+  alignas(value_storage_size_alignment) uint32_t size; // only used for string and bytes
   uint32_t selection; // 0 means no value; otherwise it means the selection index in oneof or 1 for non-oneof fields
 };
 
 template <typename T>
 struct repeated_storage_base {
   T *content;
-  alignas(8) uint32_t capacity;
+  alignas(value_storage_size_alignment) uint32_t capacity;
   uint32_t size;
 };
 

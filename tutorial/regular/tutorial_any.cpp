@@ -10,19 +10,19 @@ using AnyDemo = tutorial::AnyDemo<>;
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
-    exit(1);
+    exit(1); // NOLINT(concurrency-mt-unsafe)
   }
 }
 
-int main() {
+int main() try {
   using enum Person::PhoneType;
-  Person alex{.name = "Alex",
-              .id = 1,
-              .email = "alex@email.com",
-              .phones = {{.number = "19890604", .type = PHONE_TYPE_MOBILE}},
-              .nested_message = {{.bb = 89}},
-              .map_string_nested_message = {{"Tiananmen", {.bb = 89}}, {"Square", {.bb = 64}}},
-              .oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"};
+  const Person alex{.name = "Alex",
+                    .id = 1,
+                    .email = "alex@email.com",
+                    .phones = {{.number = "19890604", .type = PHONE_TYPE_MOBILE}},
+                    .nested_message = {{.bb = 89}},
+                    .map_string_nested_message = {{"Tiananmen", {.bb = 89}}, {"Square", {.bb = 64}}},
+                    .oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"};
 
   AnyDemo message;
   expect(hpp_proto::pack_any(message.any_value.emplace(), alex).ok());
@@ -41,4 +41,7 @@ int main() {
   expect(alex == unpacked_result.value());
 
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

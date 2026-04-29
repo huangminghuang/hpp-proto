@@ -103,7 +103,8 @@ private:
   constexpr std::size_t kStackBufferSize = is_contiguous ? sizeof(::grpc::Slice) : 4096;
   alignas(std::max_align_t) std::array<std::byte, kStackBufferSize> stack_buffer{};
   std::pmr::monotonic_buffer_resource mr{stack_buffer.data(), stack_buffer.size()};
-  byte_buffer_sink sink{mr, is_contiguous ? std::numeric_limits<std::size_t>::max() : 1024ULL * 1024ULL};
+  constexpr std::size_t default_chunk_size = 1024ULL * 1024ULL;
+  byte_buffer_sink sink{mr, is_contiguous ? std::numeric_limits<std::size_t>::max() : default_chunk_size};
   if (::hpp_proto::write_binpb(message, sink, ctx).ok()) [[likely]] {
     sink.finalize(buffer);
     return ::grpc::Status::OK;
@@ -138,7 +139,7 @@ public:
 
     // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
     if (c_buffer->type == GRPC_BB_RAW && c_buffer->data.raw.compression == GRPC_COMPRESS_NONE) {
-      size_t count = c_buffer->data.raw.slice_buffer.count;
+      const size_t count = c_buffer->data.raw.slice_buffer.count;
       slices_.reserve(count);
       spans_.reserve(count);
     }

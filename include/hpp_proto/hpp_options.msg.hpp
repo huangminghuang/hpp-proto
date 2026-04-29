@@ -14,7 +14,8 @@
 
 
 namespace hpp_proto {
-//NOLINTBEGIN(performance-enum-size)
+// Generated message headers mirror protobuf schema literals and generated special members.
+//NOLINTBEGIN(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
 
 template <typename Traits = ::hpp_proto::default_traits>
 struct FileOptions {
@@ -26,8 +27,8 @@ struct FileOptions {
 };
 
 template <typename Traits>
-constexpr auto message_type_url(const FileOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/hpp_proto.FileOptions">{}; }
-// NOLINTEND(performance-enum-size)
+constexpr auto message_type_url(const FileOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/hpp_proto.FileOptions">{}; }
+// NOLINTEND(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
 } // namespace hpp_proto
 template <typename Traits>
 struct hpp_proto::is_hpp_generated<hpp_proto::FileOptions<Traits>> : std::true_type {};

@@ -47,8 +47,9 @@ std::string endpoint_from_listen_address(std::string_view address, int selected_
 }
 } // namespace
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char **argv) {
-  std::span args(argv, static_cast<size_t>(argc));
+  const std::span args(argv, static_cast<size_t>(argc));
   if (args.size() < 2) {
     std::cerr << "Usage: grpc_test_server <port_file> [listen_address]" << '\n';
     return 1;

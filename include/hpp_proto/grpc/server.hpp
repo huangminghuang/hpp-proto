@@ -122,7 +122,7 @@ class ServerRPC<Method, RpcType::SERVER_STREAMING> : public ::grpc::ServerWriteR
   ::grpc::ByteBuffer response_;
 
 public:
-  ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *) : context_(context) {}
+  ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer * /*byte_buffer*/) : context_(context) {}
 
   [[nodiscard]] ::grpc::CallbackServerContext &context() const { return *context_; }
   void finish(::grpc::Status s) { this->Finish(std::move(s)); }
@@ -193,7 +193,7 @@ protected:
   [[nodiscard]] const ::grpc::ByteBuffer *request_buf() const { return &request_; }
 
 public:
-  ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer *) : context_(context) {}
+  ServerRPC(::grpc::CallbackServerContext *context, ::grpc::ByteBuffer * /*byte_buffer*/) : context_(context) {}
 
   void start_read() { this->StartRead(&request_); }
 
@@ -261,7 +261,7 @@ template <typename Method, typename RpcHandler>
 class BasicServerReactor : public ServerRPC<Method> {
 protected:
   using rpc_t = ServerRPC<Method>;
-  RpcHandler handler_;
+  RpcHandler handler_; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
 
   void on_write_done(bool ok)
     requires Method::server_streaming
@@ -269,7 +269,7 @@ protected:
     if (ok) {
       handler_.on_write_ok(*this);
     } else {
-      bool handled = false;
+      bool handled = false; // NOLINT(misc-const-correctness)
       if constexpr (requires {
                       { handler_.on_write_error(*this) } -> std::convertible_to<bool>;
                     }) {
@@ -414,6 +414,7 @@ class CallbackService : public ::grpc::Service {
   }
 
 public:
+  // NOLINTNEXTLINE(bugprone-crtp-constructor-accessibility)
   CallbackService() {
     std::apply([&](auto &&...args) { ((add_method(args)), ...); }, Methods{});
   }

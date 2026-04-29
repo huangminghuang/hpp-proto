@@ -8,6 +8,9 @@
 
 using namespace boost::ut;
 
+// Test fixtures use protobuf conformance values directly.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   expect(fatal(exp.has_value()));
@@ -192,8 +195,11 @@ const boost::ut::suite well_known_types_test = [] {
   } | std::tuple<hpp_proto::stable_traits, hpp_proto::pmr_stable_traits, hpp_proto::non_owning_traits>{};
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

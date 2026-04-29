@@ -28,43 +28,49 @@ public:
   // NOLINTNEXTLINE(modernize-pass-by-value)
   constexpr explicit optional_indirect(const allocator_type &alloc) noexcept : alloc_(alloc) {}
   // NOLINTNEXTLINE(modernize-pass-by-value)
-  constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc) noexcept : alloc_(alloc) {}
+  constexpr optional_indirect(allocator_arg_t /*allocator_arg*/, const allocator_type &alloc) noexcept
+      : alloc_(alloc) {}
   constexpr ~optional_indirect() noexcept { reset(); }
 
   constexpr explicit optional_indirect(std::nullopt_t /* unused */) noexcept {};
   // NOLINTNEXTLINE(modernize-pass-by-value)
-  constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, std::nullopt_t /* unused */) noexcept
+  constexpr optional_indirect(allocator_arg_t /*allocator_arg*/, const allocator_type &alloc,
+                              std::nullopt_t /* unused */) noexcept
       : alloc_(alloc) {}
 
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   constexpr optional_indirect(const T &object) { emplace(object); }
   // NOLINTNEXTLINE(modernize-pass-by-value)
-  constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, const T &object) : alloc_(alloc) {
+  constexpr optional_indirect(allocator_arg_t /*allocator_arg*/, const allocator_type &alloc, const T &object)
+      : alloc_(alloc) {
     emplace(object);
   }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
   constexpr optional_indirect(T &&object) { emplace(std::move(object)); }
   // NOLINTNEXTLINE(modernize-pass-by-value)
-  constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, T &&object) : alloc_(alloc) {
+  constexpr optional_indirect(allocator_arg_t /*allocator_arg*/, const allocator_type &alloc, T &&object)
+      : alloc_(alloc) {
     emplace(std::move(object));
   }
   constexpr optional_indirect(optional_indirect &&other) noexcept(std::is_nothrow_move_constructible_v<allocator_type>)
       : alloc_(std::move(other.alloc_)), obj_(std::exchange(other.obj_, nullptr)) {}
-  constexpr optional_indirect(const optional_indirect &other)
+  constexpr optional_indirect(const optional_indirect &other) // NOLINT(misc-no-recursion)
       : alloc_(allocator_traits::select_on_container_copy_construction(other.alloc_)) {
     if (other.obj_) {
       emplace(*other.raw_ptr());
     }
   }
   // NOLINTNEXTLINE(modernize-pass-by-value)
-  constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, const optional_indirect &other)
+  constexpr optional_indirect(allocator_arg_t /*allocator_arg*/, const allocator_type &alloc,
+                              const optional_indirect &other)
       : alloc_(alloc) {
     if (other.obj_) {
       emplace(*other.raw_ptr());
     }
   }
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,modernize-pass-by-value)
-  constexpr optional_indirect(allocator_arg_t, const allocator_type &alloc, optional_indirect &&other) : alloc_(alloc) {
+  constexpr optional_indirect(allocator_arg_t /*allocator_arg*/, const allocator_type &alloc, optional_indirect &&other)
+      : alloc_(alloc) {
     if constexpr (allocator_traits::is_always_equal::value) {
       obj_ = std::exchange(other.obj_, nullptr);
     } else {
@@ -77,17 +83,18 @@ public:
   }
 
   template <class... Args>
-  constexpr explicit optional_indirect(std::in_place_t, Args &&...args) {
+  constexpr explicit optional_indirect(std::in_place_t /*in_place*/, Args &&...args) {
     emplace(std::forward<Args>(args)...);
   }
   template <class... Args>
   // NOLINTNEXTLINE(modernize-pass-by-value)
-  constexpr explicit optional_indirect(allocator_arg_t, const allocator_type &alloc, std::in_place_t, Args &&...args)
+  constexpr explicit optional_indirect(allocator_arg_t /*allocator_arg*/, const allocator_type &alloc,
+                                       std::in_place_t /*in_place*/, Args &&...args)
       : alloc_(alloc) {
     emplace(std::forward<Args>(args)...);
   }
 
-  constexpr optional_indirect &
+  constexpr optional_indirect & // NOLINTNEXTLINE(bugprone-exception-escape,misc-no-recursion)
   operator=(optional_indirect &&other) noexcept((allocator_traits::propagate_on_container_move_assignment::value &&
                                                  std::is_nothrow_move_assignable_v<allocator_type>) ||
                                                 allocator_traits::is_always_equal::value) {
@@ -188,10 +195,11 @@ public:
   constexpr T &emplace() { return emplace_impl(); }
 
   template <class... Args>
-  constexpr T &emplace(Args &&...args) {
+  constexpr T &emplace(Args &&...args) { // NOLINT(misc-no-recursion)
     return emplace_impl(std::forward<Args>(args)...);
   }
 
+  // NOLINTNEXTLINE(bugprone-exception-escape)
   constexpr void swap(optional_indirect &other) noexcept(
       (allocator_traits::propagate_on_container_swap::value && std::is_nothrow_swappable_v<allocator_type>) ||
       (!allocator_traits::propagate_on_container_swap::value && allocator_traits::is_always_equal::value)) {
@@ -218,6 +226,7 @@ public:
       other.reset();
     }
   }
+
   constexpr void reset() noexcept {
     if (obj_) {
       allocator_traits::destroy(alloc_, std::to_address(obj_));
@@ -229,17 +238,16 @@ public:
   constexpr bool operator==(const T &rhs) const {
     if (has_value()) {
       return **this == rhs;
-    } else {
-      return false;
     }
+    return false;
   }
 
+  // NOLINTNEXTLINE(misc-no-recursion)
   constexpr bool operator==(const optional_indirect &rhs) const {
     if (has_value()) {
       return rhs.has_value() && *raw_ptr() == *rhs.raw_ptr();
-    } else {
-      return !rhs.has_value();
     }
+    return !rhs.has_value();
   }
 
   constexpr bool operator==(std::nullopt_t /* unused */) const noexcept { return !has_value(); }
@@ -336,7 +344,7 @@ public:
 
 private:
   template <class... Args>
-  constexpr T &emplace_impl(Args &&...args) {
+  constexpr T &emplace_impl(Args &&...args) { // NOLINT(misc-no-recursion)
     auto *new_obj = allocator_traits::allocate(alloc_, 1);
     try {
       allocator_traits::construct(alloc_, std::to_address(new_obj), std::forward<Args>(args)...);
@@ -410,9 +418,8 @@ public:
   constexpr bool operator==(const optional_indirect_view &rhs) const {
     if (has_value() && rhs.has_value()) {
       return *obj == *rhs.obj;
-    } else {
-      return has_value() == rhs.has_value();
     }
+    return has_value() == rhs.has_value();
   }
 
   constexpr bool operator==(std::nullptr_t /* unused */) const noexcept { return !has_value(); }

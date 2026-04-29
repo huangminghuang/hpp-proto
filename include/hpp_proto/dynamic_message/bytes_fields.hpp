@@ -75,9 +75,8 @@ public:
       auto val = std::span{storage_->of_bytes.content, storage_->of_bytes.size};
       auto default_val = std::as_bytes(std::span{descriptor_->proto().default_value});
       return descriptor().explicit_presence() || !std::ranges::equal(val, default_val);
-    } else {
-      return false;
     }
+    return false;
   }
 
   [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }

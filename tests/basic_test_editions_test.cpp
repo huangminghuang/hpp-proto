@@ -1,6 +1,9 @@
 #include <basic_test_editions.pb.hpp>
 #include <editions_test.pb.hpp>
 
+// Edition metadata tests assert generated tuple positions directly.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
+
 void test_basic_test_editions() {
   editions_upb_test::TestFeaturesMessage message;
   using meta_type = decltype(pb_meta(message));
@@ -44,3 +47,5 @@ void test_editions_test() {
 }
 
 int main() { return 0; }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)

@@ -33,9 +33,10 @@ namespace hpp_proto {
 template <std::size_t N>
 /// @brief Deserializes binary protobuf data from a character array into a dynamic message.
 /// @details The previous contents of @p msg are not preserved on parse failure.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 [[nodiscard]] status read_binpb(message_value_mref msg, const char (&buffer)[N]) {
   constexpr auto span_size = N == 0 ? 0 : N - 1;
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,-warnings-as-errors)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay,-warnings-as-errors)
   auto span = std::span<const char>{buffer, span_size};
   return read_binpb(msg, span);
 }

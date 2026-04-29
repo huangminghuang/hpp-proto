@@ -21,7 +21,7 @@ class Service : public ::hpp_proto::grpc::CallbackService<Service, _methods> {
 public:
   // define the callback handler for SayHello
   struct SayHelloHandler {
-    SayHelloHandler(Service &, ::hpp_proto::grpc::ServerRPC<SayHello> &rpc,
+    SayHelloHandler(Service & /*service*/, ::hpp_proto::grpc::ServerRPC<SayHello> &rpc,
                     ::hpp_proto::grpc::RequestToken<SayHello> token) {
       std::cerr << "rpc_handler<SayHello> called\n";
       helloworld::HelloRequest request;
@@ -31,7 +31,7 @@ public:
           rpc.finish(name_not_specified_status);
         } else {
           using namespace std::string_literals;
-          helloworld::HelloReply reply{.message = "Hello "s + request.name};
+          const helloworld::HelloReply reply{.message = "Hello "s + request.name};
           rpc.finish(reply);
         }
       } else {
@@ -50,7 +50,8 @@ public:
     std::string message;
     using rpc_t = ::hpp_proto::grpc::ServerRPC<SayHelloStreamReply>;
 
-    SayHelloStreamReplyHandler(Service &, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<SayHelloStreamReply> token) {
+    SayHelloStreamReplyHandler(Service & /*service*/, rpc_t &rpc,
+                               ::hpp_proto::grpc::RequestToken<SayHelloStreamReply> token) {
       std::pmr::monotonic_buffer_resource mr;
       helloworld::HelloRequest<hpp_proto::non_owning_traits> request;
       auto status = token.get(request, hpp_proto::alloc_from(mr));
@@ -58,7 +59,7 @@ public:
         if (request.name.empty()) {
           rpc.finish(name_not_specified_status);
         } else {
-          std::unique_lock lock(mx);
+          const std::unique_lock lock(mx);
           message = "Hello " + std::string{request.name};
           using Reply = helloworld::HelloReply<hpp_proto::non_owning_traits>;
           rpc.write(Reply{.message = this->message});
@@ -69,7 +70,7 @@ public:
     }
 
     void on_write_ok(rpc_t &rpc) {
-      std::unique_lock lock(mx);
+      const std::unique_lock lock(mx);
       count--;
       if (count == 0) {
         rpc.finish(::grpc::Status::OK);
@@ -96,7 +97,7 @@ public:
   struct ShutdownHandler {
     Service *service;
     explicit ShutdownHandler(Service &service, ::hpp_proto::grpc::ServerRPC<Shutdown> &rpc,
-                             [[maybe_unused]] ::hpp_proto::grpc::RequestToken<Shutdown>)
+                             [[maybe_unused]] ::hpp_proto::grpc::RequestToken<Shutdown> /*unused*/)
         : service(&service) {
       rpc.finish(google::protobuf::Empty{});
     }
@@ -106,7 +107,7 @@ public:
   auto handle(Shutdown) -> ShutdownHandler;
 
   void notify_done() {
-    std::unique_lock<std::mutex> lock(mu_);
+    const std::unique_lock<std::mutex> lock(mu_);
     done_ = true;
     shutdown_cv_.notify_all();
   }
@@ -139,7 +140,7 @@ void RunServer(const char *server_address) {
   server->Shutdown();
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv) try {
   const auto *endpoint = "localhost:50051";
   if (argc == 2) {
     endpoint = *std::next(argv);
@@ -149,4 +150,7 @@ int main(int argc, char **argv) {
   }
   RunServer(endpoint);
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

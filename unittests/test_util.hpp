@@ -2,6 +2,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <hpp_proto/binpb.hpp>
 #include <ostream>
@@ -21,10 +22,12 @@ inline std::string read_file(const char *filename) {
 }
 
 std::array<char, 2> to_hex(hpp_proto::concepts::byte_type auto c) {
-  static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+  static const std::array<char, 16> qmap = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+  constexpr auto low_nibble_mask = 0x0FU;
   const auto uc = static_cast<unsigned char>(c);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  return {qmap[uc >> 4U], qmap[uc & 0x0FU]};
+  return {qmap[uc >> 4U], qmap[uc & low_nibble_mask]};
 }
 
 std::string to_hex(hpp_proto::concepts::contiguous_byte_range auto const &data) {

@@ -106,53 +106,58 @@ private:
 public:
   using value_type = T;
 
-  constexpr optional() noexcept = default;
+  constexpr optional() = default;
   constexpr ~optional() noexcept = default;
-  constexpr optional(std::nullopt_t /* unused */) noexcept {}
+  constexpr optional(std::nullopt_t /* unused */) noexcept(noexcept(default_value())) {}
 
   constexpr optional(optional &&other) = default;
   constexpr optional(const optional &) = default;
 
   template <class U>
-  constexpr optional(const optional<U> &other) : _value(other._value), _present(other._present) {}
+  constexpr optional(const optional<U> &other) noexcept(std::is_nothrow_constructible_v<T, const U &>)
+      : _value(other._value), _present(other._present) {}
 
   template <class U>
   constexpr optional(optional<U> &&other) // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+      noexcept(std::is_nothrow_constructible_v<T, U &&>)
       : _value(std::move(other)._value), _present(other._present) {}
 
-  constexpr optional(const std::optional<T> &other)
+  constexpr optional(const std::optional<T> &other) noexcept(noexcept(default_value()) &&
+                                                             std::is_nothrow_copy_constructible_v<T>)
       : _value(other.value_or(default_value())), _present(other.has_value()) {}
 
-  constexpr optional(std::optional<T> &&other) : _present(other.has_value()) {
-    // using member initializer could cause use after move problem
-    // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
-    _value = std::move(other).value_or(default_value());
-  }
+  constexpr optional(std::optional<T> &&other) // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+      noexcept(noexcept(default_value()) && std::is_nothrow_move_constructible_v<T>)
+      : _value(other.has_value() ? std::move(*other) : default_value()), _present(other.has_value()) {}
 
   template <class U>
-  constexpr optional(const std::optional<U> &other)
+  constexpr optional(const std::optional<U> &other) noexcept(noexcept(default_value()) &&
+                                                             std::is_nothrow_constructible_v<T, const U &>)
       : _value(other.value_or(default_value())), _present(other.has_value()) {}
 
   template <class U>
-  constexpr optional(std::optional<U> &&other) : _present(other.has_value()) {
-    // using member initializer could cause use after move problem
-    // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
-    _value = std::move(other).value_or(default_value());
-  }
+  constexpr optional(std::optional<U> &&other) // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+      noexcept(noexcept(default_value()) && std::is_nothrow_constructible_v<T, U &&>)
+      : _value(other.has_value() ? T(std::move(*other)) : default_value()), _present(other.has_value()) {}
 
   template <class... Args>
-  constexpr explicit optional(std::in_place_t, Args &&...args) : _value(std::forward<Args>(args)...), _present(true) {}
+  constexpr explicit optional(std::in_place_t /*unused*/,
+                              Args &&...args) noexcept(std::is_nothrow_constructible_v<T, Args &&...>)
+      : _value(std::forward<Args>(args)...), _present(true) {}
 
   template <class U, class... Args>
-  constexpr explicit optional(std::in_place_t, std::initializer_list<U> list, Args &&...args)
+  constexpr explicit optional(std::in_place_t /*unused*/, std::initializer_list<U> list, Args &&...args) noexcept(
+      std::is_nothrow_constructible_v<T, std::initializer_list<U>, Args &&...>)
       : _value(list, std::forward<Args>(args)...), _present(true) {}
 
   template <typename U>
     requires(std::convertible_to<U, T> && !concepts::optional<U>)
-  constexpr optional(U &&value)
-      : _value(std::forward<U>(value)), _present(true) {} // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  constexpr optional(U &&value) noexcept(std::is_nothrow_constructible_v<T, U &&>)
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay)
+      : _value(std::forward<U>(value)), _present(true) {}
 
-  constexpr optional &operator=(std::nullopt_t /* unused */) noexcept {
+  constexpr optional &operator=(std::nullopt_t /* unused */) noexcept(noexcept(default_value()) &&
+                                                                      std::is_nothrow_assignable_v<T &, T>) {
     this->reset();
     return *this;
   }
@@ -160,37 +165,45 @@ public:
   template <typename U>
     requires(std::convertible_to<U, T> && !concepts::optional<U>)
   // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature,misc-unconventional-assign-operator)
-  constexpr optional &operator=(U &&value) {
-    _value = static_cast<T>(std::forward<U>(value)); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  constexpr optional &operator=(U &&value) noexcept(std::is_nothrow_constructible_v<T, U &&> &&
+                                                    std::is_nothrow_move_assignable_v<T>) {
+    _value = static_cast<T>(
+        std::forward<U>(value)); // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay)
     _present = true;
     return *this;
   }
 
   constexpr optional &operator=(const optional &) = default;
+  // NOLINTNEXTLINE(bugprone-exception-escape)
   constexpr optional &operator=(optional &&) = default;
 
   template <class U>
     requires std::convertible_to<U, T>
-  constexpr optional &operator=(const optional<U> &other) {
+  constexpr optional &operator=(const optional<U> &other) noexcept(std::is_nothrow_assignable_v<T &, const U &>) {
     _value = *other;
     _present = other.has_value();
     return *this;
   }
 
   template <class U>
-  constexpr optional &operator=(optional<U> &&other) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+  constexpr optional &operator=(optional<U> &&other) // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+      noexcept(std::is_nothrow_assignable_v<T &, U &&>) {
     _present = other.has_value();
     _value = std::move(other)._value;
     return *this;
   }
 
-  constexpr optional &operator=(const std::optional<T> &other) {
+  constexpr optional &operator=(const std::optional<T> &other) noexcept(noexcept(default_value()) &&
+                                                                        std::is_nothrow_copy_constructible_v<T> &&
+                                                                        std::is_nothrow_move_assignable_v<T>) {
     _value = other.value_or(default_value());
     _present = other.has_value();
     return *this;
   }
 
-  constexpr optional &operator=(std::optional<T> &&other) {
+  constexpr optional &operator=(std::optional<T> &&other) noexcept(noexcept(default_value()) &&
+                                                                   std::is_nothrow_move_constructible_v<T> &&
+                                                                   std::is_nothrow_move_assignable_v<T>) {
     _present = other.has_value();
     _value = std::move(other).value_or(default_value());
     return *this;
@@ -223,20 +236,21 @@ public:
   constexpr const T &&operator*() const && noexcept { return value(); }
 
   template <typename... Args>
-  constexpr T &emplace(Args &&...args) {
+  constexpr T &emplace(Args &&...args) noexcept(std::is_nothrow_constructible_v<T, Args &&...> &&
+                                                std::is_nothrow_move_assignable_v<T>) {
     // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
     _value = T{std::forward<Args>(args)...};
     _present = true;
     return _value;
   }
 
-  constexpr void swap(optional &other) noexcept {
+  constexpr void swap(optional &other) noexcept(std::is_nothrow_swappable_v<T>) {
     using std::swap;
     swap(_value, other._value);
     swap(_present, other._present);
   }
 
-  constexpr void reset() noexcept {
+  constexpr void reset() noexcept(noexcept(default_value()) && std::is_nothrow_assignable_v<T &, T>) {
     _value = default_value();
     _present = false;
   }
@@ -264,15 +278,16 @@ public:
 template <auto Default>
 class optional<bool, Default> {
   static constexpr bool as_bool(bool v) { return v; }
-  static constexpr bool as_bool(std::monostate) { return false; }
+  static constexpr bool as_bool(std::monostate /*v*/) { return false; }
 
 public:
   static constexpr bool has_default_value = true;
   static constexpr bool default_value() { return as_bool(Default); }
 
 private:
+  static constexpr std::uint8_t empty_state_bit = 0x80U;
   static constexpr std::uint8_t default_state =
-      0x80U | static_cast<std::uint8_t>(default_value()); // use 0x80 to denote empty state
+      empty_state_bit | static_cast<std::uint8_t>(default_value()); // use high bit to denote empty state
   bool_proxy deref() { return bool_proxy{impl}; }
   uint8_t impl = default_state;
 
@@ -286,7 +301,7 @@ public:
   constexpr optional &operator=(const optional &) noexcept = default;
   constexpr optional &operator=(optional &&) noexcept = default;
 
-  [[nodiscard]] constexpr bool has_value() const noexcept { return (impl & 0x80U) == 0; }
+  [[nodiscard]] constexpr bool has_value() const noexcept { return (impl & empty_state_bit) == 0; }
   constexpr bool operator*() const noexcept { return value(); }
 
   bool_proxy emplace() noexcept {
@@ -344,6 +359,7 @@ public:
   constexpr equality_comparable_span(std::span<T> other) noexcept : _data(other.data()), _size(other.size()) {}
 
   template <typename U>
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
     requires std::is_convertible_v<U (*)[], T (*)[]>
   constexpr equality_comparable_span(std::span<U> other) noexcept : _data(other.data()), _size(other.size()) {}
 
@@ -371,6 +387,7 @@ public:
   [[nodiscard]] constexpr size_type size_bytes() const noexcept { return _size * sizeof(T); }
 
   template <class U>
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
     requires std::is_convertible_v<U (*)[], T (*)[]>
   constexpr equality_comparable_span &operator=(std::span<U> s) noexcept {
     _data = s.data();
@@ -437,8 +454,10 @@ public:
 template <std::size_t Len>
 struct compile_time_string {
   using value_type = char;
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
   char data_[Len] = {};
   [[nodiscard]] constexpr std::size_t size() const { return Len - 1; }
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
   constexpr compile_time_string(const char (&init)[Len]) { std::copy_n(&init[0], Len, &data_[0]); }
   [[nodiscard]] constexpr const char *data() const { return &data_[0]; }
 };
@@ -446,8 +465,10 @@ struct compile_time_string {
 template <std::size_t Len>
 struct compile_time_bytes {
   using value_type = char;
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
   std::byte data_[Len] = {};
   [[nodiscard]] constexpr std::size_t size() const { return Len - 1; }
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
   constexpr compile_time_bytes(const char (&init)[Len]) {
     std::transform(&init[0], &init[Len], &data_[0], [](char c) { return static_cast<std::byte>(c); });
   }
@@ -584,6 +605,7 @@ struct pb_unknown_fields {
 };
 
 template <typename Traits>
+// NOLINTNEXTLINE(bugprone-exception-escape)
 struct pb_extensions {
   using unknown_fields_range_t = Traits::template map_t<uint32_t, typename Traits::bytes_t>;
   unknown_fields_range_t fields;

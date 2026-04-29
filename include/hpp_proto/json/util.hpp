@@ -132,7 +132,8 @@ bool parse_string_view_reject_controls_scan(std::string_view &value, glz::is_con
     }
 
     const auto c = static_cast<unsigned char>(*it);
-    if (c < 0x20U) [[unlikely]] {
+    constexpr auto ascii_control_character_limit = 0x20U;
+    if (c < ascii_control_character_limit) [[unlikely]] {
       ctx.error = error_code::syntax_error;
       return false;
     }
@@ -209,7 +210,7 @@ template <auto Opts> // NOLINTNEXTLINE(readability-function-cognitive-complexity
 }
 
 template <auto Opts, bool ConsumeEnd = true>
-bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto &) {
+bool match_ending(char c, glz::is_context auto &ctx, auto &it, auto & /*end*/) {
   if (*it == c) {
     if constexpr (ConsumeEnd) {
       ++it; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -271,7 +272,8 @@ bool match_ending_or_consume_comma(auto ws_start, size_t ws_size, bool &first, g
       }
     }
     return true;
-  } else if (first) {
+  }
+  if (first) {
     first = false;
   } else {
     if (match_invalid_end<',', Opts>(ctx, it, end)) {
@@ -512,7 +514,7 @@ void parse_repeated(bool is_map, T &value, auto &ctx, auto &it, auto &end) {
 }
 
 template <auto Options, ::hpp_proto::concepts::associative_container T>
-void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end) {
+void parse_repeated(bool /*is_map*/, T &value, auto &ctx, auto &it, auto &end) {
   typename T::key_type key;
   auto hint = value.end();
   scan_object_fields<Options, true>(
@@ -523,7 +525,7 @@ void parse_repeated(bool, T &value, auto &ctx, auto &it, auto &end) {
           return true;
         }
         static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
-        std::size_t size_before = value.size();
+        const std::size_t size_before = value.size();
         auto it = value.try_emplace(hint, std::move(key));
         if (size_before == value.size()) {
           if constexpr (hpp_proto::concepts::indirect<typename T::mapped_type>) {

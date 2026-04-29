@@ -125,7 +125,7 @@ struct optional_ref {
     }
   }
 
-  constexpr optional_ref &operator=(glz::empty) { return *this; }
+  constexpr optional_ref &operator=(glz::empty /*other*/) { return *this; }
 
   struct glaze {
     static constexpr auto construct = [] { return glz::empty{}; };

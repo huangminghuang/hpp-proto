@@ -5,6 +5,10 @@
 
 using namespace test;
 // clang-format on
+
+// Proto2 metadata tests assert generated tuple positions directly.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
+
 int main() {
   TestMessage message;
   using meta_type = decltype(pb_meta(message));
@@ -24,3 +28,5 @@ int main() {
   static_assert(hpp_proto::concepts::optional<decltype(message.length_prefixed)>);
   static_assert(!std::tuple_element_t<6, meta_type>::is_delimited());
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)

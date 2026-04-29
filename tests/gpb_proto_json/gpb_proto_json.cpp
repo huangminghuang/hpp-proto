@@ -10,9 +10,7 @@ namespace gpb_based {
 namespace gpb = google::protobuf;
 std::string binpb_to_json(const gpb::DescriptorPool &pool, const char *message_name, std::string_view data) {
   const auto *message_descriptor = pool.FindMessageTypeByName(message_name);
-  // NOLINTBEGIN(misc-const-correctness)
-  gpb::DynamicMessageFactory factory(&pool);
-  // NOLINTEND(misc-const-correctness)
+  const gpb::DynamicMessageFactory factory(&pool);
 
   std::unique_ptr<gpb::Message> message{factory.GetPrototype(message_descriptor)->New()};
   message->ParseFromArray(data.data(), static_cast<int>(data.size()));

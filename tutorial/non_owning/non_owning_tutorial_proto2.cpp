@@ -8,7 +8,7 @@
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
-    exit(1);
+    exit(1); // NOLINT(concurrency-mt-unsafe)
   }
 }
 
@@ -21,7 +21,7 @@ inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buf
 using Person = tutorial::Person<hpp_proto::non_owning_traits>;
 using AddressBook = tutorial::AddressBook<hpp_proto::non_owning_traits>;
 
-int main() {
+int main() try {
   using enum Person::PhoneType;
   using namespace std::string_view_literals;
   using namespace std::string_literals;
@@ -61,7 +61,7 @@ int main() {
   expect(address_book == read_result.value());
 
   {
-    std::span<const Person> people = address_book.people;
+    const std::span<const Person> people = address_book.people;
     expect(people.size() == 2);
     const Person &alex = address_book.people[0];
     const hpp_proto::optional<std::string_view> &alex_name = alex.name;
@@ -70,7 +70,7 @@ int main() {
     const hpp_proto::optional<int32_t> &alex_id = alex.id;
     expect(alex_id.has_value());
     expect(*alex_id == 1);
-    std::span<const Person::PhoneNumber> alex_phones = alex.phones;
+    const std::span<const Person::PhoneNumber> alex_phones = alex.phones;
     expect(alex_phones[0].number == "19890604");
     expect(alex_phones[0].type == PHONE_TYPE_MOBILE);
   }
@@ -82,4 +82,7 @@ int main() {
   expect(address_book == read_json_result.value());
 
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

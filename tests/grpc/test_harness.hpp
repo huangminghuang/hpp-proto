@@ -33,7 +33,7 @@ class EchoService : public ::hpp_proto::grpc::CallbackService<EchoService, EchoM
 public:
   struct UnaryHandler {
     using rpc_t = ::hpp_proto::grpc::ServerRPC<UnaryEcho>;
-    UnaryHandler(EchoService &, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<UnaryEcho> token) {
+    UnaryHandler(EchoService & /*service*/, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<UnaryEcho> token) {
       EchoRequest request;
       auto status = token.get(request);
       if (!status.ok()) {
@@ -52,7 +52,7 @@ public:
     using rpc_t = ::hpp_proto::grpc::ServerRPC<ClientStreamAggregate>;
     StreamSummary summary_;
 
-    explicit ClientStreamHandler(EchoService &, rpc_t &rpc) { rpc.start_read(); }
+    explicit ClientStreamHandler(EchoService & /*service*/, rpc_t &rpc) { rpc.start_read(); }
 
     void on_read_ok(rpc_t &rpc, ::hpp_proto::grpc::RequestToken<ClientStreamAggregate> token) {
       EchoRequest request;
@@ -76,7 +76,7 @@ public:
     }
 
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    bool on_read_cancel(rpc_t &) const {
+    bool on_read_cancel(rpc_t & /*rpc*/) const {
       // Let reactor fallback finish with CANCELLED.
       return false;
     }
@@ -88,7 +88,8 @@ public:
     int remaining_ = 0;
     std::string payload_;
 
-    ServerStreamHandler(EchoService &, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<ServerStreamFanout> token) {
+    ServerStreamHandler(EchoService & /*service*/, rpc_t &rpc,
+                        ::hpp_proto::grpc::RequestToken<ServerStreamFanout> token) {
       EchoRequest request;
       auto status = token.get(request);
       if (!status.ok() || request.sequence <= 0 || request.message.empty()) {
@@ -109,7 +110,7 @@ public:
     }
 
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    bool on_write_error(rpc_t &) {
+    bool on_write_error(rpc_t & /*rpc*/) {
       // Let reactor fallback finish with CANCELLED/UNKNOWN.
       return false;
     }
@@ -130,7 +131,7 @@ public:
     std::deque<EchoResponse> pending_;
     EchoResponse current_;
 
-    BidiStreamHandler(EchoService &, rpc_t &rpc) { rpc.start_read(); }
+    BidiStreamHandler(EchoService & /*service*/, rpc_t &rpc) { rpc.start_read(); }
 
     void on_read_ok(rpc_t &rpc, ::hpp_proto::grpc::RequestToken<BidiStreamChat> token) {
       EchoRequest request;
@@ -144,7 +145,7 @@ public:
       response.message = std::string{request.message} + "-bidi";
       response.sequence = request.sequence;
       {
-        std::scoped_lock lock(mu_);
+        const std::scoped_lock lock(mu_);
         pending_.emplace_back(std::move(response));
       }
       next_write(rpc);
@@ -154,7 +155,7 @@ public:
     void on_write_ok(rpc_t &rpc) { next_write(rpc); }
 
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    bool on_write_error(rpc_t &) { return false; }
+    bool on_write_error(rpc_t & /*rpc*/) { return false; }
 
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     bool on_read_eof(rpc_t &rpc) {
@@ -163,13 +164,13 @@ public:
     }
 
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-    bool on_read_cancel(rpc_t &) { return false; }
+    bool on_read_cancel(rpc_t & /*rpc*/) { return false; }
 
   private:
     void next_write(rpc_t &rpc) {
       std::unique_lock lock(mu_);
       if (!pending_.empty()) {
-        EchoResponse current = pending_.front();
+        const EchoResponse current = pending_.front();
         pending_.pop_front();
         lock.unlock();
         if (current.sequence != kTerminalSequence) {
@@ -207,6 +208,7 @@ private:
 };
 
 inline Harness::Harness() {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   const char *external_endpoint = std::getenv("HPP_PROTO_GRPC_TEST_ENDPOINT");
   if (external_endpoint == nullptr) {
     ::grpc::ServerBuilder builder;

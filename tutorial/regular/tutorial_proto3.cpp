@@ -7,15 +7,16 @@
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
-    exit(1);
+    exit(1); // NOLINT(concurrency-mt-unsafe)
   }
 }
 
 using Person = tutorial::Person<::hpp_proto::stable_traits>;
 using AddressBook = tutorial::AddressBook<::hpp_proto::stable_traits>;
 
-int main() {
+int main() try {
   using enum Person::PhoneType;
+  // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
   AddressBook address_book{
       .people = {{.name = "Alex",
                   .id = 1,
@@ -38,21 +39,21 @@ int main() {
   auto read_result = hpp_proto::read_binpb<AddressBook>(write_result.value());
   expect(address_book == read_result.value());
 
-  std::vector<Person> &people = address_book.people;
+  const std::vector<Person> &people = address_book.people;
   expect(people.size() == 2);
   Person &alex = address_book.people[0];
-  std::string &alex_name = alex.name;
+  const std::string &alex_name = alex.name;
   expect(alex_name == "Alex");
-  int32_t &alex_id = alex.id;
+  const int32_t &alex_id = alex.id;
   expect(alex_id == 1);
   std::vector<Person::PhoneNumber> &alex_phones = alex.phones;
   expect(alex_phones[0].number == "19890604");
   expect(alex_phones[0].type == PHONE_TYPE_MOBILE);
   std::optional<Person::NestedMessage> &alex_nested_message = alex.nested_message;
   expect(alex_nested_message.has_value());
-  // NOLINTBEGIN(bugprone-unchecked-optional-access)
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
   expect(alex_nested_message->bb == 89);
-  // NOLINTEND(bugprone-unchecked-optional-access)
+  // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
   std::variant<std::monostate, uint32_t, Person::NestedMessage, std::string, hpp_proto::bytes> &alex_oneof_field =
       alex.oneof_field;
@@ -66,4 +67,7 @@ int main() {
   auto read_json_result = hpp_proto::read_json<glz::opts{}, AddressBook>(write_json_result.value());
   expect(address_book == read_json_result.value());
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

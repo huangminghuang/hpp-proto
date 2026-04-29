@@ -210,6 +210,7 @@ struct to<JSON, hpp_proto::optional_indirect<Type, Alloc>> {
   static constexpr bool can_error = true;
 
   template <auto Opts>
+  // NOLINTNEXTLINE(misc-no-recursion)
   GLZ_ALWAYS_INLINE static void op(auto const &value, auto &ctx, auto &b, auto &ix) noexcept {
     if (value.has_value()) {
       if constexpr (required_padding<hpp_proto::optional_indirect<Type, Alloc>>()) {
@@ -298,7 +299,7 @@ struct from<JSON, hpp_proto::oneof_wrapper<Type, Index>> {
 template <>
 struct to<JSON, hpp_proto::boolean> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto value, Args &&...args) noexcept {
+  GLZ_ALWAYS_INLINE static void op(auto value, Args &&...args) {
     to<JSON, bool>::template op<Opts>(value.value, std::forward<Args>(args)...);
   }
 };
@@ -375,7 +376,7 @@ struct to<JSON, hpp_proto::indirect_view<Type>> {
 template <typename T>
 struct to<JSON, hpp_proto::alias_ref<T>> {
   template <auto Opts, class... Args>
-  GLZ_ALWAYS_INLINE static void op(auto &&...) noexcept {}
+  GLZ_ALWAYS_INLINE static void op(auto &&.../*args*/) noexcept {}
 };
 
 template <typename T>
@@ -473,6 +474,8 @@ inline json_status read_json_buffer(concepts::read_json_supported auto &value, a
   json_status status = {glz::read<Opts>(value, buffer, ctx)};
   if (status.ok() && status.ctx.count < buffer.size()) {
     auto it = std::next(buffer.begin(), static_cast<std::ptrdiff_t>(status.ctx.count));
+    // glz::skip_ws requires a mutable context even though this call only uses it locally.
+    // NOLINTNEXTLINE(misc-const-correctness)
     glz::context ctx;
     glz::skip_ws<Opts>(ctx, it, buffer.end());
     status.ctx.count = static_cast<std::size_t>(std::distance(buffer.begin(), it));
@@ -501,7 +504,7 @@ inline json_status read_json(concepts::read_json_supported auto &value,
     return ret;
   }();
   using char_type = std::remove_cvref_t<std::ranges::range_value_t<decltype(buffer)>>;
-  auto view = std::basic_string_view<char_type>{std::ranges::data(buffer), std::ranges::size(buffer)};
+  const auto view = std::basic_string_view<char_type>{std::ranges::data(buffer), std::ranges::size(buffer)};
   return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
 }
 
@@ -528,7 +531,7 @@ inline json_status read_json(concepts::read_json_supported auto &value, concepts
     auto span = std::span{str};
     if constexpr (size > 0) {
       if (span.back() == char_type{}) {
-        std::basic_string_view<char_type> view{span.data(), span.size() - 1};
+        const std::basic_string_view<char_type> view{span.data(), span.size() - 1};
         return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
       }
       // Intentional API constraint: character-array overload accepts only
@@ -538,23 +541,23 @@ inline json_status read_json(concepts::read_json_supported auto &value, concepts
       return {.ctx = {.ec = glz::error_code::syntax_error,
                       .custom_error_message = "character array input must be null-terminated"}};
     } else {
-      std::basic_string_view<char_type> view{span.data(), 0};
+      const std::basic_string_view<char_type> view{span.data(), 0};
       return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
     }
   } else if constexpr (requires { str.c_str(); }) {
     using char_type = buffer_type::value_type;
-    std::basic_string_view<char_type> view{str};
+    const std::basic_string_view<char_type> view{str};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   } else if constexpr (std::is_pointer_v<buffer_type>) {
     using char_type = std::remove_const_t<std::remove_pointer_t<buffer_type>>;
     if (str == nullptr) {
       return {.ctx = {.ec = glz::error_code::syntax_error, .custom_error_message = "null json input pointer"}};
     }
-    std::basic_string_view<char_type> view{str};
+    const std::basic_string_view<char_type> view{str};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   } else {
     using char_type = std::remove_cvref_t<std::ranges::range_value_t<buffer_type>>;
-    std::basic_string_view<char_type> view{std::ranges::data(str), std::ranges::size(str)};
+    const std::basic_string_view<char_type> view{std::ranges::data(str), std::ranges::size(str)};
     return read_json_buffer<opts>(value, view, std::forward<decltype(option)>(option)...);
   }
 }
@@ -591,7 +594,7 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
   static_assert(!hpp_proto::is_hpp_generated<value_type>::value || hpp_proto::has_glz<value_type>::value,
                 "the generated .glz.hpp is required for hpp_gen messages");
   json_context ctx{std::forward<decltype(option)>(option)...};
-  detail::always_print_guard guard{Opts.always_print_fields_with_no_presence};
+  const detail::always_print_guard guard{Opts.always_print_fields_with_no_presence};
   return {glz::write<Opts>(value, detail::as_modifiable(ctx, buffer), ctx)};
 }
 
@@ -603,10 +606,10 @@ inline json_status write_json(concepts::write_json_supported auto const &value,
 /// @param option Optional configuration parameters.
 /// @return A std::expected containing the buffer on success, or a json_status on failure.
 template <auto Opts = json_write_opts{}, concepts::contiguous_byte_range Buffer = std::string>
-inline auto write_json(concepts::write_json_supported auto const &value,
-                       concepts::is_option_type auto &&...option) -> std::expected<Buffer, json_status> {
+inline auto write_json(concepts::write_json_supported auto const &value, concepts::is_option_type auto &&...option)
+    -> std::expected<Buffer, json_status> {
   std::expected<Buffer, json_status> result;
-  detail::always_print_guard guard{Opts.always_print_fields_with_no_presence};
+  const detail::always_print_guard guard{Opts.always_print_fields_with_no_presence};
   auto ec = write_json<Opts>(value, *result, std::forward<decltype(option)>(option)...);
   if (!ec.ok()) {
     result = std::unexpected(ec);

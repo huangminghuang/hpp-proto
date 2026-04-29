@@ -14,6 +14,9 @@
 
 namespace google::protobuf {
 
+// Generated protobuf metadata is intentionally made of schema field numbers.
+//NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
+
 template <typename Traits>
 auto pb_meta(const FileDescriptorSet<Traits> &) -> std::tuple<
   ::hpp_proto::field_meta<1, &FileDescriptorSet<Traits>::file, ::hpp_proto::field_option::none>,
@@ -219,6 +222,7 @@ namespace FieldOptions_ {
     ::hpp_proto::field_meta<2, &FeatureSupport<Traits>::edition_deprecated, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
     ::hpp_proto::field_meta<3, &FeatureSupport<Traits>::deprecation_warning, ::hpp_proto::field_option::none>,
     ::hpp_proto::field_meta<4, &FeatureSupport<Traits>::edition_removed, ::hpp_proto::field_option::closed_enum, void, google::protobuf::Edition::EDITION_UNKNOWN>,
+    ::hpp_proto::field_meta<5, &FeatureSupport<Traits>::removal_error, ::hpp_proto::field_option::none>,
     ::hpp_proto::field_meta<UINT32_MAX, &FieldOptions_::FeatureSupport<Traits>::unknown_fields_>>;
 
 } //namespace FieldOptions_
@@ -352,5 +356,6 @@ namespace GeneratedCodeInfo_ {
 
 } //namespace GeneratedCodeInfo_
 
+//NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
 } // namespace google::protobuf
 // clang-format on

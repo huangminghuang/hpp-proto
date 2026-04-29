@@ -63,25 +63,24 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
-  [[nodiscard]] value_type default_value() const noexcept { return std::get<value_type>(descriptor_->default_value); }
-  [[nodiscard]] value_type value() const noexcept {
+  [[nodiscard]] value_type default_value() const { return std::get<value_type>(descriptor_->default_value); }
+  [[nodiscard]] value_type value() const {
     if (descriptor().explicit_presence() && !has_value()) {
       return default_value();
     }
     return access_storage().content;
   }
 
-  [[nodiscard]] bool is_present_or_explicit_default() const noexcept {
+  [[nodiscard]] bool is_present_or_explicit_default() const {
     if (has_value()) {
       return descriptor().explicit_presence() ||
              access_storage().content != std::get<value_type>(descriptor_->default_value);
-    } else {
-      return false;
     }
+    return false;
   }
 
   template <typename U>
-  [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
+  [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const {
     if constexpr (std::same_as<U, value_type>) {
       return value();
     } else {
@@ -139,7 +138,7 @@ public:
   static constexpr bool settable_from_v = std::same_as<U, value_type>;
 
   scalar_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
-                    std::pmr::monotonic_buffer_resource &) noexcept
+                    std::pmr::monotonic_buffer_resource & /*mr*/) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
 
   scalar_field_mref(const self_type &) noexcept = default;
@@ -155,7 +154,7 @@ public:
   }
 
   void alias_from(const scalar_field_cref<T, Kind> &other) const noexcept { set(other.value()); }
-  void clone_from(scalar_field_cref<T, Kind> other) const noexcept { set(other.value()); }
+  void clone_from(scalar_field_cref<T, Kind> other) const { set(other.value()); }
 
   [[nodiscard]] cref_type cref() const noexcept { return {*descriptor_, *storage_}; }
   // NOLINTNEXTLINE(hicpp-explicit-conversions)
@@ -163,10 +162,10 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
-  [[nodiscard]] value_type default_value() const noexcept { return cref().default_value(); }
-  [[nodiscard]] value_type value() const noexcept { return cref().value(); }
+  [[nodiscard]] value_type default_value() const { return cref().default_value(); }
+  [[nodiscard]] value_type value() const { return cref().value(); }
   void reset() noexcept { access_storage().selection = 0; }
-  void set_as_default() const noexcept { set(default_value()); }
+  void set_as_default() const { set(default_value()); }
 
   value_type &emplace() const noexcept { // NOLINT(modernize-use-nodiscard)
     set_as_default();

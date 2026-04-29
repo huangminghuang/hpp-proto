@@ -38,6 +38,13 @@ concept is_padded_input_context = is_pb_context<T> && requires { typename T::pad
 }; // namespace concepts
 
 namespace pb_serializer {
+inline constexpr std::size_t max_varint_bytes = 10;
+inline constexpr std::size_t packed_varint_count_chunk_bytes = sizeof(std::uint64_t);
+inline constexpr std::uint64_t packed_varint_terminator_mask = 0x8080808080808080ULL;
+inline constexpr std::size_t unknown_enum_buffer_size = max_varint_bytes + max_varint_bytes;
+inline constexpr std::size_t fixed_64_size = sizeof(std::uint64_t);
+inline constexpr std::size_t fixed_32_size = sizeof(std::uint32_t);
+
 template <typename T>
 struct input_span {
   using value_type = T;
@@ -101,7 +108,8 @@ struct input_buffer_region : input_span<Byte> {
   constexpr input_span<Byte> consume_packed_varints(std::size_t max_size) {
     if (this->size() >= max_size) {
       return this->consume(max_size);
-    } else if (has_next_region()) {
+    }
+    if (has_next_region()) {
       // find the last position where a varint terminated in the slope area. If the position is not found,
       // we have at least a non-terminated varint, just return a empty range to indicate error.
       auto slope_area = std::span{_slope_begin, this->_end};
@@ -111,9 +119,8 @@ struct input_buffer_region : input_span<Byte> {
         return {};
       }
       return this->consume(this->size() - std::distance(slope_area.rbegin(), it));
-    } else {
-      return {};
     }
+    return {};
   }
 };
 
@@ -301,6 +308,7 @@ struct basic_in {
     constexpr bool requires_byteswap = (sizeof(ValueType) > 1 && endian_swapped);
     if (std::is_constant_evaluated() || requires_byteswap) {
       std::array<byte_type, sizeof(ValueType)> v{};
+      // NOLINTNEXTLINE(misc-const-correctness)
       for (auto &elem : target) {
         maybe_advance_region();
         current.consume(v);
@@ -316,7 +324,7 @@ struct basic_in {
       } else {
         while (nbytes > 0) {
           maybe_advance_region();
-          std::size_t k = std::min(nbytes, static_cast<std::size_t>(region_size()));
+          const std::size_t k = std::min(nbytes, static_cast<std::size_t>(region_size()));
           std::memcpy(ptr, current.consume(k).data(), k);
           ptr = static_cast<char *>(ptr) + k;
           nbytes -= k;
@@ -328,7 +336,7 @@ struct basic_in {
 
   constexpr status deserialize_packed(std::size_t n, auto &&item) {
     using value_type = std::remove_cvref_t<decltype(item)>::value_type;
-    std::size_t nbytes = n * sizeof(value_type);
+    const std::size_t nbytes = n * sizeof(value_type);
     if (std::cmp_less(in_avail(), nbytes)) [[unlikely]] {
       return std::errc::bad_message;
     }
@@ -414,7 +422,7 @@ struct basic_in {
   constexpr status deserialize_packed_varint([[maybe_unused]] std::uint32_t bytes_count, std::size_t size, Item &item) {
     auto old_size = static_cast<std::ptrdiff_t>(item.size());
     item.resize(item.size() + size);
-    std::span new_region{std::next(item.begin(), old_size), item.end()};
+    const std::span new_region{std::next(item.begin(), old_size), item.end()};
     if constexpr (contiguous) {
       return parse_packed_varints_in_a_region<T>(current.consume(bytes_count), new_region.data());
     } else {
@@ -424,7 +432,7 @@ struct basic_in {
 
   constexpr status skip_varint() {
     // varint must terminated in 10 bytes
-    const auto *last = std::min(current.begin() + 10, current.end());
+    const auto *last = std::min(current.begin() + max_varint_bytes, current.end());
     const auto *pos = std::find_if(current.begin(), last, [](auto v) { return static_cast<int8_t>(v) >= 0; });
     if (pos == last) [[unlikely]] {
       return std::errc::bad_message;
@@ -502,7 +510,7 @@ struct basic_in {
   }
 
   constexpr std::size_t count_number_of_varints_in_region(std::size_t n) {
-    auto [data, remaining] = current.subspan(0, n).split(n - (n % 8));
+    auto [data, remaining] = current.subspan(0, n).split(n - (n % packed_varint_count_chunk_bytes));
 
     std::size_t result = 0;
     auto popcount = [](uint64_t v) -> int {
@@ -522,13 +530,13 @@ struct basic_in {
       uint64_t v = 0;
       auto bytes = data.consume(sizeof(v));
       std::memcpy(&v, bytes.data(), sizeof(v));
-      result += static_cast<std::size_t>(popcount(~v & 0x8080808080808080ULL));
+      result += static_cast<std::size_t>(popcount(~v & packed_varint_terminator_mask));
     }
 
     if (remaining.size()) {
       uint64_t v = UINT64_MAX;
       std::memcpy(&v, remaining.data(), remaining.size());
-      result += static_cast<std::size_t>(popcount(~v & 0x8080808080808080ULL));
+      result += static_cast<std::size_t>(popcount(~v & packed_varint_terminator_mask));
     }
     return result;
   }
@@ -536,6 +544,7 @@ struct basic_in {
   // Given the fact that the next n bytes are all variable length integers,
   // find the number of integers in the range.
   constexpr std::optional<std::size_t> number_of_varints(std::uint32_t bytes_count) {
+    // NOLINTNEXTLINE(misc-const-correctness)
     std::ptrdiff_t num_bytes = bytes_count;
     if (region_size() >= num_bytes) [[likely]] {
       if (std::bit_cast<int8_t>(current[bytes_count - 1]) < 0) [[unlikely]] {
@@ -620,18 +629,18 @@ constexpr status deserialize_unknown_fields(concepts::uint32_pair_contiguous_ran
                                     detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)));
 }
 
-constexpr status deserialize_unknown_fields(concepts::contiguous_byte_range auto &unknown_fields, uint32_t,
+constexpr status deserialize_unknown_fields(concepts::contiguous_byte_range auto &unknown_fields, uint32_t /*unused*/,
                                             std::size_t field_len, concepts::is_basic_in auto &archive) {
   return archive.deserialize_packed(field_len, unknown_fields);
 }
 
 constexpr void deserialize_unknown_enum(auto &unknown_fields, uint32_t field_num, int64_t value,
                                         concepts::is_basic_in auto &archive) {
-  std::array<std::byte, 16> data{};
+  std::array<std::byte, unknown_enum_buffer_size> data{};
   auto tag = make_tag(field_num, wire_type::varint);
   auto *p = unchecked_pack_varint(varint{tag}, data.data());
   p = unchecked_pack_varint(varint{value}, p);
-  std::span field_span{data.data(), static_cast<std::size_t>(p - data.data())};
+  const std::span field_span{data.data(), static_cast<std::size_t>(p - data.data())};
   using unknown_fields_t = std::remove_cvref_t<decltype(unknown_fields)>;
   if constexpr (concepts::contiguous_byte_range<unknown_fields_t>) {
     util::append_range(unknown_fields, field_span);
@@ -677,11 +686,11 @@ constexpr status do_skip_field(uint32_t tag, concepts::is_basic_in auto &archive
   case wire_type::length_delimited:
     return archive.skip_length_delimited();
   case wire_type::fixed_64:
-    return archive.skip(8);
+    return archive.skip(sizeof(std::uint64_t));
   case wire_type::sgroup:
     return do_skip_group(tag_number(tag), archive);
   case wire_type::fixed_32:
-    return archive.skip(4);
+    return archive.skip(sizeof(std::uint32_t));
   default:
     return std::errc::bad_message;
   }
@@ -709,7 +718,8 @@ constexpr status do_skip_group(uint32_t field_num, concepts::is_basic_in auto &a
 
     if (next_type == wire_type::egroup && field_num == next_field_num) {
       return {};
-    } else if (archive.in_avail() <= 0) [[unlikely]] {
+    }
+    if (archive.in_avail() <= 0) [[unlikely]] {
       return std::errc::bad_message;
     }
     if (auto result = do_skip_field(tag, archive); !result.ok()) {
@@ -812,7 +822,7 @@ constexpr status deserialize_packed_repeated_padded(Meta meta, Item &item, Archi
 }
 
 template <typename Meta, typename EncodeType, typename Archive, typename Item, typename UnknownFields>
-constexpr status deserialize_packed_repeated_unpadded(Meta, Item &item, Archive &archive, vuint32_t byte_count,
+constexpr status deserialize_packed_repeated_unpadded(Meta /*meta*/, Item &item, Archive &archive, vuint32_t byte_count,
                                                       UnknownFields &unknown_fields) {
   using type = std::remove_reference_t<Item>;
   using value_type = type::value_type;
@@ -859,7 +869,7 @@ constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable
   if (!n.has_value()) {
     return std::errc::bad_message;
   }
-  std::size_t size = *n;
+  const std::size_t size = *n;
   if constexpr (std::same_as<EncodeType, boolean> || std::same_as<EncodeType, bool>) {
     return archive.deserialize_packed_boolean(size, v);
   } else if constexpr (concepts::char_or_byte<EncodeType>) {
@@ -876,7 +886,7 @@ constexpr status deserialize_packed_repeated_with_byte_count(concepts::resizable
 }
 
 template <typename Meta, concepts::associative_container V>
-constexpr status deserialize_unpacked_associative_element(Meta, V &v, auto &hint, auto &archive) {
+constexpr status deserialize_unpacked_associative_element(Meta /*meta*/, V &v, auto &hint, auto &archive) {
   using type = std::remove_reference_t<V>;
   using value_type = type::value_type;
   using element_type = Meta::type::mutable_type;
@@ -1005,7 +1015,8 @@ constexpr status deserialize_unpacked_repeated(Meta meta, uint32_t tag, auto &&i
 }
 
 template <typename Meta>
-constexpr status deserialize_repeated_group(Meta, uint32_t tag, auto &&item, concepts::is_basic_in auto &archive) {
+constexpr status deserialize_repeated_group(Meta /*meta*/, uint32_t tag, auto &&item,
+                                            concepts::is_basic_in auto &archive) {
   decltype(auto) v = detail::as_modifiable(archive.context, item);
 
   std::size_t count = 0;
@@ -1031,8 +1042,8 @@ constexpr status deserialize_repeated_group(Meta, uint32_t tag, auto &&item, con
   return {};
 }
 
-constexpr status deserialize_field(boolean &item, auto, uint32_t tag, concepts::is_basic_in auto &archive,
-                                   auto & /* unknown_fields*/) {
+constexpr status deserialize_field(boolean &item, auto /*tag*/, uint32_t tag, concepts::is_basic_in auto &archive,
+                                   auto & /*unknown_fields*/) {
   if (tag_type(tag) != wire_type::varint) [[unlikely]] {
     return std::errc::bad_message;
   }
@@ -1040,7 +1051,7 @@ constexpr status deserialize_field(boolean &item, auto, uint32_t tag, concepts::
 }
 
 template <typename Meta>
-constexpr status deserialize_field(concepts::is_enum auto &item, Meta, uint32_t tag,
+constexpr status deserialize_field(concepts::is_enum auto &item, Meta /*meta*/, uint32_t tag,
                                    concepts::is_basic_in auto &archive, auto &unknown_fields) {
   if (tag_type(tag) != wire_type::varint) [[unlikely]] {
     return std::errc::bad_message;
@@ -1071,15 +1082,15 @@ constexpr status deserialize_field(concepts::optional_indirect_view auto &item, 
   if (item.has_value()) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     return deserialize_field(const_cast<element_type &>(*item), meta, tag, archive, unknown_fields);
-  } else {
-    void *buffer = archive.context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
-    auto loaded = new (buffer) element_type; // NOLINT(cppcoreguidelines-owning-memory)
-    if (auto result = deserialize_field(*loaded, meta, tag, archive, unknown_fields); !result.ok()) [[unlikely]] {
-      return result;
-    }
-    item = loaded;
-    return {};
   }
+  // NOLINTNEXTLINE(misc-const-correctness)
+  void *buffer = archive.context.memory_resource().allocate(sizeof(element_type), alignof(element_type));
+  auto loaded = new (buffer) element_type; // NOLINT(cppcoreguidelines-owning-memory)
+  if (auto result = deserialize_field(*loaded, meta, tag, archive, unknown_fields); !result.ok()) [[unlikely]] {
+    return result;
+  }
+  item = loaded;
+  return {};
 }
 
 constexpr status deserialize_field(concepts::indirect auto &item, auto meta, uint32_t tag,
@@ -1091,7 +1102,8 @@ template <typename T>
 constexpr status deserialize_field(indirect_view<T> &item, auto meta, uint32_t tag, concepts::is_basic_in auto &archive,
                                    auto &unknown_fields) {
   if (item.pointer() == nullptr) {
-    void *buffer = archive.context.memory_resource().allocate(sizeof(T), alignof(T));
+    // NOLINTNEXTLINE(misc-const-correctness)
+    void *const buffer = archive.context.memory_resource().allocate(sizeof(T), alignof(T));
     item.reset(new (buffer) T); // NOLINT(cppcoreguidelines-owning-memory)
   }
   return deserialize_field(*item.pointer(), meta, tag, archive, unknown_fields);
@@ -1135,7 +1147,7 @@ constexpr status deserialize_field(T &item, auto meta, uint32_t tag, concepts::i
 }
 
 template <typename Meta>
-constexpr status deserialize_field(concepts::oneof_type auto &item, Meta, uint32_t tag,
+constexpr status deserialize_field(concepts::oneof_type auto &item, Meta /*meta*/, uint32_t tag,
                                    concepts::is_basic_in auto &archive, auto &unknown_fields) {
   using type = std::remove_reference_t<decltype(item)>;
   static_assert(std::same_as<std::remove_cvref_t<decltype(std::get<0>(type{}))>, std::monostate>);
@@ -1277,7 +1289,7 @@ constexpr auto &get_unknown_fields(auto &item)
   return item.extensions.fields;
 }
 
-constexpr std::monostate get_unknown_fields(auto &) { return {}; }
+constexpr std::monostate get_unknown_fields(auto & /*item*/) { return {}; }
 
 constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is_basic_in auto &archive) {
   decltype(auto) unknown_fields = get_unknown_fields(item);
@@ -1333,7 +1345,7 @@ constexpr status deserialize_sized(auto &&item, concepts::is_basic_in auto &arch
     return {};
   }
 
-  util::recursion_guard guard{archive.context};
+  const util::recursion_guard guard{archive.context};
   if (!guard.ok()) {
     return std::errc::value_too_large; // maximum recursion reached
   }
@@ -1366,7 +1378,8 @@ constexpr status extract_length_delimited_field(uint32_t number, bytes_view &byt
         return archive.read_bytes(len, bytes);
       }
       return std::errc::bad_message;
-    } else if (auto result = do_skip_field(tag, archive); !result.ok()) {
+    }
+    if (auto result = do_skip_field(tag, archive); !result.ok()) {
       return result;
     }
   }
@@ -1418,8 +1431,8 @@ struct contiguous_input_archive<Context, Byte> : padded_input_archive_base<Byte>
 };
 
 template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-contiguous_input_archive(const Buffer &,
-                         Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+contiguous_input_archive(const Buffer &, Context &)
+    -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
 constexpr status deserialize(auto &item, std::span<const std::byte> buffer, concepts::is_pb_context auto &context) {
   contiguous_input_archive archive{buffer, context};
@@ -1431,9 +1444,8 @@ constexpr status deserialize(auto &item, concepts::contiguous_byte_range auto co
   if (std::is_constant_evaluated()) {
     contiguous_input_archive archive{buffer, context};
     return deserialize(item, archive);
-  } else {
-    return deserialize(item, std::as_bytes(std::span{std::ranges::data(buffer), std::ranges::size(buffer)}), context);
   }
+  return deserialize(item, std::as_bytes(std::span{std::ranges::data(buffer), std::ranges::size(buffer)}), context);
 }
 
 status deserialize(auto &item, concepts::chunked_byte_range auto const &buffer, concepts::is_pb_context auto &context) {

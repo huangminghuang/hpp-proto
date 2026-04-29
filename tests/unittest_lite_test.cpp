@@ -140,6 +140,7 @@ const boost::ut::suite lite_test = [] {
                 std::tuple<hpp_proto::default_traits, hpp_proto::non_owning_traits, hpp_proto::pmr_traits>{};
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

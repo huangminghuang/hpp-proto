@@ -13,12 +13,14 @@ using PmrPhoneNumber = PmrPerson::PhoneNumber;
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
-    exit(1);
+    exit(1); // NOLINT(concurrency-mt-unsafe)
   }
 }
 
-int main() {
+int main() try {
   // Create a monotonic buffer resource on the stack
+  // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
   std::array<std::byte, 4096> buffer{};
   std::pmr::monotonic_buffer_resource pool{buffer.data(), buffer.size()};
 
@@ -66,5 +68,10 @@ int main() {
   expect(json_read_book->people[0].name.get_allocator().resource() == &pool);
   std::cout << "Successfully serialized and deserialized JSON using PMR traits!\n";
 
+  // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

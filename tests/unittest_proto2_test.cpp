@@ -161,7 +161,7 @@ const boost::ut::suite proto2_test = [] {
     protobuf_unittest::TestAllTypes<hpp_proto::non_owning_traits> message;
     using namespace std::string_view_literals;
     const auto json = R"({})"sv;
-    std::vector<char> in{json.begin(), json.end()};
+    const std::vector<char> in{json.begin(), json.end()};
     std::string out;
     std::pmr::monotonic_buffer_resource mr;
     expect(hpp_proto::read_json(message, in, hpp_proto::alloc_from(mr)).ok());
@@ -170,6 +170,7 @@ const boost::ut::suite proto2_test = [] {
   };
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
