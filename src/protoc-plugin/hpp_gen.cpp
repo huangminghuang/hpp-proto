@@ -726,7 +726,8 @@ struct code_generator {
     while (!unresolved_messages.empty()) {
       for (auto &pm : std::ranges::reverse_view{unresolved_messages}) {
         auto &message_deps = pm->dependencies;
-        std::set<message_descriptor_t *> sorted_resolved_messages{resolved_messages.begin(), resolved_messages.end()};
+        const std::set<message_descriptor_t *> sorted_resolved_messages{resolved_messages.begin(),
+                                                                        resolved_messages.end()};
         if (std::ranges::includes(sorted_resolved_messages, message_deps)) {
           resolved_messages.push_back(pm);
           pm = nullptr; // set the reference to nullptr so that it can be removed from the unresolved_messages in

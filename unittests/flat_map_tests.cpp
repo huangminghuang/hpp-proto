@@ -4,6 +4,11 @@
 #include <stdexcept>
 #include <vector>
 
+// These tests use small numeric fixtures and deliberately throwing helper types to exercise flat_map rollback paths.
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays, hicpp-avoid-c-arrays, modernize-avoid-c-arrays,
+// cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers, misc-const-correctness,
+// bugprone-exception-escape)
+
 struct throwing_mapped {
   int value = 0;
   bool throw_on_copy = false;
@@ -195,3 +200,7 @@ int main() {
   const auto result = boost::ut::cfg<>.run({.report_errors = true});
   return static_cast<int>(result);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays, hicpp-avoid-c-arrays, modernize-avoid-c-arrays,
+// cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers, misc-const-correctness,
+// bugprone-exception-escape)
