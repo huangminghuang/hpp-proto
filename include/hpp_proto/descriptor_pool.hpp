@@ -888,9 +888,9 @@ private:
         if (proto.name.empty()) {
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
-        string_t scope = !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name};
-        auto &message = messages_.emplace_back(proto, std::move(scope), descriptor.options_, &descriptor,
-                                               static_cast<message_descriptor_t *>(nullptr));
+        auto &message =
+            messages_.emplace_back(proto, !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name},
+                                   descriptor.options_, &descriptor, static_cast<message_descriptor_t *>(nullptr));
         return build(message).transform([&] { descriptor.messages_.push_back(&message); });
       });
       if (!result.has_value()) {
@@ -903,8 +903,8 @@ private:
       if (proto.name.empty()) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
-      string_t scope = !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name};
-      auto &e = enums_.emplace_back(proto, std::move(scope), descriptor.options_, &descriptor, nullptr);
+      auto &e = enums_.emplace_back(proto, !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name},
+                                    descriptor.options_, &descriptor, nullptr);
       if (!enum_map_.try_emplace(e.full_name(), &e).second) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
