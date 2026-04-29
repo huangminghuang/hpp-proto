@@ -7,6 +7,35 @@ project(hpp_proto
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(PROJECT_IS_TOP_LEVEL)
+  find_program(HPP_PROTO_CLANG_FORMAT NAMES clang-format)
+  file(GLOB_RECURSE HPP_PROTO_FORMAT_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/fuzz/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/fuzz/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tutorial/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tutorial/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/unittests/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/unittests/*.hpp")
+
+  if(HPP_PROTO_CLANG_FORMAT)
+    add_custom_target(format
+      COMMAND "${HPP_PROTO_CLANG_FORMAT}" -i ${HPP_PROTO_FORMAT_SOURCES}
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMENT "Running clang-format"
+      VERBATIM)
+  else()
+    message(STATUS "clang-format not found; the format target will not be available")
+  endif()
+endif()
+
 set(HPP_PROTO_PROTOC "find" CACHE STRING "'find' for locating using find_program, or 'compile' for compiling from source")
 set_property(CACHE HPP_PROTO_PROTOC PROPERTY STRINGS "find" "compile")
 set(HPP_PROTO_PROTOC_GEN_HPP "" CACHE FILEPATH
