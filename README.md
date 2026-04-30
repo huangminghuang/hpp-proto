@@ -203,7 +203,7 @@ find_package(glaze CONFIG REQUIRED)
 find_package(is_utf8 CONFIG REQUIRED)
 ```
 
-`glaze` v7.2.0 installs a usable CMake package config. As of `simdutf/is_utf8` v1.4.1, the upstream install rules need a small fix before `find_package(is_utf8 CONFIG REQUIRED)` works: `is_utf8-config.cmake` includes `is_utf8Targets.cmake`, but the project does not install that export file by default. When packaging or installing `is_utf8` yourself, add an export install rule equivalent to:
+`glaze` v7.4.0 installs a usable CMake package config. As of `simdutf/is_utf8` v1.4.1, the upstream install rules need a small fix before `find_package(is_utf8 CONFIG REQUIRED)` works: `is_utf8-config.cmake` includes `is_utf8Targets.cmake`, but the project does not install that export file by default. When packaging or installing `is_utf8` yourself, add an export install rule equivalent to:
 
 ```cmake
 install(EXPORT is_utf8Targets

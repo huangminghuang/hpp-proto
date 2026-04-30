@@ -110,9 +110,9 @@ public:
   }
 
   constexpr indirect & // NOLINTNEXTLINE(bugprone-exception-escape)
-  operator=(indirect && other) noexcept((allocator_traits::propagate_on_container_move_assignment::value &&
-                                         std::is_nothrow_move_assignable_v<allocator_type>) ||
-                                        allocator_traits::is_always_equal::value) {
+  operator=(indirect &&other) noexcept((allocator_traits::propagate_on_container_move_assignment::value &&
+                                        std::is_nothrow_move_assignable_v<allocator_type>) ||
+                                       allocator_traits::is_always_equal::value) {
     if (this == &other) {
       return *this;
     }

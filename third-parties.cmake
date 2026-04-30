@@ -6,7 +6,7 @@ if(CMAKE_VERSION GREATER_EQUAL 3.25)
     set(system_package SYSTEM)
 endif()
 
-set(HPP_PROTO_GLAZE_VERSION 7.2.0)
+set(HPP_PROTO_GLAZE_VERSION 7.4.0)
 CPMAddPackage(
     NAME glaze
     GIT_TAG v${HPP_PROTO_GLAZE_VERSION}
@@ -17,10 +17,11 @@ if(glaze_ADDED)
     install(SCRIPT "${glaze_BINARY_DIR}/cmake_install.cmake")
 endif()
 
+set(HPP_PROTO_IS_UTF8_VERSION 1.4.1)
 if(NOT CPM_LOCAL_PACKAGES_ONLY)
     CPMAddPackage(
         NAME is_utf8
-        VERSION 1.4.1
+        VERSION ${HPP_PROTO_IS_UTF8_VERSION}
         GITHUB_REPOSITORY simdutf/is_utf8
         DOWNLOAD_ONLY ON
     )
