@@ -1,6 +1,6 @@
 [requires]
 hpp_proto/1.0.0
-glaze/7.2.0
+glaze/7.4.0
 
 [generators]
 CMakeDeps

@@ -22,3 +22,5 @@ obj/
 .audit
 fuzz/__pycache__/
 graphify-out
+.codex
+.claude
