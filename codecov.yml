@@ -13,4 +13,5 @@ coverage:
     project:
       default:
         flags:
-          - ci
+          - linux
+          - macos
