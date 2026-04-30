@@ -118,7 +118,7 @@ public:
   [[nodiscard]] explicit operator bool() const noexcept { return static_cast<bool>(obj_); }
   [[nodiscard]] auto operator->() const noexcept { return obj_.operator->(); }
   [[nodiscard]] auto operator*() const noexcept { return *obj_; }
-  [[nodiscard]] auto value() const noexcept { return obj_.value(); }
+  [[nodiscard]] auto value() const { return obj_.value(); }
   [[nodiscard]] auto error() const noexcept { return obj_.error(); }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> done() const noexcept {

@@ -15,6 +15,9 @@
 #include <utility>
 using namespace boost::ut;
 
+// Dynamic message API tests intentionally use compact fixture values inline.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
+
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   expect(fatal(exp.has_value()));
@@ -1244,8 +1247,11 @@ const boost::ut::suite dynamic_message_test = [] {
   };
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)

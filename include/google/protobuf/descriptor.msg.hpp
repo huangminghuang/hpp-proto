@@ -13,7 +13,8 @@
 
 
 namespace google::protobuf {
-//NOLINTBEGIN(performance-enum-size)
+// Generated message headers mirror protobuf schema literals and generated special members.
+//NOLINTBEGIN(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
 
 enum class Edition {
   EDITION_UNKNOWN = 0,
@@ -508,6 +509,7 @@ namespace FieldOptions_ {
     google::protobuf::Edition edition_deprecated = google::protobuf::Edition::EDITION_UNKNOWN;
     Traits::string_t deprecation_warning;
     google::protobuf::Edition edition_removed = google::protobuf::Edition::EDITION_UNKNOWN;
+    Traits::string_t removal_error;
 
     [[no_unique_address]] ::hpp_proto::pb_unknown_fields<Traits> unknown_fields_;
     bool operator == (const FeatureSupport&) const = default;
@@ -945,74 +947,74 @@ struct FileDescriptorSet {
 };
 
 template <typename Traits>
-constexpr auto message_type_url(const UninterpretedOption_::NamePart<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption.NamePart">{}; }
+constexpr auto message_type_url(const UninterpretedOption_::NamePart<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption.NamePart">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const UninterpretedOption<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption">{}; }
+constexpr auto message_type_url(const UninterpretedOption<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.UninterpretedOption">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FeatureSet_::VisibilityFeature<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSet.VisibilityFeature">{}; }
+constexpr auto message_type_url(const FeatureSet_::VisibilityFeature<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSet.VisibilityFeature">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FeatureSet<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSet">{}; }
+constexpr auto message_type_url(const FeatureSet<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSet">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const SourceCodeInfo_::Location<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo.Location">{}; }
+constexpr auto message_type_url(const SourceCodeInfo_::Location<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo.Location">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const SourceCodeInfo<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo">{}; }
+constexpr auto message_type_url(const SourceCodeInfo<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.SourceCodeInfo">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const GeneratedCodeInfo_::Annotation<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo.Annotation">{}; }
+constexpr auto message_type_url(const GeneratedCodeInfo_::Annotation<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo.Annotation">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const GeneratedCodeInfo<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo">{}; }
+constexpr auto message_type_url(const GeneratedCodeInfo<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.GeneratedCodeInfo">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FeatureSetDefaults_::FeatureSetEditionDefault<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults.FeatureSetEditionDefault">{}; }
+constexpr auto message_type_url(const FeatureSetDefaults_::FeatureSetEditionDefault<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults.FeatureSetEditionDefault">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FeatureSetDefaults<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults">{}; }
+constexpr auto message_type_url(const FeatureSetDefaults<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FeatureSetDefaults">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const MethodOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.MethodOptions">{}; }
+constexpr auto message_type_url(const MethodOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.MethodOptions">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const ServiceOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.ServiceOptions">{}; }
+constexpr auto message_type_url(const ServiceOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.ServiceOptions">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const EnumOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumOptions">{}; }
+constexpr auto message_type_url(const EnumOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumOptions">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const OneofOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.OneofOptions">{}; }
+constexpr auto message_type_url(const OneofOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.OneofOptions">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FieldOptions_::EditionDefault<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.EditionDefault">{}; }
+constexpr auto message_type_url(const FieldOptions_::EditionDefault<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.EditionDefault">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FieldOptions_::FeatureSupport<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.FeatureSupport">{}; }
+constexpr auto message_type_url(const FieldOptions_::FeatureSupport<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions.FeatureSupport">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FieldOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions">{}; }
+constexpr auto message_type_url(const FieldOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FieldOptions">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const MessageOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.MessageOptions">{}; }
+constexpr auto message_type_url(const MessageOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.MessageOptions">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FileOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FileOptions">{}; }
+constexpr auto message_type_url(const FileOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FileOptions">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const MethodDescriptorProto<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.MethodDescriptorProto">{}; }
+constexpr auto message_type_url(const MethodDescriptorProto<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.MethodDescriptorProto">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const ServiceDescriptorProto<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.ServiceDescriptorProto">{}; }
+constexpr auto message_type_url(const ServiceDescriptorProto<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.ServiceDescriptorProto">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const OneofDescriptorProto<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.OneofDescriptorProto">{}; }
+constexpr auto message_type_url(const OneofDescriptorProto<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.OneofDescriptorProto">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FieldDescriptorProto<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FieldDescriptorProto">{}; }
+constexpr auto message_type_url(const FieldDescriptorProto<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FieldDescriptorProto">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const ExtensionRangeOptions_::Declaration<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions.Declaration">{}; }
+constexpr auto message_type_url(const ExtensionRangeOptions_::Declaration<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions.Declaration">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const ExtensionRangeOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions">{}; }
+constexpr auto message_type_url(const ExtensionRangeOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.ExtensionRangeOptions">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const EnumValueOptions<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumValueOptions">{}; }
+constexpr auto message_type_url(const EnumValueOptions<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumValueOptions">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const EnumValueDescriptorProto<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumValueDescriptorProto">{}; }
+constexpr auto message_type_url(const EnumValueDescriptorProto<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumValueDescriptorProto">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const EnumDescriptorProto_::EnumReservedRange<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumDescriptorProto.EnumReservedRange">{}; }
+constexpr auto message_type_url(const EnumDescriptorProto_::EnumReservedRange<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumDescriptorProto.EnumReservedRange">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const EnumDescriptorProto<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumDescriptorProto">{}; }
+constexpr auto message_type_url(const EnumDescriptorProto<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.EnumDescriptorProto">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const DescriptorProto_::ExtensionRange<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto.ExtensionRange">{}; }
+constexpr auto message_type_url(const DescriptorProto_::ExtensionRange<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto.ExtensionRange">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const DescriptorProto_::ReservedRange<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto.ReservedRange">{}; }
+constexpr auto message_type_url(const DescriptorProto_::ReservedRange<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto.ReservedRange">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const DescriptorProto<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto">{}; }
+constexpr auto message_type_url(const DescriptorProto<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.DescriptorProto">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FileDescriptorProto<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorProto">{}; }
+constexpr auto message_type_url(const FileDescriptorProto<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorProto">{}; }
 template <typename Traits>
-constexpr auto message_type_url(const FileDescriptorSet<Traits>&) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorSet">{}; }
-// NOLINTEND(performance-enum-size)
+constexpr auto message_type_url(const FileDescriptorSet<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorSet">{}; }
+// NOLINTEND(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
 } // namespace google::protobuf
 template <typename Traits>
 struct hpp_proto::is_hpp_generated<google::protobuf::UninterpretedOption_::NamePart<Traits>> : std::true_type {};

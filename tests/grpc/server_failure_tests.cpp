@@ -18,7 +18,9 @@ class FailingService : public ::hpp_proto::grpc::CallbackService<FailingService,
 public:
   struct UnaryHandler {
     using rpc_t = ::hpp_proto::grpc::ServerRPC<UnaryEcho>;
-    UnaryHandler(FailingService &, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<UnaryEcho> /*token*/) {
+    UnaryHandler(FailingService &unused_service, rpc_t &rpc, ::hpp_proto::grpc::RequestToken<UnaryEcho> unused_token) {
+      static_cast<void>(unused_service);
+      static_cast<void>(unused_token);
       EchoResponse response;
       response.message = std::string{"\xFF"};
       response.sequence = 1;
@@ -114,7 +116,10 @@ protected:
   [[nodiscard]] const ::grpc::ByteBuffer *request_buf() const { return &request_; }
 
 public:
-  ServerRPC(::grpc::CallbackServerContext *, ::grpc::ByteBuffer *) {}
+  ServerRPC(::grpc::CallbackServerContext *unused_context, ::grpc::ByteBuffer *unused_request) {
+    static_cast<void>(unused_context);
+    static_cast<void>(unused_request);
+  }
 
   void start_read() {}
   [[nodiscard]] unit_test_detail::fake_context &context() { return context_; }
@@ -137,7 +142,10 @@ class ServerRPC<unit_test_detail::fake_server_stream_method, RpcType::SERVER_STR
   bool finished_ = false;
 
 public:
-  ServerRPC(::grpc::CallbackServerContext *, ::grpc::ByteBuffer *) {}
+  ServerRPC(::grpc::CallbackServerContext *unused_context, ::grpc::ByteBuffer *unused_request) {
+    static_cast<void>(unused_context);
+    static_cast<void>(unused_request);
+  }
 
   [[nodiscard]] unit_test_detail::fake_context &context() { return context_; }
 
@@ -161,9 +169,14 @@ struct CancelReadHandler {
     rpc.start_read();
   }
 
-  void on_read_ok(rpc_t &, ::hpp_proto::grpc::RequestToken<unit_test_detail::fake_client_stream_method>) const {}
+  static void on_read_ok(rpc_t &unused_rpc,
+                         ::hpp_proto::grpc::RequestToken<unit_test_detail::fake_client_stream_method> unused_token) {
+    static_cast<void>(unused_rpc);
+    static_cast<void>(unused_token);
+  }
 
-  bool on_read_cancel(rpc_t &) const {
+  bool on_read_cancel(rpc_t &unused_rpc) const {
+    static_cast<void>(unused_rpc);
     state_->on_read_cancel_calls.fetch_add(1, std::memory_order_relaxed);
     return false;
   }
@@ -173,13 +186,17 @@ struct WriteErrorHandler {
   using rpc_t = ::hpp_proto::grpc::ServerRPC<unit_test_detail::fake_server_stream_method>;
   unit_test_detail::write_error_state *state_;
 
-  WriteErrorHandler(unit_test_detail::write_error_state &state, rpc_t &,
-                    ::hpp_proto::grpc::RequestToken<unit_test_detail::fake_server_stream_method>)
-      : state_(&state) {}
+  WriteErrorHandler(unit_test_detail::write_error_state &state, rpc_t &unused_rpc,
+                    ::hpp_proto::grpc::RequestToken<unit_test_detail::fake_server_stream_method> unused_token)
+      : state_(&state) {
+    static_cast<void>(unused_rpc);
+    static_cast<void>(unused_token);
+  }
 
-  void on_write_ok(rpc_t &) {}
+  static void on_write_ok(rpc_t &unused_rpc) { static_cast<void>(unused_rpc); }
 
-  bool on_write_error(rpc_t &) const {
+  bool on_write_error(rpc_t &unused_rpc) const {
+    static_cast<void>(unused_rpc);
     state_->on_write_error_calls.fetch_add(1, std::memory_order_relaxed);
     return false;
   }
@@ -239,7 +256,7 @@ const boost::ut::suite grpc_server_failure_tests = [] {
 
   "reactor_on_write_done_error_calls_handler_and_fallback"_test = [] {
     ::grpc::CallbackServerContext context;
-    ::grpc::ByteBuffer request;
+    const ::grpc::ByteBuffer request;
     ::grpc::ByteBuffer response;
     unit_test_detail::write_error_state state;
     WriteErrorReactor reactor(&context, &request, &response, state);

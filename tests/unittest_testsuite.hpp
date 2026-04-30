@@ -5,7 +5,9 @@
 #include <boost/ut.hpp>
 #include <utility>
 
-// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers)
+// Protobuf compatibility tests intentionally use schema field numbers and expected fixture values inline.
+// NOLINTBEGIN(clang-diagnostic-missing-designated-field-initializers, cppcoreguidelines-avoid-magic-numbers,
+// readability-magic-numbers)
 
 using namespace std::literals::string_view_literals;
 using namespace boost::ut;
@@ -1360,4 +1362,5 @@ struct TestSuite {
     } | typename mapping_t::interoperability_test_types{};
   }
 }; // struct TestSuite
-// NOLINTEND(clang-diagnostic-missing-designated-field-initializers)
+// NOLINTEND(clang-diagnostic-missing-designated-field-initializers, cppcoreguidelines-avoid-magic-numbers,
+// readability-magic-numbers)

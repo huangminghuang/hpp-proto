@@ -24,6 +24,9 @@
 
 #include <hpp_proto/dynamic_message/json.hpp>
 
+// Well-known type conformance cases use protobuf spec literals directly.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
+
 #include <optional>
 #include <stdexcept>
 #include <utility>
@@ -259,7 +262,9 @@ const ut::suite test_wrapper = [] {
       hpp_proto::file_descriptors::desc_set_google_protobuf_wrappers_proto()));
   using Int64Value = google::protobuf::Int64Value<>;
 
-  "verify Int64Value 1000"_test = [&factory] { verify<Int64Value>(factory, Int64Value{1000, {}}, R"("1000")"); };
+  "verify Int64Value 1000"_test = [&factory] {
+    verify<Int64Value>(factory, Int64Value{.value = 1000, .unknown_fields_ = {}}, R"("1000")");
+  };
 
   "wrapper invalid proto cases"_test = [&factory] {
     std::string json_buf;
@@ -449,7 +454,10 @@ const ut::suite test_value = [] {
   };
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)

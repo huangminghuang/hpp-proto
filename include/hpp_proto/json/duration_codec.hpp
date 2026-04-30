@@ -28,9 +28,11 @@
 #include <span>
 
 namespace hpp_proto {
+// Durations use protobuf JSON's fixed numeric limits and decimal scaling factors.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 struct duration_codec {
   using encoded_storage = std::string_view;
-  constexpr static std::size_t max_encode_size(const auto &) noexcept { return 32; }
+  constexpr static std::size_t max_encode_size(const auto & /*value*/) noexcept { return 32; }
 
   static int64_t encode(auto const &value, auto &&b) noexcept {
     auto has_same_sign = [](auto x, auto y) { return x == 0 || y == 0 || ((x > 0) == (y > 0)); };
@@ -41,7 +43,7 @@ struct duration_codec {
     }
 
     assert(b.size() >= max_encode_size(value));
-    bool is_negative = (value.nanos < 0 || value.seconds < 0);
+    const bool is_negative = (value.nanos < 0 || value.seconds < 0);
 
     auto buffer = std::span<char>(std::data(b), b.size());
     auto *it = buffer.data();
@@ -62,9 +64,9 @@ struct duration_codec {
         out[pos + 2] = static_cast<char>('0' + (val % 10));
         pos += 3;
       };
-      uint32_t ms_component = nanos / 1'000'000;
-      uint32_t us_component = (nanos / 1'000) % 1'000;
-      uint32_t ns_component = nanos % 1'000;
+      const uint32_t ms_component = nanos / 1'000'000;
+      const uint32_t us_component = (nanos / 1'000) % 1'000;
+      const uint32_t ns_component = nanos % 1'000;
 
       glz::dump<'.'>(b, ix);
       std::size_t pos = ix;
@@ -117,7 +119,7 @@ struct duration_codec {
     if (point_pos == std::string_view::npos) {
       value.nanos = 0;
     } else {
-      std::string_view nanos_str = s.substr(point_pos + 1);
+      const std::string_view nanos_str = s.substr(point_pos + 1);
       if (nanos_str.starts_with('-') || nanos_str.length() > 9) {
         return false;
       }
@@ -137,4 +139,5 @@ struct duration_codec {
     return true;
   }
 };
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 } // namespace hpp_proto

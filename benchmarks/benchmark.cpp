@@ -144,9 +144,8 @@ std::span<char> get_packed_repeated_data() {
     }
 
     data.resize(msg.ByteSizeLong());
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     msg.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(data.data()));
-    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
   }
   return data;
 }

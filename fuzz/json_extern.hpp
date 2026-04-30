@@ -21,7 +21,7 @@ namespace util {
 // Non-template overloads keep JSON template instantiations in json_extern.cpp only,
 // avoiding glz.hpp-driven codegen in other translation units.
 hpp_proto::json_status read_json(proto3_unittest::TestAllTypes<hpp_proto::stable_traits> &msg,
-                                 std::string_view json_view, hpp_proto::alloc_option_t);
+                                 std::string_view json_view, hpp_proto::alloc_option_t option);
 hpp_proto::json_status read_json(proto3_unittest::TestAllTypes<hpp_proto::non_owning_traits> &msg,
                                  std::string_view json_view, hpp_proto::alloc_option_t option);
 hpp_proto::json_status write_json(const proto3_unittest::TestAllTypes<hpp_proto::stable_traits> &msg,
@@ -29,7 +29,7 @@ hpp_proto::json_status write_json(const proto3_unittest::TestAllTypes<hpp_proto:
 hpp_proto::json_status write_json(const proto3_unittest::TestAllTypes<hpp_proto::non_owning_traits> &msg,
                                   std::string &json_buffer);
 hpp_proto::json_status read_json(protobuf_unittest::TestAllTypes<hpp_proto::stable_traits> &msg,
-                                 std::string_view json_view, hpp_proto::alloc_option_t);
+                                 std::string_view json_view, hpp_proto::alloc_option_t option);
 hpp_proto::json_status read_json(protobuf_unittest::TestAllTypes<hpp_proto::non_owning_traits> &msg,
                                  std::string_view json_view, hpp_proto::alloc_option_t option);
 hpp_proto::json_status write_json(const protobuf_unittest::TestAllTypes<hpp_proto::stable_traits> &msg,
@@ -37,7 +37,7 @@ hpp_proto::json_status write_json(const protobuf_unittest::TestAllTypes<hpp_prot
 hpp_proto::json_status write_json(const protobuf_unittest::TestAllTypes<hpp_proto::non_owning_traits> &msg,
                                   std::string &json_buffer);
 hpp_proto::json_status read_json(protobuf_unittest::TestMap<hpp_proto::stable_traits> &msg, std::string_view json_view,
-                                 hpp_proto::alloc_option_t);
+                                 hpp_proto::alloc_option_t option);
 hpp_proto::json_status read_json(protobuf_unittest::TestMap<hpp_proto::non_owning_traits> &msg,
                                  std::string_view json_view, hpp_proto::alloc_option_t option);
 hpp_proto::json_status write_json(const protobuf_unittest::TestMap<hpp_proto::stable_traits> &msg,
@@ -45,7 +45,7 @@ hpp_proto::json_status write_json(const protobuf_unittest::TestMap<hpp_proto::st
 hpp_proto::json_status write_json(const protobuf_unittest::TestMap<hpp_proto::non_owning_traits> &msg,
                                   std::string &json_buffer);
 hpp_proto::json_status read_json(proto2_unittest::TestWellKnownTypes<hpp_proto::stable_traits> &msg,
-                                 std::string_view json_view, hpp_proto::alloc_option_t);
+                                 std::string_view json_view, hpp_proto::alloc_option_t option);
 hpp_proto::json_status read_json(proto2_unittest::TestWellKnownTypes<hpp_proto::non_owning_traits> &msg,
                                  std::string_view json_view, hpp_proto::alloc_option_t option);
 hpp_proto::json_status write_json(const proto2_unittest::TestWellKnownTypes<hpp_proto::stable_traits> &msg,
@@ -53,6 +53,6 @@ hpp_proto::json_status write_json(const proto2_unittest::TestWellKnownTypes<hpp_
 hpp_proto::json_status write_json(const proto2_unittest::TestWellKnownTypes<hpp_proto::non_owning_traits> &msg,
                                   std::string &json_buffer);
 hpp_proto::json_status read_json(hpp_proto::message_value_mref &msg, std::string_view json_view,
-                                 hpp_proto::alloc_option_t);
+                                 hpp_proto::alloc_option_t option);
 hpp_proto::json_status write_json(const hpp_proto::message_value_mref &msg, std::string &json_buffer);
 } // namespace util

@@ -7,6 +7,10 @@
 #include <hpp_proto/field_types.hpp>
 #include <hpp_proto/json.hpp>
 
+// Test literals and intentionally mutable-looking setup values keep these cases readable.
+// NOLINTBEGIN(misc-const-correctness, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers,
+// bugprone-exception-escape)
+
 template <typename Traits = ::hpp_proto::default_traits>
 struct TestRecursiveMessage {
   using hpp_proto_traits_type = Traits;
@@ -374,6 +378,11 @@ const boost::ut::suite optional_indirect_exception_safety_tests = [] {
   };
 };
 
+// NOLINTEND(misc-const-correctness, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers,
+// bugprone-exception-escape)
+
+// boost-ext/ut may allocate while parsing the test command line.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

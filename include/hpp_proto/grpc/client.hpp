@@ -6,6 +6,7 @@
 #include <grpcpp/support/client_callback.h>
 #include <grpcpp/support/stub_options.h>
 
+#include <array>
 #include <condition_variable>
 #include <hpp_proto/grpc/serialization.hpp>
 #include <memory>
@@ -74,7 +75,7 @@ class Stub {
 
   std::shared_ptr<::grpc::ChannelInterface> channel_;
   ::grpc::StubOptions options_;
-  GrpcMethod grpc_methods_[std::tuple_size_v<ServiceMethods>];
+  std::array<GrpcMethod, std::tuple_size_v<ServiceMethods>> grpc_methods_;
 
   template <typename Method>
   friend class ClientCallbackReactor;
@@ -108,7 +109,7 @@ public:
   call(::grpc::ClientContext &context, const Request &request, Response &response,
        hpp_proto::concepts::is_option_type auto &&...option) {
     pb_context ctx{std::forward<decltype(option)>(option)...};
-    hpp_proto::with_pb_context request_with_context{request, ctx};
+    const hpp_proto::with_pb_context request_with_context{request, ctx};
     hpp_proto::with_pb_context response_with_context{response, ctx};
 
     return ::grpc::internal::BlockingUnaryCallImpl{this->channel_.get(), grpc_method<Method>(), &context,
@@ -262,7 +263,7 @@ class CallbackUnaryCall : public ClientCallbackReactor<Method> {
   Context response_context_;
 
 public:
-  CallbackUnaryCall(Method, callback_storage_t callback,
+  CallbackUnaryCall(Method /*method*/, callback_storage_t callback,
                     Response &response, // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
                     hpp_proto::concepts::is_option_type auto &&...response_option)
       : f_(std::move(callback)), response_ref_(response),

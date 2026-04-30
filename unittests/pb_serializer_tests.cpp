@@ -12,6 +12,11 @@ using hpp_proto::field_option;
 using namespace boost::ut::literals;
 using namespace std::string_view_literals;
 
+// Serializer tests encode protobuf field numbers, wire payloads, and chunk sizes directly.
+// Keeping those literals inline makes the expected wire format readable.
+// NOLINTBEGIN(misc-const-correctness, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers,
+// bugprone-exception-escape)
+
 const ut::suite bit_cast_view_test = [] {
   "bit_cast_view"_test = [] {
     constexpr auto data_size = 10;
@@ -1700,7 +1705,7 @@ const ut::suite recursive_types = [] {
   };
 
   "non_owning_recursive_type2"_test = [] {
-    recursive_type2<hpp_proto::non_owning_traits> child[1];
+    std::array<recursive_type2<hpp_proto::non_owning_traits>, 1> child{};
     child[0].payload = 2;
     recursive_type2<hpp_proto::non_owning_traits> value;
     value.children = child;
@@ -2229,6 +2234,11 @@ const ut::suite composite_type = [] {
   };
 };
 
+// NOLINTEND(misc-const-correctness, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers,
+// bugprone-exception-escape)
+
+// boost-ext/ut may allocate while parsing the test command line.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
 #if !defined(_MSC_VER) || (defined(__clang_major__) && (__clang_major__ > 14))
   constexpr_verify(carg(""_bytes), carg(empty{}));

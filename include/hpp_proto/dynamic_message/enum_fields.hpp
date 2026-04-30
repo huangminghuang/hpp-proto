@@ -164,6 +164,7 @@ public:
 
   [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
+  // NOLINTNEXTLINE(bugprone-exception-escape)
   [[nodiscard]] enum_value default_value() const noexcept {
     return {enum_descriptor(), std::get<int32_t>(descriptor_->default_value)};
   }
@@ -175,13 +176,13 @@ public:
     return {enum_descriptor(), storage_->of_int32.content};
   }
 
+  // NOLINTNEXTLINE(bugprone-exception-escape)
   [[nodiscard]] bool is_present_or_explicit_default() const noexcept {
     if (has_value()) {
       return descriptor().explicit_presence() ||
              storage_->of_int32.content != std::get<int32_t>(descriptor_->default_value);
-    } else {
-      return false;
     }
+    return false;
   }
 
   [[nodiscard]] ::hpp_proto::value_proxy<value_type> operator->() const noexcept { return {value()}; }
@@ -189,6 +190,7 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
 
   template <typename U>
+  // NOLINTNEXTLINE(bugprone-exception-escape)
   [[nodiscard]] std::expected<typename get_traits<U>::type, dynamic_message_errc> get() const noexcept {
     if constexpr (std::same_as<U, enum_number>) {
       return number();
@@ -208,7 +210,7 @@ public:
   }
 
   [[nodiscard]] std::int32_t number() const {
-    bool is_default = descriptor().explicit_presence() && !has_value();
+    const bool is_default = descriptor().explicit_presence() && !has_value();
     return is_default ? std::get<int32_t>(descriptor_->default_value) : storage_->of_int32.content;
   }
 
@@ -237,7 +239,7 @@ public:
   static constexpr bool settable_from_v = std::same_as<U, enum_number> || std::same_as<U, enum_name>;
 
   enum_field_mref(const field_descriptor_t &descriptor, value_storage &storage,
-                  std::pmr::monotonic_buffer_resource &) noexcept
+                  std::pmr::monotonic_buffer_resource & /*memory_resource*/) noexcept
       : descriptor_(&descriptor), storage_(&storage) {}
 
   enum_field_mref(const enum_field_mref &) noexcept = default;
@@ -263,6 +265,7 @@ public:
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] enum_value default_value() const noexcept { return cref().default_value(); }
+  // NOLINTNEXTLINE(bugprone-exception-escape)
   [[nodiscard]] enum_value_mref value() const noexcept {
     if (descriptor().explicit_presence() && !has_value()) {
       storage_->of_int32.content = std::get<int32_t>(descriptor_->default_value);

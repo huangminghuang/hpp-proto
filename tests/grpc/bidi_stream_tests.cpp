@@ -90,7 +90,7 @@ public:
   }
 
   void OnDone(const ::grpc::Status &status) override {
-    std::unique_lock lock(mu_);
+    const std::unique_lock lock(mu_);
     if (status_.ok() || !done_) {
       status_ = status;
     }
@@ -100,7 +100,7 @@ public:
 
 private:
   void send_next() {
-    std::scoped_lock<std::mutex> lock(write_mu_);
+    const std::scoped_lock<std::mutex> lock(write_mu_);
     if (writes_complete_) {
       return;
     }
@@ -183,6 +183,7 @@ void run_bidi_explicit_cancel_case() {
   Harness harness;
   auto &stub = harness.stub();
   ::grpc::ClientContext context;
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
   BidiReactor reactor;
   reactor.set_use_sentinel(false);

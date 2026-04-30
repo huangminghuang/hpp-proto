@@ -8,28 +8,32 @@
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
-    exit(1);
+    exit(1); // NOLINT(concurrency-mt-unsafe)
   }
 }
 
 using Person = tutorial::Person<hpp_proto::non_owning_traits>;
 using AnyDemo = tutorial::AnyDemo<hpp_proto::non_owning_traits>;
 
-int main() {
+int main() try {
   using namespace std::string_view_literals;
   using enum Person::PhoneType;
+
+  // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
   std::array<Person::PhoneNumber, 1> alex_phones{{{.number = "19890604"sv, .type = PHONE_TYPE_MOBILE}}};
   std::array<std::pair<std::string_view, Person::NestedMessage>, 2> alex_map_string_nested_message{
       {{"Tiananmen"sv, {.bb = 89}}, {"Square"sv, {.bb = 64}}}};
 
-  Person alex{.name = "Alex"sv,
-              .id = 1,
-              .email = "alex@email.com"sv,
-              .phones = alex_phones,
-              .nested_message = {{.bb = 89}},
-              .map_string_nested_message = alex_map_string_nested_message,
-              .oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"sv};
+  const Person alex{.name = "Alex"sv,
+                    .id = 1,
+                    .email = "alex@email.com"sv,
+                    .phones = alex_phones,
+                    .nested_message = {{.bb = 89}},
+                    .map_string_nested_message = alex_map_string_nested_message,
+                    .oneof_field = "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre"sv};
+
+  // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
   std::pmr::monotonic_buffer_resource pool;
 
@@ -49,4 +53,7 @@ int main() {
   expect(alex == unpacked_result.value());
 
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

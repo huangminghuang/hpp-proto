@@ -8,7 +8,7 @@
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
-    exit(1);
+    exit(1); // NOLINT(concurrency-mt-unsafe)
   }
 }
 
@@ -21,9 +21,11 @@ inline std::string_view string_dup(std::string_view str, std::pmr::monotonic_buf
 using Person = tutorial::Person<hpp_proto::non_owning_traits>;
 using AddressBook = tutorial::AddressBook<hpp_proto::non_owning_traits>;
 
-int main() {
+int main() try {
   using enum Person::PhoneType;
   using namespace std::string_view_literals;
+
+  // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
   std::pmr::monotonic_buffer_resource pool;
   AddressBook address_book;
@@ -65,23 +67,22 @@ int main() {
   expect(address_book == read_result.value());
 
   {
-    std::span<const Person> people = address_book.people;
+    const std::span<const Person> people = address_book.people;
     expect(people.size() == 2);
     const Person &alex = people[0];
-    std::string_view alex_name = alex.name;
+    const std::string_view alex_name = alex.name;
     expect(alex_name == "Alex");
     const int32_t &alex_id = alex.id;
     expect(alex_id == 1);
-    std::span<const Person::PhoneNumber> alex_phones = alex.phones;
+    const std::span<const Person::PhoneNumber> alex_phones = alex.phones;
     expect(alex_phones[0].number == "19890604");
     expect(alex_phones[0].type == PHONE_TYPE_MOBILE);
 
     const std::optional<Person::NestedMessage> &alex_nested_message = alex.nested_message;
     expect(alex_nested_message.has_value());
-    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     expect(alex_nested_message->bb == 89);
-    // NOLINTEND(bugprone-unchecked-optional-access)
-    std::span<const std::pair<std::string_view, Person::NestedMessage>> map_string_nested_message =
+    const std::span<const std::pair<std::string_view, Person::NestedMessage>> map_string_nested_message =
         alex.map_string_nested_message;
     expect(std::ranges::equal(map_string_nested_message, address_book.people[0].map_string_nested_message));
 
@@ -92,6 +93,8 @@ int main() {
            "https://en.wikipedia.org/wiki/1989_Tiananmen_Square_protests_and_massacre");
   }
 
+  // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
   auto write_json_result =
       hpp_proto::write_json<hpp_proto::json_write_opts{}, std::pmr::string>(address_book, hpp_proto::alloc_from{pool});
   expect(write_json_result.has_value());
@@ -99,4 +102,7 @@ int main() {
       hpp_proto::read_json<glz::opts{}, AddressBook>(write_json_result.value(), hpp_proto::alloc_from{pool});
   expect(address_book == read_json_result.value());
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

@@ -146,7 +146,8 @@ private:
     return {};
   }
 
-  void setup_wellknown_types() {
+  static void setup_wellknown_types_impl(descriptor_pool_t &pool_) {
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
     const static std::pair<const char *, wellknown_types_t> wellknown_mappings[] = {
         {"google.protobuf.Any", wellknown_types_t::ANY},
         {"google.protobuf.Timestamp", wellknown_types_t::TIMESTAMP},
@@ -205,7 +206,7 @@ private:
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> finish_initialize() {
     return setup_storage_slots().and_then([this] {
-      setup_wellknown_types();
+      setup_wellknown_types_impl(pool_);
       return setup_enum_field_default_value();
     });
   }

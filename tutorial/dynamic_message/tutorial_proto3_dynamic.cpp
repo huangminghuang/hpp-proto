@@ -12,7 +12,7 @@
 inline void expect(bool condition, const std::source_location location = std::source_location::current()) {
   if (!condition) {
     std::cerr << "assertion failure at " << location.file_name() << ":" << location.line() << "\n";
-    std::exit(1);
+    std::exit(1); // NOLINT(concurrency-mt-unsafe)
   }
 }
 
@@ -41,7 +41,7 @@ operator&&(const std::expected<void, hpp_proto::dynamic_message_errc> &lhs,
   return lhs.has_value() ? rhs : lhs;
 }
 
-int main() {
+int main() try {
   // Build a factory from the compiled descriptor set.
 
   // Read the serialized FileDescriptorSet generated from
@@ -59,6 +59,8 @@ int main() {
 
   using namespace std::string_view_literals;
   using hpp_proto::expected_message_mref;
+
+  // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
   // Add a person entry dynamically without throwing exception.
   expect(expected_msg
@@ -183,5 +185,10 @@ int main() {
   auto people3_expected = address_book3.typed_ref_by_name<hpp_proto::repeated_message_field_mref>("people");
   auto people3 = *people3_expected;
   expect(people3.size() == std::size_t{2});
+
+  // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

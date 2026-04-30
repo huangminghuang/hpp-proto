@@ -30,10 +30,14 @@
 
 namespace hpp_proto {
 
+// Timestamp formatting/parsing is defined by fixed calendar and fractional-second widths.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 class timestamp_codec {
 public:
   using encoded_storage = std::string_view;
-  constexpr static std::size_t max_encode_size(auto &&) noexcept { return std::size("yyyy-mm-ddThh:mm:ss.000000000Z"); }
+  constexpr static std::size_t max_encode_size(auto && /*item*/) noexcept {
+    return std::size("yyyy-mm-ddThh:mm:ss.000000000Z");
+  }
 
 private:
   struct separator {
@@ -92,7 +96,7 @@ private:
     }
     ptr = std::next(ptr);
 
-    std::string_view nanos_sv{ptr, static_cast<std::size_t>(std::distance(ptr, end))};
+    const std::string_view nanos_sv{ptr, static_cast<std::size_t>(std::distance(ptr, end))};
     if (nanos_sv.empty() || nanos_sv.length() > 9) {
       return false;
     }
@@ -124,9 +128,9 @@ public:
         out[pos + 2] = static_cast<char>('0' + (v % 10));
         pos += 3;
       };
-      uint32_t ms_component = nanos / 1'000'000;
-      uint32_t us_component = (nanos / 1'000) % 1'000;
-      uint32_t ns_component = nanos % 1'000;
+      const uint32_t ms_component = nanos / 1'000'000;
+      const uint32_t us_component = (nanos / 1'000) % 1'000;
+      const uint32_t ns_component = nanos % 1'000;
       write_3_digits(buf, pos, ms_component);
       if (ns_component != 0) {
         write_3_digits(buf, pos, us_component);
@@ -213,5 +217,6 @@ public:
     return parse_fractional_nanos(ptr, end, value.nanos);
   }
 };
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 
 } // namespace hpp_proto

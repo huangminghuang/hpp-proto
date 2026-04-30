@@ -7,6 +7,9 @@
 #include <hpp_proto/indirect.hpp>
 #include <hpp_proto/indirect_view.hpp>
 
+// Test literals and intentionally mutable-looking setup values keep these cases readable.
+// NOLINTBEGIN(misc-const-correctness, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
+
 struct TestMessage {
   int i = 0;
   bool operator==(const TestMessage &) const = default;
@@ -277,6 +280,10 @@ const boost::ut::suite indirect_exception_safety_tests = [] {
   };
 };
 
+// NOLINTEND(misc-const-correctness, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
+
+// boost-ext/ut may allocate while parsing the test command line.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result = boost::ut::cfg<>.run({.report_errors = true});
   return static_cast<int>(result);

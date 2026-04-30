@@ -39,7 +39,8 @@ inline constexpr bool dependent_false_v = false;
 
 namespace detail {
 template <typename Tuple1, typename Tuple2, std::size_t... I>
-constexpr auto zip_tuples_impl(const Tuple1 &t1, const Tuple2 &t2, std::index_sequence<I...>) -> decltype(auto) {
+constexpr auto zip_tuples_impl(const Tuple1 &t1, const Tuple2 &t2,
+                               std::index_sequence<I...> /*seq*/) -> decltype(auto) {
   return std::make_tuple(std::make_pair(std::get<I>(t1), std::get<I>(t2))...);
 }
 
@@ -76,7 +77,7 @@ struct message_merger {
   }
 
   template <typename MetaT, typename MetaU, typename T, typename U>
-  void perform(std::pair<MetaT, MetaU>, T &dest, U &&source) {
+  void perform(std::pair<MetaT, MetaU> /*metas*/, T &dest, U &&source) {
     if constexpr (concepts::variant<T>) {
       if (source.index() > 0) {
         if (dest.index() == source.index()) {
@@ -103,7 +104,7 @@ struct message_merger {
   }
 
   template <typename MetaPairs, concepts::variant T, typename U, std::size_t FirstIndex, std::size_t... Indices>
-  void perform(MetaPairs metas, T &dest, U &&source, std::index_sequence<FirstIndex, Indices...>) {
+  void perform(MetaPairs metas, T &dest, U &&source, std::index_sequence<FirstIndex, Indices...> /*seq*/) {
     if (dest.index() == FirstIndex + 1) {
       perform(std::get<FirstIndex>(metas), std::get<FirstIndex + 1>(dest),
               std::get<FirstIndex + 1>(std::forward<U>(source)));
@@ -113,10 +114,10 @@ struct message_merger {
   }
 
   template <typename MetaPairs, concepts::variant T, concepts::variant U>
-  constexpr void perform(MetaPairs, T &, const U &, std::index_sequence<>) {}
+  constexpr void perform(MetaPairs /*metas*/, T & /*dest*/, const U & /*source*/, std::index_sequence<> /*seq*/) {}
 
   template <concepts::variant T, typename U, std::size_t FirstIndex, std::size_t... Indices>
-  void assign(T &dest, const U &source, std::index_sequence<FirstIndex, Indices...>) {
+  void assign(T &dest, const U &source, std::index_sequence<FirstIndex, Indices...> /*seq*/) {
     if (source.index() == FirstIndex + 1) {
       perform(dest.template emplace<FirstIndex + 1>(), std::get<FirstIndex + 1>(source));
     } else {
@@ -125,7 +126,7 @@ struct message_merger {
   }
 
   template <concepts::variant T, typename U>
-  void assign(T &, const U &, std::index_sequence<>) {}
+  void assign(T & /*dest*/, const U & /*source*/, std::index_sequence<> /*seq*/) {}
 
   template <concepts::optional T, typename U>
   constexpr void perform(T &dest, U &&source) {

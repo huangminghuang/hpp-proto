@@ -63,12 +63,12 @@ const suite test_read_json = [] {
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{   )"sv, fail);
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{}})"sv, ok);
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"1":1,)"sv, fail);
-  test_read<protobuf_unittest::TestMap>(message_factory, "{\"mapInt32Int32\":{\"1\":1,", fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"1":1,)", fail);
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{   "1":1,   "2":2}})"sv, ok);
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"1":1 "2":2}})"sv, fail);
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"1":1,   )"sv, fail);
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Int32":{"1":1   )"sv, fail);
-  test_read<protobuf_unittest::TestMap>(message_factory, "{\"mapInt32Enum\":{\"1\":   ", fail);
+  test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt32Enum":{"1":   )", fail);
   test_read<protobuf_unittest::TestMap>(message_factory, R"({mapSint64Sint64":{"1":" -10"}})"sv, fail);
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapStringString":{"1":"0", "1":"1"}})"sv, ok);
   test_read<protobuf_unittest::TestMap>(message_factory, "{\"mapStringString\":{\"\xcd\":\"0\"}"sv, fail);
@@ -77,6 +77,7 @@ const suite test_read_json = [] {
   test_read<protobuf_unittest::TestMap>(message_factory, R"({"mapInt64Int64":{"0":" -64"}})"sv, fail);
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

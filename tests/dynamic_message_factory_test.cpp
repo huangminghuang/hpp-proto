@@ -15,6 +15,9 @@
 
 using namespace boost::ut;
 
+// Dynamic descriptor factory tests use protobuf boundary and validation fixture literals inline.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
+
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   expect(fatal(exp.has_value()));
@@ -1492,3 +1495,5 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(eq(missing.error(), hpp_proto::dynamic_message_errc::unknown_message_name));
   };
 };
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)

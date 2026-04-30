@@ -114,7 +114,7 @@ struct generic_message_json_serializer {
                                         auto &ix) {
     constexpr auto field_opts = glz::opening_handled_off<Opts>();
     if (is_first_field) {
-      bool need_extra_quote = (field.field_kind() == hpp_proto::KIND_BOOL);
+      const bool need_extra_quote = (field.field_kind() == hpp_proto::KIND_BOOL);
       if (need_extra_quote) {
         glz::dump<'"'>(b, ix);
       }
@@ -131,8 +131,8 @@ struct generic_message_json_serializer {
 
   template <auto Opts>
   static void to_json(hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
-    bool is_wellknown_type = (value.descriptor().wellknown != hpp_proto::wellknown_types_t::NONE);
-    bool is_map_entry = value.descriptor().is_map_entry();
+    const bool is_wellknown_type = (value.descriptor().wellknown != hpp_proto::wellknown_types_t::NONE);
+    const bool is_map_entry = value.descriptor().is_map_entry();
 
     if (is_map_entry) {
       const auto mapped_field = value.fields()[1].to<hpp_proto::message_field_cref>();
@@ -263,9 +263,8 @@ struct any_message_json_serializer {
       const auto *const descriptor = pool.get_message_descriptor(message_name);
       if (descriptor) {
         return ::hpp_proto::message_value_mref{*descriptor, mr};
-      } else {
-        return std::unexpected("unknown message type from google.protobuf.Any type_url field");
       }
+      return std::unexpected("unknown message type from google.protobuf.Any type_url field");
     };
   }
 
@@ -283,8 +282,8 @@ struct any_message_json_serializer {
         // Safe: google.protobuf.Any descriptor shape is validated in
         // dynamic_message_factory_addons::file_descriptor for well-known types.
         // NOLINTBEGIN(bugprone-unchecked-optional-access)
-        std::string_view any_type_url = expected_type_url_field->value();
-        ::hpp_proto::bytes_view any_value = expected_value_field->value();
+        const std::string_view any_type_url = expected_type_url_field->value();
+        const ::hpp_proto::bytes_view any_value = expected_value_field->value();
         // NOLINTEND(bugprone-unchecked-optional-access)
         std::pmr::monotonic_buffer_resource mr;
         to_json_impl<Opts>(msg_builder(mr, value), any_type_url, any_value, ctx, b, ix);
@@ -372,9 +371,8 @@ struct any_message_json_serializer {
       auto opt_msg = msg_factory.get_message(message_name, mr);
       if (opt_msg.has_value()) {
         return *opt_msg;
-      } else {
-        return std::unexpected("unknown message type from type_url");
       }
+      return std::unexpected("unknown message type from type_url");
     };
   }
 
@@ -415,7 +413,8 @@ struct timestamp_message_json_serializer {
       auto seconds_value = value.fields()[0].get<std::int64_t>();
       auto nanos_value = value.fields()[1].get<std::int32_t>();
       if (seconds_value.has_value() && nanos_value.has_value()) [[likely]] {
-        google::protobuf::Timestamp v{seconds_value.value(), nanos_value.value(), {}};
+        const google::protobuf::Timestamp v{
+            .seconds = seconds_value.value(), .nanos = nanos_value.value(), .unknown_fields_ = {}};
         to<JSON, google::protobuf::Timestamp<>>::template op<Opts>(v, ctx, b, ix);
         return;
       }
@@ -446,7 +445,8 @@ struct duration_message_json_serializer {
       auto seconds_value = value.fields()[0].get<std::int64_t>();
       auto nanos_value = value.fields()[1].get<std::int32_t>();
       if (seconds_value.has_value() && nanos_value.has_value()) [[likely]] {
-        google::protobuf::Duration<> v{seconds_value.value(), nanos_value.value(), {}};
+        const google::protobuf::Duration<> v{
+            .seconds = seconds_value.value(), .nanos = nanos_value.value(), .unknown_fields_ = {}};
         to<JSON, google::protobuf::Duration<>>::template op<Opts>(v, ctx, b, ix);
         return;
       }
@@ -606,7 +606,7 @@ struct to<JSON, hpp_proto::enum_value> {
       dump<"null">(b, ix);
       return;
     }
-    std::string_view name = value.name();
+    const std::string_view name = value.name();
     if (!name.empty()) {
       dump<'"'>(b, ix);
       dump(name, b, ix);
@@ -839,7 +839,7 @@ struct from<JSON, hpp_proto::message_value_mref> {
   template <auto Options>
   static void parse_mapped(hpp_proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
     const auto *msg_descriptor = value.descriptor().message_field_type_descriptor();
-    bool is_wellknown_value =
+    const bool is_wellknown_value =
         msg_descriptor != nullptr && msg_descriptor->wellknown == hpp_proto::wellknown_types_t::VALUE;
 
     if (util::parse_null<Options>(value, ctx, it, end)) {
@@ -922,9 +922,8 @@ static std::expected<bool, const char *> message_to_json(::hpp_proto::message_va
       return false;
     }
     return ix != pre_ix;
-  } else {
-    return std::unexpected("unable to deserialize value in google.protobuf.Any message");
   }
+  return std::unexpected("unable to deserialize value in google.protobuf.Any message");
 };
 
 template <auto Opts, typename It, typename End>
@@ -941,17 +940,17 @@ bool any_message_json_serializer::parse_wellknown_any_value(::hpp_proto::message
           skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it_ref, end_ref);
           value_end = it_ref;
           return bool(ctx.error);
-        } else if (key == "@type") {
+        }
+        if (key == "@type") {
           // Consume the already-parsed @type field to enforce no extra keys.
           skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it_ref, end_ref);
           return bool(ctx.error);
-        } else {
-          if (!bool(ctx.error)) {
-            ctx.error = error_code::syntax_error;
-            ctx.custom_error_message = "unknown key in google.protobuf.Any message";
-          }
-          return true;
         }
+        if (!bool(ctx.error)) {
+          ctx.error = error_code::syntax_error;
+          ctx.custom_error_message = "unknown key in google.protobuf.Any message";
+        }
+        return true;
       },
       [](auto &, auto &) {});
   if (!bool(ctx.error) && value_begin != value_end) {
@@ -1116,9 +1115,8 @@ status binpb_to_json(const dynamic_message_factory &factory, std::string_view me
       return std::errc::io_error;
     }
     return {};
-  } else {
-    return std::errc::invalid_argument;
   }
+  return std::errc::invalid_argument;
 }
 
 } // namespace hpp_proto

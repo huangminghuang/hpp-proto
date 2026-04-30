@@ -10,6 +10,9 @@
 using namespace boost::ut;
 using namespace std::string_literals;
 
+// JSON alias tests use literal payload values to assert spelling and coercion behavior.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
 const suite json_alias_tests = [] {
   "default_naming_serialization"_test = [] {
     hpp_proto::test::JsonAliasMessage<> msg;
@@ -82,4 +85,7 @@ const suite json_alias_tests = [] {
   };
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() { return static_cast<int>(boost::ut::cfg<>.run({.report_errors = true})); }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

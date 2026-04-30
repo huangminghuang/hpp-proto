@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -64,6 +65,9 @@ const std::unordered_set<std::string_view> keywords = {
 };
 // NOLINTEND(cert-err58-cpp)
 namespace {
+constexpr std::size_t proto_suffix_length = std::string_view{"proto"}.size();
+constexpr auto low_nibble_mask = 0x0FU;
+
 inline void append_to(std::back_insert_iterator<std::string> out, std::string_view s) { std::ranges::copy(s, out); }
 
 template <typename Range>
@@ -130,7 +134,7 @@ std::string make_qualified_cpp_name(const std::string &namespace_prefix, std::st
 
 constexpr std::size_t cpp_escaped_len(char c) {
   /* clang-format off */
-  constexpr unsigned char cpp_escaped_len_table[256] = {
+  constexpr std::array<unsigned char, 256> cpp_escaped_len_table = {
       4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 4, 4, 2, 4, 4,  // \t, \n, \r
       4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
       1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1,  // ", '
@@ -164,7 +168,7 @@ inline std::size_t cpp_escaped_len(std::string_view src) {
 }
 
 const char *cpp_escape(char c) {
-  static const char *const escapedChars[256] = {
+  static const std::array<const char *, 256> escapedChars = {
       "\\\\000", "\\\\001", "\\\\002", "\\\\003", "\\\\004", "\\\\005", "\\\\006", "\\\a",    "\\\b",    "\\\t",
       "\\\n",    "\\\v",    "\\\f",    "\\\r",    "\\\\016", "\\\\017", "\\\\020", "\\\\021", "\\\\022", "\\\\023",
       "\\\\024", "\\\\025", "\\\\026", "\\\\027", "\\\\030", "\\\\031", "\\\\032", "\\\\033", "\\\\034", "\\\\035",
@@ -242,10 +246,11 @@ std::string_view get_common_ancestor(std::string_view s1, std::string_view s2) {
 }
 
 std::array<char, 4> to_hex_literal(::hpp_proto::concepts::byte_type auto c) {
-  static const char qmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+  static const std::array<char, 16> qmap = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
   const auto uc = static_cast<unsigned char>(c);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  return {'\\', 'x', qmap[uc >> 4U], qmap[uc & 0x0FU]};
+  return {'\\', 'x', qmap[uc >> 4U], qmap[uc & low_nibble_mask]};
 }
 
 std::string to_hex_literal(::hpp_proto::concepts::contiguous_byte_range auto const &data) {
@@ -424,7 +429,7 @@ struct hpp_addons {
     void set_integer_default_value(const FieldDescriptorProto &proto) {
       const std::string_view typename_view = cpp_field_type;
       std::string suffix;
-      if (typename_view.size() > 6 && typename_view[5] == 'u') {
+      if (typename_view.contains("uint")) {
         suffix = "U";
       }
 
@@ -527,7 +532,7 @@ struct hpp_addons {
     std::string cpp_name;
     std::string namespace_prefix;
 
-    explicit file_descriptor(Derived &self)
+    explicit file_descriptor(Derived &self) // NOLINT(bugprone-crtp-constructor-accessibility)
         : syntax(self.proto().syntax.empty() ? std::string{"proto2"} : self.proto().syntax),
           cpp_name(self.proto().name) {
       ::hpp_proto::hpp_file_opts opts;
@@ -699,7 +704,7 @@ struct code_generator {
   }
 
   static void resolve_dependency_cycle(message_descriptor_t &descriptor) {
-    message_descriptor_t *dep = *descriptor.dependencies.begin();
+    auto *dep = *descriptor.dependencies.begin();
     descriptor.forward_messages.insert(descriptor.dependencies.extract(descriptor.dependencies.begin()));
     mark_field_recursive(descriptor, dep->cpp_name);
   }
@@ -721,7 +726,8 @@ struct code_generator {
     while (!unresolved_messages.empty()) {
       for (auto &pm : std::ranges::reverse_view{unresolved_messages}) {
         auto &message_deps = pm->dependencies;
-        std::set<message_descriptor_t *> sorted_resolved_messages{resolved_messages.begin(), resolved_messages.end()};
+        const std::set<message_descriptor_t *> sorted_resolved_messages{resolved_messages.begin(),
+                                                                        resolved_messages.end()};
         if (std::ranges::includes(sorted_resolved_messages, message_deps)) {
           resolved_messages.push_back(pm);
           pm = nullptr; // set the reference to nullptr so that it can be removed from the unresolved_messages in
@@ -733,7 +739,7 @@ struct code_generator {
       if (!to_remove.empty()) {
         unresolved_messages.erase(to_remove.begin(), to_remove.end());
       } else {
-        message_descriptor_t *to_be_resolved = resolve_container_dependency_cycle(unresolved_messages);
+        auto *to_be_resolved = resolve_container_dependency_cycle(unresolved_messages);
         if (to_be_resolved != nullptr) {
           resolved_messages.push_back(to_be_resolved);
           auto to_remove = std::ranges::remove(unresolved_messages, to_be_resolved);
@@ -785,7 +791,7 @@ struct code_generator {
     } else {
       // only the components excluding the common ancestor should be used
       const auto num_components = std::ranges::count(relative_type_name, '.');
-      std::string_view v = field.qualified_cpp_field_type;
+      const std::string_view v = field.qualified_cpp_field_type;
       auto num_colons = (2 * num_components) + 1;
       auto reverse_view = std::ranges::reverse_view(v);
       auto reverse_it =
@@ -813,6 +819,7 @@ struct code_generator {
    * - If the dependent and dependee are in the same file scope, it adds the dependee
    *   to the dependent message's set of dependencies.
    */
+  // NOLINTNEXTLINE(misc-no-recursion)
   static void resolve_field_dependency(hpp_gen_descriptor_pool &pool, std::string_view field_message_name,
                                        field_descriptor_t &field) {
     using enum FieldDescriptorProto::Type;
@@ -852,7 +859,7 @@ struct code_generator {
       return;
     }
     message_descriptor_t *dependent_msg = pool.get_message_descriptor(dependent_name);
-    message_descriptor_t *dependee_msg = pool.get_message_descriptor(dependee_name);
+    auto *dependee_msg = pool.get_message_descriptor(dependee_name);
 
     if (dependent_msg != nullptr && dependee_msg != nullptr &&
         dependent_msg->parent_file() == dependee_msg->parent_file()) {
@@ -888,6 +895,7 @@ struct code_generator {
     desc.qualified_name = std::format("{}{}", scope, desc.cpp_name);
   }
 
+  // NOLINTNEXTLINE(misc-no-recursion)
   static void resolve_message_qualified_name(message_descriptor_t &msg, std::string_view namespace_prefix,
                                              std::string_view scope) {
     msg.qualified_name = std::format("{}{}{}<Traits>", namespace_prefix, scope, msg.cpp_name);
@@ -899,7 +907,7 @@ struct code_generator {
       resolve_message_qualified_name(nested_msg, namespace_prefix, nested_scope);
     }
 
-    std::string nested_enum_scope = std::format("{}{}", namespace_prefix, nested_scope);
+    const std::string nested_enum_scope = std::format("{}{}", namespace_prefix, nested_scope);
     for (auto &nested_enum : msg.enums()) {
       resolve_enum_qualified_name(nested_enum, nested_enum_scope);
     }
@@ -932,6 +940,8 @@ struct code_generator {
   }
 };
 
+// NOLINTBEGIN(concurrency-mt-unsafe)
+
 std::filesystem::path code_generator::plugin_name;
 std::string code_generator::plugin_parameters;
 std::vector<std::string> code_generator::proto2_explicit_presences;
@@ -954,7 +964,7 @@ struct msg_code_generator : code_generator {
     syntax = descriptor.syntax;
     auto file_name = descriptor.proto().name;
     gen_file_header(file_name);
-    file.name = file_name.substr(0, file_name.size() - 5) + "msg.hpp";
+    file.name = file_name.substr(0, file_name.size() - proto_suffix_length) + "msg.hpp";
     format_to(target, "#pragma once\n\n"
                       "#include <hpp_proto/field_types.hpp>\n");
 
@@ -967,7 +977,10 @@ struct msg_code_generator : code_generator {
     if (!ns.empty()) {
       format_to(target,
                 "\nnamespace {} {{\n"
-                "//NOLINTBEGIN(performance-enum-size)\n\n",
+                "// Generated message headers mirror protobuf schema literals and generated special members.\n"
+                "//NOLINTBEGIN(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,"
+                "readability-magic-numbers,bugprone-exception-escape,modernize-raw-string-literal,"
+                "clang-analyzer-optin.performance.Padding)\n\n",
                 ns);
     }
 
@@ -983,7 +996,9 @@ struct msg_code_generator : code_generator {
 
     if (!ns.empty()) {
       format_to(target,
-                "// NOLINTEND(performance-enum-size)\n"
+                "// NOLINTEND(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,"
+                "readability-magic-numbers,bugprone-exception-escape,modernize-raw-string-literal,"
+                "clang-analyzer-optin.performance.Padding)\n"
                 "}} // namespace {}\n",
                 ns);
 
@@ -1002,7 +1017,8 @@ struct msg_code_generator : code_generator {
     if (proto.type == TYPE_GROUP || proto.type == TYPE_MESSAGE) {
       if (descriptor.is_recursive) {
         return "Traits::template optional_indirect_t";
-      } else if (descriptor.is_cpp_optional) {
+      }
+      if (descriptor.is_cpp_optional) {
         return "std::optional";
       }
     } else if (descriptor.is_cpp_optional) {
@@ -1018,11 +1034,10 @@ struct msg_code_generator : code_generator {
         return std::format("Traits::template map_t<{}, typename Traits::template indirect_t<{}>>",
                            type_as_template_arg(type_desc->fields().front().cpp_field_type),
                            type_desc->fields()[1].cpp_field_type);
-      } else {
-        return std::format("Traits::template map_t<{}, {}>",
-                           type_as_template_arg(type_desc->fields().front().cpp_field_type),
-                           type_as_template_arg(type_desc->fields()[1].cpp_field_type));
       }
+      return std::format("Traits::template map_t<{}, {}>",
+                         type_as_template_arg(type_desc->fields().front().cpp_field_type),
+                         type_as_template_arg(type_desc->fields()[1].cpp_field_type));
     }
 
     auto wrapper = field_type_wrapper(descriptor);
@@ -1030,7 +1045,8 @@ struct msg_code_generator : code_generator {
     if (wrapper == "::hpp_proto::optional" && !descriptor.default_value_template_arg.empty()) {
       return std::format("::hpp_proto::optional<{0}, {1}>", type_as_template_arg(descriptor.cpp_field_type),
                          descriptor.default_value_template_arg);
-    } else if (!wrapper.empty()) {
+    }
+    if (!wrapper.empty()) {
       return std::format("{}<{}>", wrapper, type_as_template_arg(descriptor.cpp_field_type));
     }
     return descriptor.cpp_field_type;
@@ -1234,7 +1250,7 @@ struct msg_code_generator : code_generator {
     std::string_view qualified_name = descriptor.no_namespace_qualified_name;
     format_to(out_of_class_target,
               "template <typename Traits>\n"
-              "constexpr auto message_type_url(const {0}{1}&) {{ return "
+              "constexpr auto message_type_url(const {0}{1}& /*unused*/) {{ return "
               "::hpp_proto::string_literal<\"type.googleapis.com/{2}\">{{}}; }}\n",
               qualified_name.ends_with('>') ? "" : "typename ", qualified_name, descriptor.pb_name);
     format_to(out_of_ns_target,
@@ -1253,7 +1269,7 @@ struct hpp_meta_generator : code_generator {
   void process(file_descriptor_t &descriptor) {
     auto file_name = descriptor.proto().name;
     gen_file_header(file_name);
-    file.name = file_name.substr(0, file_name.size() - 5) + "pb.hpp";
+    file.name = file_name.substr(0, file_name.size() - proto_suffix_length) + "pb.hpp";
 
     syntax = descriptor.syntax;
     format_to(target,
@@ -1275,6 +1291,9 @@ struct hpp_meta_generator : code_generator {
     if (!ns.empty()) {
       format_to(target, "\nnamespace {} {{\n\n", ns);
     }
+    format_to(target, "// Generated protobuf metadata is intentionally made of schema field numbers.\n"
+                      "//NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,"
+                      "bugprone-exception-escape)\n\n");
 
     for (auto &m : descriptor.messages()) {
       process(m, package);
@@ -1284,6 +1303,8 @@ struct hpp_meta_generator : code_generator {
       format_extension(f);
     }
 
+    format_to(target, "//NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,"
+                      "bugprone-exception-escape)\n");
     if (!ns.empty()) {
       format_to(target, "}} // namespace {}\n", ns);
     }
@@ -1435,7 +1456,7 @@ struct hpp_meta_generator : code_generator {
     }
 
     auto field_value_type = descriptor.cpp_field_type;
-    bool is_repeated = proto.label == LABEL_REPEATED;
+    const bool is_repeated = proto.label == LABEL_REPEATED;
 
     auto get_result_type = is_repeated
                                ? std::format("Traits::template repeated_t<{}>", type_as_template_arg(field_value_type))
@@ -1506,7 +1527,7 @@ struct glaze_meta_generator : code_generator {
   void process(file_descriptor_t &descriptor) {
     auto file_name = descriptor.proto().name;
     gen_file_header(file_name);
-    file.name = file_name.substr(0, file_name.size() - 5) + "glz.hpp";
+    file.name = file_name.substr(0, file_name.size() - proto_suffix_length) + "glz.hpp";
 
     std::string sole_message_name;
     if (descriptor.messages().size() == 1) {
@@ -1908,7 +1929,7 @@ struct glaze_meta_generator : code_generator {
                 "template <>\n"
                 "struct to<JSON, {0}> {{\n"
                 "  template <auto Opts>\n"
-                "  GLZ_ALWAYS_INLINE static void op(auto &&, auto&& ...args) {{\n"
+                "  GLZ_ALWAYS_INLINE static void op(auto && /*value*/, auto&& ...args) {{\n"
                 "    serialize<JSON>::template op<Opts>(std::monostate{{}}, std::forward<decltype(args)>(args)...);\n"
                 "  }}\n"
                 "}};\n\n"
@@ -1932,7 +1953,7 @@ struct desc_hpp_generator : code_generator {
   void process(file_descriptor_t &descriptor) {
     auto path = descriptor.proto().name;
     gen_file_header(path);
-    file.name = path.substr(0, path.size() - 5) + "desc.hpp";
+    file.name = path.substr(0, path.size() - proto_suffix_length) + "desc.hpp";
 
     format_to(target, "#pragma once\n"
                       "#include <hpp_proto/file_descriptor_pb.hpp>\n\n");
@@ -1984,7 +2005,7 @@ struct service_generator : code_generator {
 
     auto path = descriptor.proto().name;
     gen_file_header(path);
-    file.name = path.substr(0, path.size() - 5) + "service.hpp";
+    file.name = path.substr(0, path.size() - proto_suffix_length) + "service.hpp";
 
     for (const auto &d : descriptor.proto().dependency) {
       format_to(target, "#include \"{}.pb.hpp\"\n", basename(d, directory_prefix));
@@ -2038,6 +2059,9 @@ struct service_generator : code_generator {
     format_to(target, "}} // namespace {}\n", ns);
   }
 };
+
+// NOLINTEND(concurrency-mt-unsafe)
+
 namespace {
 
 void split(std::string_view str, char deliminator, auto &&callback) {
@@ -2053,9 +2077,9 @@ void split(std::string_view str, char deliminator, auto &&callback) {
   }
 }
 } // namespace
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,bugprone-exception-escape)
 int main(int argc, const char **argv) {
-  std::span<const char *> args{argv, static_cast<std::size_t>(argc)};
+  const std::span<const char *> args{argv, static_cast<std::size_t>(argc)};
   if (std::ranges::find_if(args, [](auto arg) { return std::string_view(arg) == "--version"; }) != args.end()) {
 #ifdef HPP_PROTO_VERSION
     std::cout << "hpp-proto version " << HPP_PROTO_VERSION << "\n";

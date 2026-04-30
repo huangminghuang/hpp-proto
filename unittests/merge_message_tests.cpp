@@ -3,6 +3,10 @@
 #include <hpp_proto/binpb.hpp>
 #include <hpp_proto/merge.hpp>
 
+// This file mirrors protobuf field numbers and expected wire values; naming every
+// literal would obscure the test cases.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers, bugprone-exception-escape)
+
 template <typename Traits = hpp_proto::default_traits>
 struct ForeignMessage {
   std::int32_t c = {};
@@ -431,6 +435,10 @@ const boost::ut::suite merge_test_suite = [] {
                  std::pair<hpp_proto::default_traits, hpp_proto::non_owning_traits>>{};
 };
 
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers, bugprone-exception-escape)
+
+// boost-ext/ut may allocate while parsing the test command line.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

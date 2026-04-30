@@ -47,7 +47,7 @@ public:
       bool has_result_ = false;
 
     public:
-      ::grpc::ClientContext context;
+      ::grpc::ClientContext context; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
       SayHelloStreamReplyReactor() = default;
       SayHelloStreamReplyReactor(const SayHelloStreamReplyReactor &) = delete;
       SayHelloStreamReplyReactor &operator=(const SayHelloStreamReplyReactor &) = delete;
@@ -59,14 +59,18 @@ public:
         this->start_call();
       }
 
-      ~SayHelloStreamReplyReactor() override {
-        std::unique_lock lock(mu_);
-        cv_.wait(lock, [&] { return has_result_; });
-        const auto &result = result_;
-        if (result.ok()) {
-          std::cout << "SayHelloStreamReply Success\n";
-        } else {
-          std::cerr << "SayHelloStreamReply Failed with error: " << result.error_message() << "\n";
+      ~SayHelloStreamReplyReactor() noexcept override {
+        try {
+          std::unique_lock lock(mu_);
+          cv_.wait(lock, [&] { return has_result_; });
+          const auto &result = result_;
+          if (result.ok()) {
+            std::cout << "SayHelloStreamReply Success\n";
+          } else {
+            std::cerr << "SayHelloStreamReply Failed with error: " << result.error_message() << "\n";
+          }
+        } catch (const std::exception &e) {
+          std::cerr << "exception in destructor: " << e.what() << "\n";
         }
       }
 
@@ -80,7 +84,7 @@ public:
         auto r = this->get_response(reply, hpp_proto::alloc_from(mr));
         if (!r.ok()) {
           context.TryCancel();
-          std::unique_lock lock(mu_);
+          const std::unique_lock lock(mu_);
           result_ = std::move(r);
           has_result_ = true;
           return;
@@ -91,7 +95,7 @@ public:
       }
 
       void OnDone(const ::grpc::Status &status) override {
-        std::unique_lock lock(mu_);
+        const std::unique_lock lock(mu_);
         if (!has_result_) {
           result_ = status;
           has_result_ = true;
@@ -120,7 +124,7 @@ public:
 };
 }; // namespace helloworld::Greeter
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv) try {
   const auto *endpoint = "localhost:50051";
   if (argc == 2) {
     endpoint = *std::next(argv);
@@ -136,4 +140,7 @@ int main(int argc, char **argv) {
   greeter.SayHelloStreamReply("World");
   greeter.Shutdown();
   return 0;
+} catch (const std::exception &e) {
+  std::cerr << "unexpected exception: " << e.what() << "\n";
+  return 1;
 }

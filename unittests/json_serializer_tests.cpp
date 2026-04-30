@@ -5,6 +5,10 @@
 #include <hpp_proto/json/timestamp_codec.hpp>
 #include <string_view>
 
+// JSON tests keep expected values and wire-ish fixtures inline for readability.
+// NOLINTBEGIN(misc-const-correctness, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers,
+// bugprone-exception-escape)
+
 template <typename T>
 constexpr auto non_owning = false;
 
@@ -18,7 +22,7 @@ struct byte_span_example {
   hpp_proto::equality_comparable_span<const std::byte> field;
   bool operator==(const byte_span_example &other) const = default;
 };
-constexpr auto message_type_url(const byte_span_example &) {
+constexpr auto message_type_url(const byte_span_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/byte_span_example">{};
 }
 
@@ -32,7 +36,7 @@ struct uint64_example {
   uint64_t field = 0;
   bool operator==(const uint64_example &) const = default;
 };
-constexpr auto message_type_url(const uint64_example &) {
+constexpr auto message_type_url(const uint64_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/uint64_example">{};
 }
 
@@ -49,7 +53,7 @@ struct optional_example {
   double field4 = {};
   bool operator==(const optional_example &) const = default;
 };
-constexpr auto message_type_url(const optional_example &) {
+constexpr auto message_type_url(const optional_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/optional_example">{};
 }
 
@@ -70,7 +74,7 @@ struct explicit_optional_bool_example {
   bool operator==(const explicit_optional_bool_example &) const = default;
 };
 
-constexpr auto message_type_url(const explicit_optional_bool_example &) {
+constexpr auto message_type_url(const explicit_optional_bool_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/explicit_optional_bool_example">{};
 }
 
@@ -84,7 +88,7 @@ struct explicit_optional_uint64_example {
   hpp_proto::optional<uint64_t> field;
   bool operator==(const explicit_optional_uint64_example &) const = default;
 };
-constexpr auto message_type_url(const explicit_optional_uint64_example &) {
+constexpr auto message_type_url(const explicit_optional_uint64_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/explicit_optional_uint64_example">{};
 }
 
@@ -98,7 +102,7 @@ struct uint32_span_example {
   hpp_proto::equality_comparable_span<const uint32_t> field;
   bool operator==(const uint32_span_example &) const = default;
 };
-constexpr auto message_type_url(const uint32_span_example &) {
+constexpr auto message_type_url(const uint32_span_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/uint32_span_example">{};
 }
 
@@ -115,7 +119,7 @@ struct pair_vector_example {
   std::vector<std::pair<std::string, int32_t>> field;
   bool operator==(const pair_vector_example &) const = default;
 };
-constexpr auto message_type_url(const pair_vector_example &) {
+constexpr auto message_type_url(const pair_vector_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/pair_vector_example">{};
 }
 
@@ -162,7 +166,7 @@ struct pair_span_example {
   hpp_proto::equality_comparable_span<const std::pair<std::string_view, int32_t>> field;
   bool operator==(const pair_span_example &) const = default;
 };
-constexpr auto message_type_url(const pair_span_example &) {
+constexpr auto message_type_url(const pair_span_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/pair_span_example">{};
 }
 
@@ -178,7 +182,7 @@ struct object_span_example {
   hpp_proto::equality_comparable_span<const optional_example> field;
   bool operator==(const object_span_example &) const = default;
 };
-constexpr auto message_type_url(const object_span_example &) {
+constexpr auto message_type_url(const object_span_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/object_span_example">{};
 }
 
@@ -195,7 +199,7 @@ struct non_owning_nested_example {
   hpp_proto::optional_indirect_view<optional_example> nested;
   bool operator==(const non_owning_nested_example &) const = default;
 };
-constexpr auto message_type_url(const non_owning_nested_example &) {
+constexpr auto message_type_url(const non_owning_nested_example & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/non_owning_nested_example">{};
 }
 
@@ -410,7 +414,7 @@ struct bytes_example {
 };
 
 template <typename T>
-constexpr auto message_type_url(const bytes_example<T> &) {
+constexpr auto message_type_url(const bytes_example<T> & /*unused*/) {
   return hpp_proto::string_literal<"type.googleapis.com/bytes_example">{};
 }
 
@@ -592,6 +596,7 @@ const ut::suite test_read_json_overloads = [] {
   };
 
   "read_json_rejects_non_null_terminated_c_array"_test = [] {
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
     char fixed_json[] = {'{', '"', 'v', 'a', 'l', 'u', 'e', '"', ':', '1', '}'};
     json_overload_example msg{};
     auto status = hpp_proto::read_json(msg, fixed_json);
@@ -624,6 +629,11 @@ const ut::suite test_read_json_full_buffer = [] {
   };
 };
 
+// NOLINTEND(misc-const-correctness, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers,
+// bugprone-exception-escape)
+
+// boost-ext/ut may allocate while parsing the test command line.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result = ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);

@@ -27,6 +27,9 @@
 using namespace boost::ut;
 using namespace std::string_view_literals;
 
+// Protobuf Any conformance fixtures intentionally use literal wire values and JSON payloads.
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
+
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   expect(fatal(exp.has_value()));
@@ -268,8 +271,11 @@ const suite test_dynamic_message_any = [] {
   };
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors
   return static_cast<int>(result);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)

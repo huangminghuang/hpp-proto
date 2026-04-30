@@ -84,6 +84,9 @@ using vuint32_t = varint<uint32_t>;
 using vsint64_t = varint<int64_t, varint_encoding::zig_zag>;
 using vsint32_t = varint<int32_t, varint_encoding::zig_zag>;
 
+inline constexpr auto varint_payload_mask = 0x7fU;
+inline constexpr auto varint_continue_bit = 0x80U;
+
 namespace concepts {
 template <typename T>
 concept varint = requires { requires std::same_as<T, hpp_proto::varint<typename T::value_type, T::encoding>>; };
@@ -98,8 +101,8 @@ template <concepts::varint VarintType, concepts::byte_type Byte>
   }
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  while (value >= 0x80) {
-    *data++ = Byte((value & 0x7fU) | 0x80U);
+  while (value >= varint_continue_bit) {
+    *data++ = Byte((value & varint_payload_mask) | varint_continue_bit);
     value >>= static_cast<unsigned>(CHAR_BIT - 1);
   }
   *data++ = Byte(value);

@@ -15,6 +15,9 @@
 
 namespace hpp_proto {
 
+// Generated protobuf metadata is intentionally made of schema field numbers.
+//NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
+
 template <typename Traits>
 auto pb_meta(const FileOptions<Traits> &) -> std::tuple<
   ::hpp_proto::field_meta<2, &FileOptions<Traits>::namespace_prefix, ::hpp_proto::field_option::explicit_presence>,
@@ -28,5 +31,6 @@ struct hpp_file_opts
   using pb_meta = std::tuple<::hpp_proto::field_meta<8964, &hpp_file_opts<Traits>::value, ::hpp_proto::field_option::none, void, std::monostate{}>>;
 };
 
+//NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
 } // namespace hpp_proto
 // clang-format on

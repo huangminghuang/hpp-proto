@@ -51,11 +51,11 @@ public:
   }
 
   [[nodiscard]] ::grpc::Status status() {
-    std::scoped_lock lock(mu_);
+    const std::scoped_lock lock(mu_);
     return status_;
   }
   [[nodiscard]] hpp_proto_test::StreamSummary<> summary() {
-    std::scoped_lock lock(mu_);
+    const std::scoped_lock lock(mu_);
     return summary_;
   }
   [[nodiscard]] bool wait_for_writes(size_t n, std::chrono::milliseconds timeout) {
@@ -69,7 +69,7 @@ public:
       return;
     }
     {
-      std::scoped_lock lock(mu_);
+      const std::scoped_lock lock(mu_);
       ++write_done_count_;
       cv_.notify_all();
     }
@@ -77,7 +77,7 @@ public:
   }
 
   void OnDone(const ::grpc::Status &status) override {
-    std::unique_lock lock(mu_);
+    const std::unique_lock lock(mu_);
     status_ = status;
     if (status_.ok()) {
       auto read_status = this->get_response(summary_);
@@ -91,7 +91,7 @@ public:
 
 private:
   void send_next() {
-    std::scoped_lock<std::mutex> lock(mu_);
+    const std::scoped_lock<std::mutex> lock(mu_);
     if (writes_complete_) {
       return;
     }
@@ -174,6 +174,7 @@ void run_client_stream_cancel_case() {
   auto &stub = harness.stub();
 
   ::grpc::ClientContext context;
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
   ClientStreamReactor reactor;
   reactor.set_use_sentinel(false);

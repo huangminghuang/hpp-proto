@@ -139,27 +139,25 @@ public:
     const auto *desc = field_descriptor_by_name(name);
     if (desc != nullptr) {
       return field(*desc);
-    } else {
-      return std::unexpected(dynamic_message_errc::no_such_field);
     }
+    return std::unexpected(dynamic_message_errc::no_such_field);
   }
 
   [[nodiscard]] std::expected<field_cref, dynamic_message_errc> field_by_number(uint32_t number) const noexcept {
     const auto *desc = field_descriptor_by_number(number);
     if (desc != nullptr) {
       return field(*desc);
-    } else {
-      return std::unexpected(dynamic_message_errc::no_such_field);
     }
+    return std::unexpected(dynamic_message_errc::no_such_field);
   }
 
   template <typename T>
-  [[nodiscard]] std::expected<T, dynamic_message_errc> field_value_by_name(std::string_view name) const noexcept {
+  [[nodiscard]] std::expected<T, dynamic_message_errc> field_value_by_name(std::string_view name) const {
     return field_by_name(name).and_then([](auto ref) { return ref.template get<T>(); });
   }
 
   template <typename T>
-  [[nodiscard]] std::expected<T, dynamic_message_errc> field_value_by_number(std::uint32_t number) const noexcept {
+  [[nodiscard]] std::expected<T, dynamic_message_errc> field_value_by_number(std::uint32_t number) const {
     return field_by_number(number).and_then([](auto ref) { return ref.template get<T>(); });
   }
 
@@ -190,26 +188,24 @@ public:
   [[nodiscard]] fields_view fields() const { return fields_view{*this}; }
 
   template <concepts::const_field_ref T>
-  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_number(uint32_t number) const noexcept {
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_number(uint32_t number) const {
     return field_by_number(number).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
       auto r = ref.template to<T>();
       if (r.has_value()) {
         return r.value();
-      } else {
-        return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
     });
   }
 
   template <concepts::const_field_ref T>
-  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_name(std::string_view name) const noexcept {
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_name(std::string_view name) const {
     return field_by_name(name).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
       auto r = ref.template to<T>();
       if (r.has_value()) {
         return r.value();
-      } else {
-        return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
     });
   }
 };
@@ -285,53 +281,49 @@ public:
     const auto *desc = field_descriptor_by_name(name);
     if (desc != nullptr) {
       return field(*desc);
-    } else {
-      return std::unexpected(dynamic_message_errc::no_such_field);
     }
+    return std::unexpected(dynamic_message_errc::no_such_field);
   }
 
   [[nodiscard]] std::expected<field_mref, dynamic_message_errc> field_by_number(uint32_t number) const noexcept {
     const auto *desc = field_descriptor_by_number(number);
     if (desc != nullptr) {
       return field(*desc);
-    } else {
-      return std::unexpected(dynamic_message_errc::no_such_field);
     }
+    return std::unexpected(dynamic_message_errc::no_such_field);
   }
 
   template <typename T>
   [[nodiscard]] std::expected<typename get_traits<T>::type, dynamic_message_errc>
-  field_value_by_name(std::string_view name) const noexcept {
+  field_value_by_name(std::string_view name) const {
     return field_by_name(name).and_then([](auto ref) { return ref.template get<T>(); });
   }
 
   template <typename T>
   [[nodiscard]] std::expected<typename get_traits<T>::type, dynamic_message_errc>
-  field_value_by_number(uint32_t number) const noexcept {
+  field_value_by_number(uint32_t number) const {
     return field_by_number(number).and_then([](auto ref) { return ref.template get<T>(); });
   }
 
   template <concepts::const_field_ref T>
-  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_number(uint32_t number) const noexcept {
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_number(uint32_t number) const {
     return cref().field_by_number(number).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
       auto r = ref.template to<T>();
       if (r.has_value()) {
         return r.value();
-      } else {
-        return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
     });
   }
 
   template <concepts::const_field_ref T>
-  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_name(std::string_view name) const noexcept {
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_name(std::string_view name) const {
     return cref().field_by_name(name).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
       auto r = ref.template to<T>();
       if (r.has_value()) {
         return r.value();
-      } else {
-        return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
     });
   }
 
@@ -341,21 +333,19 @@ public:
       auto r = ref.template to<T>();
       if (r.has_value()) {
         return r.value();
-      } else {
-        return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
     });
   }
 
   template <concepts::mutable_field_ref T>
-  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_name(std::string_view name) const noexcept {
+  [[nodiscard]] std::expected<T, dynamic_message_errc> typed_ref_by_name(std::string_view name) const {
     return field_by_name(name).and_then([](auto ref) -> std::expected<T, dynamic_message_errc> {
       auto r = ref.template to<T>();
       if (r.has_value()) {
         return r.value();
-      } else {
-        return std::unexpected(dynamic_message_errc::invalid_field_type);
       }
+      return std::unexpected(dynamic_message_errc::invalid_field_type);
     });
   }
 
@@ -366,6 +356,8 @@ public:
         .and_then([&value](auto field) { return field.set(std::forward<T>(value)); })
         .transform([this]() { return *this; });
   }
+
+  // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 
   template <typename CharT, std::size_t N>
     requires(std::same_as<std::remove_cv_t<CharT>, char>)
@@ -408,6 +400,8 @@ public:
                                                                                             T (&value)[N]) const {
     return set_field_by_number(field_number, std::span<T, N>{value});
   }
+
+  // NOLINTEND(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 
   template <typename Mutator>
   std::expected<message_value_mref, dynamic_message_errc> modify_field_by_name(std::string_view field_name,
@@ -546,12 +540,10 @@ public:
     if constexpr (std::same_as<U, message_value_cref>) {
       if (has_value()) {
         return *(*this);
-      } else {
-        return std::unexpected(dynamic_message_errc::no_such_value);
       }
-    } else {
-      return std::unexpected(dynamic_message_errc::invalid_field_type);
+      return std::unexpected(dynamic_message_errc::no_such_value);
     }
+    return std::unexpected(dynamic_message_errc::invalid_field_type);
   }
 
 private:
@@ -652,13 +644,12 @@ public:
       if (!has_value()) {
         emplace().clone_from(v);
       } else {
-        message_value_mref val = *(*this);
+        const message_value_mref val = *(*this);
         val.clone_from(v);
       }
       return {};
-    } else {
-      return std::unexpected(dynamic_message_errc::wrong_message_type);
     }
+    return std::unexpected(dynamic_message_errc::wrong_message_type);
   }
 
 private:

@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <array>
 #include <limits>
 #include <span>
 #include <string_view>
@@ -48,7 +49,7 @@ concept non_owning_string_or_bytes = std::same_as<T, std::string_view> || std::s
 
 namespace pb_serializer {
 
-inline bool is_present_or_explicit_default(field_cref f) noexcept {
+inline bool is_present_or_explicit_default(field_cref f) {
   return f.visit([](auto field) { return field.is_present_or_explicit_default(); });
 }
 
@@ -58,7 +59,7 @@ struct field_deserializer {
   // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   Archive &archive;
 
-  status deserialize(concepts::arithmetic auto &value, const field_descriptor_t &) {
+  status deserialize(concepts::arithmetic auto &value, const field_descriptor_t & /*descriptor*/) {
     if (auto ec = archive(value); !ec.ok()) [[unlikely]] {
       return ec;
     }
@@ -82,7 +83,7 @@ struct field_deserializer {
     return {};
   }
 
-  status deserialize(enum_value_mref mref, const field_descriptor_t &) {
+  status deserialize(enum_value_mref mref, const field_descriptor_t & /*descriptor*/) {
     if (tag_type(tag) != wire_type::varint) {
       return std::errc::bad_message;
     }
@@ -99,7 +100,7 @@ struct field_deserializer {
 
   status operator()(enum_field_mref mref) {
     int32_t number = 0;
-    enum_value_mref tmp{mref.enum_descriptor(), number};
+    const enum_value_mref tmp{mref.enum_descriptor(), number};
     auto ec = deserialize(tmp, mref.descriptor());
     if (ec.ok()) [[likely]] {
       if (mref.descriptor().explicit_presence() || tmp.number() != mref.default_value().number()) {
@@ -301,17 +302,18 @@ struct field_deserializer {
   status operator()(repeated_scalar_field_mref<T, Kind> mref) {
     if (tag_type(tag) == tag_type<T>()) {
       return deserialize_unpacked_repeated(mref);
-    } else if (tag_type(tag) == wire_type::length_delimited) {
-      return deserialize_packed_repeated<T>(mref);
-    } else {
-      return std::errc::bad_message;
     }
+    if (tag_type(tag) == wire_type::length_delimited) {
+      return deserialize_packed_repeated<T>(mref);
+    }
+    return std::errc::bad_message;
   }
 
   status operator()(repeated_enum_field_mref mref) {
     if (tag_type(tag) == wire_type::varint) {
       return deserialize_unpacked_repeated(mref);
-    } else if (tag_type(tag) == wire_type::length_delimited) {
+    }
+    if (tag_type(tag) == wire_type::length_delimited) {
       auto content = mref.numbers();
       pb_context ctx{alloc_from{mref.memory_resource()}};
       if (auto r = deserialize_packed_repeated<vint64_t>(detail::as_modifiable(ctx, content)); !r.ok()) {
@@ -325,9 +327,8 @@ struct field_deserializer {
       }
       mref.adopt(content);
       return {};
-    } else {
-      return std::errc::bad_message;
     }
+    return std::errc::bad_message;
   }
 
   status operator()(repeated_string_field_mref mref) { return deserialize_unpacked_repeated(mref); }
@@ -351,7 +352,7 @@ status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts:
 
 template <>
 struct size_cache_counter<message_value_cref> {
-  constexpr std::size_t operator()(auto) const { return 0; }
+  constexpr std::size_t operator()(auto /*f*/) const { return 0; }
 
   template <concepts::varint T, field_kind_t Kind>
   std::size_t operator()(repeated_scalar_field_cref<T, Kind> f) const {
@@ -359,7 +360,7 @@ struct size_cache_counter<message_value_cref> {
   }
 
   template <typename T, field_kind_t Kind>
-  std::size_t operator()(repeated_scalar_field_cref<T, Kind>) const {
+  std::size_t operator()(repeated_scalar_field_cref<T, Kind> /*f*/) const {
     return 0;
   }
 
@@ -430,9 +431,8 @@ struct message_size_calculator<message_value_cref> {
         auto s = util::transform_accumulate(v, [](auto e) { return T{e}.encode_size(); });
         cache_size(s);
         return ts + len_size(s);
-      } else {
-        return util::transform_accumulate(v, [ts](auto e) { return ts + T{e}.encode_size(); });
       }
+      return util::transform_accumulate(v, [ts](auto e) { return ts + T{e}.encode_size(); });
     }
 
     template <typename T, field_kind_t Kind>
@@ -441,9 +441,8 @@ struct message_size_calculator<message_value_cref> {
       auto ts = tag_size(v);
       if (v.descriptor().is_packed()) {
         return ts + len_size(static_cast<uint64_t>(v.size()) * sizeof(T));
-      } else {
-        return static_cast<uint64_t>(v.size()) * (ts + sizeof(T));
       }
+      return static_cast<uint64_t>(v.size()) * (ts + sizeof(T));
     }
 
     uint64_t operator()(repeated_enum_field_cref v) {
@@ -452,9 +451,8 @@ struct message_size_calculator<message_value_cref> {
         auto s = util::transform_accumulate(v, [](enum_value e) { return varint_size(int64_t{e.number()}); });
         cache_size(s);
         return ts + len_size(s);
-      } else {
-        return util::transform_accumulate(v, [ts](enum_value e) { return ts + varint_size(int64_t{e.number()}); });
       }
+      return util::transform_accumulate(v, [ts](enum_value e) { return ts + varint_size(int64_t{e.number()}); });
     }
 
     uint64_t operator()(repeated_string_field_cref v) {
@@ -477,30 +475,28 @@ struct message_size_calculator<message_value_cref> {
     uint64_t operator()(message_field_cref v) {
       if (v.descriptor().is_delimited()) {
         return (2 * tag_size(v)) + (*this)(*v);
-      } else {
-        decltype(auto) msg_size = *cache_itr++;
-        auto s = (*this)(*v);
-        // Post-condition: s <= UINT32_MAX (dynamic_message size fields are stored as uint32_t).
-        // Caveat: larger sizes are truncated when stored in value_storage.
-        msg_size = saturate_to_max_message_size(s);
-        return tag_size(v) + len_size(s);
       }
+      decltype(auto) msg_size = *cache_itr++;
+      auto s = (*this)(*v);
+      // Post-condition: s <= UINT32_MAX (dynamic_message size fields are stored as uint32_t).
+      // Caveat: larger sizes are truncated when stored in value_storage.
+      msg_size = saturate_to_max_message_size(s);
+      return tag_size(v) + len_size(s);
     }
 
     uint64_t operator()(repeated_message_field_cref v) {
       auto ts = tag_size(v);
       if (v.descriptor().is_delimited()) {
         return util::transform_accumulate(v, [this, ts](message_value_cref msg) { return (2 * ts) + (*this)(msg); });
-      } else {
-        return util::transform_accumulate(v, [this, ts](message_value_cref msg) {
-          decltype(auto) msg_size = *cache_itr++;
-          auto s = (*this)(msg);
-          // Post-condition: s <= UINT32_MAX (dynamic_message size fields are stored as uint32_t).
-          // Caveat: larger sizes are truncated when stored in value_storage.
-          msg_size = saturate_to_max_message_size(s);
-          return ts + len_size(s);
-        });
       }
+      return util::transform_accumulate(v, [this, ts](message_value_cref msg) {
+        decltype(auto) msg_size = *cache_itr++;
+        auto s = (*this)(msg);
+        // Post-condition: s <= UINT32_MAX (dynamic_message size fields are stored as uint32_t).
+        // Caveat: larger sizes are truncated when stored in value_storage.
+        msg_size = saturate_to_max_message_size(s);
+        return ts + len_size(s);
+      });
     }
   };
 
@@ -530,7 +526,7 @@ struct field_serializer {
   Archive &archive;
   // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
-  constexpr static wire_type wire_type_map[] = {
+  constexpr static std::array<wire_type, 19> wire_type_map = {
       wire_type::varint,           // 0
       wire_type::fixed_64,         // TYPE_DOUBLE = 1,
       wire_type::fixed_32,         // TYPE_FLOAT = 2,
@@ -557,8 +553,8 @@ struct field_serializer {
   }
 
   static vint32_t make_tag(const field_descriptor_t &desc) {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-    return make_tag(desc.proto().number, wire_type_map[std::to_underlying(desc.proto().type)]);
+    return make_tag(desc.proto().number, // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+                    wire_type_map[static_cast<std::size_t>(std::to_underlying(desc.proto().type))]);
   }
 
   template <typename T, field_kind_t Kind>
@@ -583,10 +579,9 @@ struct field_serializer {
       const uint32_t byte_count = concepts::varint<T> ? *cache_itr++ : static_cast<uint32_t>(sizeof(T) * v.size());
       return archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{byte_count}) &&
              std::ranges::all_of(v, [this](auto e) { return archive(T{e}); });
-    } else {
-      const auto tag = make_tag(desc);
-      return std::ranges::all_of(v, [this, tag](auto e) { return archive(tag, T{e}); });
     }
+    const auto tag = make_tag(desc);
+    return std::ranges::all_of(v, [this, tag](auto e) { return archive(tag, T{e}); });
   }
 
   bool operator()(repeated_enum_field_cref v) {
@@ -594,10 +589,9 @@ struct field_serializer {
     if (desc.is_packed()) {
       return archive(make_tag(desc.proto().number, wire_type::length_delimited), varint{*cache_itr++}) &&
              std::ranges::all_of(v, [this](auto e) { return archive(varint{e.number()}); });
-    } else {
-      const auto tag = make_tag(desc);
-      return std::ranges::all_of(v, [this, tag](auto e) { return archive(tag, varint{e.number()}); });
     }
+    const auto tag = make_tag(desc);
+    return std::ranges::all_of(v, [this, tag](auto e) { return archive(tag, varint{e.number()}); });
   }
 
   bool operator()(repeated_string_field_cref v) {
@@ -645,14 +639,14 @@ struct field_serializer {
 
   bool operator()(message_field_cref item) {
     const field_descriptor_t &desc = item.descriptor();
-    message_tag_writer tag_writer{this, desc};
+    const message_tag_writer tag_writer{this, desc};
     return (*this)(item.value());
   }
 
   bool operator()(repeated_message_field_cref item) {
     const field_descriptor_t &desc = item.descriptor();
     return std::ranges::all_of(item, [&](auto e) {
-      message_tag_writer tag_writer{this, desc};
+      const message_tag_writer tag_writer{this, desc};
       return (*this)(e);
     });
   }

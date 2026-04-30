@@ -43,12 +43,13 @@ const boost::ut::suite map_test = [] {
     expect(status.ok()) << status.message(original_json);
     ExpectMapFieldsSet(msg);
 
-    std::vector<char> non_null_terminated_json{original_json.begin(), original_json.end()};
+    const std::vector<char> non_null_terminated_json{original_json.begin(), original_json.end()};
     expect(hpp_proto::read_json(msg, non_null_terminated_json, hpp_proto::alloc_from(mr)).ok());
     ExpectMapFieldsSet(msg);
   } | std::tuple<::hpp_proto::stable_traits, ::hpp_proto::non_owning_traits>();
 };
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {
   const auto result =
       boost::ut::cfg<>.run({.report_errors = true}); // explicitly run registered test suites and report errors

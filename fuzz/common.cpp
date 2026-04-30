@@ -36,7 +36,7 @@ hpp_proto::dynamic_message_factory &get_factory() {
 
 // NOLINTNEXTLINE(readability-non-const-parameter)
 extern "C" __attribute__((visibility("default"))) int LLVMFuzzerInitialize(int *pargc, char ***pargv) {
-  std::span<char *> args(*pargv, *pargc);
+  const std::span<char *> args(*pargv, *pargc);
   auto desc_file = std::filesystem::path(args[0]).parent_path() / "unittest.desc.binpb";
   if (!std::filesystem::exists(desc_file)) {
     std::cerr << "cannot find unittest.desc.binpb\n";
