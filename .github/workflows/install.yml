@@ -61,17 +61,28 @@ jobs:
           sudo apt-get update
           sudo apt install -y git protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
 
+      - name: Extract third-party versions
+        run: |
+          glaze_version="$(sed -n 's/^set(HPP_PROTO_GLAZE_VERSION \([^)]*\)).*/\1/p' third-parties.cmake)"
+          is_utf8_version="$(sed -n 's/^set(HPP_PROTO_IS_UTF8_VERSION \([^)]*\)).*/\1/p' third-parties.cmake)"
+          test -n "${glaze_version}"
+          test -n "${is_utf8_version}"
+          {
+            echo "HPP_PROTO_GLAZE_VERSION=${glaze_version}"
+            echo "HPP_PROTO_IS_UTF8_VERSION=${is_utf8_version}"
+          } >> "${GITHUB_ENV}"
+
       - name: install CPM local packages
         if: matrix.cpm-local-packages-only == 'ON'
         run: |
-          git clone --depth 1 --branch v7.2.0 https://github.com/stephenberry/glaze.git /tmp/glaze
+          git clone --depth 1 --branch "v${HPP_PROTO_GLAZE_VERSION}" https://github.com/stephenberry/glaze.git /tmp/glaze
           cmake -S /tmp/glaze -B /tmp/glaze-build \
             -DCMAKE_BUILD_TYPE=Release \
             -Dglaze_DEVELOPER_MODE=OFF \
             -Dglaze_BUILD_EXAMPLES=OFF
           sudo cmake --install /tmp/glaze-build
 
-          git clone --depth 1 --branch v1.4.1 https://github.com/simdutf/is_utf8.git /tmp/is_utf8
+          git clone --depth 1 --branch "v${HPP_PROTO_IS_UTF8_VERSION}" https://github.com/simdutf/is_utf8.git /tmp/is_utf8
           python3 -c 'from pathlib import Path; p = Path("/tmp/is_utf8/CMakeLists.txt"); s = p.read_text(); s = s.replace("add_subdirectory(benchmarks)\n", ""); marker = "mark_as_advanced(IS_UTF8_INSTALL_CMAKEDIR)\n"; export = "install(EXPORT is_utf8Targets DESTINATION " + chr(34) + "$" + "{IS_UTF8_INSTALL_CMAKEDIR}" + chr(34) + " NAMESPACE is_utf8:: COMPONENT is_utf8_Development)\n"; p.write_text(s.replace(marker, marker + export))'
           cmake -S /tmp/is_utf8 -B /tmp/is_utf8-build \
             -DCMAKE_BUILD_TYPE=Release \
