@@ -12,6 +12,7 @@ using message_variant_t = std::variant<proto3_unittest::TestAllTypes<hpp_proto::
                                        protobuf_unittest::TestAllTypes<hpp_proto::stable_traits>,
                                        protobuf_unittest::TestMap<hpp_proto::stable_traits>,
                                        proto2_unittest::TestWellKnownTypes<hpp_proto::stable_traits>>;
+constexpr std::size_t min_split_input_size = 32;
 
 std::vector<std::span<const std::byte>> split_input(std::span<const std::byte> input) {
   std::vector<std::span<const std::byte>> result{2};
@@ -31,6 +32,7 @@ std::vector<std::byte> round_trip_test(const T &in_message, T &&out_message) {
 
   // Skip comparing the serialized buffer to the raw input because unknown fields are dropped on parse.
   // Skip structural comparison of messages; NaN payloads make equality fail even when bitwise identical.
+  // NOLINTNEXTLINE(misc-const-correctness)
   std::pmr::monotonic_buffer_resource mr;
   if constexpr (concepts::use_non_owning_traits<T>) {
     assert(util::read_binpb(out_message, to_bytes(buffer1), hpp_proto::alloc_from(mr)).ok());
@@ -101,16 +103,15 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
             }
             assert(non_owning_write == dyn_write);
             return dyn_write;
-          } else {
-            return std::unexpected(std::errc::bad_message);
           }
+          return std::unexpected(std::errc::bad_message);
         },
         message_variant);
   };
 
   auto input = std::as_bytes(std::span{data, size - 1});
   auto non_split_result = do_read(input);
-  if (size > 32) {
+  if (size > min_split_input_size) {
     auto splitted = split_input(input);
     auto split_result = do_read(std::span(splitted));
     assert(non_split_result == split_result);

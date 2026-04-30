@@ -552,7 +552,8 @@ struct basic_in {
         return {};
       }
       return count_number_of_varints_in_region(bytes_count);
-    } else if (num_bytes <= in_avail()) {
+    }
+    if (num_bytes <= in_avail()) {
       if constexpr (!contiguous) {
         basic_in archive(*this);
         std::size_t result = 0;
@@ -734,9 +735,8 @@ constexpr std::optional<std::size_t> count_packed_elements(uint32_t length, conc
   if constexpr (concepts::byte_deserializable<T>) {
     if (length % sizeof(T) == 0) [[likely]] {
       return length / sizeof(T);
-    } else {
-      return {};
     }
+    return {};
   } else if constexpr (std::same_as<T, bool> || std::same_as<T, boolean> || concepts::is_enum<T> ||
                        concepts::varint<T>) {
     return archive.number_of_varints(length);
@@ -1179,15 +1179,13 @@ constexpr status deserialize_field(concepts::has_meta auto &item, auto meta, uin
   if constexpr (!meta.is_delimited()) {
     if (tag_type(tag) == wire_type::length_delimited) [[likely]] {
       return deserialize_sized(item, archive);
-    } else {
-      return std::errc::bad_message;
     }
+    return std::errc::bad_message;
   } else {
     if (tag_type(tag) == wire_type::sgroup) [[likely]] {
       return deserialize_group(tag_number(tag), item, archive);
-    } else {
-      return std::errc::bad_message;
     }
+    return std::errc::bad_message;
   }
 }
 
@@ -1218,6 +1216,7 @@ constexpr status deserialize_field(std::ranges::range auto &item, Meta meta, uin
 }
 
 template <std::size_t Index, concepts::tuple Meta>
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic_in auto &archive,
                                    auto &unknown_fields) {
   if constexpr (Index < std::tuple_size_v<Meta>) {
@@ -1229,7 +1228,8 @@ constexpr status deserialize_oneof(uint32_t tag, auto &&item, concepts::is_basic
         if (result.ok()) [[likely]] {
           std::get<Index + 1>(item) = v;
           return {};
-        } else if (result == std::errc::value_too_large) {
+        }
+        if (result == std::errc::value_too_large) {
           return {};
         }
         return result;
@@ -1353,7 +1353,8 @@ constexpr status deserialize_sized(auto &&item, concepts::is_basic_in auto &arch
   if (len < archive.in_avail()) [[likely]] {
     auto new_archive = archive.split(len);
     return deserialize(item, new_archive);
-  } else if (len == archive.in_avail()) {
+  }
+  if (len == archive.in_avail()) {
     return deserialize(item, archive);
   }
   return std::errc::bad_message;
@@ -1431,8 +1432,8 @@ struct contiguous_input_archive<Context, Byte> : padded_input_archive_base<Byte>
 };
 
 template <concepts::contiguous_byte_range Buffer, concepts::is_pb_context Context>
-contiguous_input_archive(const Buffer &,
-                         Context &) -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
+contiguous_input_archive(const Buffer &, Context &)
+    -> contiguous_input_archive<Context, std::ranges::range_value_t<Buffer>>;
 
 constexpr status deserialize(auto &item, std::span<const std::byte> buffer, concepts::is_pb_context auto &context) {
   contiguous_input_archive archive{buffer, context};
