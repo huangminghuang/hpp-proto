@@ -65,7 +65,8 @@ if(TARGET protobuf::libprotobuf AND TARGET protobuf::protoc
         LANGUAGE cpp
         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
         PROTOC_OUT_DIR "${GRPC_OFFICIAL_GENERATED_DIR}"
-        PROTOS "${GRPC_OFFICIAL_PROTO}")
+        PROTOS "${GRPC_OFFICIAL_PROTO}"
+        OUT_VAR grpc_official_cpp_outputs)
 
     protobuf_generate(
         TARGET grpc_official_proto
@@ -75,7 +76,12 @@ if(TARGET protobuf::libprotobuf AND TARGET protobuf::protoc
         PROTOS "${GRPC_OFFICIAL_PROTO}"
         PLUGIN protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>
         DEPENDENCIES gRPC::grpc_cpp_plugin
-        GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc)
+        GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
+        OUT_VAR grpc_official_grpc_outputs)
+
+    add_custom_target(grpc_official_proto_generated
+        DEPENDS ${grpc_official_cpp_outputs} ${grpc_official_grpc_outputs})
+    hpp_proto_register_clang_tidy_input_targets(grpc_official_proto_generated)
 
     target_include_directories(grpc_official_proto PUBLIC "${GRPC_OFFICIAL_GENERATED_DIR}")
     target_link_libraries(grpc_official_proto PUBLIC protobuf::libprotobuf gRPC::grpc++)

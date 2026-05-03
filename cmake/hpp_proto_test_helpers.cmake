@@ -69,4 +69,6 @@ function(add_hpp_proto_generated_test_lib)
         PLUGIN_OPTIONS ${add_hpp_proto_generated_test_lib_PLUGIN_OPTIONS}
         PROTOC_OPTIONS ${add_hpp_proto_generated_test_lib_PROTOC_OPTIONS}
         PROTOC_OUT_DIR ${add_hpp_proto_generated_test_lib_PROTOC_OUT_DIR})
+
+    hpp_proto_register_clang_tidy_input_targets(${add_hpp_proto_generated_test_lib_NAME})
 endfunction()
