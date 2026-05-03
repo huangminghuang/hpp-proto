@@ -10,6 +10,7 @@ target_compile_features(helloworld INTERFACE cxx_std_23)
 
 protobuf_generate_hpp(TARGET helloworld
     PROTOS helloworld.proto)
+hpp_proto_register_clang_tidy_input_targets(helloworld)
 
 target_link_libraries(helloworld INTERFACE gRPC::grpc++ hpp_proto::hpp_proto)
 

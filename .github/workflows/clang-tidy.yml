@@ -96,19 +96,38 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
 
-      - name: Configure (clang-tidy via ctcache)
+      - name: Configure
         run: |
           cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Release \
                 -DHPP_PROTO_PROTOC=find \
                 -DCMAKE_C_COMPILER=clang \
                 -DCMAKE_CXX_COMPILER=clang++ \
                 -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-                -DCMAKE_C_CLANG_TIDY="clang-tidy;-warnings-as-errors=*" \
-                -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-warnings-as-errors=*"
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
-      - name: Build (clang-tidy via ctcache)
-        run: cmake --build build -j"$(nproc)"
+      - name: Generate clang-tidy inputs
+        run: cmake --build build --target hpp_proto_clang_tidy_inputs -j"$(nproc)"
+
+      - name: Run clang-tidy via ctcache
+        shell: bash
+        run: |
+          jq -r '.[].file' build/compile_commands.json \
+            | sort -u \
+            | grep "^${GITHUB_WORKSPACE}/" \
+            | grep -Ev "/(build|_deps|cpm_modules)/" \
+            > build/clang-tidy-files.txt
+
+          mapfile -t TIDY_FILES < build/clang-tidy-files.txt
+          if [ "${#TIDY_FILES[@]}" -eq 0 ]; then
+            echo "No repo source files found in compile_commands.json" >&2
+            exit 1
+          fi
+
+          run-clang-tidy -p build \
+            -clang-tidy-binary clang-tidy \
+            -warnings-as-errors='*' \
+            -j "$(nproc)" \
+            "${TIDY_FILES[@]}"
 
       - name: ctcache stats
         if: always()

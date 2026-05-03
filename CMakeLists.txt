@@ -105,6 +105,7 @@ endif()
 
 include(third-parties.cmake)
 include(cmake/coverage.cmake)
+include(cmake/hpp_proto_clang_tidy_helpers.cmake)
 
 add_library(hpp_proto_core INTERFACE)
 
@@ -167,6 +168,20 @@ endif()
 
 if(HPP_PROTO_BENCHMARKS)
   add_subdirectory(benchmarks)
+endif()
+
+if(PROJECT_IS_TOP_LEVEL)
+  get_property(HPP_PROTO_CLANG_TIDY_INPUT_TARGETS GLOBAL PROPERTY HPP_PROTO_CLANG_TIDY_INPUT_TARGETS)
+  list(REMOVE_DUPLICATES HPP_PROTO_CLANG_TIDY_INPUT_TARGETS)
+
+  add_custom_target(hpp_proto_clang_tidy_inputs
+    COMMENT "Generating inputs required by clang-tidy")
+
+  foreach(_hpp_proto_clang_tidy_input IN LISTS HPP_PROTO_CLANG_TIDY_INPUT_TARGETS)
+    if(TARGET ${_hpp_proto_clang_tidy_input})
+      add_dependencies(hpp_proto_clang_tidy_inputs ${_hpp_proto_clang_tidy_input})
+    endif()
+  endforeach()
 endif()
 
 include(cmake/hpp_proto_install_package.cmake)

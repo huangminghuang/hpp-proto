@@ -32,6 +32,7 @@ protobuf_generate_hpp(
     TARGET addressbook_proto3
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
 )
+hpp_proto_register_clang_tidy_input_targets(addressbook_proto3)
 
 add_library(addressbook_proto2 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/addressbook_proto2.proto)
 target_compile_features(addressbook_proto2 INTERFACE cxx_std_23)
@@ -39,6 +40,7 @@ protobuf_generate_hpp(
     TARGET addressbook_proto2
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} # # required when the proto file is not in ${CMAKE_CURRENT_SOURCE_DIR}
 )
+hpp_proto_register_clang_tidy_input_targets(addressbook_proto2)
 
 add_library(any_demo INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/any_demo.proto)
 target_compile_features(any_demo INTERFACE cxx_std_23)
@@ -46,6 +48,7 @@ target_link_libraries(any_demo INTERFACE hpp_proto::hpp_proto)
 protobuf_generate_hpp(
     TARGET any_demo
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
+hpp_proto_register_clang_tidy_input_targets(any_demo)
 
 add_subdirectory(regular)
 add_subdirectory(non_owning)

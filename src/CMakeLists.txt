@@ -56,6 +56,7 @@ protobuf_generate_hpp(
     TARGET well_known_types
     IMPORT_DIRS "${Protobuf_INCLUDE_DIRS}"
     PROTOC_OUT_DIR ${PROJECT_BINARY_DIR}/include)
+hpp_proto_register_clang_tidy_input_targets(well_known_types)
 install(TARGETS well_known_types EXPORT hpp_proto-targets
     FILE_SET HEADERS DESTINATION
     ${CMAKE_INSTALL_INCLUDEDIR})

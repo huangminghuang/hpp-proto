@@ -41,18 +41,21 @@ protobuf_generate_hpp(
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
     PROTOC_OPTIONS ${PROTOC3_OPTIONAL_OPTION}
 )
+hpp_proto_register_clang_tidy_input_targets(unittest_proto3_proto_lib)
 
 add_library(unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest.proto")
 protobuf_generate_hpp(
     TARGET unittest_proto_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
 )
+hpp_proto_register_clang_tidy_input_targets(unittest_proto_lib)
 
 add_library(map_unittest_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/map_unittest.proto")
 protobuf_generate_hpp(
     TARGET map_unittest_proto_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
 )
+hpp_proto_register_clang_tidy_input_targets(map_unittest_proto_lib)
 target_link_libraries(map_unittest_proto_lib INTERFACE unittest_proto_lib)
 
 add_library(unittest_well_known_types_proto_lib INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/google/protobuf/unittest_well_known_types.proto")
@@ -61,3 +64,4 @@ protobuf_generate_hpp(
     TARGET unittest_well_known_types_proto_lib
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
 )
+hpp_proto_register_clang_tidy_input_targets(unittest_well_known_types_proto_lib)
