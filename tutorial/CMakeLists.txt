@@ -22,6 +22,10 @@ if(PROJECT_IS_TOP_LEVEL)
   else()
     find_package(hpp_proto CONFIG REQUIRED)
   endif()
+  
+  function(hpp_proto_register_clang_tidy_input_targets)
+  endfunction()
+
 elseif(NOT HPP_PROTO_TESTS)
   return()
 endif()
