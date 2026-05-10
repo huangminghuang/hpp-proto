@@ -22,6 +22,10 @@ env:
 jobs:
   build_and_test_with_host_plugin:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cmake: ["3.28.3", "3.31.0"]
     steps:
       - uses: actions/checkout@v6
 
@@ -29,7 +33,7 @@ jobs:
         uses: aminya/setup-cpp@v1.8.0
         with:
           compiler: gcc-13
-          cmake: "3.31.0"
+          cmake: ${{ matrix.cmake }}
           ninja: true
 
       - name: Install protobuf/grpc tools
@@ -58,3 +62,43 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+      - name: Install external-plugin build
+        run: |
+          cmake --install build --prefix "${{ github.workspace }}/install-cross"
+
+      - name: Write cross consumer fixture
+        run: |
+          mkdir -p cross-consumer
+          cat > cross-consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.25)
+          project(hpp_proto_cross_consumer LANGUAGES CXX)
+
+          find_package(hpp_proto CONFIG REQUIRED)
+
+          add_library(cross_consumer_messages INTERFACE)
+          protobuf_generate_hpp(
+            TARGET cross_consumer_messages
+            PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/message.proto"
+            PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+          EOF
+          cat > cross-consumer/message.proto <<'EOF'
+          syntax = "proto3";
+          package hpp_proto_cross_consumer;
+
+          message Smoke {
+            string value = 1;
+          }
+          EOF
+          cat > cross-toolchain.cmake <<'EOF'
+          set(CMAKE_SYSTEM_NAME Generic)
+          EOF
+
+      - name: Configure installed package from cross consumer
+        run: |
+          cmake -S cross-consumer -B cross-consumer-build -G Ninja \
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/install-cross" \
+            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/cross-toolchain.cmake"
+
+      - name: Build cross consumer
+        run: cmake --build cross-consumer-build -j2
