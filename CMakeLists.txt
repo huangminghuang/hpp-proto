@@ -83,9 +83,15 @@ if(HPP_PROTO_PROTOC_GEN_HPP)
     message(FATAL_ERROR
       "HPP_PROTO_PROTOC_GEN_HPP does not exist: ${HPP_PROTO_PROTOC_GEN_HPP}")
   endif()
-  if(NOT IS_EXECUTABLE "${HPP_PROTO_PROTOC_GEN_HPP}")
+  if(IS_DIRECTORY "${HPP_PROTO_PROTOC_GEN_HPP}")
     message(FATAL_ERROR
-      "HPP_PROTO_PROTOC_GEN_HPP is not executable: ${HPP_PROTO_PROTOC_GEN_HPP}")
+      "HPP_PROTO_PROTOC_GEN_HPP must be a file: ${HPP_PROTO_PROTOC_GEN_HPP}")
+  endif()
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.29)
+    if(NOT IS_EXECUTABLE "${HPP_PROTO_PROTOC_GEN_HPP}")
+      message(FATAL_ERROR
+        "HPP_PROTO_PROTOC_GEN_HPP is not executable: ${HPP_PROTO_PROTOC_GEN_HPP}")
+    endif()
   endif()
 endif()
 
