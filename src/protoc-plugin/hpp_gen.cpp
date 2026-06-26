@@ -678,10 +678,25 @@ struct code_generator {
 
     for (auto [m, no_non_map_usage] : used_by_messages) {
       if (!no_non_map_usage) {
-        m->parent_message()->has_recursive_map_field = true;
-        m->parent_message()->dependencies.erase(depended);
-        m->parent_message()->forward_messages.insert(depended);
-        return m->parent_message();
+        auto *owner = m->parent_message();
+        // Only break this map edge when its owner is still unresolved (i.e.
+        // genuinely part of the stalled cycle). Returning an already-resolved owner
+        // makes no progress in order_messages' main loop (it is push_back'd onto
+        // resolved_messages but never removed from unresolved_messages), which can
+        // spin forever. Minimal repro:
+        //   message A { B b = 1; }
+        //   message B { A a = 1; }
+        //   message Container { map<string, A> by_name = 1; }
+        // The A<->B cycle stalls the sort; Container resolves early (its map value
+        // is indirect, so it has no hard dependency); resolve_map_dependency_cycle
+        // then keeps returning the already-resolved Container.
+        if (std::ranges::find(unresolved, owner) == unresolved.end()) {
+          continue;
+        }
+        owner->has_recursive_map_field = true;
+        owner->dependencies.erase(depended);
+        owner->forward_messages.insert(depended);
+        return owner;
       }
     }
     return nullptr;
@@ -987,6 +1002,21 @@ struct msg_code_generator : code_generator {
     for (auto &e : descriptor.enums()) {
       process(e);
     }
+
+    // Forward-declare every top-level message before emitting any definitions, so
+    // an indirect/map/repeated reference to a message defined later always sees a
+    // declaration regardless of definition order. The per-message forward_messages
+    // set only covers edges broken during cycle resolution, so a message using e.g.
+    // map<string, X> that is ordered before X would otherwise fail to compile
+    // ("X is not a member"). protoc's own C++ backend forward-declares all messages
+    // up front for the same reason. Duplicate template forward declarations are
+    // well-formed, so this composes with the existing per-message declarations.
+    for (auto &m : descriptor.messages()) {
+      if (!m.is_map_entry()) {
+        format_to(target, "template <typename Traits>\nstruct {};\n", m.cpp_name);
+      }
+    }
+    format_to(target, "\n");
 
     for (auto *m : order_messages(descriptor.messages())) {
       process(*m, descriptor.proto().package);
