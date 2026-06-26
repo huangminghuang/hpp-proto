@@ -90,6 +90,17 @@ add_hpp_proto_test(
     SOURCES hpp_options_test.cpp
     LINK_LIBRARIES hpp_options_test_lib)
 
+add_hpp_proto_generated_test_lib(
+    NAME recursive_map_cycle_lib
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/recursive_map_cycle.proto"
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+    PROTOC_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
+add_hpp_proto_test(
+    NAME recursive_map_cycle_test
+    SOURCES recursive_map_cycle_test.cpp
+    LINK_LIBRARIES Boost::ut hpp_proto::hpp_proto_core recursive_map_cycle_lib)
+
 add_hpp_proto_test(
     NAME read_json_consistency_test
     SOURCES read_json_consistency_test.cpp
