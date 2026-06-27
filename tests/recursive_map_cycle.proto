@@ -1,4 +1,4 @@
-edition = "2024";
+syntax = "proto3";
 
 package hpp_proto_test;
 
@@ -7,6 +7,11 @@ package hpp_proto_test;
 // generation hung in order_messages; a naive termination fix then emitted code
 // that did not compile (a map<> user could be ordered before the value type's
 // forward declaration).
+//
+// The bug lives in the plugin's message dependency sort, so it is independent of
+// proto syntax/edition; proto3 is used here so the regression compiles on every
+// CI protoc (the editions-based tests require a newer protoc and are guarded by
+// REQUIRES edition_support).
 message A {
   B b = 1;
 }
@@ -17,5 +22,5 @@ message B {
 
 message Container {
   map<string, A> by_name = 1;
-  int32 n = 2;
+  optional int32 n = 2;
 }
