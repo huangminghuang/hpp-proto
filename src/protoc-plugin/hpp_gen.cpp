@@ -584,6 +584,15 @@ struct code_generator {
   static std::vector<std::string> proto2_explicit_presences;
   static std::string directory_prefix;
   static bool preserve_proto_field_names;
+  // SPIKE: emit hand-friendly CONCRETE classes (std::string_view/std::span members,
+  // no Traits template) instead of trait-templated structs. Enabled via the
+  // plugin option "concrete=true".
+  static bool concrete;
+  // Concrete-only: retarget the package-derived namespace of the emitted metadata to
+  // this one (e.g. "pkg::api"), so the concrete classes coexist with the trait-
+  // templated pkg::proto (no ODR conflict). Option "concrete_namespace=pkg.api"
+  // (dotted; converted to ::). Empty = keep the proto package namespace.
+  static std::string concrete_namespace;
   std::size_t indent_num = 0;
   CodeGeneratorResponse::File &file;
   std::back_insert_iterator<std::string> target;
@@ -602,6 +611,51 @@ struct code_generator {
       return std::format("typename {}", type);
     }
     return std::string{type};
+  }
+
+  static void replace_all(std::string &s, std::string_view from, std::string_view to) {
+    if (from.empty()) {
+      return;
+    }
+    std::size_t pos = 0;
+    while ((pos = s.find(from, pos)) != std::string::npos) {
+      s.replace(pos, from.size(), to);
+      pos += to.size();
+    }
+  }
+
+  // Concrete-only: rewrite the package-derived namespace `from_ns` (e.g. pkg::proto, or
+  // pkg for a package-less file) to `to_ns` (e.g. pkg::api) in the fully-emitted file. The
+  // qualified-ref replace runs first (so it can't re-hit the block's `to_ns`); the
+  // namespace open/close are exact strings. Concrete output only references its own
+  // package's types plus google::/hpp_proto:: (untouched), so this is unambiguous.
+  static void retarget_concrete_namespace(std::string &content, const std::string &from_ns,
+                                          const std::string &to_ns) {
+    if (from_ns.empty() || to_ns.empty()) {
+      return;
+    }
+    replace_all(content, from_ns + "::", to_ns + "::");
+    replace_all(content, "namespace " + from_ns + " {", "namespace " + to_ns + " {");
+    replace_all(content, "} // namespace " + from_ns, "} // namespace " + to_ns);
+  }
+
+  // SPIKE: concrete mode skips msg_code_generator, which is where set_presence_rule
+  // normally runs. Replicate it here (shared by the meta + glaze concrete paths) so
+  // meta_options / glaze emit explicit_presence for oneof arms and proto3-optional
+  // fields. TODO(spike): fold this and msg_code_generator::set_presence_rule together.
+  static void set_concrete_presence(field_descriptor_t &f, std::string_view syntax) {
+    using enum FieldDescriptorProto::Label;
+    using enum FieldDescriptorProto::Type;
+    std::string qualified_name = std::string{f.qualified_parent_name()} + "." + f.proto().name;
+    f.is_cpp_optional =
+        (syntax != "proto2" || proto2_explicit_presences.empty())
+            ? f.explicit_presence()
+            : (f.proto().label == FieldDescriptorProto::Label::LABEL_OPTIONAL &&
+               (f.proto().type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
+                f.proto().type == FieldDescriptorProto::Type::TYPE_GROUP ||
+                std::ranges::any_of(proto2_explicit_presences, [&qualified_name](const auto &s) {
+                  return qualified_name.starts_with(std::string_view{s}.substr(1));
+                })));
   }
 
   explicit code_generator(std::vector<CodeGeneratorResponse::File> &files)
@@ -962,6 +1016,8 @@ std::string code_generator::plugin_parameters;
 std::vector<std::string> code_generator::proto2_explicit_presences;
 std::string code_generator::directory_prefix;
 bool code_generator::preserve_proto_field_names = false;
+bool code_generator::concrete = false;
+std::string code_generator::concrete_namespace;
 
 struct msg_code_generator : code_generator {
   std::string syntax;
@@ -1296,7 +1352,113 @@ struct hpp_meta_generator : code_generator {
   std::string syntax;
   using code_generator::code_generator;
 
+  // SPIKE concrete emission: out-of-line pb_meta + non-template codec entry points
+  // into a generated .pb.cpp, so using TUs never instantiate the serializer.
+
+  // pb_meta declaration only - the trailing return type carries the field metadata
+  // tuple, which read_binpb/write_binpb pick up via decltype + ADL. Member pointers
+  // bind to the hand-written concrete class -> any field drift is a compile error.
+  void emit_concrete_pb_meta(message_descriptor_t &descriptor) {
+    if (descriptor.is_map_entry()) {
+      return;
+    }
+    for (auto &f : descriptor.fields()) {
+      set_concrete_presence(f, syntax);
+    }
+    format_to(target, "auto pb_meta(const {0} &) -> std::tuple<\n", descriptor.cpp_name);
+    indent_num += 2;
+    bool any = false;
+    for (auto &f : descriptor.fields()) {
+      if (!f.proto().oneof_index.has_value()) {
+        process(f, 0UL); // scalar / string / repeated / map
+        any = true;
+      } else {
+        auto index = *f.proto().oneof_index;
+        auto &oneof = descriptor.oneofs()[index];
+        if (oneof.fields()[0].proto().number == f.proto().number) {
+          process(oneof, descriptor); // emits oneof_field_meta<...>,
+          any = true;
+        }
+      }
+    }
+    indent_num -= 2;
+    if (any) { // strip the trailing ",\n" left by the last entry, then close the tuple.
+      auto &content = file.content;
+      content.resize(content.size() - 2);
+    }
+    format_to(target, ">;\n\n");
+
+    // Nested non-map messages (e.g. UpdateResponse.Error) get their pb_meta emitted
+    // inside the `Foo_` namespace, mirroring the hpp-proto nested-type convention so the
+    // member pointers (&Error::id) and ADL resolve to pkg::proto::UpdateResponse_::Error.
+    if (descriptor.has_non_map_nested_message) {
+      format_to(target, "namespace {}_ {{\n", descriptor.cpp_name);
+      for (auto &m : descriptor.messages()) {
+        if (!m.is_map_entry()) {
+          emit_concrete_pb_meta(m);
+        }
+      }
+      format_to(target, "}} // namespace {}_\n\n", descriptor.cpp_name);
+    }
+  }
+
+  // The out-of-line codec instantiation. read/write_binpb here see every pb_meta above
+  // via ADL, so emitting these AFTER all pb_meta makes cross-message references
+  // (oneof arms, map values) order-independent.
+  void emit_concrete_entry_points(message_descriptor_t &descriptor) {
+    if (descriptor.is_map_entry()) {
+      return;
+    }
+    format_to(target,
+              "bool decode({0} &msg, std::span<const std::byte> data, std::pmr::memory_resource &arena) {{\n"
+              // Non-padded read: the caller need not guarantee a readable trailing byte
+              // (mmap'd file reads, raw gRPC ByteBuffers). padded_input is only a varint
+              // end-check elision; decode is not on the hot path, so default to safe.
+              "  return ::hpp_proto::read_binpb(msg, data, ::hpp_proto::alloc_from(arena)).ok();\n"
+              "}}\n"
+              "bool encode(const {0} &msg, std::vector<std::byte> &out) {{\n"
+              "  return ::hpp_proto::write_binpb(msg, out).ok();\n"
+              "}}\n\n",
+              descriptor.cpp_name);
+  }
+
+  void process_concrete(file_descriptor_t &descriptor) {
+    auto file_name = descriptor.proto().name;
+    gen_file_header(file_name);
+    file.name = file_name.substr(0, file_name.size() - proto_suffix_length) + "pb.cpp";
+    syntax = descriptor.syntax;
+    // Include the HAND-WRITTEN message header (convention: <stem>.hpp). It declares
+    // the concrete structs (e.g. demo::PhraseQuery) plus the decode/encode entry
+    // points defined below. The generator does NOT emit the struct - the human owns it.
+    format_to(target,
+              "#include \"{}.hpp\"\n"
+              "#include <hpp_proto/binpb.hpp>\n\n",
+              basename(descriptor.proto().name, directory_prefix));
+    auto package = descriptor.proto().package;
+    auto ns = make_qualified_cpp_name(descriptor.namespace_prefix, "." + package);
+    if (!ns.empty()) {
+      format_to(target, "namespace {} {{\n\n", ns);
+    }
+    // Two passes: all pb_meta first (so member-pointer-bound metadata for every message
+    // is declared), then all entry points (each instantiates the serializer).
+    for (auto &m : descriptor.messages()) {
+      emit_concrete_pb_meta(m);
+    }
+    for (auto &m : descriptor.messages()) {
+      emit_concrete_entry_points(m);
+    }
+    if (!ns.empty()) {
+      format_to(target, "}} // namespace {}\n", ns);
+    }
+    format_to(target, "// clang-format on\n");
+    retarget_concrete_namespace(file.content, ns, concrete_namespace);
+  }
+
   void process(file_descriptor_t &descriptor) {
+    if (concrete) {
+      process_concrete(descriptor);
+      return;
+    }
     auto file_name = descriptor.proto().name;
     gen_file_header(file_name);
     file.name = file_name.substr(0, file_name.size() - proto_suffix_length) + "pb.hpp";
@@ -1415,6 +1577,32 @@ struct hpp_meta_generator : code_generator {
     return options;
   }
   // NOLINTEND(misc-no-recursion)
+
+  // SPIKE: concrete (non-templated) meta type for a map key/value sub-field, mirroring
+  // get_meta_type but emitting concrete view types instead of Traits:: forms.
+  static std::string concrete_map_meta_type(field_descriptor_t &field) {
+    using enum FieldDescriptorProto::Type;
+    switch (field.proto().type) {
+    case FieldDescriptorProto::Type::TYPE_STRING:
+      return "std::string_view";
+    case FieldDescriptorProto::Type::TYPE_BYTES:
+      return "std::span<const std::byte>";
+    case FieldDescriptorProto::Type::TYPE_MESSAGE:
+    case FieldDescriptorProto::Type::TYPE_GROUP: {
+      // strip the trailing <Traits> the templated qualified name carries.
+      std::string name = field.qualified_cpp_field_type;
+      if (auto pos = name.find('<'); pos != std::string::npos) {
+        name.resize(pos);
+      }
+      // by-value for non-recursive value types; indirect_view only for recursion.
+      return field.is_recursive ? std::format("::hpp_proto::indirect_view<{}>", name) : name;
+    }
+    default:
+      // scalar: the wire meta type (vint64_t, ...) or the plain concrete numeric type.
+      return field.cpp_meta_type == "void" ? field.qualified_cpp_field_type : field.cpp_meta_type;
+    }
+  }
+
   // NOLINTBEGIN(readability-function-cognitive-complexity)
   void process(field_descriptor_t &descriptor, std::size_t oneof_index) {
     auto options = meta_options(descriptor);
@@ -1427,7 +1615,18 @@ struct hpp_meta_generator : code_generator {
         return field.cpp_meta_type == "void" ? field.qualified_cpp_field_type : field.cpp_meta_type;
       };
       auto *type_desc = descriptor.message_field_type_descriptor();
-      if (type_desc->fields()[1].is_recursive) {
+      if (concrete) {
+        // map_entry<Kconcrete, Vconcrete, keyopts, valopts>. The element types must
+        // stay in sync with the hand-written map_view<K,V> (span-of-pair<K,V>):
+        // string->string_view; non-recursive message value stored BY VALUE; recursion
+        // -> indirect_view<V>. keyopts/valopts reuse meta_options (utf8_validation for
+        // a string key, none for a message value).
+        descriptor.cpp_meta_type = std::format(
+            "::hpp_proto::map_entry<{}, {}, {}, {}>", concrete_map_meta_type(type_desc->fields()[0]),
+            concrete_map_meta_type(type_desc->fields()[1]),
+            join_to_string(meta_options(type_desc->fields()[0]), " | "),
+            join_to_string(meta_options(type_desc->fields()[1]), " | "));
+      } else if (type_desc->fields()[1].is_recursive) {
         descriptor.cpp_meta_type = std::format(
             "::hpp_proto::map_entry<{}, typename Traits::template indirect_t<{}>, {}, {}>",
             type_as_template_arg(get_meta_type(type_desc->fields()[0])), get_meta_type(type_desc->fields()[1]),
@@ -1456,9 +1655,9 @@ struct hpp_meta_generator : code_generator {
       }
     }
 
-    auto cpp_name = (descriptor.parent_message() == nullptr)
-                        ? descriptor.cpp_name
-                        : descriptor.parent_message()->cpp_name + "<Traits>::" + descriptor.cpp_name;
+    auto cpp_name = (descriptor.parent_message() == nullptr) ? descriptor.cpp_name
+                    : concrete ? descriptor.parent_message()->cpp_name + "::" + descriptor.cpp_name
+                               : descriptor.parent_message()->cpp_name + "<Traits>::" + descriptor.cpp_name;
 
     if (descriptor.extendee_descriptor() == nullptr) {
       std::string access = (oneof_index == 0) ? "&" + cpp_name : std::to_string(oneof_index);
@@ -1533,7 +1732,11 @@ struct hpp_meta_generator : code_generator {
       }
       format_to(target, "{}::hpp_proto::oneof_field_meta<\n", indent());
       indent_num += 2;
-      format_to(target, "{}&{}::{},\n", indent(), parent.no_namespace_qualified_name, descriptor.cpp_name);
+      // concrete: bind to the hand-written std::variant member by pointer (no <Traits>).
+      // arm field_metas stay index-based (set below) - the codec dispatches on the
+      // variant alternative type, so no member pointer / arm type is needed per arm.
+      format_to(target, "{}&{}::{},\n", indent(),
+                concrete ? parent.cpp_name : parent.no_namespace_qualified_name, descriptor.cpp_name);
       std::size_t i = 0;
       for (auto &f : fields) {
         process(f, ++i);
@@ -1552,9 +1755,122 @@ struct hpp_meta_generator : code_generator {
 };
 
 struct glaze_meta_generator : code_generator {
+  std::string syntax;
   using code_generator::code_generator;
 
+  // SPIKE concrete emission: glz::meta + out-of-line read_json/write_json entry points
+  // into a generated .json.cpp, bound to the hand-written classes. Reuses the templated
+  // process(field)/process(oneof) bodies (as_optional_ref / as_oneof_member by member
+  // name are already concrete) - only the glz::meta wrapper is de-templatized.
+
+  // concrete fully-qualified name: strip the trailing <Traits> the qualified name carries.
+  static std::string concrete_qualified(const message_descriptor_t &descriptor) {
+    std::string name = descriptor.qualified_name;
+    if (auto pos = name.find('<'); pos != std::string::npos) {
+      name.resize(pos);
+    }
+    return name;
+  }
+
+  void emit_concrete_glz_meta(message_descriptor_t &descriptor) {
+    if (descriptor.is_map_entry()) {
+      return;
+    }
+    std::string name = concrete_qualified(descriptor);
+    for (auto &f : descriptor.fields()) {
+      set_concrete_presence(f, syntax);
+    }
+    format_to(target,
+              "template <>\n"
+              "struct glz::meta<{0}> {{\n"
+              "  using T = {0};\n"
+              "  static constexpr auto value = object(\n",
+              name);
+    for (auto &f : descriptor.fields()) {
+      if (!f.proto().oneof_index.has_value()) {
+        process(f); // "name", as_optional_ref<&T::member> (+ snake alias)
+      } else {
+        auto index = *f.proto().oneof_index;
+        auto &oneof = descriptor.oneofs()[index];
+        if (oneof.fields()[0].proto().number == f.proto().number) {
+          process(oneof); // "arm", as_oneof_member<&T::kind, idx> (+ alias)
+        }
+      }
+    }
+    if (!descriptor.fields().empty()) {
+      auto &content = file.content;
+      content.resize(content.size() - 2); // strip trailing ",\n"
+    }
+    format_to(target,
+              ");\n"
+              "}};\n\n"
+              "template <>\n"
+              "struct hpp_proto::has_glz<{0}> : std::true_type {{}};\n\n",
+              name);
+
+    // Nested enums (SortDir, Operator, Status, FieldClass, Metric, Mode) need their own
+    // glz::meta (enumerate); nested non-map messages (UpdateResponse.Error) need glz::meta
+    // too. process(enum)/this recurse use the qualified `Foo_::Bar` names (enum has no
+    // <Traits>; message qualified name is stripped of <Traits> by concrete_qualified).
+    for (auto &e : descriptor.enums()) {
+      process(e);
+    }
+    for (auto &m : descriptor.messages()) {
+      if (!m.is_map_entry()) {
+        emit_concrete_glz_meta(m);
+      }
+    }
+  }
+
+  void emit_concrete_json_entry_points(message_descriptor_t &descriptor) {
+    if (descriptor.is_map_entry()) {
+      return;
+    }
+    // Qualified ::hpp_proto::*_json calls (no ADL) so demo::read_json doesn't recurse.
+    format_to(target,
+              "bool write_json(const {0} &msg, std::string &out) {{\n"
+              "  return ::hpp_proto::write_json(msg, out).ok();\n"
+              "}}\n"
+              "bool read_json({0} &msg, std::string_view json, std::pmr::memory_resource &arena) {{\n"
+              "  return ::hpp_proto::read_json(msg, json, ::hpp_proto::alloc_from(arena)).ok();\n"
+              "}}\n\n",
+              descriptor.cpp_name);
+  }
+
+  void process_concrete(file_descriptor_t &descriptor) {
+    auto file_name = descriptor.proto().name;
+    gen_file_header(file_name);
+    file.name = file_name.substr(0, file_name.size() - proto_suffix_length) + "json.cpp";
+    syntax = descriptor.syntax;
+    format_to(target,
+              "#include \"{}.hpp\"\n"
+              "#include <hpp_proto/json.hpp>\n\n",
+              basename(descriptor.proto().name, directory_prefix));
+    // pass 1: glz::meta + has_glz specializations (global scope), order-independent.
+    for (auto &m : descriptor.messages()) {
+      emit_concrete_glz_meta(m);
+    }
+    // pass 2: read_json/write_json entry points (in the package namespace).
+    auto package = descriptor.proto().package;
+    auto ns = make_qualified_cpp_name(descriptor.namespace_prefix, "." + package);
+    if (!ns.empty()) {
+      format_to(target, "namespace {} {{\n\n", ns);
+    }
+    for (auto &m : descriptor.messages()) {
+      emit_concrete_json_entry_points(m);
+    }
+    if (!ns.empty()) {
+      format_to(target, "}} // namespace {}\n", ns);
+    }
+    format_to(target, "// clang-format on\n");
+    retarget_concrete_namespace(file.content, ns, concrete_namespace);
+  }
+
   void process(file_descriptor_t &descriptor) {
+    if (concrete) {
+      process_concrete(descriptor);
+      return;
+    }
     auto file_name = descriptor.proto().name;
     gen_file_header(file_name);
     file.name = file_name.substr(0, file_name.size() - proto_suffix_length) + "glz.hpp";
@@ -2165,6 +2481,10 @@ int main(int argc, const char **argv) {
       code_generator::proto2_explicit_presences.emplace_back(opt_value);
     } else if (opt_key == "preserve_proto_field_names") {
       code_generator::preserve_proto_field_names = (opt_value == "true" || opt_value.empty());
+    } else if (opt_key == "concrete_namespace") {
+      code_generator::concrete_namespace = make_qualified_cpp_name("", opt_value);
+    } else if (opt_key == "concrete") {
+      code_generator::concrete = (opt_value == "true" || opt_value.empty());
     } else if (opt_key == "export_request") {
       std::ofstream out{std::string(opt_value), std::ios::binary};
       if (!out) {
@@ -2207,22 +2527,37 @@ int main(int argc, const char **argv) {
       return 1;
     }
 
-    msg_code_generator msg_code(response.file);
-    msg_code.process(*descriptor);
+    // SPIKE: concrete mode emits ONLY the out-of-line .pb.cpp metadata (pb_meta +
+    // codec entry points) bound to HAND-WRITTEN message structs. The struct
+    // (.msg.hpp), glaze, descriptor, and service emitters all target the templated
+    // shape and are skipped (the human owns the classes; JSON/glaze comes next).
+    if (!code_generator::concrete) {
+      msg_code_generator msg_code(response.file);
+      msg_code.process(*descriptor);
+    } else {
+      // Concrete mode skips msg_code_generator, which is where order_messages() runs the
+      // map/repeated cycle resolution that sets field.is_recursive. Run it here (discard
+      // the order) so concrete_map_meta_type emits indirect_view<V> for recursive map
+      // values (e.g. map<string,Val>) instead of an incomplete by-value V.
+      (void)code_generator::order_messages((*descriptor).messages());
+    }
 
     hpp_meta_generator hpp_meta_code(response.file);
     hpp_meta_code.process(*descriptor);
 
+    // glaze runs in both modes (concrete -> .json.cpp out-of-line; default -> .glz.hpp).
     glaze_meta_generator glz_meta_code(response.file);
     glz_meta_code.process(*descriptor);
 
-    if (!descriptor->messages().empty()) {
-      desc_hpp_generator desc_hpp_code(response.file);
-      desc_hpp_code.process(*descriptor);
-    }
+    if (!code_generator::concrete) {
+      if (!descriptor->messages().empty()) {
+        desc_hpp_generator desc_hpp_code(response.file);
+        desc_hpp_code.process(*descriptor);
+      }
 
-    service_generator service_code(response.file);
-    service_code.process(*descriptor);
+      service_generator service_code(response.file);
+      service_code.process(*descriptor);
+    }
   }
 
   std::vector<char> data;
