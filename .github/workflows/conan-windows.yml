@@ -45,6 +45,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: ilammy/msvc-dev-cmd@v1
+
       - name: setup cpp tools
         uses: aminya/setup-cpp@v1.8.0
         with:
@@ -79,7 +81,7 @@ jobs:
       - name: create package
         run: |
           conan create . `
-            -c tools.cmake.cmaketoolchain:generator=Ninja `
+            -c:a tools.cmake.cmaketoolchain:generator=Ninja `
             -s:h build_type=Release `
             -s:h compiler.cppstd=23 `
             -s:b build_type=Release `
@@ -90,7 +92,7 @@ jobs:
       - name: install dependencies
         run: |
           conan install tutorial `
-            -c tools.cmake.cmaketoolchain:generator=Ninja `
+            -c:a tools.cmake.cmaketoolchain:generator=Ninja `
             -s:h build_type=Release `
             -s:b build_type=Release `
             -s:h compiler.cppstd=23 `
