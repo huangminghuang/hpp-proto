@@ -37,6 +37,17 @@ enum class serialization_mode : uint8_t { contiguous, adaptive, chunked };
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 namespace hpp_proto::pb_serializer {
 
+// std::optional is a range in C++26 (P3168), which would make a singular
+// optional<message> field ambiguous between the optional/dereferenceable serializer
+// overload and the repeated-field (range) overload. The range overloads below
+// exclude `concepts::optional` (which matches both std::optional and hpp_proto's
+// optional). The serialize_field range overload is additionally made disjoint from
+// the contiguous_byte_range (bytes) overload, so disambiguation does not rely on
+// concept subsumption (which is fragile across std library range concepts).
+template <typename T>
+concept serialize_repeated_range =
+    std::ranges::range<T> && !concepts::contiguous_byte_range<T> && !concepts::optional<T>;
+
 template <concepts::is_size_cache_iterator Iterator>
 constexpr decltype(auto) consume_size_cache_entry(Iterator &iterator) {
   decltype(auto) entry = *iterator;
@@ -229,7 +240,8 @@ struct size_cache_counter<T> {
   }
 
   template <typename Meta>
-  constexpr static std::size_t count(std::ranges::input_range auto const &item, Meta meta) {
+  constexpr static std::size_t count(std::ranges::input_range auto const &item, Meta meta)
+    requires(!concepts::optional<std::remove_cvref_t<decltype(item)>>) {
     using type = std::remove_cvref_t<decltype(item)>;
     if constexpr (concepts::contiguous_byte_range<type>) {
       return 0;
@@ -436,7 +448,8 @@ struct message_size_calculator<T> {
 
   template <typename Meta>
   constexpr static uint64_t field_size(std::ranges::input_range auto const &item, Meta meta,
-                                       concepts::is_size_cache_iterator auto &cache_itr) {
+                                       concepts::is_size_cache_iterator auto &cache_itr)
+    requires(!concepts::optional<std::remove_cvref_t<decltype(item)>>) {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto tag_size = static_cast<uint64_t>(varint_size(meta.number << 3U));
     if constexpr (concepts::contiguous_byte_range<type>) {
@@ -702,7 +715,7 @@ template <concepts::dereferenceable T>
   }
 }
 
-[[nodiscard]] constexpr bool serialize_field(std::ranges::range auto const &item, auto meta,
+[[nodiscard]] constexpr bool serialize_field(serialize_repeated_range auto const &item, auto meta,
                                              concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
   using Meta = decltype(meta);
   using type = std::remove_cvref_t<decltype(item)>;
