@@ -79,6 +79,7 @@ jobs:
       - name: create package
         run: |
           conan create . `
+            -c tools.cmake.cmaketoolchain:generator=Ninja `
             -s:h build_type=Release `
             -s:h compiler.cppstd=23 `
             -s:b build_type=Release `
@@ -89,6 +90,7 @@ jobs:
       - name: install dependencies
         run: |
           conan install tutorial `
+            -c tools.cmake.cmaketoolchain:generator=Ninja `
             -s:h build_type=Release `
             -s:b build_type=Release `
             -s:h compiler.cppstd=23 `
