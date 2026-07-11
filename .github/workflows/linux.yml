@@ -31,15 +31,23 @@
             - os: ubuntu-24.04
               compiler: gcc-14
               cmake_preset: ci-linux-release
+              cpp_standard: 23
             - os: ubuntu-24.04
               compiler: llvm-20
               cmake_preset: ci-linux-release
+              cpp_standard: 23
+            - os: ubuntu-24.04
+              compiler: llvm-22
+              cmake_preset: ci-linux-release
+              cpp_standard: 26
             - os: ubuntu-24.04
               compiler: llvm-20
               cmake_preset: ci-linux-asan-ubsan
+              cpp_standard: 23
             - os: ubuntu-24.04
               compiler: gcc-13
               cmake_preset: ci-linux-coverage
+              cpp_standard: 23
 
       runs-on: ${{ matrix.os }}
       defaults:
@@ -68,15 +76,15 @@
         - uses: actions/cache@v5
           with:
             path: "**/cpm_modules"
-            key: ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.cmake_preset }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
+            key: ${{ runner.os }}-${{ matrix.compiler }}-cxx${{ matrix.cpp_standard }}-${{ matrix.cmake_preset }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
         - name: Cache ccache
           uses: actions/cache@v5
           with:
             path: ${{ env.CCACHE_DIR }}
-            key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.cmake_preset }}-ccache-${{ github.sha }}
+            key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.compiler }}-cxx${{ matrix.cpp_standard }}-${{ matrix.cmake_preset }}-ccache-${{ github.sha }}
             restore-keys: |
-              ${{ github.workflow }}-${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.cmake_preset }}-ccache-
+              ${{ github.workflow }}-${{ runner.os }}-${{ matrix.compiler }}-cxx${{ matrix.cpp_standard }}-${{ matrix.cmake_preset }}-ccache-
   
         - name: install lcov
           if: matrix.cmake_preset == 'ci-linux-coverage'
@@ -84,7 +92,7 @@
             sudo apt-get install -y lcov
             
         - name: configure
-          run: cmake --preset "${{ matrix.cmake_preset }}"
+          run: cmake --preset "${{ matrix.cmake_preset }}" -DCMAKE_CXX_STANDARD=${{ matrix.cpp_standard }}
   
         - name: build
           run: cmake --build build -j"$(nproc)"
