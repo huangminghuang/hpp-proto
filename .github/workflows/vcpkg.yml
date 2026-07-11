@@ -20,16 +20,16 @@ on:
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
   VCPKG_DEFAULT_TRIPLET: x64-linux
-  PROTOC_VERSION: "34.0"
-  PROTOC_ZIP: protoc-34.0-linux-x86_64.zip
-  PROTOC_SHA256: e9a91b6fcfe4177ec2cd35fc8f15c1e811fa0ecdef9372755cd6d3513d5faaab
+  PROTOC_VERSION: "35.0"
+  PROTOC_ZIP: protoc-35.0-linux-x86_64.zip
+  PROTOC_SHA256: a45cda0989c17dd950db55f6fbe1e5814c50fda08e87aa422980ac1f89dddbbc
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: install build tools
         run: |
@@ -52,9 +52,9 @@ jobs:
           echo "PROTOC_BIN=$PROTOC_DIR/bin" >> "$GITHUB_ENV"
 
       - name: Setup required C++ tools
-        uses: aminya/setup-cpp@v1.8.0
+        uses: aminya/setup-cpp@v1.8.1
         with:
-          cmake: "3.31.0"
+          cmake: "4.4.0"
           ninja: true
           vcpkg: true
 

@@ -34,14 +34,14 @@ jobs:
             compiler_env: mingw
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
         if: ${{ matrix.compiler_env == 'msvc' }}
 
       - name: Setup MinGW
         if: ${{ matrix.compiler_env == 'mingw' }}
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@v2.32.0
         with:
           update: true
           install: mingw-w64-x86_64-gcc
@@ -51,13 +51,13 @@ jobs:
         shell: pwsh
         run: Add-Content -Path $env:GITHUB_PATH -Value "C:\msys64\mingw64\bin"
 
-      - uses: actions/cache@v5
+      - uses: actions/cache@v6
         with:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: Cache ccache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-${{ matrix.compiler_env }}-ccache-${{ github.sha }}
@@ -65,18 +65,18 @@ jobs:
             ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-${{ matrix.compiler_env }}-ccache-
 
       - name: Setup required C++ tools
-        uses: aminya/setup-cpp@v1.8.0
+        uses: aminya/setup-cpp@v1.8.1
         with:
-          cmake: "3.31.0"
+          cmake: "4.4.0"
           ninja: true
           ccache: true
 
       - name: Install Protoc
         shell: pwsh
         run: |
-          $version = "34.0"
+          $version = "35.0"
           $zip = "protoc-$version-win64.zip"
-          $sha256 = "76ddeb5ae7a31c8f9f7759d3b843a4cadda2150ac037ad0c1794665d6cf31fce"
+          $sha256 = "d1cede9e308cc3eb072392af1c02ccae4bdd3d2f374ec2970dbd8cdfdaa91363"
           $url = "https://github.com/protocolbuffers/protobuf/releases/download/v$version/$zip"
           $dest = "$env:RUNNER_TEMP\protoc"
           $zipPath = "$dest\$zip"

@@ -6,7 +6,7 @@ if(CMAKE_VERSION GREATER_EQUAL 3.25)
     set(system_package SYSTEM)
 endif()
 
-set(HPP_PROTO_GLAZE_VERSION 7.4.0)
+set(HPP_PROTO_GLAZE_VERSION 7.8.4)
 CPMAddPackage(
     NAME glaze
     GIT_TAG v${HPP_PROTO_GLAZE_VERSION}
@@ -40,7 +40,7 @@ else()
     set(is_utf8_ADDED OFF)
 endif()
 
-set(HPP_PROTO_PROTOC_VERSION "34.0")
+set(HPP_PROTO_PROTOC_VERSION "35.0")
 
 if(HPP_PROTO_CORE_TESTS_ONLY)
     message(STATUS "HPP_PROTO_CORE_TESTS_ONLY=ON: skipping protoc setup")
@@ -70,7 +70,7 @@ if(HPP_PROTO_BENCHMARKS)
     CPMAddPackage(
         NAME benchmark
         GITHUB_REPOSITORY google/benchmark
-        VERSION 1.9.4
+        VERSION 1.9.5
         OPTIONS
         "BENCHMARK_ENABLE_TESTING OFF"
         "BENCHMARK_ENABLE_INSTALL OFF"

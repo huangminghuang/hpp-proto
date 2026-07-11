@@ -10,11 +10,13 @@ add_library(hpp_benchmark_messages_lib INTERFACE ${proto_files})
 protobuf_generate_hpp(TARGET hpp_benchmark_messages_lib
     PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/hpp
     PLUGIN_OPTIONS "namespace_prefix=hpp")
+target_include_directories(hpp_benchmark_messages_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(google_benchmark_messages_lib OBJECT ${proto_files})
 protobuf_generate(TARGET google_benchmark_messages_lib
     LANGUAGE cpp)
 target_link_libraries(google_benchmark_messages_lib PUBLIC protobuf::libprotobuf)
+target_include_directories(google_benchmark_messages_lib PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(google_benchmark_messages_lite_lib OBJECT benchmark_messages_proto3_lite.proto)
 protobuf_generate(TARGET google_benchmark_messages_lite_lib
