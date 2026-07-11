@@ -32,18 +32,20 @@ jobs:
         include:
           - name: conan-protobuf-binary-shared
             with_protobuf: "True"
-            cmake_configure_preset: conan-default
+            cmake_configure_preset: conan-release
             cmake_build_preset: conan-release
             build_shared_libs: "ON"
           - name: system-protobuf-cpp23-static
             with_protobuf: "False"
-            cmake_configure_preset: conan-default
+            cmake_configure_preset: conan-release
             cmake_build_preset: conan-release
             build_shared_libs: "OFF"
     name: ${{ matrix.name }}
 
     steps:
       - uses: actions/checkout@v6
+
+      - uses: ilammy/msvc-dev-cmd@v1
 
       - name: setup cpp tools
         uses: aminya/setup-cpp@v1.8.0
@@ -79,6 +81,7 @@ jobs:
       - name: create package
         run: |
           conan create . `
+            -c:a tools.cmake.cmaketoolchain:generator=Ninja `
             -s:h build_type=Release `
             -s:h compiler.cppstd=23 `
             -s:b build_type=Release `
@@ -89,6 +92,7 @@ jobs:
       - name: install dependencies
         run: |
           conan install tutorial `
+            -c:a tools.cmake.cmaketoolchain:generator=Ninja `
             -s:h build_type=Release `
             -s:b build_type=Release `
             -s:h compiler.cppstd=23 `

@@ -678,10 +678,25 @@ struct code_generator {
 
     for (auto [m, no_non_map_usage] : used_by_messages) {
       if (!no_non_map_usage) {
-        m->parent_message()->has_recursive_map_field = true;
-        m->parent_message()->dependencies.erase(depended);
-        m->parent_message()->forward_messages.insert(depended);
-        return m->parent_message();
+        auto *owner = m->parent_message();
+        // Only break this map edge when its owner is still unresolved (i.e.
+        // genuinely part of the stalled cycle). Returning an already-resolved owner
+        // makes no progress in order_messages' main loop (it is push_back'd onto
+        // resolved_messages but never removed from unresolved_messages), which can
+        // spin forever. Minimal repro:
+        //   message A { B b = 1; }
+        //   message B { A a = 1; }
+        //   message Container { map<string, A> by_name = 1; }
+        // The A<->B cycle stalls the sort; Container resolves early (its map value
+        // is indirect, so it has no hard dependency); resolve_map_dependency_cycle
+        // then keeps returning the already-resolved Container.
+        if (std::ranges::find(unresolved, owner) == unresolved.end()) {
+          continue;
+        }
+        owner->has_recursive_map_field = true;
+        owner->dependencies.erase(depended);
+        owner->forward_messages.insert(depended);
+        return owner;
       }
     }
     return nullptr;
@@ -988,6 +1003,21 @@ struct msg_code_generator : code_generator {
       process(e);
     }
 
+    // Forward-declare every top-level message before emitting any definitions, so
+    // an indirect/map/repeated reference to a message defined later always sees a
+    // declaration regardless of definition order. The per-message forward_messages
+    // set only covers edges broken during cycle resolution, so a message using e.g.
+    // map<string, X> that is ordered before X would otherwise fail to compile
+    // ("X is not a member"). protoc's own C++ backend forward-declares all messages
+    // up front for the same reason. Duplicate template forward declarations are
+    // well-formed, so this composes with the existing per-message declarations.
+    for (auto &m : descriptor.messages()) {
+      if (!m.is_map_entry()) {
+        format_to(target, "template <typename Traits>\nstruct {};\n", m.cpp_name);
+      }
+    }
+    format_to(target, "\n");
+
     for (auto *m : order_messages(descriptor.messages())) {
       process(*m, descriptor.proto().package);
     }
@@ -1052,6 +1082,28 @@ struct msg_code_generator : code_generator {
     return descriptor.cpp_field_type;
   }
 
+  static bool needs_indirect_oneof_alternative(field_descriptor_t &descriptor) {
+    using enum FieldDescriptorProto::Type;
+    auto type = descriptor.proto().type;
+    if (type != TYPE_MESSAGE && type != TYPE_GROUP) {
+      return false;
+    }
+
+    auto *parent = descriptor.parent_message();
+    auto *message_type = descriptor.message_field_type_descriptor();
+    return parent != nullptr && message_type != nullptr && message_type->forward_messages.contains(parent);
+  }
+
+  static std::string oneof_field_type(field_descriptor_t &descriptor) {
+    if (needs_indirect_oneof_alternative(descriptor)) {
+      return std::format(
+          "std::conditional_t<std::same_as<Traits, ::hpp_proto::non_owning_traits>, {0}, typename Traits::template "
+          "indirect_t<{0}>>",
+          type_as_template_arg(descriptor.cpp_field_type));
+    }
+    return type_as_template_arg(descriptor.cpp_field_type);
+  }
+
   void set_presence_rule(field_descriptor_t &descriptor) const {
     using enum FieldDescriptorProto::Type;
     using enum FieldDescriptorProto::Label;
@@ -1109,7 +1161,7 @@ struct msg_code_generator : code_generator {
 
       for (auto &f : fields) {
         format_to(target, ", {}U", f.proto().number);
-        types += (", " + type_as_template_arg(f.cpp_field_type));
+        types += (", " + oneof_field_type(f));
       }
       format_to(target, "}};\n");
       format_to(target, "{}// NOLINTNEXTLINE(readability-redundant-typename)\n", indent());
@@ -1622,6 +1674,22 @@ struct glaze_meta_generator : code_generator {
       format_to(target,
                 // clang-format off
                      "namespace glz {{\n"
+                     "template <typename T>\n"
+                     "decltype(auto) value_fields(T &value) {{\n"
+                     "  if constexpr (requires {{ value.fields; }}) {{\n"
+                     "    return (value.fields);\n"
+                     "  }} else {{\n"
+                     "    return ((*value).fields);\n"
+                     "  }}\n"
+                     "}}\n\n"
+                     "template <typename T>\n"
+                     "decltype(auto) value_values(T &value) {{\n"
+                     "  if constexpr (requires {{ value.values; }}) {{\n"
+                     "    return (value.values);\n"
+                     "  }} else {{\n"
+                     "    return ((*value).values);\n"
+                     "  }}\n"
+                     "}}\n\n"
                      "template <typename Traits>\n"
                      "struct to<JSON, {0}> {{\n"
                      "  template <auto Opts>\n"
@@ -1629,10 +1697,14 @@ struct glaze_meta_generator : code_generator {
                      "    std::visit(\n"
                      "        [&ctx, &b, &ix](auto &v) {{\n"
                      "          using type = std::decay_t<decltype(v)>;\n"
-                     "          if constexpr (std::same_as<type, {1}::ListValue<Traits>>) {{\n"
+                     "          if constexpr (requires {{ v.values; }}) {{\n"
                      "            serialize<JSON>::template op<Opts>(v.values, ctx, b, ix);\n"
-                     "          }} else if constexpr (std::same_as<type, {1}::Struct<Traits>>) {{\n"
+                     "          }} else if constexpr (requires {{ (*v).values; }}) {{\n"
+                     "            serialize<JSON>::template op<Opts>((*v).values, ctx, b, ix);\n"
+                     "          }} else if constexpr (requires {{ v.fields; }}) {{\n"
                      "            serialize<JSON>::template op<Opts>(v.fields, ctx, b, ix);\n"
+                     "          }} else if constexpr (requires {{ (*v).fields; }}) {{\n"
+                     "            serialize<JSON>::template op<Opts>((*v).fields, ctx, b, ix);\n"
                      "          }} else if constexpr (!std::same_as<type, std::monostate>) {{\n"
                      "            serialize<JSON>::template op<Opts>(v, ctx, b, ix);\n"
                      "          }}\n"
@@ -1668,11 +1740,13 @@ struct glaze_meta_generator : code_generator {
                      "    }} else if (*it == 't' || *it == 'f') {{\n"
                      "      parse<JSON>::op<Opts>(value.kind.template emplace<bool>(), ctx, it, end);\n"
                      "    }} else if (*it == '{{') {{\n"
-                     "      auto& fields = value.kind.template emplace<{0}::kind_oneof_case::struct_value>().fields;\n"
+                     "      auto& struct_value = value.kind.template emplace<{0}::kind_oneof_case::struct_value>();\n"
+                     "      decltype(auto) fields = value_fields(struct_value);\n"
                      "      decltype(auto) v = hpp_proto::detail::as_modifiable(ctx, fields);\n"
                      "      util::parse_repeated<Opts>(true, v, ctx, it, end);\n"                       
                      "    }} else if (*it == '[') {{\n"
-                     "      auto& values = value.kind.template emplace<{0}::kind_oneof_case::list_value>().values;\n"
+                     "      auto& list_value = value.kind.template emplace<{0}::kind_oneof_case::list_value>();\n"
+                     "      decltype(auto) values = value_values(list_value);\n"
                      "      decltype(auto) v = hpp_proto::detail::as_modifiable(ctx, values);\n"
                      "      util::parse_repeated<Opts>(false, v, ctx, it, end);\n"                     
                      "    }} else {{\n"
