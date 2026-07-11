@@ -1140,7 +1140,7 @@ struct TestSuite {
     expect_extension_value_eq(0, optional_sfixed64_extension_t{}, get_value);
     expect_extension_value_eq(0, optional_float_extension_t{}, get_value);
     expect_extension_value_eq(0.0, optional_double_extension_t{}, get_value);
-    expect_extension_value_eq(0.0F, optional_bool_extension_t{}, get_value);
+    expect_extension_value_eq(false, optional_bool_extension_t{}, get_value);
     expect_extension_value_eq(""sv, optional_string_extension_t{}, get_value);
     expect_extension_value_eq(""_bytes, optional_bytes_extension_t{}, get_value);
 
