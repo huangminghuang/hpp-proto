@@ -241,7 +241,8 @@ struct size_cache_counter<T> {
 
   template <typename Meta>
   constexpr static std::size_t count(std::ranges::input_range auto const &item, Meta meta)
-    requires(!concepts::optional<std::remove_cvref_t<decltype(item)>>) {
+    requires(!concepts::optional<std::remove_cvref_t<decltype(item)>>)
+  {
     using type = std::remove_cvref_t<decltype(item)>;
     if constexpr (concepts::contiguous_byte_range<type>) {
       return 0;
@@ -449,7 +450,8 @@ struct message_size_calculator<T> {
   template <typename Meta>
   constexpr static uint64_t field_size(std::ranges::input_range auto const &item, Meta meta,
                                        concepts::is_size_cache_iterator auto &cache_itr)
-    requires(!concepts::optional<std::remove_cvref_t<decltype(item)>>) {
+    requires(!concepts::optional<std::remove_cvref_t<decltype(item)>>)
+  {
     using type = std::remove_cvref_t<decltype(item)>;
     constexpr auto tag_size = static_cast<uint64_t>(varint_size(meta.number << 3U));
     if constexpr (concepts::contiguous_byte_range<type>) {
