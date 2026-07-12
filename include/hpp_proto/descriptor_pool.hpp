@@ -539,9 +539,9 @@ public:
 
 private:
   friend class dynamic_message_factory;
-  static constexpr std::size_t max_schema_nodes = 1'000'000;
-  static constexpr std::size_t max_schema_fields = 250'000;
-  static constexpr std::size_t max_dependency_edges = 250'000;
+  static constexpr std::size_t max_schema_nodes = 131'072;
+  static constexpr std::size_t max_schema_fields = 65'536;
+  static constexpr std::size_t max_dependency_edges = 65'536;
   static constexpr std::size_t max_message_nesting_depth = 100;
 
   struct descriptor_counter {
@@ -580,12 +580,8 @@ private:
     }
 
     bool add_enum_values(const auto &enums) {
-      for (const auto &enumeration : enums) {
-        if (!add_nodes(enumeration.value.size())) {
-          return false;
-        }
-      }
-      return true;
+      return std::ranges::all_of(enums,
+                                 [this](const auto &enumeration) { return add_nodes(enumeration.value.size()); });
     }
 
     bool count_file(const FileDescriptorProto &file) {

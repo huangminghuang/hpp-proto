@@ -62,6 +62,12 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   using OneofProto = google::protobuf::OneofDescriptorProto<>;
   using EnumProto = google::protobuf::EnumDescriptorProto<>;
   using EnumValueProto = google::protobuf::EnumValueDescriptorProto<>;
+  using BorrowedFileDescriptorProto = google::protobuf::FileDescriptorProto<hpp_proto::non_owning_traits>;
+  using BorrowedFileDescriptorSet = google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>;
+  using BorrowedMessageProto = google::protobuf::DescriptorProto<hpp_proto::non_owning_traits>;
+  using BorrowedFieldProto = google::protobuf::FieldDescriptorProto<hpp_proto::non_owning_traits>;
+  using BorrowedEnumProto = google::protobuf::EnumDescriptorProto<hpp_proto::non_owning_traits>;
+  using BorrowedEnumValueProto = google::protobuf::EnumValueDescriptorProto<hpp_proto::non_owning_traits>;
   using enum google::protobuf::FieldDescriptorProto_::Label;
   using enum google::protobuf::FieldDescriptorProto_::Type;
 
@@ -1087,10 +1093,6 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   "in_memory_message_nesting_depth_is_bounded"_test = [] {
-    using BorrowedMessageProto = google::protobuf::DescriptorProto<hpp_proto::non_owning_traits>;
-    using BorrowedFileProto = google::protobuf::FileDescriptorProto<hpp_proto::non_owning_traits>;
-    using BorrowedFileSet = google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>;
-
     auto create_at_depth = [](std::size_t depth) {
       std::vector<BorrowedMessageProto> messages(depth);
       for (auto &message : messages) {
@@ -1099,16 +1101,54 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
       for (std::size_t i = 0; i + 1 < messages.size(); ++i) {
         messages[i].nested_type = std::span{&messages[i + 1], 1};
       }
-      BorrowedFileProto file{
+      BorrowedFileDescriptorProto file{
           .name = "nested.proto",
           .message_type = std::span{messages.data(), 1},
       };
-      BorrowedFileSet file_set{.file = std::span{&file, 1}};
+      BorrowedFileDescriptorSet file_set{.file = std::span{&file, 1}};
       return hpp_proto::dynamic_message_factory::create(std::move(file_set)).has_value();
     };
 
     expect(create_at_depth(100));
     expect(!create_at_depth(101));
+  };
+
+  "in_memory_schema_resource_budgets_are_enforced"_test = [] {
+    {
+      std::vector<std::string_view> dependencies(65'537, "dependency.proto");
+      BorrowedFileDescriptorProto file{
+          .name = "dependency_budget.proto",
+          .dependency = dependencies,
+      };
+      BorrowedFileDescriptorSet file_set{.file = std::span{&file, 1}};
+      expect(!hpp_proto::dynamic_message_factory::create(std::move(file_set)).has_value());
+    }
+    {
+      std::vector<BorrowedFieldProto> fields(65'537);
+      BorrowedMessageProto message{
+          .name = "Root",
+          .field = fields,
+      };
+      BorrowedFileDescriptorProto file{
+          .name = "field_budget.proto",
+          .message_type = std::span{&message, 1},
+      };
+      BorrowedFileDescriptorSet file_set{.file = std::span{&file, 1}};
+      expect(!hpp_proto::dynamic_message_factory::create(std::move(file_set)).has_value());
+    }
+    {
+      std::vector<BorrowedEnumValueProto> values(131'073);
+      BorrowedEnumProto enumeration{
+          .name = "LargeEnum",
+          .value = values,
+      };
+      BorrowedFileDescriptorProto file{
+          .name = "enum_value_budget.proto",
+          .enum_type = std::span{&enumeration, 1},
+      };
+      BorrowedFileDescriptorSet file_set{.file = std::span{&file, 1}};
+      expect(!hpp_proto::dynamic_message_factory::create(std::move(file_set)).has_value());
+    }
   };
 
   "long_dependency_chain_factory_init_succeeds"_test = [&] {
