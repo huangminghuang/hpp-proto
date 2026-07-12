@@ -22,7 +22,6 @@
 
 #pragma once
 #include <cstdint>
-#include <cstdlib>
 #include <hpp_proto/json.hpp>
 #include <iterator>
 #include <span>
@@ -37,8 +36,8 @@ struct duration_codec {
   static int64_t encode(auto const &value, auto &&b) noexcept {
     auto has_same_sign = [](auto x, auto y) { return x == 0 || y == 0 || ((x > 0) == (y > 0)); };
 
-    if (!has_same_sign(value.seconds, value.nanos) || std::abs(value.seconds) > 315'576'000'000LL ||
-        std::abs(value.nanos) > 999'999'999) {
+    if (value.seconds < -315'576'000'000LL || value.seconds > 315'576'000'000LL || value.nanos < -999'999'999 ||
+        value.nanos > 999'999'999 || !has_same_sign(value.seconds, value.nanos)) {
       return -1;
     }
 
@@ -52,12 +51,12 @@ struct duration_codec {
       it = std::next(it);
     }
 
-    auto positive_seconds = static_cast<uint64_t>(std::abs(value.seconds));
+    auto positive_seconds = static_cast<uint64_t>(value.seconds < 0 ? -value.seconds : value.seconds);
     it = glz::to_chars(it, positive_seconds);
     auto ix = static_cast<std::size_t>(std::distance(buffer.data(), it));
 
     if (value.nanos != 0) {
-      auto nanos = static_cast<uint32_t>(std::abs(value.nanos));
+      auto nanos = static_cast<uint32_t>(value.nanos < 0 ? -value.nanos : value.nanos);
       const auto write_3_digits = [](std::span<char> out, std::size_t &pos, uint32_t val) {
         out[pos] = static_cast<char>('0' + (val / 100));
         out[pos + 1] = static_cast<char>('0' + ((val / 10) % 10));

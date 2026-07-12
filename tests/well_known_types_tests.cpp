@@ -27,6 +27,7 @@
 // Well-known type conformance cases use protobuf spec literals directly.
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
 
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <utility>
@@ -224,6 +225,10 @@ const ut::suite test_duration = [] {
   ut::expect(!hpp_proto::write_json(duration_t{.seconds = 0, .nanos = -1000000000}).has_value());
   ut::expect(!hpp_proto::write_json(duration_t{.seconds = 315576000001, .nanos = 0}).has_value());
   ut::expect(!hpp_proto::write_json(duration_t{.seconds = -315576000001, .nanos = 0}).has_value());
+  ut::expect(
+      !hpp_proto::write_json(duration_t{.seconds = std::numeric_limits<int64_t>::min(), .nanos = 0}).has_value());
+  ut::expect(
+      !hpp_proto::write_json(duration_t{.seconds = 0, .nanos = std::numeric_limits<int32_t>::min()}).has_value());
   ut::expect(!hpp_proto::write_json(duration_t{.seconds = 1, .nanos = -1}).has_value());
   ut::expect(!hpp_proto::write_json(duration_t{.seconds = -1, .nanos = 1}).has_value());
 };
