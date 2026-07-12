@@ -56,6 +56,9 @@ const suite test_any = [] {
     expect(hpp_proto::unpack_any(message2.any_value.value(), fm2, ::hpp_proto::alloc_from(mr)).ok());
     expect(std::ranges::equal(paths, fm2.paths));
 
+    message2.any_value->type_url = "type.googleapis.com/Othergoogle.protobuf.FieldMask";
+    expect(!hpp_proto::unpack_any(message2.any_value.value(), fm2, ::hpp_proto::alloc_from(mr)).ok());
+
     expect(!hpp_proto::unpack_any<::proto3_unittest::ForeignMessage<Traits>>(message2.any_value.value(),
                                                                              ::hpp_proto::alloc_from(mr))
                 .has_value());
