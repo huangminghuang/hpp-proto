@@ -11,6 +11,7 @@ CPMAddPackage(
     NAME glaze
     GIT_TAG v${HPP_PROTO_GLAZE_VERSION}
     GITHUB_REPOSITORY stephenberry/glaze
+    OPTIONS "glaze_INSTALL ON"
     ${system_package}
 )
 if(glaze_ADDED)
