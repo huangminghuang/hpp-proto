@@ -384,6 +384,37 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     return files;
   };
 
+  auto make_large_field_message_fileset = [](std::size_t field_count) {
+    MessageProto root{.name = "Root"};
+    root.field.reserve(field_count);
+    for (std::size_t i = 0; i < field_count; ++i) {
+      root.field.push_back(FieldProto{
+          .name = "field_" + std::to_string(i),
+          .number = static_cast<int32_t>(i + 1),
+          .label = LABEL_OPTIONAL,
+          .type = TYPE_INT32,
+          .json_name = "customField" + std::to_string(i),
+      });
+    }
+    return OwningFileDescriptorProto{
+        .name = "large_field_message.proto",
+        .message_type = {std::move(root)},
+    };
+  };
+
+  auto make_long_dependency_chain_fileset = [](std::size_t file_count) {
+    std::vector<OwningFileDescriptorProto> files;
+    files.reserve(file_count);
+    for (std::size_t i = 0; i < file_count; ++i) {
+      OwningFileDescriptorProto file{.name = "chain_" + std::to_string(i) + ".proto"};
+      if (i != 0) {
+        file.dependency.push_back("chain_" + std::to_string(i - 1) + ".proto");
+      }
+      files.push_back(std::move(file));
+    }
+    return files;
+  };
+
   auto make_deep_name_and_dependency_pressure_fileset = [] {
     std::vector<OwningFileDescriptorProto> files;
     constexpr int dep_count = 96;
@@ -1012,6 +1043,19 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     auto files = make_large_descriptor_collection_fileset(256);
     OwningFileDescriptorSet file_set;
     file_set.file = std::move(files);
+    std::string desc_binpb;
+    expect(hpp_proto::write_binpb(file_set, desc_binpb).ok());
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "large_field_message_factory_init_succeeds"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_large_field_message_fileset(4096));
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "long_dependency_chain_factory_init_succeeds"_test = [&] {
+    OwningFileDescriptorSet file_set;
+    file_set.file = make_long_dependency_chain_fileset(8192);
     std::string desc_binpb;
     expect(hpp_proto::write_binpb(file_set, desc_binpb).ok());
     expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());

@@ -539,36 +539,85 @@ public:
 
 private:
   friend class dynamic_message_factory;
+  static constexpr std::size_t max_schema_nodes = 1'000'000;
+  static constexpr std::size_t max_schema_fields = 250'000;
+  static constexpr std::size_t max_dependency_edges = 250'000;
+
   struct descriptor_counter {
     std::size_t files = 0;
     std::size_t messages = 0;
     std::size_t fields = 0;
     std::size_t oneofs = 0;
     std::size_t enums = 0;
+    std::size_t dependency_edges = 0;
+    std::size_t schema_nodes = 0;
+    bool valid = true;
 
     explicit descriptor_counter(const FileDescriptorSet &fileset) {
       for (const auto &f : fileset.file) {
-        count_file(f);
+        if (!count_file(f)) {
+          valid = false;
+          return;
+        }
       }
     }
 
-    void count_file(const FileDescriptorProto &file) {
+    bool add_nodes(std::size_t count) {
+      if (count > max_schema_nodes - schema_nodes) {
+        return false;
+      }
+      schema_nodes += count;
+      return true;
+    }
+
+    bool add_fields(std::size_t count) {
+      if (count > max_schema_fields - fields || !add_nodes(count)) {
+        return false;
+      }
+      fields += count;
+      return true;
+    }
+
+    bool count_file(const FileDescriptorProto &file) {
+      if (!add_nodes(1) || file.dependency.size() > max_dependency_edges - dependency_edges) {
+        return false;
+      }
       files++;
+      dependency_edges += file.dependency.size();
       for (const auto &m : file.message_type) {
-        count_message(m);
+        if (!count_message(m)) {
+          return false;
+        }
+      }
+      if (!add_nodes(file.enum_type.size()) || !add_fields(file.extension.size())) {
+        return false;
       }
       enums += file.enum_type.size();
-      fields += file.extension.size();
+      return true;
     }
 
-    void count_message(const DescriptorProto &message) {
-      messages++;
-      for (const auto &m : message.nested_type) {
-        count_message(m);
+    bool count_message(const DescriptorProto &root) {
+      if (!add_nodes(1)) {
+        return false;
       }
-      enums += message.enum_type.size();
-      fields += message.field.size() + message.extension.size();
-      oneofs += message.oneof_decl.size();
+      messages++;
+      std::vector<const DescriptorProto *> pending{&root};
+      while (!pending.empty()) {
+        const auto &message = *pending.back();
+        pending.pop_back();
+        if (!add_nodes(message.enum_type.size()) || !add_nodes(message.oneof_decl.size()) ||
+            !add_fields(message.field.size()) || !add_fields(message.extension.size()) ||
+            !add_nodes(message.nested_type.size())) {
+          return false;
+        }
+        enums += message.enum_type.size();
+        oneofs += message.oneof_decl.size();
+        messages += message.nested_type.size();
+        for (const auto &nested : message.nested_type) {
+          pending.push_back(&nested);
+        }
+      }
+      return true;
     }
   };
 
@@ -583,6 +632,9 @@ private:
     enum_map_.clear();
 
     const descriptor_counter counter(fileset_);
+    if (!counter.valid) {
+      return std::unexpected(descriptor_pool_errc::validation_error);
+    }
     reserve_storage(counter);
     return build_files_from_fileset()
         .and_then([this] { return link_file_dependencies(); })
@@ -642,35 +694,35 @@ private:
   }
 
   [[nodiscard]] std::expected<void, descriptor_pool_errc> validate_file_dependency_acyclic() const {
-    enum class visit_state : uint8_t { unvisited, visiting, visited };
-    std::vector<visit_state> states(files_.size(), visit_state::unvisited);
-
-    auto dfs = [&](auto &&self, std::size_t file_index) -> bool {
-      auto &state = states[file_index];
-      if (state == visit_state::visiting) {
-        return false;
-      }
-      if (state == visit_state::visited) {
-        return true;
-      }
-
-      state = visit_state::visiting;
-      for (const auto *dep : files_[file_index].dependencies_) {
-        const auto dep_index = static_cast<std::size_t>(dep - files_.data());
-        if (!self(self, dep_index)) {
-          return false;
-        }
-      }
-      state = visit_state::visited;
-      return true;
-    };
-
+    std::vector<std::size_t> incoming_edges(files_.size());
     for (std::size_t i = 0; i < files_.size(); ++i) {
-      if (states[i] == visit_state::unvisited && !dfs(dfs, i)) {
-        return std::unexpected(descriptor_pool_errc::validation_error);
+      for (const auto *dep : files_[i].dependencies_) {
+        const auto dep_index = static_cast<std::size_t>(dep - files_.data());
+        incoming_edges[dep_index]++;
       }
     }
-    return {};
+
+    std::vector<std::size_t> pending;
+    pending.reserve(files_.size());
+    for (std::size_t i = 0; i < incoming_edges.size(); ++i) {
+      if (incoming_edges[i] == 0) {
+        pending.push_back(i);
+      }
+    }
+
+    std::size_t visited = 0;
+    for (std::size_t next = 0; next < pending.size(); ++next) {
+      const auto file_index = pending[next];
+      visited++;
+      for (const auto *dep : files_[file_index].dependencies_) {
+        const auto dep_index = static_cast<std::size_t>(dep - files_.data());
+        if (--incoming_edges[dep_index] == 0) {
+          pending.push_back(dep_index);
+        }
+      }
+    }
+    return visited == files_.size() ? std::expected<void, descriptor_pool_errc>{}
+                                    : std::unexpected(descriptor_pool_errc::validation_error);
   }
 
   std::expected<void, descriptor_pool_errc> build_message_fields_and_extensions() {
@@ -983,25 +1035,16 @@ private:
     auto has_custom_json_name = [&](const FieldDescriptorProto &field) {
       return !field.json_name.empty() && field.json_name != to_default_json_name(field.name);
     };
-    auto has_custom_json_conflict = [&](const FieldDescriptorProto &lhs, const FieldDescriptorProto &rhs) {
-      if (has_custom_json_name(lhs)) {
-        if (lhs.json_name == rhs.name || lhs.json_name == rhs.json_name) {
-          return true;
-        }
-      }
-      if (has_custom_json_name(rhs)) {
-        if (rhs.json_name == lhs.name || rhs.json_name == lhs.json_name) {
-          return true;
-        }
-      }
-      return false;
-    };
 
     descriptor.fields_.reserve(descriptor.proto_.field.size());
     std::unordered_set<int32_t> seen_field_numbers;
     seen_field_numbers.reserve(descriptor.proto_.field.size());
     std::unordered_set<std::string_view> seen_field_names;
     seen_field_names.reserve(descriptor.proto_.field.size());
+    std::unordered_set<std::string_view> seen_json_names;
+    seen_json_names.reserve(descriptor.proto_.field.size());
+    std::unordered_set<std::string_view> seen_custom_json_names;
+    seen_custom_json_names.reserve(descriptor.proto_.field.size());
     for (auto &proto : descriptor.proto_.field) {
       if (!is_valid_field_number(proto.number)) {
         return std::unexpected(descriptor_pool_errc::validation_error);
@@ -1009,13 +1052,21 @@ private:
       if (!seen_field_numbers.insert(proto.number).second) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
-      if (!seen_field_names.insert(proto.name).second) {
+      if (seen_field_names.contains(proto.name)) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
-      if (std::ranges::any_of(descriptor.fields_, [&](const auto *existing) {
-            return has_custom_json_conflict(existing->proto(), proto);
-          })) {
+      const bool custom_json_name = has_custom_json_name(proto);
+      if (seen_custom_json_names.contains(proto.name) || seen_custom_json_names.contains(proto.json_name) ||
+          (custom_json_name &&
+           (seen_field_names.contains(proto.json_name) || seen_json_names.contains(proto.json_name)))) {
         return std::unexpected(descriptor_pool_errc::validation_error);
+      }
+      seen_field_names.insert(proto.name);
+      if (!proto.json_name.empty()) {
+        seen_json_names.insert(proto.json_name);
+      }
+      if (custom_json_name) {
+        seen_custom_json_names.insert(proto.json_name);
       }
       auto &field = fields_.emplace_back(proto, &descriptor, descriptor.options_);
       if (descriptor.is_map_entry()) {
