@@ -178,17 +178,18 @@ struct dynamic_message_factory_addons {
   template <typename Derived>
   struct enum_descriptor {
     bool is_null_value = false;
+    map_t<std::string_view, const int32_t *> values_by_name;
     explicit enum_descriptor(Derived &derived, [[maybe_unused]] const auto &inherited_options)
-        : is_null_value(derived.full_name() == "google.protobuf.NullValue") {}
+        : is_null_value(derived.full_name() == "google.protobuf.NullValue") {
+      values_by_name.reserve(derived.proto().value.size());
+      for (const auto &value : derived.proto().value) {
+        values_by_name.try_emplace(value.name, &value.number);
+      }
+    }
 
     [[nodiscard]] const int32_t *value_of(const std::string_view name) const {
-      const auto &proto = static_cast<const Derived *>(this)->proto();
-      for (const auto &ev : proto.value) {
-        if (ev.name == name) {
-          return &ev.number;
-        }
-      }
-      return nullptr;
+      const auto it = values_by_name.find(name);
+      return it == values_by_name.end() ? nullptr : it->second;
     }
 
     [[nodiscard]] std::string_view name_of(int32_t value) const {

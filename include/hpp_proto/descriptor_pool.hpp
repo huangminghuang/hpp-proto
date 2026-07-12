@@ -542,6 +542,7 @@ private:
   static constexpr std::size_t max_schema_nodes = 1'000'000;
   static constexpr std::size_t max_schema_fields = 250'000;
   static constexpr std::size_t max_dependency_edges = 250'000;
+  static constexpr std::size_t max_message_nesting_depth = 100;
 
   struct descriptor_counter {
     std::size_t files = 0;
@@ -578,6 +579,15 @@ private:
       return true;
     }
 
+    bool add_enum_values(const auto &enums) {
+      for (const auto &enumeration : enums) {
+        if (!add_nodes(enumeration.value.size())) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     bool count_file(const FileDescriptorProto &file) {
       if (!add_nodes(1) || file.dependency.size() > max_dependency_edges - dependency_edges) {
         return false;
@@ -589,7 +599,7 @@ private:
           return false;
         }
       }
-      if (!add_nodes(file.enum_type.size()) || !add_fields(file.extension.size())) {
+      if (!add_nodes(file.enum_type.size()) || !add_enum_values(file.enum_type) || !add_fields(file.extension.size())) {
         return false;
       }
       enums += file.enum_type.size();
@@ -601,20 +611,22 @@ private:
         return false;
       }
       messages++;
-      std::vector<const DescriptorProto *> pending{&root};
+      std::vector<std::pair<const DescriptorProto *, std::size_t>> pending{{&root, 1}};
       while (!pending.empty()) {
-        const auto &message = *pending.back();
+        const auto [message_ptr, depth] = pending.back();
         pending.pop_back();
+        const auto &message = *message_ptr;
         if (!add_nodes(message.enum_type.size()) || !add_nodes(message.oneof_decl.size()) ||
             !add_fields(message.field.size()) || !add_fields(message.extension.size()) ||
-            !add_nodes(message.nested_type.size())) {
+            !add_enum_values(message.enum_type) || !add_nodes(message.nested_type.size()) ||
+            (!message.nested_type.empty() && depth >= max_message_nesting_depth)) {
           return false;
         }
         enums += message.enum_type.size();
         oneofs += message.oneof_decl.size();
         messages += message.nested_type.size();
         for (const auto &nested : message.nested_type) {
-          pending.push_back(&nested);
+          pending.emplace_back(&nested, depth + 1);
         }
       }
       return true;
@@ -965,43 +977,46 @@ private:
     return {};
   }
 
-  std::expected<void, descriptor_pool_errc> build(message_descriptor_t &descriptor) {
-    descriptor.oneofs_.reserve(descriptor.proto_.oneof_decl.size());
-    for (auto &proto : descriptor.proto_.oneof_decl) {
-      auto &oneof = oneofs_.emplace_back(proto, descriptor.options_);
-      descriptor.oneofs_.push_back(&oneof);
-    }
+  std::expected<void, descriptor_pool_errc> build(message_descriptor_t &root) {
+    std::vector<message_descriptor_t *> pending{&root};
+    while (!pending.empty()) {
+      auto &descriptor = *pending.back();
+      pending.pop_back();
 
-    if (!message_map_.try_emplace(descriptor.full_name(), &descriptor).second) {
-      return std::unexpected(descriptor_pool_errc::validation_error);
-    }
-    descriptor.messages_.reserve(descriptor.proto_.nested_type.size());
-    std::expected<void, descriptor_pool_errc> result;
-    for (auto &proto : descriptor.proto_.nested_type) {
-      result = result.and_then([&]() -> std::expected<void, descriptor_pool_errc> {
+      descriptor.oneofs_.reserve(descriptor.proto_.oneof_decl.size());
+      for (auto &proto : descriptor.proto_.oneof_decl) {
+        auto &oneof = oneofs_.emplace_back(proto, descriptor.options_);
+        descriptor.oneofs_.push_back(&oneof);
+      }
+
+      if (!message_map_.try_emplace(descriptor.full_name(), &descriptor).second) {
+        return std::unexpected(descriptor_pool_errc::validation_error);
+      }
+      descriptor.messages_.reserve(descriptor.proto_.nested_type.size());
+      for (auto &proto : descriptor.proto_.nested_type) {
         if (proto.name.empty()) {
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
         auto &message = messages_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name),
                                                descriptor.options_, descriptor.parent_file_, &descriptor);
-        return build(message).transform([&] { descriptor.messages_.push_back(&message); });
-      });
-      if (!result.has_value()) {
-        return result;
+        descriptor.messages_.push_back(&message);
       }
-    }
+      for (auto it = descriptor.messages_.rbegin(); it != descriptor.messages_.rend(); ++it) {
+        pending.push_back(*it);
+      }
 
-    descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
-    for (auto &proto : descriptor.proto_.enum_type) {
-      if (proto.name.empty()) {
-        return std::unexpected(descriptor_pool_errc::validation_error);
+      descriptor.enums_.reserve(descriptor.proto_.enum_type.size());
+      for (auto &proto : descriptor.proto_.enum_type) {
+        if (proto.name.empty()) {
+          return std::unexpected(descriptor_pool_errc::validation_error);
+        }
+        auto &e = enums_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name), descriptor.options_,
+                                      descriptor.parent_file_, &descriptor);
+        if (!enum_map_.try_emplace(e.full_name(), &e).second) {
+          return std::unexpected(descriptor_pool_errc::validation_error);
+        }
+        descriptor.enums_.push_back(&e);
       }
-      auto &e = enums_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name), descriptor.options_,
-                                    descriptor.parent_file_, &descriptor);
-      if (!enum_map_.try_emplace(e.full_name(), &e).second) {
-        return std::unexpected(descriptor_pool_errc::validation_error);
-      }
-      descriptor.enums_.push_back(&e);
     }
     return {};
   }
