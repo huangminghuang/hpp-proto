@@ -29,6 +29,7 @@
 #include <limits>
 #include <memory>
 #include <memory_resource>
+#include <ranges>
 #include <utility>
 #include <vector>
 
@@ -205,6 +206,9 @@ private:
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> finish_initialize() {
+    if (std::ranges::any_of(pool_.fields(), [](const auto &field) { return !field.default_value_valid; })) {
+      return std::unexpected(dynamic_message_errc::schema_validation_error);
+    }
     return setup_storage_slots().and_then([this] {
       setup_wellknown_types_impl(pool_);
       return setup_enum_field_default_value();

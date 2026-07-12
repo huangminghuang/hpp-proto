@@ -32,23 +32,23 @@ constexpr bool msvc_asan_bad_alloc_failpoint_unstable = false;
 
 const boost::ut::suite parse_default_value_tests = [] {
   "parse_default_value_success"_test = [] {
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("123"), 123));
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<uint64_t>(
+    expect(eq(*hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("123"), 123));
+    expect(eq(*hpp_proto::dynamic_message_factory_addons::parse_default_value<uint64_t>(
                   std::to_string(std::numeric_limits<uint64_t>::max())),
               std::numeric_limits<uint64_t>::max()));
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<float>("1.5"), 1.5F));
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<double>("-2.5"), -2.5));
-    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>(""),
+    expect(eq(*hpp_proto::dynamic_message_factory_addons::parse_default_value<float>("1.5"), 1.5F));
+    expect(eq(*hpp_proto::dynamic_message_factory_addons::parse_default_value<double>("-2.5"), -2.5));
+    expect(eq(*hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>(""),
               0)); // empty defaults to zero-initialized
   };
 
   "parse_default_value_errors"_test = [] {
-    expect(throws<std::invalid_argument>(
-        [] { (void)hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("abc"); }));
-    expect(throws<std::out_of_range>(
-        [] { (void)hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("999999999999"); }));
-    expect(throws<std::out_of_range>(
-        [] { (void)hpp_proto::dynamic_message_factory_addons::parse_default_value<double>("1e400"); }));
+    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("abc").error(),
+              std::errc::invalid_argument));
+    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<int32_t>("999999999999").error(),
+              std::errc::result_out_of_range));
+    expect(eq(hpp_proto::dynamic_message_factory_addons::parse_default_value<double>("1e400").error(),
+              std::errc::result_out_of_range));
   };
 };
 
@@ -708,6 +708,28 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
   };
 
+  auto make_invalid_numeric_default_fileset = [](auto type, std::string_view default_value) {
+    return OwningFileDescriptorProto{
+        .name = "invalid_numeric_default.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "value",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = type,
+                                .default_value = std::string{default_value},
+                            },
+                        },
+                },
+            },
+    };
+  };
+
   auto make_empty_enum_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "empty_enum.proto",
@@ -1146,6 +1168,19 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "invalid_enum_default_name_factory_init_fails"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_enum_default_name_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "invalid_numeric_defaults_return_schema_validation_error"_test = [&] {
+    auto expect_schema_error = [&](auto type, std::string_view default_value) {
+      auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_numeric_default_fileset(type, default_value));
+      auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+      expect(fatal(!factory.has_value()));
+      expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
+    };
+
+    expect_schema_error(TYPE_INT32, "not-an-integer");
+    expect_schema_error(TYPE_INT32, "999999999999");
+    expect_schema_error(TYPE_DOUBLE, "1e400");
   };
 
   "empty_enum_factory_init_fails"_test = [&] {
