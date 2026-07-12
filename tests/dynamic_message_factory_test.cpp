@@ -708,7 +708,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
   };
 
-  auto make_invalid_numeric_default_fileset = [](auto type, std::string default_value) {
+  auto make_invalid_numeric_default_fileset = [](auto type, std::string_view default_value) {
     return OwningFileDescriptorProto{
         .name = "invalid_numeric_default.proto",
         .message_type =
@@ -722,7 +722,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                                 .number = 1,
                                 .label = LABEL_OPTIONAL,
                                 .type = type,
-                                .default_value = std::move(default_value),
+                                .default_value = std::string{default_value},
                             },
                         },
                 },
@@ -1171,7 +1171,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   "invalid_numeric_defaults_return_schema_validation_error"_test = [&] {
-    auto expect_schema_error = [&](auto type, std::string default_value) {
+    auto expect_schema_error = [&](auto type, std::string_view default_value) {
       auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_numeric_default_fileset(type, default_value));
       auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
       expect(fatal(!factory.has_value()));
