@@ -18,9 +18,9 @@ on:
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
-  PROTOC_VERSION: "34.0"
-  PROTOC_ZIP: protoc-34.0-win64.zip
-  PROTOC_SHA256: 76ddeb5ae7a31c8f9f7759d3b843a4cadda2150ac037ad0c1794665d6cf31fce
+  PROTOC_VERSION: "35.0"
+  PROTOC_ZIP: protoc-35.0-win64.zip
+  PROTOC_SHA256: d1cede9e308cc3eb072392af1c02ccae4bdd3d2f374ec2970dbd8cdfdaa91363
   CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
@@ -43,20 +43,20 @@ jobs:
     name: ${{ matrix.name }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
 
       - name: setup cpp tools
-        uses: aminya/setup-cpp@v1.8.0
+        uses: aminya/setup-cpp@v1.8.1
         with:
-          cmake: "3.31.0"
+          cmake: "4.4.0"
           ninja: true
           ccache: true
-          conan: "2.25.2"
+          conan: "2.30.0"
 
       - name: Cache ccache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.name }}-ccache-${{ github.sha }}

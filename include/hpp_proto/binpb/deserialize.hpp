@@ -1192,9 +1192,10 @@ constexpr status deserialize_field(concepts::has_meta auto &item, auto meta, uin
 template <typename Meta>
 constexpr status deserialize_field(std::ranges::range auto &item, Meta meta, uint32_t tag,
                                    concepts::is_basic_in auto &archive, auto &unknown_fields)
-  // std::optional is a range in C++26 (P3168); exclude it (and hpp_proto::optional)
-  // here so a singular optional<message> field uses the optional overload above.
-  requires(!concepts::optional<std::remove_reference_t<decltype(item)>>) {
+    // std::optional is a range in C++26 (P3168); exclude it (and hpp_proto::optional)
+    // here so a singular optional<message> field uses the optional overload above.
+  requires(!concepts::optional<std::remove_reference_t<decltype(item)>>)
+{
   using type = std::remove_reference_t<decltype(item)>;
 
   if constexpr (concepts::contiguous_byte_range<type>) {
