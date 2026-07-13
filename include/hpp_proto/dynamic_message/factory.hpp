@@ -58,6 +58,8 @@ public:
   using allocator_type = std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl>;
   /// Maximum aggregate bytes accepted by serialized descriptor factory overloads.
   static constexpr std::size_t max_serialized_descriptor_bytes = std::size_t{16} * 1024U * 1024U;
+  /// Maximum memory allocated for decoded descriptors and the resulting descriptor pool.
+  static constexpr std::size_t max_descriptor_memory_bytes = std::size_t{64} * 1024U * 1024U;
 
   /// enable to pass dynamic_message_factory as an option to read_json()/write_json()
   using option_type = std::reference_wrapper<dynamic_message_factory>;
@@ -90,9 +92,10 @@ public:
 
   /**
    * @brief Construct and initialize from FileDescriptorSet.
-   * @details This is a trusted-input API and does not enforce a serialized-size or parser-recursion limit. Prefer a
-   *          serialized overload for untrusted input. This API does not catch std::bad_alloc thrown by standard
-   *          containers.
+   * @details This is a trusted-input API and does not enforce a serialized-size or parser-recursion limit. Descriptor
+   *          storage is limited to max_descriptor_memory_bytes. Exhausting that budget returns
+   *          descriptor_memory_limit_exceeded; unrelated std::bad_alloc exceptions remain uncaught. Prefer a
+   *          serialized overload for untrusted input.
    * @param allocator Allocator used to create the internal impl object. Its memory_resource()
    *                  must outlive the returned factory instance.
    */
@@ -104,7 +107,8 @@ public:
   /**
    * @brief Construct and initialize from distinct serialized file descriptors.
    * @details Returns descriptor_size_limit_exceeded when the aggregate encoded descriptors exceed
-   *          max_serialized_descriptor_bytes. This API does not catch std::bad_alloc thrown by standard containers.
+   *          max_serialized_descriptor_bytes, or descriptor_memory_limit_exceeded when decoded descriptors and pool
+   *          storage exceed max_descriptor_memory_bytes. Unrelated std::bad_alloc exceptions remain uncaught.
    * @param allocator Allocator used to create the internal impl object. Its memory_resource()
    *                  must outlive the returned factory instance.
    */
@@ -117,8 +121,9 @@ public:
   /**
    * @brief Construct and initialize from serialized FileDescriptorSet bytes.
    * @details Returns descriptor_size_limit_exceeded when the input exceeds max_serialized_descriptor_bytes. Binary
-   *          parsing also enforces its default recursion limit. This API does not catch std::bad_alloc thrown by
-   *          standard containers.
+   *          parsing also enforces its default recursion limit. Decoded descriptors and pool storage are limited to
+   *          max_descriptor_memory_bytes; exhausting that budget returns descriptor_memory_limit_exceeded. Unrelated
+   *          std::bad_alloc exceptions remain uncaught.
    * @param allocator Allocator used to create the internal impl object. Its memory_resource()
    *                  must outlive the returned factory instance.
    */

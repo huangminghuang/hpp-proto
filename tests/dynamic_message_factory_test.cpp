@@ -1093,6 +1093,21 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_size_limit_exceeded));
   };
 
+  "serialized_descriptor_decoded_memory_limit_is_enforced"_test = [] {
+    // Each empty FileDescriptorProto needs only two wire bytes but occupies hundreds of decoded bytes.
+    constexpr std::size_t empty_file_count = hpp_proto::dynamic_message_factory::max_descriptor_memory_bytes / 400U;
+    std::vector<std::byte> descriptor_set;
+    descriptor_set.reserve(empty_file_count * 2U);
+    for (std::size_t i = 0; i < empty_file_count; ++i) {
+      descriptor_set.push_back(std::byte{0x0a});
+      descriptor_set.push_back(std::byte{0x00});
+    }
+
+    auto factory = hpp_proto::dynamic_message_factory::create(descriptor_set);
+    expect(fatal(!factory.has_value()));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
+  };
+
   "distinct_descriptor_aggregate_size_limit_is_enforced"_test = [] {
     std::string descriptor((hpp_proto::dynamic_message_factory::max_serialized_descriptor_bytes / 2) + 1, '\0');
     auto descriptors = hpp_proto::distinct_file_descriptor_pb_array{hpp_proto::file_descriptor_pb{descriptor},
