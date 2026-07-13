@@ -56,6 +56,8 @@ private:
   }
 
   void do_deallocate(void *p, std::size_t bytes, std::size_t alignment) override {
+    assert(bytes <= allocated_);
+    allocated_ -= bytes;
     upstream_->deallocate(p, bytes, alignment);
   }
 
@@ -77,11 +79,12 @@ private:
 struct storage_slot_state {
   uint32_t cur_slot = 0;
   std::size_t oneof_count = 0;
-  std::vector<bool> oneof_started;
+  std::pmr::vector<bool> oneof_started;
   std::size_t prev_oneof = 0;
   uint16_t oneof_next_ordinal = 1;
 
-  explicit storage_slot_state(std::size_t count) : oneof_count(count), oneof_started(count, false), prev_oneof(count) {}
+  storage_slot_state(std::size_t count, std::pmr::memory_resource *resource)
+      : oneof_count(count), oneof_started(count, false, resource), prev_oneof(count) {}
 };
 
 template <typename FieldT>
@@ -132,10 +135,10 @@ public:
 
   explicit dynamic_message_factory_impl(std::pmr::memory_resource *upstream_resource)
       : descriptor_memory_resource_(upstream_resource, dynamic_message_factory::max_descriptor_memory_bytes),
-        memory_resource_(&descriptor_memory_resource_) {}
+        memory_resource_(&descriptor_memory_resource_), pool_(&memory_resource_, &descriptor_memory_resource_) {}
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> initialize(FileDescriptorSet &&fileset) {
-    return pool_.init(std::move(fileset), memory_resource_).transform_error(to_dynamic_message_errc).and_then([this] {
+    return pool_.init(std::move(fileset)).transform_error(to_dynamic_message_errc).and_then([this] {
       return finish_initialize();
     });
   }
@@ -168,7 +171,7 @@ private:
   [[nodiscard]] std::expected<void, dynamic_message_errc> setup_storage_slots() {
     for (auto &message : pool_.messages()) {
       const auto oneof_count = message.proto().oneof_decl.size();
-      storage_slot_state state{oneof_count};
+      storage_slot_state state{oneof_count, &descriptor_memory_resource_};
       std::size_t field_index = 0;
       for (auto &f : message.fields()) {
         const auto ec = f.proto().oneof_index.has_value() ? setup_oneof_field(f, state, field_index)

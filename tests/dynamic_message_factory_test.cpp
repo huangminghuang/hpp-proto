@@ -1108,6 +1108,15 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
   };
 
+  "descriptor_pool_construction_uses_decoded_memory_budget"_test = [&] {
+    auto descriptor_set = make_descriptor_set_binpb_one(make_large_field_message_fileset(150'000));
+    expect(lt(descriptor_set.size(), hpp_proto::dynamic_message_factory::max_serialized_descriptor_bytes));
+
+    auto factory = hpp_proto::dynamic_message_factory::create(descriptor_set);
+    expect(fatal(!factory.has_value()));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
+  };
+
   "distinct_descriptor_aggregate_size_limit_is_enforced"_test = [] {
     std::string descriptor((hpp_proto::dynamic_message_factory::max_serialized_descriptor_bytes / 2) + 1, '\0');
     auto descriptors = hpp_proto::distinct_file_descriptor_pb_array{hpp_proto::file_descriptor_pb{descriptor},
@@ -1271,6 +1280,37 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
       std::pmr::set_default_resource(old_resource);
     }
     expect(current_resource == old_resource);
+  };
+
+  "factory_creation_does_not_use_global_default_resource"_test = [&] {
+    struct throwing_memory_resource final : std::pmr::memory_resource {
+      void *do_allocate(std::size_t, std::size_t) override { throw std::bad_alloc{}; }
+      void do_deallocate(void *, std::size_t, std::size_t) override {}
+      [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+        return this == &other;
+      }
+    } throwing_resource;
+    struct default_resource_scope {
+      std::pmr::memory_resource *previous;
+      explicit default_resource_scope(std::pmr::memory_resource *resource)
+          : previous(std::pmr::set_default_resource(resource)) {}
+      ~default_resource_scope() { std::pmr::set_default_resource(previous); }
+    };
+
+    auto descriptor_set = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
+    std::pmr::monotonic_buffer_resource parse_resource;
+    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+        descriptor_set, hpp_proto::alloc_from(parse_resource)));
+    std::string file_descriptor;
+    expect(hpp_proto::write_binpb(fileset.file.front(), file_descriptor).ok());
+    hpp_proto::distinct_file_descriptor_pb_array descriptors = {hpp_proto::file_descriptor_pb{file_descriptor}};
+
+    std::pmr::unsynchronized_pool_resource upstream;
+    const auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&upstream};
+    default_resource_scope guard{&throwing_resource};
+    expect(hpp_proto::dynamic_message_factory::create(descriptor_set, allocator).has_value());
+    expect(hpp_proto::dynamic_message_factory::create(descriptors, allocator).has_value());
+    expect(hpp_proto::dynamic_message_factory::create(std::move(fileset), allocator).has_value());
   };
 
   "factory_create_succeeds_after_failed_create"_test = [&] {

@@ -72,6 +72,15 @@ class descriptor_pool {
   template <typename T, typename U>
   using map_t = AddOns::template map_t<T, U>;
 
+  template <typename T>
+  [[nodiscard]] static T with_resource(std::pmr::memory_resource *resource) {
+    if constexpr (std::constructible_from<T, std::pmr::memory_resource *>) {
+      return T{resource};
+    } else {
+      return T{};
+    }
+  }
+
 public:
   // NOLINTBEGIN(bugprone-unchecked-optional-access)
   using traits_type = AddOns::traits_type;
@@ -89,15 +98,29 @@ public:
   using FileOptions = google::protobuf::FileOptions<traits_type>;
   using FileDescriptorSet = google::protobuf::FileDescriptorSet<traits_type>;
 
+private:
+  [[nodiscard]] static FileDescriptorSet make_fileset(std::pmr::memory_resource *resource) {
+    FileDescriptorSet result;
+    result.file = with_resource<decltype(result.file)>(resource);
+    return result;
+  }
+
+  [[nodiscard]] string_t make_string(std::string_view value) const {
+    auto result = with_resource<string_t>(resource_);
+    result.assign(value);
+    return result;
+  }
+
+public:
   class message_descriptor_t;
   class enum_descriptor_t;
   class file_descriptor_t;
   class field_descriptor_base {
   public:
     field_descriptor_base(const FieldDescriptorProto &proto, message_descriptor_t *parent,
-                          const auto &inherited_options)
+                          const auto &inherited_options, std::pmr::memory_resource *resource)
         : proto_(proto), parent_message_(parent), options_(proto.options.value_or(FieldOptions{})) {
-      options_.features = merge_features(inherited_options.features.value(), proto.options);
+      options_.features = merge_features(inherited_options.features.value(), proto.options, resource);
 
       setup_presence();
       setup_repeated();
@@ -226,15 +249,19 @@ public:
                              public AddOns::template field_descriptor<field_descriptor_t> {
   public:
     using addon_type = AddOns::template field_descriptor<field_descriptor_t>;
-    field_descriptor_t(const FieldDescriptorProto &proto, message_descriptor_t *parent, const auto &inherited_options)
-        : field_descriptor_base(proto, parent, inherited_options), addon_type(*this, inherited_options) {}
+    field_descriptor_t(const FieldDescriptorProto &proto, message_descriptor_t *parent, const auto &inherited_options,
+                       std::pmr::memory_resource *resource)
+        : field_descriptor_base(proto, parent, inherited_options, resource),
+          addon_type(*this, inherited_options, resource) {}
   };
 
   class oneof_descriptor_base {
   public:
-    explicit oneof_descriptor_base(const OneofDescriptorProto &proto, const MessageOptions &inherited_options)
-        : proto_(proto), options_(proto.options.value_or(OneofOptions{})) {
-      options_.features = merge_features(inherited_options.features.value(), proto.options);
+    explicit oneof_descriptor_base(const OneofDescriptorProto &proto, const MessageOptions &inherited_options,
+                                   std::pmr::memory_resource *resource)
+        : proto_(proto), fields_(with_resource<decltype(fields_)>(resource)),
+          options_(proto.options.value_or(OneofOptions{})) {
+      options_.features = merge_features(inherited_options.features.value(), proto.options, resource);
     }
 
     ~oneof_descriptor_base() = default;
@@ -272,17 +299,19 @@ public:
     using addon_type = AddOns::template oneof_descriptor<oneof_descriptor_t>;
 
   public:
-    oneof_descriptor_t(const OneofDescriptorProto &proto, const MessageOptions &inherited_options)
-        : oneof_descriptor_base(proto, inherited_options), addon_type(*this, inherited_options) {}
+    oneof_descriptor_t(const OneofDescriptorProto &proto, const MessageOptions &inherited_options,
+                       std::pmr::memory_resource *resource)
+        : oneof_descriptor_base(proto, inherited_options, resource), addon_type(*this, inherited_options, resource) {}
   };
 
   class enum_descriptor_base {
   public:
     explicit enum_descriptor_base(const EnumDescriptorProto &proto, string_t &&full_name, const auto &inherited_options,
-                                  file_descriptor_t *parent_file, message_descriptor_t *parent_message)
+                                  file_descriptor_t *parent_file, message_descriptor_t *parent_message,
+                                  std::pmr::memory_resource *resource)
         : proto_(proto), full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message),
           options_(proto.options.value_or(EnumOptions{})) {
-      options_.features = merge_features(inherited_options.features.value(), proto.options);
+      options_.features = merge_features(inherited_options.features.value(), proto.options, resource);
     }
     ~enum_descriptor_base() = default;
     enum_descriptor_base(const enum_descriptor_base &) = delete;
@@ -319,18 +348,23 @@ public:
   public:
     using addon_type = AddOns::template enum_descriptor<enum_descriptor_t>;
     explicit enum_descriptor_t(const EnumDescriptorProto &proto, string_t &&full_name, const auto &inherited_options,
-                               file_descriptor_t *parent_file, message_descriptor_t *parent_message)
-        : enum_descriptor_base(proto, std::move(full_name), inherited_options, parent_file, parent_message),
-          addon_type(*this, inherited_options) {}
+                               file_descriptor_t *parent_file, message_descriptor_t *parent_message,
+                               std::pmr::memory_resource *resource)
+        : enum_descriptor_base(proto, std::move(full_name), inherited_options, parent_file, parent_message, resource),
+          addon_type(*this, inherited_options, resource) {}
   };
 
   class message_descriptor_base {
   public:
     explicit message_descriptor_base(const DescriptorProto &proto, string_t full_name, const auto &inherited_options,
-                                     file_descriptor_t *parent_file, message_descriptor_t *parent_message)
+                                     file_descriptor_t *parent_file, message_descriptor_t *parent_message,
+                                     std::pmr::memory_resource *resource)
         : proto_(proto), full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message),
+          fields_(with_resource<decltype(fields_)>(resource)), enums_(with_resource<decltype(enums_)>(resource)),
+          oneofs_(with_resource<decltype(oneofs_)>(resource)), messages_(with_resource<decltype(messages_)>(resource)),
+          extensions_(with_resource<decltype(extensions_)>(resource)),
           options_(proto.options.value_or(MessageOptions{})) {
-      options_.features = merge_features(inherited_options.features.value(), proto_.options);
+      options_.features = merge_features(inherited_options.features.value(), proto_.options, resource);
     }
 
     message_descriptor_base(const message_descriptor_base &) = delete;
@@ -385,16 +419,23 @@ public:
     using field_type = field_descriptor_t;
 
     explicit message_descriptor_t(const DescriptorProto &proto, string_t &&full_name, const auto &inherited_options,
-                                  file_descriptor_t *parent_file, message_descriptor_t *parent_message)
-        : message_descriptor_base(proto, std::move(full_name), inherited_options, parent_file, parent_message),
-          addon_type(*this, inherited_options) {}
+                                  file_descriptor_t *parent_file, message_descriptor_t *parent_message,
+                                  std::pmr::memory_resource *resource)
+        : message_descriptor_base(proto, std::move(full_name), inherited_options, parent_file, parent_message,
+                                  resource),
+          addon_type(*this, inherited_options, resource) {}
   };
 
   class file_descriptor_base {
   public:
-    explicit file_descriptor_base(const FileDescriptorProto &proto, const FeatureSet &default_features)
-        : proto_(proto), options_(proto.options.value_or(FileOptions{})) {
-      options_.features = merge_features(default_features, proto.options);
+    explicit file_descriptor_base(const FileDescriptorProto &proto, const FeatureSet &default_features,
+                                  std::pmr::memory_resource *resource)
+        : proto_(proto), enums_(with_resource<decltype(enums_)>(resource)),
+          messages_(with_resource<decltype(messages_)>(resource)),
+          extensions_(with_resource<decltype(extensions_)>(resource)),
+          dependencies_(with_resource<decltype(dependencies_)>(resource)),
+          options_(proto.options.value_or(FileOptions{})) {
+      options_.features = merge_features(default_features, proto.options, resource);
     }
 
     file_descriptor_base(const file_descriptor_base &) = delete;
@@ -430,8 +471,9 @@ public:
   class file_descriptor_t : public file_descriptor_base, public AddOns::template file_descriptor<file_descriptor_t> {
   public:
     using addon_type = AddOns::template file_descriptor<file_descriptor_t>;
-    explicit file_descriptor_t(const FileDescriptorProto &proto, const FeatureSet &default_features)
-        : file_descriptor_base(proto, default_features), addon_type(*this) {}
+    explicit file_descriptor_t(const FileDescriptorProto &proto, const FeatureSet &default_features,
+                               std::pmr::memory_resource *resource)
+        : file_descriptor_base(proto, default_features, resource), addon_type(*this, resource) {}
   };
 
   static std::expected<FileDescriptorSet, descriptor_pool_errc>
@@ -511,29 +553,24 @@ public:
   [[nodiscard]] const map_t<std::string_view, message_descriptor_t *> &message_map() const { return message_map_; }
   [[nodiscard]] const map_t<std::string_view, enum_descriptor_t *> &enum_map() const { return enum_map_; }
 
-  descriptor_pool() = default;
+  descriptor_pool() : descriptor_pool(std::pmr::get_default_resource()) {}
+
+  explicit descriptor_pool(std::pmr::memory_resource *resource, std::pmr::memory_resource *scratch_resource = nullptr)
+      : fileset_(make_fileset(resource)), files_(with_resource<decltype(files_)>(resource)),
+        messages_(with_resource<decltype(messages_)>(resource)), enums_(with_resource<decltype(enums_)>(resource)),
+        oneofs_(with_resource<decltype(oneofs_)>(resource)), fields_(with_resource<decltype(fields_)>(resource)),
+        file_map_(with_resource<decltype(file_map_)>(resource)),
+        message_map_(with_resource<decltype(message_map_)>(resource)),
+        enum_map_(with_resource<decltype(enum_map_)>(resource)), resource_(resource),
+        scratch_resource_(scratch_resource != nullptr ? scratch_resource : resource) {}
 
   /**
    * @brief Initialize the pool from a FileDescriptorSet.
    *
    * @return expected<void, descriptor_pool_errc> with validation_error on invalid schema.
    */
-  [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset)
-    requires(!std::is_trivially_destructible_v<FileDescriptorSet>)
-  {
+  [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset) {
     fileset_.file = std::move(fileset).file;
-    return init();
-  }
-
-  /**
-   * @brief Initialize the pool from a FileDescriptorSet using a PMR default resource.
-   *
-   * @return expected<void, descriptor_pool_errc> with validation_error on invalid schema.
-   */
-  [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset,
-                                                               std::pmr::memory_resource &mr) {
-    fileset_.file = std::move(fileset).file;
-    const default_resource_guard guard{mr};
     return init();
   }
 
@@ -546,7 +583,8 @@ private:
     std::size_t oneofs = 0;
     std::size_t enums = 0;
 
-    explicit descriptor_counter(const FileDescriptorSet &fileset) {
+    explicit descriptor_counter(const FileDescriptorSet &fileset, std::pmr::memory_resource *scratch_resource)
+        : scratch_resource_(scratch_resource) {
       for (const auto &f : fileset.file) {
         count_file(f);
       }
@@ -563,7 +601,8 @@ private:
 
     void count_message(const DescriptorProto &root) {
       messages++;
-      std::vector<const DescriptorProto *> pending{&root};
+      std::pmr::vector<const DescriptorProto *> pending{scratch_resource_};
+      pending.push_back(&root);
       while (!pending.empty()) {
         const auto *message_ptr = pending.back();
         pending.pop_back();
@@ -577,6 +616,8 @@ private:
         }
       }
     }
+
+    std::pmr::memory_resource *scratch_resource_;
   };
 
   std::expected<void, descriptor_pool_errc> init() {
@@ -589,7 +630,7 @@ private:
     message_map_.clear();
     enum_map_.clear();
 
-    const descriptor_counter counter(fileset_);
+    const descriptor_counter counter(fileset_, scratch_resource_);
     reserve_storage(counter);
     return build_files_from_fileset()
         .and_then([this] { return link_file_dependencies(); })
@@ -625,7 +666,7 @@ private:
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
         return select_features(proto).and_then([&](const auto &features) -> std::expected<void, descriptor_pool_errc> {
-          return build(files_.emplace_back(proto, std::move(features)));
+          return build(files_.emplace_back(proto, std::move(features), resource_));
         });
       });
       if (!result.has_value()) {
@@ -649,7 +690,7 @@ private:
   }
 
   [[nodiscard]] std::expected<void, descriptor_pool_errc> validate_file_dependency_acyclic() const {
-    std::vector<std::size_t> incoming_edges(files_.size());
+    std::pmr::vector<std::size_t> incoming_edges(files_.size(), scratch_resource_);
     for (std::size_t i = 0; i < files_.size(); ++i) {
       for (const auto *dep : files_[i].dependencies_) {
         const auto dep_index = static_cast<std::size_t>(dep - files_.data());
@@ -657,7 +698,7 @@ private:
       }
     }
 
-    std::vector<std::size_t> pending;
+    std::pmr::vector<std::size_t> pending{scratch_resource_};
     pending.reserve(files_.size());
     for (std::size_t i = 0; i < incoming_edges.size(); ++i) {
       if (incoming_edges[i] == 0) {
@@ -737,12 +778,12 @@ private:
     return {};
   }
 
-  static FeatureSet merge_features(FeatureSet features, const auto &options) {
+  static FeatureSet merge_features(FeatureSet features, const auto &options, std::pmr::memory_resource *resource) {
     if (options.has_value()) {
       const auto &overriding_features = options->features;
       if (overriding_features.has_value()) {
         if constexpr (std::is_trivially_destructible_v<FeatureSet>) {
-          hpp_proto::merge(features, *options->features, hpp_proto::alloc_from(*std::pmr::get_default_resource()));
+          hpp_proto::merge(features, *options->features, hpp_proto::alloc_from(*resource));
         } else {
           hpp_proto::merge(features, *options->features);
         }
@@ -762,21 +803,8 @@ private:
   map_t<std::string_view, message_descriptor_t *> message_map_;
   map_t<std::string_view, enum_descriptor_t *> enum_map_;
   google::protobuf::Edition current_edition_ = {};
-
-  class default_resource_guard {
-  public:
-    explicit default_resource_guard(std::pmr::memory_resource &resource) : prev_(std::pmr::get_default_resource()) {
-      std::pmr::set_default_resource(&resource);
-    }
-    ~default_resource_guard() { std::pmr::set_default_resource(prev_); }
-    default_resource_guard(const default_resource_guard &) = delete;
-    default_resource_guard &operator=(const default_resource_guard &) = delete;
-    default_resource_guard(default_resource_guard &&) = delete;
-    default_resource_guard &operator=(default_resource_guard &&) = delete;
-
-  private:
-    std::pmr::memory_resource *prev_;
-  };
+  std::pmr::memory_resource *resource_;
+  std::pmr::memory_resource *scratch_resource_;
 
   static google::protobuf::FeatureSetDefaults<traits_type> get_cpp_edition_defaults() {
     // from https://github.com/protocolbuffers/protobuf/blob/v33.0/src/google/protobuf/cpp_edition_defaults.h
@@ -858,14 +886,14 @@ private:
         }
 
         auto features = default_features.overridable_features.value_or(FeatureSet{});
-        return merge_features(features, file.options);
+        return merge_features(features, file.options, resource_);
       }
     }
     return std::unexpected(descriptor_pool_errc::validation_error);
   }
 
-  static string_t join_by_dot(std::string_view x, std::string_view y) {
-    string_t result;
+  [[nodiscard]] string_t join_by_dot(std::string_view x, std::string_view y) const {
+    auto result = with_resource<string_t>(resource_);
     result.resize(x.size() + y.size() + 1);
     auto it = std::copy(x.begin(), x.end(), result.begin());
     *it++ = '.';
@@ -895,9 +923,9 @@ private:
         if (proto.name.empty()) {
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
-        auto &message =
-            messages_.emplace_back(proto, !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name},
-                                   descriptor.options_, &descriptor, static_cast<message_descriptor_t *>(nullptr));
+        auto &message = messages_.emplace_back(
+            proto, !package.empty() ? join_by_dot(package, proto.name) : make_string(proto.name), descriptor.options_,
+            &descriptor, static_cast<message_descriptor_t *>(nullptr), resource_);
         return build(message).transform([&] { descriptor.messages_.push_back(&message); });
       });
       if (!result.has_value()) {
@@ -910,8 +938,9 @@ private:
       if (proto.name.empty()) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
-      auto &e = enums_.emplace_back(proto, !package.empty() ? join_by_dot(package, proto.name) : string_t{proto.name},
-                                    descriptor.options_, &descriptor, nullptr);
+      auto &e =
+          enums_.emplace_back(proto, !package.empty() ? join_by_dot(package, proto.name) : make_string(proto.name),
+                              descriptor.options_, &descriptor, nullptr, resource_);
       if (!enum_map_.try_emplace(e.full_name(), &e).second) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
@@ -921,14 +950,15 @@ private:
   }
 
   std::expected<void, descriptor_pool_errc> build(message_descriptor_t &root) {
-    std::vector<message_descriptor_t *> pending{&root};
+    std::pmr::vector<message_descriptor_t *> pending{scratch_resource_};
+    pending.push_back(&root);
     while (!pending.empty()) {
       auto &descriptor = *pending.back();
       pending.pop_back();
 
       descriptor.oneofs_.reserve(descriptor.proto_.oneof_decl.size());
       for (auto &proto : descriptor.proto_.oneof_decl) {
-        auto &oneof = oneofs_.emplace_back(proto, descriptor.options_);
+        auto &oneof = oneofs_.emplace_back(proto, descriptor.options_, resource_);
         descriptor.oneofs_.push_back(&oneof);
       }
 
@@ -941,7 +971,7 @@ private:
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
         auto &message = messages_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name),
-                                               descriptor.options_, descriptor.parent_file_, &descriptor);
+                                               descriptor.options_, descriptor.parent_file_, &descriptor, resource_);
         descriptor.messages_.push_back(&message);
       }
       for (auto it = descriptor.messages_.rbegin(); it != descriptor.messages_.rend(); ++it) {
@@ -954,7 +984,7 @@ private:
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
         auto &e = enums_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name), descriptor.options_,
-                                      descriptor.parent_file_, &descriptor);
+                                      descriptor.parent_file_, &descriptor, resource_);
         if (!enum_map_.try_emplace(e.full_name(), &e).second) {
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
@@ -972,8 +1002,8 @@ private:
 
   // NOLINTNEXTLINE(readability-function-cognitive-complexity)
   std::expected<void, descriptor_pool_errc> build_fields(message_descriptor_t &descriptor) {
-    auto to_default_json_name = [](std::string_view proto_name) {
-      std::string json_name;
+    auto to_default_json_name = [this](std::string_view proto_name) {
+      std::pmr::string json_name{scratch_resource_};
       json_name.reserve(proto_name.size());
       bool upper_next = false;
       for (const char ch : proto_name) {
@@ -991,17 +1021,18 @@ private:
       return json_name;
     };
     auto has_custom_json_name = [&](const FieldDescriptorProto &field) {
-      return !field.json_name.empty() && field.json_name != to_default_json_name(field.name);
+      const auto default_name = to_default_json_name(field.name);
+      return !field.json_name.empty() && std::string_view{field.json_name} != std::string_view{default_name};
     };
 
     descriptor.fields_.reserve(descriptor.proto_.field.size());
-    std::unordered_set<int32_t> seen_field_numbers;
+    std::pmr::unordered_set<int32_t> seen_field_numbers{scratch_resource_};
     seen_field_numbers.reserve(descriptor.proto_.field.size());
-    std::unordered_set<std::string_view> seen_field_names;
+    std::pmr::unordered_set<std::string_view> seen_field_names{scratch_resource_};
     seen_field_names.reserve(descriptor.proto_.field.size());
-    std::unordered_set<std::string_view> seen_json_names;
+    std::pmr::unordered_set<std::string_view> seen_json_names{scratch_resource_};
     seen_json_names.reserve(descriptor.proto_.field.size());
-    std::unordered_set<std::string_view> seen_custom_json_names;
+    std::pmr::unordered_set<std::string_view> seen_custom_json_names{scratch_resource_};
     seen_custom_json_names.reserve(descriptor.proto_.field.size());
     for (auto &proto : descriptor.proto_.field) {
       if (!is_valid_field_number(proto.number)) {
@@ -1026,7 +1057,7 @@ private:
       if (custom_json_name) {
         seen_custom_json_names.insert(proto.json_name);
       }
-      auto &field = fields_.emplace_back(proto, &descriptor, descriptor.options_);
+      auto &field = fields_.emplace_back(proto, &descriptor, descriptor.options_, resource_);
       if (descriptor.is_map_entry()) {
         field.set_explicit_presence();
       }
@@ -1057,7 +1088,7 @@ private:
       if constexpr (std::same_as<decltype(&parent), message_descriptor_t *>) {
         msg_desc = &parent;
       }
-      auto &field = fields_.emplace_back(proto, msg_desc, parent.options_);
+      auto &field = fields_.emplace_back(proto, msg_desc, parent.options_, resource_);
       parent.extensions_.push_back(&field);
     }
     return {};

@@ -303,7 +303,8 @@ struct hpp_addons {
     bool is_closed_enum = false;
     bool is_foreign = false;
 
-    field_descriptor(const Derived &self, [[maybe_unused]] const auto &inherited_options)
+    field_descriptor(const Derived &self, [[maybe_unused]] const auto &inherited_options,
+                     [[maybe_unused]] std::pmr::memory_resource *resource)
         : cpp_name(resolve_keyword(self.proto().name)) {
       set_cpp_type(self.proto());
       set_default_value(self.proto());
@@ -482,7 +483,8 @@ struct hpp_addons {
     std::string qualified_name;
     bool continuous = true;
 
-    explicit enum_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options)
+    explicit enum_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options,
+                             [[maybe_unused]] std::pmr::memory_resource *resource)
         : cpp_name(resolve_keyword(self.proto().name)) {
       sorted_values.resize(self.proto().value.size());
       std::ranges::transform(self.proto().value, sorted_values.begin(), [](auto &desc) { return desc.number; });
@@ -500,7 +502,8 @@ struct hpp_addons {
   struct oneof_descriptor {
     std::string cpp_name;
 
-    explicit oneof_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options)
+    explicit oneof_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options,
+                              [[maybe_unused]] std::pmr::memory_resource *resource)
         : cpp_name(resolve_keyword(self.proto().name)) {}
   };
 
@@ -516,7 +519,8 @@ struct hpp_addons {
     bool has_recursive_map_field = false;
     bool has_non_map_nested_message = false;
 
-    explicit message_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options)
+    explicit message_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options,
+                                [[maybe_unused]] std::pmr::memory_resource *resource)
         : pb_name(self.proto().name), cpp_name(resolve_keyword(self.proto().name)),
           has_non_map_nested_message(std::ranges::any_of(self.proto().nested_type, [](const DescriptorProto &submsg) {
             return !submsg.options.has_value() || !submsg.options->map_entry;
@@ -532,7 +536,8 @@ struct hpp_addons {
     std::string cpp_name;
     std::string namespace_prefix;
 
-    explicit file_descriptor(Derived &self) // NOLINT(bugprone-crtp-constructor-accessibility)
+    // NOLINTNEXTLINE(bugprone-crtp-constructor-accessibility)
+    explicit file_descriptor(Derived &self, [[maybe_unused]] std::pmr::memory_resource *resource)
         : syntax(self.proto().syntax.empty() ? std::string{"proto2"} : self.proto().syntax),
           cpp_name(self.proto().name) {
       ::hpp_proto::hpp_file_opts opts;
