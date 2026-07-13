@@ -134,8 +134,8 @@ class dynamic_message_factory_impl {
 public:
   using FileDescriptorSet = ::google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
 
-  explicit dynamic_message_factory_impl(std::pmr::memory_resource *upstream_resource)
-      : descriptor_memory_resource_(upstream_resource, dynamic_message_factory::max_descriptor_memory_bytes),
+  dynamic_message_factory_impl(std::pmr::memory_resource *upstream_resource, std::size_t max_memory_bytes)
+      : descriptor_memory_resource_(upstream_resource, max_memory_bytes),
         memory_resource_(&descriptor_memory_resource_), pool_(&memory_resource_, &descriptor_memory_resource_) {}
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> initialize(FileDescriptorSet &&fileset) {
@@ -275,8 +275,9 @@ void dynamic_message_factory::impl_deleter::operator()(detail::dynamic_message_f
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_fileset(dynamic_message_factory::file_descriptor_set_type &&fileset,
-                                             allocator_type allocator) {
-  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
+                                             limits resource_limits, allocator_type allocator) {
+  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource(),
+                                                                           resource_limits.max_memory_bytes)};
   try {
     return impl->initialize(std::move(fileset)).transform([&] { return dynamic_message_factory{std::move(impl)}; });
   } catch (const detail::descriptor_memory_budget_exhausted &) {
@@ -285,15 +286,17 @@ dynamic_message_factory::create_from_fileset(dynamic_message_factory::file_descr
 }
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
-dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> descs, allocator_type allocator) {
+dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> descs, limits resource_limits,
+                                           allocator_type allocator) {
   std::size_t total_size = 0;
   for (const auto &desc : descs) {
-    if (desc.value.size() > max_serialized_descriptor_bytes - total_size) {
+    if (desc.value.size() > resource_limits.max_serialized_bytes - total_size) {
       return std::unexpected(dynamic_message_errc::descriptor_size_limit_exceeded);
     }
     total_size += desc.value.size();
   }
-  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
+  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource(),
+                                                                           resource_limits.max_memory_bytes)};
   try {
     return descriptor_pool_t::make_file_descriptor_set(descs, distinct_file_tag_t{},
                                                        alloc_from(impl->memory_resource()))
@@ -306,12 +309,13 @@ dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> d
 }
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
-dynamic_message_factory::create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb,
+dynamic_message_factory::create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb, limits resource_limits,
                                            allocator_type allocator) {
-  if (file_descriptor_set_binpb.size() > max_serialized_descriptor_bytes) {
+  if (file_descriptor_set_binpb.size() > resource_limits.max_serialized_bytes) {
     return std::unexpected(dynamic_message_errc::descriptor_size_limit_exceeded);
   }
-  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
+  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource(),
+                                                                           resource_limits.max_memory_bytes)};
   try {
     return impl->initialize(file_descriptor_set_binpb).transform([&] {
       return dynamic_message_factory{std::move(impl)};

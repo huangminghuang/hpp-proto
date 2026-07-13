@@ -56,10 +56,43 @@ private:
 
 public:
   using allocator_type = std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl>;
-  /// Maximum aggregate bytes accepted by serialized descriptor factory overloads.
+
+  /**
+   * @brief Default wire-size limit for serialized descriptor inputs: 16 MiB.
+   *
+   * This limit applies before decoding to the complete serialized `FileDescriptorSet`, or to the sum of all encoded
+   * `FileDescriptorProto` values passed through the distinct-descriptor overload. It bounds input retention and the
+   * parser work directly attributable to encoded bytes, but it does not bound decoded memory: very small protobuf
+   * submessages can expand into much larger C++ objects. The in-memory `FileDescriptorSet` overload has no encoded
+   * representation and therefore does not use this limit.
+   */
   static constexpr std::size_t max_serialized_descriptor_bytes = std::size_t{16} * 1024U * 1024U;
-  /// Maximum memory allocated for decoded descriptors and the resulting descriptor pool.
+
+  /**
+   * @brief Default live-memory limit for factory-owned descriptor state: 64 MiB.
+   *
+   * This limit applies to every factory entry point. It covers allocations made by binary decoding, persistent
+   * descriptor-pool containers and descriptor internals, plus temporary validation structures. Persistent state uses
+   * a monotonic arena, so its allocation remains live until the factory is destroyed; temporary scratch allocations
+   * restore budget when released. The budget counts bytes requested from the caller's upstream memory resource and
+   * can include allocator or arena growth overhead. It does not include the factory implementation object itself,
+   * caller-owned input buffers, or unrelated allocations outside descriptor construction.
+   */
   static constexpr std::size_t max_descriptor_memory_bytes = std::size_t{64} * 1024U * 1024U;
+
+  /**
+   * @brief Per-factory resource limits.
+   *
+   * Raising either limit permits larger schemas but increases the CPU or memory available to untrusted descriptors.
+   * `std::numeric_limits<std::size_t>::max()` can be used as an effectively unlimited value when input is trusted.
+   * Defaults preserve the 16 MiB encoded-input and 64 MiB live-memory limits above.
+   */
+  struct limits {
+    /// Maximum encoded bytes accepted by serialized factory overloads; ignored by the in-memory overload.
+    std::size_t max_serialized_bytes = max_serialized_descriptor_bytes;
+    /// Maximum live bytes allocated for decoding, descriptor storage, indexing, and validation scratch space.
+    std::size_t max_memory_bytes = max_descriptor_memory_bytes;
+  };
 
   /// enable to pass dynamic_message_factory as an option to read_json()/write_json()
   using option_type = std::reference_wrapper<dynamic_message_factory>;
@@ -75,13 +108,14 @@ private:
   explicit dynamic_message_factory(impl_ptr impl) noexcept;
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create_from_fileset(file_descriptor_set_type &&fileset, allocator_type allocator);
+  create_from_fileset(file_descriptor_set_type &&fileset, limits resource_limits, allocator_type allocator);
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create_from_descs(std::span<const file_descriptor_pb> descs, allocator_type allocator);
+  create_from_descs(std::span<const file_descriptor_pb> descs, limits resource_limits, allocator_type allocator);
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb, allocator_type allocator);
+  create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb, limits resource_limits,
+                    allocator_type allocator);
 
 public:
   dynamic_message_factory(const dynamic_message_factory &) = delete;
@@ -101,7 +135,12 @@ public:
    */
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create(file_descriptor_set_type &&fileset, allocator_type allocator = {}) {
-    return create_from_fileset(std::move(fileset), allocator);
+    return create_from_fileset(std::move(fileset), limits{}, allocator);
+  }
+
+  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
+  create(file_descriptor_set_type &&fileset, limits resource_limits, allocator_type allocator = {}) {
+    return create_from_fileset(std::move(fileset), resource_limits, allocator);
   }
 
   /**
@@ -115,7 +154,15 @@ public:
   template <std::size_t N>
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create(const distinct_file_descriptor_pb_array<N> &descs, allocator_type allocator = {}) {
-    return create_from_descs(std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), allocator);
+    return create_from_descs(std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), limits{},
+                             allocator);
+  }
+
+  template <std::size_t N>
+  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
+  create(const distinct_file_descriptor_pb_array<N> &descs, limits resource_limits, allocator_type allocator = {}) {
+    return create_from_descs(std::span<const file_descriptor_pb>(std::data(descs), std::size(descs)), resource_limits,
+                             allocator);
   }
 
   /**
@@ -131,7 +178,15 @@ public:
   create(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb, allocator_type allocator = {}) {
     return create_from_binpb(std::as_bytes(std::span{std::ranges::data(file_descriptor_set_binpb),
                                                      std::ranges::size(file_descriptor_set_binpb)}),
-                             allocator);
+                             limits{}, allocator);
+  }
+
+  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
+  create(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb, limits resource_limits,
+         allocator_type allocator = {}) {
+    return create_from_binpb(std::as_bytes(std::span{std::ranges::data(file_descriptor_set_binpb),
+                                                     std::ranges::size(file_descriptor_set_binpb)}),
+                             resource_limits, allocator);
   }
 
   /**

@@ -1198,6 +1198,42 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_size_limit_exceeded));
   };
 
+  "descriptor_factory_limits_are_configurable"_test = [&] {
+    using factory_type = hpp_proto::dynamic_message_factory;
+    constexpr factory_type::limits defaults;
+    expect(eq(defaults.max_serialized_bytes, factory_type::max_serialized_descriptor_bytes));
+    expect(eq(defaults.max_memory_bytes, factory_type::max_descriptor_memory_bytes));
+
+    auto descriptor_set = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
+    auto encoded_limit = defaults;
+    encoded_limit.max_serialized_bytes = descriptor_set.size() - 1U;
+    auto encoded_factory = factory_type::create(descriptor_set, encoded_limit);
+    expect(fatal(!encoded_factory.has_value()));
+    expect(eq(encoded_factory.error(), hpp_proto::dynamic_message_errc::descriptor_size_limit_exceeded));
+
+    auto memory_limit = defaults;
+    memory_limit.max_memory_bytes = 1U;
+    auto memory_factory = factory_type::create(descriptor_set, memory_limit);
+    expect(fatal(!memory_factory.has_value()));
+    expect(eq(memory_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
+
+    std::pmr::monotonic_buffer_resource parse_resource;
+    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+        descriptor_set, hpp_proto::alloc_from(parse_resource)));
+    std::string file_descriptor;
+    expect(hpp_proto::write_binpb(fileset.file.front(), file_descriptor).ok());
+    hpp_proto::distinct_file_descriptor_pb_array descriptors = {hpp_proto::file_descriptor_pb{file_descriptor}};
+    auto distinct_limit = defaults;
+    distinct_limit.max_serialized_bytes = file_descriptor.size() - 1U;
+    auto distinct_factory = factory_type::create(descriptors, distinct_limit);
+    expect(fatal(!distinct_factory.has_value()));
+    expect(eq(distinct_factory.error(), hpp_proto::dynamic_message_errc::descriptor_size_limit_exceeded));
+
+    auto fileset_factory = factory_type::create(std::move(fileset), memory_limit);
+    expect(fatal(!fileset_factory.has_value()));
+    expect(eq(fileset_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
+  };
+
   "serialized_descriptor_decoded_memory_limit_is_enforced"_test = [] {
     // Each empty FileDescriptorProto needs only two wire bytes but occupies hundreds of decoded bytes.
     constexpr std::size_t empty_file_count = hpp_proto::dynamic_message_factory::max_descriptor_memory_bytes / 400U;
