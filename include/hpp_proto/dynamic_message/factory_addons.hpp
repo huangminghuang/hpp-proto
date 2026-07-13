@@ -26,6 +26,7 @@
 #include <cerrno>
 #include <charconv>
 #include <cstdlib>
+#include <expected>
 #include <memory_resource>
 #include <span>
 #include <string>
@@ -64,8 +65,8 @@ struct dynamic_message_factory_addons {
 #endif
 
   template <typename T>
-  static T parse_default_value(std::string_view value,
-                               std::pmr::memory_resource *resource = std::pmr::get_default_resource()) {
+  static std::expected<T, std::errc>
+  parse_default_value(std::string_view value, std::pmr::memory_resource *resource = std::pmr::get_default_resource()) {
     T parsed{};
     if (value.empty()) {
       return parsed;
@@ -109,11 +110,8 @@ struct dynamic_message_factory_addons {
       consumed_entire_input = result.ptr == end;
     }
 
-    if (ec == std::errc::result_out_of_range) {
-      throw std::out_of_range("default value out of range");
-    }
     if (ec != std::errc{} || !consumed_entire_input) {
-      throw std::invalid_argument("invalid default value");
+      return std::unexpected(ec == std::errc{} ? std::errc::invalid_argument : ec);
     }
     return parsed;
   }
@@ -122,6 +120,7 @@ struct dynamic_message_factory_addons {
   struct field_descriptor {
     using type = void;
     std::variant<bool, int32_t, uint32_t, int64_t, uint64_t, double, float> default_value;
+    bool default_value_valid = true;
     /// @brief slot represents the index to the field memory storage of a message; all non-oneof fields use different
     /// slot, fields of the same oneof type share the same slot.
     uint32_t storage_slot = 0;
@@ -141,6 +140,16 @@ struct dynamic_message_factory_addons {
       set_default_value(self.proto(), resource);
     }
 
+    template <typename T>
+    void set_numeric_default_value(std::string_view value, std::pmr::memory_resource *resource) {
+      auto parsed = parse_default_value<T>(value, resource);
+      if (parsed.has_value()) {
+        default_value = *parsed;
+      } else {
+        default_value_valid = false;
+      }
+    }
+
     void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto,
                            std::pmr::memory_resource *resource) {
       using enum google::protobuf::FieldDescriptorProto_::Type;
@@ -148,28 +157,28 @@ struct dynamic_message_factory_addons {
       case TYPE_ENUM:
         break;
       case TYPE_DOUBLE:
-        default_value = parse_default_value<double>(proto.default_value, resource);
+        set_numeric_default_value<double>(proto.default_value, resource);
         break;
       case TYPE_FLOAT:
-        default_value = parse_default_value<float>(proto.default_value, resource);
+        set_numeric_default_value<float>(proto.default_value, resource);
         break;
       case TYPE_INT64:
       case TYPE_SFIXED64:
       case TYPE_SINT64:
-        default_value = parse_default_value<int64_t>(proto.default_value, resource);
+        set_numeric_default_value<int64_t>(proto.default_value, resource);
         break;
       case TYPE_UINT64:
       case TYPE_FIXED64:
-        default_value = parse_default_value<uint64_t>(proto.default_value, resource);
+        set_numeric_default_value<uint64_t>(proto.default_value, resource);
         break;
       case TYPE_INT32:
       case TYPE_SFIXED32:
       case TYPE_SINT32:
-        default_value = parse_default_value<int32_t>(proto.default_value, resource);
+        set_numeric_default_value<int32_t>(proto.default_value, resource);
         break;
       case TYPE_UINT32:
       case TYPE_FIXED32:
-        default_value = parse_default_value<uint32_t>(proto.default_value, resource);
+        set_numeric_default_value<uint32_t>(proto.default_value, resource);
         break;
       case TYPE_BOOL:
         default_value = proto.default_value == "true";

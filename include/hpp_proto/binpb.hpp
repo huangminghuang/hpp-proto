@@ -351,7 +351,9 @@ status pack_any(concepts::is_any auto &any, concepts::has_meta auto const &msg,
 
 status unpack_any(concepts::is_any auto const &any, concepts::has_meta auto &msg,
                   concepts::is_option_type auto &&...option) {
-  if (std::string_view{any.type_url}.ends_with(message_name(msg))) {
+  const std::string_view type_url{any.type_url};
+  const auto slash_pos = type_url.rfind('/');
+  if (slash_pos != std::string_view::npos && type_url.substr(slash_pos + 1) == message_name(msg)) {
     return read_binpb(msg, any.value, std::forward<decltype(option)>(option)...);
   }
   return std::errc::invalid_argument;
