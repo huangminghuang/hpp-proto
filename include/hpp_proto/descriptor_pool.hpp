@@ -100,9 +100,10 @@ public:
 
 private:
   [[nodiscard]] static FileDescriptorSet make_fileset(std::pmr::memory_resource *resource) {
-    FileDescriptorSet result;
-    result.file = with_resource<decltype(result.file)>(resource);
-    return result;
+    using file_container = decltype(FileDescriptorSet{}.file);
+    using extension_container = decltype(FileDescriptorSet{}.unknown_fields_.fields);
+    return {.file = with_resource<file_container>(resource),
+            .unknown_fields_ = {.fields = with_resource<extension_container>(resource)}};
   }
 
   [[nodiscard]] string_t make_string(std::string_view value) const {

@@ -11,9 +11,40 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 using namespace boost::ut;
+
+struct owning_pmr_factory_addons {
+  using traits_type = hpp_proto::pmr_traits;
+  using string_t = std::pmr::string;
+  template <typename T>
+  using vector_t = std::pmr::vector<T>;
+  template <typename K, typename V>
+  using map_t = std::pmr::unordered_map<K, V>;
+
+  template <typename Derived>
+  struct field_descriptor {
+    field_descriptor(Derived &, const auto &, std::pmr::memory_resource *) {}
+  };
+  template <typename Derived>
+  struct enum_descriptor {
+    enum_descriptor(Derived &, const auto &, std::pmr::memory_resource *) {}
+  };
+  template <typename Derived>
+  struct oneof_descriptor {
+    oneof_descriptor(Derived &, const auto &, std::pmr::memory_resource *) {}
+  };
+  template <typename Derived>
+  struct message_descriptor {
+    message_descriptor(Derived &, const auto &, std::pmr::memory_resource *) {}
+  };
+  template <typename Derived>
+  struct file_descriptor {
+    file_descriptor(Derived &, std::pmr::memory_resource *) {}
+  };
+};
 
 // Dynamic descriptor factory tests use protobuf boundary and validation fixture literals inline.
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
@@ -1311,6 +1342,39 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(hpp_proto::dynamic_message_factory::create(descriptor_set, allocator).has_value());
     expect(hpp_proto::dynamic_message_factory::create(descriptors, allocator).has_value());
     expect(hpp_proto::dynamic_message_factory::create(std::move(fileset), allocator).has_value());
+  };
+
+  "owning_pmr_descriptor_pool_does_not_use_global_default_resource"_test = [&] {
+    struct throwing_memory_resource final : std::pmr::memory_resource {
+      void *do_allocate(std::size_t, std::size_t) override { throw std::bad_alloc{}; }
+      void do_deallocate(void *, std::size_t, std::size_t) override {}
+      [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+        return this == &other;
+      }
+    } throwing_resource;
+    struct default_resource_scope {
+      std::pmr::memory_resource *previous;
+      explicit default_resource_scope(std::pmr::memory_resource *resource)
+          : previous(std::pmr::set_default_resource(resource)) {}
+      ~default_resource_scope() { std::pmr::set_default_resource(previous); }
+    };
+
+    OwningFileDescriptorProto minimal_file;
+    minimal_file.name = "minimal.proto";
+    minimal_file.syntax = "proto3";
+    auto descriptor_set = make_descriptor_set_binpb_one(minimal_file);
+    std::pmr::monotonic_buffer_resource resource;
+    using pool_type = hpp_proto::descriptor_pool<owning_pmr_factory_addons>;
+    auto warmup_fileset = expect_ok(
+        hpp_proto::read_binpb<typename pool_type::FileDescriptorSet>(descriptor_set, hpp_proto::alloc_from(resource)));
+    pool_type warmup_pool{&resource};
+    expect(warmup_pool.init(std::move(warmup_fileset)).has_value());
+    auto fileset = expect_ok(
+        hpp_proto::read_binpb<typename pool_type::FileDescriptorSet>(descriptor_set, hpp_proto::alloc_from(resource)));
+
+    default_resource_scope guard{&throwing_resource};
+    pool_type pool{&resource};
+    expect(pool.init(std::move(fileset)).has_value());
   };
 
   "factory_create_succeeds_after_failed_create"_test = [&] {
