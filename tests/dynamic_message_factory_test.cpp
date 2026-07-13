@@ -26,24 +26,76 @@ struct owning_pmr_factory_addons {
 
   template <typename Derived>
   struct field_descriptor {
-    field_descriptor(Derived &, const auto &, std::pmr::memory_resource *) {}
+    field_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] const auto &options,
+                     [[maybe_unused]] std::pmr::memory_resource *resource) {}
   };
   template <typename Derived>
   struct enum_descriptor {
-    enum_descriptor(Derived &, const auto &, std::pmr::memory_resource *) {}
+    enum_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] const auto &options,
+                    [[maybe_unused]] std::pmr::memory_resource *resource) {}
   };
   template <typename Derived>
   struct oneof_descriptor {
-    oneof_descriptor(Derived &, const auto &, std::pmr::memory_resource *) {}
+    oneof_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] const auto &options,
+                     [[maybe_unused]] std::pmr::memory_resource *resource) {}
   };
   template <typename Derived>
   struct message_descriptor {
-    message_descriptor(Derived &, const auto &, std::pmr::memory_resource *) {}
+    message_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] const auto &options,
+                       [[maybe_unused]] std::pmr::memory_resource *resource) {}
   };
   template <typename Derived>
   struct file_descriptor {
-    file_descriptor(Derived &, std::pmr::memory_resource *) {}
+    // NOLINTNEXTLINE(bugprone-crtp-constructor-accessibility)
+    file_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] std::pmr::memory_resource *resource) {}
   };
+};
+
+class throwing_memory_resource final : public std::pmr::memory_resource {
+private:
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+  void *do_allocate([[maybe_unused]] std::size_t bytes, [[maybe_unused]] std::size_t alignment) override {
+    throw std::bad_alloc{};
+  }
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+  void do_deallocate([[maybe_unused]] void *pointer, [[maybe_unused]] std::size_t bytes,
+                     [[maybe_unused]] std::size_t alignment) override {}
+  [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+    return this == &other;
+  }
+};
+
+class tracking_memory_resource final : public std::pmr::memory_resource {
+public:
+  [[nodiscard]] std::size_t allocations() const noexcept { return allocations_; }
+
+private:
+  void *do_allocate(std::size_t bytes, std::size_t alignment) override {
+    ++allocations_;
+    return std::pmr::new_delete_resource()->allocate(bytes, alignment);
+  }
+  void do_deallocate(void *pointer, std::size_t bytes, std::size_t alignment) override {
+    std::pmr::new_delete_resource()->deallocate(pointer, bytes, alignment);
+  }
+  [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+    return this == &other;
+  }
+
+  std::size_t allocations_ = 0;
+};
+
+class default_resource_scope {
+public:
+  explicit default_resource_scope(std::pmr::memory_resource *resource)
+      : previous_(std::pmr::set_default_resource(resource)) {}
+  ~default_resource_scope() { std::pmr::set_default_resource(previous_); }
+  default_resource_scope(const default_resource_scope &) = delete;
+  default_resource_scope(default_resource_scope &&) = delete;
+  default_resource_scope &operator=(const default_resource_scope &) = delete;
+  default_resource_scope &operator=(default_resource_scope &&) = delete;
+
+private:
+  std::pmr::memory_resource *previous_;
 };
 
 // Dynamic descriptor factory tests use protobuf boundary and validation fixture literals inline.
@@ -1162,12 +1214,27 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   "descriptor_pool_construction_uses_decoded_memory_budget"_test = [&] {
-    auto descriptor_set = make_descriptor_set_binpb_one(make_large_field_message_fileset(150'000));
+    auto file = make_large_field_message_fileset(150'000);
+    auto descriptor_set = make_descriptor_set_binpb_one(file);
     expect(lt(descriptor_set.size(), hpp_proto::dynamic_message_factory::max_serialized_descriptor_bytes));
 
     auto factory = hpp_proto::dynamic_message_factory::create(descriptor_set);
     expect(fatal(!factory.has_value()));
     expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
+
+    std::string file_descriptor;
+    expect(hpp_proto::write_binpb(file, file_descriptor).ok());
+    hpp_proto::distinct_file_descriptor_pb_array descriptors = {hpp_proto::file_descriptor_pb{file_descriptor}};
+    auto distinct_factory = hpp_proto::dynamic_message_factory::create(descriptors);
+    expect(fatal(!distinct_factory.has_value()));
+    expect(eq(distinct_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
+
+    std::pmr::monotonic_buffer_resource parse_resource;
+    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+        descriptor_set, hpp_proto::alloc_from(parse_resource)));
+    auto fileset_factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
+    expect(fatal(!fileset_factory.has_value()));
+    expect(eq(fileset_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
   };
 
   "distinct_descriptor_aggregate_size_limit_is_enforced"_test = [] {
@@ -1349,19 +1416,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   "factory_creation_does_not_use_global_default_resource"_test = [&] {
-    struct throwing_memory_resource final : std::pmr::memory_resource {
-      void *do_allocate(std::size_t, std::size_t) override { throw std::bad_alloc{}; }
-      void do_deallocate(void *, std::size_t, std::size_t) override {}
-      [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
-        return this == &other;
-      }
-    } throwing_resource;
-    struct default_resource_scope {
-      std::pmr::memory_resource *previous;
-      explicit default_resource_scope(std::pmr::memory_resource *resource)
-          : previous(std::pmr::set_default_resource(resource)) {}
-      ~default_resource_scope() { std::pmr::set_default_resource(previous); }
-    };
+    throwing_memory_resource throwing_resource;
 
     auto descriptor_set = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
     std::pmr::monotonic_buffer_resource parse_resource;
@@ -1380,36 +1435,17 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   "owning_pmr_descriptor_pool_does_not_use_global_default_resource"_test = [&] {
-    struct throwing_memory_resource final : std::pmr::memory_resource {
-      void *do_allocate(std::size_t, std::size_t) override { throw std::bad_alloc{}; }
-      void do_deallocate(void *, std::size_t, std::size_t) override {}
-      [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
-        return this == &other;
-      }
-    } throwing_resource;
-    struct default_resource_scope {
-      std::pmr::memory_resource *previous;
-      explicit default_resource_scope(std::pmr::memory_resource *resource)
-          : previous(std::pmr::set_default_resource(resource)) {}
-      ~default_resource_scope() { std::pmr::set_default_resource(previous); }
-    };
-
-    OwningFileDescriptorProto minimal_file;
-    minimal_file.name = "minimal.proto";
-    minimal_file.syntax = "proto3";
-    auto descriptor_set = make_descriptor_set_binpb_one(minimal_file);
+    auto descriptor_set = make_descriptor_set_binpb_one(OwningFileDescriptorProto{});
     std::pmr::monotonic_buffer_resource resource;
     using pool_type = hpp_proto::descriptor_pool<owning_pmr_factory_addons>;
-    auto warmup_fileset = expect_ok(
-        hpp_proto::read_binpb<typename pool_type::FileDescriptorSet>(descriptor_set, hpp_proto::alloc_from(resource)));
-    pool_type warmup_pool{&resource};
-    expect(warmup_pool.init(std::move(warmup_fileset)).has_value());
-    auto fileset = expect_ok(
-        hpp_proto::read_binpb<typename pool_type::FileDescriptorSet>(descriptor_set, hpp_proto::alloc_from(resource)));
+    auto fileset =
+        expect_ok(hpp_proto::read_binpb<pool_type::FileDescriptorSet>(descriptor_set, hpp_proto::alloc_from(resource)));
 
-    default_resource_scope guard{&throwing_resource};
+    tracking_memory_resource tracking_resource;
+    default_resource_scope guard{&tracking_resource};
     pool_type pool{&resource};
-    expect(pool.init(std::move(fileset)).has_value());
+    expect(!pool.init(std::move(fileset)).has_value());
+    expect(eq(tracking_resource.allocations(), std::size_t{0}));
   };
 
   "factory_create_succeeds_after_failed_create"_test = [&] {
