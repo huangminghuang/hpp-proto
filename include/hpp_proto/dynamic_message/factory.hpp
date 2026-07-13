@@ -56,6 +56,8 @@ private:
 
 public:
   using allocator_type = std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl>;
+  /// Maximum aggregate bytes accepted by serialized descriptor factory overloads.
+  static constexpr std::size_t max_serialized_descriptor_bytes = std::size_t{16} * 1024U * 1024U;
 
   /// enable to pass dynamic_message_factory as an option to read_json()/write_json()
   using option_type = std::reference_wrapper<dynamic_message_factory>;
@@ -88,7 +90,9 @@ public:
 
   /**
    * @brief Construct and initialize from FileDescriptorSet.
-   * @details This API does not catch std::bad_alloc thrown by standard containers.
+   * @details This is a trusted-input API and does not enforce a serialized-size or parser-recursion limit. Prefer a
+   *          serialized overload for untrusted input. This API does not catch std::bad_alloc thrown by standard
+   *          containers.
    * @param allocator Allocator used to create the internal impl object. Its memory_resource()
    *                  must outlive the returned factory instance.
    */
@@ -99,7 +103,8 @@ public:
 
   /**
    * @brief Construct and initialize from distinct serialized file descriptors.
-   * @details This API does not catch std::bad_alloc thrown by standard containers.
+   * @details Returns descriptor_size_limit_exceeded when the aggregate encoded descriptors exceed
+   *          max_serialized_descriptor_bytes. This API does not catch std::bad_alloc thrown by standard containers.
    * @param allocator Allocator used to create the internal impl object. Its memory_resource()
    *                  must outlive the returned factory instance.
    */
@@ -111,7 +116,9 @@ public:
 
   /**
    * @brief Construct and initialize from serialized FileDescriptorSet bytes.
-   * @details This API does not catch std::bad_alloc thrown by standard containers.
+   * @details Returns descriptor_size_limit_exceeded when the input exceeds max_serialized_descriptor_bytes. Binary
+   *          parsing also enforces its default recursion limit. This API does not catch std::bad_alloc thrown by
+   *          standard containers.
    * @param allocator Allocator used to create the internal impl object. Its memory_resource()
    *                  must outlive the returned factory instance.
    */

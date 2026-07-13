@@ -121,7 +121,8 @@ enum class dynamic_message_errc : uint8_t {
   wrong_message_type,
   unknown_message_name,
   descriptor_deserialization_error,
-  schema_validation_error
+  schema_validation_error,
+  descriptor_size_limit_exceeded
 };
 
 namespace concepts {

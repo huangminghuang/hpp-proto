@@ -539,93 +539,43 @@ public:
 
 private:
   friend class dynamic_message_factory;
-  static constexpr std::size_t max_schema_nodes = 131'072;
-  static constexpr std::size_t max_schema_fields = 65'536;
-  static constexpr std::size_t max_dependency_edges = 65'536;
-  static constexpr std::size_t max_message_nesting_depth = 100;
-
   struct descriptor_counter {
     std::size_t files = 0;
     std::size_t messages = 0;
     std::size_t fields = 0;
     std::size_t oneofs = 0;
     std::size_t enums = 0;
-    std::size_t dependency_edges = 0;
-    std::size_t schema_nodes = 0;
-    bool valid = true;
 
     explicit descriptor_counter(const FileDescriptorSet &fileset) {
       for (const auto &f : fileset.file) {
-        if (!count_file(f)) {
-          valid = false;
-          return;
-        }
+        count_file(f);
       }
     }
 
-    bool add_nodes(std::size_t count) {
-      if (count > max_schema_nodes - schema_nodes) {
-        return false;
-      }
-      schema_nodes += count;
-      return true;
-    }
-
-    bool add_fields(std::size_t count) {
-      if (count > max_schema_fields - fields || !add_nodes(count)) {
-        return false;
-      }
-      fields += count;
-      return true;
-    }
-
-    bool add_enum_values(const auto &enums) {
-      return std::ranges::all_of(enums,
-                                 [this](const auto &enumeration) { return add_nodes(enumeration.value.size()); });
-    }
-
-    bool count_file(const FileDescriptorProto &file) {
-      if (!add_nodes(1) || file.dependency.size() > max_dependency_edges - dependency_edges) {
-        return false;
-      }
+    void count_file(const FileDescriptorProto &file) {
       files++;
-      dependency_edges += file.dependency.size();
       for (const auto &m : file.message_type) {
-        if (!count_message(m)) {
-          return false;
-        }
-      }
-      if (!add_nodes(file.enum_type.size()) || !add_enum_values(file.enum_type) || !add_fields(file.extension.size())) {
-        return false;
+        count_message(m);
       }
       enums += file.enum_type.size();
-      return true;
+      fields += file.extension.size();
     }
 
-    bool count_message(const DescriptorProto &root) {
-      if (!add_nodes(1)) {
-        return false;
-      }
+    void count_message(const DescriptorProto &root) {
       messages++;
-      std::vector<std::pair<const DescriptorProto *, std::size_t>> pending{{&root, 1}};
+      std::vector<const DescriptorProto *> pending{&root};
       while (!pending.empty()) {
-        const auto [message_ptr, depth] = pending.back();
+        const auto *message_ptr = pending.back();
         pending.pop_back();
         const auto &message = *message_ptr;
-        if (!add_nodes(message.enum_type.size()) || !add_nodes(message.oneof_decl.size()) ||
-            !add_fields(message.field.size()) || !add_fields(message.extension.size()) ||
-            !add_enum_values(message.enum_type) || !add_nodes(message.nested_type.size()) ||
-            (!message.nested_type.empty() && depth >= max_message_nesting_depth)) {
-          return false;
-        }
         enums += message.enum_type.size();
         oneofs += message.oneof_decl.size();
+        fields += message.field.size() + message.extension.size();
         messages += message.nested_type.size();
         for (const auto &nested : message.nested_type) {
-          pending.emplace_back(&nested, depth + 1);
+          pending.push_back(&nested);
         }
       }
-      return true;
     }
   };
 
@@ -640,9 +590,6 @@ private:
     enum_map_.clear();
 
     const descriptor_counter counter(fileset_);
-    if (!counter.valid) {
-      return std::unexpected(descriptor_pool_errc::validation_error);
-    }
     reserve_storage(counter);
     return build_files_from_fileset()
         .and_then([this] { return link_file_dependencies(); })
