@@ -258,6 +258,7 @@ struct message_merger {
     requires requires { typename T::mapped_type; }
   constexpr void insert_or_replace(T &dest, const U &source) {
     T tmp;
+    bind_empty_container_to_context(tmp);
     tmp.swap(dest);
     if constexpr (std::same_as<T, U>) {
       dest = source;
@@ -290,10 +291,20 @@ struct message_merger {
     }
   }
 
-  template <typename T>
-    requires(concepts::pb_unknown_fields<T> || concepts::pb_extensions<T>)
-  constexpr void perform(T &dest, const T &source) {
-    perform(dest.fields, source.fields);
+  template <typename T, typename U>
+    requires((concepts::pb_unknown_fields<T> && concepts::pb_unknown_fields<U>) ||
+             (concepts::pb_extensions<T> && concepts::pb_extensions<U>))
+  constexpr void perform(T &dest, const U &source) {
+    if constexpr (!std::same_as<typename T::unknown_fields_range_t, typename U::unknown_fields_range_t> &&
+                  requires { dest.fields.try_emplace(source.fields.begin()->first); }) {
+      bind_empty_container_to_context(dest.fields);
+      for (const auto &[number, data] : source.fields) {
+        auto entry = dest.fields.try_emplace(number).first;
+        perform(entry->second, data);
+      }
+    } else {
+      perform(dest.fields, source.fields);
+    }
   }
 
   template <typename T, typename U>

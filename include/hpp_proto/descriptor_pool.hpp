@@ -823,32 +823,23 @@ private:
     return {};
   }
 
-  static FeatureSet merge_features(FeatureSet features, const auto &options, std::pmr::memory_resource *resource) {
+  static FeatureSet merge_features(const FeatureSet &source, const auto &options, std::pmr::memory_resource *resource) {
+    auto features = copy_features(source, resource);
     if (options.has_value()) {
       const auto &overriding_features = options->features;
       if (overriding_features.has_value()) {
-        if constexpr (std::is_trivially_destructible_v<FeatureSet>) {
-          hpp_proto::merge(features, *options->features, hpp_proto::alloc_from(*resource));
-        } else {
-          hpp_proto::merge(features, *options->features);
-        }
+        hpp_proto::merge(features, *overriding_features, hpp_proto::alloc_from(*resource));
       }
     }
     return features;
   }
 
   template <typename SourceFeatureSet>
-  static FeatureSet copy_features(const SourceFeatureSet &source,
-                                  [[maybe_unused]] std::pmr::memory_resource *resource) {
-    return {.field_presence = source.field_presence,
-            .enum_type = source.enum_type,
-            .repeated_field_encoding = source.repeated_field_encoding,
-            .utf8_validation = source.utf8_validation,
-            .message_encoding = source.message_encoding,
-            .json_format = source.json_format,
-            .enforce_naming_style = source.enforce_naming_style,
-            .default_symbol_visibility = source.default_symbol_visibility,
-            .unknown_fields_ = {}};
+  static FeatureSet copy_features(const SourceFeatureSet &source, std::pmr::memory_resource *resource) {
+    using extensions = decltype(std::declval<FeatureSet>().unknown_fields_.fields);
+    FeatureSet result{.unknown_fields_ = {.fields = with_resource<extensions>(resource)}};
+    hpp_proto::merge(result, source, hpp_proto::alloc_from(*resource));
+    return result;
   }
 
   FileDescriptorSet fileset_;
