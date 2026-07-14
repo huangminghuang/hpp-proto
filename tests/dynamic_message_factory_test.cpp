@@ -60,6 +60,22 @@ struct test_feature_extension
                                                    hpp_proto::field_option::none, hpp_proto::vint64_t>>;
 };
 
+struct test_feature_message {
+  std::int32_t parent_value = 0;
+  std::int32_t child_value = 0;
+  using pb_meta = std::tuple<
+      hpp_proto::field_meta<1, &test_feature_message::parent_value, hpp_proto::field_option::none, hpp_proto::vint64_t>,
+      hpp_proto::field_meta<2, &test_feature_message::child_value, hpp_proto::field_option::none, hpp_proto::vint64_t>>;
+};
+
+template <typename Traits = hpp_proto::default_traits>
+struct test_message_feature_extension
+    : hpp_proto::extension_base<test_message_feature_extension<Traits>, google::protobuf::FeatureSet> {
+  static constexpr std::uint32_t field_number = 124;
+  test_feature_message value;
+  using pb_meta = std::tuple<hpp_proto::field_meta<field_number, &test_message_feature_extension::value>>;
+};
+
 class throwing_memory_resource final : public std::pmr::memory_resource {
 private:
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -1546,6 +1562,25 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     test_feature_extension extension;
     expect(message.descriptor().options().features->get_extension(extension).ok());
     expect(eq(extension.value, std::int32_t{2}));
+  };
+
+  "non_owning_message_feature_extension_merges_parent_and_child_subfields"_test = [&] {
+    constexpr auto field_number = test_message_feature_extension<>::field_number;
+    auto proto = make_two_oneofs_fileset();
+    proto.options.emplace().features.emplace().unknown_fields_.fields.emplace(
+        field_number,
+        std::vector<std::byte>{std::byte{0xe2}, std::byte{0x07}, std::byte{0x02}, std::byte{0x08}, std::byte{0x01}});
+    proto.message_type.front().options.emplace().features.emplace().unknown_fields_.fields.emplace(
+        field_number,
+        std::vector<std::byte>{std::byte{0xe2}, std::byte{0x07}, std::byte{0x02}, std::byte{0x10}, std::byte{0x02}});
+
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(make_descriptor_set_binpb_one(proto)));
+    std::pmr::monotonic_buffer_resource message_resource;
+    auto message = expect_ok(factory.get_message("Root", message_resource));
+    test_message_feature_extension extension;
+    expect(message.descriptor().options().features->get_extension(extension).ok());
+    expect(eq(extension.value.parent_value, std::int32_t{1}));
+    expect(eq(extension.value.child_value, std::int32_t{2}));
   };
 
   "factory_create_succeeds_after_failed_create"_test = [&] {
