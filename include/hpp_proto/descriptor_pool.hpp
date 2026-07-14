@@ -128,7 +128,7 @@ class descriptor_pool {
       if (source.has_value()) {
         if constexpr (requires { result.features; }) {
           if (source->features.has_value()) {
-            using feature_set = typename decltype(result.features)::value_type;
+            using feature_set = decltype(result.features)::value_type;
             result.features.emplace(make_empty_feature_set<feature_set>(resource));
           }
         }
