@@ -287,16 +287,28 @@ struct extension_base { // NOLINT(bugprone-crtp-constructor-accessibility)
   template <typename Traits>
   status get_from(const Extendee<Traits> &extendee, concepts::is_option_type auto &&...option) {
     auto &fields = pb_serializer::get_unknown_fields(extendee);
-    decltype(fields.begin()) itr;
-
     if constexpr (requires { fields.find(number()); }) {
-      itr = fields.find(number());
+      const auto itr = fields.find(number());
+      if (itr != fields.end()) {
+        return read_binpb(*static_cast<T *>(this), itr->second, std::forward<decltype(option)>(option)...);
+      }
     } else {
-      itr = std::find_if(fields.begin(), fields.end(), [](const auto &item) { return item.first == number(); });
-    }
-
-    if (itr != fields.end()) {
-      return read_binpb(*static_cast<T *>(this), itr->second, std::forward<decltype(option)>(option)...);
+      auto &extension = *static_cast<T *>(this);
+      pb_context ctx{std::forward<decltype(option)>(option)...};
+      bool found = false;
+      // Non-owning extension storage can contain multiple entries for one field number.
+      // Deserialize them into the same object so protobuf merge ordering is preserved.
+      for (const auto &[field_number, data] : fields) {
+        if (field_number == number()) {
+          if (!found) {
+            extension = {};
+            found = true;
+          }
+          if (auto result = pb_serializer::deserialize(extension, data, ctx); !result.ok()) {
+            return result;
+          }
+        }
+      }
     }
 
     return {};

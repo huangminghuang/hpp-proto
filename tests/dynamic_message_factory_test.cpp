@@ -51,6 +51,15 @@ struct owning_pmr_factory_addons {
   };
 };
 
+template <typename Traits = hpp_proto::default_traits>
+struct test_feature_extension
+    : hpp_proto::extension_base<test_feature_extension<Traits>, google::protobuf::FeatureSet> {
+  static constexpr std::uint32_t field_number = 123;
+  std::int32_t value = 0;
+  using pb_meta = std::tuple<hpp_proto::field_meta<field_number, &test_feature_extension::value,
+                                                   hpp_proto::field_option::none, hpp_proto::vint64_t>>;
+};
+
 class throwing_memory_resource final : public std::pmr::memory_resource {
 private:
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -1522,6 +1531,21 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(eq(merged_extension[3], std::byte{0x5a}));
     expect(eq(merged_extension[70], std::byte{0x6b}));
     expect(eq(tracking_resource.allocations(), std::size_t{0}));
+  };
+
+  "non_owning_feature_extension_lookup_merges_parent_and_child"_test = [&] {
+    auto proto = make_two_oneofs_fileset();
+    proto.options.emplace().features.emplace().unknown_fields_.fields.emplace(
+        123U, std::vector<std::byte>{std::byte{0xd8}, std::byte{0x07}, std::byte{0x01}});
+    proto.message_type.front().options.emplace().features.emplace().unknown_fields_.fields.emplace(
+        123U, std::vector<std::byte>{std::byte{0xd8}, std::byte{0x07}, std::byte{0x02}});
+
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(make_descriptor_set_binpb_one(proto)));
+    std::pmr::monotonic_buffer_resource message_resource;
+    auto message = expect_ok(factory.get_message("Root", message_resource));
+    test_feature_extension extension;
+    expect(message.descriptor().options().features->get_extension(extension).ok());
+    expect(eq(extension.value, std::int32_t{2}));
   };
 
   "factory_create_succeeds_after_failed_create"_test = [&] {
