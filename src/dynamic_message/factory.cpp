@@ -280,9 +280,9 @@ dynamic_message_factory::create_from_fileset(dynamic_message_factory::file_descr
     return std::unexpected(dynamic_message_errc::invalid_descriptor_memory_options);
   }
   std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{memory_options.upstream};
-  impl_ptr impl{
-      allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
   try {
+    impl_ptr impl{
+        allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
     return impl->initialize(std::move(fileset)).transform([&] { return dynamic_message_factory{std::move(impl)}; });
   } catch (const detail::descriptor_memory_budget_exhausted &) {
     return std::unexpected(dynamic_message_errc::descriptor_memory_limit_exceeded);
@@ -296,9 +296,9 @@ dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> d
     return std::unexpected(dynamic_message_errc::invalid_descriptor_memory_options);
   }
   std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{memory_options.upstream};
-  impl_ptr impl{
-      allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
   try {
+    impl_ptr impl{
+        allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
     return descriptor_pool_t::make_file_descriptor_set(descs, distinct_file_tag_t{},
                                                        alloc_from(impl->memory_resource()))
         .transform_error(detail::to_dynamic_message_errc)
@@ -316,9 +316,9 @@ dynamic_message_factory::create_from_binpb(std::span<const std::byte> file_descr
     return std::unexpected(dynamic_message_errc::invalid_descriptor_memory_options);
   }
   std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{memory_options.upstream};
-  impl_ptr impl{
-      allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
   try {
+    impl_ptr impl{
+        allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
     return impl->initialize(file_descriptor_set_binpb).transform([&] {
       return dynamic_message_factory{std::move(impl)};
     });

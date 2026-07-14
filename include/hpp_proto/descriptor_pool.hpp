@@ -81,6 +81,12 @@ class descriptor_pool {
     }
   }
 
+  template <typename FeatureSetT>
+  [[nodiscard]] static FeatureSetT make_empty_feature_set(std::pmr::memory_resource *resource) {
+    using extensions = decltype(std::declval<FeatureSetT>().unknown_fields_.fields);
+    return {.unknown_fields_ = {.fields = with_resource<extensions>(resource)}};
+  }
+
   template <typename Options>
   [[nodiscard]] static Options make_empty_options(std::pmr::memory_resource *resource) {
     using uninterpreted_options = decltype(std::declval<Options>().uninterpreted_option);
@@ -120,6 +126,12 @@ class descriptor_pool {
     } else {
       auto result = make_empty_options<Options>(resource);
       if (source.has_value()) {
+        if constexpr (requires { result.features; }) {
+          if (source->features.has_value()) {
+            using feature_set = typename decltype(result.features)::value_type;
+            result.features.emplace(make_empty_feature_set<feature_set>(resource));
+          }
+        }
         hpp_proto::merge(result, *source, hpp_proto::alloc_from(*resource));
       }
       return result;
@@ -836,8 +848,7 @@ private:
 
   template <typename SourceFeatureSet>
   static FeatureSet copy_features(const SourceFeatureSet &source, std::pmr::memory_resource *resource) {
-    using extensions = decltype(std::declval<FeatureSet>().unknown_fields_.fields);
-    FeatureSet result{.unknown_fields_ = {.fields = with_resource<extensions>(resource)}};
+    auto result = make_empty_feature_set<FeatureSet>(resource);
     hpp_proto::merge(result, source, hpp_proto::alloc_from(*resource));
     return result;
   }
