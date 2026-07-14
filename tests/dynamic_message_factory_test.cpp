@@ -1309,7 +1309,9 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     std::pmr::monotonic_buffer_resource parse_resource;
     auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
         descriptor_set, hpp_proto::alloc_from(parse_resource)));
-    auto fileset_factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
+    const auto pool_memory_limit =
+        hpp_proto::descriptor_memory_options{.limit = std::size_t{1} * 1024U * 1024U};
+    auto fileset_factory = hpp_proto::dynamic_message_factory::create(std::move(fileset), pool_memory_limit);
     expect(fatal(!fileset_factory.has_value()));
     expect(eq(fileset_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
   };
