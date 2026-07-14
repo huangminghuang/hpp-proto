@@ -1456,24 +1456,25 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(hpp_proto::dynamic_message_factory::create(std::move(fileset), memory_options).has_value());
   };
 
-  "owning_pmr_descriptor_pool_does_not_use_global_default_resource"_test = [&] {
+  "owning_pmr_descriptor_pool_merges_feature_extensions_without_global_allocations"_test = [&] {
     auto make_option = [] {
       return google::protobuf::UninterpretedOption<>{
           .name = {{.name_part = "allocator_sensitive_option_name", .is_extension = false}},
           .identifier_value = "allocator_sensitive_option_value",
       };
     };
-    auto make_extension = [] {
+    auto make_extension = [](std::byte payload) {
       std::vector<std::byte> result = {std::byte{0xda}, std::byte{0x07}, std::byte{0x40}};
-      result.resize(result.size() + 64U, std::byte{0x5a});
+      result.resize(result.size() + 64U, payload);
       return result;
     };
     auto proto = make_two_oneofs_fileset();
     proto.options.emplace().uninterpreted_option.push_back(make_option());
-    proto.options->unknown_fields_.fields.emplace(123U, make_extension());
-    proto.options->features.emplace().unknown_fields_.fields.emplace(123U, make_extension());
+    proto.options->unknown_fields_.fields.emplace(123U, make_extension(std::byte{0x5a}));
+    proto.options->features.emplace().unknown_fields_.fields.emplace(123U, make_extension(std::byte{0x5a}));
     auto &message = proto.message_type.front();
     message.options.emplace().uninterpreted_option.push_back(make_option());
+    message.options->features.emplace().unknown_fields_.fields.emplace(123U, make_extension(std::byte{0x6b}));
     message.field.front().options.emplace().uninterpreted_option.push_back(make_option());
     message.oneof_decl.front().options.emplace().uninterpreted_option.push_back(make_option());
     message.enum_type.push_back(EnumProto{
@@ -1494,6 +1495,13 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     const auto &feature_extensions = pool.files().front().options().features->unknown_fields_.fields;
     expect(eq(feature_extensions.size(), std::size_t{1}));
     expect(feature_extensions.contains(123U));
+    const auto &merged_feature_extensions = pool.messages().front().options().features->unknown_fields_.fields;
+    expect(eq(merged_feature_extensions.size(), std::size_t{1}));
+    expect(merged_feature_extensions.contains(123U));
+    const auto &merged_extension = merged_feature_extensions.at(123U);
+    expect(eq(merged_extension.size(), std::size_t{134}));
+    expect(eq(merged_extension[3], std::byte{0x5a}));
+    expect(eq(merged_extension[70], std::byte{0x6b}));
     expect(eq(tracking_resource.allocations(), std::size_t{0}));
   };
 

@@ -295,12 +295,16 @@ struct message_merger {
     requires((concepts::pb_unknown_fields<T> && concepts::pb_unknown_fields<U>) ||
              (concepts::pb_extensions<T> && concepts::pb_extensions<U>))
   constexpr void perform(T &dest, const U &source) {
-    if constexpr (!std::same_as<typename T::unknown_fields_range_t, typename U::unknown_fields_range_t> &&
+    if constexpr (concepts::pb_extensions<T> && concepts::pb_extensions<U> &&
                   requires { dest.fields.try_emplace(source.fields.begin()->first); }) {
       bind_empty_container_to_context(dest.fields);
       for (const auto &[number, data] : source.fields) {
         auto entry = dest.fields.try_emplace(number).first;
-        perform(entry->second, data);
+        bind_empty_container_to_context(entry->second);
+        decltype(auto) bytes = detail::as_modifiable(ctx, entry->second);
+        // Each map value stores every wire occurrence for one extension number.
+        // Protobuf merge semantics preserve those occurrences in parent-to-child order.
+        util::append_range(bytes, data);
       }
     } else {
       perform(dest.fields, source.fields);
