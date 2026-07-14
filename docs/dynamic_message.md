@@ -34,8 +34,8 @@ target_link_libraries(your_target PRIVATE hpp_proto::dynamic_message)
 
 * `dynamic_message_factory` has no default constructor. Create it via `dynamic_message_factory::create(...)`.
 * `create(...)` returns `std::expected<dynamic_message_factory, dynamic_message_errc>`.
-* `create(...)` overloads accept an optional allocator parameter via
-  `dynamic_message_factory::impl_allocator_type`.
+* `create(...)` overloads accept optional `descriptor_memory_options`. The factory owns the limited descriptor
+  resource and arena; a custom `upstream` resource remains caller-owned and must outlive the factory.
 * By design, `create(...)` does not catch `std::bad_alloc` thrown by standard containers.
 
 ```cpp
@@ -357,6 +357,7 @@ For instance, adding a new person to an address book might look like this:
 
 When working with dynamic messages, it's crucial to keep the following in mind:
 
+*   **Descriptor Input Trust**: `dynamic_message_factory::create()` accepts trusted, prevalidated descriptor input and does not impose a serialized-buffer size limit. If descriptors come from an untrusted source, enforce transport and buffer-size limits before materializing the complete input and calling the factory. Factory-owned decoding, validation, and descriptor-pool allocations remain bounded by `dynamic_message_factory::max_descriptor_memory_bytes` by default.
 *   **Memory Resource Lifetime**: The `std::pmr::monotonic_buffer_resource` (or any `std::pmr::memory_resource`) you provide must remain alive and valid for as long as any `message_value_mref`, `message_value_cref`, or field references (`*_field_mref`/`*_cref`) that use that resource are in scope. Dynamic messages allocate all their internal data (strings, vectors, nested messages) from this resource.
 *   **Repeated Field References**: Operations that modify the size or capacity of repeated fields (e.g., `reserve`, `resize`, `push_back`, `emplace_back` on a `repeated_*_field_mref`) can invalidate existing references to elements within that repeated field. Always reacquire references to individual elements after such mutations.
 *   **Message Field Presence**: When reading scalar, string, bytes, or enum fields, accessing an unset field will return its default value. However, for nested message fields, always check `has_value()` before dereferencing (`.value()`) to ensure the message has been materialized. Directly accessing an unset message field can lead to undefined behavior.
