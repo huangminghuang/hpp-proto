@@ -1471,7 +1471,27 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   "owning_pmr_descriptor_pool_does_not_use_global_default_resource"_test = [&] {
-    auto descriptor_set = make_descriptor_set_binpb_one(OwningFileDescriptorProto{});
+    auto make_option = [] {
+      return google::protobuf::UninterpretedOption<>{
+          .name = {{.name_part = "allocator_sensitive_option_name", .is_extension = false}},
+          .identifier_value = "allocator_sensitive_option_value",
+      };
+    };
+    auto proto = make_two_oneofs_fileset();
+    proto.options.emplace().uninterpreted_option.push_back(make_option());
+    std::vector<std::byte> extension_bytes = {std::byte{0xda}, std::byte{0x07}, std::byte{0x40}};
+    extension_bytes.resize(extension_bytes.size() + 64U, std::byte{0x5a});
+    proto.options->unknown_fields_.fields.emplace(123U, std::move(extension_bytes));
+    auto &message = proto.message_type.front();
+    message.options.emplace().uninterpreted_option.push_back(make_option());
+    message.field.front().options.emplace().uninterpreted_option.push_back(make_option());
+    message.oneof_decl.front().options.emplace().uninterpreted_option.push_back(make_option());
+    message.enum_type.push_back(EnumProto{
+        .name = "AllocatorSensitiveEnum",
+        .value = {{.name = "ZERO", .number = 0}},
+        .options = google::protobuf::EnumOptions<>{.uninterpreted_option = {make_option()}},
+    });
+    auto descriptor_set = make_descriptor_set_binpb_one(proto);
     std::pmr::monotonic_buffer_resource resource;
     using pool_type = hpp_proto::descriptor_pool<owning_pmr_factory_addons>;
     auto fileset =
@@ -1480,7 +1500,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     tracking_memory_resource tracking_resource;
     default_resource_scope guard{&tracking_resource};
     pool_type pool{&resource};
-    expect(!pool.init(std::move(fileset)).has_value());
+    expect(pool.init(std::move(fileset)).has_value());
     expect(eq(tracking_resource.allocations(), std::size_t{0}));
   };
 

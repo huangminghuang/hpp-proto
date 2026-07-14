@@ -81,6 +81,51 @@ class descriptor_pool {
     }
   }
 
+  template <typename Options>
+  [[nodiscard]] static Options make_empty_options(std::pmr::memory_resource *resource) {
+    using uninterpreted_options = decltype(std::declval<Options>().uninterpreted_option);
+    using extensions = decltype(std::declval<Options>().unknown_fields_.fields);
+    if constexpr (std::same_as<Options, google::protobuf::FileOptions<typename AddOns::traits_type>>) {
+      using string = decltype(std::declval<Options>().java_package);
+      return {.java_package = with_resource<string>(resource),
+              .java_outer_classname = with_resource<string>(resource),
+              .go_package = with_resource<string>(resource),
+              .objc_class_prefix = with_resource<string>(resource),
+              .csharp_namespace = with_resource<string>(resource),
+              .swift_prefix = with_resource<string>(resource),
+              .php_class_prefix = with_resource<string>(resource),
+              .php_namespace = with_resource<string>(resource),
+              .php_metadata_namespace = with_resource<string>(resource),
+              .ruby_package = with_resource<string>(resource),
+              .uninterpreted_option = with_resource<uninterpreted_options>(resource),
+              .unknown_fields_ = {.fields = with_resource<extensions>(resource)}};
+    } else if constexpr (std::same_as<Options, google::protobuf::FieldOptions<typename AddOns::traits_type>>) {
+      using targets = decltype(std::declval<Options>().targets);
+      using edition_defaults = decltype(std::declval<Options>().edition_defaults);
+      return {.targets = with_resource<targets>(resource),
+              .edition_defaults = with_resource<edition_defaults>(resource),
+              .uninterpreted_option = with_resource<uninterpreted_options>(resource),
+              .unknown_fields_ = {.fields = with_resource<extensions>(resource)}};
+    } else {
+      return {.uninterpreted_option = with_resource<uninterpreted_options>(resource),
+              .unknown_fields_ = {.fields = with_resource<extensions>(resource)}};
+    }
+  }
+
+  template <typename Options>
+  [[nodiscard]] static Options copy_options(const std::optional<Options> &source, std::pmr::memory_resource *resource) {
+    using uninterpreted_options = decltype(std::declval<Options>().uninterpreted_option);
+    if constexpr (!std::constructible_from<uninterpreted_options, std::pmr::memory_resource *>) {
+      return source.value_or(Options{});
+    } else {
+      auto result = make_empty_options<Options>(resource);
+      if (source.has_value()) {
+        hpp_proto::merge(result, *source, hpp_proto::alloc_from(*resource));
+      }
+      return result;
+    }
+  }
+
 public:
   // NOLINTBEGIN(bugprone-unchecked-optional-access)
   using traits_type = AddOns::traits_type;
@@ -120,7 +165,7 @@ public:
   public:
     field_descriptor_base(const FieldDescriptorProto &proto, message_descriptor_t *parent,
                           const auto &inherited_options, std::pmr::memory_resource *resource)
-        : proto_(proto), parent_message_(parent), options_(proto.options.value_or(FieldOptions{})) {
+        : proto_(proto), parent_message_(parent), options_(copy_options(proto.options, resource)) {
       options_.features = merge_features(inherited_options.features.value(), proto.options, resource);
 
       setup_presence();
@@ -261,7 +306,7 @@ public:
     explicit oneof_descriptor_base(const OneofDescriptorProto &proto, const MessageOptions &inherited_options,
                                    std::pmr::memory_resource *resource)
         : proto_(proto), fields_(with_resource<decltype(fields_)>(resource)),
-          options_(proto.options.value_or(OneofOptions{})) {
+          options_(copy_options(proto.options, resource)) {
       options_.features = merge_features(inherited_options.features.value(), proto.options, resource);
     }
 
@@ -311,7 +356,7 @@ public:
                                   file_descriptor_t *parent_file, message_descriptor_t *parent_message,
                                   std::pmr::memory_resource *resource)
         : proto_(proto), full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message),
-          options_(proto.options.value_or(EnumOptions{})) {
+          options_(copy_options(proto.options, resource)) {
       options_.features = merge_features(inherited_options.features.value(), proto.options, resource);
     }
     ~enum_descriptor_base() = default;
@@ -363,8 +408,7 @@ public:
         : proto_(proto), full_name_(std::move(full_name)), parent_file_(parent_file), parent_message_(parent_message),
           fields_(with_resource<decltype(fields_)>(resource)), enums_(with_resource<decltype(enums_)>(resource)),
           oneofs_(with_resource<decltype(oneofs_)>(resource)), messages_(with_resource<decltype(messages_)>(resource)),
-          extensions_(with_resource<decltype(extensions_)>(resource)),
-          options_(proto.options.value_or(MessageOptions{})) {
+          extensions_(with_resource<decltype(extensions_)>(resource)), options_(copy_options(proto.options, resource)) {
       options_.features = merge_features(inherited_options.features.value(), proto_.options, resource);
     }
 
@@ -435,7 +479,7 @@ public:
           messages_(with_resource<decltype(messages_)>(resource)),
           extensions_(with_resource<decltype(extensions_)>(resource)),
           dependencies_(with_resource<decltype(dependencies_)>(resource)),
-          options_(proto.options.value_or(FileOptions{})) {
+          options_(copy_options(proto.options, resource)) {
       options_.features = merge_features(default_features, proto.options, resource);
     }
 
@@ -793,6 +837,20 @@ private:
     return features;
   }
 
+  template <typename SourceFeatureSet>
+  static FeatureSet copy_features(const SourceFeatureSet &source,
+                                  [[maybe_unused]] std::pmr::memory_resource *resource) {
+    return {.field_presence = source.field_presence,
+            .enum_type = source.enum_type,
+            .repeated_field_encoding = source.repeated_field_encoding,
+            .utf8_validation = source.utf8_validation,
+            .message_encoding = source.message_encoding,
+            .json_format = source.json_format,
+            .enforce_naming_style = source.enforce_naming_style,
+            .default_symbol_visibility = source.default_symbol_visibility,
+            .unknown_fields_ = {}};
+  }
+
   FileDescriptorSet fileset_;
   vector_t<file_descriptor_t> files_;
   vector_t<message_descriptor_t> messages_;
@@ -807,7 +865,7 @@ private:
   std::pmr::memory_resource *resource_;
   std::pmr::memory_resource *scratch_resource_;
 
-  static google::protobuf::FeatureSetDefaults<traits_type> get_cpp_edition_defaults() {
+  static google::protobuf::FeatureSetDefaults<> get_cpp_edition_defaults() {
     // from https://github.com/protocolbuffers/protobuf/blob/v33.0/src/google/protobuf/cpp_edition_defaults.h
     //"\n#\030\204\007\"\003\302>\000*\031\010\001\020\002\030\002
     //\003(\0010\0028\002@\001\302>\006\010\001\020\003\030\000\n#\030\347\007\"\003\302>\000*\031\010\002\020\001\030\001
@@ -816,34 +874,37 @@ private:
     //\002(\0010\0018\001@\002\302>\006\010\000\020\001\030\001*\003\302>\000 \346\007(\351\007"sv
     using namespace google::protobuf::FeatureSet_;
     using namespace VisibilityFeature_;
-    static auto default_feature_set =
-        std::initializer_list<typename google::protobuf::FeatureSetDefaults<traits_type>::FeatureSetEditionDefault>{
+    static const auto default_feature_set =
+        std::initializer_list<google::protobuf::FeatureSetDefaults<>::FeatureSetEditionDefault>{
             {.edition = google::protobuf::Edition::EDITION_LEGACY,
              .overridable_features = {},
-             .fixed_features = FeatureSet{.field_presence = FieldPresence::EXPLICIT,
-                                          .enum_type = EnumType::CLOSED,
-                                          .repeated_field_encoding = RepeatedFieldEncoding::EXPANDED,
-                                          .utf8_validation = Utf8Validation::NONE,
-                                          .message_encoding = MessageEncoding::LENGTH_PREFIXED,
-                                          .json_format = JsonFormat::LEGACY_BEST_EFFORT,
-                                          .enforce_naming_style = EnforceNamingStyle::STYLE_LEGACY,
-                                          .default_symbol_visibility = DefaultSymbolVisibility::EXPORT_ALL,
-                                          .unknown_fields_ = {}},
+             .fixed_features =
+                 google::protobuf::FeatureSet<>{.field_presence = FieldPresence::EXPLICIT,
+                                                .enum_type = EnumType::CLOSED,
+                                                .repeated_field_encoding = RepeatedFieldEncoding::EXPANDED,
+                                                .utf8_validation = Utf8Validation::NONE,
+                                                .message_encoding = MessageEncoding::LENGTH_PREFIXED,
+                                                .json_format = JsonFormat::LEGACY_BEST_EFFORT,
+                                                .enforce_naming_style = EnforceNamingStyle::STYLE_LEGACY,
+                                                .default_symbol_visibility = DefaultSymbolVisibility::EXPORT_ALL,
+                                                .unknown_fields_ = {}},
              .unknown_fields_ = {}},
             {.edition = google::protobuf::Edition::EDITION_PROTO3,
              .overridable_features = {},
-             .fixed_features = FeatureSet{.field_presence = FieldPresence::IMPLICIT,
-                                          .enum_type = EnumType::OPEN,
-                                          .repeated_field_encoding = RepeatedFieldEncoding::PACKED,
-                                          .utf8_validation = Utf8Validation::VERIFY,
-                                          .message_encoding = MessageEncoding::LENGTH_PREFIXED,
-                                          .json_format = JsonFormat::ALLOW,
-                                          .enforce_naming_style = EnforceNamingStyle::STYLE_LEGACY,
-                                          .default_symbol_visibility = DefaultSymbolVisibility::EXPORT_ALL,
-                                          .unknown_fields_ = {}},
+             .fixed_features =
+                 google::protobuf::FeatureSet<>{.field_presence = FieldPresence::IMPLICIT,
+                                                .enum_type = EnumType::OPEN,
+                                                .repeated_field_encoding = RepeatedFieldEncoding::PACKED,
+                                                .utf8_validation = Utf8Validation::VERIFY,
+                                                .message_encoding = MessageEncoding::LENGTH_PREFIXED,
+                                                .json_format = JsonFormat::ALLOW,
+                                                .enforce_naming_style = EnforceNamingStyle::STYLE_LEGACY,
+                                                .default_symbol_visibility = DefaultSymbolVisibility::EXPORT_ALL,
+                                                .unknown_fields_ = {}},
              .unknown_fields_ = {}},
             {.edition = google::protobuf::Edition::EDITION_2023,
-             .overridable_features = FeatureSet{.field_presence = FieldPresence::EXPLICIT,
+             .overridable_features =
+                 google::protobuf::FeatureSet<>{.field_presence = FieldPresence::EXPLICIT,
                                                 .enum_type = EnumType::OPEN,
                                                 .repeated_field_encoding = RepeatedFieldEncoding::PACKED,
                                                 .utf8_validation = Utf8Validation::VERIFY,
@@ -855,7 +916,8 @@ private:
              .fixed_features = {},
              .unknown_fields_ = {}},
             {.edition = google::protobuf::Edition::EDITION_2024,
-             .overridable_features = FeatureSet{.field_presence = FieldPresence::EXPLICIT,
+             .overridable_features =
+                 google::protobuf::FeatureSet<>{.field_presence = FieldPresence::EXPLICIT,
                                                 .enum_type = EnumType::OPEN,
                                                 .repeated_field_encoding = RepeatedFieldEncoding::PACKED,
                                                 .utf8_validation = Utf8Validation::VERIFY,
@@ -883,10 +945,10 @@ private:
     for (const auto &default_features : cpp_edition_defaults.defaults) {
       if (default_features.edition == current_edition_) {
         if (current_edition_ <= google::protobuf::Edition::EDITION_PROTO3) {
-          return default_features.fixed_features.value();
+          return copy_features(default_features.fixed_features.value(), resource_);
         }
 
-        auto features = default_features.overridable_features.value_or(FeatureSet{});
+        auto features = copy_features(default_features.overridable_features.value(), resource_);
         return merge_features(features, file.options, resource_);
       }
     }
