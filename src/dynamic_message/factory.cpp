@@ -29,47 +29,12 @@
 #include <limits>
 #include <memory>
 #include <memory_resource>
-#include <new>
 #include <ranges>
 #include <utility>
 #include <vector>
 
 namespace hpp_proto {
 namespace detail {
-
-class descriptor_memory_budget_exhausted final : public std::bad_alloc {};
-
-class descriptor_memory_resource final : public std::pmr::memory_resource {
-public:
-  descriptor_memory_resource(std::pmr::memory_resource *upstream, std::size_t limit) noexcept
-      : upstream_(upstream), limit_(limit) {}
-
-  [[nodiscard]] std::pmr::memory_resource *upstream_resource() const noexcept { return upstream_; }
-
-private:
-  [[nodiscard]] void *do_allocate(std::size_t bytes, std::size_t alignment) override {
-    if (bytes > limit_ - allocated_) [[unlikely]] {
-      throw descriptor_memory_budget_exhausted{};
-    }
-    void *allocation = upstream_->allocate(bytes, alignment);
-    allocated_ += bytes;
-    return allocation;
-  }
-
-  void do_deallocate(void *p, std::size_t bytes, std::size_t alignment) override {
-    assert(bytes <= allocated_);
-    allocated_ -= bytes;
-    upstream_->deallocate(p, bytes, alignment);
-  }
-
-  [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
-    return this == &other;
-  }
-
-  std::pmr::memory_resource *upstream_;
-  std::size_t limit_;
-  std::size_t allocated_ = 0;
-};
 
 [[nodiscard]] constexpr dynamic_message_errc to_dynamic_message_errc(descriptor_pool_errc ec) noexcept {
   return (ec == descriptor_pool_errc::descriptor_deserialization_error)
@@ -134,9 +99,8 @@ class dynamic_message_factory_impl {
 public:
   using FileDescriptorSet = ::google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
 
-  dynamic_message_factory_impl(std::pmr::memory_resource *upstream_resource, std::size_t max_memory_bytes)
-      : descriptor_memory_resource_(upstream_resource, max_memory_bytes),
-        memory_resource_(&descriptor_memory_resource_), pool_(&memory_resource_, &descriptor_memory_resource_) {}
+  explicit dynamic_message_factory_impl(std::pmr::memory_resource *upstream_resource)
+      : memory_resource_(upstream_resource), pool_(&memory_resource_, upstream_resource) {}
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> initialize(FileDescriptorSet &&fileset) {
     return pool_.init(std::move(fileset)).transform_error(to_dynamic_message_errc).and_then([this] {
@@ -159,20 +123,17 @@ public:
     }
     return expected_message_mref{std::unexpected(dynamic_message_errc::unknown_message_name)};
   }
-  [[nodiscard]] std::pmr::memory_resource *upstream_resource() const {
-    return descriptor_memory_resource_.upstream_resource();
-  }
+  [[nodiscard]] std::pmr::memory_resource *upstream_resource() const { return memory_resource_.upstream_resource(); }
   [[nodiscard]] std::pmr::monotonic_buffer_resource &memory_resource() { return memory_resource_; }
 
 private:
-  descriptor_memory_resource descriptor_memory_resource_;
   std::pmr::monotonic_buffer_resource memory_resource_;
   descriptor_pool_t pool_;
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> setup_storage_slots() {
     for (auto &message : pool_.messages()) {
       const auto oneof_count = message.proto().oneof_decl.size();
-      storage_slot_state state{oneof_count, &descriptor_memory_resource_};
+      storage_slot_state state{oneof_count, upstream_resource()};
       std::size_t field_index = 0;
       for (auto &f : message.fields()) {
         const auto ec = f.proto().oneof_index.has_value() ? setup_oneof_field(f, state, field_index)
@@ -275,56 +236,27 @@ void dynamic_message_factory::impl_deleter::operator()(detail::dynamic_message_f
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_fileset(dynamic_message_factory::file_descriptor_set_type &&fileset,
-                                             descriptor_memory_options memory_options) {
-  if (memory_options.upstream == nullptr) [[unlikely]] {
-    return std::unexpected(dynamic_message_errc::invalid_descriptor_memory_options);
-  }
-  std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{memory_options.upstream};
-  try {
-    impl_ptr impl{
-        allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
-    return impl->initialize(std::move(fileset)).transform([&] { return dynamic_message_factory{std::move(impl)}; });
-  } catch (const detail::descriptor_memory_budget_exhausted &) {
-    return std::unexpected(dynamic_message_errc::descriptor_memory_limit_exceeded);
-  }
+                                             allocator_type allocator) {
+  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
+  return impl->initialize(std::move(fileset)).transform([&] { return dynamic_message_factory{std::move(impl)}; });
 }
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
-dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> descs,
-                                           descriptor_memory_options memory_options) {
-  if (memory_options.upstream == nullptr) [[unlikely]] {
-    return std::unexpected(dynamic_message_errc::invalid_descriptor_memory_options);
-  }
-  std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{memory_options.upstream};
-  try {
-    impl_ptr impl{
-        allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
-    return descriptor_pool_t::make_file_descriptor_set(descs, distinct_file_tag_t{},
-                                                       alloc_from(impl->memory_resource()))
-        .transform_error(detail::to_dynamic_message_errc)
-        .and_then([&](auto &&fileset) { return impl->initialize(std::forward<decltype(fileset)>(fileset)); })
-        .transform([&] { return dynamic_message_factory{std::move(impl)}; });
-  } catch (const detail::descriptor_memory_budget_exhausted &) {
-    return std::unexpected(dynamic_message_errc::descriptor_memory_limit_exceeded);
-  }
+dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> descs, allocator_type allocator) {
+  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
+  return descriptor_pool_t::make_file_descriptor_set(descs, distinct_file_tag_t{}, alloc_from(impl->memory_resource()))
+      .transform_error(detail::to_dynamic_message_errc)
+      .and_then([&](auto &&fileset) { return impl->initialize(std::forward<decltype(fileset)>(fileset)); })
+      .transform([&] { return dynamic_message_factory{std::move(impl)}; });
 }
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb,
-                                           descriptor_memory_options memory_options) {
-  if (memory_options.upstream == nullptr) [[unlikely]] {
-    return std::unexpected(dynamic_message_errc::invalid_descriptor_memory_options);
-  }
-  std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{memory_options.upstream};
-  try {
-    impl_ptr impl{
-        allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
-    return impl->initialize(file_descriptor_set_binpb).transform([&] {
-      return dynamic_message_factory{std::move(impl)};
-    });
-  } catch (const detail::descriptor_memory_budget_exhausted &) {
-    return std::unexpected(dynamic_message_errc::descriptor_memory_limit_exceeded);
-  }
+                                           allocator_type allocator) {
+  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
+  return impl->initialize(file_descriptor_set_binpb).transform([&] {
+    return dynamic_message_factory{std::move(impl)};
+  });
 }
 
 expected_message_mref dynamic_message_factory::get_message(std::string_view name,

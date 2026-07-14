@@ -1236,85 +1236,6 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(hpp_proto::dynamic_message_factory::create(descriptor_set).has_value());
   };
 
-  "descriptor_factory_memory_limit_is_configurable"_test = [&] {
-    using factory_type = hpp_proto::dynamic_message_factory;
-    const hpp_proto::descriptor_memory_options defaults;
-    expect(eq(defaults.limit, factory_type::max_descriptor_memory_bytes));
-    expect(defaults.upstream == std::pmr::get_default_resource());
-
-    auto descriptor_set = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
-    auto memory_limit = defaults;
-    memory_limit.limit = 1U;
-    auto memory_factory = factory_type::create(descriptor_set, memory_limit);
-    expect(fatal(!memory_factory.has_value()));
-    expect(eq(memory_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
-
-    std::pmr::monotonic_buffer_resource parse_resource;
-    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-        descriptor_set, hpp_proto::alloc_from(parse_resource)));
-    auto fileset_factory = factory_type::create(std::move(fileset), memory_limit);
-    expect(fatal(!fileset_factory.has_value()));
-    expect(eq(fileset_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
-  };
-
-  "factory_create_rejects_null_descriptor_upstream"_test = [&] {
-    auto proto = make_two_oneofs_fileset();
-    auto descriptor_set = make_descriptor_set_binpb_one(proto);
-    std::string file_descriptor;
-    expect(hpp_proto::write_binpb(proto, file_descriptor).ok());
-    hpp_proto::distinct_file_descriptor_pb_array descriptors = {hpp_proto::file_descriptor_pb{file_descriptor}};
-    std::pmr::monotonic_buffer_resource parse_resource;
-    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-        descriptor_set, hpp_proto::alloc_from(parse_resource)));
-    const auto memory_options = hpp_proto::descriptor_memory_options{.upstream = nullptr};
-    auto expect_invalid_options = [](auto factory) {
-      expect(fatal(!factory.has_value()));
-      expect(eq(factory.error(), hpp_proto::dynamic_message_errc::invalid_descriptor_memory_options));
-    };
-    expect_invalid_options(hpp_proto::dynamic_message_factory::create(descriptor_set, memory_options));
-    expect_invalid_options(hpp_proto::dynamic_message_factory::create(descriptors, memory_options));
-    expect_invalid_options(hpp_proto::dynamic_message_factory::create(std::move(fileset), memory_options));
-  };
-
-  "serialized_descriptor_decoded_memory_limit_is_enforced"_test = [] {
-    // Each empty FileDescriptorProto needs only two wire bytes but occupies hundreds of decoded bytes.
-    constexpr std::size_t empty_file_count = hpp_proto::dynamic_message_factory::max_descriptor_memory_bytes / 400U;
-    std::vector<std::byte> descriptor_set;
-    descriptor_set.reserve(empty_file_count * 2U);
-    for (std::size_t i = 0; i < empty_file_count; ++i) {
-      descriptor_set.push_back(std::byte{0x0a});
-      descriptor_set.push_back(std::byte{0x00});
-    }
-
-    auto factory = hpp_proto::dynamic_message_factory::create(descriptor_set);
-    expect(fatal(!factory.has_value()));
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
-  };
-
-  "descriptor_pool_construction_uses_decoded_memory_budget"_test = [&] {
-    auto file = make_large_field_message_fileset(150'000);
-    auto descriptor_set = make_descriptor_set_binpb_one(file);
-
-    auto factory = hpp_proto::dynamic_message_factory::create(descriptor_set);
-    expect(fatal(!factory.has_value()));
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
-
-    std::string file_descriptor;
-    expect(hpp_proto::write_binpb(file, file_descriptor).ok());
-    hpp_proto::distinct_file_descriptor_pb_array descriptors = {hpp_proto::file_descriptor_pb{file_descriptor}};
-    auto distinct_factory = hpp_proto::dynamic_message_factory::create(descriptors);
-    expect(fatal(!distinct_factory.has_value()));
-    expect(eq(distinct_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
-
-    std::pmr::monotonic_buffer_resource parse_resource;
-    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-        descriptor_set, hpp_proto::alloc_from(parse_resource)));
-    const auto pool_memory_limit = hpp_proto::descriptor_memory_options{.limit = std::size_t{1} * 1024U * 1024U};
-    auto fileset_factory = hpp_proto::dynamic_message_factory::create(std::move(fileset), pool_memory_limit);
-    expect(fatal(!fileset_factory.has_value()));
-    expect(eq(fileset_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
-  };
-
   "long_dependency_chain_factory_init_succeeds"_test = [&] {
     OwningFileDescriptorSet file_set;
     file_set.file = make_long_dependency_chain_fileset(8192);
@@ -1496,11 +1417,11 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     hpp_proto::distinct_file_descriptor_pb_array descriptors = {hpp_proto::file_descriptor_pb{file_descriptor}};
 
     std::pmr::unsynchronized_pool_resource upstream;
-    const auto memory_options = hpp_proto::descriptor_memory_options{.upstream = &upstream};
+    const auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&upstream};
     default_resource_scope guard{&throwing_resource};
-    expect(hpp_proto::dynamic_message_factory::create(descriptor_set, memory_options).has_value());
-    expect(hpp_proto::dynamic_message_factory::create(descriptors, memory_options).has_value());
-    expect(hpp_proto::dynamic_message_factory::create(std::move(fileset), memory_options).has_value());
+    expect(hpp_proto::dynamic_message_factory::create(descriptor_set, allocator).has_value());
+    expect(hpp_proto::dynamic_message_factory::create(descriptors, allocator).has_value());
+    expect(hpp_proto::dynamic_message_factory::create(std::move(fileset), allocator).has_value());
   };
 
   "owning_pmr_descriptor_pool_merges_feature_extensions_without_global_allocations"_test = [&] {
@@ -1721,7 +1642,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     tracking_memory_resource tracking_mr{};
     {
       auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
-          read_file("unittest.desc.binpb"), hpp_proto::descriptor_memory_options{.upstream = &tracking_mr}));
+          read_file("unittest.desc.binpb"), hpp_proto::dynamic_message_factory::allocator_type{&tracking_mr}));
       expect(gt(tracking_mr.allocations, std::size_t{0}));
       std::pmr::monotonic_buffer_resource msg_mr;
       expect(factory.get_message("proto3_unittest.TestAllTypes", msg_mr).has_value());
@@ -1764,11 +1685,11 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
       return;
     }
     failpoint_memory_resource failpoint_mr{1};
-    const auto memory_options = hpp_proto::descriptor_memory_options{.upstream = &failpoint_mr};
+    const auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
     bool threw_bad_alloc = false;
     try {
       [[maybe_unused]] auto result =
-          hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"), memory_options);
+          hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb"), allocator);
     } catch (const std::bad_alloc &) {
       threw_bad_alloc = true;
     } catch (...) {
@@ -1790,9 +1711,9 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
 
     auto throws_bad_alloc_for_index = [&](std::size_t fail_index) {
       failpoint_memory_resource failpoint_mr{fail_index};
-      auto memory_options = hpp_proto::descriptor_memory_options{.upstream = &failpoint_mr};
+      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
       try {
-        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(descriptor_binpb, memory_options);
+        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(descriptor_binpb, allocator);
         return false;
       } catch (const std::bad_alloc &) {
         return true;
@@ -1831,13 +1752,13 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
 
     auto throws_bad_alloc_for_index = [&](std::size_t fail_index) {
       failpoint_memory_resource failpoint_mr{fail_index};
-      auto memory_options = hpp_proto::descriptor_memory_options{.upstream = &failpoint_mr};
+      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
       try {
         std::pmr::monotonic_buffer_resource parse_mr;
         auto fileset =
             expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
                 descriptor_binpb, hpp_proto::alloc_from(parse_mr)));
-        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset), memory_options);
+        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset), allocator);
         return false;
       } catch (const std::bad_alloc &) {
         return true;
@@ -1878,9 +1799,9 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     failing_indices.reserve(3);
     for (std::size_t index = 1; index <= 256 && failing_indices.size() < 3; ++index) {
       failpoint_memory_resource failpoint_mr{index};
-      auto memory_options = hpp_proto::descriptor_memory_options{.upstream = &failpoint_mr};
+      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
       try {
-        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(descriptor_binpb, memory_options);
+        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(descriptor_binpb, allocator);
       } catch (const std::bad_alloc &) {
         failing_indices.push_back(index);
       }
@@ -1889,10 +1810,10 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(eq(failing_indices.size(), std::size_t{3}));
     for (const auto fail_index : failing_indices) {
       failpoint_memory_resource failpoint_mr{fail_index};
-      auto memory_options = hpp_proto::descriptor_memory_options{.upstream = &failpoint_mr};
+      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
       bool threw_bad_alloc = false;
       try {
-        [[maybe_unused]] auto result = hpp_proto::dynamic_message_factory::create(descriptor_binpb, memory_options);
+        [[maybe_unused]] auto result = hpp_proto::dynamic_message_factory::create(descriptor_binpb, allocator);
       } catch (const std::bad_alloc &) {
         threw_bad_alloc = true;
       } catch (...) {
