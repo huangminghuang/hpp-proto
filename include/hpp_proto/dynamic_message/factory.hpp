@@ -58,6 +58,7 @@ struct descriptor_memory_options {
   /// Maximum live bytes allocated for decoding, descriptor storage, indexing, and validation scratch space.
   std::size_t limit = max_descriptor_memory_bytes;
   /// Non-owning upstream resource used for the factory implementation and its owned limited descriptor resource.
+  /// Passing nullptr makes dynamic_message_factory::create() return invalid_descriptor_memory_options.
   std::pmr::memory_resource *upstream = std::pmr::get_default_resource();
 };
 
@@ -121,8 +122,8 @@ public:
    * @details This is a trusted-input API. Descriptor storage is limited to max_descriptor_memory_bytes. Exhausting
    *          that budget returns descriptor_memory_limit_exceeded; unrelated std::bad_alloc exceptions remain
    *          uncaught.
-   * @param memory_options Descriptor-memory limit and non-null upstream resource. The upstream resource must outlive
-   *                       the returned factory instance.
+   * @param memory_options Descriptor-memory limit and upstream resource. A null upstream returns
+   *                       invalid_descriptor_memory_options; otherwise the resource must outlive the returned factory.
    */
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create(file_descriptor_set_type &&fileset, descriptor_memory_options memory_options = {}) {
@@ -135,8 +136,8 @@ public:
    *          accepting them from an untrusted source must enforce an aggregate input bound before calling `create()`.
    *          Decoded descriptors and pool storage are limited to max_descriptor_memory_bytes; exhausting that budget
    *          returns descriptor_memory_limit_exceeded. Unrelated std::bad_alloc exceptions remain uncaught.
-   * @param memory_options Descriptor-memory limit and non-null upstream resource. The upstream resource must outlive
-   *                       the returned factory instance.
+   * @param memory_options Descriptor-memory limit and upstream resource. A null upstream returns
+   *                       invalid_descriptor_memory_options; otherwise the resource must outlive the returned factory.
    */
   template <std::size_t N>
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
@@ -151,8 +152,8 @@ public:
    *          Binary parsing still enforces its default recursion limit. Decoded descriptors and pool storage are
    *          limited to max_descriptor_memory_bytes; exhausting that budget returns descriptor_memory_limit_exceeded.
    *          Unrelated std::bad_alloc exceptions remain uncaught.
-   * @param memory_options Descriptor-memory limit and non-null upstream resource. The upstream resource must outlive
-   *                       the returned factory instance.
+   * @param memory_options Descriptor-memory limit and upstream resource. A null upstream returns
+   *                       invalid_descriptor_memory_options; otherwise the resource must outlive the returned factory.
    */
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb,

@@ -276,6 +276,9 @@ void dynamic_message_factory::impl_deleter::operator()(detail::dynamic_message_f
 std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_fileset(dynamic_message_factory::file_descriptor_set_type &&fileset,
                                              descriptor_memory_options memory_options) {
+  if (memory_options.upstream == nullptr) [[unlikely]] {
+    return std::unexpected(dynamic_message_errc::invalid_descriptor_memory_options);
+  }
   std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{memory_options.upstream};
   impl_ptr impl{
       allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
@@ -289,6 +292,9 @@ dynamic_message_factory::create_from_fileset(dynamic_message_factory::file_descr
 std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> descs,
                                            descriptor_memory_options memory_options) {
+  if (memory_options.upstream == nullptr) [[unlikely]] {
+    return std::unexpected(dynamic_message_errc::invalid_descriptor_memory_options);
+  }
   std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{memory_options.upstream};
   impl_ptr impl{
       allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};
@@ -306,6 +312,9 @@ dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> d
 std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_binpb(std::span<const std::byte> file_descriptor_set_binpb,
                                            descriptor_memory_options memory_options) {
+  if (memory_options.upstream == nullptr) [[unlikely]] {
+    return std::unexpected(dynamic_message_errc::invalid_descriptor_memory_options);
+  }
   std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{memory_options.upstream};
   impl_ptr impl{
       allocator.new_object<detail::dynamic_message_factory_impl>(memory_options.upstream, memory_options.limit)};

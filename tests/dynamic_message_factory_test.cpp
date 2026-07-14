@@ -1230,6 +1230,25 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(eq(fileset_factory.error(), hpp_proto::dynamic_message_errc::descriptor_memory_limit_exceeded));
   };
 
+  "factory_create_rejects_null_descriptor_upstream"_test = [&] {
+    auto proto = make_two_oneofs_fileset();
+    auto descriptor_set = make_descriptor_set_binpb_one(proto);
+    std::string file_descriptor;
+    expect(hpp_proto::write_binpb(proto, file_descriptor).ok());
+    hpp_proto::distinct_file_descriptor_pb_array descriptors = {hpp_proto::file_descriptor_pb{file_descriptor}};
+    std::pmr::monotonic_buffer_resource parse_resource;
+    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+        descriptor_set, hpp_proto::alloc_from(parse_resource)));
+    const auto memory_options = hpp_proto::descriptor_memory_options{.upstream = nullptr};
+    auto expect_invalid_options = [](auto factory) {
+      expect(fatal(!factory.has_value()));
+      expect(eq(factory.error(), hpp_proto::dynamic_message_errc::invalid_descriptor_memory_options));
+    };
+    expect_invalid_options(hpp_proto::dynamic_message_factory::create(descriptor_set, memory_options));
+    expect_invalid_options(hpp_proto::dynamic_message_factory::create(descriptors, memory_options));
+    expect_invalid_options(hpp_proto::dynamic_message_factory::create(std::move(fileset), memory_options));
+  };
+
   "serialized_descriptor_decoded_memory_limit_is_enforced"_test = [] {
     // Each empty FileDescriptorProto needs only two wire bytes but occupies hundreds of decoded bytes.
     constexpr std::size_t empty_file_count = hpp_proto::dynamic_message_factory::max_descriptor_memory_bytes / 400U;
