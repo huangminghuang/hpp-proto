@@ -496,9 +496,11 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     MessageProto root{.name = "Root"};
     root.field.reserve(field_count);
     for (std::size_t i = 0; i < field_count; ++i) {
+      const auto field_number = i + 1U;
+      const auto valid_field_number = field_number >= 19'000U ? field_number + 1'000U : field_number;
       root.field.push_back(FieldProto{
           .name = "field_" + std::to_string(i),
-          .number = static_cast<int32_t>(i + 1),
+          .number = static_cast<int32_t>(valid_field_number),
           .label = LABEL_OPTIONAL,
           .type = TYPE_INT32,
           .json_name = "customField" + std::to_string(i),
@@ -1559,7 +1561,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(make_descriptor_set_binpb_one(proto)));
     std::pmr::monotonic_buffer_resource message_resource;
     auto message = expect_ok(factory.get_message("Root", message_resource));
-    test_feature_extension extension;
+    test_feature_extension<> extension;
     expect(message.descriptor().options().features->get_extension(extension).ok());
     expect(eq(extension.value, std::int32_t{2}));
   };
@@ -1577,7 +1579,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(make_descriptor_set_binpb_one(proto)));
     std::pmr::monotonic_buffer_resource message_resource;
     auto message = expect_ok(factory.get_message("Root", message_resource));
-    test_message_feature_extension extension;
+    test_message_feature_extension<> extension;
     expect(message.descriptor().options().features->get_extension(extension).ok());
     expect(eq(extension.value.parent_value, std::int32_t{1}));
     expect(eq(extension.value.child_value, std::int32_t{2}));
