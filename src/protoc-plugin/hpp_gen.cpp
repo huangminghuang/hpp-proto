@@ -132,70 +132,88 @@ std::string make_qualified_cpp_name(const std::string &namespace_prefix, std::st
   return result;
 }
 
-constexpr std::size_t cpp_escaped_len(char c) {
-  /* clang-format off */
-  constexpr std::array<unsigned char, 256> cpp_escaped_len_table = {
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 4, 4, 2, 4, 4,  // \t, \n, \r
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1,  // ", '
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2,  // '0'..'9'
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  // 'A'..'O'
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1,  // 'P'..'Z', '\'
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  // 'a'..'o'
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4,  // 'p'..'z', DEL
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-  };
-  /* clang-format on */
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  return cpp_escaped_len_table[static_cast<unsigned char>(c)];
+struct cpp_escape_entry {
+  std::array<char, 4> data{};
+  unsigned char size{};
+};
+
+constexpr std::size_t cpp_byte_value_count = 256;
+
+constexpr char cpp_octal_digit(unsigned int digit) { return static_cast<char>(static_cast<unsigned int>('0') + digit); }
+
+constexpr cpp_escape_entry make_short_cpp_escape(char escaped) { return {.data = {'\\', escaped}, .size = 2}; }
+
+constexpr cpp_escape_entry make_cpp_escape_entry(unsigned char byte) {
+  switch (byte) {
+  case '\a':
+    return make_short_cpp_escape('a');
+  case '\b':
+    return make_short_cpp_escape('b');
+  case '\t':
+    return make_short_cpp_escape('t');
+  case '\n':
+    return make_short_cpp_escape('n');
+  case '\v':
+    return make_short_cpp_escape('v');
+  case '\f':
+    return make_short_cpp_escape('f');
+  case '\r':
+    return make_short_cpp_escape('r');
+  case '"':
+    return make_short_cpp_escape('"');
+  case '\'':
+    return make_short_cpp_escape('\'');
+  case '\\':
+    return make_short_cpp_escape('\\');
+  case '?':
+    return make_short_cpp_escape('?');
+  default:
+    break;
+  }
+
+  constexpr auto first_printable = static_cast<unsigned char>(' ');
+  constexpr auto first_non_ascii = static_cast<unsigned char>(0x7f);
+  if (byte < first_printable || byte >= first_non_ascii) {
+    constexpr unsigned int octal_radix = 8;
+    constexpr unsigned int octal_high_place = octal_radix * octal_radix;
+    const auto value = static_cast<unsigned int>(byte);
+    return {
+        .data = {'\\', cpp_octal_digit(value / octal_high_place), cpp_octal_digit((value / octal_radix) % octal_radix),
+                 cpp_octal_digit(value % octal_radix)},
+        .size = 4,
+    };
+  }
+
+  return {.data = {static_cast<char>(byte)}, .size = 1};
 }
+
+consteval auto make_cpp_escape_table() {
+  std::array<cpp_escape_entry, cpp_byte_value_count> table{};
+  std::size_t byte = 0;
+  for (auto &entry : table) {
+    entry = make_cpp_escape_entry(static_cast<unsigned char>(byte));
+    ++byte;
+  }
+  return table;
+}
+
+constexpr auto cpp_escape_table = make_cpp_escape_table();
+
+constexpr const cpp_escape_entry &cpp_escape_entry_for(char c) {
+  // Every possible unsigned-char value has a table entry.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  return cpp_escape_table[static_cast<unsigned char>(c)];
+}
+
 // Calculates the length of the C-style escaped version of 'src'.
 // Assumes that non-printable characters are escaped using octal sequences,
 // and that UTF-8 bytes are not handled specially.
 inline std::size_t cpp_escaped_len(std::string_view src) {
   std::size_t len = 0;
   for (const char c : src) {
-    len += cpp_escaped_len(c);
+    len += cpp_escape_entry_for(c).size;
   }
   return len;
-}
-
-const char *cpp_escape(char c) {
-  static const std::array<const char *, 256> escapedChars = {
-      "\\\\000", "\\\\001", "\\\\002", "\\\\003", "\\\\004", "\\\\005", "\\\\006", "\\\a",    "\\\b",    "\\\t",
-      "\\\n",    "\\\v",    "\\\f",    "\\\r",    "\\\\016", "\\\\017", "\\\\020", "\\\\021", "\\\\022", "\\\\023",
-      "\\\\024", "\\\\025", "\\\\026", "\\\\027", "\\\\030", "\\\\031", "\\\\032", "\\\\033", "\\\\034", "\\\\035",
-      "\\\\036", "\\\\037", " ",       "!",       "\\\"",    "#",       "$",       "%",       "&",       "\\\'",
-      "(",       ")",       "*",       "+",       ",",       "-",       ".",       "/",       "0",       "1",
-      "2",       "3",       "4",       "5",       "6",       "7",       "8",       "9",       ":",       ";",
-      "<",       "=",       ">",       "\\\?",    "@",       "A",       "B",       "C",       "D",       "E",
-      "F",       "G",       "H",       "I",       "J",       "K",       "L",       "M",       "N",       "O",
-      "P",       "Q",       "R",       "S",       "T",       "U",       "V",       "W",       "X",       "Y",
-      "Z",       "[",       "\\\\",    "]",       "^",       "_",       "`",       "a",       "b",       "c",
-      "d",       "e",       "f",       "g",       "h",       "i",       "j",       "k",       "l",       "m",
-      "n",       "o",       "p",       "q",       "r",       "s",       "t",       "u",       "v",       "w",
-      "x",       "y",       "z",       "{",       "|",       "}",       "~",       "\\\\177", "\\\\200", "\\\\201",
-      "\\\\202", "\\\\203", "\\\\204", "\\\\205", "\\\\206", "\\\\207", "\\\\210", "\\\\211", "\\\\212", "\\\\213",
-      "\\\\214", "\\\\215", "\\\\216", "\\\\217", "\\\\220", "\\\\221", "\\\\222", "\\\\223", "\\\\224", "\\\\225",
-      "\\\\226", "\\\\227", "\\\\230", "\\\\231", "\\\\232", "\\\\233", "\\\\234", "\\\\235", "\\\\236", "\\\\237",
-      "\\\\240", "\\\\241", "\\\\242", "\\\\243", "\\\\244", "\\\\245", "\\\\246", "\\\\247", "\\\\250", "\\\\251",
-      "\\\\252", "\\\\253", "\\\\254", "\\\\255", "\\\\256", "\\\\257", "\\\\260", "\\\\261", "\\\\262", "\\\\263",
-      "\\\\264", "\\\\265", "\\\\266", "\\\\267", "\\\\270", "\\\\271", "\\\\272", "\\\\273", "\\\\274", "\\\\275",
-      "\\\\276", "\\\\277", "\\\\300", "\\\\301", "\\\\302", "\\\\303", "\\\\304", "\\\\305", "\\\\306", "\\\\307",
-      "\\\\310", "\\\\311", "\\\\312", "\\\\313", "\\\\314", "\\\\315", "\\\\316", "\\\\317", "\\\\320", "\\\\321",
-      "\\\\322", "\\\\323", "\\\\324", "\\\\325", "\\\\326", "\\\\327", "\\\\330", "\\\\331", "\\\\332", "\\\\333",
-      "\\\\334", "\\\\335", "\\\\336", "\\\\337", "\\\\340", "\\\\341", "\\\\342", "\\\\343", "\\\\344", "\\\\345",
-      "\\\\346", "\\\\347", "\\\\350", "\\\\351", "\\\\352", "\\\\353", "\\\\354", "\\\\355", "\\\\356", "\\\\357",
-      "\\\\360", "\\\\361", "\\\\362", "\\\\363", "\\\\364", "\\\\365", "\\\\366", "\\\\367", "\\\\370", "\\\\371",
-      "\\\\372", "\\\\373", "\\\\374", "\\\\375", "\\\\376", "\\\\377"};
-  return escapedChars[static_cast<unsigned char>(c)]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 }
 
 std::string cpp_escape(std::string_view src) {
@@ -207,7 +225,8 @@ std::string cpp_escape(std::string_view src) {
   result.reserve(escaped_len);
 
   for (const char c : src) {
-    result += cpp_escape(c);
+    const auto &entry = cpp_escape_entry_for(c);
+    result.append(entry.data.data(), entry.size);
   }
   return result;
 }
@@ -1945,10 +1964,11 @@ struct glaze_meta_generator : code_generator {
         expr = std::format("::hpp_proto::as_optional_ref<&T::{}>", name_and_default_value);
       }
 
+      const auto escaped_name = cpp_escape(name);
       if (is_alias) {
-        format_to(target, "    \"{}\", ::hpp_proto::as_alias<{}>,\n", name, expr);
+        format_to(target, "    \"{}\", ::hpp_proto::as_alias<{}>,\n", escaped_name, expr);
       } else {
-        format_to(target, "    \"{}\", {},\n", name, expr);
+        format_to(target, "    \"{}\", {},\n", escaped_name, expr);
       }
     };
 
@@ -1973,12 +1993,13 @@ struct glaze_meta_generator : code_generator {
     if (fields.size() > 1) {
       for (unsigned i = 0; i < fields.size(); ++i) {
         auto emit_oneof = [&](const std::string &name, bool is_alias) {
+          const auto escaped_name = cpp_escape(name);
           if (is_alias) {
-            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_alias<&T::{},{}>,\n", name, descriptor.cpp_name,
-                      i + 1);
+            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_alias<&T::{},{}>,\n", escaped_name,
+                      descriptor.cpp_name, i + 1);
           } else {
-            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_member<&T::{},{}>,\n", name, descriptor.cpp_name,
-                      i + 1);
+            format_to(target, "    \"{}\", ::hpp_proto::as_oneof_member<&T::{},{}>,\n", escaped_name,
+                      descriptor.cpp_name, i + 1);
           }
         };
 

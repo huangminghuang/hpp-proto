@@ -6,12 +6,38 @@
 #include "json_required_alias_test.pb.hpp"
 #include <boost/ut.hpp>
 #include <hpp_proto/json.hpp>
+#include <string_view>
 
 using namespace boost::ut;
 using namespace std::string_literals;
 
 // JSON alias tests use literal payload values to assert spelling and coercion behavior.
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
+using escaped_names_message = hpp_proto::test::JsonAliasMessage<>;
+static_assert(std::string_view{glz::get<16>(glz::meta<escaped_names_message>::value.value)} == "choice\"\\name");
+static_assert(std::string_view{glz::get<20>(glz::meta<escaped_names_message>::value.value)} == "quoted\"name");
+static_assert(std::string_view{glz::get<24>(glz::meta<escaped_names_message>::value.value)} == "backslash\\name");
+static_assert(std::string_view{glz::get<28>(glz::meta<escaped_names_message>::value.value)} ==
+              std::string_view{"line\ncontrol\x01"
+                               "2"});
+static_assert(std::string_view{glz::get<32>(glz::meta<escaped_names_message>::value.value)} ==
+              std::string_view{"caf\xc3\xa9"
+                               "7"});
+
+using preserved_escaped_names_message = hpp_proto::test_preserved::JsonAliasPreservedMessage<>;
+static_assert(std::string_view{glz::get<18>(glz::meta<preserved_escaped_names_message>::value.value)} ==
+              "choice\"\\name");
+static_assert(std::string_view{glz::get<22>(glz::meta<preserved_escaped_names_message>::value.value)} ==
+              "quoted\"name");
+static_assert(std::string_view{glz::get<26>(glz::meta<preserved_escaped_names_message>::value.value)} ==
+              "backslash\\name");
+static_assert(std::string_view{glz::get<30>(glz::meta<preserved_escaped_names_message>::value.value)} ==
+              std::string_view{"line\ncontrol\x01"
+                               "2"});
+static_assert(std::string_view{glz::get<34>(glz::meta<preserved_escaped_names_message>::value.value)} ==
+              std::string_view{"caf\xc3\xa9"
+                               "7"});
 
 const suite json_alias_tests = [] {
   "default_naming_serialization"_test = [] {
