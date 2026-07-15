@@ -350,6 +350,8 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                                 .name = "invalid_type",
                                 .number = 1,
                                 .label = LABEL_OPTIONAL,
+                                // Deliberately construct an invalid descriptor enum value.
+                                // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
                                 .type = static_cast<FieldProto::Type>(19),
                             },
                         },
@@ -370,6 +372,8 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                             FieldProto{
                                 .name = "invalid_label",
                                 .number = 1,
+                                // Deliberately construct an invalid descriptor enum value.
+                                // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
                                 .label = static_cast<FieldProto::Label>(4),
                                 .type = TYPE_INT32,
                             },
@@ -389,6 +393,8 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                     .name = "invalid_type_extension",
                     .number = 100,
                     .label = LABEL_OPTIONAL,
+                    // Deliberately construct an invalid descriptor enum value.
+                    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
                     .type = static_cast<FieldProto::Type>(19),
                     .extendee = ".Root",
                 },
@@ -408,6 +414,8 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                             FieldProto{
                                 .name = "invalid_label_extension",
                                 .number = 100,
+                                // Deliberately construct an invalid descriptor enum value.
+                                // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
                                 .label = static_cast<FieldProto::Label>(4),
                                 .type = TYPE_INT32,
                                 .extendee = ".Root",
