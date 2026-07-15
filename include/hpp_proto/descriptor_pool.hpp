@@ -22,6 +22,7 @@
 
 #pragma once
 #include <cassert>
+#include <concepts>
 #include <cstdint>
 #include <expected>
 #include <iostream>
@@ -156,6 +157,10 @@ public:
   using FileDescriptorSet = google::protobuf::FileDescriptorSet<traits_type>;
 
 private:
+  static constexpr bool file_storage_uses_pmr = requires(const decltype(FileDescriptorSet{}.file) &files) {
+    { files.get_allocator().resource() } -> std::same_as<std::pmr::memory_resource *>;
+  };
+
   [[nodiscard]] static FileDescriptorSet make_fileset(std::pmr::memory_resource *resource) {
     using file_container = decltype(FileDescriptorSet{}.file);
     using extension_container = decltype(FileDescriptorSet{}.unknown_fields_.fields);
@@ -626,12 +631,31 @@ public:
    *
    * @return expected<void, descriptor_pool_errc> with validation_error on invalid schema.
    */
-  [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset) {
+  [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset)
+    requires(!file_storage_uses_pmr)
+  {
+    return init_fileset(std::move(fileset));
+  }
+
+protected:
+  /**
+   * @brief Initialize a PMR-backed pool from storage prepared with the pool's memory resource.
+   *
+   * This overload is protected so internal builders can ensure the FileDescriptorSet and pool
+   * share the same memory resource.
+   */
+  [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset)
+    requires file_storage_uses_pmr
+  {
+    return init_fileset(std::move(fileset));
+  }
+
+private:
+  [[nodiscard]] std::expected<void, descriptor_pool_errc> init_fileset(FileDescriptorSet &&fileset) {
     fileset_.file = std::move(fileset).file;
     return init();
   }
 
-private:
   friend class dynamic_message_factory;
   struct descriptor_counter {
     std::size_t files = 0;

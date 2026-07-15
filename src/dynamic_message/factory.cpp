@@ -235,13 +235,6 @@ void dynamic_message_factory::impl_deleter::operator()(detail::dynamic_message_f
 }
 
 std::expected<dynamic_message_factory, dynamic_message_errc>
-dynamic_message_factory::create_from_fileset(dynamic_message_factory::file_descriptor_set_type &&fileset,
-                                             allocator_type allocator) {
-  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
-  return impl->initialize(std::move(fileset)).transform([&] { return dynamic_message_factory{std::move(impl)}; });
-}
-
-std::expected<dynamic_message_factory, dynamic_message_errc>
 dynamic_message_factory::create_from_descs(std::span<const file_descriptor_pb> descs, allocator_type allocator) {
   impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
   return descriptor_pool_t::make_file_descriptor_set(descs, distinct_file_tag_t{}, alloc_from(impl->memory_resource()))

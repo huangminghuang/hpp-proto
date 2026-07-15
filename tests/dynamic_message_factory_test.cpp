@@ -1,6 +1,7 @@
 #include "test_util.hpp"
 #include <array>
 #include <boost/ut.hpp>
+#include <concepts>
 #include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
@@ -49,6 +50,32 @@ struct owning_pmr_factory_addons {
     // NOLINTNEXTLINE(bugprone-crtp-constructor-accessibility)
     file_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] std::pmr::memory_resource *resource) {}
   };
+};
+
+template <typename T>
+concept factory_creatable_from =
+    requires(T &&value) { hpp_proto::dynamic_message_factory::create(std::forward<T>(value)); };
+
+using non_owning_file_descriptor_set = google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>;
+static_assert(!factory_creatable_from<non_owning_file_descriptor_set>);
+
+template <typename Pool>
+concept publicly_initializable_descriptor_pool =
+    requires(Pool &pool, Pool::FileDescriptorSet &&fileset) { pool.init(std::move(fileset)); };
+
+using owning_pmr_descriptor_pool = hpp_proto::descriptor_pool<owning_pmr_factory_addons>;
+static_assert(!publicly_initializable_descriptor_pool<owning_pmr_descriptor_pool>);
+
+template <typename AddOns>
+class internal_descriptor_pool : public hpp_proto::descriptor_pool<AddOns> {
+  using base_type = hpp_proto::descriptor_pool<AddOns>;
+
+public:
+  using base_type::base_type;
+
+  [[nodiscard]] std::expected<void, hpp_proto::descriptor_pool_errc> init(base_type::FileDescriptorSet &&fileset) {
+    return base_type::init(std::move(fileset));
+  }
 };
 
 template <typename Traits = hpp_proto::default_traits>
@@ -1453,7 +1480,6 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     default_resource_scope guard{&throwing_resource};
     expect(hpp_proto::dynamic_message_factory::create(descriptor_set, allocator).has_value());
     expect(hpp_proto::dynamic_message_factory::create(descriptors, allocator).has_value());
-    expect(hpp_proto::dynamic_message_factory::create(std::move(fileset), allocator).has_value());
   };
 
   "owning_pmr_descriptor_pool_merges_feature_extensions_without_global_allocations"_test = [&] {
@@ -1484,7 +1510,7 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     });
     auto descriptor_set = make_descriptor_set_binpb_one(proto);
     std::pmr::monotonic_buffer_resource resource;
-    using pool_type = hpp_proto::descriptor_pool<owning_pmr_factory_addons>;
+    using pool_type = internal_descriptor_pool<owning_pmr_factory_addons>;
     auto fileset =
         expect_ok(hpp_proto::read_binpb<pool_type::FileDescriptorSet>(descriptor_set, hpp_proto::alloc_from(resource)));
 
@@ -1575,32 +1601,11 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
-  "factory_create_from_non_owning_fileset_overload_succeeds"_test = [&] {
-    auto desc_binpb = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-        desc_binpb, hpp_proto::alloc_from(mr)));
-
-    auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
-    expect(factory.has_value());
-  };
-
   "factory_create_malformed_binpb_returns_descriptor_deserialization_error"_test = [&] {
     std::string malformed_binpb(1, static_cast<char>(0x80));
     auto factory = hpp_proto::dynamic_message_factory::create(malformed_binpb);
     expect(!factory.has_value());
     expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_deserialization_error));
-  };
-
-  "factory_create_invalid_fileset_returns_schema_validation_error"_test = [&] {
-    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-        desc_binpb, hpp_proto::alloc_from(mr)));
-
-    auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
-    expect(!factory.has_value());
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
   };
 
   "factory_create_invalid_distinct_descs_returns_schema_validation_error"_test = [&] {
@@ -1765,51 +1770,6 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(gt(decode_fail_index, std::size_t{1}));
     expect(throws_bad_alloc_for_index(decode_fail_index));
     expect(throws_bad_alloc_for_index(decode_fail_index));
-
-    auto healthy_factory = expect_ok(hpp_proto::dynamic_message_factory::create(descriptor_binpb));
-    std::pmr::monotonic_buffer_resource msg_mr;
-    expect(healthy_factory.get_message("proto3_unittest.TestAllTypes", msg_mr).has_value());
-  };
-
-  // Verifies OOM contract on fileset-init path:
-  // 1) std::bad_alloc is propagated while building/linking/resolving pool state.
-  // 2) Repeating the same failpoint index yields the same failure.
-  // 3) A later healthy create still succeeds (no leaked invalid state).
-  "factory_create_failpoint_bad_alloc_during_pool_init_from_fileset_is_deterministic"_test = [&] {
-    if constexpr (msvc_asan_bad_alloc_failpoint_unstable) {
-      expect(true);
-      return;
-    }
-    auto descriptor_binpb = read_file("unittest.desc.binpb");
-
-    auto throws_bad_alloc_for_index = [&](std::size_t fail_index) {
-      failpoint_memory_resource failpoint_mr{fail_index};
-      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
-      try {
-        std::pmr::monotonic_buffer_resource parse_mr;
-        auto fileset =
-            expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-                descriptor_binpb, hpp_proto::alloc_from(parse_mr)));
-        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset), allocator);
-        return false;
-      } catch (const std::bad_alloc &) {
-        return true;
-      } catch (...) {
-        return false;
-      }
-    };
-
-    std::size_t pool_fail_index = 0;
-    for (std::size_t index = 2; index <= 128; ++index) {
-      if (throws_bad_alloc_for_index(index)) {
-        pool_fail_index = index;
-        break;
-      }
-    }
-
-    expect(gt(pool_fail_index, std::size_t{1}));
-    expect(throws_bad_alloc_for_index(pool_fail_index));
-    expect(throws_bad_alloc_for_index(pool_fail_index));
 
     auto healthy_factory = expect_ok(hpp_proto::dynamic_message_factory::create(descriptor_binpb));
     std::pmr::monotonic_buffer_resource msg_mr;

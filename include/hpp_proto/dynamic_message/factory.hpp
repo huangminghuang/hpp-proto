@@ -30,9 +30,7 @@
 #include <ranges>
 #include <span>
 #include <string_view>
-#include <utility>
 
-#include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/binpb/concepts.hpp>
 #include <hpp_proto/dynamic_message/expected_message_mref.hpp>
 #include <hpp_proto/dynamic_message/export.hpp>
@@ -54,9 +52,6 @@ class dynamic_message_factory_impl;
  * consistent with the `read_binpb()` contract.
  */
 class HPP_PROTO_DYNAMIC_MESSAGE_EXPORT dynamic_message_factory {
-private:
-  using file_descriptor_set_type = ::google::protobuf::FileDescriptorSet<non_owning_traits>;
-
 public:
   using allocator_type = std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl>;
 
@@ -74,9 +69,6 @@ private:
   explicit dynamic_message_factory(impl_ptr impl) noexcept;
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create_from_fileset(file_descriptor_set_type &&fileset, allocator_type allocator);
-
-  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create_from_descs(std::span<const file_descriptor_pb> descs, allocator_type allocator);
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
@@ -88,17 +80,6 @@ public:
   dynamic_message_factory &operator=(const dynamic_message_factory &) = delete;
   dynamic_message_factory &operator=(dynamic_message_factory &&) noexcept;
   ~dynamic_message_factory();
-
-  /**
-   * @brief Construct and initialize from FileDescriptorSet.
-   * @details This is a trusted-input API. It does not catch std::bad_alloc thrown by standard containers.
-   * @param allocator Allocator used to create the internal implementation and as the upstream resource for descriptor
-   *                  storage. Its memory resource must outlive the returned factory.
-   */
-  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create(file_descriptor_set_type &&fileset, allocator_type allocator = {}) {
-    return create_from_fileset(std::move(fileset), allocator);
-  }
 
   /**
    * @brief Construct and initialize from distinct serialized file descriptors.
