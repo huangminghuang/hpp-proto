@@ -694,6 +694,14 @@ struct nested_group {
 
 auto pb_meta(const nested_group &) -> std::tuple<hpp_proto::field_meta<1, &nested_group::nested, field_option::group>>;
 
+struct doubly_nested_group {
+  nested_group nested;
+  bool operator==(const doubly_nested_group &) const = default;
+};
+
+auto pb_meta(const doubly_nested_group &)
+    -> std::tuple<hpp_proto::field_meta<1, &doubly_nested_group::nested, field_option::group>>;
+
 const ut::suite test_nested_group = [] {
   "nested_group_case"_test = [] { expect_roundtrip_ok("\x0b\x08\x01\x0c"sv, nested_group{.nested = {.i = 1}}); };
   nested_group value;
@@ -1753,6 +1761,26 @@ const ut::suite recursion_limit_tests = [] {
     auto status = hpp_proto::read_binpb(out, buffer, hpp_proto::recursion_limit<1>);
     ut::expect(!status.ok());
     ut::expect(status.ec == std::errc::value_too_large);
+  };
+
+  "known_groups_respect_recursion_limit"_test = [] {
+    constexpr auto buffer = "\x0b\x0b\x0c\x0c"sv;
+    doubly_nested_group out;
+
+    auto status = hpp_proto::read_binpb(out, buffer, hpp_proto::recursion_limit<1>);
+    ut::expect(!status.ok());
+    ut::expect(status.ec == std::errc::value_too_large);
+    ut::expect(hpp_proto::read_binpb(out, buffer, hpp_proto::recursion_limit<2>).ok());
+  };
+
+  "skipped_groups_respect_recursion_limit"_test = [] {
+    constexpr auto buffer = "\x0b\x0b\x0c\x0c"sv;
+    empty out;
+
+    auto status = hpp_proto::read_binpb(out, buffer, hpp_proto::recursion_limit<1>);
+    ut::expect(!status.ok());
+    ut::expect(status.ec == std::errc::value_too_large);
+    ut::expect(hpp_proto::read_binpb(out, buffer, hpp_proto::recursion_limit<2>).ok());
   };
 };
 
