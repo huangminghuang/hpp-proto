@@ -711,6 +711,11 @@ constexpr status skip_fields_match_tag(uint32_t tag, concepts::is_basic_in auto 
 }
 
 constexpr status do_skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
+  const util::recursion_guard guard{archive.context};
+  if (!guard.ok()) {
+    return std::errc::value_too_large; // maximum recursion reached
+  }
+
   while (archive.in_avail() > 0) {
     auto tag = archive.read_tag();
 
@@ -1296,6 +1301,11 @@ constexpr auto &get_unknown_fields(auto &item)
 constexpr std::monostate get_unknown_fields(auto & /*item*/) { return {}; }
 
 constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is_basic_in auto &archive) {
+  const util::recursion_guard guard{archive.context};
+  if (!guard.ok()) {
+    return std::errc::value_too_large; // maximum recursion reached
+  }
+
   decltype(auto) unknown_fields = get_unknown_fields(item);
   decltype(auto) modifiable_unknown_fields = detail::as_modifiable(archive.context, unknown_fields);
   while (archive.in_avail() > 0) {
