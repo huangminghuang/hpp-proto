@@ -629,6 +629,10 @@ public:
   /**
    * @brief Initialize the pool from a FileDescriptorSet.
    *
+   * @details Programmatically constructed descriptors are always treated as trusted input. The pool performs the
+   *          structural validation needed to build its indexes, but it is not a security boundary and does not
+   *          exhaustively validate every descriptor value. Callers must validate untrusted descriptor objects before
+   *          passing them here.
    * @return expected<void, descriptor_pool_errc> with validation_error on invalid schema.
    */
   [[nodiscard]] std::expected<void, descriptor_pool_errc> init(FileDescriptorSet &&fileset)
@@ -1000,6 +1004,13 @@ private:
            (number < reserved_range_begin || number > reserved_range_end);
   }
 
+  static constexpr bool has_valid_field_enums(const FieldDescriptorProto &field) noexcept {
+    // Invalid values would reach std::unreachable() in dynamic field visitation or index past the serializer's
+    // wire-type table.
+    return google::protobuf::FieldDescriptorProto_::is_valid(field.type) &&
+           google::protobuf::FieldDescriptorProto_::is_valid(field.label);
+  }
+
   std::expected<void, descriptor_pool_errc> build(file_descriptor_t &descriptor) {
     [[maybe_unused]] const auto inserted = file_map_.try_emplace(descriptor.proto_.name, &descriptor).second;
     assert(inserted);
@@ -1123,7 +1134,7 @@ private:
     std::pmr::unordered_set<std::string_view> seen_custom_json_names{scratch_resource_};
     seen_custom_json_names.reserve(descriptor.proto_.field.size());
     for (auto &proto : descriptor.proto_.field) {
-      if (!is_valid_field_number(proto.number)) {
+      if (!has_valid_field_enums(proto) || !is_valid_field_number(proto.number)) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
       if (!seen_field_numbers.insert(proto.number).second) {
@@ -1169,7 +1180,7 @@ private:
 
   std::expected<void, descriptor_pool_errc> build_extensions(auto &parent) {
     for (auto &proto : parent.proto_.extension) {
-      if (!is_valid_field_number(proto.number)) {
+      if (!has_valid_field_enums(proto) || !is_valid_field_number(proto.number)) {
         return std::unexpected(descriptor_pool_errc::validation_error);
       }
       message_descriptor_t *msg_desc = nullptr;

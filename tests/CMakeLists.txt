@@ -144,7 +144,7 @@ add_hpp_proto_generated_test_lib(
     NAME basic_test_proto2_lib
     SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/basic_test_proto2.proto"
     IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
-    PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,namespace_prefix=test"
+    PLUGIN_OPTIONS "proto2_explicit_presence=.TestMessage.explicit_field,proto2_explicit_presence=.TestMessage.explicit_enum,namespace_prefix=test"
     REQUIRES edition_support)
 
 add_hpp_proto_test(

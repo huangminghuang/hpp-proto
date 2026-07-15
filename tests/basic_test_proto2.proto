@@ -1,5 +1,9 @@
 syntax = "proto2";
 
+enum ClosedEnum {
+  CLOSED_ENUM_UNSPECIFIED = 0;
+  CLOSED_ENUM_ONE = 1;
+}
 
 message TestMessage {
   optional int32 field1 = 1;
@@ -15,5 +19,18 @@ message TestMessage {
   optional TestMessage length_prefixed = 101;
   map<int32, int32> int32_keyed_map = 102;
   map<string, int32> string_keyed_map = 103;
+
+  optional ClosedEnum implicit_enum = 4;
+  optional ClosedEnum explicit_enum = 5;
+  repeated ClosedEnum repeated_enum = 52 [packed = true];
+
+  oneof enum_choice {
+    ClosedEnum oneof_enum = 53;
+  }
+
+  extensions 200 to 299;
 }
- 
+
+extend TestMessage {
+  optional ClosedEnum closed_enum_extension = 200;
+}
