@@ -67,7 +67,10 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
 
           const bool all_status_same = (non_owning_read_status.ok() == owning_read_status.ok() &&
                                         owning_read_status.ok() == dyn_read_status.ok());
-          if (!all_status_same) {
+          const bool expected_dynamic_recursion_rejection =
+              non_owning_read_status.ok() && owning_read_status.ok() &&
+              dyn_read_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth;
+          if (!all_status_same && !expected_dynamic_recursion_rejection) {
             auto print_error = [&input](std::string_view name, auto status) {
               if (!status.ok()) {
                 std::cerr << name << " failed:" << status.message(input) << "\n";
@@ -77,7 +80,7 @@ extern "C" __attribute__((visibility("default"))) int LLVMFuzzerTestOneInput(con
             print_error("owning", owning_read_status);
             print_error("dyn", dyn_read_status);
           }
-          assert(all_status_same);
+          assert(all_status_same || expected_dynamic_recursion_rejection);
           if (dyn_read_status.ok()) {
             round_trip_test(non_owning_message, non_owning_message_t{});
             round_trip_test(owning_message, owning_message_t{});
