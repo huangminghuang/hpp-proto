@@ -1421,10 +1421,32 @@ struct hpp_meta_generator : code_generator {
     }
   }
 
+  static bool emit_closed_enum_validation(const field_descriptor_t &descriptor) {
+    using enum google::protobuf::FieldDescriptorProto_::Label;
+    if (!descriptor.is_closed_enum) {
+      return false;
+    }
+
+    const auto *parent = descriptor.parent_message();
+    const bool is_unwrapped_singular_field = descriptor.extendee_descriptor() == nullptr && parent != nullptr &&
+                                             !parent->is_map_entry() && descriptor.proto().label == LABEL_OPTIONAL &&
+                                             !descriptor.proto().oneof_index.has_value() && !descriptor.is_cpp_optional;
+
+    // protoc does not permit a closed enum with implicit presence. When hpp-gen deliberately flattens a proto2
+    // optional enum into a scalar, give that C++ representation open-enum wire behavior. The generated is_valid()
+    // function remains available for applications that need to enforce the schema's closed value set.
+    return !is_unwrapped_singular_field;
+  }
+
   static std::vector<std::string_view> meta_options(const field_descriptor_t &descriptor) {
     std::vector<std::string_view> options;
     using enum google::protobuf::FieldDescriptorProto_::Label;
-    if (descriptor.is_cpp_optional || descriptor.is_required()) {
+    const bool is_oneof_alternative = descriptor.proto().oneof_index.has_value();
+    const bool is_optional_closed_enum_extension = descriptor.is_closed_enum &&
+                                                   descriptor.extendee_descriptor() != nullptr &&
+                                                   descriptor.proto().label == LABEL_OPTIONAL;
+    if (descriptor.is_cpp_optional || descriptor.is_required() || is_oneof_alternative ||
+        is_optional_closed_enum_extension) {
       options.emplace_back("::hpp_proto::field_option::explicit_presence");
     } else if (descriptor.is_packed()) {
       options.emplace_back("::hpp_proto::field_option::is_packed");
@@ -1434,7 +1456,7 @@ struct hpp_meta_generator : code_generator {
       options.emplace_back("::hpp_proto::field_option::group");
     } else if (descriptor.requires_utf8_validation()) {
       options.emplace_back("::hpp_proto::field_option::utf8_validation");
-    } else if (descriptor.is_closed_enum) {
+    } else if (emit_closed_enum_validation(descriptor)) {
       options.emplace_back("::hpp_proto::field_option::closed_enum");
     } else if (options.empty()) {
       options.emplace_back("::hpp_proto::field_option::none");

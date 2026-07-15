@@ -337,6 +337,87 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     };
   };
 
+  auto make_invalid_field_type_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_field_type.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "invalid_type",
+                                .number = 1,
+                                .label = LABEL_OPTIONAL,
+                                .type = static_cast<FieldProto::Type>(19),
+                            },
+                        },
+                },
+            },
+    };
+  };
+
+  auto make_invalid_field_label_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_field_label.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "invalid_label",
+                                .number = 1,
+                                .label = static_cast<FieldProto::Label>(4),
+                                .type = TYPE_INT32,
+                            },
+                        },
+                },
+            },
+    };
+  };
+
+  auto make_invalid_file_extension_type_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_file_extension_type.proto",
+        .message_type = {MessageProto{.name = "Root"}},
+        .extension =
+            {
+                FieldProto{
+                    .name = "invalid_type_extension",
+                    .number = 100,
+                    .label = LABEL_OPTIONAL,
+                    .type = static_cast<FieldProto::Type>(19),
+                    .extendee = ".Root",
+                },
+            },
+    };
+  };
+
+  auto make_invalid_message_extension_label_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "invalid_message_extension_label.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .extension =
+                        {
+                            FieldProto{
+                                .name = "invalid_label_extension",
+                                .number = 100,
+                                .label = static_cast<FieldProto::Label>(4),
+                                .type = TYPE_INT32,
+                                .extendee = ".Root",
+                            },
+                        },
+                },
+            },
+    };
+  };
+
   auto make_duplicate_field_number_fileset = [] {
     return OwningFileDescriptorProto{
         .name = "duplicate_field_number.proto",
@@ -1201,6 +1282,34 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   "missing_enum_type_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_missing_enum_type_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "invalid_field_type_returns_schema_validation_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_field_type_fileset());
+    auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+    expect(fatal(!factory.has_value()));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
+  };
+
+  "invalid_field_label_returns_schema_validation_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_field_label_fileset());
+    auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+    expect(fatal(!factory.has_value()));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
+  };
+
+  "invalid_file_extension_type_returns_schema_validation_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_file_extension_type_fileset());
+    auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+    expect(fatal(!factory.has_value()));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
+  };
+
+  "invalid_message_extension_label_returns_schema_validation_error"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_message_extension_label_fileset());
+    auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+    expect(fatal(!factory.has_value()));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
   };
 
   "duplicate_field_number_sets_error"_test = [&] {
