@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <google/protobuf/duration.glz.hpp>
 #include <google/protobuf/field_mask.glz.hpp>
 #include <google/protobuf/struct.msg.hpp>
@@ -9,6 +10,61 @@
 #include <hpp_proto/dynamic_message/field_visit.hpp>
 #include <hpp_proto/json.hpp>
 #include <iterator>
+#include <limits>
+
+namespace hpp_proto::detail {
+
+inline std::uint32_t &dynamic_json_recursion_depth() {
+  static thread_local std::uint32_t depth = 0;
+  return depth;
+}
+
+class dynamic_json_recursion_guard {
+  std::uint32_t *depth_ = nullptr;
+  bool entered_ = false;
+
+public:
+  template <typename Context>
+  explicit dynamic_json_recursion_guard(Context &ctx) {
+    std::uint32_t max_recursion_depth = default_max_recursion_depth;
+    if constexpr (requires {
+                    { ctx.get_max_recursion_depth() } -> std::same_as<std::uint32_t>;
+                  }) {
+      max_recursion_depth = ctx.get_max_recursion_depth();
+    }
+    if constexpr (requires {
+                    { ctx.recursion_depth } -> std::same_as<std::uint32_t &>;
+                  }) {
+      depth_ = &ctx.recursion_depth;
+    } else {
+      depth_ = &dynamic_json_recursion_depth();
+    }
+    // Match binary protobuf recursion semantics: the root message does not consume the budget.
+    // The saturation check also protects direct Glaze callers with a custom context that bypasses
+    // recursion_limit_t's compile-time validation.
+    if (*depth_ > max_recursion_depth || *depth_ == std::numeric_limits<std::uint32_t>::max()) [[unlikely]] {
+      ctx.error = glz::error_code::exceeded_max_recursive_depth;
+      return;
+    }
+    ++*depth_;
+    entered_ = true;
+  }
+
+  dynamic_json_recursion_guard(const dynamic_json_recursion_guard &) = delete;
+  dynamic_json_recursion_guard &operator=(const dynamic_json_recursion_guard &) = delete;
+  dynamic_json_recursion_guard(dynamic_json_recursion_guard &&) = delete;
+  dynamic_json_recursion_guard &operator=(dynamic_json_recursion_guard &&) = delete;
+
+  ~dynamic_json_recursion_guard() {
+    if (entered_) {
+      --*depth_;
+    }
+  }
+
+  [[nodiscard]] bool ok() const { return entered_; }
+};
+
+} // namespace hpp_proto::detail
 
 namespace glz {
 namespace concepts {
@@ -628,6 +684,10 @@ struct to<JSON, hpp_proto::message_value_cref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp_proto::message_value_cref &value, is_context auto &ctx, auto &b,
                                    auto &ix) {
+    const ::hpp_proto::detail::dynamic_json_recursion_guard recursion_guard{ctx};
+    if (!recursion_guard.ok()) [[unlikely]] {
+      return;
+    }
     using enum hpp_proto::wellknown_types_t;
     switch (value.descriptor().wellknown) {
     case ANY:
@@ -855,6 +915,10 @@ struct from<JSON, hpp_proto::message_value_mref> {
   template <auto Opts>
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
+    const ::hpp_proto::detail::dynamic_json_recursion_guard recursion_guard{ctx};
+    if (!recursion_guard.ok()) [[unlikely]] {
+      return;
+    }
     if (value.descriptor().is_map_entry()) {
       value.fields()[0].visit([&](auto key_mref) {
         using key_mref_type = decltype(key_mref);
@@ -1054,9 +1118,13 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
   (void)get_type_url<Opts>(any_type_url, ctx, it, end)
       .and_then([&](std::string_view type_url) { return to_message_name(type_url).and_then(build_message); })
       .and_then([&](auto message) -> std::expected<void, const char *> {
-        const bool ok = message.descriptor().wellknown != ::hpp_proto::wellknown_types_t::NONE
-                            ? parse_wellknown_any_value<Opts>(message, ctx, it, end)
-                            : parse_generic_any_value<opening_handled<Opts>()>(message, ctx, it, end);
+        const bool ok = [&] {
+          if (message.descriptor().wellknown != ::hpp_proto::wellknown_types_t::NONE) {
+            return parse_wellknown_any_value<Opts>(message, ctx, it, end);
+          }
+          const ::hpp_proto::detail::dynamic_json_recursion_guard recursion_guard{ctx};
+          return recursion_guard.ok() && parse_generic_any_value<opening_handled<Opts>()>(message, ctx, it, end);
+        }();
 
         if (ok && !hpp_proto::write_binpb(message, any_value).ok()) {
           return std::unexpected("unable to serialize the value for google.protobuf.Any message");

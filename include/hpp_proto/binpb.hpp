@@ -21,7 +21,9 @@
 // SOFTWARE.
 
 #pragma once
+#include <cstdint>
 #include <expected>
+#include <limits>
 
 #include <hpp_proto/binpb/deserialize.hpp>
 #include <hpp_proto/binpb/serialize.hpp>
@@ -91,8 +93,12 @@ constexpr auto adaptive_mode = serialization_option_t<serialization_mode::adapti
 ///   incur a CPU performance penalty compared to contiguous serialization.
 constexpr auto chunked_mode = serialization_option_t<serialization_mode::chunked>{};
 
+/// Limit nested message recursion for binary protobuf and dynamic-message JSON operations.
+/// The root message does not consume the recursion budget.
+/// UINT32_MAX is reserved so the internal recursion counter cannot wrap.
 template <uint32_t N>
 struct recursion_limit_t {
+  static_assert(N < std::numeric_limits<uint32_t>::max(), "recursion limit must be less than UINT32_MAX");
   using option_type = recursion_limit_t<N>;
   static constexpr uint32_t max_recursion_depth = N;
 };

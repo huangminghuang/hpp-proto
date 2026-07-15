@@ -126,6 +126,29 @@ const suite test_dynamic_message_any = [] {
 
   auto message_factory = expect_ok(::hpp_proto::dynamic_message_factory::create(protos));
 
+  "dynamic_any_respects_recursion_limit"_test = [&] {
+    constexpr std::string_view json =
+        R"({"anyValue":{"@type":"type.googleapis.com/protobuf_unittest.TestAny","int32Value":1}})";
+
+    std::pmr::monotonic_buffer_resource accepted_mr;
+    auto accepted = expect_ok(message_factory.get_message("protobuf_unittest.TestAny", accepted_mr));
+    expect(hpp_proto::read_json(accepted, json, hpp_proto::recursion_limit<2>).ok());
+
+    std::pmr::monotonic_buffer_resource rejected_mr;
+    auto rejected = expect_ok(message_factory.get_message("protobuf_unittest.TestAny", rejected_mr));
+    auto read_status = hpp_proto::read_json(rejected, json, hpp_proto::recursion_limit<1>);
+    expect(!read_status.ok());
+    expect(read_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
+
+    std::string output;
+    auto write_status = hpp_proto::write_json(accepted.cref(), output, hpp_proto::recursion_limit<1>);
+    expect(!write_status.ok());
+    expect(write_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
+
+    output.clear();
+    expect(hpp_proto::write_json(accepted.cref(), output, hpp_proto::recursion_limit<2>).ok());
+  };
+
   "any_json_edge_cases"_test = [&] {
     auto expect_read_fail = [&](std::string_view json) {
       ::protobuf_unittest::TestAny<> message;
