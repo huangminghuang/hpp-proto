@@ -1545,6 +1545,28 @@ const ut::suite test_extensions = [] {
 
 const ut::suite test_non_owning_extensions = [] {
   using non_owning_extension_example = extension_example<hpp_proto::non_owning_traits>;
+  "get_chunked_non_owning_extension"_test = [] {
+    using namespace std::literals;
+    const auto encoded_data = "\x5a\x14"
+                              "abcdefghijklmnopqrst"s;
+    // The first chunk exceeds the slope window while the raw extension crosses the chunk boundary.
+    const auto input = split(encoded_data, 18);
+
+    std::pmr::monotonic_buffer_resource arena;
+    counting_memory_resource mr;
+    mr.upstream = &arena;
+    non_owning_extension_example value;
+    ut::expect(hpp_proto::read_binpb(value, input, hpp_proto::alloc_from{mr}).ok());
+    ut::expect(mr.alloc_calls >= 2U);
+    ut::expect(value.unknown_fields_.fields.size() == 1U);
+    ut::expect(value.unknown_fields_.fields.front().first == 11U);
+    ut::expect(std::ranges::equal(value.unknown_fields_.fields.front().second, std::as_bytes(std::span{encoded_data})));
+
+    string_ext<hpp_proto::non_owning_traits> ext;
+    ut::expect(value.get_extension(ext, hpp_proto::alloc_from{mr}).ok());
+    ut::expect(ext.value == "abcdefghijklmnopqrst"sv);
+  };
+
   "get_non_owning_extension"_test = [] {
     auto encoded_data =
         "\x08\x96\x01\x50\x01\x5a\x04\x74\x65\x73\x74\x7a\x03\x08\x96\x01\xa0\x01\x01\xa0\x01\x02\xaa\x01\x03\x61\x62\x63\xaa\x01\x03\x64\x65\x66\xb2\x01\x03\01\02\03"sv;

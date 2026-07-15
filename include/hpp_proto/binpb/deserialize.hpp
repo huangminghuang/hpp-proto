@@ -616,7 +616,7 @@ constexpr status deserialize_unknown_fields(concepts::uint32_pair_contiguous_ran
   using fields_type = std::remove_cvref_t<decltype(unknown_fields)>;
   using bytes_type = fields_type::value_type::second_type;
 
-  if (itr == unknown_fields.end() && archive.in_avail() == archive.region_size()) [[likely]] {
+  if (itr == unknown_fields.end()) [[likely]] {
     bytes_type field_span;
     if (auto result = archive.deserialize_packed(field_len, detail::as_modifiable(archive.context, field_span));
         !result.ok()) {
