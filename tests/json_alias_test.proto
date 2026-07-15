@@ -7,5 +7,10 @@ message JsonAliasMessage {
   oneof test_oneof {
     string status_code = 3;
     int32 status_val = 4;
+    bool escaped_choice = 8 [json_name = "choice\"\\name"];
   }
+  string quoted_name = 5 [json_name = "quoted\"name"];
+  string backslash_name = 6 [json_name = "backslash\\name"];
+  string control_name = 7 [json_name = "line\ncontrol\0012"];
+  string utf8_name = 9 [json_name = "caf\303\2517"];
 }
