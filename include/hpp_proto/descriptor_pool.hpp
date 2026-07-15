@@ -950,8 +950,7 @@ private:
           return copy_features(default_features.fixed_features.value(), resource_);
         }
 
-        auto features = copy_features(default_features.overridable_features.value(), resource_);
-        return merge_features(features, file.options, resource_);
+        return copy_features(default_features.overridable_features.value(), resource_);
       }
     }
     return std::unexpected(descriptor_pool_errc::validation_error);

@@ -76,6 +76,20 @@ struct test_message_feature_extension
   using pb_meta = std::tuple<hpp_proto::field_meta<field_number, &test_message_feature_extension::value>>;
 };
 
+struct test_repeated_feature_message {
+  std::vector<std::int32_t> values;
+  using pb_meta = std::tuple<hpp_proto::field_meta<1, &test_repeated_feature_message::values,
+                                                   hpp_proto::field_option::none, hpp_proto::vint64_t>>;
+};
+
+template <typename Traits = hpp_proto::default_traits>
+struct test_repeated_message_feature_extension
+    : hpp_proto::extension_base<test_repeated_message_feature_extension<Traits>, google::protobuf::FeatureSet> {
+  static constexpr std::uint32_t field_number = 125;
+  test_repeated_feature_message value;
+  using pb_meta = std::tuple<hpp_proto::field_meta<field_number, &test_repeated_message_feature_extension::value>>;
+};
+
 class throwing_memory_resource final : public std::pmr::memory_resource {
 private:
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -1132,6 +1146,24 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(!numbers->is_packed());
     expect(!scalar->explicit_presence());
     expect(child->is_delimited());
+  };
+
+  "edition_file_feature_extensions_are_merged_once"_test = [&] {
+    constexpr auto field_number = test_repeated_message_feature_extension<>::field_number;
+    auto proto = make_valid_edition_with_file_feature_overrides_fileset();
+    proto.options->features->unknown_fields_.fields.emplace(
+        field_number, std::vector<std::byte>{std::byte{0xea}, std::byte{0x07}, std::byte{0x04}, std::byte{0x08},
+                                             std::byte{0x07}, std::byte{0x08}, std::byte{0x0b}});
+
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(make_descriptor_set_binpb_one(proto)));
+    std::pmr::monotonic_buffer_resource memory_resource;
+    auto message = expect_ok(factory.get_message("edition_features.Root", memory_resource));
+    test_repeated_message_feature_extension<> extension;
+
+    expect(message.descriptor().parent_file()->options().features->get_extension(extension).ok());
+    expect(fatal(eq(extension.value.values.size(), std::size_t{2})));
+    expect(eq(extension.value.values[0], std::int32_t{7}));
+    expect(eq(extension.value.values[1], std::int32_t{11}));
   };
 
   "missing_message_type_sets_error"_test = [&] {
