@@ -45,11 +45,12 @@ namespace detail {
 struct storage_slot_state {
   uint32_t cur_slot = 0;
   std::size_t oneof_count = 0;
-  std::vector<bool> oneof_started;
+  std::pmr::vector<bool> oneof_started;
   std::size_t prev_oneof = 0;
   uint16_t oneof_next_ordinal = 1;
 
-  explicit storage_slot_state(std::size_t count) : oneof_count(count), oneof_started(count, false), prev_oneof(count) {}
+  storage_slot_state(std::size_t count, std::pmr::memory_resource *resource)
+      : oneof_count(count), oneof_started(count, false, resource), prev_oneof(count) {}
 };
 
 template <typename FieldT>
@@ -99,10 +100,10 @@ public:
   using FileDescriptorSet = ::google::protobuf::FileDescriptorSet<dynamic_message_factory_addons::traits_type>;
 
   explicit dynamic_message_factory_impl(std::pmr::memory_resource *upstream_resource)
-      : memory_resource_(upstream_resource) {}
+      : memory_resource_(upstream_resource), pool_(&memory_resource_, upstream_resource) {}
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> initialize(FileDescriptorSet &&fileset) {
-    return pool_.init(std::move(fileset), memory_resource_).transform_error(to_dynamic_message_errc).and_then([this] {
+    return pool_.init(std::move(fileset)).transform_error(to_dynamic_message_errc).and_then([this] {
       return finish_initialize();
     });
   }
@@ -132,7 +133,7 @@ private:
   [[nodiscard]] std::expected<void, dynamic_message_errc> setup_storage_slots() {
     for (auto &message : pool_.messages()) {
       const auto oneof_count = message.proto().oneof_decl.size();
-      storage_slot_state state{oneof_count};
+      storage_slot_state state{oneof_count, upstream_resource()};
       std::size_t field_index = 0;
       for (auto &f : message.fields()) {
         const auto ec = f.proto().oneof_index.has_value() ? setup_oneof_field(f, state, field_index)
@@ -228,16 +229,9 @@ dynamic_message_factory::~dynamic_message_factory() = default;
 
 void dynamic_message_factory::impl_deleter::operator()(detail::dynamic_message_factory_impl *p) noexcept {
   if (p != nullptr) {
-    allocator_type allocator{p->upstream_resource()};
+    std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl> allocator{p->upstream_resource()};
     allocator.delete_object(p);
   }
-}
-
-std::expected<dynamic_message_factory, dynamic_message_errc>
-dynamic_message_factory::create_from_fileset(dynamic_message_factory::file_descriptor_set_type &&fileset,
-                                             allocator_type allocator) {
-  impl_ptr impl{allocator.new_object<detail::dynamic_message_factory_impl>(allocator.resource())};
-  return impl->initialize(std::move(fileset)).transform([&] { return dynamic_message_factory{std::move(impl)}; });
 }
 
 std::expected<dynamic_message_factory, dynamic_message_errc>

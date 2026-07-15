@@ -25,6 +25,7 @@
 #include <concepts>
 #include <cstddef>
 #include <iterator>
+#include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -55,6 +56,22 @@ template <concepts::is_pb_context Context>
 struct message_merger {
   // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
   Context &ctx;
+
+  template <typename T>
+  constexpr void bind_empty_container_to_context(T &value) {
+    if constexpr (requires {
+                    value.get_allocator().resource();
+                    ctx.memory_resource();
+                    T{&ctx.memory_resource()};
+                    value.empty();
+                  }) {
+      auto *const resource = &ctx.memory_resource();
+      if (value.get_allocator().resource() != resource && value.empty()) {
+        std::destroy_at(&value);
+        std::construct_at(&value, resource);
+      }
+    }
+  }
 
   template <concepts::has_meta T, typename U>
     requires concepts::isomorphic_message<T, std::decay_t<U>>
@@ -153,6 +170,7 @@ struct message_merger {
     requires(std::convertible_to<typename U::value_type, std::remove_const_t<typename T::value_type>> &&
              !std::is_lvalue_reference_v<U>)
   constexpr void perform(T &dest, U &&source) {
+    bind_empty_container_to_context(dest);
     if constexpr (std::ranges::contiguous_range<U>) {
       if (dest.empty()) {
         if constexpr (requires { dest = std::forward<U>(source); }) {
@@ -180,6 +198,15 @@ struct message_merger {
   template <concepts::repeated T, typename U>
     requires std::convertible_to<typename U::value_type, std::remove_const_t<typename T::value_type>>
   constexpr void perform(T &dest, const U &source) {
+    bind_empty_container_to_context(dest);
+    if constexpr (concepts::has_meta<typename T::value_type>) {
+      auto original_size = dest.size();
+      dest.resize(original_size + source.size());
+      for (std::size_t i = 0; i < source.size(); ++i) {
+        perform(dest[original_size + i], source[i]);
+      }
+      return;
+    }
     if constexpr (std::ranges::contiguous_range<U>) {
       if (dest.empty()) {
         if constexpr (requires { dest = source; }) {
@@ -198,6 +225,7 @@ struct message_merger {
   template <concepts::repeated T, typename U>
     requires(!std::convertible_to<typename U::value_type, std::remove_const_t<typename T::value_type>>)
   constexpr void perform(T &dest, auto const &source) {
+    bind_empty_container_to_context(dest);
     decltype(auto) x = detail::as_modifiable(ctx, dest);
     auto orig_size = dest.size();
     x.resize(dest.size() + source.size());
@@ -214,6 +242,7 @@ struct message_merger {
 
   template <concepts::associative_container T, typename U>
   constexpr void perform(T &dest, U &&source) {
+    bind_empty_container_to_context(dest);
     if (!source.empty()) {
       if constexpr (std::same_as<T, std::decay_t<U>>) {
         if (dest.empty()) {
@@ -229,6 +258,7 @@ struct message_merger {
     requires requires { typename T::mapped_type; }
   constexpr void insert_or_replace(T &dest, const U &source) {
     T tmp;
+    bind_empty_container_to_context(tmp);
     tmp.swap(dest);
     if constexpr (std::same_as<T, U>) {
       dest = source;
@@ -261,14 +291,38 @@ struct message_merger {
     }
   }
 
-  template <typename T>
-    requires(concepts::pb_unknown_fields<T> || concepts::pb_extensions<T>)
-  constexpr void perform(T &dest, const T &source) {
-    perform(dest.fields, source.fields);
+  template <typename T, typename U>
+    requires((concepts::pb_unknown_fields<T> && concepts::pb_unknown_fields<U>) ||
+             (concepts::pb_extensions<T> && concepts::pb_extensions<U>))
+  constexpr void perform(T &dest, const U &source) {
+    if constexpr (concepts::pb_extensions<T> && concepts::pb_extensions<U> &&
+                  requires { dest.fields.try_emplace(source.fields.begin()->first); }) {
+      bind_empty_container_to_context(dest.fields);
+      for (const auto &[number, data] : source.fields) {
+        auto entry = dest.fields.try_emplace(number).first;
+        bind_empty_container_to_context(entry->second);
+        decltype(auto) bytes = detail::as_modifiable(ctx, entry->second);
+        // Each map value stores every wire occurrence for one extension number.
+        // Protobuf merge semantics preserve those occurrences in parent-to-child order.
+        util::append_range(bytes, data);
+      }
+    } else {
+      perform(dest.fields, source.fields);
+    }
   }
+
+  template <typename T, typename U>
+    requires requires {
+      typename T::unknown_fields_range_t;
+      typename U::unknown_fields_range_t;
+      requires std::is_empty_v<T>;
+      requires std::is_empty_v<U>;
+    }
+  constexpr void perform(T & /*dest*/, const U & /*source*/) {}
 
   template <concepts::singular T, typename U>
   constexpr void perform(T &dest, U &&source) {
+    bind_empty_container_to_context(dest);
     if constexpr (requires { dest = std::forward<U>(source); }) {
       dest = std::forward<U>(source);
     } else if constexpr (requires { dest.assign_range(source); }) {

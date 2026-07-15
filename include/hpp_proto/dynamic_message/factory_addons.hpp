@@ -65,7 +65,8 @@ struct dynamic_message_factory_addons {
 #endif
 
   template <typename T>
-  static std::expected<T, std::errc> parse_default_value(std::string_view value) {
+  static std::expected<T, std::errc>
+  parse_default_value(std::string_view value, std::pmr::memory_resource *resource = std::pmr::get_default_resource()) {
     T parsed{};
     if (value.empty()) {
       return parsed;
@@ -81,7 +82,7 @@ struct dynamic_message_factory_addons {
         ec = result.ec;
         consumed_entire_input = result.ptr == end;
       } else {
-        const std::string buffer(value);
+        const std::pmr::string buffer(value, resource);
         char *conv_end = nullptr;
         errno = 0;
         if constexpr (std::same_as<T, float>) {
@@ -134,11 +135,14 @@ struct dynamic_message_factory_addons {
     /// oneof fields use all bits; non-oneof fields use 0 and rely on active_oneof_index_bias
     /// to map present values to their own field index.
     uint32_t active_oneof_selection_mask = 0;
-    field_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options) { set_default_value(self.proto()); }
+    field_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options,
+                     [[maybe_unused]] std::pmr::memory_resource *resource) {
+      set_default_value(self.proto(), resource);
+    }
 
     template <typename T>
-    void set_numeric_default_value(std::string_view value) {
-      auto parsed = parse_default_value<T>(value);
+    void set_numeric_default_value(std::string_view value, std::pmr::memory_resource *resource) {
+      auto parsed = parse_default_value<T>(value, resource);
       if (parsed.has_value()) {
         default_value = *parsed;
       } else {
@@ -146,34 +150,35 @@ struct dynamic_message_factory_addons {
       }
     }
 
-    void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto) {
+    void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto,
+                           std::pmr::memory_resource *resource) {
       using enum google::protobuf::FieldDescriptorProto_::Type;
       switch (proto.type) {
       case TYPE_ENUM:
         break;
       case TYPE_DOUBLE:
-        set_numeric_default_value<double>(proto.default_value);
+        set_numeric_default_value<double>(proto.default_value, resource);
         break;
       case TYPE_FLOAT:
-        set_numeric_default_value<float>(proto.default_value);
+        set_numeric_default_value<float>(proto.default_value, resource);
         break;
       case TYPE_INT64:
       case TYPE_SFIXED64:
       case TYPE_SINT64:
-        set_numeric_default_value<int64_t>(proto.default_value);
+        set_numeric_default_value<int64_t>(proto.default_value, resource);
         break;
       case TYPE_UINT64:
       case TYPE_FIXED64:
-        set_numeric_default_value<uint64_t>(proto.default_value);
+        set_numeric_default_value<uint64_t>(proto.default_value, resource);
         break;
       case TYPE_INT32:
       case TYPE_SFIXED32:
       case TYPE_SINT32:
-        set_numeric_default_value<int32_t>(proto.default_value);
+        set_numeric_default_value<int32_t>(proto.default_value, resource);
         break;
       case TYPE_UINT32:
       case TYPE_FIXED32:
-        set_numeric_default_value<uint32_t>(proto.default_value);
+        set_numeric_default_value<uint32_t>(proto.default_value, resource);
         break;
       case TYPE_BOOL:
         default_value = proto.default_value == "true";
@@ -187,17 +192,19 @@ struct dynamic_message_factory_addons {
   template <typename Derived>
   struct enum_descriptor {
     bool is_null_value = false;
-    explicit enum_descriptor(Derived &derived, [[maybe_unused]] const auto &inherited_options)
-        : is_null_value(derived.full_name() == "google.protobuf.NullValue") {}
+    map_t<std::string_view, const int32_t *> values_by_name;
+    explicit enum_descriptor(Derived &derived, [[maybe_unused]] const auto &inherited_options,
+                             std::pmr::memory_resource *resource)
+        : is_null_value(derived.full_name() == "google.protobuf.NullValue"), values_by_name(resource) {
+      values_by_name.reserve(derived.proto().value.size());
+      for (const auto &value : derived.proto().value) {
+        values_by_name.try_emplace(value.name, &value.number);
+      }
+    }
 
     [[nodiscard]] const int32_t *value_of(const std::string_view name) const {
-      const auto &proto = static_cast<const Derived *>(this)->proto();
-      for (const auto &ev : proto.value) {
-        if (ev.name == name) {
-          return &ev.number;
-        }
-      }
-      return nullptr;
+      const auto it = values_by_name.find(name);
+      return it == values_by_name.end() ? nullptr : it->second;
     }
 
     [[nodiscard]] std::string_view name_of(int32_t value) const {
@@ -213,7 +220,8 @@ struct dynamic_message_factory_addons {
 
   template <typename Derived>
   struct oneof_descriptor {
-    explicit oneof_descriptor(Derived & /*derived*/, const auto & /*inherited_options*/) {}
+    explicit oneof_descriptor(Derived & /*derived*/, const auto & /*inherited_options*/,
+                              std::pmr::memory_resource * /*resource*/) {}
     [[nodiscard]] uint32_t storage_slot() const {
       assert(!static_cast<const Derived *>(this)->fields().empty());
       return static_cast<const Derived *>(this)->fields().front().storage_slot;
@@ -224,14 +232,16 @@ struct dynamic_message_factory_addons {
   struct message_descriptor {
     uint32_t num_slots = 0;
     wellknown_types_t wellknown = wellknown_types_t::NONE;
-    explicit message_descriptor(const Derived & /*derived*/, const auto & /*inherited_options*/) {}
+    explicit message_descriptor(const Derived & /*derived*/, const auto & /*inherited_options*/,
+                                std::pmr::memory_resource * /*resource*/) {}
   };
 
   template <typename Derived>
   struct file_descriptor {
     bool wellknown_validated_ = false;
     // NOLINTNEXTLINEß(bugprone-crtp-constructor-accessibility)// NOLINT(bugprone-crtp-constructor-accessibility)
-    explicit file_descriptor([[maybe_unused]] const Derived &derived) {
+    explicit file_descriptor([[maybe_unused]] const Derived &derived,
+                             [[maybe_unused]] std::pmr::memory_resource *resource) {
       // Validate embedded descriptors for supported well-known types against the
       // checked-in canonical descriptor bytes. This guarantees fixed field layout
       // assumptions used by dynamic Any/Struct/Value JSON serializers.
@@ -245,7 +255,7 @@ struct dynamic_message_factory_addons {
           {"google/protobuf/wrappers.proto", _desc_google_protobuf_wrappers_proto}};
 
       if (auto itr = wellknown_type_pbs.find(derived.proto().name); itr != wellknown_type_pbs.end()) {
-        std::vector<std::byte> pb;
+        std::pmr::vector<std::byte> pb{resource};
         hpp_proto::status status;
         if (derived.proto().source_code_info.has_value()) {
           auto proto_no_source_info = derived.proto();

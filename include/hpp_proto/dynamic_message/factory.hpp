@@ -30,9 +30,7 @@
 #include <ranges>
 #include <span>
 #include <string_view>
-#include <utility>
 
-#include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/binpb/concepts.hpp>
 #include <hpp_proto/dynamic_message/expected_message_mref.hpp>
 #include <hpp_proto/dynamic_message/export.hpp>
@@ -48,12 +46,12 @@ class dynamic_message_factory_impl;
  * @brief Factory that builds dynamic message instances from descriptor sets.
  *
  * Instances are created via `create(...)` and own an internal implementation
- * object that stores descriptor state and PMR resources.
+ * object that stores descriptor state and PMR resources. Descriptor inputs are
+ * trusted and prevalidated. Callers receiving serialized descriptors from an
+ * untrusted source must bound and validate the input before calling `create()`,
+ * consistent with the `read_binpb()` contract.
  */
 class HPP_PROTO_DYNAMIC_MESSAGE_EXPORT dynamic_message_factory {
-private:
-  using file_descriptor_set_type = ::google::protobuf::FileDescriptorSet<non_owning_traits>;
-
 public:
   using allocator_type = std::pmr::polymorphic_allocator<detail::dynamic_message_factory_impl>;
 
@@ -71,9 +69,6 @@ private:
   explicit dynamic_message_factory(impl_ptr impl) noexcept;
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create_from_fileset(file_descriptor_set_type &&fileset, allocator_type allocator);
-
-  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create_from_descs(std::span<const file_descriptor_pb> descs, allocator_type allocator);
 
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
@@ -87,21 +82,12 @@ public:
   ~dynamic_message_factory();
 
   /**
-   * @brief Construct and initialize from FileDescriptorSet.
-   * @details This API does not catch std::bad_alloc thrown by standard containers.
-   * @param allocator Allocator used to create the internal impl object. Its memory_resource()
-   *                  must outlive the returned factory instance.
-   */
-  [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
-  create(file_descriptor_set_type &&fileset, allocator_type allocator = {}) {
-    return create_from_fileset(std::move(fileset), allocator);
-  }
-
-  /**
    * @brief Construct and initialize from distinct serialized file descriptors.
-   * @details This API does not catch std::bad_alloc thrown by standard containers.
-   * @param allocator Allocator used to create the internal impl object. Its memory_resource()
-   *                  must outlive the returned factory instance.
+   * @details The encoded descriptors are trusted, prevalidated input and are not size-limited by the factory. Callers
+   *          accepting them from an untrusted source must enforce an aggregate input bound before calling `create()`.
+   *          This API does not catch std::bad_alloc thrown by standard containers.
+   * @param allocator Allocator used to create the internal implementation and as the upstream resource for descriptor
+   *                  storage. Its memory resource must outlive the returned factory.
    */
   template <std::size_t N>
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
@@ -111,9 +97,12 @@ public:
 
   /**
    * @brief Construct and initialize from serialized FileDescriptorSet bytes.
-   * @details This API does not catch std::bad_alloc thrown by standard containers.
-   * @param allocator Allocator used to create the internal impl object. Its memory_resource()
-   *                  must outlive the returned factory instance.
+   * @details The byte range is trusted, prevalidated input and is not size-limited by the factory. Callers accepting
+   *          it from an untrusted source must enforce a transport or buffer-size bound before calling `create()`.
+   *          Binary parsing still enforces its default recursion limit. This API does not catch std::bad_alloc thrown
+   *          by standard containers.
+   * @param allocator Allocator used to create the internal implementation and as the upstream resource for descriptor
+   *                  storage. Its memory resource must outlive the returned factory.
    */
   [[nodiscard]] static std::expected<dynamic_message_factory, dynamic_message_errc>
   create(concepts::contiguous_byte_range auto &&file_descriptor_set_binpb, allocator_type allocator = {}) {

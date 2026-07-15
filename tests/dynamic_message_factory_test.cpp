@@ -1,6 +1,7 @@
 #include "test_util.hpp"
 #include <array>
 #include <boost/ut.hpp>
+#include <concepts>
 #include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
@@ -11,9 +12,157 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 using namespace boost::ut;
+
+struct owning_pmr_factory_addons {
+  using traits_type = hpp_proto::pmr_traits;
+  using string_t = std::pmr::string;
+  template <typename T>
+  using vector_t = std::pmr::vector<T>;
+  template <typename K, typename V>
+  using map_t = std::pmr::unordered_map<K, V>;
+
+  template <typename Derived>
+  struct field_descriptor {
+    field_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] const auto &options,
+                     [[maybe_unused]] std::pmr::memory_resource *resource) {}
+  };
+  template <typename Derived>
+  struct enum_descriptor {
+    enum_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] const auto &options,
+                    [[maybe_unused]] std::pmr::memory_resource *resource) {}
+  };
+  template <typename Derived>
+  struct oneof_descriptor {
+    oneof_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] const auto &options,
+                     [[maybe_unused]] std::pmr::memory_resource *resource) {}
+  };
+  template <typename Derived>
+  struct message_descriptor {
+    message_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] const auto &options,
+                       [[maybe_unused]] std::pmr::memory_resource *resource) {}
+  };
+  template <typename Derived>
+  struct file_descriptor {
+    // NOLINTNEXTLINE(bugprone-crtp-constructor-accessibility)
+    file_descriptor([[maybe_unused]] Derived &derived, [[maybe_unused]] std::pmr::memory_resource *resource) {}
+  };
+};
+
+template <typename T>
+concept factory_creatable_from =
+    requires(T &&value) { hpp_proto::dynamic_message_factory::create(std::forward<T>(value)); };
+
+using non_owning_file_descriptor_set = google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>;
+static_assert(!factory_creatable_from<non_owning_file_descriptor_set>);
+
+template <typename Pool>
+concept publicly_initializable_descriptor_pool =
+    requires(Pool &pool, Pool::FileDescriptorSet &&fileset) { pool.init(std::move(fileset)); };
+
+using owning_pmr_descriptor_pool = hpp_proto::descriptor_pool<owning_pmr_factory_addons>;
+static_assert(!publicly_initializable_descriptor_pool<owning_pmr_descriptor_pool>);
+
+template <typename AddOns>
+class internal_descriptor_pool : public hpp_proto::descriptor_pool<AddOns> {
+  using base_type = hpp_proto::descriptor_pool<AddOns>;
+
+public:
+  using base_type::base_type;
+
+  [[nodiscard]] std::expected<void, hpp_proto::descriptor_pool_errc> init(base_type::FileDescriptorSet &&fileset) {
+    return base_type::init(std::move(fileset));
+  }
+};
+
+template <typename Traits = hpp_proto::default_traits>
+struct test_feature_extension
+    : hpp_proto::extension_base<test_feature_extension<Traits>, google::protobuf::FeatureSet> {
+  static constexpr std::uint32_t field_number = 123;
+  std::int32_t value = 0;
+  using pb_meta = std::tuple<hpp_proto::field_meta<field_number, &test_feature_extension::value,
+                                                   hpp_proto::field_option::none, hpp_proto::vint64_t>>;
+};
+
+struct test_feature_message {
+  std::int32_t parent_value = 0;
+  std::int32_t child_value = 0;
+  using pb_meta = std::tuple<
+      hpp_proto::field_meta<1, &test_feature_message::parent_value, hpp_proto::field_option::none, hpp_proto::vint64_t>,
+      hpp_proto::field_meta<2, &test_feature_message::child_value, hpp_proto::field_option::none, hpp_proto::vint64_t>>;
+};
+
+template <typename Traits = hpp_proto::default_traits>
+struct test_message_feature_extension
+    : hpp_proto::extension_base<test_message_feature_extension<Traits>, google::protobuf::FeatureSet> {
+  static constexpr std::uint32_t field_number = 124;
+  test_feature_message value;
+  using pb_meta = std::tuple<hpp_proto::field_meta<field_number, &test_message_feature_extension::value>>;
+};
+
+struct test_repeated_feature_message {
+  std::vector<std::int32_t> values;
+  using pb_meta = std::tuple<hpp_proto::field_meta<1, &test_repeated_feature_message::values,
+                                                   hpp_proto::field_option::none, hpp_proto::vint64_t>>;
+};
+
+template <typename Traits = hpp_proto::default_traits>
+struct test_repeated_message_feature_extension
+    : hpp_proto::extension_base<test_repeated_message_feature_extension<Traits>, google::protobuf::FeatureSet> {
+  static constexpr std::uint32_t field_number = 125;
+  test_repeated_feature_message value;
+  using pb_meta = std::tuple<hpp_proto::field_meta<field_number, &test_repeated_message_feature_extension::value>>;
+};
+
+class throwing_memory_resource final : public std::pmr::memory_resource {
+private:
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+  void *do_allocate([[maybe_unused]] std::size_t bytes, [[maybe_unused]] std::size_t alignment) override {
+    throw std::bad_alloc{};
+  }
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+  void do_deallocate([[maybe_unused]] void *pointer, [[maybe_unused]] std::size_t bytes,
+                     [[maybe_unused]] std::size_t alignment) override {}
+  [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+    return this == &other;
+  }
+};
+
+class tracking_memory_resource final : public std::pmr::memory_resource {
+public:
+  [[nodiscard]] std::size_t allocations() const noexcept { return allocations_; }
+
+private:
+  void *do_allocate(std::size_t bytes, std::size_t alignment) override {
+    ++allocations_;
+    return std::pmr::new_delete_resource()->allocate(bytes, alignment);
+  }
+  void do_deallocate(void *pointer, std::size_t bytes, std::size_t alignment) override {
+    std::pmr::new_delete_resource()->deallocate(pointer, bytes, alignment);
+  }
+  [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
+    return this == &other;
+  }
+
+  std::size_t allocations_ = 0;
+};
+
+class default_resource_scope {
+public:
+  explicit default_resource_scope(std::pmr::memory_resource *resource)
+      : previous_(std::pmr::set_default_resource(resource)) {}
+  ~default_resource_scope() { std::pmr::set_default_resource(previous_); }
+  default_resource_scope(const default_resource_scope &) = delete;
+  default_resource_scope(default_resource_scope &&) = delete;
+  default_resource_scope &operator=(const default_resource_scope &) = delete;
+  default_resource_scope &operator=(default_resource_scope &&) = delete;
+
+private:
+  std::pmr::memory_resource *previous_;
+};
 
 // Dynamic descriptor factory tests use protobuf boundary and validation fixture literals inline.
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,misc-const-correctness)
@@ -380,6 +529,67 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                   },
               },
       });
+    }
+    return files;
+  };
+
+  auto make_large_field_message_fileset = [](std::size_t field_count) {
+    MessageProto root{.name = "Root"};
+    root.field.reserve(field_count);
+    for (std::size_t i = 0; i < field_count; ++i) {
+      const auto field_number = i + 1U;
+      const auto valid_field_number = field_number >= 19'000U ? field_number + 1'000U : field_number;
+      root.field.push_back(FieldProto{
+          .name = "field_" + std::to_string(i),
+          .number = static_cast<int32_t>(valid_field_number),
+          .label = LABEL_OPTIONAL,
+          .type = TYPE_INT32,
+          .json_name = "customField" + std::to_string(i),
+      });
+    }
+    return OwningFileDescriptorProto{
+        .name = "large_field_message.proto",
+        .message_type = {std::move(root)},
+    };
+  };
+
+  auto make_large_enum_default_fileset = [](std::size_t value_count, std::size_t field_count) {
+    EnumProto enumeration{.name = "LargeEnum"};
+    enumeration.value.reserve(value_count);
+    for (std::size_t i = 0; i < value_count; ++i) {
+      enumeration.value.push_back(EnumValueProto{
+          .name = "VALUE_" + std::to_string(i),
+          .number = static_cast<int32_t>(i),
+      });
+    }
+
+    MessageProto root{.name = "Root", .enum_type = {std::move(enumeration)}};
+    root.field.reserve(field_count);
+    for (std::size_t i = 0; i < field_count; ++i) {
+      root.field.push_back(FieldProto{
+          .name = "field_" + std::to_string(i),
+          .number = static_cast<int32_t>(i + 1),
+          .label = LABEL_OPTIONAL,
+          .type = TYPE_ENUM,
+          .type_name = ".Root.LargeEnum",
+          .default_value = "VALUE_" + std::to_string(value_count - 1),
+      });
+    }
+    return OwningFileDescriptorProto{
+        .name = "large_enum_default.proto",
+        .message_type = {std::move(root)},
+    };
+  };
+
+  auto make_long_dependency_chain_fileset = [](std::size_t file_count) {
+    std::vector<OwningFileDescriptorProto> files;
+    files.reserve(file_count);
+    for (std::size_t i = 0; i < file_count; ++i) {
+      OwningFileDescriptorProto file{.name = "chain_" + std::to_string(i) + ".proto"};
+      if (i != 0) {
+        file.dependency.push_back("chain_" + std::to_string(i - 1) + ".proto");
+      }
+      files.push_back(std::move(file));
     }
     return files;
   };
@@ -965,6 +1175,24 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(child->is_delimited());
   };
 
+  "edition_file_feature_extensions_are_merged_once"_test = [&] {
+    constexpr auto field_number = test_repeated_message_feature_extension<>::field_number;
+    auto proto = make_valid_edition_with_file_feature_overrides_fileset();
+    proto.options->features->unknown_fields_.fields.emplace(
+        field_number, std::vector<std::byte>{std::byte{0xea}, std::byte{0x07}, std::byte{0x04}, std::byte{0x08},
+                                             std::byte{0x07}, std::byte{0x08}, std::byte{0x0b}});
+
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(make_descriptor_set_binpb_one(proto)));
+    std::pmr::monotonic_buffer_resource memory_resource;
+    auto message = expect_ok(factory.get_message("edition_features.Root", memory_resource));
+    test_repeated_message_feature_extension<> extension;
+
+    expect(message.descriptor().parent_file()->options().features->get_extension(extension).ok());
+    expect(fatal(eq(extension.value.values.size(), std::size_t{2})));
+    expect(eq(extension.value.values[0], std::int32_t{7}));
+    expect(eq(extension.value.values[1], std::int32_t{11}));
+  };
+
   "missing_message_type_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_missing_type_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
@@ -1034,6 +1262,42 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     auto files = make_large_descriptor_collection_fileset(256);
     OwningFileDescriptorSet file_set;
     file_set.file = std::move(files);
+    std::string desc_binpb;
+    expect(hpp_proto::write_binpb(file_set, desc_binpb).ok());
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "large_field_message_factory_init_succeeds"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_large_field_message_fileset(4096));
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "large_enum_defaults_factory_init_succeeds"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_large_enum_default_fileset(4096, 4096));
+    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+  };
+
+  "trusted_serialized_descriptors_are_not_size_limited"_test = [&] {
+    constexpr std::size_t previous_serialized_limit = std::size_t{16} * 1024U * 1024U;
+    auto file = OwningFileDescriptorProto{
+        .name = "large_trusted_descriptor.proto",
+        .package = std::string(previous_serialized_limit, 'a'),
+    };
+
+    std::string file_descriptor;
+    expect(hpp_proto::write_binpb(file, file_descriptor).ok());
+    expect(gt(file_descriptor.size(), previous_serialized_limit));
+    hpp_proto::distinct_file_descriptor_pb_array descriptors = {hpp_proto::file_descriptor_pb{file_descriptor}};
+    expect(hpp_proto::dynamic_message_factory::create(descriptors).has_value());
+
+    auto descriptor_set = make_descriptor_set_binpb_one(file);
+    expect(gt(descriptor_set.size(), previous_serialized_limit));
+    expect(hpp_proto::dynamic_message_factory::create(descriptor_set).has_value());
+  };
+
+  "long_dependency_chain_factory_init_succeeds"_test = [&] {
+    OwningFileDescriptorSet file_set;
+    file_set.file = make_long_dependency_chain_fileset(8192);
     std::string desc_binpb;
     expect(hpp_proto::write_binpb(file_set, desc_binpb).ok());
     expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
@@ -1200,6 +1464,107 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(current_resource == old_resource);
   };
 
+  "factory_creation_does_not_use_global_default_resource"_test = [&] {
+    throwing_memory_resource throwing_resource;
+
+    auto descriptor_set = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
+    std::pmr::monotonic_buffer_resource parse_resource;
+    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
+        descriptor_set, hpp_proto::alloc_from(parse_resource)));
+    std::string file_descriptor;
+    expect(hpp_proto::write_binpb(fileset.file.front(), file_descriptor).ok());
+    hpp_proto::distinct_file_descriptor_pb_array descriptors = {hpp_proto::file_descriptor_pb{file_descriptor}};
+
+    std::pmr::unsynchronized_pool_resource upstream;
+    const auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&upstream};
+    default_resource_scope guard{&throwing_resource};
+    expect(hpp_proto::dynamic_message_factory::create(descriptor_set, allocator).has_value());
+    expect(hpp_proto::dynamic_message_factory::create(descriptors, allocator).has_value());
+  };
+
+  "owning_pmr_descriptor_pool_merges_feature_extensions_without_global_allocations"_test = [&] {
+    auto make_option = [] {
+      return google::protobuf::UninterpretedOption<>{
+          .name = {{.name_part = "allocator_sensitive_option_name", .is_extension = false}},
+          .identifier_value = "allocator_sensitive_option_value",
+      };
+    };
+    auto make_extension = [](std::byte payload) {
+      std::vector<std::byte> result = {std::byte{0xda}, std::byte{0x07}, std::byte{0x40}};
+      result.resize(result.size() + 64U, payload);
+      return result;
+    };
+    auto proto = make_two_oneofs_fileset();
+    proto.options.emplace().uninterpreted_option.push_back(make_option());
+    proto.options->unknown_fields_.fields.emplace(123U, make_extension(std::byte{0x5a}));
+    proto.options->features.emplace().unknown_fields_.fields.emplace(123U, make_extension(std::byte{0x5a}));
+    auto &message = proto.message_type.front();
+    message.options.emplace().uninterpreted_option.push_back(make_option());
+    message.options->features.emplace().unknown_fields_.fields.emplace(123U, make_extension(std::byte{0x6b}));
+    message.field.front().options.emplace().uninterpreted_option.push_back(make_option());
+    message.oneof_decl.front().options.emplace().uninterpreted_option.push_back(make_option());
+    message.enum_type.push_back(EnumProto{
+        .name = "AllocatorSensitiveEnum",
+        .value = {{.name = "ZERO", .number = 0}},
+        .options = google::protobuf::EnumOptions<>{.uninterpreted_option = {make_option()}},
+    });
+    auto descriptor_set = make_descriptor_set_binpb_one(proto);
+    std::pmr::monotonic_buffer_resource resource;
+    using pool_type = internal_descriptor_pool<owning_pmr_factory_addons>;
+    auto fileset =
+        expect_ok(hpp_proto::read_binpb<pool_type::FileDescriptorSet>(descriptor_set, hpp_proto::alloc_from(resource)));
+
+    tracking_memory_resource tracking_resource;
+    default_resource_scope guard{&tracking_resource};
+    pool_type pool{&resource};
+    expect(pool.init(std::move(fileset)).has_value());
+    const auto &feature_extensions = pool.files().front().options().features->unknown_fields_.fields;
+    expect(eq(feature_extensions.size(), std::size_t{1}));
+    expect(feature_extensions.contains(123U));
+    const auto &merged_feature_extensions = pool.messages().front().options().features->unknown_fields_.fields;
+    expect(eq(merged_feature_extensions.size(), std::size_t{1}));
+    expect(merged_feature_extensions.contains(123U));
+    const auto &merged_extension = merged_feature_extensions.at(123U);
+    expect(eq(merged_extension.size(), std::size_t{134}));
+    expect(eq(merged_extension[3], std::byte{0x5a}));
+    expect(eq(merged_extension[70], std::byte{0x6b}));
+    expect(eq(tracking_resource.allocations(), std::size_t{0}));
+  };
+
+  "non_owning_feature_extension_lookup_merges_parent_and_child"_test = [&] {
+    auto proto = make_two_oneofs_fileset();
+    proto.options.emplace().features.emplace().unknown_fields_.fields.emplace(
+        123U, std::vector<std::byte>{std::byte{0xd8}, std::byte{0x07}, std::byte{0x01}});
+    proto.message_type.front().options.emplace().features.emplace().unknown_fields_.fields.emplace(
+        123U, std::vector<std::byte>{std::byte{0xd8}, std::byte{0x07}, std::byte{0x02}});
+
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(make_descriptor_set_binpb_one(proto)));
+    std::pmr::monotonic_buffer_resource message_resource;
+    auto message = expect_ok(factory.get_message("Root", message_resource));
+    test_feature_extension<> extension;
+    expect(message.descriptor().options().features->get_extension(extension).ok());
+    expect(eq(extension.value, std::int32_t{2}));
+  };
+
+  "non_owning_message_feature_extension_merges_parent_and_child_subfields"_test = [&] {
+    constexpr auto field_number = test_message_feature_extension<>::field_number;
+    auto proto = make_two_oneofs_fileset();
+    proto.options.emplace().features.emplace().unknown_fields_.fields.emplace(
+        field_number,
+        std::vector<std::byte>{std::byte{0xe2}, std::byte{0x07}, std::byte{0x02}, std::byte{0x08}, std::byte{0x01}});
+    proto.message_type.front().options.emplace().features.emplace().unknown_fields_.fields.emplace(
+        field_number,
+        std::vector<std::byte>{std::byte{0xe2}, std::byte{0x07}, std::byte{0x02}, std::byte{0x10}, std::byte{0x02}});
+
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(make_descriptor_set_binpb_one(proto)));
+    std::pmr::monotonic_buffer_resource message_resource;
+    auto message = expect_ok(factory.get_message("Root", message_resource));
+    test_message_feature_extension<> extension;
+    expect(message.descriptor().options().features->get_extension(extension).ok());
+    expect(eq(extension.value.parent_value, std::int32_t{1}));
+    expect(eq(extension.value.child_value, std::int32_t{2}));
+  };
+
   "factory_create_succeeds_after_failed_create"_test = [&] {
     auto invalid_desc_binpb = make_descriptor_set_binpb_one(make_invalid_oneof_fileset());
     expect(!hpp_proto::dynamic_message_factory::create(invalid_desc_binpb).has_value());
@@ -1236,32 +1601,11 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
-  "factory_create_from_non_owning_fileset_overload_succeeds"_test = [&] {
-    auto desc_binpb = make_descriptor_set_binpb_one(make_two_oneofs_fileset());
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-        desc_binpb, hpp_proto::alloc_from(mr)));
-
-    auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
-    expect(factory.has_value());
-  };
-
   "factory_create_malformed_binpb_returns_descriptor_deserialization_error"_test = [&] {
     std::string malformed_binpb(1, static_cast<char>(0x80));
     auto factory = hpp_proto::dynamic_message_factory::create(malformed_binpb);
     expect(!factory.has_value());
     expect(eq(factory.error(), hpp_proto::dynamic_message_errc::descriptor_deserialization_error));
-  };
-
-  "factory_create_invalid_fileset_returns_schema_validation_error"_test = [&] {
-    auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_edition_fileset());
-    std::pmr::monotonic_buffer_resource mr;
-    auto fileset = expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-        desc_binpb, hpp_proto::alloc_from(mr)));
-
-    auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset));
-    expect(!factory.has_value());
-    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
   };
 
   "factory_create_invalid_distinct_descs_returns_schema_validation_error"_test = [&] {
@@ -1426,51 +1770,6 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(gt(decode_fail_index, std::size_t{1}));
     expect(throws_bad_alloc_for_index(decode_fail_index));
     expect(throws_bad_alloc_for_index(decode_fail_index));
-
-    auto healthy_factory = expect_ok(hpp_proto::dynamic_message_factory::create(descriptor_binpb));
-    std::pmr::monotonic_buffer_resource msg_mr;
-    expect(healthy_factory.get_message("proto3_unittest.TestAllTypes", msg_mr).has_value());
-  };
-
-  // Verifies OOM contract on fileset-init path:
-  // 1) std::bad_alloc is propagated while building/linking/resolving pool state.
-  // 2) Repeating the same failpoint index yields the same failure.
-  // 3) A later healthy create still succeeds (no leaked invalid state).
-  "factory_create_failpoint_bad_alloc_during_pool_init_from_fileset_is_deterministic"_test = [&] {
-    if constexpr (msvc_asan_bad_alloc_failpoint_unstable) {
-      expect(true);
-      return;
-    }
-    auto descriptor_binpb = read_file("unittest.desc.binpb");
-
-    auto throws_bad_alloc_for_index = [&](std::size_t fail_index) {
-      failpoint_memory_resource failpoint_mr{fail_index};
-      auto allocator = hpp_proto::dynamic_message_factory::allocator_type{&failpoint_mr};
-      try {
-        std::pmr::monotonic_buffer_resource parse_mr;
-        auto fileset =
-            expect_ok(hpp_proto::read_binpb<google::protobuf::FileDescriptorSet<hpp_proto::non_owning_traits>>(
-                descriptor_binpb, hpp_proto::alloc_from(parse_mr)));
-        [[maybe_unused]] auto factory = hpp_proto::dynamic_message_factory::create(std::move(fileset), allocator);
-        return false;
-      } catch (const std::bad_alloc &) {
-        return true;
-      } catch (...) {
-        return false;
-      }
-    };
-
-    std::size_t pool_fail_index = 0;
-    for (std::size_t index = 2; index <= 128; ++index) {
-      if (throws_bad_alloc_for_index(index)) {
-        pool_fail_index = index;
-        break;
-      }
-    }
-
-    expect(gt(pool_fail_index, std::size_t{1}));
-    expect(throws_bad_alloc_for_index(pool_fail_index));
-    expect(throws_bad_alloc_for_index(pool_fail_index));
 
     auto healthy_factory = expect_ok(hpp_proto::dynamic_message_factory::create(descriptor_binpb));
     std::pmr::monotonic_buffer_resource msg_mr;
