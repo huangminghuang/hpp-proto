@@ -126,6 +126,70 @@ const suite test_dynamic_message_any = [] {
 
   auto message_factory = expect_ok(::hpp_proto::dynamic_message_factory::create(protos));
 
+  "dynamic_any_respects_recursion_limit"_test = [&] {
+    constexpr std::string_view json =
+        R"({"anyValue":{"@type":"type.googleapis.com/protobuf_unittest.TestAny","int32Value":1}})";
+
+    std::pmr::monotonic_buffer_resource accepted_mr;
+    auto accepted = expect_ok(message_factory.get_message("protobuf_unittest.TestAny", accepted_mr));
+    expect(hpp_proto::read_json(accepted, json, hpp_proto::recursion_limit<2>).ok());
+
+    std::pmr::monotonic_buffer_resource rejected_mr;
+    auto rejected = expect_ok(message_factory.get_message("protobuf_unittest.TestAny", rejected_mr));
+    auto read_status = hpp_proto::read_json(rejected, json, hpp_proto::recursion_limit<1>);
+    expect(!read_status.ok());
+    expect(read_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
+
+    std::string output;
+    auto write_status = hpp_proto::write_json(accepted.cref(), output, hpp_proto::recursion_limit<1>);
+    expect(!write_status.ok());
+    expect(write_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
+
+    output.clear();
+    expect(hpp_proto::write_json(accepted.cref(), output, hpp_proto::recursion_limit<2>).ok());
+  };
+
+  "any_binary_conversion_uses_json_recursion_limit"_test = [&] {
+    constexpr auto nested_messages = hpp_proto::default_max_recursion_depth + 1;
+    std::string recursive_json;
+    for (std::uint32_t i = 0; i < nested_messages; ++i) {
+      recursive_json += R"({"child":)";
+    }
+    recursive_json += "{}";
+    recursive_json.append(nested_messages, '}');
+
+    std::pmr::monotonic_buffer_resource recursive_mr;
+    auto recursive = expect_ok(message_factory.get_message("proto3_unittest.NestedTestAllTypes", recursive_mr));
+    auto dynamic_read = hpp_proto::read_json(recursive, recursive_json, hpp_proto::recursion_limit<nested_messages>);
+    expect(dynamic_read.ok()) << "build recursive dynamic message";
+
+    std::vector<std::byte> payload;
+    auto dynamic_write = hpp_proto::write_binpb(recursive.cref(), payload, hpp_proto::recursion_limit<nested_messages>);
+    expect(dynamic_write.ok()) << "encode recursive Any payload";
+
+    ::protobuf_unittest::TestAny<> source;
+    source.any_value.emplace().type_url = "type.googleapis.com/proto3_unittest.NestedTestAllTypes";
+    source.any_value->value = payload;
+
+    std::string output;
+    auto any_write = hpp_proto::write_json(source, output, hpp_proto::use_factory{message_factory},
+                                           hpp_proto::recursion_limit<nested_messages>);
+    expect(any_write.ok()) << "decode recursive binary payload while writing Any JSON";
+
+    // Build canonical generic-Any JSON directly so the reverse direction independently exercises
+    // the JSON-to-binary adapter with the same non-default recursion policy.
+    std::string json = R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.NestedTestAllTypes",)";
+    json += std::string_view{recursive_json}.substr(1);
+    json += '}';
+
+    ::protobuf_unittest::TestAny<> parsed;
+    auto any_read = hpp_proto::read_json(parsed, json, hpp_proto::use_factory{message_factory},
+                                         hpp_proto::recursion_limit<nested_messages>);
+    expect(any_read.ok()) << "encode recursive binary payload while reading Any JSON: "
+                          << glz::format_error(any_read.ctx, json);
+    expect(parsed == source);
+  };
+
   "any_json_edge_cases"_test = [&] {
     auto expect_read_fail = [&](std::string_view json) {
       ::protobuf_unittest::TestAny<> message;

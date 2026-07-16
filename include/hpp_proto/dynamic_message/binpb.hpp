@@ -24,9 +24,9 @@ namespace hpp_proto {
 
 /// @brief Deserializes binary protobuf data into a dynamic message.
 /// @details The message is reset before parsing. The previous contents of @p msg are not preserved on parse failure.
-[[nodiscard]] status read_binpb(message_value_mref msg, auto &&buffer) {
+[[nodiscard]] status read_binpb(message_value_mref msg, auto &&buffer, concepts::is_option_type auto &&...option) {
   msg.reset();
-  auto context = pb_context{alloc_from(msg.memory_resource())};
+  auto context = pb_context{alloc_from(msg.memory_resource()), std::forward<decltype(option)>(option)...};
   return pb_serializer::deserialize(msg, std::forward<decltype(buffer)>(buffer), context);
 }
 
@@ -34,11 +34,12 @@ template <std::size_t N>
 /// @brief Deserializes binary protobuf data from a character array into a dynamic message.
 /// @details The previous contents of @p msg are not preserved on parse failure.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
-[[nodiscard]] status read_binpb(message_value_mref msg, const char (&buffer)[N]) {
+[[nodiscard]] status read_binpb(message_value_mref msg, const char (&buffer)[N],
+                                concepts::is_option_type auto &&...option) {
   constexpr auto span_size = N == 0 ? 0 : N - 1;
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,hicpp-no-array-decay,-warnings-as-errors)
   auto span = std::span<const char>{buffer, span_size};
-  return read_binpb(msg, span);
+  return read_binpb(msg, span, std::forward<decltype(option)>(option)...);
 }
 
 [[nodiscard]] status write_binpb(const message_value_cref &msg, concepts::contiguous_byte_range auto &buffer,

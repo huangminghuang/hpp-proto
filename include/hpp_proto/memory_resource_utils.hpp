@@ -27,6 +27,7 @@
 #include <cstring>
 #include <functional>
 #include <hpp_proto/field_types.hpp>
+#include <hpp_proto/recursion.hpp>
 #include <memory_resource>
 #include <ranges>
 #include <span>
@@ -108,7 +109,6 @@ public:
 };
 
 inline constexpr std::size_t default_stack_buffer_size = 1024;
-inline constexpr uint32_t default_max_recursion_depth = 100;
 
 template <std::size_t StackBufferSize = default_stack_buffer_size>
 class default_cache_memory_resource {
