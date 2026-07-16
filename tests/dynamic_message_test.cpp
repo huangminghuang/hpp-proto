@@ -103,6 +103,31 @@ const boost::ut::suite dynamic_message_json_recursion_limit_tests = [] {
   };
 };
 
+const boost::ut::suite dynamic_message_binary_recursion_limit_tests = [] {
+  "write_uses_shared_recursion_counter"_test = [] {
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
+    std::pmr::monotonic_buffer_resource mr;
+    auto message = expect_ok(factory.get_message("protobuf_unittest.TestRecursiveMessage", mr));
+    expect(hpp_proto::read_json(message, make_recursive_message_json(2), hpp_proto::recursion_limit<2>).ok());
+
+    std::vector<std::byte> output;
+    auto status = hpp_proto::write_binpb(message.cref(), output, hpp_proto::recursion_limit<1>);
+    expect(!status.ok());
+    expect(status.ec == std::errc::bad_message);
+    expect(hpp_proto::write_binpb(message.cref(), output, hpp_proto::recursion_limit<2>).ok());
+
+    std::pmr::monotonic_buffer_resource rejected_mr;
+    auto rejected = expect_ok(factory.get_message("protobuf_unittest.TestRecursiveMessage", rejected_mr));
+    auto read_status = hpp_proto::read_binpb(rejected, output, hpp_proto::recursion_limit<1>);
+    expect(!read_status.ok());
+    expect(read_status.ec == std::errc::value_too_large);
+
+    std::pmr::monotonic_buffer_resource accepted_mr;
+    auto accepted = expect_ok(factory.get_message("protobuf_unittest.TestRecursiveMessage", accepted_mr));
+    expect(hpp_proto::read_binpb(accepted, output, hpp_proto::recursion_limit<2>).ok());
+  };
+};
+
 const boost::ut::suite dynamic_message_json_iterator_safety_tests = [] {
   "value_from_json_ws_handled_end_iterator_regression"_test = [] {
     auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));

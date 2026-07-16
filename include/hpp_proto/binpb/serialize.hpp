@@ -27,6 +27,7 @@
 #include <hpp_proto/binpb/utf8.hpp>
 #include <hpp_proto/binpb/util.hpp>
 #include <hpp_proto/binpb/varint.hpp>
+#include <hpp_proto/recursion.hpp>
 
 #include <limits>
 
@@ -211,36 +212,56 @@ struct size_cache_counter;
 
 template <concepts::has_meta T>
 struct size_cache_counter<T> {
-  constexpr static std::size_t count(concepts::has_meta auto const &item) {
+  constexpr static std::size_t count(concepts::has_meta auto const &item, concepts::is_pb_context auto &context,
+                                     bool &recursion_limit_exceeded) {
+    const detail::recursion_scope recursion_scope{context.recursion_depth, context.get_max_recursion_depth()};
+    if (!recursion_scope.ok()) [[unlikely]] {
+      recursion_limit_exceeded = true;
+      return 0;
+    }
+
     using type = std::remove_cvref_t<decltype(item)>;
     using meta_type = util::meta_of<type>::type;
     if constexpr (std::tuple_size_v<meta_type> == 0) {
       return 0;
     } else {
-      return std::apply(
-          [&item](auto &&...meta) constexpr {
-            return ((meta.omit_value(meta.get(item)) ? 0 : count(meta.get(item), meta)) + ...);
-          },
-          meta_type{});
+      return [&item, &context, &recursion_limit_exceeded]<std::size_t... I>(std::index_sequence<I...>) constexpr {
+        std::size_t result = 0;
+        ((result += std::tuple_element_t<I, meta_type>{}.omit_value(std::tuple_element_t<I, meta_type>{}.get(item))
+                        ? 0
+                        : count(std::tuple_element_t<I, meta_type>{}.get(item), std::tuple_element_t<I, meta_type>{},
+                                context, recursion_limit_exceeded)),
+         ...);
+        return result;
+      }(std::make_index_sequence<std::tuple_size_v<meta_type>>{});
     }
   }
 
   template <typename Meta>
-  constexpr static std::size_t count(concepts::oneof_type auto const &item, Meta /*meta*/) {
-    return count_oneof<0, typename Meta::alternatives_meta>(item);
+  constexpr static std::size_t count(concepts::oneof_type auto const &item, Meta /*meta*/,
+                                     concepts::is_pb_context auto &context, bool &recursion_limit_exceeded) {
+    return count_oneof<0, typename Meta::alternatives_meta>(item, context, recursion_limit_exceeded);
   }
 
-  constexpr static std::size_t count(concepts::dereferenceable auto const &item, auto meta) {
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    return count(*item, meta);
+  constexpr static std::size_t count(concepts::dereferenceable auto const &item, auto meta,
+                                     concepts::is_pb_context auto &context, bool &recursion_limit_exceeded) {
+    if constexpr (concepts::has_meta<std::remove_cvref_t<decltype(*item)>>) {
+      // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+      return count(*item, context, recursion_limit_exceeded) + (!meta.is_delimited());
+    } else {
+      // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+      return count(*item, meta, context, recursion_limit_exceeded);
+    }
   }
 
-  constexpr static std::size_t count(concepts::has_meta auto const &item, auto meta) {
-    return count(item) + (!meta.is_delimited());
+  constexpr static std::size_t count(concepts::has_meta auto const &item, auto meta,
+                                     concepts::is_pb_context auto &context, bool &recursion_limit_exceeded) {
+    return count(item, context, recursion_limit_exceeded) + (!meta.is_delimited());
   }
 
   template <typename Meta>
-  constexpr static std::size_t count(std::ranges::input_range auto const &item, Meta meta)
+  constexpr static std::size_t count(std::ranges::input_range auto const &item, Meta meta,
+                                     concepts::is_pb_context auto &context, bool &recursion_limit_exceeded)
     requires(!concepts::optional<std::remove_cvref_t<decltype(item)>>)
   {
     using type = std::remove_cvref_t<decltype(item)>;
@@ -249,7 +270,8 @@ struct size_cache_counter<T> {
     }
     using value_type = std::ranges::range_value_t<type>;
     if constexpr (concepts::has_meta<value_type> || !meta.is_packed() || meta.is_delimited()) {
-      return util::transform_accumulate(item, [](const auto &elem) constexpr { return count(elem, Meta{}); });
+      return util::transform_accumulate(
+          item, [&](const auto &elem) constexpr { return count(elem, Meta{}, context, recursion_limit_exceeded); });
     } else {
       using element_type =
           std::conditional_t<std::same_as<typename Meta::type, void> || concepts::contiguous_byte_range<type>,
@@ -264,30 +286,42 @@ struct size_cache_counter<T> {
   }
 
   template <typename Meta>
-  constexpr static std::size_t count(concepts::is_pair auto const &item, Meta /*meta*/) {
+  constexpr static std::size_t count(concepts::is_pair auto const &item, Meta /*meta*/,
+                                     concepts::is_pb_context auto &context, bool &recursion_limit_exceeded) {
+    const detail::recursion_scope recursion_scope{context.recursion_depth, context.get_max_recursion_depth()};
+    if (!recursion_scope.ok()) [[unlikely]] {
+      recursion_limit_exceeded = true;
+      return 0;
+    }
+
     using type = std::remove_cvref_t<decltype(item)>;
     using serialize_type = util::get_serialize_type<Meta, type>::type;
 
     static_assert(concepts::is_map_entry<serialize_type>);
     using mapped_type = serialize_type::mapped_type;
     if constexpr (requires { *item.second; }) {
-      return count(*item.second) + 2;
+      return count(*item.second, context, recursion_limit_exceeded) + 2;
     } else if constexpr (concepts::has_meta<mapped_type>) {
-      return count(item.second) + 2;
+      return count(item.second, context, recursion_limit_exceeded) + 2;
     } else {
       return 1;
     }
   }
 
-  constexpr static std::size_t count(concepts::no_cached_size auto const & /*item*/, auto /*meta*/) { return 0; }
+  constexpr static std::size_t count(concepts::no_cached_size auto const & /*item*/, auto /*meta*/,
+                                     concepts::is_pb_context auto & /*context*/, bool & /*recursion_limit_exceeded*/) {
+    return 0;
+  }
 
   template <std::size_t I, typename Meta>
-  constexpr static std::size_t count_oneof(auto const &item) {
+  constexpr static std::size_t count_oneof(auto const &item, concepts::is_pb_context auto &context,
+                                           bool &recursion_limit_exceeded) {
     if constexpr (I < std::tuple_size_v<Meta>) {
       if (I == item.index() - 1) {
-        return count(std::get<I + 1>(item), typename std::tuple_element_t<I, Meta>{});
+        return count(std::get<I + 1>(item), typename std::tuple_element_t<I, Meta>{}, context,
+                     recursion_limit_exceeded);
       }
-      return count_oneof<I + 1, Meta>(item);
+      return count_oneof<I + 1, Meta>(item, context, recursion_limit_exceeded);
     } else {
       return 0;
     }
@@ -546,7 +580,11 @@ template <bool overwrite_buffer = true, typename T, concepts::contiguous_byte_ra
 
 template <bool overwrite_buffer = true, typename T, concepts::contiguous_byte_range Buffer>
 constexpr status serialize(const T &item, Buffer &buffer, [[maybe_unused]] concepts::is_pb_context auto &context) {
-  const std::size_t n = size_cache_counter<T>::count(item);
+  bool recursion_limit_exceeded = false;
+  const std::size_t n = size_cache_counter<T>::count(item, context, recursion_limit_exceeded);
+  if (recursion_limit_exceeded) [[unlikely]] {
+    return std::errc::bad_message;
+  }
 
   if (std::is_constant_evaluated()) {
     std::vector<uint32_t> cache(n);
@@ -598,7 +636,11 @@ template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
 
 template <typename T, concepts::out_sink Sink, concepts::is_pb_context Context>
 status serialize(const T &item, Sink &sink, Context &context) {
-  const std::size_t n = size_cache_counter<T>::count(item);
+  bool recursion_limit_exceeded = false;
+  const std::size_t n = size_cache_counter<T>::count(item, context, recursion_limit_exceeded);
+  if (recursion_limit_exceeded) [[unlikely]] {
+    return std::errc::bad_message;
+  }
 
   auto serialize_with_cache_resource = [&](std::pmr::memory_resource &cache_mr) -> status {
     std::pmr::vector<uint32_t> cache(n, &cache_mr);
@@ -632,6 +674,12 @@ status serialize(const T &item, Sink &sink, Context &context) {
 
 template <concepts::has_meta T>
 [[nodiscard]] constexpr bool serialize(const T &item, concepts::is_size_cache_iterator auto &cache_itr, auto &archive) {
+  const detail::recursion_scope recursion_scope{archive.context_.recursion_depth,
+                                                archive.context_.get_max_recursion_depth()};
+  if (!recursion_scope.ok()) [[unlikely]] {
+    return false;
+  }
+
   using type = std::remove_cvref_t<decltype(item)>;
   using metas = util::meta_of<type>::type;
   auto serialize_field_if_not_empty = [&](auto meta) {
@@ -692,17 +740,8 @@ template <typename Meta>
 template <concepts::dereferenceable T>
 [[nodiscard]] constexpr bool serialize_field(const T &item, auto meta, concepts::is_size_cache_iterator auto &cache_itr,
                                              auto &archive) {
-  if constexpr (concepts::optional_indirect_view<T> || concepts::indirect_view<T>) {
-    const util::recursion_guard guard{archive.context_};
-    if (!guard.ok()) {
-      return false; // recursion limit reached
-    }
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    return serialize_field(*item, meta, cache_itr, archive);
-  } else {
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    return serialize_field(*item, meta, cache_itr, archive);
-  }
+  // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+  return serialize_field(*item, meta, cache_itr, archive);
 }
 
 [[nodiscard]] constexpr bool serialize_field(concepts::has_meta auto const &item, auto meta,

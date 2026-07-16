@@ -23,10 +23,10 @@
 #pragma once
 #include <cstdint>
 #include <expected>
-#include <limits>
 
 #include <hpp_proto/binpb/deserialize.hpp>
 #include <hpp_proto/binpb/serialize.hpp>
+#include <hpp_proto/recursion.hpp>
 
 namespace hpp_proto {
 using std::expected;
@@ -93,19 +93,6 @@ constexpr auto adaptive_mode = serialization_option_t<serialization_mode::adapti
 ///   incur a CPU performance penalty compared to contiguous serialization.
 constexpr auto chunked_mode = serialization_option_t<serialization_mode::chunked>{};
 
-/// Limit nested message recursion for binary protobuf and dynamic-message JSON operations.
-/// The root message does not consume the recursion budget.
-/// UINT32_MAX is reserved so the internal recursion counter cannot wrap.
-template <uint32_t N>
-struct recursion_limit_t {
-  static_assert(N < std::numeric_limits<uint32_t>::max(), "recursion limit must be less than UINT32_MAX");
-  using option_type = recursion_limit_t<N>;
-  static constexpr uint32_t max_recursion_depth = N;
-};
-
-template <uint32_t N>
-constexpr auto recursion_limit = recursion_limit_t<N>{};
-
 struct padded_input_t {
   using option_type = padded_input_t;
   using padded_input = void;
@@ -121,16 +108,26 @@ template <typename F>
   requires std::regular_invocable<F>
 consteval auto write_binpb(F make_object) {
   constexpr auto obj = make_object();
-  constexpr auto sz = pb_serializer::message_size_calculator<decltype(obj)>::message_size(obj);
-  if constexpr (sz == 0) {
-    return std::span<std::byte>{};
-  } else {
+  constexpr bool recursion_limit_exceeded = [&obj] {
     pb_context<> ctx;
-    std::array<std::byte, sz> buffer = {};
-    if (auto result = pb_serializer::serialize(obj, buffer, ctx); !result.ok()) {
-      throw std::system_error(std::make_error_code(result.ec));
+    bool exceeded = false;
+    (void)pb_serializer::size_cache_counter<decltype(obj)>::count(obj, ctx, exceeded);
+    return exceeded;
+  }();
+  if constexpr (recursion_limit_exceeded) {
+    throw std::system_error(std::make_error_code(std::errc::bad_message));
+  } else {
+    constexpr auto sz = pb_serializer::message_size_calculator<decltype(obj)>::message_size(obj);
+    if constexpr (sz == 0) {
+      return std::span<std::byte>{};
+    } else {
+      pb_context<> ctx;
+      std::array<std::byte, sz> buffer = {};
+      if (auto result = pb_serializer::serialize(obj, buffer, ctx); !result.ok()) {
+        throw std::system_error(std::make_error_code(result.ec));
+      }
+      return buffer;
     }
-    return buffer;
   }
 }
 

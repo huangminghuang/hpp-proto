@@ -29,6 +29,7 @@
 #include <hpp_proto/binpb/utf8.hpp>
 #include <hpp_proto/binpb/util.hpp>
 #include <hpp_proto/binpb/varint.hpp>
+#include <hpp_proto/recursion.hpp>
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 namespace hpp_proto {
@@ -711,8 +712,9 @@ constexpr status skip_fields_match_tag(uint32_t tag, concepts::is_basic_in auto 
 }
 
 constexpr status do_skip_group(uint32_t field_num, concepts::is_basic_in auto &archive) {
-  const util::recursion_guard guard{archive.context};
-  if (!guard.ok()) {
+  const detail::recursion_scope recursion_scope{archive.context.recursion_depth,
+                                                archive.context.get_max_recursion_depth()};
+  if (!recursion_scope.ok()) {
     return std::errc::value_too_large; // maximum recursion reached
   }
 
@@ -1301,8 +1303,9 @@ constexpr auto &get_unknown_fields(auto &item)
 constexpr std::monostate get_unknown_fields(auto & /*item*/) { return {}; }
 
 constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is_basic_in auto &archive) {
-  const util::recursion_guard guard{archive.context};
-  if (!guard.ok()) {
+  const detail::recursion_scope recursion_scope{archive.context.recursion_depth,
+                                                archive.context.get_max_recursion_depth()};
+  if (!recursion_scope.ok()) {
     return std::errc::value_too_large; // maximum recursion reached
   }
 
@@ -1323,6 +1326,12 @@ constexpr status deserialize_group(uint32_t field_num, auto &&item, concepts::is
 }
 
 constexpr status deserialize(auto &&item, concepts::is_basic_in auto &archive) {
+  const detail::recursion_scope recursion_scope{archive.context.recursion_depth,
+                                                archive.context.get_max_recursion_depth()};
+  if (!recursion_scope.ok()) [[unlikely]] {
+    return std::errc::value_too_large;
+  }
+
   if constexpr (requires { item.is_map_entry(); }) {
     if (item.is_map_entry() && archive.in_avail() > 0) {
       // Map entries must start with field number 1 (the key), matching protobuf validation.
@@ -1350,18 +1359,10 @@ constexpr status deserialize_sized(auto &&item, concepts::is_basic_in auto &arch
   if (auto result = archive(len); !result.ok()) [[unlikely]] {
     return result;
   }
-  if (len == 0) [[unlikely]] {
-    if constexpr (requires { item.is_map_entry(); }) {
-      if (item.is_map_entry()) {
-        return std::errc::bad_message;
-      }
+  if constexpr (requires { item.is_map_entry(); }) {
+    if (len == 0 && item.is_map_entry()) [[unlikely]] {
+      return std::errc::bad_message;
     }
-    return {};
-  }
-
-  const util::recursion_guard guard{archive.context};
-  if (!guard.ok()) {
-    return std::errc::value_too_large; // maximum recursion reached
   }
 
   if (len < archive.in_avail()) [[likely]] {

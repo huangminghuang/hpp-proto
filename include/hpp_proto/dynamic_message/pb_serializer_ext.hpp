@@ -352,33 +352,53 @@ status deserialize_field_by_tag(uint32_t tag, message_value_mref item, concepts:
 
 template <>
 struct size_cache_counter<message_value_cref> {
-  constexpr std::size_t operator()(auto /*f*/) const { return 0; }
+  template <concepts::is_pb_context Context>
+  struct field_visitor {
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
+    Context &context;
+    bool &recursion_limit_exceeded;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
-  template <concepts::varint T, field_kind_t Kind>
-  std::size_t operator()(repeated_scalar_field_cref<T, Kind> f) const {
-    return static_cast<std::size_t>(f.descriptor().is_packed());
-  }
+    constexpr std::size_t operator()(auto /*f*/) const { return 0; }
 
-  template <typename T, field_kind_t Kind>
-  std::size_t operator()(repeated_scalar_field_cref<T, Kind> /*f*/) const {
-    return 0;
-  }
+    template <concepts::varint T, field_kind_t Kind>
+    std::size_t operator()(repeated_scalar_field_cref<T, Kind> f) const {
+      return static_cast<std::size_t>(f.descriptor().is_packed());
+    }
 
-  std::size_t operator()(repeated_enum_field_cref f) const { return f.descriptor().is_packed() ? 1 : 0; }
+    template <typename T, field_kind_t Kind>
+    std::size_t operator()(repeated_scalar_field_cref<T, Kind> /*f*/) const {
+      return 0;
+    }
 
-  static std::size_t count(message_value_cref f) {
+    std::size_t operator()(repeated_enum_field_cref f) const { return f.descriptor().is_packed() ? 1 : 0; }
+
+    std::size_t operator()(message_field_cref f) const {
+      return count(*f, context, recursion_limit_exceeded) + (f.descriptor().is_delimited() ? 0 : 1);
+    }
+
+    std::size_t operator()(repeated_message_field_cref f) const {
+      return util::transform_accumulate(
+                 f, [&](message_value_cref element) { return count(element, context, recursion_limit_exceeded); }) +
+             (f.descriptor().is_delimited() ? 0 : f.size());
+    }
+  };
+
+  static std::size_t count(message_value_cref f, concepts::is_pb_context auto &context,
+                           bool &recursion_limit_exceeded) {
+    const detail::recursion_scope recursion_scope{context.recursion_depth, context.get_max_recursion_depth()};
+    if (!recursion_scope.ok()) [[unlikely]] {
+      recursion_limit_exceeded = true;
+      return 0;
+    }
+
     auto fields = f.fields();
-    return util::transform_accumulate(fields, [](field_cref nested_field) {
-      return is_present_or_explicit_default(nested_field) ? nested_field.visit(size_cache_counter<message_value_cref>{})
-                                                          : 0;
+    return util::transform_accumulate(fields, [&](field_cref nested_field) {
+      return is_present_or_explicit_default(nested_field)
+                 ? nested_field.visit(
+                       field_visitor<std::remove_reference_t<decltype(context)>>{context, recursion_limit_exceeded})
+                 : 0;
     });
-  }
-
-  std::size_t operator()(message_field_cref f) const { return count(*f) + (f.descriptor().is_delimited() ? 0 : 1); }
-
-  std::size_t operator()(repeated_message_field_cref f) const {
-    return util::transform_accumulate(f, [](message_value_cref element) { return count(element); }) +
-           (f.descriptor().is_delimited() ? 0 : f.size());
   }
 };
 
@@ -609,6 +629,11 @@ struct field_serializer {
   }
 
   bool operator()(message_value_cref item) {
+    const detail::recursion_scope recursion_scope{archive.context_.recursion_depth,
+                                                  archive.context_.get_max_recursion_depth()};
+    if (!recursion_scope.ok()) [[unlikely]] {
+      return false;
+    }
     return std::ranges::all_of(item.fields(),
                                [&](field_cref f) { return !is_present_or_explicit_default(f) || f.visit(*this); });
   }

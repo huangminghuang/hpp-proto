@@ -1687,6 +1687,15 @@ auto pb_meta(const recursive_type1<Traits> &)
     -> std::tuple<hpp_proto::field_meta<1, &recursive_type1<Traits>::child>,
                   hpp_proto::field_meta<2, &recursive_type1<Traits>::payload, field_option::none, hpp_proto::vint64_t>>;
 
+inline constexpr recursive_type1<hpp_proto::non_owning_traits> constexpr_recursive_cycle{&constexpr_recursive_cycle, 1};
+static_assert([] {
+  hpp_proto::pb_context<> context;
+  bool recursion_limit_exceeded = false;
+  (void)hpp_proto::pb_serializer::size_cache_counter<decltype(constexpr_recursive_cycle)>::count(
+      constexpr_recursive_cycle, context, recursion_limit_exceeded);
+  return recursion_limit_exceeded;
+}());
+
 template <typename Traits>
 struct recursive_type2 {
   Traits::template repeated_t<recursive_type2<Traits>> children;
@@ -1759,6 +1768,62 @@ recursive_type1<Traits> make_recursive_chain(uint32_t depth) {
 
 const ut::suite recursion_limit_tests = [] {
   using namespace boost::ut;
+
+  "shared_recursion_counter_owns_root_and_nested_depth"_test = [] {
+    std::uint32_t active_depth = 0;
+    ut::expect(active_depth == 0U);
+
+    {
+      const hpp_proto::detail::recursion_scope root{active_depth, 1};
+      ut::expect(root.ok());
+      ut::expect(active_depth == 1U);
+
+      const hpp_proto::detail::recursion_scope nested{active_depth, 1};
+      ut::expect(nested.ok());
+      ut::expect(active_depth == 2U);
+
+      const hpp_proto::detail::recursion_scope rejected{active_depth, 1};
+      ut::expect(!rejected.ok());
+      ut::expect(active_depth == 2U);
+    }
+
+    ut::expect(active_depth == 0U);
+    const hpp_proto::detail::recursion_scope recovered_root{active_depth, 0};
+    ut::expect(recovered_root.ok());
+  };
+
+  "custom_pb_context_keeps_recursion_depth_adapter_contract"_test = [] {
+    struct custom_context {
+      using is_pb_context = void;
+      std::uint32_t recursion_depth = 0;
+      [[nodiscard]] constexpr std::uint32_t get_max_recursion_depth() const { return 0; }
+    } context;
+
+    std::vector<std::byte> buffer;
+    ut::expect(hpp_proto::write_binpb(empty{}, buffer, context).ok());
+
+    empty value;
+    ut::expect(hpp_proto::read_binpb(value, buffer, context).ok());
+  };
+
+  "binary_root_is_free_and_empty_nested_messages_consume_depth"_test = [] {
+    std::vector<std::byte> buffer;
+    ut::expect(hpp_proto::write_binpb(empty{}, buffer, hpp_proto::recursion_limit<0>).ok());
+
+    empty flat;
+    ut::expect(hpp_proto::read_binpb(flat, buffer, hpp_proto::recursion_limit<0>).ok());
+
+    nested_example nested{.nested = example{}};
+    auto write_status = hpp_proto::write_binpb(nested, buffer, hpp_proto::recursion_limit<0>);
+    ut::expect(!write_status.ok());
+    ut::expect(write_status.ec == std::errc::bad_message);
+
+    constexpr auto empty_nested = "\x0a\x00"sv;
+    auto read_status = hpp_proto::read_binpb(nested, empty_nested, hpp_proto::recursion_limit<0>);
+    ut::expect(!read_status.ok());
+    ut::expect(read_status.ec == std::errc::value_too_large);
+  };
+
   "serialize_respects_recursion_limit"_test = [] {
     std::array<recursive_type1<hpp_proto::non_owning_traits>, 3> nodes{};
     nodes[0].payload = 3;
@@ -1772,6 +1837,32 @@ const ut::suite recursion_limit_tests = [] {
     auto status = hpp_proto::write_binpb(nodes[0], buffer, hpp_proto::recursion_limit<1>);
     ut::expect(!status.ok());
     ut::expect(status.ec == std::errc::bad_message);
+  };
+
+  "serialize_rejects_cycles_before_sizing_or_allocation"_test = [] {
+    recursive_type1<hpp_proto::non_owning_traits> value;
+    value.child = &value;
+    value.payload = 1;
+    std::vector<std::byte> buffer(3);
+
+    auto status = hpp_proto::write_binpb(value, buffer, hpp_proto::recursion_limit<1>);
+    ut::expect(!status.ok());
+    ut::expect(status.ec == std::errc::bad_message);
+    ut::expect(buffer.size() == 3U);
+  };
+
+  "serialize_repeated_messages_respects_recursion_limit"_test = [] {
+    using message_type = recursive_type2<hpp_proto::non_owning_traits>;
+    std::array<message_type, 1> grandchildren{};
+    std::array<message_type, 1> children{};
+    children[0].children = grandchildren;
+    message_type root{.children = children};
+    std::vector<std::byte> buffer;
+
+    auto status = hpp_proto::write_binpb(root, buffer, hpp_proto::recursion_limit<1>);
+    ut::expect(!status.ok());
+    ut::expect(status.ec == std::errc::bad_message);
+    ut::expect(hpp_proto::write_binpb(root, buffer, hpp_proto::recursion_limit<2>).ok());
   };
 
   "deserialize_respects_recursion_limit"_test = [] {
@@ -1793,6 +1884,16 @@ const ut::suite recursion_limit_tests = [] {
     ut::expect(!status.ok());
     ut::expect(status.ec == std::errc::value_too_large);
     ut::expect(hpp_proto::read_binpb(out, buffer, hpp_proto::recursion_limit<2>).ok());
+  };
+
+  "serialize_groups_respects_recursion_limit"_test = [] {
+    doubly_nested_group value;
+    std::vector<std::byte> buffer;
+
+    auto status = hpp_proto::write_binpb(value, buffer, hpp_proto::recursion_limit<1>);
+    ut::expect(!status.ok());
+    ut::expect(status.ec == std::errc::bad_message);
+    ut::expect(hpp_proto::write_binpb(value, buffer, hpp_proto::recursion_limit<2>).ok());
   };
 
   "skipped_groups_respect_recursion_limit"_test = [] {

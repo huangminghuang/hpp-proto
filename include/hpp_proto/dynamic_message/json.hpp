@@ -9,59 +9,51 @@
 #include <hpp_proto/dynamic_message/factory.hpp>
 #include <hpp_proto/dynamic_message/field_visit.hpp>
 #include <hpp_proto/json.hpp>
+#include <hpp_proto/recursion.hpp>
 #include <iterator>
-#include <limits>
 
 namespace hpp_proto::detail {
 
-inline std::uint32_t &dynamic_json_recursion_depth() {
+inline std::uint32_t &direct_glaze_recursion_depth() {
   static thread_local std::uint32_t depth = 0;
   return depth;
 }
 
-class dynamic_json_recursion_guard {
-  std::uint32_t *depth_ = nullptr;
-  bool entered_ = false;
+template <typename Context>
+static std::uint32_t &dynamic_json_recursion_depth(Context &ctx) {
+  if constexpr (requires {
+                  { ctx.recursion_depth } -> std::same_as<std::uint32_t &>;
+                }) {
+    return ctx.recursion_depth;
+  } else {
+    return direct_glaze_recursion_depth();
+  }
+}
+
+template <typename Context>
+static std::uint32_t dynamic_json_max_recursion_depth(Context &ctx) {
+  if constexpr (requires {
+                  { ctx.get_max_recursion_depth() } -> std::same_as<std::uint32_t>;
+                }) {
+    return ctx.get_max_recursion_depth();
+  } else {
+    return default_max_recursion_depth;
+  }
+}
+
+class dynamic_json_recursion_scope {
+  recursion_scope scope_;
 
 public:
   template <typename Context>
-  explicit dynamic_json_recursion_guard(Context &ctx) {
-    std::uint32_t max_recursion_depth = default_max_recursion_depth;
-    if constexpr (requires {
-                    { ctx.get_max_recursion_depth() } -> std::same_as<std::uint32_t>;
-                  }) {
-      max_recursion_depth = ctx.get_max_recursion_depth();
-    }
-    if constexpr (requires {
-                    { ctx.recursion_depth } -> std::same_as<std::uint32_t &>;
-                  }) {
-      depth_ = &ctx.recursion_depth;
-    } else {
-      depth_ = &dynamic_json_recursion_depth();
-    }
-    // Match binary protobuf recursion semantics: the root message does not consume the budget.
-    // The saturation check also protects direct Glaze callers with a custom context that bypasses
-    // recursion_limit_t's compile-time validation.
-    if (*depth_ > max_recursion_depth || *depth_ == std::numeric_limits<std::uint32_t>::max()) [[unlikely]] {
+  explicit dynamic_json_recursion_scope(Context &ctx)
+      : scope_{dynamic_json_recursion_depth(ctx), dynamic_json_max_recursion_depth(ctx)} {
+    if (!scope_.ok()) [[unlikely]] {
       ctx.error = glz::error_code::exceeded_max_recursive_depth;
-      return;
-    }
-    ++*depth_;
-    entered_ = true;
-  }
-
-  dynamic_json_recursion_guard(const dynamic_json_recursion_guard &) = delete;
-  dynamic_json_recursion_guard &operator=(const dynamic_json_recursion_guard &) = delete;
-  dynamic_json_recursion_guard(dynamic_json_recursion_guard &&) = delete;
-  dynamic_json_recursion_guard &operator=(dynamic_json_recursion_guard &&) = delete;
-
-  ~dynamic_json_recursion_guard() {
-    if (entered_) {
-      --*depth_;
     }
   }
 
-  [[nodiscard]] bool ok() const { return entered_; }
+  [[nodiscard]] bool ok() const { return scope_.ok(); }
 };
 
 } // namespace hpp_proto::detail
@@ -684,8 +676,8 @@ struct to<JSON, hpp_proto::message_value_cref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp_proto::message_value_cref &value, is_context auto &ctx, auto &b,
                                    auto &ix) {
-    const ::hpp_proto::detail::dynamic_json_recursion_guard recursion_guard{ctx};
-    if (!recursion_guard.ok()) [[unlikely]] {
+    const ::hpp_proto::detail::dynamic_json_recursion_scope recursion_scope{ctx};
+    if (!recursion_scope.ok()) [[unlikely]] {
       return;
     }
     using enum hpp_proto::wellknown_types_t;
@@ -915,8 +907,8 @@ struct from<JSON, hpp_proto::message_value_mref> {
   template <auto Opts>
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
-    const ::hpp_proto::detail::dynamic_json_recursion_guard recursion_guard{ctx};
-    if (!recursion_guard.ok()) [[unlikely]] {
+    const ::hpp_proto::detail::dynamic_json_recursion_scope recursion_scope{ctx};
+    if (!recursion_scope.ok()) [[unlikely]] {
       return;
     }
     if (value.descriptor().is_map_entry()) {
@@ -979,7 +971,9 @@ struct from<JSON, T> {
 template <auto Opts>
 static std::expected<bool, const char *> message_to_json(::hpp_proto::message_value_mref message, const auto &any_value,
                                                          is_context auto &ctx, auto &b, auto &ix) {
-  if (hpp_proto::read_binpb(message, any_value).ok()) {
+  const auto recursion_limit =
+      ::hpp_proto::detail::runtime_recursion_limit{::hpp_proto::detail::dynamic_json_max_recursion_depth(ctx)};
+  if (hpp_proto::read_binpb(message, any_value, recursion_limit).ok()) {
     const auto pre_ix = ix;
     to<JSON, hpp_proto::message_value_cref>::template op<Opts>(message, ctx, b, ix);
     if (bool(ctx.error)) [[unlikely]] {
@@ -1122,11 +1116,13 @@ void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&an
           if (message.descriptor().wellknown != ::hpp_proto::wellknown_types_t::NONE) {
             return parse_wellknown_any_value<Opts>(message, ctx, it, end);
           }
-          const ::hpp_proto::detail::dynamic_json_recursion_guard recursion_guard{ctx};
-          return recursion_guard.ok() && parse_generic_any_value<opening_handled<Opts>()>(message, ctx, it, end);
+          const ::hpp_proto::detail::dynamic_json_recursion_scope recursion_scope{ctx};
+          return recursion_scope.ok() && parse_generic_any_value<opening_handled<Opts>()>(message, ctx, it, end);
         }();
 
-        if (ok && !hpp_proto::write_binpb(message, any_value).ok()) {
+        const auto recursion_limit =
+            ::hpp_proto::detail::runtime_recursion_limit{::hpp_proto::detail::dynamic_json_max_recursion_depth(ctx)};
+        if (ok && !hpp_proto::write_binpb(message, any_value, recursion_limit).ok()) {
           return std::unexpected("unable to serialize the value for google.protobuf.Any message");
         }
         return {};
