@@ -147,6 +147,8 @@ enum class runtime_field_policy : uint8_t {
 }
 
 [[nodiscard]] constexpr runtime_field_policy operator|(runtime_field_policy lhs, runtime_field_policy rhs) noexcept {
+  // A fixed-underlying enum intentionally carries combined flag values.
+  // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
   return static_cast<runtime_field_policy>(runtime_field_policy_mask(lhs) | runtime_field_policy_mask(rhs));
 }
 

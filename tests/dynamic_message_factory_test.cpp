@@ -2,6 +2,7 @@
 #include <array>
 #include <boost/ut.hpp>
 #include <concepts>
+#include <exception>
 #include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
@@ -169,7 +170,10 @@ private:
 
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
-  expect(fatal(exp.has_value()));
+  if (!exp.has_value()) {
+    expect(fatal(false));
+    std::terminate();
+  }
   return std::forward<Exp>(exp).value();
 }
 
@@ -915,16 +919,21 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                 OneofProto{.name = "choice"},
             },
     };
-    const auto limit = static_cast<int32_t>(std::numeric_limits<uint16_t>::max());
-    message.field.reserve(static_cast<std::size_t>(limit));
-    for (int32_t i = 1; i <= limit; ++i) {
+    const auto limit = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());
+    message.field.reserve(limit);
+    int32_t field_number = 1;
+    while (message.field.size() < limit) {
+      if (field_number == 19'000) {
+        field_number = 20'000;
+      }
       message.field.push_back(FieldProto{
-          .name = "f" + std::to_string(i),
-          .number = i,
+          .name = "f" + std::to_string(field_number),
+          .number = field_number,
           .label = LABEL_OPTIONAL,
           .type = TYPE_INT32,
           .oneof_index = 0,
       });
+      ++field_number;
     }
     file.message_type.push_back(std::move(message));
     return file;
@@ -1810,7 +1819,9 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
 
   "oneof_ordinal_overflow_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_oneof_ordinal_overflow_fileset());
-    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+    auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+    expect(fatal(!factory.has_value()));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
   };
 
   "factory_create_malformed_binpb_returns_descriptor_deserialization_error"_test = [&] {

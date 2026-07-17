@@ -24,12 +24,12 @@
 #include <hpp_proto/dynamic_message/factory.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
 
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <memory_resource>
-#include <optional>
 #include <ranges>
 #include <utility>
 #include <vector>
@@ -110,9 +110,7 @@ setup_oneof_field(const FieldT &field, storage_slot_state &state, std::size_t fi
       return std::unexpected(dynamic_message_errc::schema_validation_error);
     }
     state.oneof_started[index] = true;
-    if (state.cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
-      return std::unexpected(dynamic_message_errc::schema_validation_error);
-    }
+    assert(state.cur_slot != std::numeric_limits<uint32_t>::max());
     layout.storage_slot = state.cur_slot++;
     state.oneof_next_ordinal = 1;
   } else {
@@ -135,9 +133,7 @@ template <typename FieldT>
 [[nodiscard]] std::expected<field_slot_layout, dynamic_message_errc>
 setup_non_oneof_field(const FieldT &field, storage_slot_state &state, std::size_t field_index) {
   state.prev_oneof = state.oneof_count;
-  if (state.cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
-    return std::unexpected(dynamic_message_errc::schema_validation_error);
-  }
+  assert(state.cur_slot != std::numeric_limits<uint32_t>::max());
   field_slot_layout layout{.storage_slot = state.cur_slot++,
                            .selection_ordinal = static_cast<uint16_t>(field.is_repeated() ? 0 : 1)};
   assert(field_index <= static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max()));
@@ -153,53 +149,144 @@ struct runtime_type_traits {
   wire_type base_wire_type;
 };
 
+// Indexed by the contiguous, descriptor_pool-validated FieldDescriptorProto type values.
+constexpr std::array runtime_type_traits_by_proto_type{
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_DOUBLE,
+        .repeated_kind = field_kind_t::KIND_REPEATED_DOUBLE,
+        .singular_storage = field_storage_kind_t::DOUBLE,
+        .repeated_storage = field_storage_kind_t::REPEATED_DOUBLE,
+        .base_wire_type = wire_type::fixed_64,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_FLOAT,
+        .repeated_kind = field_kind_t::KIND_REPEATED_FLOAT,
+        .singular_storage = field_storage_kind_t::FLOAT,
+        .repeated_storage = field_storage_kind_t::REPEATED_FLOAT,
+        .base_wire_type = wire_type::fixed_32,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_INT64,
+        .repeated_kind = field_kind_t::KIND_REPEATED_INT64,
+        .singular_storage = field_storage_kind_t::INT64,
+        .repeated_storage = field_storage_kind_t::REPEATED_INT64,
+        .base_wire_type = wire_type::varint,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_UINT64,
+        .repeated_kind = field_kind_t::KIND_REPEATED_UINT64,
+        .singular_storage = field_storage_kind_t::UINT64,
+        .repeated_storage = field_storage_kind_t::REPEATED_UINT64,
+        .base_wire_type = wire_type::varint,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_INT32,
+        .repeated_kind = field_kind_t::KIND_REPEATED_INT32,
+        .singular_storage = field_storage_kind_t::INT32,
+        .repeated_storage = field_storage_kind_t::REPEATED_INT32,
+        .base_wire_type = wire_type::varint,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_FIXED64,
+        .repeated_kind = field_kind_t::KIND_REPEATED_FIXED64,
+        .singular_storage = field_storage_kind_t::UINT64,
+        .repeated_storage = field_storage_kind_t::REPEATED_UINT64,
+        .base_wire_type = wire_type::fixed_64,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_FIXED32,
+        .repeated_kind = field_kind_t::KIND_REPEATED_FIXED32,
+        .singular_storage = field_storage_kind_t::UINT32,
+        .repeated_storage = field_storage_kind_t::REPEATED_UINT32,
+        .base_wire_type = wire_type::fixed_32,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_BOOL,
+        .repeated_kind = field_kind_t::KIND_REPEATED_BOOL,
+        .singular_storage = field_storage_kind_t::BOOL,
+        .repeated_storage = field_storage_kind_t::REPEATED_BOOL,
+        .base_wire_type = wire_type::varint,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_STRING,
+        .repeated_kind = field_kind_t::KIND_REPEATED_STRING,
+        .singular_storage = field_storage_kind_t::STRING,
+        .repeated_storage = field_storage_kind_t::REPEATED_STRING,
+        .base_wire_type = wire_type::length_delimited,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_MESSAGE,
+        .repeated_kind = field_kind_t::KIND_REPEATED_MESSAGE,
+        .singular_storage = field_storage_kind_t::MESSAGE,
+        .repeated_storage = field_storage_kind_t::REPEATED_MESSAGE,
+        .base_wire_type = wire_type::sgroup,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_MESSAGE,
+        .repeated_kind = field_kind_t::KIND_REPEATED_MESSAGE,
+        .singular_storage = field_storage_kind_t::MESSAGE,
+        .repeated_storage = field_storage_kind_t::REPEATED_MESSAGE,
+        .base_wire_type = wire_type::length_delimited,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_BYTES,
+        .repeated_kind = field_kind_t::KIND_REPEATED_BYTES,
+        .singular_storage = field_storage_kind_t::BYTES,
+        .repeated_storage = field_storage_kind_t::REPEATED_BYTES,
+        .base_wire_type = wire_type::length_delimited,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_UINT32,
+        .repeated_kind = field_kind_t::KIND_REPEATED_UINT32,
+        .singular_storage = field_storage_kind_t::UINT32,
+        .repeated_storage = field_storage_kind_t::REPEATED_UINT32,
+        .base_wire_type = wire_type::varint,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_ENUM,
+        .repeated_kind = field_kind_t::KIND_REPEATED_ENUM,
+        .singular_storage = field_storage_kind_t::INT32,
+        .repeated_storage = field_storage_kind_t::REPEATED_INT32,
+        .base_wire_type = wire_type::varint,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_SFIXED32,
+        .repeated_kind = field_kind_t::KIND_REPEATED_SFIXED32,
+        .singular_storage = field_storage_kind_t::INT32,
+        .repeated_storage = field_storage_kind_t::REPEATED_INT32,
+        .base_wire_type = wire_type::fixed_32,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_SFIXED64,
+        .repeated_kind = field_kind_t::KIND_REPEATED_SFIXED64,
+        .singular_storage = field_storage_kind_t::INT64,
+        .repeated_storage = field_storage_kind_t::REPEATED_INT64,
+        .base_wire_type = wire_type::fixed_64,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_SINT32,
+        .repeated_kind = field_kind_t::KIND_REPEATED_SINT32,
+        .singular_storage = field_storage_kind_t::INT32,
+        .repeated_storage = field_storage_kind_t::REPEATED_INT32,
+        .base_wire_type = wire_type::varint,
+    },
+    runtime_type_traits{
+        .singular_kind = field_kind_t::KIND_SINT64,
+        .repeated_kind = field_kind_t::KIND_REPEATED_SINT64,
+        .singular_storage = field_storage_kind_t::INT64,
+        .repeated_storage = field_storage_kind_t::REPEATED_INT64,
+        .base_wire_type = wire_type::varint,
+    },
+};
+
 // Sole adapter from descriptor_pool's schema-derived representation to dynamic_message's
 // authoritative resolved field information. Runtime consumers must not re-derive these facts.
-[[nodiscard]] constexpr std::optional<runtime_type_traits>
-runtime_traits_for(google::protobuf::FieldDescriptorProto_::Type type) noexcept {
-  using enum field_kind_t;
-  using enum field_storage_kind_t;
+[[nodiscard]] constexpr runtime_type_traits runtime_traits_for(google::protobuf::FieldDescriptorProto_::Type type) {
   using enum google::protobuf::FieldDescriptorProto_::Type;
-  switch (type) {
-  case TYPE_DOUBLE:
-    return runtime_type_traits{KIND_DOUBLE, KIND_REPEATED_DOUBLE, DOUBLE, REPEATED_DOUBLE, wire_type::fixed_64};
-  case TYPE_FLOAT:
-    return runtime_type_traits{KIND_FLOAT, KIND_REPEATED_FLOAT, FLOAT, REPEATED_FLOAT, wire_type::fixed_32};
-  case TYPE_INT64:
-    return runtime_type_traits{KIND_INT64, KIND_REPEATED_INT64, INT64, REPEATED_INT64, wire_type::varint};
-  case TYPE_UINT64:
-    return runtime_type_traits{KIND_UINT64, KIND_REPEATED_UINT64, UINT64, REPEATED_UINT64, wire_type::varint};
-  case TYPE_INT32:
-    return runtime_type_traits{KIND_INT32, KIND_REPEATED_INT32, INT32, REPEATED_INT32, wire_type::varint};
-  case TYPE_FIXED64:
-    return runtime_type_traits{KIND_FIXED64, KIND_REPEATED_FIXED64, UINT64, REPEATED_UINT64, wire_type::fixed_64};
-  case TYPE_FIXED32:
-    return runtime_type_traits{KIND_FIXED32, KIND_REPEATED_FIXED32, UINT32, REPEATED_UINT32, wire_type::fixed_32};
-  case TYPE_BOOL:
-    return runtime_type_traits{KIND_BOOL, KIND_REPEATED_BOOL, BOOL, REPEATED_BOOL, wire_type::varint};
-  case TYPE_STRING:
-    return runtime_type_traits{KIND_STRING, KIND_REPEATED_STRING, STRING, REPEATED_STRING, wire_type::length_delimited};
-  case TYPE_GROUP:
-    return runtime_type_traits{KIND_MESSAGE, KIND_REPEATED_MESSAGE, MESSAGE, REPEATED_MESSAGE, wire_type::sgroup};
-  case TYPE_MESSAGE:
-    return runtime_type_traits{KIND_MESSAGE, KIND_REPEATED_MESSAGE, MESSAGE, REPEATED_MESSAGE,
-                               wire_type::length_delimited};
-  case TYPE_BYTES:
-    return runtime_type_traits{KIND_BYTES, KIND_REPEATED_BYTES, BYTES, REPEATED_BYTES, wire_type::length_delimited};
-  case TYPE_UINT32:
-    return runtime_type_traits{KIND_UINT32, KIND_REPEATED_UINT32, UINT32, REPEATED_UINT32, wire_type::varint};
-  case TYPE_ENUM:
-    return runtime_type_traits{KIND_ENUM, KIND_REPEATED_ENUM, INT32, REPEATED_INT32, wire_type::varint};
-  case TYPE_SFIXED32:
-    return runtime_type_traits{KIND_SFIXED32, KIND_REPEATED_SFIXED32, INT32, REPEATED_INT32, wire_type::fixed_32};
-  case TYPE_SFIXED64:
-    return runtime_type_traits{KIND_SFIXED64, KIND_REPEATED_SFIXED64, INT64, REPEATED_INT64, wire_type::fixed_64};
-  case TYPE_SINT32:
-    return runtime_type_traits{KIND_SINT32, KIND_REPEATED_SINT32, INT32, REPEATED_INT32, wire_type::varint};
-  case TYPE_SINT64:
-    return runtime_type_traits{KIND_SINT64, KIND_REPEATED_SINT64, INT64, REPEATED_INT64, wire_type::varint};
-  }
-  return std::nullopt;
+  assert(google::protobuf::FieldDescriptorProto_::is_valid(type));
+  constexpr auto first_type_value = std::to_underlying(TYPE_DOUBLE);
+  const auto index = static_cast<std::size_t>(std::to_underlying(type) - first_type_value);
+  return runtime_type_traits_by_proto_type.at(index);
 }
 
 [[nodiscard]] runtime_field_policy runtime_policy_for(const field_descriptor_t &field) noexcept {
@@ -276,11 +363,8 @@ private:
           return std::unexpected(layout.error());
         }
         const auto type_traits = runtime_traits_for(f.proto().type);
-        if (!type_traits.has_value()) [[unlikely]] {
-          return std::unexpected(dynamic_message_errc::schema_validation_error);
-        }
         const auto repeated = f.is_repeated();
-        auto serialized_wire_type = type_traits->base_wire_type;
+        auto serialized_wire_type = type_traits.base_wire_type;
         if (f.is_packed()) {
           serialized_wire_type = wire_type::length_delimited;
         } else if (f.is_delimited()) {
@@ -289,8 +373,8 @@ private:
         const auto serialized_tag =
             (static_cast<uint32_t>(f.proto().number) << 3U) | std::to_underlying(serialized_wire_type);
         f.finalize_resolved_info(resolved_field_info{resolved_field_info_init{
-            .kind = repeated ? type_traits->repeated_kind : type_traits->singular_kind,
-            .storage_kind = repeated ? type_traits->repeated_storage : type_traits->singular_storage,
+            .kind = repeated ? type_traits.repeated_kind : type_traits.singular_kind,
+            .storage_kind = repeated ? type_traits.repeated_storage : type_traits.singular_storage,
             .cardinality = repeated ? field_cardinality_t::REPEATED : field_cardinality_t::SINGULAR,
             .presence = presence_for(f),
             .policy = runtime_policy_for(f),
@@ -352,13 +436,13 @@ private:
           if (pdefault == nullptr) [[unlikely]] {
             return std::unexpected(dynamic_message_errc::schema_validation_error);
           }
-          field.default_value = *pdefault;
+          field.default_value_ = *pdefault;
         } else if (field.explicit_presence() || field.is_required()) {
           // In proto2, if you do not explicitly specify a [default = ...] option for an optional enum field, the
           // default value is the first value defined in that enum's definition.
-          field.default_value = enum_values[0].number;
+          field.default_value_ = enum_values[0].number;
         } else {
-          field.default_value = 0;
+          field.default_value_ = 0;
         }
       }
     }
@@ -366,7 +450,7 @@ private:
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> finish_initialize() {
-    if (std::ranges::any_of(pool_.fields(), [](const auto &field) { return !field.default_value_valid; })) {
+    if (std::ranges::any_of(pool_.fields(), [](const auto &field) { return !field.default_value_valid_; })) {
       return std::unexpected(dynamic_message_errc::schema_validation_error);
     }
     return finalize_resolved_field_infos().and_then([this] {

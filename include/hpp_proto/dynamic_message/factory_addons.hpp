@@ -124,11 +124,15 @@ struct dynamic_message_factory_addons {
   template <typename Derived>
   struct field_descriptor {
     using type = void;
-    std::variant<bool, int32_t, uint32_t, int64_t, uint64_t, double, float> default_value;
-    bool default_value_valid = true;
+
     field_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options,
                      [[maybe_unused]] std::pmr::memory_resource *resource) {
       set_default_value(self.proto(), resource);
+    }
+
+    template <typename T>
+    [[nodiscard]] const T &default_value_as() const {
+      return std::get<T>(default_value_);
     }
 
     /**
@@ -153,7 +157,7 @@ struct dynamic_message_factory_addons {
       const auto *info = resolved_info_if_available();
       assert(info != nullptr);
       if (info == nullptr) [[unlikely]] {
-        std::terminate();
+        std::terminate(); // LCOV_EXCL_LINE: release-mode enforcement of the documented precondition.
       }
       return *info;
     }
@@ -161,6 +165,8 @@ struct dynamic_message_factory_addons {
   private:
     friend class detail::dynamic_message_factory_impl;
 
+    std::variant<bool, int32_t, uint32_t, int64_t, uint64_t, double, float> default_value_;
+    bool default_value_valid_ = true;
     resolved_field_info resolved_info_;
 
     void finalize_resolved_info(resolved_field_info info) noexcept {
@@ -169,14 +175,13 @@ struct dynamic_message_factory_addons {
       resolved_info_ = info;
     }
 
-  public:
     template <typename T>
     void set_numeric_default_value(std::string_view value, std::pmr::memory_resource *resource) {
       auto parsed = parse_default_value<T>(value, resource);
       if (parsed.has_value()) {
-        default_value = *parsed;
+        default_value_ = *parsed;
       } else {
-        default_value_valid = false;
+        default_value_valid_ = false;
       }
     }
 
@@ -211,7 +216,7 @@ struct dynamic_message_factory_addons {
         set_numeric_default_value<uint32_t>(proto.default_value, resource);
         break;
       case TYPE_BOOL:
-        default_value = proto.default_value == "true";
+        default_value_ = proto.default_value == "true";
         break;
       default:
         break;
