@@ -99,6 +99,132 @@ enum class field_kind_t : uint8_t {
   KIND_REPEATED_SINT64 = 36
 };
 
+enum class field_cardinality_t : uint8_t {
+  SINGULAR,
+  REPEATED,
+};
+
+enum class field_storage_kind_t : uint8_t {
+  INT64,
+  UINT64,
+  INT32,
+  UINT32,
+  DOUBLE,
+  FLOAT,
+  BOOL,
+  STRING,
+  BYTES,
+  MESSAGE,
+  REPEATED_INT64,
+  REPEATED_UINT64,
+  REPEATED_INT32,
+  REPEATED_UINT32,
+  REPEATED_DOUBLE,
+  REPEATED_FLOAT,
+  REPEATED_BOOL,
+  REPEATED_STRING,
+  REPEATED_BYTES,
+  REPEATED_MESSAGE,
+};
+
+enum class field_presence_t : uint8_t {
+  IMPLICIT,
+  EXPLICIT,
+  REQUIRED,
+  ONEOF,
+  REPEATED,
+};
+
+enum class runtime_field_policy : uint8_t {
+  NONE = 0,
+  PACKED = 1,
+  DELIMITED = 2,
+  UTF8_VALIDATION = 4,
+};
+
+[[nodiscard]] constexpr uint8_t runtime_field_policy_mask(runtime_field_policy policy) noexcept {
+  return static_cast<uint8_t>(policy);
+}
+
+[[nodiscard]] constexpr runtime_field_policy operator|(runtime_field_policy lhs, runtime_field_policy rhs) noexcept {
+  return static_cast<runtime_field_policy>(runtime_field_policy_mask(lhs) | runtime_field_policy_mask(rhs));
+}
+
+/** @brief Named construction input for resolved dynamic-message field information. */
+struct resolved_field_info_init {
+  field_kind_t kind;
+  field_storage_kind_t storage_kind;
+  field_cardinality_t cardinality;
+  field_presence_t presence;
+  runtime_field_policy policy;
+  uint32_t serialized_tag;
+  uint32_t storage_slot;
+  uint16_t selection_ordinal;
+  uint32_t active_oneof_selection_mask;
+  int32_t active_oneof_index_bias;
+};
+
+/**
+ * @brief Immutable resolved execution facts for one dynamic-message field.
+ *
+ * Raw descriptor enums are interpreted once while the dynamic-message factory is
+ * initialized. Runtime storage, visitation, presence, and serialization consume
+ * this normalized information instead of deriving behavior from FieldDescriptorProto.
+ */
+class resolved_field_info {
+public:
+  constexpr resolved_field_info() noexcept = default;
+
+  explicit constexpr resolved_field_info(resolved_field_info_init init) noexcept
+      : serialized_tag_(init.serialized_tag), storage_slot_(init.storage_slot),
+        active_oneof_selection_mask_(init.active_oneof_selection_mask),
+        active_oneof_index_bias_(init.active_oneof_index_bias), selection_ordinal_(init.selection_ordinal),
+        kind_(init.kind), storage_kind_(init.storage_kind), cardinality_(init.cardinality), presence_(init.presence),
+        policy_(init.policy) {}
+
+  [[nodiscard]] constexpr bool finalized() const noexcept { return static_cast<uint8_t>(kind_) != 0; }
+  [[nodiscard]] constexpr field_kind_t kind() const noexcept { return kind_; }
+  [[nodiscard]] constexpr field_storage_kind_t storage_kind() const noexcept { return storage_kind_; }
+  [[nodiscard]] constexpr field_cardinality_t cardinality() const noexcept { return cardinality_; }
+  [[nodiscard]] constexpr field_presence_t presence() const noexcept { return presence_; }
+  [[nodiscard]] constexpr uint32_t serialized_tag() const noexcept { return serialized_tag_; }
+  [[nodiscard]] constexpr uint32_t storage_slot() const noexcept { return storage_slot_; }
+  [[nodiscard]] constexpr uint16_t selection_ordinal() const noexcept { return selection_ordinal_; }
+  [[nodiscard]] constexpr uint32_t active_oneof_selection_mask() const noexcept { return active_oneof_selection_mask_; }
+  [[nodiscard]] constexpr int32_t active_oneof_index_bias() const noexcept { return active_oneof_index_bias_; }
+
+  [[nodiscard]] constexpr bool is_repeated() const noexcept { return cardinality_ == field_cardinality_t::REPEATED; }
+  [[nodiscard]] constexpr bool explicit_presence() const noexcept {
+    return presence_ == field_presence_t::EXPLICIT || presence_ == field_presence_t::REQUIRED ||
+           presence_ == field_presence_t::ONEOF;
+  }
+  [[nodiscard]] constexpr bool is_packed() const noexcept { return has_policy(runtime_field_policy::PACKED); }
+  [[nodiscard]] constexpr bool is_delimited() const noexcept { return has_policy(runtime_field_policy::DELIMITED); }
+  [[nodiscard]] constexpr bool requires_utf8_validation() const noexcept {
+    return has_policy(runtime_field_policy::UTF8_VALIDATION);
+  }
+
+  [[nodiscard]] constexpr bool has_value(uint32_t selection_word) const noexcept {
+    return is_repeated() ? selection_word > 0 : selection_word == selection_ordinal_;
+  }
+
+private:
+  [[nodiscard]] constexpr bool has_policy(runtime_field_policy policy) const noexcept {
+    return (runtime_field_policy_mask(policy_) & runtime_field_policy_mask(policy)) != 0;
+  }
+
+  uint32_t serialized_tag_ = 0;
+  uint32_t storage_slot_ = 0;
+  uint32_t active_oneof_selection_mask_ = 0;
+  int32_t active_oneof_index_bias_ = 0;
+  uint16_t selection_ordinal_ = 0;
+  field_kind_t kind_ = static_cast<field_kind_t>(0);
+  field_storage_kind_t storage_kind_ = field_storage_kind_t::INT64;
+  field_cardinality_t cardinality_ = field_cardinality_t::SINGULAR;
+  field_presence_t presence_ = field_presence_t::IMPLICIT;
+  runtime_field_policy policy_ = runtime_field_policy::NONE;
+};
+
 enum class wellknown_types_t : uint8_t {
   NONE = 0,
   ANY = 1,

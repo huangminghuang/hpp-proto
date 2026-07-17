@@ -29,6 +29,7 @@
 #include <limits>
 #include <memory>
 #include <memory_resource>
+#include <optional>
 #include <ranges>
 #include <utility>
 #include <vector>
@@ -53,46 +54,179 @@ struct storage_slot_state {
       : oneof_count(count), oneof_started(count, false, resource), prev_oneof(count) {}
 };
 
+/**
+ * @brief Storage and selection metadata assigned to one field during factory finalization.
+ *
+ * This is the transient output of message slot allocation. It is combined with the
+ * field's resolved type, presence, policy, and wire information to construct
+ * resolved_field_info.
+ */
+struct field_slot_layout {
+  /**
+   * @brief Index of the field's value_storage entry in its containing dynamic message.
+   *
+   * Every non-oneof field owns a distinct slot. All alternatives in one oneof share
+   * the slot allocated to that oneof, because at most one alternative can be active.
+   */
+  uint32_t storage_slot = 0;
+
+  /**
+   * @brief Selection word written when a singular field becomes present.
+   *
+   * Zero is used for repeated fields because their size, stored at the same union
+   * offset, determines presence. Ordinary singular fields use 1. Oneof alternatives
+   * use distinct oneof-local ordinals beginning at 2; zero remains the absent value
+   * and 1 remains the ordinary-singular marker.
+   */
+  uint16_t selection_ordinal = 0;
+
+  /**
+   * @brief Mask selecting the oneof ordinal from a slot's selection word.
+   *
+   * Oneof fields use UINT32_MAX so the active alternative's ordinal participates in
+   * active-field-index calculation. Non-oneof fields use 0 so their selection word
+   * is ignored and the bias alone identifies the field.
+   */
+  uint32_t active_oneof_selection_mask = 0;
+
+  /**
+   * @brief Signed offset that converts the masked selection word to a message field index.
+   *
+   * For a oneof member this is `field_index - selection_ordinal`; because oneof fields
+   * and their ordinals are contiguous, every member of that oneof gets the same offset.
+   * For a non-oneof field this is its field index, paired with a zero mask.
+   */
+  int32_t active_oneof_index_bias = 0;
+};
+
 template <typename FieldT>
-[[nodiscard]] dynamic_message_errc setup_oneof_field(FieldT &field, storage_slot_state &state,
-                                                     std::size_t field_index) {
+[[nodiscard]] std::expected<field_slot_layout, dynamic_message_errc>
+setup_oneof_field(const FieldT &field, storage_slot_state &state, std::size_t field_index) {
   const auto index = static_cast<std::size_t>(*field.proto().oneof_index);
   assert(index < state.oneof_count);
+  field_slot_layout layout;
   if (state.prev_oneof != index) {
     if (state.oneof_started[index]) [[unlikely]] {
-      return dynamic_message_errc::schema_validation_error;
+      return std::unexpected(dynamic_message_errc::schema_validation_error);
     }
     state.oneof_started[index] = true;
-    assert(state.cur_slot != std::numeric_limits<uint32_t>::max());
-    field.storage_slot = state.cur_slot++;
+    if (state.cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
+      return std::unexpected(dynamic_message_errc::schema_validation_error);
+    }
+    layout.storage_slot = state.cur_slot++;
     state.oneof_next_ordinal = 1;
   } else {
-    field.storage_slot = state.cur_slot - 1;
+    layout.storage_slot = state.cur_slot - 1;
   }
   if (state.oneof_next_ordinal == std::numeric_limits<uint16_t>::max()) [[unlikely]] {
-    return dynamic_message_errc::schema_validation_error;
+    return std::unexpected(dynamic_message_errc::schema_validation_error);
   }
-  field.oneof_ordinal = ++state.oneof_next_ordinal;
+  layout.selection_ordinal = ++state.oneof_next_ordinal;
   assert(field_index <= static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max()));
-  const auto bias = static_cast<std::int64_t>(field_index) - static_cast<std::int64_t>(field.oneof_ordinal);
+  const auto bias = static_cast<std::int64_t>(field_index) - static_cast<std::int64_t>(layout.selection_ordinal);
   assert(bias >= std::numeric_limits<std::int32_t>::min() && bias <= std::numeric_limits<std::int32_t>::max());
-  field.active_oneof_index_bias = static_cast<std::int32_t>(bias);
-  field.active_oneof_selection_mask = std::numeric_limits<uint32_t>::max();
+  layout.active_oneof_index_bias = static_cast<std::int32_t>(bias);
+  layout.active_oneof_selection_mask = std::numeric_limits<uint32_t>::max();
   state.prev_oneof = index;
-  return {};
+  return layout;
 }
 
 template <typename FieldT>
-[[nodiscard]] dynamic_message_errc setup_non_oneof_field(FieldT &field, storage_slot_state &state,
-                                                         std::size_t field_index) {
+[[nodiscard]] std::expected<field_slot_layout, dynamic_message_errc>
+setup_non_oneof_field(const FieldT &field, storage_slot_state &state, std::size_t field_index) {
   state.prev_oneof = state.oneof_count;
-  assert(state.cur_slot != std::numeric_limits<uint32_t>::max());
-  field.storage_slot = state.cur_slot++;
-  field.oneof_ordinal = field.is_repeated() ? 0 : 1;
+  if (state.cur_slot == std::numeric_limits<uint32_t>::max()) [[unlikely]] {
+    return std::unexpected(dynamic_message_errc::schema_validation_error);
+  }
+  field_slot_layout layout{.storage_slot = state.cur_slot++,
+                           .selection_ordinal = static_cast<uint16_t>(field.is_repeated() ? 0 : 1)};
   assert(field_index <= static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max()));
-  field.active_oneof_index_bias = static_cast<std::int32_t>(field_index);
-  field.active_oneof_selection_mask = 0;
-  return {};
+  layout.active_oneof_index_bias = static_cast<std::int32_t>(field_index);
+  return layout;
+}
+
+struct runtime_type_traits {
+  field_kind_t singular_kind;
+  field_kind_t repeated_kind;
+  field_storage_kind_t singular_storage;
+  field_storage_kind_t repeated_storage;
+  wire_type base_wire_type;
+};
+
+// Sole adapter from descriptor_pool's schema-derived representation to dynamic_message's
+// authoritative resolved field information. Runtime consumers must not re-derive these facts.
+[[nodiscard]] constexpr std::optional<runtime_type_traits>
+runtime_traits_for(google::protobuf::FieldDescriptorProto_::Type type) noexcept {
+  using enum field_kind_t;
+  using enum field_storage_kind_t;
+  using enum google::protobuf::FieldDescriptorProto_::Type;
+  switch (type) {
+  case TYPE_DOUBLE:
+    return runtime_type_traits{KIND_DOUBLE, KIND_REPEATED_DOUBLE, DOUBLE, REPEATED_DOUBLE, wire_type::fixed_64};
+  case TYPE_FLOAT:
+    return runtime_type_traits{KIND_FLOAT, KIND_REPEATED_FLOAT, FLOAT, REPEATED_FLOAT, wire_type::fixed_32};
+  case TYPE_INT64:
+    return runtime_type_traits{KIND_INT64, KIND_REPEATED_INT64, INT64, REPEATED_INT64, wire_type::varint};
+  case TYPE_UINT64:
+    return runtime_type_traits{KIND_UINT64, KIND_REPEATED_UINT64, UINT64, REPEATED_UINT64, wire_type::varint};
+  case TYPE_INT32:
+    return runtime_type_traits{KIND_INT32, KIND_REPEATED_INT32, INT32, REPEATED_INT32, wire_type::varint};
+  case TYPE_FIXED64:
+    return runtime_type_traits{KIND_FIXED64, KIND_REPEATED_FIXED64, UINT64, REPEATED_UINT64, wire_type::fixed_64};
+  case TYPE_FIXED32:
+    return runtime_type_traits{KIND_FIXED32, KIND_REPEATED_FIXED32, UINT32, REPEATED_UINT32, wire_type::fixed_32};
+  case TYPE_BOOL:
+    return runtime_type_traits{KIND_BOOL, KIND_REPEATED_BOOL, BOOL, REPEATED_BOOL, wire_type::varint};
+  case TYPE_STRING:
+    return runtime_type_traits{KIND_STRING, KIND_REPEATED_STRING, STRING, REPEATED_STRING, wire_type::length_delimited};
+  case TYPE_GROUP:
+    return runtime_type_traits{KIND_MESSAGE, KIND_REPEATED_MESSAGE, MESSAGE, REPEATED_MESSAGE, wire_type::sgroup};
+  case TYPE_MESSAGE:
+    return runtime_type_traits{KIND_MESSAGE, KIND_REPEATED_MESSAGE, MESSAGE, REPEATED_MESSAGE,
+                               wire_type::length_delimited};
+  case TYPE_BYTES:
+    return runtime_type_traits{KIND_BYTES, KIND_REPEATED_BYTES, BYTES, REPEATED_BYTES, wire_type::length_delimited};
+  case TYPE_UINT32:
+    return runtime_type_traits{KIND_UINT32, KIND_REPEATED_UINT32, UINT32, REPEATED_UINT32, wire_type::varint};
+  case TYPE_ENUM:
+    return runtime_type_traits{KIND_ENUM, KIND_REPEATED_ENUM, INT32, REPEATED_INT32, wire_type::varint};
+  case TYPE_SFIXED32:
+    return runtime_type_traits{KIND_SFIXED32, KIND_REPEATED_SFIXED32, INT32, REPEATED_INT32, wire_type::fixed_32};
+  case TYPE_SFIXED64:
+    return runtime_type_traits{KIND_SFIXED64, KIND_REPEATED_SFIXED64, INT64, REPEATED_INT64, wire_type::fixed_64};
+  case TYPE_SINT32:
+    return runtime_type_traits{KIND_SINT32, KIND_REPEATED_SINT32, INT32, REPEATED_INT32, wire_type::varint};
+  case TYPE_SINT64:
+    return runtime_type_traits{KIND_SINT64, KIND_REPEATED_SINT64, INT64, REPEATED_INT64, wire_type::varint};
+  }
+  return std::nullopt;
+}
+
+[[nodiscard]] runtime_field_policy runtime_policy_for(const field_descriptor_t &field) noexcept {
+  auto policy = runtime_field_policy::NONE;
+  if (field.is_packed()) {
+    policy = policy | runtime_field_policy::PACKED;
+  }
+  if (field.is_delimited()) {
+    policy = policy | runtime_field_policy::DELIMITED;
+  }
+  if (field.requires_utf8_validation()) {
+    policy = policy | runtime_field_policy::UTF8_VALIDATION;
+  }
+  return policy;
+}
+
+[[nodiscard]] field_presence_t presence_for(const field_descriptor_t &field) noexcept {
+  if (field.is_repeated()) {
+    return field_presence_t::REPEATED;
+  }
+  if (field.proto().oneof_index.has_value()) {
+    return field_presence_t::ONEOF;
+  }
+  if (field.is_required()) {
+    return field_presence_t::REQUIRED;
+  }
+  return field.explicit_presence() ? field_presence_t::EXPLICIT : field_presence_t::IMPLICIT;
 }
 
 class dynamic_message_factory_impl {
@@ -130,17 +264,42 @@ private:
   std::pmr::monotonic_buffer_resource memory_resource_;
   descriptor_pool_t pool_;
 
-  [[nodiscard]] std::expected<void, dynamic_message_errc> setup_storage_slots() {
+  [[nodiscard]] std::expected<void, dynamic_message_errc> finalize_resolved_field_infos() {
     for (auto &message : pool_.messages()) {
       const auto oneof_count = message.proto().oneof_decl.size();
       storage_slot_state state{oneof_count, upstream_resource()};
       std::size_t field_index = 0;
       for (auto &f : message.fields()) {
-        const auto ec = f.proto().oneof_index.has_value() ? setup_oneof_field(f, state, field_index)
-                                                          : setup_non_oneof_field(f, state, field_index);
-        if (ec != dynamic_message_errc{}) {
-          return std::unexpected(ec);
+        auto layout = f.proto().oneof_index.has_value() ? setup_oneof_field(f, state, field_index)
+                                                        : setup_non_oneof_field(f, state, field_index);
+        if (!layout.has_value()) {
+          return std::unexpected(layout.error());
         }
+        const auto type_traits = runtime_traits_for(f.proto().type);
+        if (!type_traits.has_value()) [[unlikely]] {
+          return std::unexpected(dynamic_message_errc::schema_validation_error);
+        }
+        const auto repeated = f.is_repeated();
+        auto serialized_wire_type = type_traits->base_wire_type;
+        if (f.is_packed()) {
+          serialized_wire_type = wire_type::length_delimited;
+        } else if (f.is_delimited()) {
+          serialized_wire_type = wire_type::sgroup;
+        }
+        const auto serialized_tag =
+            (static_cast<uint32_t>(f.proto().number) << 3U) | std::to_underlying(serialized_wire_type);
+        f.finalize_resolved_info(resolved_field_info{resolved_field_info_init{
+            .kind = repeated ? type_traits->repeated_kind : type_traits->singular_kind,
+            .storage_kind = repeated ? type_traits->repeated_storage : type_traits->singular_storage,
+            .cardinality = repeated ? field_cardinality_t::REPEATED : field_cardinality_t::SINGULAR,
+            .presence = presence_for(f),
+            .policy = runtime_policy_for(f),
+            .serialized_tag = serialized_tag,
+            .storage_slot = layout->storage_slot,
+            .selection_ordinal = layout->selection_ordinal,
+            .active_oneof_selection_mask = layout->active_oneof_selection_mask,
+            .active_oneof_index_bias = layout->active_oneof_index_bias,
+        }});
         ++field_index;
       }
       message.num_slots = state.cur_slot;
@@ -194,7 +353,7 @@ private:
             return std::unexpected(dynamic_message_errc::schema_validation_error);
           }
           field.default_value = *pdefault;
-        } else if (field.explicit_presence()) {
+        } else if (field.explicit_presence() || field.is_required()) {
           // In proto2, if you do not explicitly specify a [default = ...] option for an optional enum field, the
           // default value is the first value defined in that enum's definition.
           field.default_value = enum_values[0].number;
@@ -210,7 +369,7 @@ private:
     if (std::ranges::any_of(pool_.fields(), [](const auto &field) { return !field.default_value_valid; })) {
       return std::unexpected(dynamic_message_errc::schema_validation_error);
     }
-    return setup_storage_slots().and_then([this] {
+    return finalize_resolved_field_infos().and_then([this] {
       setup_wellknown_types_impl(pool_);
       return setup_enum_field_default_value();
     });

@@ -42,7 +42,7 @@ class message_value_cref {
   [[nodiscard]] std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
 
   [[nodiscard]] const value_storage &storage_for(const field_descriptor_t &desc) const noexcept {
-    return *std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot));
+    return *std::next(storage_, static_cast<std::ptrdiff_t>(desc.resolved_info().storage_slot()));
   }
 
   static const value_storage &empty_storage() noexcept {
@@ -73,7 +73,9 @@ public:
   /**
    * Look up a field descriptor by proto name.
    *
-   * Returns a pointer to the descriptor, or `nullptr` if no such field exists.
+   * Searches regular storage-backed fields only; extension descriptors are not part
+   * of the dynamic-message runtime. Returns a pointer to the descriptor, or `nullptr`
+   * if no such field exists.
    */
   [[nodiscard]] const field_descriptor_t *field_descriptor_by_name(std::string_view name) const noexcept {
     auto field_descriptors = descriptor_->fields();
@@ -87,7 +89,9 @@ public:
   /**
    * Look up a field descriptor by JSON name.
    *
-   * Returns a pointer to the descriptor, or `nullptr` if no such field exists.
+   * Searches regular storage-backed fields only; extension descriptors are not part
+   * of the dynamic-message runtime. Returns a pointer to the descriptor, or `nullptr`
+   * if no such field exists.
    */
   [[nodiscard]] const field_descriptor_t *field_descriptor_by_json_name(std::string_view name) const noexcept {
     auto field_descriptors = descriptor_->fields();
@@ -102,7 +106,9 @@ public:
   /**
    * Look up a field descriptor by tag number.
    *
-   * Returns a pointer to the descriptor, or `nullptr` if no such field exists.
+   * Searches regular storage-backed fields only; extension descriptors are not part
+   * of the dynamic-message runtime. Returns a pointer to the descriptor, or `nullptr`
+   * if no such field exists.
    */
   [[nodiscard]] const field_descriptor_t *field_descriptor_by_number(uint32_t number) const noexcept {
     auto field_descriptors = descriptor_->fields();
@@ -128,6 +134,10 @@ public:
     return nullptr;
   }
 
+  /**
+   * @pre desc is a regular field returned by descriptor().fields() and has resolved information.
+   * Use field_by_name()/field_by_number() for checked public lookup.
+   */
   [[nodiscard]] field_cref field(const field_descriptor_t &desc) const noexcept {
     assert(desc.parent_message() == descriptor_);
     const auto &storage = storage_for(desc);
@@ -271,6 +281,10 @@ public:
     std::ranges::fill_n(storage_, static_cast<diff_t>(num_slots()), value_storage{});
   }
 
+  /**
+   * @pre desc is a regular field returned by descriptor().fields() and has resolved information.
+   * Use field_by_name()/field_by_number() for checked public lookup.
+   */
   [[nodiscard]] field_mref field(const field_descriptor_t &desc) const noexcept {
     assert(desc.parent_message() == descriptor_);
     auto &storage = storage_for(desc);
@@ -482,7 +496,7 @@ private:
   [[nodiscard]] std::size_t num_slots() const noexcept { return descriptor_->num_slots; }
 
   [[nodiscard]] value_storage &storage_for(const field_descriptor_t &desc) const noexcept {
-    return *std::next(storage_, static_cast<std::ptrdiff_t>(desc.storage_slot));
+    return *std::next(storage_, static_cast<std::ptrdiff_t>(desc.resolved_info().storage_slot()));
   }
 
   field_mref operator[](std::size_t n) const {
@@ -514,7 +528,9 @@ public:
   message_field_cref &operator=(message_field_cref &&) noexcept = default;
   ~message_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
+  [[nodiscard]] bool has_value() const noexcept {
+    return storage_->selection_matches(descriptor().resolved_info().selection_ordinal());
+  }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] value_type value() const {
     if (!has_value()) {
@@ -589,7 +605,7 @@ public:
 
   message_value_mref emplace() const { // NOLINT(modernize-use-nodiscard)
     if (!has_value()) {
-      storage_->of_message.selection = descriptor_->oneof_ordinal;
+      storage_->of_message.selection = descriptor_->resolved_info().selection_ordinal();
       storage_->of_message.content = static_cast<value_storage *>(
           memory_resource_->allocate(sizeof(value_storage) * num_slots(), alignof(value_storage)));
     }

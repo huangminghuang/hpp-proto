@@ -56,7 +56,9 @@ public:
   bytes_field_cref &operator=(bytes_field_cref &&) noexcept = default;
   ~bytes_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
+  [[nodiscard]] bool has_value() const noexcept {
+    return storage_->selection_matches(descriptor().resolved_info().selection_ordinal());
+  }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] bytes_view default_value() const noexcept {
     const auto &v = descriptor_->proto().default_value;
@@ -64,7 +66,7 @@ public:
     return {bspan.data(), bspan.size()};
   }
   [[nodiscard]] bytes_view value() const noexcept {
-    if (descriptor().explicit_presence() && !has_value()) {
+    if (descriptor().resolved_info().explicit_presence() && !has_value()) {
       return default_value();
     }
     return {storage_->of_bytes.content, storage_->of_bytes.size};
@@ -74,7 +76,7 @@ public:
     if (has_value()) {
       auto val = std::span{storage_->of_bytes.content, storage_->of_bytes.size};
       auto default_val = std::as_bytes(std::span{descriptor_->proto().default_value});
-      return descriptor().explicit_presence() || !std::ranges::equal(val, default_val);
+      return descriptor().resolved_info().explicit_presence() || !std::ranges::equal(val, default_val);
     }
     return false;
   }
@@ -135,7 +137,7 @@ public:
     assert(v.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     storage_->of_bytes.content = v.data();
     storage_->of_bytes.size = static_cast<uint32_t>(v.size());
-    storage_->of_bytes.selection = descriptor_->oneof_ordinal;
+    storage_->of_bytes.selection = descriptor_->resolved_info().selection_ordinal();
   }
 
   void set(concepts::contiguous_std_byte_range auto const &v) const {
@@ -144,7 +146,7 @@ public:
     std::copy(v.begin(), v.end(), dest);
     storage_->of_bytes.content = dest;
     storage_->of_bytes.size = static_cast<uint32_t>(v.size());
-    storage_->of_bytes.selection = descriptor_->oneof_ordinal;
+    storage_->of_bytes.selection = descriptor_->resolved_info().selection_ordinal();
   }
 
   void alias_from(const cref_type &other) const noexcept { adopt(other.value()); }

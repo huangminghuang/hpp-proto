@@ -57,13 +57,15 @@ public:
   string_field_cref &operator=(string_field_cref &&) noexcept = default;
   ~string_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
+  [[nodiscard]] bool has_value() const noexcept {
+    return storage_->selection_matches(descriptor().resolved_info().selection_ordinal());
+  }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   [[nodiscard]] std::size_t size() const noexcept { return storage_->of_string.size; }
   [[nodiscard]] std::string_view default_value() const noexcept { return descriptor_->proto().default_value; }
 
   [[nodiscard]] std::string_view value() const noexcept {
-    if (descriptor().explicit_presence() && !has_value()) {
+    if (descriptor().resolved_info().explicit_presence() && !has_value()) {
       return descriptor_->proto().default_value;
     }
     return {storage_->of_string.content, storage_->of_string.size};
@@ -72,7 +74,8 @@ public:
   [[nodiscard]] bool is_present_or_explicit_default() const noexcept {
     if (has_value()) {
       auto val = std::string_view{storage_->of_string.content, storage_->of_string.size};
-      return descriptor().explicit_presence() || !std::ranges::equal(val, descriptor_->proto().default_value);
+      return descriptor().resolved_info().explicit_presence() ||
+             !std::ranges::equal(val, descriptor_->proto().default_value);
     }
     return false;
   }
@@ -133,7 +136,7 @@ public:
     assert(v.size() <= static_cast<std::size_t>(std::numeric_limits<int32_t>::max()));
     storage_->of_string.content = v.data();
     storage_->of_string.size = static_cast<uint32_t>(v.size());
-    storage_->of_string.selection = descriptor_->oneof_ordinal;
+    storage_->of_string.selection = descriptor_->resolved_info().selection_ordinal();
   }
 
   void set(std::string_view v) const {
@@ -142,7 +145,7 @@ public:
     std::ranges::copy(v, dest);
     storage_->of_string.content = dest;
     storage_->of_string.size = static_cast<uint32_t>(v.size());
-    storage_->of_string.selection = descriptor_->oneof_ordinal;
+    storage_->of_string.selection = descriptor_->resolved_info().selection_ordinal();
   }
 
   void alias_from(const cref_type &other) const noexcept { adopt(other.value()); }

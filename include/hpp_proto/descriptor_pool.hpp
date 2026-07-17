@@ -216,6 +216,10 @@ public:
                                                                     : nullptr;
     }
 
+    // These accessors expose schema-derived facts used while building descriptors and
+    // add-on-specific execution information. Runtimes with resolved information (such as
+    // dynamic_message) should snapshot them during finalization and use those facts in
+    // storage, dispatch, parsing, and serialization paths.
     [[nodiscard]] bool repeated_expanded() const {
       return has_mask(field_option_bitset_, field_option_mask::MASK_REPEATED) &&
              !has_mask(field_option_bitset_, field_option_mask::MASK_PACKED);

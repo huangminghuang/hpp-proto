@@ -26,6 +26,7 @@
 #include <cerrno>
 #include <charconv>
 #include <cstdlib>
+#include <exception>
 #include <expected>
 #include <memory_resource>
 #include <span>
@@ -48,6 +49,10 @@
 #include <hpp_proto/dynamic_message/types.hpp>
 #include <hpp_proto/field_types.hpp>
 namespace hpp_proto {
+namespace detail {
+class dynamic_message_factory_impl;
+}
+
 struct dynamic_message_factory_addons {
   using traits_type = non_owning_traits;
   using string_t = std::pmr::string;
@@ -121,25 +126,50 @@ struct dynamic_message_factory_addons {
     using type = void;
     std::variant<bool, int32_t, uint32_t, int64_t, uint64_t, double, float> default_value;
     bool default_value_valid = true;
-    /// @brief slot represents the index to the field memory storage of a message; all non-oneof fields use different
-    /// slot, fields of the same oneof type share the same slot.
-    uint32_t storage_slot = 0;
-    /// @brief for oneof fields, this is a oneof-local tag used in the shared selection slot
-    /// (first oneof field is currently 2); otherwise, it is always 1 for singular fields and
-    /// 0 for repeated fields.
-    uint16_t oneof_ordinal = 0;
-    /// @brief precomputed value used by field_cref::active_oneof_index() for O(1) lookup:
-    /// field_index = masked_selection + active_oneof_index_bias.
-    int32_t active_oneof_index_bias = 0;
-    /// @brief mask applied to the raw selection word in active_oneof_index().
-    /// oneof fields use all bits; non-oneof fields use 0 and rely on active_oneof_index_bias
-    /// to map present values to their own field index.
-    uint32_t active_oneof_selection_mask = 0;
     field_descriptor(Derived &self, [[maybe_unused]] const auto &inherited_options,
                      [[maybe_unused]] std::pmr::memory_resource *resource) {
       set_default_value(self.proto(), resource);
     }
 
+    /**
+     * @brief Whether this descriptor has storage-backed resolved dynamic-message information.
+     * @details Regular message fields have resolved information; unsupported extension descriptors do not.
+     */
+    [[nodiscard]] bool has_resolved_info() const noexcept { return resolved_info_.finalized(); }
+
+    /** @brief Return resolved field information, or nullptr for unsupported extension descriptors. */
+    [[nodiscard]] const resolved_field_info *resolved_info_if_available() const noexcept {
+      return has_resolved_info() ? &resolved_info_ : nullptr;
+    }
+
+    /**
+     * @brief Return the authoritative execution facts for a regular dynamic-message field.
+     * @details Dynamic storage, visitation, JSON, and binary paths must use this plan rather
+     *          than re-reading descriptor_pool's schema-derived flag accessors. Call
+     *          resolved_info_if_available() when the descriptor may be an extension.
+     * @note Violating the regular-field precondition terminates in every build mode.
+     */
+    [[nodiscard]] const resolved_field_info &resolved_info() const noexcept {
+      const auto *info = resolved_info_if_available();
+      assert(info != nullptr);
+      if (info == nullptr) [[unlikely]] {
+        std::terminate();
+      }
+      return *info;
+    }
+
+  private:
+    friend class detail::dynamic_message_factory_impl;
+
+    resolved_field_info resolved_info_;
+
+    void finalize_resolved_info(resolved_field_info info) noexcept {
+      assert(!has_resolved_info());
+      assert(info.finalized());
+      resolved_info_ = info;
+    }
+
+  public:
     template <typename T>
     void set_numeric_default_value(std::string_view value, std::pmr::memory_resource *resource) {
       auto parsed = parse_default_value<T>(value, resource);
@@ -224,7 +254,7 @@ struct dynamic_message_factory_addons {
                               std::pmr::memory_resource * /*resource*/) {}
     [[nodiscard]] uint32_t storage_slot() const {
       assert(!static_cast<const Derived *>(this)->fields().empty());
-      return static_cast<const Derived *>(this)->fields().front().storage_slot;
+      return static_cast<const Derived *>(this)->fields().front().resolved_info().storage_slot();
     }
   };
 
