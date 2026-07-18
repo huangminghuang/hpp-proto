@@ -1687,10 +1687,10 @@ auto pb_meta(const recursive_type1<Traits> &)
     -> std::tuple<hpp_proto::field_meta<1, &recursive_type1<Traits>::child>,
                   hpp_proto::field_meta<2, &recursive_type1<Traits>::payload, field_option::none, hpp_proto::vint64_t>>;
 
+#if !defined(_MSC_VER) || defined(__clang__)
+// Native MSVC 19.51 ICEs in its constexpr evaluator when this recursive serializer path is instantiated.
 inline constexpr recursive_type1<hpp_proto::non_owning_traits> constexpr_recursive_child{nullptr, 2};
 inline constexpr recursive_type1<hpp_proto::non_owning_traits> constexpr_recursive_root{&constexpr_recursive_child, 1};
-// A finite chain validates compile-time recursion-limit handling without requiring the compiler to evaluate a
-// self-referential constant object graph.
 static_assert([] {
   hpp_proto::pb_context context{hpp_proto::recursion_limit<0>};
   bool recursion_limit_exceeded = false;
@@ -1698,6 +1698,7 @@ static_assert([] {
       constexpr_recursive_root, context, recursion_limit_exceeded);
   return recursion_limit_exceeded;
 }());
+#endif
 
 template <typename Traits>
 struct recursive_type2 {
