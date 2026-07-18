@@ -205,6 +205,292 @@ const boost::ut::suite dynamic_message_test = [] {
 
   auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
 
+  "resolved field info covers every protobuf field type"_test = [&factory] {
+    using enum hpp_proto::field_kind_t;
+    using enum hpp_proto::field_storage_kind_t;
+
+    struct expected_runtime_type {
+      std::string_view singular_name;
+      std::string_view repeated_name;
+      hpp_proto::field_kind_t singular_kind;
+      hpp_proto::field_kind_t repeated_kind;
+      hpp_proto::field_storage_kind_t singular_storage;
+      hpp_proto::field_storage_kind_t repeated_storage;
+      hpp_proto::wire_type wire_type;
+      bool delimited;
+    };
+
+    constexpr std::array cases{
+        expected_runtime_type{
+            .singular_name = "optional_double",
+            .repeated_name = "repeated_double",
+            .singular_kind = KIND_DOUBLE,
+            .repeated_kind = KIND_REPEATED_DOUBLE,
+            .singular_storage = DOUBLE,
+            .repeated_storage = REPEATED_DOUBLE,
+            .wire_type = hpp_proto::wire_type::fixed_64,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_float",
+            .repeated_name = "repeated_float",
+            .singular_kind = KIND_FLOAT,
+            .repeated_kind = KIND_REPEATED_FLOAT,
+            .singular_storage = FLOAT,
+            .repeated_storage = REPEATED_FLOAT,
+            .wire_type = hpp_proto::wire_type::fixed_32,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_int64",
+            .repeated_name = "repeated_int64",
+            .singular_kind = KIND_INT64,
+            .repeated_kind = KIND_REPEATED_INT64,
+            .singular_storage = INT64,
+            .repeated_storage = REPEATED_INT64,
+            .wire_type = hpp_proto::wire_type::varint,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_uint64",
+            .repeated_name = "repeated_uint64",
+            .singular_kind = KIND_UINT64,
+            .repeated_kind = KIND_REPEATED_UINT64,
+            .singular_storage = UINT64,
+            .repeated_storage = REPEATED_UINT64,
+            .wire_type = hpp_proto::wire_type::varint,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_int32",
+            .repeated_name = "repeated_int32",
+            .singular_kind = KIND_INT32,
+            .repeated_kind = KIND_REPEATED_INT32,
+            .singular_storage = INT32,
+            .repeated_storage = REPEATED_INT32,
+            .wire_type = hpp_proto::wire_type::varint,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_fixed64",
+            .repeated_name = "repeated_fixed64",
+            .singular_kind = KIND_FIXED64,
+            .repeated_kind = KIND_REPEATED_FIXED64,
+            .singular_storage = UINT64,
+            .repeated_storage = REPEATED_UINT64,
+            .wire_type = hpp_proto::wire_type::fixed_64,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_fixed32",
+            .repeated_name = "repeated_fixed32",
+            .singular_kind = KIND_FIXED32,
+            .repeated_kind = KIND_REPEATED_FIXED32,
+            .singular_storage = UINT32,
+            .repeated_storage = REPEATED_UINT32,
+            .wire_type = hpp_proto::wire_type::fixed_32,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_bool",
+            .repeated_name = "repeated_bool",
+            .singular_kind = KIND_BOOL,
+            .repeated_kind = KIND_REPEATED_BOOL,
+            .singular_storage = BOOL,
+            .repeated_storage = REPEATED_BOOL,
+            .wire_type = hpp_proto::wire_type::varint,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_string",
+            .repeated_name = "repeated_string",
+            .singular_kind = KIND_STRING,
+            .repeated_kind = KIND_REPEATED_STRING,
+            .singular_storage = STRING,
+            .repeated_storage = REPEATED_STRING,
+            .wire_type = hpp_proto::wire_type::length_delimited,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optionalgroup",
+            .repeated_name = "repeatedgroup",
+            .singular_kind = KIND_MESSAGE,
+            .repeated_kind = KIND_REPEATED_MESSAGE,
+            .singular_storage = MESSAGE,
+            .repeated_storage = REPEATED_MESSAGE,
+            .wire_type = hpp_proto::wire_type::sgroup,
+            .delimited = true,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_nested_message",
+            .repeated_name = "repeated_nested_message",
+            .singular_kind = KIND_MESSAGE,
+            .repeated_kind = KIND_REPEATED_MESSAGE,
+            .singular_storage = MESSAGE,
+            .repeated_storage = REPEATED_MESSAGE,
+            .wire_type = hpp_proto::wire_type::length_delimited,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_bytes",
+            .repeated_name = "repeated_bytes",
+            .singular_kind = KIND_BYTES,
+            .repeated_kind = KIND_REPEATED_BYTES,
+            .singular_storage = BYTES,
+            .repeated_storage = REPEATED_BYTES,
+            .wire_type = hpp_proto::wire_type::length_delimited,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_uint32",
+            .repeated_name = "repeated_uint32",
+            .singular_kind = KIND_UINT32,
+            .repeated_kind = KIND_REPEATED_UINT32,
+            .singular_storage = UINT32,
+            .repeated_storage = REPEATED_UINT32,
+            .wire_type = hpp_proto::wire_type::varint,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_nested_enum",
+            .repeated_name = "repeated_nested_enum",
+            .singular_kind = KIND_ENUM,
+            .repeated_kind = KIND_REPEATED_ENUM,
+            .singular_storage = INT32,
+            .repeated_storage = REPEATED_INT32,
+            .wire_type = hpp_proto::wire_type::varint,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_sfixed32",
+            .repeated_name = "repeated_sfixed32",
+            .singular_kind = KIND_SFIXED32,
+            .repeated_kind = KIND_REPEATED_SFIXED32,
+            .singular_storage = INT32,
+            .repeated_storage = REPEATED_INT32,
+            .wire_type = hpp_proto::wire_type::fixed_32,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_sfixed64",
+            .repeated_name = "repeated_sfixed64",
+            .singular_kind = KIND_SFIXED64,
+            .repeated_kind = KIND_REPEATED_SFIXED64,
+            .singular_storage = INT64,
+            .repeated_storage = REPEATED_INT64,
+            .wire_type = hpp_proto::wire_type::fixed_64,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_sint32",
+            .repeated_name = "repeated_sint32",
+            .singular_kind = KIND_SINT32,
+            .repeated_kind = KIND_REPEATED_SINT32,
+            .singular_storage = INT32,
+            .repeated_storage = REPEATED_INT32,
+            .wire_type = hpp_proto::wire_type::varint,
+            .delimited = false,
+        },
+        expected_runtime_type{
+            .singular_name = "optional_sint64",
+            .repeated_name = "repeated_sint64",
+            .singular_kind = KIND_SINT64,
+            .repeated_kind = KIND_REPEATED_SINT64,
+            .singular_storage = INT64,
+            .repeated_storage = REPEATED_INT64,
+            .wire_type = hpp_proto::wire_type::varint,
+            .delimited = false,
+        },
+    };
+
+    std::pmr::monotonic_buffer_resource memory_resource;
+    auto message = expect_ok(factory.get_message("protobuf_unittest.TestAllTypes", memory_resource));
+
+    auto verify = [&](std::string_view name, hpp_proto::field_kind_t expected_kind,
+                      hpp_proto::field_storage_kind_t expected_storage, hpp_proto::field_cardinality_t cardinality,
+                      hpp_proto::field_presence_t presence, hpp_proto::wire_type wire_type, bool delimited) {
+      auto field = expect_ok(message.field_by_name(name));
+      const auto &descriptor = field.descriptor();
+      const auto &info = descriptor.resolved_info();
+      const auto expected_tag = (static_cast<uint32_t>(descriptor.proto().number) << 3U) |
+                                static_cast<uint32_t>(std::to_underlying(wire_type));
+
+      expect(info.finalized());
+      expect(info.kind() == expected_kind);
+      expect(info.storage_kind() == expected_storage);
+      expect(info.cardinality() == cardinality);
+      expect(info.presence() == presence);
+      expect(eq(info.serialized_tag(), expected_tag));
+      expect(eq(info.is_delimited(), delimited));
+      expect(!info.is_packed());
+      expect(field.visit([](auto typed_field) { return decltype(typed_field)::field_kind; }) == expected_kind);
+    };
+
+    for (const auto &entry : cases) {
+      verify(entry.singular_name, entry.singular_kind, entry.singular_storage, hpp_proto::field_cardinality_t::SINGULAR,
+             hpp_proto::field_presence_t::EXPLICIT, entry.wire_type, entry.delimited);
+      verify(entry.repeated_name, entry.repeated_kind, entry.repeated_storage, hpp_proto::field_cardinality_t::REPEATED,
+             hpp_proto::field_presence_t::REPEATED, entry.wire_type, entry.delimited);
+    }
+
+    std::pmr::monotonic_buffer_resource packed_resource;
+    auto packed_message = expect_ok(factory.get_message("protobuf_unittest.TestPackedTypes", packed_resource));
+    const auto *packed = packed_message.field_descriptor_by_name("packed_int32");
+    expect(fatal(packed != nullptr));
+    expect(packed->resolved_info().is_packed());
+    expect(eq(packed->resolved_info().serialized_tag(),
+              (static_cast<uint32_t>(packed->proto().number) << 3U) |
+                  static_cast<uint32_t>(std::to_underlying(hpp_proto::wire_type::length_delimited))));
+
+    expect(packed->resolved_info_if_available() != nullptr);
+
+    std::pmr::monotonic_buffer_resource extension_target_resource;
+    auto extension_target =
+        expect_ok(factory.get_message("protobuf_unittest.TestAllExtensions", extension_target_resource));
+
+    auto file_extensions = message.descriptor().parent_file()->extensions();
+    expect(!std::ranges::empty(file_extensions));
+    bool checked_file_extension_lookup = false;
+    for (const auto &extension : file_extensions) {
+      expect(!extension.has_resolved_info());
+      expect(extension.resolved_info_if_available() == nullptr);
+      if (extension.extendee_descriptor() == &extension_target.descriptor()) {
+        checked_file_extension_lookup = true;
+        expect(extension_target.field_descriptor_by_number(static_cast<uint32_t>(extension.proto().number)) == nullptr);
+        expect(extension_target.field_descriptor_by_name(extension.proto().name) == nullptr);
+      }
+    }
+    expect(checked_file_extension_lookup);
+
+    std::pmr::monotonic_buffer_resource extension_resource;
+    auto extension_owner = expect_ok(factory.get_message("protobuf_unittest.TestRequired", extension_resource));
+    auto message_extensions = extension_owner.descriptor().extensions();
+    expect(!std::ranges::empty(message_extensions));
+    for (const auto &extension : message_extensions) {
+      expect(!extension.has_resolved_info());
+      expect(extension.resolved_info_if_available() == nullptr);
+      expect(extension.extendee_descriptor() == &extension_target.descriptor());
+      expect(extension_target.field_descriptor_by_number(static_cast<uint32_t>(extension.proto().number)) == nullptr);
+      expect(extension_target.field_descriptor_by_name(extension.proto().name) == nullptr);
+    }
+  };
+
+  "required default value retains explicit presence"_test = [&factory] {
+    const std::string encoded_default{"\x08\x00", 2};
+    std::pmr::monotonic_buffer_resource memory_resource;
+    auto message = expect_ok(factory.get_message("protobuf_unittest.TestRequired", memory_resource));
+
+    expect(hpp_proto::read_binpb(message, encoded_default).ok());
+    auto required = expect_ok(message.field_by_name("a"));
+    expect(required.has_value());
+    expect(required.descriptor().resolved_info().presence() == hpp_proto::field_presence_t::REQUIRED);
+    expect(required.descriptor().resolved_info().explicit_presence());
+
+    std::string roundtrip;
+    expect(hpp_proto::write_binpb(message.cref(), roundtrip).ok());
+    expect(eq(roundtrip, encoded_default));
+  };
+
   "unit"_test = [&factory](const std::string &message_name) -> void {
     using namespace std::string_literals;
     std::string data = read_file("data/"s + message_name + ".binpb");

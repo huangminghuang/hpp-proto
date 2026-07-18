@@ -2,6 +2,7 @@
 #include <array>
 #include <boost/ut.hpp>
 #include <concepts>
+#include <exception>
 #include <google/protobuf/descriptor.pb.hpp>
 #include <hpp_proto/dynamic_message/binpb.hpp>
 #include <hpp_proto/dynamic_message/factory_addons.hpp>
@@ -169,7 +170,10 @@ private:
 
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
-  expect(fatal(exp.has_value()));
+  if (!exp.has_value()) {
+    expect(fatal(false)); // LCOV_EXCL_LINE: a passing test cannot exercise this assertion failure.
+    std::terminate();     // LCOV_EXCL_LINE: keep unchecked expected access impossible after the failure.
+  }
   return std::forward<Exp>(exp).value();
 }
 
@@ -275,6 +279,15 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                                 .label = LABEL_OPTIONAL,
                                 .type = TYPE_MESSAGE,
                                 .type_name = ".edition_features.Child",
+                            },
+                            FieldProto{
+                                .name = "legacy_required_scalar",
+                                .number = 4,
+                                .label = LABEL_OPTIONAL,
+                                .type = TYPE_INT32,
+                                .options =
+                                    google::protobuf::FieldOptions<>{
+                                        .features = google::protobuf::FeatureSet<>{.field_presence = LEGACY_REQUIRED}},
                             },
                         },
                 },
@@ -906,16 +919,21 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                 OneofProto{.name = "choice"},
             },
     };
-    const auto limit = static_cast<int32_t>(std::numeric_limits<uint16_t>::max());
-    message.field.reserve(static_cast<std::size_t>(limit));
-    for (int32_t i = 1; i <= limit; ++i) {
+    const auto limit = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());
+    message.field.reserve(limit);
+    int32_t field_number = 1;
+    while (message.field.size() < limit) {
+      if (field_number == 19'000) {
+        field_number = 20'000;
+      }
       message.field.push_back(FieldProto{
-          .name = "f" + std::to_string(i),
-          .number = i,
+          .name = "f" + std::to_string(field_number),
+          .number = field_number,
           .label = LABEL_OPTIONAL,
           .type = TYPE_INT32,
           .oneof_index = 0,
       });
+      ++field_number;
     }
     file.message_type.push_back(std::move(message));
     return file;
@@ -999,6 +1017,39 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
                                 .value =
                                     {
                                         EnumValueProto{.name = "ZERO", .number = 0},
+                                    },
+                            },
+                        },
+                },
+            },
+    };
+  };
+
+  auto make_required_enum_default_fileset = [] {
+    return OwningFileDescriptorProto{
+        .name = "required_enum_default.proto",
+        .message_type =
+            {
+                MessageProto{
+                    .name = "Root",
+                    .field =
+                        {
+                            FieldProto{
+                                .name = "required_enum",
+                                .number = 1,
+                                .label = LABEL_REQUIRED,
+                                .type = TYPE_ENUM,
+                                .type_name = ".Root.E",
+                            },
+                        },
+                    .enum_type =
+                        {
+                            EnumProto{
+                                .name = "E",
+                                .value =
+                                    {
+                                        EnumValueProto{.name = "FIRST", .number = 7},
+                                        EnumValueProto{.name = "SECOND", .number = 8},
                                     },
                             },
                         },
@@ -1252,16 +1303,32 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     const auto *numbers = msg.field_descriptor_by_name("numbers");
     const auto *scalar = msg.field_descriptor_by_name("scalar");
     const auto *child = msg.field_descriptor_by_name("child");
+    const auto *legacy_required_scalar = msg.field_descriptor_by_name("legacy_required_scalar");
 
     expect(numbers != nullptr);
     expect(scalar != nullptr);
     expect(child != nullptr);
+    expect(legacy_required_scalar != nullptr);
 
     // File-level editions feature overrides should change descriptor behavior from 2023 defaults:
     // PACKED -> EXPANDED, EXPLICIT presence -> IMPLICIT, LENGTH_PREFIXED -> DELIMITED.
     expect(!numbers->is_packed());
     expect(!scalar->explicit_presence());
     expect(child->is_delimited());
+    expect(!numbers->resolved_info().is_packed());
+    expect(numbers->resolved_info().presence() == hpp_proto::field_presence_t::REPEATED);
+    expect(!scalar->resolved_info().explicit_presence());
+    expect(scalar->resolved_info().presence() == hpp_proto::field_presence_t::IMPLICIT);
+    expect(child->resolved_info().is_delimited());
+    expect(legacy_required_scalar->resolved_info().presence() == hpp_proto::field_presence_t::REQUIRED);
+    expect(legacy_required_scalar->resolved_info().explicit_presence());
+
+    const std::string encoded_default{"\x20\x00", 2};
+    expect(hpp_proto::read_binpb(msg, encoded_default).ok());
+    expect(expect_ok(msg.field_by_name("legacy_required_scalar")).has_value());
+    std::string roundtrip;
+    expect(hpp_proto::write_binpb(msg.cref(), roundtrip).ok());
+    expect(eq(roundtrip, encoded_default));
   };
 
   "edition_file_feature_extensions_are_merged_once"_test = [&] {
@@ -1372,7 +1439,21 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
 
   "field_number_536870911_is_valid_max"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_field_number_fileset(536870911));
-    expect(hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(desc_binpb));
+
+    std::pmr::monotonic_buffer_resource write_resource;
+    auto message = expect_ok(factory.get_message("Root", write_resource));
+    expect(expect_ok(message.field_by_name("boundary")).set(std::int32_t{1}).has_value());
+
+    std::string encoded;
+    expect(hpp_proto::write_binpb(message.cref(), encoded).ok());
+    const std::string expected{"\xf8\xff\xff\xff\x0f\x01", 6};
+    expect(eq(encoded, expected));
+
+    std::pmr::monotonic_buffer_resource read_resource;
+    auto decoded = expect_ok(factory.get_message("Root", read_resource));
+    expect(hpp_proto::read_binpb(decoded, encoded).ok());
+    expect(eq(expect_ok(decoded.field_value_by_name<std::int32_t>("boundary")), std::int32_t{1}));
   };
 
   "large_descriptor_collection_factory_init_succeeds"_test = [&] {
@@ -1551,6 +1632,26 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
   };
 
+  "required_enum_uses_first_value_as_implicit_default"_test = [&] {
+    auto desc_binpb = make_descriptor_set_binpb_one(make_required_enum_default_fileset());
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(desc_binpb));
+
+    std::pmr::monotonic_buffer_resource memory_resource;
+    auto message = expect_ok(factory.get_message("Root", memory_resource));
+    auto field = expect_ok(message.field_by_name("required_enum"));
+    auto typed_field = expect_ok(field.to<hpp_proto::enum_field_mref>());
+    expect(eq(typed_field.default_value().number(), std::int32_t{7}));
+    expect(eq(typed_field.value().number(), std::int32_t{7}));
+    expect(typed_field.descriptor().resolved_info().presence() == hpp_proto::field_presence_t::REQUIRED);
+
+    const std::string encoded_default{"\x08\x07", 2};
+    expect(hpp_proto::read_binpb(message, encoded_default).ok());
+    expect(typed_field.has_value());
+    std::string roundtrip;
+    expect(hpp_proto::write_binpb(message.cref(), roundtrip).ok());
+    expect(eq(roundtrip, encoded_default));
+  };
+
   "invalid_numeric_defaults_return_schema_validation_error"_test = [&] {
     auto expect_schema_error = [&](auto type, std::string_view default_value) {
       auto desc_binpb = make_descriptor_set_binpb_one(make_invalid_numeric_default_fileset(type, default_value));
@@ -1711,11 +1812,16 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect(!b1.has_value());
     expect(b2.has_value());
     expect(eq(b1.cref().active_oneof_index(), std::int32_t{3}));
+    expect(b1.descriptor().resolved_info().presence() == hpp_proto::field_presence_t::ONEOF);
+    expect(eq(b1.descriptor().resolved_info().storage_slot(), b2.descriptor().resolved_info().storage_slot()));
+    expect(b1.descriptor().resolved_info().selection_ordinal() != b2.descriptor().resolved_info().selection_ordinal());
   };
 
   "oneof_ordinal_overflow_sets_error"_test = [&] {
     auto desc_binpb = make_descriptor_set_binpb_one(make_oneof_ordinal_overflow_fileset());
-    expect(!hpp_proto::dynamic_message_factory::create(desc_binpb).has_value());
+    auto factory = hpp_proto::dynamic_message_factory::create(desc_binpb);
+    expect(fatal(!factory.has_value()));
+    expect(eq(factory.error(), hpp_proto::dynamic_message_errc::schema_validation_error));
   };
 
   "factory_create_malformed_binpb_returns_descriptor_deserialization_error"_test = [&] {

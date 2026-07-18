@@ -621,8 +621,8 @@ template <typename T, hpp_proto::field_kind_t Kind>
 struct to<JSON, hpp_proto::scalar_field_cref<T, Kind>> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp_proto::scalar_field_cref<T, Kind> &value, auto &&...args) {
-    if (value.has_value() ||
-        (always_print_fields_with_no_presence_enabled<Opts>() && !value.descriptor().explicit_presence())) {
+    if (value.has_value() || (always_print_fields_with_no_presence_enabled<Opts>() &&
+                              !value.descriptor().resolved_info().explicit_presence())) {
       using value_type = hpp_proto::scalar_field_cref<T, Kind>::value_type;
       constexpr bool need_quote = ::hpp_proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts);
       to<JSON, value_type>::template op<set_opt<Opts, quoted_num_opt_tag{}>(need_quote)>(
@@ -635,8 +635,8 @@ template <typename T, hpp_proto::field_kind_t Kind>
 struct to<JSON, hpp_proto::repeated_scalar_field_cref<T, Kind>> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp_proto::repeated_scalar_field_cref<T, Kind> &value, auto &&...args) {
-    if (!value.empty() ||
-        (always_print_fields_with_no_presence_enabled<Opts>() && !value.descriptor().explicit_presence())) {
+    if (!value.empty() || (always_print_fields_with_no_presence_enabled<Opts>() &&
+                           !value.descriptor().resolved_info().explicit_presence())) {
       auto range = std::span{value.data(), value.size()};
       using value_type = hpp_proto::repeated_scalar_field_cref<T, Kind>::value_type;
       constexpr bool need_quote = ::hpp_proto::concepts::integral_64_bits<value_type>;

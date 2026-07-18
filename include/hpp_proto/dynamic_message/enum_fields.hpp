@@ -162,15 +162,17 @@ public:
 
   ~enum_field_cref() = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
+  [[nodiscard]] bool has_value() const noexcept {
+    return storage_->selection_matches(descriptor().resolved_info().selection_ordinal());
+  }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
   // NOLINTNEXTLINE(bugprone-exception-escape)
   [[nodiscard]] enum_value default_value() const noexcept {
-    return {enum_descriptor(), std::get<int32_t>(descriptor_->default_value)};
+    return {enum_descriptor(), descriptor_->default_value_as<int32_t>()};
   }
 
   [[nodiscard]] enum_value value() const noexcept {
-    if (descriptor().explicit_presence() && !has_value()) {
+    if (descriptor().resolved_info().explicit_presence() && !has_value()) {
       return default_value();
     }
     return {enum_descriptor(), storage_->of_int32.content};
@@ -179,8 +181,8 @@ public:
   // NOLINTNEXTLINE(bugprone-exception-escape)
   [[nodiscard]] bool is_present_or_explicit_default() const noexcept {
     if (has_value()) {
-      return descriptor().explicit_presence() ||
-             storage_->of_int32.content != std::get<int32_t>(descriptor_->default_value);
+      return descriptor().resolved_info().explicit_presence() ||
+             storage_->of_int32.content != descriptor_->default_value_as<int32_t>();
     }
     return false;
   }
@@ -210,8 +212,8 @@ public:
   }
 
   [[nodiscard]] std::int32_t number() const {
-    const bool is_default = descriptor().explicit_presence() && !has_value();
-    return is_default ? std::get<int32_t>(descriptor_->default_value) : storage_->of_int32.content;
+    const bool is_default = descriptor().resolved_info().explicit_presence() && !has_value();
+    return is_default ? descriptor_->default_value_as<int32_t>() : storage_->of_int32.content;
   }
 
   /**
@@ -267,8 +269,8 @@ public:
   [[nodiscard]] enum_value default_value() const noexcept { return cref().default_value(); }
   // NOLINTNEXTLINE(bugprone-exception-escape)
   [[nodiscard]] enum_value_mref value() const noexcept {
-    if (descriptor().explicit_presence() && !has_value()) {
-      storage_->of_int32.content = std::get<int32_t>(descriptor_->default_value);
+    if (descriptor().resolved_info().explicit_presence() && !has_value()) {
+      storage_->of_int32.content = descriptor_->default_value_as<int32_t>();
     }
     return {*descriptor_->enum_field_type_descriptor(), storage_->of_int32.content};
   }
@@ -282,8 +284,8 @@ public:
   }
 
   [[nodiscard]] std::int32_t number() const {
-    return descriptor().explicit_presence() && !has_value() ? std::get<int32_t>(descriptor_->default_value)
-                                                            : storage_->of_int32.content;
+    return descriptor().resolved_info().explicit_presence() && !has_value() ? descriptor_->default_value_as<int32_t>()
+                                                                            : storage_->of_int32.content;
   }
   /**
    * @brief Returns the enum value's symbolic name (empty if schema lacks this number).
@@ -292,7 +294,7 @@ public:
 
   void set(enum_number number) const {
     storage_->of_int32.content = number.value;
-    storage_->of_int32.selection = descriptor_->oneof_ordinal;
+    storage_->of_int32.selection = descriptor_->resolved_info().selection_ordinal();
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> set(enum_name name) const {

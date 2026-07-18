@@ -41,8 +41,6 @@
 
 namespace hpp_proto {
 
-inline constexpr int repeated_field_kind_offset = 18;
-
 /**
  * @brief Untyped, read-only reference to a single field in a dynamic message.
  *
@@ -65,19 +63,13 @@ public:
   ~field_cref() noexcept = default;
 
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
-  [[nodiscard]] field_kind_t field_kind() const noexcept {
-    // map TYPE_GROUP to TYPE_MESSAGE
-    using enum google::protobuf::FieldDescriptorProto_::Type;
-    auto base_type = descriptor().proto().type == TYPE_GROUP ? TYPE_MESSAGE : descriptor().proto().type;
-    return static_cast<field_kind_t>(std::to_underlying(base_type) +
-                                     (repeated_field_kind_offset * static_cast<int>(descriptor().is_repeated())));
-  }
+  [[nodiscard]] field_kind_t field_kind() const noexcept { return descriptor().resolved_info().kind(); }
 
-  [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
+  [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->resolved_info().explicit_presence(); }
 
   [[nodiscard]] bool has_value() const noexcept {
     const uint32_t word = value_storage::selection_word(*storage_);
-    return descriptor().is_repeated() ? (word > 0) : (word == descriptor().oneof_ordinal);
+    return descriptor().resolved_info().has_value(word);
   }
 
   /// @brief Return presence and active-index information for this field.
@@ -91,9 +83,10 @@ public:
     if (selection == 0) {
       return -1;
     }
-    const auto masked_selection = selection & descriptor().active_oneof_selection_mask;
+    const auto &info = descriptor().resolved_info();
+    const auto masked_selection = selection & info.active_oneof_selection_mask();
     const auto index =
-        static_cast<std::int64_t>(masked_selection) + static_cast<std::int64_t>(descriptor().active_oneof_index_bias);
+        static_cast<std::int64_t>(masked_selection) + static_cast<std::int64_t>(info.active_oneof_index_bias());
     return (index < std::numeric_limits<std::int32_t>::min() || index > std::numeric_limits<std::int32_t>::max())
                ? -1
                : static_cast<std::int32_t>(index);
@@ -149,7 +142,7 @@ public:
   [[nodiscard]] const field_descriptor_t &descriptor() const noexcept { return *descriptor_; }
   [[nodiscard]] field_kind_t field_kind() const noexcept { return cref().field_kind(); }
 
-  [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->explicit_presence(); }
+  [[nodiscard]] bool explicit_presence() const noexcept { return descriptor_->resolved_info().explicit_presence(); }
   [[nodiscard]] bool has_value() const noexcept { return cref().has_value(); }
 
   template <typename T>

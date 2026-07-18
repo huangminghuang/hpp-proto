@@ -61,11 +61,13 @@ public:
   scalar_field_cref &operator=(scalar_field_cref &&) noexcept = default;
   ~scalar_field_cref() noexcept = default;
 
-  [[nodiscard]] bool has_value() const noexcept { return storage_->selection_matches(descriptor().oneof_ordinal); }
+  [[nodiscard]] bool has_value() const noexcept {
+    return storage_->selection_matches(descriptor().resolved_info().selection_ordinal());
+  }
   [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
-  [[nodiscard]] value_type default_value() const { return std::get<value_type>(descriptor_->default_value); }
+  [[nodiscard]] value_type default_value() const { return descriptor_->template default_value_as<value_type>(); }
   [[nodiscard]] value_type value() const {
-    if (descriptor().explicit_presence() && !has_value()) {
+    if (descriptor().resolved_info().explicit_presence() && !has_value()) {
       return default_value();
     }
     return access_storage().content;
@@ -73,8 +75,8 @@ public:
 
   [[nodiscard]] bool is_present_or_explicit_default() const {
     if (has_value()) {
-      return descriptor().explicit_presence() ||
-             access_storage().content != std::get<value_type>(descriptor_->default_value);
+      return descriptor().resolved_info().explicit_presence() ||
+             access_storage().content != descriptor_->template default_value_as<value_type>();
     }
     return false;
   }
@@ -150,7 +152,7 @@ public:
   void set(T v) const noexcept {
     auto &storage = access_storage();
     storage.content = v;
-    storage.selection = descriptor_->oneof_ordinal;
+    storage.selection = descriptor_->resolved_info().selection_ordinal();
   }
 
   void alias_from(const scalar_field_cref<T, Kind> &other) const noexcept { set(other.value()); }
