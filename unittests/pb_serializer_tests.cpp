@@ -1687,12 +1687,15 @@ auto pb_meta(const recursive_type1<Traits> &)
     -> std::tuple<hpp_proto::field_meta<1, &recursive_type1<Traits>::child>,
                   hpp_proto::field_meta<2, &recursive_type1<Traits>::payload, field_option::none, hpp_proto::vint64_t>>;
 
-inline constexpr recursive_type1<hpp_proto::non_owning_traits> constexpr_recursive_cycle{&constexpr_recursive_cycle, 1};
+inline constexpr recursive_type1<hpp_proto::non_owning_traits> constexpr_recursive_child{nullptr, 2};
+inline constexpr recursive_type1<hpp_proto::non_owning_traits> constexpr_recursive_root{&constexpr_recursive_child, 1};
+// A finite chain validates compile-time recursion-limit handling without requiring the compiler to evaluate a
+// self-referential constant object graph.
 static_assert([] {
-  hpp_proto::pb_context<> context;
+  hpp_proto::pb_context context{hpp_proto::recursion_limit<0>};
   bool recursion_limit_exceeded = false;
-  (void)hpp_proto::pb_serializer::size_cache_counter<decltype(constexpr_recursive_cycle)>::count(
-      constexpr_recursive_cycle, context, recursion_limit_exceeded);
+  (void)hpp_proto::pb_serializer::size_cache_counter<decltype(constexpr_recursive_root)>::count(
+      constexpr_recursive_root, context, recursion_limit_exceeded);
   return recursion_limit_exceeded;
 }());
 
