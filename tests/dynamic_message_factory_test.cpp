@@ -171,8 +171,8 @@ private:
 template <typename Exp>
 decltype(auto) expect_ok(Exp &&exp) {
   if (!exp.has_value()) {
-    expect(fatal(false));
-    std::terminate();
+    expect(fatal(false)); // LCOV_EXCL_LINE: a passing test cannot exercise this assertion failure.
+    std::terminate();     // LCOV_EXCL_LINE: keep unchecked expected access impossible after the failure.
   }
   return std::forward<Exp>(exp).value();
 }
