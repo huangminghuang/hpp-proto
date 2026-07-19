@@ -108,9 +108,8 @@ class descriptor_pool {
   protected:
     template <typename Self, typename... Args>
     explicit addon_storage(Self &self, addon_context_type &context, Args &&...args)
-        : addon_storage(
-              std::bool_constant<std::constructible_from<AddOn, Self &, addon_context_type &, Args...>>{}, self,
-              context, std::forward<Args>(args)...) {}
+        : addon_storage(std::bool_constant<std::constructible_from<AddOn, Self &, addon_context_type &, Args...>>{},
+                        self, context, std::forward<Args>(args)...) {}
 
   private:
     template <typename Self, typename... Args>
@@ -354,9 +353,8 @@ public:
   };
 
   // NOLINTNEXTLINE(misc-multiple-inheritance)
-  class field_descriptor_t
-      : public field_descriptor_base,
-        public addon_storage<typename AddOns::template field_descriptor<field_descriptor_t>> {
+  class field_descriptor_t : public field_descriptor_base,
+                             public addon_storage<typename AddOns::template field_descriptor<field_descriptor_t>> {
   public:
     using addon_type = AddOns::template field_descriptor<field_descriptor_t>;
     field_descriptor_t(const FieldDescriptorProto &proto, message_descriptor_t *parent, const auto &inherited_options,
@@ -404,9 +402,8 @@ public:
   };
 
   // NOLINTNEXTLINE(misc-multiple-inheritance)
-  class oneof_descriptor_t
-      : public oneof_descriptor_base,
-        public addon_storage<typename AddOns::template oneof_descriptor<oneof_descriptor_t>> {
+  class oneof_descriptor_t : public oneof_descriptor_base,
+                             public addon_storage<typename AddOns::template oneof_descriptor<oneof_descriptor_t>> {
     using addon_type = AddOns::template oneof_descriptor<oneof_descriptor_t>;
 
   public:
@@ -456,9 +453,8 @@ public:
   };
 
   // NOLINTNEXTLINE(misc-multiple-inheritance)
-  class enum_descriptor_t
-      : public enum_descriptor_base,
-        public addon_storage<typename AddOns::template enum_descriptor<enum_descriptor_t>> {
+  class enum_descriptor_t : public enum_descriptor_base,
+                            public addon_storage<typename AddOns::template enum_descriptor<enum_descriptor_t>> {
   public:
     using addon_type = AddOns::template enum_descriptor<enum_descriptor_t>;
     explicit enum_descriptor_t(const EnumDescriptorProto &proto, string_t &&full_name, const auto &inherited_options,
@@ -582,9 +578,8 @@ public:
   };
 
   // NOLINTNEXTLINE(misc-multiple-inheritance)
-  class file_descriptor_t
-      : public file_descriptor_base,
-        public addon_storage<typename AddOns::template file_descriptor<file_descriptor_t>> {
+  class file_descriptor_t : public file_descriptor_base,
+                            public addon_storage<typename AddOns::template file_descriptor<file_descriptor_t>> {
   public:
     using addon_type = AddOns::template file_descriptor<file_descriptor_t>;
     explicit file_descriptor_t(const FileDescriptorProto &proto, const FeatureSet &default_features,
@@ -679,10 +674,9 @@ public:
                            std::pmr::memory_resource *resource = std::pmr::get_default_resource(),
                            std::pmr::memory_resource *scratch_resource = nullptr)
       : addon_context_(std::move(addon_context)), fileset_(make_fileset(resource)),
-        files_(with_resource<decltype(files_)>(resource)),
-        messages_(with_resource<decltype(messages_)>(resource)), enums_(with_resource<decltype(enums_)>(resource)),
-        oneofs_(with_resource<decltype(oneofs_)>(resource)), fields_(with_resource<decltype(fields_)>(resource)),
-        file_map_(with_resource<decltype(file_map_)>(resource)),
+        files_(with_resource<decltype(files_)>(resource)), messages_(with_resource<decltype(messages_)>(resource)),
+        enums_(with_resource<decltype(enums_)>(resource)), oneofs_(with_resource<decltype(oneofs_)>(resource)),
+        fields_(with_resource<decltype(fields_)>(resource)), file_map_(with_resource<decltype(file_map_)>(resource)),
         message_map_(with_resource<decltype(message_map_)>(resource)),
         enum_map_(with_resource<decltype(enum_map_)>(resource)), resource_(resource),
         scratch_resource_(scratch_resource != nullptr ? scratch_resource : resource) {}
@@ -1137,9 +1131,9 @@ private:
         if (proto.name.empty()) {
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
-        auto &message = messages_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name),
-                                               descriptor.options_, descriptor.parent_file_, &descriptor,
-                                               addon_context_, resource_);
+        auto &message =
+            messages_.emplace_back(proto, join_by_dot(descriptor.full_name(), proto.name), descriptor.options_,
+                                   descriptor.parent_file_, &descriptor, addon_context_, resource_);
         descriptor.messages_.push_back(&message);
       }
       for (auto it = descriptor.messages_.rbegin(); it != descriptor.messages_.rend(); ++it) {

@@ -132,10 +132,9 @@ cpp::file_descriptor_name cpp_file_descriptor_name(FileDescriptor &descriptor, g
     return std::move(*result);
   }
 
-  diagnostics.record(
-      std::format("{}: {}. Rename the .proto file or directory, or set "
-                  "(hpp_proto.hpp_file_opts).file_descriptor_name to a unique C++ identifier.",
-                  descriptor.proto().name, result.error().message));
+  diagnostics.record(std::format("{}: {}. Rename the .proto file or directory, or set "
+                                 "(hpp_proto.hpp_file_opts).file_descriptor_name to a unique C++ identifier.",
+                                 descriptor.proto().name, result.error().message));
   return cpp::file_descriptor_name::from_proto_file("invalid.proto").value();
 }
 
@@ -436,8 +435,7 @@ struct hpp_addons {
     explicit message_descriptor(Derived &self, context_type &context, [[maybe_unused]] const auto &inherited_options,
                                 [[maybe_unused]] std::pmr::memory_resource *resource)
         : pb_name(self.proto().name), cpp_name(cpp_identifier(self.proto().name, context.generation->diagnostics)),
-          nested_scope_name(
-              cpp_name.disambiguated_with(cpp_identifier("nested", context.generation->diagnostics))),
+          nested_scope_name(cpp_name.disambiguated_with(cpp_identifier("nested", context.generation->diagnostics))),
           has_non_map_nested_message(std::ranges::any_of(self.proto().nested_type, [](const DescriptorProto &submsg) {
             return !submsg.options.has_value() || !submsg.options->map_entry;
           })) {}
@@ -453,15 +451,13 @@ struct hpp_addons {
     cpp::qualified_name namespace_prefix;
 
     // NOLINTNEXTLINE(bugprone-crtp-constructor-accessibility)
-    explicit file_descriptor(Derived &self, context_type &context,
-                             [[maybe_unused]] std::pmr::memory_resource *resource)
+    explicit file_descriptor(Derived &self, context_type &context, [[maybe_unused]] std::pmr::memory_resource *resource)
         : syntax(self.proto().syntax.empty() ? std::string{"proto2"} : self.proto().syntax),
           descriptor_name(cpp_file_descriptor_name(self, context.generation->diagnostics)) {
       ::hpp_proto::hpp_file_opts opts;
       if (self.options().get_extension(opts).ok()) {
         if (opts.value.namespace_prefix.has_value()) {
-          namespace_prefix =
-              cpp_qualified_name(opts.value.namespace_prefix.value(), context.generation->diagnostics);
+          namespace_prefix = cpp_qualified_name(opts.value.namespace_prefix.value(), context.generation->diagnostics);
         } else if (context.generation->options.namespace_prefix.has_value()) {
           namespace_prefix = *context.generation->options.namespace_prefix;
         }
@@ -542,8 +538,7 @@ struct code_generator {
 
   [[nodiscard]] std::optional<cpp::include_path> generated_include(std::string_view proto_file,
                                                                    std::string_view suffix) const {
-    auto result =
-        cpp::include_path::from_proto_file(proto_file, context.options.directory_prefix, suffix);
+    auto result = cpp::include_path::from_proto_file(proto_file, context.options.directory_prefix, suffix);
     if (!result.has_value()) {
       context.diagnostics.record(result.error().message);
       return std::nullopt;
@@ -708,8 +703,7 @@ struct code_generator {
                  "//           --hpp_out {}:${{out_dir}}\n"
                  "//           {}\n\n",
                  cpp::comment_text{context.options.plugin_name.filename().string()},
-                 cpp::comment_text{context.options.raw_parameters},
-                 cpp::comment_text{file});
+                 cpp::comment_text{context.options.raw_parameters}, cpp::comment_text{file});
   }
 
   static auto dependencies(file_descriptor_t &descriptor) {
@@ -990,9 +984,9 @@ struct code_generator {
   static void validate_generated_names(hpp_gen_descriptor_pool &pool, generation_diagnostics &diagnostics) {
     std::map<std::string, std::map<std::string, std::string>> namespace_declarations;
     std::map<std::string, std::string> namespace_packages;
-    const auto add_namespace_declaration =
-        [&namespace_declarations, &diagnostics](const cpp::qualified_name &cpp_namespace,
-                                                const cpp::identifier &name, std::string description) {
+    const auto add_namespace_declaration = [&namespace_declarations,
+                                            &diagnostics](const cpp::qualified_name &cpp_namespace,
+                                                          const cpp::identifier &name, std::string description) {
       if (cpp_namespace.empty() && name.view().starts_with('_')) {
         diagnostics.record(
             std::format("protobuf declaration '{}' maps to C++ global name '{}', which is reserved; rename the "
@@ -1083,8 +1077,7 @@ struct code_generator {
     return name.size() > entity.size() + 1U && name.starts_with(entity) && name.substr(entity.size()).starts_with("::");
   }
 
-  static void validate_file_descriptor_names(const hpp_gen_descriptor_pool &pool,
-                                             generation_diagnostics &diagnostics) {
+  static void validate_file_descriptor_names(const hpp_gen_descriptor_pool &pool, generation_diagnostics &diagnostics) {
     std::vector<file_descriptor_entity> entities;
     for (const auto &file : pool.files()) {
       if (file.messages().empty()) {
@@ -1102,13 +1095,12 @@ struct code_generator {
              qualified_entity_is_prefix_of(second_name, first_name);
     };
     const auto report = [&diagnostics](const file_descriptor_entity &first, const file_descriptor_entity &second) {
-      diagnostics.record(
-          std::format("generated C++ file descriptor declarations collide:\n"
-                      "  {} -> ::{}\n"
-                      "  {} -> ::{}\n"
-                      "Rename one .proto file or directory, or set "
-                      "(hpp_proto.hpp_file_opts).file_descriptor_name to a unique C++ identifier.",
-                      first.proto_file, first.name.view(), second.proto_file, second.name.view()));
+      diagnostics.record(std::format("generated C++ file descriptor declarations collide:\n"
+                                     "  {} -> ::{}\n"
+                                     "  {} -> ::{}\n"
+                                     "Rename one .proto file or directory, or set "
+                                     "(hpp_proto.hpp_file_opts).file_descriptor_name to a unique C++ identifier.",
+                                     first.proto_file, first.name.view(), second.proto_file, second.name.view()));
     };
 
     for (auto first = entities.begin(); first != entities.end(); ++first) {
@@ -1183,8 +1175,7 @@ struct msg_code_generator : code_generator {
   std::back_insert_iterator<std::string> out_of_ns_target;
 
   explicit msg_code_generator(std::vector<CodeGeneratorResponse::File> &files, generation_context &generation)
-      : code_generator(files, generation), out_of_class_target(out_of_class_data),
-        out_of_ns_target(out_of_ns_data) {}
+      : code_generator(files, generation), out_of_class_target(out_of_class_data), out_of_ns_target(out_of_ns_data) {}
 
   void process(file_descriptor_t &descriptor) {
     syntax = descriptor.syntax;
@@ -1263,8 +1254,8 @@ struct msg_code_generator : code_generator {
     // through the generated Child<Traits> alias. Use its resolved spelling in
     // template argument lists instead of exposing a redundant qualification in
     // ordinary member declarations.
-    const auto &type = descriptor.has_dependent_nested_type ? descriptor.qualified_cpp_field_type
-                                                            : descriptor.cpp_field_type;
+    const auto &type =
+        descriptor.has_dependent_nested_type ? descriptor.qualified_cpp_field_type : descriptor.cpp_field_type;
     return type_as_template_arg(type);
   }
 
@@ -1378,8 +1369,7 @@ struct msg_code_generator : code_generator {
       cpp::emit_to(target, "{}std::variant<std::monostate{}> {};\n", source_indent(), types, descriptor.cpp_name);
     } else {
       auto &f = fields[0];
-      cpp::emit_to(target, "{}std::optional<{}> {};\n", source_indent(), field_template_argument_type(f),
-                   f.cpp_name);
+      cpp::emit_to(target, "{}std::optional<{}> {};\n", source_indent(), field_template_argument_type(f), f.cpp_name);
     }
   }
 
@@ -2462,8 +2452,8 @@ std::expected<plugin_options, generator_option_error> parse_plugin_options(std::
   split(parameters, ',', [&result, &error](std::string_view option) {
     const auto equal_sign_pos = option.find('=');
     const auto key = option.substr(0, equal_sign_pos);
-    const auto value = equal_sign_pos == std::string_view::npos ? std::string_view{}
-                                                                : option.substr(equal_sign_pos + 1);
+    const auto value =
+        equal_sign_pos == std::string_view::npos ? std::string_view{} : option.substr(equal_sign_pos + 1);
 
     if (key == "directory_prefix") {
       result.generation.directory_prefix = value;
@@ -2502,8 +2492,8 @@ code_generator_response hpp_generator::generate(code_generator_request request) 
   response.maximum_edition = static_cast<std::int32_t>(google::protobuf::Edition::EDITION_2024);
 
   hpp_gen_descriptor_pool pool{hpp_addons::context_type{.generation = &context}};
-  const auto init_status = pool.init(
-      google::protobuf::FileDescriptorSet<>{.file = std::move(request.proto_file), .unknown_fields_ = {}});
+  const auto init_status =
+      pool.init(google::protobuf::FileDescriptorSet<>{.file = std::move(request.proto_file), .unknown_fields_ = {}});
   if (!init_status.has_value() && !context.diagnostics.has_error()) {
     context.diagnostics.record("hpp descriptor pool init error");
   }
