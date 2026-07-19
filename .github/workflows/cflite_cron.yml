@@ -12,43 +12,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Setup C++ tools
-      uses: aminya/setup-cpp@v1.8.1
+      uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
       with:
         ccache: true
     - name: Build Fuzzers
       id: build
-      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+      uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
       with:
         sanitizer: coverage
-    - name: Detect storage PAT
-      id: storage
-      shell: bash
-      env:
-        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      run: |
-        if [[ -n "${PERSONAL_ACCESS_TOKEN}" ]]; then
-          echo "has_pat=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "has_pat=false" >> "$GITHUB_OUTPUT"
-        fi
+    - name: Create short-lived storage token
+      id: storage-token
+      if: vars.CFL_STORAGE_APP_ENABLED == 'true'
+      uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+      with:
+        app-id: ${{ secrets.CFL_STORAGE_APP_ID }}
+        private-key: ${{ secrets.CFL_STORAGE_APP_PRIVATE_KEY }}
+        owner: huangminghuang
+        repositories: hpp-proto-storage
 
     - name: Run Fuzzers with storage repo
-      if: steps.storage.outputs.has_pat == 'true'
+      if: steps.storage-token.outcome == 'success'
       id: run
-      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
       env:
         COVERAGE_EXTRA_ARGS: -ignore-filename-regex=build/* -ignore-filename-regex=fuzz/* -ignore-filename-regex=include/google/*
       with:
         github-token: ${{ github.token }}
         fuzz-seconds: 600
         mode: 'coverage'
-        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo: https://x-access-token:${{ steps.storage-token.outputs.token }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
     - name: Run Fuzzers without storage repo
-      if: steps.storage.outputs.has_pat != 'true'
+      if: steps.storage-token.outcome != 'success'
       id: run-no-storage
-      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
       env:
         COVERAGE_EXTRA_ARGS: -ignore-filename-regex=build/* -ignore-filename-regex=fuzz/* -ignore-filename-regex=include/google/*
       with:
@@ -59,39 +57,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Setup C++ tools
-      uses: aminya/setup-cpp@v1.8.1
+      uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
       with:
         ccache: true
     - name: Build Fuzzers
       id: build
-      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
-    - name: Detect storage PAT
-      id: storage
-      shell: bash
-      env:
-        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      run: |
-        if [[ -n "${PERSONAL_ACCESS_TOKEN}" ]]; then
-          echo "has_pat=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "has_pat=false" >> "$GITHUB_OUTPUT"
-        fi
+      uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+    - name: Create short-lived storage token
+      id: storage-token
+      if: vars.CFL_STORAGE_APP_ENABLED == 'true'
+      uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+      with:
+        app-id: ${{ secrets.CFL_STORAGE_APP_ID }}
+        private-key: ${{ secrets.CFL_STORAGE_APP_PRIVATE_KEY }}
+        owner: huangminghuang
+        repositories: hpp-proto-storage
 
     - name: Run Fuzzers with storage repo
-      if: steps.storage.outputs.has_pat == 'true'
+      if: steps.storage-token.outcome == 'success'
       id: run
-      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
       with:
         github-token: ${{ github.token }}
         fuzz-seconds: 600
         mode: 'prune'
-        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
+        storage-repo: https://x-access-token:${{ steps.storage-token.outputs.token }}@github.com/huangminghuang/hpp-proto-storage.git
         storage-repo-branch: main   # Optional. Defaults to "main"
         storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
     - name: Run Fuzzers without storage repo
-      if: steps.storage.outputs.has_pat != 'true'
+      if: steps.storage-token.outcome != 'success'
       id: run-no-storage
-      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
       with:
         github-token: ${{ github.token }}
         fuzz-seconds: 600
