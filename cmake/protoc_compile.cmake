@@ -3,6 +3,7 @@ function(hpp_proto_compile_protoc)
     CPMAddPackage(
         NAME protobuf
         VERSION "${HPP_PROTO_PROTOC_VERSION}"
+        GIT_TAG "${HPP_PROTO_PROTOC_COMMIT}"
         GITHUB_REPOSITORY protocolbuffers/protobuf
         SYSTEM ON
         OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
