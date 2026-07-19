@@ -103,7 +103,7 @@ const ut::suite test_timestamp = [] {
   using timestamp_t = google::protobuf::Timestamp<>;
 
   auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
-      hpp_proto::file_descriptors::desc_set_google_protobuf_timestamp_proto()));
+      hpp_proto::file_descriptors::google::protobuf::timestamp_proto::file_descriptor_set()));
 
   "verify Timestamp 1970-01-01T00:16:40Z"_test = [&factory] {
     verify<timestamp_t>(factory, timestamp_t{.seconds = 1000}, R"("1970-01-01T00:16:40Z")");
@@ -169,7 +169,7 @@ const ut::suite test_timestamp = [] {
 const ut::suite test_duration = [] {
   using duration_t = google::protobuf::Duration<>;
   auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
-      hpp_proto::file_descriptors::desc_set_google_protobuf_duration_proto()));
+      hpp_proto::file_descriptors::google::protobuf::duration_proto::file_descriptor_set()));
 
   "verify Duration 1000s"_test = [&factory] { verify<duration_t>(factory, duration_t{.seconds = 1000}, R"("1000s")"); };
 
@@ -235,7 +235,7 @@ const ut::suite test_duration = [] {
 
 const ut::suite test_field_mask = [] {
   auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
-      hpp_proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
+      hpp_proto::file_descriptors::google::protobuf::field_mask_proto::file_descriptor_set()));
 
   using FieldMask = google::protobuf::FieldMask<>;
 
@@ -264,7 +264,7 @@ const ut::suite test_field_mask = [] {
 
 const ut::suite test_wrapper = [] {
   auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
-      hpp_proto::file_descriptors::desc_set_google_protobuf_wrappers_proto()));
+      hpp_proto::file_descriptors::google::protobuf::wrappers_proto::file_descriptor_set()));
   using Int64Value = google::protobuf::Int64Value<>;
 
   "verify Int64Value 1000"_test = [&factory] {
@@ -298,8 +298,8 @@ const ut::suite test_wrapper = [] {
 };
 
 const ut::suite test_empty = [] {
-  auto factory = expect_ok(
-      hpp_proto::dynamic_message_factory::create(hpp_proto::file_descriptors::desc_set_google_protobuf_empty_proto()));
+  auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+      hpp_proto::file_descriptors::google::protobuf::empty_proto::file_descriptor_set()));
   using Empty = google::protobuf::Empty<>;
 
   "verify Empty {}"_test = [&factory] { verify<Empty>(factory, Empty{}, "{}"); };
@@ -307,8 +307,8 @@ const ut::suite test_empty = [] {
 
 const ut::suite test_value = [] {
   using namespace boost::ut;
-  auto factory = expect_ok(
-      hpp_proto::dynamic_message_factory::create(hpp_proto::file_descriptors::desc_set_google_protobuf_struct_proto()));
+  auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(
+      hpp_proto::file_descriptors::google::protobuf::struct_proto::file_descriptor_set()));
 
   "value"_test = [&factory]<class Traits>() {
     using string_t = Traits::string_t;

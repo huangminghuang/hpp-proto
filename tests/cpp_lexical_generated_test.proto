@@ -1,0 +1,78 @@
+syntax = "proto2";
+
+import "cpp_lexical_cross_file_enum.proto";
+
+package lexical.namespace;
+
+message class {
+  message struct {
+    optional int32 operator = 1;
+  }
+
+  optional string delete = 1;
+
+  oneof switch {
+    string new = 2;
+    int32 requires = 3;
+  }
+
+}
+
+enum concept {
+  requires = 0;
+  ordinary = 1;
+}
+
+message Message {
+  message Nested {}
+}
+
+message NestedTypeFields {
+  message NestedMessage {}
+
+  enum NestedEnum {
+    NESTED_VALUE_UNSPECIFIED = 0;
+  }
+
+  optional NestedMessage nested_message = 1;
+  optional NestedEnum nested_enum = 2;
+}
+
+message MultiLevelNestedEnumField {
+  message Child {
+    enum Kind {
+      KIND_UNSPECIFIED = 0;
+      KIND_SET = 1;
+    }
+  }
+
+  optional Child.Kind kind = 1;
+}
+
+message FloatDefaults {
+  optional float high = 1 [default = 1e300];
+  optional float low = 2 [default = 1e-50];
+  optional double negative_zero = 3 [default = -0];
+}
+
+message CrossFileMessage {
+  optional lexical.cross_file.CrossFileEnum value = 1;
+}
+
+message ExtensionNames {
+  optional string ordinary_field = 1;
+  extensions 100 to max;
+}
+
+message ExtensionContainer {
+  extend ExtensionNames {
+    optional string user_extension = 101;
+  }
+}
+
+message OrdinaryRequest {}
+
+service namespace {
+  rpc delete(class) returns (class);
+  rpc renamed_types(OrdinaryRequest) returns (Message.Nested);
+}

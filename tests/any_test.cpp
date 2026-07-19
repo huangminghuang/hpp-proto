@@ -73,7 +73,7 @@ const suite test_dynamic_message_any = [] {
     expect(hpp_proto::pack_any(message.any_value.emplace(), fm).ok());
 
     auto message_factory = expect_ok(::hpp_proto::dynamic_message_factory::create(
-        ::hpp_proto::file_descriptors::desc_set_google_protobuf_field_mask_proto()));
+        ::hpp_proto::file_descriptors::google::protobuf::field_mask_proto::file_descriptor_set()));
 
     const std::string_view expected_json =
         R"({"anyValue":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/local/share"}})";
@@ -112,16 +112,16 @@ const suite test_dynamic_message_any = [] {
       "\x65\x73\x73\x61\x67\x65\x12\x03\x08\xd2\x09";
 
   auto protos = hpp_proto::distinct_file_descriptor_pb_array{
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_unittest_import_proto,
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_unittest_import_public_proto,
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_unittest_proto3_proto,
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_any_proto,
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_any_test_proto,
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_empty_proto,
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_timestamp_proto,
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_duration_proto,
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_field_mask_proto,
-      ::hpp_proto::file_descriptors::_desc_google_protobuf_wrappers_proto,
+      ::hpp_proto::file_descriptors::google::protobuf::unittest_import_proto::file_descriptor_,
+      ::hpp_proto::file_descriptors::google::protobuf::unittest_import_public_proto::file_descriptor_,
+      ::hpp_proto::file_descriptors::google::protobuf::unittest_proto3_proto::file_descriptor_,
+      ::hpp_proto::file_descriptors::google::protobuf::any_proto::file_descriptor_,
+      ::hpp_proto::file_descriptors::google::protobuf::any_test_proto::file_descriptor_,
+      ::hpp_proto::file_descriptors::google::protobuf::empty_proto::file_descriptor_,
+      ::hpp_proto::file_descriptors::google::protobuf::timestamp_proto::file_descriptor_,
+      ::hpp_proto::file_descriptors::google::protobuf::duration_proto::file_descriptor_,
+      ::hpp_proto::file_descriptors::google::protobuf::field_mask_proto::file_descriptor_,
+      ::hpp_proto::file_descriptors::google::protobuf::wrappers_proto::file_descriptor_,
   };
 
   auto message_factory = expect_ok(::hpp_proto::dynamic_message_factory::create(protos));
@@ -332,7 +332,7 @@ const suite test_dynamic_message_any = [] {
 
   "type_not_found"_test = [data] {
     auto message_factory = expect_ok(hpp_proto::dynamic_message_factory::create(
-        hpp_proto::file_descriptors::desc_set_google_protobuf_any_test_proto()));
+        hpp_proto::file_descriptors::google::protobuf::any_test_proto::file_descriptor_set()));
     std::string result;
     expect(!binpb_to_json(message_factory, "protobuf_unittest.TestAny", data, result).ok());
   };

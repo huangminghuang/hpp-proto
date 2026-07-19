@@ -215,8 +215,8 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   using OneofProto = google::protobuf::OneofDescriptorProto<>;
   using EnumProto = google::protobuf::EnumDescriptorProto<>;
   using EnumValueProto = google::protobuf::EnumValueDescriptorProto<>;
-  using enum google::protobuf::FieldDescriptorProto_::Label;
-  using enum google::protobuf::FieldDescriptorProto_::Type;
+  using enum google::protobuf::FieldDescriptorProto<>::Label;
+  using enum google::protobuf::FieldDescriptorProto<>::Type;
 
   auto make_descriptor_set_binpb_one = [&](const OwningFileDescriptorProto &proto) {
     std::string buffer;
@@ -245,9 +245,9 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
   };
 
   auto make_valid_edition_with_file_feature_overrides_fileset = [] {
-    using enum google::protobuf::FeatureSet_::FieldPresence;
-    using enum google::protobuf::FeatureSet_::MessageEncoding;
-    using enum google::protobuf::FeatureSet_::RepeatedFieldEncoding;
+    using enum google::protobuf::FeatureSet<>::FieldPresence;
+    using enum google::protobuf::FeatureSet<>::MessageEncoding;
+    using enum google::protobuf::FeatureSet<>::RepeatedFieldEncoding;
 
     return OwningFileDescriptorProto{
         .name = "edition_features.proto",
