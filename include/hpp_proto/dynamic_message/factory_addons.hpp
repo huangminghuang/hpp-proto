@@ -187,7 +187,7 @@ struct dynamic_message_factory_addons {
 
     void set_default_value(const google::protobuf::FieldDescriptorProto<traits_type> &proto,
                            std::pmr::memory_resource *resource) {
-      using enum google::protobuf::FieldDescriptorProto<>::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
       switch (proto.type) {
       case TYPE_ENUM:
         break;

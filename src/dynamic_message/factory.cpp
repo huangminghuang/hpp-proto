@@ -282,7 +282,7 @@ constexpr std::array runtime_type_traits_by_proto_type{
 // Sole adapter from descriptor_pool's schema-derived representation to dynamic_message's
 // authoritative resolved field information. Runtime consumers must not re-derive these facts.
 [[nodiscard]] constexpr runtime_type_traits runtime_traits_for(google::protobuf::FieldDescriptorProto<>::Type type) {
-  using enum google::protobuf::FieldDescriptorProto<>::Type;
+  using enum google::protobuf::FieldDescriptorProto_::Type;
   assert(is_valid(type));
   constexpr auto first_type_value = std::to_underlying(TYPE_DOUBLE);
   const auto index = static_cast<std::size_t>(std::to_underlying(type) - first_type_value);
@@ -421,7 +421,7 @@ private:
   }
 
   [[nodiscard]] std::expected<void, dynamic_message_errc> setup_enum_field_default_value() {
-    using enum google::protobuf::FieldDescriptorProto<>::Type;
+    using enum google::protobuf::FieldDescriptorProto_::Type;
     for (auto &field : pool_.fields()) {
       const auto &proto = field.proto();
       if (proto.type == TYPE_ENUM) {
