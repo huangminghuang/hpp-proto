@@ -1,0 +1,17 @@
+{
+  "name": "is-utf8",
+  "version": "1.4.1",
+  "description": "Fast UTF-8 validation",
+  "homepage": "https://github.com/simdutf/is_utf8",
+  "license": "Apache-2.0 OR BSL-1.0 OR MIT",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}

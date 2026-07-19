@@ -35,12 +35,16 @@ jobs:
       matrix:
         include:
           - name: conan-protobuf-binary-shared
-            build_cppstd: gnu17
+            build_profile: conan/profiles/linux-build-gnu17
+            lockfile: conan/locks/linux-protobuf.lock
+            package_list: conan/packages/linux-protobuf.json
             use_system_protobuf: false
             with_protobuf: "True"
             build_shared_libs: "ON"
           - name: system-protobuf-cpp23-static
-            build_cppstd: 23
+            build_profile: conan/profiles/linux-build-cpp23
+            lockfile: conan/locks/linux-system.lock
+            package_list: conan/packages/linux-system.json
             use_system_protobuf: true
             with_protobuf: "False"
             build_shared_libs: "OFF"
@@ -77,29 +81,30 @@ jobs:
           sudo apt-get install -y protobuf-compiler libprotobuf-dev
           echo "PROTOC_BIN=/usr/bin" >> "$GITHUB_ENV"
 
-      - name: conan profile
-        run: conan profile detect --force
+      - name: download locked dependency binaries
+        run: |
+          conan download \
+            --list="${{ matrix.package_list }}" \
+            --remote=conancenter
 
       - name: create package
         run: |
           conan create . \
-            -s:h compiler.cppstd=23 \
-            -s:b arch=x86_64 -s:b compiler=gcc -s:b compiler.version=13 -s:b compiler.libcxx=libstdc++11 \
-            -s:b compiler.cppstd=${{ matrix.build_cppstd }} \
+            -pr:h conan/profiles/linux-host \
+            -pr:b "${{ matrix.build_profile }}" \
             -o '&:with_protobuf=${{ matrix.with_protobuf }}' \
-            --build=missing
+            --lockfile="${{ matrix.lockfile }}" \
+            --no-remote
 
       - name: install dependencies
         run: |
           conan install tutorial \
-            -s:h build_type=Release \
-            -s:b build_type=Release \
-            -s:h compiler.cppstd=23 \
-            -s:h protobuf/*:compiler.cppstd=gnu17 \
-            -s:b arch=x86_64 -s:b compiler=gcc -s:b compiler.version=13 -s:b compiler.libcxx=libstdc++11 \
-            -s:b compiler.cppstd=${{ matrix.build_cppstd }} \
+            -pr:h conan/profiles/linux-host \
+            -pr:b "${{ matrix.build_profile }}" \
             -o 'hpp_proto/*:with_protobuf=${{ matrix.with_protobuf }}' \
-            --build=missing \
+            --lockfile="${{ matrix.lockfile }}" \
+            --lockfile-partial \
+            --no-remote \
             -of tutorial-build
 
       - name: configure

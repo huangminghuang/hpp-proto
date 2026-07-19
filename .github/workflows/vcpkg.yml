@@ -61,12 +61,11 @@ jobs:
         with:
           cmake: "4.4.0"
           ninja: true
-          vcpkg: true
+          vcpkg: "0878b5224d4a4968940ee296a2e7fae2d3b62983"
 
       - name: install hpp-proto via local overlay port
         run: |
           vcpkg install \
-            "hpp-proto" \
             --triplet="$VCPKG_DEFAULT_TRIPLET" \
             --overlay-ports="$GITHUB_WORKSPACE/ports"
 
@@ -77,6 +76,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PROGRAM_PATH="$PROTOC_BIN" \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_INSTALLED_DIR="$GITHUB_WORKSPACE/vcpkg_installed" \
             -DVCPKG_TARGET_TRIPLET="$VCPKG_DEFAULT_TRIPLET" \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/ports"
 

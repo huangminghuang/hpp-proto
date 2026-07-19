@@ -1,0 +1,14 @@
+{
+    "version": "0.5",
+    "requires": [
+        "glaze/7.8.4#17bfcc0739d8a1618cafd35327b1127e%1783515405.523"
+    ],
+    "build_requires": [
+        "zlib/1.3.2#1cb806da49011867778ffb6ac7190fcb%1777558780.503",
+        "protobuf/7.35.0#59f5248022af755532bfe62482c3de80%1779376426.695",
+        "cmake/4.4.0#a5dd5d73bd9fc56b0fc3163a04573dc8%1784051561.926",
+        "abseil/20260107.1#883e95a7be2b767999f64669ac642e5d%1773137897.755"
+    ],
+    "python_requires": [],
+    "config_requires": []
+}

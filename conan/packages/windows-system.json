@@ -1,0 +1,39 @@
+{
+    "Local Cache": {
+        "glaze/7.8.4": {
+            "revisions": {
+                "17bfcc0739d8a1618cafd35327b1127e": {
+                    "timestamp": 1783515405.523,
+                    "packages": {
+                        "da39a3ee5e6b4b0d3255bfef95601890afd80709": {
+                            "revisions": {
+                                "932b70d70c4d21bb16f60fa91cc3b653": {
+                                    "timestamp": 1783515504.367
+                                }
+                            },
+                            "info": {}
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "conancenter": {
+        "glaze/7.8.4": {
+            "revisions": {
+                "17bfcc0739d8a1618cafd35327b1127e": {
+                    "timestamp": 1783515405.523,
+                    "packages": {
+                        "da39a3ee5e6b4b0d3255bfef95601890afd80709": {
+                            "revisions": {
+                                "932b70d70c4d21bb16f60fa91cc3b653": {
+                                    "timestamp": 1783515504.367
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -24,7 +24,7 @@ vcpkg_cmake_configure(
         -DHPP_PROTO_BENCHMARKS=OFF
         -DHPP_PROTO_FUZZER_ONLY=OFF
         -DHPP_PROTO_PROTOC=${hpp_proto_protoc_mode}
-        -DCPM_USE_LOCAL_PACKAGES=ON
+        -DCPM_LOCAL_PACKAGES_ONLY=ON
         ${hpp_proto_extra_options}
 )
 
