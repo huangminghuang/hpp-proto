@@ -19,6 +19,9 @@ on:
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
 
+permissions:
+  contents: read
+
 jobs:
   build_and_test_with_host_plugin:
     runs-on: ubuntu-latest
@@ -27,10 +30,12 @@ jobs:
       matrix:
         cmake: ["4.4.0"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup required C++ tools
-        uses: aminya/setup-cpp@v1.8.1
+        uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
         with:
           compiler: gcc-13
           cmake: ${{ matrix.cmake }}

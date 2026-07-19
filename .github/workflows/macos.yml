@@ -22,6 +22,9 @@ env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
   CCACHE_DIR: ${{ github.workspace }}/.ccache
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: macos-latest
@@ -32,15 +35,17 @@ jobs:
           - cmake_preset: ci-macos-coverage
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: Cache ccache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-ccache-${{ github.sha }}
@@ -48,7 +53,7 @@ jobs:
             ${{ github.workflow }}-${{ runner.os }}-${{ matrix.cmake_preset }}-ccache-
 
       - name: Setup required C++ tools
-        uses: aminya/setup-cpp@v1.8.1
+        uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
         with:
           cmake: "4.4.0"
           ninja: true
@@ -99,7 +104,7 @@ jobs:
           cmake --build build --target coverage_filtered_info
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         if: matrix.cmake_preset == 'ci-macos-coverage'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

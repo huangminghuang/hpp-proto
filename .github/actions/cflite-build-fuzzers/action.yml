@@ -1,0 +1,68 @@
+# Vendored from google/clusterfuzzlite commit
+# 884713a6c30a92e5e8544c39945cd7cb630abcd1. Keep the runtime image digest
+# immutable when updating this action contract.
+name: ClusterFuzzLite build fuzzers
+description: Builds the project's fuzzers with an immutable runtime image.
+
+inputs:
+  language:
+    description: Language the project is written in.
+    required: false
+    default: c++
+  dry-run:
+    description: Run without reporting a failure.
+    required: false
+    default: 'false'
+  allowed-broken-targets-percentage:
+    description: Percentage of broken targets allowed by the bad-build check.
+    required: false
+  sanitizer:
+    description: Sanitizer used to build the fuzzers.
+    required: false
+    default: address
+  project-src-path:
+    description: Path to the project source checkout.
+    required: false
+  bad-build-check:
+    description: Run OSS-Fuzz's bad-build check.
+    required: false
+    default: 'true'
+  keep-unaffected-fuzz-targets:
+    description: Keep fuzz targets unaffected by the change.
+    required: false
+    default: 'false'
+  storage-repo:
+    description: Git repository used to store fuzzing artifacts.
+    required: false
+  storage-repo-branch:
+    description: Branch used to store fuzzing artifacts.
+    required: false
+  storage-repo-branch-coverage:
+    description: Branch used to store coverage reports.
+    required: false
+  upload-build:
+    description: Upload the fuzzer build.
+    required: false
+    default: 'false'
+  github-token:
+    description: Token used by the GitHub API.
+    required: false
+
+runs:
+  using: docker
+  image: docker://gcr.io/oss-fuzz-base/clusterfuzzlite-build-fuzzers@sha256:58caf06f6a40d6079eaaa11ce4adcb406ff8db02a537badb7a1a13ab3d2e9f94
+  env:
+    ALLOWED_BROKEN_TARGETS_PERCENTAGE: ${{ inputs.allowed-broken-targets-percentage }}
+    BAD_BUILD_CHECK: ${{ inputs.bad-build-check }}
+    UPLOAD_BUILD: ${{ inputs.upload-build }}
+    LANGUAGE: ${{ inputs.language }}
+    DRY_RUN: ${{ inputs.dry-run }}
+    SANITIZER: ${{ inputs.sanitizer }}
+    PROJECT_SRC_PATH: ${{ inputs.project-src-path }}
+    GITHUB_TOKEN: ${{ inputs.github-token }}
+    GIT_STORE_REPO: ${{ inputs.storage-repo }}
+    GIT_STORE_BRANCH: ${{ inputs.storage-repo-branch }}
+    GIT_STORE_BRANCH_COVERAGE: ${{ inputs.storage-repo-branch-coverage }}
+    CFL_PLATFORM: github
+    LOW_DISK_SPACE: 'True'
+    KEEP_UNAFFECTED_FUZZ_TARGETS: ${{ inputs.keep-unaffected-fuzz-targets }}

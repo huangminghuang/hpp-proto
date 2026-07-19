@@ -24,6 +24,9 @@ env:
   PROTOC_SHA256: a45cda0989c17dd950db55f6fbe1e5814c50fda08e87aa422980ac1f89dddbbc
   CCACHE_DIR: ${{ github.workspace }}/.ccache
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -47,10 +50,12 @@ jobs:
       CXX: g++-13
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
       - name: setup cpp tools
-        uses: aminya/setup-cpp@v1.8.1
+        uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
         with:
           compiler: gcc-13
           cmake: "4.4.0"
@@ -59,7 +64,7 @@ jobs:
           conan: "2.30.0"
 
       - name: Cache ccache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.name }}-ccache-${{ github.sha }}

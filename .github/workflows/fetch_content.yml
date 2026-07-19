@@ -21,6 +21,9 @@ env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
   CCACHE_DIR: ${{ github.workspace }}/.ccache
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,23 +33,25 @@ jobs:
         gcc: [13]
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup required C++ tools
-        uses: aminya/setup-cpp@v1.8.1
+        uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
         with:
           compiler: gcc-${{ matrix.gcc }}
           cmake: "4.4.0"
           ninja: true
           ccache: true
 
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/third-parties.cmake') }}
 
       - name: Cache ccache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ github.workflow }}-${{ runner.os }}-gcc-${{ matrix.gcc }}-ccache-${{ github.sha }}

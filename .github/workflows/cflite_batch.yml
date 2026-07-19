@@ -9,56 +9,44 @@ on:
 permissions:
   contents: read
   actions: read
-  security-events: write
 jobs:
   BatchFuzzing:
+    permissions:
+      contents: write
+      actions: read
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         sanitizer: [address, undefined]  # Override this with the sanitizers you want.
     steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      with:
+        persist-credentials: false
     - name: Setup C++ tools
-      uses: aminya/setup-cpp@v1.8.1
+      uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
       with:
         ccache: true
     - name: Build Fuzzers (${{ matrix.sanitizer }})
       id: build
-      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+      uses: ./.github/actions/cflite-build-fuzzers
       with:
         sanitizer: ${{ matrix.sanitizer }}
 
-    - name: Detect storage PAT
-      id: storage
+    - name: Migrate persistent storage to short-lived workflow credentials
       shell: bash
       env:
-        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      run: |
-        if [[ -n "${PERSONAL_ACCESS_TOKEN}" ]]; then
-          echo "has_pat=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "has_pat=false" >> "$GITHUB_OUTPUT"
-        fi
+        GITHUB_TOKEN: ${{ github.token }}
+      run: .clusterfuzzlite/migrate-storage.sh
 
-    - name: Run Fuzzers (${{ matrix.sanitizer }}) with storage repo
-      if: steps.storage.outputs.has_pat == 'true'
+    - name: Run Fuzzers (${{ matrix.sanitizer }})
       id: run
-      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+      uses: ./.github/actions/cflite-run-fuzzers
       with:
         github-token: ${{ github.token }}
         fuzz-seconds: 600
         mode: 'batch'
         sanitizer: ${{ matrix.sanitizer }}
-        storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/huangminghuang/hpp-proto-storage.git
-        storage-repo-branch: main   # Optional. Defaults to "main"
-        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
-
-    - name: Run Fuzzers (${{ matrix.sanitizer }}) without storage repo
-      if: steps.storage.outputs.has_pat != 'true'
-      id: run-no-storage
-      uses: google/clusterfuzzlite/actions/run_fuzzers@v1
-      with:
-        github-token: ${{ github.token }}
-        fuzz-seconds: 600
-        mode: 'batch'
-        sanitizer: ${{ matrix.sanitizer }}
+        storage-repo: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        storage-repo-branch: cflite-corpus
+        storage-repo-branch-coverage: cflite-coverage

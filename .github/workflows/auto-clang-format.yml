@@ -1,26 +1,46 @@
-name: auto-clang-format
-on: [push]
+name: clang-format
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.h'
+      - '**.hpp'
+      - '**.cpp'
+      - '.clang-format'
+      - '.github/workflows/auto-clang-format.yml'
+  pull_request:
+    paths:
+      - '**.h'
+      - '**.hpp'
+      - '**.cpp'
+      - '.clang-format'
+      - '.github/workflows/auto-clang-format.yml'
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
-    - name: Check clang-format version
-      run: docker run --rm xianpengshen/clang-tools:22 clang-format --version
-    - name: Run clang-format
-      run: |
-        find . \
-          -path './.git' -prune -o \
-          -path './third_party' -prune -o \
-          -path './external' -prune -o \
-          \( -name '*.h' -o -name '*.hpp' -o -name '*.cpp' \) \
-          -print0 |
-          xargs -0 docker run --rm -i -v "$PWD:/src" -w /src xianpengshen/clang-tools:22 clang-format -i
-    - uses: EndBug/add-and-commit@v10
-      with:
-        author_name: Clang Robot
-        author_email: huangming.huang@gmail.com
-        message: ':art: Committing clang-format changes'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install clang-format
+        uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
+        with:
+          compiler: llvm-22
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          clang-format --version
+          find . \
+            -path './.git' -prune -o \
+            -path './third_party' -prune -o \
+            -path './external' -prune -o \
+            \( -name '*.h' -o -name '*.hpp' -o -name '*.cpp' \) \
+            -print0 |
+            xargs -0 clang-format --dry-run --Werror

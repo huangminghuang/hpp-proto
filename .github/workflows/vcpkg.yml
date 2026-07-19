@@ -24,12 +24,17 @@ env:
   PROTOC_ZIP: protoc-35.0-linux-x86_64.zip
   PROTOC_SHA256: a45cda0989c17dd950db55f6fbe1e5814c50fda08e87aa422980ac1f89dddbbc
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
       - name: install build tools
         run: |
@@ -52,7 +57,7 @@ jobs:
           echo "PROTOC_BIN=$PROTOC_DIR/bin" >> "$GITHUB_ENV"
 
       - name: Setup required C++ tools
-        uses: aminya/setup-cpp@v1.8.1
+        uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
         with:
           cmake: "4.4.0"
           ninja: true

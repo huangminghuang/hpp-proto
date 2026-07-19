@@ -15,13 +15,16 @@ jobs:
       matrix:
         sanitizer: [address, undefined]
     steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      with:
+        persist-credentials: false
     - name: Setup C++ tools
-      uses: aminya/setup-cpp@v1.8.1
+      uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
       with:
         ccache: true
     - name: Build Fuzzers (${{ matrix.sanitizer }})
       id: build
-      uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+      uses: ./.github/actions/cflite-build-fuzzers
       with:
         sanitizer: ${{ matrix.sanitizer }}
         upload-build: true
