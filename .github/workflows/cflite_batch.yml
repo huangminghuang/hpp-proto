@@ -7,10 +7,13 @@ on:
   schedule:
     - cron: '0 3 * * *'
 permissions:
-  contents: write
+  contents: read
   actions: read
 jobs:
   BatchFuzzing:
+    permissions:
+      contents: write
+      actions: read
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

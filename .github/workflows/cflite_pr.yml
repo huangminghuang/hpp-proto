@@ -40,7 +40,9 @@ jobs:
         mode: 'code-change'
         sanitizer: ${{ matrix.sanitizer }}
         output-sarif: true
-        # Code-change mode only reads the corpus, so fork PRs need no secret.
-        storage-repo: https://github.com/huangminghuang/hpp-proto-storage.git
-        storage-repo-branch: main   # Optional. Defaults to "main"
-        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
+        # Code-change mode only reads the public corpus, so fork PRs need no
+        # secret. Before the first post-merge migration this branch is absent
+        # and ClusterFuzzLite starts with an empty corpus.
+        storage-repo: https://github.com/${{ github.repository }}.git
+        storage-repo-branch: cflite-corpus
+        storage-repo-branch-coverage: cflite-coverage
