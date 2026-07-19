@@ -166,16 +166,14 @@ int invoke_plugin(const std::filesystem::path &request, const std::filesystem::p
     auto plugin_argument = plugin.string();
     auto request_argument = request.string();
     std::string version_argument{"--version"};
+    std::array arguments = {plugin_argument.data(), static_cast<char *>(nullptr), static_cast<char *>(nullptr)};
     if (invocation == plugin_invocation::version) {
-      std::array arguments = {plugin_argument.data(), version_argument.data(), static_cast<char *>(nullptr)};
-      ::execv(plugin.c_str(), arguments.data());
-    } else if (invocation == plugin_invocation::standard_input) {
-      std::array arguments = {plugin_argument.data(), static_cast<char *>(nullptr)};
-      ::execv(plugin.c_str(), arguments.data());
-    } else {
-      std::array arguments = {plugin_argument.data(), request_argument.data(), static_cast<char *>(nullptr)};
-      ::execv(plugin.c_str(), arguments.data());
+      arguments[1] = version_argument.data();
+    } else if (invocation == plugin_invocation::file) {
+      arguments[1] = request_argument.data();
     }
+    // The executable is fixed at build time and execv does not invoke a shell.
+    ::execv(plugin.c_str(), arguments.data()); // flawfinder: ignore
     ::_exit(child_launch_error);
   }
 
