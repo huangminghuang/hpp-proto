@@ -99,8 +99,8 @@ include(FetchContent)
 FetchContent_Declare(
   hpp_proto
   GIT_REPOSITORY https://github.com/huangminghuang/hpp-proto.git
-  GIT_TAG main
-  GIT_SHALLOW TRUE
+  # Reviewed release v1.0.0-beta.1. Update this full commit SHA explicitly.
+  GIT_TAG f514a0a2a25eabfe7ea956c504c4091d199cbdfc
 )
 FetchContent_MakeAvailable(hpp_proto)
 

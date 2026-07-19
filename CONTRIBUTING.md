@@ -40,6 +40,29 @@ cd build/debug
 ctest --output-on-failure
 ```
 
+## Updating CMake Dependencies
+
+CPM dependencies are pinned to full source commit SHAs in both
+`third-parties.cmake` and `cpm-package-lock.cmake`. To update one:
+
+1. Review the upstream release and replace its version and full commit SHA in
+   `third-parties.cmake`.
+2. Remove that package's stale `CPMDeclarePackage` block from
+   `cpm-package-lock.cmake` so the new direct declaration is used.
+3. Configure every optional dependency and regenerate the lock:
+
+   ```bash
+   cmake -S . -B build/dependency-lock \
+     -DCMAKE_CXX_STANDARD=23 \
+     -DHPP_PROTO_TESTS=ON \
+     -DHPP_PROTO_BENCHMARKS=ON \
+     -DHPP_PROTO_PROTOC=compile
+   cmake --build build/dependency-lock --target cpm-update-package-lock
+   ```
+
+4. Review the lock-file diff, then configure a fresh build directory to verify
+   that the committed lock resolves the reviewed SHAs.
+
 ## Benchmarks
 
 To run benchmarks and update results:
