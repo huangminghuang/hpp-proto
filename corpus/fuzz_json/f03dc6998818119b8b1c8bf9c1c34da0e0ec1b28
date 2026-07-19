@@ -1,0 +1,1 @@
+{"optionalInt32":101,"optionalSfixed64":"110","optionalFloat":111,"optionalDouble":112,"optionalBool":true,"optionalPublicImportMessage":{"e":126},"optionalLazyMessage":{"bb":127},"repeatedInt32":[201,301],"repeatedInt64":["202","302"],"repeatedFloat":[211,31117}],"repeatedNestedMes3,"defaultUint64":"404",FOREIGN_FOO","defaultImportEnum":"IMPORT_FOO","oneofBytes":"NjA0"}

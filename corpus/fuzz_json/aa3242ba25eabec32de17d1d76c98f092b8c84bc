@@ -1,0 +1,2 @@
+{"optionalInt32":100,"optionalString":"asdf","optionalBytes":"amtsOw==","optionalNestedMessage":{"bb":42},"optionalForeignMessage":{"c":43},"optionalNestedEnum":"BAZ","repeatedForeignMessage":[{"c":47}],"repeatedNestedEnum":["BAZ"],"repeatedForeignEnum":["FOREIGN_BAZ"],"repeatedLazyMessage":[{"bb":49
+}],"oneofString":"testlForei"}1

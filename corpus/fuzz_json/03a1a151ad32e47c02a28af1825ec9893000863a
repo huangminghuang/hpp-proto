@@ -1,0 +1,3 @@
+{"mapInt32Float"   :{"5":1,"1":1},"mapInt64Int64":{"0":"0"},"mapInt32Float":{"0":0,"2":1},"mapInt32Double":{"0":0,"1":1},"mapBoolBool":{"false":false,"true":true},"mapStringString":
+{"0":"0","1":"1"},"mapInt32Bytes":{"6":"³Ç==","2":"MQ=="},"mapInt32Enum" :{"5":3,"1":1},"mapInt64Int64":{"0":"0"},"mapInt32Float":{"0":0,"2":1},"mapInt32Double":{"0":0,"1":1},"mapBoolBool":{"false":false,"true":true},"mapStringString":
+{"0":"0","1":"1"},"mapInt32Bytes":{"5":"³Ç==","1":"MQ=="},"mapInt32Enum":{"0":"MAP_ENUM_FOO","1":"MAP_ENUM_BAR"},"mapInt32ForeignMessage":{"0":{"c":0},"1":{"c":0},"1":{"c":1}}}

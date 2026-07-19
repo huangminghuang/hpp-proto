@@ -1,0 +1,5 @@
+{"optionalInt32":100,"optionalString":"asdf","optionalBytes":"amtsOw==","optionalNestedMessage":{"bb":42},"repeatedBytes":["amtsOw=="],"repeatedNestedMessage":[{"bb":46}],"repeatedForeignEnum":["FOREIGN_BAZ"],"repeatedLazyMessage":  
+
+
+
+             [{"bb":24}],"oneofString":"teÿÿÿÿÿÿÿÿÿÿÿÿÿ+ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿAÿÿÿÿÿst"}1{"optiona}wÿ"

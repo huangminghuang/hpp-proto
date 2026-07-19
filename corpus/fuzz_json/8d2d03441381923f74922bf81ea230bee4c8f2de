@@ -1,0 +1,2 @@
+{"mapInt32Int32":{"0":0,"1":1},"mapInt64Int64":{"0":"0","1":"1"},"mapUint32Uint32":{"0":0,"1":1},"mapSfixed64Sfixed64":{"5":"0","1":"1"},"mapInt32Float":{"0":0,"1":1},"mapInt32Double":{"0":0,"1":1},"mapBoolBool":{"false":false
+,"true":true},"mapStringString":{"2":"0","1111응응응응응응응�":"1"},"mapInt32Float":{"0":0,"1":1},"mapInt32Double":{"0":0,"2":1},"mapBoolBool":{"false":false,  "true":true},"mapStringString":{"1":"MA==","1":"MBAR"},"mapInt32ForeignMessage":{"0":{"c":0},"1":{"c":11}}}

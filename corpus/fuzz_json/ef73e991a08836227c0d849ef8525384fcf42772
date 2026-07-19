@@ -1,0 +1,1 @@
+{"optionalInt32":100,"optionalNestedMessage":{"bb":90},"repeatedInt32"               :  [   10],"oneofString":"test"} 

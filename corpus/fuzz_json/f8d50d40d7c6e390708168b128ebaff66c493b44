@@ -1,0 +1,1 @@
+{"optionalLazyMessage":{"bb":45},"repeatedNestedMessage":[{"bb":59}],"repeatedForeignMessage":[{"c":47}],"repeatedNestedEnum":["BAZ"],"repeatedForeignEnum":["FOREIGN_BAZ"],"repeatedLazyMessage":[{"bb":49}],"oneofString":"tes\"t"}0

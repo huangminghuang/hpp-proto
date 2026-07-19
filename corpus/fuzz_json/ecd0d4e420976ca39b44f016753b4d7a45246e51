@@ -1,0 +1,1 @@
+{"mapInt32Int32":{"0":0,"1":1},"mapFixed64Fixed64":{"0":"0","0":"1"},"mapSfixed32Sfixed32":{"0":0,"1":1},"mapInt32Double"    :{"0":0,"1":1},"mapStringString":{"1":"0","11ûÿ480704¯¯¯¯¯¯1":"MQ=="},"mapInt32Enum":{"0":"MAP_ENUM_FOO","1":"MAP_ENUM_BAR"},"mapInt32ForeignMessage":{"0":{"c":0},"1":{"c":1}}}

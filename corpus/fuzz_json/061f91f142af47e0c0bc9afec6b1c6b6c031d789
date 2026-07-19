@@ -1,0 +1,1 @@
+       {"optionalInt32":100,"optionalString":"aÿÿÿööööööööööööAZ","optionalLazyMessage":{"bb":82},"repeatedInt32":[100],"repeatedString":["asdf"],"repeatedBytes":["amtsOw=="],"repeatedNestedMessage":[{"bb":46}] ,"repeatedForeignMessage":[  {"c":7}]}],"oneofStrin                          { }}"

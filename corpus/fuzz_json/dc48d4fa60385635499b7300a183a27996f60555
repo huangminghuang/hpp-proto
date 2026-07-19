@@ -1,0 +1,1 @@
+{"mapInt32Int32":{"0":0,"1":1},"mapSfixed64Sfixed64":{"0":"0","1":"1"},"mapInt32Float":{"0":0,"0":1},"mapInt32Double":{"0":0,"1":1},"mapBoolBool":{"false":false,"true":true},"mapStringString":{"1":"0repeatedUint65","1":"1°\\\\\\\\\\\\\\\\\\\\\\\\\\repeatedUint64","1":"1°\\\\\\\\\\\\\\\\\\9R"},"mapInt32ForeignMessage":{"0":{"c":0},"1":{"c":1}}}

@@ -1,0 +1,1 @@
+{"mapInt32Int32":{"0":0,"2":1 },"mapInt32Double":{"0":0,"1":1 },"mapBoolBool":{"false":false,"true":true},"mapStringString":{"0":"0","1":"1"},"mapInt32Bytes":{"0":"M0iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiA==","0"   :"MQ=="},"mapInt32Enum":{"0":"MAP_ENUM_FOO","1":"MAP_ENUM_BAR"},"mapInt32ForeignMessage":{"0":{"c":0},"2":{"c":1}}}

@@ -1,0 +1,1098 @@
+<!doctype html>
+<html>
+  <head>
+    <meta name='viewport' content='width=device-width,initial-scale=1'>
+    <meta charset='UTF-8'>
+    <link rel='stylesheet' type='text/css' href='../style.css'>
+    <!-- Custom style overrides -->
+    <style>
+      /* Copyright 2018 The Chromium Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+th, td {
+  padding: 5px 16px;
+}
+
+tbody td, tfoot td {
+  font-size: 14px;
+}
+
+thead th {
+  font-size: 16px;
+}
+
+thead th, tfoot td {
+  background-color: #f5f5f5;
+  border-left: 1px solid #e4e4e4;
+  border-right: 1px solid #e4e4e4;
+  color: #484848;
+  text-transform: uppercase;
+}
+
+tbody tr:hover td, tfoot tr:hover td {
+  background-color: #f5f5f5;
+  border-color: #e4e4e4 !important;
+}
+    </style>
+  </head>
+  <body>
+    <h2>Coverage Report</h2>
+    <p>
+      View results by:
+            <a href='directory_view_index.html'>Directories</a>
+              | <a href='file_view_index.html'>Files</a>
+          </p>
+    <div class='centered'><table>
+  <thead>
+    <tr>
+      <th class="column-entry-bold">Path</th>
+      <th class="column-entry-bold" onclick="sortTable(SORT_COLUMN.LINE)" title=
+          "Line coverage is the percentage of code lines which have been executed at least once. Only executable lines within function bodies are considered to be code lines.">
+        Line Coverage
+      </th>
+      <th class="column-entry-bold" onclick="sortTable(SORT_COLUMN.FUNCTION)" title=
+          "Function coverage is the percentage of functions which have been executed at least once. A function is considered to be executed if any of its instantiations are executed.">
+        Function Coverage
+      </th>
+      <th class="column-entry-bold" onclick="sortTable(SORT_COLUMN.REGION)" title=
+          "Region coverage is the percentage of code regions which have been executed at least once. A code region may span multiple lines (e.g in a large function body with no control flow). However, it's also possible for a single line to contain multiple code regions (e.g in 'return x || y &amp;&amp; z').">
+        Region Coverage
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/_deps/is_utf8-src/src/is_utf8.cpp.html'>src/hpp-proto/build/_deps/is_utf8-src/src/is_utf8.cpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 26.17% (380/1452)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 21.93% (75/342)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 25.55% (139/544)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/any.desc.hpp.html'>src/hpp-proto/build/include/google/protobuf/any.desc.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/5)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/any.glz.hpp.html'>src/hpp-proto/build/include/google/protobuf/any.glz.hpp</a></pre>
+              </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (8/8)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (2/2)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (2/2)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/duration.desc.hpp.html'>src/hpp-proto/build/include/google/protobuf/duration.desc.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/5)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/duration.msg.hpp.html'>src/hpp-proto/build/include/google/protobuf/duration.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/field_mask.desc.hpp.html'>src/hpp-proto/build/include/google/protobuf/field_mask.desc.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/5)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/field_mask.msg.hpp.html'>src/hpp-proto/build/include/google/protobuf/field_mask.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/struct.desc.hpp.html'>src/hpp-proto/build/include/google/protobuf/struct.desc.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/5)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/struct.glz.hpp.html'>src/hpp-proto/build/include/google/protobuf/struct.glz.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 92.23% (95/103)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (8/8)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 93.55% (58/62)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/struct.msg.hpp.html'>src/hpp-proto/build/include/google/protobuf/struct.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/4)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/timestamp.desc.hpp.html'>src/hpp-proto/build/include/google/protobuf/timestamp.desc.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/5)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/timestamp.msg.hpp.html'>src/hpp-proto/build/include/google/protobuf/timestamp.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/type.msg.hpp.html'>src/hpp-proto/build/include/google/protobuf/type.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/12)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/3)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/3)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/wrappers.desc.hpp.html'>src/hpp-proto/build/include/google/protobuf/wrappers.desc.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/5)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/include/google/protobuf/wrappers.glz.hpp.html'>src/hpp-proto/build/include/google/protobuf/wrappers.glz.hpp</a></pre>
+              </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (58/58)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (18/18)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (22/22)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/tests/google/protobuf/map_unittest.msg.hpp.html'>src/hpp-proto/build/tests/google/protobuf/map_unittest.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 11.11% (1/9)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 33.33% (1/3)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 33.33% (1/3)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/tests/google/protobuf/unittest.msg.hpp.html'>src/hpp-proto/build/tests/google/protobuf/unittest.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  1.79% (1/56)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  7.14% (1/14)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  7.14% (1/14)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/tests/google/protobuf/unittest_import.msg.hpp.html'>src/hpp-proto/build/tests/google/protobuf/unittest_import.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/8)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/2)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/2)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/tests/google/protobuf/unittest_proto3.msg.hpp.html'>src/hpp-proto/build/tests/google/protobuf/unittest_proto3.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  7.14% (1/14)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 25.00% (1/4)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 25.00% (1/4)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/build/tests/google/protobuf/unittest_well_known_types.msg.hpp.html'>src/hpp-proto/build/tests/google/protobuf/unittest_well_known_types.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (1/1)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (1/1)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (1/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/fuzz/common.cpp.html'>src/hpp-proto/fuzz/common.cpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 67.57% (25/37)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (3/3)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 62.96% (17/27)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/fuzz/common.hpp.html'>src/hpp-proto/fuzz/common.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 71.43% (10/14)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 66.67% (2/3)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 66.67% (2/3)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/fuzz/fuzz_json.cpp.html'>src/hpp-proto/fuzz/fuzz_json.cpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 82.64% (119/144)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 80.00% (4/5)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 48.72% (38/78)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/fuzz/json_extern.cpp.html'>src/hpp-proto/fuzz/json_extern.cpp</a></pre>
+              </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (54/54)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (18/18)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (18/18)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/google/protobuf/descriptor.msg.hpp.html'>src/hpp-proto/include/google/protobuf/descriptor.msg.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  9.76% (8/82)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 10.00% (2/20)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 23.08% (6/26)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/binpb.hpp.html'>src/hpp-proto/include/hpp_proto/binpb.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 70.00% (14/20)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 75.00% (3/4)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 66.67% (4/6)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/binpb/deserialize.hpp.html'>src/hpp-proto/include/hpp_proto/binpb/deserialize.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 41.11% (384/934)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 68.60% (59/86)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 50.69% (219/432)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/binpb/meta.hpp.html'>src/hpp-proto/include/hpp_proto/binpb/meta.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 44.44% (52/117)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 48.28% (14/29)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 76.65% (128/167)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/binpb/serialize.hpp.html'>src/hpp-proto/include/hpp_proto/binpb/serialize.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 82.21% (245/298)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 91.67% (44/48)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 79.49% (186/234)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/binpb/utf8.hpp.html'>src/hpp-proto/include/hpp_proto/binpb/utf8.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/13)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/1)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/binpb/util.hpp.html'>src/hpp-proto/include/hpp_proto/binpb/util.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 90.91% (10/11)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (3/3)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (4/4)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/binpb/varint.hpp.html'>src/hpp-proto/include/hpp_proto/binpb/varint.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 45.56% (113/248)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 94.12% (16/17)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 64.52% (60/93)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/descriptor_pool.hpp.html'>src/hpp-proto/include/hpp_proto/descriptor_pool.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 88.10% (644/731)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 84.26% (91/108)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 85.91% (384/447)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/binpb.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/binpb.hpp</a></pre>
+              </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (10/10)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (2/2)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (2/2)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/bytes_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/bytes_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 25.32% (20/79)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 32.26% (10/31)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 43.10% (25/58)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/enum_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/enum_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 43.81% (46/105)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 46.94% (23/49)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 54.05% (40/74)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/expected_message_mref.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/expected_message_mref.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 36.36% (4/11)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 44.44% (4/9)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 45.45% (5/11)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/factory.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/factory.hpp</a></pre>
+              </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (7/7)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (3/3)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (4/4)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/factory_addons.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/factory_addons.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 87.50% (133/152)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 93.75% (15/16)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 71.30% (82/115)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/field_refs.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/field_refs.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 87.10% (81/93)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 73.91% (17/23)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 81.40% (35/43)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/field_visit.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/field_visit.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 87.38% (90/103)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 75.00% (6/8)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 93.75% (45/48)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/json.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/json.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 87.18% (843/967)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 96.10% (74/77)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 79.22% (408/515)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/message_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/message_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 46.88% (120/256)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 62.03% (49/79)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 64.29% (81/126)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/pb_serializer_ext.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/pb_serializer_ext.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 27.33% (135/494)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 33.33% (28/84)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 27.39% (83/303)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/repeated_bytes_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/repeated_bytes_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 41.86% (36/86)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 28.57% (6/21)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 47.37% (27/57)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/repeated_enum_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/repeated_enum_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 33.81% (47/139)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 28.21% (11/39)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 39.05% (41/105)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/repeated_field_iterator.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/repeated_field_iterator.hpp</a></pre>
+              </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (13/13)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (5/5)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 68.75% (11/16)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/repeated_message_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/repeated_message_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 63.46% (66/104)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 58.06% (18/31)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 59.76% (49/82)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/repeated_scalar_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/repeated_scalar_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 69.51% (57/82)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 66.67% (16/24)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 71.60% (58/81)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/repeated_string_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/repeated_string_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 44.44% (44/99)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 33.33% (8/24)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 49.18% (30/61)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/scalar_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/scalar_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 72.34% (34/47)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 61.11% (11/18)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 76.60% (36/47)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/storage.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/storage.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 93.75% (15/16)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 75.00% (3/4)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 83.33% (5/6)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/string_fields.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/string_fields.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 50.00% (38/76)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 50.00% (16/32)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 58.82% (40/68)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/dynamic_message/types.hpp.html'>src/hpp-proto/include/hpp_proto/dynamic_message/types.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 90.24% (37/41)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 83.33% (20/24)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 90.24% (37/41)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/field_types.hpp.html'>src/hpp-proto/include/hpp_proto/field_types.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 77.08% (74/96)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 84.21% (48/57)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 81.82% (63/77)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/file_descriptor_pb.hpp.html'>src/hpp-proto/include/hpp_proto/file_descriptor_pb.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/4)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/2)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre>  0.00% (0/2)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/indirect.hpp.html'>src/hpp-proto/include/hpp_proto/indirect.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 86.11% (31/36)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (12/12)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 91.67% (22/24)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/indirect_view.hpp.html'>src/hpp-proto/include/hpp_proto/indirect_view.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 71.43% (10/14)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 85.71% (6/7)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 80.00% (8/10)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/json.hpp.html'>src/hpp-proto/include/hpp_proto/json.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 87.42% (139/159)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 92.86% (26/28)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 86.76% (59/68)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/json/base64.hpp.html'>src/hpp-proto/include/hpp_proto/json/base64.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 90.28% (130/144)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (6/6)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 90.28% (65/72)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/json/duration_codec.hpp.html'>src/hpp-proto/include/hpp_proto/json/duration_codec.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 90.20% (92/102)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (6/6)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 87.65% (71/81)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/json/field_mask_codec.hpp.html'>src/hpp-proto/include/hpp_proto/json/field_mask_codec.hpp</a></pre>
+              </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (89/89)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (11/11)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 88.89% (40/45)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/json/field_wrappers.hpp.html'>src/hpp-proto/include/hpp_proto/json/field_wrappers.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 77.08% (37/48)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 81.25% (13/16)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 80.00% (20/25)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/json/timestamp_codec.hpp.html'>src/hpp-proto/include/hpp_proto/json/timestamp_codec.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 78.17% (111/142)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 88.89% (8/9)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 83.61% (102/122)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/json/util.hpp.html'>src/hpp-proto/include/hpp_proto/json/util.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 81.82% (288/352)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (21/21)</pre>
+      </td>
+            <td class='column-entry-yellow'>
+        <pre> 82.09% (165/201)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/memory_resource_utils.hpp.html'>src/hpp-proto/include/hpp_proto/memory_resource_utils.hpp</a></pre>
+              </td>
+            <td class='column-entry-red'>
+        <pre> 72.95% (89/122)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 73.53% (25/34)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 72.29% (60/83)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/merge.hpp.html'>src/hpp-proto/include/hpp_proto/merge.hpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 98.48% (65/66)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (11/11)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (22/22)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/include/hpp_proto/recursion.hpp.html'>src/hpp-proto/include/hpp_proto/recursion.hpp</a></pre>
+              </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (12/12)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (3/3)</pre>
+      </td>
+            <td class='column-entry-green'>
+        <pre>100.00% (9/9)</pre>
+      </td>
+          </tr>
+        <tr class="light-row">
+      <td>
+                  <pre><a href='src/hpp-proto/src/dynamic_message/factory.cpp.html'>src/hpp-proto/src/dynamic_message/factory.cpp</a></pre>
+              </td>
+            <td class='column-entry-yellow'>
+        <pre> 84.03% (200/238)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 75.76% (25/33)</pre>
+      </td>
+            <td class='column-entry-red'>
+        <pre> 70.24% (144/205)</pre>
+      </td>
+          </tr>
+      </tbody>
+      <tfoot>
+      <tr class="light-row-bold">
+        <td>
+          <pre>Totals</pre>
+        </td>
+                <td class='column-entry-red'>
+          <pre> 60.30% (5466/9065)</pre>
+        </td>
+                <td class='column-entry-red'>
+          <pre> 57.85% (932/1611)</pre>
+        </td>
+                <td class='column-entry-red'>
+          <pre> 64.26% (3285/5112)</pre>
+        </td>
+              </tr>
+    </tfoot>
+  </table>
+
+<script>
+  const SORT_COLUMN = {
+    LINE: 2,
+    FUNCTION: 3,
+    REGION: 4,
+  }
+
+  const SORT_TYPES = {
+    UNSET: -1,
+    PERCENT: 0,
+    AGGREGATE: 1,
+  }
+
+  var SORT_ORDER = {
+    [SORT_COLUMN.LINE]: [SORT_TYPES.UNSET],
+    [SORT_COLUMN.FUNCTION]: [SORT_TYPES.UNSET],
+    [SORT_COLUMN.REGION]: [SORT_TYPES.UNSET],
+  }
+
+  function sortTable(columnNumber) {
+    SORT_ORDER[columnNumber] = ++SORT_ORDER[columnNumber] % 2;
+
+    let columnSortOrder = SORT_ORDER[columnNumber];
+    let tbody = document.getElementsByTagName("tbody")[0];
+
+    [].slice.call(tbody.rows).sort(function(a, b) {
+      let aColumn = a.cells[columnNumber-1].textContent;
+      let bColumn = b.cells[columnNumber-1].textContent;
+
+      let aColumnCompare, bColumnCompare;
+      if (columnSortOrder == SORT_TYPES.PERCENT) {
+        aColumnCompare = parseFloat(/([0-9.]+)%/.exec(aColumn)[1]);
+        bColumnCompare = parseFloat(/([0-9.]+)%/.exec(bColumn)[1]);
+      } else {
+        aColumnCompare = parseInt(/\/(\d+)/.exec(aColumn)[1]);
+        bColumnCompare = parseInt(/\/(\d+)/.exec(bColumn)[1]);
+      }
+
+      return (
+          aColumnCompare < bColumnCompare ? -1:
+              aColumnCompare > bColumnCompare ? 1 : 0);
+    }).forEach(function(value, index) {
+      tbody.appendChild(value);
+    });
+  }
+
+</script>    </div>
+  </body>
+</html>

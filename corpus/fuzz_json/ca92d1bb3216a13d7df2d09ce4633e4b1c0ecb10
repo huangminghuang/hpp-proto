@@ -1,0 +1,1 @@
+{"optionalNestedEnum":"BAZ","optionalForeignEnum":"FOREIGN_BAZ","optionalLazyMessage":{"bb":45},"repeatedInt32":[100],"repeatedString":["\\\\\\\\\\\\\\\\\\××11a1eAZ"],"repeatedLazyMessage":[{"bb":49}],"oneofString":"est"}
