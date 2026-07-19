@@ -1,0 +1,1 @@
+{"optionalNestedMessage":{"bb":1},"optionalForeignMessage":{"c":119},"optionalImportMessage":{},"optionalNestedEnum":"BAZ","optionalForeignEnum":"FOREIGN_BAZ","optionalImportEnum":"IMPORT_BAZ","defaultForeignEnum":"FOREIGN_FOO","defaultImportEnum":"IMPORT_FOO","oneofBytes":"NjA1"}
