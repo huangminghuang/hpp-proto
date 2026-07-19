@@ -1,0 +1,1 @@
+{"anyField":{"@type":"typeom/google.protobuf.FieldMask","value":"gFieldapi"},"durationField":"000.00s","emptyField":{},"fieldMaskField":"/u","sourceContextField":{},"timestampField":"1970-05-01T00:33:00.-00Z","typeField":{"name":"tt"},"doubleField":42,"stringField":"xz"}

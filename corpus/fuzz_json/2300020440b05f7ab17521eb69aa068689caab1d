@@ -1,0 +1,1 @@
+{"anyField":{"@type":".com/google.protobuf.FieldMask","value":},"fieldMaskField":"/l/shRe","sourceContextField":{},"timestampField":"1970-02-01T00:33:20.200Z","typeField":{"name":"test_type"},"int32Field":43,"boolField":true,"stringField":"ZG"}

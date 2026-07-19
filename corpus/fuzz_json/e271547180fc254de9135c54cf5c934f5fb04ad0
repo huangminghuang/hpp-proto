@@ -1,0 +1,1 @@
+{"optionalInt32":101,"optionalInt64":"102","optionalUint32":103,"optionalUint64":"1","optionalSint32":109,"optionalForeignMessage":{"c":119},"optionalImportMessage":{"d":120},"optionalLazyMessage":{"bb":127},"repeatedInt32": [20],"repeatedFixed64":["208"],"defaultInt64":"0"}

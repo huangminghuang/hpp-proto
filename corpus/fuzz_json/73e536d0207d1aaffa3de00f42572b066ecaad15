@@ -1,0 +1,1 @@
+{"optionalString":"sdf","optionalUint32":1,"optionalInt64":"102","optionalUint64":"208","optionalSint32":105,"optionalFixed32":107,"optionalFixed64":"108","optionalSfixed32":0,"optionalBytes":"amtsOw<=","optionalNestedMessage":{"bb":42},"optionalForeignEnum":"FOREIGN_BAZ"}5

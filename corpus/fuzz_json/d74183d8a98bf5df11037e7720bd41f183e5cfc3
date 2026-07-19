@@ -1,0 +1,1 @@
+{"optionalInt32":1,"optionalInt64":"102","optionalFixed32":107,"optionalFixed64":"108","optionalNestedEnum":"BAZ","defaultUint64":"4","defaultSint32":405,"defaultSint64":"406","defaultFixed32":40,"defaultFixed64":"408","defaultSfixed32":9,"defaultSfixed64":"4","defaultImportEnum":"IMPORT_FOO"}

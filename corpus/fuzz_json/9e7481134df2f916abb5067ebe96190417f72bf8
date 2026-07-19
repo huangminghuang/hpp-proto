@@ -1,0 +1,1 @@
+{"anyField":{"@type":"tstringldype.gOogleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/local/3aare"},"apiField":{"name":"test_api"},"durationField":"100100s","emptyField":{},"floatField":2.718,"int64Field":"40","uint64Field":"41","valueField":"xyz"}ƒ

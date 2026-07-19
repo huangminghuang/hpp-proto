@@ -1,0 +1,4 @@
+{"anyField":{"@type":"ÿc/google.protobuf.FieldMask","value":},"apiField":{},
+
+
+"doubleField":3,"int32Field":43,"boolField":true,"stringField":"abc","bytesField":"ZGVm","valueField":"y"}

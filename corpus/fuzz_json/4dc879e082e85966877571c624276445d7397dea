@@ -1,0 +1,1 @@
+{"optionalInt32":101,"optionalUint64":"104","optionalSint32":105,"optionalSint64":"1","optionalFixed32":107,"optionalFixed64":"108","optionalSfixed32":109,"optionalSfixed64":"110","optionalFloat":111,"optionalDouble":112,"optionalBool":true,"optionalString":"1Z","defaultUint32":403,"defaultUint64":"405","defaultSint32":4,"defaultImportEnum":"IMPORT_FOO","oneofBytes":"NjA0"}

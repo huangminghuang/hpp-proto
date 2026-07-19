@@ -1,0 +1,1 @@
+{"anyField":{"@type":"tstringp/google.protobuf.FieldMask","value":"/pi"},"durationField":"0.0002368s","emptyField":{},"stringField":"\"xyz"}

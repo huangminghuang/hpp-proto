@@ -1,0 +1,1 @@
+{"optionalInt32":101,"optionalInt64":"5","optionalBytes":"","optionalPublicImportMessage":{"e":126},"optionalLazyMessage":{"bb":127},"repeatedInt32":[201,301],"repeatedInt64":["2E12","302"],"repeatedUint32":[203,303],"defaultUint32":1,"defaultBool":false}

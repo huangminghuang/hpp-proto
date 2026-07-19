@@ -1,0 +1,1 @@
+{"optionalInt32":101,"optionalUint32":1,"optionalSint64":"1","optionalFixed32":107,"optionalString":"115","optionalBytes":"MTE2","optionalgroup":{"a":1},"optionalNestedMessage":{"bb":1},"optionalPublicImportMessage":{"e":695},"repeatedBool":[true,false],"defaultString":"4"}

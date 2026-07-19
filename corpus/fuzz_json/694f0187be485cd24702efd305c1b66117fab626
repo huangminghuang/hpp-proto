@@ -1,0 +1,1 @@
+{"optionalInt32":101,"optionalInt64":"102","optionalImportMessage":{"d":10},"optionalNestedEnum":"BAZ","optionalForeignEnum":"FOREIGN_BAZ","optionalImportEnum":"IMPORT_BAZ","optionalPublicImportMessage":{"e":126},"optionalLazyMessage":{"bb":127},"repeatedForeignMessage":[{"c":19},{"c":327}],"defaultInt32":401,"defaultForeignEnum":"FOREIGN_FOO","oneofBytes":"NjA0"}

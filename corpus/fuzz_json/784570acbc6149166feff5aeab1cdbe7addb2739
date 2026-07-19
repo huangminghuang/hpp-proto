@@ -1,0 +1,1 @@
+{"optionalInt32":101,"optionalInt64":"104","optionalUint32":101103,"optionalImportEnum":"IMPORT_BAZ","optionalPublicImportMessage":{"e":127},"optionalLazyMessage":{"bb":127},"repeatedInt32":[2001,31],"repeatedInt64":["20302"],"repeatedUint32":[20],"defaultImportEnum":"IMPORT_FOO","oneofBytes":"NjA0"}

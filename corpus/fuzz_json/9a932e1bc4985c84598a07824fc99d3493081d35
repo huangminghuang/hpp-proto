@@ -1,0 +1,1 @@
+{"optionalInt32":10,"optionalNestedMessage":{"bb":118},"optionalForeignMessage":{"c":9},"optionalImportMessage":{},"optionalNestedEnum":"BAZ","optionalForeignEnum":"FOREIGN_BAZ","optionalImportEnum":"IMPORT_BAZ","optionalPublicImportMessage":{"e":1},"optionalLazyMessage":{"bb":127}}

@@ -1,0 +1,1 @@
+{"anyField":{"@type":"type.googEleaim/google.protobuf.FieldMask","value":"/upe"},"doubleField":3.14,"floatField":1.718,"int64Field":"40","uint64Field":"41","int32Field":42,"uint32Field":43,"boolField":true,"stringField":"abc","bytesField" :"ZGVm","valueField":""}

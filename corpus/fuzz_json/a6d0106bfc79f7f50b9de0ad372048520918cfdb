@@ -1,0 +1,2 @@
+{"mapInt64Int64":{"1":"1"},"mapUint32Uint32":{"0":0,"1":1},"mapFixed32Fixed32":{"0":1},"mapFixed64Fixed64":{"0":"0","1":"1"},"mapSfixed32Sfixed32":{
+"1":1},"mapSfixed64Sfixed64":{"1":"0","1":"1"},"mapInt32Bytes":{"0":"MA==","1":"MQ=="},"mapInt32Enum":{ "1":"MAP_ENUM_BAR"}}

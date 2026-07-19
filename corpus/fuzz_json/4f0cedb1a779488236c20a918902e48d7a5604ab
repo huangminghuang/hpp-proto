@@ -1,0 +1,6 @@
+{
+
+"anyField":{"@type":"t/google.protobuf.FieldMask","value":"42'8848,8783,86u7,share"},
+
+
+"anyField":{"@type":"sgny/google.protobuf.FieldMask","value":"/"}}

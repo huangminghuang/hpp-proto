@@ -1,0 +1,2 @@
+{"optionalInt32":101,"optionalInt64":"102","optionalUint32":103,"optionalUint64":"4","optionalSint32":105,"optionalSint64":"106","optionalFixed32":107,"optionalFixed64":"108","optionalSfixed32":109,"optionalForeignMessage":{"c":119},"optionalImportMessage":{"d":120},"optionalLazyMessage":{"bb":127},"defaultInt64":"402",
+"defaultImportEnum":"IMPORT_FOO","oneofBytes":"NjA0"}

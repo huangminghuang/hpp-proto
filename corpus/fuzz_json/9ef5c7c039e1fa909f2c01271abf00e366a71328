@@ -1,0 +1,1 @@
+{"optionalPublicImportMessage":{"e":127},"repeatedNestedMessage":[{"bb":1},{"bb":3}],"repeatedNestedMessage":[{"bb":218},{"bb":318}],"repeatedNestedEnum":["BAR","BAZ"],"repeatedLazyMessage":[{"bb":227},{"bb":328}],"defaultInt64":"5","repeatedLazyMessage":[{"bb":227},{"bb":328}],"defaultInt32":401,"defaultInt64":"40"}

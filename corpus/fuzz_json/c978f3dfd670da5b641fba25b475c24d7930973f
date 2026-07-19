@@ -1,0 +1,1 @@
+{"anyField":{"@type":"type.googleapis.com/google.protobuf.FieldMask","value":"/usr/share,/usr/loc"},"durationField":"1000.100s","emptyField":{},"fieldMaskField":"/3:20.200Z","typeField":{"name":"test_type"},"doubleField":3.14,"floatField":2.7}
