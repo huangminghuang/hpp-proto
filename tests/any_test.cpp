@@ -147,6 +147,23 @@ const suite test_dynamic_message_any = [] {
 
     output.clear();
     expect(hpp_proto::write_json(accepted.cref(), output, hpp_proto::recursion_limit<2>).ok());
+
+    constexpr std::string_view nested_json =
+        R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.TestAllTypes","repeatedNestedMessage":[{"bb":1}]}})";
+    std::pmr::monotonic_buffer_resource nested_mr;
+    auto nested = expect_ok(message_factory.get_message("protobuf_unittest.TestAny", nested_mr));
+    expect(hpp_proto::read_json(nested, nested_json, hpp_proto::recursion_limit<3>).ok());
+
+    std::pmr::monotonic_buffer_resource nested_rejected_mr;
+    auto nested_rejected = expect_ok(message_factory.get_message("protobuf_unittest.TestAny", nested_rejected_mr));
+    auto nested_read_status = hpp_proto::read_json(nested_rejected, nested_json, hpp_proto::recursion_limit<2>);
+    expect(!nested_read_status.ok());
+    expect(nested_read_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
+
+    output.clear();
+    auto nested_write_status = hpp_proto::write_json(nested.cref(), output, hpp_proto::recursion_limit<2>);
+    expect(!nested_write_status.ok());
+    expect(nested_write_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
   };
 
   "any_binary_conversion_uses_json_recursion_limit"_test = [&] {
@@ -211,6 +228,7 @@ const suite test_dynamic_message_any = [] {
     expect_read_fail(R"({"anyValue":{"value":"/usr/share"}})");                               // missing @type
     expect_read_fail(R"({"anyValue":{"@type":"","c":1}})");                                   // empty @type
     expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com","c":1}})");                // invalid formatted @type
+    expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/","c":1}})");               // empty type name
     expect_read_fail(R"({"anyValue":{"@type":"type.googleapis.com/does.not.Exist","c":1}})"); // unknown type_url
     expect_read_ok(
         R"({"anyValue":{"@type":"type.googleapis.com/proto3_unittest.ForeignMessage","@type":"type.googleapis.com/proto3_unittest.ForeignMessage","c":1}})"); // duplicate @type
@@ -256,6 +274,12 @@ const suite test_dynamic_message_any = [] {
 
     std::string dyn_result;
     expect(binpb_to_json(message_factory, "protobuf_unittest.TestAny", pb, dyn_result).ok());
+    expect(eq(dyn_result, json));
+
+    std::vector<char> dynamic_pb;
+    expect(hpp_proto::json_to_binpb(message_factory, "protobuf_unittest.TestAny", json, dynamic_pb).ok());
+    dyn_result.clear();
+    expect(binpb_to_json(message_factory, "protobuf_unittest.TestAny", dynamic_pb, dyn_result).ok());
     expect(eq(dyn_result, json));
 
     if (!pretty_json.empty()) {

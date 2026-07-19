@@ -56,6 +56,45 @@ public:
   [[nodiscard]] bool ok() const { return scope_.ok(); }
 };
 
+/**
+ * Internal routing point for dynamic ProtoJSON message traversal.
+ *
+ * Every dynamic message node, including payloads resolved from Any, enters
+ * through this type. The adapters below own their JSON shapes; this type owns
+ * message-entry policy and descriptor-based adapter selection.
+ */
+struct dynamic_protojson_traversal {
+  static std::expected<std::string_view, const char *> message_name_from_type_url(std::string_view type_url) {
+    const auto slash_pos = type_url.rfind('/');
+    if (slash_pos == std::string_view::npos || slash_pos + 1 >= type_url.size()) {
+      return std::unexpected("invalid formatted google.protobuf.Any type_url field value");
+    }
+    return type_url.substr(slash_pos + 1);
+  }
+
+  template <auto Opts>
+  static void write(message_value_cref value, auto &ctx, auto &buffer, auto &index);
+
+  // A generic Any payload shares its enclosing JSON object with the @type
+  // member. It still enters the normal traversal; only the generic-object
+  // adapter is told to emit or consume that envelope member.
+  template <auto Opts>
+  static void write_any_payload(message_value_cref value, auto &ctx, auto &buffer, auto &index);
+
+  template <auto Opts>
+  static void read(message_value_mref value, auto &ctx, auto &it, auto &end);
+
+  template <auto Opts>
+  static void read_any_payload(message_value_mref value, auto &ctx, auto &it, auto &end);
+
+private:
+  template <auto Opts>
+  static void write_impl(message_value_cref value, bool inside_any_envelope, auto &ctx, auto &buffer, auto &index);
+
+  template <auto Opts>
+  static void read_impl(message_value_mref value, bool inside_any_envelope, auto &ctx, auto &it, auto &end);
+};
+
 } // namespace hpp_proto::detail
 
 namespace glz {
@@ -158,43 +197,8 @@ struct generic_message_json_serializer {
   }
 
   template <auto Opts>
-  static void serialize_map_entry_field(hpp_proto::field_cref field, bool is_first_field, is_context auto &ctx, auto &b,
-                                        auto &ix) {
-    constexpr auto field_opts = glz::opening_handled_off<Opts>();
-    if (is_first_field) {
-      const bool need_extra_quote = (field.field_kind() == hpp_proto::KIND_BOOL);
-      if (need_extra_quote) {
-        glz::dump<'"'>(b, ix);
-      }
-      field.visit([&](auto v) {
-        to<JSON, decltype(v)>::template op<opt_true<field_opts, quoted_num_opt_tag{}>>(v, ctx, b, ix);
-      });
-      if (need_extra_quote) {
-        glz::dump<'"'>(b, ix);
-      }
-    } else {
-      field.visit([&](auto v) { to<JSON, decltype(v)>::template op<field_opts>(v, ctx, b, ix); });
-    }
-  }
-
-  template <auto Opts>
   static void to_json(hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
-    const bool is_wellknown_type = (value.descriptor().wellknown != hpp_proto::wellknown_types_t::NONE);
-    const bool is_map_entry = value.descriptor().is_map_entry();
-
-    if (is_map_entry) {
-      const auto mapped_field = value.fields()[1].to<hpp_proto::message_field_cref>();
-      if (mapped_field.has_value()) {
-        auto mapped_message_cref = *mapped_field;
-        auto mapped_value_cref = *mapped_message_cref;
-        if (mapped_value_cref.descriptor().wellknown == hpp_proto::wellknown_types_t::VALUE) {
-          if (mapped_value_cref.fields()[0].active_oneof_index() < 0) {
-            return;
-          }
-        }
-      }
-    }
-    const bool dump_brace = !check_opening_handled(Opts) && !is_map_entry && !is_wellknown_type;
+    const bool dump_brace = !check_opening_handled(Opts);
     if (dump_brace) {
       util::dump_opening_brace<Opts>(ctx, b, ix);
     }
@@ -207,16 +211,11 @@ struct generic_message_json_serializer {
       }
 
       if (separator != nullptr) {
-        util::dump_field_separator<Opts>(is_map_entry, ctx, b, ix, *separator);
+        util::dump_field_separator<Opts>(false, ctx, b, ix, *separator);
       }
 
-      if (!value.descriptor().is_map_entry()) {
-        serialize_regular_field<Opts>(field, ctx, b, ix);
-        separator = ",";
-      } else {
-        serialize_map_entry_field<Opts>(field, separator == nullptr, ctx, b, ix);
-        separator = ":";
-      }
+      serialize_regular_field<Opts>(field, ctx, b, ix);
+      separator = ",";
 
       if (bool(ctx.error)) {
         return;
@@ -229,7 +228,8 @@ struct generic_message_json_serializer {
   }
 
   template <auto Options>
-  static void from_json(hpp_proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+  static void from_json(hpp_proto::message_value_mref value, bool inside_any_envelope, is_context auto &ctx, auto &it,
+                        auto &end) {
     // adapted from the snippet of
     // template <class T>
     //    requires((readable_map_t<T> || glaze_object_t<T> || reflectable<T>) && not custom_read<T>)
@@ -243,6 +243,10 @@ struct generic_message_json_serializer {
         ctx, it, end, key, [](auto &, auto &) {},
         [&](auto &it_ref, auto &end_ref) {
           static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
+          if (inside_any_envelope && key == "@type") {
+            skip_value<JSON>::template op<Opts>(ctx, it_ref, end_ref);
+            return bool(ctx.error);
+          }
           const auto *desc = value.field_descriptor_by_json_name(key);
           if (desc == nullptr) {
             desc = value.field_descriptor_by_name(key);
@@ -259,6 +263,95 @@ struct generic_message_json_serializer {
           return bool(ctx.error);
         },
         [](auto &, auto &) {});
+  }
+};
+
+struct map_entry_message_json_adapter {
+  template <auto Opts>
+  static void serialize_field(hpp_proto::field_cref field, bool is_key, is_context auto &ctx, auto &b, auto &ix) {
+    constexpr auto field_opts = glz::opening_handled_off<Opts>();
+    if (is_key) {
+      const bool quote_bool = (field.field_kind() == hpp_proto::KIND_BOOL);
+      if (quote_bool) {
+        glz::dump<'"'>(b, ix);
+      }
+      field.visit([&](auto v) {
+        to<JSON, decltype(v)>::template op<opt_true<field_opts, quoted_num_opt_tag{}>>(v, ctx, b, ix);
+      });
+      if (quote_bool) {
+        glz::dump<'"'>(b, ix);
+      }
+    } else {
+      field.visit([&](auto v) { to<JSON, decltype(v)>::template op<field_opts>(v, ctx, b, ix); });
+    }
+  }
+
+  template <auto Opts>
+  static void to_json(hpp_proto::message_value_cref value, is_context auto &ctx, auto &b, auto &ix) {
+    // Safe: the dynamic factory validates map-entry descriptors as key/value pairs at indices 0 and 1.
+    const auto mapped_field = value.fields()[1].to<hpp_proto::message_field_cref>();
+    if (mapped_field.has_value()) {
+      const auto mapped_message = **mapped_field;
+      if (mapped_message.descriptor().wellknown == hpp_proto::wellknown_types_t::VALUE &&
+          mapped_message.fields()[0].active_oneof_index() < 0) {
+        return;
+      }
+    }
+
+    const char *separator = nullptr;
+    for (auto field : value.fields()) {
+      if (!generic_message_json_serializer::should_serialize_field<Opts>(field)) {
+        continue;
+      }
+      if (separator != nullptr) {
+        util::dump_field_separator<Opts>(true, ctx, b, ix, *separator);
+      }
+      serialize_field<Opts>(field, separator == nullptr, ctx, b, ix);
+      separator = ":";
+      if (bool(ctx.error)) {
+        return;
+      }
+    }
+  }
+
+  template <auto Options>
+  static void parse_mapped(hpp_proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
+    const auto *message_descriptor = value.descriptor().message_field_type_descriptor();
+    const bool is_wellknown_value =
+        message_descriptor != nullptr && message_descriptor->wellknown == hpp_proto::wellknown_types_t::VALUE;
+
+    if (util::parse_null<Options>(value, ctx, it, end)) {
+      if (!is_wellknown_value) {
+        ctx.error = error_code::syntax_error;
+      }
+      return;
+    }
+
+    value.visit([&](auto mapped_value) { util::from_json<Options>(mapped_value, ctx, it, end); });
+  }
+
+  template <auto Opts>
+  static void from_json(hpp_proto::message_value_mref value, is_context auto &ctx, auto &it, auto &end) {
+    value.fields()[0].visit([&](auto key_mref) {
+      using key_mref_type = decltype(key_mref);
+      if constexpr (concepts::map_key_mref<key_mref_type>) {
+        if constexpr (concepts::string_mref<key_mref_type>) {
+          util::parse_key_and_colon<opt_true<Opts, quoted_num_opt_tag{}>>(key_mref, ctx, it, end);
+        } else {
+          typename key_mref_type::value_type key{};
+          util::parse_key_and_colon<opt_true<Opts, quoted_num_opt_tag{}>>(key, ctx, it, end);
+          if (!bool(ctx.error)) {
+            key_mref.set(key);
+          }
+        }
+        if (bool(ctx.error)) [[unlikely]] {
+          return;
+        }
+        parse_mapped<ws_handled<Opts>()>(value.fields()[1], ctx, it, end);
+      } else {
+        ctx.error = error_code::syntax_error;
+      }
+    });
   }
 };
 
@@ -287,14 +380,6 @@ struct any_message_json_serializer {
       skip_value<JSON>::template op<ws_handled<Opts>()>(ctx, it, end);
     }
     return bool(ctx.error);
-  }
-
-  static std::expected<std::string_view, const char *> to_message_name(std::string_view type_url) {
-    auto slash_pos = type_url.rfind('/');
-    if (slash_pos >= type_url.size() - 1) {
-      return std::unexpected("invalid formatted google.protobuf.Any type_url field value");
-    }
-    return type_url.substr(slash_pos + 1);
   }
 
   template <auto Opts>
@@ -427,10 +512,6 @@ struct any_message_json_serializer {
   template <auto Opts, typename It, typename End>
   static bool parse_wellknown_any_value(::hpp_proto::message_value_mref &message, is_context auto &ctx, It &it,
                                         End &end);
-
-  template <auto Opts>
-  static bool parse_generic_any_value(::hpp_proto::message_value_mref &message, is_context auto &ctx, auto &it,
-                                      auto &end);
 
   template <auto Opts>
   static void to_json(const ::hpp_proto::concepts::is_any auto &any, ::hpp_proto::concepts::is_json_context auto &ctx,
@@ -665,10 +746,182 @@ struct to<JSON, hpp_proto::enum_value> {
   }
 };
 
+struct repeated_message_json_adapter {
+  template <auto Opts>
+  static void to_json(hpp_proto::repeated_message_field_cref value, is_context auto &ctx, auto &b, auto &ix) {
+    const bool is_map = value.descriptor().is_map_entry();
+    if (is_map) {
+      glz::dump<'{'>(b, ix);
+    } else {
+      glz::dump<'['>(b, ix);
+    }
+    if constexpr (Opts.prettify) {
+      ctx.depth += glz::check_indentation_width(Opts);
+      glz::dump<'\n'>(b, ix);
+      glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
+    }
+
+    char separator = '\0';
+    for (auto entry : value) {
+      const auto pre_separator_ix = ix;
+      if (separator) {
+        glz::dump<','>(b, ix);
+        if (Opts.prettify) {
+          glz::dump<'\n'>(b, ix);
+          glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
+        }
+      }
+      const auto pre_element_ix = ix;
+      ::hpp_proto::detail::dynamic_protojson_traversal::template write<Opts>(entry, ctx, b, ix);
+      if (ix == pre_element_ix) [[unlikely]] {
+        // Entries containing no serializable fields do not leave a dangling
+        // separator. This is observable for maps whose Value is unset.
+        ix = pre_separator_ix;
+      } else {
+        separator = ',';
+      }
+    }
+
+    if constexpr (Opts.prettify) {
+      ctx.depth -= glz::check_indentation_width(Opts);
+      glz::dump<'\n'>(b, ix);
+      glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
+    }
+    if (is_map) {
+      glz::dump<'}'>(b, ix);
+    } else {
+      glz::dump<']'>(b, ix);
+    }
+  }
+
+  template <auto Opts>
+  static void from_json(hpp_proto::repeated_message_field_mref value, is_context auto &ctx, auto &it, auto &end) {
+    util::parse_repeated<Opts>(value.descriptor().is_map_entry(), value, ctx, it, end);
+  }
+};
+
+} // namespace glz
+
+namespace hpp_proto::detail {
+
+template <auto Opts>
+void dynamic_protojson_traversal::write(message_value_cref value, auto &ctx, auto &buffer, auto &index) {
+  write_impl<Opts>(value, false, ctx, buffer, index);
+}
+
+template <auto Opts>
+void dynamic_protojson_traversal::write_any_payload(message_value_cref value, auto &ctx, auto &buffer, auto &index) {
+  write_impl<Opts>(value, true, ctx, buffer, index);
+}
+
+template <auto Opts>
+void dynamic_protojson_traversal::write_impl(message_value_cref value, bool inside_any_envelope, auto &ctx,
+                                             auto &buffer, auto &index) {
+  const dynamic_json_recursion_scope recursion_scope{ctx};
+  if (!recursion_scope.ok()) [[unlikely]] {
+    return;
+  }
+
+  if (value.descriptor().is_map_entry() && !inside_any_envelope) {
+    glz::map_entry_message_json_adapter::template to_json<Opts>(value, ctx, buffer, index);
+    return;
+  }
+
+  using enum wellknown_types_t;
+  switch (value.descriptor().wellknown) {
+  case ANY:
+    glz::any_message_json_serializer::template to_json<Opts>(value, ctx, buffer, index);
+    break;
+  case TIMESTAMP:
+    glz::timestamp_message_json_serializer::template to_json<Opts>(value, ctx, buffer, index);
+    break;
+  case DURATION:
+    glz::duration_message_json_serializer::template to_json<Opts>(value, ctx, buffer, index);
+    break;
+  case FIELDMASK:
+    glz::field_mask_message_json_serializer::template to_json<Opts>(value, ctx, buffer, index);
+    break;
+  case VALUE:
+    glz::value_message_json_serializer::template to_json<Opts>(value, ctx, buffer, index);
+    break;
+  case STRUCT:
+  case LISTVALUE: {
+    auto field = value.fields()[0].to<repeated_message_field_cref>();
+    // Safe: the dynamic factory validates well-known descriptor layouts.
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    glz::repeated_message_json_adapter::template to_json<Opts>(*field, ctx, buffer, index);
+    break;
+  }
+  case WRAPPER:
+    // Validated wrappers contain one scalar field; unlike STRUCT/LISTVALUE, they serialize it directly.
+    glz::to<glz::JSON, field_cref>::template op<Opts>(value.fields()[0], ctx, buffer, index);
+    break;
+  default:
+    glz::generic_message_json_serializer::template to_json<Opts>(value, ctx, buffer, index);
+  }
+}
+
+template <auto Opts>
+void dynamic_protojson_traversal::read(message_value_mref value, auto &ctx, auto &it, auto &end) {
+  read_impl<Opts>(value, false, ctx, it, end);
+}
+
+template <auto Opts>
+void dynamic_protojson_traversal::read_any_payload(message_value_mref value, auto &ctx, auto &it, auto &end) {
+  read_impl<Opts>(value, true, ctx, it, end);
+}
+
+template <auto Opts>
+void dynamic_protojson_traversal::read_impl(message_value_mref value, bool inside_any_envelope, auto &ctx, auto &it,
+                                            auto &end) {
+  const dynamic_json_recursion_scope recursion_scope{ctx};
+  if (!recursion_scope.ok()) [[unlikely]] {
+    return;
+  }
+
+  if (value.descriptor().is_map_entry() && !inside_any_envelope) {
+    glz::map_entry_message_json_adapter::template from_json<Opts>(value, ctx, it, end);
+    return;
+  }
+
+  using enum wellknown_types_t;
+  switch (value.descriptor().wellknown) {
+  case ANY:
+    glz::any_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
+    break;
+  case TIMESTAMP:
+    glz::timestamp_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
+    break;
+  case DURATION:
+    glz::duration_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
+    break;
+  case FIELDMASK:
+    glz::field_mask_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
+    break;
+  case VALUE:
+    glz::value_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
+    break;
+  case STRUCT:
+  case LISTVALUE:
+  case WRAPPER:
+    // Safe: the dynamic factory validates well-known descriptor layouts.
+    glz::from<glz::JSON, field_mref>::template op<Opts>(value.fields()[0], ctx, it, end);
+    break;
+  default:
+    glz::generic_message_json_serializer::template from_json<Opts>(value, inside_any_envelope, ctx, it, end);
+  }
+}
+
+} // namespace hpp_proto::detail
+
+namespace glz {
+
 template <>
 struct to<JSON, hpp_proto::repeated_message_field_cref> {
   template <auto Opts>
-  static void op(auto const &value, is_context auto &ctx, auto &b, auto &ix);
+  static void op(auto const &value, is_context auto &ctx, auto &b, auto &ix) {
+    repeated_message_json_adapter::template to_json<Opts>(value, ctx, b, ix);
+  }
 };
 
 template <>
@@ -676,45 +929,7 @@ struct to<JSON, hpp_proto::message_value_cref> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp_proto::message_value_cref &value, is_context auto &ctx, auto &b,
                                    auto &ix) {
-    const ::hpp_proto::detail::dynamic_json_recursion_scope recursion_scope{ctx};
-    if (!recursion_scope.ok()) [[unlikely]] {
-      return;
-    }
-    using enum hpp_proto::wellknown_types_t;
-    switch (value.descriptor().wellknown) {
-    case ANY:
-      any_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
-      break;
-    case TIMESTAMP:
-      timestamp_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
-      break;
-    case DURATION:
-      duration_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
-      break;
-    case FIELDMASK:
-      field_mask_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
-      break;
-    case VALUE:
-      value_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
-      break;
-    case STRUCT:
-    case LISTVALUE: {
-      auto f0 = value.fields()[0].to<::hpp_proto::repeated_message_field_cref>();
-      // Safe: well-known descriptor layout is validated in
-      // dynamic_message_factory_addons::file_descriptor, so STRUCT/LISTVALUE
-      // always have a compatible field[0] shape here.
-      // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-      to<JSON, ::hpp_proto::repeated_message_field_cref>::template op<Opts>(*f0, ctx, b, ix);
-    } break;
-    case WRAPPER: {
-      // Safe: wrapper descriptor layout is validated in
-      // dynamic_message_factory_addons::file_descriptor, so field[0] exists
-      // and is the wrapped scalar/message field.
-      to<JSON, ::hpp_proto::field_cref>::template op<Opts>(value.fields()[0], ctx, b, ix);
-    } break;
-    default:
-      generic_message_json_serializer::template to_json<Opts>(value, ctx, b, ix);
-    }
+    ::hpp_proto::detail::dynamic_protojson_traversal::template write<Opts>(value, ctx, b, ix);
   }
 };
 
@@ -726,67 +941,12 @@ struct to<JSON, hpp_proto::message_value_mref> {
   }
 };
 
-template <auto Opts>
-void to<JSON, hpp_proto::repeated_message_field_cref>::op(auto const &value, is_context auto &ctx, auto &b, auto &ix) {
-  if (value.descriptor().is_map_entry()) {
-    glz::dump<'{'>(b, ix);
-  } else {
-    glz::dump<'['>(b, ix);
-  }
-  if constexpr (Opts.prettify) {
-    ctx.depth += glz::check_indentation_width(Opts);
-    glz::dump<'\n'>(b, ix);
-    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
-  }
-
-  char separator = '\0';
-
-  for (auto entry : value) {
-    auto pre_separator_ix = ix;
-    if (separator) {
-      // not the first field in a message, output the separator
-      glz::dump<','>(b, ix);
-      if (Opts.prettify) {
-        glz::dump<'\n'>(b, ix);
-        glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
-      }
-    }
-    auto pre_element_ix = ix;
-    to<JSON, hpp_proto::message_value_cref>::template op<Opts>(entry, ctx, b, ix);
-    if (ix == pre_element_ix) [[unlikely]] {
-      // in this case, we have an element with unknown fields only, just skip it.
-      ix = pre_separator_ix;
-    } else {
-      separator = ',';
-    }
-  }
-
-  if constexpr (Opts.prettify) {
-    ctx.depth -= glz::check_indentation_width(Opts);
-    glz::dump<'\n'>(b, ix);
-    glz::dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
-  }
-  if (value.descriptor().is_map_entry()) {
-    glz::dump<'}'>(b, ix);
-  } else {
-    glz::dump<']'>(b, ix);
-  }
-}
-
 template <typename T, hpp_proto::field_kind_t Kind>
 struct from<JSON, hpp_proto::scalar_field_mref<T, Kind>> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(const hpp_proto::scalar_field_mref<T, Kind> &value, auto &ctx, auto &it, auto &end) {
     using value_type = hpp_proto::scalar_field_cref<T, Kind>::value_type;
     value_type v = {};
-    if constexpr (std::is_integral_v<value_type>) {
-      auto &descriptor = value.descriptor();
-      if (descriptor.proto().number == 1 && descriptor.parent_message()->is_map_entry()) {
-        util::parse_integral_map_key<Opts>(v, ctx, it, end);
-        value.set(v);
-        return;
-      }
-    }
     if constexpr (::hpp_proto::concepts::integral_64_bits<value_type> || check_quoted_num(Opts)) {
       from<JSON, value_type>::template op<opt_true<ws_handled<Opts>(), quoted_num_opt_tag{}>>(v, ctx, it, end);
     } else {
@@ -888,72 +1048,9 @@ struct from<JSON, hpp_proto::enum_value_mref> {
 
 template <>
 struct from<JSON, hpp_proto::message_value_mref> {
-  template <auto Options>
-  static void parse_mapped(hpp_proto::field_mref value, is_context auto &ctx, auto &it, auto &end) {
-    const auto *msg_descriptor = value.descriptor().message_field_type_descriptor();
-    const bool is_wellknown_value =
-        msg_descriptor != nullptr && msg_descriptor->wellknown == hpp_proto::wellknown_types_t::VALUE;
-
-    if (util::parse_null<Options>(value, ctx, it, end)) {
-      if (!is_wellknown_value) {
-        ctx.error = error_code::syntax_error;
-      }
-      return;
-    }
-
-    value.visit([&](auto v) { util::from_json<Options>(v, ctx, it, end); });
-  }
-
   template <auto Opts>
-  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
-    const ::hpp_proto::detail::dynamic_json_recursion_scope recursion_scope{ctx};
-    if (!recursion_scope.ok()) [[unlikely]] {
-      return;
-    }
-    if (value.descriptor().is_map_entry()) {
-      value.fields()[0].visit([&](auto key_mref) {
-        using key_mref_type = decltype(key_mref);
-        if constexpr (concepts::map_key_mref<key_mref_type>) {
-          util::parse_key_and_colon<opt_true<Opts, quoted_num_opt_tag{}>>(key_mref, ctx, it, end);
-          if (bool(ctx.error)) [[unlikely]] {
-            return;
-          }
-          parse_mapped<ws_handled<Opts>()>(value.fields()[1], ctx, it, end);
-        } else {
-          ctx.error = error_code::syntax_error;
-        }
-      });
-    } else {
-      using enum hpp_proto::wellknown_types_t;
-      switch (value.descriptor().wellknown) {
-      case ANY:
-        any_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
-        break;
-      case TIMESTAMP:
-        timestamp_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
-        break;
-      case DURATION:
-        duration_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
-        break;
-      case FIELDMASK:
-        field_mask_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
-        break;
-      case VALUE:
-        value_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
-        break;
-      case STRUCT:
-      case LISTVALUE:
-      case WRAPPER:
-        // Safe: well-known descriptor layout is validated in
-        // dynamic_message_factory_addons::file_descriptor, so field[0] is
-        // present and matches the expected decode target.
-        from<JSON, ::hpp_proto::field_mref>::template op<Opts>(value.fields()[0], ctx, it, end);
-        break;
-      default:
-        generic_message_json_serializer::template from_json<Opts>(value, ctx, it, end);
-      }
-    }
+    ::hpp_proto::detail::dynamic_protojson_traversal::template read<Opts>(value, ctx, it, end);
   }
 };
 
@@ -961,21 +1058,26 @@ template <concepts::repeated_mref T>
 struct from<JSON, T> {
   template <auto Opts>
   GLZ_ALWAYS_INLINE static void op(auto &&value, is_context auto &ctx, auto &it, auto &end) {
-    const bool is_map =
-        std::same_as<T, ::hpp_proto::repeated_message_field_mref> ? value.descriptor().is_map_entry() : false;
-
-    util::parse_repeated<Opts>(is_map, value, ctx, it, end);
+    if constexpr (std::same_as<T, ::hpp_proto::repeated_message_field_mref>) {
+      repeated_message_json_adapter::template from_json<Opts>(value, ctx, it, end);
+    } else {
+      util::parse_repeated<Opts>(false, value, ctx, it, end);
+    }
   }
 };
 
-template <auto Opts>
+template <auto Opts, bool InsideAnyEnvelope = false>
 static std::expected<bool, const char *> message_to_json(::hpp_proto::message_value_mref message, const auto &any_value,
                                                          is_context auto &ctx, auto &b, auto &ix) {
   const auto recursion_limit =
       ::hpp_proto::detail::runtime_recursion_limit{::hpp_proto::detail::dynamic_json_max_recursion_depth(ctx)};
   if (hpp_proto::read_binpb(message, any_value, recursion_limit).ok()) {
     const auto pre_ix = ix;
-    to<JSON, hpp_proto::message_value_cref>::template op<Opts>(message, ctx, b, ix);
+    if constexpr (InsideAnyEnvelope) {
+      ::hpp_proto::detail::dynamic_protojson_traversal::template write_any_payload<Opts>(message, ctx, b, ix);
+    } else {
+      ::hpp_proto::detail::dynamic_protojson_traversal::template write<Opts>(message, ctx, b, ix);
+    }
     if (bool(ctx.error)) [[unlikely]] {
       return false;
     }
@@ -1012,44 +1114,14 @@ bool any_message_json_serializer::parse_wellknown_any_value(::hpp_proto::message
       },
       [](auto &, auto &) {});
   if (!bool(ctx.error) && value_begin != value_end) {
-    from<JSON, ::hpp_proto::message_value_mref>::template op<ws_handled<Opts>()>(message, ctx, value_begin, value_end);
+    ::hpp_proto::detail::dynamic_protojson_traversal::template read<ws_handled<Opts>()>(message, ctx, value_begin,
+                                                                                        value_end);
     if constexpr (not Opts.null_terminated) {
       if (ctx.error == error_code::end_reached) {
         ctx.error = error_code::none;
       }
     }
   }
-  return !bool(ctx.error);
-}
-
-template <auto Options>
-bool any_message_json_serializer::parse_generic_any_value(::hpp_proto::message_value_mref &message,
-                                                          is_context auto &ctx, auto &it, auto &end) {
-  std::string_view key;
-  util::scan_object_fields<Options, true>(
-      ctx, it, end, key, [](auto &, auto &) {},
-      [&](auto &it_ref, auto &end_ref) {
-        static constexpr auto Opts = opening_handled_off<ws_handled<Options>()>();
-        if (key == "@type") [[unlikely]] {
-          skip_value<JSON>::template op<Opts>(ctx, it_ref, end_ref);
-        } else {
-          const auto *desc = message.field_descriptor_by_json_name(key);
-          if (desc == nullptr) {
-            desc = message.field_descriptor_by_name(key);
-          }
-          if (desc == nullptr) {
-            if constexpr (Opts.error_on_unknown_keys) {
-              ctx.error = error_code::unknown_key;
-              return true;
-            }
-            skip_value<JSON>::template op<Opts>(ctx, it_ref, end_ref);
-          } else {
-            from<JSON, ::hpp_proto::field_mref>::template op<Opts>(message.field(*desc), ctx, it_ref, end_ref);
-          }
-        }
-        return bool(ctx.error);
-      },
-      [](auto &, auto &) {});
   return !bool(ctx.error);
 }
 
@@ -1064,7 +1136,7 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
 
   glz::to<glz::JSON, std::string_view>::template op<Opts>(std::string_view{any_type_url}, ctx, b, ix);
 
-  (void)to_message_name(any_type_url)
+  (void)::hpp_proto::detail::dynamic_protojson_traversal::message_name_from_type_url(any_type_url)
       .and_then(build_message)
       .and_then([&](::hpp_proto::message_value_mref message) -> std::expected<void, const char *> {
         if (message.descriptor().wellknown != hpp_proto::wellknown_types_t::NONE) {
@@ -1089,7 +1161,7 @@ void any_message_json_serializer::to_json_impl(auto &&build_message, const auto 
             dump<'\n'>(b, ix);
             dumpn(glz::check_indentation_char(Opts), ctx.depth, b, ix);
           }
-          auto wrote = message_to_json<opening_handled<Opts>()>(message, any_value, ctx, b, ix);
+          auto wrote = message_to_json<opening_handled<Opts>(), true>(message, any_value, ctx, b, ix);
           if (!wrote.has_value()) {
             return std::unexpected(wrote.error());
           }
@@ -1110,14 +1182,23 @@ template <auto Opts>
 void any_message_json_serializer::from_json_impl(auto &&build_message, auto &&any_type_url, auto &&any_value,
                                                  is_context auto &ctx, auto &it, auto &end) {
   (void)get_type_url<Opts>(any_type_url, ctx, it, end)
-      .and_then([&](std::string_view type_url) { return to_message_name(type_url).and_then(build_message); })
+      .and_then([&](std::string_view type_url) {
+        return ::hpp_proto::detail::dynamic_protojson_traversal::message_name_from_type_url(type_url).and_then(
+            build_message);
+      })
       .and_then([&](auto message) -> std::expected<void, const char *> {
         const bool ok = [&] {
           if (message.descriptor().wellknown != ::hpp_proto::wellknown_types_t::NONE) {
             return parse_wellknown_any_value<Opts>(message, ctx, it, end);
           }
-          const ::hpp_proto::detail::dynamic_json_recursion_scope recursion_scope{ctx};
-          return recursion_scope.ok() && parse_generic_any_value<opening_handled<Opts>()>(message, ctx, it, end);
+          ::hpp_proto::detail::dynamic_protojson_traversal::template read_any_payload<opening_handled<Opts>()>(
+              message, ctx, it, end);
+          if constexpr (not Opts.null_terminated) {
+            if (ctx.error == error_code::end_reached) {
+              ctx.error = error_code::none;
+            }
+          }
+          return !bool(ctx.error);
         }();
 
         const auto recursion_limit =

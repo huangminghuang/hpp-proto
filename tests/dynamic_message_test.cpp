@@ -68,6 +68,68 @@ const boost::ut::suite dynamic_message_json_recursion_limit_tests = [] {
     expect(hpp_proto::write_json(message.cref(), json, hpp_proto::recursion_limit<2>).ok());
   };
 
+  "repeated_and_map_messages_use_the_same_traversal"_test = [] {
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
+
+    constexpr std::string_view repeated_json = R"({"repeatedNestedMessage":[{"bb":1}]})";
+    std::pmr::monotonic_buffer_resource repeated_mr;
+    auto repeated = expect_ok(factory.get_message("proto3_unittest.TestAllTypes", repeated_mr));
+    expect(hpp_proto::read_json(repeated, repeated_json, hpp_proto::recursion_limit<1>).ok());
+
+    std::pmr::monotonic_buffer_resource repeated_rejected_mr;
+    auto repeated_rejected = expect_ok(factory.get_message("proto3_unittest.TestAllTypes", repeated_rejected_mr));
+    auto repeated_read_status = hpp_proto::read_json(repeated_rejected, repeated_json, hpp_proto::recursion_limit<0>);
+    expect(!repeated_read_status.ok());
+    expect(repeated_read_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
+
+    std::string output;
+    auto repeated_write_status = hpp_proto::write_json(repeated.cref(), output, hpp_proto::recursion_limit<0>);
+    expect(!repeated_write_status.ok());
+    expect(repeated_write_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
+
+    constexpr std::string_view map_json = R"({"mapInt32ForeignMessage":{"1":{"c":2}}})";
+    std::pmr::monotonic_buffer_resource map_mr;
+    auto map = expect_ok(factory.get_message("protobuf_unittest.TestMap", map_mr));
+    expect(hpp_proto::read_json(map, map_json, hpp_proto::recursion_limit<2>).ok());
+
+    std::pmr::monotonic_buffer_resource map_rejected_mr;
+    auto map_rejected = expect_ok(factory.get_message("protobuf_unittest.TestMap", map_rejected_mr));
+    auto map_read_status = hpp_proto::read_json(map_rejected, map_json, hpp_proto::recursion_limit<1>);
+    expect(!map_read_status.ok());
+    expect(map_read_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
+
+    output.clear();
+    auto map_write_status = hpp_proto::write_json(map.cref(), output, hpp_proto::recursion_limit<1>);
+    expect(!map_write_status.ok());
+    expect(map_write_status.ctx.ec == glz::error_code::exceeded_max_recursive_depth);
+  };
+
+  "any_map_entry_payload_uses_generic_message_shape"_test = [] {
+    auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
+    constexpr std::string_view json =
+        R"({"@type":"type.googleapis.com/protobuf_unittest.TestMap.MapInt32Int32Entry","key":1,"value":2})";
+
+    std::pmr::monotonic_buffer_resource mr;
+    auto any = expect_ok(factory.get_message("google.protobuf.Any", mr));
+    expect(any.descriptor().wellknown == hpp_proto::wellknown_types_t::ANY);
+    auto read_status = hpp_proto::read_json(any, json, hpp_proto::recursion_limit<1>);
+    expect(read_status.ok()) << read_status.message(json);
+    auto type_url = expect_ok(any.typed_ref_by_name<hpp_proto::string_field_mref>("type_url"));
+    expect(type_url.has_value());
+    expect(type_url.value() == "type.googleapis.com/protobuf_unittest.TestMap.MapInt32Int32Entry");
+
+    std::string output;
+    auto write_status = hpp_proto::write_json(any.cref(), output, hpp_proto::recursion_limit<1>);
+    expect(write_status.ok());
+    expect(eq(output, json));
+
+    std::pmr::monotonic_buffer_resource truncated_mr;
+    auto truncated = expect_ok(factory.get_message("google.protobuf.Any", truncated_mr));
+    const auto truncated_status =
+        hpp_proto::read_json(truncated, json.substr(0, json.size() - 1), hpp_proto::recursion_limit<1>);
+    expect(!truncated_status.ok());
+  };
+
   "direct_glaze_entry_points_use_default_recursion_limit"_test = [] {
     auto factory = expect_ok(hpp_proto::dynamic_message_factory::create(read_file("unittest.desc.binpb")));
     const auto at_limit_json = make_recursive_message_json(hpp_proto::default_max_recursion_depth);

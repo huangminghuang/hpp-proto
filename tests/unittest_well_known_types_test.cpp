@@ -175,6 +175,17 @@ struct WellKnownTypesTests {
       auto my_json = hpp_proto::write_json(original, use_factory{message_factory}).value();
       expect(eq(my_json, original_json));
 
+      constexpr std::string_view message_name = "proto2_unittest.TestWellKnownTypes";
+      std::string dynamic_json;
+      expect(hpp_proto::binpb_to_json(message_factory, message_name, data, dynamic_json).ok());
+      expect(eq(dynamic_json, original_json));
+
+      std::vector<char> dynamic_data;
+      expect(hpp_proto::json_to_binpb(message_factory, message_name, original_json, dynamic_data).ok());
+      dynamic_json.clear();
+      expect(hpp_proto::binpb_to_json(message_factory, message_name, dynamic_data, dynamic_json).ok());
+      expect(eq(dynamic_json, original_json));
+
       TestWellKnownTypes msg;
       expect(hpp_proto::read_json(msg, original_json, use_factory{message_factory}, alloc_from{mr}).ok());
 
