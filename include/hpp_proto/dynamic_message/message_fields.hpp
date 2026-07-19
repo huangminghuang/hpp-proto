@@ -506,6 +506,18 @@ private:
   using reference = field_mref;
 };
 
+/**
+ * @brief Const view of a singular embedded message field.
+ *
+ * Presence follows `std::optional` conventions: `has_value()`/`operator bool()` are checked and
+ * non-throwing, `value()`/`get<message_value_cref>()` are checked and report absence, while
+ * `operator*`/`operator->` are unchecked and are undefined behavior on an absent field.
+ *
+ * Unlike `std::optional`, a oneof member's storage slot is shared with its siblings: selecting a
+ * different member through another field reference into the same oneof invalidates a previously
+ * checked reference to the formerly-active member. Re-check presence immediately before each
+ * dereference rather than caching a `has_value()` result across code that may touch a sibling.
+ */
 class message_field_cref {
 public:
   using encode_type = message_value_cref;
@@ -573,6 +585,11 @@ private:
  *
  * Use `emplace()` to materialize a child message (allocating storage from the parent’s
  * monotonic_buffer_resource), then mutate its fields via the returned message_value_mref.
+ *
+ * Presence and aliasing rules match message_field_cref: `operator*`/`operator->` are unchecked,
+ * and a reference into a oneof member is invalidated the moment a sibling is selected through any
+ * other reference into that oneof, even one already confirmed present. Re-check `has_value()`
+ * immediately before each dereference.
  */
 class message_field_mref {
 public:
