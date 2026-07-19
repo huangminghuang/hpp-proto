@@ -121,6 +121,8 @@ const suite cpp_lexical_emitter_tests = [] {
     expect(
         eq(cpp::identifier::from_proto("switch")->append_word(cpp::identifier::from_proto("oneof_case").value()).view(),
            "switch_oneof_case"sv));
+    expect(eq(cpp::identifier::from_proto("field")->append_word(cpp::identifier::from_proto("value").value()).view(),
+              "field_value"sv));
     expect(eq(
         cpp::identifier::from_proto("class")->disambiguated_with(cpp::identifier::from_proto("nested").value()).view(),
         "class_nested"sv));
@@ -135,12 +137,18 @@ const suite cpp_lexical_emitter_tests = [] {
     expect(eq(cpp::identifier::from_proto("switch_oneof_numbers")->view(), "switch_oneof_numbers"sv));
     expect(!cpp::identifier::from_proto("bad-name").has_value());
     expect(!cpp::identifier::from_proto("9field").has_value());
+    expect(!cpp::identifier::from_proto("field__value").has_value());
 
     const auto prefix = cpp::qualified_name::from_dotted("outer.namespace").value();
+    const auto empty = cpp::qualified_name::from_dotted("").value();
+    expect(empty.empty());
     expect(eq(prefix.view(), "outer::namespace_"sv));
     expect(eq(cpp::qualified_name::from_proto(prefix, ".pkg.class")->view(), "outer::namespace_::pkg::class_"sv));
     expect(eq(cpp::qualified_name::from_proto(prefix, "relative.Type")->view(), "relative::Type"sv));
+    expect(!cpp::qualified_name::from_proto(prefix, "bad-name").has_value());
     expect(!cpp::qualified_name::from_dotted("outer..inner").has_value());
+    expect(eq(empty.append(cpp::identifier::from_proto("field").value()).view(), "field"sv));
+    expect(eq(prefix.append(empty).view(), prefix.view()));
 
     for (const auto keyword : cpp_keywords) {
       const auto identifier = cpp::identifier::from_proto(keyword);
@@ -156,6 +164,8 @@ const suite cpp_lexical_emitter_tests = [] {
               R"("generated/dir/foo/bar.pb.hpp")"sv));
     expect(!cpp::include_path::from_proto_file("foo\nbar.proto", "", ".pb.hpp").has_value());
     expect(!cpp::include_path::from_proto_file("foo\"bar.proto", "", ".pb.hpp").has_value());
+    expect(!cpp::include_path::from_proto_file("no_extension", "", ".pb.hpp").has_value());
+    expect(!cpp::include_path::from_proto_file(".", "", "").has_value());
   };
 
   "file_descriptor_names_use_a_fixed_root_and_path_namespaces"_test = [] {
@@ -183,6 +193,9 @@ const suite cpp_lexical_emitter_tests = [] {
 
     expect(!cpp::file_descriptor_name::from_proto_file("not-a-proto.txt").has_value());
     expect(!cpp::file_descriptor_name::from_proto_file("foo/bar.proto", "bad-name").has_value());
+    expect(!cpp::file_descriptor_name::from_proto_file("foo//bar.proto").has_value());
+    expect(!cpp::file_descriptor_name::from_proto_file("foo__bar/value.proto").has_value());
+    expect(cpp::file_descriptor_name::from_proto_file("1foo/value.proto").has_value());
   };
 
   "numeric_literals_preserve_cpp_type_rules"_test = [] {
@@ -205,15 +218,24 @@ const suite cpp_lexical_emitter_tests = [] {
     expect(eq(cpp::numeric_literal::floating("nan", false)->view(), "std::numeric_limits<double>::quiet_NaN()"sv));
     expect(eq(cpp::numeric_literal::floating("-inf", true)->view(), "-std::numeric_limits<float>::infinity()"sv));
     expect(eq(cpp::numeric_literal::boolean("true")->view(), "true"sv));
+    expect(eq(cpp::numeric_literal::boolean("false")->view(), "false"sv));
+    expect(eq(cpp::numeric_literal::signed_integer("077", bits32)->view(), "077"sv));
+    expect(eq(cpp::numeric_literal::signed_integer("1", bits64)->view(), "1LL"sv));
+    expect(eq(cpp::numeric_literal::unsigned_integer("1", bits64)->view(), "1ULL"sv));
+    expect(!cpp::numeric_literal::signed_integer("", bits32).has_value());
+    expect(!cpp::numeric_literal::signed_integer("-", bits32).has_value());
+    expect(!cpp::numeric_literal::unsigned_integer("-1", bits32).has_value());
     expect(!cpp::numeric_literal::signed_integer("1; bad()", bits32).has_value());
     expect(!cpp::numeric_literal::signed_integer("-0x", bits32).has_value());
     expect(!cpp::numeric_literal::signed_integer("+0X", bits32).has_value());
     expect(!cpp::numeric_literal::unsigned_integer("0x", bits32).has_value());
     expect(!cpp::numeric_literal::unsigned_integer("0X", bits64).has_value());
     expect(!cpp::numeric_literal::floating("nan(payload)", false).has_value());
+    expect(!cpp::numeric_literal::floating("", false).has_value());
     expect(!cpp::numeric_literal::floating("1e300", true).has_value());
     expect(!cpp::numeric_literal::floating("1e-50", true).has_value());
     expect(cpp::numeric_literal::floating("1e300", false).has_value());
+    expect(!cpp::numeric_literal::boolean("1").has_value());
   };
 
   "comment_text_cannot_end_the_generated_comment"_test = [] {

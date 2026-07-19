@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <charconv>
 #include <cmath>
 #include <cstdint>
@@ -216,6 +217,10 @@ constexpr char octal_digit(unsigned int digit) { return static_cast<char>(static
 
 constexpr escape_entry short_escape(char escaped) { return {.data = {'\\', escaped}, .size = 2}; }
 
+// The table is built entirely during constant evaluation and every resulting
+// byte spelling is exercised through string_literal_bytes. Runtime line
+// instrumentation cannot observe the consteval control flow.
+// LCOV_EXCL_START
 constexpr escape_entry make_escape_entry(unsigned char byte) {
   switch (byte) {
   case '\a':
@@ -259,6 +264,7 @@ constexpr escape_entry make_escape_entry(unsigned char byte) {
 
   return {.data = {static_cast<char>(byte)}, .size = 1};
 }
+// LCOV_EXCL_STOP
 
 consteval auto make_escape_table() {
   std::array<escape_entry, byte_value_count> table{};
@@ -362,9 +368,6 @@ std::expected<qualified_name, lexical_error> qualified_name::from_proto(const qu
   if (!absolute || namespace_prefix.empty()) {
     return parsed;
   }
-  if (parsed->empty()) {
-    return namespace_prefix;
-  }
   return qualified_name{std::format("{}::{}", namespace_prefix.view(), parsed->view())};
 }
 
@@ -395,9 +398,7 @@ file_descriptor_name::from_proto_file(std::string_view proto_file,
   }
 
   auto root = qualified_name::from_dotted("hpp_proto.file_descriptors");
-  if (!root.has_value()) {
-    return std::unexpected(root.error());
-  }
+  assert(root.has_value());
 
   auto descriptor_namespace = std::move(*root);
   std::size_t begin = 0;
@@ -421,10 +422,8 @@ file_descriptor_name::from_proto_file(std::string_view proto_file,
 
   auto descriptor_identifier = identifier::from_protobuf_namespace("file_descriptor_");
   auto descriptor_set_identifier = identifier::from_protobuf_namespace("file_descriptor_set");
-  if (!descriptor_identifier.has_value() || !descriptor_set_identifier.has_value()) {
-    return std::unexpected(
-        error(lexical_errc::invalid_file_descriptor_name, "invalid generator-owned file descriptor identifier"));
-  }
+  assert(descriptor_identifier.has_value());
+  assert(descriptor_set_identifier.has_value());
   return file_descriptor_name{std::move(descriptor_namespace), std::move(*descriptor_identifier),
                               std::move(*descriptor_set_identifier)};
 }
@@ -549,7 +548,7 @@ comment_text::comment_text(std::string_view text) {
       // Keep legacy trigraph extensions from turning question-question-slash into a backslash.
       spelling_ += "\\077";
     } else if (byte < static_cast<unsigned char>(' ') || byte >= first_non_ascii) {
-      const auto entry = make_escape_entry(byte);
+      const auto &entry = escape_for(byte);
       spelling_.append(entry.data.data(), entry.size);
     } else {
       spelling_.push_back(static_cast<char>(byte));

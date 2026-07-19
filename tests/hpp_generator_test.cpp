@@ -2,8 +2,13 @@
 
 #include <algorithm>
 #include <boost/ut.hpp>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <google/protobuf/descriptor.msg.hpp>
 #include <hpp_proto/hpp_options.pb.hpp>
+#include <iterator>
+#include <optional>
 #include <ranges>
 #include <string>
 #include <string_view>
@@ -21,6 +26,8 @@ using message_descriptor = google::protobuf::DescriptorProto<>;
 using field_descriptor = google::protobuf::FieldDescriptorProto<>;
 using service_descriptor = google::protobuf::ServiceDescriptorProto<>;
 using method_descriptor = google::protobuf::MethodDescriptorProto<>;
+using enum_descriptor = google::protobuf::EnumDescriptorProto<>;
+using enum_value_descriptor = google::protobuf::EnumValueDescriptorProto<>;
 
 file_descriptor make_file(std::string_view name, std::string_view package = "generator_test") {
   file_descriptor result;
@@ -81,12 +88,141 @@ code_generator_request rpc_method_collision_request() {
   return make_request({std::move(file)}, {"rpc_method.proto"});
 }
 
+#ifdef HPP_PROTOC_GEN_HPP_PATH
+struct scoped_test_directory {
+  explicit scoped_test_directory(std::filesystem::path path) : path(std::move(path)) {
+    std::error_code error;
+    std::filesystem::remove_all(this->path, error);
+    std::filesystem::create_directories(this->path);
+  }
+
+  ~scoped_test_directory() {
+    std::error_code error;
+    std::filesystem::remove_all(path, error);
+  }
+
+  scoped_test_directory(const scoped_test_directory &) = delete;
+  scoped_test_directory &operator=(const scoped_test_directory &) = delete;
+  scoped_test_directory(scoped_test_directory &&) = delete;
+  scoped_test_directory &operator=(scoped_test_directory &&) = delete;
+
+  std::filesystem::path path;
+};
+
+std::string shell_quote(const std::filesystem::path &path) {
+#ifdef _WIN32
+  return '"' + path.string() + '"';
+#else
+  std::string result{"'"};
+  for (const char character : path.string()) {
+    result += character == '\'' ? "'\\''" : std::string{character};
+  }
+  result.push_back('\'');
+  return result;
+#endif
+}
+
+bool write_request_file(const std::filesystem::path &path, const code_generator_request &request) {
+  std::vector<char> data;
+  if (!hpp_proto::write_binpb(request, data).ok()) {
+    return false;
+  }
+  std::ofstream output{path, std::ios::binary};
+  output.write(data.data(), static_cast<std::streamsize>(data.size()));
+  return output.good();
+}
+
+std::optional<code_generator_response> read_response_file(const std::filesystem::path &path) {
+  std::ifstream input{path, std::ios::binary};
+  const std::vector<char> data{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
+  code_generator_response response;
+  if (!hpp_proto::read_binpb(response, data).ok()) {
+    return std::nullopt;
+  }
+  return response;
+}
+
+int invoke_plugin(const std::filesystem::path &request, const std::filesystem::path &response, bool use_stdin) {
+  const auto plugin = shell_quote(std::filesystem::path{HPP_PROTOC_GEN_HPP_PATH});
+  const auto input = shell_quote(request);
+  const auto output = shell_quote(response);
+  const auto command = use_stdin ? plugin + " < " + input + " > " + output : plugin + " " + input + " > " + output;
+  // NOLINTNEXTLINE(bugprone-command-processor,cert-env33-c,concurrency-mt-unsafe)
+  return std::system(command.c_str());
+}
+#endif
+
 } // namespace
 
 using namespace boost::ut;
 using namespace std::string_view_literals;
 
+// NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
 const suite hpp_generator_tests = [] {
+#ifdef HPP_PROTOC_GEN_HPP_PATH
+  "plugin_adapter_round_trips_binary_requests_from_file_and_stdin"_test = [] {
+    const scoped_test_directory directory{std::filesystem::current_path() / "hpp_generator_cli_test_artifacts"};
+
+    auto request = valid_request("cli_file.proto");
+    const auto request_path = directory.path / "request.bin";
+    const auto response_path = directory.path / "response.bin";
+    const auto exported_path = directory.path / "exported.bin";
+    request.parameter = "export_request=" + exported_path.string();
+    expect(write_request_file(request_path, request));
+    expect(eq(invoke_plugin(request_path, response_path, false), 0));
+
+    const auto response = read_response_file(response_path);
+    expect(response.has_value());
+    if (response.has_value()) {
+      expect(response->error.empty());
+      expect(has_file(*response, "cli_file.msg.hpp"sv));
+      expect(has_file(*response, "cli_file.pb.hpp"sv));
+      expect(has_file(*response, "cli_file.glz.hpp"sv));
+      expect(has_file(*response, "cli_file.desc.hpp"sv));
+    }
+    expect(std::filesystem::exists(exported_path));
+    expect(eq(std::filesystem::file_size(exported_path), std::filesystem::file_size(request_path)));
+
+    auto invalid_options = valid_request("invalid_options.proto");
+    invalid_options.parameter = "namespace_prefix=outer..inner";
+    const auto invalid_request_path = directory.path / "invalid_request.bin";
+    const auto invalid_response_path = directory.path / "invalid_response.bin";
+    expect(write_request_file(invalid_request_path, invalid_options));
+    expect(eq(invoke_plugin(invalid_request_path, invalid_response_path, true), 0));
+
+    const auto invalid_response = read_response_file(invalid_response_path);
+    expect(invalid_response.has_value());
+    if (invalid_response.has_value()) {
+      expect(invalid_response->file.empty());
+      expect(invalid_response->error.contains("invalid C++ identifier"sv));
+    }
+
+    const auto version_path = directory.path / "version.txt";
+    const auto version_command =
+        shell_quote(std::filesystem::path{HPP_PROTOC_GEN_HPP_PATH}) + " --version > " + shell_quote(version_path);
+    // NOLINTNEXTLINE(bugprone-command-processor,cert-env33-c,concurrency-mt-unsafe)
+    expect(eq(std::system(version_command.c_str()), 0));
+    std::ifstream version_input{version_path};
+    const std::string version{std::istreambuf_iterator<char>{version_input}, std::istreambuf_iterator<char>{}};
+    expect(version.starts_with("hpp-proto version "));
+
+    const auto missing_path = directory.path / "missing.bin";
+    expect(neq(invoke_plugin(missing_path, response_path, false), 0));
+
+    const auto malformed_path = directory.path / "malformed.bin";
+    {
+      std::ofstream malformed{malformed_path, std::ios::binary};
+      malformed << '\0';
+    }
+    expect(neq(invoke_plugin(malformed_path, response_path, false), 0));
+
+    auto invalid_export = valid_request("invalid_export.proto");
+    invalid_export.parameter = "export_request=" + directory.path.string();
+    expect(write_request_file(request_path, invalid_export));
+    expect(neq(invoke_plugin(request_path, response_path, false), 0));
+  };
+#endif
+
   "plugin_options_are_parsed_without_generator_state"_test = [] {
     auto parsed = hpp_proto::protoc::parse_plugin_options(
         "directory_prefix=generated,namespace_prefix=outer.inner,proto2_explicit_presence=.pkg.Message.field,"
@@ -151,6 +287,83 @@ const suite hpp_generator_tests = [] {
     expect(response.file.empty());
     expect(response.error.contains("RPC method 'method_name'"sv));
     expect(response.error.contains("method metadata API"sv));
+  };
+
+  "keyword_mapped_enum_and_rpc_collisions_are_diagnosed_from_requests"_test = [] {
+    auto enum_file = make_file("enum_collision.proto");
+    enum_descriptor enumeration;
+    enumeration.name = "KeywordCollision";
+    enum_value_descriptor keyword_value;
+    keyword_value.name = "class";
+    keyword_value.number = 0;
+    enumeration.value.push_back(std::move(keyword_value));
+    enum_value_descriptor suffixed_value;
+    suffixed_value.name = "class_";
+    suffixed_value.number = 1;
+    enumeration.value.push_back(std::move(suffixed_value));
+    enum_file.enum_type.push_back(std::move(enumeration));
+
+    const hpp_generator generator{generator_options{}};
+    const auto enum_response = generator.generate(make_request({std::move(enum_file)}, {"enum_collision.proto"}));
+    expect(enum_response.file.empty());
+    expect(enum_response.error.contains("enum values 'class' and 'class_'"sv));
+
+    auto rpc_file = make_file("rpc_collision.proto");
+    rpc_file.message_type.push_back(make_message("Request"));
+    service_descriptor service;
+    service.name = "KeywordCollisionService";
+    for (const std::string_view name : {"class"sv, "class_"sv}) {
+      method_descriptor method;
+      method.name = name;
+      method.input_type = ".generator_test.Request";
+      method.output_type = ".generator_test.Request";
+      service.method.push_back(std::move(method));
+    }
+    rpc_file.service.push_back(std::move(service));
+
+    const auto rpc_response = generator.generate(make_request({std::move(rpc_file)}, {"rpc_collision.proto"}));
+    expect(rpc_response.file.empty());
+    expect(rpc_response.error.contains("RPC methods 'class' and 'class_'"sv));
+  };
+
+  "generator_owned_namespace_names_are_diagnosed_from_requests"_test = [] {
+    auto service_file = make_file("service_namespace_collision.proto");
+    service_file.message_type.push_back(make_message("Request"));
+    service_descriptor service;
+    service.name = "pb_meta";
+    method_descriptor method;
+    method.name = "Call";
+    method.input_type = ".generator_test.Request";
+    method.output_type = ".generator_test.Request";
+    service.method.push_back(std::move(method));
+    service_file.service.push_back(std::move(service));
+
+    const hpp_generator generator{generator_options{}};
+    const auto service_response =
+        generator.generate(make_request({std::move(service_file)}, {"service_namespace_collision.proto"}));
+    expect(service_response.file.empty());
+    expect(service_response.error.contains("service 'pb_meta' collides with the generated C++ namespace API"sv));
+
+    auto enum_file = make_file("enum_namespace_collision.proto");
+    enum_descriptor enumeration;
+    enumeration.name = "pb_meta";
+    enum_value_descriptor value;
+    value.name = "VALID";
+    value.number = 0;
+    enumeration.value.push_back(std::move(value));
+    enum_file.enum_type.push_back(std::move(enumeration));
+
+    const auto enum_response =
+        generator.generate(make_request({std::move(enum_file)}, {"enum_namespace_collision.proto"}));
+    expect(enum_response.file.empty());
+    expect(enum_response.error.contains("enum 'generator_test.pb_meta' maps to generated C++ namespace API"sv));
+  };
+
+  "missing_requested_files_are_diagnosed_from_a_request"_test = [] {
+    const hpp_generator generator{generator_options{}};
+    const auto response = generator.generate(make_request({make_file("available.proto")}, {"missing.proto"}));
+    expect(response.file.empty());
+    expect(response.error.contains("hpp file_to_generate not found: missing.proto"sv));
   };
 
   "file_descriptor_collisions_are_diagnosed_from_a_request"_test = [] {

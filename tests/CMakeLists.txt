@@ -186,6 +186,11 @@ if(TARGET hpp_proto_generator_core)
         NAME hpp_generator_test
         SOURCES hpp_generator_test.cpp
         LINK_LIBRARIES hpp_proto_generator_core Boost::ut)
+    if(TARGET protoc-gen-hpp)
+        add_dependencies(hpp_generator_test protoc-gen-hpp)
+        target_compile_definitions(hpp_generator_test
+            PRIVATE HPP_PROTOC_GEN_HPP_PATH="$<TARGET_FILE:protoc-gen-hpp>")
+    endif()
 endif()
 
 add_hpp_proto_generated_test_lib(
