@@ -1,19 +1,27 @@
 #include "hpp_generator.hpp"
 
 #include <algorithm>
+#include <array>
 #include <boost/ut.hpp>
-#include <cstdlib>
+#include <cstdint>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <google/protobuf/descriptor.msg.hpp>
 #include <hpp_proto/hpp_options.pb.hpp>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <ranges>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#ifndef _WIN32
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 namespace {
 
@@ -109,19 +117,6 @@ struct scoped_test_directory {
   std::filesystem::path path;
 };
 
-std::string shell_quote(const std::filesystem::path &path) {
-#ifdef _WIN32
-  return '"' + path.string() + '"';
-#else
-  std::string result{"'"};
-  for (const char character : path.string()) {
-    result += character == '\'' ? "'\\''" : std::string{character};
-  }
-  result.push_back('\'');
-  return result;
-#endif
-}
-
 bool write_request_file(const std::filesystem::path &path, const code_generator_request &request) {
   std::vector<char> data;
   if (!hpp_proto::write_binpb(request, data).ok()) {
@@ -142,13 +137,53 @@ std::optional<code_generator_response> read_response_file(const std::filesystem:
   return response;
 }
 
-int invoke_plugin(const std::filesystem::path &request, const std::filesystem::path &response, bool use_stdin) {
-  const auto plugin = shell_quote(std::filesystem::path{HPP_PROTOC_GEN_HPP_PATH});
-  const auto input = shell_quote(request);
-  const auto output = shell_quote(response);
-  const auto command = use_stdin ? plugin + " < " + input + " > " + output : plugin + " " + input + " > " + output;
-  // NOLINTNEXTLINE(bugprone-command-processor,cert-env33-c,concurrency-mt-unsafe)
-  return std::system(command.c_str());
+enum class plugin_invocation : std::uint8_t { file, standard_input, version };
+
+int invoke_plugin(const std::filesystem::path &request, const std::filesystem::path &response,
+                  plugin_invocation invocation) {
+  const auto child = ::fork();
+  if (child < 0) {
+    return -1;
+  }
+  if (child == 0) {
+    constexpr int child_launch_error = 127;
+    using file_handle = std::unique_ptr<std::FILE, decltype(&std::fclose)>;
+    file_handle output{std::fopen(response.c_str(), "wb"), &std::fclose};
+    if (output == nullptr || ::dup2(::fileno(output.get()), STDOUT_FILENO) < 0) {
+      ::_exit(child_launch_error);
+    }
+    output.reset();
+
+    if (invocation == plugin_invocation::standard_input) {
+      file_handle input{std::fopen(request.c_str(), "rb"), &std::fclose};
+      if (input == nullptr || ::dup2(::fileno(input.get()), STDIN_FILENO) < 0) {
+        ::_exit(child_launch_error);
+      }
+      input.reset();
+    }
+
+    const std::filesystem::path plugin{HPP_PROTOC_GEN_HPP_PATH};
+    auto plugin_argument = plugin.string();
+    auto request_argument = request.string();
+    std::string version_argument{"--version"};
+    if (invocation == plugin_invocation::version) {
+      std::array arguments = {plugin_argument.data(), version_argument.data(), static_cast<char *>(nullptr)};
+      ::execv(plugin.c_str(), arguments.data());
+    } else if (invocation == plugin_invocation::standard_input) {
+      std::array arguments = {plugin_argument.data(), static_cast<char *>(nullptr)};
+      ::execv(plugin.c_str(), arguments.data());
+    } else {
+      std::array arguments = {plugin_argument.data(), request_argument.data(), static_cast<char *>(nullptr)};
+      ::execv(plugin.c_str(), arguments.data());
+    }
+    ::_exit(child_launch_error);
+  }
+
+  int status = 0;
+  if (::waitpid(child, &status, 0) != child || !WIFEXITED(status)) {
+    return -1;
+  }
+  return WEXITSTATUS(status);
 }
 #endif
 
@@ -169,7 +204,7 @@ const suite hpp_generator_tests = [] {
     const auto exported_path = directory.path / "exported.bin";
     request.parameter = "export_request=" + exported_path.string();
     expect(write_request_file(request_path, request));
-    expect(eq(invoke_plugin(request_path, response_path, false), 0));
+    expect(eq(invoke_plugin(request_path, response_path, plugin_invocation::file), 0));
 
     const auto response = read_response_file(response_path);
     expect(response.has_value());
@@ -188,7 +223,7 @@ const suite hpp_generator_tests = [] {
     const auto invalid_request_path = directory.path / "invalid_request.bin";
     const auto invalid_response_path = directory.path / "invalid_response.bin";
     expect(write_request_file(invalid_request_path, invalid_options));
-    expect(eq(invoke_plugin(invalid_request_path, invalid_response_path, true), 0));
+    expect(eq(invoke_plugin(invalid_request_path, invalid_response_path, plugin_invocation::standard_input), 0));
 
     const auto invalid_response = read_response_file(invalid_response_path);
     expect(invalid_response.has_value());
@@ -198,28 +233,25 @@ const suite hpp_generator_tests = [] {
     }
 
     const auto version_path = directory.path / "version.txt";
-    const auto version_command =
-        shell_quote(std::filesystem::path{HPP_PROTOC_GEN_HPP_PATH}) + " --version > " + shell_quote(version_path);
-    // NOLINTNEXTLINE(bugprone-command-processor,cert-env33-c,concurrency-mt-unsafe)
-    expect(eq(std::system(version_command.c_str()), 0));
+    expect(eq(invoke_plugin({}, version_path, plugin_invocation::version), 0));
     std::ifstream version_input{version_path};
     const std::string version{std::istreambuf_iterator<char>{version_input}, std::istreambuf_iterator<char>{}};
     expect(version.starts_with("hpp-proto version "));
 
     const auto missing_path = directory.path / "missing.bin";
-    expect(neq(invoke_plugin(missing_path, response_path, false), 0));
+    expect(neq(invoke_plugin(missing_path, response_path, plugin_invocation::file), 0));
 
     const auto malformed_path = directory.path / "malformed.bin";
     {
       std::ofstream malformed{malformed_path, std::ios::binary};
       malformed << '\0';
     }
-    expect(neq(invoke_plugin(malformed_path, response_path, false), 0));
+    expect(neq(invoke_plugin(malformed_path, response_path, plugin_invocation::file), 0));
 
     auto invalid_export = valid_request("invalid_export.proto");
     invalid_export.parameter = "export_request=" + directory.path.string();
     expect(write_request_file(request_path, invalid_export));
-    expect(neq(invoke_plugin(request_path, response_path, false), 0));
+    expect(neq(invoke_plugin(request_path, response_path, plugin_invocation::file), 0));
   };
 #endif
 
