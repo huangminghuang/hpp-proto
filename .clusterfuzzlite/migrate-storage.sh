@@ -19,7 +19,7 @@ migrate_branch() (
         return
     fi
 
-    local migration_directory source_tree snapshot_commit snapshot_date
+    local migration_directory remote_commit source_tree snapshot_commit snapshot_date
     migration_directory="$(mktemp -d)"
     trap 'rm -rf -- "${migration_directory}"' EXIT
 
@@ -38,7 +38,13 @@ migrate_branch() (
                 git -C "${migration_directory}" commit-tree "${source_tree}"
     )"
     git -C "${migration_directory}" remote set-url origin "${destination_url}"
-    git -C "${migration_directory}" push origin "${snapshot_commit}:refs/heads/${destination_branch}"
+    if ! git -C "${migration_directory}" push origin "${snapshot_commit}:refs/heads/${destination_branch}"; then
+        remote_commit="$(
+            git ls-remote --heads "${destination_url}" "refs/heads/${destination_branch}" |
+                awk 'NR == 1 { print $1 }'
+        )"
+        [[ "${remote_commit}" == "${snapshot_commit}" ]]
+    fi
 )
 
 migrate_branch main cflite-corpus
