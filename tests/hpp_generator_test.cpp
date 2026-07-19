@@ -120,7 +120,7 @@ struct scoped_test_directory {
 bool write_request_file(const std::filesystem::path &path, const code_generator_request &request) {
   std::vector<char> data;
   if (!hpp_proto::write_binpb(request, data).ok()) {
-    return false;
+    return false; // LCOV_EXCL_LINE: test harness serialization failure
   }
   std::ofstream output{path, std::ios::binary};
   output.write(data.data(), static_cast<std::streamsize>(data.size()));
@@ -132,7 +132,7 @@ std::optional<code_generator_response> read_response_file(const std::filesystem:
   const std::vector<char> data{std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}};
   code_generator_response response;
   if (!hpp_proto::read_binpb(response, data).ok()) {
-    return std::nullopt;
+    return std::nullopt; // LCOV_EXCL_LINE: test harness serialization failure
   }
   return response;
 }
@@ -143,8 +143,11 @@ int invoke_plugin(const std::filesystem::path &request, const std::filesystem::p
                   plugin_invocation invocation) {
   const auto child = ::fork();
   if (child < 0) {
-    return -1;
+    return -1; // LCOV_EXCL_LINE: test host process-launch failure
   }
+  // execv replaces the child process before its coverage runtime can flush;
+  // behavior is verified through the parent-side exit and output assertions.
+  // LCOV_EXCL_START
   if (child == 0) {
     constexpr int child_launch_error = 127;
     using file_handle = std::unique_ptr<std::FILE, decltype(&std::fclose)>;
@@ -176,10 +179,11 @@ int invoke_plugin(const std::filesystem::path &request, const std::filesystem::p
     ::execv(plugin.c_str(), arguments.data()); // flawfinder: ignore
     ::_exit(child_launch_error);
   }
+  // LCOV_EXCL_STOP
 
   int status = 0;
   if (::waitpid(child, &status, 0) != child || !WIFEXITED(status)) {
-    return -1;
+    return -1; // LCOV_EXCL_LINE: test host process-launch failure
   }
   return WEXITSTATUS(status);
 }
