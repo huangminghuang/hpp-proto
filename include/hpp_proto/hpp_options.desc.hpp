@@ -11,18 +11,19 @@
 
 #include "google/protobuf/descriptor.desc.hpp"
 
-namespace hpp_proto::file_descriptors {
+namespace hpp_proto::file_descriptors::hpp_proto::hpp_options_proto {
 
 using namespace std::literals::string_view_literals;
-constexpr file_descriptor_pb _desc_hpp_proto_hpp_options_proto{
-  "\x0a\x1b\x68\x70\x70\x5f\x70\x72\x6f\x74\x6f\x2f\x68\x70\x70\x5f\x6f\x70\x74\x69\x6f\x6e\x73\x2e\x70\x72\x6f\x74\x6f\x12\x09\x68\x70\x70\x5f\x70\x72\x6f\x74\x6f\x1a\x20\x67\x6f\x6f\x67\x6c\x65\x2f\x70\x72\x6f\x74\x6f\x62\x75\x66\x2f\x64\x65\x73\x63\x72\x69\x70\x74\x6f\x72\x2e\x70\x72\x6f\x74\x6f\x22\x36\x0a\x0b\x46\x69\x6c\x65\x4f\x70\x74\x69\x6f\x6e\x73\x12\x27\x0a\x10\x6e\x61\x6d\x65\x73\x70\x61\x63\x65\x5f\x70\x72\x65\x66\x69\x78\x18\x02\x28\x09\x52\x0f\x6e\x61\x6d\x65\x73\x70\x61\x63\x65\x50\x72\x65\x66\x69\x78\x3a\x57\x0a\x0d\x68\x70\x70\x5f\x66\x69\x6c\x65\x5f\x6f\x70\x74\x73\x18\x84\x46\x28\x0b\x32\x16\x2e\x68\x70\x70\x5f\x70\x72\x6f\x74\x6f\x2e\x46\x69\x6c\x65\x4f\x70\x74\x69\x6f\x6e\x73\x12\x1c\x2e\x67\x6f\x6f\x67\x6c\x65\x2e\x70\x72\x6f\x74\x6f\x62\x75\x66\x2e\x46\x69\x6c\x65\x4f\x70\x74\x69\x6f\x6e\x73\x52\x0b\x68\x70\x70\x46\x69\x6c\x65\x4f\x70\x74\x73"sv
+inline constexpr ::hpp_proto::file_descriptor_pb file_descriptor_{
+  "\n\033hpp_proto/hpp_options.proto\022\thpp_proto\032 google/protobuf/descriptor.proto\"f\n\vFileOptions\022\'\n\020namespace_prefix\030\002(\tR\017namespacePrefix\022.\n\024file_descriptor_name\030\003(\tR\022fileDescriptorName:W\n\rhpp_file_opts\030\204F(\v2\026.hpp_proto.FileOptions\022\034.google.protobuf.FileOptionsR\vhppFileOpts"sv
 };
 
-inline auto desc_set_hpp_proto_hpp_options_proto(){
-  return distinct_file_descriptor_pb_array{
-    _desc_google_protobuf_descriptor_proto,
-    _desc_hpp_proto_hpp_options_proto,
+inline auto file_descriptor_set(){
+  return ::hpp_proto::distinct_file_descriptor_pb_array{
+    ::hpp_proto::file_descriptors::google::protobuf::descriptor_proto::file_descriptor_,
+    ::hpp_proto::file_descriptors::hpp_proto::hpp_options_proto::file_descriptor_,
   };
 }
-} // namespace hpp_proto::file_descriptors
+} // namespace hpp_proto::file_descriptors::hpp_proto::hpp_options_proto
+
 // clang-format on

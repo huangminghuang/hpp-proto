@@ -15,7 +15,7 @@
 
 namespace google::protobuf::compiler {
 // Generated message headers mirror protobuf schema literals and generated special members.
-//NOLINTBEGIN(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
+//NOLINTBEGIN(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape,modernize-raw-string-literal,clang-analyzer-optin.performance.Padding)
 
 template <typename Traits = ::hpp_proto::default_traits>
 struct Version {
@@ -33,7 +33,7 @@ namespace CodeGeneratorResponse_ {
   enum class Feature {
     FEATURE_NONE = 0,
     FEATURE_PROTO3_OPTIONAL = 1,
-    FEATURE_SUPPORTS_EDITIONS = 2 
+    FEATURE_SUPPORTS_EDITIONS = 2
   };
 
   constexpr bool is_valid(Feature value){
@@ -92,7 +92,7 @@ template <typename Traits>
 constexpr auto message_type_url(const CodeGeneratorResponse<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorResponse">{}; }
 template <typename Traits>
 constexpr auto message_type_url(const CodeGeneratorRequest<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.compiler.CodeGeneratorRequest">{}; }
-// NOLINTEND(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
+// NOLINTEND(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape,modernize-raw-string-literal,clang-analyzer-optin.performance.Padding)
 } // namespace google::protobuf::compiler
 template <typename Traits>
 struct hpp_proto::is_hpp_generated<google::protobuf::compiler::Version<Traits>> : std::true_type {};

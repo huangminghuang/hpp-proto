@@ -173,3 +173,34 @@ add_hpp_proto_test(
     SOURCES json_alias_test.cpp
     LINK_LIBRARIES json_alias_test_lib json_alias_preserved_lib Boost::ut glaze::glaze
 )
+
+if(TARGET hpp_proto_cpp_lexical)
+    add_hpp_proto_test(
+        NAME cpp_lexical_emitter_test
+        SOURCES cpp_lexical_emitter_test.cpp
+        LINK_LIBRARIES hpp_proto_cpp_lexical Boost::ut)
+endif()
+
+if(TARGET hpp_proto_generator_core)
+    add_hpp_proto_test(
+        NAME hpp_generator_test
+        SOURCES hpp_generator_test.cpp
+        LINK_LIBRARIES hpp_proto_generator_core Boost::ut)
+    if(TARGET protoc-gen-hpp AND UNIX)
+        add_dependencies(hpp_generator_test protoc-gen-hpp)
+        target_compile_definitions(hpp_generator_test
+            PRIVATE HPP_PROTOC_GEN_HPP_PATH="$<TARGET_FILE:protoc-gen-hpp>")
+    endif()
+endif()
+
+add_hpp_proto_generated_test_lib(
+    NAME cpp_lexical_generated_test_lib
+    SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp_lexical_generated_test.proto"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp_lexical_cross_file_enum.proto"
+    IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../include")
+
+add_hpp_proto_test(
+    NAME cpp_lexical_generated_test
+    SOURCES cpp_lexical_generated_test.cpp
+    LINK_LIBRARIES cpp_lexical_generated_test_lib Boost::ut glaze::glaze)

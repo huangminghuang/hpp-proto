@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+package lexical.cross_file;
+
+message CrossFileAnchor {}
+
+enum CrossFileEnum {
+  CROSS_FILE_ENUM_UNSPECIFIED = 0;
+}

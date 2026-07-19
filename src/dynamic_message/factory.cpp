@@ -281,9 +281,9 @@ constexpr std::array runtime_type_traits_by_proto_type{
 
 // Sole adapter from descriptor_pool's schema-derived representation to dynamic_message's
 // authoritative resolved field information. Runtime consumers must not re-derive these facts.
-[[nodiscard]] constexpr runtime_type_traits runtime_traits_for(google::protobuf::FieldDescriptorProto_::Type type) {
+[[nodiscard]] constexpr runtime_type_traits runtime_traits_for(google::protobuf::FieldDescriptorProto<>::Type type) {
   using enum google::protobuf::FieldDescriptorProto_::Type;
-  assert(google::protobuf::FieldDescriptorProto_::is_valid(type));
+  assert(is_valid(type));
   constexpr auto first_type_value = std::to_underlying(TYPE_DOUBLE);
   const auto index = static_cast<std::size_t>(std::to_underlying(type) - first_type_value);
   return runtime_type_traits_by_proto_type.at(index);

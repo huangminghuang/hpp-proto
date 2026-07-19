@@ -280,14 +280,13 @@ struct dynamic_message_factory_addons {
       // Validate embedded descriptors for supported well-known types against the
       // checked-in canonical descriptor bytes. This guarantees fixed field layout
       // assumptions used by dynamic Any/Struct/Value JSON serializers.
-      using namespace hpp_proto::file_descriptors;
       static flat_map<std::string_view, file_descriptor_pb> wellknown_type_pbs{
-          {"google/protobuf/any.proto", _desc_google_protobuf_any_proto},
-          {"google/protobuf/duration.proto", _desc_google_protobuf_duration_proto},
-          {"google/protobuf/field_mask.proto", _desc_google_protobuf_field_mask_proto},
-          {"google/protobuf/struct.proto", _desc_google_protobuf_struct_proto},
-          {"google/protobuf/timestamp.proto", _desc_google_protobuf_timestamp_proto},
-          {"google/protobuf/wrappers.proto", _desc_google_protobuf_wrappers_proto}};
+          {"google/protobuf/any.proto", file_descriptors::google::protobuf::any_proto::file_descriptor_},
+          {"google/protobuf/duration.proto", file_descriptors::google::protobuf::duration_proto::file_descriptor_},
+          {"google/protobuf/field_mask.proto", file_descriptors::google::protobuf::field_mask_proto::file_descriptor_},
+          {"google/protobuf/struct.proto", file_descriptors::google::protobuf::struct_proto::file_descriptor_},
+          {"google/protobuf/timestamp.proto", file_descriptors::google::protobuf::timestamp_proto::file_descriptor_},
+          {"google/protobuf/wrappers.proto", file_descriptors::google::protobuf::wrappers_proto::file_descriptor_}};
 
       if (auto itr = wellknown_type_pbs.find(derived.proto().name); itr != wellknown_type_pbs.end()) {
         std::pmr::vector<std::byte> pb{resource};

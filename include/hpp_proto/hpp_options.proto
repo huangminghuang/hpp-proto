@@ -4,6 +4,12 @@ package hpp_proto;
 
 message FileOptions {
     optional string namespace_prefix = 2;
+    // Overrides the final namespace component used for this file's generated
+    // descriptor. The fixed hpp_proto::file_descriptors prefix and directory
+    // namespaces are unaffected. The value must be one identifier component;
+    // C++ keywords receive a trailing underscore, and implementation-reserved
+    // identifier patterns are rejected.
+    optional string file_descriptor_name = 3;
 }
 
 extend google.protobuf.FileOptions {

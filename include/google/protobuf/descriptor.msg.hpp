@@ -14,7 +14,7 @@
 
 namespace google::protobuf {
 // Generated message headers mirror protobuf schema literals and generated special members.
-//NOLINTBEGIN(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
+//NOLINTBEGIN(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape,modernize-raw-string-literal,clang-analyzer-optin.performance.Padding)
 
 enum class Edition {
   EDITION_UNKNOWN = 0,
@@ -29,7 +29,7 @@ enum class Edition {
   EDITION_99997_TEST_ONLY = 99997,
   EDITION_99998_TEST_ONLY = 99998,
   EDITION_99999_TEST_ONLY = 99999,
-  EDITION_MAX = 2147483647 
+  EDITION_MAX = 2147483647
 };
 
 constexpr bool is_valid(Edition value){
@@ -41,7 +41,7 @@ constexpr bool is_valid(Edition value){
 enum class SymbolVisibility {
   VISIBILITY_UNSET = 0,
   VISIBILITY_LOCAL = 1,
-  VISIBILITY_EXPORT = 2 
+  VISIBILITY_EXPORT = 2
 };
 
 constexpr bool is_valid(SymbolVisibility value){
@@ -84,7 +84,7 @@ namespace FeatureSet_ {
     FIELD_PRESENCE_UNKNOWN = 0,
     EXPLICIT = 1,
     IMPLICIT = 2,
-    LEGACY_REQUIRED = 3 
+    LEGACY_REQUIRED = 3
   };
 
   constexpr bool is_valid(FieldPresence value){
@@ -95,7 +95,7 @@ namespace FeatureSet_ {
   enum class EnumType {
     ENUM_TYPE_UNKNOWN = 0,
     OPEN = 1,
-    CLOSED = 2 
+    CLOSED = 2
   };
 
   constexpr bool is_valid(EnumType value){
@@ -106,7 +106,7 @@ namespace FeatureSet_ {
   enum class RepeatedFieldEncoding {
     REPEATED_FIELD_ENCODING_UNKNOWN = 0,
     PACKED = 1,
-    EXPANDED = 2 
+    EXPANDED = 2
   };
 
   constexpr bool is_valid(RepeatedFieldEncoding value){
@@ -117,7 +117,7 @@ namespace FeatureSet_ {
   enum class Utf8Validation {
     UTF8_VALIDATION_UNKNOWN = 0,
     VERIFY = 2,
-    NONE = 3 
+    NONE = 3
   };
 
   constexpr bool is_valid(Utf8Validation value){
@@ -129,7 +129,7 @@ namespace FeatureSet_ {
   enum class MessageEncoding {
     MESSAGE_ENCODING_UNKNOWN = 0,
     LENGTH_PREFIXED = 1,
-    DELIMITED = 2 
+    DELIMITED = 2
   };
 
   constexpr bool is_valid(MessageEncoding value){
@@ -140,7 +140,7 @@ namespace FeatureSet_ {
   enum class JsonFormat {
     JSON_FORMAT_UNKNOWN = 0,
     ALLOW = 1,
-    LEGACY_BEST_EFFORT = 2 
+    LEGACY_BEST_EFFORT = 2
   };
 
   constexpr bool is_valid(JsonFormat value){
@@ -151,7 +151,7 @@ namespace FeatureSet_ {
   enum class EnforceNamingStyle {
     ENFORCE_NAMING_STYLE_UNKNOWN = 0,
     STYLE2024 = 1,
-    STYLE_LEGACY = 2 
+    STYLE_LEGACY = 2
   };
 
   constexpr bool is_valid(EnforceNamingStyle value){
@@ -165,7 +165,7 @@ namespace FeatureSet_ {
       EXPORT_ALL = 1,
       EXPORT_TOP_LEVEL = 2,
       LOCAL_ALL = 3,
-      STRICT = 4 
+      STRICT = 4
     };
 
     constexpr bool is_valid(DefaultSymbolVisibility value){
@@ -267,7 +267,7 @@ namespace GeneratedCodeInfo_ {
     enum class Semantic {
       NONE = 0,
       SET = 1,
-      ALIAS = 2 
+      ALIAS = 2
     };
 
     constexpr bool is_valid(Semantic value){
@@ -335,7 +335,7 @@ namespace MethodOptions_ {
   enum class IdempotencyLevel {
     IDEMPOTENCY_UNKNOWN = 0,
     NO_SIDE_EFFECTS = 1,
-    IDEMPOTENT = 2 
+    IDEMPOTENT = 2
   };
 
   constexpr bool is_valid(IdempotencyLevel value){
@@ -444,7 +444,7 @@ namespace FieldOptions_ {
   enum class CType {
     STRING = 0,
     CORD = 1,
-    STRING_PIECE = 2 
+    STRING_PIECE = 2
   };
 
   constexpr bool is_valid(CType value){
@@ -455,7 +455,7 @@ namespace FieldOptions_ {
   enum class JSType {
     JS_NORMAL = 0,
     JS_STRING = 1,
-    JS_NUMBER = 2 
+    JS_NUMBER = 2
   };
 
   constexpr bool is_valid(JSType value){
@@ -466,7 +466,7 @@ namespace FieldOptions_ {
   enum class OptionRetention {
     RETENTION_UNKNOWN = 0,
     RETENTION_RUNTIME = 1,
-    RETENTION_SOURCE = 2 
+    RETENTION_SOURCE = 2
   };
 
   constexpr bool is_valid(OptionRetention value){
@@ -484,7 +484,7 @@ namespace FieldOptions_ {
     TARGET_TYPE_ENUM = 6,
     TARGET_TYPE_ENUM_ENTRY = 7,
     TARGET_TYPE_SERVICE = 8,
-    TARGET_TYPE_METHOD = 9 
+    TARGET_TYPE_METHOD = 9
   };
 
   constexpr bool is_valid(OptionTargetType value){
@@ -590,7 +590,7 @@ namespace FileOptions_ {
   enum class OptimizeMode {
     SPEED = 1,
     CODE_SIZE = 2,
-    LITE_RUNTIME = 3 
+    LITE_RUNTIME = 3
   };
 
   constexpr bool is_valid(OptimizeMode value){
@@ -696,7 +696,7 @@ namespace FieldDescriptorProto_ {
     TYPE_SFIXED32 = 15,
     TYPE_SFIXED64 = 16,
     TYPE_SINT32 = 17,
-    TYPE_SINT64 = 18 
+    TYPE_SINT64 = 18
   };
 
   constexpr bool is_valid(Type value){
@@ -707,7 +707,7 @@ namespace FieldDescriptorProto_ {
   enum class Label {
     LABEL_OPTIONAL = 1,
     LABEL_REPEATED = 3,
-    LABEL_REQUIRED = 2 
+    LABEL_REQUIRED = 2
   };
 
   constexpr bool is_valid(Label value){
@@ -741,7 +741,7 @@ struct FieldDescriptorProto {
 namespace ExtensionRangeOptions_ {
   enum class VerificationState {
     DECLARATION = 0,
-    UNVERIFIED = 1 
+    UNVERIFIED = 1
   };
 
   constexpr bool is_valid(VerificationState value){
@@ -1014,7 +1014,7 @@ template <typename Traits>
 constexpr auto message_type_url(const FileDescriptorProto<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorProto">{}; }
 template <typename Traits>
 constexpr auto message_type_url(const FileDescriptorSet<Traits>& /*unused*/) { return ::hpp_proto::string_literal<"type.googleapis.com/google.protobuf.FileDescriptorSet">{}; }
-// NOLINTEND(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape)
+// NOLINTEND(performance-enum-size,misc-const-correctness,cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,bugprone-exception-escape,modernize-raw-string-literal,clang-analyzer-optin.performance.Padding)
 } // namespace google::protobuf
 template <typename Traits>
 struct hpp_proto::is_hpp_generated<google::protobuf::UninterpretedOption_::NamePart<Traits>> : std::true_type {};
