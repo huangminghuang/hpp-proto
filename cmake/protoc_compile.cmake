@@ -1,13 +1,22 @@
 function(hpp_proto_compile_protoc)
     set(Protobuf_VERSION "${HPP_PROTO_PROTOC_VERSION}" PARENT_SCOPE)
     CPMAddPackage(
+        NAME absl
+        VERSION "${HPP_PROTO_ABSEIL_VERSION}"
+        GIT_TAG "${HPP_PROTO_ABSEIL_COMMIT}"
+        GITHUB_REPOSITORY abseil/abseil-cpp
+        SYSTEM ON
+        OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
+        "ABSL_ENABLE_INSTALL OFF"
+    )
+    CPMAddPackage(
         NAME protobuf
         VERSION "${HPP_PROTO_PROTOC_VERSION}"
         GIT_TAG "${HPP_PROTO_PROTOC_COMMIT}"
         GITHUB_REPOSITORY protocolbuffers/protobuf
         SYSTEM ON
         OPTIONS "ABSL_PROPAGATE_CXX_STD ON"
-        "protobuf_FORCE_FETCH_DEPENDENCIES ON"
+        "protobuf_LOCAL_DEPENDENCIES_ONLY ON"
         "protobuf_INSTALL OFF"
         "protobuf_BUILD_TESTS OFF"
         "protobuf_BUILD_PROTOBUF_BINARIES ON"

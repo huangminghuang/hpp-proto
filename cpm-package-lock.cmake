@@ -18,6 +18,17 @@ CPMDeclarePackage(is_utf8
   DOWNLOAD_ONLY ON
   GITHUB_REPOSITORY simdutf/is_utf8
 )
+# absl
+CPMDeclarePackage(absl
+  NAME absl
+  VERSION 20250512.1
+  GIT_TAG 76bb24329e8bf5f39704eb10d21b9a80befa7c81
+  GITHUB_REPOSITORY abseil/abseil-cpp
+  SYSTEM ON
+  OPTIONS
+    "ABSL_PROPAGATE_CXX_STD ON"
+    "ABSL_ENABLE_INSTALL OFF"
+)
 # protobuf
 CPMDeclarePackage(protobuf
   NAME protobuf
@@ -27,7 +38,7 @@ CPMDeclarePackage(protobuf
   SYSTEM ON
   OPTIONS
     "ABSL_PROPAGATE_CXX_STD ON"
-    "protobuf_FORCE_FETCH_DEPENDENCIES ON"
+    "protobuf_LOCAL_DEPENDENCIES_ONLY ON"
     "protobuf_INSTALL OFF"
     "protobuf_BUILD_TESTS OFF"
     "protobuf_BUILD_PROTOBUF_BINARIES ON"
