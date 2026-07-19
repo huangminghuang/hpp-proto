@@ -63,7 +63,7 @@ struct descriptor_pool_addon_context {
 
 template <typename AddOns>
 struct descriptor_pool_addon_context<AddOns, std::void_t<typename AddOns::context_type>> {
-  using type = typename AddOns::context_type;
+  using type = AddOns::context_type;
 };
 } // namespace detail
 
@@ -99,7 +99,7 @@ class descriptor_pool {
     }
   }
 
-  using addon_context_type = typename detail::descriptor_pool_addon_context<AddOns>::type;
+  using addon_context_type = detail::descriptor_pool_addon_context<AddOns>::type;
 
   // Preserve the existing AddOns constructor interface while allowing AddOns
   // that need invocation-local state to opt into an explicit context argument.

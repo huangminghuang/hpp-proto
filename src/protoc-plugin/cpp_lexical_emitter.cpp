@@ -28,6 +28,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <system_error>
 #include <unordered_set>
 
@@ -184,8 +185,8 @@ struct parsed_integer {
     return std::unexpected(error(lexical_errc::invalid_numeric_literal, "integer radix prefix has no digits"));
   }
 
-  const auto *const first = value.begin();
-  const auto *const last = value.end();
+  const auto *const first = std::to_address(value.begin());
+  const auto *const last = std::to_address(value.end());
   const auto parsed = std::from_chars(first, last, result.magnitude, base);
   if (parsed.ec != std::errc{} || parsed.ptr != last) {
     return std::unexpected(error(lexical_errc::invalid_numeric_literal, "invalid integer literal"));
@@ -200,8 +201,8 @@ template <std::floating_point Float>
   }
 
   Float parsed{};
-  const auto *const first = value.begin();
-  const auto *const last = value.end();
+  const auto *const first = std::to_address(value.begin());
+  const auto *const last = std::to_address(value.end());
   const auto result = std::from_chars(first, last, parsed, std::chars_format::general);
   return result.ec == std::errc{} && result.ptr == last && std::isfinite(parsed);
 }

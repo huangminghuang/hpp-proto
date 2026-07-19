@@ -25,6 +25,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <functional>
 #include <google/protobuf/compiler/plugin.pb.hpp>
 #include <hpp_proto/descriptor_pool.hpp>
 #include <hpp_proto/hpp_options.pb.hpp>
@@ -44,6 +45,7 @@
 namespace {
 namespace cpp = ::hpp_proto::protoc::cpp;
 constexpr std::size_t proto_suffix_length = std::string_view{"proto"}.size();
+constexpr std::size_t initial_indent_size = 128;
 
 class generation_diagnostics {
 public:
@@ -61,8 +63,12 @@ private:
 };
 
 struct generation_context {
-  const ::hpp_proto::protoc::generator_options &options;
+  explicit generation_context(const ::hpp_proto::protoc::generator_options &options) : options_(options) {}
+
+  [[nodiscard]] const ::hpp_proto::protoc::generator_options &options() const noexcept { return options_.get(); }
+
   generation_diagnostics diagnostics;
+  std::reference_wrapper<const ::hpp_proto::protoc::generator_options> options_;
 };
 
 cpp::identifier cpp_identifier(std::string_view name, generation_diagnostics &diagnostics) {
@@ -246,7 +252,7 @@ struct hpp_addons {
     }
 
     void set_cpp_type(const FieldDescriptorProto &proto) {
-      using enum google::protobuf::FieldDescriptorProto<>::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
       auto assign_type = [this](cpp::source_fragment type, cpp::source_fragment meta_type) {
         cpp_field_type = std::move(type);
         qualified_cpp_field_type = cpp_field_type;
@@ -312,8 +318,8 @@ struct hpp_addons {
     }
 
     void set_default_value(const FieldDescriptorProto &proto, generation_diagnostics &diagnostics) {
-      using enum google::protobuf::FieldDescriptorProto<>::Type;
-      using enum google::protobuf::FieldDescriptorProto<>::Label;
+      using enum google::protobuf::FieldDescriptorProto_::Type;
+      using enum google::protobuf::FieldDescriptorProto_::Label;
 
       if (!proto.default_value.empty()) {
         if (proto.type == TYPE_STRING) {
@@ -458,8 +464,8 @@ struct hpp_addons {
       if (self.options().get_extension(opts).ok()) {
         if (opts.value.namespace_prefix.has_value()) {
           namespace_prefix = cpp_qualified_name(opts.value.namespace_prefix.value(), context.generation->diagnostics);
-        } else if (context.generation->options.namespace_prefix.has_value()) {
-          namespace_prefix = *context.generation->options.namespace_prefix;
+        } else if (context.generation->options().namespace_prefix.has_value()) {
+          namespace_prefix = *context.generation->options().namespace_prefix;
         }
         cpp_namespace =
             cpp_qualified_name(namespace_prefix, "." + self.proto().package, context.generation->diagnostics);
@@ -498,7 +504,7 @@ const static hpp_proto::flat_map<std::string, cpp::source_fragment> well_known_c
 struct code_generator {
   generation_context &context;
   std::size_t indent_num = 0;
-  mutable std::string indent_spaces = std::string(128, ' ');
+  mutable std::string indent_spaces = std::string(initial_indent_size, ' ');
   CodeGeneratorResponse::File &file;
   std::back_insert_iterator<std::string> target;
 
@@ -538,7 +544,7 @@ struct code_generator {
 
   [[nodiscard]] std::optional<cpp::include_path> generated_include(std::string_view proto_file,
                                                                    std::string_view suffix) const {
-    auto result = cpp::include_path::from_proto_file(proto_file, context.options.directory_prefix, suffix);
+    auto result = cpp::include_path::from_proto_file(proto_file, context.options().directory_prefix, suffix);
     if (!result.has_value()) {
       context.diagnostics.record(result.error().message);
       return std::nullopt;
@@ -702,8 +708,8 @@ struct code_generator {
                  "//    protoc --plugin=protoc-gen-hpp=/path/to/{}\n"
                  "//           --hpp_out {}:${{out_dir}}\n"
                  "//           {}\n\n",
-                 cpp::comment_text{context.options.plugin_name.filename().string()},
-                 cpp::comment_text{context.options.raw_parameters}, cpp::comment_text{file});
+                 cpp::comment_text{context.options().plugin_name.filename().string()},
+                 cpp::comment_text{context.options().raw_parameters}, cpp::comment_text{file});
   }
 
   static auto dependencies(file_descriptor_t &descriptor) {
@@ -1311,11 +1317,11 @@ struct msg_code_generator : code_generator {
     std::string qualified_name = std::string{descriptor.qualified_parent_name()} + "." + descriptor.proto().name;
 
     descriptor.is_cpp_optional =
-        (syntax != "proto2" || context.options.proto2_explicit_presences.empty())
+        (syntax != "proto2" || context.options().proto2_explicit_presences.empty())
             ? descriptor.explicit_presence()
             : (descriptor.proto().label == LABEL_OPTIONAL &&
                (descriptor.proto().type == TYPE_MESSAGE || descriptor.proto().type == TYPE_GROUP ||
-                std::ranges::any_of(context.options.proto2_explicit_presences, [&qualified_name](const auto &s) {
+                std::ranges::any_of(context.options().proto2_explicit_presences, [&qualified_name](const auto &s) {
                   return qualified_name.starts_with(std::string_view{s}.substr(1));
                 })));
   }
@@ -1630,7 +1636,7 @@ struct hpp_meta_generator : code_generator {
   }
 
   static bool emit_closed_enum_validation(const field_descriptor_t &descriptor) {
-    using enum google::protobuf::FieldDescriptorProto<>::Label;
+    using enum google::protobuf::FieldDescriptorProto_::Label;
     if (!descriptor.is_closed_enum) {
       return false;
     }
@@ -1648,7 +1654,7 @@ struct hpp_meta_generator : code_generator {
 
   static std::vector<cpp::source_fragment> meta_options(const field_descriptor_t &descriptor) {
     std::vector<cpp::source_fragment> options;
-    using enum google::protobuf::FieldDescriptorProto<>::Label;
+    using enum google::protobuf::FieldDescriptorProto_::Label;
     const bool is_oneof_alternative = descriptor.proto().oneof_index.has_value();
     const bool is_optional_closed_enum_extension = descriptor.is_closed_enum &&
                                                    descriptor.extendee_descriptor() != nullptr &&
@@ -1676,8 +1682,8 @@ struct hpp_meta_generator : code_generator {
   void process(field_descriptor_t &descriptor, std::size_t oneof_index) {
     auto options = meta_options(descriptor);
     auto proto = descriptor.proto();
-    using enum google::protobuf::FieldDescriptorProto<>::Label;
-    using enum google::protobuf::FieldDescriptorProto<>::Type;
+    using enum google::protobuf::FieldDescriptorProto_::Label;
+    using enum google::protobuf::FieldDescriptorProto_::Type;
 
     if (descriptor.is_map_entry()) {
       auto get_meta_type = [](const auto &field) {
@@ -1733,8 +1739,8 @@ struct hpp_meta_generator : code_generator {
             ? cpp::format("{}", descriptor.cpp_name)
             : cpp::format("{}<Traits>::{}", descriptor.parent_message()->cpp_name, descriptor.cpp_name);
 
-    using enum google::protobuf::FieldDescriptorProto<>::Label;
-    using enum google::protobuf::FieldDescriptorProto<>::Type;
+    using enum google::protobuf::FieldDescriptorProto_::Label;
+    using enum google::protobuf::FieldDescriptorProto_::Type;
     auto proto = descriptor.proto();
     const auto &qualified_extendee = descriptor.extendee_descriptor()->qualified_name;
     const auto extendee_template =
@@ -2176,7 +2182,7 @@ struct glaze_meta_generator : code_generator {
     const std::string &json_name = descriptor.proto().json_name;
     const std::string &proto_name = descriptor.proto().name;
 
-    if (context.options.preserve_proto_field_names) {
+    if (context.options().preserve_proto_field_names) {
       emit_field(proto_name, false);
       if (json_name != proto_name) {
         emit_field(json_name, true);
@@ -2207,7 +2213,7 @@ struct glaze_meta_generator : code_generator {
         const std::string &json_name = fields[i].proto().json_name;
         const std::string &proto_name = fields[i].proto().name;
 
-        if (context.options.preserve_proto_field_names) {
+        if (context.options().preserve_proto_field_names) {
           emit_oneof(proto_name, false);
           if (json_name != proto_name) {
             emit_oneof(json_name, true);
@@ -2425,6 +2431,54 @@ struct service_generator : code_generator {
 
 namespace {
 
+void generate_outputs_for_file(CodeGeneratorResponse &response, hpp_gen_descriptor_pool &pool,
+                               generation_context &context, code_generator::file_descriptor_t &descriptor) {
+  msg_code_generator msg_code(response.file, context);
+  msg_code.process(descriptor);
+  if (context.diagnostics.has_error()) {
+    return;
+  }
+
+  hpp_meta_generator hpp_meta_code(response.file, context);
+  hpp_meta_code.process(descriptor);
+  if (context.diagnostics.has_error()) {
+    return;
+  }
+
+  glaze_meta_generator glz_meta_code(response.file, context);
+  glz_meta_code.process(descriptor);
+  if (context.diagnostics.has_error()) {
+    return;
+  }
+
+  if (!descriptor.messages().empty()) {
+    desc_hpp_generator desc_hpp_code(response.file, context);
+    desc_hpp_code.process(descriptor);
+  }
+  if (context.diagnostics.has_error() || descriptor.proto().service.empty()) {
+    return;
+  }
+
+  service_generator service_code(response.file, pool, context);
+  service_code.process(descriptor);
+}
+
+void generate_requested_files(CodeGeneratorResponse &response, hpp_gen_descriptor_pool &pool,
+                              generation_context &context, const auto &file_names) {
+  for (const auto &file_name : file_names) {
+    auto *descriptor = pool.get_file_descriptor(file_name);
+    if (descriptor == nullptr) {
+      context.diagnostics.record(std::format("hpp file_to_generate not found: {}", file_name));
+      return;
+    }
+
+    generate_outputs_for_file(response, pool, context, *descriptor);
+    if (context.diagnostics.has_error()) {
+      return;
+    }
+  }
+}
+
 void split(std::string_view str, char deliminator, auto &&callback) {
   std::size_t pos = 0;
   while (pos < str.size()) {
@@ -2483,7 +2537,7 @@ std::expected<plugin_options, generator_option_error> parse_plugin_options(std::
 }
 
 code_generator_response hpp_generator::generate(code_generator_request request) const {
-  generation_context context{.options = options_};
+  generation_context context{options_};
   code_generator_response response;
   using enum code_generator_response::Feature;
   response.supported_features =
@@ -2506,47 +2560,7 @@ code_generator_response hpp_generator::generate(code_generator_request request) 
   }
 
   if (!context.diagnostics.has_error()) {
-    for (const auto &file_name : request.file_to_generate) {
-      auto *descriptor = pool.get_file_descriptor(file_name);
-      if (descriptor == nullptr) {
-        context.diagnostics.record(std::format("hpp file_to_generate not found: {}", file_name));
-        break;
-      }
-
-      msg_code_generator msg_code(response.file, context);
-      msg_code.process(*descriptor);
-      if (context.diagnostics.has_error()) {
-        break;
-      }
-
-      hpp_meta_generator hpp_meta_code(response.file, context);
-      hpp_meta_code.process(*descriptor);
-      if (context.diagnostics.has_error()) {
-        break;
-      }
-
-      glaze_meta_generator glz_meta_code(response.file, context);
-      glz_meta_code.process(*descriptor);
-      if (context.diagnostics.has_error()) {
-        break;
-      }
-
-      if (!descriptor->messages().empty()) {
-        desc_hpp_generator desc_hpp_code(response.file, context);
-        desc_hpp_code.process(*descriptor);
-      }
-      if (context.diagnostics.has_error()) {
-        break;
-      }
-
-      if (!descriptor->proto().service.empty()) {
-        service_generator service_code(response.file, pool, context);
-        service_code.process(*descriptor);
-        if (context.diagnostics.has_error()) {
-          break;
-        }
-      }
-    }
+    generate_requested_files(response, pool, context, request.file_to_generate);
   }
 
   if (context.diagnostics.has_error()) {
