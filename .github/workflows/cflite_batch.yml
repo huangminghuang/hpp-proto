@@ -7,9 +7,8 @@ on:
   schedule:
     - cron: '0 3 * * *'
 permissions:
-  contents: read
+  contents: write
   actions: read
-  security-events: write
 jobs:
   BatchFuzzing:
     runs-on: ubuntu-latest
@@ -18,45 +17,33 @@ jobs:
       matrix:
         sanitizer: [address, undefined]  # Override this with the sanitizers you want.
     steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      with:
+        persist-credentials: false
     - name: Setup C++ tools
       uses: aminya/setup-cpp@8170d66c458f4a045220b7b0966c10940bb2a15d # v1.8.1
       with:
         ccache: true
     - name: Build Fuzzers (${{ matrix.sanitizer }})
       id: build
-      uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+      uses: ./.github/actions/cflite-build-fuzzers
       with:
         sanitizer: ${{ matrix.sanitizer }}
 
-    - name: Create short-lived storage token
-      id: storage-token
-      if: vars.CFL_STORAGE_APP_ENABLED == 'true'
-      uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
-      with:
-        app-id: ${{ secrets.CFL_STORAGE_APP_ID }}
-        private-key: ${{ secrets.CFL_STORAGE_APP_PRIVATE_KEY }}
-        owner: huangminghuang
-        repositories: hpp-proto-storage
+    - name: Migrate persistent storage to short-lived workflow credentials
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: .clusterfuzzlite/migrate-storage.sh
 
-    - name: Run Fuzzers (${{ matrix.sanitizer }}) with storage repo
-      if: steps.storage-token.outcome == 'success'
+    - name: Run Fuzzers (${{ matrix.sanitizer }})
       id: run
-      uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+      uses: ./.github/actions/cflite-run-fuzzers
       with:
         github-token: ${{ github.token }}
         fuzz-seconds: 600
         mode: 'batch'
         sanitizer: ${{ matrix.sanitizer }}
-        storage-repo: https://x-access-token:${{ steps.storage-token.outputs.token }}@github.com/huangminghuang/hpp-proto-storage.git
-        storage-repo-branch: main   # Optional. Defaults to "main"
-        storage-repo-branch-coverage: gh-pages  # Optional. Defaults to "gh-pages".
-
-    - name: Run Fuzzers (${{ matrix.sanitizer }}) without storage repo
-      if: steps.storage-token.outcome != 'success'
-      id: run-no-storage
-      uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
-      with:
-        github-token: ${{ github.token }}
-        fuzz-seconds: 600
-        mode: 'batch'
-        sanitizer: ${{ matrix.sanitizer }}
+        storage-repo: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        storage-repo-branch: cflite-corpus
+        storage-repo-branch-coverage: cflite-coverage
