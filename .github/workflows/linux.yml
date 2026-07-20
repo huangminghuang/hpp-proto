@@ -51,6 +51,10 @@
               compiler: gcc-13
               cmake_preset: ci-linux-coverage
               cpp_standard: 23
+            - os: ubuntu-24.04
+              compiler: llvm-20
+              cmake_preset: ci-linux-fuzz
+              cpp_standard: 23
 
       runs-on: ${{ matrix.os }}
       defaults:
@@ -63,7 +67,7 @@
             sudo apt-get install -y git protobuf-compiler
 
         - name: Install libgrpc++
-          if: matrix.cmake_preset != 'ci-linux-asan-ubsan'
+          if: matrix.cmake_preset != 'ci-linux-asan-ubsan' && matrix.cmake_preset != 'ci-linux-fuzz'
           run: |
             sudo apt-get install -y libprotobuf-dev libgrpc++-dev protobuf-compiler-grpc
         - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -103,9 +107,16 @@
           run: cmake --build build -j"$(nproc)"
   
         - name: test
+          if: matrix.cmake_preset != 'ci-linux-fuzz'
           working-directory: ./build
           run: |
             ctest --output-on-failure
+
+        - name: verify standalone fuzz instrumentation
+          if: matrix.cmake_preset == 'ci-linux-fuzz'
+          run: |
+            python3 cmake/verify_fuzz_instrumentation.py build/compile_commands.json
+            build/fuzz/fuzz_descriptor build/fuzz/descriptor_seed_corpus -runs=1
 
         - name: capture coverage
           if: matrix.cmake_preset == 'ci-linux-coverage'

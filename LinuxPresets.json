@@ -48,6 +48,14 @@
             }
         },
         {
+            "name": "ci-linux-fuzz",
+            "inherits": "ci-linux-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "HPP_PROTO_FUZZER_ONLY": true
+            }
+        },
+        {
             "name": "asan",
             "hidden": true,
             "displayName": "Address Sanitizer",

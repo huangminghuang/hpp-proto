@@ -160,7 +160,8 @@
             "binaryDir": "${sourceDir}/build/fuzz",
             "cacheVariables": {
                 "HPP_PROTO_PROTOC": "find",
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "HPP_PROTO_FUZZER_ONLY": true
             }
         }
     ],
