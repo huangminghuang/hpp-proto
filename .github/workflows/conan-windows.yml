@@ -28,17 +28,21 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: conan-protobuf-binary-shared
+            lockfile: conan/locks/windows-protobuf.lock
+            package_list: conan/packages/windows-protobuf.json
             with_protobuf: "True"
             cmake_configure_preset: conan-release
             cmake_build_preset: conan-release
             build_shared_libs: "ON"
           - name: system-protobuf-cpp23-static
+            lockfile: conan/locks/windows-system.lock
+            package_list: conan/packages/windows-system.json
             with_protobuf: "False"
             cmake_configure_preset: conan-release
             cmake_build_preset: conan-release
@@ -80,30 +84,30 @@ jobs:
           Expand-Archive -Path $zip -DestinationPath "$env:TEMP\\protoc"
           Add-Content $env:GITHUB_PATH "$env:TEMP\\protoc\\bin"
 
-      - name: conan profile
-        run: conan profile detect --force
+      - name: download locked dependency binaries
+        run: |
+          conan download `
+            --list="${{ matrix.package_list }}" `
+            --remote=conancenter
 
       - name: create package
         run: |
           conan create . `
-            -c:a tools.cmake.cmaketoolchain:generator=Ninja `
-            -s:h build_type=Release `
-            -s:h compiler.cppstd=23 `
-            -s:b build_type=Release `
-            -s:b compiler.cppstd=17 `
+            -pr:h conan/profiles/windows-host `
+            -pr:b conan/profiles/windows-build `
             -o "&:with_protobuf=${{ matrix.with_protobuf }}" `
-            --build=missing
+            --lockfile="${{ matrix.lockfile }}" `
+            --no-remote
 
       - name: install dependencies
         run: |
           conan install tutorial `
-            -c:a tools.cmake.cmaketoolchain:generator=Ninja `
-            -s:h build_type=Release `
-            -s:b build_type=Release `
-            -s:h compiler.cppstd=23 `
-            -s:b compiler.cppstd=17 `
+            -pr:h conan/profiles/windows-host `
+            -pr:b conan/profiles/windows-build `
             -o "hpp_proto/*:with_protobuf=${{ matrix.with_protobuf }}" `
-            --build=missing `
+            --lockfile="${{ matrix.lockfile }}" `
+            --lockfile-partial `
+            --no-remote `
             -of tutorial-build
 
       - name: configure

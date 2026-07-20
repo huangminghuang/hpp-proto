@@ -52,7 +52,7 @@ class HppProtoConan(ConanFile):
     def build_requirements(self):
         self.protoc_mode = self.conf.get("user.hpp_proto:protoc", default="find")
         if self.options.with_protobuf:
-            self.tool_requires("protobuf/[>=3.21.12]")
+            self.tool_requires("protobuf/7.35.0")
 
     def layout(self):
         cmake_layout(self)

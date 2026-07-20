@@ -1,0 +1,9 @@
+{
+    "version": "0.5",
+    "requires": [
+        "glaze/7.8.4#17bfcc0739d8a1618cafd35327b1127e%1783515405.523"
+    ],
+    "build_requires": [],
+    "python_requires": [],
+    "config_requires": []
+}

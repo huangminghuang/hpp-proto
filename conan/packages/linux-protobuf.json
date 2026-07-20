@@ -1,0 +1,142 @@
+{
+    "Local Cache": {
+        "glaze/7.8.4": {
+            "revisions": {
+                "17bfcc0739d8a1618cafd35327b1127e": {
+                    "timestamp": 1783515405.523,
+                    "packages": {
+                        "da39a3ee5e6b4b0d3255bfef95601890afd80709": {
+                            "revisions": {
+                                "932b70d70c4d21bb16f60fa91cc3b653": {
+                                    "timestamp": 1783515504.367
+                                }
+                            },
+                            "info": {}
+                        }
+                    }
+                }
+            }
+        },
+        "protobuf/7.35.0": {
+            "revisions": {
+                "59f5248022af755532bfe62482c3de80": {
+                    "timestamp": 1779376426.695,
+                    "packages": {
+                        "f5d75c5ca3a4d6147cbb99a5f8f5d03d2a2471a1": {
+                            "revisions": {
+                                "92bf531eb7d9f50d8ecab4496c51acb4": {
+                                    "timestamp": 1779376926.473
+                                }
+                            },
+                            "info": {
+                                "settings": {
+                                    "os": "Linux",
+                                    "arch": "x86_64",
+                                    "compiler": "gcc",
+                                    "compiler.cppstd": "gnu17",
+                                    "compiler.libcxx": "libstdc++11",
+                                    "compiler.version": "13",
+                                    "build_type": "Release"
+                                },
+                                "options": {
+                                    "debug_suffix": "True",
+                                    "fPIC": "True",
+                                    "lite": "False",
+                                    "shared": "False",
+                                    "with_rtti": "True",
+                                    "with_zlib": "True"
+                                },
+                                "requires": [
+                                    "zlib/1.3.Z",
+                                    "abseil/20260107.1.Z"
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "conancenter": {
+        "glaze/7.8.4": {
+            "revisions": {
+                "17bfcc0739d8a1618cafd35327b1127e": {
+                    "timestamp": 1783515405.523,
+                    "packages": {
+                        "da39a3ee5e6b4b0d3255bfef95601890afd80709": {
+                            "revisions": {
+                                "932b70d70c4d21bb16f60fa91cc3b653": {
+                                    "timestamp": 1783515504.367
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "protobuf/7.35.0": {
+            "revisions": {
+                "59f5248022af755532bfe62482c3de80": {
+                    "timestamp": 1779376426.695,
+                    "packages": {
+                        "f5d75c5ca3a4d6147cbb99a5f8f5d03d2a2471a1": {
+                            "revisions": {
+                                "92bf531eb7d9f50d8ecab4496c51acb4": {
+                                    "timestamp": 1779376926.473
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "zlib/1.3.2": {
+            "revisions": {
+                "1cb806da49011867778ffb6ac7190fcb": {
+                    "timestamp": 1777558780.503,
+                    "packages": {
+                        "c81087b06d1a5beef0ad711fc32d45f7a425a8f3": {
+                            "revisions": {
+                                "424b3705b50fb9c7a13cf3d299743946": {
+                                    "timestamp": 1777559540.655
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "abseil/20260107.1": {
+            "revisions": {
+                "883e95a7be2b767999f64669ac642e5d": {
+                    "timestamp": 1773137897.755,
+                    "packages": {
+                        "838c313f1b7acdfd23b222f0156e7c264dcc2515": {
+                            "revisions": {
+                                "530375e51838d5c31c9c1ffce4625cd7": {
+                                    "timestamp": 1773138099.294
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "cmake/4.4.0": {
+            "revisions": {
+                "a5dd5d73bd9fc56b0fc3163a04573dc8": {
+                    "timestamp": 1784051561.926,
+                    "packages": {
+                        "63fead0844576fc02943e16909f08fcdddd6f44b": {
+                            "revisions": {
+                                "8a34df4a66dc462ae25376a2f1224df6": {
+                                    "timestamp": 1784051689.702
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

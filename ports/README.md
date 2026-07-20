@@ -15,6 +15,8 @@ This directory contains local vcpkg overlay ports used by this repository.
   - Feature `vcpkg-protobuf` uses `protobuf`/`protoc` from vcpkg host tools.
 - `ports/glaze`: pinned overlay port for `glaze` `7.8.4`.
   - This overrides the registry `glaze` port when `--overlay-ports` points to this directory.
+- `ports/is-utf8`: pinned overlay port for `is-utf8` `1.4.1`.
+  - Its patch disables upstream benchmark downloads and installs the missing CMake target export.
 
 ## How Overlay Resolution Works
 
@@ -28,11 +30,10 @@ vcpkg prefers matching ports from this directory before registry ports.
 
 ### Install `hpp-proto` from this repository overlay
 
-Precondition: default mode, `protoc` must be installed and discoverable via `$PATH`.
+From the repository root, with `protoc` installed and discoverable via `$PATH`:
 
 ```bash
 "$VCPKG_ROOT/vcpkg" install \
-  hpp-proto \
   --triplet=x64-linux \
   --overlay-ports="$PWD/ports"
 ```
@@ -42,6 +43,7 @@ Precondition: default mode, `protoc` must be installed and discoverable via `$PA
 ```bash
 "$VCPKG_ROOT/vcpkg" install \
   "hpp-proto[vcpkg-protobuf]" \
+  --classic \
   --triplet=x64-linux \
   --overlay-ports="$PWD/ports"
 ```
@@ -60,4 +62,5 @@ cmake -S tutorial -B tutorial-build -G Ninja \
 ## Notes
 
 - If triplet/arch differs (for example in ARM containers), use the matching triplet (for example `arm64-linux`).
-- Keep `ports/glaze` aligned with the version expected by `hpp-proto`.
+- Keep the `glaze` and `is-utf8` overlay ports aligned with the versions expected by `hpp-proto`.
+- The repository-root manifest pins the vcpkg registry baseline used by CI. Update the baseline and the pinned `vcpkg` input in `.github/workflows/vcpkg.yml` together.
