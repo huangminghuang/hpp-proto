@@ -168,7 +168,7 @@ if(PROJECT_IS_TOP_LEVEL AND HPP_PROTO_TESTS)
   add_subdirectory(tutorial)
 endif()
 
-if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/fuzz) # conan recipe exclude fuzz directory 
+if(HPP_PROTO_FUZZER_ONLY AND IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/fuzz) # conan recipe excludes fuzz directory
   add_subdirectory(fuzz)
 endif()
 

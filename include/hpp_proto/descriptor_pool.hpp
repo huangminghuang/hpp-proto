@@ -891,7 +891,7 @@ private:
     for (auto &f : fields_) {
       if (f.proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
           f.proto_.type == FieldDescriptorProto::Type::TYPE_GROUP) {
-        auto desc = find_type(message_map_, f.proto_.type_name.substr(1));
+        auto desc = find_type(message_map_, f.proto_.type_name);
         if (!desc) {
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
@@ -900,7 +900,7 @@ private:
           f.field_option_bitset_ |= mask(field_option_mask::MASK_MAP_ENTRY);
         }
       } else if (f.proto_.type == FieldDescriptorProto::Type::TYPE_ENUM) {
-        auto desc = find_type(enum_map_, f.proto_.type_name.substr(1));
+        auto desc = find_type(enum_map_, f.proto_.type_name);
         if (!desc) {
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
@@ -908,7 +908,7 @@ private:
       }
 
       if (!f.proto_.extendee.empty()) {
-        auto desc = find_type(message_map_, f.proto_.extendee.substr(1));
+        auto desc = find_type(message_map_, f.proto_.extendee);
         if (!desc) {
           return std::unexpected(descriptor_pool_errc::validation_error);
         }
@@ -1158,7 +1158,10 @@ private:
 
   template <typename FlatMap>
   FlatMap::mapped_type find_type(FlatMap &types, std::string_view qualified_name) {
-    auto itr = types.find(qualified_name);
+    if (qualified_name.empty() || qualified_name.front() != '.') {
+      return nullptr;
+    }
+    auto itr = types.find(qualified_name.substr(1));
     return itr == types.end() ? nullptr : itr->second;
   }
 

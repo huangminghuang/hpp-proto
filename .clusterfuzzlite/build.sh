@@ -42,6 +42,7 @@ cmake --build "$BUILD_DIR"
 # Copy the fuzzing binaries to the output directory.
 cp "$BUILD_DIR"/fuzz/fuzz_binpb $OUT/
 cp "$BUILD_DIR"/fuzz/fuzz_json $OUT/
+cp "$BUILD_DIR"/fuzz/fuzz_descriptor $OUT/
 
 
 # Ensure the descriptor is available next to the fuzzers at runtime.
@@ -50,3 +51,4 @@ cp "$BUILD_DIR"/fuzz/unittest.desc.binpb "${OUT}"/unittest.desc.binpb
 
 zip -j $OUT/fuzz_binpb_seed_corpus.zip "$BUILD_DIR"/fuzz/binpb_seed_corpus/*
 zip -j $OUT/fuzz_json_seed_corpus.zip "$BUILD_DIR"/fuzz/json_seed_corpus/*
+zip -j $OUT/fuzz_descriptor_seed_corpus.zip "$BUILD_DIR"/fuzz/descriptor_seed_corpus/*

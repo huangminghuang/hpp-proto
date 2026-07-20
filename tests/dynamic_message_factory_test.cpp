@@ -608,6 +608,14 @@ const boost::ut::suite descriptor_pool_gap_tests = [] {
     expect_schema_validation_error(descriptor_set);
   };
 
+  "empty_field_type_name_sets_error"_test = [&] {
+    for (const auto field_index : {std::size_t{0}, std::size_t{1}}) {
+      auto descriptor_set = descriptor_test_corpus::referenced_types();
+      descriptor_test_corpus::root_field(descriptor_set, field_index).type_name.clear();
+      expect_schema_validation_error(descriptor_set);
+    }
+  };
+
   "invalid_field_type_returns_schema_validation_error"_test = [&] {
     auto descriptor_set = descriptor_test_corpus::scalar_field();
     // Deliberately construct an invalid descriptor enum value.
