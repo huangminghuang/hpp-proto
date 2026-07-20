@@ -891,6 +891,9 @@ private:
     for (auto &f : fields_) {
       if (f.proto_.type == FieldDescriptorProto::Type::TYPE_MESSAGE ||
           f.proto_.type == FieldDescriptorProto::Type::TYPE_GROUP) {
+        if (f.proto_.type_name.empty() || f.proto_.type_name.front() != '.') {
+          return std::unexpected(descriptor_pool_errc::validation_error);
+        }
         auto desc = find_type(message_map_, f.proto_.type_name.substr(1));
         if (!desc) {
           return std::unexpected(descriptor_pool_errc::validation_error);
@@ -900,6 +903,9 @@ private:
           f.field_option_bitset_ |= mask(field_option_mask::MASK_MAP_ENTRY);
         }
       } else if (f.proto_.type == FieldDescriptorProto::Type::TYPE_ENUM) {
+        if (f.proto_.type_name.empty() || f.proto_.type_name.front() != '.') {
+          return std::unexpected(descriptor_pool_errc::validation_error);
+        }
         auto desc = find_type(enum_map_, f.proto_.type_name.substr(1));
         if (!desc) {
           return std::unexpected(descriptor_pool_errc::validation_error);
