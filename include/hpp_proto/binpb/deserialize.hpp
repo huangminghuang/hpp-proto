@@ -119,7 +119,11 @@ struct input_buffer_region : input_span<Byte> {
       if (it == slope_area.rend()) {
         return {};
       }
-      return this->consume(this->size() - std::distance(slope_area.rbegin(), it));
+      const auto bytes_after_terminator = static_cast<std::size_t>(std::distance(slope_area.rbegin(), it));
+      if (bytes_after_terminator > this->size()) {
+        return {};
+      }
+      return this->consume(this->size() - bytes_after_terminator);
     }
     return {};
   }
@@ -387,9 +391,12 @@ struct basic_in {
   }
 
   template <concepts::varint T>
-  constexpr status parse_packed_varints_in_a_region(auto current, auto &&it) {
+  constexpr status parse_packed_varints_in_a_region(auto current, auto &&it, auto last) {
     using value_type = std::decay_t<decltype(*it)>;
     while (current.size()) {
+      if (it == last) [[unlikely]] {
+        return std::errc::bad_message;
+      }
       T underlying;
       auto p = unchecked_parse_varint(current, underlying);
       if (p > current._end) [[unlikely]] {
@@ -405,6 +412,7 @@ struct basic_in {
   template <concepts::varint T>
   constexpr status parse_packed_varints_in_regions(std::uint32_t bytes_count, auto &item) {
     auto it = item.data();
+    const auto last = item.data() + item.size();
     while (bytes_count > 0) {
       maybe_advance_region();
       auto data = current.consume_packed_varints(bytes_count);
@@ -412,7 +420,7 @@ struct basic_in {
         return std::errc::bad_message;
       }
       bytes_count -= static_cast<std::uint32_t>(data.size());
-      if (auto result = parse_packed_varints_in_a_region<T>(data, it); !result.ok()) [[unlikely]] {
+      if (auto result = parse_packed_varints_in_a_region<T>(data, it, last); !result.ok()) [[unlikely]] {
         return result;
       }
     }
@@ -425,7 +433,8 @@ struct basic_in {
     item.resize(item.size() + size);
     const std::span new_region{std::next(item.begin(), old_size), item.end()};
     if constexpr (contiguous) {
-      return parse_packed_varints_in_a_region<T>(current.consume(bytes_count), new_region.data());
+      return parse_packed_varints_in_a_region<T>(current.consume(bytes_count), new_region.data(),
+                                                 new_region.data() + new_region.size());
     } else {
       return parse_packed_varints_in_regions<T>(bytes_count, new_region);
     }
@@ -558,19 +567,20 @@ struct basic_in {
       if constexpr (!contiguous) {
         basic_in archive(*this);
         std::size_t result = 0;
-        while (num_bytes > 0 && in_avail() > 0) {
+        while (num_bytes > 0 && archive.in_avail() > 0) {
           archive.maybe_advance_region();
           if (num_bytes > archive.region_size()) {
             auto n = archive.region_size();
-            result += archive.count_number_of_varints_in_region(n);
-            archive.current.consume(n);
+            result += archive.count_number_of_varints_in_region(static_cast<std::size_t>(n));
+            archive.current.consume(static_cast<std::size_t>(n));
             num_bytes -= static_cast<uint32_t>(n);
           } else {
-            if (std::bit_cast<int8_t>(archive.current[num_bytes - 1]) < 0) [[unlikely]] {
+            const auto remaining = static_cast<std::size_t>(num_bytes);
+            if (std::bit_cast<int8_t>(archive.current[remaining - 1]) < 0) [[unlikely]] {
               // if the last element is unterminated, just return empty to indicate error
               return {};
             }
-            return result + archive.count_number_of_varints_in_region(num_bytes);
+            return result + archive.count_number_of_varints_in_region(remaining);
           }
         }
       }
