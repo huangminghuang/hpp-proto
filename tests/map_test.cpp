@@ -58,8 +58,10 @@ const boost::ut::suite map_test = [] {
                            "\x80\x80\x00\xa2\x23\x80\x80\x00\x90\x02\xcc\x21\x90\x01\x0f\x00"
                            "\x80\x3a\x05\x0d\x01\xf0\x00\x80\x3a\x05\x0d\x01\xa0\x08\x01\x3a"
                            "\x05\x0d\x01\x41\x80\x80"_bytes;
+    constexpr std::size_t crash_split_offset = 67;
     const std::span<const std::byte> crash_span{crash.data(), crash.size()};
-    std::array<std::span<const std::byte>, 2> chunks{crash_span.first<67>(), crash_span.subspan<67>()};
+    const std::array<std::span<const std::byte>, 2> chunks{crash_span.first(crash_split_offset),
+                                                           crash_span.subspan(crash_split_offset)};
     protobuf_unittest::TestMap<hpp_proto::stable_traits> contiguous_message;
     protobuf_unittest::TestMap<hpp_proto::stable_traits> segmented_message;
 
@@ -73,13 +75,26 @@ const boost::ut::suite map_test = [] {
     std::array<std::byte, 2> input{std::byte{0}, std::byte{0}};
     std::array<std::int64_t, 1> output{};
     hpp_proto::pb_context<> context;
-    hpp_proto::pb_serializer::input_buffer_region<std::byte> region{std::span<const std::byte>{input}};
-    hpp_proto::pb_serializer::input_span<hpp_proto::pb_serializer::input_buffer_region<std::byte>> rest;
+    const hpp_proto::pb_serializer::input_buffer_region<std::byte> region{std::span<const std::byte>{input}};
+    const hpp_proto::pb_serializer::input_span<hpp_proto::pb_serializer::input_buffer_region<std::byte>> rest;
     hpp_proto::pb_serializer::basic_in<std::byte, hpp_proto::pb_context<>, true> archive{region, rest, 0, context};
 
     const auto result = archive.template parse_packed_varints_in_a_region<hpp_proto::vsint64_t>(
-        archive.current, output.data(), output.data() + output.size());
+        archive.current, output.begin(), output.end());
     expect(eq(result.ec, std::errc::bad_message));
+  };
+
+  "packed varints reject a terminator before the current region"_test = [] {
+    constexpr std::array input{std::byte{0}, std::byte{0x80}, std::byte{0x80}};
+    constexpr std::size_t current_offset = 2;
+    constexpr std::size_t requested_size = 2;
+    const std::span<const std::byte> bytes{input};
+    const auto current = bytes.subspan(current_offset);
+    hpp_proto::pb_serializer::input_buffer_region<std::byte> region{
+        hpp_proto::pb_serializer::input_span<std::byte>{current.data(), current.size()}, bytes.data()};
+
+    const auto result = region.consume_packed_varints(requested_size);
+    expect(result.empty());
   };
 };
 
