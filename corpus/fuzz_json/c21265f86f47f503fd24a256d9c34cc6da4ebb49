@@ -1,1 +1,0 @@
-{"optionalInt32":15,"optionalSint64":"106","optionalFixed32":107,"optionalFixed64":"108","optionalSfixed32":10,"optionalLazyMessage":{"bb":127},"repeatedInt64":["2033004"],"repeatedSint32":[205],"repeatedSint64":["20310"],"repeatedFloat":[21],"defaultNestedEnum":32,"oneofBytes":"NjA0","repeatedInt32":[2,31],"repeatedInt64":["20310"],"defaultNestedEnum":"FOO","oneofBytes":"NjA0"}
