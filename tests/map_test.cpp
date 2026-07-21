@@ -47,6 +47,55 @@ const boost::ut::suite map_test = [] {
     expect(hpp_proto::read_json(msg, non_null_terminated_json, hpp_proto::alloc_from(mr)).ok());
     ExpectMapFieldsSet(msg);
   } | std::tuple<::hpp_proto::stable_traits, ::hpp_proto::non_owning_traits>();
+
+  "segmented packed varint crash regression"_test = [] {
+    constexpr auto crash = "\x3a\x05\x0d\x90\x02\xcc\x01\x90\x02\x01\x90\x28\x3d\x9a\x01\x3a"
+                           "\x08\x29\x80\xa8\x12\x3d\x9a\x01\x02\x08\x30\x12\x2a\x08\x00\xa8"
+                           "\x28\x3d\xda\x01\x00\x08\x34\xa8\x28\x80\x00\xa2\x12\x85\x80\x00"
+                           "\xda\x01\x00\x08\x34\xa8\x28\x84\x00\xa2\x02\x85\x80\x00\x02\x85"
+                           "\x80\x80\x00\xa2\x02\x85\x80\x80\x00\xa2\x23\x80\x80\x00\x90\x02"
+                           "\xcc\x01\x90\x02\x01\x90\x28\x3d\x02\x85\x80\x80\x00\xa2\x02\x85"
+                           "\x80\x80\x00\xa2\x23\x80\x80\x00\x90\x02\xcc\x21\x90\x01\x0f\x00"
+                           "\x80\x3a\x05\x0d\x01\xf0\x00\x80\x3a\x05\x0d\x01\xa0\x08\x01\x3a"
+                           "\x05\x0d\x01\x41\x80\x80"_bytes;
+    constexpr std::size_t crash_split_offset = 67;
+    const std::span<const std::byte> crash_span{crash.data(), crash.size()};
+    const std::array<std::span<const std::byte>, 2> chunks{crash_span.first(crash_split_offset),
+                                                           crash_span.subspan(crash_split_offset)};
+    protobuf_unittest::TestMap<hpp_proto::stable_traits> contiguous_message;
+    protobuf_unittest::TestMap<hpp_proto::stable_traits> segmented_message;
+
+    const auto contiguous = hpp_proto::read_binpb(contiguous_message, crash);
+    const auto segmented = hpp_proto::read_binpb(segmented_message, chunks);
+    expect(eq(contiguous.ec, std::errc::bad_message));
+    expect(eq(segmented.ec, std::errc::bad_message));
+  };
+
+  "packed varints respect destination bounds"_test = [] {
+    std::array<std::byte, 2> input{std::byte{0}, std::byte{0}};
+    std::array<std::int64_t, 1> output{};
+    hpp_proto::pb_context<> context;
+    const hpp_proto::pb_serializer::input_buffer_region<std::byte> region{std::span<const std::byte>{input}};
+    const hpp_proto::pb_serializer::input_span<hpp_proto::pb_serializer::input_buffer_region<std::byte>> rest;
+    hpp_proto::pb_serializer::basic_in<std::byte, hpp_proto::pb_context<>, true> archive{region, rest, 0, context};
+
+    const auto result = archive.template parse_packed_varints_in_a_region<hpp_proto::vsint64_t>(
+        archive.current, output.begin(), output.end());
+    expect(eq(result.ec, std::errc::bad_message));
+  };
+
+  "packed varints reject a terminator before the current region"_test = [] {
+    constexpr std::array input{std::byte{0}, std::byte{0x80}, std::byte{0x80}};
+    constexpr std::size_t current_offset = 2;
+    constexpr std::size_t requested_size = 2;
+    const std::span<const std::byte> bytes{input};
+    const auto current = bytes.subspan(current_offset);
+    hpp_proto::pb_serializer::input_buffer_region<std::byte> region{
+        hpp_proto::pb_serializer::input_span<std::byte>{current.data(), current.size()}, bytes.data()};
+
+    const auto result = region.consume_packed_varints(requested_size);
+    expect(result.empty());
+  };
 };
 
 // NOLINTNEXTLINE(bugprone-exception-escape)
