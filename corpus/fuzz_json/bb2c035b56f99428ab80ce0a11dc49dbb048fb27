@@ -1,0 +1,1 @@
+{"optionalInt32":101,"optionalInt64":"102","optionalUint32":1,"optionalUint64":"104","optionalSint32":10,"optionalSint64":"108","optionalSfixed32":109,"optionalSfixed64":"110","optionalFloat":418,"optionalBool":true,"optionalString":"rep15","optionalBytes":"MVE2","defaultForeignEnum":"FOREIGN_FOO"}
