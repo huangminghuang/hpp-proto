@@ -1,0 +1,7 @@
+{
+
+
+"anyField":{"@type":"re/google.protobuf.FieldMask","value":"/ut/shre"},
+
+"anyField":{"@type":"ts/google.protobuf.FieldMask","value":"/ut/shar"},
+"fieldMaskField":"/u"}
