@@ -1,0 +1,2 @@
+
+{"anyField":{"@type":"pe.gom/google.protobuf.FieldMask","value":"pi"},"durationField":"100.10s","emptyField":{},"fieldMaskField":"/usre","sourceContextField":{},"structField":{"name":"tepe"},"doubleField":3.14,"floatField":2.7,"int64Field":"40","uint64Field":"4","int32Field":42,"uint32Field":43,"boolField":true,"stringField":"abc","bytesField":"ZGVm","valueField":"xyz"}
