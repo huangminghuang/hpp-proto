@@ -1,0 +1,53 @@
+
+‰
+,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
+PublicImportMessage
+e (ReB
+com.google.prot
+field1 (Rfield1
+field2 (Rfield2
+field3 (Rfield3
+field4 (Rfield4
+field6 (Rfield6
+field7 (Rfield7
+field8 (Rfield8
+field9	 (Rfield9
+field10
+ (Rfield10*"þ
+TestNestedGroupExtensionOuterv
+layer1optionalgroup (
+2D.protobuf_unittest.TestNestedGroupExtensionOuter.Layer1OptionalGroupRlayer1optionalgroupä
+Layer1OptionalGroupŠ
+layer2repeatedgroup (
+2X.protobuf_unittest.Tes4NestedGroupExtensionOuter.Layer1OptionalGroup.Layer2RepeatedGroupRlayer2repeatedgroup·
+"layer2anotheroptionalrepeatedgroup (
+2g.protobuf_unittest.TestNestedGroupExtensionOuter.Layer1OptionalGroup.Layer2AnotherOptionalRepeatedGroupR"layer2anotheroptionalrepeatedgroup@
+Layer2tVerifyMostlyInt32*
+optional_int64_30 (RoptionalInt6430(
+optional_int32_1 (RoptionalInt321(
+optional_int32_2 (RoptionalInt322(
+optional_int32_3 (RoptionalInt323(
+tedMessage:
+packed (2".protobuf_unittest.TestPackedTypesRpacked"Ø
+TestNestedMessageHasBitsq
+optional_nested_message (29.protobuf_unittest.TestNestedMessageHasBits.NestedMessageRoptionalNestedMessageÈ
+NestedMessage@
+nestedmessage_repeated_int32 (RnestedmessageRepeatedInt32u
+%nestedmessage_repeated_foreignmeeatedMessageField>
+RepeatedStringPieceField (	BRRepeatedStringPieceField0
+RepeatedCordField (	BRRepeatedCordField"Ž
+TestFieldOrderings
+	my_string (	RmyString
+my_int (RmyInt
+my_floate è (RoptionalUint321000,
+optional_uint32_65A (RoptionalUint3265*
+optional_uint32_1 (RoptionalUint321*
+optional_uint32_2 (RoptionalUint322,
+optional_uint32_63? (RoptionalUint3263,
+optional_uint32_64@ (RoptionalUint3264M
+optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
+repeated_all_types
+ (
+ (28.protobuf_unittest.TestVerifyBigFieldNumberUint32.NestedRrepeatedNested"´*
+EnumParseTestern
+optional_seq_small_0_lowfield (2,.protobuf_unittest.EnumParseTester.SeqSmallkedBoolfi
