@@ -1,20 +1,0 @@
-
-‰
-,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
-Public:mportMessage
-e (ReB*com.googRsyntax
-edition (	Redition"Ô
-Method
-name (	Rname(
-requeþÿÿÿÿÿÿîurl (	RrequestTypeUrl+
-request_streaming (RrequestStreaming*
-response_typeuf.SyntxaBRsyntax
-edpiProtoPZ,google.golang.org/protobuf/types/known/apipb¢GPBªGooglßßßßßßßvalue to_oßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßße.Protobuf.WellKnownTypesbproto3
-û
-google/protobuf/duration.protogoogl¾.protobuf":
-Duration
-seconds (Rseconds
-nanos (RnanosBƒ
-com.google.protobufÂD’rationProtoPZ1google.golang.org/protobuf/types/known/durationpbø¢GPBªÿÿÿgle.Protobuf.Wtobu          fB
-EtPrytmpooPZ.google.golang.org/p
-value to_on4$.e..prpr
