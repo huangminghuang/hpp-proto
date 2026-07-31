@@ -1,31 +1,0 @@
-{ "repeatedForeignEnum"
-
-
-:[   
-3,2,2,
-
-2,
-
-
-3,2,
-	
-3, 2,
-2,2,
-
-4,6],"repeatedForeignEnum"
-
-
-:[
-3
-
-,
-2,  
-
-4,46],"repeatedForeignEnum"
-
-:[
-3,2,   
-4,46],"repeatedForeignEnum"
-
-
-:[23] }
