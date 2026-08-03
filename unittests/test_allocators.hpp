@@ -179,25 +179,32 @@ template <template <class, class> class Wrapper>
       });
 }
 
+template <template <class, class> class Wrapper, template <class> class AllocTemplate, bool PropagatesAllocators>
+[[nodiscard]] bool tracked_swap_between_engaged_objects();
+
 template <template <class, class> class Wrapper>
 [[nodiscard]] bool unequal_allocator_swap_between_engaged_objects_moves_values() {
-  return with_two_engaged_tracked_wrappers<Wrapper, non_propagating_tracking_allocator>(
-      [](auto &left, auto &right, const auto &left_state, const auto &right_state) {
-        using Alloc = std::remove_cvref_t<decltype(left.get_allocator())>;
-        left.swap(right);
-        return *left == 2 && *right == 1 && left.get_allocator() == Alloc{left_state} &&
-               right.get_allocator() == Alloc{right_state};
-      });
+  return tracked_swap_between_engaged_objects<Wrapper, non_propagating_tracking_allocator, false>();
 }
 
 template <template <class, class> class Wrapper>
 [[nodiscard]] bool propagating_swap_between_engaged_objects_transfers_allocators() {
-  return with_two_engaged_tracked_wrappers<Wrapper, propagating_swap_tracking_allocator>(
+  return tracked_swap_between_engaged_objects<Wrapper, propagating_swap_tracking_allocator, true>();
+}
+
+template <template <class, class> class Wrapper, template <class> class AllocTemplate, bool PropagatesAllocators>
+[[nodiscard]] bool tracked_swap_between_engaged_objects() {
+  return with_two_engaged_tracked_wrappers<Wrapper, AllocTemplate>(
       [](auto &left, auto &right, const auto &left_state, const auto &right_state) {
         using Alloc = std::remove_cvref_t<decltype(left.get_allocator())>;
         left.swap(right);
-        return *left == 2 && *right == 1 && left.get_allocator() == Alloc{right_state} &&
-               right.get_allocator() == Alloc{left_state};
+        if constexpr (PropagatesAllocators) {
+          return *left == 2 && *right == 1 && left.get_allocator() == Alloc{right_state} &&
+                 right.get_allocator() == Alloc{left_state};
+        } else {
+          return *left == 2 && *right == 1 && left.get_allocator() == Alloc{left_state} &&
+                 right.get_allocator() == Alloc{right_state};
+        }
       });
 }
 

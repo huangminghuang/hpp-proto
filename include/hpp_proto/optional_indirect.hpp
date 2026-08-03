@@ -98,7 +98,7 @@ public:
   operator=(optional_indirect &&other) noexcept(std::is_nothrow_move_assignable_v<allocator_type>)
     requires(allocator_traits::propagate_on_container_move_assignment::value)
   {
-    move_assign_with_allocator_propagation(other);
+    move_assign_after_allocator_propagation(other);
     return *this;
   }
 
@@ -346,13 +346,14 @@ private:
   [[nodiscard]] constexpr T *raw_ptr() noexcept { return std::to_address(obj_); }
   [[nodiscard]] constexpr const T *raw_ptr() const noexcept { return std::to_address(obj_); }
 
-  constexpr void move_assign_with_allocator_propagation(optional_indirect &other) noexcept(
+  constexpr void move_assign_after_allocator_propagation(optional_indirect &other) noexcept(
       std::is_nothrow_move_assignable_v<allocator_type>) {
-    if (this != &other) {
-      release_object();
-      alloc_ = std::move(other.alloc_);
-      take_object_from(other);
+    if (this == &other) {
+      return;
     }
+    release_object();
+    alloc_ = std::move(other.alloc_);
+    take_object_from(other);
   }
 
   constexpr void move_assign_with_equal_allocator(optional_indirect &other) noexcept {

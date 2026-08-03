@@ -390,6 +390,16 @@ const boost::ut::suite optional_indirect_exception_safety_tests = [] {
     expect(propagating_move_assignment_transfers_allocator_and_storage<hpp_proto::optional_indirect>());
   };
 
+  "move_assignment_with_propagating_allocator_ignores_self_move"_test = [] {
+    using Alloc = propagating_move_tracking_allocator<int>;
+    hpp_proto::optional_indirect<int, Alloc> value(std::allocator_arg, Alloc{}, 25);
+
+    value = std::move(value);
+
+    expect(value.has_value());
+    expect(eq(*value, 25));
+  };
+
   "move_assignment_with_unequal_allocators_moves_values_without_stealing_storage"_test = [] {
     expect(unequal_allocator_move_assignment_moves_value_without_stealing_storage<hpp_proto::optional_indirect>());
   };
