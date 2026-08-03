@@ -98,12 +98,7 @@ public:
   operator=(optional_indirect &&other) noexcept(std::is_nothrow_move_assignable_v<allocator_type>)
     requires(allocator_traits::propagate_on_container_move_assignment::value)
   {
-    if (this == &other) {
-      return *this;
-    }
-    reset();
-    alloc_ = std::move(other.alloc_);
-    obj_ = std::exchange(other.obj_, nullptr);
+    move_assign_with_allocator_propagation(other);
     return *this;
   }
 
@@ -111,11 +106,7 @@ public:
     requires(!allocator_traits::propagate_on_container_move_assignment::value &&
              allocator_traits::is_always_equal::value)
   {
-    if (this == &other) {
-      return *this;
-    }
-    reset();
-    obj_ = std::exchange(other.obj_, nullptr);
+    move_assign_with_equal_allocator(other);
     return *this;
   }
 
@@ -125,23 +116,7 @@ public:
     requires(!allocator_traits::propagate_on_container_move_assignment::value &&
              !allocator_traits::is_always_equal::value)
   {
-    if (this == &other) {
-      return *this;
-    }
-    if (alloc_ == other.alloc_) {
-      reset();
-      obj_ = std::exchange(other.obj_, nullptr);
-      return *this;
-    }
-    if (other.obj_) {
-      if (obj_) {
-        *raw_ptr() = std::move(*other.raw_ptr());
-      } else {
-        emplace(std::move(*other.raw_ptr()));
-      }
-    } else {
-      reset();
-    }
+    move_assign_with_runtime_allocator_check(other);
     return *this;
   }
 
@@ -218,22 +193,13 @@ public:
   constexpr void swap(optional_indirect &other) noexcept(std::is_nothrow_swappable_v<allocator_type>)
     requires(allocator_traits::propagate_on_container_swap::value)
   {
-    if (this == &other) {
-      return;
-    }
-    using std::swap;
-    swap(alloc_, other.alloc_);
-    swap(obj_, other.obj_);
+    swap_with_allocator_propagation(other);
   }
 
   constexpr void swap(optional_indirect &other) noexcept
     requires(!allocator_traits::propagate_on_container_swap::value && allocator_traits::is_always_equal::value)
   {
-    if (this == &other) {
-      return;
-    }
-    using std::swap;
-    swap(obj_, other.obj_);
+    swap_with_equal_allocator(other);
   }
 
   // Unequal non-propagating allocators require value move/allocate fallback, so this overload cannot be noexcept.
@@ -241,21 +207,7 @@ public:
   constexpr void swap(optional_indirect &other)
     requires(!allocator_traits::propagate_on_container_swap::value && !allocator_traits::is_always_equal::value)
   {
-    if (this == &other) {
-      return;
-    }
-    using std::swap;
-    if (alloc_ == other.alloc_) {
-      swap(obj_, other.obj_);
-    } else if (obj_ && other.obj_) {
-      swap(*raw_ptr(), *other.raw_ptr());
-    } else if (obj_) {
-      other.emplace(std::move(*raw_ptr()));
-      reset();
-    } else if (other.obj_) {
-      emplace(std::move(*other.raw_ptr()));
-      other.reset();
-    }
+    swap_with_runtime_allocator_check(other);
   }
 
   constexpr void reset() noexcept {
@@ -393,6 +345,125 @@ private:
 
   [[nodiscard]] constexpr T *raw_ptr() noexcept { return std::to_address(obj_); }
   [[nodiscard]] constexpr const T *raw_ptr() const noexcept { return std::to_address(obj_); }
+
+  constexpr void move_assign_with_allocator_propagation(optional_indirect &other) noexcept(
+      std::is_nothrow_move_assignable_v<allocator_type>) {
+    if (this != &other) {
+      release_object();
+      alloc_ = std::move(other.alloc_);
+      take_object_from(other);
+    }
+  }
+
+  constexpr void move_assign_with_equal_allocator(optional_indirect &other) noexcept {
+    if (this != &other) {
+      release_object();
+      take_object_from(other);
+    }
+  }
+
+  constexpr void move_assign_with_runtime_allocator_check(optional_indirect &other) {
+    if (this != &other && !try_take_object_with_equal_allocator(other)) {
+      move_value_or_release(other);
+    }
+  }
+
+  constexpr bool try_take_object_with_equal_allocator(optional_indirect &other) {
+    if (!(alloc_ == other.alloc_)) {
+      return false;
+    }
+    release_object();
+    take_object_from(other);
+    return true;
+  }
+
+  constexpr void move_value_or_release(optional_indirect &other) {
+    if (other.obj_) {
+      move_value_from(other);
+    } else {
+      release_object();
+    }
+  }
+
+  constexpr void move_value_from(optional_indirect &other) {
+    if (obj_) {
+      *raw_ptr() = std::move(*other.raw_ptr());
+    } else {
+      emplace(std::move(*other.raw_ptr()));
+    }
+  }
+
+  constexpr void
+  swap_with_allocator_propagation(optional_indirect &other) noexcept(std::is_nothrow_swappable_v<allocator_type>) {
+    if (this != &other) {
+      swap_allocators(other);
+      swap_object_pointers(other);
+    }
+  }
+
+  constexpr void swap_with_equal_allocator(optional_indirect &other) noexcept {
+    if (this != &other) {
+      swap_object_pointers(other);
+    }
+  }
+
+  constexpr void swap_with_runtime_allocator_check(optional_indirect &other) {
+    if (this != &other && !try_swap_object_with_equal_allocator(other)) {
+      swap_values_or_rehome(other);
+    }
+  }
+
+  constexpr bool try_swap_object_with_equal_allocator(optional_indirect &other) {
+    if (!(alloc_ == other.alloc_)) {
+      return false;
+    }
+    swap_object_pointers(other);
+    return true;
+  }
+
+  constexpr void swap_values_or_rehome(optional_indirect &other) {
+    if (both_have_objects(other)) {
+      swap_object_values(other);
+    } else {
+      rehome_present_value(other);
+    }
+  }
+
+  constexpr void rehome_present_value(optional_indirect &other) {
+    if (obj_) {
+      move_value_to_empty(other);
+    } else if (other.obj_) {
+      other.move_value_to_empty(*this);
+    }
+  }
+
+  [[nodiscard]] constexpr bool both_have_objects(const optional_indirect &other) const noexcept {
+    return obj_ && other.obj_;
+  }
+
+  constexpr void swap_allocators(optional_indirect &other) noexcept(std::is_nothrow_swappable_v<allocator_type>) {
+    using std::swap;
+    swap(alloc_, other.alloc_);
+  }
+
+  constexpr void swap_object_pointers(optional_indirect &other) noexcept {
+    using std::swap;
+    swap(obj_, other.obj_);
+  }
+
+  constexpr void swap_object_values(optional_indirect &other) {
+    using std::swap;
+    swap(*raw_ptr(), *other.raw_ptr());
+  }
+
+  constexpr void move_value_to_empty(optional_indirect &empty) {
+    empty.emplace(std::move(*raw_ptr()));
+    release_object();
+  }
+
+  constexpr void take_object_from(optional_indirect &other) noexcept { obj_ = std::exchange(other.obj_, nullptr); }
+
+  constexpr void release_object() noexcept { reset(); }
 };
 
 /// Used for recursive non-owning message types

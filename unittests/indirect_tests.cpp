@@ -24,11 +24,14 @@ struct ThrowingDefaultMessage {
 using indirect_with_throwing_move_ctor_alloc = hpp_proto::indirect<int, throwing_move_ctor_allocator<int>>;
 using indirect_with_throwing_move_assign_alloc = hpp_proto::indirect<int, throwing_move_assign_allocator<int>>;
 using indirect_with_throwing_swap_alloc = hpp_proto::indirect<int, throwing_swap_allocator<int>>;
+using indirect_with_tracking_move_assign_alloc = hpp_proto::indirect<int, propagating_move_tracking_allocator<int>>;
 using indirect_with_tracking_swap_alloc = hpp_proto::indirect<int, propagating_swap_tracking_allocator<int>>;
 
 static_assert(!std::is_nothrow_move_constructible_v<indirect_with_throwing_move_ctor_alloc>);
 static_assert(!std::is_nothrow_move_assignable_v<indirect_with_throwing_move_assign_alloc>);
 static_assert(!std::is_nothrow_swappable_v<indirect_with_throwing_swap_alloc>);
+static_assert(noexcept(std::declval<indirect_with_tracking_move_assign_alloc &>() =
+                           std::declval<indirect_with_tracking_move_assign_alloc &&>()));
 static_assert(!noexcept(
     std::declval<indirect_with_throwing_swap_alloc &>().swap(std::declval<indirect_with_throwing_swap_alloc &>())));
 static_assert(noexcept(
@@ -284,32 +287,55 @@ const boost::ut::suite indirect_exception_safety_tests = [] {
     expect(lhs.get_allocator() == rhs.get_allocator());
   };
 
+  "move_assignment_with_propagating_allocator_transfers_allocation_owner"_test = [] {
+    expect(propagating_move_assignment_transfers_allocator_and_storage<hpp_proto::indirect>());
+  };
+
+  "move_assignment_with_unequal_allocators_moves_values_without_stealing_storage"_test = [] {
+    expect(unequal_allocator_move_assignment_moves_value_without_stealing_storage<hpp_proto::indirect>());
+  };
+
+  "move_assignment_with_unequal_allocators_ignores_self_move"_test = [] {
+    using Alloc = non_propagating_tracking_allocator<int>;
+    hpp_proto::indirect<int, Alloc> value(std::allocator_arg, Alloc{}, 21);
+
+    value = std::move(value);
+
+    expect(eq(*value, 21));
+  };
+
+  "move_assignment_with_unequal_allocators_handles_moved_from_storage"_test = [] {
+    expect(unequal_allocator_indirect_move_assignment_handles_empty_states<hpp_proto::indirect>());
+  };
+
   "swap_with_propagating_allocator_keeps_allocations_with_owners"_test = [] {
-    auto left_state = std::make_shared<tracking_alloc_state>();
-    auto right_state = std::make_shared<tracking_alloc_state>();
+    expect(propagating_swap_between_engaged_objects_transfers_allocators<hpp_proto::indirect>());
+  };
+
+  "swap_with_propagating_allocator_ignores_self_swap"_test = [] {
     using Alloc = propagating_swap_tracking_allocator<int>;
-    using Indirect = hpp_proto::indirect<int, Alloc>;
+    hpp_proto::indirect<int, Alloc> value(std::allocator_arg, Alloc{}, 22);
 
-    {
-      Indirect left(std::allocator_arg, Alloc{left_state}, 1);
-      Indirect right(std::allocator_arg, Alloc{right_state}, 2);
+    value.swap(value);
 
-      left.swap(right);
+    expect(eq(*value, 22));
+  };
 
-      expect(eq(*left, 2));
-      expect(eq(*right, 1));
-      expect(left.get_allocator() == Alloc{right_state});
-      expect(right.get_allocator() == Alloc{left_state});
-    }
+  "swap_with_unequal_allocators_moves_values_without_stealing_storage"_test = [] {
+    expect(unequal_allocator_swap_between_engaged_objects_moves_values<hpp_proto::indirect>());
+  };
 
-    expect(eq(left_state->alloc_count, std::size_t{1}));
-    expect(eq(left_state->dealloc_count, std::size_t{1}));
-    expect(eq(left_state->mismatched_dealloc_count, std::size_t{0}));
-    expect(left_state->live_allocations.empty());
-    expect(eq(right_state->alloc_count, std::size_t{1}));
-    expect(eq(right_state->dealloc_count, std::size_t{1}));
-    expect(eq(right_state->mismatched_dealloc_count, std::size_t{0}));
-    expect(right_state->live_allocations.empty());
+  "swap_with_unequal_allocators_ignores_self_swap"_test = [] {
+    using Alloc = non_propagating_tracking_allocator<int>;
+    hpp_proto::indirect<int, Alloc> value(std::allocator_arg, Alloc{}, 23);
+
+    value.swap(value);
+
+    expect(eq(*value, 23));
+  };
+
+  "swap_with_unequal_allocators_handles_moved_from_storage"_test = [] {
+    expect(unequal_allocator_indirect_swap_handles_empty_states<hpp_proto::indirect>());
   };
 };
 
