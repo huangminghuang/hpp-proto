@@ -1377,6 +1377,29 @@ auto pb_meta(const extension_example<Traits> &) -> std::tuple<
     hpp_proto::field_meta<1, &extension_example<Traits>::int_value, field_option::none, hpp_proto::vint64_t>,
     hpp_proto::field_meta<UINT32_MAX, &extension_example<Traits>::unknown_fields_>>;
 
+template <typename Traits = hpp_proto::default_traits>
+struct closed_enum_extension_child {
+  std::optional<ForeignEnum> foreign_enum_field;
+  hpp_proto::pb_extensions<Traits> unknown_fields_;
+  bool operator==(const closed_enum_extension_child &) const = default;
+};
+
+template <typename Traits>
+auto pb_meta(const closed_enum_extension_child<Traits> &) -> std::tuple<
+    hpp_proto::field_meta<1, &closed_enum_extension_child<Traits>::foreign_enum_field,
+                          field_option::explicit_presence | field_option::closed_enum>,
+    hpp_proto::field_meta<UINT32_MAX, &closed_enum_extension_child<Traits>::unknown_fields_>>;
+
+template <typename Child>
+struct optional_extension_child {
+  std::optional<Child> child;
+  bool operator==(const optional_extension_child &) const = default;
+};
+
+template <typename Child>
+auto pb_meta(const optional_extension_child<Child> &)
+    -> std::tuple<hpp_proto::field_meta<1, &optional_extension_child<Child>::child, field_option::explicit_presence>>;
+
 template <typename Traits = ::hpp_proto::default_traits>
 struct i32_ext : hpp_proto::extension_base<i32_ext<Traits>, extension_example> {
   using value_type = std::int32_t;
@@ -1545,6 +1568,31 @@ const ut::suite test_extensions = [] {
 
 const ut::suite test_non_owning_extensions = [] {
   using non_owning_extension_example = extension_example<hpp_proto::non_owning_traits>;
+  "repeated_singular_message_materializes_non_owning_extensions_before_search"_test = [] {
+    optional_extension_child<non_owning_extension_example> value;
+    std::pmr::monotonic_buffer_resource mr;
+
+    ut::expect(hpp_proto::read_binpb(value, "\x0a\x02\x50\x01\x0a\x02\x50\x02"sv, hpp_proto::alloc_from{mr}).ok());
+    ut::expect(value.child.has_value());
+    const auto &fields = value.child->unknown_fields_.fields;
+    ut::expect(fields.size() == 1U);
+    ut::expect(fields.front().first == 10U);
+    ut::expect(std::ranges::equal(fields.front().second, "\x50\x01\x50\x02"_bytes));
+  };
+
+  "repeated_singular_message_materializes_closed_enum_extensions_before_search"_test = [] {
+    optional_extension_child<closed_enum_extension_child<hpp_proto::non_owning_traits>> value;
+    std::pmr::monotonic_buffer_resource mr;
+
+    ut::expect(hpp_proto::read_binpb(value, "\x0a\x02\x08\x04\x0a\x02\x08\x05"sv, hpp_proto::alloc_from{mr}).ok());
+    ut::expect(value.child.has_value());
+    ut::expect(!value.child->foreign_enum_field.has_value());
+    const auto &fields = value.child->unknown_fields_.fields;
+    ut::expect(fields.size() == 1U);
+    ut::expect(fields.front().first == 1U);
+    ut::expect(std::ranges::equal(fields.front().second, "\x08\x04\x08\x05"_bytes));
+  };
+
   "get_chunked_non_owning_extension"_test = [] {
     using namespace std::literals;
     const auto encoded_data = "\x5a\x14"
