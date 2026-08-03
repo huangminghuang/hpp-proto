@@ -94,39 +94,55 @@ public:
     emplace(std::forward<Args>(args)...);
   }
 
-  constexpr optional_indirect & // NOLINTNEXTLINE(bugprone-exception-escape,misc-no-recursion)
-  operator=(optional_indirect &&other) noexcept((allocator_traits::propagate_on_container_move_assignment::value &&
-                                                 std::is_nothrow_move_assignable_v<allocator_type>) ||
-                                                allocator_traits::is_always_equal::value) {
+  constexpr optional_indirect &
+  operator=(optional_indirect &&other) noexcept(std::is_nothrow_move_assignable_v<allocator_type>)
+    requires(allocator_traits::propagate_on_container_move_assignment::value)
+  {
     if (this == &other) {
       return *this;
     }
-    if constexpr (allocator_traits::propagate_on_container_move_assignment::value) {
-      reset();
-      alloc_ = std::move(other.alloc_);
-      obj_ = std::exchange(other.obj_, nullptr);
-      return *this;
-    } else if constexpr (allocator_traits::is_always_equal::value) {
-      reset();
-      obj_ = std::exchange(other.obj_, nullptr);
-      return *this;
-    } else {
-      if (alloc_ == other.alloc_) {
-        reset();
-        obj_ = std::exchange(other.obj_, nullptr);
-        return *this;
-      }
-      if (other.obj_) {
-        if (obj_) {
-          *raw_ptr() = std::move(*other.raw_ptr());
-        } else {
-          emplace(std::move(*other.raw_ptr()));
-        }
-      } else {
-        reset();
-      }
+    reset();
+    alloc_ = std::move(other.alloc_);
+    obj_ = std::exchange(other.obj_, nullptr);
+    return *this;
+  }
+
+  constexpr optional_indirect &operator=(optional_indirect &&other) noexcept
+    requires(!allocator_traits::propagate_on_container_move_assignment::value &&
+             allocator_traits::is_always_equal::value)
+  {
+    if (this == &other) {
       return *this;
     }
+    reset();
+    obj_ = std::exchange(other.obj_, nullptr);
+    return *this;
+  }
+
+  // Unequal non-propagating allocators require value move/allocate fallback, so this overload cannot be noexcept.
+  // NOLINTNEXTLINE(bugprone-exception-escape,cppcoreguidelines-noexcept-move-operations,hicpp-noexcept-move,misc-no-recursion,performance-noexcept-move-constructor)
+  constexpr optional_indirect &operator=(optional_indirect &&other)
+    requires(!allocator_traits::propagate_on_container_move_assignment::value &&
+             !allocator_traits::is_always_equal::value)
+  {
+    if (this == &other) {
+      return *this;
+    }
+    if (alloc_ == other.alloc_) {
+      reset();
+      obj_ = std::exchange(other.obj_, nullptr);
+      return *this;
+    }
+    if (other.obj_) {
+      if (obj_) {
+        *raw_ptr() = std::move(*other.raw_ptr());
+      } else {
+        emplace(std::move(*other.raw_ptr()));
+      }
+    } else {
+      reset();
+    }
+    return *this;
   }
 
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
@@ -199,21 +215,36 @@ public:
     return emplace_impl(std::forward<Args>(args)...);
   }
 
-  // NOLINTNEXTLINE(bugprone-exception-escape)
-  constexpr void swap(optional_indirect &other) noexcept(
-      (allocator_traits::propagate_on_container_swap::value && std::is_nothrow_swappable_v<allocator_type>) ||
-      (!allocator_traits::propagate_on_container_swap::value && allocator_traits::is_always_equal::value)) {
+  constexpr void swap(optional_indirect &other) noexcept(std::is_nothrow_swappable_v<allocator_type>)
+    requires(allocator_traits::propagate_on_container_swap::value)
+  {
     if (this == &other) {
       return;
     }
     using std::swap;
-    if constexpr (allocator_traits::propagate_on_container_swap::value) {
-      swap(alloc_, other.alloc_);
-    }
-    if constexpr (allocator_traits::is_always_equal::value) {
-      swap(obj_, other.obj_);
+    swap(alloc_, other.alloc_);
+    swap(obj_, other.obj_);
+  }
+
+  constexpr void swap(optional_indirect &other) noexcept
+    requires(!allocator_traits::propagate_on_container_swap::value && allocator_traits::is_always_equal::value)
+  {
+    if (this == &other) {
       return;
     }
+    using std::swap;
+    swap(obj_, other.obj_);
+  }
+
+  // Unequal non-propagating allocators require value move/allocate fallback, so this overload cannot be noexcept.
+  // NOLINTNEXTLINE(bugprone-exception-escape,cppcoreguidelines-noexcept-swap,performance-noexcept-swap)
+  constexpr void swap(optional_indirect &other)
+    requires(!allocator_traits::propagate_on_container_swap::value && !allocator_traits::is_always_equal::value)
+  {
+    if (this == &other) {
+      return;
+    }
+    using std::swap;
     if (alloc_ == other.alloc_) {
       swap(obj_, other.obj_);
     } else if (obj_ && other.obj_) {

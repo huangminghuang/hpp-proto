@@ -1,10 +1,12 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 struct throwing_constructible {
   int value{};
@@ -46,6 +48,62 @@ struct counting_allocator {
 
   template <class U>
   constexpr bool operator==(const counting_allocator<U> &rhs) const noexcept {
+    return state == rhs.state;
+  }
+};
+
+struct tracking_alloc_state {
+  std::size_t alloc_count{};
+  std::size_t dealloc_count{};
+  std::size_t mismatched_dealloc_count{};
+  std::vector<void *> live_allocations;
+};
+
+template <class T>
+struct propagating_swap_tracking_allocator {
+  using value_type = T;
+  using is_always_equal = std::false_type;
+  using propagate_on_container_swap = std::true_type;
+
+  std::shared_ptr<tracking_alloc_state> state = std::make_shared<tracking_alloc_state>();
+
+  propagating_swap_tracking_allocator() = default;
+  explicit propagating_swap_tracking_allocator(std::shared_ptr<tracking_alloc_state> s) : state(std::move(s)) {}
+
+  template <class U>
+  explicit propagating_swap_tracking_allocator(const propagating_swap_tracking_allocator<U> &other) noexcept
+      : state(other.state) {}
+
+  [[nodiscard]] T *allocate(std::size_t n) {
+    auto *ptr = std::allocator<T>{}.allocate(n);
+    try {
+      state->live_allocations.push_back(ptr);
+      state->alloc_count += n;
+    } catch (...) {
+      std::allocator<T>{}.deallocate(ptr, n);
+      throw;
+    }
+    return ptr;
+  }
+
+  void deallocate(T *ptr, std::size_t n) noexcept {
+    auto it = std::find(state->live_allocations.begin(), state->live_allocations.end(), ptr);
+    if (it == state->live_allocations.end()) {
+      state->mismatched_dealloc_count += n;
+    } else {
+      state->live_allocations.erase(it);
+    }
+    state->dealloc_count += n;
+    std::allocator<T>{}.deallocate(ptr, n);
+  }
+
+  friend void swap(propagating_swap_tracking_allocator &lhs, propagating_swap_tracking_allocator &rhs) noexcept {
+    using std::swap;
+    swap(lhs.state, rhs.state);
+  }
+
+  template <class U>
+  constexpr bool operator==(const propagating_swap_tracking_allocator<U> &rhs) const noexcept {
     return state == rhs.state;
   }
 };

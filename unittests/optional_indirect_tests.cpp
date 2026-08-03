@@ -30,10 +30,15 @@ struct glz::meta<TestRecursiveMessage<Traits>> {
 using optional_with_throwing_move_ctor_alloc = hpp_proto::optional_indirect<int, throwing_move_ctor_allocator<int>>;
 using optional_with_throwing_move_assign_alloc = hpp_proto::optional_indirect<int, throwing_move_assign_allocator<int>>;
 using optional_with_throwing_swap_alloc = hpp_proto::optional_indirect<int, throwing_swap_allocator<int>>;
+using optional_with_tracking_swap_alloc = hpp_proto::optional_indirect<int, propagating_swap_tracking_allocator<int>>;
 
 static_assert(!std::is_nothrow_move_constructible_v<optional_with_throwing_move_ctor_alloc>);
 static_assert(!std::is_nothrow_move_assignable_v<optional_with_throwing_move_assign_alloc>);
 static_assert(!std::is_nothrow_swappable_v<optional_with_throwing_swap_alloc>);
+static_assert(!noexcept(
+    std::declval<optional_with_throwing_swap_alloc &>().swap(std::declval<optional_with_throwing_swap_alloc &>())));
+static_assert(noexcept(
+    std::declval<optional_with_tracking_swap_alloc &>().swap(std::declval<optional_with_tracking_swap_alloc &>())));
 
 const boost::ut::suite optional_indirect_tests = [] {
   using namespace boost::ut;
@@ -375,6 +380,65 @@ const boost::ut::suite optional_indirect_exception_safety_tests = [] {
     expect(eq(opt->value, 42));
     expect(eq(state->alloc_count, std::size_t{2}));
     expect(eq(state->dealloc_count, std::size_t{1}));
+  };
+
+  "swap_with_propagating_allocator_keeps_allocations_with_owners"_test = [] {
+    auto left_state = std::make_shared<tracking_alloc_state>();
+    auto right_state = std::make_shared<tracking_alloc_state>();
+    using Alloc = propagating_swap_tracking_allocator<int>;
+    using Optional = hpp_proto::optional_indirect<int, Alloc>;
+
+    {
+      Optional left(std::allocator_arg, Alloc{left_state}, 1);
+      Optional right(std::allocator_arg, Alloc{right_state}, 2);
+
+      left.swap(right);
+
+      expect(left.has_value());
+      expect(right.has_value());
+      expect(eq(*left, 2));
+      expect(eq(*right, 1));
+      expect(left.get_allocator() == Alloc{right_state});
+      expect(right.get_allocator() == Alloc{left_state});
+    }
+
+    expect(eq(left_state->alloc_count, std::size_t{1}));
+    expect(eq(left_state->dealloc_count, std::size_t{1}));
+    expect(eq(left_state->mismatched_dealloc_count, std::size_t{0}));
+    expect(left_state->live_allocations.empty());
+    expect(eq(right_state->alloc_count, std::size_t{1}));
+    expect(eq(right_state->dealloc_count, std::size_t{1}));
+    expect(eq(right_state->mismatched_dealloc_count, std::size_t{0}));
+    expect(right_state->live_allocations.empty());
+  };
+
+  "swap_engaged_with_empty_propagating_allocator_keeps_allocation_owner"_test = [] {
+    auto left_state = std::make_shared<tracking_alloc_state>();
+    auto right_state = std::make_shared<tracking_alloc_state>();
+    using Alloc = propagating_swap_tracking_allocator<int>;
+    using Optional = hpp_proto::optional_indirect<int, Alloc>;
+
+    {
+      Optional left(std::allocator_arg, Alloc{left_state}, 1);
+      Optional right(std::allocator_arg, Alloc{right_state});
+
+      left.swap(right);
+
+      expect(!left.has_value());
+      expect(right.has_value());
+      expect(eq(*right, 1));
+      expect(left.get_allocator() == Alloc{right_state});
+      expect(right.get_allocator() == Alloc{left_state});
+    }
+
+    expect(eq(left_state->alloc_count, std::size_t{1}));
+    expect(eq(left_state->dealloc_count, std::size_t{1}));
+    expect(eq(left_state->mismatched_dealloc_count, std::size_t{0}));
+    expect(left_state->live_allocations.empty());
+    expect(eq(right_state->alloc_count, std::size_t{0}));
+    expect(eq(right_state->dealloc_count, std::size_t{0}));
+    expect(eq(right_state->mismatched_dealloc_count, std::size_t{0}));
+    expect(right_state->live_allocations.empty());
   };
 };
 

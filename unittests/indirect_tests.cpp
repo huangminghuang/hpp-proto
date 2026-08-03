@@ -24,10 +24,15 @@ struct ThrowingDefaultMessage {
 using indirect_with_throwing_move_ctor_alloc = hpp_proto::indirect<int, throwing_move_ctor_allocator<int>>;
 using indirect_with_throwing_move_assign_alloc = hpp_proto::indirect<int, throwing_move_assign_allocator<int>>;
 using indirect_with_throwing_swap_alloc = hpp_proto::indirect<int, throwing_swap_allocator<int>>;
+using indirect_with_tracking_swap_alloc = hpp_proto::indirect<int, propagating_swap_tracking_allocator<int>>;
 
 static_assert(!std::is_nothrow_move_constructible_v<indirect_with_throwing_move_ctor_alloc>);
 static_assert(!std::is_nothrow_move_assignable_v<indirect_with_throwing_move_assign_alloc>);
 static_assert(!std::is_nothrow_swappable_v<indirect_with_throwing_swap_alloc>);
+static_assert(!noexcept(
+    std::declval<indirect_with_throwing_swap_alloc &>().swap(std::declval<indirect_with_throwing_swap_alloc &>())));
+static_assert(noexcept(
+    std::declval<indirect_with_tracking_swap_alloc &>().swap(std::declval<indirect_with_tracking_swap_alloc &>())));
 
 const boost::ut::suite indirect_tests = [] {
   using namespace boost::ut;
@@ -277,6 +282,34 @@ const boost::ut::suite indirect_exception_safety_tests = [] {
 
     expect(eq(*lhs, 7));
     expect(lhs.get_allocator() == rhs.get_allocator());
+  };
+
+  "swap_with_propagating_allocator_keeps_allocations_with_owners"_test = [] {
+    auto left_state = std::make_shared<tracking_alloc_state>();
+    auto right_state = std::make_shared<tracking_alloc_state>();
+    using Alloc = propagating_swap_tracking_allocator<int>;
+    using Indirect = hpp_proto::indirect<int, Alloc>;
+
+    {
+      Indirect left(std::allocator_arg, Alloc{left_state}, 1);
+      Indirect right(std::allocator_arg, Alloc{right_state}, 2);
+
+      left.swap(right);
+
+      expect(eq(*left, 2));
+      expect(eq(*right, 1));
+      expect(left.get_allocator() == Alloc{right_state});
+      expect(right.get_allocator() == Alloc{left_state});
+    }
+
+    expect(eq(left_state->alloc_count, std::size_t{1}));
+    expect(eq(left_state->dealloc_count, std::size_t{1}));
+    expect(eq(left_state->mismatched_dealloc_count, std::size_t{0}));
+    expect(left_state->live_allocations.empty());
+    expect(eq(right_state->alloc_count, std::size_t{1}));
+    expect(eq(right_state->dealloc_count, std::size_t{1}));
+    expect(eq(right_state->mismatched_dealloc_count, std::size_t{0}));
+    expect(right_state->live_allocations.empty());
   };
 };
 

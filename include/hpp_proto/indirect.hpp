@@ -109,35 +109,54 @@ public:
     return *this;
   }
 
-  constexpr indirect & // NOLINTNEXTLINE(bugprone-exception-escape)
-  operator=(indirect &&other) noexcept((allocator_traits::propagate_on_container_move_assignment::value &&
-                                        std::is_nothrow_move_assignable_v<allocator_type>) ||
-                                       allocator_traits::is_always_equal::value) {
+  constexpr indirect &operator=(indirect &&other) noexcept(std::is_nothrow_move_assignable_v<allocator_type>)
+    requires(allocator_traits::propagate_on_container_move_assignment::value)
+  {
     if (this == &other) {
       return *this;
     }
-    if constexpr (allocator_traits::propagate_on_container_move_assignment::value) {
+    destroy();
+    alloc_ = std::move(other.alloc_);
+    obj_ = std::exchange(other.obj_, nullptr);
+    return *this;
+  }
+
+  constexpr indirect &operator=(indirect &&other) noexcept
+    requires(!allocator_traits::propagate_on_container_move_assignment::value &&
+             allocator_traits::is_always_equal::value)
+  {
+    if (this == &other) {
+      return *this;
+    }
+    destroy();
+    obj_ = std::exchange(other.obj_, nullptr);
+    return *this;
+  }
+
+  // Unequal non-propagating allocators require value move/allocate fallback, so this overload cannot be noexcept.
+  // NOLINTNEXTLINE(bugprone-exception-escape,cppcoreguidelines-noexcept-move-operations,hicpp-noexcept-move,performance-noexcept-move-constructor)
+  constexpr indirect &operator=(indirect &&other)
+    requires(!allocator_traits::propagate_on_container_move_assignment::value &&
+             !allocator_traits::is_always_equal::value)
+  {
+    if (this == &other) {
+      return *this;
+    }
+    if (alloc_ == other.alloc_) {
       destroy();
-      alloc_ = std::move(other.alloc_);
       obj_ = std::exchange(other.obj_, nullptr);
       return *this;
-    } else if constexpr (allocator_traits::is_always_equal::value) {
-      destroy();
-      obj_ = std::exchange(other.obj_, nullptr);
-      return *this;
-    } else {
-      if (alloc_ == other.alloc_) {
-        destroy();
-        obj_ = std::exchange(other.obj_, nullptr);
-        return *this;
-      }
+    }
+    if (other.obj_) {
       if (obj_) {
         *raw_ptr() = std::move(*other.raw_ptr());
       } else {
         obj_ = allocate_construct(std::move(*other.raw_ptr()));
       }
-      return *this;
+    } else {
+      destroy();
     }
+    return *this;
   }
 
   [[nodiscard]] constexpr T &value() & noexcept { return *raw_ptr(); }
@@ -179,21 +198,46 @@ public:
     return *raw_ptr() <=> *rhs.raw_ptr();
   }
 
-  constexpr void swap(indirect &other) noexcept(allocator_traits::is_always_equal::value ||
-                                                (allocator_traits::propagate_on_container_swap::value &&
-                                                 std::is_nothrow_swappable_v<allocator_type>)) {
-    using std::swap;
-    if constexpr (allocator_traits::propagate_on_container_swap::value) {
-      swap(alloc_, other.alloc_);
+  constexpr void swap(indirect &other) noexcept(std::is_nothrow_swappable_v<allocator_type>)
+    requires(allocator_traits::propagate_on_container_swap::value)
+  {
+    if (this == &other) {
+      return;
     }
-    if constexpr (allocator_traits::is_always_equal::value) {
+    using std::swap;
+    swap(alloc_, other.alloc_);
+    swap(obj_, other.obj_);
+  }
+
+  constexpr void swap(indirect &other) noexcept
+    requires(!allocator_traits::propagate_on_container_swap::value && allocator_traits::is_always_equal::value)
+  {
+    if (this == &other) {
+      return;
+    }
+    using std::swap;
+    swap(obj_, other.obj_);
+  }
+
+  // Unequal non-propagating allocators require value move/allocate fallback, so this overload cannot be noexcept.
+  // NOLINTNEXTLINE(bugprone-exception-escape,cppcoreguidelines-noexcept-swap,performance-noexcept-swap)
+  constexpr void swap(indirect &other)
+    requires(!allocator_traits::propagate_on_container_swap::value && !allocator_traits::is_always_equal::value)
+  {
+    if (this == &other) {
+      return;
+    }
+    using std::swap;
+    if (alloc_ == other.alloc_) {
       swap(obj_, other.obj_);
-    } else {
-      if (alloc_ == other.alloc_) {
-        swap(obj_, other.obj_);
-      } else {
-        swap(*raw_ptr(), *other.raw_ptr());
-      }
+    } else if (obj_ && other.obj_) {
+      swap(*raw_ptr(), *other.raw_ptr());
+    } else if (obj_) {
+      other.obj_ = other.allocate_construct(std::move(*raw_ptr()));
+      destroy();
+    } else if (other.obj_) {
+      obj_ = allocate_construct(std::move(*other.raw_ptr()));
+      other.destroy();
     }
   }
 
