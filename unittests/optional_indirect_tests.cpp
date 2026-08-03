@@ -30,10 +30,19 @@ struct glz::meta<TestRecursiveMessage<Traits>> {
 using optional_with_throwing_move_ctor_alloc = hpp_proto::optional_indirect<int, throwing_move_ctor_allocator<int>>;
 using optional_with_throwing_move_assign_alloc = hpp_proto::optional_indirect<int, throwing_move_assign_allocator<int>>;
 using optional_with_throwing_swap_alloc = hpp_proto::optional_indirect<int, throwing_swap_allocator<int>>;
+using optional_with_tracking_move_assign_alloc =
+    hpp_proto::optional_indirect<int, propagating_move_tracking_allocator<int>>;
+using optional_with_tracking_swap_alloc = hpp_proto::optional_indirect<int, propagating_swap_tracking_allocator<int>>;
 
 static_assert(!std::is_nothrow_move_constructible_v<optional_with_throwing_move_ctor_alloc>);
 static_assert(!std::is_nothrow_move_assignable_v<optional_with_throwing_move_assign_alloc>);
 static_assert(!std::is_nothrow_swappable_v<optional_with_throwing_swap_alloc>);
+static_assert(noexcept(std::declval<optional_with_tracking_move_assign_alloc &>() =
+                           std::declval<optional_with_tracking_move_assign_alloc &&>()));
+static_assert(!noexcept(
+    std::declval<optional_with_throwing_swap_alloc &>().swap(std::declval<optional_with_throwing_swap_alloc &>())));
+static_assert(noexcept(
+    std::declval<optional_with_tracking_swap_alloc &>().swap(std::declval<optional_with_tracking_swap_alloc &>())));
 
 const boost::ut::suite optional_indirect_tests = [] {
   using namespace boost::ut;
@@ -375,6 +384,53 @@ const boost::ut::suite optional_indirect_exception_safety_tests = [] {
     expect(eq(opt->value, 42));
     expect(eq(state->alloc_count, std::size_t{2}));
     expect(eq(state->dealloc_count, std::size_t{1}));
+  };
+
+  "move_assignment_with_propagating_allocator_transfers_allocation_owner"_test = [] {
+    expect(propagating_move_assignment_transfers_allocator_and_storage<hpp_proto::optional_indirect>());
+  };
+
+  "move_assignment_with_propagating_allocator_ignores_self_move"_test = [] {
+    using Alloc = propagating_move_tracking_allocator<int>;
+    hpp_proto::optional_indirect<int, Alloc> value(std::allocator_arg, Alloc{}, 25);
+
+    value = std::move(value);
+
+    expect(value.has_value());
+    expect(eq(*value, 25));
+  };
+
+  "move_assignment_with_unequal_allocators_moves_values_without_stealing_storage"_test = [] {
+    expect(unequal_allocator_move_assignment_moves_value_without_stealing_storage<hpp_proto::optional_indirect>());
+  };
+
+  "move_assignment_with_unequal_allocators_handles_empty_states"_test = [] {
+    expect(unequal_allocator_optional_move_assignment_handles_empty_states<hpp_proto::optional_indirect>());
+  };
+
+  "swap_with_propagating_allocator_keeps_allocations_with_owners"_test = [] {
+    expect(propagating_swap_between_engaged_objects_transfers_allocators<hpp_proto::optional_indirect>());
+  };
+
+  "swap_engaged_with_empty_propagating_allocator_keeps_allocation_owner"_test = [] {
+    expect(propagating_optional_swap_engaged_with_empty_transfers_allocators<hpp_proto::optional_indirect>());
+  };
+
+  "swap_with_always_equal_allocator_ignores_self_swap"_test = [] {
+    hpp_proto::optional_indirect<int> value(24);
+
+    value.swap(value);
+
+    expect(value.has_value());
+    expect(eq(*value, 24));
+  };
+
+  "swap_with_unequal_allocators_moves_values_without_stealing_storage"_test = [] {
+    expect(unequal_allocator_swap_between_engaged_objects_moves_values<hpp_proto::optional_indirect>());
+  };
+
+  "swap_with_unequal_allocators_handles_empty_states"_test = [] {
+    expect(unequal_allocator_optional_swap_handles_empty_states<hpp_proto::optional_indirect>());
   };
 };
 
