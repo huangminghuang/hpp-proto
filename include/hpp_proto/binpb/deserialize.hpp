@@ -46,6 +46,12 @@ inline constexpr std::size_t unknown_enum_buffer_size = max_varint_bytes + max_v
 inline constexpr std::size_t fixed_64_size = sizeof(std::uint64_t);
 inline constexpr std::size_t fixed_32_size = sizeof(std::uint32_t);
 
+constexpr void materialize_for_search(auto &range) {
+  if constexpr (requires { range.reserve(range.size()); }) {
+    range.reserve(range.size());
+  }
+}
+
 template <typename T>
 struct input_span {
   using value_type = T;
@@ -621,24 +627,27 @@ constexpr status deserialize_unknown_fields(concepts::associative_container auto
 constexpr status deserialize_unknown_fields(concepts::uint32_pair_contiguous_range auto &unknown_fields,
                                             uint32_t field_num, std::size_t field_len,
                                             concepts::is_basic_in auto &archive) {
-  auto itr = std::find_if(unknown_fields.begin(), unknown_fields.end(),
-                          [field_num](const auto &e) { return e.first == field_num; });
-
   using fields_type = std::remove_cvref_t<decltype(unknown_fields)>;
   using bytes_type = fields_type::value_type::second_type;
 
-  if (itr == unknown_fields.end()) [[likely]] {
-    bytes_type field_span;
-    if (auto result = archive.deserialize_packed(field_len, detail::as_modifiable(archive.context, field_span));
-        !result.ok()) {
-      return result;
+  if (!unknown_fields.empty()) {
+    materialize_for_search(unknown_fields);
+    auto itr = std::find_if(unknown_fields.begin(), unknown_fields.end(),
+                            [field_num](const auto &e) { return e.first == field_num; });
+    if (itr != unknown_fields.end()) {
+      // the extension with the same field number exists, append the content to the previously parsed.
+      return archive.deserialize_packed(field_len,
+                                        detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)));
     }
-    unknown_fields.push_back({field_num, field_span});
-    return {};
   }
-  // the extension with the same field number exists, append the content to the previously parsed.
-  return archive.deserialize_packed(field_len,
-                                    detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)));
+
+  bytes_type field_span;
+  if (auto result = archive.deserialize_packed(field_len, detail::as_modifiable(archive.context, field_span));
+      !result.ok()) {
+    return result;
+  }
+  unknown_fields.push_back({field_num, field_span});
+  return {};
 }
 
 constexpr status deserialize_unknown_fields(concepts::contiguous_byte_range auto &unknown_fields, uint32_t /*unused*/,
@@ -659,15 +668,22 @@ constexpr void deserialize_unknown_enum(auto &unknown_fields, uint32_t field_num
   } else if constexpr (concepts::associative_container<unknown_fields_t>) {
     util::append_range(unknown_fields[field_num], field_span);
   } else if constexpr (concepts::uint32_pair_contiguous_range<unknown_fields_t>) {
-    auto itr = std::find_if(unknown_fields.begin(), unknown_fields.end(),
-                            [field_num](const auto &e) { return e.first == field_num; });
-    if (itr == unknown_fields.end()) {
-      unknown_fields.push_back({field_num, field_span});
-    } else {
-      using bytes_type = unknown_fields_t::value_type::second_type;
-      decltype(auto) v = detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second));
-      util::append_range(v, field_span);
+    if (!unknown_fields.empty()) {
+      materialize_for_search(unknown_fields);
+      auto itr = std::find_if(unknown_fields.begin(), unknown_fields.end(),
+                              [field_num](const auto &e) { return e.first == field_num; });
+      if (itr != unknown_fields.end()) {
+        using bytes_type = unknown_fields_t::value_type::second_type;
+        decltype(auto) v = detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second));
+        util::append_range(v, field_span);
+        return;
+      }
     }
+    using bytes_type = unknown_fields_t::value_type::second_type;
+    bytes_type persisted_field;
+    decltype(auto) v = detail::as_modifiable(archive.context, persisted_field);
+    util::append_range(v, field_span);
+    unknown_fields.push_back({field_num, persisted_field});
   }
 }
 
