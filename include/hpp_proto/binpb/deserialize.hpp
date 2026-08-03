@@ -636,8 +636,8 @@ constexpr status deserialize_unknown_fields(concepts::uint32_pair_contiguous_ran
                             [field_num](const auto &e) { return e.first == field_num; });
     if (itr != unknown_fields.end()) {
       // the extension with the same field number exists, append the content to the previously parsed.
-      return archive.deserialize_packed(
-          field_len, detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)));
+      return archive.deserialize_packed(field_len,
+                                        detail::as_modifiable(archive.context, const_cast<bytes_type &>(itr->second)));
     }
   }
 

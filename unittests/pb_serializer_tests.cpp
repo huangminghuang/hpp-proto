@@ -1385,10 +1385,10 @@ struct closed_enum_extension_child {
 };
 
 template <typename Traits>
-auto pb_meta(const closed_enum_extension_child<Traits> &) -> std::tuple<
-    hpp_proto::field_meta<1, &closed_enum_extension_child<Traits>::foreign_enum_field,
-                          field_option::explicit_presence | field_option::closed_enum>,
-    hpp_proto::field_meta<UINT32_MAX, &closed_enum_extension_child<Traits>::unknown_fields_>>;
+auto pb_meta(const closed_enum_extension_child<Traits> &)
+    -> std::tuple<hpp_proto::field_meta<1, &closed_enum_extension_child<Traits>::foreign_enum_field,
+                                        field_option::explicit_presence | field_option::closed_enum>,
+                  hpp_proto::field_meta<UINT32_MAX, &closed_enum_extension_child<Traits>::unknown_fields_>>;
 
 template <typename Child>
 struct optional_extension_child {
