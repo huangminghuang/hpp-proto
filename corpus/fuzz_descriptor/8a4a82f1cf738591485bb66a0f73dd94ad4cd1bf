@@ -1,433 +1,0 @@
-2.protobuf_unittest.TestAllTypesR
-messageFoo@
-message_bar (2.protobuf_unittest.TestAllTypesR
-messageBarT
-message_baz (23.protobuf_unittest.TestEagerMaybeLazy.NestedMessageR
-messageBazK
-NestedMessage:
-packed (2".protobuf_unittest.TestPackedTypesRpacked"ÿ
-TestNestedMessageHasBitsq
-optional_nested_message (29.protobuf_unittest.TestNestedMessageHasBits.NestedMessageRoptionalNestedMessage»
-NestedMessage@
-nestedmessage_repeated_int32 (RnestedmessageRepeatedInt32u
-%nestedmessage_repeated_foreignmessage (2!.protobuf_unittest.ForeignMessageR#nestedmessageRepeatedForeignmessage"ª
-TestCamelCaseFieldNames&
-PrimitiveField (RPrimitiveField 
-StringField (	RStringField<
-	EnumField (2.protobuf_unittest.ForeignEnumR	EnumFieldE
-MessageField (2!.protobuf_unittest.ForeignMessageRMessageField.
-StringPieceField (	BRStringPieceField 
-	CordField (	BR	CordField6
-RepeatedPrimitiveField (RRepeatedPrimitiveField0
-RepeatedStringField (	RRepeatedStringFieldL
-RepeatedEnumField	 (2.protobuf_unittest.ForeignEnumRRepeatedEnumFieldU
-RepeatedMessageField
- (2!.protobuf_unittest.ForeignMessageRRepeatedMessageField>
-RepeatedStringPieceField (	BRRepeatedStringPieceField0
-RepeatedCordField (	BRRepeatedCordField"é
-TestFieldOrderings
-	my_string (	RmyString
-my_int (RmyInt
-my_floate (RmyFloatl
-optional_nested_message» (23.protobuf_unittest.TestFieldOrderings.NestedMessageRoptionalNestedMessage/
-NestedMessage
-oo (Roo
-bb (Rbb**e"∫
-TestExtensionOrderings1
-	my_string (	RmyString2Å
-test_ext_orderings1%.protobuf_unittest.TestFieldOrderings (2*.protobuf_unittest.TestExtensionOrderings1RtestExtOrderings1"è
-TestExtensionOrderings2
-	my_string (	RmyString“
-TestExtensionOrderings3
-	my_string (	RmyString2ô
-test_ext_orderings3%.protobuf_unittest.TestFieldOrderings (2B.protobuf_unittest.TestExtensionOrderings2.TestExtensionOrderings3RtestExtOrderal_int32_64@ (RoptionalInt3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"ò
- TestVerifyOneInt32BigFieldNumber*
-optional_int32_65A (RoptionalInt3265(
-optional_int64_1 (RoptionalInt641(
-optional_int64_2 (RoptionalInt642*
-optional_int64_63? (RoptionalInt6463*
-optional_int64_64@ (RoptionalInt6464M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"∆
-TestVerifyInt32BigFieldNumber/
-optional_int32_1000Ë (RoptionalInt321000*
-optional_int32_65A (RoptionalInt3265(
-optional_int32_1 (RoptionalInt321(
-optional_int32_2 (RoptionalInt322*
-optional_int32_63? (RoptionalInt3263*
-optional_int32_64@ (RoptionalInt3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"”
-TestVerifyUint32BigFieldNumber1
-optional_uint32_1000Ë (RoptionalUint321000,
-optional_uint32_65A (RoptionalUint3265*
-optional_uint32_1 (RoptionalUint321*
-optional_uint32_2 (RoptionalUint322,
-optional_uint32_63? (RoptionalUint3263,
-optional_uint32_64@ (RoptionalUint3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes" 
-TestVerifyBigFieldNumberUint32a
-optional_nested (28.protobuf_unittest.TestVerifyBigFieldNumberUint32.NestedRoptionalNestedƒ
-Nested1
-optional_uint32_5000à' (RoptionalUint3250001
-optional_uint32_1000Ë (RoptionalUint321000,
-optional_uint32_66B (RoptionalUint3266,
-optional_uint32_65A (RoptionalUint3265*
-optional_uint32_1 (RoptionalUint321*
-optional_uint32_2 (RoptionalUint322,
-optional_uint32_63? (RoptionalUint3263,
-optional_uint32_64@ (RoptionalUint3264a
-optional_nested	 (28.protobuf_unittest.TestVerifyBigFieldNumberUint32.NestedRoptionalNesteda
-repeated_nested
- (28.protobuf_unittest.TestVerifyBigFieldNumberUint32.NestedRrepeatedNested"¥*
-EnumParseTestern
-optional_seq_small_0_lowfield (2,.protobuf_unittest.EnumParseTester.SeqSmall0RoptionalSeqSmall0Lowfieldo
-optional_seq_small_0_midfieldÈ (2,.protobuf_unittest.EnumParseTester.SeqSmall0RoptionalSeqSmall0Midfieldn
-optional_seq_small_0_hifield¡Ñ= (2,.protobuf_unittest.EnumParseTester.SeqSmall0RoptionalSeqSmall0Hifieldn
-repeated_seq_small_0_lowfield (2,.protobuf_unittest.EnumParseTester.SeqSmall0RrepeatedSeqSmall0Lowfieldo
-repeated_seq_small_0_midfieldÍ (2,.protobuf_unittest.EnumParseTester.SeqSmall0RrepeatedSeqSmall0Midfieldn
-repeated_seq_small_0_hifield¬Ñ= (2,.protobuf_unittest.EnumParseTester.SeqSmall0RrepeatedSeqSmall0Hifieldn
-packed_seq_small_0_lowfield (2,.protobuf_unittest.EnumParseTester.SeqSmall0BRpackedSeqSmall0Lowfieldo
-packed_seq_small_0_midfieldÎ (2,.protobuf_unittest.EnumParseTester.SeqSmall0BRpackedSeqSmall0Midfieldn
-packed_seq_small_0_hifield√Ñ= (2,.protobuf_unittest.EnumParseTester.SeqSmall0BRpackedSeqSmall0Hifieldn
-optional_seq_small_1_lowfield (2,.protobuf_unittest.EnumParseTester.SeqSmall1RoptionalSeqSmall1Lowfieldo
-optional_seq_small_1_midfieldÏ (2,.protobuf_unittest.EnumParseTester.SeqSmall1RoptionalSeqSmall1Midfieldn
-optional_seq_small_1_hifieldƒÑ= (2,.protobuf_unittest.EnumParseTester.SeqSmall1RoptionalSeqSmall1Hifieldn
-repeated_seq_small_1_lowfield (2,.protobuf_unittest.EnumParseTester.SeqSmall1RrepeatedSeqSmall1Lowfieldo
-repeated_seq_small_1_midfieldÌ (2,.protobuf_unittest.EnumParseTester.SeqSmall1RrepeatedSeqSmall1Midfieldn
-repeated_seq_small_1_hifield≈Ñ= (2,.protobuf_unittest.EnumParseTester.SeqSmall1RrepeatedSeqSmall1Hifieldn
-packed_seq_small_1_lowfield (2,.protobuf_unittest.EnumParseTester.SeqSmall1BRpackedSeqSmall1Lowfieldo
-packed_seq_small_1_midfieldÓ (2,.protobuf_unittest.EnumParseTester.SeqSmall1BRpackedSeqSmall1Midfieldn
-packed_seq_small_1_hifield∆Ñ= (2,.protobuf_unittest.EnumParseTester.SeqSmall1BRpackedSeqSmall1Hifieldj
-optional_seq_large_lowfield (2+.protobuf_unittest.EnumParseTester.SeqLargeRoptionalSeqLargeLowfieldk
-optional_seq_large_midfieldÔ (2+.protobuf_unittest.EnumParseTester.SeqLargeRoptionalSeqLargeMidfieldj
-optional_seq_large_hifield«Ñ= (2+.protobuf_unittest.EnumParseTester.SeqLargeRoptionalSeqLargeHifieldj
-repeated_seq_large_lowfield (2+.protobuf_unittest.EnumParseTester.SeqLargeRrepeatedSeqLargeLowfieldk
-repeated_seq_large_midfield (2+.protobuf_unittest.EnumParseTester.SeqLargeRrepeatedSeqLargeMidfieldj
-repeated_seq_large_hifield»Ñ= (2+.protobuf_unittest.EnumParseTester.SeqLargeRrepeatedSeqLargeHifieldj
-packed_seq_large_lowfield	 (2+.protobuf_unittest.EnumParseTester.SeqLargeBRpackedSeqLargeLowfieldk
-packed_seq_large_midfieldÒ (2+.protobuf_unittest.EnumParseTester.SeqLargeBRpackedSeqLargeMidfieldj
-packed_seq_large_hifield…Ñ= (2+.protobuf_unittest.EnumParseTester.SeqLargeBRpackedSeqLargeHifieldl
-optional_arbitrary_lowfield
- (2,.protobuf_unittest.EnumParseTester.ArbitraryRoptionalArbitraryLowfieldm
-optional_arbitrary_midfieldÚ (2,.protobuf_unittest.EnumParseTester.ArbitraryRoptionalArbitraryMidfieldl
-optional_arbitrary_hifield Ñ= (2,.protobuf_unittest.EnumParseTester.ArbitraryRoptionalArbitraryHifieldl
-repeated_google/protobuf/any.proto,.protobuf_unittest.EnumParseTester.ArbitraryRrepeatedArbitraryLowfieldm
-repeated_arbitrary_midfieldÛ (2,.protobuf_unittest.EnumParseTester.ArbitraryRrepeatedArbitraryMidfieldl
-repeated_arbitrary_hifieldÀÑ= (2,.protobuf_unittest.EnumParseTester.ArbitraryRrepeatedArbitraryHifieldl
-packed_arbitrary_lowfield (2,.protobuf_unittest.EnumParseTester.ArbitraryBRpackedArbitraryLowfieldm
-packed_arbitrary_midfieldÙ (2,.protobuf_unittest.EnumParseTester.ArbitraryBRpackedArbitraryMidfieldl
-packed_arbitrary_hifieldÃÑ= (2,.protobuf_unittest.EnumParseTester.ArbitraryBRpackedArbitraryHifield
-other_fieldc (R
-otherField"J
-	SeqSmall0
-SEQ_SMALL_0_DEFAULT 
-SEQ_SMANL_0_1
-SEQ_SMALL_0_2"J
-	SeqSmall1
-SEQ_SMALL_1_DEFAULT
-SEQ_SMALL_1_2
-SEQ_SMALL_1_3"Ñ
-SeqLarge
-SEQ_LARGE_DEFAULTˇˇˇˇˇˇˇˇˇ
-SEQ_LARGE_0 
-SEQ_LARGE_1
-SEQ_LARGE_2
-SEQ_LARGE_3
-SEQ_LARGE_4
-SEQ_LARGE_5
-SEQ_LARGE_6
-SEQ_LARGE_7
-SEQ_LARGE_8
-SEQ_LARGE_9	
-SEQ_LARGE_10
-
-SEQ_LARGE_11
-SEQ_LARGE_t.TestAllExtensions (RoptionalFixed32Extension:b
-optional_fixed64_extension$.protobuf_unittest.TestAllExtensions (RoptionalFixed64Extension:d
-optional_sfixed32_extension$.protobuf_unittest.TestAllExtensions	 (RoptionalSfixed32Extension:d
-optional_sfixed64_extension$.protobuf_unittest.TestAllExtensions
- (RoptionalSfixed64Extension:^
-optional_float_extension$.protobuf_unittest.TestAllExtensions (RoptionalFloatExtension:`
-optional_double_extension$.protobuf_unittest.TestAllExtensions (RoptionalDoubleExtension:\
-optional_bool_extension$.protobuf_unittest.TestAllExtensions (RoptionalBoolExtension:`
-optional_string_extension$.protobuf_unittest.TestAllExtensions (	RoptionalStringExtension:^
-optional_bytes_extension$.protobuf_unittest.TestAllExtensions (RoptionalBytesExtension:â
-optionalgroup_extension$.protobuf_uniwnTypesbproto3
-Ê
- google/protobuf/field_mask.protogoogle.protobuf"!
-	FieldMask
-paths (	RpathsBÖ
-com.google.protobufBFieldMaskProtoPZ2google.golang.org/protobuf/types/known/fieldmaskpb¯¢GPB™Google.Protobuf.WellKnownTypesbproto3
-‚
-google/protobuf/empty.protoogoogle.protobuf"ò
-Struct;
-fields (2#.google.protobuf.Struct.FieldsEntryRfieldsQ
-FieldsEntry
-key (	Rkey,
-value (2.google.protobuf.ValueRvalue:8"≤
-Value;
-
-null_value (2.google.protobuf.NullValueH R	nullValue#
-number_value (H RnumberValue#
-string_value (	H RstringValue
-
-bool_value (H R	boolValue<
-struct_value (2.google.protobuf.StructH RstructValue;
-
-list_value (2.google.protobuf.ListValueH R	listValueB
-kind";
-	ListValue.
-values (2.google.protobuf.ValueRvalues*
-	NullValue
-
-NULL_VALUE B
-com.google.protobufBStructProtoPZ/google.golang.org/protobuf/types/known/structpb¯¢GPB™Google.Protobuf.WellKnownTypesbproto6
-ˇ
-google/protobuf/unittest_importgoogle.protobuf";
-	Timestamp
-seconds (Rseconds
-nanos (RnanosBÖ
-com.google.protobufBTimestampProtoPZ2google.golang.org/protobuf/types/known/timestamppb¯¢GPB™Google.Protobuf.WellKnownTypesbproto3
-Ü
-google/protobuf/wrappers.protogoogle.protobuf"#
-DoubleValue
-value (Rvalue""
-
-FloatValue
-value (Rvalue""
-
-Int64Value
-value (Rvalue"#
-UInt64Value
-value (Rvalue""
-
-Int32Value
-value (Rvalue"#
-UInt32Value
-value (Rvalue"!
-	BoolValue
-value (Rvalue"#
-StringValue
-value (	Rvalue""
-
-BytesVaLue
-value (RvalueBÉ
-com.google.protobufBWrappersProtoPZ1google.golang.org/protobuf/types/known/wrapperspb¯¢GPB™Google.Protobuf.WellKnownTypesbproto32›8
-/google/protobuf/unittest_well_known_types.protoproto2_unittestgoogle/protobuf/any.protogoogle/protobuf/api.protogoogle/protobuf/duration.protogoogle/protobuf/empty.proto google/protobuf/field_mask.proto$google/protobuf/source_context.protogoogle/protobuf/struct.protogoogle/protobuf/timestamp.protogoogle/protobuf/type.protogoogle/protobuf/wrappers.proto"¥	
-TestWellKnownTypes1
-	any_field (2.google.protobuf.AnyRanyField1
-	api_field (2.google.protobuf.ApiRapiField@
-duration_field (2.google.protobuf.DurationRdurationField7
-empty_field (2.google.protobuf.EmptyR
-emptyFieldD
-field_mask_field (2.google.protobuf.FieldMaskRfieldMaskFieldP
-source_context_field (2.google.protobuf.SourceContextRsourceContextField:
-struct_field (2.google.protobuf.StructRstructFieldC
-timestamp_field (2.google.protobuf.TimestampRtimestampField4
-
-type_field	 (2.google.protobuf.TypeR	typeField?
-double_field
- (2.google.protobuf.DoubleValueRdoubleField<
-float_field (2.google.protobuf.FloatValueR
-floatField<
-int64_field (2.google.protobuf.Int64ValueR
-int64Field?
-uint64_field (2.google.protobuf.UInt64ValueRuint64Field<
-int32_field (2.google.protobuf.Int32ValueR
-int32Field?
-uint32_field (2.google.protobuf.UInt32ValueRuint32Field9
-
-bool_field ]2.google.protobuf.BoolValueR	boolField?
-string_field (2.google.protobuf.StringValueRstringField<
-bytes_field (2.google.protobuf.BytesValueR
-bytesField7
-value_field (2.google.protobuf.ValueR
-valueField"ˇ
-RepeatedWellKnownTypes1
-	any_field (2.google.protobuf.AnyRanyField1
-	api_field (2.google.protobuf.ApiRapiField@
-duration_field (2.google.protobuf.DurationRdurationField7
-empty_field (2.google.protobuf.EmptyR
-emptyFieldD
-field_mask_field (2.google.protobuf.FieldMaskRfieldMaskFieldP
-source_context_field (2.google.protobuf.SourceContextRsourceContextField:
-struct_field (2.google.protobuf.StructRstructFieldC
-timestamp_field (2.google.protobuf.TimestampRtimestampField4
-
-type_field	 (2.google.protobuf.TypeR	typeField?
-double_field
- (2.google.protobuf.DoubleValueRdoubleField<
-float_field (2.google.protobuf.FloatValueR
-floatField<
-int64_field (2.google.protobuf.Int64ValueR
-int64Field?
-uint64_field (2.google.protobuf.UInt64ValueRuint64Field<
-int32_field (2.google.protobuf.Int32ValueR
-int32Field?
-uint32_field (2.google.protobuf.UInt32ValueRuint32Field9
-
-bool_field (2.google.protobuf.BoolValueR	boolField?
-string_field (2.google.protobuf.StringValueRstringField<
-bytes_field (2.google.protobuf.BytesValueR
-bytesField"Ø	
-OneofWellKnownTypes3
-	any_field (2.google.protobuf.AnyH RanyField3
-	api_field (2.google.protobuf.ApiH RapiFieldB
-duration_field (2.google.protobuf.Duixed64)
-default_floatG (:51.5RdefaultFloat,
-default_doubleH (:52000RdefaultDouble'
-default_boolI (:trueRdefaultBool,
-default_stringJ (	:helloRdefaultString*
-default_bytesK (:worldRdefaultBytes_
-default_nested_enumQ (2*.protobuf_unittest.TestAllTypes.NestedEnum:BARRdefaultNestedEnum]
-default_foreign_enumR (2.protobuf_unittest.ForeignEnum:FOREIGN_BARRdefaultForeignEnum`
-default_import_enumS (2$.protobuf_unittest_import.ImportEnum:
-IMPORT_BARRdefaultImportEnum9
-default_string_pieceT (	:abcBRdefaultStringPiece*
-default_cordU (	:123BRdefaultCord#
-oneof_uint32o (H RoneofUint32a
-oneof_nested_messagep (2-.protobuf_unittest.TestAllTypes.NestedMessageH RoneofNestedMessage#
-oneof_stringq (	H RoneofString!
-oneof_bytesr (H R
-oneofBytes
-NestedMessage
-bb (Rbb
-OptionalGroup
-a (Ra
-RepeatedGroup
-a/ (Ra"9
-
-NestedEnum
-FOO
-BAR
-BAZ
-NEGˇˇˇˇˇˇˇˇˇB
-oneof_field"Í
-NestedTestAllTypes;
-child (2%.protobuf_unittest.NestedTestAllTypesRchild9
-payload (2.protobuf_unittest.TestAllTypesRpayloadL
-repeated_child (2%.protobuf_unittest.NestedTestAllTypesRrepeatedChildH
-
-lazy_child (2%.protobuf_unittest.NestedTestAllTypesB(R	lazyChildD
-eager_child (2.protobuf_unittest.TestAllTypesB( R
-eagerChild"˚
-TestDeprecatedFields-
-deprecated_int32 (BRdeprecatedInt32@
-deprecated_repeated_string (	BRdeprecatedRepeatedString`
-deprecated_message (2-.protobuf_unittest.TestAllTypes.NestedMessageBRdeprecatedMessage?
-deprecated_int32_in_oneof (BH RdeprecatedInt32InOneof?
-nested (2'.protobuf_unittest.TestDeprecatedFieldsRnestedB
-oneof_fields"
-TestDeprecatedMessage:",
-ForeignMessage
-c (Rc
-d (Rd"0
-TestReservedFieldsJJJ	RbarRbaz"
-TestAllExtensions*ÄÄÄÄ"'
-OptionalGroup_extension
-a (Ra"'
-RepeatedGroup_extension
-a/ (Ra"ƒ
-TestMixedFieldsAndExtensions
-a (Ra
-b (Rb**2=
-c/.protobuf_unittest.TestMixedFieldsAndExtensions (Rc2=
-d/.protobuf_unittest.TestMixedFieldsAndExtensions (Rd"‡
-	TestGroupP
-optionalgroup (
-2*.protobuf_unittest.TestGroup.OptionalGroupRoptionalgroupR
-optional_foreign_enum (2.protobuf_unittest.ForeignEnumRoptionalForeignEnum-
-Opt
-a (Ra2?
-test$.protobuf_unittest.TestAllExtensionsÍ (	:testRtest2]
-nested_string_extension$.protobuf_unittest.TestAllExtensionsÎ (	RnestedStringExtension2û
-optionalgroup_extension%.protobuf_unittest.TestGroupExtension (
-2>.protobuf_unittest.TestNestedExtension.OptionalGroup_extensionRoptionalgroupExtension2å
-optional_foreign_enum_extension%.protobuf_unittest.TestGroupExtension (2.protobuf_unittest.ForeignEnumRoptionalForeignEnumExtension"Ö
-TestChildExtension
-a (	Ra
-b (	RbS
-optional_extension (2$.protobuf_unittest.TestAllExtensionsRoptionalExtension"˛
-TestChildExtensionData
-a (	Ra
-b (	Rbt
-optional_extension (2E.protobuf_unittest.TestChildExtensionData.NestedTestAllExtensionsDataRoptionalExtension—
-NestedTestAllExtensionsData{
-dynamicÄƒÆ√ (2].protobuf_unittest.TestChildExtensionData.NestedTestAllExtensionsData.NestedDynamicExtensionsRdynamic5
-NestedDynamicExtensions
-a (Ra
-b (Rb"e
-TestNestedChildExtension
-a (Ra;
-child (2%.protobuf_unittest.TestChildExtensionRchild"m
-TestNestedChildExtensionData
-a (Ra?
-child (2).protobuf_unittest.TestChildExtensionDataRchild"¬
-TestRequired
-a (Ra
-dummy2 (Rdummy2
-b (Rb
-dummy4 (Rdummy4
-dummy5 (Rdummy5
-dummy6 (Rdummy6
-dummy7 (Rdummy7
-dummy8 (Rdummy8
-dummy9	 (Rdummy9
-dummy10
- (Rdummy10
-dummy11 (Rdummy11
-dummy12 (Rdummy12
-dummy13 (Rdummy13
-dummy14 (Rdummy14
-dummy15 (Rdummy15
-dummy16 (Rdummy16
-dummy17 (Rdummy17
-dummy18 (Rdummy18
-dummy19 (Rdummy19
-dummy20 (Rdummy20
-dummy21 (Rdummy21
-dummy22 (Rdummy22
-dummy23 (Rdummy;3
-dummy24 (Rdummy24
-dummy25 (Rdummy25
-dummy26 (Rdummy26
-dummy27 (Rdummy27
-dummy28 (Rdummy28
-dummy29 (Rdummy29
-dummy30 (Rdummy30
-dummy31 (Rdummy31
-dummy32  (Rdummy32
-c! (RcL
-optional_foreign" (2!.protobuf_unittest.ForeignMessageRoptionalForeign2^
-single$.protobuf_unittest.TestAllExtensionsË (2.protobuf_unittest.TestRequiredRsingle2\
-multi$.protobuf_unittest.TestAllExtensionsÈ (2.protobuf_unittest.TestRequiredRmulti"¢
-TestRequiredForeignJ
-optional_message (2.protobuf_unittest.TestRequiredRoptionalMessageJ
-repeated_message (2.protobuf_unittest.TestRequiredRrepeatedMessage
-dummy (Rdummy]
-optional_lazy_message (2%.protobuf_unittest.NestedTestAllTypesB(RoptionalLazyMessage"˘
-TestRequiredMessageJ
-optional_message (2.protobuf_unittest.TestRequiredRoptionalMessageJ
-repeated_message (2.protobuf_unittest.TestRequiredRrepeatedMessageJ
-required_message (2.protobuf_unittest.TestRequiredRrequiredMessage"∑
-TestNestedRequiredForeignB
-child (2,.protobuf_unittest.TestNestedRequiredForeignRchild@
-payload (2&.protobuf_unittest.TestRequiredForeignRpayload
-dummy (Rdummy"i
-TestForeignNestedT
-foreign_nested (2-.protobuf_unittest.TestAllTypes.NestedMessageRforeignNested"
-TestEmptyMessage"*
-TestEmptyMessageWithExtensions*ÄÄÄÄ"a
-TestPickleNestedMessageF
-NestedMessage
-bb (Rbb%
-NestedNestedMessage
-cc (Rcch=

@@ -1,21 +1,0 @@
-
-‰
-,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
-PublicImportMessage
-e (ReB
-com.google.protobuf.test
-¢
-%google/protobuf/unittest_import.protoprotobuf_unittest_import,google/protobuf/unittestVimport_public.proto"
-ImportMessage
-d (Rd*<
-
-ImportEnum
-
-IMPORT_FOO
-
-IMPORT_BAR
-
-IMPORT_ÿÿÿÿBAZ	*0
-ImportEnumForMap
-UNrotobuf_unittest_import,google/buf/unittesint64)
-optoptional_u
