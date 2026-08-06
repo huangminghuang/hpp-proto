@@ -1,17 +1,17 @@
 INFO: Running with entropic power schedule (0xFF, 100).
-INFO: Seed: 3383633356
-MERGE-OUTER: 4847 files, 0 in the initial corpus, 0 processed earlier
+INFO: Seed: 3886504785
+MERGE-OUTER: 4736 files, 0 in the initial corpus, 0 processed earlier
 MERGE-OUTER: attempt 1
 INFO: Running with entropic power schedule (0xFF, 100).
-INFO: Seed: 3383672350
+INFO: Seed: 3886545083
 INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 1048576 bytes
 MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge214.txt'
-MERGE-INNER: 4847 total files; 0 processed earlier; will process 4847 files now
+MERGE-INNER: 4736 total files; 0 processed earlier; will process 4736 files now
 #1	pulse  exec/s: 0 rss: 29Mb
 #2	pulse  exec/s: 0 rss: 29Mb
 #4	pulse  exec/s: 0 rss: 29Mb
 #8	pulse  exec/s: 0 rss: 29Mb
-#16	pulse  exec/s: 0 rss: 29Mb
+#16	pulse  exec/s: 0 rss: 30Mb
 #32	pulse  exec/s: 0 rss: 30Mb
 #64	pulse  exec/s: 0 rss: 30Mb
 #128	pulse  exec/s: 0 rss: 30Mb
@@ -20,8 +20,30 @@ MERGE-INNER: 4847 total files; 0 processed earlier; will process 4847 files now
 #1024	pulse  exec/s: 0 rss: 30Mb
 #2048	pulse  exec/s: 0 rss: 30Mb
 #4096	pulse  exec/s: 2048 rss: 1243Mb
-#4847	DONE   exec/s: 807 rss: 1243Mb
-MERGE-OUTER: successful in 1 attempt(s)
-MERGE-OUTER: the control file has 592946 bytes
+==218== ERROR: libFuzzer: out-of-memory (used: 3559Mb; limit: 2048Mb)
+   To change the out-of-memory limit use -rss_limit_mb=<N>
+
+MS: 0 ; base unit: 0000000000000000000000000000000000000000
+artifact_prefix='./'; Test unit written to ./oom-eaa437897d2e256ab0c8b4fecb9bf22f16229bb7
+SUMMARY: libFuzzer: out-of-memory
+MERGE-OUTER: attempt 2
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3891557730
+INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 1048576 bytes
+MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge214.txt'
+MERGE-INNER: '/github/workspace/cifuzz-corpus/fuzz_descriptor/eaa437897d2e256ab0c8b4fecb9bf22f16229bb7' caused a failure at the previous merge step
+MERGE-INNER: 4736 total files; 4421 processed earlier; will process 315 files now
+#1	pulse  exec/s: 0 rss: 32Mb
+#2	pulse  exec/s: 0 rss: 32Mb
+#4	pulse  exec/s: 0 rss: 33Mb
+#8	pulse  exec/s: 0 rss: 33Mb
+#16	pulse  exec/s: 0 rss: 33Mb
+#32	pulse  exec/s: 0 rss: 33Mb
+#64	pulse  exec/s: 0 rss: 33Mb
+#128	pulse  exec/s: 128 rss: 33Mb
+#256	pulse  exec/s: 128 rss: 33Mb
+#315	DONE   exec/s: 105 rss: 33Mb
+MERGE-OUTER: successful in 2 attempt(s)
+MERGE-OUTER: the control file has 579219 bytes
 MERGE-OUTER: consumed 0Mb (29Mb rss) to parse the control file
 MERGE-OUTER: 0 new files with 0 new features added; 0 new coverage edges
