@@ -1,27 +1,68 @@
 INFO: Running with entropic power schedule (0xFF, 100).
-INFO: Seed: 919396672
-MERGE-OUTER: 5304 files, 0 in the initial corpus, 0 processed earlier
+INFO: Seed: 1890032882
+MERGE-OUTER: 5139 files, 0 in the initial corpus, 0 processed earlier
 MERGE-OUTER: attempt 1
 INFO: Running with entropic power schedule (0xFF, 100).
-INFO: Seed: 919428645
+INFO: Seed: 1890072194
 INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 1048576 bytes
-MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge214.txt'
-MERGE-INNER: 5304 total files; 0 processed earlier; will process 5304 files now
-#1	pulse  exec/s: 0 rss: 29Mb
-#2	pulse  exec/s: 0 rss: 29Mb
-#4	pulse  exec/s: 0 rss: 29Mb
-#8	pulse  exec/s: 0 rss: 29Mb
-#16	pulse  exec/s: 0 rss: 29Mb
-#32	pulse  exec/s: 0 rss: 30Mb
-#64	pulse  exec/s: 0 rss: 30Mb
-#128	pulse  exec/s: 0 rss: 30Mb
-#256	pulse  exec/s: 0 rss: 30Mb
-#512	pulse  exec/s: 0 rss: 30Mb
-#1024	pulse  exec/s: 0 rss: 30Mb
-#2048	pulse  exec/s: 0 rss: 30Mb
-#4096	pulse  exec/s: 0 rss: 31Mb
-#5304	DONE   exec/s: 1060 rss: 1187Mb
-MERGE-OUTER: successful in 1 attempt(s)
-MERGE-OUTER: the control file has 648800 bytes
+MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge215.txt'
+MERGE-INNER: 5139 total files; 0 processed earlier; will process 5139 files now
+#1	pulse  exec/s: 0 rss: 31Mb
+#2	pulse  exec/s: 0 rss: 31Mb
+#4	pulse  exec/s: 0 rss: 31Mb
+#8	pulse  exec/s: 0 rss: 31Mb
+#16	pulse  exec/s: 0 rss: 31Mb
+#32	pulse  exec/s: 0 rss: 31Mb
+#64	pulse  exec/s: 0 rss: 31Mb
+#128	pulse  exec/s: 0 rss: 31Mb
+#256	pulse  exec/s: 0 rss: 31Mb
+#512	pulse  exec/s: 0 rss: 31Mb
+#1024	pulse  exec/s: 0 rss: 31Mb
+#2048	pulse  exec/s: 0 rss: 31Mb
+#4096	pulse  exec/s: 0 rss: 46Mb
+==219== ERROR: libFuzzer: out-of-memory (used: 2558Mb; limit: 2048Mb)
+   To change the out-of-memory limit use -rss_limit_mb=<N>
+
+MS: 0 ; base unit: 0000000000000000000000000000000000000000
+artifact_prefix='./'; Test unit written to ./oom-fc952a88aeadbfd2db088904f73a60a4166b6224
+SUMMARY: libFuzzer: out-of-memory
+MERGE-OUTER: attempt 2
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 1894101083
+INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 1048576 bytes
+MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge215.txt'
+MERGE-INNER: '/github/workspace/cifuzz-corpus/fuzz_descriptor/fc952a88aeadbfd2db088904f73a60a4166b6224' caused a failure at the previous merge step
+MERGE-INNER: 5139 total files; 4742 processed earlier; will process 397 files now
+#1	pulse  exec/s: 0 rss: 30Mb
+#2	pulse  exec/s: 0 rss: 30Mb
+#4	pulse  exec/s: 0 rss: 30Mb
+#8	pulse  exec/s: 0 rss: 30Mb
+#16	pulse  exec/s: 0 rss: 30Mb
+#32	pulse  exec/s: 0 rss: 31Mb
+==228== ERROR: libFuzzer: out-of-memory (used: 3065Mb; limit: 2048Mb)
+   To change the out-of-memory limit use -rss_limit_mb=<N>
+
+MS: 0 ; base unit: 0000000000000000000000000000000000000000
+artifact_prefix='./'; Test unit written to ./oom-4982085bd55e193931248c14b81fe900d52e8ee4
+SUMMARY: libFuzzer: out-of-memory
+MERGE-OUTER: attempt 3
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 1896133645
+INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 1048576 bytes
+MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge215.txt'
+MERGE-INNER: '/github/workspace/cifuzz-corpus/fuzz_descriptor/4982085bd55e193931248c14b81fe900d52e8ee4' caused a failure at the previous merge step
+MERGE-INNER: 5139 total files; 4799 processed earlier; will process 340 files now
+#1	pulse  exec/s: 0 rss: 32Mb
+#2	pulse  exec/s: 0 rss: 32Mb
+#4	pulse  exec/s: 0 rss: 32Mb
+#8	pulse  exec/s: 0 rss: 33Mb
+#16	pulse  exec/s: 0 rss: 33Mb
+#32	pulse  exec/s: 0 rss: 33Mb
+#64	pulse  exec/s: 0 rss: 34Mb
+#128	pulse  exec/s: 128 rss: 34Mb
+#256	pulse  exec/s: 128 rss: 34Mb
+#340	DONE   exec/s: 113 rss: 34Mb
+MERGE-OUTER: successful in 3 attempt(s)
+MERGE-OUTER: the control file has 628407 bytes
 MERGE-OUTER: consumed 0Mb (29Mb rss) to parse the control file
 MERGE-OUTER: 0 new files with 0 new features added; 0 new coverage edges
