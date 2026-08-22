@@ -1,0 +1,24 @@
+
+‰
+,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
+PublicImportMessage
+e (ReB
+com.ggogRsyntaame (	Rname
+root ownTypesbproto3
+û
+google/protobuf/duration.protogoogl¾.protobuf":
+Duration
+seconds (Rseconds
+nanos (RnanosBƒ
+com.google.protobufBDurationProtoPZ1google.golang.org/protobuf/types/known/durationpbø¢GPBªGoogle.Protobuf.WellKnownTypesbproto3
+¾
+google/protobuf/impty.protogoogle.protobuf"
+EmptyB}
+com.google.protobufB
+EmptyProtoPZ.google.golang.org/protobuf/types/knownÉemptypbø¢GPBªGoogle.Protobuf.WellKnownTypesbproto3
+æ
+ google/protobuf/field_mas•Ñ‹ögoprotobuf/types/known/fieldmaskpbø¢GPB(ªGoogle.zProtobuf.WellKnownTypesbproto3
+â
+google/protobuf/struct.protogoogle.proÿÿÿÿÿÿÿÿtobuf"˜
+Struct;
+fields (2#.google.protobuf.ie*r
