@@ -1,188 +1,0 @@
-
-â
-,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
-PublicImportMessage
-e (ReB
-com.google.protobuf.test
-¢
-%google/protobuf/unittest_import.protoprotobuf_unittest_import,google/protobuf/unittest_import_pubLARGE_8
-SEQ_LARGE_9	
-SEQ_LARGE_10
-
-SEQ_LARGE_11
-SEQ_LARGE_12
-SEQ_LARGE_13
-SEQ_LARGE_14
-SEQ_LARGE_15
-SEQ_LARGE_16
-SEQ_LARGE_17
-SEQ_LARGE_18
-SEQ_LARGE_19
-SEQ_LARGE_20
-SEQ_LARGE_21
-SEQderings (RmyExtensionInt:a
-packed_int32_extension'.protobuf_unittest.TestPackedExtensionsZ (BRpackedInt32Extension+.protobuf_unittest.TestExtensionInsideTable (R!testExtensionInsideTableExtension:©
-innerX.protobuf_unittest.TestNestedGroupExtensionOuter.Layer1OptionalGroup.Layer2RepeatedGroup (29.protobuf_unittest.TestNestedGroupExtensionInnerExtensionRinnerBBUnittestProtoHÄàê¯
-ø'
-%google/protobuf/unittest_proto3.protoproto3_unittest%google/protobuf/unittest_import.proto"Ã
-TestAllTypes%
-optional_int32 (RoptionalInt32%
-optional_iny
-value (Rvalue:ry
-key (Rkey
-value (Rvalue:8B
-MapStringStringEntry
-key (	Rkey
-value (	Rvalue:8@
-MapInt32BytesEntry
-key (Rkey
-value (Rvalue:8[
-MapInt32EnumEntry
-key (Rkey0
-value (1.protobu8B
-MapSint32Sint32Entry
-key (Rkey
-value (Rvalue:8B
-MapSint64Sint64Entry
-key (Rkey
-value (Rvalue:8D
-MapFixed32Fixed32Entry
-key (Rkey
-value (Rvalue:8D
-MapFixed64Fixed64Entry
-key (Rkey
-value (Rvalue:8F
-MapSfixed32Sfixed32Entry
-key (Rkey
-value (Rvalue:8F
-MapSfixed64Sfixed64Entry
-key (Rkey
-value (Rvalue:8@
-MapInt32FloatEntry
-key (Rkey
-value (Rvalue:8A
-MpBoolBoolEntry
-key (Rkey
-value (Rvalue:8B
-MapStringStringEntry
-key (	Rkey
-v<alue (	Rvalue:8@
-MapInt32BytesEntry
-key (Rkey
-value (Rvalue:8[
-MapInt32EnumEntry
-key (Rkey0
-value (2.protobuf_unittest.MapEnumRvalue:8l
-MapInt32ForeignMessageEntry
-key (Rkey7
-value (2!.protobuf_unittest.ForeignMessageRvalue:8try
-key (kR	ey7
-value (2!.protobuf_unittest.ForeignMessageRvalue:8d
-MapInt32AllTypesEntry
-key eatedInt32%
-repeated_int64  (RrepeatedInt64'
-repeated_uint32! (RrepeatedUint32'
-repeated_uint64" (RrepeatedUint64'
-repeated_sint32# (RrepeatedSint32'
-repeated_sint64$ (RrepeatedSint64)
-repeated_fixad32% ,(RrepeatedFixoogle/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
-PublicImportMessage
-e (ReB
-com.google.protobuf.test
-¢
-%google/protobuf/unittest_import.protoprotobuf_unittest_importRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR,google/protobuf/unittest_import_pubLARGE_8
-SEQ_LARGE_9	
-SEQ_LARGE_10
-
-SEQ_LARGE_11
-SEQ_LARGE_12
-SEQ_LARGE_13
-SEQ_LARGE_14
-SEQ_LARGE_15
-SEQ_LARGE_16
-SEQ_LARGE_17
-SEQ_LARGE_18
-SEQ_LARGE_19
-SEQ_LARGE_20
-SEQ_LARGE_21
-SEQderings (RmyExtensionInt:a
-packed_int32_extension'.protobuf_unittest.TestPackedExtensionsZ (BRpackedInt32Extension+.protobuf_unittest.TestExtensionInsideTable (R!testExtensionInsideTableExtension:©
-innerX.protobuf_unittest.TestNestedGroupExtensionOuter.Layer1OptionalGroup.Layer2RepeatedGroup (29.protobuf_unittest.TestNestedGroupExtensionInnerExtensionRinnerBBUnittestProtoHÄàê¯
-ø'
-%google/protobuf/unittest_proto3.protoproto3_unittest%google/protobuf/unittest_import.proto"Ã
-TestAllTypes%
-optional_int32 (RoptionalInt32%
-optional_iny
-value (Rvalue:8B
-MapUint32Uint32Entry
-key (Rkey
-value (Rvalue:8B
-MapUint64Uint64Entry
-key (Rkey
-value (Rvalue:8B
-MapSint32Sint32Entry
-key (Rkey
-value (Rvalue:8B
-MapSint64Sint64Entry
-key (Rkey
-value (Rvalue:8D
-MapFixed32Fixed32Entry
-key (Rkey
-value (Rvalue:8D
-MapFixed64Fixed64Entry
-key (Rkey
-value (Rvalue:8F
-MapSfixed32Sfixed32Entry
-key (Rkey
-value (Rvalue:8F
-MapSfixed64Sfixed64Entry
-key (Rkey
-value (Rvalue:8@
-MapInt32FloatEntry
-key (Rkey
-value (Rvalue:8A
-MapInt32DoubleEntry
-key (Rkey
-value (Rvalue:8>
-MapBoolBoolEntry
-key (Rkey
-value (Rvalue:8B
-MapStringStringEntry
-key (	Rkey
-v<alue (	Rvalue:8@
-MapInt32BytesEntry
-key (Rkey
-value (Rvalue:8[
-MapInt32EnumEntry
-key (Rkey0
-value (2.protobuf_unittest.MapEnumRvalue:8l
-MapInt32ForeignMessageEntry
-key (Rkey7
-value (2!.protobuf_unittest.ForeignMessageRvalue:8m
-MapStringForeignMessageEntry
-key (	Rkey7
-value (2!.protobuf_unittest.ForeignMessageRvalue:8d
-MapInt32AllTypesEntry
-key (Rkey5
-value (2.protobuf_unittest.TestAllTypesRvalue:8"J
-TestMapSubmessage5
-test_map (2.protobuf_unittest.TestMapRtestMap"Ÿ
-TestMessageMapb
-map_int32_message (26.protobuf_un8"á
-TestSameTypeMap@
-map1 (2,.protobuf_unittest.TestSameTypeMap.Map1EntryRmap1@
-map2 (2,.protobu@f_unittest.TestSameTypeMap.Map2EntryRmap27
-	Map1Entry
-key (Rkey
-value (Rvalue:87
-	Map2Entry
-key (RkeyequiredMessageMap.MapFieldEntryRmapField\
-MapFieldEntry
-key (Rkey5
-value (2.protobuf_unittest.TestRequiredRvalue:8"‡
-TestArenaMapZ
-map_int32_int32 (22.protobuf_unittest.TestArenaMap.MapInt32Int32EntryRmapInt32Int32Z
-map_int64_int64 (22.protobuf_unittest.TestArenaMap.MapInt64Int64EntryRmapInt64Int64`
-map_uint32_uint32 (24.protobuf_unittest.TestArenaMap.MapUint32Uint32Ented32)
-repeated_fixe
-d64defa
