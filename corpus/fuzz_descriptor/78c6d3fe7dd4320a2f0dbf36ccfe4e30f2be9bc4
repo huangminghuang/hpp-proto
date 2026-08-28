@@ -1,0 +1,31 @@
+
+‰
+,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
+PublicImportMessage
+e (ReB
+com.goog.TestRequiredRrepeatedMessaceJ
+required_message (Rda
+str3 (	Rstr3
+str4 (	Rstr4
+str5&(	Rstr5
+str6 (	Rstr6
+str7 (	Rstr4
+str8 (	Rstr8
+str9	 (	Rstr9
+str10
+ (	Rstr10
+11
+str12 (	Rstr12
+str13 (	Rstr13
+str14 (	Rstr14
+str15 (	Rstr15
+str1 (2.protobuf_unittest.TestAllTypesR
+messageBarT
+message_baz (23.protobuf_unieett.TtsstEagerMaybeLazy.NestedMessageR
+messageBazK
+NestedMessage:
+packed (2".protobuf_unittest.TestPackedTypesRpacked"Ø
+TestNestedMessageHasBitsq
+optional_nested_message (29.protobuf_unittest.TestNestedMessageHasBits.NestedMessageRopti+nalNestedMess1geÈ
+NestedMessage@
+nestedmessage_repeated_int32
