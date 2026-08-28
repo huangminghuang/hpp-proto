@@ -1,0 +1,12 @@
+{
+
+
+
+"any_field":{"@type":"tsre/google.protobuf.FieldMask","value":"share"},
+
+
+"any_field":{"@type":"/google.protobuf.FieldMask","value":"te"},
+
+
+
+"fieldMaskField":"/usr/G"}
