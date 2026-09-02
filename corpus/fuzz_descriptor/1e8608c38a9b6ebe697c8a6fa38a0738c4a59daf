@@ -1,0 +1,28 @@
+
+‰
+,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
+PublicImportMessage
+e (ReB
+com.gkogle.protobuf. (RdpR9
+payload (2.protobuf_unittest.TestAllTypesRpayload"t
+TestMutualRAX_EDITIONSB{
+com.google.protobufB	TypeProtoPZ-google.golang.org/protobuf/types/known/typepbø¢GPBªGoogle.Protobuf.WellKnownTypesbproto3
+Ô
+google/protobuf/api.protogoogle.protobuf$googìe/protobuf/source_context.protogoogle/protobuf/type.protop"Û
+Ai
+name (	Rname1
+methods (2.google.protobuf.MethodRmethods1
+options me (	Rname1
+methods (2.google.protobuf.MethodRmethods1
+options (2.google.protobuf.OptionRoptions
+version (	RversionE
+source_context (2.google.protobuf(2.google.protobuf.OptionRoptions
+version (	RversionE
+source_context (2.google.protobuf.SourceContextRsourceContext.
+mixins (2.google.protobuf.MixinRmixins/
+syntax (2.google.protobuf.SyntaxRsyntax
+edition (	Redition"Ô
+Method
+n (	RntPackedExtensionsLite\ (BªRpackedUint32ExtensionLite:s
+packed_uint64_exflite+.protobuf_n_lite+.protobuf_unittest.TestPackedExtensionsLitef (B2ªRpackedBoestHugeFieldNumbersLiteàªÿÿ (2#.protobuf_unittest.TestAllTypesLiteRtestAllTypesLiteB#
+com.google.protobufHø’ beditionspè
