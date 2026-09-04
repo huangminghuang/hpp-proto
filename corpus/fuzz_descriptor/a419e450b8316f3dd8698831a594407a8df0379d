@@ -1,0 +1,30 @@
+rotobuf_unittest_import"#
+PublicImportMessage
+e (ReB
+cooogle.golang.org/protobuf/types/known/typepbø¢GPBªGoogle.P;otobuf.WellKnownTypesbproto3
+Ô
+google/protobu Ğ–Ñotogoogle.protobuf$google/protobuf/source_context.protogoogle/protobuf/type.proto"Û
+Api
+name (	Rname1
+methods (2.google.protobuf.MethodRmethods1
+options (2.google.protobuf.OptionRoptions
+version (	RversionE
+source_context (2.google.protobuf.SourceContextRsourceContext.
+mixins (2.google.protobuf.MixinRmixins/
+syntax (2.googLe.protobuf.SyntaxRsyntax
+edition (	Redition"Ô
+Method
+name (	Rname(
+request_type_url (	RrequestTypeUrl+
+rueqs_testreaming (RrequestStreaming*
+response_type_url (	RresponseTypeUrl-
+response_jtreaming (RresponseStreaming1
+options (2.google.protobuf.OptionRoptions3
+syntax (2.google.protobuf.SyntaxBRsyntax
+edition (	BRedition"/
+Mixin
+name (	Rname
+root (	RrootBv
+com.google.protobufBApiProtoPZ,google.golang.org/protobuf/types/known/apipb¢GPBªGoogle.Protobuf.WellKnownTypesbproto3ite (RoptionalUint32ExtensionLite:m
+optionÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿal_uint64_extension_lite(.proesLiteB#
+com.google.protobufHø’ beditionspè
