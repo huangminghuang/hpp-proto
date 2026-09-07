@@ -1,49 +1,49 @@
 INFO: Running with entropic power schedule (0xFF, 100).
-INFO: Seed: 3376517527
-MERGE-OUTER: 6094 files, 0 in the initial corpus, 0 processed earlier
+INFO: Seed: 2465473564
+MERGE-OUTER: 6234 files, 0 in the initial corpus, 0 processed earlier
 MERGE-OUTER: attempt 1
 INFO: Running with entropic power schedule (0xFF, 100).
-INFO: Seed: 3376564506
+INFO: Seed: 2465520132
 INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 1048576 bytes
-MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge214.txt'
-MERGE-INNER: 6094 total files; 0 processed earlier; will process 6094 files now
-#1	pulse  exec/s: 0 rss: 29Mb
-#2	pulse  exec/s: 0 rss: 29Mb
-#4	pulse  exec/s: 0 rss: 29Mb
-#8	pulse  exec/s: 0 rss: 29Mb
-#16	pulse  exec/s: 0 rss: 30Mb
-#32	pulse  exec/s: 0 rss: 30Mb
-#64	pulse  exec/s: 0 rss: 30Mb
-#128	pulse  exec/s: 0 rss: 30Mb
-#256	pulse  exec/s: 0 rss: 30Mb
-#512	pulse  exec/s: 0 rss: 30Mb
-#1024	pulse  exec/s: 0 rss: 30Mb
-#2048	pulse  exec/s: 0 rss: 30Mb
-#4096	pulse  exec/s: 0 rss: 30Mb
-==218== ERROR: libFuzzer: out-of-memory (used: 2816Mb; limit: 2048Mb)
+MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge217.txt'
+MERGE-INNER: 6234 total files; 0 processed earlier; will process 6234 files now
+#1	pulse  exec/s: 0 rss: 31Mb
+#2	pulse  exec/s: 0 rss: 31Mb
+#4	pulse  exec/s: 0 rss: 31Mb
+#8	pulse  exec/s: 0 rss: 31Mb
+#16	pulse  exec/s: 0 rss: 31Mb
+#32	pulse  exec/s: 0 rss: 31Mb
+#64	pulse  exec/s: 0 rss: 31Mb
+#128	pulse  exec/s: 0 rss: 32Mb
+#256	pulse  exec/s: 0 rss: 32Mb
+#512	pulse  exec/s: 0 rss: 32Mb
+#1024	pulse  exec/s: 0 rss: 32Mb
+#2048	pulse  exec/s: 0 rss: 32Mb
+#4096	pulse  exec/s: 0 rss: 32Mb
+==221== ERROR: libFuzzer: out-of-memory (used: 2840Mb; limit: 2048Mb)
    To change the out-of-memory limit use -rss_limit_mb=<N>
 
 MS: 0 ; base unit: 0000000000000000000000000000000000000000
-artifact_prefix='./'; Test unit written to ./oom-ab3b2cb9eeb923ccbe624a443c83ed030b1029c8
+artifact_prefix='./'; Test unit written to ./oom-0223a62f843c74fa92fef33ad4b24ffe7d9c756f
 SUMMARY: libFuzzer: out-of-memory
 MERGE-OUTER: attempt 2
 INFO: Running with entropic power schedule (0xFF, 100).
-INFO: Seed: 3380580955
+INFO: Seed: 2469548054
 INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 1048576 bytes
-MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge214.txt'
-MERGE-INNER: '/github/workspace/cifuzz-corpus/fuzz_descriptor/ab3b2cb9eeb923ccbe624a443c83ed030b1029c8' caused a failure at the previous merge step
-MERGE-INNER: 6094 total files; 5715 processed earlier; will process 379 files now
-#1	pulse  exec/s: 0 rss: 32Mb
-#2	pulse  exec/s: 0 rss: 32Mb
-#4	pulse  exec/s: 0 rss: 32Mb
-#8	pulse  exec/s: 0 rss: 32Mb
-#16	pulse  exec/s: 0 rss: 32Mb
-#32	pulse  exec/s: 0 rss: 32Mb
-#64	pulse  exec/s: 0 rss: 33Mb
-#128	pulse  exec/s: 0 rss: 33Mb
-#256	pulse  exec/s: 128 rss: 33Mb
-#379	DONE   exec/s: 126 rss: 33Mb
+MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge217.txt'
+MERGE-INNER: '/github/workspace/cifuzz-corpus/fuzz_descriptor/0223a62f843c74fa92fef33ad4b24ffe7d9c756f' caused a failure at the previous merge step
+MERGE-INNER: 6234 total files; 5897 processed earlier; will process 337 files now
+#1	pulse  exec/s: 0 rss: 30Mb
+#2	pulse  exec/s: 0 rss: 31Mb
+#4	pulse  exec/s: 0 rss: 31Mb
+#8	pulse  exec/s: 0 rss: 31Mb
+#16	pulse  exec/s: 0 rss: 31Mb
+#32	pulse  exec/s: 0 rss: 31Mb
+#64	pulse  exec/s: 0 rss: 32Mb
+#128	pulse  exec/s: 128 rss: 32Mb
+#256	pulse  exec/s: 128 rss: 32Mb
+#337	DONE   exec/s: 112 rss: 32Mb
 MERGE-OUTER: successful in 2 attempt(s)
-MERGE-OUTER: the control file has 745305 bytes
+MERGE-OUTER: the control file has 762515 bytes
 MERGE-OUTER: consumed 0Mb (29Mb rss) to parse the control file
 MERGE-OUTER: 0 new files with 0 new features added; 0 new coverage edges
