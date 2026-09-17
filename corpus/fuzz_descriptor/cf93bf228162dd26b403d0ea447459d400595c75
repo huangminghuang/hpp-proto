@@ -1,595 +1,0 @@
-
-‰
-,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
-PublicImportMessage
-e (ReB
-com.google.pp
-group_aùøÿÿ (RgroupAB
-StringStringMapEntry
-key (	Rkey
-value (	Rvalue:8B
-oneof_field"ú
-TestExtensionInsideTable
-field1 (Rfield1
-field2 (Rfield2
-field3 (Rfield3
-field4 (Rfield4
-field6 (Rfield6
-field7 (Rfield7
-field8 (Rfield8
-field9	 (Rfield9
-field10
- (Rfield10*"þ
-TestNestedGroupExtensionOuterv
-layer1optionalgroup (
-2D.protobuf_unittest.TestNestedGroupExtensionOuter.Layer1OptionalGroupRlayer1optionalgroupä
-Layer1OptionalGroupŠ
-layer2repeatedgroup (
-2X.protobuf_unittest.TestNestedGroupExtensionOuter.Layer1OptionalGroup.Layer2RepeatedGroupRlayer2repeatedgroup·
-"layer2anotheroptionalrepeatedgroup (
-2g.protobuf_unittest.TestNestedGroupExtensionOuter.Layer1OptionalGroup.Layer2AnotherOptionalRepeatedGroupR"layer2anotheroptionalrepeatedgroup@
-Layer2RepeatedGroup#
-another_field (	RanotherField*D
-"Layer2AnotherOptionalRepeatedGroup
-but_why_tho (	R	butWhyTho"G
-&TestNestedGroupExtensionInnerExtension
-
-inner_name (	R	innerName" 
-TestExtensionRangeSerialize
-foo_one (RfooOne
-foo_two (RfooTwo
-	foo_three (RfooThree
-foo_four (RfooFour***	***2G
-bar_one..protobuf_unittest.TestExtensionRangeSerialize (RbarOne2G
-bar_two..protobuf_unittest.TestExtensionRangeSerialize (RbarTwo2K
-	bar_three..protobuf_unittest.TestExtensionRangeSerialize
- (RbarThree2I
-bar_four..protobuf_unittest.TestExtensionRangeSerialize (RbarFour2I
-bar_five..protobuf_unittest.TestExtensionRangeSerialize (RbarFive"Ã
-TestVerifyInt32Simple(
-optional_int32_1 (RoptionalInt321(
-optional_int32_2 (RoptionalInt322*
-optional_int32_63? (RoptionalInt3263*
-optional_int32_64@ (RoptionalInt3264"Û
-TestVerifyInt32(
-optional_int32_1 (RoptionalInt321(
-optional_int32_2 (RoptionalInt322*
-optional_int32_63? (RoptionalInt3263*
-optional_int32_64@ (RoptionalInt3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"á
-TestVerifyMostlyInt32*
-optional_int64_30 (RoptionalInt6430(
-optional_int32_1 (RoptionalInt321(
-optional_int32_2 (RoptionalInt322(
-optional_int32_3 (RoptionalInt323(
-optional_int32_4 (RoptionalInt324*
-optional_int32_63? (RoptionalInt3263*
-optional_int32_64@ (RoptionalInt3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"ž
-#TestVerifyMostlyInt32BigFieldNumber*
-optional_int64_30 (RoptionalInt6430-
-optional_int32_300¬ (RoptionalInt32300(
-optional_int32_1 (RoptionalInt321(
-optional_int32_2 (RoptionalInt322(
-optional_int32_3 (RoptionalInt323(
-optional_int32_4 (RoptionalInt324*
-optional_int32_63? (RoptionalInt3263*
-optional_int32_64@ (RoptionalInt3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"Ì
-TestVerifyUint32Simple*
-optional_uint32_1 (RoptionalUint321*
-optional_uint32_2 (RoptionalUint322,
-optional_uint32_63? (RoptionalUint3263,
-optional_uint32_64@ (RoptionalUint3264"ä
-TestVerifyUint32*
-optional_uint32_1 (RoptionalUint321*
-optional_uint32_2 (RoptionalUint322,
-optional_uint32_63? (RoptionalUint3263,
-optional_uint32_64@ (RoptionalUint3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"á
-TestVerifyOneUint32*
-optional_uint32_1 (RoptionalUint321(
-optional_int32_2 (RoptionalInt322*
-optional_int32_63? (RoptionalInt3263*
-optional_int32_64@ (RoptionalInt3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"˜
- TestVerifyOneInt32BigFieldNumber*
-optional_int32_65A (RoptionalInt3265(
-optional_int64_1 (RoptionalInt641(
-optional_int64_2 (RoptionalInt642*
-optional_int64_63? (RoptionalInt6463*
-optional_int64_64@ (RoptionalInt6464M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"Æ
-TestVerifyInt32BigFieldNumber/
-optional_int32_1000è (RoptionalInt321000*
-optional_int32_65A (RoptionalInt3265(
-optional_int32_1 (RoptionalInt321(
-optional_int32_2 (RoptionalInt322*
-optional_int32_63? (RoptionalInt3263*
-optional_int32_64@ (RoptionalInt3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"Ó
-TestVerifyUint32BigFieldNumber1
-optional_uint32_1000è (RoptionalUint321000,
-optional_uint32_65A (RoptionalUint3265*
-optional_uint32_1 (RoptionalUint321*
-optional_uint32_2 (RoptionalUint322,
-optional_uint32_63? (RoptionalUint3263,
-optional_uint32_64@ (RoptionalUint3264M
-optional_all_types	 (2.protobuf_unittest.TestAllTypesRoptionalAllTypesM
-repeated_all_types
- (2.protobuf_unittest.TestAllTypesRrepeatedAllTypes"Ê
-TestVerifyBigFieldNumberUint64a
-optional_nested (28.protobuf_unittest.TestVerifyBigFieldNumberUint32.NestedRoptionalNestedÄ
-Nested1
-optional_uint32_5000ˆ' (RoptionalUint3250001
-optional_uint32_1000è (RoptionalUint321000,
-optional_uint32_66B (RoptionalUint3266,
-optional_uint32_65A (RoptionalUint3265*
-optional_uint32_1 (RoptionalUint321*
-optional_uint32_2 (RoptionalUint322,
-optional_uint32_63? (RoptionalUint3263,
-optional_uint32_64@ (RoptionalUint3264a
-optional_nested	 (28.protobuf_unittes_LABEL_88X
-ENUM_LABEL_89Y
-ENUM_LABEL_90Z
-ENUM_LABEL_91[
-ENUM_LABEL_92\
-ENUM_LABEL_93]
-ENUM_LABEL_94^
-ENUM_LABEL_95_
-ENUM_LABEL_96`
-ENUM_LABEL_97a
-ENUM_LABEL_98b
-ENUM_LABEL_99c
-ENUM_LABEL_100d2™
-TestServiceD
-Foo.protobuf_unittest.FooRequest.protobuf_unittest.FooResponseD
-Bar.protobuf_unittest.BarRequest.protobuf_unittest.BarResponse:^
-optional_int32_extension$.protobuf_unittest.TestAllExtensions (RoptionalInt32Extension:^
-optional_int64_extension$.protobuf_unittest.TestAllExtensions (RoptionalInt64Extension:`
-optional_uint32_extension$.protobuf_unittest.TestAllExtensions (RoptionalUint32Extension:`
-optional_uint64_extension$.protobuf_unittest.TestAllExtensions (RoptionalUint64Extension:`
-optional_sint32_extension$.protobuf_unittest.TestAllExtensions (RoptionalSint32Extension:`
-optional_sint64_extension$.protobuf_unittest.TestAllExtensions (RoptionalSint64Extension:b
-optional_fixed32_extension$.protobuf_unittest.TestAllExtensions (RoptionalFixed32Extension:b
-optional_fixed64_extension$.protobuf_unittest.TestAllExtensions (RoptionalFixed64Extension:d
-optional_sfixed32_extension$.protobuf_unittest.TestAllExtensions	 (RoptionalSfixed32Extension:d
-optional_sfixed64_extension$.protobuf_unittest.TestAllExtensions
- (RoptionalSfixed64Extension:^
-optional_float_extension$.protobuf_unittest.TestAllExtensions (RoptionalFloatExtension:`
-optional_double_extension$.protobuf_unittest.TestAllExtensions (RoptionalDoubleExtension:\
-optional_bool_extension$.protobuf_unittest.TestAllExtensions (RoptionalBoolExtension:`
-optional_string_extension$.protobuf_unittest.TestAllExtensions (	RoptionalStringExtension:^
-optional_bytes_extension$.protobuf_unittest.TestAllExtensions (RoptionalBytesExtension:‰
-optionalgroup_extension$.protobuf_unittest.TestAllExtensions (
-2*.protobuf_unittest.OptionalGroup_extensionRoptionalgroupExtension:ž
-!optional_nested_message_extension$.protobuf_unittest.TestAllExtensions (2-.protobuf_unittest.TestAllTypes.NestedMessageRoptionalNestedMessageExtension:”
-"optional_foreign_message_extension$.protobuf_unittest.TestAllExtensions (2!.protobuf_unittest.ForeignMessageRoptionalForeignMessageExtension:˜
-!optional_import_message_extension$.protobuf_unittest.TestAllExtensions (2'.protobuf_unittest_import.ImportMessageRoptionalImportMessageExtension:•
-optional_nested_enum_extension$.protobuf_unittest.TestAllExtensions (2*.protobuf_unittest.TestAllTypes.NestedEnumRoptionalNestedEnumExtension:‹
-optional_foreign_enum_extension$.protobuf_unittest.TestAllExtensions (2.protobuf_unittest.ForeignEnumRoptionalForeignEnumExtension:
-optional_import_enum_extension$.protobuf_unittest.TestAllExtensions (2$.protobuf_unittest_import.ImportEnumRoptionalImportEnumExtension:o
-optional_string_piece_extension$.protobuf_unittest.TestAllExtensions (	BRoptionalStringPieceExtension:`
-optional_cord_extension$.protobuf_unittest.TestAllExtensions (	BRoptionalCordExtension:«
-(optional_public_import_message_extension$.protobuf_unittest.TestAllExtensions (2-.protobuf_unittest_import.PublicImportMessageR$optionalPublicImportMessageExtension:ž
-optional_lazy_message_extension$.protobuf_unittest.TestAllExtensions (2-.protobuf_unittest.TestAllTypes.NestedMessageB(RoptionalLazyMessageExtension:^
-repeated_int32_extension$.protobuf_unittest.TestAllExtensions (RrepeatedInt32Extension:^
-repeated_int64_extension$.protobuf_unittest.TestAllExtensions  (RrepeatedInt64Extension:`
-repeated_uint32_extension$.protobuf_unittest.TestAllExtensions! (RrepeatedUint32Extension:`
-repeated_uint64_extension$.protobuf_unittest.TestAllExtensions" (RrepeatedUint64Extension:`
-repeated_sint32_extension$.protobuf_unittest.TestAllExtensions# (RrepeatedSint32Extension:`
-repeated_sint64_extension$.protobuf_unittest.TestAllExtensions$ (RrepeatedSint64Extension:b
-repeated_fixed32_extension$.protobuf_unittest.TestAllExtensions% (RrepeatedFixed32Extension:b
-repeated_fixed64_extension$.protobuf_unittest.TestAllExtensions& (RrepeatedFixed64Extension:d
-repeated_sfixed32_extension$.protobuf_unittest.TestAllExtensions' (RrepeatedSfixed32Extension:d
-repeated_sfixed64_extension$.protobuf_unittest.TestAllExtensions( (RrepeatedSfixed64Extension:^
-repeated_float_extension$.protobuf_unittest.TestAllExtensions) (RrepeatedFloatExtension:`
-repeated_double_extension$.protobuf_unittest.TestAllExtensions* (RrepeatedDoubleExtension:\
-repeated_bool_extension$.protobuf_unittest.TestAllExtensions+ (RrepeatedBoolExtension:`
-repeated_string_extension$.protobuf_unittest.TestAllExtensions, (	RrepeatedStringExtension:^
-repeated_bytes_extension$.protobuf_unittest.TestAllExtensions- (RrepeatedBytesExtension:‰
-repeatedgroup_extension$.protobuf_unittest.TestAllExtensions. (
-2*.protobuf_unittest.RepeatedGroup_extensionRrepeatedgroupExtension:ž
-!repeated_nested_message_extension$.protobuf_unittest.TestAllExtensions0 (2-.protobuf_unittest.TestAllTypes.NestedMessageRrepeatedNestedMessageExtension:”
-"repeated_foreign_message_extension$.protobuf_unittest.TestAllExtensions1 (2!.protobuf_unittest.ForeignMessageRrepeatedForeignMessageExtension:˜
-!repeated_import_message_extension$.protobuf_unittest.TestAllExtensions2 (2'.protobuf_unittest_import.ImportMessageRrepeatedImportMessageExtension:•
-repeated_nested_enum_extension$.protobuf_unittest.TestAllExtensions3 (2*.protobuf_unittest.TestAllTypes.NestedEnumRrepeatedNestedEnumExtension:‹
-repeated_foreign_enum_extension$.protobuf_unittest.TestAllExtensions4 (2.protobuf_unittest.ForeignEnumRrepeatedForeignEnumExtension:
-repeated_import_enum_extension$.protobuf_unittest.TestAllExtensions5 (2$.protobuf_unittest_import.ImportEnumRrepeatedImportEnumExtension:o
-repeated_string_piece_extension$.protobuf_unittest.TestAllExtensions6 (	BRrepeatedStringPieceExtension:`
-repeated_cord_extension$.protobuf_unittest.TestAllExtensions7 (	BRrepeatedCordExtension:ž
-repeated_lazy_message_extension$.protobuf_unittest.TestAllExtensions9 (2-.protobuf_unittest.TestAllTypes.NestedMessageB(RrepeatedLazyMessageExtension:`
-default_int32_extension$.protobuf_unittest.TestAllExtensions= (:41RdefaultInt32Extension:`
-default_int64_extension$.protobuf_unittest.TestAllExtensions> (:42RdefaultInt64Extension:b
-default_uint32_extension$.protobuf_unittest.TestAllExtensions? (:43RdefaultUint32Extension:b
-default_uint64_extension$.protobuf_unittest.TestAllExtensions@ (:44RdefaultUint64Extension:c
-default_sint32_extension$.protobuf_unittest.TestAllExtensionsA (:-45RdefaultSint32Extension:b
-default_sint64_extension$.protobuf_unittest.TestAllExtensionsB (:46RdefaultSint64Extension:d
-default_fixed32_extension$.protobuf_unittest.TestAllExtensionsC (:47RdefaultFixed32Extension:d
-default_fixed64_extension$.protobuf_unittest.TestAllExtensionsD (:48RdefaultFixed64Extension:f
-default_sfixed32_extension$.protobuf_unittest.TestAllExtensionsE (:49RdefaultSfixed32Extension:g
-default_sfixed64_extension$.protobuf_unittest.TestAllExtensionsF (:-50RdefaultSfixed64Extension:b
-default_float_extension$.protobuf_unittest.TestAllExtensionsG (:51.5RdefaultFloatExtension:e
-default_double_extension$.protobuf_unittest.TestAllExtensionsH (:52000RdefaultDoubleExtension:`
-default_bool_extension$.protobuf_unittest.TestAllExtensionsI (:trueRdefaultBoolExtension:e
-default_string_extension$.protobuf_unittest.TestAllExtensionsJ (	:helloRdefaultStringExtension:c
-default_bytes_extension$.protobuf_unittest.TestAllExtensionsK (:worldRdefaultBytesExtension:˜
-default_nested_enum_extension$.protobuf_unittest.TestAllExtensionsQ (2*.protobuf_unittest.TestAllTypes.NestedEnum:BARRdefaultNestedEnumExtension:–
-default_foreign_enum_extension$.protobuf_unittest.TestAllExtensionsR (2.protobuf_unittest.ForeignEnum:FOREIGN_BARRdefaultForeignEnumExtension:™
-default_import_enum_extension$.protobuf_unittest.TestAllExtensionsS (2$.protobuf_unittest_import.ImportEnum:
-IMPORT_BARRdefaultImportEnumExtension:r
-default_string_piece_extension$.protobuf_unittest.TestAllExtensionsT (	:abcBRdefaultStringPieceExtension:c
-default_cord_extension$.protobuf_unittest.TestAllExtensionsU (	:123BRdefaultCordExtension:Z
-oneof_uint32_extension$.protobuf_unittest.TestAllExtensionso (RoneofUint32Extension:˜
-oneof_nested_message_extension$.protobuf_unittest.TestAllExtensionsp (2-.protobuf_unittest.TestAllTypes.NestedMessageRoneofNestedMessageExtension:Z
-oneof_string_extension$.protobuf_unittest.TestAllExtensionsq (	RoneofStringExtension:X
-oneof_bytes_extension$.protobuf_unittest.TestAllExtensionsr (RoneofBytesExtension:U
-my_extension_string%.protobuf_unittest.TestFieldOrderings2 (	RmyExtensionString:O
-my_extension_int%.protobuf_unittest.TestFieldOrderings (RmyExtensionInt:a
-packed_int32_extension'.protobuf_unittest.TestPackedExtensionsZ (BRpackedInt32Extension:a
-packed_int64_extension'.protobuf_unittest.TestPackedExtensions[ (BRpackedInt64Extension:c
-packed_uint32_extension'.protobuf_unittest.TestPackedExtensions\ (BRpackedUint32Extension:c
-packed_uint64_extension'.protobuf_unittest.TestPackedExtensions] (BRpackedUint64Extension:c
-packed_sint32_extension'.protobuf_unittest.TestPackedExtensions^ (BRpackedSint32Extension:c
-packed_sint64_extension'.protobuf_unittest.TestPackedExtensions_ (BRpackedSint64Extension:e
-packed_fixed32_extension'.protobuf_unittest.TestPackedExtensions` (BRpackedFixed32Extension:e
-packed_fixed64_extension'.protobuf_unittest.TestPackedExtensionsa (BRpackedFixed64Extensionic_lite.protoprotobuf_unittest_import"'
-PublicImportMessageLite
-e (ReB
-com.google.protobufHbeditionspè
-›
-*google/protobuf/unittest_import_lite.protoprotobuf_unittest_import1google/protobuf/unittest_import_public_lite.proto"!
-ImportMessageLite
-d (Rd*U
-ImportEnumLite
-IMPORT_LITE_FOO
-IMPORT_LITE_BAR
-IMPORT_LITE_BAZ	:B
-com.google.protobufHP beditionspè
-è°
-#google/protobuf/unittest_lite.protoprotobuf_unittest*google/protobuf/unittest_import_lite.proto"å'
-TestAllTypesLite%
-optional_int32 (RoptionalInt32%
-optional_int64 (RoptionalInt64'
-optional_uint32 (RoptionalUint32'
-optional_uint64 (RoptionalUint64'
-optional_sint32 (RoptionalSint32'
-optional_sint64 (RoptionalSint64)
-optional_fixed32 (RoptionalFixed32)
-optional_fixed64 (RoptionalFixed64+
-optional_sfixed32	 (RoptionalSfixed32+
-optional_sfixed64
- (RoptionalSfixed64%
-optional_float (RoptionalFloat'
-optional_double (RoptionalDouble#
-optional_bool (RoptionalBool'
-optional_string (	RoptionalString%
-optional_bytes (RoptionalBytes^
-optionalgroup (21.protobuf_unittest.TestAllTypesLite.OptionalGroupBª(Roptionalgroupi
-optional_nested_message (21.protobuf_unittest.TestAllTypesLite.NestedMessageRoptionalNestedMessage_
-optional_foreign_message (2%.protobuf_unittest.ForeignMessageLiteRoptionalForeignMessagec
-optional_import_message (2+.protobuf_unittest_import.ImportMessageLiteRoptionalImportMessage`
-optional_nested_enum (2..protobuf_unittest.TestAllTypesLite.NestedEnumRoptionalNestedEnumV
-optional_foreign_enum (2".protobuf_unittest.ForeignEnumLiteRoptionalForeignEnumZ
-optional_import_enum (2(.protobuf_unittest_import.ImportEnumLiteRoptionalImportEnum6
-optional_string_piece (	BRoptionalStringPiece'
-optional_cord (	BRoptionalCord2
-optional_bytes_cordV (BRoptionalBytesCordv
-optional_public_import_message (21.protobuf_unittest_import.PublicImportMessageLiteRoptionalPublicImportMessagei
-optional_lazy_message (21.protobuf_unittest.TestAllTypesLite.NestedMessageB(RoptionalLazyMessagez
- optional_unverified_lazy_message (21.protobuf_unittest.TestAllTypesLite.NestedMessageRoptionalUnverifiedLazyMessage%
-repeated_int32 (RrepeatedInt32%
-repeated_int64  (RrepeatedInt64'
-repeated_uint32! (RrepeatedUint32'
-repeated_uint64" (RrepeatedUint64'
-repeated_sint32# (RrepeatedSint32'
-repeated_sint64$ (RrepeatedSint64)
-repeated_fixed32% (RrepeatedFixed32)
-repeated_fixed64& (RrepeatedFixed64+
-repeated_sfixed32' (RrepeatedSfixed32+
-repeated_sfixed64( (RrepeatedSfixed64%
-repeated_float) (RrepeatedFloat'
-repeated_double* (RrepeatedDouble#
-repeated_bool+ (RrepeatedBool'
-repeated_string, (	RrepeatedString%
-repeated_bytes- (RrepeatedBytes^
-repeatedgroup. (21.protobuf_unittest.TestAllTypesLite.RepeatedGroupBª(Rrepeatedgroupi
-repeated_nested_message0 (21.protobuf_unittest.TestAllTypesLite.NestedMessageRrepeatedNestedMessage_
-repeated_foreign_message1 (2%.protobuf_unittest.ForeignMessageLiteRrepeatedForeignMessagec
-repeated_import_message2 (2+.protobuf_unittest_import.ImportMessageLiteRrepeatedImportMessage`
-repeated_nested_enum3 (2..protobuf_unittest.TestAllTypesLite.NestedEnumRrepeatedNestedEnumV
-repeated_foreign_enum4 (2".protobuf_unittest.ForeignEnumLiteRrepeatedForeignEnumZ
-repeated_import_enum5 (2(.protobuf_unittest_import.ImportEnumLiteRrepeatedImportEnum6
-repeated_string_piece6 (	BRrepeatedStringPiece'
-repeated_cord7 (	BRrepeatedCorde
-repeated_lazy_message9 (21.protobuf_unittest.TestAllTypesLite.NestedMessageRrepeatedLazyMessage'
-default_int32= (:41RdefaultInt32'
-default_int64> (:42RdefaultInt64)
-default_uint32? (:43RdefaultUint32)
-default_uint64@ (:44RdefaultUint64*
-default_sint32A (:-45RdefaultSint32)
-default_sint64B (:46RdefaultSint64+
-default_fixed32C (:47RdefaultFixed32+
-default_fixed64D (:48RdefaultFixed64-
-default_sfixed32E (:49RdefaultSfixed32.
-default_sfixed64F (:-50RdefaultSfixed64)
-default_floatG (:51.5RdefaultFloat,
-default_doubleH (:52000RdefaultDouble'
-default_boolI (:trueRdefaultBool,
-default_stringJ (	:helloRdefaultString*
-default_bytesK (:worldRdefaultBytesc
-default_nested_enumQ (2..protobuf_unittest.TestAllTypesLite.NestedEnum:BARRdefaultNestedEnumf
-default_foreign_enumR (2".protobuf_unittest.ForeignEnumLite:FOREIGN_LITE_BARRdefaultForeignEnumi
-default_import_enumS (2(.protobuf_unittest_import.ImportEnumLite:IMPORT_LITE_BARRdefaultImportEnum9
-default_string_pieceT (	:abcBRdefaultStringPiece*
-default_cordU (	:123BRdefaultCord#
-oneof_uint32o (H RoneofUint32e
-oneof_nested_messagep (21.protobuf_unittest.TestAllTypesLite.NestedMessageH RoneofNestedMessage#
-oneof_stringq (	H RoneofString!
-oneof_bytesr (H R
-oneofBytesr
-oneof_lazy_nested_messages (21.protobuf_unittest.TestAllTypesLite.NestedMessageB(H RoneofLazyNestedMessageh
-oneof_nested_message2u (22.protobuf_unittest.TestAllTypesLite.NestedMessage2H RoneofNestedMessage24
-deceptively_named_listt (RdeceptivelyNamedListF
-NestedMessage
-bb (Rbb
-cc (Rcc
-dd (BªRdd 
-NestedMessage2
-dd (Rdd
-OptionalGroup
-a (Ra
-RepeatedGroup
-a/ (Ra"'
-
-NestedEnum
-FOO
-BAR
-BAZB
-oneof_field""
-ForeignMessageLite
-c (Rc"Ÿ
-TestPackedTypesLite(
-packed_int32Z (BªRpackedInt32(
-packed_int64[ (BªRpackedInt64*
-packed_uint32\ (BªRpackedUint32*
-packed_uint64] (BªRpackedUint64*
-packed_sint32^ (BªRpackedSint32*
-packed_sint64_ (BªRpackedSint64,
-packed_fixed32` (BªRpackedFixed32,
-packed_fixed64a (BªRpackedFixed64.
-packed_sfixed32b (BªRpackedSfixed32.
-packed_sfixed64c (BªRpackedSfixed64(
-packed_floatd (BªRpackedFloat*
-packed_doublee (BªRpackedDouble&
-packed_boolf (BªR
-packedBoolJ
-packed_enumg (2".protobuf_unittest.ForeignEnumLiteBªR
-packedEnum"!
-TestAllExtensionsLite*€€€€",
-OptionalGroup_extension_lite
-a (Ra",
-RepeatedGroup_extension_lite
-a/ (Ra"$
-TestPackedExtensionsLite*€€€€"o
-TestNestedExtensionLite2T
-nested_extension(.protobuf_unittest.TestAllExtensionsLite¹` (RnestedExtension"‚
-TestDeprecatedLite-
-deprecated_field (BRdeprecatedField4
-deprecated_field2 (BªRdeprecatedField2/
-deprecated_field3 (	BRdeprecatedField3V
-deprecated_field4 (2%.protobuf_unittest.TestDeprecatedLiteBRdeprecatedField4"Î
-TestParsingMergeLiteX
-required_all_types (2#.protobuf_unittest.TestAllTypesLiteBªRrequiredAllTypesQ
-optional_all_types (2#.protobuf_unittest.TestAllTypesLiteRoptionalAllTypesQ
-repeated_all_types (2#.protobuf_unittest.TestAllTypesLiteRrepeatedAllTypesb
-optionalgroup
- (25.protobuf_unittest.TestParsingMergeLite.OptionalGroupBª(Roptionalgroupb
-repeatedgroup (25.protobuf_unittest.TestParsingMergeLite.RepeatedGroupBª(Rrepeatedgroup 
-RepeatedFieldsGenerator;
-field1 (2#.protobuf_unittest.TestAllTypesLiteRfield1;
-field2 (2#.protobuf_unittest.TestAllTypesLiteRfield2;
-field3 (2#.protobuf_unittest.TestAllTypesLiteRfield3e
-group1
- (2F.protobuf_unittest.TestParsingMergeLite.RepeatedFieldsGenerator.Group1Bª(Rgroup1e
-group2 (2F.protobuf_unittest.TestParsingMergeLite.RepeatedFieldsGenerator.Group2Bª(Rgroup28
-ext1è (2#.protobuf_unittest.TestAllTypesLiteRext18
-ext2é (2#.protobuf_unittest.TestAllTypesLiteRext2E
-Group1;
-field1 (2#.protobuf_unittest.TestAllTypesLiteRfield1E
-Group2;
-field1 (2#.protobuf_unittest.TestAllTypesLiteRfield1m
-OptionalGroup\
-optional_group_all_types (2#.protobuf_unittest.TestAllTypesLiteRoptionalGroupAllTypesm
-RepeatedGroup\
-repeated_group_all_types (2#.protobuf_unittest.TestAllTypesLiteRrepeatedGroupAllTypes*	è€€€€2p
-optional_ext'.protobuf_unittest.TestParsingMergeLiteè (2#.protobuf_unittest.TestAllTypesLiteRoptionalExt2p
-repeated_ext'.protobuf_unittest.TestParsingMergeLiteé (2#.protobuf_unittest.TestAllTypesLiteRrepeatedExt"i
-TestMergeExceptionLiteO
-all_extensions (2(.protobuf_unittest.TestAllExtensionsLiteRallExtensions"
-TestEmptyMessageLite".
-"TestEmptyMessageWithExtensionsLite*€€€€"{
-V1MessageLite"
-	int_field (BªRintFieldF
-
-enum_field (2.protobuf_unittest.V1EnumLite:V1_FIRSTR	enumField"{
-V2MessageLite"
-	int_field (BªRintFieldF
-
-enum_field (2.protobuf_unittest.V2EnumLite:V2_FIRSTR	enumField"ú
-TestHugeFieldNumbersLite)
-optional_int32ðøÿÿ (RoptionalInt32
-fixed_32ñøÿÿ (Rfixed32)
-repeated_int32òøÿÿ (RrepeatedInt32,
-packed_int32óøÿÿ (BªRpackedInt32K
-optional_enumôøÿÿ (2".protobuf_unittest.ForeignEnumLiteRoptionalEnum+
-optional_stringõøÿÿ (	RoptionalString)
-optional_bytesöøÿÿ (RoptionalBytesT
-optional_message÷øÿÿ (2%.protobuf_unittest.ForeignMessageLiteRoptionalMessagej
-optionalgroupøøÿÿ (29.protobuf_unittest.TestHugeFieldNumbersLite.OptionalGroupBª(Roptionalgroupp
-string_string_mapúøÿÿ (2@.protobuf_unittest.TestHugeFieldNumbersLite.StringStringMapEntryRstringStringMap'
-oneof_uint32ûøÿÿ (H RoneofUint32Z
-oneof_test_all_typesüøÿÿ (2#.protobuf_unittest.TestAllTypesLiteH RoneofTestAllTypes'
-oneof_stringýøÿÿ (	H RoneofString%
-oneof_bytesþøÿÿ (H R
-oneofBytes,
-OptionalGroup
-group_aùøÿÿ (RgroupAB
-StringStringMapEntry
-key (	Rkey
-value (	Rvalue:8*àªÿÿðøÿÿB
-oneof_field"¶
-TestOneofParsingLite!
-oneof_int32 (H R
-oneofInt32P
-oneof_submessage (2#.protobuf_unittest.TestAllTypesLiteH RoneofSubmessage#
-oneof_string (	H RoneofString0
-oneof_bytes (:default bytesH R
-oneofBytes>
-oneof_string_cord (	:default CordBH RoneofStringCord.
-oneof_bytes_cord (BH RoneofBytesCord?
-oneof_string_string_piece (	BH RoneofStringStringPieceR
-oneof_bytes_string_piece (:default StringPieceBH RoneofBytesStringPiece>
-
-oneof_enum	 (2.protobuf_unittest.V2EnumLiteH R	oneofEnumB
-oneof_field""
-TestMessageSetLite*dÿÿÿÿ:"<
-PackedInt32-
-repeated_int32€ (BªRrepeatedInt32"8
-NonPackedInt32&
-repeated_int32€ (RrepeatedInt32"B
-PackedFixed321
-repeated_fixed32€ (BªRrepeatedFixed32">
-NonPackedFixed32*
-repeated_fixed32€ (RrepeatedFixed32âZ
-DupEnum"O
-TestEnumWithDupValueLite
-FOO1
-BAR1
-BAZ
-FOO2
-BAR2"k
-RecursiveMessage=
-recurse (2#.protobuf_unittest.RecursiveMessageRrecurse
-payload (Rpayload"T
-RecursiveGroupB
-recurse (2!.protobuf_unittest.RecursiveGroupBª(Rrecurse*S
-ForeignEnumLite
-FOREIGN_LITE_FOO
-FOREIGN_LITE_BAZ
-FOREIGN_LITE_BAR*
-
-V1EnumLite
-V1_FIRST*)
-
-V2EnumLite
-V2_FIRST
-	V2_SECOND:k
-optional_int32_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalInt32ExtensionLite: 
-optional_int64_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalInt64ExtensionLite:m
-optional_uint32_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalUint32ExtensionLite:m
-optional_uint64_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalUint64ExtensionLite:m
-optional_sint32_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalSint32ExtensionLite:m
-optional_sint64_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalSint64ExtensionLite:o
-optional_fixed32_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalFixed32ExtensionLite:o
-optional_fixed64_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalFixed64ExtensionLite:q
- optional_sfixed32_extension_lite(.protobuf_unittest.TestAllExtensionsLite	 (RoptionalSfixed32ExtensionLite:q
- optional_sfixed64_extension_lite(.protobuf_unittest.TestAllExtensionsLite
- (RoptionalSfixed64ExtensionLite:k
-optional_float_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalFloatExtensionLite:m
-optional_double_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalDoubleExtensionLite:i
-optional_bool_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalBoolExtensionLite:m
-optional_string_extension_lite(.protobuf_unittest.TestAllExtensionsLite (	RoptionalStringExtensionLite:k
-optional_bytes_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RoptionalBytesExtensionLite:¢
-optionalgroup_extension_lite(.protobuf_unittest.TestAllExtensionsLite (2/.protobuf_unittest.OptionalGroup_extension_liteBª(RoptionalgroupExtensionLite:¯
-&optional_nested_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite (21.protobuf_unittest.TestAllTypesLite.NestedMessageR"optionalNestedMessageExtensionLite:¥
-'optional_foreign_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite (2%.protobuf_unittest.ForeignMessageLiteR#optionalForeignMessageExtensionLite:©
-&optional_import_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite (2+.protobuf_unittest_import.ImportMessageLiteR"optionalImportMessageExtensionLite:¦
-#optional_nested_enum_extension_lite(.protobuf_unittest.TestAllExtensionsLite (2..protobuf_unittest.TestAllTypesLite.NestedEnumRoptionalNestedEnumExtensionLite:œ
-$optional_foreign_enum_extension_lite(.protobuf_unittest.TestAllExtensionsLite (2".protobuf_unittest.ForeignEnumLiteR optionalForeignEnumExtensionLite: 
-#optional_import_enum_extension_lite(.protobuf_unittest.TestAllExtensionsLite (2(.protobuf_unittest_import.ImportEnumLiteRoptionalImportEnumExtensionLite:|
-$optional_string_piece_extension_lite(.protobuf_unittest.TestAllExtensionsLite (	BR optionalStringPieceExtensionLite:i
-optional_cord_extension_lite(.protobuf_unittest.TestAllExtensionsLite (	RoptionalCordExtensionLite:t
-"optional_bytes_cord_extension_lite(.protobuf_unittest.TestAllExtensionsLiteV (RoptionalBytesCordExtensionLite:¼
--optional_public_import_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite (21.protobuf_unittest_import.PublicImportMessageLiteR(optionalPublicImportMessageExtensionLite:¯
-$optional_lazy_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite (21.protobuf_unittest.TestAllTypesLite.NestedMessageB(R optionalLazyMessageExtensionLite:À
-/optional_unverified_lazy_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite (21.protobuf_unittest.TestAllTypesLite.NestedMessageR*optionalUnverifiedLazyMessageExtensionLite:k
-repeated_int32_extension_lite(.protobuf_unittest.TestAllExtensionsLite (RrepeatedInt32ExtensionLite:k
-repeated_int64_extension_lite(.protobuf_unittest.TestAllExtensionsLite  (RrepeatedInt64ExtensionLite:m
-repeated_uint32_extension_lite(.protobuf_unittest.TestAllExtensionsLite! (RrepeatedUint32ExtensionLite:m
-repeated_uint64_extension_lite(.protobuf_unittest.TestAllExtensionsLite" (RrepeatedUint64ExtensionLite:m
-repeated_sint32_extension_lite(.protobuf_unittest.TestAllExtensionsLite# (RrepeatedSint32ExtensionLite:m
-repeated_sint64_extension_lite(.protobuf_unittest.TestAllExtensionsLite$ (RrepeatedSint64ExtensionLite:o
-repeated_fixed32_extension_lite(.protobuf_unittest.TestAllExtensionsLite% (RrepeatedFixed32ExtensionLite:o
-repeated_fixed64_extension_lite(.protobuf_unittest.TestAllExtensionsLite& (RrepeatedFixed64ExtensionLite:q
- repeated_sfixed32_extension_lite(.protobuf_unittest.TestAllExtensionsLite' (RrepeatedSfixed32ExtensionLite:q
- repeated_sfixed64_extension_lite(.protobuf_unittest.TestAllExtensionsLite( (RrepeatedSfixed64ExtensionLite:k
-repeated_float_extension_lite(.protobuf_unittest.TestAllExtensionsLite) (RrepeatedFloatExtensionLite:m
-repeated_double_extension_lite(.protobuf_unittest.TestAllExtensionsLite* (RrepeatedDoubleExtensionLite:i
-repeated_bool_extension_lite(.protobuf_unittest.TestAllExtensionsLite+ (RrepeatedBoolExtensionLite:m
-repeated_string_extension_lite(.protobuf_unittest.TestAllExtensionsLite, (	RrepeatedStringExtensionLite:k
-repeated_bytes_extension_lite(.protobuf_unittest.TestAllExtensionsLite- (RrepeatedBytesExtensionLite:¢
-repeatedgroup_extension_lite(.protobuf_unittest.TestAllExtensionsLite. (2/.protobuf_unittest.RepeatedGroup_extension_liteBª(RrepeatedgroupExtensionLite:¯
-&repeated_nested_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite0 (21.protobuf_unittest.TestAllTypesLite.NestedMessageR"repeatedNestedMessageExtensionLite:¥
-'repeated_foreign_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite1 (2%.protobuf_unittest.ForeignMessageLiteR#repeatedForeignMessageExtensionLite:©
-&repeated_import_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite2 (2+.protobuf_unittest_import.ImportMessageLiteR"repeatedImportMessageExtensionLite:¦
-#repeated_nested_enum_extension_lite(.protobuf_unittest.TestAllExtensionsLite3 (2..protobuf_unittest.TestAllTypesLite.NestedEnumRrepeatedNestedEnumExtensionLite:œ
-$repeated_foreign_enum_extension_lite(.protobuf_unittest.TestAllExtensionsLite4 (2".protobuf_unittest.ForeignEnumLiteR repeatedForeignEnumExtensionLite: 
-#repeated_import_enum_extension_lite(.protobuf_unittest.TestAllExtensionsLite5 (2(.protobuf_unittest_import.ImportEnumLiteRrepeatedImportEnumExtensionLite:|
-$repeated_string_piece_extension_lite(.protobuf_unittest.TestAllExtensionsLite6 (	BR repeatedStringPieceExtensionLite:i
-repeated_cord_extension_lite(.protobuf_unittest.TestAllExtensionsLite7 (	RrepeatedCordExtensionLite:¯
-$repeated_lazy_message_extension_lite(.protobuf_unittest.TestAllExtensionsLite9 (21.protobuf_unittest.TestAllTypesLite.NestedMessageB(R repeatedLazyMessageExtensionLite:m
-default_int32_extension_lite(.protobuf_unittest.TestAllExtensionsLite= (:41RdefaultInt32ExtensionLite:m
-default_int64_extension_lite(.protobuf_unittest.TestAllExtensionsLite> (:42RdefaultInt64ExtensionLite:o
-default_uint32_extension_lite(.protobuf_unittest.TestAllExtensionsLite? (:43RdefaultUint32ExtensionLite:o
-default_uint64_extension_lite(.protobuf_unittest.TestAllExtensionsLite@ (:44RdefaultUint64ExtensionLite:p
-default_sint32_extension_lite(.protobuf_unittest.TestAllExtensionsLiteA (:-45RdefaultSint32ExtensionLite:o
-default_sint64_extension_lite(.protobuf_unittest.TestAllExtensionsLiteB (:46RdefaultSint64ExtensionLite:q
-default_fixed32_extension_lite(.protobuf_unittest.TestAllExtensionsLiteC (:47RdefaultFixed32ExtensionLite:q
-default_fixed64_extension_lite(.protobuf_unittest.TestAllExtensionsLiteD (:48RdefaultFixed64ExtensionLite:s
-default_sfixed32_extension_lite(.protobuf_unittest.TestAllExtensionsLiteE (:49RdefaultSfixed32ExtensionLite:t
-default_sfixed64_extension_lite(.protobuf_unittest.TestAllExtensionsLiteF (:-50RdefaultSfixed64ExtensionLite:o
-default_float_extension_lite(.protobuf_unittest.TestAllExtensionsLiteG (:51.5RdefaultFloatExtensionLite:r
-default_double_extension_lite(.protobuf_unittest.TestAllExtensionsLiteH (:52000RdefaultDoubleExtensionLite:m
-default_bool_extension_lite(.protobuf_unittest.TestAllExtensionsLiteI (:trueRdefaultBoolExtensionLite:r
-default_string_extension_lite(.protobuf_unittest.TestAllExtensionsLiteJ (	:helloRdefaultStringExtensionLite:p
-default_bytes_extension_lite(.protobuf_unittest.TestAllExtensionsLiteK (:worldRdefaultBytesExtensionLite:©
-"default_nested_enum_extension_lite(.protobuf_unittest.TestAllExtensionsLiteQ (2..protobuf_unittest.TestAllTypesLite.NestedEnum:BARRdefaultNestedEnumExtensionLite:¬
-#default_foreign_enum_extension_lite(.protobuf_unittest.TestAllExtensionsLiteR (2".protobuf_unittest.ForeignEnumLite:FOREIGN_LITE_BARRdefaultForeignEnumExtensionLite:¯
-"default_import_enum_extension_lite(.protobuf_unittest.TestAllExtensionsLiteS (2(.protobuf_unittest_import.ImportEnumLite:IMPORT_LITE_BARRdefaultImportEnumExtensionLite:
-#default_string_piece_extension_lite(.protobuf_unittest.TestAllExtensionsLiteT (	:abcBRdefaultStringPieceExtensionLite:l
-default_cord_extension_lite(.protobuf_unittest.TestAllExtensionsLiteU (	:123RdefaultCordExtensionLite:g
-oneof_uint32_extension_lite(.protobuf_unittest.TestAllExtensionsLiteo (RoneofUint32ExtensionLite:©
-#oneof_nested_message_extension_lite(.protobuf_unittest.TestAllExtensionsLitep (21.protobuf_unittest.TestAllTypesLite.NestedMessageRoneofNestedMessageExtensionLite:g
-oneof_string_extension_lite(.protobuf_unittest.TestAllExtensionsLiteq (	RoneofStringExtensionLite:e
-oneof_bytes_extension_lite(.protobuf_unittest.TestAllExtensionsLiter (RoneofBytesExtensionLite:q
-packed_int32_extension_lite+.protobuf_unittest.TestPackedExtensionsLiteZ (BªRpackedInt32ExtensionLite:q
-packed_int64_extension_lite+.protobuf_unittest.TestPackedExtensionsLite[ (BªRpackedInt64ExtensionLite:s
-packed_uint32_extension_lite+.protobuf_unittest.TestPackedExtensio2sLite\ (BªRpackedUint32ExtensionLite:s
-packed_uint64_extension_lite+.protobuf_unittest.TestPackedExtensionsLite] (BªRpackedUint64ExtensionLite:s
-packed_sint32_extension_lite+.protobuf_unittest.TestPackedExtensionsLite^ (BªRpackedSint32ExtensionLite:s
-packed_sint64_extension_lite+.protobuf_unittest.TestPackedExtensionsLite_ (BªRpackedSint64ExtensionLite:u
-packed_fixed32_extension_lite+.protobuf_unittest.TestPackedExtensionsLite` (BªRpackedFixed32ExtensionLite:u
-packed_fixed64_extension_lite+.protobuf_unittest.TestPackedExtensionsLitea (BªRpackedFixed64ExtensionLite:w
-packed_sfixed32_extension_lite+.protobuf_unittest.TestPackedExtensionsLiteb (BªRpackedSfixed32ExtensionLite:w
-packed_sfixed64_extension_lite+.protobuf_unittest.TestPackedExtensionsLitec (BªRpackedSfixed64ExtensionLite:q
-packed_float_extension_lite+.protobuf_unittest.TestPackedExtensionsLited (BªRpackedFloatExtensionLite:s
-packed_double_extension_lite+.protobuf_unittest.TestPackedExtensionsLitee (BªRpackedDoubleExtensionLite:o
-packed_bool_extension_lite+.protobuf_unittest.TestPackedExtensionsLitef (BªRpackedBoolExtensionLite:“
-packed_enum_extension_lite+.protobuf_unittest.TestPackedExtensionsLiteg (2".protobuf_unittest.ForeignEnumLiteBªRpackedEnumExtensionLite:ƒ
-test_all_types_lite+.protobuf_unittest.TestHugeFieldNumbersLiteàªÿÿ (2#.protobuf_unittest.TestAllTypesLiteRtestAllTypesLiteB#
-com.google.protobufHø’ beditionspè
