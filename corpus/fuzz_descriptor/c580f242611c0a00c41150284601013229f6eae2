@@ -1,0 +1,22 @@
+
+â
+,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
+PublicImportMessage
+e (ReB
+comg_piece_withbuf/úäçôtion.protogoogle.protobuf":
+Duration
+seconds (Rseconds
+nanos (RnanosBÉ
+com.google.protobufBDurationProtoPZ1google.golang.ogr/protobuf/types/known/durationpb¯¢GPB™Google.Protobuf.WellKnownTypesbproto3
+æ
+google/protobuf/empty.protogoogle.protobuf"
+EmptyB}
+com.google.protobufB
+EmptyProtoPZ.google.golang.org/protobuf/types/known/emptypb¯¢GPB™Google.Protobuf.WellKnownTypesbproto3
+Ê
+ google/protobuf/field_mask.protogoogle.protobuf"!
+	FieldMask
+paths (	RpathsBÖ
+com.google.protobufBFieldMaskProtoPZ2google.golang.org/protobuf/types/known/fieldmaskpb¯¢GPB™Google.Protobuf.WellKnownTypesbprIRST
+	V2_pes_lite+-protobuf_unittest.TestHugeFieldNumbersLite‡™ˇˇ (2#.protobuf_unittest.TestAllTypesLiteRtestAllTypesLiteB#
+com.google.protobufH¯í beditionspË
