@@ -1,0 +1,6 @@
+{
+
+"anyField":{"@type":"t/google.protobuf.FieldMask","value":"42',8,7,sha"},
+
+
+"anyField":{"@type":"ny/google.protobuf.FieldMask"}}
