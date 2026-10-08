@@ -1,32 +1,0 @@
-2.protobuf_unittest.TestAllTypesR
-messagxins (2.google.protobuf.MixinRmixins/
-syntax (2.google.protobuf.SyntaxRsyntax
-edition (	Redition"‘
-Method
-name (	Rname(
-request_type_url (	RrequestTypeUrl+
-request_streaming (RrequestStreaming*
-response_type_url (	RresponseTypeUrl-
-response_streaming (RresponseStreaming1
-options (2.google.protobuf.OptionRoptions3
-syntax (2.google.protobuf.SyntaxBRsyntax
-edition (	BRedition"/òMixin
-name (	Rname
-root (	RrootBv
-com.google.protobufBApiProtoPZ,google.golang.org/protobuf/types/known/apipb¢GPB™Google.Protobuf.WellKnownTypesbproto3
-˚
-google/protobuf/duration.protogoogle.protobuf":
-Duration
-seconds (Rseconds
-nanos (RnanosBÉ
-com.google.protobufBDurationProtoPZ1google.golang.org/protobuf/types/known/durationpb¯¢GPB™⁄∏êêòìö—Protobuf.WellKnownTypesbproto3
-æ
-google/protobuf/empty.protogoogle.protobuf"
-EmptyB}
-com.google.protobufB
-EmptyProtoPZ.google.golang.org/protobuf/types/kn
-TestPickleNestedMessageF
-NestedMessage
-bb (Rbb%
-NestedNestedMessage
-cc (Rcch=
