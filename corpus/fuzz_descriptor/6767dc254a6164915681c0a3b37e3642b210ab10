@@ -1,21 +1,0 @@
-2.protobuf_unittest.TestAllTypesR
-messagxins (2.google.pron
-name (	Rname
-root (	RrootBv
-com.google.protobufBApiProtoPZ,google.golang.org/protobuf/types/known/apipb¢GPB™Google.Protobuf.WellKnownTypesbproto3
-˚
-google/protobuf/duration.protogoogle.protobuf":
-Duration
-seconds (Rseconds
-nanos (RnanosBÉ
-com.google.prrationpb¯¢GPB™⁄∏êêòìö—Protobuf.WellKnownTypesbproto3
-æ
-google/protobuf/empty.protogoogle.protobuf"
-EmptyB}
-com.google.protobufB
-EmptyProtoPZ.google.golang.org/protobuf/types/kn
-TestPickleNestedMessageF
-NestedMessage
-bb (Rbb%
-NestedNestedMessage
-cc (Rcch=
