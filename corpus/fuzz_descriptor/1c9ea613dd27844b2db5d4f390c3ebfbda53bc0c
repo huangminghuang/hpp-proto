@@ -1,0 +1,159 @@
+
+â
+,google/protobuf/unittest_import_public.protoprotobuf_unittest_import"#
+PublicImportMessage
+e (ReB
+com.google.pamicÄƒÆ√ (2].protobuf_unittest.TestChildExtensionData.NestedTestAllExtensionsData.NestedDynamicExtensionsRdynamic5
+NestedDynamicExtensions
+a (Ra
+b (Rb"e
+TestNestedChiExtension
+a (Ra;
+child (2%.protobuf_unittest.TestChildExtensionRchild"m
+TestNestedChildExtensionData
+a (Ra?
+child (2).protobuf_unittest.TestChildExtensionDataRchild"¬
+TestRequired
+a (Ra
+dummy2 (Rdummy2
+b (Rb
+dummy4 (Rdummy4
+dummy5 (Rdummy5
+dummy6 (Rdummy6
+dummy7 (Rdummy7
+dummy8 (Rdummy8
+dummy9	 (Rdummy9
+dummy10
+ (Rdummy10
+dummy11 (Rdummy11
+dummy12 (Rdummy12
+dummy13 (Rdummy13
+dummy14 (Rdummy14
+dummy15 (Rdummy15
+dummy16 (Rdummy16
+dummy17 (Rdummy17
+dummy18 (Rdummy36
+dummy19 (Rdummy19
+dummy20 (Rdummy20
+dummy21 (Rdummy21
+dummy22 (Rdummy22
+dummy23 (Rdummy23
+dummy24 (Rdummy24
+dummy25 (Rdummy25
+dummy26 (Rdummy26
+dummy27 (Rdummy27
+dummy28 (Rdummy28
+dummy29 (Rdummy29
+dummy30 (Rdummy30
+dummy31 (Rdummy31
+dummy32  (Rdummy32
+c! (RcL
+optional_foreign" (2!.protobuf_unittest.ForeignMessageRoptionalForeign2^
+single$.protobuf_unittest.TestAllExtensionsË (2.protobuf_unittest.TestRequiredRsingle2\
+multi$.protobuf_unittest.TestAllExtensionsÈ (2.protobuf_unittest.TestRequiredRmulti"¢
+TestRequiredForeignJ
+optional_message (2.protobuf_unittest.TestRequiredRoptionalMessageJ
+repeated_message (2.protobuf_unittest.TestRequiredRrepeatedMessage
+dummy (Rdummy]
+optional_lazy_messesB(RoptionalLazyMessage"˘
+TestRequiredMessageJ
+optional_message (2.protobuf_unittest.TestRequiredRoptionalMessageJ
+repeated_message (2.protobuf_unittest.TestRequiredRrepeatedMessageJ
+required_message (2.protobuf_unittest.TestRequiredRrequiredMessage"∑
+TestNestedRequiredForeignB
+child (2,.protobuf_unittest.TestNestedRequiredForeignRchild@
+paylo˝d (2&.protobuf_unittest.TestRequiredForeignRpaOuter.Layer1OptionalGroup.Layer2RepeatedGroup (29.protobuf_unittest.TestNestedGroupExtensionInnerExtensionRinnerBBUnittestProtoHÄàê¯
+ø'
+%google/protobuf/unittest_proto3.roptoproto3_unittest%google/protobuf/unittest_import.proto"Ã
+TestAllTypes%
+optional_int32 (RoptionalInt32%
+optional_int64 (RoptionalInt64'
+optional_uint32 (RoptionalUint32'
+optional_uint64 (RoptionalUint64'
+optional_sint32 (RoptionalSint32'
+optional_sint32 (RoptionalSint64)
+optional_fixed32 (RoptionalFixed32)
+optional_fixed64 (RoptionalFixed64+
+optional_sfixed32	 (RoptionalSfixed32+
+optional_sfixed64
+ (RoptionalSfixed64%
+optional_float (RoptionalFloat'
+optional_double (RoptionalDouble#
+optional_bool (RoptionalBool'
+optional_string (	RoptionalString%
+optional_bytes (RoptionalB~tesh
+]optional_nested_message (2+.proto3_unittest.TestAllTypes.NestedMessageHRoptionalNestedMessageàY
+optional_foreign_message (2.proto3_unittest.ForeignMessageRoptionalForeignMessage_
+optional_import_message (2'.protobuf_unittest_import.ImportMessageRoenum (2$.protobuf_unittest_import.ImportEnumRoptionalImportEnum6
+optional_string_piece (	BRoptionalStringPiece'
+optional_cord (	BRoptionalCordr
+optional_public_import_message (2-.protobuf_unittest_import.PublicImportMessageRoptionalPublicImportMessagee
+optional_lazy_message (2-.protobuf_unittest.TestAllTypes.NestedMessageB(RoptionalLazyMessage%
+repeated_int32 (RrepeatedInt32%
+repeated_int64  (RrepeatedInt64'
+repeated_uint32! (RrepeatedUint32'
+repeated_uint64" (RrepeatedUint64'
+repeated_sint32# (RrepeatedSint32'
+repeated_sint64$ (RrepeatedSint64)
+repeated_fixed32% (RrepeatedFixed32)
+repeated_fixed64& (RrepeatedFixed64+
+repeated_sfixed32' (RrepeatedSfixed32+
+repeated_sfixed64( (RrepeatedSfixed64%
+repeated_float) (RrepeatedFloat'
+repeated_double* (RrepeatedDouble#
+repeated_bool+ (RrepeatedBool'
+repeated_string, (	RrepeatedString%
+repeated_bytes- (RrepeatedBytesS
+repeatedgroup. (
+2-.protoptional_cord (	BRoptionalCordr
+optional_public_import_message (2-.protobuf_unittest_import.PublicImportMessageRoptionalPublicImportMessagec
+optional_lazy_message (2+.proto3_unittest.TestAllTypes.NestedMessageB(RoptionalLazyMessagel
+optional_lazy_import_messages (2'.protobuf_unittest_impoptionalImportMessageZ
+optional_nested_enum (2(.proto3_unittest.TestAllTypes.NestedEnumRoptionalNestedEnum.TestAllTypes.NestedEnumRoptionalNestedEnumR
+optional_foreign_enum (2.protobuööunittest.ForeignEnumRoptionalForeignEnumV
+optional_import_enum (2$.protobuf_unittest_import.ImportEnumRoptionalImportEnum6
+optional_string_piece (	BRoptionalStringPiece'
+optional_cord (	BRoptionalCordr
+optional_public_import_message (2-.protobuf_unittest_import.PublicImportMessageRoptionalPublicImportMessagee
+optional_lazy_message (2-.protobuf_unittest.TestAllTypes.NestedMessageB(RoptionalLazyMessage%
+repeated_int32 (RrepeatedInt32%
+repeated_int64  (RrepeatedInt64'
+repeated_uint32! (RrepeatedUint32'
+repeated_uint64" (RrepeatedUint64'
+repeated_sint32# (RrepeatedSint32'
+repeated_sint64$ (RrepeatedSint64)
+repeated_fixed32% (RrepeatedFixed32)
+repeated_fixed64& (RrepeatedFixed64+
+repeated_sfixed32' (RrepeatedSfixed32+
+repeated_sfixed64( (RrepeatedSfixed64%
+repeated_float) (RrepeatedFloat'
+repeated_double* (RrepeatedDouble#
+repeated_bool+ (RrepeatedBool'
+repeated_string, (	RrepeatedString%
+repeated_bytes- (RrepeatedBytesS
+repeatedgroup. (
+2-.protoptional_cord (	BRoptionalCordr
+optional_public_import_message (2-.protobuf_unittest_import.PublicImportMessageRoptionalPublicImportMessagec
+optional_lazy_message (2+.proto3_unittest.TestAllTypes.NestedMessageB(RoptionalLazyMessagel
+optional_lazy_import_messages (2'.protobuf_unittest_import.ImportMessageB(RoptionalLazyImportMessage%
+repeated_int32 (RrepeatedInt32%
+repeated_int64  (RrepeatedInt64'
+repeated_uint32! (RrepeatedUint32'
+repeated_uint64" (RrepeatedUint64'
+repeated_sint32# (RrepeatedSint32'
+repeated_sint64$ (RrepeatedSint64)
+repeated_fixed32% (RrepeatedFixed32)
+repeated_fixed64& (RrepeatedFixed64+
+repeated_sfixed32' (RrepeatedSfixed32+
+repeated_sfixed64( (RrepeatedSfixed64%
+repeated_float) (RrepeatedFloat'
+repeated_double* (RrepeatedDouble#
+repeated_bool+ (RrepeatedBool'
+repeated_string, (	RrepeatedString%
+repeated_bytes- (RrepeatedBytesc
+repeated_nested_message0 (2+.proto3_unittest.TestAllTypes.NestedMessageRrepeatedNestedMessageY
+repeated_foreign_message1 (2.proto3_unittest.Fort.ImportMessageRrepeatedImportMessageZ
+repeatobuf_unittest.TestAllTypes.RepeatedGroupRed_nested_enum3 (2(.proto3_unittest.TestAllTypes.NestedEnumRrepeatedNestedEnumP
+repeated_foreign_enum4 (2.proto3_unittest.ForeignEnumRrepeatedForeignEnum6
+repeated_string_piece6 (	BRrepeatedStringPiece'
+repeated_cord7 (	BRrepeatedCorrepeatedcd
